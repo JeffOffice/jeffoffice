@@ -440,6 +440,10 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
             if (const double hs = substituteHeightScale(fams.first(), r.fontWeight() >= QFont::DemiBold); hs != 1)
                 r.setProperty(tp::GlyphScaleY, hs);
         }
+    } else if (f.hasProperty(QTextFormat::FontStretch)) {
+        // A run in the theme's font: its own character scaling only.
+        if (f.fontStretch() != 100) r.setFontStretch(stretchToAsk(f.fontStretch()));
+        else r.clearProperty(QTextFormat::FontStretch);
     }
     // A missing stock font JeffPub has measured: its letters take the
     // original's widths (applyLetterWidths), so lines break as they do there.
