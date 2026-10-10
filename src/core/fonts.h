@@ -12,6 +12,11 @@ int loadBundledFonts();                      // returns number of font files loa
 void installFontSubstitutions();
 QString substituteFor(const QString &family); // empty if none / font available
 int substituteStretch(const QString &family, bool bold = false, bool italic = false);
+// The stretches (percent; regular, bold, italic, bold italic; 0 = none) the
+// table of measured stand-in widths holds, whether or not this platform uses
+// them, for the test that shows how the platform draws them.
+struct StandInStretch { QString family, standIn; int stretch[4]; };
+QList<StandInStretch> standInStretchesForTest();
 // The name to write in files other programs read: a bundled font that is
 // metric-compatible with a standard one (Arimo, Carlito...) is written as
 // that standard font, which every Windows computer has.
