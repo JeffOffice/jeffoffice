@@ -2786,6 +2786,44 @@ private Q_SLOTS:
         QVERIFY(found);
     }
 
+    // Text pasted from a web page can leave a font named "inherit" (the CSS
+    // word) in the font table. It is no font: Publisher draws that text in
+    // the document's usual one, so it reads back in that, not in whatever a
+    // missing family falls back to (a wider face that overflowed the box).
+    void fontNamedInheritIsTheUsualFont()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 300, 100);
+        box->storyId = doc->createStory();
+        QTextCursor c(doc->storyDoc(box->storyId));
+        QTextCharFormat usual, pasted;
+        usual.setFontFamilies(QStringList{QStringLiteral("Georgia")});
+        pasted.setFontFamilies(QStringList{QStringLiteral("inherit")});
+        c.insertText(QStringLiteral("Usual text"), usual);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Pasted text"), pasted);
+        doc->pages[0]->items.push_back(box);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("inherit.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        int checked = 0;
+        for (auto it = back->stories.cbegin(); it != back->stories.cend(); ++it) {
+            const QTextBlock b = (*it)->doc->begin();
+            if (!b.text().startsWith(QLatin1String("Usual"))) continue;
+            for (QTextBlock x = b; x.isValid(); x = x.next())
+                for (auto f = x.begin(); !f.atEnd(); ++f) {
+                    QCOMPARE(f.fragment().charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Georgia"));
+                    ++checked;
+                }
+        }
+        QVERIFY(checked >= 2);
+        QVERIFY(!back->pubFonts.contains(QStringLiteral("inherit")));
+    }
+
     // Save as E-book can make a fixed-layout EPUB: each page as designed (an
     // SVG drawing) at the page's size, its words underneath in reading order,
     // the contents from Heading 1-3 at the pages they're on.

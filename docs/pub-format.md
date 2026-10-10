@@ -453,6 +453,13 @@ older files can list only other slots (3, 4, 6, 7, `0c`); their Latin text
 is in the style's font (Publisher shows Gill Sans MT where those slots say
 Courier New). JeffPub writes slots 0-4.
 
+Text pasted from a web page can leave a font named `inherit` (the CSS word)
+in the font table, and runs that point at it. No font has that name:
+Publisher drew such a run in Calibri (the file's first font), breaking the
+lines where Calibri's widths do (31 lines matched within a pixel), and
+JeffPub takes the style's font for it, else the table's first. Judged from
+Publisher's picture of one file, not tried with another font first.
+
 ### Vertical text
 
 A text box whose text runs top to bottom (a book's spine) has `34:20 = 2`
