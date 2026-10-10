@@ -34,6 +34,10 @@ struct CellInfo
   unsigned m_textDirection = 0;
   // JeffPub: vertical alignment (field 07): 1 middle, 2 bottom, 0 top.
   unsigned m_verticalAlign = 0;
+  // JeffPub: a cell divided by a diagonal is two records at the same place
+  // (field 05, low byte): bit 0 = divided, bit 1 = from top left to bottom
+  // right, bit 2 = the first half (the second half is listed after the grid).
+  unsigned m_split = 0;
   unsigned m_endColumn;
 };
 
@@ -45,7 +49,10 @@ struct CellInfo
 //           column field 5 up to (not including) column field 7.
 //   kind 2: vertical rule on column boundary field 5 (= field 7), from row
 //           field 4 up to (not including) row field 6.
-// The color is the shape's fill color; a rule's width is its line width.
+//   kind 3: the diagonal border of the divided cell at rows field 4 up to
+//           field 6 and columns field 5 up to field 7; a line shape.
+// The color is the shape's fill color (a diagonal's is its line color); a
+// rule's width is its line width.
 struct TableCellFormat
 {
   unsigned kind = 0;

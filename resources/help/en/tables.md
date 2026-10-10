@@ -52,7 +52,7 @@ Use the **Table Design** tab.
 - **Table Formats** is a gallery of ready-made looks. A format sets fills, borders, and heading text.
 - **Cell Fill** colors the selected cells, the cell you are in, or the whole table.
 - For borders, first pick a **Line Color** and a **Line Weight**. Then click **Borders** and choose **All Borders**, **Outside Borders**, **Inside Borders**, **No Border**, or one side such as **Top Border**.
-- **Diagonals** draws a line across a cell. Choose **Divide Down** or **Divide Up**. **No Division** removes it.
+- **Diagonals** draws a line across a cell. Choose **Divide Down** or **Divide Up**. **No Division** removes it. In a .pub file, each half of a divided cell has its own text. JeffPub saves the cell's text in the first half, and opens a cell with text in both halves as one cell, with the second half's text after the first's.
 
 To place text in a cell, use the buttons in **Table Layout > Alignment**: top, middle, or bottom, and left, center, right, or justified. **Cell Margins**, also there, sets the space between a cell's edges and its text: **None**, **Narrow**, **Moderate**, or **Wide**. The top, middle, and bottom buttons and **Cell Margins** change the selected cells, the cell you are in, or every cell when the whole table is selected.
 

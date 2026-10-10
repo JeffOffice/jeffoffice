@@ -620,7 +620,10 @@ QJsonObject TableItem::toJson() const
         if (c.rowSpan > 1) co["rs"] = c.rowSpan;
         if (c.colSpan > 1) co["cs"] = c.colSpan;
         if (c.covered) co["covered"] = true;
-        if (c.diagonal) co["diag"] = c.diagonal;
+        if (c.diagonal) {
+            co["diag"] = c.diagonal;
+            co["diagLine"] = c.diagonalLine.isNone() ? QJsonObject() : c.diagonalLine.toJson();
+        }
         if (c.valign != VAlign::Top) co["valign"] = int(c.valign);
         if (c.vertical) co["vertical"] = true;
         if (!c.hyphenate) co["hyph"] = false;
@@ -670,6 +673,10 @@ void TableItem::fromJson(const QJsonObject &o)
         c.border.bottom = Stroke::fromJson(b["b"].toObject());
         c.border.left = Stroke::fromJson(b["l"].toObject());
         c.border.right = Stroke::fromJson(b["r"].toObject());
+        // Older files drew a diagonal with the cell's top border, or a thin line in the main color.
+        if (c.diagonal)
+            c.diagonalLine = co.contains("diagLine") ? Stroke::fromJson(co["diagLine"].toObject())
+                                                     : (c.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : c.border.top);
         cells.push_back(c);
     }
     cells.resize(rows * cols);

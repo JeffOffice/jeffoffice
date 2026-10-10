@@ -1465,7 +1465,12 @@ void MainWindow::createActions()
             if (!t || !rg.valid()) return;
             m_ed->change(tr("Diagonals"), [&] {
                 for (int r = rg.r0; r <= rg.r1; ++r)
-                    for (int c = rg.c0; c <= rg.c1; ++c) t->cell(r, c).diagonal = diagonal;
+                    for (int c = rg.c0; c <= rg.c1; ++c) {
+                        TableCell &cell = t->cell(r, c);
+                        cell.diagonal = diagonal;
+                        // The line takes the cell's top border, or is a thin line in the main color.
+                        cell.diagonalLine = !diagonal ? Stroke::none() : cell.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : cell.border.top;
+                    }
             });
         });
     }

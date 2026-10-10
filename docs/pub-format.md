@@ -357,6 +357,41 @@ through the object model and drew the same positions as JeffPub, merged and
 turned cells included, and a Publisher-made table opened in JeffPub drew its
 cells at the same places.
 
+A cell divided by a diagonal (Table Layout > Merge > Diagonals) is two
+entries in the cell list, at the same row and column, each with its own text
+and `05` (a u16, type 0x10; read only its low byte, as the first entry's has
+stray high bits): bit 0 = divided, bit 1 = the line runs from top left to
+bottom right (`Cell.Diagonal` 2; 1 is bottom left to top right), bit 2 = the
+first half. So the first half has 5 or 7 and the second 1 or 3. The first
+halves keep the cell's place in the list; the second halves are listed after
+all the grid's cells, in the same order, with the same `01`-`04`, margins, and
+other fields. The text follows the list order, so a divided cell adds a
+paragraph after the grid's text and an end to the `TCD ` list. Each half's
+frame in the frame layout is the whole cell's again, with `12` = 0 instead
+of 219456000. In the object model `Cells(r, c, r, c)` then has two items, the
+first half and the second (`Cell.Diagonal` 1 or 2 on both). Found by dividing
+cells in both directions, with text in both halves, and comparing the saved
+files. Besides the records above, only the story record's `07` and the frame
+layout's first number changed, from 1 to 3 with two divided cells (JeffPub
+writes them as for any table, and Publisher opened its files and read every
+half's text).
+
+Publisher draws the first half in the triangle with the cell's left edge (the
+upper left for `/`, the lower left for `\`) and wraps its text inside it. The
+dividing line itself is only a gridline: nothing prints, and `SaveAsPicture`
+draws it dotted, unless the cell has a diagonal border (Table Design >
+Borders; `Cell.BorderDiagonal`, with a `Weight` and a `Color.RGB` shared by
+both halves). That border is a line shape (type 20) in the table-format
+drawing, like a rule: its client anchor has `01 = 3`, `02` = the table, and
+the cell's grid box in `04`-`07` as a rule's (first row, first column, last
+row, last column), the shape's line color is `01c0` and width `01cb`, and its
+flags have the flip-horizontal bit (0x40) for `/`. JeffPub keeps the line
+along a cell's diagonal, or none, in this shape, and writes only the first
+half's text, with an empty second half. A cell Publisher divided with text in
+both halves opens in JeffPub as one cell with the first half's text, then
+the second half's as further paragraphs (a half with no text adds nothing),
+laid out across the whole cell rather than inside one half.
+
 All the cells' text is one story. Its `0x65` record adds `03:10 = 0`, and
 it has no `0x61` entry. A `TCD ` section (kind `PLC `, id = the story's
 index in SYID) holds: cells - 1, 0, 0xFF00, then each cell's end within

@@ -195,6 +195,7 @@ struct TableCell {
     int rowSpan = 1, colSpan = 1;
     bool covered = false;       // hidden under a merged cell
     int diagonal = 0;           // 0 none, 1 down (\), 2 up (/)
+    Stroke diagonalLine;        // drawn along the diagonal; none draws nothing, as in a .pub cell with no diagonal border
     VAlign valign = VAlign::Top;
     bool vertical = false;      // text direction rotated 90°
     bool hyphenate = true;      // automatic hyphenation
