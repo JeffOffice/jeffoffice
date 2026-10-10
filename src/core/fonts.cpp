@@ -8,6 +8,7 @@
 #include <QGuiApplication>
 #include <QHash>
 #include <QImageReader>
+#include <algorithm>
 
 Q_GUI_EXPORT int qt_defaultDpiY();
 
@@ -471,6 +472,18 @@ int substituteStretch(const QString &family, bool bold, bool italic)
     if (const StandInWidths *w = measuredStandIn(family))
         if (const int s = byStyle(w->stretch, bold, italic)) return s;
     return stretches().value(family, 100);
+}
+
+QList<StandInStretch> standInStretchesForTest()
+{
+    QList<StandInStretch> out;
+    for (auto it = standInWidths().cbegin(); it != standInWidths().cend(); ++it) {
+        StandInStretch s{it.key(), QString::fromLatin1(it->standIn), {}};
+        for (int i = 0; i < 4; ++i) s.stretch[i] = it->stretch[i];
+        out << s;
+    }
+    std::sort(out.begin(), out.end(), [](const StandInStretch &a, const StandInStretch &b) { return a.family < b.family; });
+    return out;
 }
 
 double substituteSpaceEm(const QString &family, bool bold, bool italic)

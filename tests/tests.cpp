@@ -4410,6 +4410,52 @@ private Q_SLOTS:
         QVERIFY2(std::abs(width - want) < want * 0.01, qPrintable(QStringLiteral("%1 pt, not %2").arg(width).arg(want)));
     }
 
+    // A diagnostic for the platform's text engine, which draws a stretched
+    // font its own way (the Mac's narrowed Gill Sans MT's stand-in 6% more than
+    // Windows and Linux, so the Mac keeps the table of stand-in stretches
+    // off): for each family and style the table stretches, one STRETCHPROBE
+    // line gives the face drawn without and with the stretch (family, style,
+    // weight) and the width a sample sentence takes in each.
+    void standInStretchOnThisPlatform()
+    {
+        const QString sample = QStringLiteral("The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs! Sphinx of black quartz, "
+                                              "judge my vow. How vexingly quick daft zebras jump; 2026 Annual Report: Newsletter, Spring Edition.");
+        static const char *const styleNames[4] = {"regular", "bold", "italic", "bolditalic"};
+        jp::LayoutEnv env;
+        qInfo("STRETCHPROBE platform=\"%s\" qt=%s", qPrintable(QGuiApplication::platformName()), qVersion());
+        int cases = 0;
+        for (const jp::StandInStretch &s : jp::standInStretchesForTest()) {
+            QVERIFY2(QFontDatabase::hasFamily(s.standIn), qPrintable(s.family + QStringLiteral(": stand-in ") + s.standIn + QStringLiteral(" is missing")));
+            for (int i = 0; i < 4; ++i) {
+                if (!s.stretch[i]) continue;
+                QTextCharFormat f;
+                f.setFontFamilies(QStringList{s.family});
+                f.setFontPointSize(20);
+                f.setFontWeight(i & 1 ? QFont::Bold : QFont::Normal);
+                f.setFontItalic(i & 2);
+                // As the layout builds the font, then with the stretch left out
+                // or put in as the table has it.
+                QTextCharFormat without = jp::resolveCharFormat(f, env), with = without;
+                without.clearProperty(QTextFormat::FontStretch);
+                with.setFontStretch(s.stretch[i]);
+                const auto face = [](const QFont &font) {
+                    const QFontInfo info(font);
+                    return QStringLiteral("%1|%2|%3").arg(info.family(), info.styleName()).arg(info.weight());
+                };
+                const double w0 = QFontMetricsF(without.font()).horizontalAdvance(sample);
+                const double w1 = QFontMetricsF(with.font()).horizontalAdvance(sample);
+                QVERIFY(w0 > 0);
+                const double ratio = w1 / w0;
+                qInfo("STRETCHPROBE family=\"%s\" style=%s standIn=\"%s\" asked=%d without=\"%s\" with=\"%s\" widthWithout=%.2f widthWith=%.2f ratio=%.4f",
+                      qPrintable(s.family), styleNames[i], qPrintable(s.standIn), s.stretch[i],
+                      qPrintable(face(without.font())), qPrintable(face(with.font())), w0, w1, ratio);
+                QVERIFY2(ratio > 0.5 && ratio < 1.7, qPrintable(QStringLiteral("%1 %2: ratio %3").arg(s.family, QLatin1String(styleNames[i])).arg(ratio)));
+                ++cases;
+            }
+        }
+        QVERIFY(cases > 0);
+    }
+
     // A missing font's stand-in is drawn as high as the real font's letters
     // (Libre Franklin's capitals stand 11% taller than Franklin Gothic
     // Demi's), with its widths and line breaks unchanged.
