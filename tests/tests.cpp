@@ -4388,9 +4388,6 @@ private Q_SLOTS:
     void franklinGothicHeavyStandIn()
     {
         if (QFontDatabase::hasFamily(QStringLiteral("Franklin Gothic Heavy"))) QSKIP("Franklin Gothic Heavy is installed");
-#ifdef Q_OS_MACOS
-        QSKIP("the Mac keeps the stand-ins' own widths for now");
-#endif
         const QString sample = QStringLiteral("The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs! Sphinx of black quartz, "
                                               "judge my vow. How vexingly quick daft zebras jump; 2026 Annual Report: Newsletter, Spring Edition.");
         jp::LayoutEnv env;
@@ -4400,34 +4397,55 @@ private Q_SLOTS:
         const QTextCharFormat r = jp::resolveCharFormat(f, env);
         const QFontInfo info(r.font());
         QCOMPARE(info.family(), QStringLiteral("Libre Franklin"));
+        QVERIFY2(!info.styleName().contains(QLatin1String("Italic")), qPrintable(info.styleName()));
+        const auto widthOf = [&](const QFont &font) {
+            QTextLayout tl(sample, font);
+            tl.beginLayout();
+            QTextLine line = tl.createLine();
+            line.setLineWidth(100000);
+            tl.endLayout();
+            return line.naturalTextWidth();
+        };
+        // The narrowing: 97% of the face's own width, on the Mac too.
+        QTextCharFormat plain = r;
+        plain.clearProperty(QTextFormat::FontStretch);
+        const double narrowed = widthOf(r.font()) / widthOf(plain.font());
+        QVERIFY2(std::abs(narrowed - 0.97) < 0.97 * 0.02, qPrintable(QString::number(narrowed)));
+#ifndef Q_OS_MACOS
+        // The face drawn (the Mac's font matching gives Heavy Libre Franklin Bold, even with
+        // no stretch, so its weight and width differ from the Windows ExtraBold's).
         QVERIFY2(info.weight() >= 750, qPrintable(info.styleName()));
-        QTextLayout tl(sample, r.font());
-        tl.beginLayout();
-        QTextLine line = tl.createLine();
-        line.setLineWidth(100000);
-        tl.endLayout();
-        const double width = line.naturalTextWidth(), want = 98.3008 * 10;
+        const double width = widthOf(r.font()), want = 98.3008 * 10;
         QVERIFY2(std::abs(width - want) < want * 0.01, qPrintable(QStringLiteral("%1 pt, not %2").arg(width).arg(want)));
+#endif
     }
 
-    // A diagnostic for the platform's text engine, which draws a stretched
-    // font its own way (the Mac's narrowed Gill Sans MT's stand-in 6% more than
-    // Windows and Linux, so the Mac keeps the table of stand-in stretches
-    // off): for each family and style the table stretches, one STRETCHPROBE
+    // How the platform's text engine draws the stretched stand-ins (each
+    // engine stretches a font its own way: the Mac applied a QFont's stretch
+    // twice). For each family and style the table stretches, one STRETCHPROBE
     // line gives the face drawn without and with the stretch (family, style,
-    // weight), the width a sample sentence takes in each, and how wide its
-    // letters are drawn; stand-ins the platform can't find are listed too.
-    // It reports only: the platforms' differences are fixed elsewhere.
+    // weight, slant), the width a sample sentence takes in each, and how wide
+    // its letters are drawn; stand-ins the platform can't find are listed too.
+    // Where the face drawn is the stand-in, the stretch must make its text as
+    // wide as asked (within 1.5%, and the Mac's whole-number rounding), in the
+    // slant asked and the style named; every problem is listed at the end.
     void standInStretchOnThisPlatform()
     {
         const QString sample = QStringLiteral("The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs! Sphinx of black quartz, "
                                               "judge my vow. How vexingly quick daft zebras jump; 2026 Annual Report: Newsletter, Spring Edition.");
         static const char *const styleNames[4] = {"regular", "bold", "italic", "bolditalic"};
         jp::LayoutEnv env;
+        QStringList problems;
         qInfo("STRETCHPROBE platform=\"%s\" qt=%s", qPrintable(QGuiApplication::platformName()), qVersion());
-        // Stand-ins this platform's font list can't find by the table's name.
-        for (const QString &fam : jp::standInFamiliesForTest())
-            if (!QFontDatabase::hasFamily(fam)) qInfo("STRETCHPROBE missing=\"%s\"", qPrintable(fam));
+        // Stand-ins this platform's font list can't find, by the table's name or as a style of a family.
+        for (const QString &fam : jp::standInFamiliesForTest()) {
+            const QString here = jp::standInOnThisPlatform(fam);
+            if (here != fam) qInfo("STRETCHPROBE standIn=\"%s\" is a style of \"%s\", which lists: %s", qPrintable(fam), qPrintable(here), qPrintable(QFontDatabase::styles(here).join(QLatin1Char(','))));
+            if (!QFontDatabase::hasFamily(here)) {
+                qInfo("STRETCHPROBE missing=\"%s\"", qPrintable(fam));
+                problems << QStringLiteral("stand-in %1 is missing").arg(fam);
+            }
+        }
         // How wide the sample's letters are drawn, ink edge to ink edge.
         const auto inkWidth = [&](const QFont &font, double advance) {
             QImage img(int(advance * 1.5) + 40, int(QFontMetricsF(font).height() * 2) + 20, QImage::Format_ARGB32_Premultiplied);
@@ -4446,7 +4464,11 @@ private Q_SLOTS:
             }
             return hi >= lo ? double(hi - lo + 1) : 0.0;
         };
-        int cases = 0;
+        const auto face = [](const QFont &font) {
+            const QFontInfo info(font);
+            return QStringLiteral("%1|%2|%3").arg(info.family(), info.styleName()).arg(info.weight());
+        };
+        int cases = 0, checked = 0;
         for (const jp::StandInStretch &s : jp::standInStretchesForTest()) {
             for (int i = 0; i < 4; ++i) {
                 if (!s.stretch[i]) continue;
@@ -4455,26 +4477,189 @@ private Q_SLOTS:
                 f.setFontPointSize(20);
                 f.setFontWeight(i & 1 ? QFont::Bold : QFont::Normal);
                 f.setFontItalic(i & 2);
-                // As the layout builds the font, then with the stretch left out
-                // or put in as the table has it.
-                QTextCharFormat without = jp::resolveCharFormat(f, env), with = without;
+                // As the layout builds the font (the table's stretch in it where the
+                // stand-in is what is drawn), then with the stretch left out.
+                const QTextCharFormat with = jp::resolveCharFormat(f, env);
+                QTextCharFormat without = with;
                 without.clearProperty(QTextFormat::FontStretch);
-                with.setFontStretch(s.stretch[i]);
-                const auto face = [](const QFont &font) {
-                    const QFontInfo info(font);
-                    return QStringLiteral("%1|%2|%3").arg(info.family(), info.styleName()).arg(info.weight());
-                };
                 const double w0 = QFontMetricsF(without.font()).horizontalAdvance(sample);
                 const double w1 = QFontMetricsF(with.font()).horizontalAdvance(sample);
                 QVERIFY(w0 > 0);
                 const double i0 = inkWidth(without.font(), w0), i1 = inkWidth(with.font(), w1);
-                qInfo("STRETCHPROBE family=\"%s\" style=%s standIn=\"%s\" asked=%d without=\"%s\" with=\"%s\" widthWithout=%.2f widthWith=%.2f ratio=%.4f inkRatio=%.4f",
+                const QFontInfo info(with.font());
+                qInfo("STRETCHPROBE family=\"%s\" style=%s standIn=\"%s\" asked=%d without=\"%s\" with=\"%s\" italic=%d widthWithout=%.2f widthWith=%.2f ratio=%.4f inkRatio=%.4f",
                       qPrintable(s.family), styleNames[i], qPrintable(s.standIn), s.stretch[i],
-                      qPrintable(face(without.font())), qPrintable(face(with.font())), w0, w1, w1 / w0, i0 > 0 ? i1 / i0 : 0.0);
+                      qPrintable(face(without.font())), qPrintable(face(with.font())), info.italic(), w0, w1, w1 / w0, i0 > 0 ? i1 / i0 : 0.0);
                 ++cases;
+                // Only the stand-in itself is checked (the Mac draws Rockwell and Tahoma in its own fonts).
+                const QString drawn = info.family();
+                if (drawn.compare(s.standIn, Qt::CaseInsensitive) != 0 && !s.standIn.startsWith(drawn + QLatin1Char(' '), Qt::CaseInsensitive)) continue;
+                ++checked;
+                const QString what = QStringLiteral("%1 %2 drawn as %3").arg(s.family, styleNames[i], face(with.font()));
+                // A stretch can make Qt pick another face of the family (DejaVu Sans' Condensed),
+                // which is as wide as it is; the whole numbers the Mac is asked for can't all hit the width.
+                if (face(without.font()) == face(with.font())) {
+                    const int asked = s.stretch[i], sent = jp::stretchToAsk(asked);
+                    const double tolerance = 0.015 + (sent != asked ? 1.0 / sent : 0.0);
+                    if (std::abs(w1 / w0 / (asked / 100.0) - 1) > tolerance)
+                        problems << QStringLiteral("%1: %2 times as wide, not %3").arg(what).arg(w1 / w0, 0, 'f', 4).arg(asked / 100.0);
+                }
+                if (info.italic() != bool(i & 2))
+                    problems << QStringLiteral("%1: italic is %2").arg(what).arg(info.italic());
+                if (!(i & 2) && (info.styleName().contains(QLatin1String("Italic"), Qt::CaseInsensitive) || info.styleName().contains(QLatin1String("Oblique"), Qt::CaseInsensitive)))
+                    problems << QStringLiteral("%1: an italic face, none asked").arg(what);
+                // A stand-in that is a style of a family (Selawik Light) is drawn in that style, where the family lists it.
+                const QString style = s.standIn.mid(drawn.size() + 1);
+                if (!(i & 1) && drawn.compare(s.standIn, Qt::CaseInsensitive) != 0 && QFontDatabase::styles(drawn).contains(style, Qt::CaseInsensitive)
+                    && info.styleName().compare(style, Qt::CaseInsensitive) != 0)
+                    problems << QStringLiteral("%1: not the style %2").arg(what, style);
             }
         }
+        for (const QString &p : problems) qInfo("STRETCHPROBE problem=\"%s\"", qPrintable(p));
         QVERIFY(cases > 0);
+        QVERIFY(checked > 0);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
+    }
+
+    // The stretch handed to Qt: as asked, but on the Mac, which applies it
+    // twice (a run at 80% drew at 64%), the whole number whose square is
+    // nearest. A run's own scaling draws that wide on every platform.
+    void stretchToAskDrawsTheWidthWanted()
+    {
+        QCOMPARE(jp::stretchToAsk(95, true), 97);
+        QCOMPARE(jp::stretchToAsk(85, true), 92);
+        QCOMPARE(jp::stretchToAsk(64, true), 80);
+        QCOMPARE(jp::stretchToAsk(119, true), 109);
+        QCOMPARE(jp::stretchToAsk(100, true), 100);
+        QCOMPARE(jp::stretchToAsk(1, true), 10);
+        QCOMPARE(jp::stretchToAsk(4000, true), 632);
+        for (int p = 1; p <= 4000; ++p) {
+            QCOMPARE(jp::stretchToAsk(p, false), p);
+            const int s = jp::stretchToAsk(p, true);
+            QVERIFY2(std::abs(s * s - 100 * p) <= s, qPrintable(QStringLiteral("%1 -> %2").arg(p).arg(s)));
+        }
+        const QString sample = QStringLiteral("The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs!");
+        jp::LayoutEnv env;
+        const auto width = [&](int scale) {
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{QStringLiteral("Arimo")});
+            f.setFontPointSize(20);
+            if (scale != 100) f.setFontStretch(scale);
+            return QFontMetricsF(jp::resolveCharFormat(f, env).font()).horizontalAdvance(sample);
+        };
+        for (int scale : {50, 80, 95, 119, 150}) {
+            const int sent = jp::stretchToAsk(scale);
+            const double ratio = width(scale) / width(100);
+            QVERIFY2(std::abs(ratio / (scale / 100.0) - 1) < 0.015 + (sent != scale ? 1.0 / sent : 0.0),
+                     qPrintable(QStringLiteral("%1%% is drawn %2").arg(scale).arg(ratio)));
+        }
+    }
+
+    // Selawik's Light, Semilight, and Semibold are families of their own on
+    // Linux and styles of the family Selawik on Windows and the Mac: a font
+    // whose stand-in is one of them is drawn in Selawik's style, not Arimo.
+    void standInNamesOnThisPlatform()
+    {
+        QCOMPARE(jp::standInOnThisPlatform(QStringLiteral("Arimo")), QStringLiteral("Arimo"));
+        QCOMPARE(jp::standInOnThisPlatform(QStringLiteral("Arimo Madeup Style")), QStringLiteral("Arimo"));
+        QCOMPARE(jp::standInOnThisPlatform(QStringLiteral("Nonesuch Madeup")), QStringLiteral("Nonesuch Madeup"));
+        QCOMPARE(jp::standInOnThisPlatform(QString()), QString());
+        for (const char *weight : {"Light", "Semilight", "Semibold"}) {
+            const QString name = QStringLiteral("Selawik ") + QLatin1String(weight), here = jp::standInOnThisPlatform(name);
+            QVERIFY2(QFontDatabase::hasFamily(here), qPrintable(name + QStringLiteral(" -> ") + here));
+        }
+        QVERIFY(jp::substituteStyleName(QStringLiteral("Arimo")).isEmpty());
+        QVERIFY(jp::substituteStyleName(QStringLiteral("Franklin Gothic Heavy")).isEmpty());
+        if (QFontDatabase::hasFamily(QStringLiteral("Segoe UI Light")) || QFontDatabase::hasFamily(QStringLiteral("Segoe UI Semibold")))
+            QSKIP("Segoe UI is installed");
+        const bool family = QFontDatabase::hasFamily(QStringLiteral("Selawik Light"));
+        QCOMPARE(jp::substituteStyleName(QStringLiteral("Segoe UI Light")), family ? QString() : QStringLiteral("Light"));
+        QCOMPARE(jp::substituteStyleName(QStringLiteral("Segoe UI Semibold")), family ? QString() : QStringLiteral("Semibold"));
+        // The font database is asked for the family's name: Selawik, never Arimo.
+        for (const QString &name : {QStringLiteral("Segoe UI Light"), QStringLiteral("Segoe UI Semilight"), QStringLiteral("Segoe UI Semibold")}) {
+            QFont f(name);
+            f.setFamilies({name});
+            QVERIFY2(QFontInfo(f).family().startsWith(QLatin1String("Selawik")), qPrintable(name + QStringLiteral(": ") + QFontInfo(f).family()));
+        }
+        // And a run in it is drawn in the style its name says where the family lists it (Light
+        // apart from Semilight, which both weigh 300).
+        jp::LayoutEnv env;
+        for (const char *weight : {"Light", "Semilight", "Semibold"}) {
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{QStringLiteral("Segoe UI ") + QLatin1String(weight)});
+            f.setFontPointSize(20);
+            const QFontInfo info(jp::resolveCharFormat(f, env).font());
+            QVERIFY2(info.family().startsWith(QLatin1String("Selawik")), qPrintable(QStringLiteral("%1|%2").arg(info.family(), info.styleName())));
+            if (QFontDatabase::styles(info.family()).contains(QLatin1String(weight), Qt::CaseInsensitive))
+                QVERIFY2(info.styleName().compare(QLatin1String(weight), Qt::CaseInsensitive) == 0, qPrintable(QStringLiteral("%1|%2").arg(info.family(), info.styleName())));
+        }
+    }
+
+    // A bundled font whose letters slant but whose flags say upright is not
+    // told from the upright face by DirectWrite, and Qt on Windows drew
+    // Franklin Gothic Heavy in the italic: its flags are set on loading,
+    // with the checksums a font program checks; nothing else changes.
+    void italicFlagsOfBundledFont()
+    {
+        const auto read = [](const char *name) {
+            QFile f(QStringLiteral(JP_TEST_DATA "/../../resources/fonts/") + QLatin1String(name));
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+        };
+        const auto u16 = [](const QByteArray &b, qsizetype at) { return quint16(uchar(b[at]) << 8 | uchar(b[at + 1])); };
+        const auto u32 = [&](const QByteArray &b, qsizetype at) { return quint32(u16(b, at)) << 16 | u16(b, at + 2); };
+        const auto sum = [&](QByteArray b) {
+            b.append(QByteArray((4 - b.size() % 4) % 4, '\0'));
+            quint32 total = 0;
+            for (qsizetype at = 0; at < b.size(); at += 4) total += u32(b, at);
+            return total;
+        };
+        const QByteArray broken = read("LibreFranklin-ExtraBoldItalic.ttf");
+        QVERIFY(!broken.isEmpty());
+        const QByteArray fixed = jp::fontWithItalicFlags(broken);
+        QVERIFY(!fixed.isEmpty());
+        QCOMPARE(fixed.size(), broken.size());
+        QMap<QByteArray, qsizetype> tables;
+        for (int i = 0, n = u16(fixed, 4); i < n; ++i) tables.insert(fixed.mid(12 + 16 * i, 4), 12 + 16 * i);
+        const qsizetype os2 = u32(fixed, tables.value("OS/2") + 8), head = u32(fixed, tables.value("head") + 8);
+        QVERIFY(u16(fixed, os2 + 62) & 1);          // fsSelection: italic
+        QVERIFY(!(u16(fixed, os2 + 62) & 64));      // and not regular
+        QVERIFY(u16(fixed, head + 44) & 2);         // macStyle: italic
+        QCOMPARE(u16(fixed, os2 + 4), quint16(800));   // the weight is the font's own
+        // Every table's checksum, the head table's with its adjustment left out, and the whole file's.
+        for (auto it = tables.cbegin(); it != tables.cend(); ++it) {
+            const qsizetype at = u32(fixed, it.value() + 8), length = u32(fixed, it.value() + 12);
+            QByteArray table = fixed.mid(at, length);
+            if (it.key() == "head") table.replace(8, 4, QByteArray(4, '\0'));
+            QCOMPARE(sum(table), u32(fixed, it.value() + 4));
+        }
+        QCOMPARE(sum(fixed), quint32(0xB1B0AFBA));
+        // Only the flags and checksums differ.
+        int differing = 0;
+        for (qsizetype i = 0; i < fixed.size(); ++i) differing += fixed[i] != broken[i];
+        QVERIFY2(differing <= 14, qPrintable(QString::number(differing)));   // two flag bytes, three checksums, the adjustment
+        // Fonts that need nothing are left alone.
+        QVERIFY(jp::fontWithItalicFlags(fixed).isEmpty());
+        QVERIFY(jp::fontWithItalicFlags(read("LibreFranklin-ExtraBold.ttf")).isEmpty());
+        QVERIFY(jp::fontWithItalicFlags(read("LibreFranklin-BoldItalic.ttf")).isEmpty());
+        QVERIFY(jp::fontWithItalicFlags(QByteArray("not a font")).isEmpty());
+        QVERIFY(jp::fontWithItalicFlags(QByteArray()).isEmpty());
+    }
+
+    // Every bundled face named Italic (family and style together: Linux lists
+    // "Libre Franklin ExtraBold Italic" as a family with the style Regular) is
+    // italic to the platform's font database, and no other is. The ExtraBold
+    // Italic was upright to DirectWrite, so a request for Franklin Gothic
+    // Heavy could get it.
+    void bundledFacesKeepTheirSlant()
+    {
+        QStringList wrong;
+        for (const QString &family : jp::bundledFamilies())
+            for (const QString &style : QFontDatabase::styles(family)) {
+                const QString name = family + QLatin1Char(' ') + style;
+                if (name.contains(QLatin1String("Oblique"), Qt::CaseInsensitive)) continue;   // (italic() is false for an oblique)
+                if (QFontDatabase::italic(family, style) != name.contains(QLatin1String("Italic"), Qt::CaseInsensitive)) wrong << name;
+            }
+        QVERIFY2(wrong.isEmpty(), qPrintable(wrong.join(QLatin1String(", "))));
     }
 
     // A missing font's stand-in is drawn as high as the real font's letters
@@ -5838,16 +6023,29 @@ private Q_SLOTS:
         plain.setFontFamilies(QStringList{QStringLiteral("Franklin Gothic Heavy")});
         plain.setFontPointSize(10);
         const QTextCharFormat base = jp::resolveCharFormat(plain, env);
+        // The stand-in's narrowing as the table has it (97), before the scaling.
+        const int narrowing = jp::substituteStretch(QStringLiteral("Franklin Gothic Heavy"));
+        QVERIFY(narrowing < 100);
+        const QString sample = QStringLiteral("The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs!");
+        double width100 = 0;
         for (int scale : {100, 80}) {
             QTextCharFormat f = plain;
             f.setFontStretch(scale);
             const QTextCharFormat r = jp::resolveCharFormat(f, env);
             QCOMPARE(r.fontWeight(), base.fontWeight());
-            const int want = int(std::lround((base.hasProperty(QTextFormat::FontStretch) ? base.fontStretch() : 100) * scale / 100.0));
-            QCOMPARE(r.hasProperty(QTextFormat::FontStretch) ? r.fontStretch() : 100, want);
+            // The stretch asked of Qt is the narrowing times the scaling (the Mac is asked for another number).
+            const int want = int(std::lround(narrowing * scale / 100.0));
+            QCOMPARE(r.hasProperty(QTextFormat::FontStretch) ? r.fontStretch() : 100, want == 100 ? 100 : jp::stretchToAsk(want));
+            // And it is drawn that wide: 80% of the run's width at 100%.
+            const double width = QFontMetricsF(r.font()).horizontalAdvance(sample);
+            if (scale == 100) width100 = width;
+            else {
+                const int sent = jp::stretchToAsk(want);
+                const double ratio = width / width100;
+                QVERIFY2(std::abs(ratio / (scale / 100.0) - 1) < 0.02 + (sent != want ? 2.0 / sent : 0.0), qPrintable(QString::number(ratio)));
+            }
 #ifndef Q_OS_MACOS
-            // The face drawn (the Mac's font matching picks Bold for a
-            // narrowed ExtraBold; it keeps the stand-ins' own widths for now).
+            // The face drawn (the Mac's font matching picks Bold for ExtraBold, with or without a stretch).
             QVERIFY2(QFontInfo(r.font()).weight() >= 750, qPrintable(QFontInfo(r.font()).styleName()));
 #endif
         }

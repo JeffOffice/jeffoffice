@@ -59,9 +59,12 @@ int main(int argc, char **argv)
         f.setBold(style.contains(QLatin1Char('b')));
         f.setItalic(style.contains(QLatin1Char('i')));
         const int st = substituteStretch(in, f.bold(), f.italic());
-        if (st != 100) f.setStretch(st);
+        if (st != 100) f.setStretch(stretchToAsk(st));
         const int wt = substituteWeight(in);
-        if (wt > 0 && !f.bold()) f.setWeight(QFont::Weight(wt));
+        if (wt > 0 && !f.bold()) {
+            f.setWeight(QFont::Weight(wt));
+            if (const QString style = substituteStyleName(in); !style.isEmpty()) f.setStyleName(style);
+        }
         f.setPixelSize(1000);
         const QFontMetricsF fm(f);
         const double space = substituteSpaceEm(in, f.bold(), f.italic());
