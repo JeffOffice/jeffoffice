@@ -708,6 +708,10 @@ public:
         m_table->header = false;
         m_table->banded = false;
         m_table->growToFit = false;
+        // A table's text is one story, so the file's hyphenation (off, and the
+        // zone) is the whole table's: every cell takes it.
+        m_tableHyphenate = !(p["jp:no-hyphenation"] && p["jp:no-hyphenation"]->getInt());
+        m_tableHyphenZone = p["jp:hyphenation-zone"] ? toPt(p["jp:hyphenation-zone"]) : TableCell().hyphenZone;
     }
     void openTableRow(const RVNGPropertyList &p) override
     {
@@ -761,6 +765,8 @@ public:
         c.valign = va == "middle" ? VAlign::Middle : va == "bottom" ? VAlign::Bottom : VAlign::Top;
         if (p["fo:padding-left"])
             c.margins = QMarginsF(toPt(p["fo:padding-left"]), toPt(p["fo:padding-top"]), toPt(p["fo:padding-right"]), toPt(p["fo:padding-bottom"]));
+        // Text Direction: 2 turns the cell's text a quarter turn.
+        if (p["jp:text-direction"] && p["jp:text-direction"]->getInt() == 2) c.vertical = true;
         m_cells.back().push_back(c);
         useStory(m_doc.storyDoc(c.storyId));
         m_firstPara = true;
@@ -791,7 +797,11 @@ public:
         t->cells.clear();
         for (auto &r : m_cells) {
             while (int(r.size()) < cols) { TableCell c; c.storyId = m_doc.createStory(); r.push_back(c); }
-            for (auto &c : r) t->cells.push_back(c);
+            for (auto &c : r) {
+                c.hyphenate = m_tableHyphenate;
+                c.hyphenZone = m_tableHyphenZone;
+                t->cells.push_back(c);
+            }
         }
         // Scale columns and rows to the table frame libmspub gave us.
         double sw = 0, sh = 0;
@@ -1498,6 +1508,8 @@ private:
     std::vector<PendingGlue> m_glue;
     std::map<int, int> m_linkCount;
     std::shared_ptr<TableItem> m_table;
+    bool m_tableHyphenate = true;
+    double m_tableHyphenZone = 18;
     std::vector<std::vector<TableCell>> m_cells;
     int m_row = -1;
 };

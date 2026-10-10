@@ -136,6 +136,7 @@ public:
   }
   void setShapeFillSpot(unsigned seqNum, const std::string &ink) { m_shapeInfosBySeqNum[seqNum].m_fillSpot = ink; }
   void setTextNotHyphenated(unsigned textId) { m_notHyphenated.insert(textId); }
+  void setTextHyphenationZone(unsigned textId, unsigned emu) { m_hyphenationZones[textId] = emu; }
   void setTextAutofit(unsigned textId, unsigned kind) { m_autofit[textId] = kind; }
   void setShapeInlineNum(unsigned seqNum, unsigned num) { m_shapeInfosBySeqNum[seqNum].m_inlineNum = num; }
   // JeffPub patch: a field or hyperlink in a story (its TOKN entry): where it
@@ -214,6 +215,7 @@ private:
   std::vector<librevenge::RVNGString> m_styleNames;   // JeffPub: by style index
   std::map<unsigned, unsigned> m_shapeTypesBySeqNum;
   std::set<unsigned> m_notHyphenated; // JeffPub patch: text ids of stories without automatic hyphenation
+  std::map<unsigned, unsigned> m_hyphenationZones; // JeffPub patch: text id -> hyphenation zone in EMUs (when not the default)
   std::map<unsigned, unsigned> m_autofit; // JeffPub patch: text id -> AutoFit Text (1 best fit, 2 shrink, 3 grow)
   // JeffPub patch: objects set in text. Per story (text id), each object's
   // character position and number (EOBJ); the numbers any story uses; and
