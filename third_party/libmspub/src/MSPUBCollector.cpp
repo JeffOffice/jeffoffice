@@ -2237,8 +2237,19 @@ librevenge::RVNGPropertyList MSPUBCollector::getCharStyleProps(const CharacterSt
     ret.insert("fo:color", getColorString(Color(0, 0, 0)));  // default color is black
     ret.insert("jp:color-default", true);   // JeffPub: no color of its own (links show theirs)
   }
+  // JeffPub: a font named "inherit" (the CSS word, left in the font table by
+  // text pasted from a web page) is no font; the run takes its style's, which
+  // is how Publisher draws it.
+  const auto isFont = [this](unsigned i)
+  {
+    if (i >= m_fonts.size())
+      return false;
+    librevenge::RVNGString name;
+    appendCharacters(name, m_fonts[i], getCalculatedEncoding());
+    return strcmp(name.cstr(), "inherit") != 0;
+  };
   if (bool(style.fontIndex) &&
-      style.fontIndex.get() < m_fonts.size())
+      isFont(style.fontIndex.get()))
   {
     librevenge::RVNGString str;
     appendCharacters(str, m_fonts[style.fontIndex.get()],
@@ -2246,7 +2257,7 @@ librevenge::RVNGPropertyList MSPUBCollector::getCharStyleProps(const CharacterSt
     ret.insert("style:font-name", str);
   }
   else if (bool(defaultCharStyle.fontIndex) &&
-           defaultCharStyle.fontIndex.get() < m_fonts.size())
+           isFont(defaultCharStyle.fontIndex.get()))
   {
     librevenge::RVNGString str;
     appendCharacters(str, m_fonts[defaultCharStyle.fontIndex.get()],
