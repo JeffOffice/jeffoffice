@@ -294,7 +294,12 @@ public:
     }
     void drawPolygon(const RVNGPropertyList &p) override
     {
-        if (const RVNGPropertyListVector *v = p.child("svg:points")) addPath(pathFromPoints(*v, true), false);
+        if (const RVNGPropertyListVector *v = p.child("svg:points")) {
+            // Two points are Publisher's straight line. Closed, the path
+            // turns back on itself and its join juts out past both ends.
+            const bool line = v->count() == 2;
+            addPath(pathFromPoints(*v, !line), line);
+        }
     }
     void drawPolyline(const RVNGPropertyList &p) override
     {

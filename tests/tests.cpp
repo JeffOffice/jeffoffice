@@ -16399,6 +16399,62 @@ private Q_SLOTS:
         }
     }
 
+    // A straight line from Publisher's line tool (shape 20, two points) comes
+    // back as a line with flat ends. It came in as a closed outline of two
+    // points, and the join where that outline turns back on itself pushed a
+    // spike out past each end: a car wash flyer's 18-pt bars stuck out of
+    // their frame by twice their width.
+    void pubStraightLineIsALine()
+    {
+        auto doc = Document::blank(QSizeF(612, 792));
+        const QPointF ends[2][2] = {{QPointF(100, 200), QPointF(400, 200)}, {QPointF(500, 300), QPointF(500, 600)}};
+        for (const auto &e : ends) {
+            auto l = std::make_shared<LineItem>();
+            l->p1 = e[0];
+            l->p2 = e[1];
+            l->stroke.color = ColorRef::rgb(Qt::black);
+            l->stroke.width = 18;
+            l->syncRect();
+            doc->pages[0]->items.push_back(l);
+        }
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("lines.pub"));
+        QString err;
+        QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+        // JeffPub writes a line as a straight connector (shape 32); Publisher's
+        // own are shape 20.
+        auto kind = [](int k) {
+            QByteArray b(4, 0);
+            qToLittleEndian<quint16>(quint16(2 | (k << 4)), b.data());
+            qToLittleEndian<quint16>(0xf00a, b.data() + 2);
+            return b;
+        };
+        QByteArray escher = cfb::readStream(path, QStringLiteral("Escher/EscherStm"));
+        QCOMPARE(int(escher.count(kind(32))), 2);
+        escher.replace(kind(32), kind(20));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        cfb::File file;
+        QVERIFY(cfb::read(f.readAll(), &file, &err));
+        QVERIFY(file.setStream(QStringLiteral("Escher/EscherStm"), escher));
+        auto back = importPublisher(cfb::write(file), nullptr);
+        QVERIFY(back);
+        int lines = 0;
+        for (const auto &it : back->pages[0]->items) lines += it->type() == ItemType::Line;
+        QCOMPARE(lines, 2);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = back.get();
+        ctx.cache = &cache;
+        ctx.opt.output = true;
+        const QImage page = Renderer::renderToImage(ctx, 0, 1.0);
+        auto dark = [&](int x, int y) { return QColor(page.pixel(x, y)).value() < 128; };
+        QVERIFY(dark(250, 200) && dark(105, 200) && dark(395, 200));
+        QVERIFY2(!dark(95, 200) && !dark(405, 200), "the horizontal line has flat ends");
+        QVERIFY(dark(500, 450) && dark(500, 305) && dark(500, 595));
+        QVERIFY2(!dark(500, 295) && !dark(500, 605), "the vertical line has flat ends");
+    }
+
     // Best fit grows text only as far as the box holds it: a banner's short
     // headline grew to fill the width, its one line three times taller than
     // the box (Publisher's banner designs fit theirs inside).
