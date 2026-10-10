@@ -589,7 +589,9 @@ public:
             cf.setFontFamilies(QStringList{font});
             if (!m_rep.fontsUsed.contains(font)) m_rep.fontsUsed << font;
         }
-        if (p["fo:font-size"]) cf.setFontPointSize(toPt(p["fo:font-size"]));
+        // Text no run or style gives a size is 12 pt in Publisher, not
+        // JeffPub's 11 (a flyer's body text names only its font).
+        cf.setFontPointSize(p["fo:font-size"] ? toPt(p["fo:font-size"]) : 12);
         const QString w = str(p["fo:font-weight"]);
         if (w == "bold" || w.toInt() >= 600) cf.setFontWeight(QFont::Bold);
         if (str(p["fo:font-style"]) == "italic") cf.setFontItalic(true);

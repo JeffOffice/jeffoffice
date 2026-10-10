@@ -16455,6 +16455,61 @@ private Q_SLOTS:
         QVERIFY2(!dark(500, 295) && !dark(500, 605), "the vertical line has flat ends");
     }
 
+    // Text whose size no run, style, or paragraph gives is 12 pt, as
+    // Publisher draws its car wash flyer's body text (the file's styles name
+    // only a font): it was 11, the size of JeffPub's own blank text, and
+    // each line came out an eleventh shorter.
+    void pubTextWithoutSizeIs12()
+    {
+        auto doc = Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("Sized by nobody"));
+        {
+            QTextCursor c(doc->storyDoc(t->storyId));
+            c.select(QTextCursor::Document);
+            c.setCharFormat(QTextCharFormat());
+        }
+        doc->pages[0]->items.push_back(t);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("size.pub"));
+        QString err;
+        QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+        auto sizeOf = [&](const QByteArray &bytes) {
+            auto back = importPublisher(bytes, nullptr);
+            double size = -1;
+            if (back) {
+                for (const auto &it : back->pages[0]->items)
+                    if (auto *tb = dynamic_cast<const TextItem *>(it.get()); tb && tb->storyId.size()) {
+                        const QTextBlock b = back->storyDoc(tb->storyId)->begin();
+                        size = b.begin().fragment().charFormat().fontPointSize();
+                    }
+            }
+            return size;
+        };
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        // The Normal style names its size (JeffPub writes 10 pt)...
+        QCOMPARE(sizeOf(bytes), 10.0);
+        // ...and without that, nothing does.
+        cfb::File file;
+        QVERIFY(cfb::read(bytes, &file, &err));
+        QByteArray quill = cfb::readStream(path, QStringLiteral("Quill/QuillSub/CONTENTS"));
+        auto prop = [](quint8 id) {
+            QByteArray b(6, 0);
+            b[0] = char(id);
+            b[1] = char(0x22);
+            qToLittleEndian<quint32>(127000u, b.data() + 2);
+            return b;
+        };
+        QVERIFY(quill.count(prop(0x0c)) >= 1);
+        quill.replace(prop(0x0c), prop(0x7e));
+        quill.replace(prop(0x39), prop(0x7f));
+        QVERIFY(file.setStream(QStringLiteral("Quill/QuillSub/CONTENTS"), quill));
+        QCOMPARE(sizeOf(cfb::write(file)), 12.0);
+    }
+
     // Best fit grows text only as far as the box holds it: a banner's short
     // headline grew to fill the width, its one line three times taller than
     // the box (Publisher's banner designs fit theirs inside).
