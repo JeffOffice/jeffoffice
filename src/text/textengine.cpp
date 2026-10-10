@@ -541,7 +541,10 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (ss > 0 && ss <= 20) f.setFeature(QFont::Tag::fromString(QStringLiteral("ss%1").arg(ss, 2, 10, QChar('0'))).value_or(QFont::Tag()), 1);
     if (cf.boolProperty(tp::Swash)) f.setFeature(QFont::Tag("swsh"), 1);
     if (cf.boolProperty(tp::Alternates)) f.setFeature(QFont::Tag("salt"), 1);
+    // Other capitals are made in the layout's text, run by run (buildOnce); Qt
+    // would take them from this font, the first run's, for the whole paragraph.
     if (cf.boolProperty(tp::TrueSmallCaps)) f.setFeature(QFont::Tag("smcp"), 1);
+    else f.setCapitalization(QFont::MixedCase);
     return f;
 }
 
