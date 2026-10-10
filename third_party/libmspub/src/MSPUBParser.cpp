@@ -1033,6 +1033,11 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
                   case 0x06:
                     currentCell.m_textDirection = subInfo.data;
                     break;
+                  // JeffPub: 0x07 is the cell's vertical alignment (1 middle, 2 bottom). The first
+                  // cell's value has stray bits above the low byte in Publisher's files.
+                  case 0x07:
+                    currentCell.m_verticalAlign = subInfo.data & 0xff;
+                    break;
                   // JeffPub: 0x0a-0x0d are the cell's left, right, top and bottom margins.
                   case 0x0a:
                   case 0x0b:

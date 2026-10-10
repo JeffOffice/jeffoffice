@@ -2708,7 +2708,9 @@ void tintsDialog(QWidget *p, Editor *ed, const std::function<void(const ColorRef
 void hyphenationDialog(QWidget *p, Editor *ed)
 {
     // The story of the text box being typed in or selected: all its boxes.
-    // In a table, the selected cells, the cell being typed in, or with the table selected, every cell.
+    // In a table, the selected cells, the cell being typed in, or with the table selected, every cell:
+    // the dialog shows the first of them and Add Optional Hyphens works on them. The setting itself
+    // is the whole table's, as its cells are one story.
     Document *d = ed->doc();
     const QString id = ed->isEditingText() ? ed->textTarget().itemId : (ed->single() ? ed->single()->id : QString());
     auto *t = dynamic_cast<TextItem *>(d->item(id));
@@ -2755,10 +2757,11 @@ void hyphenationDialog(QWidget *p, Editor *ed)
             f->hyphenate = autoH->isChecked();
             f->hyphenZone = zone->value();
         }
-        for (TableCell *c : cells) {
-            c->hyphenate = autoH->isChecked();
-            c->hyphenZone = zone->value();
-        }
+        if (tb)
+            for (TableCell &c : tb->cells) {
+                c.hyphenate = autoH->isChecked();
+                c.hyphenZone = zone->value();
+            }
         if (tb) ed->fitTableRows(tb);   // words wrap differently
     });
 }

@@ -387,6 +387,7 @@ public:
         applyWrap(*t, p);
         // Stories marked in the file as not hyphenated (others are).
         if (p["jp:no-hyphenation"] && p["jp:no-hyphenation"]->getInt()) t->hyphenate = false;
+        if (p["jp:hyphenation-zone"]) t->hyphenZone = toPt(p["jp:hyphenation-zone"]);
         if (p["jp:shape-seq"]) m_seqItems[p["jp:shape-seq"]->getInt()] = t->id;
         // AutoFit Text: 1 best fit, 2 shrink on overflow, 3 grow the box.
         if (p["jp:autofit"]) {

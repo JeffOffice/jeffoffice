@@ -1403,6 +1403,10 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
               }
               if (ci < tinfo.m_cells.size() && tinfo.m_cells[ci].m_textDirection)
                 cellProps.insert("jp:text-direction", int(tinfo.m_cells[ci].m_textDirection));
+              if (ci < tinfo.m_cells.size() && tinfo.m_cells[ci].m_verticalAlign == 1)
+                cellProps.insert("style:vertical-align", "middle");
+              else if (ci < tinfo.m_cells.size() && tinfo.m_cells[ci].m_verticalAlign == 2)
+                cellProps.insert("style:vertical-align", "bottom");
             }
             // JeffPub: fills and borders from the table's formatting shapes.
             {
@@ -1513,6 +1517,9 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
           props.insert("jp:inline-num", int(get(info.m_inlineNum)));
         if (m_notHyphenated.count(get(info.m_textId)))
           props.insert("jp:no-hyphenation", true);
+        const auto zone = m_hyphenationZones.find(get(info.m_textId));
+        if (zone != m_hyphenationZones.end())
+          props.insert("jp:hyphenation-zone", double(zone->second) / EMUS_IN_INCH);
         const auto fit = m_autofit.find(get(info.m_textId));
         if (fit != m_autofit.end())
           props.insert("jp:autofit", (int)fit->second);

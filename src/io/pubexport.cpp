@@ -1658,6 +1658,7 @@ QByteArray PubWriter::write(QStringList *skipped)
             const int tid = textId++;
             addStory(tid, sd);
             if (!t->hyphenate) m_notHyphenated << tid;
+            if (const quint32 zone = quint32(emu(std::clamp(t->hyphenZone, 0.0, 720.0))); zone != 228600) m_hyphenZone[tid] = zone;
             if (t->autofit != TextItem::NoAutofit && t->nextId.isEmpty()) m_autofit[tid] = t->autofit;
             QVector<Frame> frames;
             QSet<QString> seen;
@@ -1947,6 +1948,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                         if (col) f << u32(0x03, quint32(col));
                         if (c1) f << u32(0x04, quint32(c1));
                         if (c.vertical) f << u32(0x06, 2);   // Text Direction: turned a quarter turn
+                        if (c.valign != VAlign::Top) f << u16(0x07, c.valign == VAlign::Middle ? 1 : 2, 0x10);   // vertical alignment
                         f << u32(0x0a, quint32(emu(c.margins.left()))) << u32(0x0b, quint32(emu(c.margins.right())))
                           << u32(0x0c, quint32(emu(c.margins.top()))) << u32(0x0d, quint32(emu(c.margins.bottom()))) << u32(0x0e, 114300);
                         cellRecs << rec(0x00, f);
