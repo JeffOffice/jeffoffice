@@ -2824,6 +2824,28 @@ private Q_SLOTS:
         QVERIFY(!back->pubFonts.contains(QStringLiteral("inherit")));
     }
 
+    // A paragraph's layout font carries no capitals of its own: Qt would draw
+    // every run of the paragraph in the first run's, so "KEY POINTS (example)"
+    // came out "KEY POINTS (EXAMPLE)". The layout makes capitals itself, run by run.
+    void firstRunCapitalsStayInTheirRun()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat caps, plain;
+        caps.setFontCapitalization(QFont::AllUppercase);
+        c.insertText(QStringLiteral("KEY POINTS ("), caps);
+        c.insertText(QStringLiteral("example"), plain);
+        jp::LayoutEnv env;
+        QCOMPARE(jp::baseFontFor(doc.begin(), env).capitalization(), QFont::MixedCase);
+        QTextDocument small;
+        QTextCursor sc(&small);
+        QTextCharFormat sm;
+        sm.setFontCapitalization(QFont::SmallCaps);
+        sc.insertText(QStringLiteral("Key points "), sm);
+        sc.insertText(QStringLiteral("example"), plain);
+        QCOMPARE(jp::baseFontFor(small.begin(), env).capitalization(), QFont::MixedCase);
+    }
+
     // Save as E-book can make a fixed-layout EPUB: each page as designed (an
     // SVG drawing) at the page's size, its words underneath in reading order,
     // the contents from Heading 1-3 at the pages they're on.
