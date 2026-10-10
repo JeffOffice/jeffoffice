@@ -147,6 +147,8 @@ struct TableLayoutCell
   unsigned m_cell;
   unsigned m_rowSpan;
   unsigned m_colSpan;
+  // JeffPub: the second half of a cell divided by a diagonal (its record), or -1.
+  unsigned m_second = unsigned(-1);
 };
 
 bool isCovered(const TableLayoutCell &cell)
@@ -157,8 +159,15 @@ bool isCovered(const TableLayoutCell &cell)
 
 typedef boost::multi_array<TableLayoutCell, 2> TableLayout;
 
+// JeffPub: the second half of a cell divided by a diagonal (see CellInfo::m_split).
+bool isSecondHalf(const CellInfo &cell)
+{
+  return (cell.m_split & 1) && !(cell.m_split & 4);
+}
+
 void createTableLayout(const std::vector<CellInfo> &cells, TableLayout &tableLayout)
 {
+  std::vector<unsigned> secondHalves;
   for (auto it = cells.begin(); it != cells.end(); ++it)
   {
     if ((it->m_endRow >= tableLayout.shape()[0]) || (it->m_endColumn >= tableLayout.shape()[1]))
@@ -204,10 +213,34 @@ void createTableLayout(const std::vector<CellInfo> &cells, TableLayout &tableLay
       continue;
     }
 
+    if (isSecondHalf(*it))
+    {
+      // Placed with the first half below, which is listed before or after it.
+      secondHalves.push_back(unsigned(int(it - cells.begin())));
+      continue;
+    }
+
     TableLayoutCell &layoutCell = tableLayout[it->m_startRow][it->m_startColumn];
     layoutCell.m_cell = unsigned(int(it - cells.begin()));
     layoutCell.m_rowSpan = rowSpan;
     layoutCell.m_colSpan = colSpan;
+  }
+  for (unsigned second : secondHalves)
+  {
+    const CellInfo &cell = cells[second];
+    TableLayoutCell &layoutCell = tableLayout[cell.m_startRow][cell.m_startColumn];
+    if (!isCovered(layoutCell) && layoutCell.m_second == unsigned(-1))
+    {
+      layoutCell.m_second = second;
+      continue;
+    }
+    // No first half: the second one is the cell, so its text is not lost.
+    if (isCovered(layoutCell))
+    {
+      layoutCell.m_cell = second;
+      layoutCell.m_rowSpan = cell.m_endRow - cell.m_startRow + 1;
+      layoutCell.m_colSpan = cell.m_endColumn - cell.m_startColumn + 1;
+    }
   }
 }
 
@@ -1407,6 +1440,9 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
                 cellProps.insert("style:vertical-align", "middle");
               else if (ci < tinfo.m_cells.size() && tinfo.m_cells[ci].m_verticalAlign == 2)
                 cellProps.insert("style:vertical-align", "bottom");
+              // JeffPub: a cell divided by a diagonal: 1 from bottom left to top right, 2 from top left to bottom right.
+              if (ci < tinfo.m_cells.size() && (tinfo.m_cells[ci].m_split & 1))
+                cellProps.insert("jp:diagonal", (tinfo.m_cells[ci].m_split & 2) ? 2 : 1);
             }
             // JeffPub: fills and borders from the table's formatting shapes.
             {
@@ -1434,13 +1470,30 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
                   if (f.f[5] == c0) cellProps.insert("fo:border-left", border(f));
                   if (f.f[5] == c1) cellProps.insert("fo:border-right", border(f));
                 }
+                else if (f.kind == 3 && f.f[4] == r0 && f.f[5] == c0)
+                  cellProps.insert("jp:diagonal-border", border(f));
               }
             }
             m_painter->openTableCell(cellProps);
 
-            if (tableLayout[row][col].m_cell < paraToCellMap.size())
+            // JeffPub: a cell divided by a diagonal has the text of its second half after its first's
+            // (a half with no text is left out).
+            auto hasCellText = [&](unsigned cell)
             {
-              const std::pair<unsigned, unsigned> &cellParas = paraToCellMap[tableLayout[row][col].m_cell];
+              if (cell >= paraToCellMap.size())
+                return false;
+              const std::pair<unsigned, unsigned> &cellParas = paraToCellMap[cell];
+              for (unsigned para = cellParas.first; para <= cellParas.second; ++para)
+                for (size_t i_spans = 0; i_spans < paraTexts[para].size(); ++i_spans)
+                  if (paraTexts[para][i_spans].len() > 0)
+                    return true;
+              return false;
+            };
+            auto insertCellText = [&](unsigned cell)
+            {
+              if (cell >= paraToCellMap.size())
+                return;
+              const std::pair<unsigned, unsigned> &cellParas = paraToCellMap[cell];
               for (unsigned para = cellParas.first; para <= cellParas.second; ++para)
               {
                 librevenge::RVNGPropertyList paraProps = getParaStyleProps(text[para].style, text[para].style.m_defaultCharStyleIndex);
@@ -1456,6 +1509,16 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
 
                 m_painter->closeParagraph();
               }
+            };
+            const unsigned second = tableLayout[row][col].m_second;
+            if (second == unsigned(-1))
+              insertCellText(tableLayout[row][col].m_cell);
+            else
+            {
+              if (hasCellText(tableLayout[row][col].m_cell) || !hasCellText(second))
+                insertCellText(tableLayout[row][col].m_cell);
+              if (hasCellText(second))
+                insertCellText(second);
             }
 
             m_painter->closeTableCell();

@@ -1033,6 +1033,10 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
                   case 0x06:
                     currentCell.m_textDirection = subInfo.data;
                     break;
+                  // JeffPub: 0x05 divides the cell by a diagonal (see CellInfo::m_split).
+                  case 0x05:
+                    currentCell.m_split = subInfo.data & 0xff;
+                    break;
                   // JeffPub: 0x07 is the cell's vertical alignment (1 middle, 2 bottom). The first
                   // cell's value has stray bits above the low byte in Publisher's files.
                   case 0x07:
@@ -2862,7 +2866,7 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
         if (findEscherContainer(input, sp, cFopt, OFFICE_ART_FOPT))
         {
           FOPTValues v = extractFOPTValues(input, cFopt);
-          if (unsigned *c = getIfExists(v.m_scalarValues, FIELDID_FILL_COLOR))
+          if (unsigned *c = getIfExists(v.m_scalarValues, f.kind == 3 ? FIELDID_LINE_COLOR : FIELDID_FILL_COLOR))
           {
             if (*c != 0xFFFFFFFF)
             {
@@ -2875,7 +2879,7 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
         }
         if (jpTraceOn())
           fprintf(stderr, "TABLEFMT table=%u kind=%u f3=%u f4=%u f5=%u f6=%u f7=%u color=%x width=%u\n", f.f[2], f.kind, f.f[3], f.f[4], f.f[5], f.f[6], f.f[7], f.color, f.widthEmu);
-        if (f.kind <= 2 && f.f[2] < 0x100000)
+        if (f.kind <= 3 && f.f[2] < 0x100000)
           m_collector->addTableCellFormat(f.f[2], f);
       }
     }

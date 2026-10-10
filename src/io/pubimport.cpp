@@ -773,6 +773,12 @@ public:
         c.valign = va == "middle" ? VAlign::Middle : va == "bottom" ? VAlign::Bottom : VAlign::Top;
         if (p["fo:padding-left"])
             c.margins = QMarginsF(toPt(p["fo:padding-left"]), toPt(p["fo:padding-top"]), toPt(p["fo:padding-right"]), toPt(p["fo:padding-bottom"]));
+        // A cell divided by a diagonal: the file counts 1 from bottom left to top right and 2 from top left to bottom
+        // right. It is drawn only where the cell has a diagonal border; the text of both halves is in the cell.
+        if (p["jp:diagonal"]) {
+            c.diagonal = p["jp:diagonal"]->getInt() == 2 ? 1 : 2;
+            c.diagonalLine = border("jp:diagonal-border");
+        }
         // Text Direction: 2 turns the cell's text a quarter turn.
         if (p["jp:text-direction"] && p["jp:text-direction"]->getInt() == 2) c.vertical = true;
         m_cells.back().push_back(c);

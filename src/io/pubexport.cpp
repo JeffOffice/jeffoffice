@@ -824,7 +824,7 @@ private:
     // order) for the frame layout section, MCLD.
     // A vertical box's text runs along its height: its frame is recorded
     // turned a quarter turn, as Publisher records a spine.
-    struct Frame { QRectF r; QMarginsF m; bool cell = false; bool vertical = false; };
+    struct Frame { QRectF r; QMarginsF m; bool cell = false; bool vertical = false; bool divided = false; };
     QVector<QVector<Frame>> m_frames;
     QVector<int> m_tableTextIds;
     QSet<int> m_notHyphenated;   // stories without automatic hyphenation
@@ -1928,6 +1928,11 @@ QByteArray PubWriter::write(QStringList *skipped)
                 const double defaultZone = TableCell().hyphenZone;
                 bool hyphenate = true, zoneSet = false;
                 double zone = defaultZone;
+                // A cell divided by a diagonal is two cells at one place: the
+                // first half in its row and column, the second listed after
+                // the grid (with the same frame and an empty text).
+                QVector<B> halfRecs;
+                QVector<Frame> halfFrames;
                 for (int row = 0; row < tb->rows; ++row) {
                     for (int col = 0; col < tb->cols; ++col) {
                         const TableCell &c = tb->cell(row, col);
@@ -1939,21 +1944,35 @@ QByteArray PubWriter::write(QStringList *skipped)
                         }
                         const QTextDocument *d = m_doc.storyDoc(c.storyId);
                         docs << (d ? d : &blank);
-                        frames << Frame{tb->cellRect(row, col).translated(tb->rect.topLeft()), c.margins, true, c.vertical};
+                        // 05 (divided): bit 0 set, bit 1 from top left to bottom right, bit 2 the first half.
+                        const int divided = c.diagonal == 1 ? 3 : c.diagonal == 2 ? 1 : 0;
+                        const Frame frame{tb->cellRect(row, col).translated(tb->rect.topLeft()), c.margins, true, c.vertical, divided != 0};
+                        frames << frame;
                         const int r1 = std::min(tb->rows, row + std::max(1, c.rowSpan)) - 1;
                         const int c1 = std::min(tb->cols, col + std::max(1, c.colSpan)) - 1;
-                        QVector<B> f;
-                        if (row) f << u32(0x01, quint32(row));
-                        if (r1) f << u32(0x02, quint32(r1));
-                        if (col) f << u32(0x03, quint32(col));
-                        if (c1) f << u32(0x04, quint32(c1));
-                        if (c.vertical) f << u32(0x06, 2);   // Text Direction: turned a quarter turn
-                        if (c.valign != VAlign::Top) f << u16(0x07, c.valign == VAlign::Middle ? 1 : 2, 0x10);   // vertical alignment
-                        f << u32(0x0a, quint32(emu(c.margins.left()))) << u32(0x0b, quint32(emu(c.margins.right())))
-                          << u32(0x0c, quint32(emu(c.margins.top()))) << u32(0x0d, quint32(emu(c.margins.bottom()))) << u32(0x0e, 114300);
-                        cellRecs << rec(0x00, f);
+                        auto fields = [&](int split) {
+                            QVector<B> f;
+                            if (row) f << u32(0x01, quint32(row));
+                            if (r1) f << u32(0x02, quint32(r1));
+                            if (col) f << u32(0x03, quint32(col));
+                            if (c1) f << u32(0x04, quint32(c1));
+                            if (split) f << u16(0x05, quint32(split), 0x10);
+                            if (c.vertical) f << u32(0x06, 2);   // Text Direction: turned a quarter turn
+                            if (c.valign != VAlign::Top) f << u16(0x07, c.valign == VAlign::Middle ? 1 : 2, 0x10);   // vertical alignment
+                            f << u32(0x0a, quint32(emu(c.margins.left()))) << u32(0x0b, quint32(emu(c.margins.right())))
+                              << u32(0x0c, quint32(emu(c.margins.top()))) << u32(0x0d, quint32(emu(c.margins.bottom()))) << u32(0x0e, 114300);
+                            return rec(0x00, f);
+                        };
+                        cellRecs << fields(divided ? divided | 4 : 0);
+                        if (divided) {
+                            halfRecs << fields(divided);
+                            halfFrames << frame;
+                        }
                     }
                 }
+                for (int i = 0; i < halfRecs.size(); ++i) docs << &blank;
+                cellRecs << halfRecs;
+                frames << halfFrames;
                 QVector<quint32> ends;
                 addStory(tid, docs, &ends);
                 if (!hyphenate) m_notHyphenated << tid;
@@ -1985,14 +2004,14 @@ QByteArray PubWriter::write(QStringList *skipped)
                 cw.put(cellsSeq, {0x63, seq, {u16(0x01, quint32(cellRecs.size())), list(0x02, cellRecs)}});
 
                 // Fills: one record per grid cell, naming its column (03) and row (04).
-                auto formatShape = [&](const QVector<Prop> &o, const QVector<Prop> &t, const QVector<B> &where) {
+                auto formatShape = [&](const QVector<Prop> &o, const QVector<Prop> &t, const QVector<B> &where, int shapeType = 1, quint32 flags = 0x0a00) {
                     if (m_cellFormats.size() >= 1000) return;   // one id block's worth
                     QByteArray d;
                     putU32(d, quint32(0x0c03 + m_cellFormats.size()));
-                    putU32(d, 0x0a00);
+                    putU32(d, flags);
                     QVector<B> a = where;
                     a.insert(where.isEmpty() || where.first().id != 0x01 ? 0 : 1, ref(0x02, seq, 0x68));
-                    m_cellFormats << escherContainer(0xf004, escherRecord(0x2, 1, 0xf00a, d) + escherProps(0xf00b, o) + escherProps(0xf122, t) +
+                    m_cellFormats << escherContainer(0xf004, escherRecord(0x2, shapeType, 0xf00a, d) + escherProps(0xf00b, o) + escherProps(0xf122, t) +
                                                                   clientBlocks(0xf010, a));
                 };
                 for (int row = 0; row < tb->rows; ++row) {
@@ -2045,6 +2064,27 @@ QByteArray PubWriter::write(QStringList *skipped)
                         rule(1, r1, col, r1, c1, c.border.bottom);
                         rule(2, row, col, r1, col, c.border.left);
                         rule(2, row, c1, r1, c1, c.border.right);
+                    }
+                }
+                // A diagonal's line is a line shape (type 20) with its color and
+                // width as the line's, flipped when it runs from bottom left to
+                // top right; 01 = 3, then the cell's grid box as for rules.
+                for (int row = 0; row < tb->rows; ++row) {
+                    for (int col = 0; col < tb->cols; ++col) {
+                        const TableCell &c = tb->cell(row, col);
+                        if (c.covered || !c.diagonal || c.diagonalLine.isNone()) continue;
+                        const int r1 = std::min(tb->rows, row + std::max(1, c.rowSpan)), c1 = std::min(tb->cols, col + std::max(1, c.colSpan));
+                        QVector<B> where{u32(0x01, 3)};
+                        if (row) where << u32(0x04, quint32(row));
+                        if (col) where << u32(0x05, quint32(col));
+                        if (r1) where << u32(0x06, quint32(r1));
+                        if (c1) where << u32(0x07, quint32(c1));
+                        QVector<Prop> o = kInsets;
+                        o << Prop{0x01bf, 0x00100000} << Prop{0x01c0, bgr(c.diagonalLine.color.resolve(m_doc.colors))} << Prop{0x01c2, 0xffffffffu}
+                          << Prop{0x01cb, quint32(emu(c.diagonalLine.width))} << Prop{0x01ff, 0x00080008} << kTail;
+                        QVector<Prop> t = kShadowFlags;
+                        t << kSideLines;
+                        formatShape(o, t, where, 20, c.diagonal == 2 ? 0x0a40 : 0x0a00);
                     }
                 }
 
@@ -2722,7 +2762,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                                         u32(0x06, quint32(emu(f.m.top())), 0x22), u32(0x07, quint32(emu(f.m.left())), 0x22),
                                         u32(0x08, quint32(emu(f.m.bottom())), 0x22), u32(0x09, quint32(emu(f.m.right())), 0x22),
                                         u32(0x0a, f.cell ? 0 : 82676, 0x22), u16(0x0b, 0, 0x1a), u32(0x0d, f.cell && f.vertical ? 2700 : 0, 0x22), u32(0x11, 0, 0x22),
-                                        u32(0x12, f.cell ? 219456000 : 0, 0x22), u16(0x13, 255, 0x12), flag(0x14, 0x0a), u32(0x15, f.cell && f.vertical ? 2 : 1, 0x22),
+                                        u32(0x12, f.cell && !f.divided ? 219456000 : 0, 0x22), u16(0x13, 255, 0x12), flag(0x14, 0x0a), u32(0x15, f.cell && f.vertical ? 2 : 1, 0x22),
                                         u32(0x16, f.cell ? 0 : 9525, 0x22), u32(0x18, 0, 0x22), flag(0x1a, 0x02),
                                         rec(0x1d, {u32(0x00, 0xfffffffcu, 0x22)}, 0x8a)});
             }

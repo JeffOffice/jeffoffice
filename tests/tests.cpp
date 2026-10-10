@@ -13015,6 +13015,131 @@ private Q_SLOTS:
         QCOMPARE(int(bt->cell(2, 2).valign), int(jp::VAlign::Top));
     }
 
+    // A cell divided by a diagonal is kept in a .pub file: its direction, the
+    // line along it (or none, when Publisher prints no line), and the text.
+    void pubTableCellDiagonalsKept()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 3;
+        t->cols = 3;
+        t->colW = {100, 100, 100};
+        t->rowH = {90, 60, 80};
+        t->rect = QRectF(72, 144, 0, 0);
+        t->syncRect();
+        t->cells.resize(9);
+        const QStringList words = {"Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India"};
+        for (int i = 0; i < 9; ++i) {
+            t->cells[i].storyId = doc->createStory(QStringLiteral("Region"));
+            doc->storyDoc(t->cells[i].storyId)->setPlainText(words[i]);
+        }
+        t->cell(0, 0).diagonal = 1;
+        t->cell(0, 0).diagonalLine = jp::Stroke::line(jp::ColorRef::rgb(Qt::red), 3);
+        t->cell(0, 1).diagonal = 2;
+        t->cell(0, 1).diagonalLine = jp::Stroke::line(jp::ColorRef::rgb(QColor(0, 128, 0)), 1.5);
+        t->cell(0, 1).valign = jp::VAlign::Bottom;
+        t->cell(1, 0).diagonal = 1;   // divided, with no line
+        t->cell(1, 2).diagonal = 2;
+        t->cell(1, 2).diagonalLine = jp::Stroke::line(jp::ColorRef::rgb(Qt::blue), 0.75);
+        t->cell(2, 0).colSpan = 2;
+        t->cell(2, 1).covered = true;
+        doc->pages[0]->items.push_back(t);
+
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("cell-diagonals.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            const QString out = qEnvironmentVariable("JP_SHOT_DIR") + "/cell-diagonals.pub";
+            QFile::remove(out);
+            QFile::copy(path, out);
+        }
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TableItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(bt);
+        QCOMPARE(bt->rows, 3);
+        QCOMPARE(bt->cols, 3);
+        auto text = [&](int r, int c) { return back->storyDoc(bt->cell(r, c).storyId)->toPlainText(); };
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c) {
+                if (bt->cell(r, c).covered) continue;
+                QCOMPARE(text(r, c), words[r * 3 + c]);
+            }
+        QCOMPARE(bt->cell(0, 0).diagonal, 1);
+        QCOMPARE(bt->cell(0, 1).diagonal, 2);
+        QCOMPARE(bt->cell(1, 0).diagonal, 1);
+        QCOMPARE(bt->cell(1, 2).diagonal, 2);
+        QCOMPARE(bt->cell(0, 2).diagonal, 0);
+        QCOMPARE(bt->cell(1, 1).diagonal, 0);
+        QCOMPARE(bt->cell(2, 0).diagonal, 0);
+        QCOMPARE(bt->cell(2, 2).diagonal, 0);
+        QCOMPARE(bt->cell(2, 0).colSpan, 2);
+        QCOMPARE(int(bt->cell(0, 1).valign), int(jp::VAlign::Bottom));
+        const jp::Stroke red = bt->cell(0, 0).diagonalLine, green = bt->cell(0, 1).diagonalLine, blue = bt->cell(1, 2).diagonalLine;
+        QVERIFY(!red.isNone() && std::abs(red.width - 3) < 0.05);
+        QCOMPARE(red.color.resolve(back->colors), QColor(Qt::red));
+        QVERIFY(!green.isNone() && std::abs(green.width - 1.5) < 0.05);
+        QCOMPARE(green.color.resolve(back->colors), QColor(0, 128, 0));
+        QVERIFY(!blue.isNone() && std::abs(blue.width - 0.75) < 0.05);
+        QCOMPARE(blue.color.resolve(back->colors), QColor(Qt::blue));
+        QVERIFY(bt->cell(1, 0).diagonalLine.isNone());
+        QVERIFY(bt->cell(0, 2).diagonalLine.isNone());
+    }
+
+    // The line along a cell's diagonal is saved in JeffPub files (none stays
+    // none), the Diagonals commands draw one, and an older file's diagonal
+    // keeps the line it was drawn with.
+    void tableDiagonalLine()
+    {
+        jp::TableItem t;
+        t.rows = 1;
+        t.cols = 3;
+        t.colW = {50, 50, 50};
+        t.rowH = {40};
+        t.cells.resize(3);
+        t.cell(0, 0).diagonal = 1;
+        t.cell(0, 0).diagonalLine = jp::Stroke::line(jp::ColorRef::rgb(Qt::red), 2);
+        t.cell(0, 1).diagonal = 2;
+        QJsonObject json = t.toJson();
+        jp::TableItem u;
+        u.fromJson(json);
+        QCOMPARE(u.cell(0, 0).diagonalLine.width, 2.0);
+        QCOMPARE(u.cell(0, 0).diagonalLine.color, jp::ColorRef::rgb(Qt::red));
+        QVERIFY(u.cell(0, 1).diagonalLine.isNone());
+        QCOMPARE(u.cell(0, 1).diagonal, 2);
+        // Older files have no line: the top border, or a thin line.
+        QJsonArray cells = json["cells"].toArray();
+        for (int i = 0; i < cells.size(); ++i) {
+            QJsonObject co = cells[i].toObject();
+            co.remove("diagLine");
+            cells[i] = co;
+        }
+        json["cells"] = cells;
+        jp::TableItem v;
+        v.fromJson(json);
+        QVERIFY(!v.cell(0, 0).diagonalLine.isNone() && !v.cell(0, 1).diagonalLine.isNone());
+        QVERIFY(v.cell(0, 2).diagonalLine.isNone());
+
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 200, 100), 2, 2);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        ed->selectCells(id, 0, 0, 0, 0);
+        w.act(QStringLiteral("tbl.diagDown"))->trigger();
+        QCOMPARE(table()->cell(0, 0).diagonal, 1);
+        QVERIFY(!table()->cell(0, 0).diagonalLine.isNone());
+        QVERIFY(table()->cell(1, 1).diagonalLine.isNone());
+        w.act(QStringLiteral("tbl.diagNone"))->trigger();
+        QCOMPARE(table()->cell(0, 0).diagonal, 0);
+        QVERIFY(table()->cell(0, 0).diagonalLine.isNone());
+    }
+
     // A text box's hyphenation zone is kept in a .pub file with its story's
     // hyphenation setting, in every box of a linked chain.
     void pubTextBoxHyphenationZoneKept()

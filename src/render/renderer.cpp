@@ -893,8 +893,8 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
             edge(c.border.bottom, cr.bottomLeft(), cr.bottomRight());
             edge(c.border.left, cr.topLeft(), cr.bottomLeft());
             edge(c.border.right, cr.topRight(), cr.bottomRight());
-            if (c.diagonal == 1) edge(c.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : c.border.top, cr.topLeft(), cr.bottomRight());
-            if (c.diagonal == 2) edge(c.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : c.border.top, cr.bottomLeft(), cr.topRight());
+            if (c.diagonal == 1) edge(c.diagonalLine, cr.topLeft(), cr.bottomRight());
+            if (c.diagonal == 2) edge(c.diagonalLine, cr.bottomLeft(), cr.topRight());
         }
     Renderer::strokePath(p, [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs);
 }
