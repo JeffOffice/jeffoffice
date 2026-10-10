@@ -641,6 +641,14 @@ QString substituteFor(const QString &family)
     return table().value(family);
 }
 
+QStringList standInFamiliesForTest()
+{
+    QStringList out = table().values();
+    out.removeDuplicates();
+    out.sort();
+    return out;
+}
+
 void installFontSubstitutions()
 {
     const auto &t = table();
