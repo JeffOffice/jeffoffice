@@ -144,8 +144,9 @@ Chunk 0x65 lists the stories: each record has `01` = the text id, `02` =
 the number of boxes in a linked chain, `03` = 0 for a table, `04` (a flag
 of type 0x00) when the story isn't hyphenated automatically, `05` (u16,
 type 0x10) for AutoFit Text, `07` = its entry in the frame layout section
-(MCLD), `08`/`09` (floats, -9999996 when unset), and a `0c` flag (type 0x08)
-for Grow Text Box to Fit.
+(MCLD), `08`/`09` (floats, -9999996 when unset), a `0c` flag (type 0x08)
+for Grow Text Box to Fit, and `0a` (u32), the hyphenation zone in EMU, left
+out at its default of 228600 (0.25 inch).
 
 `05` is 1 for Best Fit and 3 for Shrink Text On Overflow; older files set
 higher bits too (0x103, 0x203, 0x3003), so only the low two bits count.
@@ -325,16 +326,36 @@ per row: `01` = where it ends, `02` = its size.
 
 The cell list (type 0x63, parent the table, directory 08 and 0b = 1) is
 `01:18 count, 02 list`; each cell has `01` first row, `02` last row, `03`
-first column, `04` last column (zero fields left out), `0a`-`0d` margins
-(left, right, top, bottom) and `0e = 114300`. A merged cell is one entry
-spanning its rows and columns; the cells under it are not listed. Cells
-can come in any order; their text follows the list order.
+first column, `04` last column (zero fields left out), `06` Text Direction
+(2 when the cell's text is turned a quarter turn, so its lines read from top
+to bottom; left out when horizontal), `0a`-`0d` margins (left, right, top,
+bottom) and `0e = 114300`. A merged cell is one entry spanning its rows and
+columns; the cells under it are not listed. Cells can come in any order;
+their text follows the list order.
+
+Text Direction is the cell's `06` and nothing else in the cell: in Publisher
+2021 `Cell.CellTextOrientation` is 1 for horizontal and 2 for turned, and
+accepts no other value. Found by setting it on one cell through the object
+model and through the Table Layout tab's Text Direction button (a toggle:
+twice is horizontal again) and comparing the saved files; setting another
+cell moved `06` to that cell's record. Publisher also records the cell's
+frame turned (see Frame layout below).
 
 All the cells' text is one story. Its `0x65` record adds `03:10 = 0`, and
 it has no `0x61` entry. A `TCD ` section (kind `PLC `, id = the story's
 index in SYID) holds: cells - 1, 0, 0xFF00, then each cell's end within
 the story (the position of its last paragraph mark; the last value is the
 story length).
+
+Because the cells are one story, Hyphenation (Table Layout tab) belongs to
+the whole table, not to a cell: its dialog says "Automatically hyphenate
+this story", and turning it off with one cell selected turned it off for
+every cell (the dialog, opened on another cell after saving and reopening,
+was unchecked). The table's story record has the same `04` flag and `0a`
+zone as any story; a zone of 0.5 inch gave `0a = 457200`. JeffPub writes the
+table as not hyphenated when any cell is set not to hyphenate, with the
+first zone that is not 18 points, and a file opens with every cell taking
+the table's setting.
 
 The drawing has an `Sp` of type 201 with OPT 0x0080 = text id, insets 0,
 0x017F = 0x00300000, and a ClientTextbox. Each cell fill and each ruled
@@ -363,7 +384,13 @@ text box has one; a table has one per cell, in cell-list order):
 | 0a | 82676 for a text box, 0 for a cell |
 | 12 | 0 for a text box, 219456000 for a cell |
 | 16 | 9525 for a text box, 0 for a cell |
-| 0b:1a 0, 0d 0, 11 0, 13:12 255, 14:0a, 15 1, 18 0, 1a:02, 1d:8a {00:22 = -4} | Fixed |
+| 0b:1a 0, 11 0, 13:12 255, 14:0a, 18 0, 1a:02, 1d:8a {00:22 = -4} | Fixed |
+| 0d, 15 | 0 and 1; a cell with Text Direction turned has 2700 and 2, and its frame is recorded turned a quarter turn about its center (width and height swapped, as a vertical text box's is) |
+
+The column record's first field is a flag of type 0x0a, or 0x02 when the
+story is not hyphenated automatically (in 284 Publisher files, all 1,021
+hyphenated stories have 0x0a and 1,097 of the 1,100 others have 0x02); its
+`01` is the story's hyphenation zone (228600 by default).
 
 ### Fonts per script
 

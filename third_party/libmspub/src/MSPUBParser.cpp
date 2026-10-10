@@ -1029,6 +1029,10 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
                   case 0x04:
                     currentCell.m_endColumn = subInfo.data;
                     break;
+                  // JeffPub: 0x06 is the cell's Text Direction (2 = turned a quarter turn).
+                  case 0x06:
+                    currentCell.m_textDirection = subInfo.data;
+                    break;
                   // JeffPub: 0x0a-0x0d are the cell's left, right, top and bottom margins.
                   case 0x0a:
                   case 0x0b:
@@ -3490,7 +3494,8 @@ PageType MSPUBParser::getPageTypeBySeqNum(unsigned seqNum)
 // JeffPub patch: each story's record: 01 = text id, a 04 flag when the
 // story is not hyphenated automatically, its AutoFit Text setting in 05
 // (low bits 1 = best fit, 3 = shrink text on overflow; 08 then holds the
-// size before shrinking) and a 0c flag for grow text box to fit. Checked by
+// size before shrinking), a 0c flag for grow text box to fit, and 0a = its
+// hyphenation zone in EMUs when not the default 0.25 inch. Checked by
 // choosing each setting in Publisher and saving.
 void MSPUBParser::parseStoryListChunk(librevenge::RVNGInputStream *input, const ContentChunkReference &chunk)
 {
@@ -3509,6 +3514,8 @@ void MSPUBParser::parseStoryListChunk(librevenge::RVNGInputStream *input, const 
           bool noHyphens = false;
           unsigned fit = 0;
           bool grow = false;
+          unsigned zone = 0;
+          bool hasZone = false;
           while (stillReading(input, subInfo.dataOffset + subInfo.dataLength))
           {
             MSPUBBlockInfo field = parseBlock(input, true);
@@ -3516,6 +3523,11 @@ void MSPUBParser::parseStoryListChunk(librevenge::RVNGInputStream *input, const 
               textId = field.data;
             else if (field.id == 0x04)
               noHyphens = true;
+            else if (field.id == 0x0a)
+            {
+              zone = field.data;
+              hasZone = true;
+            }
             else if (field.id == 0x05)
               fit = field.data & 3;
             else if (field.id == 0x0c)
@@ -3523,6 +3535,8 @@ void MSPUBParser::parseStoryListChunk(librevenge::RVNGInputStream *input, const 
           }
           if (noHyphens)
             m_collector->setTextNotHyphenated(textId);
+          if (hasZone)
+            m_collector->setTextHyphenationZone(textId, zone);
           // JeffPub's kinds: 1 best fit, 2 shrink on overflow, 3 grow the box.
           if (fit == 1)
             m_collector->setTextAutofit(textId, 1);

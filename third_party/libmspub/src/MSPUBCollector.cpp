@@ -1345,6 +1345,15 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
         columnWidths.append(columnWidth);
       }
       props.insert("librevenge:table-columns", columnWidths);
+      // JeffPub: a table's text is one story, so its hyphenation is the whole table's.
+      if (bool(info.m_textId))
+      {
+        if (m_notHyphenated.count(get(info.m_textId)))
+          props.insert("jp:no-hyphenation", true);
+        const auto zone = m_hyphenationZones.find(get(info.m_textId));
+        if (zone != m_hyphenationZones.end())
+          props.insert("jp:hyphenation-zone", double(zone->second) / EMUS_IN_INCH);
+      }
 
       m_painter->startTableObject(props);
 
@@ -1392,6 +1401,8 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
                 const long m = ci < tinfo.m_cells.size() ? tinfo.m_cells[ci].m_margins[k] : -1;
                 cellProps.insert(keys[k], m >= 0 ? double(m) / EMUS_IN_INCH : 0.04);
               }
+              if (ci < tinfo.m_cells.size() && tinfo.m_cells[ci].m_textDirection)
+                cellProps.insert("jp:text-direction", int(tinfo.m_cells[ci].m_textDirection));
             }
             // JeffPub: fills and borders from the table's formatting shapes.
             {

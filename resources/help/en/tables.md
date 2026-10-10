@@ -60,7 +60,7 @@ To place text in a cell, use the buttons in **Table Layout > Alignment**: top, m
 
 **Hyphenation**, next to it, opens the **Hyphenation** dialog. There you turn **Automatically hyphenate this story** on or off, which sets whether long words break with a hyphen at the end of a line, and you set the **Hyphenation zone**. Words in cells are hyphenated unless you turn it off. See [Spelling, thesaurus, research, and hyphenation](proofing).
 
-Text Direction and Hyphenation change the selected cells, the cell you are in, or every cell when the whole table is selected.
+Text Direction and Hyphenation change the selected cells, the cell you are in, or every cell when the whole table is selected. In a .pub file, a table has one Hyphenation setting for all its cells: if any cell is set not to hyphenate, the whole table opens with hyphenation off. Text Direction is kept for each cell.
 
 **View Gridlines** in **Table Layout > Table** shows dotted lines around every cell on screen. They do not print.
 

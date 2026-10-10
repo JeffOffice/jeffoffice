@@ -30,6 +30,8 @@ struct CellInfo
   unsigned m_startColumn;
   // JeffPub: inner margins in EMUs (left, right, top, bottom); -1 = Publisher's default.
   long m_margins[4] = {-1, -1, -1, -1};
+  // JeffPub: Text Direction (field 06): 2 turns the cell's text a quarter turn.
+  unsigned m_textDirection = 0;
   unsigned m_endColumn;
 };
 

@@ -828,6 +828,7 @@ private:
     QVector<QVector<Frame>> m_frames;
     QVector<int> m_tableTextIds;
     QSet<int> m_notHyphenated;   // stories without automatic hyphenation
+    QHash<int, quint32> m_hyphenZone;   // story -> hyphenation zone (EMU) when not the default 0.25 in
     QHash<int, int> m_autofit;    // story -> AutoFit Text (TextItem::Autofit) of a lone box
     QVector<QByteArray> m_cellFormats;
 
@@ -1920,13 +1921,24 @@ QByteArray PubWriter::write(QStringList *skipped)
                 QVector<const QTextDocument *> docs;
                 QVector<B> cellRecs;
                 QVector<Frame> frames;
+                // The cells are one story, which Publisher hyphenates as a
+                // whole: off when any cell is set off, with the first zone
+                // that is not the default.
+                const double defaultZone = TableCell().hyphenZone;
+                bool hyphenate = true, zoneSet = false;
+                double zone = defaultZone;
                 for (int row = 0; row < tb->rows; ++row) {
                     for (int col = 0; col < tb->cols; ++col) {
                         const TableCell &c = tb->cell(row, col);
                         if (c.covered) continue;
+                        if (!c.hyphenate) hyphenate = false;
+                        if (!zoneSet && std::abs(c.hyphenZone - defaultZone) > 1e-6) {
+                            zone = c.hyphenZone;
+                            zoneSet = true;
+                        }
                         const QTextDocument *d = m_doc.storyDoc(c.storyId);
                         docs << (d ? d : &blank);
-                        frames << Frame{tb->cellRect(row, col).translated(tb->rect.topLeft()), c.margins, true};
+                        frames << Frame{tb->cellRect(row, col).translated(tb->rect.topLeft()), c.margins, true, c.vertical};
                         const int r1 = std::min(tb->rows, row + std::max(1, c.rowSpan)) - 1;
                         const int c1 = std::min(tb->cols, col + std::max(1, c.colSpan)) - 1;
                         QVector<B> f;
@@ -1934,6 +1946,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                         if (r1) f << u32(0x02, quint32(r1));
                         if (col) f << u32(0x03, quint32(col));
                         if (c1) f << u32(0x04, quint32(c1));
+                        if (c.vertical) f << u32(0x06, 2);   // Text Direction: turned a quarter turn
                         f << u32(0x0a, quint32(emu(c.margins.left()))) << u32(0x0b, quint32(emu(c.margins.right())))
                           << u32(0x0c, quint32(emu(c.margins.top()))) << u32(0x0d, quint32(emu(c.margins.bottom()))) << u32(0x0e, 114300);
                         cellRecs << rec(0x00, f);
@@ -1941,6 +1954,8 @@ QByteArray PubWriter::write(QStringList *skipped)
                 }
                 QVector<quint32> ends;
                 addStory(tid, docs, &ends);
+                if (!hyphenate) m_notHyphenated << tid;
+                if (zoneSet) m_hyphenZone[tid] = quint32(emu(std::clamp(zone, 0.0, 720.0)));
                 m_frames << frames;
                 m_cellEnds << qMakePair(int(m_textIds.size()) - 1, ends);
                 m_tableTextIds << tid;
@@ -2350,6 +2365,7 @@ QByteArray PubWriter::write(QStringList *skipped)
             else if (fit == TextItem::ShrinkOnOverflow) f << u16(0x05, 3, 0x10);
             // 07: the story's entry in the frame layout section.
             f << u32(0x07, quint32(i + 1)) << u32(0x08, 0xcb18967cu, 0x58) << u32(0x09, 0xcb18967cu, 0x58);
+            if (m_hyphenZone.contains(id)) f << u32(0x0a, m_hyphenZone[id]);   // hyphenation zone
             if (fit == TextItem::GrowBox) f << flag(0x0c, 0x08);   // grow text box to fit
             stories << rec(0x00, f);
         }
@@ -2682,8 +2698,11 @@ QByteArray PubWriter::write(QStringList *skipped)
         putU32(mcld, quint32(m_frames.size()));
         putU32(mcld, quint32(m_frames.size()));
         for (int i = 0; i < m_frames.size(); ++i) putU32(mcld, quint32(i + 1));
-        for (const QVector<Frame> &frames : m_frames) {
-            mcld += lengthPrefixed({flag(0x00, 0x0a), u32(0x01, 228600, 0x22)});
+        for (int story = 0; story < m_frames.size(); ++story) {
+            const QVector<Frame> &frames = m_frames[story];
+            // Its first field is a flag of type 0x0a, or 0x02 when the story isn't hyphenated; 01 is its hyphenation zone.
+            const int tid = m_textIds.value(story, -1);
+            mcld += lengthPrefixed({flag(0x00, m_notHyphenated.contains(tid) ? 0x02 : 0x0a), u32(0x01, m_hyphenZone.value(tid, 228600), 0x22)});
             putU32(mcld, quint32(frames.size()));
             for (const Frame &frame : frames) {
                 Frame f = frame;
@@ -2700,8 +2719,8 @@ QByteArray PubWriter::write(QStringList *skipped)
                                         u32(0x04, quint32(emu(f.r.width())), 0x22), u32(0x05, quint32(emu(f.r.height())), 0x22),
                                         u32(0x06, quint32(emu(f.m.top())), 0x22), u32(0x07, quint32(emu(f.m.left())), 0x22),
                                         u32(0x08, quint32(emu(f.m.bottom())), 0x22), u32(0x09, quint32(emu(f.m.right())), 0x22),
-                                        u32(0x0a, f.cell ? 0 : 82676, 0x22), u16(0x0b, 0, 0x1a), u32(0x0d, 0, 0x22), u32(0x11, 0, 0x22),
-                                        u32(0x12, f.cell ? 219456000 : 0, 0x22), u16(0x13, 255, 0x12), flag(0x14, 0x0a), u32(0x15, 1, 0x22),
+                                        u32(0x0a, f.cell ? 0 : 82676, 0x22), u16(0x0b, 0, 0x1a), u32(0x0d, f.cell && f.vertical ? 2700 : 0, 0x22), u32(0x11, 0, 0x22),
+                                        u32(0x12, f.cell ? 219456000 : 0, 0x22), u16(0x13, 255, 0x12), flag(0x14, 0x0a), u32(0x15, f.cell && f.vertical ? 2 : 1, 0x22),
                                         u32(0x16, f.cell ? 0 : 9525, 0x22), u32(0x18, 0, 0x22), flag(0x1a, 0x02),
                                         rec(0x1d, {u32(0x00, 0xfffffffcu, 0x22)}, 0x8a)});
             }

@@ -12650,6 +12650,113 @@ private Q_SLOTS:
         QVERIFY(bt->cell(1, 0).border.left.isNone());
     }
 
+    // A cell's Text Direction is kept in a .pub file, a merged cell's too.
+    void pubTableCellTextDirectionKept()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 3;
+        t->cols = 2;
+        t->colW = {120, 120};
+        t->rowH = {90, 60, 80};
+        t->rect = QRectF(72, 144, 0, 0);
+        t->syncRect();
+        t->cells.resize(6);
+        for (auto &c : t->cells) c.storyId = doc->createStory(QStringLiteral("Region"));
+        t->cell(0, 1).vertical = true;
+        t->cell(2, 0).colSpan = 2;
+        t->cell(2, 0).vertical = true;
+        t->cell(2, 1).covered = true;
+        doc->pages[0]->items.push_back(t);
+
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("cell-direction.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            const QString out = qEnvironmentVariable("JP_SHOT_DIR") + "/cell-direction.pub";
+            QFile::remove(out);
+            QFile::copy(path, out);
+        }
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TableItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(bt);
+        QCOMPARE(bt->rows, 3);
+        QCOMPARE(bt->cols, 2);
+        QVERIFY(!bt->cell(0, 0).vertical);
+        QVERIFY(bt->cell(0, 1).vertical);
+        QVERIFY(!bt->cell(1, 0).vertical);
+        QVERIFY(!bt->cell(1, 1).vertical);
+        QCOMPARE(bt->cell(2, 0).colSpan, 2);
+        QVERIFY(bt->cell(2, 0).vertical);
+    }
+
+    // Publisher hyphenates a table's text as one story, so a .pub file keeps
+    // one setting for the whole table: off when any cell is set off, and the
+    // first zone that is not the default.
+    void pubTableHyphenationKept()
+    {
+        auto reopened = [&](const QString &name, const std::function<void(jp::TableItem &)> &set, QString *err) {
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            auto t = std::make_shared<jp::TableItem>();
+            t->rows = 2;
+            t->cols = 2;
+            t->colW = {70, 70};
+            t->rowH = {60, 60};
+            t->rect = QRectF(72, 144, 0, 0);
+            t->syncRect();
+            t->cells.resize(4);
+            for (auto &c : t->cells) c.storyId = doc->createStory(QStringLiteral("Internationalization characteristics"));
+            set(*t);
+            doc->pages[0]->items.push_back(t);
+            QTemporaryDir dir;
+            const QString path = dir.filePath(name + QStringLiteral(".pub"));
+            if (!jp::exportPublisher(*doc, path, err)) return std::unique_ptr<jp::Document>();
+            if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+                const QString out = qEnvironmentVariable("JP_SHOT_DIR") + "/" + name + ".pub";
+                QFile::remove(out);
+                QFile::copy(path, out);
+            }
+            return jp::importPublisherFile(path, err);
+        };
+        auto tableOf = [](const jp::Document &d) {
+            const jp::TableItem *bt = nullptr;
+            jp::walkItems(d.pages[0]->items, [&](const jp::ItemPtr &it) {
+                if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+            });
+            return bt;
+        };
+        // Verifies every cell of the table against one hyphenation setting.
+        auto allCells = [](const jp::TableItem *bt, bool hyphenate, double zone) {
+            for (const jp::TableCell &c : bt->cells)
+                if (c.hyphenate != hyphenate || std::abs(c.hyphenZone - zone) > 0.01) return false;
+            return true;
+        };
+        QString err;
+
+        auto plain = reopened(QStringLiteral("hyphenation-default"), [](jp::TableItem &) {}, &err);
+        QVERIFY2(plain, qPrintable(err));
+        QVERIFY(tableOf(*plain) && allCells(tableOf(*plain), true, 18));
+
+        auto off = reopened(QStringLiteral("hyphenation-off"), [](jp::TableItem &t) {
+            for (auto &c : t.cells) { c.hyphenate = false; c.hyphenZone = 30; }
+        }, &err);
+        QVERIFY2(off, qPrintable(err));
+        QVERIFY(tableOf(*off) && allCells(tableOf(*off), false, 30));
+
+        auto oneOff = reopened(QStringLiteral("hyphenation-one-off"), [](jp::TableItem &t) { t.cell(1, 0).hyphenate = false; }, &err);
+        QVERIFY2(oneOff, qPrintable(err));
+        QVERIFY(tableOf(*oneOff) && allCells(tableOf(*oneOff), false, 18));
+
+        auto zone = reopened(QStringLiteral("hyphenation-zone"), [](jp::TableItem &t) { t.cell(0, 1).hyphenZone = 36; }, &err);
+        QVERIFY2(zone, qPrintable(err));
+        QVERIFY(tableOf(*zone) && allCells(tableOf(*zone), true, 36));
+    }
+
     // The eyedropper picks the color under the click from the window.
     void eyedropperPicks()
     {
