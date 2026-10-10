@@ -17,6 +17,8 @@ int substituteStretch(const QString &family, bool bold = false, bool italic = fa
 // them, for the test that shows how the platform draws them.
 struct StandInStretch { QString family, standIn; int stretch[4]; };
 QList<StandInStretch> standInStretchesForTest();
+// Every family the table of stand-ins names, sorted, for the same test.
+QStringList standInFamiliesForTest();
 // The name to write in files other programs read: a bundled font that is
 // metric-compatible with a standard one (Arimo, Carlito...) is written as
 // that standard font, which every Windows computer has.
