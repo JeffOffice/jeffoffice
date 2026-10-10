@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QFont>
 #include <QFontDatabase>
 #include <QFontInfo>
@@ -9,6 +10,7 @@
 #include <QHash>
 #include <QImageReader>
 #include <algorithm>
+#include <cmath>
 
 Q_GUI_EXPORT int qt_defaultDpiY();
 
@@ -39,6 +41,26 @@ QStringList bundledFontDirs()
     return dirs;
 }
 
+// Adds a font file; an italic face whose flags say upright is added from a
+// copy with the flags right (only italic-named files are looked at, and
+// mapped, so the fonts that are right are not read in full).
+static int addFontFile(const QDir &dir, const QString &name)
+{
+    if (name.contains(QLatin1String("Italic"), Qt::CaseInsensitive) || name.contains(QLatin1String("Oblique"), Qt::CaseInsensitive)) {
+        QByteArray fixed;
+        {
+            QFile file(dir.filePath(name));
+            if (file.open(QIODevice::ReadOnly))
+                if (uchar *map = file.map(0, file.size())) {
+                    fixed = fontWithItalicFlags(QByteArray::fromRawData(reinterpret_cast<const char *>(map), file.size()));
+                    file.unmap(map);
+                }
+        }
+        if (!fixed.isEmpty()) return QFontDatabase::addApplicationFontFromData(fixed);
+    }
+    return QFontDatabase::addApplicationFont(dir.filePath(name));
+}
+
 int loadBundledFonts()
 {
     int n = 0;
@@ -46,7 +68,7 @@ int loadBundledFonts()
         QDir dir(d);
         if (!dir.exists()) continue;
         for (const QString &f : dir.entryList({"*.ttf", "*.otf"}, QDir::Files)) {
-            const int id = QFontDatabase::addApplicationFont(dir.filePath(f));
+            const int id = addFontFile(dir, f);
             if (id < 0) continue;
             ++n;
             for (const QString &fam : QFontDatabase::applicationFontFamilies(id))
@@ -419,13 +441,6 @@ static const QHash<QString, StandInWidths> &standInWidths()
 // The table's entry for a missing font when its stand-in is the one drawn.
 static const StandInWidths *measuredStandIn(const QString &family)
 {
-#ifdef Q_OS_MACOS
-    // Qt's macOS text engine narrows a font differently (Gill Sans MT's
-    // stand-in came out 6% narrower than on Windows and Linux): until that's
-    // measured there, the Mac keeps the stand-ins' own widths.
-    Q_UNUSED(family);
-    return nullptr;
-#endif
     const auto w = standInWidths().constFind(family);
     if (w == standInWidths().constEnd()) return nullptr;
     static QHash<QString, bool> drawn;   // main thread only, like all layout
@@ -433,7 +448,7 @@ static const StandInWidths *measuredStandIn(const QString &family)
     if (it == drawn.constEnd()) {
         QFont f(family);
         f.setFamilies({family});
-        it = drawn.insert(family, QFontInfo(f).family().compare(QLatin1String(w->standIn), Qt::CaseInsensitive) == 0);
+        it = drawn.insert(family, QFontInfo(f).family().compare(standInOnThisPlatform(QLatin1String(w->standIn)), Qt::CaseInsensitive) == 0);
     }
     return *it ? &*w : nullptr;
 }
@@ -638,7 +653,78 @@ uint unicodeToSymbol(QChar c, QString *family)
 QString substituteFor(const QString &family)
 {
     if (haveFamily(family)) return {};
-    return table().value(family);
+    return standInOnThisPlatform(table().value(family));
+}
+
+int stretchToAsk(int percent, bool appliedTwice)
+{
+    if (!appliedTwice) return percent;
+    // The whole number s whose square, (s/100)^2, is nearest percent/100.
+    const int want = 100 * std::max(percent, 1);
+    int s = std::clamp(int(std::lround(std::sqrt(double(want)))), 1, 4000);
+    for (const int c : {s - 1, s + 1})
+        if (c >= 1 && c <= 4000 && std::abs(c * c - want) < std::abs(s * s - want)) s = c;
+    return s;
+}
+
+QString standInOnThisPlatform(const QString &standIn)
+{
+    if (haveFamily(standIn)) return standIn;
+    for (QString base = standIn; base.contains(QLatin1Char(' '));) {
+        base.truncate(base.lastIndexOf(QLatin1Char(' ')));
+        if (haveFamily(base)) return base;
+    }
+    return standIn;
+}
+
+QString substituteStyleName(const QString &family)
+{
+    if (haveFamily(family)) return {};
+    const QString standIn = table().value(family), here = standInOnThisPlatform(standIn);
+    return here.size() < standIn.size() ? standIn.mid(here.size()).trimmed() : QString();
+}
+
+QByteArray fontWithItalicFlags(const QByteArray &font)
+{
+    const auto u16 = [&](qsizetype at) { return at >= 0 && at + 2 <= font.size() ? quint16(uchar(font[at]) << 8 | uchar(font[at + 1])) : quint16(0); };
+    const auto u32 = [&](qsizetype at) { return quint32(u16(at)) << 16 | u16(at + 2); };
+    // A TrueType or OpenType file: version, then a directory of 16-byte table records from byte 12.
+    if (const quint32 version = u32(0); version != 0x00010000 && version != 0x74727565 && version != 0x4F54544F) return {};
+    qsizetype os2 = -1, head = -1, post = -1;
+    for (qsizetype i = 0, n = u16(4); i < n && 12 + 16 * (i + 1) <= font.size(); ++i) {
+        const qsizetype record = 12 + 16 * i;
+        const QByteArray tag = font.mid(record, 4);
+        if (tag == "OS/2") os2 = record;
+        else if (tag == "head") head = record;
+        else if (tag == "post") post = record;
+    }
+    if (os2 < 0 || head < 0 || post < 0) return {};
+    const auto inside = [&](qsizetype record, qsizetype size) { return u32(record + 12) >= size && qsizetype(u32(record + 8)) + size <= font.size(); };
+    if (!inside(os2, 64) || !inside(head, 54) || !inside(post, 8)) return {};
+    const qsizetype os2At = u32(os2 + 8), headAt = u32(head + 8), postAt = u32(post + 8);
+    // Flagged italic already, or its letters are upright (the post table's italic angle).
+    const quint16 selection = u16(os2At + 62);
+    if ((selection & 1) || u32(postAt + 4) == 0) return {};
+    QByteArray out(font.constData(), font.size());
+    const auto set16 = [&](qsizetype at, quint16 v) { out[at] = char(v >> 8); out[at + 1] = char(v & 0xFF); };
+    const auto set32 = [&](qsizetype at, quint32 v) { set16(at, quint16(v >> 16)); set16(at + 2, quint16(v & 0xFFFF)); };
+    // The sum of a table's 32-bit words, padded with zeros.
+    const auto sum = [&](qsizetype at, qsizetype length) {
+        quint32 total = 0;
+        for (qsizetype i = 0; i < length; i += 4) {
+            quint32 word = 0;
+            for (qsizetype k = 0; k < 4; ++k) word = word << 8 | (i + k < length ? uchar(out[at + i + k]) : 0);
+            total += word;
+        }
+        return total;
+    };
+    set16(os2At + 62, quint16((selection | 1) & ~64));   // italic, not regular
+    set16(headAt + 44, quint16(u16(headAt + 44) | 2));   // macStyle: italic
+    set32(headAt + 8, 0);
+    set32(os2 + 4, sum(os2At, u32(os2 + 12)));
+    set32(head + 4, sum(headAt, u32(head + 12)));
+    set32(headAt + 8, 0xB1B0AFBAu - sum(0, out.size()));
+    return out;
 }
 
 QStringList standInFamiliesForTest()
@@ -654,7 +740,7 @@ void installFontSubstitutions()
     const auto &t = table();
     for (auto it = t.cbegin(); it != t.cend(); ++it) {
         if (QFontDatabase::hasFamily(it.key())) continue;
-        QStringList subs{it.value()};
+        QStringList subs{standInOnThisPlatform(it.value())};
         // Sensible generic fallbacks after the named substitute.
         subs << (it.value().contains("Mono") || it.value() == "Cousine" ? QStringLiteral("Cousine") : QStringLiteral("Arimo"));
         QFont::insertSubstitutions(it.key(), subs);

@@ -427,12 +427,15 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
         if (!fams.isEmpty()) {
             const int own = f.hasProperty(QTextFormat::FontStretch) ? f.fontStretch() : 100;
             const int st = int(std::lround(own * substituteStretch(fams.first(), f.fontWeight() >= QFont::DemiBold, f.fontItalic()) / 100.0));
-            if (st != 100) r.setFontStretch(st);
+            if (st != 100) r.setFontStretch(stretchToAsk(st));
             else r.clearProperty(QTextFormat::FontStretch);
             // "Medium", "Demi", "Black"... in a missing font's name become a real weight.
             const int wt = substituteWeight(fams.first());
-            if (wt > 0 && !(f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::Bold))
+            if (wt > 0 && !(f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::Bold)) {
                 r.setFontWeight(wt);
+                // Selawik's Light and Semilight weigh the same where they are styles of one family.
+                if (const QString style = substituteStyleName(fams.first()); !style.isEmpty()) r.setFontStyleName(style);
+            }
             // Letters as high as the missing font's (drawing only).
             if (const double hs = substituteHeightScale(fams.first(), r.fontWeight() >= QFont::DemiBold); hs != 1)
                 r.setProperty(tp::GlyphScaleY, hs);

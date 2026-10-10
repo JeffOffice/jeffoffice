@@ -2,6 +2,7 @@
 // Bundled open fonts and substitutions for common proprietary fonts that
 // are missing on Linux. A substitute is used only when the named font is absent.
 
+#include <QByteArray>
 #include <QString>
 #include <QStringList>
 
@@ -12,6 +13,26 @@ int loadBundledFonts();                      // returns number of font files loa
 void installFontSubstitutions();
 QString substituteFor(const QString &family); // empty if none / font available
 int substituteStretch(const QString &family, bool bold = false, bool italic = false);
+// The stretch (percent) to give Qt so text is drawn that wide. Qt's macOS text
+// engine applies a font's stretch twice (to the advances and again to the
+// letters), so there it is the whole number whose square is nearest.
+#ifdef Q_OS_MACOS
+constexpr bool kStretchAppliedTwice = true;
+#else
+constexpr bool kStretchAppliedTwice = false;
+#endif
+int stretchToAsk(int percent, bool appliedTwice = kStretchAppliedTwice);
+// A stand-in's name as this platform has it: the name itself, or the family it
+// is a style of ("Selawik Light" is the style Light of Selawik on Windows and
+// the Mac, a family of its own on Linux).
+QString standInOnThisPlatform(const QString &standIn);
+// The style to ask for in that family ("Light"), empty when the stand-in is a
+// family of its own or the font is installed.
+QString substituteStyleName(const QString &family);
+// A font file with its italic flags set when its letters slant but its flags
+// say upright (Libre Franklin ExtraBold Italic: DirectWrite can't tell it from
+// ExtraBold); empty when the file needs no change.
+QByteArray fontWithItalicFlags(const QByteArray &font);
 // The stretches (percent; regular, bold, italic, bold italic; 0 = none) the
 // table of measured stand-in widths holds, whether or not this platform uses
 // them, for the test that shows how the platform draws them.
