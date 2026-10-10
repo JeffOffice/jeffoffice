@@ -32,6 +32,8 @@ struct CellInfo
   long m_margins[4] = {-1, -1, -1, -1};
   // JeffPub: Text Direction (field 06): 2 turns the cell's text a quarter turn.
   unsigned m_textDirection = 0;
+  // JeffPub: vertical alignment (field 07): 1 middle, 2 bottom, 0 top.
+  unsigned m_verticalAlign = 0;
   unsigned m_endColumn;
 };
 

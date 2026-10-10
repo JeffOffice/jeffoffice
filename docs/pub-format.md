@@ -146,7 +146,10 @@ of type 0x00) when the story isn't hyphenated automatically, `05` (u16,
 type 0x10) for AutoFit Text, `07` = its entry in the frame layout section
 (MCLD), `08`/`09` (floats, -9999996 when unset), a `0c` flag (type 0x08)
 for Grow Text Box to Fit, and `0a` (u32), the hyphenation zone in EMU, left
-out at its default of 228600 (0.25 inch).
+out at its default of 228600 (0.25 inch). A text box's zone is the same
+field (a chain of linked boxes is one story, so it has one zone); files
+JeffPub wrote with zones of 36, 30, and 27 points opened in Publisher's
+Hyphenation dialog showing 0.5", 0.417", and 0.375".
 
 `05` is 1 for Best Fit and 3 for Shrink Text On Overflow; older files set
 higher bits too (0x103, 0x203, 0x3003), so only the low two bits count.
@@ -328,10 +331,11 @@ The cell list (type 0x63, parent the table, directory 08 and 0b = 1) is
 `01:18 count, 02 list`; each cell has `01` first row, `02` last row, `03`
 first column, `04` last column (zero fields left out), `06` Text Direction
 (2 when the cell's text is turned a quarter turn, so its lines read from top
-to bottom; left out when horizontal), `0a`-`0d` margins (left, right, top,
-bottom) and `0e = 114300`. A merged cell is one entry spanning its rows and
-columns; the cells under it are not listed. Cells can come in any order;
-their text follows the list order.
+to bottom; left out when horizontal), `07` vertical alignment (a u16, type
+0x10: 1 middle, 2 bottom; left out for top), `0a`-`0d` margins (left, right,
+top, bottom) and `0e = 114300`. A merged cell is one entry spanning its
+rows and columns; the cells under it are not listed. Cells can come in any
+order; their text follows the list order.
 
 Text Direction is the cell's `06` and nothing else in the cell: in Publisher
 2021 `Cell.CellTextOrientation` is 1 for horizontal and 2 for turned, and
@@ -340,6 +344,18 @@ model and through the Table Layout tab's Text Direction button (a toggle:
 twice is horizontal again) and comparing the saved files; setting another
 cell moved `06` to that cell's record. Publisher also records the cell's
 frame turned (see Frame layout below).
+
+Vertical alignment is the cell's `07` and nothing else in the file:
+`Cell.VerticalTextAlignment` is 0 (top), 1 (middle), or 2 (bottom), and
+accepts no other value. Setting it back to 0 removes the field. Found by
+setting each value on cells through the object model and comparing the saved
+files: only the cell list changed. On the first cell of a table the field has
+stray bits above its low byte (0x6C01, 0x3101, 0x3102 for 1, 1, and 2), so
+read only the low byte. In a turned cell, bottom puts the text at the left
+edge. JeffPub's files opened in Publisher read back each cell's alignment
+through the object model and drew the same positions as JeffPub, merged and
+turned cells included, and a Publisher-made table opened in JeffPub drew its
+cells at the same places.
 
 All the cells' text is one story. Its `0x65` record adds `03:10 = 0`, and
 it has no `0x61` entry. A `TCD ` section (kind `PLC `, id = the story's

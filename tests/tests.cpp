@@ -1494,7 +1494,7 @@ private Q_SLOTS:
         ed->selectCells(id, 1, 1, 2, 2);
         w.act(QStringLiteral("tb.direction"))->trigger();   // turned back
         for (const auto &c : table()->cells) QVERIFY(!c.vertical);
-        // Hyphenation: the dialog shows the block's first cell and sets the block's cells.
+        // Hyphenation: the dialog shows the block's first cell and sets every cell of the table (its text is one story).
         ed->change(QStringLiteral("Set up"), [&] { table()->cell(1, 1).hyphenate = false; });
         bool shownOn = true;
         QTimer::singleShot(0, [&] {
@@ -1512,8 +1512,7 @@ private Q_SLOTS:
         w.act(QStringLiteral("rev.hyphenation"))->trigger();
         QVERIFY(!shownOn);   // (1,1) is not hyphenated, and the dialog showed it
         QCOMPARE(ed->undoStack()->index(), steps + 1);
-        for (int r = 0; r < 4; ++r)
-            for (int c = 0; c < 4; ++c) QCOMPARE(table()->cell(r, c).hyphenate, !inBlock(r, c));
+        for (const auto &c : table()->cells) QVERIFY(!c.hyphenate);
         QVERIFY(ed->hasCellBlock());
         // The vertical-alignment buttons are checked for the selected cells.
         ed->change(QStringLiteral("Align"), [&] {
@@ -12962,6 +12961,109 @@ private Q_SLOTS:
         QVERIFY(tableOf(*zone) && allCells(tableOf(*zone), true, 36));
     }
 
+    // A cell's vertical alignment (top, middle, or bottom) is kept in a .pub
+    // file, alongside its Text Direction, and a merged cell's too.
+    void pubTableCellVerticalAlignKept()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 3;
+        t->cols = 3;
+        t->colW = {100, 100, 100};
+        t->rowH = {90, 60, 80};
+        t->rect = QRectF(72, 144, 0, 0);
+        t->syncRect();
+        t->cells.resize(9);
+        for (auto &c : t->cells) c.storyId = doc->createStory(QStringLiteral("Region"));
+        t->cell(0, 0).valign = jp::VAlign::Middle;
+        t->cell(0, 1).valign = jp::VAlign::Bottom;
+        t->cell(0, 1).vertical = true;
+        t->cell(1, 2).valign = jp::VAlign::Middle;
+        t->cell(2, 0).colSpan = 2;
+        t->cell(2, 0).valign = jp::VAlign::Bottom;
+        t->cell(2, 1).covered = true;
+        doc->pages[0]->items.push_back(t);
+
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("cell-valign.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            const QString out = qEnvironmentVariable("JP_SHOT_DIR") + "/cell-valign.pub";
+            QFile::remove(out);
+            QFile::copy(path, out);
+        }
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TableItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(bt);
+        QCOMPARE(bt->rows, 3);
+        QCOMPARE(bt->cols, 3);
+        QCOMPARE(int(bt->cell(0, 0).valign), int(jp::VAlign::Middle));
+        QCOMPARE(int(bt->cell(0, 1).valign), int(jp::VAlign::Bottom));
+        QVERIFY(bt->cell(0, 1).vertical);
+        QVERIFY(!bt->cell(0, 0).vertical);
+        QCOMPARE(int(bt->cell(0, 2).valign), int(jp::VAlign::Top));
+        QCOMPARE(int(bt->cell(1, 0).valign), int(jp::VAlign::Top));
+        QCOMPARE(int(bt->cell(1, 1).valign), int(jp::VAlign::Top));
+        QCOMPARE(int(bt->cell(1, 2).valign), int(jp::VAlign::Middle));
+        QCOMPARE(bt->cell(2, 0).colSpan, 2);
+        QCOMPARE(int(bt->cell(2, 0).valign), int(jp::VAlign::Bottom));
+        QCOMPARE(int(bt->cell(2, 2).valign), int(jp::VAlign::Top));
+    }
+
+    // A text box's hyphenation zone is kept in a .pub file with its story's
+    // hyphenation setting, in every box of a linked chain.
+    void pubTextBoxHyphenationZoneKept()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = [&](double y, bool hyphenate, double zone) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(72, y, 200, 60);
+            t->storyId = doc->createStory(QStringLiteral("Internationalization characteristics"));
+            t->hyphenate = hyphenate;
+            t->hyphenZone = zone;
+            doc->pages[0]->items.push_back(t);
+            return t;
+        };
+        box(72, true, 18);
+        box(144, true, 36);
+        box(216, false, 30);
+        auto first = box(288, true, 27);
+        auto second = box(360, true, 27);
+        second->storyId = first->storyId;
+        first->nextId = second->id;
+
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("box-zone.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            const QString out = qEnvironmentVariable("JP_SHOT_DIR") + "/box-zone.pub";
+            QFile::remove(out);
+            QFile::copy(path, out);
+        }
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QMap<int, const jp::TextItem *> boxes;   // by top edge
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Text) boxes.insert(int(std::lround(it->rect.top())), static_cast<const jp::TextItem *>(it.get()));
+        });
+        QCOMPARE(boxes.size(), 5);
+        auto check = [&](int y, bool hyphenate, double zone) {
+            const jp::TextItem *t = boxes.value(y);
+            return t && t->hyphenate == hyphenate && std::abs(t->hyphenZone - zone) < 0.01;
+        };
+        QVERIFY(check(72, true, 18));
+        QVERIFY(check(144, true, 36));
+        QVERIFY(check(216, false, 30));
+        QVERIFY(check(288, true, 27));
+        QVERIFY(check(360, true, 27));
+    }
+
     // The eyedropper picks the color under the click from the window.
     void eyedropperPicks()
     {
@@ -14832,8 +14934,9 @@ private Q_SLOTS:
         QVERIFY2(direct && hyphen, qPrintable(layout));
     }
 
-    // The Hyphenation command works in a table: on the cell the cursor is in
-    // or, with the table selected, on every cell.
+    // The Hyphenation command works in a table. A table's text is one story, so
+    // it sets every cell, whether the cursor is in a cell, some cells are
+    // selected, or the table is.
     void tableHyphenationCommand()
     {
         jp::MainWindow w;
@@ -14875,15 +14978,20 @@ private Q_SLOTS:
         QCOMPARE(settings(), QStringLiteral("hhhh"));
         ed->beginTextEdit(id, 0, 1, 1);
         command(false, true);
-        QCOMPARE(settings(), QStringLiteral("hhh-"));   // the cell the cursor is in
-        QCOMPARE(hyphenated(), QStringLiteral("---o"));
+        QCOMPARE(settings(), QStringLiteral("----"));   // every cell, not only the cell the cursor is in
+        QCOMPARE(hyphenated(), QStringLiteral("---o"));   // optional hyphens go in that cell's text
         ed->undo();
         ed->undo();
         QCOMPARE(settings(), QStringLiteral("hhhh"));
         ed->endTextEdit();
+        ed->selectCells(id, 0, 0, 0, 1);
+        command(false, false);
+        QCOMPARE(settings(), QStringLiteral("----"));   // selected cells: still the whole table
+        command(true, false);
+        QCOMPARE(settings(), QStringLiteral("hhhh"));
         ed->select(id);
         command(false, true);
-        QCOMPARE(settings(), QStringLiteral("----"));   // the whole table
+        QCOMPARE(settings(), QStringLiteral("----"));
         QCOMPARE(hyphenated(), QStringLiteral("oooo"));
         command(true, false);
         QCOMPARE(settings(), QStringLiteral("hhhh"));
