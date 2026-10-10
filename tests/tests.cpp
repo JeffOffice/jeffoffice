@@ -4553,6 +4553,13 @@ private Q_SLOTS:
             QVERIFY2(std::abs(ratio / (scale / 100.0) - 1) < 0.015 + (sent != scale ? 1.0 / sent : 0.0),
                      qPrintable(QStringLiteral("%1%% is drawn %2").arg(scale).arg(ratio)));
         }
+        // A run in the theme's font names no family: its own scaling is asked the same way.
+        QTextCharFormat theme;
+        theme.setFontPointSize(20);
+        theme.setFontStretch(80);
+        QCOMPARE(jp::resolveCharFormat(theme, env).fontStretch(), jp::stretchToAsk(80));
+        theme.setFontStretch(100);
+        QVERIFY(!jp::resolveCharFormat(theme, env).hasProperty(QTextFormat::FontStretch));
     }
 
     // Selawik's Light, Semilight, and Semibold are families of their own on
