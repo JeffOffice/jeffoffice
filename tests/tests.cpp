@@ -14234,6 +14234,50 @@ private Q_SLOTS:
         }
     }
 
+    // The cell list's count is 16 bits, so a table of 65,536 cells (256 x 256), or fewer cells with many divided
+    // ones (each divided cell is two entries), would wrap it to a small number. The cells come first, then as
+    // many second halves as fit; the save says what it left out.
+    void pubTableCellCountDoesNotWrap()
+    {
+        auto written = [&](int rows, int cols, int diagonal, QString *note) {
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            auto t = std::make_shared<jp::TableItem>();
+            t->rows = rows;
+            t->cols = cols;
+            t->colW = QVector<double>(cols, 2.0);
+            t->rowH = QVector<double>(rows, 2.0);
+            t->rect = QRectF(36, 36, 0, 0);
+            t->syncRect();
+            t->cells.resize(rows * cols);
+            for (jp::TableCell &c : t->cells) c.diagonal = diagonal;
+            doc->pages[0]->items.push_back(t);
+            QTemporaryDir dir;
+            const QString path = dir.filePath(QStringLiteral("many-cells.pub"));
+            if (!jp::exportPublisher(*doc, path, note)) return -2;
+            // The cell list is the one list of records that holds the field 0e = 114300 (one count, a u16, then the list).
+            const QByteArray c = jp::cfb::readStream(path, QStringLiteral("Contents"));
+            int count = -1;
+            for (qsizetype at = c.indexOf(QByteArray("\x02\xa0", 2)); at >= 4; at = c.indexOf(QByteArray("\x02\xa0", 2), at + 1)) {
+                if (c.mid(at - 4, 2) != QByteArray("\x01\x18", 2)) continue;
+                const qsizetype length = qFromLittleEndian<quint32>(c.constData() + at + 2);
+                if (!c.mid(at + 6, length).contains(QByteArray("\x0e\x20\x7c\xbe\x01\x00", 6))) continue;
+                count = qFromLittleEndian<quint16>(c.constData() + at - 2);
+                break;
+            }
+            return count;
+        };
+        QString note;
+        // 256 x 256: the last cell has no room.
+        QCOMPARE(written(256, 256, 0, &note), 65535);
+        QVERIFY2(note.contains(QStringLiteral("1 table cell")), qPrintable(note));
+        // 182 x 182, all divided: 33,124 cells, and room for 32,411 of the 33,124 second halves.
+        QCOMPARE(written(182, 182, 1, &note), 65535);
+        QVERIFY2(note.contains(QStringLiteral("713 divided table cell")), qPrintable(note));
+        // Under the limit, nothing is left out.
+        QCOMPARE(written(100, 100, 1, &note), 20000);
+        QVERIFY2(note.isEmpty(), qPrintable(note));
+    }
+
     // A .pub file holds 1,000 table formatting shapes (borders, shadings, and diagonals, in all of a publication's
     // tables). A table with more keeps its diagonals, which are fewer and lose more, and loses borders; the save says how many.
     void pubTableDiagonalsComeBeforeBordersPastTheLimit()

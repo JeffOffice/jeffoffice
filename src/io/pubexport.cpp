@@ -1467,7 +1467,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     int textId = 2;
     int spid = 0x401;
     QHash<QString, quint32> spidOf;   // item -> its drawing shape id, for connector rules
-    int skippedCount = 0, droppedFormats = 0;
+    int skippedCount = 0, droppedFormats = 0, droppedCells = 0, droppedHalves = 0;
     const double cx = ps.width() / 2, cy = ps.height() / 2;
     auto anchor = [&](const QRectF &r) {
         return clientBlocks(0xf010, {u32(0x01, quint32(qint32(emu(r.left() - cx)))), u32(0x02, quint32(qint32(emu(r.top() - cy)))),
@@ -1936,10 +1936,19 @@ QByteArray PubWriter::write(QStringList *skipped)
                 QVector<B> halfRecs;
                 QVector<Frame> halfFrames;
                 QVector<const QTextDocument *> halfDocs;
+                // The list's count is 16 bits: the cells come first, then as
+                // many second halves as fit.
+                constexpr int kMaxCellRecords = 0xffff;
+                int roomForHalves = kMaxCellRecords;
+                for (const TableCell &c : tb->cells) roomForHalves -= !c.covered;
                 for (int row = 0; row < tb->rows; ++row) {
                     for (int col = 0; col < tb->cols; ++col) {
                         const TableCell &c = tb->cell(row, col);
                         if (c.covered) continue;
+                        if (cellRecs.size() >= kMaxCellRecords) {
+                            ++droppedCells;
+                            continue;
+                        }
                         if (!c.hyphenate) hyphenate = false;
                         if (!zoneSet && std::abs(c.hyphenZone - defaultZone) > 1e-6) {
                             zone = c.hyphenZone;
@@ -1967,7 +1976,10 @@ QByteArray PubWriter::write(QStringList *skipped)
                             return rec(0x00, f);
                         };
                         cellRecs << fields(divided ? divided | 4 : 0);
-                        if (divided) {
+                        if (divided && roomForHalves <= 0) {
+                            ++droppedHalves;
+                        } else if (divided) {
+                            --roomForHalves;
                             halfRecs << fields(divided);
                             halfFrames << frame;
                             const QTextDocument *d2 = m_doc.storyDoc(c.storyId2);
@@ -2268,6 +2280,9 @@ QByteArray PubWriter::write(QStringList *skipped)
         }
     }
     if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%1 object(s) couldn't be saved to .pub").arg(skippedCount);
+    if (skipped && droppedCells) *skipped << QCoreApplication::translate("Export", "%1 table cell(s) couldn't be saved to .pub").arg(droppedCells);
+    if (skipped && droppedHalves)
+        *skipped << QCoreApplication::translate("Export", "the second half of %1 divided table cell(s) couldn't be saved to .pub").arg(droppedHalves);
     if (skipped && droppedFormats)
         *skipped << QCoreApplication::translate("Export", "%1 table border(s), shading(s), or diagonal(s) couldn't be saved to .pub").arg(droppedFormats);
     // An object set in text says so (03) and gives its number (0f), with 34
