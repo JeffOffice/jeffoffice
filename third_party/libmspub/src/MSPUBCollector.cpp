@@ -1476,8 +1476,8 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
             }
             m_painter->openTableCell(cellProps);
 
-            // JeffPub: a cell divided by a diagonal has the text of its second half after its first's
-            // (a half with no text is left out).
+            // JeffPub: a cell divided by a diagonal has the text of its second half after its first's,
+            // the second half's first paragraph marked (a half with no text is left out).
             auto hasCellText = [&](unsigned cell)
             {
               if (cell >= paraToCellMap.size())
@@ -1489,7 +1489,7 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
                     return true;
               return false;
             };
-            auto insertCellText = [&](unsigned cell)
+            auto insertCellText = [&](unsigned cell, bool secondHalf)
             {
               if (cell >= paraToCellMap.size())
                 return;
@@ -1497,6 +1497,8 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
               for (unsigned para = cellParas.first; para <= cellParas.second; ++para)
               {
                 librevenge::RVNGPropertyList paraProps = getParaStyleProps(text[para].style, text[para].style.m_defaultCharStyleIndex);
+                if (secondHalf && para == cellParas.first)
+                  paraProps.insert("jp:second-half", true);
                 m_painter->openParagraph(paraProps);
 
                 for (size_t i_spans = 0; i_spans < paraTexts[para].size(); ++i_spans)
@@ -1512,13 +1514,13 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
             };
             const unsigned second = tableLayout[row][col].m_second;
             if (second == unsigned(-1))
-              insertCellText(tableLayout[row][col].m_cell);
+              insertCellText(tableLayout[row][col].m_cell, false);
             else
             {
               if (hasCellText(tableLayout[row][col].m_cell) || !hasCellText(second))
-                insertCellText(tableLayout[row][col].m_cell);
+                insertCellText(tableLayout[row][col].m_cell, false);
               if (hasCellText(second))
-                insertCellText(second);
+                insertCellText(second, true);
             }
 
             m_painter->closeTableCell();

@@ -262,7 +262,7 @@ public:
     Q_INVOKABLE void refresh() {}
 
 private:
-    struct Hit { QString itemId, storyId; int row = -1, col = -1; int page = -1; QString master; };
+    struct Hit { QString itemId, storyId; int row = -1, col = -1; int page = -1; QString master; int half = 0; };
     QVector<Hit> stories()
     {
         // Every story once, in page order, using the first frame of each chain.
@@ -280,7 +280,10 @@ private:
                 } else if (it->type() == ItemType::Table) {
                     auto *tb = static_cast<TableItem *>(it.get());
                     for (int r = 0; r < tb->rows; ++r)
-                        for (int c = 0; c < tb->cols; ++c) out << Hit{tb->id, tb->cell(r, c).storyId, r, c, page, master};
+                        for (int c = 0; c < tb->cols; ++c) {
+                            out << Hit{tb->id, tb->cell(r, c).storyId, r, c, page, master};
+                            if (tb->cell(r, c).divided() && !tb->cell(r, c).storyId2.isEmpty()) out << Hit{tb->id, tb->cell(r, c).storyId2, r, c, page, master, 1};
+                        }
                 }
             });
         };
@@ -324,7 +327,7 @@ private:
             if (found.isNull()) continue;
             if (!h.master.isEmpty()) ed->setMasterView(h.master);
             else if (h.page >= 0) ed->setCurrentPage(h.page);
-            ed->beginTextEdit(h.itemId, found.selectionStart(), h.row, h.col);
+            ed->beginTextEdit(h.itemId, found.selectionStart(), h.row, h.col, h.half);
             QTextCursor c = ed->cursor();
             c.setPosition(found.selectionStart());
             c.setPosition(found.selectionEnd(), QTextCursor::KeepAnchor);

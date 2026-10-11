@@ -245,7 +245,10 @@ void wordsOf(const Document &d, const Item &it, QStringList *out)
     case ItemType::Shape: story(static_cast<const ShapeItem &>(it).storyId); break;
     case ItemType::TextArt: *out << static_cast<const TextArtItem &>(it).text; break;
     case ItemType::Table:
-        for (const TableCell &c : static_cast<const TableItem &>(it).cells) story(c.storyId);
+        for (const TableCell &c : static_cast<const TableItem &>(it).cells) {
+            story(c.storyId);
+            story(c.storyId2);
+        }
         break;
     case ItemType::Group:
         for (const ItemPtr &c : static_cast<const GroupItem &>(it).children) wordsOf(d, *c, out);

@@ -93,7 +93,8 @@ public:
     static FrameSpec frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt);
     // Layout of the text inside a shape or a table cell, with its frame-local origin.
     static const StoryLayout *shapeTextLayout(const PaintContext &ctx, const ShapeItem &s, QPointF *origin);
-    static const StoryLayout *cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin);
+    // half: 0, or 1 for the second half of a cell divided by a diagonal.
+    static const StoryLayout *cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin, int half = 0);
     static void strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs);
 };
 

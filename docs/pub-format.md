@@ -411,11 +411,42 @@ drawing, like a rule: its client anchor has `01 = 3`, `02` = the table, and
 the cell's grid box in `04`-`07` as a rule's (first row, first column, last
 row, last column), the shape's line color is `01c0` and width `01cb`, and its
 flags have the flip-horizontal bit (0x40) for `/`. JeffPub keeps the line
-along a cell's diagonal, or none, in this shape, and writes only the first
-half's text, with an empty second half. A cell Publisher divided with text in
-both halves opens in JeffPub as one cell with the first half's text, then
-the second half's as further paragraphs (a half with no text adds nothing),
-laid out across the whole cell rather than inside one half.
+along a cell's diagonal, or none, in this shape, and each half's text in
+its own entry, so the two stay apart in both directions.
+
+How Publisher lays out and edits the halves (found with pictures of both
+directions, long text in both halves, and by typing in the application):
+
+- A half is a triangle and its text wraps inside it, left aligned (or
+  centered, or justified, as the paragraphs say). A line has the room that
+  is left, inside the cell's margins, beside the diagonal over the height of
+  its text: for the lower right half of `/` and the lower left of `\` that
+  is where the diagonal is at the top of the line, for the other two where
+  it is at the bottom, so the lines get shorter toward a triangle's point.
+  Lines sit on the cell's usual grid from its top margin; a line where not
+  even the first word (or the part of one before a hyphen) fits is left
+  empty, so the text starts lower. Words are hyphenated in the narrow
+  tip ("Al-" and "pha" in the tip of a half).
+- Text a half can't hold is cut off at the cell's bottom, and the row does
+  not grow (200 points before and after a long text in each half, set through
+  the object model).
+- Vertical alignment applies to each half: middle puts the text where its
+  height is centered in the cell, and bottom as low as it fits, so one word
+  of a half whose point is at the bottom sits just above where the triangle
+  gets too narrow for it. For a long text the two depend on where the lines
+  fall, which Publisher settles in a way JeffPub only approximates.
+  (`SaveAsPicture` drew top alignment for alignment set through the object
+  model until the file was saved and opened again.)
+- Clicking puts the caret in the half the click is in, at the end of its text
+  when the click is in empty space. Tab goes from the first half to the
+  second and on to the next cell, selecting the text of the one it reaches
+  (Shift+Tab was not tried). The Right and Down keys at the end of the first half go to the start of
+  the second, and Left and Up at the start of the second go to the end of
+  the first.
+- Setting `Cell.Diagonal` to 0 joins the halves into one paragraph, the
+  first half's text and then the second's with nothing between ("A1" and
+  "A2" make "A1A2"); a half with no text adds nothing. Changing the direction
+  keeps each half's text with its half.
 
 All the cells' text is one story. Its `0x65` record adds `03:10 = 0`, and
 it has no `0x61` entry. A `TCD ` section (kind `PLC `, id = the story's

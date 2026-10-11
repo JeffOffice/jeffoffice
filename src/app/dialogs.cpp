@@ -2744,7 +2744,7 @@ void hyphenationDialog(QWidget *p, Editor *ed)
         int n = 0;
         QVector<QTextDocument *> stories;
         if (t) stories << d->storyDoc(t->storyId);
-        for (const TableCell *c : cells) stories << d->storyDoc(c->storyId);
+        for (const TableCell *c : cells) stories << d->storyDoc(c->storyId) << d->storyDoc(c->storyId2);
         stories.removeAll(nullptr);
         if (!stories.isEmpty()) ed->change(QCoreApplication::translate("Dialogs", "Hyphenate"), [&] { for (QTextDocument *sd : stories) n += hyphenateStory(sd); });
         Q_EMIT ed->status(QCoreApplication::translate("Dialogs", "Added %1 optional hyphens.").arg(n));

@@ -361,11 +361,13 @@ void Editor::clearCellBlockText()
     change(tr("Clear Cells"), [&] {
         for (int r = b.range.r0; r <= b.range.r1; ++r)
             for (int c = b.range.c0; c <= b.range.c1; ++c) {
-                QTextDocument *d = m_doc->storyDoc(t->cell(r, c).storyId);
-                if (!d || d->isEmpty()) continue;
-                QTextCursor cur(d);
-                cur.select(QTextCursor::Document);
-                cur.removeSelectedText();
+                for (const QString &story : {t->cell(r, c).storyId, t->cell(r, c).storyId2}) {
+                    QTextDocument *d = m_doc->storyDoc(story);
+                    if (!d || d->isEmpty()) continue;
+                    QTextCursor cur(d);
+                    cur.select(QTextCursor::Document);
+                    cur.removeSelectedText();
+                }
             }
     });
 }
@@ -373,7 +375,7 @@ void Editor::clearCellBlockText()
 // ---------- text editing ----------
 QTextDocument *Editor::editDoc() const { return m_doc->storyDoc(m_text.storyId); }
 
-void Editor::beginTextEdit(const QString &itemId, int pos, int row, int col)
+void Editor::beginTextEdit(const QString &itemId, int pos, int row, int col, int half)
 {
     Item *it = m_doc->item(itemId);
     if (!it) return;
@@ -404,14 +406,20 @@ void Editor::beginTextEdit(const QString &itemId, int pos, int row, int col)
         col = std::clamp(col, 0, t->cols - 1);
         while (t->cell(row, col).covered && col > 0) --col;
         while (t->cell(row, col).covered && row > 0) --row;
-        story = t->cell(row, col).storyId;
+        const TableCell &cell = t->cell(row, col);
+        half = half && cell.divided() ? 1 : 0;
+        // A half with no text yet has no story.
+        if (half && cell.storyId2.isEmpty()) {
+            change(tr("Add Text"), [&] { t->cell(row, col).storyId2 = m_doc->createStory(); });
+        }
+        story = t->cell(row, col).halfStory(half);
     } else {
         return;
     }
     if (story.isEmpty() || !m_doc->storyDoc(story)) return;
     flushTyping();
     m_block = CellBlock();
-    m_text = TextTarget{itemId, story, row, col};
+    m_text = TextTarget{itemId, story, row, col, half};
     m_cursor = QTextCursor(m_doc->storyDoc(story));
     if (pos >= 0) m_cursor.setPosition(std::clamp(pos, 0, m_doc->storyDoc(story)->characterCount() - 1));
     else m_cursor.movePosition(QTextCursor::End);
@@ -1165,8 +1173,9 @@ void Editor::fitTableRows(TableItem *t)
         double need = 0;
         for (int c = 0; c < t->cols; ++c) {
             const TableCell &cell = t->cell(r, c);
-            // Text turned 90 degrees runs along the row, so the row doesn't grow for it.
-            if (cell.covered || cell.rowSpan > 1 || cell.vertical) continue;
+            // Text turned 90 degrees runs along the row, so the row doesn't grow for it, and neither does it for a
+            // cell divided by a diagonal, whose halves hold what fits (as in Publisher).
+            if (cell.covered || cell.rowSpan > 1 || cell.vertical || cell.divided()) continue;
             Story *s = m_doc->story(cell.storyId);
             if (!s) continue;
             FrameSpec spec;
@@ -1198,8 +1207,8 @@ void Editor::resizeTable(TableItem *t, double width, double height)
 
 void Editor::applyTableFormat(TableItem *t, const QString &format)
 {
-    applyTableFormatCells(t, format, [this](TableCell &cell, bool head, bool firstCol) {
-        QTextDocument *d = m_doc->storyDoc(cell.storyId);
+    auto formatStory = [this](const QString &storyId, bool head, bool firstCol) {
+        QTextDocument *d = m_doc->storyDoc(storyId);
         if (!d) return;
         QTextCursor cur(d);
         cur.select(QTextCursor::Document);
@@ -1232,6 +1241,10 @@ void Editor::applyTableFormat(TableItem *t, const QString &format)
                 }
             }
         }
+    };
+    applyTableFormatCells(t, format, [&](TableCell &cell, bool head, bool firstCol) {
+        formatStory(cell.storyId, head, firstCol);
+        formatStory(cell.storyId2, head, firstCol);
     });
 }
 
@@ -1259,8 +1272,11 @@ void Editor::copy()
         for (int r = b.range.r0; r <= b.range.r1; ++r) {
             QStringList row;
             for (int c = b.range.c0; c <= b.range.c1; ++c) {
-                const QTextDocument *d = m_doc->storyDoc(t->cell(r, c).storyId);
-                row << (d ? d->toPlainText().replace(QChar::ParagraphSeparator, ' ').replace(QLatin1Char('\n'), QLatin1Char(' ')) : QString());
+                QStringList halves;
+                for (const QString &story : {t->cell(r, c).storyId, t->cell(r, c).storyId2})
+                    if (const QTextDocument *d = m_doc->storyDoc(story); d && !d->isEmpty())
+                        halves << d->toPlainText().replace(QChar::ParagraphSeparator, ' ').replace(QLatin1Char('\n'), QLatin1Char(' '));
+                row << halves.join(QLatin1Char(' '));
             }
             lines << row.join(QLatin1Char('\t'));
         }
@@ -1280,7 +1296,7 @@ void Editor::copy()
         switch (it.type()) {
         case ItemType::Text: addStory(static_cast<const TextItem &>(it).storyId); break;
         case ItemType::Shape: addStory(static_cast<const ShapeItem &>(it).storyId); break;
-        case ItemType::Table: for (const auto &c : static_cast<const TableItem &>(it).cells) addStory(c.storyId); break;
+        case ItemType::Table: for (const auto &c : static_cast<const TableItem &>(it).cells) { addStory(c.storyId); addStory(c.storyId2); } break;
         case ItemType::Picture: {
             const QString iid = static_cast<const PictureItem &>(it).imageId;
             auto im = m_doc->images.find(iid);
@@ -1385,7 +1401,7 @@ QStringList Editor::insertItemsJson(const QByteArray &json, const QString &label
             switch (it->type()) {
             case ItemType::Text: mapStory(static_cast<TextItem *>(it)->storyId); static_cast<TextItem *>(it)->nextId.clear(); break;
             case ItemType::Shape: mapStory(static_cast<ShapeItem *>(it)->storyId); break;
-            case ItemType::Table: for (auto &c : static_cast<TableItem *>(it)->cells) mapStory(c.storyId); break;
+            case ItemType::Table: for (auto &c : static_cast<TableItem *>(it)->cells) { mapStory(c.storyId); mapStory(c.storyId2); } break;
             case ItemType::Picture: { auto *p = static_cast<PictureItem *>(it); p->imageId = imageMap.value(p->imageId, p->imageId); break; }
             case ItemType::Group: for (auto &c : static_cast<GroupItem *>(it)->children) fix(c.get()); break;
             default: break;

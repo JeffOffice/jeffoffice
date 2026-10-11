@@ -131,7 +131,7 @@ void spellingDialog(QWidget *p, Editor *ed)
         return;
     }
     // Stories in reading order.
-    struct S { QString itemId, storyId; int page; int row = -1, col = -1; };
+    struct S { QString itemId, storyId; int page; int row = -1, col = -1; int half = 0; };
     QVector<S> stories;
     QSet<QString> seen;
     Document *d = ed->doc();
@@ -145,7 +145,10 @@ void spellingDialog(QWidget *p, Editor *ed)
             } else if (it->type() == ItemType::Table) {
                 auto *tb = static_cast<TableItem *>(it.get());
                 for (int r = 0; r < tb->rows; ++r)
-                    for (int c = 0; c < tb->cols; ++c) stories << S{tb->id, tb->cell(r, c).storyId, pg, r, c};
+                    for (int c = 0; c < tb->cols; ++c) {
+                        stories << S{tb->id, tb->cell(r, c).storyId, pg, r, c};
+                        if (tb->cell(r, c).divided() && !tb->cell(r, c).storyId2.isEmpty()) stories << S{tb->id, tb->cell(r, c).storyId2, pg, r, c, 1};
+                    }
             }
         });
     QDialog dlg(p);
@@ -177,7 +180,7 @@ void spellingDialog(QWidget *p, Editor *ed)
                 if (m.first < pos) continue;
                 const S &s = stories[si];
                 if (s.page != ed->currentPage()) ed->setCurrentPage(s.page);
-                ed->beginTextEdit(s.itemId, m.first, s.row, s.col);
+                ed->beginTextEdit(s.itemId, m.first, s.row, s.col, s.half);
                 QTextCursor c = ed->cursor();
                 c.setPosition(m.first);
                 c.setPosition(m.second, QTextCursor::KeepAnchor);

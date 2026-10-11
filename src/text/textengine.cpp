@@ -1112,6 +1112,49 @@ double naturalLineEm(const QFont &f, const QString &requestedFamily) { return li
 
 void StoryLayout::build(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env)
 {
+    // Text centered or at the bottom of a polygon is set as far down as it fits there: laid out from a
+    // top inset, with the polygon where it is, which can leave it above the middle or the bottom where
+    // the polygon narrows.
+    if (frames.size() == 1 && frames[0].fitToShape && frames[0].valign != VAlign::Top && frames[0].columns <= 1) {
+        FrameSpec top = frames[0];
+        top.valign = VAlign::Top;
+        const double room = std::max(0.0, top.size.height() - top.insets.top() - top.insets.bottom());
+        // Lays the text out from t down; whether it all fits, and how tall it is.
+        auto at = [&](double t, double *height) {
+            FrameSpec g = top;
+            g.insets.setTop(top.insets.top() + t);
+            buildOnce(doc, {g}, env);
+            *height = m_used.value(0) - g.insets.top() - g.insets.bottom();
+            return !m_overflow && *height > 0 && t + *height <= room + 0.5;
+        };
+        double t = 0, h = 0;
+        if (at(0, &h)) {
+            // The middle or the bottom for what the text takes: a few rounds, as its height depends on where it is.
+            const double share = frames[0].valign == VAlign::Middle ? 0.5 : 1.0;
+            for (int i = 0; i < 4; ++i) {
+                const double next = std::max(0.0, (room - h) * share);
+                double nh = 0;
+                if (at(next, &nh)) {
+                    t = next;
+                    h = nh;
+                    continue;
+                }
+                // Not there: the lowest place before it where it fits.
+                double lo = t, hi = next;
+                for (int k = 0; k < 14; ++k) {
+                    const double mid = (lo + hi) / 2;
+                    (at(mid, &nh) ? lo : hi) = mid;
+                }
+                t = lo;
+                break;
+            }
+            at(t, &h);
+        }
+        FrameSpec g = top;
+        g.insets.setTop(top.insets.top() + t);
+        m_frames = {g};
+        return;
+    }
     QVector<double> shifts = buildOnce(doc, frames, env);
     // Text centered or set at the bottom meets the objects it wraps around
     // where it ends up, not at the frame's top (as in Publisher: a centered
@@ -1723,6 +1766,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             // The width is given again: without it Qt treats the line
                             // as endless, and justified text spreads off the page.
                             if (k > s0 && (iv.x1 - iv.x0) - (line.cursorToX(k) - line.cursorToX(s0)) < zone) line.setNumColumns(k - s0, std::max(1.0, iv.x1 - iv.x0));
+                        }
+                    }
+                    // In a polygon a word too long for the place left isn't broken to fit it: the line moves down to where it does.
+                    if (frames[f].fitToShape && iv.x1 - iv.x0 < col.width() - indL - indR - 0.5) {
+                        const int e = line.textStart() + line.textLength();
+                        if (e > 0 && e < B->disp.size() && !B->disp[e - 1].isSpace() && B->disp[e - 1] != QChar(0x00AD) && B->disp[e - 1] != QLatin1Char('-') && !B->disp[e].isSpace()) {
+                            y += 2;
+                            rowActive = false;
+                            if (y + estH > col.height() - reserve.value(rkey(f, c)) + 0.01) advance();
+                            continue;
                         }
                     }
                     double single = singleSpacing(ranges, line.textStart(), std::max(1, line.textLength()), base);

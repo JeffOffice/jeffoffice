@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QMarginsF>
 #include <QPainterPath>
+#include <QPolygonF>
 #include <QRectF>
 #include <QString>
 #include <QTransform>
@@ -191,6 +192,10 @@ struct CellBorder {
 
 struct TableCell {
     QString storyId;
+    // A cell divided by a diagonal is two halves, each with its own text, as in Publisher. The first half is
+    // the lower left of a "down" diagonal and the upper left of an "up" one, and keeps storyId; the second is
+    // the upper right or the lower right, and has storyId2 (empty when it has no text yet).
+    QString storyId2;
     Fill fill;
     int rowSpan = 1, colSpan = 1;
     bool covered = false;       // hidden under a merged cell
@@ -202,6 +207,12 @@ struct TableCell {
     double hyphenZone = 18;     // points: break a word only if moving it whole would leave more empty
     QMarginsF margins{2.88, 2.88, 2.88, 2.88};
     CellBorder border;
+
+    bool divided() const { return diagonal != 0 && !covered; }
+    QString halfStory(int half) const { return half ? storyId2 : storyId; }
+    // A half's triangle, and the half a point is in, for a cell of this size.
+    QPolygonF halfShape(int half, const QSizeF &size) const;
+    int halfAt(const QPointF &pt, const QSizeF &size) const;
 };
 
 // A rectangle of table cells: rows r0..r1 and columns c0..c1, both inclusive.

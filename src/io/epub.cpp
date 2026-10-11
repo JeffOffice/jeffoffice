@@ -374,7 +374,7 @@ void Book::table(const TableItem &t)
             QString span;
             if (cell.rowSpan > 1) span += QStringLiteral(" rowspan=\"%1\"").arg(cell.rowSpan);
             if (cell.colSpan > 1) span += QStringLiteral(" colspan=\"%1\"").arg(cell.colSpan);
-            out += QStringLiteral("<td%1>%2</td>").arg(span, blocks(m_doc.storyDoc(cell.storyId), false));
+            out += QStringLiteral("<td%1>%2%3</td>").arg(span, blocks(m_doc.storyDoc(cell.storyId), false), cell.divided() ? blocks(m_doc.storyDoc(cell.storyId2), false) : QString());
         }
         out += QStringLiteral("</tr>\n");
     }

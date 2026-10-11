@@ -531,6 +531,21 @@ QRectF TableItem::cellRect(int r, int c) const
     return QRectF(x, y, w, h);
 }
 
+QPolygonF TableCell::halfShape(int half, const QSizeF &size) const
+{
+    const QPointF tl(0, 0), tr(size.width(), 0), bl(0, size.height()), br(size.width(), size.height());
+    if (diagonal == 1) return half ? QPolygonF{tl, tr, br} : QPolygonF{tl, bl, br};   // \: upper right, lower left
+    return half ? QPolygonF{tr, br, bl} : QPolygonF{tl, tr, bl};                        // /: lower right, upper left
+}
+
+int TableCell::halfAt(const QPointF &pt, const QSizeF &size) const
+{
+    if (!diagonal || size.width() <= 0 || size.height() <= 0) return 0;
+    const double u = pt.x() / size.width(), v = pt.y() / size.height();
+    if (diagonal == 1) return v > u ? 0 : 1;
+    return u + v < 1 ? 0 : 1;
+}
+
 void TableItem::cellAt(const QPointF &local, int *row, int *col) const
 {
     if (rows <= 0 || cols <= 0) {   // no cell to be near
@@ -616,6 +631,7 @@ QJsonObject TableItem::toJson() const
     for (double v : rowH) rh.append(v);
     for (const auto &c : cells) {
         QJsonObject co{{"story", c.storyId}};
+        if (!c.storyId2.isEmpty()) co["story2"] = c.storyId2;
         if (c.fill.type != Fill::NoFill) co["fill"] = c.fill.toJson();
         if (c.rowSpan > 1) co["rs"] = c.rowSpan;
         if (c.colSpan > 1) co["cs"] = c.colSpan;
@@ -658,6 +674,7 @@ void TableItem::fromJson(const QJsonObject &o)
         const auto co = v.toObject();
         TableCell c;
         c.storyId = co["story"].toString();
+        c.storyId2 = co["story2"].toString();
         c.fill = Fill::fromJson(co["fill"].toObject());
         c.rowSpan = std::clamp(co["rs"].toInt(1), 1, std::max(1, rows));   // a damaged file's span stops at the table
         c.colSpan = std::clamp(co["cs"].toInt(1), 1, std::max(1, cols));

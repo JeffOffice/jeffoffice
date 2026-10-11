@@ -13362,6 +13362,259 @@ private Q_SLOTS:
         QVERIFY(bt->cell(0, 2).diagonalLine.isNone());
     }
 
+    // Each half of a divided cell has its own text, and a .pub file keeps them apart.
+    void pubTableCellHalvesKeepTheirText()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 2;
+        t->cols = 2;
+        t->colW = {150, 150};
+        t->rowH = {90, 70};
+        t->rect = QRectF(72, 144, 0, 0);
+        t->syncRect();
+        t->cells.resize(4);
+        const QStringList first = {"Alpha", "Bravo", QString(), "Delta"}, second = {"Alpha two", "Bravo two\nand more", "Charlie two", QString()};
+        for (int i = 0; i < 4; ++i) {
+            t->cells[i].storyId = doc->createStory(first[i]);
+            if (i < 3) {
+                t->cells[i].diagonal = i == 1 ? 2 : 1;
+                t->cells[i].storyId2 = doc->createStory(second[i]);
+            }
+        }
+        doc->pages[0]->items.push_back(t);
+
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("cell-halves.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            const QString out = qEnvironmentVariable("JP_SHOT_DIR") + "/cell-halves.pub";
+            QFile::remove(out);
+            QFile::copy(path, out);
+        }
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TableItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(bt);
+        auto text = [&](const QString &story) { const QTextDocument *d = back->storyDoc(story); return d ? d->toPlainText() : QStringLiteral("(none)"); };
+        for (int i = 0; i < 4; ++i) {
+            const jp::TableCell &c = bt->cells[i];
+            QCOMPARE(text(c.storyId), first[i]);
+            if (i < 3) {
+                QCOMPARE(c.diagonal, i == 1 ? 2 : 1);
+                QCOMPARE(text(c.storyId2), second[i]);
+            } else {
+                QCOMPARE(c.diagonal, 0);
+                QVERIFY(c.storyId2.isEmpty());
+            }
+        }
+    }
+
+    // Dividing a cell gives it a second, empty half; typing in a half goes to that half; taking the division
+    // away puts the second half's text after the first's, as in Publisher; and Undo brings the halves back.
+    void tableDivideCellKeepsTextInHalves()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 300, 100), 1, 2);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        auto text = [&](const QString &story) { const QTextDocument *d = ed->doc()->storyDoc(story); return d ? d->toPlainText() : QStringLiteral("(none)"); };
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId)->setPlainText(QStringLiteral("One"));
+        ed->selectCells(id, 0, 0, 0, 0);
+        w.act(QStringLiteral("tbl.diagDown"))->trigger();
+        QCOMPARE(table()->cell(0, 0).diagonal, 1);
+        QVERIFY(!table()->cell(0, 0).storyId2.isEmpty());
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("One"));
+        QCOMPARE(text(table()->cell(0, 0).storyId2), QString());
+        QVERIFY(table()->cell(0, 1).storyId2.isEmpty());
+        // The cell's row doesn't grow for text its halves can't hold.
+        const double rowHeight = table()->rowH[0];
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId2)->setPlainText(QStringLiteral("a long text, which would take the whole cell and more, in a narrow half ").repeated(12));
+        ed->fitTableRows(table());
+        QCOMPARE(table()->rowH[0], rowHeight);
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId2)->setPlainText(QString());
+        // Typing in the second half.
+        ed->beginTextEdit(id, -1, 0, 0, 1);
+        QCOMPARE(ed->textTarget().half, 1);
+        QCOMPARE(ed->textTarget().storyId, table()->cell(0, 0).storyId2);
+        ed->insertText(QStringLiteral("Two"));
+        QCOMPARE(text(table()->cell(0, 0).storyId2), QStringLiteral("Two"));
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("One"));
+        // Changing the direction keeps both texts.
+        ed->selectCells(id, 0, 0, 0, 0);
+        w.act(QStringLiteral("tbl.diagUp"))->trigger();
+        QCOMPARE(table()->cell(0, 0).diagonal, 2);
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("One"));
+        QCOMPARE(text(table()->cell(0, 0).storyId2), QStringLiteral("Two"));
+        // Taking the division away joins them.
+        w.act(QStringLiteral("tbl.diagNone"))->trigger();
+        QCOMPARE(table()->cell(0, 0).diagonal, 0);
+        QVERIFY(table()->cell(0, 0).storyId2.isEmpty());
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("OneTwo"));
+        ed->undo();
+        QCOMPARE(table()->cell(0, 0).diagonal, 2);
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("One"));
+        QCOMPARE(text(table()->cell(0, 0).storyId2), QStringLiteral("Two"));
+    }
+
+    // A divided cell is two places to type: a click goes to the half it is in, Tab and Shift+Tab visit the
+    // first half, the second, and then the next cell, and Right at the end of the first half goes on to the second.
+    void tableDividedCellEditing()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 400, 150), 1, 2);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId)->setPlainText(QStringLiteral("First"));
+        ed->doc()->storyDoc(table()->cell(0, 1).storyId)->setPlainText(QStringLiteral("Next"));
+        ed->selectCells(id, 0, 0, 0, 0);
+        w.act(QStringLiteral("tbl.diagUp"))->trigger();   // "/": the first half is the upper left
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId2)->setPlainText(QStringLiteral("Second"));
+        ed->endTextEdit();
+        auto *cv = w.findChild<jp::Canvas *>();
+        const QRectF cell = table()->cellRect(0, 0).translated(table()->rect.topLeft());
+        auto click = [&](double u, double v) {
+            QTest::mouseClick(cv->viewport(), Qt::LeftButton, {}, cv->pageToView(QPointF(cell.left() + u * cell.width(), cell.top() + v * cell.height())).toPoint());
+        };
+        click(0.1, 0.1);
+        QVERIFY(ed->isEditingText());
+        QCOMPARE(ed->textTarget().half, 0);
+        QCOMPARE(ed->textTarget().storyId, table()->cell(0, 0).storyId);
+        click(0.9, 0.9);
+        QCOMPARE(ed->textTarget().half, 1);
+        QCOMPARE(ed->textTarget().storyId, table()->cell(0, 0).storyId2);
+        click(0.1, 0.1);
+        QCOMPARE(ed->textTarget().half, 0);
+        // Tab goes to the second half, then the next cell; Shift+Tab back.
+        QTest::keyClick(cv, Qt::Key_Tab);
+        QCOMPARE(ed->textTarget().half, 1);
+        QCOMPARE(ed->textTarget().col, 0);
+        QTest::keyClick(cv, Qt::Key_Tab);
+        QCOMPARE(ed->textTarget().col, 1);
+        QCOMPARE(ed->textTarget().half, 0);
+        QTest::keyClick(cv, Qt::Key_Backtab, Qt::ShiftModifier);
+        QCOMPARE(ed->textTarget().col, 0);
+        QCOMPARE(ed->textTarget().half, 1);
+        QTest::keyClick(cv, Qt::Key_Backtab, Qt::ShiftModifier);
+        QCOMPARE(ed->textTarget().half, 0);
+        // Right at the end of the first half goes to the start of the second, Left back to the end of the first.
+        ed->beginTextEdit(id, -1, 0, 0, 0);
+        QTest::keyClick(cv, Qt::Key_Right);
+        QCOMPARE(ed->textTarget().half, 1);
+        QCOMPARE(ed->cursor().position(), 0);
+        QTest::keyClick(cv, Qt::Key_Left);
+        QCOMPARE(ed->textTarget().half, 0);
+        QCOMPARE(ed->cursor().position(), ed->editDoc()->characterCount() - 1);
+        QTest::mouseClick(cv->viewport(), Qt::LeftButton, {}, QPoint(5, 5));   // the mouse in use again: no focus ring in the tests after
+    }
+
+    // A half's text wraps around the diagonal: the first half stays on its side of it, the second on its own.
+    void tableDividedCellWrapsAroundTheDiagonal()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        const double width = 300, height = 200;
+        for (int diagonal = 1; diagonal <= 2; ++diagonal) {
+            auto t = std::make_shared<jp::TableItem>();
+            t->rows = 1;
+            t->cols = 1;
+            t->colW = {width};
+            t->rowH = {height};
+            t->rect = QRectF(72, 72, 0, 0);
+            t->syncRect();
+            t->cells.resize(1);
+            jp::TableCell &c = t->cell(0, 0);
+            c.diagonal = diagonal;
+            c.diagonalLine = jp::Stroke::none();
+            const QString words = QStringLiteral("The quick brown fox jumps over the lazy dog and keeps running through the long green field until evening comes. ").repeated(2);
+            auto story = [&](const QString &color) {
+                const QString id = doc->createStory(words);
+                QTextCursor cur(doc->storyDoc(id));
+                cur.select(QTextCursor::Document);
+                QTextCharFormat cf;
+                cf.setProperty(jp::tp::ColorRefP, color);
+                cur.mergeCharFormat(cf);
+                return id;
+            };
+            c.storyId = story(QStringLiteral("#FF0000"));
+            c.storyId2 = story(QStringLiteral("#0000FF"));
+            doc->pages[0]->items.clear();
+            doc->pages[0]->items.push_back(t);
+            jp::LayoutCache cache;
+            jp::PaintContext ctx;
+            ctx.doc = doc.get();
+            ctx.cache = &cache;
+            ctx.opt.output = true;
+            const QImage img = jp::Renderer::renderToImage(ctx, 0, 1.0);
+            // The diagonal runs from the top left (1) or from the bottom left (2); the first half is on side 0.
+            auto sideOf = [&](double x, double y) {
+                const double u = (x - 72) / width, v = (y - 72) / height;
+                return diagonal == 1 ? (v > u ? 0 : 1) : (u + v < 1 ? 0 : 1);
+            };
+            int reds = 0, blues = 0, wrongReds = 0, wrongBlues = 0;
+            for (int y = 72; y < 72 + int(height); ++y)
+                for (int x = 72; x < 72 + int(width); ++x) {
+                    const QColor px = img.pixelColor(x, y);
+                    const bool red = px.red() > 180 && px.green() < 90 && px.blue() < 90, blue = px.blue() > 180 && px.red() < 90 && px.green() < 90;
+                    // A pixel a point or so over the line is the edge of a letter.
+                    const double u = (x - 72) / width, v = (y - 72) / height;
+                    const double edge = std::abs(diagonal == 1 ? v - u : u + v - 1) * std::min(width, height);
+                    if (red) {
+                        ++reds;
+                        if (sideOf(x, y) != 0 && edge > 2) ++wrongReds;
+                    }
+                    if (blue) {
+                        ++blues;
+                        if (sideOf(x, y) != 1 && edge > 2) ++wrongBlues;
+                    }
+                }
+            QVERIFY2(reds > 300 && blues > 300, qPrintable(QStringLiteral("diagonal %1: %2 and %3 pixels").arg(diagonal).arg(reds).arg(blues)));
+            QVERIFY2(wrongReds == 0 && wrongBlues == 0, qPrintable(QStringLiteral("diagonal %1: %2 red and %3 blue pixels on the wrong side").arg(diagonal).arg(wrongReds).arg(wrongBlues)));
+        }
+    }
+
+    // An older file's divided cell has one story, which stays in the first half; typing in the second half
+    // makes its story.
+    void tableDividedCellFromOlderFile()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 300, 100), 1, 1);
+        ed->addItem(made);
+        const QString id = made->id;
+        QJsonObject json = static_cast<jp::TableItem *>(ed->doc()->item(id))->toJson();
+        QJsonArray cells = json["cells"].toArray();
+        QJsonObject co = cells[0].toObject();
+        co["diag"] = 1;
+        co.remove("diagLine");
+        co.remove("story2");
+        cells[0] = co;
+        json["cells"] = cells;
+        jp::TableItem old;
+        old.fromJson(json);
+        QCOMPARE(old.cell(0, 0).diagonal, 1);
+        QVERIFY(old.cell(0, 0).storyId2.isEmpty());
+        QVERIFY(old.cell(0, 0).divided());
+        auto *t = static_cast<jp::TableItem *>(ed->doc()->item(id));
+        t->cell(0, 0).diagonal = 1;
+        t->cell(0, 0).diagonalLine = old.cell(0, 0).diagonalLine;
+        ed->beginTextEdit(id, -1, 0, 0, 1);
+        t = static_cast<jp::TableItem *>(ed->doc()->item(id));
+        QCOMPARE(ed->textTarget().half, 1);
+        QVERIFY(!t->cell(0, 0).storyId2.isEmpty());
+        QCOMPARE(ed->textTarget().storyId, t->cell(0, 0).storyId2);
+    }
+
     // The line along a cell's diagonal is saved in JeffPub files (none stays
     // none), the Diagonals commands draw one, and an older file's diagonal
     // keeps the line it was drawn with.

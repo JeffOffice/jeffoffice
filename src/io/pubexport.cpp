@@ -1930,9 +1930,10 @@ QByteArray PubWriter::write(QStringList *skipped)
                 double zone = defaultZone;
                 // A cell divided by a diagonal is two cells at one place: the
                 // first half in its row and column, the second listed after
-                // the grid (with the same frame and an empty text).
+                // the grid (with the same frame and its own text).
                 QVector<B> halfRecs;
                 QVector<Frame> halfFrames;
+                QVector<const QTextDocument *> halfDocs;
                 for (int row = 0; row < tb->rows; ++row) {
                     for (int col = 0; col < tb->cols; ++col) {
                         const TableCell &c = tb->cell(row, col);
@@ -1967,10 +1968,12 @@ QByteArray PubWriter::write(QStringList *skipped)
                         if (divided) {
                             halfRecs << fields(divided);
                             halfFrames << frame;
+                            const QTextDocument *d2 = m_doc.storyDoc(c.storyId2);
+                            halfDocs << (d2 ? d2 : &blank);
                         }
                     }
                 }
-                for (int i = 0; i < halfRecs.size(); ++i) docs << &blank;
+                docs << halfDocs;
                 cellRecs << halfRecs;
                 frames << halfFrames;
                 QVector<quint32> ends;

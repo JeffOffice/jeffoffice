@@ -135,10 +135,12 @@ public:
         int index = -1;
         bool textInterior = false;
         int row = -1, col = -1;   // table cell
+        int half = 0;             // 1: the second half of a cell divided by a diagonal
     };
     Hit hitTest(const QPointF &view) const;
     QString itemAt(const QPointF &page, bool enterGroups = false, int *row = nullptr, int *col = nullptr, bool *textInterior = nullptr) const;
-    int textPosAt(const QString &itemId, const QPointF &page, int row = -1, int col = -1) const;
+    // half: the half of a divided cell (-1: the one the point is in).
+    int textPosAt(const QString &itemId, const QPointF &page, int row = -1, int col = -1, int half = -1) const;
 
 private:
     enum class Drag { None, Pending, Move, Resize, Rotate, LineEnd, LineBend, Free, Adjust, Marquee, Draw, TextSelect, CellBlock, TextMove, Guide, Crop, CropMove, ColResize, RowResize, Pan, Point, WrapPoint };
