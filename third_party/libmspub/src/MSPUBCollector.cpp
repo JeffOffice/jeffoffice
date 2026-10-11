@@ -849,8 +849,10 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
     graphicsProps.insert("jp:frame-flip-h", flips.second);
     if (info.m_fillTurns)
       graphicsProps.insert("jp:fill-turns", true);   // JeffPub
-    if (info.m_pageBackground)
-      graphicsProps.insert("jp:page-background", true);   // JeffPub
+    // A picture used as a fill (a page's background, a shape filled with
+    // one), not a picture frame's own picture: Publisher draws it past the shape.
+    if (!bool(info.m_imgIndex) && graphicsProps["style:repeat"] && graphicsProps["style:repeat"]->getStr() == "stretch")
+      graphicsProps.insert("jp:picture-fill", true);   // JeffPub
     if (bool(info.m_crop))
     {
       const char *names[4] = {"jp:crop-top", "jp:crop-bottom", "jp:crop-left", "jp:crop-right"};
@@ -2453,7 +2455,6 @@ void MSPUBCollector::writePageBackground(unsigned pageSeqNum) const
       bg.m_coordinates = wholePage;
       bg.m_pageSeqNum = pageSeqNum;
       bg.m_fill = ptr_fill;
-      bg.m_pageBackground = true;   // JeffPub patch
       // JeffPub patch: a background picture keeps its crops and transparency.
       bg.m_crop = ptr_info->m_crop;
       bg.m_pictureFillOpacity = ptr_info->m_pictureFillOpacity;

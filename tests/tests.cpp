@@ -3703,7 +3703,7 @@ private Q_SLOTS:
         QBuffer buf(&png);
         buf.open(QIODevice::WriteOnly);
         src.save(&buf, "PNG");
-        auto saved = [&](const QRectF &imgRect, QImage *out) {
+        auto saved = [&](const QRectF &imgRect, QImage *out, QRectF *placed = nullptr) {
             auto doc = Document::blank(QSizeF(300, 200));
             auto pic = std::make_shared<PictureItem>();
             pic->imageId = doc->addImage(png, QStringLiteral("png"));
@@ -3718,16 +3718,23 @@ private Q_SLOTS:
             auto back = importPublisherFile(path, &err);
             if (!back) return false;
             for (const auto &it : back->pages[0]->items)
-                if (it->type() == ItemType::Picture) *out = back->image(static_cast<const PictureItem &>(*it).imageId);
+                if (it->type() == ItemType::Picture) {
+                    *out = back->image(static_cast<const PictureItem &>(*it).imageId);
+                    if (placed) *placed = static_cast<const PictureItem &>(*it).imgRect;
+                }
             return !out->isNull();
         };
         // The whole picture in its frame: 2.5 points more on each side, 5 pixels.
         QImage whole, bigger;
-        QVERIFY(saved(QRectF(0, 0, 100, 75), &whole));
+        QRectF placed;
+        QVERIFY(saved(QRectF(0, 0, 100, 75), &whole, &placed));
         QVERIFY2(std::abs(whole.width() - 210) <= 2 && std::abs(whole.height() - 160) <= 2, qPrintable(QStringLiteral("%1 x %2").arg(whole.width()).arg(whole.height())));
         // The red edge, 20 pixels wide, is 25 with the margin, which goes on in the edge's color.
         QVERIFY(QColor(whole.pixel(2, 80)) == QColor(Qt::red) && QColor(whole.pixel(22, 80)) == QColor(Qt::red) && QColor(whole.pixel(30, 80)) == QColor(Qt::white));
         QVERIFY(QColor(whole.pixel(100, 2)) == QColor(Qt::red) && QColor(whole.pixel(100, 80)) == QColor(Qt::white));
+        // Read back, the picture is drawn as Publisher draws it: past its frame by those 2.5 points (so it shows what it did).
+        QVERIFY2(std::abs(placed.left() + 2.5) < 0.01 && std::abs(placed.top() + 2.5) < 0.01 && std::abs(placed.width() - 105) < 0.01 && std::abs(placed.height() - 80) < 0.01,
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(placed.left()).arg(placed.top()).arg(placed.width()).arg(placed.height())));
         // A picture reaching beyond its frame (as a background does): only 2.5 points of it past the frame are kept, as it is.
         QVERIFY(saved(QRectF(-10, -10, 120, 95), &bigger));   // 200 pixels over 120 points
         const double perPt = 200.0 / 120, perPtY = 150.0 / 95;
