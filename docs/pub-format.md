@@ -286,12 +286,20 @@ in Publisher's PDFs: with the left indent at 13.5, a tab at the start of a
 line puts the text at 36, 22.5 pt from the line's start (the four
 "Name<spaces><tab>number" lines of a newsletter: their numbers stand in a
 column there, and 36 pt from the line's start put them 13 pt too far right),
-and the second line of a paragraph hanging 18 goes to 36 too. Qt counts
-stops from each line's start and keeps one list per paragraph, so JeffPub
-measures it from where the first line starts: a tab on a later line that
-starts elsewhere (a hanging paragraph's) finds each stop as far from its
-start as the first line's are from its own: right for the corpus's cases (36
-from the edge, after a left indent of 18), not in general.
+and the second line of a paragraph hanging 18 goes to 36 too. The lines of
+a paragraph start in different places (a first-line indent, a hang, a
+picture's text wrap, a tab that went on to the line) and the stops stay in
+the same places on all of them. Qt counts a stop from each line's own start
+and keeps one list for the paragraph's layout, which it reads again each
+time it is asked where text is (the caret, the drawing), not once when the
+line is laid out: JeffPub gives each line a list from its own start, and
+the paragraph's layout hands each line out with its own (a first line
+indented 20 put the tabs of a later line at 52 and 88, not 36 and 72, and a
+hanging paragraph's second line had one at 172.8, not 144). A line that
+starts on a stop gets no list, as Qt's own spacing is the same places, and
+a list is slow: for every tab it answers Qt goes over the rest of the
+paragraph's items (3,000 price list rows in one paragraph took 6.9 s
+against 0.3 s without a list, 24,000 runs 21.8 s against 1.2).
 
 A tab goes with the text after it. When that text does not fit after the
 tab's stop, Publisher starts the next line with the tab (the spaces before
@@ -305,9 +313,10 @@ move with it once past its end (a line ended with one tab, and the next
 began with two, from three in a row). Qt leaves such a tab at the end of the
 line, so JeffPub lays the line out as Qt does and starts the next one that
 far in (the tab's width, and the spaces after it) instead of moving the
-character. Not checked: stops saved in the paragraph (no file in the corpus
-has any), and a hanging paragraph's tabs on its second line when the left
-indent is not 18.
+character, from where that line starts (the stops being the same places
+whatever the line). Not checked: stops saved in the paragraph (no file in
+the corpus has any), and a hanging paragraph's tabs on its second line when
+the left indent is not 18.
 
 A bullet in the list's own font (Symbol, Wingdings) is that font's regular
 face, whatever the item's first run is. Publisher's PDFs hold one SymbolMT
