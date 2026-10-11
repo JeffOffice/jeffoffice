@@ -15,6 +15,7 @@
 #include <QMutex>
 #include <QFontMetricsF>
 #include <QJsonDocument>
+#include <QPaintEngine>
 #include <QPainter>
 #include <QSvgRenderer>
 #include <QPainterPathStroker>
@@ -491,22 +492,32 @@ static void recolorRgb(PictureItem::Recolor kind, const QColor &tint, double &r,
     }
 }
 
-QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize)
+QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize)
 {
     static QCache<QString, QImage> cache(256 * 1024);   // KB
     QImage src = doc.image(pic.imageId);
     if (src.isNull()) return src;
     // Pick a resolution level: never more than ~1.5x what is shown (screen only).
     int level = 0;
-    if (deviceSize.isValid() && deviceSize.width() > 0) {
+    const QSizeF levelSize = deviceSize.isValid() && deviceSize.width() > 0 ? deviceSize : exactSize;
+    if (levelSize.isValid() && levelSize.width() > 0) {
         double w = src.width();
-        while (w / 2 >= deviceSize.width() * 1.5 && w / 2 >= 64) { w /= 2; ++level; }
+        while (w / 2 >= levelSize.width() * 1.5 && w / 2 >= 64) { w /= 2; ++level; }
     }
-    const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8").arg(pic.imageId).arg(pic.brightness).arg(pic.contrast).arg(int(pic.recolor))
+    // Shrinking by up to three times, drawing a pixel from a few of those it
+    // covers dropped thin strokes: the picture is made the size shown, as
+    // Publisher shows it (not for one that would be huge).
+    QSize shown;
+    if (exactSize.isValid() && exactSize.width() > 0 && exactSize.height() > 0) {
+        shown = QSize(std::max(1, qRound(exactSize.width())), std::max(1, qRound(exactSize.height())));
+        if (shown.width() * 1.05 >= (src.width() >> level) || shown.height() * 1.05 >= (src.height() >> level) || qint64(shown.width()) * shown.height() > 16'000'000) shown = QSize();
+    }
+    const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9x%10").arg(pic.imageId).arg(pic.brightness).arg(pic.contrast).arg(int(pic.recolor))
                             .arg(pic.recolorColor.resolve(doc.colors).name()).arg(pic.hasTransparentColor ? pic.transparentColor.name() : QString())
-                            .arg(level).arg(doc.colors.c[0].name());
+                            .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height());
     if (QImage *c = cache.object(key)) return *c;
     QImage img = level ? src.scaledToWidth(std::max(1, src.width() >> level), Qt::SmoothTransformation) : src;
+    if (!shown.isEmpty()) img = img.scaled(shown, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     const bool adjust = pic.brightness || pic.contrast || pic.recolor || pic.hasTransparentColor;
     if (adjust) {
         img = img.convertToFormat(QImage::Format_ARGB32);
@@ -770,7 +781,9 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
         } else if (ctx.opt.output && plain && data.format == QLatin1String("pdf") && PdfDocument::shared(data.bytes)->isValid()) {
             PdfDocument::shared(data.bytes)->play(p, 0, pic.imgRect);
         } else {
-            p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev));
+            // Into pixels (a screen or an image, not a PDF, which keeps the picture whole): the size it covers.
+            const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
+            p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : QSizeF()));
         }
         p->restore();
     }

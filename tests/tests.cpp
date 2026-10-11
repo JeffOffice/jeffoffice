@@ -3473,6 +3473,53 @@ private Q_SLOTS:
                 }
     }
 
+    // A picture much bigger than its frame is drawn as the average of the
+    // pixels each screen pixel covers, as Publisher draws it: sampling it
+    // dropped thin strokes and left a scanned table's digits broken. Noise
+    // averages out to nearly flat gray (a sixth of its spread at 6 pixels
+    // to one); a few samples of it stay rough.
+    void bigPicturesAreAveragedWhenShrunk()
+    {
+        using namespace jp;
+        QImage noise(1000, 1000, QImage::Format_RGB32);
+        QRandomGenerator rng(11);
+        for (int y = 0; y < noise.height(); ++y)
+            for (int x = 0; x < noise.width(); ++x) {
+                const int g = int(rng.bounded(256));
+                noise.setPixel(x, y, qRgb(g, g, g));
+            }
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        noise.save(&buf, "PNG");
+        for (double shown : {100.0, 150.0, 200.0, 340.0}) {
+            auto doc = Document::blank(QSizeF(612, 792));
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = doc->addImage(png, QStringLiteral("png"));
+            pic->rect = QRectF(50, 50, shown, shown);
+            pic->imgRect = QRectF(0, 0, shown, shown);
+            doc->pages[0]->items.push_back(pic);
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = doc.get();
+            ctx.cache = &cache;
+            const QImage out = Renderer::renderToImage(ctx, 0, 1.0);
+            double sum = 0, sumSq = 0;
+            int n = 0;
+            for (int y = 55; y < 45 + shown; ++y)
+                for (int x = 55; x < 45 + shown; ++x) {
+                    const double g = qGray(out.pixel(x, y));
+                    sum += g;
+                    sumSq += g * g;
+                    ++n;
+                }
+            const double mean = sum / n, spread = std::sqrt(std::max(0.0, sumSq / n - mean * mean));
+            // 1000 / shown source pixels to one: 10, 6.7, 5, and 2.9.
+            const double expected = 74 * shown / 1000;
+            QVERIFY2(spread < expected * 1.6, qPrintable(QStringLiteral("shown %1: spread %2, averaged would be about %3").arg(shown).arg(spread).arg(expected)));
+        }
+    }
+
     // The default is saved in a .pub file's text stream (its SGP section, a
     // property block with 00:22 in EMU, left empty at 36 points: found in
     // Publisher's files and in ones it saved with several settings), kept by
