@@ -14234,6 +14234,50 @@ private Q_SLOTS:
         }
     }
 
+    // A .pub file holds 1,000 table formatting shapes (borders, shadings, and diagonals, in all of a publication's
+    // tables). A table with more keeps its diagonals, which are fewer and lose more, and loses borders; the save says how many.
+    void pubTableDiagonalsComeBeforeBordersPastTheLimit()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 40;
+        t->cols = 12;
+        t->colW = QVector<double>(12, 40.0);
+        t->rowH = QVector<double>(40, 14.0);
+        t->rect = QRectF(36, 36, 0, 0);
+        t->syncRect();
+        t->cells.resize(480);
+        const jp::Stroke black = jp::Stroke::line(jp::ColorRef::rgb(Qt::black), 0.75);
+        for (jp::TableCell &c : t->cells) c.border.top = c.border.bottom = c.border.left = c.border.right = black;
+        for (int col = 0; col < 12; ++col) {
+            t->cell(39, col).diagonal = 1;
+            t->cell(39, col).diagonalLine = jp::Stroke::line(jp::ColorRef::rgb(Qt::red), 1);
+        }
+        doc->pages[0]->items.push_back(t);
+
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("many-borders.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        // 41 x 12 rules across and 40 x 13 down, and 12 diagonals, make 1,024 shapes; 1,000 fit.
+        QVERIFY2(err.contains(QStringLiteral("24 table")), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TableItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(bt);
+        QCOMPARE(bt->cells.size(), 480);
+        int diagonals = 0, sides = 0;
+        for (const jp::TableCell &c : bt->cells) {
+            if (c.diagonal == 1 && !c.diagonalLine.isNone()) ++diagonals;
+            for (const jp::Stroke &s : {c.border.top, c.border.bottom, c.border.left, c.border.right}) sides += !s.isNone();
+        }
+        QCOMPARE(diagonals, 12);
+        QVERIFY2(sides > 1850 && sides < 1920, qPrintable(QString::number(sides)));
+    }
+
     // Dividing a cell gives it a second, empty half; typing in a half goes to that half; taking the division
     // away puts the second half's text after the first's, as in Publisher; and Undo brings the halves back.
     void tableDivideCellKeepsTextInHalves()
