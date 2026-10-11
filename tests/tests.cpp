@@ -3741,6 +3741,75 @@ private Q_SLOTS:
         QVERIFY2(std::abs(bigger.width() - 105 * perPt) <= 2 && std::abs(bigger.height() - 80 * perPtY) <= 2, qPrintable(QStringLiteral("%1 x %2").arg(bigger.width()).arg(bigger.height())));
     }
 
+    // Publisher sets a box's text inside its line: the margin is measured from
+    // the line's inner edge, so a line of weight w moves the text in w/2 when
+    // it is centered on the edge and w when it is an inset one (measured Oct
+    // 11, a text box and a rectangle with text, weights 1 to 24: the ink of a
+    // letter 0.48 pt further in for each point of weight, and 12 for an inset
+    // line of 12). A rectangle behind a text box with no line of its own,
+    // read as the box's border, leaves the text where it was.
+    void textIsSetInsideItsBoxsLine()
+    {
+        using namespace jp;
+        auto left = [](double width, bool inset, bool shape) {
+            auto doc = Document::blank(QSizeF(300, 200));
+            Stroke line = width > 0 ? Stroke::line(ColorRef::rgb(Qt::black), width) : Stroke::none();
+            line.inset = inset;
+            LayoutCache cache;
+            if (!shape) {
+                auto t = std::make_shared<TextItem>();
+                t->rect = QRectF(20, 20, 200, 100);
+                t->insets = QMarginsF(3, 3, 3, 3);
+                t->storyId = doc->createStory(QStringLiteral("Hi"));
+                t->stroke = line;
+                doc->pages[0]->items.push_back(t);
+                return cache.textFrame(*doc, *t, 1, RenderOptions()).layout->lineInfo(0)[0].rect.left();
+            }
+            auto sh = std::make_shared<ShapeItem>();
+            sh->shape = QStringLiteral("rect");
+            sh->rect = QRectF(20, 20, 200, 100);
+            sh->insets = QMarginsF(3, 3, 3, 3);
+            sh->storyId = doc->createStory(QStringLiteral("Hi"));
+            sh->stroke = line;
+            doc->pages[0]->items.push_back(sh);
+            PaintContext ctx;
+            ctx.doc = doc.get();
+            ctx.cache = &cache;
+            QPointF origin;
+            return Renderer::shapeTextLayout(ctx, *sh, &origin)->lineInfo(0)[0].rect.left();
+        };
+        for (bool shape : {false, true}) {
+            QVERIFY2(std::abs(left(0, false, shape) - 3) < 0.01, qPrintable(QString::number(left(0, false, shape))));
+            QVERIFY2(std::abs(left(6, false, shape) - 6) < 0.01, qPrintable(QString::number(left(6, false, shape))));
+            QVERIFY2(std::abs(left(6, true, shape) - 9) < 0.01, qPrintable(QString::number(left(6, true, shape))));
+        }
+        // A rectangle with a line behind a text box with none (a056300e's frame): read as one box, the text where it was.
+        auto doc = Document::blank(QSizeF(300, 200));
+        auto rect = std::make_shared<ShapeItem>();
+        rect->shape = QStringLiteral("rect");
+        rect->rect = QRectF(20, 20, 200, 100);
+        rect->fill = Fill::none();
+        rect->stroke = Stroke::line(ColorRef::rgb(Qt::black), 2);
+        auto box = std::make_shared<TextItem>();
+        box->rect = rect->rect;
+        box->insets = QMarginsF(2.88, 2.88, 2.88, 2.88);
+        box->storyId = doc->createStory(QStringLiteral("Hi"));
+        doc->pages[0]->items.push_back(rect);
+        doc->pages[0]->items.push_back(box);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("framed.pub"));
+        QString err;
+        QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const TextItem *merged = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->type() == ItemType::Text) merged = static_cast<const TextItem *>(it.get());
+        QVERIFY(merged);
+        QVERIFY2(std::abs(merged->stroke.width - 2) < 0.01 && std::abs(merged->insets.left() - 1.88) < 0.02 && std::abs(merged->insets.top() - 1.88) < 0.02,
+                 qPrintable(QStringLiteral("line %1, margin %2").arg(merged->stroke.width).arg(merged->insets.left())));
+    }
+
     // A page's background picture is drawn past the page's edge, 2.5 points
     // on every side, and the picture's crops (fractions of the picture) then
     // trim that larger picture. Publisher (Oct 11), a background made from a

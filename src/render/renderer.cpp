@@ -210,6 +210,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     FrameSpec s;
     s.size = t.vertical ? QSizeF(t.rect.height(), t.rect.width()) : t.rect.size();
     s.insets = t.insets;
+    if (const double d = t.stroke.textShift(); d > 0) s.insets += QMarginsF(d, d, d, d);
     s.columns = std::max(1, t.columns);
     s.gap = t.columnGap;
     s.valign = t.valign;
@@ -831,6 +832,7 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     FrameSpec spec;
     spec.size = tr.size();
     spec.insets = s.insets;
+    if (const double d = s.stroke.textShift(); d > 0) spec.insets += QMarginsF(d, d, d, d);
     spec.valign = s.valign;
     spec.ctx.doc = ctx.doc;
     spec.ctx.pageNumber = ctx.pageNumber;

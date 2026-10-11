@@ -213,6 +213,18 @@ fill color) or 0xF2 (the line color), the next byte the change (1 darken,
 text box shadow is 0x107F02F2: the line color lightened halfway, gray for
 a black line.
 
+Text and the line around its box: Publisher measures a text box's (or a
+shape's) text margins from the inner edge of the box's line, so the text sits
+half the line's weight further in when the line is centered on the edge, and
+all of it when the line is an inset pen. Measured Oct 11 with a text box and
+a rectangle holding text, lines of weight 1, 2, 4, 6, 8, 12, and 24 (the
+ink of a letter 0.48 pt in per point of weight, left and top alike, 12 pt in
+for an inset line of 12). The margins in the file are the plain margins
+(0x0081-0x0084), whatever the line. JeffPub's boxes are laid out so, and a
+rectangle drawn just before a text box at the same place, which JeffPub reads
+as the box's border, takes the line's share off the box's margins, since the
+text of the original sat inside no line.
+
 ### Picture settings and picture shapes
 
 A picture's OPT can add 0x0109 brightness (signed; 0x8000 is all the way
