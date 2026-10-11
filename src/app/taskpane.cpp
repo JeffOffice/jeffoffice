@@ -978,7 +978,8 @@ public:
                 case ItemType::Shape: words = storyWords(static_cast<const ShapeItem *>(e.get())->storyId); break;
                 case ItemType::Table:
                     for (const TableCell &c : static_cast<const TableItem *>(e.get())->cells)
-                        if (words.simplified().isEmpty()) words = storyWords(c.storyId);
+                        for (const QString &story : {c.storyId, c.storyId2})   // a divided cell's second half too
+                            if (words.simplified().isEmpty()) words = storyWords(story);
                     break;
                 default: break;
                 }

@@ -14327,6 +14327,24 @@ private Q_SLOTS:
         QTest::mouseClick(cv->viewport(), Qt::LeftButton, {}, QPoint(5, 5));
     }
 
+    // Extra Content names a table by the first words in it, and a divided cell's second half counts.
+    void extraContentTableLabelUsesSecondHalfText()
+    {
+        jp::MainWindow w;
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 300, 100), 1, 2);
+        auto *t = static_cast<jp::TableItem *>(made.get());
+        t->cell(0, 1).diagonal = 1;
+        t->cell(0, 1).storyId2 = ed->doc()->createStory(QStringLiteral("Only in the second half"));
+        ed->doc()->extra.push_back(made);
+        w.showTaskPane(QStringLiteral("extra"));
+        auto *list = w.findChild<jp::TaskPane *>()->findChild<QListWidget *>(QStringLiteral("extraContentList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 1);
+        QVERIFY2(list->item(0)->text().contains(QStringLiteral("Only in the second half")), qPrintable(list->item(0)->text()));
+    }
+
     // Line spacing in points, as Publisher sets it (measured in its PDFs of 10 and 24 point text in Times New
     // Roman, Arial, and Calibri, every value from 1 to 30 points): "Exactly" spaces the lines by the value
     // whatever the text, with the baseline one descent above the bottom of the line, or, when the line is
