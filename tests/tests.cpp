@@ -19406,40 +19406,51 @@ private Q_SLOTS:
     {
         const QString fam = QStringLiteral("Gill Sans MT Condensed");
         if (QFontDatabase::hasFamily(fam)) QSKIP("Gill Sans MT Condensed is installed here");
-        QTextCharFormat f;
-        f.setFontFamilies(QStringList{fam});
-        f.setFontPointSize(200);
-        if (QFontInfo(jp::resolveCharFormat(f, jp::LayoutEnv()).font()).family() != QLatin1String("Archivo Narrow")) QSKIP("the stand-in isn't drawn here");
-        auto doc = Document::blank(QSizeF(612, 792));
-        auto t = std::make_shared<TextItem>();
-        t->id = QStringLiteral("t");
-        t->rect = QRectF(36, 36, 500, 400);
-        t->insets = QMarginsF(0, 0, 0, 0);
-        t->storyId = doc->createStory(QStringLiteral("U"));
-        {
-            QTextCursor c(doc->storyDoc(t->storyId));
-            c.select(QTextCursor::Document);
-            c.mergeCharFormat(f);
-        }
-        doc->pages[0]->items.push_back(t);
-        LayoutCache cache;
-        PaintContext ctx;
-        ctx.doc = doc.get();
-        ctx.cache = &cache;
-        QImage img(612, 792, QImage::Format_ARGB32);
-        img.fill(Qt::white);
-        {
-            QPainter p(&img);
-            p.setRenderHint(QPainter::Antialiasing);
-            jp::Renderer::paintPage(&p, ctx, 0);
-        }
-        int left = img.width(), right = -1;
-        for (int y = 0; y < img.height(); ++y)
-            for (int x = 0; x < img.width(); ++x)
-                if (qGray(img.pixel(x, y)) < 128) { left = std::min(left, x); right = std::max(right, x); }
-        QVERIFY(right > left);
-        const double em = (right - left + 1) / 200.0;
-        QVERIFY2(std::abs(em - 0.32) < 0.025, qPrintable(QString::number(em)));
+        QTextCharFormat probe;
+        probe.setFontFamilies(QStringList{fam});
+        probe.setFontPointSize(200);
+        if (QFontInfo(jp::resolveCharFormat(probe, jp::LayoutEnv()).font()).family() != QLatin1String("Archivo Narrow")) QSKIP("the stand-in isn't drawn here");
+        // The ink of a 200 pt U drawn on a page in a family, ink edge to ink edge.
+        auto inkOfU = [](const QString &family) {
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{family});
+            f.setFontPointSize(200);
+            auto doc = Document::blank(QSizeF(612, 792));
+            auto t = std::make_shared<TextItem>();
+            t->id = QStringLiteral("t");
+            t->rect = QRectF(36, 36, 500, 400);
+            t->insets = QMarginsF(0, 0, 0, 0);
+            t->storyId = doc->createStory(QStringLiteral("U"));
+            {
+                QTextCursor c(doc->storyDoc(t->storyId));
+                c.select(QTextCursor::Document);
+                c.mergeCharFormat(f);
+            }
+            doc->pages[0]->items.push_back(t);
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = doc.get();
+            ctx.cache = &cache;
+            QImage img(612, 792, QImage::Format_ARGB32);
+            img.fill(Qt::white);
+            {
+                QPainter p(&img);
+                p.setRenderHint(QPainter::Antialiasing);
+                jp::Renderer::paintPage(&p, ctx, 0);
+            }
+            int left = img.width(), right = -1;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (qGray(img.pixel(x, y)) < 128) { left = std::min(left, x); right = std::max(right, x); }
+            return right >= left ? (right - left + 1) / 200.0 : 0.0;
+        };
+        const double missing = inkOfU(fam), plain = inkOfU(QStringLiteral("Archivo Narrow"));
+        QVERIFY(missing > 0 && plain > 0);
+        // Against the stand-in drawn as it comes on the same system (each text
+        // engine shades a letter's edges its own way: the Mac's came out 0.295
+        // em where Linux's is 0.32), and near the original's 0.32 em.
+        QVERIFY2(std::abs(missing / plain - 0.66) < 0.03, qPrintable(QStringLiteral("%1 of %2").arg(missing).arg(plain)));
+        QVERIFY2(std::abs(missing - 0.32) < 0.04, qPrintable(QString::number(missing)));
     }
 
     // Text whose size no run, style, or paragraph gives is 12 pt, as
