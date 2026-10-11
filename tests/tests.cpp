@@ -3528,6 +3528,105 @@ private Q_SLOTS:
         QVERIFY2(std::abs(emergency - 28.8) < 0.1, qPrintable(QString::number(emergency)));
     }
 
+    // A paragraph whose lines use different tab stops draws each line with its
+    // own, selected text too: with a selection given, the layout drew every
+    // line with the stops of the last one, so a selected first line's text
+    // after its tab jumped to where the last line's stops put it.
+    void selectedTextInAParagraphKeepsEachLinesTabStops()
+    {
+        QFont font(QStringLiteral("Arial"));
+        font.setPixelSize(16);
+        jp::ParagraphLayout tl(QStringLiteral("a\tb") + QChar(0x2028) + QStringLiteral("c\td"), font);
+        const QList<QTextOption::Tab> stops[] = {{QTextOption::Tab(40, QTextOption::LeftTab)}, {QTextOption::Tab(100, QTextOption::LeftTab)}};
+        tl.beginLayout();
+        double y = 0;
+        for (int i = 0; i < 2; ++i) {
+            QTextLine l = tl.createLine();
+            tl.setLineTabs(stops[i]);
+            l.setLineWidth(300);
+            l.setPosition(QPointF(0, y));
+            y += l.height();
+            tl.keepLineTabs(i);
+        }
+        tl.endLayout();
+        // Where the second letter of each line starts, by its dark pixels.
+        auto inkAfterTab = [&](bool selected, double line) {
+            QImage img(300, 80, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.setPen(Qt::black);
+            QList<QTextLayout::FormatRange> sel;
+            if (selected) {
+                QTextLayout::FormatRange r;
+                r.start = 0;
+                r.length = int(tl.text().size());
+                r.format.setBackground(QColor(255, 255, 0));
+                sel << r;
+            }
+            tl.draw(&p, QPointF(0, 0), sel);
+            p.end();
+            const QTextLine l = tl.lineAt(int(line));
+            for (int x = 20; x < img.width(); ++x)
+                for (int yy = int(l.y()); yy < int(l.y() + l.height()); ++yy)
+                    if (qGray(img.pixel(x, yy)) < 100) return x;
+            return -1;
+        };
+        for (bool selected : {false, true}) {
+            const int first = inkAfterTab(selected, 0), second = inkAfterTab(selected, 1);
+            QVERIFY2(first >= 40 && first <= 46 && second >= 100 && second <= 106, qPrintable(QStringLiteral("%1 selected: %2 and %3").arg(selected).arg(first).arg(second)));
+        }
+    }
+
+    // That drawing of a selection is Qt's own, on lines that don't depend on
+    // their stops (no tab in the text): the selection's background behind the
+    // text, and the selected text in its color where it has one.
+    void selectionDrawsLikeQtsOnLinesWithTwoStopLists()
+    {
+        QFont font(QStringLiteral("Arial"));
+        font.setPixelSize(16);
+        const QString text = QStringLiteral("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda");
+        auto lay = [&](jp::ParagraphLayout &tl, bool lists) {
+            tl.beginLayout();
+            double y = 0;
+            for (int i = 0; true; ++i) {
+                QTextLine l = tl.createLine();
+                if (!l.isValid()) break;
+                if (lists) tl.setLineTabs({QTextOption::Tab(30 + 20 * (i % 2), QTextOption::LeftTab)});
+                l.setLineWidth(150);
+                l.setPosition(QPointF(0, y));
+                y += l.height();
+                if (lists) tl.keepLineTabs(i);
+            }
+            tl.endLayout();
+        };
+        auto render = [&](bool lists, const QTextLayout::FormatRange &sel) {
+            jp::ParagraphLayout tl(text, font);
+            lay(tl, lists);
+            QImage img(200, 160, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.setPen(Qt::black);
+            tl.draw(&p, QPointF(5, 5), {sel});
+            p.end();
+            return img;
+        };
+        QTextLayout::FormatRange back, both;
+        back.start = both.start = 8;
+        back.length = both.length = 40;
+        back.format.setBackground(QColor(255, 255, 0));
+        both.format.setBackground(QColor(51, 153, 255));
+        both.format.setForeground(Qt::white);
+        // The same pixels, but for the last column of a highlight, which Qt fills on some lines and not on others.
+        for (const auto &sel : {back, both}) {
+            const QImage plain = render(false, sel), lines = render(true, sel);
+            QSet<int> columns;
+            for (int y = 0; y < plain.height(); ++y)
+                for (int x = 0; x < plain.width(); ++x)
+                    if (plain.pixel(x, y) != lines.pixel(x, y)) columns.insert(x);
+            QVERIFY2(columns.size() <= 3, qPrintable(QStringLiteral("%1 columns differ").arg(columns.size())));
+        }
+    }
+
     // Centered and right-aligned lines have their text shifted by Qt, which
     // the stops don't share: a tab at the end of one was taken for past its
     // stop (the shift added to where it started) and went on to the next line
