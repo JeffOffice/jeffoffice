@@ -19620,6 +19620,39 @@ private Q_SLOTS:
         QCOMPARE(cache.textFrame(*doc, *t, 1, opt).fitScale, 1.0);
     }
 
+    // The first baseline of single spaced text sits higher in Franklin
+    // Gothic and Gill Sans MT up to 31 pt (0.088 and 0.096 em; Publisher's
+    // PDFs of 400 such lines), while larger text and text at any other
+    // spacing stays at the font's ascent.
+    void firstBaselineOfSmallSingleSpacedText()
+    {
+        struct Case { const char *family; double ascent, lift; };
+        for (const Case &k : {Case{"Franklin Gothic Demi", 1877.0 / 2048, 0.088}, Case{"Gill Sans MT", 1903.0 / 2048, 0.096}}) {
+            const QString fam = QString::fromLatin1(k.family);
+            struct Probe { double size, spacing, em; };
+            for (const Probe &p : {Probe{24, 100, k.ascent - k.lift}, Probe{36, 100, k.ascent}, Probe{24, 125, k.ascent}}) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextBlockFormat bf;
+                bf.setLineHeight(p.spacing, QTextBlockFormat::ProportionalHeight);
+                c.setBlockFormat(bf);
+                QTextCharFormat cf;
+                cf.setFontFamilies(QStringList{fam});
+                cf.setFontPointSize(p.size);
+                c.insertText(QStringLiteral("Date"), cf);
+                jp::FrameSpec fs;
+                fs.size = QSizeF(600, 400);
+                fs.insets = QMarginsF(0, 0, 0, 0);
+                jp::StoryLayout lay;
+                lay.build(&doc, {fs}, jp::LayoutEnv());
+                const auto lines = lay.lineInfo(0);
+                QCOMPARE(lines.size(), 1);
+                QVERIFY2(std::abs(lines[0].baseline - p.em * p.size) < 0.05,
+                         qPrintable(QStringLiteral("%1 %2 pt at %3%: %4, not %5").arg(fam).arg(p.size).arg(p.spacing).arg(lines[0].baseline).arg(p.em * p.size)));
+            }
+        }
+    }
+
     // Best fit grows text only as far as the box holds it: a banner's short
     // headline grew to fill the width, its one line three times taller than
     // the box (Publisher's banner designs fit theirs inside).
