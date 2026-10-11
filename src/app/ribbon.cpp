@@ -42,15 +42,21 @@ static QStringList largeLabelLines(const QToolButton *b)
     t.remove(QLatin1Char('&'));
     t.remove(QStringLiteral("...")).remove(QChar(0x2026));
     const QFontMetrics fm(b->font());
-    if (fm.horizontalAdvance(t) <= 70 || !t.contains(' ')) return {t};
-    // Break at the space that best balances the two lines.
+    if (fm.horizontalAdvance(t) <= 70) return {t};
+    // Break where the two lines balance best: at a space (dropped), or
+    // after a hyphen inside a word (kept), as long compound words in some
+    // languages need ("Pagina-achtergrond").
     int best = -1, bestDiff = INT_MAX;
-    for (int i = 0; i < t.size(); ++i)
-        if (t[i] == ' ') {
-            const int d = std::abs(fm.horizontalAdvance(t.left(i)) - fm.horizontalAdvance(t.mid(i + 1)));
-            if (d < bestDiff) { bestDiff = d; best = i; }
-        }
-    return {t.left(best), t.mid(best + 1)};
+    bool atSpace = true;
+    for (int i = 0; i < t.size(); ++i) {
+        const bool space = t[i] == ' ', hyphen = t[i] == '-' && i > 0 && i + 1 < t.size() && t[i - 1] != ' ' && t[i + 1] != ' ';
+        if (!space && !hyphen) continue;
+        const QString first = space ? t.left(i) : t.left(i + 1);
+        const int d = std::abs(fm.horizontalAdvance(first) - fm.horizontalAdvance(t.mid(i + 1)));
+        if (d < bestDiff) { bestDiff = d; best = i; atSpace = space; }
+    }
+    if (best < 0) return {t};
+    return {atSpace ? t.left(best) : t.left(best + 1), t.mid(best + 1)};
 }
 
 QSize largeRibbonButtonHint(const QToolButton *b)
@@ -63,7 +69,9 @@ QSize largeRibbonButtonHint(const QToolButton *b)
     const bool menu = b->menu() || b->popupMode() == QToolButton::InstantPopup;
     for (int i = 0; i < lines.size(); ++i)
         w = std::max(w, fm.horizontalAdvance(lines[i]) + 14 + (menu && i == 1 ? 12 : 0));
-    return QSize(std::min(w, 116), 64);
+    // As wide as the label's longer line, so no word is cut short: a single
+    // long word ("Onlineafbeeldingen") can't move to another line.
+    return QSize(std::min(w, 200), 64);
 }
 
 // Icon on top, label on up to two lines, a small chevron for menus, and soft
