@@ -158,7 +158,8 @@ struct CharacterStyle
 enum LineSpacingType
 {
   LINE_SPACING_SP,
-  LINE_SPACING_PT
+  LINE_SPACING_PT,
+  LINE_SPACING_PT_AT_LEAST // JeffPub: points, as a minimum (Publisher's "At least")
 };
 
 struct LineSpacingInfo

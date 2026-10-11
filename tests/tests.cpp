@@ -2877,8 +2877,9 @@ private Q_SLOTS:
     }
 
     // Line spacing in points with neither flag bit set (12 pt as 1219200,
-    // eighths of an EMU) is Publisher's too: a booklet's list double-spaced
-    // in Publisher came in at its style's 1.19 lines, the value dropped.
+    // eighths of an EMU) is Publisher's too, its "At least": a booklet's list
+    // double-spaced in Publisher came in at its style's 1.19 lines, the value
+    // dropped.
     void unflaggedLineSpacingInPoints()
     {
         auto doc = jp::Document::blank(QSizeF(612, 792));
@@ -2895,7 +2896,7 @@ private Q_SLOTS:
         const QString path = dir.filePath(QStringLiteral("spacing.pub"));
         QString err;
         QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
-        // JeffPub writes the points kind (1219200 | 1); make it the unflagged kind.
+        // JeffPub writes the exact points kind (1219200 | 1); make it the unflagged kind.
         QFile f(path);
         QVERIFY(f.open(QIODevice::ReadOnly));
         jp::cfb::File file;
@@ -2921,7 +2922,7 @@ private Q_SLOTS:
             const QTextBlock b = (*it)->doc->begin();
             if (!b.text().startsWith(QLatin1String("Purpose"))) continue;
             found = true;
-            QCOMPARE(b.blockFormat().lineHeightType(), int(QTextBlockFormat::FixedHeight));
+            QCOMPARE(b.blockFormat().lineHeightType(), int(QTextBlockFormat::MinimumHeight));
             QCOMPARE(b.blockFormat().lineHeight(), 12.0);
         }
         QVERIFY(found);
@@ -13688,6 +13689,94 @@ private Q_SLOTS:
         QCOMPARE(ed->textTarget().half, 1);
         QVERIFY(!t->cell(0, 0).storyId2.isEmpty());
         QCOMPARE(ed->textTarget().storyId, t->cell(0, 0).storyId2);
+    }
+
+    // Line spacing in points, as Publisher sets it (measured in its PDFs of 10 and 24 point text in Times New
+    // Roman, Arial, and Calibri, every value from 1 to 30 points): "Exactly" spaces the lines by the value
+    // whatever the text, with the baseline one descent above the bottom of the line, or, when the line is
+    // shorter than the font's own, the same part of the line (the whole line shrinks); "At least" is the
+    // larger of the value and the font's own spacing, extra above the line.
+    void lineSpacingInPointsAsPublisher()
+    {
+        const double size = 100, single = (1420.0 + 442 + 307) / 2048 * size, descent = 442.0 / 2048 * size;   // Times New Roman's own
+        struct Case { QTextBlockFormat::LineHeightTypes type; double value, pitch, first; };
+        const double closer = 1 - descent / single;
+        const QVector<Case> cases = {
+            {QTextBlockFormat::FixedHeight, 50, 50, 50 * closer},
+            {QTextBlockFormat::FixedHeight, 1.4, 1.4, 1.4 * closer},
+            {QTextBlockFormat::FixedHeight, 130, 130, 130 - descent},
+            {QTextBlockFormat::MinimumHeight, 1.4, single, single - descent},
+            {QTextBlockFormat::MinimumHeight, 50, single, single - descent},
+            {QTextBlockFormat::MinimumHeight, 130, 130, 130 - descent},
+        };
+        for (const Case &k : cases) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(size);
+            QTextBlockFormat bf;
+            bf.setLineHeight(k.value, k.type);
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("Alpha"), cf);
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("Bravo"), cf);
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("Charlie"), cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(600, 2000);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            const auto lines = lay.lineInfo(0);
+            const QString what = QStringLiteral("%1 %2").arg(int(k.type)).arg(k.value);
+            QCOMPARE(lines.size(), 3);
+            QVERIFY2(std::abs(lines[1].baseline - lines[0].baseline - k.pitch) < 0.05, qPrintable(what + QStringLiteral(" pitch ") + QString::number(lines[1].baseline - lines[0].baseline)));
+            QVERIFY2(std::abs(lines[2].baseline - lines[1].baseline - k.pitch) < 0.05, qPrintable(what));
+            QVERIFY2(std::abs(lines[0].baseline - k.first) < 0.1, qPrintable(what + QStringLiteral(" first ") + QString::number(lines[0].baseline) + QStringLiteral(" not ") + QString::number(k.first)));
+        }
+    }
+
+    // A paragraph's "At least" and "Exactly" line spacing are different records in a .pub file (the points
+    // with 1 added, or as they are), so each is kept as its own kind.
+    void atLeastLineSpacingKeptInPubFiles()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 300, 300);
+        box->storyId = doc->createStory();
+        QTextDocument *sd = doc->storyDoc(box->storyId);
+        QTextCursor c(sd);
+        QTextBlockFormat exact, atLeast, lines;
+        exact.setLineHeight(12, QTextBlockFormat::FixedHeight);
+        atLeast.setLineHeight(1.4, QTextBlockFormat::MinimumHeight);
+        lines.setLineHeight(150, QTextBlockFormat::ProportionalHeight);
+        c.select(QTextCursor::Document);
+        c.removeSelectedText();
+        c.setBlockFormat(exact);
+        c.insertText(QStringLiteral("Exactly"));
+        c.insertBlock(atLeast);
+        c.insertText(QStringLiteral("At least"));
+        c.insertBlock(lines);
+        c.insertText(QStringLiteral("Lines"));
+        doc->pages[0]->items.push_back(box);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("spacing.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QTextDocument *bd = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Text) bd = back->storyDoc(static_cast<jp::TextItem *>(it.get())->storyId);
+        });
+        QVERIFY(bd);
+        QVERIFY(bd->blockCount() >= 3);
+        QCOMPARE(int(bd->findBlockByNumber(0).blockFormat().lineHeightType()), int(QTextBlockFormat::FixedHeight));
+        QCOMPARE(bd->findBlockByNumber(0).blockFormat().lineHeight(), 12.0);
+        QCOMPARE(int(bd->findBlockByNumber(1).blockFormat().lineHeightType()), int(QTextBlockFormat::MinimumHeight));
+        QVERIFY(std::abs(bd->findBlockByNumber(1).blockFormat().lineHeight() - 1.4) < 0.001);
+        QCOMPARE(int(bd->findBlockByNumber(2).blockFormat().lineHeightType()), int(QTextBlockFormat::ProportionalHeight));
     }
 
     // The line along a cell's diagonal is saved in JeffPub files (none stays

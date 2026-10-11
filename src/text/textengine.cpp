@@ -1792,8 +1792,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // single, the whole line shrinks in proportion, its descent too,
                     // small capitals at the full size: in Publisher's PDFs the baseline
                     // sits spacing x (single - descent) below the top (0.75 and 0.94
-                    // spacing; Times, Futura, Oswald).
-                    const bool closer = bf.lineHeightType() == QTextBlockFormat::ProportionalHeight && h < single && single > 0;
+                    // spacing; Times, Futura, Oswald). A line of exactly so many points
+                    // does the same when that is less than the font's own spacing (1 to
+                    // 10 points of 10 point Times, Arial, and Calibri, and up to 24 of
+                    // 24 point text; the lines are the value apart whatever the text).
+                    const bool closer = (bf.lineHeightType() == QTextBlockFormat::ProportionalHeight || bf.lineHeightType() == QTextBlockFormat::FixedHeight) && h < single && single > 0;
                     const double kd = knownDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer);
                     const double fd = kd > 0 ? 0 : fontDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer);
                     const double descent = kd > 0 ? kd : fd > 0 ? fd : line.height() - line.ascent();

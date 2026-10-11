@@ -967,12 +967,13 @@ QVector<B> PubWriter::paraBlocks(const QTextBlock &block)
     // Spacing is always written, so Publisher's Normal style (6 pt after,
     // 1.19 lines) doesn't fill in where JeffPub has none.
     p << u32(0x12, quint32(emu(std::max(0.0, f.topMargin()))), 0x22) << u32(0x13, quint32(emu(std::max(0.0, f.bottomMargin()))), 0x22);
-    // Line spacing: in points, eighths of an EMU plus 1; in lines, what would
-    // be EMU at 96 pt (a multiple of 4) plus 2.
+    // Line spacing: in points, eighths of an EMU plus 1 ("Exactly") or with
+    // nothing added ("At least"); in lines, what would be EMU at 96 pt (a
+    // multiple of 4) plus 2.
     const int lht = f.lineHeightType();
     quint32 spacing;
     if ((lht == QTextBlockFormat::FixedHeight || lht == QTextBlockFormat::MinimumHeight) && f.lineHeight() > 0)
-        spacing = quint32(std::llround(f.lineHeight() * kEmuPerPt * 8)) | 1;
+        spacing = lht == QTextBlockFormat::FixedHeight ? (quint32(std::llround(f.lineHeight() * kEmuPerPt * 8)) | 1) : (quint32(std::llround(f.lineHeight() * kEmuPerPt * 8)) & ~3u);
     else {
         const double lines = lht == QTextBlockFormat::ProportionalHeight && f.lineHeight() > 0 ? f.lineHeight() / 100.0 : 1.0;
         spacing = quint32(4 * std::llround(lines * 914400.0 * 96 / 72 / 4)) + 2;

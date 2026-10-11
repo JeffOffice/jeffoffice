@@ -481,6 +481,8 @@ public:
             if (lh->getUnit() == librevenge::RVNG_PERCENT || lh->getUnit() == librevenge::RVNG_GENERIC) bf.setLineHeight(lh->getDouble() * 100.0, QTextBlockFormat::ProportionalHeight);
             else bf.setLineHeight(toPt(lh), QTextBlockFormat::FixedHeight);
         }
+        // Points as a minimum: Publisher's "At least".
+        else if (const RVNGProperty *lm = p["jp:line-height-min"]) bf.setLineHeight(toPt(lm), QTextBlockFormat::MinimumHeight);
         if (const RVNGPropertyListVector *dc = p.child("style:drop-cap")) {
             if (dc->count() > 0) {
                 const RVNGPropertyList &d = (*dc)[0];
