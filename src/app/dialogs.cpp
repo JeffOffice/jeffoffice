@@ -2268,7 +2268,7 @@ void optionsDialog(QWidget *p, Editor *ed)
     auto *uiLang = new QComboBox(gen);
     uiLang->addItem(QCoreApplication::translate("Dialogs", "Use system language"), QString());
     uiLang->addItem(QStringLiteral("English"), QStringLiteral("en"));
-    for (const QString &l : availableUiLanguages()) uiLang->addItem(QLocale(l).nativeLanguageName(), l);
+    for (const QString &l : availableUiLanguages()) uiLang->addItem(uiLanguageName(l), l);
     const QString oldLang = st.value("ui/language").toString();
     uiLang->setCurrentIndex(std::max(0, uiLang->findData(oldLang)));
     gf->addRow(QCoreApplication::translate("Dialogs", "Display language:"), uiLang);
