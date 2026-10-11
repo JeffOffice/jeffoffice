@@ -1776,7 +1776,7 @@ ParagraphStyle MSPUBParser::getParagraphStyle(librevenge::RVNGInputStream *input
     case PARAGRAPH_LINE_SPACING:
       if (info.data & 1)
       {
-        // line spacing expressed in points in the UI,
+        // line spacing expressed in points in the UI (Publisher's "Exactly"),
         // in eighths of an emu in the file format.
         // (WTF??)
         ret.m_lineSpacing = LineSpacingInfo(LINE_SPACING_PT,
@@ -1792,9 +1792,10 @@ ParagraphStyle MSPUBParser::getParagraphStyle(librevenge::RVNGInputStream *input
       }
       else if (info.data)
       {
-        // JeffPub: neither flag: points, in eighths of an EMU like the first
-        // kind (1219200 is 12 pt); upstream dropped it for the style's spacing.
-        ret.m_lineSpacing = LineSpacingInfo(LINE_SPACING_PT,
+        // JeffPub: neither flag: points as a minimum ("At least"), in eighths of
+        // an EMU like the first kind (1219200 is 12 pt); upstream dropped it
+        // for the style's spacing.
+        ret.m_lineSpacing = LineSpacingInfo(LINE_SPACING_PT_AT_LEAST,
                                             static_cast<double>(info.data) / 8 * 72 / EMUS_IN_INCH);
       }
       break;

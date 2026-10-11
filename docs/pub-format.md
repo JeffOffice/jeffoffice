@@ -232,6 +232,37 @@ reference PDFs: a 10 pt Times New Roman paragraph at 1 sp after one at
 lines of a cover after an empty 1.19 sp paragraph match within 0.2 pt.
 Whether a line fits in a box counts its text, not the spacing below it.
 
+Spacing given in points is one of two kinds, told apart by the `34:22` value
+(see Paragraph runs below): the points as eighths of an EMU plus 1 is
+Publisher's "Exactly" (`ParagraphFormat.LineSpacingRule` 4), and the same
+with nothing added is "At least" (rule 3, which the object model reads but
+cannot set: assigning 3 gives 4). Measured in Publisher 2021's PDFs of 10 and
+24 point text in Times New Roman, Arial, and Calibri, at 1, 1.4, 5, 8, 10, 12,
+20, and 30 points (Exactly made through the object model, At least from
+JeffPub's files, which Publisher read back as rule 3):
+
+- Exactly: the lines are the value apart whatever the text (the same for 10
+  and 24 points and for the three fonts: 5.00, 8.00, 10.00, 12.00, 20.00, and
+  30.00 points over twenty lines), and the extra is above the line. A first
+  baseline is the line's top plus the value less the font's descent. Where the
+  value is less than the font's own single spacing, the whole line shrinks in
+  proportion, as with a spacing in lines under 1: the baseline is the top plus
+  value x (single - descent) / single (10 point Times, single 10.59, descent
+  2.16: 1 point gives 0.8, 5 points 4.0, 8 points 6.4, 10 points 7.97).
+  JeffPub had placed such a line the value less the descent below the top,
+  1.1 points too high at 5 points and 1.9 at 1.
+- At least: the lines are the larger of the value and the font's single
+  spacing apart, with the extra above the line, so a value under the font's
+  own spacing is plain single spacing (1.4 points of 10 point Arial bold is
+  10.9 points, 10 point Times 10.59 up to 10 points, 12.00 at 12 points, 20.00
+  at 20 points; 24 point Times 25.42 up to 24 points). JeffPub read these as
+  Exactly, so a paragraph with 1.4 points on 10 point text (the MIVDF welcome
+  booklet's key points) put its lines 9.5 points too high.
+
+With no space before or after, the first line of the next paragraph is the
+same distance below the last line as the lines within a paragraph, for both
+kinds.
+
 ### Hanging indents, bullets, and tabs
 
 A paragraph whose first-line indent is below 0 hangs: its first line starts
@@ -781,9 +812,10 @@ Publisher's dialog calls that alignment "Right".
 Seen in Publisher's files and written by JeffPub (paragraph runs, FDPP):
 `0c:22` first-line indent (EMU, negative for a hanging indent), `0d:22`
 left and `0e:22` right indent, `12:22` space before, `13:22` space after,
-`34:22` line spacing: in points as eighths of an EMU plus 1, or in lines as
-what would be EMU at 96 pt (a multiple of 4) plus 2 (1 line = 1219202;
-Normal's 1.19 lines = 1450850). JeffPub writes spacing and line spacing on
+`34:22` line spacing: in points as eighths of an EMU plus 1 (Exactly) or as
+they are (At least; 12 pt is 1219200), or in lines as what would be EMU at 96
+pt (a multiple of 4) plus 2 (1 line = 1219202; Normal's 1.19 lines =
+1450850). JeffPub writes spacing and line spacing on
 every paragraph so Normal's own values (6 pt after, 1.19 lines) don't apply.
 
 Character runs (FDPC): `12:22` and `3e:22` the language as a Windows LCID

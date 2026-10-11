@@ -2080,6 +2080,10 @@ librevenge::RVNGPropertyList MSPUBCollector::getParaStyleProps(const ParagraphSt
     {
       ret.insert("fo:line-height", lineSpacing, librevenge::RVNG_POINT);
     }
+    else if (lineSpacingType == LINE_SPACING_PT_AT_LEAST)
+    {
+      ret.insert("jp:line-height-min", lineSpacing, librevenge::RVNG_POINT);
+    }
   }
   unsigned spaceAfterEmu = style.m_spaceAfterEmu.get_value_or(
                              defaultStyle.m_spaceAfterEmu.get_value_or(0));
