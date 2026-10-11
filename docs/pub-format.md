@@ -471,7 +471,10 @@ to bottom; left out when horizontal), `07` vertical alignment (a u16, type
 0x10: 1 middle, 2 bottom; left out for top), `0a`-`0d` margins (left, right,
 top, bottom) and `0e = 114300`. A merged cell is one entry spanning its
 rows and columns; the cells under it are not listed. Cells can come in any
-order; their text follows the list order.
+order; their text follows the list order. The count is 16 bits, so a list
+holds at most 65,535 entries (a 256 x 256 table has 65,536 cells; divided cells
+count twice): JeffPub writes the cells first, then as many second halves as
+fit, and the save says what it left out.
 
 Text Direction is the cell's `06` and nothing else in the cell: in Publisher
 2021 `Cell.CellTextOrientation` is 1 for horizontal and 2 for turned, and
