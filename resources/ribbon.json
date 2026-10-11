@@ -260,7 +260,6 @@
     {"name": "Help", "keytip": "Y", "groups": [
       {"name": "Help", "keytip": "ZH", "items": [
         {"large": "help.show", "keytip": "H"},
-        {"large": "help.support", "keytip": "C"},
         {"large": "help.feedback", "keytip": "K"},
         {"large": "help.shortcuts", "keytip": "S"},
         {"large": "help.whatsNew", "keytip": "W"}

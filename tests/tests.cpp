@@ -5964,17 +5964,17 @@ private Q_SLOTS:
         jp::help::openUrl = [&opened](const QUrl &u) { opened << u; return true; };
         Q_EMIT v->browser()->anchorClicked(QUrl(QStringLiteral("https://github.com/JeffOffice/jeffpub")));
         QCOMPARE(v->currentTopic(), QStringLiteral("index"));
-        // The Help tab's web pages: a problem report and an idea carry the
-        // version; What's New is this version's release.
-        w.act(QStringLiteral("help.support"))->trigger();
+        // The Help tab's web pages: Feedback (a problem or an idea) carries the
+        // version and system; What's New is this version's release. There is
+        // no Contact Support button: Feedback covers it.
+        QVERIFY(!w.act(QStringLiteral("help.support")));
         w.act(QStringLiteral("help.feedback"))->trigger();
         w.act(QStringLiteral("help.whatsNew"))->trigger();
         jp::help::openUrl = keep;
-        QCOMPARE(opened.size(), 4);
+        QCOMPARE(opened.size(), 3);
         QCOMPARE(opened[1].toString(QUrl::RemoveQuery), QStringLiteral("https://github.com/JeffOffice/jeffpub/issues/new"));
         QVERIFY(QUrlQuery(opened[1]).queryItemValue(QStringLiteral("body"), QUrl::FullyDecoded).contains(QStringLiteral("JeffPub " JP_VERSION " on ")));
-        QCOMPARE(QUrlQuery(opened[2]).queryItemValue(QStringLiteral("labels")), QStringLiteral("enhancement"));
-        QCOMPARE(opened[3].toString(), QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/tag/v" JP_VERSION));
+        QCOMPARE(opened[2].toString(), QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/tag/v" JP_VERSION));
         // Ctrl+F1 collapses the ribbon and brings it back, as there.
         QVERIFY(!w.ribbon()->isMinimized());
         QTest::keyClick(&w, Qt::Key_F1, Qt::ControlModifier);

@@ -11,19 +11,16 @@ If JeffPub does something odd, or you have an idea to make it better, tell the p
 - If you lost work after JeffPub closed, see [Get back unsaved work](recover).
 - Check that you have the newest version. Click **File > About**, then **Check for Updates**. A problem may already be fixed.
 
-## Report a problem
+## Report a problem or suggest an idea
 
-1. Click **Help > Help > Contact Support**. A page on GitHub opens in your web browser. You need a free GitHub account to post there.
-2. Under **What happened?**, say what went wrong. Write down any message you saw.
-3. Under **What did you do just before it happened?**, list your steps in order, so someone else can try them.
-4. Leave the last line in place. It names your JeffPub version and your operating system. If it is missing, add the version number from **File > About**.
-5. Use the button on the GitHub page to submit the report.
+1. Click **Help > Help > Feedback**. A page on GitHub opens in your web browser. You need a free GitHub account to post there.
+2. Give it a short title, such as "Text disappears when I print" or "Idea: more border styles".
+3. Under **What would you like to tell us?**, say what went wrong or what you would like. Write down any message you saw.
+4. For a problem, under **What did you do just before it happened?**, list your steps in order, so someone else can try them.
+5. Leave the last line in place. It names your JeffPub version and your operating system. If it is missing, add the version number from **File > About**.
+6. Use the button on the GitHub page to submit it.
 
 A picture of the problem helps. Do not post a publication that has private information in it.
-
-## Suggest an idea
-
-Click **Help > Help > Feedback**. A GitHub page opens with two prompts: **Your idea** and **How it would help you**. Answer both, then submit it. A free GitHub account is needed here too.
 
 ## About JeffPub
 

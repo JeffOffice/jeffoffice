@@ -48,7 +48,6 @@ QStringList searchTopics(const QString &query);
 QString displayMarkdown(const Topic &t, MainWindow *win);
 
 // Web pages Help opens: support, feedback and this version's notes.
-QUrl supportUrl();
 QUrl feedbackUrl();
 QUrl whatsNewUrl();
 // Opens a web page in the browser (replaceable for tests).

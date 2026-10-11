@@ -125,7 +125,7 @@ Features JeffPub has that Publisher never did, then the ones planned before vers
 
 ## Help tab
 - [x] Help (F1, or the "?" beside the ribbon's collapse button) **(alt: built in and working offline, instead of web pages)**: a Help pane of 50 topics in plain language, with a contents page, links between topics, Back and Forward, and a search that finds topics and also commands, which it runs; F1 opens the topic for what you're doing (the ribbon tab, the task pane, the File page, the dialog, or the selected object), over a dialog in a window of its own
-- [x] Contact Support and Feedback **(alt: JeffPub's GitHub pages for reporting a problem or suggesting an idea, with the version filled in)**
+- [x] Feedback **(alt: a JeffPub GitHub page for reporting a problem or suggesting an idea, with the version filled in)**
 - [x] Keyboard Shortcuts (a table of every command's keys, made from the commands themselves) and What's New (this version's release notes)
 
 ## Master Page tab (while editing master pages)
