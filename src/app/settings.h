@@ -2,6 +2,7 @@
 // User preferences (stored with QSettings) and measurement units.
 
 #include <QJsonArray>
+#include <QLocale>
 #include <QSettings>
 #include <QString>
 #include <QStringList>
@@ -9,6 +10,10 @@
 namespace jp {
 
 enum class Unit { Inch, Centimeter, Millimeter, Point, Pica };
+
+// The unit a region measures pages in, until Options sets one: inches where
+// it measures in inches (the United States), else centimeters, as Office does.
+Unit defaultUnit(const QLocale &region);
 
 // JeffPub was called JeffPub 79 through version 0.5.0, and kept its settings
 // and files under that name. Brings them over the first time the renamed

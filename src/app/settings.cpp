@@ -61,9 +61,14 @@ void moveFromJeffPub79()
     now.setValue(marker, true);
 }
 
+Unit defaultUnit(const QLocale &region)
+{
+    return region.measurementSystem() == QLocale::ImperialUSSystem ? Unit::Inch : Unit::Centimeter;
+}
+
 Settings::Settings() : m_s(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"))
 {
-    m_unit = Unit(m_s.value("units", 0).toInt());
+    m_unit = Unit(m_s.value("units", int(defaultUnit(QLocale::system()))).toInt());
 }
 
 void Settings::setUnit(Unit u)
