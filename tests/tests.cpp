@@ -5983,6 +5983,84 @@ private Q_SLOTS:
         QVERIFY(!w.ribbon()->isMinimized());
     }
 
+    // Help's topics are published to the project's wiki (JeffPub
+    // --export-help-wiki): a page per topic named from its title, the contents
+    // as Home, a sidebar, and a footer. Every link between topics points at a
+    // page that exists, and the pages carry what Help shows (the shortcut
+    // table, no comments).
+    void helpExportsWikiPages()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString dir = tmp.filePath(QStringLiteral("wiki"));
+        jp::MainWindow w;
+        QString error;
+        QVERIFY2(jp::help::exportWiki(dir, &w, &error), qPrintable(error));
+        QHash<QString, QString> pages;   // file name -> text
+        for (const QString &name : QDir(dir).entryList(QDir::Files)) {
+            QFile f(dir + QLatin1Char('/') + name);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            pages.insert(name, QString::fromUtf8(f.readAll()));
+        }
+        QCOMPARE(pages.size(), jp::help::topicIds().size() + 2);   // a page per topic (the contents is Home), the sidebar, and the footer
+        for (const char *name : {"Home.md", "_Sidebar.md", "_Footer.md", "Get-help-and-report-problems.md", "Work-with-.pub-files.md",
+                                 "Change-JeffPub's-settings.md", "Bullets,-numbering,-and-tabs.md", "Table-Design-and-Table-Layout-tabs.md"})
+            QVERIFY2(pages.contains(QString::fromLatin1(name)), name);
+        static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));
+        QStringList problems;
+        for (auto it = pages.constBegin(); it != pages.constEnd(); ++it) {
+            if (it.value().contains(QLatin1String("<!--"))) problems << it.key() + QStringLiteral(": a comment is left");
+            // The wiki shows a page's name as its title, so a heading stays only
+            // where that would read differently ("Home"; "e-book" without its hyphen).
+            if (it.value().startsWith(QLatin1String("# ")) && QString(it.key()).chopped(3).replace(QLatin1Char('-'), QLatin1Char(' ')) == it.value().section(QLatin1Char('\n'), 0, 0).mid(2))
+                problems << it.key() + QStringLiteral(": repeats its title");
+            if (it.value().trimmed().size() < 100) problems << it.key() + QStringLiteral(": nearly empty");
+            if (it.value().contains(QLatin1String("\n\n\n"))) problems << it.key() + QStringLiteral(": blank lines left by comments");
+            for (auto m = link.globalMatch(it.value()); m.hasNext();) {
+                const QString target = m.next().captured(1);
+                if (!target.startsWith(QLatin1String("https://")) && !pages.contains(target + QStringLiteral(".md"))) problems << it.key() + QStringLiteral(": link to ") + target;
+            }
+        }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
+        QVERIFY(pages["Get-help-and-report-problems.md"].contains(QStringLiteral("[Use JeffPub with the keyboard](Use-JeffPub-with-the-keyboard)")));
+        // The keyboard page holds the shortcut table, made from the commands.
+        const QString bold = QKeySequence(QKeySequence::Bold).toString(QKeySequence::NativeText);
+        const QString keys = pages["Use-JeffPub-with-the-keyboard.md"];
+        QVERIFY2(keys.contains(QStringLiteral("| Bold | %1 | Home > Font |").arg(bold)), qPrintable(keys.right(2000)));
+        // The sidebar is the contents, linked; the footer says where to edit.
+        QVERIFY(pages["_Sidebar.md"].startsWith(QStringLiteral("**[JeffPub Help](Home)**")));
+        QVERIFY(pages["_Sidebar.md"].contains(QStringLiteral("- [Welcome to JeffPub](Welcome-to-JeffPub)")));
+        QVERIFY(pages["_Sidebar.md"].contains(QStringLiteral("**Getting started**")));
+        QVERIFY(pages["Home.md"].startsWith(QStringLiteral("# JeffPub Help\n")));
+        QVERIFY(!pages["Home.md"].contains(QStringLiteral("search box above")));   // that was the Help pane's
+        QVERIFY(pages["_Footer.md"].contains(QStringLiteral("resources/help/en")));
+        QCOMPARE(pages["_Footer.md"].count(QLatin1Char('\n')), 1);
+        // A folder with files in it is left alone: the pages replace a wiki's.
+        QVERIFY(!jp::help::exportWiki(dir, &w, &error));
+        QVERIFY2(error.contains(QLatin1String("isn't empty")), qPrintable(error));
+    }
+
+    // A page name comes from the title with its spaces as hyphens, and a
+    // link to a topic points at that topic's page; web links stay, and a link
+    // to nothing is an error.
+    void helpWikiNamesAndLinks()
+    {
+        using jp::help::wikiPageName;
+        QCOMPARE(wikiPageName(QStringLiteral("Get help and report problems")), QStringLiteral("Get-help-and-report-problems"));
+        QCOMPARE(wikiPageName(QStringLiteral("  Bullets, numbering,   and tabs ")), QStringLiteral("Bullets,-numbering,-and-tabs"));
+        QCOMPARE(wikiPageName(QStringLiteral("Save as: a \"picture\"? (or 100% web) #1 <b>/\\|*")), QStringLiteral("Save-as-a-picture-or-100-web-1-b"));
+        QCOMPARE(wikiPageName(QStringLiteral(".Work with .pub files.")), QStringLiteral("Work-with-.pub-files"));
+        QCOMPARE(wikiPageName(QStringLiteral("?")), QString());
+        const QHash<QString, QString> pages{{QStringLiteral("start"), QStringLiteral("Welcome-to-JeffPub")}, {QStringLiteral("tab-table"), QStringLiteral("Table-tabs")}};
+        QString md = QStringLiteral("See [the start](start), [the site](https://example.com/start), [mail](mailto:a@b.c), [here](#top), and [tables](./tab-table.md#x).");
+        QVERIFY(jp::help::wikiLinks(md, pages));
+        QCOMPARE(md, QStringLiteral("See [the start](Welcome-to-JeffPub), [the site](https://example.com/start), [mail](mailto:a@b.c), [here](#top), and [tables](Table-tabs#x)."));
+        QString bad = QStringLiteral("A [link](nowhere) to nothing."), error;
+        QVERIFY(!jp::help::wikiLinks(bad, pages, &error));
+        QVERIFY2(error.contains(QLatin1String("nowhere")), qPrintable(error));
+        QCOMPARE(bad, QStringLiteral("A [link](nowhere) to nothing."));
+    }
+
     // Screen readers see the page's objects: each is a child of the page,
     // named by its kind and its text or alt text; the selected one is the
     // focus (so Tab is read out object by object); while typing, its text,

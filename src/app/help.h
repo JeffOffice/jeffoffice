@@ -11,6 +11,7 @@
 // command's keyboard shortcut, made from the commands themselves.
 
 #include <QDialog>
+#include <QHash>
 #include <QPointer>
 #include <QStringList>
 #include <QUrl>
@@ -46,6 +47,22 @@ QString contextTopic(const QString &key);
 QStringList searchTopics(const QString &query);
 // The Markdown shown for a topic: comments out, the shortcut table in.
 QString displayMarkdown(const Topic &t, MainWindow *win);
+
+// The topics as pages for the project's GitHub wiki (JeffPub --export-help-wiki
+// <folder>): one Markdown file per topic, named from its title
+// ("Get-help-and-report-problems.md"), with the contents as Home.md and a
+// _Sidebar.md and _Footer.md. Links between topics point at the pages, and the
+// shortcut table comes from `win`'s commands. The folder must be new or empty.
+// On failure (a link to no topic, a folder that can't be written) it returns
+// false and says why in `error`; a bad link writes nothing.
+bool exportWiki(const QString &dir, MainWindow *win, QString *error = nullptr);
+// A wiki page name for a topic title: spaces become hyphens, and characters
+// that a page name or a link to it can't hold are dropped.
+QString wikiPageName(const QString &title);
+// Points `md`'s links to topics ("[Text](linked-text)") at wiki pages; `pages`
+// maps topic ids to page names. Web links stay. False, with `error`, when a
+// link names no topic.
+bool wikiLinks(QString &md, const QHash<QString, QString> &pages, QString *error = nullptr);
 
 // Web pages Help opens: support, feedback and this version's notes.
 QUrl feedbackUrl();

@@ -6,6 +6,9 @@
 //   JeffPub --screenshot <png> [--size WxH]
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
+//   JeffPub --export-help-wiki <folder> write Help's topics as GitHub wiki pages
+//                                         into a new folder and quit (also
+//                                         with QT_QPA_PLATFORM=offscreen)
 
 #include "app/telemetry.h"
 #include "app/editor.h"
@@ -14,6 +17,7 @@
 #include "app/theme.h"
 #include "app/i18n.h"
 #include "app/focusring.h"
+#include "app/help.h"
 #include "app/ribbon.h"
 #include "app/updater.h"
 #include "app/settings.h"
@@ -27,6 +31,7 @@
 #include <QPalette>
 #include <QStyleFactory>
 #include <QStyleHints>
+#include <QTextStream>
 #include <QTimer>
 
 #ifdef Q_OS_WIN
@@ -59,7 +64,8 @@ int main(int argc, char **argv)
     QCommandLineOption tabOpt(QStringLiteral("tab"), QCoreApplication::translate("Main", "Open on a ribbon tab (for screenshots)."), QStringLiteral("name"));
     QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
     QCommandLineOption helpTopicOpt(QStringLiteral("help-topic"), QCoreApplication::translate("Main", "Open Help on a topic (for screenshots)."), QStringLiteral("id"));
-    cli.addOptions({shotOpt, sizeOpt, templOpt, stageOpt, pdfOpt, pdfaOpt, tabOpt, helpTopicOpt});
+    QCommandLineOption wikiOpt(QStringLiteral("export-help-wiki"), QCoreApplication::translate("Main", "Write Help's topics as GitHub wiki pages into a new folder and quit."), QStringLiteral("folder"));
+    cli.addOptions({shotOpt, sizeOpt, templOpt, stageOpt, pdfOpt, pdfaOpt, tabOpt, helpTopicOpt, wikiOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Publications to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
@@ -72,6 +78,14 @@ int main(int argc, char **argv)
 
     auto *w = new jp::MainWindow();
     w->setAttribute(Qt::WA_DeleteOnClose);
+
+    if (cli.isSet(wikiOpt)) {
+        QString error;
+        const bool ok = jp::help::exportWiki(cli.value(wikiOpt), w, &error);
+        QTextStream(ok ? stdout : stderr) << (ok ? QCoreApplication::translate("Main", "Wrote Help's pages to %1.").arg(cli.value(wikiOpt)) : error) << Qt::endl;
+        delete w;
+        return ok ? 0 : 1;
+    }
 
     jp::installFileOpenHandler(&app);
     const QStringList files = cli.positionalArguments();
