@@ -1467,7 +1467,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     int textId = 2;
     int spid = 0x401;
     QHash<QString, quint32> spidOf;   // item -> its drawing shape id, for connector rules
-    int skippedCount = 0;
+    int skippedCount = 0, droppedFormats = 0;
     const double cx = ps.width() / 2, cy = ps.height() / 2;
     auto anchor = [&](const QRectF &r) {
         return clientBlocks(0xf010, {u32(0x01, quint32(qint32(emu(r.left() - cx)))), u32(0x02, quint32(qint32(emu(r.top() - cy)))),
@@ -2010,7 +2010,10 @@ QByteArray PubWriter::write(QStringList *skipped)
 
                 // Fills: one record per grid cell, naming its column (03) and row (04).
                 auto formatShape = [&](const QVector<Prop> &o, const QVector<Prop> &t, const QVector<B> &where, int shapeType = 1, quint32 flags = 0x0a00) {
-                    if (m_cellFormats.size() >= 1000) return;   // one id block's worth
+                    if (m_cellFormats.size() >= 1000) {   // one id block's worth
+                        ++droppedFormats;
+                        return;
+                    }
                     QByteArray d;
                     putU32(d, quint32(0x0c03 + m_cellFormats.size()));
                     putU32(d, flags);
@@ -2036,6 +2039,29 @@ QByteArray PubWriter::write(QStringList *skipped)
                                 formatShape(o, t, where);
                             }
                         }
+                    }
+                }
+                // A diagonal's line is a line shape (type 20) with its color and
+                // width as the line's, flipped when it runs from bottom left to
+                // top right; 01 = 3, then the cell's grid box as for rules.
+                // Written before the rules: when a table has more formatting
+                // than the limit holds, the diagonals (the fewer) are kept.
+                for (int row = 0; row < tb->rows; ++row) {
+                    for (int col = 0; col < tb->cols; ++col) {
+                        const TableCell &c = tb->cell(row, col);
+                        if (c.covered || !c.diagonal || c.diagonalLine.isNone()) continue;
+                        const int r1 = std::min(tb->rows, row + std::max(1, c.rowSpan)), c1 = std::min(tb->cols, col + std::max(1, c.colSpan));
+                        QVector<B> where{u32(0x01, 3)};
+                        if (row) where << u32(0x04, quint32(row));
+                        if (col) where << u32(0x05, quint32(col));
+                        if (r1) where << u32(0x06, quint32(r1));
+                        if (c1) where << u32(0x07, quint32(c1));
+                        QVector<Prop> o = kInsets;
+                        o << Prop{0x01bf, 0x00100000} << Prop{0x01c0, bgr(c.diagonalLine.color.resolve(m_doc.colors))} << Prop{0x01c2, 0xffffffffu}
+                          << Prop{0x01cb, quint32(emu(c.diagonalLine.width))} << Prop{0x01ff, 0x00080008} << kTail;
+                        QVector<Prop> t = kShadowFlags;
+                        t << kSideLines;
+                        formatShape(o, t, where, 20, c.diagonal == 2 ? 0x0a40 : 0x0a00);
                     }
                 }
                 // Ruled lines: 01 = 1 across or 2 down, then the grid box it
@@ -2069,27 +2095,6 @@ QByteArray PubWriter::write(QStringList *skipped)
                         rule(1, r1, col, r1, c1, c.border.bottom);
                         rule(2, row, col, r1, col, c.border.left);
                         rule(2, row, c1, r1, c1, c.border.right);
-                    }
-                }
-                // A diagonal's line is a line shape (type 20) with its color and
-                // width as the line's, flipped when it runs from bottom left to
-                // top right; 01 = 3, then the cell's grid box as for rules.
-                for (int row = 0; row < tb->rows; ++row) {
-                    for (int col = 0; col < tb->cols; ++col) {
-                        const TableCell &c = tb->cell(row, col);
-                        if (c.covered || !c.diagonal || c.diagonalLine.isNone()) continue;
-                        const int r1 = std::min(tb->rows, row + std::max(1, c.rowSpan)), c1 = std::min(tb->cols, col + std::max(1, c.colSpan));
-                        QVector<B> where{u32(0x01, 3)};
-                        if (row) where << u32(0x04, quint32(row));
-                        if (col) where << u32(0x05, quint32(col));
-                        if (r1) where << u32(0x06, quint32(r1));
-                        if (c1) where << u32(0x07, quint32(c1));
-                        QVector<Prop> o = kInsets;
-                        o << Prop{0x01bf, 0x00100000} << Prop{0x01c0, bgr(c.diagonalLine.color.resolve(m_doc.colors))} << Prop{0x01c2, 0xffffffffu}
-                          << Prop{0x01cb, quint32(emu(c.diagonalLine.width))} << Prop{0x01ff, 0x00080008} << kTail;
-                        QVector<Prop> t = kShadowFlags;
-                        t << kSideLines;
-                        formatShape(o, t, where, 20, c.diagonal == 2 ? 0x0a40 : 0x0a00);
                     }
                 }
 
@@ -2263,6 +2268,8 @@ QByteArray PubWriter::write(QStringList *skipped)
         }
     }
     if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%1 object(s) couldn't be saved to .pub").arg(skippedCount);
+    if (skipped && droppedFormats)
+        *skipped << QCoreApplication::translate("Export", "%1 table border(s), shading(s), or diagonal(s) couldn't be saved to .pub").arg(droppedFormats);
     // An object set in text says so (03) and gives its number (0f), with 34
     // = 0, as in Publisher's files (Oct 7); an index lists each number's
     // story and object.

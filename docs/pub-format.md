@@ -585,6 +585,12 @@ ClientAnchor names the table (`02:68`):
   lines: `04` first row, `05` first column, `06` last row, `07` last
   column. OPT 0x0181 = color, 0x01CB = width, 0x01FF = 0x001F0006.
 
+These shapes take ids from 0x0C03 up, in one block of ids (0x0C00-0x0FFF).
+JeffPub writes at most 1,000 of them for the whole publication: the fills,
+then the diagonals, then the rules, and the save says how many it left out
+(a 40 x 12 table with every border and a diagonal in each cell of its last
+row has 1,024).
+
 ### Frame layout (MCLD)
 
 Publisher won't open a file with a table unless this section is present.
