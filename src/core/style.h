@@ -76,6 +76,10 @@ struct Stroke {
     static Stroke none() { return Stroke(); }
     static Stroke line(const ColorRef &c, double w = 0.75) { Stroke s; s.color = c; s.width = w; return s; }
     bool isNone() const { return color.isNone() || width <= 0; }
+    // How far in from the edge a box's text margin is measured with this line
+    // around it: Publisher sets the text inside the line, from its inner edge,
+    // half the weight for a line centered on the edge, all of it for an inset one.
+    double textShift() const { return isNone() ? 0 : inset ? width : width / 2; }
 
     QPen pen(const ColorScheme &s) const;
     QJsonObject toJson() const;

@@ -444,6 +444,11 @@ public:
                 t->fill = s->fill;
                 t->stroke = s->stroke;
                 t->fx = s->fx;
+                // The text sat as far in as the box's margin said, not inside the
+                // line: with the line on the box it is set inside it, so the margin
+                // gives up what the line takes (the text stays where it was).
+                if (const double d = t->stroke.textShift(); d > 0)
+                    t->insets = QMarginsF(std::max(0.0, t->insets.left() - d), std::max(0.0, t->insets.top() - d), std::max(0.0, t->insets.right() - d), std::max(0.0, t->insets.bottom() - d));
                 list.pop_back();
                 --m_rep.shapes;
             }
