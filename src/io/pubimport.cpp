@@ -438,17 +438,31 @@ public:
         ItemList &list = num >= 0 ? m_inlineList : currentList();
         if (!list.empty() && list.back()->type() == ItemType::Shape) {
             auto *s = static_cast<ShapeItem *>(list.back().get());
-            if (s->shape == "rect" && s->customPath.isEmpty() && s->storyId.isEmpty() && std::abs(s->rect.x() - t->rect.x()) < 1 &&
-                std::abs(s->rect.y() - t->rect.y()) < 1 && std::abs(s->rect.width() - t->rect.width()) < 1 &&
-                std::abs(s->rect.height() - t->rect.height()) < 1 && s->rotation == t->rotation) {
+            // The box's own frame (the shape drew its fill and line just before
+            // its text) is the box itself, whatever the line's weight; the
+            // library moved the text's rectangle in by the line (the top only,
+            // for a plain line), so up to a line's width apart is still one
+            // rectangle. Any other rectangle must lie within a point.
+            const bool own = p["jp:own-frame"] != nullptr;
+            const double tol = own ? 1 + s->stroke.width : 1;
+            if (s->shape == "rect" && s->customPath.isEmpty() && s->storyId.isEmpty() && std::abs(s->rect.x() - t->rect.x()) < tol &&
+                std::abs(s->rect.y() - t->rect.y()) < tol && std::abs(s->rect.width() - t->rect.width()) < tol &&
+                std::abs(s->rect.height() - t->rect.height()) < tol && s->rotation == t->rotation) {
                 t->fill = s->fill;
                 t->stroke = s->stroke;
                 t->fx = s->fx;
-                // The text sat as far in as the box's margin said, not inside the
-                // line: with the line on the box it is set inside it, so the margin
-                // gives up what the line takes (the text stays where it was).
-                if (const double d = t->stroke.textShift(); d > 0)
+                if (own) {
+                    // Publisher set this box's text inside its line, from the
+                    // margin in the file: JeffPub does too, so the box is the
+                    // frame's rectangle and the margin stays as written.
+                    t->rect = s->rect;
+                } else if (const double d = t->stroke.textShift(); d > 0) {
+                    // A separate rectangle: the text sat as far in as the box's
+                    // margin said, not inside the line. With the line on the box
+                    // it is set inside it, so the margin gives up what the line
+                    // takes (the text stays where it was).
                     t->insets = QMarginsF(std::max(0.0, t->insets.left() - d), std::max(0.0, t->insets.top() - d), std::max(0.0, t->insets.right() - d), std::max(0.0, t->insets.bottom() - d));
+                }
                 list.pop_back();
                 --m_rep.shapes;
             }
