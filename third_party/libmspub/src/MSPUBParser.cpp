@@ -1039,9 +1039,10 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
                   case 0x04:
                     currentCell.m_endColumn = subInfo.data;
                     break;
-                  // JeffPub: 0x06 is the cell's Text Direction (2 = turned a quarter turn).
+                  // JeffPub: 0x06 is the cell's Text Direction (2 = turned a quarter turn),
+                  // read from its low byte as 0x05 and 0x07 are.
                   case 0x06:
-                    currentCell.m_textDirection = subInfo.data;
+                    currentCell.m_textDirection = subInfo.data & 0xff;
                     break;
                   // JeffPub: 0x05 divides the cell by a diagonal (see CellInfo::m_split).
                   case 0x05:

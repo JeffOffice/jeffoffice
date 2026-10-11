@@ -485,8 +485,9 @@ Text Direction is the cell's `06` and nothing else in the cell: in Publisher
 accepts no other value. Found by setting it on one cell through the object
 model and through the Table Layout tab's Text Direction button (a toggle:
 twice is horizontal again) and comparing the saved files; setting another
-cell moved `06` to that cell's record. Publisher also records the cell's
-frame turned (see Frame layout below).
+cell moved `06` to that cell's record. JeffPub reads only its low byte, as
+for `05` and `07`. Publisher also records the cell's frame turned (see Frame
+layout below).
 
 Vertical alignment is the cell's `07` and nothing else in the file:
 `Cell.VerticalTextAlignment` is 0 (top), 1 (middle), or 2 (bottom), and
