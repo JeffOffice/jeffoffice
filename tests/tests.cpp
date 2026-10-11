@@ -2512,6 +2512,72 @@ private Q_SLOTS:
         }
     }
 
+    // Rockwell Condensed and Gloucester MT Extra Condensed are heavier than
+    // their stand-ins' regular faces narrowed: line by line against
+    // Publisher's PDFs (Oct 10), Roboto Slab Regular at 71% carried 0.85 of
+    // Rockwell Condensed's ink and EB Garamond Regular at 72% only 0.6 of
+    // Gloucester's. Their bold faces, narrowed to the original's letter
+    // widths (60% and 62%), carry 1.0 and 0.85.
+    void condensedStandInsAreDrawnBold()
+    {
+        struct Case { const char *family, *standIn; int regular, bold; };
+        for (const Case &c : {Case{"Rockwell Condensed", "Roboto Slab", 60, 86}, Case{"Gloucester MT Extra Condensed", "EB Garamond", 62, 62}}) {
+            const QString fam = QString::fromLatin1(c.family);
+            if (QFontDatabase::hasFamily(fam)) continue;   // installed: its own face
+            QCOMPARE(jp::substituteWeight(fam), 700);
+            for (bool bold : {false, true}) {
+                QTextCharFormat cf;
+                cf.setFontFamilies(QStringList{fam});
+                cf.setFontPointSize(24);
+                if (bold) cf.setFontWeight(QFont::Bold);
+                const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
+                const QFontInfo info(r.font());
+                const QString what = QStringLiteral("%1 %2").arg(fam, bold ? QStringLiteral("bold") : QStringLiteral("regular"));
+                QCOMPARE(info.family(), QString::fromLatin1(c.standIn));
+                QVERIFY2(info.weight() >= QFont::Bold, qPrintable(what + QStringLiteral(": weight %1").arg(info.weight())));
+                QCOMPARE(r.fontStretch(), bold ? c.bold : c.regular);
+            }
+        }
+    }
+
+    // The heavier face doesn't change how tall the letters are drawn:
+    // Rockwell Condensed's regular letters stand as high as Roboto Slab's
+    // (its capitals 3% taller, its small letters 3% shorter), its bold ones
+    // 5.5% lower than the stand-in's.
+    void rockwellCondensedKeepsItsHeights()
+    {
+        const QString fam = QStringLiteral("Rockwell Condensed");
+        if (QFontDatabase::hasFamily(fam)) QSKIP("Rockwell Condensed is installed here");
+        for (bool bold : {false, true}) {
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{fam});
+            cf.setFontPointSize(24);
+            if (bold) cf.setFontWeight(QFont::Bold);
+            const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
+            if (bold) QCOMPARE(r.property(jp::tp::GlyphScaleY).toDouble(), 0.945);
+            else QVERIFY(!r.hasProperty(jp::tp::GlyphScaleY));
+        }
+    }
+
+    // Publisher spaces the four stock fonts above by their Windows metrics
+    // (hhea and win agree in each): measured against its PDFs, a paragraph's
+    // lines of Gill Sans MT and Tw Cen MT sit within 0.05% of these, at
+    // 90% to 133% spacing, bold the same.
+    void stockFontsLineHeights()
+    {
+        struct Case { const char *family; double em; };
+        for (const Case &c : {Case{"Gill Sans MT", (1903.0 + 472) / 2048}, Case{"Tw Cen MT", (1753.0 + 477) / 2048},
+                              Case{"Rockwell Condensed", (1927.0 + 481) / 2048}, Case{"Gloucester MT Extra Condensed", (1936.0 + 446) / 2048}})
+            for (bool bold : {false, true}) {
+                QFont f(QString::fromLatin1(c.family));
+                f.setFamilies({QString::fromLatin1(c.family)});
+                f.setBold(bold);
+                f.setPointSizeF(12);
+                const double em = jp::naturalLineEm(f, QString::fromLatin1(c.family));
+                QVERIFY2(std::abs(em - c.em) < 1e-6, qPrintable(QStringLiteral("%1: %2, not %3").arg(QLatin1String(c.family)).arg(em).arg(c.em)));
+            }
+    }
+
     // An octagon with no proportion of its own is Publisher's regular one,
     // its corners cut at 29.3% of each side (6326 of 21600, as its PDFs
     // draw a stop sign); libmspub had 5000, a squatter octagon.

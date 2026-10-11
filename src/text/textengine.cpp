@@ -436,8 +436,9 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
                 // Selawik's Light and Semilight weigh the same where they are styles of one family.
                 if (const QString style = substituteStyleName(fams.first()); !style.isEmpty()) r.setFontStyleName(style);
             }
-            // Letters as high as the missing font's (drawing only).
-            if (const double hs = substituteHeightScale(fams.first(), r.fontWeight() >= QFont::DemiBold); hs != 1)
+            // Letters as high as the missing font's (drawing only), by the
+            // weight asked for: a regular run's stand-in may be drawn bold.
+            if (const double hs = substituteHeightScale(fams.first(), f.fontWeight() >= QFont::DemiBold); hs != 1)
                 r.setProperty(tp::GlyphScaleY, hs);
         }
     } else if (f.hasProperty(QTextFormat::FontStretch)) {

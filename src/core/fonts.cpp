@@ -361,7 +361,11 @@ static const QHash<QString, StandInWidths> &standInWidths()
         {"Gill Sans MT Ext Condensed Bold", {"Oswald", {60, 60, 0, 0}, {0, 0, 0, 0}}},
         {"Gill Sans Ultra Bold", {"Archivo Black", {115, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Gill Sans Ultra Bold Condensed", {"Anton", {112, 0, 0, 0}, {0, 0, 0, 0}}},
-        {"Gloucester MT Extra Condensed", {"EB Garamond", {72, 65, 0, 0}, {0, 0, 0, 0}}},
+        // Drawn in the stand-in's bold face (substituteWeight), one weight
+        // for both: its regular face at 72% carried 0.6 of the original's
+        // ink, the bold at 62% 0.85 (line by line against Publisher's PDFs,
+        // Oct 10; capitals alone want 60%, small letters 64%).
+        {"Gloucester MT Extra Condensed", {"EB Garamond", {62, 62, 0, 0}, {0, 0, 0, 0}}},
         {"Goudy Old Style", {"Crimson Text", {0, 95, 0, 0}, {0, 0, 0, 0}}},
         {"Goudy Stout", {"Alfa Slab One", {160, 160, 0, 0}, {0, 0, 0, 0}}},
         {"Haettenschweiler", {"Anton", {77, 0, 0, 0}, {0, 0, 0, 0}}},
@@ -401,7 +405,10 @@ static const QHash<QString, StandInWidths> &standInWidths()
         {"Rage Italic", {"Kaushan Script", {91, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Ravie", {"Bungee", {113, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Rockwell", {"Arvo", {96, 0, 90, 92}, {0, 0, 0, 0}}},
-        {"Rockwell Condensed", {"Roboto Slab", {71, 86, 0, 0}, {0, 0, 0, 0}}},
+        // Regular Rockwell Condensed is drawn in Roboto Slab Bold (its own
+        // bold is wider, 86%): Roboto Slab Regular at 71% carried 0.85 of the
+        // original's ink, the bold at 60% 1.0 (Oct 10, as Gloucester).
+        {"Rockwell Condensed", {"Roboto Slab", {60, 86, 0, 0}, {0, 0, 0, 0}}},
         {"Rockwell Extra Bold", {"Alfa Slab One", {111, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Script MT Bold", {"Pacifico", {98, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Segoe Print", {"Comic Relief", {110, 103, 0, 0}, {0, 0, 0, 0}}},
@@ -597,6 +604,8 @@ int substituteWeight(const QString &family)
         {"copperplate gothic bold", 700},
         {"eras bold itc", 700},
         {"gill sans mt ext condensed bold", 700},
+        {"gloucester mt extra condensed", 700},
+        {"rockwell condensed", 700},
         {"tw cen mt condensed extra bold", 700},
         };
         // Franklin Gothic's weights run heavy: its Medium looks like a SemiBold.
