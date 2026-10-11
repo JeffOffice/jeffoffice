@@ -417,7 +417,9 @@ static const QHash<QString, StandInWidths> &standInWidths()
         // Gloucester).
         {"Rockwell Condensed", {"Roboto Slab", {60, 86, 0, 0}, {0, 0, 0, 0}}},
         {"Rockwell Extra Bold", {"Alfa Slab One", {111, 0, 0, 0}, {0, 0, 0, 0}}},
-        {"Script MT Bold", {"Pacifico", {98, 0, 0, 0}, {0, 0, 0, 0}}},
+        // Narrower than its advances ask (98): Pacifico's letters are wider and
+        // heavier than the original's, and run into each other at 98.
+        {"Script MT Bold", {"Pacifico", {86, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Segoe Print", {"Comic Relief", {110, 103, 0, 0}, {0, 0, 0, 0}}},
         {"Segoe Script", {"Merienda", {112, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Segoe UI", {"Selawik", {0, 0, 98, 0}, {0, 0, 0, 0}}},
@@ -556,6 +558,11 @@ double substituteHeightScale(const QString &family, bool bold)
         {"Copperplate Gothic Bold", {"Cinzel", 0.924, 0}},
         {"Copperplate Gothic Light", {"Cinzel", 0.925, 0}},
         {"Courier New", {"Cousine", 0.837, 0.87}},
+        // Capitals, small letters, and ascenders differ in Forte and Tw Cen MT
+        // Condensed (read from Publisher's PDFs against the stand-ins: Lobster
+        // 0.89, 0.94, 1.0; Archivo Narrow 0.89, 0.79, 0.90): the scale near their
+        // geometric means that matched its pictures best.
+        {"Forte", {"Lobster", 0.9, 0}},
         {"Franklin Gothic Book", {"Libre Franklin", 0.909, 0}},
         {"Franklin Gothic Demi", {"Libre Franklin", 0.909, 0}},
         {"Franklin Gothic Demi Cond", {"Libre Franklin", 0.909, 0}},
@@ -584,6 +591,7 @@ double substituteHeightScale(const QString &family, bool bold)
         {"Segoe UI Black", {"Libre Franklin", 0.961, 0}},
         {"Sylfaen", {"Gelasio", 0.931, 0}},
         {"Tw Cen MT", {"Jost", 0.858, 0.887}},
+        {"Tw Cen MT Condensed", {"Archivo Narrow", 0.857, 0.857}},
         {"Tw Cen MT Condensed Extra Bold", {"Oswald", 0.81, 0}},
         {"Wide Latin", {"Alfa Slab One", 0.872, 0}},
     };

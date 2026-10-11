@@ -19546,6 +19546,44 @@ private Q_SLOTS:
         if (!checked) QSKIP("the fonts are installed here");
     }
 
+    // The stand-ins of two fonts Publisher's sign designs set their biggest
+    // words in are drawn as high as the real letters, by the heights read
+    // from its PDFs: Lobster's capitals stand 11% too tall for Forte's, and
+    // Archivo Narrow's 12% for Tw Cen MT Condensed's.
+    void signFontStandInsAreDrawnAtRealHeight()
+    {
+        struct Case { const char *family, *standIn; double scale; };
+        int checked = 0;
+        for (const Case &k : {Case{"Forte", "Lobster", 0.9}, Case{"Tw Cen MT Condensed", "Archivo Narrow", 0.857}}) {
+            const QString fam = QString::fromLatin1(k.family);
+            if (QFontDatabase::hasFamily(fam)) continue;
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{fam});
+            cf.setFontPointSize(24);
+            const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
+            if (QFontInfo(r.font()).family() != QLatin1String(k.standIn)) continue;
+            QVERIFY2(r.hasProperty(jp::tp::GlyphScaleY), k.family);
+            QCOMPARE(r.property(jp::tp::GlyphScaleY).toDouble(), k.scale);
+            ++checked;
+        }
+        if (!checked) QSKIP("the stand-ins aren't drawn here");
+    }
+
+    // Script MT Bold's stand-in, Pacifico, is drawn narrower than the
+    // original's advances ask (98%): its letters are wider and heavier, and
+    // ran into each other in a sign's "Garage Sale".
+    void scriptMtBoldStandInIsNarrowed()
+    {
+        const QString fam = QStringLiteral("Script MT Bold");
+        if (QFontDatabase::hasFamily(fam)) QSKIP("Script MT Bold is installed here");
+        QTextCharFormat cf;
+        cf.setFontFamilies(QStringList{fam});
+        cf.setFontPointSize(24);
+        const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
+        if (QFontInfo(r.font()).family() != QLatin1String("Pacifico")) QSKIP("the stand-in isn't drawn here");
+        QCOMPARE(r.fontStretch(), 86);
+    }
+
     // Best fit grows text only as far as the box holds it: a banner's short
     // headline grew to fill the width, its one line three times taller than
     // the box (Publisher's banner designs fit theirs inside).
