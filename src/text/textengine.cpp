@@ -414,15 +414,62 @@ QTextLine ParagraphLayout::lineAt(int i)
 
 void ParagraphLayout::draw(QPainter *p, const QPointF &pos, const QList<FormatRange> &selections, const QRectF &clip)
 {
-    if (m_sets.size() < 2 || !selections.isEmpty()) {
+    if (m_sets.size() < 2) {
         QTextLayout::draw(p, pos, selections, clip);
         return;
     }
+    // Line by line, each with its own stops. Qt draws a selection's background
+    // behind its text and the text in the selection's color where it has one,
+    // the rest in the painter's: the same here, from the selected span of each line.
+    QVector<bool> shown(lineCount());
     for (int i = 0; i < lineCount(); ++i) {
         const QTextLine l = lineAt(i);
-        if (clip.isValid() && (l.y() > clip.bottom() - pos.y() || l.y() + l.height() < clip.top() - pos.y())) continue;
-        l.draw(p, pos);
+        shown[i] = !clip.isValid() || !(l.y() > clip.bottom() - pos.y() || l.y() + l.height() < clip.top() - pos.y());
     }
+    auto drawLines = [&] {
+        for (int i = 0; i < lineCount(); ++i)
+            if (shown[i]) lineAt(i).draw(p, pos);
+    };
+    QPainterPath textDone;
+    for (const FormatRange &sel : selections) {
+        QPainterPath region;
+        region.setFillRule(Qt::WindingFill);
+        for (int i = 0; i < lineCount(); ++i) {
+            if (!shown[i]) continue;
+            const QTextLine l = lineAt(i);
+            const int from = std::max(sel.start, l.textStart()), to = std::min(sel.start + sel.length, l.textStart() + l.textLength());
+            if (to <= from) continue;
+            // Not past the line's text: the spaces that end a line aren't highlighted.
+            const QRectF text = l.naturalTextRect();
+            const double x1 = std::clamp(l.cursorToX(from), text.left(), text.right()), x2 = std::clamp(l.cursorToX(to), text.left(), text.right());
+            region.addRect(QRectF(QPointF(std::min(x1, x2), l.y()) + pos, QSizeF(std::abs(x2 - x1), l.height())));
+        }
+        p->save();
+        p->setPen(sel.format.penProperty(QTextFormat::OutlinePen));
+        p->setBrush(sel.format.brushProperty(QTextFormat::BackgroundBrush));
+        p->drawPath(region);
+        p->restore();
+        if (sel.format.foreground().style() != Qt::NoBrush) {
+            p->save();
+            p->setPen(QPen(sel.format.foreground(), p->pen().widthF()));
+            p->setClipPath(region, Qt::IntersectClip);
+            drawLines();
+            p->restore();
+            textDone += region;
+        }
+    }
+    if (textDone.isEmpty()) {
+        drawLines();
+        return;
+    }
+    // The text of the rest.
+    QPainterPath rest;
+    rest.addRect(QRectF(-1e7, -1e7, 2e7, 2e7));
+    rest -= textDone;
+    p->save();
+    p->setClipPath(rest, Qt::IntersectClip);
+    drawLines();
+    p->restore();
 }
 
 void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, const QString &text)
