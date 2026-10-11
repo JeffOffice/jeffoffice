@@ -3473,6 +3473,33 @@ private Q_SLOTS:
                 }
     }
 
+    // A page's background picture is drawn past the page's edge, 2.5 points
+    // on every side, and the picture's crops (fractions of the picture) then
+    // trim that larger picture. Publisher (Oct 11), a background made from a
+    // picture 2000 x 1500 with a red edge 5% wide: on a page 600 x 450 the
+    // edge showed 17 pixels, not 20, at 96 dpi, at each side, at 300, 600,
+    // and 1200 points wide alike; the corpus's crop-fitted covers (crops of
+    // 29%, 7%, and 0.4% on the left and right) fit to 0.5 point. A picture
+    // in a frame of its own is drawn to the frame and its crops.
+    void backgroundPictureReachesPastThePage()
+    {
+        using namespace jp;
+        const QSizeF page(981.144, 681.12);
+        // No crops: the page and 2.5 points all round.
+        QCOMPARE(pubPictureRect(page, 0, 0, 0, 0, true), QRectF(-2.5, -2.5, page.width() + 5, page.height() + 5));
+        QCOMPARE(pubPictureRect(page, 0, 0, 0, 0, false), QRectF(QPointF(0, 0), page));
+        // Crops of 29.4% each side, left and right: the larger page is what they leave.
+        const double l = 19270.0 / 65536;
+        const QRectF r = pubPictureRect(page, 0, 0, l, l, true);
+        const double w = (page.width() + 5) / (1 - 2 * l);
+        QVERIFY2(std::abs(r.width() - w) < 0.001, qPrintable(QString::number(r.width())));
+        QVERIFY2(std::abs(r.left() - (-2.5 - l * w)) < 0.001, qPrintable(QString::number(r.left())));
+        QVERIFY2(std::abs(r.top() + 2.5) < 0.001 && std::abs(r.height() - (page.height() + 5)) < 0.001, qPrintable(QString::number(r.height())));
+        // In a frame, only the crops.
+        const QRectF f = pubPictureRect(page, 0, 0, l, l, false);
+        QVERIFY2(std::abs(f.width() - page.width() / (1 - 2 * l)) < 0.001 && std::abs(f.left() + l * f.width()) < 0.001, qPrintable(QString::number(f.width())));
+    }
+
     // A picture much bigger than its frame is drawn as the average of the
     // pixels each screen pixel covers, as Publisher draws it: sampling it
     // dropped thin strokes and left a scanned table's digits broken. Noise
