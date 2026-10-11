@@ -3454,6 +3454,50 @@ private Q_SLOTS:
         QVERIFY2(roomy.y() < 1 && std::abs(roomy.x() - (140 + 18)) < 0.01 && roomy.width() > 40, qPrintable(what(roomy)));
     }
 
+    // True small capitals are an OpenType feature, which Qt takes from the
+    // paragraph's layout font for every run: with the first run flagged the
+    // whole paragraph came out in them, and with only a later run flagged,
+    // none of it. A paragraph has them when all its letters are in flagged
+    // runs; in a mixed one the flagged runs are small capitals made of
+    // capitals, the unflagged runs as they are.
+    void trueSmallCapsStayInTheirRun()
+    {
+        const QString family = QStringLiteral("EB Garamond");
+        if (!QFontDatabase::hasFamily(family)) QSKIP("EB Garamond is not here");
+        // Where the second run starts and ends, by which runs are flagged.
+        auto widths = [&](bool firstSmall, bool secondSmall) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat a;
+            a.setFontFamilies(QStringList{family});
+            a.setFontPointSize(20);
+            QTextCharFormat b = a;
+            if (firstSmall) a.setProperty(jp::tp::TrueSmallCaps, true);
+            if (secondSmall) b.setProperty(jp::tp::TrueSmallCaps, true);
+            c.insertText(QStringLiteral("First run "), a);
+            c.insertText(QStringLiteral("second run text"), b);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(500, 40);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            int frame = -1;
+            QRectF r0, r1, r2;
+            l.caretRect(0, &frame, &r0);
+            l.caretRect(10, &frame, &r1);
+            l.caretRect(int(doc.characterCount()) - 1, &frame, &r2);
+            return QPointF(r1.x() - r0.x(), r2.x() - r1.x());
+        };
+        const QPointF none = widths(false, false), both = widths(true, true);
+        QVERIFY2(both.x() > none.x() + 5 && both.y() > none.y() + 5, qPrintable(QStringLiteral("%1,%2 against %3,%4").arg(both.x()).arg(both.y()).arg(none.x()).arg(none.y())));
+        // The first run flagged: the second is as it is.
+        const QPointF first = widths(true, false);
+        QVERIFY2(std::abs(first.y() - none.y()) < 0.01 && std::abs(first.x() - none.x()) > 1, qPrintable(QStringLiteral("%1,%2 against %3,%4").arg(first.x()).arg(first.y()).arg(none.x()).arg(none.y())));
+        // The second run flagged: the first is as it is, the second in small capitals.
+        const QPointF second = widths(false, true);
+        QVERIFY2(std::abs(second.x() - none.x()) < 0.01 && std::abs(second.y() - none.y()) > 1, qPrintable(QStringLiteral("%1,%2 against %3,%4").arg(second.x()).arg(second.y()).arg(none.x()).arg(none.y())));
+    }
+
     // A bundled font whose table directory claims a table that runs past the
     // end of the file is corrupt, and is left alone: the checksums were summed
     // over the length it claimed, beyond the font's bytes.
