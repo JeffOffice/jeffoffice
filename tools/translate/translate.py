@@ -536,6 +536,7 @@ How to translate:
 - Links: in [text](target), translate the text and never change the target (topic names such as linked-text-boxes, and web addresses).
 - When the text names a command, tab, group, button, box, or dialog, use exactly the {name} label the program shows, from "Program text" below; for one not listed, translate consistently with the glossary.
 - Keyboard shortcuts: write key names as {name} keyboards print them (German, for example, writes Strg+C), keeping the + between keys.
+- Measurements: {name} readers measure in centimeters, and JeffPub shows them centimeters unless they choose otherwise. Give lengths, sizes, and distances in centimeters (millimeters for small ones), converting from inches (1 inch = 2.54 cm) and rounding as {name} documentation would (2 inches becomes 5 cm; a quarter inch, 0.6 cm). Where an example depends on US paper sizes (Letter, half-letter), use A4 and A5 instead when the example works the same way. Units that name a measure stay as they are: points, picas, ppi and dpi (pixels or dots per inch), and a point being 1/72 inch.
 - Keep file names, file extensions, code, and web addresses as they are. Product and format names stay as they are (JeffPub, PDF, EPUB, CMYK...). Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt.
 - Write plainly, as good {name} software documentation does, addressing the reader the way {name} software documentation usually does.
 
