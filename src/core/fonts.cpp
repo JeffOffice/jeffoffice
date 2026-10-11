@@ -595,6 +595,34 @@ double substituteHeightScale(const QString &family, bool bold)
     return s > 0 ? s : 1;
 }
 
+// Where the real font has no italic face for the weight a run asks, Publisher
+// slants the font's upright face a third of a letter's height: every such run
+// in its PDFs (Impact, Tw Cen MT Condensed, Franklin Gothic Medium Cond and
+// Demi Cond, Eras ITC) has a text matrix with that shear. Garamond has an
+// italic and a bold but no bold italic: its bold is slanted, where the
+// stand-in's own bold italic has curled letters (EB Garamond's m and n).
+double substituteItalicShear(const QString &family, bool bold)
+{
+    struct Lacks { bool regular, bold; };   // the italic of the family's regular face, of its bold one
+    static const QHash<QString, Lacks> t = {
+        {"Eras Bold ITC", {true, true}},
+        {"Eras Demi ITC", {true, true}},
+        {"Eras Light ITC", {true, true}},
+        {"Eras Medium ITC", {true, true}},
+        {"Franklin Gothic Demi Cond", {true, true}},
+        {"Franklin Gothic Medium Cond", {true, true}},
+        {"Garamond", {false, true}},
+        {"Impact", {true, true}},
+        {"Script MT Bold", {true, true}},
+        {"Tw Cen MT Condensed", {true, true}},
+        {"Tw Cen MT Condensed Extra Bold", {true, true}},
+    };
+    if (haveFamily(family)) return 0;
+    const auto l = t.constFind(family);
+    if (l == t.constEnd()) return 0;
+    return (bold ? l->bold : l->regular) ? 1.0 / 3 : 0;
+}
+
 // Fonts whose names say nothing of the weight their stand-in is drawn at: the
 // weight for a run that isn't bold and for one that is (0: the stand-in's own
 // bold stays).

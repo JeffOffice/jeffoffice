@@ -19297,6 +19297,77 @@ private Q_SLOTS:
         QVERIFY2(!dark(500, 295) && !dark(500, 605), "the vertical line has flat ends");
     }
 
+    // A font with no italic face (Impact; Garamond's bold) is slanted by
+    // Publisher itself, a third of each letter's height (the shear its PDFs
+    // carry), from the upright face. The stand-in was drawn in its own italic
+    // (EB Garamond's bold italic has curled m and n where Garamond's slanted
+    // bold has serifs: a banner's "Happy Retirement" scored 12) or slanted
+    // by Qt's fifth.
+    void missingFontWithoutItalicIsSlantedAThird()
+    {
+        struct Case { const char *family; bool bold, italic, slanted; };
+        const Case cases[] = {{"Garamond", true, true, true}, {"Garamond", false, true, false}, {"Garamond", true, false, false},
+                              {"Impact", false, true, true}, {"Impact", false, false, false}};
+        for (const Case &c : cases) {
+            const QString fam = QString::fromLatin1(c.family);
+            if (QFontDatabase::hasFamily(fam)) continue;   // installed: its own faces
+            const QByteArray name = QByteArray(c.family) + (c.bold ? " bold" : "") + (c.italic ? " italic" : "");
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{fam});
+            f.setFontPointSize(200);
+            f.setFontWeight(c.bold ? QFont::Bold : QFont::Normal);
+            f.setFontItalic(c.italic);
+            const QTextCharFormat r = jp::resolveCharFormat(f, jp::LayoutEnv());
+            QVERIFY2(r.hasProperty(jp::tp::SyntheticItalic) == c.slanted, name.constData());
+            QCOMPARE(r.fontItalic(), c.italic && !c.slanted);
+
+            auto doc = Document::blank(QSizeF(612, 792));
+            auto t = std::make_shared<TextItem>();
+            t->id = QStringLiteral("t");
+            t->rect = QRectF(36, 36, 500, 400);
+            t->insets = QMarginsF(0, 0, 0, 0);
+            t->storyId = doc->createStory(QStringLiteral("l"));
+            {
+                QTextCursor cur(doc->storyDoc(t->storyId));
+                cur.select(QTextCursor::Document);
+                cur.mergeCharFormat(f);
+            }
+            doc->pages[0]->items.push_back(t);
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = doc.get();
+            ctx.cache = &cache;
+            QImage img(612, 792, QImage::Format_ARGB32);
+            img.fill(Qt::white);
+            {
+                QPainter p(&img);
+                p.setRenderHint(QPainter::Antialiasing);
+                jp::Renderer::paintPage(&p, ctx, 0);
+            }
+            // The stem of the l: the left edge of the ink through the middle
+            // of its height, serifs left out.
+            int top = img.height(), bottom = -1;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (qGray(img.pixel(x, y)) < 128) { top = std::min(top, y); bottom = std::max(bottom, y); }
+            QVERIFY2(bottom > top, name.constData());
+            double sy = 0, sx = 0, syy = 0, sxy = 0;
+            int n = 0;
+            for (int y = top + (bottom - top) * 35 / 100; y <= top + (bottom - top) * 65 / 100; ++y) {
+                int x = 0;
+                while (x < img.width() && qGray(img.pixel(x, y)) >= 128) ++x;
+                if (x == img.width()) continue;
+                sy += y; sx += x; syy += double(y) * y; sxy += double(x) * y;
+                ++n;
+            }
+            QVERIFY2(n > 20, name.constData());
+            const double slant = -(n * sxy - sx * sy) / (n * syy - sy * sy);   // how far the top leans right, per row
+            const QString got = QString::fromLatin1(name) + QStringLiteral(": ") + QString::number(slant);
+            if (c.slanted) QVERIFY2(std::abs(slant - 1.0 / 3) < 0.03, qPrintable(got));
+            else if (!c.italic) QVERIFY2(std::abs(slant) < 0.03, qPrintable(got));   // upright stays upright
+        }
+    }
+
     // Text whose size no run, style, or paragraph gives is 12 pt, as
     // Publisher draws its car wash flyer's body text (the file's styles name
     // only a font): it was 11, the size of JeffPub's own blank text, and
