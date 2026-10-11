@@ -45,6 +45,9 @@ namespace {
 
 constexpr double kEmuPerPt = 12700.0;
 inline qint64 emu(double pt) { return qint64(std::llround(pt * kEmuPerPt)); }
+// A line weight or an indent as a 32-bit length: 0 to 1584 points (Publisher's largest weight), so a damaged value
+// can't wrap around to something small.
+inline quint32 emuCapped(double pt) { return quint32(emu(pt > 0 ? std::min(pt, 1584.0) : 0.0)); }
 
 // ---------------------------------------------------------------- blocks
 // A block is id, type, then data whose size the type decides; container
@@ -1037,7 +1040,7 @@ QVector<B> PubWriter::paraBlocks(const QTextBlock &block)
         p << u32(0x02, quint32(emu(size)), 0x22) << u16(0x03, quint32(fontIndex(bulletFont)), 0x1a)
           << rec(0x57, {u32(0x00, kind, 0x22), u32(0x01, ch, 0x22), u32(0x02, 0, 0x22)}, 0x8a);
         if (!bullet) p << u32(0x58, delim << 16, 0x22);
-        else if (lf.hasProperty(tp::BulletTab) && f.layoutDirection() != Qt::RightToLeft) p << u32(0x06, quint32(emu(lf.property(tp::BulletTab).toDouble())), 0x22);   // the list's indent
+        else if (lf.hasProperty(tp::BulletTab) && f.layoutDirection() != Qt::RightToLeft) p << u32(0x06, emuCapped(lf.property(tp::BulletTab).toDouble()), 0x22);   // the list's indent
     }
     // The paragraph's style: its place in the style sheet (Normal, 0, is left out).
     if (const int si = int(styleNames().indexOf(f.stringProperty(tp::StyleName))) + 1; si > 0) p << u16(0x19, quint32(si), 0x1a);
@@ -1512,7 +1515,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     auto strokeProps = [&](QVector<Prop> &opt, const Stroke &st) {
         const bool lined = !st.isNone();
         opt << Prop{0x01c0, lined ? bgr(st.color.resolve(m_doc.colors)) : 0x08000000} << Prop{0x01c2, 0x08000007}
-            << Prop{0x01cb, quint32(emu(lined ? st.width : 2))} << Prop{0x01ff, lined ? 0x00080008u : 0x00080000u};
+            << Prop{0x01cb, emuCapped(lined ? st.width : 2)} << Prop{0x01ff, lined ? 0x00080008u : 0x00080000u};
         if (!lined) return;
         if (st.transparency > 0.001) opt << Prop{0x01c1, opacity(st.transparency)};
         static const quint32 kDash[] = {0, 2, 2, 6, 8, 7, 9, 10};
@@ -2070,7 +2073,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                         if (c1) where << u32(0x07, quint32(c1));
                         QVector<Prop> o = kInsets;
                         o << Prop{0x01bf, 0x00100000} << Prop{0x01c0, bgr(c.diagonalLine.color.resolve(m_doc.colors))} << Prop{0x01c2, 0xffffffffu}
-                          << Prop{0x01cb, quint32(emu(c.diagonalLine.width))} << Prop{0x01ff, 0x00080008} << kTail;
+                          << Prop{0x01cb, emuCapped(c.diagonalLine.width)} << Prop{0x01ff, 0x00080008} << kTail;
                         QVector<Prop> t = kShadowFlags;
                         t << kSideLines;
                         formatShape(o, t, where, 20, c.diagonal == 2 ? 0x0a40 : 0x0a00);
@@ -2092,7 +2095,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                     if (c1) where << u32(0x07, quint32(c1));
                     QVector<Prop> o = kInsets;
                     o << Prop{0x0181, bgr(st.color.resolve(m_doc.colors))} << Prop{0x0183, 0xffffffffu} << Prop{0x01bf, 0x001f001c}
-                      << Prop{0x01cb, quint32(emu(st.width))} << Prop{0x01d6, 2} << Prop{0x01ff, 0x001f0006} << kTail;
+                      << Prop{0x01cb, emuCapped(st.width)} << Prop{0x01d6, 2} << Prop{0x01ff, 0x001f0006} << kTail;
                     QVector<Prop> t = {{0x01bf, 0x00600000}, {0x01ff, 0x03e00020}, {0x057f, 0x00080000}, {0x05bf, 0x00080000},
                                        {0x05ff, 0x00080000}, {0x063f, 0x00080000}};
                     t << kShadowFlags << kSideLines;

@@ -679,7 +679,7 @@ void TableItem::fromJson(const QJsonObject &o)
         c.rowSpan = std::clamp(co["rs"].toInt(1), 1, std::max(1, rows));   // a damaged file's span stops at the table
         c.colSpan = std::clamp(co["cs"].toInt(1), 1, std::max(1, cols));
         c.covered = co["covered"].toBool();
-        c.diagonal = co["diag"].toInt();
+        c.diagonal = std::clamp(co["diag"].toInt(), 0, 2);   // 0 none, 1 down, 2 up
         c.valign = VAlign(co["valign"].toInt());
         c.vertical = co["vertical"].toBool();
         c.hyphenate = co["hyph"].toBool(true);

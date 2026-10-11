@@ -14234,6 +14234,85 @@ private Q_SLOTS:
         }
     }
 
+    // A damaged file's cell division stays 0, 1, or 2: other numbers made the program treat a cell as divided while the
+    // .pub writer, which knows only 1 and 2, left out its second half and that half's text.
+    void tableDiagonalFromFileStaysInRange()
+    {
+        QJsonArray cells;
+        for (int d : {0, 1, 2, 3, 99, -1, 2147483647}) {
+            QJsonObject c;
+            c[QStringLiteral("diag")] = d;
+            cells.append(c);
+        }
+        QJsonObject o;
+        o[QStringLiteral("rows")] = 1;
+        o[QStringLiteral("cols")] = 7;
+        o[QStringLiteral("cells")] = cells;
+        jp::TableItem t;
+        t.fromJson(o);
+        QCOMPARE(t.cells.size(), 7);
+        const int expected[] = {0, 1, 2, 2, 2, 0, 2};
+        for (int i = 0; i < 7; ++i) QCOMPARE(t.cells[i].diagonal, expected[i]);
+    }
+
+    // Line weights and a list's indent are written as 32-bit lengths, so a damaged huge one stops at 1584 points
+    // (the largest weight Publisher offers) instead of wrapping around to something small or nothing.
+    void pubLineWeightsAndListIndentsDoNotWrap()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto line = std::make_shared<jp::LineItem>();
+        line->p1 = QPointF(72, 72);
+        line->p2 = QPointF(300, 72);
+        line->stroke = jp::Stroke::line(jp::ColorRef::rgb(Qt::black), 1e300);
+        doc->pages[0]->items.push_back(line);
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 100, 300, 100);
+        box->storyId = doc->createStory();
+        QTextCursor tc(doc->storyDoc(box->storyId));
+        tc.insertText(QStringLiteral("More details"));
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        lf.setProperty(jp::tp::BulletTab, 1e300);
+        tc.createList(lf);
+        doc->pages[0]->items.push_back(box);
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 1;
+        t->cols = 2;
+        t->colW = {100, 100};
+        t->rowH = {40};
+        t->rect = QRectF(72, 300, 0, 0);
+        t->syncRect();
+        t->cells.resize(2);
+        t->cell(0, 0).border.right = jp::Stroke::line(jp::ColorRef::rgb(Qt::black), 400000);
+        t->cell(0, 1).diagonal = 1;
+        t->cell(0, 1).diagonalLine = jp::Stroke::line(jp::ColorRef::rgb(Qt::red), 1e300);
+        doc->pages[0]->items.push_back(t);
+
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("huge-lengths.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::LineItem *bl = nullptr;
+        const jp::TextItem *bx = nullptr;
+        const jp::TableItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Line) bl = static_cast<const jp::LineItem *>(it.get());
+            if (it->type() == jp::ItemType::Text) bx = static_cast<const jp::TextItem *>(it.get());
+            if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(bl && bx && bt);
+        QCOMPARE(bl->stroke.width, 1584.0);
+        // The table's rule and diagonal weights (line width, property 0x01cb) are the same 1584 points in the drawing.
+        QByteArray weight("\xcb\x01\0\0\0\0", 6);
+        qToLittleEndian<quint32>(1584 * 12700, weight.data() + 2);
+        QCOMPARE(jp::cfb::readStream(path, QStringLiteral("Escher/EscherStm")).count(weight), 3);
+        const QTextBlock b = back->storyDoc(bx->storyId)->begin();
+        QVERIFY(b.textList());
+        QCOMPARE(b.textList()->format().property(jp::tp::BulletTab).toDouble(), 1584.0);
+    }
+
     // A cell's Text Direction is read from the low byte of its 06, as its vertical alignment (07) and division (05) are:
     // stray bits above it (seen in 07 of a first cell) don't turn the cell upright.
     void pubTableCellTextDirectionReadsItsLowByte()
