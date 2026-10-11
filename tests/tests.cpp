@@ -3507,16 +3507,15 @@ private Q_SLOTS:
 
     // The width in points of the first stem of a capital I, set in `family`
     // at `size`, as it is drawn for `out`.
-    static double handBoldStem(const QString &family, bool bold, double size, jp::TextOutput out)
+    static double handBoldStem(const QString &family, bool bold, double size, jp::TextOutput out, double scale = 4)
     {
         using namespace jp;
-        const double scale = 4;
         auto doc = Document::blank(QSizeF(320, 320));
         auto t = std::make_shared<TextItem>();
         t->id = QStringLiteral("t");
         t->rect = QRectF(20, 10, 280, 300);
         t->insets = QMarginsF(0, 0, 0, 0);
-        t->storyId = doc->createStory(QStringLiteral("II"));
+        t->storyId = doc->createStory(QStringLiteral("I"));
         {
             QTextCursor c(doc->storyDoc(t->storyId));
             c.select(QTextCursor::Document);
@@ -3604,6 +3603,28 @@ private Q_SLOTS:
         QVERIFY(a);
         QCOMPARE(cache.textFrame(*doc, *t, 1, pdf).layout, a);
         QCOMPARE(cache.textFrame(*doc, *t, 1, paper).layout, a);
+    }
+
+    // Into pixels at screen resolution a letter drawn bold by hand grows a
+    // whole pixel while it is under 30 pixels to the em, not 0.017 em:
+    // Publisher's pictures of 10 point Franklin Gothic Book set bold have 1.78
+    // times the ink of the plain at 96 dpi, 1.56 times at 150, and 1.24 times
+    // at 300 (24 point: 1.23 at all three, and 1.24 for 8 to 24 point at 300).
+    void handBoldGrowsAPixelInSmallLettersOnScreen()
+    {
+        if (handBoldFontsInstalled()) QSKIP("these fonts are installed here");
+        using namespace jp;
+        const QString demi = QStringLiteral("Franklin Gothic Demi"), black = QStringLiteral("Arial Black");
+        const TextOutput pic = TextOutput::Picture;
+        auto growth = [&](const QString &fam, double size, double dpi) {
+            const double scale = dpi / 72;
+            return handBoldStem(fam, true, size, pic, scale) - handBoldStem(fam, false, size, pic, scale);
+        };
+        QVERIFY2(std::abs(growth(demi, 10, 96) - 0.75) < 0.2, qPrintable(QString::number(growth(demi, 10, 96))));   // one pixel
+        QVERIFY2(std::abs(growth(demi, 10, 150) - 0.48) < 0.2, qPrintable(QString::number(growth(demi, 10, 150))));
+        QVERIFY2(std::abs(growth(demi, 10, 300) - 0.17) < 0.12, qPrintable(QString::number(growth(demi, 10, 300))));   // 42 pixels to the em: 0.017 em
+        QVERIFY2(std::abs(growth(demi, 24, 96) - 0.41) < 0.2, qPrintable(QString::number(growth(demi, 24, 96))));
+        QVERIFY(std::abs(growth(black, 10, 96)) < 0.1);
     }
 
     // The same in a PDF Publisher exports: every such letter, Arial Black and

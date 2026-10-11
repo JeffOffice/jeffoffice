@@ -303,13 +303,17 @@ QPair<int, int> underlineSpan(const QList<QTextLayout::FormatRange> &fmts, int n
 // 0.017 em (the system's synthetic bold) and Arial Black and Rockwell Extra
 // Bold don't; in a PDF it exports every such letter grows 1/35 em; on paper
 // 0.01 em. From 216 pt it sets such text as outlines, as the screen has it.
-double handBoldWidth(int kind, double em, TextOutput out)
+// Into pixels at 96 to 216 dpi the growth is a whole pixel for letters under
+// 30 pixels to the em (10 point text at 96 dpi grows 1 pixel, not 0.2).
+double handBoldWidth(int kind, double em, TextOutput out, double pxPerPt)
 {
     constexpr double kOutlinesFrom = 216, kScreen = 0.017, kPdf = 1.0 / 35, kPaper = 0.01;
     const bool outlines = em >= kOutlinesFrom;
     if (!outlines && out == TextOutput::Pdf) return em * kPdf;
     if (!outlines && out == TextOutput::Print) return em * kPaper;
-    return kind == 1 ? em * kScreen : 0;
+    if (kind != 1) return 0;
+    if (!outlines && out == TextOutput::Picture && pxPerPt >= 1 && pxPerPt <= 3 && em * pxPerPt < 30) return 1 / pxPerPt;
+    return em * kScreen;
 }
 
 // The stroke of [s, e) of a fine layout's line, over letters already drawn
@@ -318,7 +322,8 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
 {
     if (!cf.hasProperty(tp::HandBold) || cf.foreground().style() != Qt::SolidPattern) return;
     const double em = cf.fontPointSize() / (fontPointFactor() * kFine);
-    const double w = handBoldWidth(cf.intProperty(tp::HandBold), em, out) * kFine;
+    const double pxPerPt = std::sqrt(std::abs(p->deviceTransform().determinant())) * kFine;
+    const double w = handBoldWidth(cf.intProperty(tp::HandBold), em, out, pxPerPt) * kFine;
     if (w <= 0) return;
     QPen pen(cf.foreground(), w);
     pen.setJoinStyle(Qt::MiterJoin);   // the PDF default
