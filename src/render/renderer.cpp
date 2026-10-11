@@ -97,7 +97,14 @@ void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s
         return;
     }
     if (s.compound == Stroke::Single) {
-        p->strokePath(path, pen);
+        // Into pixels no line is thinner than one, as Publisher draws it (a
+        // 0.25 point rule shows as a whole pixel there, not a faint third).
+        QPen shown = pen;
+        if (pen.style() == Qt::SolidLine && p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster) {
+            const double ds = deviceScale(p);
+            if (ds > 0 && pen.widthF() * ds < 1) shown.setWidthF(1 / ds);
+        }
+        p->strokePath(path, shown);
         return;
     }
     QPainterPathStroker st;
