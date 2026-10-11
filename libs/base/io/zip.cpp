@@ -1,5 +1,7 @@
 #include "io/zip.h"
 
+#include "core/appinfo.h"
+
 #include <QCoreApplication>
 #include <QFile>
 #include <zlib.h>
@@ -130,7 +132,7 @@ bool readZip(const QByteArray &zip, QMap<QString, QByteArray> &out, QString *err
     qsizetype eocd = -1;
     for (qsizetype i = zip.size() - 22; i >= std::max<qsizetype>(0, zip.size() - 65557); --i)
         if (get32(zip, i) == 0x06054b50) { eocd = i; break; }
-    if (eocd < 0) return fail(QCoreApplication::translate("Import", "The file is not a JeffPub publication (no ZIP directory)."));
+    if (eocd < 0) return fail(QCoreApplication::translate("Import", "The file is not a %1 publication (no ZIP directory).").arg(appInfo().name));
     const int count = get16(zip, eocd + 10);
     qsizetype p = get32(zip, eocd + 16);
     for (int i = 0; i < count; ++i) {
@@ -145,7 +147,7 @@ bool readZip(const QByteArray &zip, QMap<QString, QByteArray> &out, QString *err
         p += 46 + nlen + xlen + clen;
         if (qsizetype(local) + 30 > zip.size()) return fail(QCoreApplication::translate("Import", "The publication is truncated."));
         const qsizetype data = local + 30 + get16(zip, local + 26) + get16(zip, local + 28);
-        if (method != 0 && method != 8) return fail(QCoreApplication::translate("Import", "The publication uses a compression method JeffPub cannot read."));
+        if (method != 0 && method != 8) return fail(QCoreApplication::translate("Import", "The publication uses a compression method %1 cannot read.").arg(appInfo().name));
         if (data + qsizetype(csize) > zip.size()) return fail(QCoreApplication::translate("Import", "The publication is truncated."));
         if (method == 8) {
             bool ok = false;
