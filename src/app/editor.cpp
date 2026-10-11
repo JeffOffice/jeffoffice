@@ -408,10 +408,9 @@ void Editor::beginTextEdit(const QString &itemId, int pos, int row, int col, int
         while (t->cell(row, col).covered && row > 0) --row;
         const TableCell &cell = t->cell(row, col);
         half = half && cell.divided() ? 1 : 0;
-        // A half with no text yet has no story.
-        if (half && cell.storyId2.isEmpty()) {
-            change(tr("Add Text"), [&] { t->cell(row, col).storyId2 = m_doc->createStory(); });
-        }
+        // A half with no text yet has no story (an older file's cell divided by a diagonal has none). Making it is
+        // no edit: it has no step to undo, does not ask to save, and leaves Redo.
+        if (half && cell.storyId2.isEmpty()) t->cell(row, col).storyId2 = m_doc->createStory();
         story = t->cell(row, col).halfStory(half);
     } else {
         return;

@@ -14166,6 +14166,47 @@ private Q_SLOTS:
         QVERIFY(allThere());
     }
 
+    // Visiting the second half of a divided cell that has no story yet (an older file's) makes one without an
+    // Undo step: Tab through such cells does not make the publication ask to be saved or lose Redo.
+    void tableVisitingAnOlderDividedCellsSecondHalfIsNoEdit()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 400, 100), 1, 3);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        auto text = [&](const QString &story) { const QTextDocument *d = ed->doc()->storyDoc(story); return d ? d->toPlainText() : QStringLiteral("(none)"); };
+        for (auto &c : table()->cells) {
+            c.diagonal = 1;
+            c.diagonalLine = jp::Stroke::line(jp::ColorRef::rgb(Qt::black), 0.75);
+        }
+        ed->change(QStringLiteral("Test"), [&] { ed->surfaceItems().push_back(ed->newTextBox(QRectF(72, 300, 100, 40))); });
+        ed->undo();
+        QVERIFY(ed->undoStack()->canRedo());
+        ed->undoStack()->setClean();
+        const int steps = ed->undoStack()->count(), index = ed->undoStack()->index();
+        for (int c = 0; c < 3; ++c) {
+            ed->beginTextEdit(id, -1, 0, c, 1);
+            QVERIFY(!table()->cell(0, c).storyId2.isEmpty());
+            QCOMPARE(ed->textTarget().storyId, table()->cell(0, c).storyId2);
+        }
+        QCOMPARE(ed->undoStack()->count(), steps);
+        QVERIFY(ed->undoStack()->isClean());
+        QVERIFY(ed->undoStack()->canRedo());
+        // Typing there is one step, and Undo and Redo go through it with the story in place.
+        ed->beginTextEdit(id, -1, 0, 1, 1);
+        ed->insertText(QStringLiteral("Two"));
+        ed->flushTyping();
+        QCOMPARE(text(table()->cell(0, 1).storyId2), QStringLiteral("Two"));
+        QCOMPARE(ed->undoStack()->index(), index + 1);
+        ed->undo();
+        QVERIFY(!table()->cell(0, 1).storyId2.isEmpty());
+        QCOMPARE(text(table()->cell(0, 1).storyId2), QString());
+        ed->redo();
+        QCOMPARE(text(table()->cell(0, 1).storyId2), QStringLiteral("Two"));
+    }
+
     // Line spacing in points, as Publisher sets it (measured in its PDFs of 10 and 24 point text in Times New
     // Roman, Arial, and Calibri, every value from 1 to 30 points): "Exactly" spaces the lines by the value
     // whatever the text, with the baseline one descent above the bottom of the line, or, when the line is
