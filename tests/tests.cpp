@@ -19497,6 +19497,16 @@ private Q_SLOTS:
         QCOMPARE(sizeOf(cfb::write(file)), 12.0);
     }
 
+    // A wave with no amplitude of its own is Publisher's: its crests and
+    // troughs 2809 of 21600 of the frame's height, as its PDFs draw a "Wet
+    // Paint" sign's edge; libmspub had 1400, half the swing.
+    void waveAsPublisherDrawsIt()
+    {
+        const libmspub::CustomShape *wave = libmspub::getCustomShape(libmspub::WAVE);
+        QVERIFY(wave && wave->m_numDefaultAdjustValues > 0);
+        QCOMPARE(wave->mp_defaultAdjustValues[0], 2809);
+    }
+
     // Best fit grows text only as far as the box holds it: a banner's short
     // headline grew to fill the width, its one line three times taller than
     // the box (Publisher's banner designs fit theirs inside).

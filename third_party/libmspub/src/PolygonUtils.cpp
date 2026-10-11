@@ -62,7 +62,7 @@ const TextRectangle WAVE_TRS[] =
 
 const int WAVE_DEFAULT_ADJUST[] =
 {
-  1400, 10800
+  2809, 10800
 };
 
 const Vertex WAVE_GLUE_POINTS[] =
