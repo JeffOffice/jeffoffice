@@ -985,3 +985,42 @@ bullet's (SymbolMT's hhea: 2059 + 450 over 2048 em, so 12.25 pt for a 10 pt
 bullet; Wingdings' is 1841 + 432). Measured on reference PDFs: list items in 10 pt Times New Roman at
 single spacing sit 12.2 pt apart, not 10.6.
 
+
+### Bold on a font with no bold face
+
+Franklin Gothic Demi and Forte have no bold face, and Arial Black and
+Rockwell Extra Bold are too heavy for one; Publisher draws their letters
+"bold by hand" and does it differently for each place its text goes. Measured
+Oct 11 in Publisher with a test publication (the letters I and H in Arial
+Black, Rockwell Extra Bold, Franklin Gothic Demi, and Arial, plain and bold,
+at 12, 24, 48, 96, 120 to 300 pt) and with a book cover in Arial Black 48 pt
+bold. The widths below are of an "I" stem, which grows by the stroke's width
+(a stroke centered on the outline adds half to each side).
+
+| Where | Arial Black, plain or bold | Rockwell Extra Bold, plain or bold | Franklin Gothic Demi, plain | Franklin Gothic Demi, bold |
+|---|---|---|---|---|
+| Plain letters (no growth), 48 pt | 10.64 pt (0.2217 em) | 12.63 pt | 7.4 pt (0.155 em) | |
+| `Page.SaveAsPicture` at 96, 150, and 300 dpi, and the window | no growth (10.69, 10.62) | no growth (12.66, 12.60) | no growth | +0.84 pt (0.0175 em; 96 pt +1.68; 24 pt +0.4) |
+| PDF export (`ExportAsFixedFormat`, all three intents) | +1.37 pt: fill and stroke (`2 Tr`), stroke 1/35 em (1.3714 w at 48 pt) | +1.40 pt (1.3721 w at 48.024 pt) | no stroke | +1.35 pt, stroke 1/35 em |
+| Printed (XPS with `StyleSimulations="BoldSimulation"` on these runs, through the Microsoft Print to PDF driver) | +0.47 pt: `2 Tr`, stroke 0.01 em (0.12, 0.24, 0.48, 0.96 pt at 12, 24, 48, 96 pt) | +0.5 pt | none (`StyleSimulations="None"`) | +0.51 pt, stroke 0.01 em |
+
+- Arial Black and Rockwell Extra Bold are stroked in a PDF and on paper
+  whether or not bold is set (85 of 85 runs in the reference PDFs); Franklin
+  Gothic Demi and Forte only when it is. A font with a bold face (Arial) is
+  drawn in it, with no stroke, everywhere.
+- On the screen and in pictures only the faces set bold grow, by about
+  0.017 em (Windows' own synthetic bold), in proportion to the size; the
+  Arial Black cover's title is as wide in Publisher's picture (stem 10.69 pt)
+  as the plain font, 12.00 pt in its PDF, 11.1 to 11.2 pt printed.
+- Text from 216 pt up is set as outlines, with Franklin Gothic Demi bold
+  widened as on the screen (a rectangle 41.48 pt wide for the "I" of 240 pt,
+  plain 37.39 pt: 0.017 em) and Arial Black not at all; no stroke is added.
+  In a PDF the change is between 215 pt (text, stroked) and 216 pt (checked
+  at 212 to 218 pt); printed output is text at 202 pt and outlines at 240 pt
+  (the same 216 pt is assumed, not checked between).
+- The stroke has miter joins (the PDF default) in the text's own color.
+  JeffPub lays the text out the same for every place and adds the stroke
+  as it paints (`TextOutput` in `PaintOptions`, set by `RenderOptions::
+  textOutput`: a PDF export is `Pdf`, the printer `Print`, the rest `Picture`).
+  The printed 0.01 em is the Microsoft Print to PDF driver's reading of the
+  simulation; another driver may embolden by its own amount.

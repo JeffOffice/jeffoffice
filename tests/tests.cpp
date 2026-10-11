@@ -3505,6 +3505,162 @@ private Q_SLOTS:
         QVERIFY(qGray(thick.pixel(400, 402 - 8)) > 240 && qGray(thick.pixel(400, 402 + 8)) > 240);
     }
 
+    // The width in points of the first stem of a capital I, set in `family`
+    // at `size`, as it is drawn for `out`.
+    static double handBoldStem(const QString &family, bool bold, double size, jp::TextOutput out)
+    {
+        using namespace jp;
+        const double scale = 4;
+        auto doc = Document::blank(QSizeF(320, 320));
+        auto t = std::make_shared<TextItem>();
+        t->id = QStringLiteral("t");
+        t->rect = QRectF(20, 10, 280, 300);
+        t->insets = QMarginsF(0, 0, 0, 0);
+        t->storyId = doc->createStory(QStringLiteral("II"));
+        {
+            QTextCursor c(doc->storyDoc(t->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{family});
+            f.setFontPointSize(size);
+            if (bold) f.setFontWeight(QFont::Bold);
+            c.mergeCharFormat(f);
+        }
+        doc->pages[0]->items.push_back(t);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = doc.get();
+        ctx.cache = &cache;
+        ctx.opt.textOutput = out;
+        const QImage img = Renderer::renderToImage(ctx, 0, scale);
+        int top = -1, bottom = -1;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x)
+                if (qGray(img.pixel(x, y)) < 128) {
+                    if (top < 0) top = y;
+                    bottom = y;
+                    break;
+                }
+        if (top < 0) return 0;
+        const int y = (top + bottom) / 2;
+        // The first stem's ink, in pixels, counting edge pixels by their share of the text's own darkness.
+        double ink = 0, darkest = 0;
+        bool in = false;
+        for (int x = 0; x < img.width(); ++x) {
+            const double d = 1 - qGray(img.pixel(x, y)) / 255.0;
+            if (d > 0.02) { ink += d; darkest = std::max(darkest, d); in = true; }
+            else if (in) break;
+        }
+        return ink / darkest / scale;
+    }
+
+    static bool handBoldFontsInstalled()
+    {
+        for (const char *f : {"Arial Black", "Rockwell Extra Bold", "Franklin Gothic Demi"})
+            if (QFontDatabase::hasFamily(QString::fromLatin1(f))) return true;
+        return false;
+    }
+
+    // Bold drawn by hand (a font with no bold face), on the screen and in
+    // pictures: Publisher's picture of Franklin Gothic Demi set bold has
+    // stems 0.017 em wider than the plain (0.84 pt at 48 pt, whatever the
+    // picture's resolution), and Arial Black and Rockwell Extra Bold, bold or
+    // not, are as wide as the font draws them (stems 10.65 and 12.63 pt at
+    // 48 pt, the same set bold). What is laid out doesn't change with where
+    // the text is drawn: its layout is shared.
+    void handBoldOnTheScreenAndInPictures()
+    {
+        if (handBoldFontsInstalled()) QSKIP("these fonts are installed here");
+        using namespace jp;
+        const TextOutput pic = TextOutput::Picture;
+        for (const char *name : {"Arial Black", "Rockwell Extra Bold"}) {
+            const QString fam = QString::fromLatin1(name);
+            const double plain = handBoldStem(fam, false, 48, pic), bold = handBoldStem(fam, true, 48, pic);
+            QVERIFY2(plain > 5 && std::abs(bold - plain) < 0.12, qPrintable(QStringLiteral("%1: plain %2, bold %3").arg(fam).arg(plain).arg(bold)));
+        }
+        const QString demi = QStringLiteral("Franklin Gothic Demi");
+        for (double size : {24.0, 48.0, 96.0}) {
+            const double plain = handBoldStem(demi, false, size, pic), bold = handBoldStem(demi, true, size, pic);
+            QVERIFY2(std::abs(bold - plain - 0.017 * size) < 0.12 + 0.002 * size, qPrintable(QStringLiteral("%1 pt: plain %2, bold %3").arg(size).arg(plain).arg(bold)));
+        }
+        // One layout for the screen, a PDF, and the printer.
+        auto doc = Document::blank(QSizeF(320, 320));
+        auto t = std::make_shared<TextItem>();
+        t->id = QStringLiteral("t");
+        t->rect = QRectF(20, 10, 280, 300);
+        t->storyId = doc->createStory(QStringLiteral("Arial Black text"));
+        QTextCursor c(doc->storyDoc(t->storyId));
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setFontFamilies(QStringList{QStringLiteral("Arial Black")});
+        f.setFontPointSize(30);
+        c.mergeCharFormat(f);
+        doc->pages[0]->items.push_back(t);
+        LayoutCache cache;
+        RenderOptions screen, pdf, paper;
+        pdf.textOutput = TextOutput::Pdf;
+        paper.textOutput = TextOutput::Print;
+        const auto *a = cache.textFrame(*doc, *t, 1, screen).layout;
+        QVERIFY(a);
+        QCOMPARE(cache.textFrame(*doc, *t, 1, pdf).layout, a);
+        QCOMPARE(cache.textFrame(*doc, *t, 1, paper).layout, a);
+    }
+
+    // The same in a PDF Publisher exports: every such letter, Arial Black and
+    // Rockwell Extra Bold plain or bold and Franklin Gothic Demi when bold
+    // (not when plain), is stroked 1/35 em (stems 1.37 pt wider at 48 pt;
+    // all three export intents alike). From 216 pt Publisher sets the text as
+    // outlines, drawn as the screen has it.
+    void handBoldInAPdf()
+    {
+        if (handBoldFontsInstalled()) QSKIP("these fonts are installed here");
+        using namespace jp;
+        const TextOutput pic = TextOutput::Picture, pdf = TextOutput::Pdf;
+        const QString black = QStringLiteral("Arial Black"), rock = QStringLiteral("Rockwell Extra Bold"), demi = QStringLiteral("Franklin Gothic Demi");
+        for (const QString &fam : {black, rock})
+            for (double size : {48.0, 96.0}) {
+                const double screen = handBoldStem(fam, false, size, pic);
+                for (bool bold : {false, true}) {
+                    const double grown = handBoldStem(fam, bold, size, pdf) - screen;
+                    QVERIFY2(std::abs(grown - size / 35) < 0.1 + 0.002 * size, qPrintable(QStringLiteral("%1 %2 pt%3: %4 wider").arg(fam).arg(size).arg(bold ? QStringLiteral(" bold") : QString()).arg(grown)));
+                }
+            }
+        const double plain = handBoldStem(demi, false, 48, pic);
+        QVERIFY(std::abs(handBoldStem(demi, false, 48, pdf) - plain) < 0.1);
+        QVERIFY2(std::abs(handBoldStem(demi, true, 48, pdf) - plain - 48.0 / 35) < 0.12, "Franklin Gothic Demi bold");
+        // Outlines: as the screen draws them.
+        QVERIFY(std::abs(handBoldStem(black, false, 230, pdf) - handBoldStem(black, false, 230, pic)) < 0.2);
+        QVERIFY(std::abs(handBoldStem(demi, true, 230, pdf) - handBoldStem(demi, true, 230, pic)) < 0.2);
+        // Just under the size they are set as outlines at, they are stroked still.
+        QVERIFY(handBoldStem(black, false, 214, pdf) - handBoldStem(black, false, 214, pic) > 5);
+    }
+
+    // And on paper: Publisher sends the same letters to the printer as bold
+    // by simulation, and Windows' PDF printer strokes them 0.01 em (stems
+    // 0.48 pt wider at 48 pt, 0.96 at 96): Arial Black and Rockwell Extra
+    // Bold plain or bold, Franklin Gothic Demi only when bold; from 216 pt
+    // they are outlines, as the screen has them.
+    void handBoldOnPaper()
+    {
+        if (handBoldFontsInstalled()) QSKIP("these fonts are installed here");
+        using namespace jp;
+        const TextOutput pic = TextOutput::Picture, paper = TextOutput::Print;
+        const QString black = QStringLiteral("Arial Black"), rock = QStringLiteral("Rockwell Extra Bold"), demi = QStringLiteral("Franklin Gothic Demi");
+        for (const QString &fam : {black, rock})
+            for (double size : {48.0, 96.0}) {
+                const double screen = handBoldStem(fam, false, size, pic);
+                for (bool bold : {false, true}) {
+                    const double grown = handBoldStem(fam, bold, size, paper) - screen;
+                    QVERIFY2(std::abs(grown - size * 0.01) < 0.1 + 0.001 * size, qPrintable(QStringLiteral("%1 %2 pt%3: %4 wider").arg(fam).arg(size).arg(bold ? QStringLiteral(" bold") : QString()).arg(grown)));
+                }
+            }
+        const double plain = handBoldStem(demi, false, 48, pic);
+        QVERIFY(std::abs(handBoldStem(demi, false, 48, paper) - plain) < 0.1);
+        QVERIFY2(std::abs(handBoldStem(demi, true, 48, paper) - plain - 0.48) < 0.12, "Franklin Gothic Demi bold");
+        QVERIFY(std::abs(handBoldStem(black, false, 230, paper) - handBoldStem(black, false, 230, pic)) < 0.2);
+        QVERIFY(std::abs(handBoldStem(demi, true, 230, paper) - handBoldStem(demi, true, 230, pic)) < 0.2);
+    }
+
     // A page's background picture is drawn past the page's edge, 2.5 points
     // on every side, and the picture's crops (fractions of the picture) then
     // trim that larger picture. Publisher (Oct 11), a background made from a
@@ -19820,19 +19976,21 @@ private Q_SLOTS:
         }
     }
 
-    // Publisher draws bold by hand on a font with no bold face: its PDFs fill
-    // and stroke the letters, the stroke 1/35 em wide in the text's color.
-    // It does so for Franklin Gothic Demi and Forte set bold, and for Arial
-    // Black and Rockwell Extra Bold always; a font with a bold face (Arial),
-    // one whose face is bold already (Script MT Bold), and text from 200 pt
-    // up (set as plain outlines) are drawn as they were.
+    // Publisher draws bold by hand on a font with no bold face: Franklin
+    // Gothic Demi and Forte set bold, and Arial Black and Rockwell Extra Bold
+    // always (how wide the extra stroke is depends on where the text goes:
+    // handBoldOnTheScreenAndInPictures, handBoldInAPdf, handBoldOnPaper).
+    // A font with a bold face (Arial) and one whose face is bold already
+    // (Script MT Bold) are drawn as they were. The run's layout format only
+    // marks the letters (1 when bold is set, 2 whether or not) and is the
+    // face the run without bold gets, whatever the size.
     void boldIsDrawnByHandOnFontsWithoutBoldFaces()
     {
-        struct Case { const char *family; bool bold; double size; bool outlined; };
+        struct Case { const char *family; bool bold; double size; int mark; };
         int checked = 0;
-        for (const Case &k : {Case{"Franklin Gothic Demi", true, 24, true}, Case{"Franklin Gothic Demi", false, 24, false}, Case{"Forte", true, 100, true},
-                              Case{"Arial Black", false, 60, true}, Case{"Rockwell Extra Bold", false, 60, true}, Case{"Rockwell Extra Bold", false, 239, false},
-                              Case{"Script MT Bold", true, 24, false}, Case{"Arial", true, 24, false}}) {
+        for (const Case &k : {Case{"Franklin Gothic Demi", true, 24, 1}, Case{"Franklin Gothic Demi", false, 24, 0}, Case{"Forte", true, 100, 1},
+                              Case{"Arial Black", false, 60, 2}, Case{"Rockwell Extra Bold", false, 60, 2}, Case{"Rockwell Extra Bold", false, 239, 2},
+                              Case{"Script MT Bold", true, 24, 0}, Case{"Arial", true, 24, 0}}) {
             const QString fam = QString::fromLatin1(k.family);
             if (QFontDatabase::hasFamily(fam)) continue;
             QTextCharFormat cf;
@@ -19842,11 +20000,9 @@ private Q_SLOTS:
             if (k.bold) cf.setFontWeight(QFont::Bold);
             const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
             const QString what = QStringLiteral("%1 %2 pt%3").arg(fam).arg(k.size).arg(k.bold ? QStringLiteral(" bold") : QString());
-            QVERIFY2(r.hasProperty(QTextFormat::TextOutline) == k.outlined, qPrintable(what));
-            if (k.outlined) {
-                const QPen pen = r.textOutline();
-                QVERIFY2(std::abs(pen.widthF() - k.size / 35) < 1e-6, qPrintable(what + QStringLiteral(": ") + QString::number(pen.widthF())));
-                QCOMPARE(pen.color(), QColor(QStringLiteral("#336699")));
+            QVERIFY2(r.intProperty(jp::tp::HandBold) == k.mark, qPrintable(what));
+            QVERIFY2(!r.hasProperty(QTextFormat::TextOutline), qPrintable(what));
+            if (k.mark) {
                 // The stand-in is the face the run without bold gets (Qt would embolden a second time).
                 QTextCharFormat plain = cf;
                 plain.setFontWeight(QFont::Normal);
@@ -19859,12 +20015,13 @@ private Q_SLOTS:
 
     // The letters of a stand-in drawn taller or shorter (run by run) take
     // their stroke too: Franklin Gothic Demi set bold stands the stroke's
-    // width (1/35 em) higher than the same text unbolded.
+    // width higher than the same text unbolded (0.017 em on the screen, 1/35
+    // in a PDF, 0.01 on paper).
     void handBoldStrokeShowsOnScaledStandIns()
     {
         const QString fam = QStringLiteral("Franklin Gothic Demi");
         if (QFontDatabase::hasFamily(fam)) QSKIP("Franklin Gothic Demi is installed here");
-        auto inkHeight = [&](bool bold) {
+        auto inkHeight = [&](bool bold, TextOutput out) {
             auto doc = Document::blank(QSizeF(612, 792));
             auto t = std::make_shared<TextItem>();
             t->id = QStringLiteral("t");
@@ -19885,6 +20042,7 @@ private Q_SLOTS:
             PaintContext ctx;
             ctx.doc = doc.get();
             ctx.cache = &cache;
+            ctx.opt.textOutput = out;
             QImage img(612 * 4, 792 * 4, QImage::Format_ARGB32);
             img.fill(Qt::white);
             {
@@ -19905,10 +20063,12 @@ private Q_SLOTS:
         f.setFontPointSize(100);
         const QTextCharFormat r = jp::resolveCharFormat(f, env);
         if (QFontInfo(r.font()).family() != QLatin1String("Libre Franklin") || !r.hasProperty(jp::tp::GlyphScaleY)) QSKIP("the scaled stand-in isn't drawn here");
-        const double plain = inkHeight(false), bold = inkHeight(true);
-        QVERIFY(plain > 0);
-        const double stroke = 100.0 / 35 * r.property(jp::tp::GlyphScaleY).toDouble();
-        QVERIFY2(std::abs(bold - plain - stroke) < 0.6, qPrintable(QStringLiteral("plain %1, bold %2, stroke %3").arg(plain).arg(bold).arg(stroke)));
+        for (const auto &k : {std::make_pair(TextOutput::Picture, 0.017), std::make_pair(TextOutput::Pdf, 1.0 / 35), std::make_pair(TextOutput::Print, 0.01)}) {
+            const double plain = inkHeight(false, k.first), bold = inkHeight(true, k.first);
+            QVERIFY(plain > 0);
+            const double stroke = 100.0 * k.second * r.property(jp::tp::GlyphScaleY).toDouble();
+            QVERIFY2(std::abs(bold - plain - stroke) < 0.5, qPrintable(QStringLiteral("plain %1, bold %2, stroke %3").arg(plain).arg(bold).arg(stroke)));
+        }
     }
 
     // Best fit grows text only as far as the box holds it: a banner's short

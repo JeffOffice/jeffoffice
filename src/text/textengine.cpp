@@ -295,6 +295,50 @@ QPair<int, int> underlineSpan(const QList<QTextLayout::FormatRange> &fmts, int n
     return {std::max(fmts[n].start, ls), std::min(e, le)};
 }
 
+// Bold drawn by hand (tp::HandBold): the letters of a font with no bold face
+// take a stroke in their own color, whose width is what the stems grow by.
+// Publisher draws it by where the text goes (measured Oct 11 in Arial Black,
+// Rockwell Extra Bold, and Franklin Gothic Demi, 12 to 300 pt; docs/pub-format.md):
+// on the screen and in pictures bold Franklin Gothic Demi and Forte grow
+// 0.017 em (the system's synthetic bold) and Arial Black and Rockwell Extra
+// Bold don't; in a PDF it exports every such letter grows 1/35 em; on paper
+// 0.01 em. From 216 pt it sets such text as outlines, as the screen has it.
+double handBoldWidth(int kind, double em, TextOutput out)
+{
+    constexpr double kOutlinesFrom = 216, kScreen = 0.017, kPdf = 1.0 / 35, kPaper = 0.01;
+    const bool outlines = em >= kOutlinesFrom;
+    if (!outlines && out == TextOutput::Pdf) return em * kPdf;
+    if (!outlines && out == TextOutput::Print) return em * kPaper;
+    return kind == 1 ? em * kScreen : 0;
+}
+
+// The stroke of [s, e) of a fine layout's line, over letters already drawn
+// (the painter is in fine units).
+void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextCharFormat &cf, TextOutput out)
+{
+    if (!cf.hasProperty(tp::HandBold) || cf.foreground().style() != Qt::SolidPattern) return;
+    const double em = cf.fontPointSize() / (fontPointFactor() * kFine);
+    const double w = handBoldWidth(cf.intProperty(tp::HandBold), em, out) * kFine;
+    if (w <= 0) return;
+    QPen pen(cf.foreground(), w);
+    pen.setJoinStyle(Qt::MiterJoin);   // the PDF default
+    pen.setMiterLimit(10);
+    p->save();
+    p->setPen(pen);
+    p->setBrush(Qt::NoBrush);
+    for (const QGlyphRun &g : line.glyphRuns(s, e - s)) {
+        const QRawFont raw = g.rawFont();
+        const QList<quint32> glyphs = g.glyphIndexes();
+        const QList<QPointF> where = g.positions();
+        for (int k = 0; k < glyphs.size() && k < where.size(); ++k) {
+            QPainterPath path = raw.pathForGlyph(glyphs[k]);
+            path.translate(where[k]);
+            p->drawPath(path);
+        }
+    }
+    p->restore();
+}
+
 QList<QTextLayout::FormatRange> fineRanges(const QVector<QTextLayout::FormatRange> &ranges)
 {
     QList<QTextLayout::FormatRange> out;
@@ -575,7 +619,7 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
     // Imitate condensed fonts that are missing on this computer, times the
     // run's own character scaling. A stated 100% is left unsaid: an
     // explicit 100 makes font matching pass over a stand-in's narrower faces.
-    bool fauxBold = false;
+    bool fauxBold = false, boldAlways = false;
     if (f.hasProperty(QTextFormat::FontFamilies)) {
         const QStringList fams = f.fontFamilies().toStringList();
         if (!fams.isEmpty()) {
@@ -586,8 +630,9 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
             // "Medium", "Demi", "Black"... in a missing font's name become a real weight.
             const bool setBold = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::Bold;
             // Bold set on a font with no bold face is drawn by hand: its
-            // regular face with the letters outlined, below.
+            // regular face with a stroke added as it is painted (below).
             fauxBold = !substituteFor(fams.first()).isEmpty() && originalBoldByHand(fams.first(), setBold);
+            boldAlways = fauxBold && originalBoldAlwaysByHand(fams.first());
             const bool boldRun = setBold && !fauxBold;
             if (const int wt = substituteWeight(fams.first(), boldRun); wt > 0) {
                 r.setFontWeight(wt);
@@ -688,15 +733,10 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
         QPen pen(ColorRef::fromString(oref).resolve(env.colors), f.hasProperty(tp::OutlineWidth) ? f.property(tp::OutlineWidth).toDouble() : 0.5);
         pen.setJoinStyle(Qt::RoundJoin);
         r.setTextOutline(pen);
-    } else if (fauxBold && sz * env.fontScale < 200 && r.foreground().style() == Qt::SolidPattern) {
-        // A stroke 1/35 em wide in the text's own color, as Publisher's PDFs
-        // draw it (miter joins, the PDF default); text from 200 pt up it
-        // sets as outlines, plain (a banner's 239 pt headline in Rockwell
-        // Extra Bold carries the ink of the unstroked letters).
-        QPen pen(r.foreground(), sz * env.fontScale / 35);
-        pen.setJoinStyle(Qt::MiterJoin);
-        pen.setMiterLimit(10);
-        r.setTextOutline(pen);
+    } else if (fauxBold) {
+        // Drawn with a stroke added when the text is painted (StoryLayout::paint),
+        // as wide as the place it goes to calls for: the layout is the same in all.
+        r.setProperty(tp::HandBold, boldAlways ? 2 : 1);
     }
     if (f.boolProperty(tp::TrueSmallCaps)) r.setFontCapitalization(QFont::SmallCaps);
     return r;
@@ -2772,6 +2812,15 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
         if (!B->directGlyphs) {
             B->tl->draw(p, QPointF(0, 0), {}, QRectF(clip.topLeft() * kFine, clip.size() * kFine));
             const QList<QTextLayout::FormatRange> fmts = B->tl->formats();
+            for (const auto &r : fmts) {
+                if (!r.format.hasProperty(tp::HandBold)) continue;
+                for (int i = 0; i < B->lines.size(); ++i) {
+                    if (B->lines[i].frame != frame) continue;
+                    const QTextLine line = B->tl->lineAt(i);
+                    const int s = std::max(r.start, line.textStart()), e = std::min(r.start + r.length, line.textStart() + line.textLength());
+                    if (s < e) drawHandBold(p, line, s, e, r.format, o.output);
+                }
+            }
             for (int n = 0; n < fmts.size(); ++n) {
                 const auto &r = fmts[n];
                 if (!r.format.hasProperty(kOwnUnderline)) continue;
@@ -2824,6 +2873,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                             p->setPen(QPen(br, 0));
                         }
                     }
+                    drawHandBold(p, line, s, e, r.format, o.output);
                     p->restore();
                     // Lines under, through and over the run, unscaled, where
                     // Qt's own drawing puts them (glyph runs carry none).
@@ -2956,14 +3006,18 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             drawPlainText(p, QPointF(n.rect.left(), n.rect.top() + n.firstBaseline), n.numberFont, QString::number(n.number) + (n.endnote ? QStringLiteral(".") : QString()));
             p->save();
             p->translate(n.rect.topLeft());
-            n.layout->paint(p, 0, PaintOptions());
+            PaintOptions inNote;
+            inNote.output = o.output;
+            n.layout->paint(p, 0, inNote);
             p->restore();
         }
         for (const Note::Piece &pc : n.more) {
             if (pc.frame != frame || !pc.layout) continue;
             p->save();
             p->translate(pc.rect.topLeft());
-            pc.layout->paint(p, 0, PaintOptions());
+            PaintOptions inNote;
+            inNote.output = o.output;
+            pc.layout->paint(p, 0, inNote);
             p->restore();
         }
     }

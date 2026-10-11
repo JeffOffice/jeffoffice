@@ -926,6 +926,7 @@ void printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts)
     ctx.doc = d;
     ctx.cache = &ed->cache();
     ctx.opt.output = true;
+    ctx.opt.textOutput = TextOutput::Print;
     ctx.opt.grayscale = opts.value("grayscale").toBool();
     const QSizeF ps = d->pageSize();
     const QString title = ed->displayName();

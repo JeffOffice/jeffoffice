@@ -67,7 +67,13 @@ struct LayoutEnv {
     QString key() const;
 };
 
+// Where text is drawn: bold drawn by hand (a font with no bold face) is a
+// different stroke on the screen and in pictures, in a PDF Publisher exports,
+// and on paper.
+enum class TextOutput { Picture, Pdf, Print };
+
 struct PaintOptions {
+    TextOutput output = TextOutput::Picture;
     int selFrom = -1, selTo = -1;   // document positions
     QColor selColor = QColor(51, 153, 255, 90);
     bool showSpecial = false;       // ¶, ·, →

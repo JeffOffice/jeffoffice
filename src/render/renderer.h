@@ -15,6 +15,7 @@ namespace jp {
 
 struct RenderOptions {
     bool output = false;          // printing/exporting: no placeholders or screen-only marks
+    TextOutput textOutput = TextOutput::Picture;   // what the text is drawn for (a PDF export, the printer, or a screen or picture)
     int mergeRecord = -1;
     bool shadeFields = false;
     bool showSpecial = false;
