@@ -593,6 +593,16 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
             // weight asked for: a regular run's stand-in may be drawn bold.
             if (const double hs = substituteHeightScale(fams.first(), f.fontWeight() >= QFont::DemiBold); hs != 1)
                 r.setProperty(tp::GlyphScaleY, hs);
+            // Where the original has no italic face for this weight, its
+            // upright face is slanted (drawing only): not the stand-in's own
+            // italic. Outlined, highlighted and wavy-underlined text is
+            // drawn by Qt, which can't slant it.
+            if (f.fontItalic() && !f.hasProperty(QTextFormat::TextOutline) && !f.hasProperty(QTextFormat::BackgroundBrush) &&
+                f.underlineStyle() != QTextCharFormat::WaveUnderline)
+                if (const double shear = substituteItalicShear(fams.first(), f.fontWeight() >= QFont::DemiBold); shear > 0) {
+                    r.setFontItalic(false);
+                    r.setProperty(tp::SyntheticItalic, shear);
+                }
         }
     } else if (f.hasProperty(QTextFormat::FontStretch)) {
         // A run in the theme's font: its own character scaling only.
@@ -1720,6 +1730,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     er.format.setForeground(rf.foreground());
                     er.format.setFontPointSize(rf.fontPointSize());
                     if (rf.hasProperty(tp::GlyphScaleY)) er.format.setProperty(tp::GlyphScaleY, rf.property(tp::GlyphScaleY));
+                    if (rf.hasProperty(tp::SyntheticItalic)) er.format.setProperty(tp::SyntheticItalic, rf.property(tp::SyntheticItalic));
                     B->effects << er;
                 }
                 B->disp += shown;
@@ -1730,14 +1741,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
         ranges = applyLetterWidths(ranges, B->disp);
         B->tl->setFormats(fineRanges(ranges));
-        // Letters drawn taller or shorter are drawn run by run, unless the
+        // Letters drawn taller, shorter, or slanted are drawn run by run, unless the
         // paragraph has outlined, highlighted or wavy-underlined text (Qt's
         // own drawing then) or text no run covers.
         {
             bool scaled = false, plain = true;
             int covered = 0;
             for (const auto &r : ranges) {
-                scaled |= r.format.hasProperty(tp::GlyphScaleY);
+                scaled |= r.format.hasProperty(tp::GlyphScaleY) || r.format.hasProperty(tp::SyntheticItalic);
                 plain &= !r.format.hasProperty(QTextFormat::TextOutline) && !r.format.hasProperty(QTextFormat::BackgroundBrush)
                          && r.format.underlineStyle() != QTextCharFormat::WaveUnderline;
                 covered += r.length;
@@ -2677,12 +2688,14 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                 if (s >= e) continue;
                 const auto runs = l.glyphRuns(s, e - s);
                 const double ys = er.format.hasProperty(tp::GlyphScaleY) ? er.format.property(tp::GlyphScaleY).toDouble() : 1;
+                const double shear = er.format.hasProperty(tp::SyntheticItalic) ? er.format.property(tp::SyntheticItalic).toDouble() : 0;
                 const double base = l.y() + l.ascent();
                 auto drawRuns = [&](const QPointF &d, const QColor &c) {
                     p->setPen(c);
                     p->save();
-                    if (ys != 1) {
+                    if (ys != 1 || shear != 0) {
                         p->translate(0, off.y() + base);
+                        p->shear(-shear, 0);
                         p->scale(1, ys);
                         p->translate(0, -off.y() - base);
                     }
@@ -2722,8 +2735,8 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                 }
             }
         } else {
-            // Run by run, each in its color; a run drawn taller or shorter
-            // is scaled from its baseline (its widths stay as laid out).
+            // Run by run, each in its color; a run drawn taller or shorter, or
+            // slanted, is scaled and sheared from its baseline (its widths stay as laid out).
             const QList<QTextLayout::FormatRange> fmts = B->tl->formats();
             for (int i = 0; i < B->lines.size(); ++i) {
                 if (B->lines[i].frame != frame) continue;
@@ -2736,10 +2749,12 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     if (s >= e) continue;
                     const QBrush br = r.format.hasProperty(QTextFormat::ForegroundBrush) ? r.format.foreground() : QBrush(Qt::black);
                     const double ys = r.format.hasProperty(tp::GlyphScaleY) ? r.format.property(tp::GlyphScaleY).toDouble() : 1;
+                    const double shear = r.format.hasProperty(tp::SyntheticItalic) ? r.format.property(tp::SyntheticItalic).toDouble() : 0;
                     p->save();
                     p->setPen(QPen(br, 0));
-                    if (ys != 1) {
+                    if (ys != 1 || shear != 0) {
                         p->translate(0, base);
+                        p->shear(-shear, 0);
                         p->scale(1, ys);
                         p->translate(0, -base);
                     }
