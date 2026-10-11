@@ -970,8 +970,10 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
       }
       if (rowHeightsInEmu.size() != nr || columnWidthsInEmu.size() != nc)
       {
+        // JeffPub: a table that disagrees with itself is left out (as are the
+        // two below), not the whole file.
         MSPUB_DEBUG_MSG(("ERROR: Wrong number of rows or columns found in table definition.\n"));
-        return false;
+        return true;
       }
       boost::optional<unsigned> index;
       for (size_t i = 0; i < m_cellsChunkIndices.size(); ++i)
@@ -991,7 +993,7 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
       {
         MSPUB_DEBUG_MSG(("WARNING: Couldn't find cells of seqnum %u corresponding to table of seqnum %u.\n",
                          csn, chunk.seqNum));
-        return false;
+        return true;
       }
       else
       {
@@ -1106,7 +1108,8 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
         m_collector->addTextShape(get(textId), chunk.seqNum);
       return true;
     }
-    return false;
+    MSPUB_DEBUG_MSG(("WARNING: Table %u lacks a field it needs, skipping it.\n", chunk.seqNum));
+    return true;
   }
   else
   {
