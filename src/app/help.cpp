@@ -289,27 +289,15 @@ QString displayMarkdown(const Topic &t, MainWindow *win)
     return md;
 }
 
-QUrl supportUrl()
-{
-    QUrl u(QStringLiteral("https://github.com/JeffOffice/jeffpub/issues/new"));
-    QUrlQuery q;
-    q.addQueryItem(QStringLiteral("labels"), QStringLiteral("bug"));
-    q.addQueryItem(QStringLiteral("body"), QStringLiteral("**What happened?**\n\n\n**What did you do just before it happened?**\n\n\n"
-                                                          "JeffPub %1 on %2 (%3)\n")
-                                               .arg(QStringLiteral(JP_VERSION), QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture()));
-    u.setQuery(q);
-    return u;
-}
-
 QUrl feedbackUrl()
 {
+    // One page for a problem or an idea, with the version and system filled in.
     QUrl u(QStringLiteral("https://github.com/JeffOffice/jeffpub/issues/new"));
     QUrlQuery q;
-    // GitHub applies the label only for the project's own members, so the
-    // title says it too.
-    q.addQueryItem(QStringLiteral("labels"), QStringLiteral("enhancement"));
-    q.addQueryItem(QStringLiteral("title"), QStringLiteral("Idea: "));
-    q.addQueryItem(QStringLiteral("body"), QStringLiteral("**Your idea**\n\n\n**How it would help you**\n\n\nJeffPub %1\n").arg(QStringLiteral(JP_VERSION)));
+    q.addQueryItem(QStringLiteral("body"), QStringLiteral("**What would you like to tell us?** (a problem, or an idea)\n\n\n"
+                                                          "**For a problem: what did you do just before it happened?**\n\n\n"
+                                                          "JeffPub %1 on %2 (%3)\n")
+                                               .arg(QStringLiteral(JP_VERSION), QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture()));
     u.setQuery(q);
     return u;
 }
