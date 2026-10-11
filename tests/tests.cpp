@@ -19368,6 +19368,67 @@ private Q_SLOTS:
         }
     }
 
+    // Script MT Bold's letters stand lower than its stand-in Pacifico's: a
+    // banner's W was 220 points tall at Publisher's 165, and the score
+    // against Publisher's picture was 9.5. The stand-in is drawn at 0.8 of
+    // its height, its widths unchanged.
+    void scriptMtBoldStandInIsDrawnLower()
+    {
+        const QString fam = QStringLiteral("Script MT Bold");
+        if (QFontDatabase::hasFamily(fam)) QSKIP("Script MT Bold is installed here");
+        QTextCharFormat cf;
+        cf.setFontFamilies(QStringList{fam});
+        cf.setFontPointSize(100);
+        const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
+        if (QFontInfo(r.font()).family() != QLatin1String("Pacifico")) QSKIP("the stand-in isn't drawn here");
+        QCOMPARE(r.property(jp::tp::GlyphScaleY).toDouble(), 0.8);
+    }
+
+    // Gill Sans MT Condensed's letters are narrower than the stand-in's
+    // squeezed to the same advances (a banner's U is 75 points wide at 233 pt
+    // in Publisher's picture, 0.32 em; 0.39 em at the table's old 83%): the
+    // letters keep the font's own widths (resources/fontwidths.txt) as their
+    // spacing, so the stand-in is squeezed to the letters' ink.
+    void gillSansCondensedLettersAreAsNarrowAsTheOriginals()
+    {
+        const QString fam = QStringLiteral("Gill Sans MT Condensed");
+        if (QFontDatabase::hasFamily(fam)) QSKIP("Gill Sans MT Condensed is installed here");
+        QTextCharFormat f;
+        f.setFontFamilies(QStringList{fam});
+        f.setFontPointSize(200);
+        if (QFontInfo(jp::resolveCharFormat(f, jp::LayoutEnv()).font()).family() != QLatin1String("Archivo Narrow")) QSKIP("the stand-in isn't drawn here");
+        auto doc = Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<TextItem>();
+        t->id = QStringLiteral("t");
+        t->rect = QRectF(36, 36, 500, 400);
+        t->insets = QMarginsF(0, 0, 0, 0);
+        t->storyId = doc->createStory(QStringLiteral("U"));
+        {
+            QTextCursor c(doc->storyDoc(t->storyId));
+            c.select(QTextCursor::Document);
+            c.mergeCharFormat(f);
+        }
+        doc->pages[0]->items.push_back(t);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = doc.get();
+        ctx.cache = &cache;
+        QImage img(612, 792, QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        {
+            QPainter p(&img);
+            p.setRenderHint(QPainter::Antialiasing);
+            jp::Renderer::paintPage(&p, ctx, 0);
+        }
+        int left = img.width(), right = -1;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x)
+                if (qGray(img.pixel(x, y)) < 128) { left = std::min(left, x); right = std::max(right, x); }
+        QVERIFY(right > left);
+        const double em = (right - left + 1) / 200.0;
+        QVERIFY2(std::abs(em - 0.32) < 0.025, qPrintable(QString::number(em)));
+    }
+
     // Text whose size no run, style, or paragraph gives is 12 pt, as
     // Publisher draws its car wash flyer's body text (the file's styles name
     // only a font): it was 11, the size of JeffPub's own blank text, and

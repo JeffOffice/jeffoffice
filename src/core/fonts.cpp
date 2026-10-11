@@ -357,7 +357,11 @@ static const QHash<QString, StandInWidths> &standInWidths()
         {"Franklin Gothic Medium", {"Libre Franklin", {90, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Freestyle Script", {"Great Vibes", {85, 0, 0, 0}, {0, 0, 0, 0}}},
         {"French Script MT", {"Great Vibes", {96, 0, 0, 0}, {0, 0, 0, 0}}},
-        {"Gill Sans MT Condensed", {"Archivo Narrow", {83, 78, 0, 0}, {0, 0, 0, 0}}},
+        // Regular Gill Sans MT Condensed: its letters keep the font's own
+        // advances (fontwidths.txt), so the stand-in is narrowed to the
+        // letters' ink: a U 75 points wide at 233 pt in Publisher's picture
+        // (the squeeze to the advances, 83%, drew it 90).
+        {"Gill Sans MT Condensed", {"Archivo Narrow", {66, 78, 0, 0}, {0, 0, 0, 0}}},
         {"Gill Sans MT Ext Condensed Bold", {"Oswald", {60, 60, 0, 0}, {0, 0, 0, 0}}},
         {"Gill Sans Ultra Bold", {"Archivo Black", {115, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Gill Sans Ultra Bold Condensed", {"Anton", {112, 0, 0, 0}, {0, 0, 0, 0}}},
@@ -573,6 +577,9 @@ double substituteHeightScale(const QString &family, bool bold)
         {"Rockwell", {"Arvo", 0.915, 0.915}},
         {"Rockwell Condensed", {"Roboto Slab", 0, 0.945}},
         {"Rockwell Extra Bold", {"Alfa Slab One", 0.866, 0}},
+        // Pacifico's letters stand a quarter above Script MT Bold's (a W 220
+        // points tall at 233 pt in Publisher's picture, 165 in the original).
+        {"Script MT Bold", {"Pacifico", 0.8, 0}},
         {"Segoe Print", {"Comic Relief", 1.071, 0}},
         {"Segoe UI Black", {"Libre Franklin", 0.961, 0}},
         {"Sylfaen", {"Gelasio", 0.931, 0}},
