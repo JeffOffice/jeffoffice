@@ -35,6 +35,10 @@ Online Pictures (Insert > Online Pictures) sends the words you search for to the
 
 Unless you turn them off, it also sends anonymous usage statistics once a day while it's in use (and once more the day it's updated): a random number made up when it was installed (it says nothing about you or your computer), its version, your operating system and its version, the language it's set to, how many times it was started, and how many times each of its commands was used. It never sends your files, their names, or anything in them, and the server doesn't keep IP addresses. You choose in Windows setup or the first time JeffPub starts, and can change it anytime in File > Options. The collector's code is in [server/telemetry](server/telemetry).
 
+## Help
+
+Help is built into the program (press F1) and published to the project's [wiki](https://github.com/JeffOffice/jeffpub/wiki). Its topics are the Markdown files in [resources/help/en](resources/help/en). Edit them there, not on the wiki: every push to `main` replaces the wiki's pages with them. See [docs/help-wiki.md](docs/help-wiki.md).
+
 ## Built with
 
 - **C++17** and **Qt 6** (Widgets and Graphics View), built with **CMake**

@@ -134,6 +134,21 @@ jobs:
           name: pdf-check-${{ matrix.name }}
           path: pdf-check
 
+      # Help's topics as the project wiki's pages, written by the program
+      # itself so they match what Help shows. Every build makes them (a bad
+      # link fails here, before a merge); the wiki job below publishes them.
+      - name: Export Help for the wiki
+        if: runner.os == 'Linux'
+        run: build/JeffPub --export-help-wiki help-wiki
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: help-wiki
+          path: help-wiki
+
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -256,3 +271,31 @@ jobs:
         with:
           name: JeffPub-${{ matrix.name }}
           path: dist/JeffPub
+
+  # After a push to main, replaces the project wiki's pages with Help's (the
+  # ones the Linux build above exported); nothing is committed when they are
+  # the same. Its own job so that only this one gets a token that can write.
+  # A wiki with no first page yet is skipped with a notice, not an error.
+  wiki:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency: wiki
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/publish_help_wiki.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: help-wiki
+          path: help-wiki
+
+      - name: Publish Help to the wiki
+        run: bash tools/publish_help_wiki.sh help-wiki "https://github.com/${{ github.repository }}.wiki.git" "${GITHUB_SHA::7}"
+        env:
+          GH_TOKEN: ${{ github.token }}
