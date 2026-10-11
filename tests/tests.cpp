@@ -19584,6 +19584,42 @@ private Q_SLOTS:
         QCOMPARE(r.fontStretch(), 86);
     }
 
+    // Best Fit counts a missing font's text by the original's height, not its
+    // stand-in's: Franklin Gothic Demi's text is 1.13 em tall, Libre
+    // Franklin's 1.21, and a sign's one-line headline set at 209 pt with 125%
+    // spacing shrank to 98% for the rectangle beneath its box (its wrap
+    // distance 2.9 pt into the box) that Publisher draws it above, unshrunk.
+    void bestFitWrapsByTheOriginalsTextHeight()
+    {
+        const QString fam = QStringLiteral("Franklin Gothic Demi");
+        if (QFontDatabase::hasFamily(fam)) QSKIP("Franklin Gothic Demi is installed here");
+        auto doc = Document::blank(QSizeF(792, 612));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(54.72, 49.5, 682.56, 255);
+        t->autofit = TextItem::BestFit;
+        t->fitAsStored = true;
+        t->storyId = doc->createStory(QStringLiteral("Private"));
+        {
+            QTextCursor c(doc->storyDoc(t->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat big;
+            big.setFontFamilies(QStringList{fam});
+            big.setFontPointSize(209.09);
+            big.setFontWeight(QFont::Bold);
+            c.mergeCharFormat(big);
+            QTextBlockFormat bf;
+            bf.setLineHeight(125, QTextBlockFormat::ProportionalHeight);
+            c.mergeBlockFormat(bf);
+        }
+        doc->pages[0]->items.push_back(t);
+        auto below = std::make_shared<ShapeItem>();
+        below->rect = QRectF(47.52, 304.5, 696.96, 271.5);
+        doc->pages[0]->items.push_back(below);
+        LayoutCache cache;
+        RenderOptions opt;
+        QCOMPARE(cache.textFrame(*doc, *t, 1, opt).fitScale, 1.0);
+    }
+
     // Best fit grows text only as far as the box holds it: a banner's short
     // headline grew to fill the width, its one line three times taller than
     // the box (Publisher's banner designs fit theirs inside).
