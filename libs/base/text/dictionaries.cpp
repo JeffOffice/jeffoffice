@@ -1,5 +1,7 @@
 #include "text/dictionaries.h"
 
+#include "core/appinfo.h"
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -127,7 +129,7 @@ QString root()
 {
     static const QString dir = [] {
         const QString app = QCoreApplication::applicationDirPath();
-        QStringList dirs{app + "/dict", app + "/../share/jeffpub/dict", app + "/../dict", app + "/../Resources/dict"};
+        QStringList dirs{app + "/dict", app + "/../share/" + appInfo().fileName + "/dict", app + "/../dict", app + "/../Resources/dict"};
 #ifdef JP_SOURCE_DIR
         dirs << QStringLiteral(JP_SOURCE_DIR) + "/resources/dict";
 #endif
