@@ -44,11 +44,11 @@ QString pubDateFormat(QString f)
     return f;
 }
 
-QRectF pubPictureRect(const QSizeF &frame, double top, double bottom, double left, double right, bool pageBackground)
+QRectF pubPictureRect(const QSizeF &frame, double top, double bottom, double left, double right, bool pictureFill)
 {
     // Publisher (Oct 11): a background made from a picture with a red edge 5%
     // wide showed 17 pixels of it, not 20, at 96 dpi, whatever the page's size.
-    const double past = pageBackground ? kPubPictureFillBleed : 0;
+    const double past = pictureFill ? kPubPictureFillBleed : 0;
     const double w = (frame.width() + 2 * past) / std::max(0.01, 1 - left - right), h = (frame.height() + 2 * past) / std::max(0.01, 1 - top - bottom);
     return QRectF(-past - left * w, -past - top * h, w, h);
 }
@@ -1373,12 +1373,13 @@ private:
             }
             // Crops: the frame shows what is left after trimming each side by
             // a fraction of the picture, so the whole picture sits around it.
-            // A page's background picture sits past the page too.
-            const bool pageBackground = m_style["jp:page-background"] && m_style["jp:page-background"]->getInt();
+            // A picture used as a fill (a page's background, a see-through or
+            // shaped picture) sits past its shape too.
+            const bool pictureFill = m_style["jp:picture-fill"] && m_style["jp:picture-fill"]->getInt();
             if (m_style["jp:crop-top"]) {
                 pic->imgRect = pubPictureRect(pic->rect.size(), m_style["jp:crop-top"]->getDouble(), m_style["jp:crop-bottom"]->getDouble(),
-                                              m_style["jp:crop-left"]->getDouble(), m_style["jp:crop-right"]->getDouble(), pageBackground);
-            } else if (pageBackground) {
+                                              m_style["jp:crop-left"]->getDouble(), m_style["jp:crop-right"]->getDouble(), pictureFill);
+            } else if (pictureFill) {
                 pic->imgRect = pubPictureRect(pic->rect.size(), 0, 0, 0, 0, true);
             }
             if (m_style["jp:picture-opacity"]) pic->transparency = std::clamp(1 - m_style["jp:picture-opacity"]->getDouble(), 0.0, 1.0);
