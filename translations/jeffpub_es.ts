@@ -3903,7 +3903,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">un espacio de color RGB que JeffPub no pudo convertir</translation>
     </message>
     <message>
-        <location filename="../src/io/pubexport.cpp" line="+2285"/>
+        <location filename="../src/io/pubexport.cpp" line="+2338"/>
         <source>%1 object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">no se pudieron guardar %1 objetos en .pub</translation>
     </message>
@@ -4159,7 +4159,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Negro</translation>
     </message>
     <message>
-        <location line="+277"/>
+        <location line="+278"/>
         <source>%1  ·  Page %2 of %3  ·  %4</source>
         <translation type="unfinished">%1  ·  Página %2 de %3  ·  %4</translation>
     </message>
@@ -4216,7 +4216,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">El contenido de la publicación está dañado: %1</translation>
     </message>
     <message>
-        <location filename="../src/io/pubimport.cpp" line="+157"/>
+        <location filename="../src/io/pubimport.cpp" line="+166"/>
         <source>Embedded font &quot;%1&quot; was not imported.</source>
         <translation type="unfinished">No se importó la fuente incrustada &quot;%1&quot;.</translation>
     </message>
@@ -4226,12 +4226,12 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Solo se importó la numeración de páginas de la primera sección.</translation>
     </message>
     <message>
-        <location line="+1025"/>
+        <location line="+1045"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">No se pudo mostrar una imagen %1.</translation>
     </message>
     <message>
-        <location line="+350"/>
+        <location line="+352"/>
         <source>This is not a .pub publication file.</source>
         <translation type="unfinished">Este no es un archivo de publicación .pub.</translation>
     </message>
@@ -4408,7 +4408,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">la descarga no finalizó (%1)</translation>
     </message>
     <message>
-        <location line="+455"/>
+        <location line="+456"/>
         <source>All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</source>
         <translation type="unfinished">Todas las imágenes (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</translation>
     </message>
@@ -6371,7 +6371,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Zoom</translation>
     </message>
     <message>
-        <location filename="../src/app/ribbon.cpp" line="+452"/>
+        <location filename="../src/app/ribbon.cpp" line="+460"/>
         <source>File</source>
         <translation type="unfinished">Archivo</translation>
     </message>
@@ -8575,7 +8575,7 @@ Autoedición</translation>
         <translation type="unfinished">(Viene de la página %1)</translation>
     </message>
     <message>
-        <location line="+2735"/>
+        <location line="+2870"/>
         <source>Notes</source>
         <translation type="unfinished">Notas</translation>
     </message>
@@ -10786,7 +10786,7 @@ Origen: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="-1150"/>
+        <location filename="../src/app/mainwindow.cpp" line="-1151"/>
         <location filename="../src/app/mainwindow_actions.cpp" line="+704"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -10863,12 +10863,12 @@ Se conservan si guarda como publicación de JeffPub (.jpub).</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+847"/>
+        <location line="+848"/>
         <source>Saved %1</source>
         <translation type="unfinished">Guardado: %1</translation>
     </message>
     <message>
-        <location line="-836"/>
+        <location line="-837"/>
         <source>JeffPub Publication (*.jpub)</source>
         <translation type="unfinished">Publicación de JeffPub (*.jpub)</translation>
     </message>
@@ -10986,14 +10986,14 @@ Se conservan si guarda como publicación de JeffPub (.jpub).</translation>
         <location line="+12"/>
         <location line="+117"/>
         <location line="+44"/>
-        <location line="+62"/>
+        <location line="+63"/>
         <location line="+16"/>
         <location filename="../src/app/mainwindow_actions.cpp" line="-516"/>
         <source>Create PDF</source>
         <translation type="unfinished">Crear PDF</translation>
     </message>
     <message>
-        <location line="-354"/>
+        <location line="-355"/>
         <source>Minimum size (online viewing, pictures at 96 dpi)</source>
         <translation type="unfinished">Tamaño mínimo (visualización en línea, imágenes a 96 ppp)</translation>
     </message>
@@ -11150,7 +11150,7 @@ Se conservan si guarda como publicación de JeffPub (.jpub).</translation>
         <translation type="unfinished">JeffPub no pudo escribir &quot;%1&quot;.%2</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+63"/>
         <source>The PDF was made, but its spot colors are process colors: %1</source>
         <translation type="unfinished">Se ha creado el PDF, pero sus colores directos son colores de cuatricromía: %1</translation>
     </message>

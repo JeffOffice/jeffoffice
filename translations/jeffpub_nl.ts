@@ -3903,7 +3903,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">een RGB-kleurruimte die JeffPub niet kon converteren</translation>
     </message>
     <message>
-        <location filename="../src/io/pubexport.cpp" line="+2285"/>
+        <location filename="../src/io/pubexport.cpp" line="+2338"/>
         <source>%1 object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">%1 object(en) kon(den) niet in .pub worden opgeslagen</translation>
     </message>
@@ -4159,7 +4159,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">Zwart</translation>
     </message>
     <message>
-        <location line="+277"/>
+        <location line="+278"/>
         <source>%1  ·  Page %2 of %3  ·  %4</source>
         <translation type="unfinished">%1  ·  Pagina %2 van %3  ·  %4</translation>
     </message>
@@ -4216,7 +4216,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">De publicatie-inhoud is beschadigd: %1</translation>
     </message>
     <message>
-        <location filename="../src/io/pubimport.cpp" line="+157"/>
+        <location filename="../src/io/pubimport.cpp" line="+166"/>
         <source>Embedded font &quot;%1&quot; was not imported.</source>
         <translation type="unfinished">Het ingesloten lettertype &quot;%1&quot; is niet geïmporteerd.</translation>
     </message>
@@ -4226,12 +4226,12 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">Alleen de paginanummering van de eerste sectie is geïmporteerd.</translation>
     </message>
     <message>
-        <location line="+1025"/>
+        <location line="+1045"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Een %1-afbeelding kan niet worden weergegeven.</translation>
     </message>
     <message>
-        <location line="+350"/>
+        <location line="+352"/>
         <source>This is not a .pub publication file.</source>
         <translation type="unfinished">Dit is geen .pub-publicatiebestand.</translation>
     </message>
@@ -4408,7 +4408,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">het downloaden is niet voltooid (%1)</translation>
     </message>
     <message>
-        <location line="+455"/>
+        <location line="+456"/>
         <source>All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</source>
         <translation type="unfinished">Alle afbeeldingen (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</translation>
     </message>
@@ -6371,7 +6371,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Zoomen</translation>
     </message>
     <message>
-        <location filename="../src/app/ribbon.cpp" line="+452"/>
+        <location filename="../src/app/ribbon.cpp" line="+460"/>
         <source>File</source>
         <translation type="unfinished">Bestand</translation>
     </message>
@@ -8575,7 +8575,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+2735"/>
+        <location line="+2870"/>
         <source>Notes</source>
         <translation type="unfinished">Notities</translation>
     </message>
@@ -10786,7 +10786,7 @@ Bron: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="-1150"/>
+        <location filename="../src/app/mainwindow.cpp" line="-1151"/>
         <location filename="../src/app/mainwindow_actions.cpp" line="+704"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -10863,12 +10863,12 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+9"/>
-        <location line="+847"/>
+        <location line="+848"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
     </message>
     <message>
-        <location line="-836"/>
+        <location line="-837"/>
         <source>JeffPub Publication (*.jpub)</source>
         <translation type="unfinished">JeffPub-publicatie (*.jpub)</translation>
     </message>
@@ -10986,14 +10986,14 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <location line="+12"/>
         <location line="+117"/>
         <location line="+44"/>
-        <location line="+62"/>
+        <location line="+63"/>
         <location line="+16"/>
         <location filename="../src/app/mainwindow_actions.cpp" line="-516"/>
         <source>Create PDF</source>
         <translation type="unfinished">PDF maken</translation>
     </message>
     <message>
-        <location line="-354"/>
+        <location line="-355"/>
         <source>Minimum size (online viewing, pictures at 96 dpi)</source>
         <translation type="unfinished">Minimale grootte (online weergave, afbeeldingen op 96 dpi)</translation>
     </message>
@@ -11150,7 +11150,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <translation type="unfinished">JeffPub kan &quot;%1&quot; niet schrijven.%2</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+63"/>
         <source>The PDF was made, but its spot colors are process colors: %1</source>
         <translation type="unfinished">De PDF is gemaakt, maar de steunkleuren zijn proceskleuren: %1</translation>
     </message>
