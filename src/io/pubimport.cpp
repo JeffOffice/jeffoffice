@@ -48,7 +48,7 @@ QRectF pubPictureRect(const QSizeF &frame, double top, double bottom, double lef
 {
     // Publisher (Oct 11): a background made from a picture with a red edge 5%
     // wide showed 17 pixels of it, not 20, at 96 dpi, whatever the page's size.
-    const double past = pageBackground ? 2.5 : 0;
+    const double past = pageBackground ? kPubPictureFillBleed : 0;
     const double w = (frame.width() + 2 * past) / std::max(0.01, 1 - left - right), h = (frame.height() + 2 * past) / std::max(0.01, 1 - top - bottom);
     return QRectF(-past - left * w, -past - top * h, w, h);
 }

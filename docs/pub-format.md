@@ -194,7 +194,16 @@ focus 0, the angle 270 - *g* (0-359) for a gradient toward *g*, and the
 tertiary flag, since its gradients turn with their shapes. More
 than two colors go in 0xC197 (complex): count, count, 8, then each color
 and its position (16.16). A picture fill is 0x0180 = 3 (stretched) or 2
-(tiled) with 0x4186 = the store entry. Patterns are saved as a tiled 8 x 8
+(tiled) with 0x4186 = the store entry. Publisher draws a stretched picture
+fill 2.5 points past its shape on every side, clipped to the shape (a
+rectangle of 200 to 600 points with a picture of a red edge 5% wide showed
+17 of its 20 pixels at 96 dpi, whatever its place; a page's background is
+such a fill, and so is a picture saved see-through or cut to a shape),
+where a picture in a picture frame (0x4104) is drawn exactly to its frame.
+JeffPub saves a picture as a fill with the part showing and 2.5 points of
+picture around it (edge pixels carried on where the picture stops), so the
+frame shows what JeffPub drew; a background it opens is drawn the same 2.5
+points past the page. Patterns are saved as a tiled 8 x 8
 picture of the pattern in its colors. Line opacity is 0x01C1. A shadow is
 0x0200 = 0 (offset), 0x0201 color, 0x0204 opacity, 0x0205/0x0206 offsets
 (EMU), and 0x023F = 0x00020002. A color can also name another of the
