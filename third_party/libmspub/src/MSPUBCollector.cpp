@@ -1593,6 +1593,11 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
         if (fit != m_autofit.end())
           props.insert("jp:autofit", (int)fit->second);
       }
+      // JeffPub patch: this shape drew its own fill and outline just before its
+      // text (one object, in one layer), as against a rectangle that happens
+      // to lie behind a plain text box.
+      if (!hasBorderArt && (hasStroke || hasFill))
+        props.insert("jp:own-frame", true);
       m_painter->startTextObject(props);
       // JeffPub patch: the story's objects set in text, and its dates and
       // hyperlinks, by character position.

@@ -3810,6 +3810,42 @@ private Q_SLOTS:
                  qPrintable(QStringLiteral("line %1, margin %2").arg(merged->stroke.width).arg(merged->insets.left())));
     }
 
+    // A text box with a line of its own is one box through a save: its
+    // rectangle, margin, and line come back as they went, so JeffPub and
+    // Publisher both set the text the line's share inside the margin. (The box
+    // of a publication read before this had its top moved by half the line,
+    // and its margin given up a second time on the way back.)
+    void aTextBoxKeepsItsOwnLineThroughASave()
+    {
+        using namespace jp;
+        for (bool inset : {false, true}) {
+            auto doc = Document::blank(QSizeF(300, 200));
+            auto box = std::make_shared<TextItem>();
+            box->rect = QRectF(20, 20, 200, 100);
+            box->insets = QMarginsF(3, 3, 3, 3);
+            box->storyId = doc->createStory(QStringLiteral("Hi"));
+            box->stroke = Stroke::line(ColorRef::rgb(Qt::black), 6);
+            box->stroke.inset = inset;
+            doc->pages[0]->items.push_back(box);
+            QTemporaryDir dir;
+            const QString path = dir.filePath(QStringLiteral("own-line.pub"));
+            QString err;
+            QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+            auto back = importPublisherFile(path, &err);
+            QVERIFY2(back, qPrintable(err));
+            const TextItem *t = nullptr;
+            for (const auto &it : back->pages[0]->items)
+                if (it->type() == ItemType::Text) t = static_cast<const TextItem *>(it.get());
+            QVERIFY2(t, qPrintable(QStringLiteral("items %1, first type %2").arg(back->pages[0]->items.size()).arg(back->pages[0]->items.empty() ? -1 : int(back->pages[0]->items[0]->type()))));
+            const QString what = QStringLiteral("inset %1: rect y %2 h %3, margin %4 %5, line %6").arg(inset).arg(t->rect.y()).arg(t->rect.height()).arg(t->insets.left()).arg(t->insets.top()).arg(t->stroke.width);
+            QVERIFY2(std::abs(t->rect.y() - 20) < 0.05 && std::abs(t->rect.height() - 100) < 0.05 && std::abs(t->rect.x() - 20) < 0.05 && std::abs(t->rect.width() - 200) < 0.05,
+                     qPrintable(what));
+            QVERIFY2(std::abs(t->insets.left() - 3) < 0.02 && std::abs(t->insets.top() - 3) < 0.02 && std::abs(t->insets.right() - 3) < 0.02 && std::abs(t->insets.bottom() - 3) < 0.02,
+                     qPrintable(what));
+            QVERIFY2(std::abs(t->stroke.width - 6) < 0.01 && t->stroke.inset == inset, qPrintable(what));
+        }
+    }
+
     // A page's background picture is drawn past the page's edge, 2.5 points
     // on every side, and the picture's crops (fractions of the picture) then
     // trim that larger picture. Publisher (Oct 11), a background made from a

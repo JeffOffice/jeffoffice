@@ -217,13 +217,25 @@ Text and the line around its box: Publisher measures a text box's (or a
 shape's) text margins from the inner edge of the box's line, so the text sits
 half the line's weight further in when the line is centered on the edge, and
 all of it when the line is an inset pen. Measured Oct 11 with a text box and
-a rectangle holding text, lines of weight 1, 2, 4, 6, 8, 12, and 24 (the
-ink of a letter 0.48 pt in per point of weight, left and top alike, 12 pt in
-for an inset line of 12). The margins in the file are the plain margins
-(0x0081-0x0084), whatever the line. JeffPub's boxes are laid out so, and a
-rectangle drawn just before a text box at the same place, which JeffPub reads
-as the box's border, takes the line's share off the box's margins, since the
-text of the original sat inside no line.
+a rectangle holding text, lines of weight 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6,
+8, 12, and 24 (the ink of a letter 0.48 pt in per point of weight for a
+centered pen, 1.0 per point for an inset one, 12 pt in for an inset line of
+12; the right edge of right-aligned text moves in the same as the left edge,
+and the top moves as the left). The text frame's own bounds that COM reports
+(`Lines(n).BoundLeft`) leave the line out, so they cannot be used to measure
+this; the picture can. The margins in the file are the plain margins
+(0x0081-0x0084), whatever the line. JeffPub's boxes are laid out so.
+
+Reading it back: the library draws a text box's own fill and line as a
+rectangle just before the box's text, inside one layer, and moves the text's
+rectangle in by the line (on the top edge only, for a plain line). The reader
+tells the box's own frame (the collector marks the text `jp:own-frame`) from a
+separate rectangle that merely lies behind a plain text box. A box's own frame
+is that box, at the frame's rectangle, whatever the line's weight (a heavy
+line used to leave a group of a rectangle and a shifted box), and its margin
+stays as written. A separate rectangle drawn just before a text box at the
+same place, which JeffPub reads as the box's border, takes the line's share
+off the box's margins, since the text of the original sat inside no line.
 
 ### Picture settings and picture shapes
 
