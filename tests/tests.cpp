@@ -3423,6 +3423,56 @@ private Q_SLOTS:
         QCOMPARE(after(14.4, 13.5, QStringLiteral("g\th\ti")), QStringLiteral("28.8 43.2"));
     }
 
+    // A line with nothing in it but objects set in the text is as tall as
+    // the tallest of them inside its wrap distances: no text above or below
+    // it, so the paragraph's font size and line spacing (1.0 or more) don't
+    // change it. Publisher (Oct 11), a box 100 pt tall alone in a paragraph
+    // of 12, 36, or 72 pt Arial, single, 1.5, or double spaced: the next
+    // paragraph 2.88 + 100 + 2.88 lower; a box 20 pt tall gave 25.76, less
+    // than the text's own line. With text in the line the descent stays.
+    void inlineObjectAloneInLine()
+    {
+        using namespace jp;
+        for (double size : {12.0, 36.0})
+            for (double spacing : {100.0, 150.0})
+                for (double h : {20.0, 100.0}) {
+                    auto doc = Document::blank(QSizeF(612, 792));
+                    auto t = std::make_shared<TextItem>();
+                    t->rect = QRectF(72, 72, 200, 500);
+                    t->insets = QMarginsF(0, 0, 0, 0);
+                    t->storyId = doc->createStory(QStringLiteral("HH\n\nHH"));
+                    QTextCursor c(doc->storyDoc(t->storyId));
+                    c.select(QTextCursor::Document);
+                    QTextCharFormat cf;
+                    cf.setFontFamilies({QStringLiteral("Arial")});
+                    cf.setFontPointSize(size);
+                    c.mergeCharFormat(cf);
+                    QTextBlockFormat bf;
+                    bf.setTopMargin(0);
+                    bf.setBottomMargin(0);
+                    bf.setLineHeight(spacing, QTextBlockFormat::ProportionalHeight);
+                    c.mergeBlockFormat(bf);
+                    ShapeItem box;
+                    box.rect = QRectF(400, 600, 24, h);
+                    c.setPosition(3);   // the empty second paragraph
+                    QTextCharFormat of = c.charFormat();
+                    of.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(box.toJson()).toJson(QJsonDocument::Compact)));
+                    c.insertText(QString(QChar::ObjectReplacementCharacter), of);
+                    doc->pages[0]->items = {t};
+                    LayoutCache cache;
+                    const auto fl = cache.textFrame(*doc, *t, 1, RenderOptions());
+                    const auto info = fl.layout->lineInfo(0);
+                    const QString what = QStringLiteral("size %1 spacing %2 h %3").arg(size).arg(spacing).arg(h);
+                    QCOMPARE(int(info.size()), 3);
+                    const double line = 2.88 + h + 2.88;
+                    QVERIFY2(std::abs(info[2].rect.top() - info[1].rect.top() - line) < 0.05, qPrintable(what + QStringLiteral(": the next line starts %1 below").arg(info[2].rect.top() - info[1].rect.top())));
+                    QVERIFY2(std::abs(info[1].baseline - (info[1].rect.top() + line)) < 0.05, qPrintable(what + QStringLiteral(": baseline %1").arg(info[1].baseline - info[1].rect.top())));
+                    const auto objects = fl.layout->inlineObjects();
+                    QCOMPARE(int(objects.size()), 1);
+                    QVERIFY2(std::abs(objects[0].rect.top() - (info[1].rect.top() + 2.88)) < 0.05, qPrintable(what));
+                }
+    }
+
     // The default is saved in a .pub file's text stream (its SGP section, a
     // property block with 00:22 in EMU, left empty at 36 points: found in
     // Publisher's files and in ones it saved with several settings), kept by
