@@ -223,5 +223,9 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
 // in Qt's letters: a .pub date field's format number is the place here plus 1.
 const QStringList &dateTimeFormats();
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env);
+// How many outlines of fitted bullets (a missing symbol font's stand-in glyph
+// scaled to Publisher's box) have been made, for the test that shows they are
+// kept between paints.
+int fittedMarkerOutlinesBuiltForTest();
 
 } // namespace jp

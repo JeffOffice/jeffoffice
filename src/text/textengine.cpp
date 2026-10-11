@@ -438,32 +438,55 @@ void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, cons
     drawFine(p, baseline - QPointF(0, line.ascent() / kFine), line.glyphRuns());
 }
 
+static int s_fittedOutlinesBuilt = 0;
+int fittedMarkerOutlinesBuiltForTest() { return s_fittedOutlinesBuilt; }
+
+// The outline of `text` in `font`, scaled to fill a box `size` large with its
+// corner at the origin; empty if the font has nothing for it. Made once for
+// each font, text, and box: a page of bullets is painted again at every change.
+static QPainterPath fittedGlyphOutline(const QFont &font, const QString &text, const QSizeF &size)
+{
+    static QHash<QString, QPainterPath> cache;   // main thread only, like all layout
+    QFont f = font;
+    f.setPointSizeF(100);
+    const QString key = f.key() + QLatin1Char('|') + text + QLatin1Char('|') + QString::number(size.width(), 'f', 3) + QLatin1Char('x') + QString::number(size.height(), 'f', 3);
+    if (const auto it = cache.constFind(key); it != cache.constEnd()) return *it;
+    ++s_fittedOutlinesBuilt;
+    QPainterPath glyph, fitted;
+    glyph.addText(QPointF(), f, text);
+    const QRectF b = glyph.boundingRect();
+    if (b.width() > 0 && b.height() > 0) {
+        QTransform t;
+        t.scale(size.width() / b.width(), size.height() / b.height());
+        t.translate(-b.left(), -b.top());
+        fitted = t.map(glyph);
+    }
+    if (cache.size() >= 256) cache.clear();
+    cache.insert(key, fitted);
+    return fitted;
+}
+
 // A bullet drawn to the box Publisher's glyph fills, whose origin is `at` on
 // the baseline: a circle, or the glyph the font has for it scaled to fit (a
 // missing symbol font's stand-in, whose own size and place don't match).
 static void drawFittedMarker(QPainter *p, const QPointF &at, const QFont &font, const QString &text, const QRectF &ink, bool round, const QColor &color)
 {
     const QRectF box = ink.translated(at);
-    QPainterPath path;
     if (round) {
-        path.addEllipse(box);
-    } else {
-        QFont f = font;
-        f.setPointSizeF(100);
-        QPainterPath glyph;
-        glyph.addText(QPointF(), f, text);
-        const QRectF b = glyph.boundingRect();
-        if (b.width() <= 0 || b.height() <= 0) {
-            drawPlainText(p, at, font, text);
-            return;
-        }
-        QTransform t;
-        t.translate(box.left(), box.top());
-        t.scale(box.width() / b.width(), box.height() / b.height());
-        t.translate(-b.left(), -b.top());
-        path = t.map(glyph);
+        QPainterPath circle;
+        circle.addEllipse(box);
+        p->fillPath(circle, color);
+        return;
     }
-    p->fillPath(path, color);
+    const QPainterPath fitted = fittedGlyphOutline(font, text, box.size());
+    if (fitted.isEmpty()) {
+        drawPlainText(p, at, font, text);
+        return;
+    }
+    p->save();
+    p->translate(box.topLeft());
+    p->fillPath(fitted, color);
+    p->restore();
 }
 
 // ---------- formats ----------
