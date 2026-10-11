@@ -1795,7 +1795,7 @@ QByteArray PubWriter::write(QStringList *skipped)
             if (it->type() == ItemType::Shape) {
                 auto *s = static_cast<const ShapeItem *>(it.get());
                 const auto stx = shapeText.constFind(s->id);
-                const bool hasText = stx != shapeText.cend();
+                const bool holdsText = stx != shapeText.cend();
                 // Publisher's own shape when it has one (at its standard
                 // handle settings); otherwise the exact outline as a freeform.
                 const ShapeDef *def = shapeDef(s->shape);
@@ -1803,10 +1803,12 @@ QByteArray PubWriter::write(QStringList *skipped)
                 bool atDefaults = def && adj.size() == def->defaults.size();
                 for (int k = 0; atDefaults && k < adj.size(); ++k) atDefaults = std::abs(adj[k] - def->defaults[k]) < 1e-6;
                 int st = s->customPath.isEmpty() && atDefaults ? pubShapeType(s->shape) : -1;
-                // Text sits in a rectangle's or a freeform's whole box, so other
-                // shapes holding text are written as freeforms with margins
-                // that put the text where JeffPub does.
-                if (hasText && st != 1) st = -1;
+                // Publisher's rectangle holds text itself. Its other shapes and
+                // its freeforms do not (a freeform has no text frame, and a file
+                // with a text id in one won't open), so the text of any other
+                // shape goes in a text box over it, set where JeffPub sets it.
+                const bool overlay = holdsText && st != 1;
+                const bool hasText = holdsText && !overlay;
                 const bool open = s->customPath.isEmpty() && def && def->open;
                 QPainterPath outline;
                 if (st < 0) {
@@ -1850,7 +1852,10 @@ QByteArray PubWriter::write(QStringList *skipped)
                 wrapField(body, s);
                 body << bytesB(0x0c, 0x28, {}) << bytesB(0x0d, 0x28, {});
                 if (hasText) body << u32(0x27, quint32(stx->first));
-                body << u32(0x34, 0);
+                // Publisher refuses a shape holding text whose chunk has the text
+                // direction field at 0, and a text box leaves it out too unless
+                // its text runs top to bottom.
+                if (!hasText) body << u32(0x34, 0);
                 if (hasText && s->valign != VAlign::Top) body << u32(0x35, s->valign == VAlign::Middle ? 1 : 2);
                 body << u32(0xaa, quint32(emu(box.width()))) << u32(0xab, quint32(emu(box.height()))) << u32(0xb7, 0);
                 cw.put(seq, {0x01, surfaceSeq[pi], body});
@@ -1883,6 +1888,32 @@ QByteArray PubWriter::write(QStringList *skipped)
                 sp += clientBlocks(0xf011, {ref(0x01, seq, 0x68)});
                 if (hasText) sp += clientBlocks(0xf00d, {u32(0x01, quint32(stx->first))});
                 finish(seq, sp);
+                if (overlay) {
+                    // The text area JeffPub sets the text in (the preset's own text
+                    // rectangle, or the whole frame of an edited shape), with the
+                    // margins and the line's share, as a box turned with the shape.
+                    const QRectF tr = s->customPath.isEmpty() ? shapeTextRect(s->shape, s->rect.size(), s->adj) : QRectF(QPointF(), s->rect.size());
+                    const QSizeF size(std::max(tr.width(), 1.0), std::max(tr.height(), 1.0));
+                    QPointF center = s->rect.topLeft() + tr.center();
+                    if (std::abs(s->rotation) > 1e-9) {
+                        const QPointF c = s->rect.center();
+                        center = c + QTransform().rotate(s->rotation).map(center - c);
+                    }
+                    auto tb = std::make_shared<TextItem>();
+                    tb->id = newId();
+                    tb->rect = QRectF(center - QPointF(size.width() / 2, size.height() / 2), size);
+                    tb->rotation = s->rotation;
+                    tb->storyId = s->storyId;
+                    const double d = s->stroke.textShift();
+                    tb->insets = s->insets + QMarginsF(d, d, d, d);
+                    tb->valign = s->valign;
+                    tb->fill = Fill::none();
+                    tb->stroke = Stroke::none();
+                    tb->wrap = s->wrap;
+                    chainPos[tb->id] = qMakePair(stx->first, 0);
+                    m_frames[stx->second][0] = Frame{tb->rect, tb->insets, false};
+                    visit(tb);
+                }
                 return;
             }
             if (it->type() == ItemType::Line) {

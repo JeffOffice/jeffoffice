@@ -3893,6 +3893,112 @@ private Q_SLOTS:
         QVERIFY(seen >= 1);   // the text box (the rectangle, with no fill and no line, draws nothing)
     }
 
+    // Publisher refuses ("cannot open the file") a publication with a shape
+    // holding text whose shape chunk carries the text direction field (34) at
+    // 0: every build saved one so since shapes could hold text (Oct 5), and
+    // the saves of a rectangle, a star, and a callout with text all failed
+    // alone (Oct 11). Without the field the file opens and the text sits
+    // where JeffPub puts it. A text box leaves the field out unless its text
+    // runs top to bottom, and so does a shape holding text.
+    void aShapeHoldingTextHasNoTextDirectionField()
+    {
+        using namespace jp;
+        auto doc = Document::blank(QSizeF(300, 200));
+        auto sh = std::make_shared<ShapeItem>();
+        sh->shape = QStringLiteral("rect");
+        sh->rect = QRectF(20, 20, 200, 100);
+        sh->fill = Fill::solid(ColorRef::rgb(QColor(250, 220, 120)));
+        sh->stroke = Stroke::line(ColorRef::rgb(Qt::black), 1);
+        sh->storyId = doc->createStory(QStringLiteral("Text in a rectangle"));
+        doc->pages[0]->items.push_back(sh);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("shape-text.pub"));
+        QString err;
+        QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+        const QByteArray c = cfb::readStream(path, QStringLiteral("Contents"));
+        // The shape chunk's text id block (27:20) with the field after it (34:20).
+        int ids = 0, withDirection = 0;
+        for (qsizetype at = c.indexOf(QByteArray::fromHex("2720")); at >= 0; at = c.indexOf(QByteArray::fromHex("2720"), at + 1)) {
+            if (c.size() < at + 8) break;
+            ++ids;
+            if (c.mid(at + 6, 2) == QByteArray::fromHex("3420")) ++withDirection;
+        }
+        QVERIFY2(ids >= 1, "the shape's text id");
+        QVERIFY2(withDirection == 0, qPrintable(QStringLiteral("%1 of %2 text ids are followed by a 34:20 field").arg(withDirection).arg(ids)));
+        // A box whose text runs top to bottom keeps it.
+        auto doc2 = Document::blank(QSizeF(300, 200));
+        auto tb = std::make_shared<TextItem>();
+        tb->rect = QRectF(20, 20, 40, 150);
+        tb->storyId = doc2->createStory(QStringLiteral("Spine"));
+        tb->vertical = true;
+        doc2->pages[0]->items.push_back(tb);
+        const QString path2 = dir.filePath(QStringLiteral("spine.pub"));
+        QVERIFY2(exportPublisher(*doc2, path2, &err), qPrintable(err));
+        const QByteArray c2 = cfb::readStream(path2, QStringLiteral("Contents"));
+        QVERIFY(c2.contains(QByteArray::fromHex("342002000000")));
+    }
+
+    // Publisher's freeforms hold no text (COM: HasTextFrame is 0 for one), and
+    // it refuses a file with a freeform that has a text id, as JeffPub saved
+    // a star, a callout, or any shape other than a rectangle that held text
+    // (Oct 11: "cannot open the file"). Such a shape is saved as the shape and
+    // a text box over it, set where JeffPub sets the shape's text.
+    void aShapeOtherThanARectangleHoldingTextIsSavedWithATextBox()
+    {
+        using namespace jp;
+        for (const QString kind : {QStringLiteral("star5"), QStringLiteral("wedgeRoundRectCallout"), QStringLiteral("ellipse")}) {
+            for (double angle : {0.0, 30.0}) {
+                auto doc = Document::blank(QSizeF(400, 300));
+                auto sh = std::make_shared<ShapeItem>();
+                sh->shape = kind;
+                sh->rect = QRectF(60, 40, 250, 150);
+                sh->rotation = angle;
+                sh->fill = Fill::solid(ColorRef::rgb(QColor(250, 220, 120)));
+                sh->stroke = Stroke::line(ColorRef::rgb(Qt::black), 2);
+                sh->valign = VAlign::Top;
+                sh->storyId = doc->createStory(QStringLiteral("Words in the shape"));
+                doc->pages[0]->items.push_back(sh);
+                // Where JeffPub sets the first line: its left edge's page position.
+                LayoutCache cache;
+                PaintContext ctx;
+                ctx.doc = doc.get();
+                ctx.cache = &cache;
+                QPointF origin;
+                const auto lay = Renderer::shapeTextLayout(ctx, *sh, &origin);
+                QVERIFY(lay);
+                const QPointF want = sh->rect.topLeft() + origin + lay->lineInfo(0)[0].rect.topLeft();   // origin is in the shape's frame
+                QTemporaryDir dir;
+                const QString path = dir.filePath(QStringLiteral("shape-text.pub"));
+                QString err;
+                QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+                auto back = importPublisherFile(path, &err);
+                QVERIFY2(back, qPrintable(err));
+                int shapes = 0, boxes = 0;
+                const TextItem *box = nullptr;
+                walkItems(back->pages[0]->items, [&](const ItemPtr &it) {
+                    if (it->type() == ItemType::Shape) {
+                        ++shapes;
+                        QVERIFY2(static_cast<const ShapeItem *>(it.get())->storyId.isEmpty(), "the shape holds no text");
+                    }
+                    if (it->type() == ItemType::Text) {
+                        ++boxes;
+                        box = static_cast<const TextItem *>(it.get());
+                    }
+                });
+                QVERIFY2(shapes == 1 && boxes == 1, qPrintable(QStringLiteral("%1 angle %2: %3 shapes, %4 text boxes").arg(kind).arg(angle).arg(shapes).arg(boxes)));
+                QCOMPARE(back->storyDoc(box->storyId)->toPlainText(), QStringLiteral("Words in the shape"));
+                QVERIFY2(std::abs(box->rotation - angle) < 0.5, qPrintable(QString::number(box->rotation)));
+                if (angle == 0) {
+                    LayoutCache cache2;
+                    const auto frame = cache2.textFrame(*back, *box, 1, RenderOptions());
+                    const QPointF got = box->rect.topLeft() + frame.layout->lineInfo(0)[0].rect.topLeft();
+                    QVERIFY2(std::abs(got.x() - want.x()) < 0.3 && std::abs(got.y() - want.y()) < 0.3,
+                             qPrintable(QStringLiteral("%1: first line at %2,%3, JeffPub sets it at %4,%5").arg(kind).arg(got.x()).arg(got.y()).arg(want.x()).arg(want.y())));
+                }
+            }
+        }
+    }
+
     // A page's background picture is drawn past the page's edge, 2.5 points
     // on every side, and the picture's crops (fractions of the picture) then
     // trim that larger picture. Publisher (Oct 11), a background made from a
