@@ -928,13 +928,19 @@ const QHash<quint32, double> *originalKerning(const QString &family, bool bold, 
     return nullptr;
 }
 
+bool originalBoldAlwaysByHand(const QString &family)
+{
+    const QString f = family.toLower();
+    return f == QLatin1String("arial black") || f == QLatin1String("rockwell extra bold");
+}
+
 bool originalBoldByHand(const QString &family, bool boldSet)
 {
     const QString f = family.toLower();
     // These two are stroked whether or not bold is set (in all 85 runs of
     // them in Publisher's PDFs); a "Bold" font is already bold, and Lucida's
     // bold is its Demibold face.
-    if (f == QLatin1String("arial black") || f == QLatin1String("rockwell extra bold")) return true;
+    if (originalBoldAlwaysByHand(family)) return true;
     if (!boldSet || f == QLatin1String("script mt bold") || f.startsWith(QLatin1String("lucida"))) return false;
     // From the faces fontwidths.txt measures: a family listed with no bold
     // (or bold italic) one has none.

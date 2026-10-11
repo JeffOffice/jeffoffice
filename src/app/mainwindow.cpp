@@ -1011,6 +1011,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     ctx.doc = d;
     ctx.cache = &m_ed->cache();
     ctx.opt.output = true;
+    ctx.opt.textOutput = TextOutput::Pdf;
     ctx.opt.flattenTransparency = s.archival || (s.pdfx && !x4);   // PDF/A-1 and PDF/X-1a allow no transparency
     ctx.opt.maxImageDpi = s.preset == PdfSettings::Minimum ? 96 : s.preset == PdfSettings::Standard ? 150 : s.preset == PdfSettings::HighQuality ? 300 : 0;
     PrinterMarks marks;

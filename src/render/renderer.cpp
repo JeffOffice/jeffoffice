@@ -661,6 +661,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         PaintOptions po;
         po.shadeFields = ctx.opt.shadeFields;
         po.showSpecial = ctx.opt.showSpecial;
+        po.output = ctx.opt.textOutput;
         const QVector<TextItem *> chain = ctx.doc->chainOf(t.id);
         const QString sid = chain.isEmpty() ? t.storyId : chain.first()->storyId;
         if (ctx.opt.editStory == sid) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
@@ -812,6 +813,7 @@ static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
             PaintOptions po;
             po.shadeFields = ctx.opt.shadeFields;
             po.showSpecial = ctx.opt.showSpecial;
+            po.output = ctx.opt.textOutput;
             if (ctx.opt.editStory == s.storyId) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
             p->save();
             p->translate(origin);
@@ -902,6 +904,7 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
                 PaintOptions po;
                 po.shadeFields = ctx.opt.shadeFields;
                 po.showSpecial = ctx.opt.showSpecial;
+                po.output = ctx.opt.textOutput;
                 if (ctx.opt.editStory == c.halfStory(half)) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
                 p->save();
                 p->translate(cr.topLeft());
