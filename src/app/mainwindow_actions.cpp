@@ -1507,11 +1507,13 @@ void MainWindow::createActions()
                             joinHalves(m_ed->doc(), cell);
                             continue;
                         }
+                        const bool wasDivided = cell.diagonal != 0;
                         cell.diagonal = diagonal;
                         // The first half keeps the cell's text; the second starts empty.
                         if (cell.storyId2.isEmpty() && !cell.covered) cell.storyId2 = m_ed->doc()->createStory();
-                        // The line takes the cell's top border, or is a thin line in the main color.
-                        cell.diagonalLine = cell.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : cell.border.top;
+                        // A cell being divided gets a line that takes its top border, or is a thin line in the main
+                        // color; one already divided keeps its line when the direction changes.
+                        if (!wasDivided) cell.diagonalLine = cell.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : cell.border.top;
                     }
                 m_ed->fitTableRows(t);   // the halves' words may now be in one place
                 dropUnusedStories(m_ed->doc());

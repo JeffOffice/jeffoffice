@@ -14207,6 +14207,37 @@ private Q_SLOTS:
         QCOMPARE(text(table()->cell(0, 1).storyId2), QStringLiteral("Two"));
     }
 
+    // A cell already divided keeps its line when the direction changes: a line set to red and thick stays so, a
+    // division with no line (a .pub file's can be) is not given one, and a cell not yet divided gets the default.
+    void tableChangingTheDivisionKeepsItsLine()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 300, 100), 1, 3);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        table()->cell(0, 0).diagonal = 1;
+        table()->cell(0, 0).diagonalLine = jp::Stroke::line(jp::ColorRef::rgb(Qt::red), 3);
+        table()->cell(0, 0).storyId2 = ed->doc()->createStory();
+        table()->cell(0, 1).diagonal = 1;
+        table()->cell(0, 1).diagonalLine = jp::Stroke::none();
+        table()->cell(0, 1).storyId2 = ed->doc()->createStory();
+        ed->selectCells(id, 0, 0, 0, 2);
+        w.act(QStringLiteral("tbl.diagUp"))->trigger();
+        for (int c = 0; c < 3; ++c) QCOMPARE(table()->cell(0, c).diagonal, 2);
+        QCOMPARE(table()->cell(0, 0).diagonalLine.width, 3.0);
+        QCOMPARE(table()->cell(0, 0).diagonalLine.color.toString(), jp::ColorRef::rgb(Qt::red).toString());
+        QVERIFY(table()->cell(0, 1).diagonalLine.isNone());
+        QVERIFY(!table()->cell(0, 2).diagonalLine.isNone());
+        QCOMPARE(table()->cell(0, 2).diagonalLine.width, 0.75);
+        // Taking the division away and dividing again starts over.
+        w.act(QStringLiteral("tbl.diagNone"))->trigger();
+        w.act(QStringLiteral("tbl.diagDown"))->trigger();
+        QCOMPARE(table()->cell(0, 0).diagonalLine.width, 0.75);
+        QVERIFY(!table()->cell(0, 1).diagonalLine.isNone());
+    }
+
     // Line spacing in points, as Publisher sets it (measured in its PDFs of 10 and 24 point text in Times New
     // Roman, Arial, and Calibri, every value from 1 to 30 points): "Exactly" spaces the lines by the value
     // whatever the text, with the baseline one descent above the bottom of the line, or, when the line is
