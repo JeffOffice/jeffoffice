@@ -19507,6 +19507,45 @@ private Q_SLOTS:
         QCOMPARE(wave->mp_defaultAdjustValues[0], 2809);
     }
 
+    // A missing stock font that Publisher kerns by no pairs isn't kerned by
+    // its stand-in's either: Century Schoolbook Bold's "Wa" is as wide as its
+    // two letters (TeX Gyre Schola closes them up by 0.07 em), and so is
+    // Book Antiqua's "AV" (TeX Gyre Pagella, 0.14 em).
+    void missingFontsWithoutPairsDontKern()
+    {
+        struct Case { const char *family; bool bold; char16_t a, b; };
+        int checked = 0;
+        for (const Case &k : {Case{"Century Schoolbook", true, u'W', u'a'}, Case{"Book Antiqua", false, u'A', u'V'}}) {
+            const QString fam = QString::fromLatin1(k.family);
+            if (QFontDatabase::hasFamily(fam)) continue;
+            const QHash<char16_t, double> *widths = jp::originalLetterWidths(fam, k.bold, false);
+            QVERIFY(widths && !jp::originalKerning(fam, k.bold, false));
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{fam});
+            cf.setFontPointSize(100);
+            if (k.bold) cf.setFontWeight(QFont::Bold);
+            c.insertText(QString(QChar(k.a)) + QChar(k.b), cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(2000, 400);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            auto x = [&](int pos) {
+                int frame = -1;
+                QRectF r;
+                lay.caretRect(pos, &frame, &r);
+                return r.x();
+            };
+            const double want = (widths->value(k.a) + widths->value(k.b)) * 100;
+            QVERIFY2(std::abs(x(2) - x(0) - want) < 0.5, qPrintable(QStringLiteral("%1: %2, not %3").arg(fam).arg(x(2) - x(0)).arg(want)));
+            ++checked;
+        }
+        if (!checked) QSKIP("the fonts are installed here");
+    }
+
     // Best fit grows text only as far as the box holds it: a banner's short
     // headline grew to fill the width, its one line three times taller than
     // the box (Publisher's banner designs fit theirs inside).

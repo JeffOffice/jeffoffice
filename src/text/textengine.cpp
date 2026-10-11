@@ -1208,10 +1208,15 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
             nit = needed.insert(nk, worst > 0.004);
         }
         const auto space = table->constFind(u' ');
+        // Kerning (from the size it applies at) is the original's pairs: a
+        // font measured to have none doesn't kern, whatever its stand-in does.
+        const bool kerns = plain.kerning();
+        const QHash<quint32, double> *kerning = kerns ? originalKerning(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1")) : nullptr;
         if (!*nit) {
             // Letters alike: only the space, by word spacing.
             QTextLayout::FormatRange x = r;
             if (space != table->constEnd()) x.format.setFontWordSpacing(r.format.fontWordSpacing() + *space * em - adv(QLatin1Char(' ')));
+            if (kerns && !kerning) x.format.setFontKerning(false);
             out << x;
             continue;
         }
@@ -1232,9 +1237,7 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
             if (!first && !c.isSpace()) shift[i - r.start] = diff[i - r.start] / 2;
             first = false;
         }
-        // Kerning (from the size it applies at) is the original's pairs too,
-        // taken into the spacing; the pieces don't kern by the stand-in's.
-        const QHash<quint32, double> *kerning = plain.kerning() ? originalKerning(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1")) : nullptr;
+        // Its pairs are taken into the spacing; the pieces don't kern by the stand-in's.
         for (int i = r.start, next = -1; i < end; ++i) {
             if (transparent(disp[i])) continue;
             next = i + 1;
@@ -1263,7 +1266,7 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
             x.length = to - pieceStart;
             x.format.setFontLetterSpacingType(QFont::AbsoluteSpacing);
             x.format.setFontLetterSpacing(base + pieceDelta);
-            if (kerning) x.format.setFontKerning(false);
+            if (kerns) x.format.setFontKerning(false);
             out << x;
         };
         for (int i = r.start, prev = -1; i < end; ++i) {
