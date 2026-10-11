@@ -19,4 +19,4 @@ JeffPub checks spelling and hyphenates with these dictionaries from the [LibreOf
 | `pt_BR` | Brazilian Portuguese spelling and hyphenation (from [VERO](http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/)) | LGPL-3.0 or MPL (`README_pt_BR.txt`, `README_hyph_pt_BR.txt`, `README_en.txt`) |
 | `pt_PT` | European Portuguese spelling and hyphenation | GPL-2.0+ (`LICENSES.txt`, `README_pt_PT.txt`, `README_hyph_pt_PT.txt`) |
 
-Which dictionary checks a piece of text follows the language set on it (Review > Language). Text in a language without a dictionary here isn't checked or hyphenated. The table of languages and files is in `src/text/dictionaries.cpp`.
+Which dictionary checks a piece of text follows the language set on it (Review > Language). Text in a language without a dictionary here isn't checked or hyphenated. The table of languages and files is in `libs/base/text/dictionaries.cpp`.

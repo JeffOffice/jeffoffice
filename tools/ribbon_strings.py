@@ -2,7 +2,7 @@
 """Lists the ribbon's text for translators.
 
 The ribbon's labels live in resources/ribbon.json, where Qt's lupdate can't
-see them. This writes src/app/ribbon_strings.cpp, which marks each one with
+see them. This writes apps/pub/app/ribbon_strings.cpp, which marks each one with
 QT_TRANSLATE_NOOP("Ribbon", ...) so lupdate gathers them; the ribbon builder
 translates them with the same context. Run it after changing the file's
 text (the test ribbonStringsListed checks that it's current):
@@ -43,7 +43,7 @@ def main():
     for s in sorted(found):
         lines.append('    QT_TRANSLATE_NOOP("Ribbon", %s),' % json.dumps(s, ensure_ascii=False))
     lines.append("};")
-    with open(os.path.join(ROOT, "src", "app", "ribbon_strings.cpp"), "w", encoding="utf-8", newline="\n") as f:
+    with open(os.path.join(ROOT, "apps", "pub", "app", "ribbon_strings.cpp"), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
     print(len(found), "strings")
 

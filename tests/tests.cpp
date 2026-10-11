@@ -8205,13 +8205,13 @@ private Q_SLOTS:
     }
 
     // The ribbon's text, in resources/ribbon.json where lupdate can't see
-    // it, is listed for translators in src/app/ribbon_strings.cpp; this
+    // it, is listed for translators in apps/pub/app/ribbon_strings.cpp; this
     // keeps that list current (run tools/ribbon_strings.py).
     void ribbonStringsListed()
     {
         QFile json(QStringLiteral(":/ribbon.json"));
         QVERIFY(json.open(QIODevice::ReadOnly));
-        QFile listed(QStringLiteral(JP_TEST_DATA "/../../src/app/ribbon_strings.cpp"));
+        QFile listed(QStringLiteral(JP_TEST_DATA "/../../apps/pub/app/ribbon_strings.cpp"));
         QVERIFY(listed.open(QIODevice::ReadOnly | QIODevice::Text));
         const QString have = QString::fromUtf8(listed.readAll());
         QStringList missing;

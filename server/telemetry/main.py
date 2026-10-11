@@ -1,6 +1,6 @@
 """JeffPub's anonymous usage statistics: the collector and its stats page.
 
-The app sends at most one ping a day (see src/app/telemetry.cpp), unless the
+The app sends at most one ping a day (see libs/shell/app/telemetry.cpp), unless the
 person using it turned this off:
 
     POST /v1/ping  {"install": "<random UUID>", "version": "0.1.37",

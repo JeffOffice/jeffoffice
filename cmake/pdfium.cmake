@@ -1,4 +1,4 @@
-# PDFium, for placing PDF pages as vector graphics (src/render/pdfpage.cpp).
+# PDFium, for placing PDF pages as vector graphics (libs/base/render/pdfpage.cpp).
 # The prebuilt library from bblanchon/pdfium-binaries, downloaded once into
 # the build tree and checked against its published SHA-256. Its license
 # texts (PDFium's and those of the libraries built into it) are in
