@@ -25,7 +25,7 @@ To turn this off, clear **AutoFormat as you type** on the **Proofing** tab of **
 
 ## What tab stops are
 
-A tab stop is a place on the line where text jumps when you press the Tab key. If you set none, Tab jumps to the next half inch from the left edge of the text. If the text after a Tab does not fit on the line, the Tab and that text move to the start of the next line together, as long as the first word fits there after the Tab's stop. If it does not, the Tab stays at the end of the line and the text starts the next line at the paragraph's left edge. A stop can be one of four kinds:
+A tab stop is a place on the line where text jumps when you press the Tab key. If you set none, Tab jumps to the next default tab stop. Those are a half inch apart, counting from the left edge of the text, unless you change them (see **Change the default tab stops** below). If the text after a Tab does not fit on the line, the Tab and that text move to the start of the next line together, as long as the first word fits there after the Tab's stop. If it does not, the Tab stays at the end of the line and the text starts the next line at the paragraph's left edge. A stop can be one of four kinds:
 
 - **Left:** the text starts at the stop.
 - **Center:** the text is centered on the stop.
@@ -34,7 +34,7 @@ A tab stop is a place on the line where text jumps when you press the Tab key. I
 
 A stop can also have a leader. That is a row of dots, dashes, a line, or bullets that fills the gap before the stop. A menu line like "Soup ....... $4.50" is a right tab with a dot leader.
 
-Tab stops belong to paragraphs. They count from the left edge of the text, inside the box's margin.
+Tab stops belong to paragraphs. They count from the left edge of the text, inside the box's margin. The default tab stops are the one exception: they belong to the whole publication.
 
 ## Set tab stops on the ruler
 
@@ -53,6 +53,16 @@ Tab stops belong to paragraphs. They count from the left edge of the text, insid
 **Delete** removes the selected row. **Clear All** removes every stop.
 
 In a table cell, the Tab key moves to the next cell instead. See [Make and edit tables](tables).
+
+## Change the default tab stops
+
+Where a paragraph has no tab stops of its own, the Tab key jumps to the next default tab stop. They start out a half inch apart, and one setting spaces them for every paragraph in the publication.
+
+1. Open the **Paragraph** dialog and click its **Tabs** tab, as described above. You do not need to select any text first.
+2. Under the list of stops, type a distance in **Default tab stops**. It can be anything from 1 point to 1,584 points (22 inches). The box uses the measurement units you chose in **File > Options**, and you can type a unit, such as 1 cm.
+3. Click **OK**.
+
+All the text that uses default stops moves to the new spacing at once, and **Undo** puts the old spacing back. The publication keeps the setting when you save it, as a JeffPub file or as a .pub file. Stops you set yourself, on the ruler or with **Add**, stay where you put them.
 
 ## Related
 

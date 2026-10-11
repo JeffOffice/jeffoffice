@@ -775,6 +775,13 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
     QObject::connect(clrTab, &QPushButton::clicked, t3, [&] { tabList->setRowCount(0); });
     f3->addWidget(tabList);
     f3->addLayout(trow);
+    // The publication's default tab stops, for every paragraph without stops of its own (Publisher takes 1 to 1,584 points).
+    auto *defaultTab = measure(ed->doc()->defaultTabStop, t3, 1, 1584);
+    defaultTab->setObjectName(QStringLiteral("defaultTabStop"));
+    defaultTab->setAccessibleName(QCoreApplication::translate("Dialogs", "Default tab stops"));
+    auto *defaultRow = new QFormLayout();
+    defaultRow->addRow(QCoreApplication::translate("Dialogs", "Default tab stops:"), defaultTab);
+    f3->addLayout(defaultRow);
     tabs->addTab(t3, QCoreApplication::translate("Dialogs", "Tabs"));
     tabs->setCurrentIndex(std::clamp(tab, 0, 2));
     dlg.v->addWidget(tabs);
@@ -819,7 +826,27 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
     }
     f.setTabPositions(newTabs);
     f.setProperty(tp::TabLeaders, newLeaders);
-    ed->mergeBlockFormat(f, QCoreApplication::translate("Dialogs", "Paragraph"));
+    if (std::abs(defaultTab->value() - ed->doc()->defaultTabStop) < 1e-4) {
+        ed->mergeBlockFormat(f, QCoreApplication::translate("Dialogs", "Paragraph"));
+        return;
+    }
+    // The publication's default tab stops move with the paragraph's changes as one step.
+    ed->change(QCoreApplication::translate("Dialogs", "Default Tab Stops"), [&] {
+        ed->mergeBlockFormat(f, QCoreApplication::translate("Dialogs", "Paragraph"));
+        ed->doc()->defaultTabStop = defaultTab->value();
+        // Boxes that grow to fit their text, and table rows, follow words that now wrap differently.
+        auto hasTab = [&](const QString &story) {
+            const QTextDocument *sd = ed->doc()->storyDoc(story);
+            return sd && sd->toPlainText().contains(QLatin1Char('\t'));
+        };
+        ed->doc()->forEachItem([&](Item *it, int, const QString &) {
+            if (auto *t = dynamic_cast<TextItem *>(it)) {
+                if (t->autofit == TextItem::GrowBox && hasTab(t->storyId)) ed->autoGrowText(t);
+            } else if (auto *tb = dynamic_cast<TableItem *>(it)) {
+                if (std::any_of(tb->cells.begin(), tb->cells.end(), [&](const TableCell &c) { return hasTab(c.storyId) || hasTab(c.storyId2); })) ed->fitTableRows(tb);
+            }
+        });
+    });
 }
 
 // ---------------- Bullets and Numbering ----------------
