@@ -84,7 +84,8 @@ public:
     // to a polygon of a few dozen points in frame-local coordinates.
     static QPolygonF defaultWrapPolygon(const Document &doc, const Item &it);
     static QPainterPath textArtOutline(const TextArtItem &w);
-    static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize);
+    // shown: a picture drawn into pixels smaller than it is comes back at that size, each pixel the average of those it covers.
+    static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF());
     static QImage renderToImage(const PaintContext &ctx, int pageIndex, double scale, bool transparent = false);
     static QImage renderItemsToImage(const PaintContext &ctx, const ItemList &items, double scale);
 
