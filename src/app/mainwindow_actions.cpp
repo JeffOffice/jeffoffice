@@ -1453,6 +1453,7 @@ void MainWindow::createActions()
                 }
             head.rowSpan = rg.r1 - rg.r0 + 1;
             head.colSpan = rg.c1 - rg.c0 + 1;
+            m_ed->fitTableRows(t);   // all the words are in one cell now
         });
         m_ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
     });
@@ -1471,6 +1472,7 @@ void MainWindow::createActions()
                             if (rr != r || cc != c) t->cell(rr, cc).covered = false;
                     cell.rowSpan = cell.colSpan = 1;
                 }
+            m_ed->fitTableRows(t);   // the words of a merged cell now have less room
         });
         m_ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
     });
@@ -1497,6 +1499,7 @@ void MainWindow::createActions()
                         // The line takes the cell's top border, or is a thin line in the main color.
                         cell.diagonalLine = cell.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : cell.border.top;
                     }
+                m_ed->fitTableRows(t);   // the halves' words may now be in one place
             });
             if (editing) m_ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
         });

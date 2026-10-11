@@ -14000,6 +14000,58 @@ private Q_SLOTS:
         QCOMPARE(ed->textTarget().storyId, t->cell(0, 0).storyId2);
     }
 
+    // Taking a division away, merging cells, or splitting them changes how much room the words have: the row
+    // grows to hold them, in the same Undo step.
+    void tableDivisionAndMergeRefitRows()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        const QString words = QStringLiteral("The quick brown fox jumps over the lazy dog. ").repeated(8);
+        {
+            auto made = ed->newTable(QRectF(72, 72, 300, 60), 1, 1);
+            ed->addItem(made);
+            const QString id = made->id;
+            auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+            ed->selectCells(id, 0, 0, 0, 0);
+            w.act(QStringLiteral("tbl.diagDown"))->trigger();
+            ed->doc()->storyDoc(table()->cell(0, 0).storyId)->setPlainText(words);
+            ed->doc()->storyDoc(table()->cell(0, 0).storyId2)->setPlainText(words);
+            ed->fitTableRows(table());
+            QCOMPARE(table()->rowH[0], 60.0);   // the halves hold what fits
+            w.act(QStringLiteral("tbl.diagNone"))->trigger();
+            const double joined = table()->rowH[0];
+            QVERIFY2(joined > 100, qPrintable(QString::number(joined)));
+            ed->fitTableRows(table());
+            QCOMPARE(table()->rowH[0], joined);   // it already holds the text
+            ed->undo();
+            QCOMPARE(table()->cell(0, 0).diagonal, 1);
+            QCOMPARE(table()->rowH[0], 60.0);
+        }
+        auto made = ed->newTable(QRectF(72, 300, 300, 60), 1, 2);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId)->setPlainText(words);
+        ed->doc()->storyDoc(table()->cell(0, 1).storyId)->setPlainText(words);
+        ed->selectCells(id, 0, 0, 0, 1);
+        w.act(QStringLiteral("tbl.merge"))->trigger();
+        const double merged = table()->rowH[0];
+        QVERIFY2(merged > 100, qPrintable(QString::number(merged)));
+        ed->fitTableRows(table());
+        QCOMPARE(table()->rowH[0], merged);
+        // Splitting them gives the words less room.
+        w.act(QStringLiteral("tbl.split"))->trigger();
+        const double split = table()->rowH[0];
+        QVERIFY2(split > merged + 20, qPrintable(QString::number(split)));
+        ed->fitTableRows(table());
+        QCOMPARE(table()->rowH[0], split);
+        ed->undo();
+        QCOMPARE(table()->rowH[0], merged);
+        ed->undo();
+        QCOMPARE(table()->cell(0, 0).colSpan, 1);
+        QCOMPARE(table()->rowH[0], 60.0);
+    }
+
     // Line spacing in points, as Publisher sets it (measured in its PDFs of 10 and 24 point text in Times New
     // Roman, Arial, and Calibri, every value from 1 to 30 points): "Exactly" spaces the lines by the value
     // whatever the text, with the baseline one descent above the bottom of the line, or, when the line is
