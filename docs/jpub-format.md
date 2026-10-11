@@ -80,6 +80,7 @@ The root object:
 | `template` | string | The template it was made from, if any |
 | `templateOptions` | object | That template's choices (free form) |
 | `facing` | boolean | Pages show as two-page spreads |
+| `defaultTab` | number | The distance in points between the tab stops of a paragraph that has none of its own, counted from the text area's edge. Left out at 36; from 1 to 1,584 |
 | `rulerZero` | array | Where the rulers count from: `[x, y]`, in points from the page's top-left corner. Left out when `[0, 0]` |
 | `pubFonts` | array | When the publication came from a `.pub` file: the font names it used, kept as they are when saving back to `.pub` |
 | `print` | object | Color output settings ([Printing colors](#printing-colors)) |

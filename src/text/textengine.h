@@ -62,6 +62,7 @@ struct LayoutEnv {
     ColorScheme colors;
     FontScheme fonts;
     double fontScale = 1.0;
+    double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
     QString key() const;
 };

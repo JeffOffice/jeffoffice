@@ -138,6 +138,7 @@ public:
   void setTextNotHyphenated(unsigned textId) { m_notHyphenated.insert(textId); }
   void setTextHyphenationZone(unsigned textId, unsigned emu) { m_hyphenationZones[textId] = emu; }
   void setTextAutofit(unsigned textId, unsigned kind) { m_autofit[textId] = kind; }
+  void setDefaultTabStop(unsigned emu) { m_defaultTabStopEmu = emu; }   // JeffPub patch: see go()
   void setShapeInlineNum(unsigned seqNum, unsigned num) { m_shapeInfosBySeqNum[seqNum].m_inlineNum = num; }
   // JeffPub patch: a field or hyperlink in a story (its TOKN entry): where it
   // is, its kind (-5 page number, 1 hyperlink, 6 date or time) and, for a
@@ -229,6 +230,7 @@ private:
   void writeInlineShapes() const;
   unsigned m_publicationLayout = 0;       // JeffPub patch: Page Setup layout type (0 one page per sheet)
   unsigned m_firstPageNumber = 1;         // JeffPub patch: see setPageNumbering
+  unsigned m_defaultTabStopEmu = 0;       // JeffPub patch: the publication's default tab stop, when not 36 points (0 none)
   unsigned m_pageNumberStyle = 0;
   bool m_laterSectionsNumbered = false;
   std::vector<Color> m_paletteColors;

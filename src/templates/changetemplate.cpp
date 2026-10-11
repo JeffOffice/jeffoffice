@@ -651,6 +651,7 @@ std::unique_ptr<Document> applyDesign(const Document &current, std::unique_ptr<D
     r.styles = current.styles;
     r.pubFonts = current.pubFonts;
     r.facingPages = current.facingPages;
+    r.defaultTabStop = current.defaultTabStop;
     r.setup.firstPageNumber = current.setup.firstPageNumber;
     r.setup.pageNumberFormat = current.setup.pageNumberFormat;
     if (!current.merge.isEmpty()) r.merge = current.merge;

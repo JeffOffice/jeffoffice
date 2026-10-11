@@ -196,7 +196,7 @@ Features JeffPub has that Publisher never did, then the ones planned before vers
 ## Text engine
 - [x] Rich text: fonts, sizes, color (scheme-aware), highlight, underline styles, strike, sub and superscript, all caps, small caps, tracking (a percentage, with Publisher's Very Tight to Very Loose presets) and kerning (points) together, automatic pair kerning (for fonts 14 pt and above unless set otherwise), and scaling
 - [x] Paragraphs: alignment, indents (left, right, first line, hanging), spacing before and after, line spacing (single, multiple, exact, at least), keep with next, keep lines together, widow and orphan control, start in next text box
-- [x] Tabs with leaders (left, center, right, decimal)
+- [x] Tabs with leaders (left, center, right, decimal) *(a publication's default tab stops, 0.5 in unless it says otherwise, are read from and saved to .pub files and kept in JeffPub's own; there is no setting for them yet)*
 - [x] Bullets and numbering, multilevel (Increase Indent nests list items: 1. then a. then i., or a dot, a circle, then a square)
 - [x] Text styles (paragraph and character) with Based On and Style for Following Paragraph
 - [x] Linked text frames across pages, columns inside frames, text wrap around objects, vertical alignment, autofit

@@ -1156,6 +1156,7 @@ void Editor::autoGrowText(TextItem *t)
     LayoutEnv env;
     env.colors = m_doc->colors;
     env.fonts = m_doc->fonts;
+    env.defaultTab = m_doc->defaultTabStop;
     lay.build(s->doc.get(), {spec}, env);
     const double need = std::max(18.0, lay.usedHeight(0));
     if (std::abs(need - t->rect.height()) > 0.5) t->rect.setHeight(need);
@@ -1167,6 +1168,7 @@ void Editor::fitTableRows(TableItem *t)
     LayoutEnv env;
     env.colors = m_doc->colors;
     env.fonts = m_doc->fonts;
+    env.defaultTab = m_doc->defaultTabStop;
     bool grew = false;
     for (int r = 0; r < t->rows; ++r) {
         double need = 0;

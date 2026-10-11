@@ -1474,6 +1474,31 @@ bool MSPUBParser::parseQuill(librevenge::RVNGInputStream *input)
       {
       }
     }
+    else if (i->name == "SGP ")
+    {
+      // JeffPub patch: the publication's default tab stop (Publisher's
+      // Document.DefaultTabStop): a property block with 00:22, in EMU, left
+      // out at 36 points. Read from a file Publisher saved with 14.4, 20, 72
+      // and 100 points, and from a flyer that has 14.4 (Oct 11).
+      // Optional: a damaged section loses its setting, never the text.
+      try
+      {
+        input->seek(i->offset, librevenge::RVNG_SEEK_SET);
+        const unsigned len = readU32(input);
+        if (len >= 4 && len <= i->length)
+        {
+          while (stillReading(input, i->offset + len))
+          {
+            const MSPUBBlockInfo b = parseBlock(input, true);
+            if (b.id == 0 && b.type == 0x22)
+              m_collector->setDefaultTabStop(b.data);
+          }
+        }
+      }
+      catch (const EndOfStreamException &)
+      {
+      }
+    }
     else if (i->name == "EOBJ")
     {
       // JeffPub patch: the objects set in story i->id's text: a count n, the
