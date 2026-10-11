@@ -7489,6 +7489,19 @@ private Q_SLOTS:
         QCOMPARE(jp::defaultUnit(QLocale(QStringLiteral("pt_BR"))), jp::Unit::Centimeter);
     }
 
+    // A large ribbon button is wide enough for its label's longest word,
+    // which can't wrap ("Onlineafbeeldingen"), and a long hyphenated word
+    // breaks after its hyphen onto the second line instead of being cut.
+    void largeRibbonButtonsFitLongWords()
+    {
+        QAction word(QStringLiteral("Onlineafbeeldingen")), hyphenated(QStringLiteral("Pagina-achtergrondinstellingen"));
+        std::unique_ptr<QToolButton> a(jp::ribbonButton(&word, true, nullptr)), b(jp::ribbonButton(&hyphenated, true, nullptr));
+        const QFontMetrics fm(a->font());
+        QVERIFY(a->sizeHint().width() >= fm.horizontalAdvance(word.text()) + 14);
+        QVERIFY(b->sizeHint().width() < fm.horizontalAdvance(hyphenated.text()));
+        QVERIFY(b->sizeHint().width() >= fm.horizontalAdvance(QStringLiteral("achtergrondinstellingen")) + 14);
+    }
+
     // The name each language goes by in Options, as its speakers write it,
     // with the country when one language comes in two.
     void uiLanguageNames()
