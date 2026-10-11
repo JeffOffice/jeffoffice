@@ -1006,12 +1006,12 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+781"/>
+        <location line="+808"/>
         <source>Custom</source>
         <translation type="unfinished">Benutzerdefiniert</translation>
     </message>
     <message>
-        <location line="-758"/>
+        <location line="-785"/>
         <source>Portrait</source>
         <translation type="unfinished">Hochformat</translation>
     </message>
@@ -1032,20 +1032,20 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+870"/>
+        <location line="+897"/>
         <location line="+1520"/>
         <source>Width:</source>
         <translation type="unfinished">Breite:</translation>
     </message>
     <message>
-        <location line="-2389"/>
-        <location line="+868"/>
+        <location line="-2416"/>
+        <location line="+895"/>
         <location line="+1522"/>
         <source>Height:</source>
         <translation type="unfinished">Höhe:</translation>
     </message>
     <message>
-        <location line="-2389"/>
+        <location line="-2416"/>
         <source>Orientation:</source>
         <translation type="unfinished">Ausrichtung:</translation>
     </message>
@@ -1066,13 +1066,13 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+926"/>
+        <location line="+953"/>
         <location line="+44"/>
         <source>Top margin:</source>
         <translation type="unfinished">Oberer Rand:</translation>
     </message>
     <message>
-        <location line="-969"/>
+        <location line="-996"/>
         <source>Horizontal gap:</source>
         <translation type="unfinished">Horizontaler Abstand:</translation>
     </message>
@@ -1146,12 +1146,12 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+2147"/>
+        <location line="+2174"/>
         <source>Name:</source>
         <translation type="unfinished">Name:</translation>
     </message>
     <message>
-        <location line="-2184"/>
+        <location line="-2211"/>
         <location line="+51"/>
         <location line="+33"/>
         <source>Page Size</source>
@@ -1169,24 +1169,24 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+1244"/>
+        <location line="+1271"/>
         <source>New…</source>
         <translation type="unfinished">Neu…</translation>
     </message>
     <message>
-        <location line="-1244"/>
+        <location line="-1271"/>
         <source>Edit…</source>
         <translation type="unfinished">Bearbeiten…</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+387"/>
-        <location line="+857"/>
+        <location line="+884"/>
         <source>Delete</source>
         <translation type="unfinished">Löschen</translation>
     </message>
     <message>
-        <location line="-1244"/>
+        <location line="-1271"/>
         <source>Use This Size</source>
         <translation type="unfinished">Diese Größe verwenden</translation>
     </message>
@@ -1203,18 +1203,18 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+739"/>
+        <location line="+766"/>
         <source>Columns:</source>
         <translation type="unfinished">Spalten:</translation>
     </message>
     <message>
-        <location line="-738"/>
-        <location line="+739"/>
+        <location line="-765"/>
+        <location line="+766"/>
         <source>Column spacing:</source>
         <translation type="unfinished">Spaltenabstand:</translation>
     </message>
     <message>
-        <location line="-738"/>
+        <location line="-765"/>
         <source>Rows:</source>
         <translation type="unfinished">Zeilen:</translation>
     </message>
@@ -1277,19 +1277,19 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+1858"/>
+        <location line="+1885"/>
         <source>Position:</source>
         <translation type="unfinished">Position:</translation>
     </message>
     <message>
-        <location line="-1852"/>
-        <location line="+398"/>
+        <location line="-1879"/>
+        <location line="+425"/>
         <location line="+1567"/>
         <source>Remove</source>
         <translation type="unfinished">Entfernen</translation>
     </message>
     <message>
-        <location line="-1965"/>
+        <location line="-1992"/>
         <source>Remove All</source>
         <translation type="unfinished">Alle entfernen</translation>
     </message>
@@ -1353,50 +1353,50 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1436"/>
+        <location line="+1463"/>
         <location line="+100"/>
         <source>Italic</source>
         <translation type="unfinished">Kursiv</translation>
     </message>
     <message>
-        <location line="-1536"/>
-        <location line="+1434"/>
+        <location line="-1563"/>
+        <location line="+1461"/>
         <location line="+102"/>
         <source>Bold</source>
         <translation type="unfinished">Fett</translation>
     </message>
     <message>
-        <location line="-1536"/>
+        <location line="-1563"/>
         <source>Bold Italic</source>
         <translation type="unfinished">Fett Kursiv</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1513"/>
+        <location line="+1540"/>
         <location line="+2"/>
         <source>(none)</source>
         <translation type="unfinished">(ohne)</translation>
     </message>
     <message>
-        <location line="-1514"/>
+        <location line="-1541"/>
         <location line="+108"/>
-        <location line="+363"/>
+        <location line="+390"/>
         <source>Single</source>
         <translation type="unfinished">Einfach</translation>
     </message>
     <message>
-        <location line="-470"/>
+        <location line="-497"/>
         <source>Words only</source>
         <translation type="unfinished">Nur Wörter</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+469"/>
+        <location line="+496"/>
         <source>Double</source>
         <translation type="unfinished">Doppelt</translation>
     </message>
     <message>
-        <location line="-467"/>
+        <location line="-494"/>
         <source>Dotted</source>
         <translation type="unfinished">Gepunktet</translation>
     </message>
@@ -1412,7 +1412,7 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+12"/>
-        <location line="+288"/>
+        <location line="+315"/>
         <location line="+537"/>
         <location line="+582"/>
         <location line="+125"/>
@@ -1420,25 +1420,25 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Schriftart:</translation>
     </message>
     <message>
-        <location line="-1530"/>
+        <location line="-1557"/>
         <source>Font style:</source>
         <translation type="unfinished">Schriftschnitt:</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+1405"/>
+        <location line="+1432"/>
         <location line="+124"/>
         <source>Size:</source>
         <translation type="unfinished">Größe:</translation>
     </message>
     <message>
-        <location line="-1527"/>
+        <location line="-1554"/>
         <source>Underline:</source>
         <translation type="unfinished">Unterstreichung:</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+281"/>
+        <location line="+308"/>
         <location line="+324"/>
         <location line="+760"/>
         <location line="+165"/>
@@ -1447,7 +1447,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Farbe:</translation>
     </message>
     <message>
-        <location line="-1874"/>
+        <location line="-1901"/>
         <source>Effects</source>
         <translation type="unfinished">Effekte</translation>
     </message>
@@ -1478,14 +1478,14 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1343"/>
+        <location line="+1370"/>
         <location line="+2"/>
         <location line="+20"/>
         <source>Shadow</source>
         <translation type="unfinished">Schatten</translation>
     </message>
     <message>
-        <location line="-1364"/>
+        <location line="-1391"/>
         <source>Outline</source>
         <translation type="unfinished">Kontur</translation>
     </message>
@@ -1506,33 +1506,34 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+133"/>
+        <location line="+141"/>
+        <location line="+5"/>
         <source>Paragraph</source>
         <translation type="unfinished">Absatz</translation>
     </message>
     <message>
-        <location line="-128"/>
+        <location line="-141"/>
         <location line="+63"/>
-        <location line="+1367"/>
+        <location line="+1394"/>
         <source>Left</source>
         <translation type="unfinished">Links</translation>
     </message>
     <message>
-        <location line="-1430"/>
+        <location line="-1457"/>
         <location line="+63"/>
-        <location line="+1367"/>
+        <location line="+1394"/>
         <source>Center</source>
         <translation type="unfinished">Zentriert</translation>
     </message>
     <message>
-        <location line="-1430"/>
+        <location line="-1457"/>
         <location line="+63"/>
-        <location line="+1367"/>
+        <location line="+1394"/>
         <source>Right</source>
         <translation type="unfinished">Rechts</translation>
     </message>
     <message>
-        <location line="-1430"/>
+        <location line="-1457"/>
         <source>Justified</source>
         <translation type="unfinished">Blocksatz</translation>
     </message>
@@ -1563,29 +1564,29 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+223"/>
+        <location line="+250"/>
         <source>Left to right</source>
         <translation type="unfinished">Links nach rechts</translation>
     </message>
     <message>
-        <location line="-223"/>
+        <location line="-250"/>
         <source>Right to left</source>
         <translation type="unfinished">Rechts nach links</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+1437"/>
+        <location line="+1464"/>
         <source>Alignment:</source>
         <translation type="unfinished">Ausrichtung:</translation>
     </message>
     <message>
-        <location line="-1436"/>
-        <location line="+226"/>
+        <location line="-1463"/>
+        <location line="+253"/>
         <source>Direction:</source>
         <translation type="unfinished">Richtung:</translation>
     </message>
     <message>
-        <location line="-225"/>
+        <location line="-252"/>
         <source>Left indent:</source>
         <translation type="unfinished">Einzug links:</translation>
     </message>
@@ -1601,24 +1602,24 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1433"/>
+        <location line="+1460"/>
         <source>Space before:</source>
         <translation type="unfinished">Abstand vor:</translation>
     </message>
     <message>
-        <location line="-1432"/>
-        <location line="+1433"/>
+        <location line="-1459"/>
+        <location line="+1460"/>
         <source>Space after:</source>
         <translation type="unfinished">Abstand nach:</translation>
     </message>
     <message>
-        <location line="-1429"/>
-        <location line="+1898"/>
+        <location line="-1456"/>
+        <location line="+1925"/>
         <source>Line spacing:</source>
         <translation type="unfinished">Zeilenabstand:</translation>
     </message>
     <message>
-        <location line="-1896"/>
+        <location line="-1923"/>
         <source>Indents and Spacing</source>
         <translation type="unfinished">Einzüge und Abstände</translation>
     </message>
@@ -1669,7 +1670,7 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+306"/>
+        <location line="+333"/>
         <location line="+41"/>
         <location line="+108"/>
         <location line="+102"/>
@@ -1677,7 +1678,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Ohne</translation>
     </message>
     <message>
-        <location line="-557"/>
+        <location line="-584"/>
         <source>Dot</source>
         <translation type="unfinished">Punkt</translation>
     </message>
@@ -1702,12 +1703,12 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Alle löschen</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+16"/>
         <source>Tabs</source>
         <translation type="unfinished">Tabstopps</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+70"/>
         <source>Bullets and Numbering</source>
         <translation type="unfinished">Aufzählungszeichen und Nummerierung</translation>
     </message>
@@ -1737,7 +1738,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Aufzählungszeichen</translation>
     </message>
     <message>
-        <location line="-257"/>
+        <location line="-284"/>
         <source>Thick</source>
         <translation type="unfinished">Dick</translation>
     </message>
@@ -1757,7 +1758,22 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Doppelte Welle</translation>
     </message>
     <message>
-        <location line="+258"/>
+        <location line="+179"/>
+        <source>Default tab stops</source>
+        <translation type="unfinished">Standardtabstopps</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Default tab stops:</source>
+        <translation type="unfinished">Standardtabstopps:</translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>Default Tab Stops</source>
+        <translation type="unfinished">Standardtabstopps</translation>
+    </message>
+    <message>
+        <location line="+53"/>
         <source>Format:</source>
         <translation type="unfinished">Format:</translation>
     </message>
@@ -4200,7 +4216,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Der Publikationsinhalt ist beschädigt: %1</translation>
     </message>
     <message>
-        <location filename="../src/io/pubimport.cpp" line="+153"/>
+        <location filename="../src/io/pubimport.cpp" line="+157"/>
         <source>Embedded font &quot;%1&quot; was not imported.</source>
         <translation type="unfinished">Die eingebettete Schriftart &quot;%1&quot; wurde nicht importiert.</translation>
     </message>
@@ -4275,7 +4291,7 @@ Open them with your email program to send.</source>
 <context>
     <name>Main</name>
     <message>
-        <location filename="../src/main.cpp" line="+56"/>
+        <location filename="../src/main.cpp" line="+62"/>
         <source>JeffPub desktop publishing</source>
         <translation type="unfinished">JeffPub Desktop-Publishing</translation>
     </message>
@@ -6355,7 +6371,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Zoom</translation>
     </message>
     <message>
-        <location filename="../src/app/ribbon.cpp" line="+436"/>
+        <location filename="../src/app/ribbon.cpp" line="+452"/>
         <source>File</source>
         <translation type="unfinished">Datei</translation>
     </message>
@@ -8559,7 +8575,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+2681"/>
+        <location line="+2735"/>
         <source>Notes</source>
         <translation type="unfinished">Notizen</translation>
     </message>
@@ -10032,7 +10048,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Vorwärtsverknüpfung aufheben</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+64"/>
         <source>Table Size</source>
         <translation type="unfinished">Tabellengröße</translation>
     </message>
@@ -14541,7 +14557,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::RibbonGroup</name>
     <message>
-        <location line="-479"/>
+        <location line="-495"/>
         <source>%1 Settings</source>
         <translation type="unfinished">Einstellungen für %1</translation>
     </message>
