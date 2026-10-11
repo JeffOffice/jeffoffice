@@ -232,6 +232,31 @@ reference PDFs: a 10 pt Times New Roman paragraph at 1 sp after one at
 lines of a cover after an empty 1.19 sp paragraph match within 0.2 pt.
 Whether a line fits in a box counts its text, not the spacing below it.
 
+### Hanging indents, bullets, and tabs
+
+A paragraph whose first-line indent is below 0 hangs: its first line starts
+at the left indent plus that, but never left of the text area or inside a
+picture's text wrap, where it starts at the free edge instead. A list's
+text comes one hang (the first-line indent's size) after its bullet,
+wherever the bullet is. Checked against Publisher's own line positions: a
+bullet list beside a picture (left indent 9 pt, first line -9) had its
+bullet at the wrap's edge and its text 9 pt on; a list with the left indent
+0 and the first line -18 had its bullet at the edge and its text 18 pt in,
+and a plain paragraph like that started at the edge (a text box's line
+breaks matched Publisher's in 20 of 33 lines, 2 before). Record `06` in
+those paragraph styles equals the hang and adds nothing: lists with it
+(0.15 in, 0.125 in) had their text at the left indent.
+
+A tab after a hanging paragraph's first words ("b.<tab>text") goes to the
+left indent (57.6 pt with the first line at 28.8), not to a stop 36 pt past
+where the line starts; the stops after it are 36 pt apart from where the
+first line starts (Publisher's PDFs: 57.6 for the lettered lists, 49.5 for a
+tab at the start of a line in a paragraph indented 13.5). Not checked: stops
+saved in the paragraph (no file in the corpus has any), a tab at the start
+of a line in a hanging paragraph other than -18, and a tab that falls past
+the end of its line (Publisher moves it to the next line, which starts it
+at the left indent; JeffPub leaves it at the end of the line).
+
 ### Process colors
 
 A fill given as process inks keeps, in the tertiary OPT, the color as shown

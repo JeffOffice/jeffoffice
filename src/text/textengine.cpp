@@ -1650,15 +1650,34 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // 48-point Times New Roman lines: the 53 points of its ascent and
             // descent, not the 55 of its single spacing).
             const double estText = std::min(estH, heightOf(base));
+            // A paragraph that hangs (its first line indented less than the
+            // rest) has its left indent as a tab stop on the first line, so
+            // "b.<tab>text" lines up its text there (Publisher); the default
+            // stops, 36 points apart from where that line starts, come after
+            // it. (Qt counts stops from each line's own start: on the lines
+            // after, this stop is as far from their left indent.)
+            const bool hangs = textIndent < -0.01;
+            if (hangs && B->marker.isEmpty() && bf.tabPositions().isEmpty()) {
+                QTextOption hangOpt = B->tl->textOption();
+                hangOpt.setTabs({QTextOption::Tab((leftM - std::max(0.0, leftM + textIndent)) * kFine, QTextOption::LeftTab)});
+                B->tl->setTextOption(hangOpt);
+            }
             B->tl->beginLayout();
             int lineNo = 0;
             while (true) {
                 PtLine line(B->tl->createLine());
                 if (!line.isValid()) break;
-                double indL = leftM, indR = rightM;
+                double indL = leftM, indR = rightM, lead = 0;
                 if (lineNo == 0) {
                     if (!B->marker.isEmpty()) indL = textIndent < 0 ? leftM : leftM + textIndent + markerW;
                     else indL = leftM + textIndent;
+                    // A line that hangs starts where it has room, not left of
+                    // the text area or inside a picture's text wrap; a list's
+                    // text comes one hang after the bullet, wherever that is.
+                    if (hangs) {
+                        indL = std::max(0.0, leftM + textIndent);
+                        if (!B->marker.isEmpty()) lead = -textIndent;
+                    }
                 }
                 if (B->dropLines > 0 && lineNo < (B->dropUp ? 1 : B->dropLines)) indL += B->dropWidth;
                 if (lineNo == breakAfter && f < nF && !columnEmpty) advance();   // widow control: carry this line over
@@ -1667,9 +1686,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 for (int guard = 0; guard < 2000 && !placed; ++guard) {
                     if (f >= nF) {
                         line.setLineWidth(nF ? std::max(10.0, colRect(nF - 1, 0).width() - indL - indR) : 300);
-                        line.setPosition(QPointF(indL, m_frameY[nF] + overflowY));
+                        line.setPosition(QPointF(indL + lead, m_frameY[nF] + overflowY));
                         overflowY += line.height();
-                        B->lines << Line{-1, 0, QRectF(indL, overflowY, line.naturalTextWidth(), line.height())};
+                        B->lines << Line{-1, 0, QRectF(indL + lead, overflowY, line.naturalTextWidth(), line.height())};
                         // Blank paragraphs past the end don't count as overflow
                         // (as in .pub layouts): a box doesn't shrink or warn for them.
                         if (!B->disp.trimmed().isEmpty()) m_overflow = true;
@@ -1691,7 +1710,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                         row = ok; rowIdx = 0; rowH = 0; rowActive = true;
                     }
-                    const Iv iv = row[rowIdx];
+                    Iv iv = row[rowIdx];
+                    if (lead > 0 && lineNo == 0 && rowIdx == 0) iv.x0 = std::min(iv.x0 + lead, iv.x1);
                     line.setLineWidth(std::max(1.0, iv.x1 - iv.x0));
                     // Hyphenation zone: a word is broken only if moving it whole to
                     // the next line would leave more than the zone empty here.
