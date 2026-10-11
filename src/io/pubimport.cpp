@@ -1181,7 +1181,8 @@ private:
         const QColor c = color(m_style["svg:stroke-color"]);
         st.color = ColorRef::rgb(c.isValid() ? c : QColor(Qt::black));
         st.width = m_style["svg:stroke-width"] ? toPt(m_style["svg:stroke-width"]) : 0.75;
-        if (st.width <= 0) st.width = 0.25;
+        // A line of weight 0 is no line: Publisher draws nothing for it, on screen and in PDF.
+        if (st.width <= 0) return Stroke::none();
         if (m_style["svg:stroke-opacity"]) st.transparency = 1 - percent(m_style["svg:stroke-opacity"]);
         st.inset = m_style["jp:line-inset"] != nullptr;
         // Corners as stored (0 bevel, 1 miter, 2 round); none means mitered.
