@@ -3477,6 +3477,49 @@ private Q_SLOTS:
     // lines 0.1, 0.25, 0.5, and 0.75 points wide (Oct 11, at 96 dpi) are all
     // one pixel of black, where a 0.25 point rule drawn as it is came out a
     // faint quarter. A line already wider (3 points) is as wide as it is.
+    // The template art's stripes leave gaps, which must be clear, not whatever
+    // the new picture's memory held: the Grand Opening banner came out
+    // differently from run to run in a band at its stripes' edge.
+    void templateStripesHaveClearGaps()
+    {
+        const jp::TemplateInfo *t = jp::findTemplate(QStringLiteral("banner-grand-opening"));
+        QVERIFY(t);
+        // Colors no other test uses, so the art is painted here, not taken
+        // from the session's cache; memory left full of a pattern first, so
+        // that a picture that isn't cleared shows it.
+        jp::TemplateOptions o;
+        jp::ColorScheme cs;
+        cs.name = QStringLiteral("Gaps");
+        for (int k = 0; k < jp::SlotCount; ++k) cs.c[k] = QColor::fromRgb(17 + k * 13, 101 + k * 7, 59 + k * 11);
+        o.colors = cs;
+        for (int round = 0; round < 6; ++round) {
+            std::vector<QByteArray> dirt;
+            for (int k = 0; k < 8; ++k) dirt.emplace_back(3000 * 400 * 4 + k * 4096, char(0x5a));
+            dirt.clear();
+            cs.c[0] = QColor::fromRgb(17 + round, 101, 59);
+            o.colors = cs;
+            auto doc = t->build(o);
+            int checked = 0;
+            for (const auto &it : doc->pages[0]->items) {
+                const auto *pic = dynamic_cast<const PictureItem *>(it.get());
+                if (!pic || !doc->images.contains(pic->imageId)) continue;
+                const QImage img = QImage::fromData(doc->images[pic->imageId].bytes).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+                QVERIFY(!img.isNull());
+                for (int y = 0; y < img.height(); ++y) {
+                    const QRgb *row = reinterpret_cast<const QRgb *>(img.constScanLine(y));
+                    for (int x = 0; x < img.width(); ++x) {
+                        // Premultiplied: no channel above the alpha; and a clear gap is all zero.
+                        const QRgb px = row[x];
+                        QVERIFY2(qRed(px) <= qAlpha(px) && qGreen(px) <= qAlpha(px) && qBlue(px) <= qAlpha(px) && px != 0x5a5a5a5a,
+                                 qPrintable(QStringLiteral("pixel %1,%2 is %3").arg(x).arg(y).arg(px, 8, 16)));
+                    }
+                }
+                ++checked;
+            }
+            QCOMPARE(checked, 2);
+        }
+    }
+
     void hairlinesAreAPixelWide()
     {
         using namespace jp;
