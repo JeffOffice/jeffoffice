@@ -27,7 +27,7 @@ class QToolButton;
 
 namespace jp {
 
-class MainWindow;
+class AppWindow;
 
 namespace help {
 
@@ -46,7 +46,7 @@ QString contextTopic(const QString &key);
 // Topics matching every word of `query`, best first.
 QStringList searchTopics(const QString &query);
 // The Markdown shown for a topic: comments out, the shortcut table in.
-QString displayMarkdown(const Topic &t, MainWindow *win);
+QString displayMarkdown(const Topic &t, AppWindow *win);
 
 // The topics as pages for the project's GitHub wiki (JeffPub --export-help-wiki
 // <folder>): one Markdown file per topic, named from its title
@@ -55,7 +55,7 @@ QString displayMarkdown(const Topic &t, MainWindow *win);
 // shortcut table comes from `win`'s commands. The folder must be new or empty.
 // On failure (a link to no topic, a folder that can't be written) it returns
 // false and says why in `error`; a bad link writes nothing.
-bool exportWiki(const QString &dir, MainWindow *win, QString *error = nullptr);
+bool exportWiki(const QString &dir, AppWindow *win, QString *error = nullptr);
 // A wiki page name for a topic title: spaces become hyphens, and characters
 // that a page name or a link to it can't hold are dropped.
 QString wikiPageName(const QString &title);
@@ -78,7 +78,7 @@ class HelpView : public QWidget {
     Q_OBJECT
 public:
     // `commands`: the search finds commands too (not while a dialog holds the window).
-    explicit HelpView(MainWindow *win, QWidget *parent = nullptr, bool commands = true);
+    explicit HelpView(AppWindow *win, QWidget *parent = nullptr, bool commands = true);
     void showTopic(const QString &id);       // "index" is the contents
     QString currentTopic() const { return m_current; }
     void search(const QString &text);        // as if typed in the search box
@@ -95,7 +95,7 @@ private:
     void activate(QListWidgetItem *it);
     void go(const QString &id, bool record);
     void updateButtons();
-    MainWindow *m_win;
+    AppWindow *m_win;
     bool m_commands;
     QLineEdit *m_search;
     QListWidget *m_results;
@@ -110,7 +110,7 @@ private:
 class HelpWindow : public QDialog {
     Q_OBJECT
 public:
-    HelpWindow(MainWindow *win, QWidget *owner);
+    HelpWindow(AppWindow *win, QWidget *owner);
     HelpView *view() const { return m_view; }
 
 private:

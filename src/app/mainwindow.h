@@ -4,6 +4,7 @@
 // ribbon's layout in resources/ribbon.json (see ribbonbuilder.h) and the
 // controls it names in mainwindow_ribbon.cpp.
 
+#include "app/appwindow.h"
 #include "app/editor.h"
 
 #include <QHash>
@@ -40,7 +41,7 @@ class MeasureSpin;
 class Gallery;
 struct RibbonParts;
 
-class MainWindow : public QMainWindow {
+class MainWindow : public AppWindow {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = nullptr);
@@ -48,11 +49,11 @@ public:
 
     Editor *editor() const { return m_ed; }
     Canvas *canvas() const { return m_canvas; }
-    Ribbon *ribbon() const { return m_ribbon; }
-    QAction *act(const QString &id) const;
+    Ribbon *ribbon() const override { return m_ribbon; }
+    QAction *act(const QString &id) const override;
     // What went wrong building the ribbon from ribbon.json (empty when nothing did).
     QString ribbonError() const { return m_ribbonError; }
-    QStringList actionIds() const { QStringList ids = m_actions.keys(); ids.sort(); return ids; }
+    QStringList actionIds() const override { QStringList ids = m_actions.keys(); ids.sort(); return ids; }
 
     // File operations (used by the backstage too).
     void newPublication(std::unique_ptr<Document> doc);
