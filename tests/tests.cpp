@@ -14238,6 +14238,64 @@ private Q_SLOTS:
         QVERIFY(!table()->cell(0, 1).diagonalLine.isNone());
     }
 
+    // With text selected, an arrow key that would go on to the other half of a divided cell collapses the
+    // selection first, as it does anywhere else; the next press goes on.
+    void tableDividedCellArrowKeysCollapseASelectionFirst()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 400, 150), 1, 1);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId)->setPlainText(QStringLiteral("First half"));
+        ed->selectCells(id, 0, 0, 0, 0);
+        w.act(QStringLiteral("tbl.diagDown"))->trigger();
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId2)->setPlainText(QStringLiteral("Second"));
+        ed->endTextEdit();
+        auto *cv = w.findChild<jp::Canvas *>();
+        // All of the half selected, from the start to the end (forward) or the end to the start (backward).
+        auto selectAll = [&](int half, bool forward) {
+            ed->beginTextEdit(id, -1, 0, 0, half);
+            const int last = ed->editDoc()->characterCount() - 1;
+            QTextCursor c = ed->cursor();
+            c.setPosition(forward ? 0 : last);
+            c.setPosition(forward ? last : 0, QTextCursor::KeepAnchor);
+            ed->setCursor(c);
+            return ed->cursor().hasSelection();
+        };
+        QVERIFY(selectAll(0, true));
+        QTest::keyClick(cv, Qt::Key_Right);
+        QCOMPARE(ed->textTarget().half, 0);
+        QVERIFY(!ed->cursor().hasSelection());
+        QCOMPARE(ed->cursor().position(), ed->editDoc()->characterCount() - 1);
+        QTest::keyClick(cv, Qt::Key_Right);
+        QCOMPARE(ed->textTarget().half, 1);
+        QVERIFY(selectAll(1, false));
+        QTest::keyClick(cv, Qt::Key_Left);
+        QCOMPARE(ed->textTarget().half, 1);
+        QVERIFY(!ed->cursor().hasSelection());
+        QCOMPARE(ed->cursor().position(), 0);
+        QTest::keyClick(cv, Qt::Key_Left);
+        QCOMPARE(ed->textTarget().half, 0);
+        QVERIFY(selectAll(0, true));
+        QTest::keyClick(cv, Qt::Key_Down);
+        QCOMPARE(ed->textTarget().half, 0);
+        QVERIFY(!ed->cursor().hasSelection());
+        QTest::keyClick(cv, Qt::Key_Down);
+        QCOMPARE(ed->textTarget().half, 1);
+        QVERIFY(selectAll(1, false));
+        QTest::keyClick(cv, Qt::Key_Up);
+        QCOMPARE(ed->textTarget().half, 1);
+        QVERIFY(!ed->cursor().hasSelection());
+        QTest::keyClick(cv, Qt::Key_Up);
+        QCOMPARE(ed->textTarget().half, 0);
+        QTest::mouseClick(cv->viewport(), Qt::LeftButton, {}, QPoint(5, 5));   // the mouse in use again: no focus ring in the tests after
+    }
+
     // Line spacing in points, as Publisher sets it (measured in its PDFs of 10 and 24 point text in Times New
     // Roman, Arial, and Calibri, every value from 1 to 30 points): "Exactly" spaces the lines by the value
     // whatever the text, with the baseline one descent above the bottom of the line, or, when the line is

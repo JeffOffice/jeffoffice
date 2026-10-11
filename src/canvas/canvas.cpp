@@ -2694,12 +2694,13 @@ void Canvas::moveCaret(QTextCursor::MoveOperation op, bool select, int n)
 {
     QTextCursor c = m_ed->cursor();
     const int from = c.position();
+    const bool selected = c.hasSelection();
     c.movePosition(op, select ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor, n);
     // Right at the end of a divided cell's first half goes on to its second, and Left at the start of the second
-    // back to the first (as in Publisher).
+    // back to the first (as in Publisher); with text selected, the key collapses the selection first.
     const auto &tt = m_ed->textTarget();
     const bool right = op == QTextCursor::NextCharacter || op == QTextCursor::NextWord, left = op == QTextCursor::PreviousCharacter || op == QTextCursor::WordLeft;
-    if (!select && c.position() == from && ((right && tt.half == 0) || (left && tt.half == 1)))
+    if (!select && !selected && c.position() == from && ((right && tt.half == 0) || (left && tt.half == 1)))
         if (const auto *t = dynamic_cast<const TableItem *>(m_ed->doc()->item(tt.itemId)); t && tt.row >= 0 && t->cell(tt.row, tt.col).divided()) {
             m_ed->beginTextEdit(t->id, right ? 0 : -1, tt.row, tt.col, 1 - tt.half);
             return;
@@ -2727,6 +2728,12 @@ void Canvas::verticalCaret(int dir, bool select)
     }
     const int np = lay->moveVertical(c.position(), dir, m_ed->desiredX);
     if (np == c.position() && it->type() == ItemType::Table) {
+        // With text selected, the key collapses the selection first, as Right and Left do.
+        if (c.hasSelection() && !select) {
+            c.setPosition(np);
+            m_ed->setCursor(c);
+            return;
+        }
         // Up/Down past the cell edge moves to the cell above/below; in a divided cell, from the first half to the
         // second and back.
         auto *t = static_cast<TableItem *>(it);
