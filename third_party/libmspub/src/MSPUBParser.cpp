@@ -1897,6 +1897,11 @@ ParagraphStyle MSPUBParser::getParagraphStyle(librevenge::RVNGInputStream *input
       // JeffPub: a list's bullet or number size (EMU).
       ret.m_listSizeEmu = info.data;
       break;
+    case 0x06:
+      // JeffPub: a list's indent, where its text starts from the text area's
+      // edge, or at the bullet's end (0 on a right-to-left paragraph).
+      ret.m_listIndentEmu = info.data;
+      break;
     case PARAGRAPH_DROP_CAP_LINES:
       ret.m_dropCapLines = info.data;
       break;

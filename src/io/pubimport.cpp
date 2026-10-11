@@ -554,7 +554,10 @@ public:
         const int ch = p["jp:list-char"] ? p["jp:list-char"]->getInt() : 0;
         const int delim = p["jp:list-delim"] ? p["jp:list-delim"]->getInt() : -1;
         const double size = p["jp:list-size"] ? p["jp:list-size"]->getDouble() : 0;
-        const QString key = QStringLiteral("%1/%2/%3/%4/%5").arg(kind).arg(ch).arg(delim).arg(size).arg(str(p["jp:list-font"]));
+        // The list's indent: its text starts this far from the text area's edge,
+        // or at the bullet's end (a quarter inch when the style says nothing).
+        const double indent = p["jp:list-indent"] ? p["jp:list-indent"]->getDouble() : 18;
+        const QString key = QStringLiteral("%1/%2/%3/%4/%5/%6").arg(kind).arg(ch).arg(delim).arg(size).arg(str(p["jp:list-font"])).arg(indent);
         const QTextBlock prev = m_cursor.block().previous();
         if (m_list && key == m_listKey && prev.isValid() && prev.textList() == m_list) {
             m_list->add(m_cursor.block());
@@ -565,6 +568,7 @@ public:
         if (size > 0) lf.setProperty(tp::BulletSize, size);   // the marker's own size
         if (kind == 23) {
             lf.setStyle(QTextListFormat::ListDisc);
+            lf.setProperty(tp::BulletTab, indent);
             // The bullet is a character of its own font (Symbol unless the
             // file names another, such as Wingdings), which also sets the
             // height of the item's first line. Symbol's 0xB7 is the round bullet.

@@ -2148,6 +2148,9 @@ librevenge::RVNGPropertyList MSPUBCollector::getParaStyleProps(const ParagraphSt
       ret.insert("jp:list-delim", listDelim);
       if (listSizeEmu)
         ret.insert("jp:list-size", double(listSizeEmu) / 12700.0, librevenge::RVNG_GENERIC);   // points
+      const boost::optional<unsigned> listIndentEmu = style.m_listIndentEmu ? style.m_listIndentEmu : defaultStyle.m_listIndentEmu;
+      if (listIndentEmu)
+        ret.insert("jp:list-indent", double(*listIndentEmu) / 12700.0, librevenge::RVNG_GENERIC);   // points
       if (listFontIndex >= 0 && unsigned(listFontIndex) < m_fonts.size())
       {
         librevenge::RVNGString font;

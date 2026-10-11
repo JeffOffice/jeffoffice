@@ -116,6 +116,10 @@ public:
         std::unique_ptr<QTextLayout> tl;
         QVector<Line> lines;
         QString marker; QFont markerFont; QColor markerColor; double markerX = 0;
+        double markerAdv = 0, markerGap = 0;         // the marker's advance, and the space after it
+        double markerOff = 0;                        // where the text starts from the marker's origin, when the item doesn't hang
+        bool markerFit = false, markerRound = false; // drawn to markerInk: a circle, or the stand-in glyph fitted to it
+        QRectF markerInk;                            // from the marker's origin and the baseline, y down
         QString dropText; QFont dropFont; QColor dropColor; int dropLines = 0; double dropWidth = 0;
         bool dropUp = false;   // a raised cap: on the first line, rising above it
         QVector<QTextLayout::FormatRange> effects;   // ranges with shadow/emboss/engrave/glow
