@@ -269,7 +269,10 @@ A paragraph whose first-line indent is below 0 hangs: its first line starts
 at the left indent plus that, but never left of the text area or inside a
 picture's text wrap, where it starts at the free edge instead. A list's
 text comes one hang (the first-line indent's size) after its bullet,
-wherever the bullet is. Checked against Publisher's own line positions: a
+wherever the bullet is, and the room a first line needs beside a picture
+counts that hang (a gap of 20 pt beside a picture left an 18 pt hanging
+bullet a line 2 pt wide; JeffPub now passes it over, as it does a gap too
+narrow for a word). Checked against Publisher's own line positions: a
 bullet list beside a picture (left indent 9 pt, first line -9) had its
 bullet at the wrap's edge and its text 9 pt on; a list with the left indent
 0 and the first line -18 had its bullet at the edge and its text 18 pt in,

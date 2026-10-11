@@ -1933,8 +1933,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y, col.top() + y + estText);
                         QVector<Iv> ok;
                         const double minW = std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
+                        // The first line of a list item starts a bullet's hang in from the
+                        // first place it has: that room is part of what it needs.
                         for (const Iv &iv : ivs)
-                            if (iv.x1 - iv.x0 >= std::min(minW, x1 - x0)) ok << iv;
+                            if (iv.x1 - iv.x0 >= std::min(minW + (lineNo == 0 && ok.isEmpty() ? lead : 0), x1 - x0)) ok << iv;
                         if (ok.isEmpty()) {
                             y += 2;
                             if (y + estH > col.height() - reserve.value(rkey(f, c)) + 0.01) advance();
