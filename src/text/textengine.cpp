@@ -1076,6 +1076,18 @@ double lineEmOf(const QFont &f, const QString &requestedFamily)
     return em;
 }
 
+// A line's text for wrapping: its font's ascent and descent. A missing font's
+// stand-in (not drawn to the same metrics) has taller or shorter ones: the
+// original's line spacing counts where it is known.
+static double wrapTextHeight(const QFont &f)
+{
+    const double own = heightOf(f);
+    const QString fam = requestedFamily(f), standIn = substituteFor(fam);
+    if (standIn.isEmpty() || interchangeFontName(standIn) != standIn) return own;
+    const double known = knownMetrics(fam, f.weight() >= QFont::DemiBold).line;
+    return known > 0 ? std::min(own, known * f.pointSizeF() / fontPointFactor()) : own;
+}
+
 // Single spacing in document points: the largest run's line height on the line.
 double singleSpacing(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
 {
@@ -1910,7 +1922,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // for an object reaching above the bottom of its text (checked with
             // 48-point Times New Roman lines: the 53 points of its ascent and
             // descent, not the 55 of its single spacing).
-            const double estText = std::min(estH, heightOf(base));
+            const double estText = std::min(estH, wrapTextHeight(base));
             // Tab stops are the publication's default distance (36 points, or
             // what it says) apart from the text area's edge, not from where a
             // line starts (Publisher), and a line that hangs (the first of a
