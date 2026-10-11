@@ -1012,6 +1012,18 @@ bold. The widths below are of an "I" stem, which grows by the stroke's width
   0.017 em (Windows' own synthetic bold), in proportion to the size; the
   Arial Black cover's title is as wide in Publisher's picture (stem 10.69 pt)
   as the plain font, 12.00 pt in its PDF, 11.1 to 11.2 pt printed.
+- At 96 and 150 dpi the screen's growth is whole pixels for small letters
+  (GDI's synthetic bold): Publisher's pictures of Franklin Gothic Book 8 to
+  24 pt, bold against plain, have this much more ink: at 96 dpi 1.85, 1.78,
+  1.70, 1.63, 1.40, and 1.23 times (8, 10, 12, 14, 18, 24 pt); at 150 dpi
+  1.69, 1.56, 1.38, 1.37, 1.24, and 1.23; at 300 dpi 1.24 at every size, which
+  is the 0.017 em growth (and is what the large sizes at 96 and 150 dpi
+  come to). Counted in pixels, the stem grows about 1 pixel while the letters
+  are under about 30 pixels to the em, and 0.017 em beyond; JeffPub does that
+  into pixels at 96 to 216 dpi (a window at 100% and 150%, a picture saved
+  at 96 or 150 dpi). The same widening shows in Franklin Gothic Book,
+  Century, Impact, and Cooper Black set bold (0.75 to 0.9 pt at 48 pt), and
+  they are stroked 1/35 em in a PDF only when bold (all four tried).
 - Text from 216 pt up is set as outlines, with Franklin Gothic Demi bold
   widened as on the screen (a rectangle 41.48 pt wide for the "I" of 240 pt,
   plain 37.39 pt: 0.017 em) and Arial Black not at all; no stroke is added.
