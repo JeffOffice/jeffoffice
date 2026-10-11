@@ -1199,27 +1199,49 @@ QString PubWriter::extraImage(const QByteArray &bytes, quint16 kind)
     return key;
 }
 
-// A picture cut to a shape is saved as the shape filled with the picture,
-// which always fills the shape's box: so the part showing in the frame is
-// cut out, with its adjustments applied, unless it is the whole picture as is.
+// A picture cut to a shape (or see-through) is saved as the shape filled
+// with the picture, which always fills the shape's box: so the part showing
+// in the frame is cut out, with its adjustments applied. Publisher draws a
+// picture fill past the shape by kPubPictureFillBleed on every side (clipped
+// to the shape), so the part saved has that much picture around the frame,
+// as it is drawn there, or its edge pixels carried on where the picture
+// stops: what shows in the frame stays where JeffPub draws it.
 QString PubWriter::shapedPictureImage(const PictureItem &pic)
 {
     const QSizeF fs = pic.rect.size();
     const QRectF ir = pic.imgRect.isEmpty() ? QRectF(QPointF(), fs) : pic.imgRect;
-    const bool whole = std::abs(ir.left()) < 1e-3 && std::abs(ir.top()) < 1e-3 && std::abs(ir.width() - fs.width()) < 1e-3
-                       && std::abs(ir.height() - fs.height()) < 1e-3;
     const bool adjusted = pic.brightness || pic.contrast || pic.recolor != PictureItem::NoRecolor || pic.hasTransparentColor;
-    if (whole && !adjusted) return pic.imageId;
     QImage img = adjusted ? Renderer::processedImage(m_doc, pic, QSizeF()) : m_doc.image(pic.imageId);
-    if (img.isNull()) return pic.imageId;
-    const QRectF shown = QRectF(QPointF(), fs).intersected(ir);
-    if (!whole && !shown.isEmpty()) {
-        const double sx = img.width() / ir.width(), sy = img.height() / ir.height();
-        const QRect px = QRectF((shown.left() - ir.left()) * sx, (shown.top() - ir.top()) * sy, shown.width() * sx, shown.height() * sy).toAlignedRect()
-                             .intersected(img.rect());
-        if (!px.isEmpty()) img = img.copy(px);
+    if (img.isNull() || ir.isEmpty()) return pic.imageId;
+    const double sx = img.width() / ir.width(), sy = img.height() / ir.height();
+    const QRectF bake = QRectF(QPointF(), fs).adjusted(-kPubPictureFillBleed, -kPubPictureFillBleed, kPubPictureFillBleed, kPubPictureFillBleed);
+    const QRectF shown = bake.intersected(ir);
+    if (shown.isEmpty()) return pic.imageId;
+    const QRect px = QRectF((shown.left() - ir.left()) * sx, (shown.top() - ir.top()) * sy, shown.width() * sx, shown.height() * sy).toAlignedRect()
+                         .intersected(img.rect());
+    if (px.isEmpty()) return pic.imageId;
+    QImage part = img.copy(px);
+    // Where the picture stops short of the bleed, its edge goes on.
+    const int ml = int(std::lround((shown.left() - bake.left()) * sx)), mt = int(std::lround((shown.top() - bake.top()) * sy));
+    const int mr = int(std::lround((bake.right() - shown.right()) * sx)), mb = int(std::lround((bake.bottom() - shown.bottom()) * sy));
+    if (ml > 0 || mt > 0 || mr > 0 || mb > 0) {
+        QImage out(part.width() + ml + mr, part.height() + mt + mb, QImage::Format_ARGB32);
+        out.fill(Qt::transparent);
+        QPainter p(&out);
+        p.setCompositionMode(QPainter::CompositionMode_Source);
+        p.drawImage(QPoint(ml, mt), part);
+        if (ml > 0) p.drawImage(QRect(0, mt, ml, part.height()), part, QRect(0, 0, 1, part.height()));
+        if (mr > 0) p.drawImage(QRect(ml + part.width(), mt, mr, part.height()), part, QRect(part.width() - 1, 0, 1, part.height()));
+        p.end();
+        // Rows above and below: the first and last rows of what is drawn.
+        QPainter q(&out);
+        q.setCompositionMode(QPainter::CompositionMode_Source);
+        if (mt > 0) q.drawImage(QRect(0, 0, out.width(), mt), out.copy(0, mt, out.width(), 1));
+        if (mb > 0) q.drawImage(QRect(0, mt + part.height(), out.width(), mb), out.copy(0, mt + part.height() - 1, out.width(), 1));
+        q.end();
+        part = out;
     }
-    return madeImage(img, pic.imageId, pic.hasTransparentColor);
+    return madeImage(part, pic.imageId, pic.hasTransparentColor);
 }
 
 // A picture made from one of the publication's: a JPEG source stays JPEG

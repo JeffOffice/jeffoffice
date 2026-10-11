@@ -3682,6 +3682,58 @@ private Q_SLOTS:
         QVERIFY(std::abs(handBoldStem(demi, true, 230, paper) - handBoldStem(demi, true, 230, pic)) < 0.2);
     }
 
+    // A picture saved as a shape filled with it (see-through, or cut to a
+    // shape) is drawn by Publisher 2.5 points past the shape on every side,
+    // as it draws any picture fill (measured Oct 11 on rectangles of 200 to
+    // 600 points: 2.5 points each side, from a picture with a red edge 5%
+    // wide). The picture saved is the part showing and 2.5 points of it
+    // around, so what shows in the frame stays as JeffPub draws it; the edge
+    // pixels go on over the part of the margin the picture doesn't reach.
+    void seeThroughPictureIsSavedWithTheFillBleed()
+    {
+        using namespace jp;
+        QImage src(200, 150, QImage::Format_RGB32);   // 2 pixels to the point in a frame 100 x 75
+        src.fill(Qt::white);
+        {
+            QPainter p(&src);
+            p.fillRect(QRect(0, 0, 200, 150), Qt::red);
+            p.fillRect(QRect(20, 20, 160, 110), Qt::white);
+        }
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        src.save(&buf, "PNG");
+        auto saved = [&](const QRectF &imgRect, QImage *out) {
+            auto doc = Document::blank(QSizeF(300, 200));
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = doc->addImage(png, QStringLiteral("png"));
+            pic->rect = QRectF(50, 50, 100, 75);
+            pic->imgRect = imgRect;
+            pic->transparency = 0.3;
+            doc->pages[0]->items.push_back(pic);
+            QTemporaryDir dir;
+            const QString path = dir.filePath(QStringLiteral("see-through.pub"));
+            QString err;
+            if (!exportPublisher(*doc, path, &err)) return false;
+            auto back = importPublisherFile(path, &err);
+            if (!back) return false;
+            for (const auto &it : back->pages[0]->items)
+                if (it->type() == ItemType::Picture) *out = back->image(static_cast<const PictureItem &>(*it).imageId);
+            return !out->isNull();
+        };
+        // The whole picture in its frame: 2.5 points more on each side, 5 pixels.
+        QImage whole, bigger;
+        QVERIFY(saved(QRectF(0, 0, 100, 75), &whole));
+        QVERIFY2(std::abs(whole.width() - 210) <= 2 && std::abs(whole.height() - 160) <= 2, qPrintable(QStringLiteral("%1 x %2").arg(whole.width()).arg(whole.height())));
+        // The red edge, 20 pixels wide, is 25 with the margin, which goes on in the edge's color.
+        QVERIFY(QColor(whole.pixel(2, 80)) == QColor(Qt::red) && QColor(whole.pixel(22, 80)) == QColor(Qt::red) && QColor(whole.pixel(30, 80)) == QColor(Qt::white));
+        QVERIFY(QColor(whole.pixel(100, 2)) == QColor(Qt::red) && QColor(whole.pixel(100, 80)) == QColor(Qt::white));
+        // A picture reaching beyond its frame (as a background does): only 2.5 points of it past the frame are kept, as it is.
+        QVERIFY(saved(QRectF(-10, -10, 120, 95), &bigger));   // 200 pixels over 120 points
+        const double perPt = 200.0 / 120, perPtY = 150.0 / 95;
+        QVERIFY2(std::abs(bigger.width() - 105 * perPt) <= 2 && std::abs(bigger.height() - 80 * perPtY) <= 2, qPrintable(QStringLiteral("%1 x %2").arg(bigger.width()).arg(bigger.height())));
+    }
+
     // A page's background picture is drawn past the page's edge, 2.5 points
     // on every side, and the picture's crops (fractions of the picture) then
     // trim that larger picture. Publisher (Oct 11), a background made from a

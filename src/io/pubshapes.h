@@ -22,4 +22,9 @@ QString textArtTransformForPubType(int type);
 // this brown, and a picture recolored to it reads back as sepia.
 constexpr unsigned kPubSepia = 0x704214;   // RGB
 
+// Publisher draws a picture used as a shape's fill (a page's background is
+// one) this many points past the shape on every side, clipped to it; a
+// picture in a picture frame of its own is drawn to the frame.
+constexpr double kPubPictureFillBleed = 2.5;
+
 } // namespace jp
