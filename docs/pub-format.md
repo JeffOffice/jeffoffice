@@ -149,7 +149,8 @@ for Grow Text Box to Fit, and `0a` (u32), the hyphenation zone in EMU, left
 out at its default of 228600 (0.25 inch). A text box's zone is the same
 field (a chain of linked boxes is one story, so it has one zone); files
 JeffPub wrote with zones of 36, 30, and 27 points opened in Publisher's
-Hyphenation dialog showing 0.5", 0.417", and 0.375".
+Hyphenation dialog showing 0.5", 0.417", and 0.375". JeffPub reads a zone
+only up to 720 points, the most it writes.
 
 `05` is 1 for Best Fit and 3 for Shrink Text On Overflow; older files set
 higher bits too (0x103, 0x203, 0x3003), so only the low two bits count.
