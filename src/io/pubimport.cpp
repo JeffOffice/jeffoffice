@@ -455,6 +455,12 @@ public:
     void openParagraph(const RVNGPropertyList &p) override
     {
         if (qEnvironmentVariableIsSet("JP_PUB_TRACE")) fprintf(stderr, "PARA %s\n", p.getPropString().cstr());
+        // The second half of a divided cell has a story of its own.
+        if (p["jp:second-half"] && !m_halfStory.isEmpty()) {
+            useStory(m_doc.storyDoc(m_halfStory));
+            m_firstPara = true;
+            m_list = nullptr;
+        }
         if (m_cursor.isNull() || m_skipText) return;
         QTextBlockFormat bf;
         const QString al = str(p["fo:text-align"]);
@@ -774,20 +780,26 @@ public:
         if (p["fo:padding-left"])
             c.margins = QMarginsF(toPt(p["fo:padding-left"]), toPt(p["fo:padding-top"]), toPt(p["fo:padding-right"]), toPt(p["fo:padding-bottom"]));
         // A cell divided by a diagonal: the file counts 1 from bottom left to top right and 2 from top left to bottom
-        // right. It is drawn only where the cell has a diagonal border; the text of both halves is in the cell.
+        // right. It is drawn only where the cell has a diagonal border; each half has its own text.
         if (p["jp:diagonal"]) {
             c.diagonal = p["jp:diagonal"]->getInt() == 2 ? 1 : 2;
             c.diagonalLine = border("jp:diagonal-border");
+            c.storyId2 = m_doc.createStory();
         }
         // Text Direction: 2 turns the cell's text a quarter turn.
         if (p["jp:text-direction"] && p["jp:text-direction"]->getInt() == 2) c.vertical = true;
         m_cells.back().push_back(c);
+        m_halfStory = c.storyId2;
         useStory(m_doc.storyDoc(c.storyId));
         m_firstPara = true;
         m_list = nullptr;
         m_skipText = false;
     }
-    void closeTableCell() override { useStory(nullptr); }
+    void closeTableCell() override
+    {
+        m_halfStory.clear();
+        useStory(nullptr);
+    }
     void insertCoveredTableCell(const RVNGPropertyList &) override
     {
         if (!m_table || m_row < 0) return;
@@ -1522,6 +1534,7 @@ private:
     std::vector<PendingGlue> m_glue;
     std::map<int, int> m_linkCount;
     std::shared_ptr<TableItem> m_table;
+    QString m_halfStory;   // the open table cell's second half, when it is divided
     bool m_tableHyphenate = true;
     double m_tableHyphenZone = 18;
     std::vector<std::vector<TableCell>> m_cells;

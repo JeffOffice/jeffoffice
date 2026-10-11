@@ -8,7 +8,7 @@ The **Table Design** and **Table Layout** tabs appear, under the label **Table T
 - **Table Formats** is a gallery of ready-made looks. See [Make and edit tables](tables).
 - **Fill** has **Cell Fill**, which colors a cell or the whole table. See [Make and edit tables](tables).
 - **Borders** has **Line Color**, **Line Weight**, and a **Borders** menu that draws lines on chosen sides. See [Make and edit tables](tables).
-- **Alignment** holds **Diagonals**, which draws a line from corner to corner of a cell. See [Make and edit tables](tables).
+- **Alignment** holds **Diagonals**, which divides a cell into two halves, each with its own text, with a line from corner to corner. See [Make and edit tables](tables).
 
 ## Table Layout
 

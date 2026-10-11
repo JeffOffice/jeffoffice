@@ -97,12 +97,13 @@ public:
     struct TextTarget {
         QString itemId, storyId;
         int row = -1, col = -1;        // table cell
+        int half = 0;                  // 1: the second half of a cell divided by a diagonal
     };
     bool isEditingText() const { return !m_text.storyId.isEmpty(); }
     const TextTarget &textTarget() const { return m_text; }
     QTextCursor &cursor() { return m_cursor; }
     QTextDocument *editDoc() const;
-    void beginTextEdit(const QString &itemId, int pos = -1, int row = -1, int col = -1);
+    void beginTextEdit(const QString &itemId, int pos = -1, int row = -1, int col = -1, int half = 0);
     void endTextEdit();
     void setCursor(const QTextCursor &c);
     void textEdited();                 // call after any cursor-based edit

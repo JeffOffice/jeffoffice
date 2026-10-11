@@ -53,6 +53,22 @@ static TableItem *selTable(Editor *ed)
     return dynamic_cast<TableItem *>(ed->single());
 }
 
+// Takes away a cell's division by a diagonal: the second half's text joins the first's, as in Publisher (the
+// first half's last paragraph goes on with the second's first), and the cell is one again.
+static void joinHalves(Document *d, TableCell &cell)
+{
+    QTextDocument *src = d->storyDoc(cell.storyId2);
+    QTextDocument *dst = d->storyDoc(cell.storyId);
+    if (src && dst && !src->isEmpty()) {
+        QTextCursor dc(dst);
+        dc.movePosition(QTextCursor::End);
+        dc.insertFragment(QTextDocumentFragment(src));
+    }
+    cell.storyId2.clear();
+    cell.diagonal = 0;
+    cell.diagonalLine = Stroke::none();
+}
+
 // Table structure edits keep stories, spans and borders consistent.
 // A new row or column through a merged cell makes the merged cell bigger, and
 // the new cells under it are covered.
@@ -1420,6 +1436,7 @@ void MainWindow::createActions()
                 for (int c = rg.c0; c <= rg.c1; ++c) {
                     if (r == rg.r0 && c == rg.c0) continue;
                     TableCell &cell = t->cell(r, c);
+                    if (!cell.storyId2.isEmpty()) joinHalves(m_ed->doc(), cell);   // a divided cell is one again
                     // The other cells' text joins the first cell's, a paragraph each.
                     QTextDocument *src = cell.covered ? nullptr : m_ed->doc()->storyDoc(cell.storyId);
                     if (dst && src && !src->toPlainText().isEmpty()) {
@@ -1463,15 +1480,25 @@ void MainWindow::createActions()
             TableItem *t = selTable(m_ed);
             const CellRange rg = m_ed->targetCells();
             if (!t || !rg.valid()) return;
+            // Taking a division away may remove the half being typed in.
+            const bool editing = m_ed->isEditingText() && !diagonal;
+            if (editing) m_ed->endTextEdit();
             m_ed->change(tr("Diagonals"), [&] {
                 for (int r = rg.r0; r <= rg.r1; ++r)
                     for (int c = rg.c0; c <= rg.c1; ++c) {
                         TableCell &cell = t->cell(r, c);
+                        if (!diagonal) {
+                            joinHalves(m_ed->doc(), cell);
+                            continue;
+                        }
                         cell.diagonal = diagonal;
+                        // The first half keeps the cell's text; the second starts empty.
+                        if (cell.storyId2.isEmpty() && !cell.covered) cell.storyId2 = m_ed->doc()->createStory();
                         // The line takes the cell's top border, or is a thin line in the main color.
-                        cell.diagonalLine = !diagonal ? Stroke::none() : cell.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : cell.border.top;
+                        cell.diagonalLine = cell.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : cell.border.top;
                     }
             });
+            if (editing) m_ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
         });
     }
     mk("tbl.format", tr("Format Table…"), "settings-2", QKeySequence(), [this] { formatObjectDialog(this, m_ed, 0); });

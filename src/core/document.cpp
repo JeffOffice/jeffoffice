@@ -613,11 +613,14 @@ QSet<QString> Document::storiesInUse() const
         if (it->type() == ItemType::Text) use(static_cast<TextItem *>(it)->storyId);
         if (it->type() == ItemType::Shape) use(static_cast<ShapeItem *>(it)->storyId);
         if (it->type() == ItemType::Table)
-            for (const auto &c : static_cast<TableItem *>(it)->cells) use(c.storyId);
+            for (const auto &c : static_cast<TableItem *>(it)->cells) {
+                use(c.storyId);
+                use(c.storyId2);
+            }
     };
     forEachItem([&](Item *it, int, const QString &) { usedBy(it); });
     walkItems(extra, [&](const ItemPtr &it) { usedBy(it.get()); });
-    static const QRegularExpression storyKey(QStringLiteral("\"story\":\"([^\"]+)\""));
+    static const QRegularExpression storyKey(QStringLiteral("\"story2?\":\"([^\"]+)\""));
     while (!queue.isEmpty()) {
         const QTextDocument *sd = storyDoc(queue.takeFirst());
         if (!sd) continue;
@@ -924,8 +927,10 @@ ItemPtr Document::cloneItem(const Item &src, QHash<QString, QString> *ids)
             break;
         }
         case ItemType::Table:
-            for (auto &cell : static_cast<TableItem *>(it)->cells)
+            for (auto &cell : static_cast<TableItem *>(it)->cells) {
                 if (!cell.storyId.isEmpty()) cell.storyId = copyStory(cell.storyId);
+                if (!cell.storyId2.isEmpty()) cell.storyId2 = copyStory(cell.storyId2);
+            }
             break;
         case ItemType::Group: {
             auto &kids = static_cast<GroupItem *>(it)->children;
@@ -1160,7 +1165,7 @@ static bool namesMissingStory(const Document &d, const Item &it)
     case ItemType::Shape: return missing(static_cast<const ShapeItem &>(it).storyId, false);
     case ItemType::Table:
         for (const TableCell &c : static_cast<const TableItem &>(it).cells)
-            if (missing(c.storyId, false)) return true;
+            if (missing(c.storyId, false) || missing(c.storyId2, false)) return true;
         return false;
     case ItemType::Group:
         for (const ItemPtr &c : static_cast<const GroupItem &>(it).children)

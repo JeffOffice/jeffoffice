@@ -1263,7 +1263,8 @@ bool MainWindow::exportFixedEpubTo(const QString &path, const QString &title, co
                 if (QTextDocument *sd = d->storyDoc(static_cast<const ShapeItem *>(it)->storyId)) take(sd, 0, sd->characterCount());
             } else
                 for (const auto &c : static_cast<const TableItem *>(it)->cells)
-                    if (QTextDocument *sd = d->storyDoc(c.storyId); sd && !c.covered) take(sd, 0, sd->characterCount());
+                    for (const QString &story : {c.storyId, c.storyId2})
+                        if (QTextDocument *sd = d->storyDoc(story); sd && !c.covered) take(sd, 0, sd->characterCount());
         }
         pages << fp;
     }

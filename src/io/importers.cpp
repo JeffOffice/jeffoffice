@@ -481,7 +481,7 @@ static void freezeMergeFields(Document &out, const MergeSource &src, const ItemL
         QStringList stories;
         if (it->type() == ItemType::Text) stories << static_cast<TextItem *>(it.get())->storyId;
         if (it->type() == ItemType::Shape) stories << static_cast<ShapeItem *>(it.get())->storyId;
-        if (it->type() == ItemType::Table) for (const auto &c : static_cast<TableItem *>(it.get())->cells) stories << c.storyId;
+        if (it->type() == ItemType::Table) for (const auto &c : static_cast<TableItem *>(it.get())->cells) stories << c.storyId << c.storyId2;
         if (it->type() == ItemType::Picture && it->name.startsWith("merge:")) {
             const QString file = src.value(rec, it->name.mid(6));
             const QString path = QDir::cleanPath(QDir(QFileInfo(src.path).absolutePath()).absoluteFilePath(file));

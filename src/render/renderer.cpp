@@ -249,6 +249,7 @@ static QString specSig(const FrameSpec &s)
     QString k = QStringLiteral("%1x%2|%3,%4,%5,%6|%7|%8|%9|%10;").arg(s.size.width()).arg(s.size.height()).arg(s.insets.left()).arg(s.insets.top())
                     .arg(s.insets.right()).arg(s.insets.bottom()).arg(s.columns).arg(s.gap).arg(int(s.valign)).arg(s.ctx.key());
     k += QStringLiteral("h%1,%2|b%3,%4;").arg(int(s.hyphenate)).arg(s.hyphenZone).arg(s.baselineGrid).arg(s.baselineOrigin);
+    if (s.fitToShape) k += QLatin1Char('s');
     for (const auto &o : s.obstacles) {
         const QRectF b = o.boundingRect();
         // The points' sum too, so moving a point inside the same bounds re-wraps.
@@ -814,10 +815,12 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     return ctx.cache->storyBox(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber));
 }
 
-const StoryLayout *Renderer::cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin)
+const StoryLayout *Renderer::cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin, int half)
 {
     const TableCell &c = t.cell(row, col);
     const QRectF cr = t.cellRect(row, col);
+    const QString story = c.halfStory(half && c.divided());
+    if (story.isEmpty()) return nullptr;
     FrameSpec spec;
     spec.size = c.vertical ? QSizeF(cr.height(), cr.width()) : cr.size();   // text turned 90 degrees: laid out on its side
     spec.insets = c.margins;
@@ -828,8 +831,19 @@ const StoryLayout *Renderer::cellLayout(const PaintContext &ctx, const TableItem
     spec.ctx.pageNumber = ctx.pageNumber;
     spec.ctx.pageCount = ctx.pageCount;
     spec.ctx.mergeRecord = ctx.opt.mergeRecord;
+    // A half of a divided cell wraps its text around the other half. Turned text is laid out on its side.
+    if (c.divided()) {
+        QPolygonF other = c.halfShape(1 - (half ? 1 : 0), cr.size());
+        if (c.vertical) {
+            QPolygonF turned;
+            for (const QPointF &p : other) turned << QPointF(p.y(), cr.width() - p.x());
+            other = turned;
+        }
+        spec.obstacles = {other};
+        spec.fitToShape = true;
+    }
     if (origin) *origin = cr.topLeft();
-    return ctx.cache->storyBox(*ctx.doc, c.storyId, spec, t.id + QStringLiteral("/%1/%2/%3").arg(row).arg(col).arg(ctx.pageNumber));
+    return ctx.cache->storyBox(*ctx.doc, story, spec, t.id + QStringLiteral("/%1/%2/%3%4").arg(row).arg(col).arg(ctx.pageNumber).arg(half && c.divided() ? QStringLiteral("/h2") : QString()));
 }
 
 static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
@@ -856,25 +870,27 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
     for (int row = 0; row < t.rows; ++row)
         for (int col = 0; col < t.cols; ++col) {
             const TableCell &c = t.cell(row, col);
-            if (c.covered || c.storyId.isEmpty()) continue;
+            if (c.covered) continue;
             const QRectF cr = t.cellRect(row, col);
-            QPointF origin;
-            const StoryLayout *lay = Renderer::cellLayout(ctx, t, row, col, &origin);
-            if (!lay) continue;
-            PaintOptions po;
-            po.shadeFields = ctx.opt.shadeFields;
-            po.showSpecial = ctx.opt.showSpecial;
-            if (ctx.opt.editStory == c.storyId) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
-            p->save();
-            p->translate(cr.topLeft());
-            p->setClipRect(QRectF(QPointF(0, 0), cr.size()), Qt::IntersectClip);
-            if (c.vertical) {
-                p->translate(cr.width(), 0);
-                p->rotate(90);
+            for (int half = 0; half < (c.divided() ? 2 : 1); ++half) {
+                QPointF origin;
+                const StoryLayout *lay = Renderer::cellLayout(ctx, t, row, col, &origin, half);
+                if (!lay) continue;
+                PaintOptions po;
+                po.shadeFields = ctx.opt.shadeFields;
+                po.showSpecial = ctx.opt.showSpecial;
+                if (ctx.opt.editStory == c.halfStory(half)) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
+                p->save();
+                p->translate(cr.topLeft());
+                p->setClipRect(QRectF(QPointF(0, 0), cr.size()), Qt::IntersectClip);
+                if (c.vertical) {
+                    p->translate(cr.width(), 0);
+                    p->rotate(90);
+                }
+                lay->paint(p, 0, po);
+                paintInlineObjects(p, ctx, *lay, 0);
+                p->restore();
             }
-            lay->paint(p, 0, po);
-            paintInlineObjects(p, ctx, *lay, 0);
-            p->restore();
         }
     // Borders and diagonals on top.
     for (int row = 0; row < t.rows; ++row)

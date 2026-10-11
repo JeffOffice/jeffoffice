@@ -980,7 +980,7 @@ bool Canvas::caretInfo(QLineF *pageLine, QString *frameId, int atPos) const
     } else if (it->type() == ItemType::Table) {
         QPointF o;
         const auto *tb = static_cast<TableItem *>(it);
-        const StoryLayout *lay = Renderer::cellLayout(ctx, *tb, tt.row, tt.col, &o);
+        const StoryLayout *lay = Renderer::cellLayout(ctx, *tb, tt.row, tt.col, &o, tt.half);
         int fi;
         if (!lay || !lay->caretRect(pos, &fi, &r)) return false;
         t = it->transform();
@@ -1413,6 +1413,10 @@ Canvas::Hit Canvas::hitTest(const QPointF &view) const
         h.textInterior = interior;
         h.row = row;
         h.col = col;
+        if (const auto *tb = dynamic_cast<const TableItem *>(m_ed->doc()->item(id)); tb && row >= 0 && col >= 0 && tb->cell(row, col).divided()) {
+            const QRectF cr = tb->cellRect(row, col);
+            h.half = tb->cell(row, col).halfAt(tb->transform().inverted().map(page) - cr.topLeft(), cr.size());
+        }
         return h;
     }
     if (m_ed->view.guides) {
@@ -1429,7 +1433,7 @@ Canvas::Hit Canvas::hitTest(const QPointF &view) const
     return h;
 }
 
-int Canvas::textPosAt(const QString &itemId, const QPointF &page, int row, int col) const
+int Canvas::textPosAt(const QString &itemId, const QPointF &page, int row, int col, int half) const
 {
     Item *it = m_ed->doc()->item(itemId);
     if (!it) return -1;
@@ -1452,7 +1456,8 @@ int Canvas::textPosAt(const QString &itemId, const QPointF &page, int row, int c
     if (it->type() == ItemType::Table) {
         QPointF o;
         const auto *tb = static_cast<TableItem *>(it);
-        const StoryLayout *lay = Renderer::cellLayout(ctx, *tb, row, col, &o);
+        if (half < 0) half = tb->cell(row, col).halfAt(local - tb->cellRect(row, col).topLeft(), tb->cellRect(row, col).size());
+        const StoryLayout *lay = Renderer::cellLayout(ctx, *tb, row, col, &o, half);
         QPointF l = local - o;
         if (lay && tb->cell(row, col).vertical) l = QPointF(l.y(), tb->cellRect(row, col).width() - l.x());
         return lay ? lay->hitTest(0, l) : -1;
@@ -1572,8 +1577,8 @@ void Canvas::mousePressEvent(QMouseEvent *e)
         const Hit h = hitTest(e->position());
         // Right-clicking a word in the text being edited puts the caret there,
         // so the menu can offer spelling suggestions for it.
-        if (m_ed->isEditingText() && h.kind == HitKind::Item && m_ed->textTarget().itemId == h.id && h.textInterior) {
-            const int pos = textPosAt(h.id, m_pressPage, h.row, h.col);
+        if (m_ed->isEditingText() && h.kind == HitKind::Item && m_ed->textTarget().itemId == h.id && h.textInterior && h.half == m_ed->textTarget().half) {
+            const int pos = textPosAt(h.id, m_pressPage, h.row, h.col, h.half);
             QTextCursor c = m_ed->cursor();
             if (pos >= 0 && !(c.hasSelection() && pos >= c.selectionStart() && pos <= c.selectionEnd())) {
                 c.setPosition(pos);
@@ -1763,8 +1768,8 @@ void Canvas::mousePressEvent(QMouseEvent *e)
         }
         // Clicking in the text of the box being edited moves the caret.
         if (m_ed->isEditingText() && m_ed->textTarget().itemId == h.id &&
-            (h.textInterior || it->type() == ItemType::Shape) && (it->type() != ItemType::Table || (h.row == m_ed->textTarget().row && h.col == m_ed->textTarget().col))) {
-            const int pos = textPosAt(h.id, m_pressPage, h.row, h.col);
+            (h.textInterior || it->type() == ItemType::Shape) && (it->type() != ItemType::Table || (h.row == m_ed->textTarget().row && h.col == m_ed->textTarget().col && h.half == m_ed->textTarget().half))) {
+            const int pos = textPosAt(h.id, m_pressPage, h.row, h.col, h.half);
             // Pressing in selected text starts dragging it (Options >
             // Advanced: drag and drop text).
             const QTextCursor sel = m_ed->cursor();
@@ -1795,8 +1800,8 @@ void Canvas::mousePressEvent(QMouseEvent *e)
         // Clicking inside a text box or table cell starts typing there.
         if (h.textInterior && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) && !it->locked &&
             (it->type() == ItemType::Text || it->type() == ItemType::Table) && !(m_ed->selection().size() == 1 && m_ed->selection().first() == h.id && !m_ed->isEditingText() && false)) {
-            const int pos = textPosAt(h.id, m_pressPage, h.row, h.col);
-            m_ed->beginTextEdit(h.id, pos, h.row, h.col);
+            const int pos = textPosAt(h.id, m_pressPage, h.row, h.col, h.half);
+            m_ed->beginTextEdit(h.id, pos, h.row, h.col, h.half);
             m_drag = Drag::TextSelect;
             return;
         }
@@ -2235,7 +2240,7 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
                     return;
                 }
             }
-        int pos = textPosAt(tt.itemId, page, tt.row, tt.col);
+        int pos = textPosAt(tt.itemId, page, tt.row, tt.col, tt.half);
         // Allow dragging into other linked boxes on this page.
         if (Item *it = d->item(tt.itemId); it && it->type() == ItemType::Text) {
             for (TextItem *f : d->chainOf(it->id)) {
@@ -2596,8 +2601,8 @@ void Canvas::mouseDoubleClickEvent(QMouseEvent *e)
     case ItemType::Text:
     case ItemType::Shape:
     case ItemType::Table: {
-        m_ed->beginTextEdit(h.id, -1, h.row, h.col);
-        const int pos = textPosAt(h.id, toPage(e->position()), m_ed->textTarget().row, m_ed->textTarget().col);
+        m_ed->beginTextEdit(h.id, -1, h.row, h.col, h.half);
+        const int pos = textPosAt(h.id, toPage(e->position()), m_ed->textTarget().row, m_ed->textTarget().col, m_ed->textTarget().half);
         if (pos >= 0) {
             QTextCursor c = m_ed->cursor();
             c.setPosition(pos);
@@ -2688,7 +2693,17 @@ void Canvas::wheelEvent(QWheelEvent *e)
 void Canvas::moveCaret(QTextCursor::MoveOperation op, bool select, int n)
 {
     QTextCursor c = m_ed->cursor();
+    const int from = c.position();
     c.movePosition(op, select ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor, n);
+    // Right at the end of a divided cell's first half goes on to its second, and Left at the start of the second
+    // back to the first (as in Publisher).
+    const auto &tt = m_ed->textTarget();
+    const bool right = op == QTextCursor::NextCharacter || op == QTextCursor::NextWord, left = op == QTextCursor::PreviousCharacter || op == QTextCursor::WordLeft;
+    if (!select && c.position() == from && ((right && tt.half == 0) || (left && tt.half == 1)))
+        if (const auto *t = dynamic_cast<const TableItem *>(m_ed->doc()->item(tt.itemId)); t && tt.row >= 0 && t->cell(tt.row, tt.col).divided()) {
+            m_ed->beginTextEdit(t->id, right ? 0 : -1, tt.row, tt.col, 1 - tt.half);
+            return;
+        }
     m_ed->desiredX = -1;
     m_ed->setCursor(c);
 }
@@ -2702,7 +2717,7 @@ void Canvas::verticalCaret(int dir, bool select)
     const StoryLayout *lay = nullptr;
     if (it->type() == ItemType::Text) lay = m_ed->cache().textFrame(*m_ed->doc(), *static_cast<TextItem *>(it), m_ed->surfacePageNumber(), ctx.opt).layout;
     else if (it->type() == ItemType::Shape) lay = Renderer::shapeTextLayout(ctx, *static_cast<ShapeItem *>(it), nullptr);
-    else if (it->type() == ItemType::Table) lay = Renderer::cellLayout(ctx, *static_cast<TableItem *>(it), tt.row, tt.col, nullptr);
+    else if (it->type() == ItemType::Table) lay = Renderer::cellLayout(ctx, *static_cast<TableItem *>(it), tt.row, tt.col, nullptr, tt.half);
     if (!lay) return;
     QTextCursor c = m_ed->cursor();
     if (m_ed->desiredX < 0) {
@@ -2712,8 +2727,13 @@ void Canvas::verticalCaret(int dir, bool select)
     }
     const int np = lay->moveVertical(c.position(), dir, m_ed->desiredX);
     if (np == c.position() && it->type() == ItemType::Table) {
-        // Up/Down past the cell edge moves to the cell above/below.
+        // Up/Down past the cell edge moves to the cell above/below; in a divided cell, from the first half to the
+        // second and back.
         auto *t = static_cast<TableItem *>(it);
+        if (t->cell(tt.row, tt.col).divided() && tt.half == (dir > 0 ? 0 : 1)) {
+            m_ed->beginTextEdit(t->id, dir > 0 ? 0 : -1, tt.row, tt.col, 1 - tt.half);
+            return;
+        }
         const int nr = tt.row + dir;
         if (nr >= 0 && nr < t->rows) m_ed->beginTextEdit(t->id, dir > 0 ? 0 : -1, nr, tt.col);
         return;
@@ -2735,7 +2755,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
         const StoryLayout *lay = nullptr;
         if (it && it->type() == ItemType::Text) lay = m_ed->cache().textFrame(*m_ed->doc(), *static_cast<TextItem *>(it), m_ed->surfacePageNumber(), ctx.opt).layout;
         else if (it && it->type() == ItemType::Shape) lay = Renderer::shapeTextLayout(ctx, *static_cast<ShapeItem *>(it), nullptr);
-        else if (it && it->type() == ItemType::Table) lay = Renderer::cellLayout(ctx, *static_cast<TableItem *>(it), tt.row, tt.col, nullptr);
+        else if (it && it->type() == ItemType::Table) lay = Renderer::cellLayout(ctx, *static_cast<TableItem *>(it), tt.row, tt.col, nullptr, tt.half);
         QTextCursor c = m_ed->cursor();
         const int p = lay ? (end ? lay->lineEnd(c.position()) : lay->lineStart(c.position())) : c.position();
         c.setPosition(p, shift ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
@@ -2815,6 +2835,14 @@ void Canvas::handleTextKey(QKeyEvent *e)
             auto *t = static_cast<TableItem *>(it);
             int r = tt.row, c = tt.col;
             const bool back = e->key() == Qt::Key_Backtab || shift;
+            // The halves of a divided cell come one after the other, the second after the first.
+            if (t->cell(r, c).divided() && (back ? tt.half == 1 : tt.half == 0)) {
+                m_ed->beginTextEdit(t->id, 0, r, c, back ? 0 : 1);
+                QTextCursor cur = m_ed->cursor();
+                cur.select(QTextCursor::Document);
+                m_ed->setCursor(cur);
+                return;
+            }
             do {
                 if (back) { if (--c < 0) { c = t->cols - 1; --r; } }
                 else if (++c >= t->cols) { c = 0; ++r; }
@@ -2842,7 +2870,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
                 r = t->rows - 1;
                 c = 0;
             }
-            m_ed->beginTextEdit(t->id, 0, r, c);
+            m_ed->beginTextEdit(t->id, 0, r, c, back && t->cell(r, c).divided() ? 1 : 0);
             QTextCursor cur = m_ed->cursor();
             cur.select(QTextCursor::Document);
             m_ed->setCursor(cur);

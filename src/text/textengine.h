@@ -51,6 +51,10 @@ struct FrameSpec {
     double baselineGrid = 0;        // the page's baseline guides: spacing (0 = none)
     double baselineOrigin = 0;      // and one baseline's position, frame-local
     QVector<QPolygonF> obstacles;   // frame-local, already expanded by wrap distances
+    // The frame is a polygon (half of a cell divided by a diagonal), the obstacles being the rest of its box:
+    // a word too long for the place beside them moves down to where it fits instead of being broken, and
+    // middle or bottom aligned text goes as far down as it fits.
+    bool fitToShape = false;
     FieldContext ctx;
 };
 

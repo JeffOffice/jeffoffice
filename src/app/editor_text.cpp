@@ -41,7 +41,10 @@ QVector<QTextCursor> Editor::formatTargets() const
             const CellBlock b = cellBlock();
             for (int r = 0; r < t->rows; ++r)
                 for (int c = 0; c < t->cols; ++c)
-                    if (b.itemId != t->id || b.range.contains(r, c)) addStory(t->cell(r, c).storyId);
+                    if (b.itemId != t->id || b.range.contains(r, c)) {
+                        addStory(t->cell(r, c).storyId);
+                        addStory(t->cell(r, c).storyId2);
+                    }
             break;
         }
         case ItemType::Group: for (const auto &c : static_cast<GroupItem *>(it)->children) visit(c.get()); break;
