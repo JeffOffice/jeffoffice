@@ -14052,6 +14052,120 @@ private Q_SLOTS:
         QCOMPARE(table()->rowH[0], 60.0);
     }
 
+    // Taking a division away leaves no second story behind: Word Count and File > Info add up every story, and a
+    // file saves them all. Undo and Redo bring it back and take it away again.
+    void tableJoiningHalvesRemovesTheSecondStory()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 300, 100), 1, 2);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        auto text = [&](const QString &story) { const QTextDocument *d = ed->doc()->storyDoc(story); return d ? d->toPlainText() : QStringLiteral("(none)"); };
+        auto holding = [&](const QString &needle) {
+            int n = 0;
+            for (auto it = ed->doc()->stories.cbegin(); it != ed->doc()->stories.cend(); ++it)
+                if ((*it)->doc->toPlainText().contains(needle)) ++n;
+            return n;
+        };
+        auto stories = [&] { return int(ed->doc()->stories.size()); };
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId)->setPlainText(QStringLiteral("One"));
+        ed->selectCells(id, 0, 0, 0, 0);
+        w.act(QStringLiteral("tbl.diagDown"))->trigger();
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId2)->setPlainText(QStringLiteral("Two"));
+        const int divided = stories();
+        w.act(QStringLiteral("tbl.diagNone"))->trigger();
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("OneTwo"));
+        QCOMPARE(stories(), divided - 1);
+        QCOMPARE(holding(QStringLiteral("Two")), 1);
+        QCOMPARE(int(ed->doc()->storiesInUse().size()), stories());
+        QString err;
+        auto back = jp::publicationFromBytes(jp::publicationBytes(*ed->doc(), QImage()), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->stories.size()), stories());
+        ed->undo();
+        QCOMPARE(stories(), divided);
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("One"));
+        QCOMPARE(text(table()->cell(0, 0).storyId2), QStringLiteral("Two"));
+        ed->redo();
+        QCOMPARE(stories(), divided - 1);
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("OneTwo"));
+        QCOMPARE(holding(QStringLiteral("Two")), 1);
+        // Merging joins the halves of the cells it takes in, in the same way.
+        ed->doc()->storyDoc(table()->cell(0, 1).storyId)->setPlainText(QStringLiteral("B"));
+        ed->selectCells(id, 0, 1, 0, 1);
+        w.act(QStringLiteral("tbl.diagUp"))->trigger();
+        ed->doc()->storyDoc(table()->cell(0, 1).storyId2)->setPlainText(QStringLiteral("Three"));
+        const int before = stories();
+        ed->selectCells(id, 0, 0, 0, 1);
+        w.act(QStringLiteral("tbl.merge"))->trigger();
+        QCOMPARE(table()->cell(0, 0).colSpan, 2);
+        QCOMPARE(stories(), before - 1);
+        QCOMPARE(holding(QStringLiteral("Three")), 1);
+        QCOMPARE(text(table()->cell(0, 0).storyId), QStringLiteral("OneTwo\nBThree"));
+        QCOMPARE(int(ed->doc()->storiesInUse().size()), stories());
+        ed->undo();
+        QCOMPARE(stories(), before);
+        QCOMPARE(text(table()->cell(0, 1).storyId2), QStringLiteral("Three"));
+    }
+
+    // Row and column commands, Merge Cells, Split Cells, and No Division drop the stories nothing uses any more, as
+    // deleting an object does, and keep the ones the table still has.
+    void tableStructureEditsLeaveNoUnusedStories()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 300, 150), 3, 3);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        auto unused = [&] { return int(ed->doc()->stories.size()) - int(ed->doc()->storiesInUse().size()); };
+        auto allThere = [&] {
+            for (const auto &c : table()->cells) {
+                if (!ed->doc()->storyDoc(c.storyId)) return false;
+                if (c.divided() && !c.storyId2.isEmpty() && !ed->doc()->storyDoc(c.storyId2)) return false;
+            }
+            return true;
+        };
+        ed->selectCells(id, 0, 0, 2, 2);
+        w.act(QStringLiteral("tbl.diagDown"))->trigger();
+        QCOMPARE(unused(), 0);
+        const int full = int(ed->doc()->stories.size());
+        ed->selectCells(id, 1, 0, 1, 0);
+        w.act(QStringLiteral("tbl.delRow"))->trigger();
+        QCOMPARE(table()->rows, 2);
+        QCOMPARE(unused(), 0);
+        QCOMPARE(int(ed->doc()->stories.size()), full - 6);
+        QVERIFY(allThere());
+        ed->selectCells(id, 0, 0, 0, 0);
+        w.act(QStringLiteral("tbl.delCol"))->trigger();
+        QCOMPARE(table()->cols, 2);
+        QCOMPARE(unused(), 0);
+        QVERIFY(allThere());
+        ed->undo();
+        QCOMPARE(table()->cols, 3);
+        QVERIFY(allThere());
+        ed->redo();
+        // New cells have their stories, and the table keeps them when something else is done to it.
+        ed->selectCells(id, 0, 0, 0, 0);
+        w.act(QStringLiteral("tbl.insBelow"))->trigger();
+        QCOMPARE(table()->rows, 3);
+        QCOMPARE(unused(), 0);
+        QVERIFY(allThere());
+        ed->selectCells(id, 1, 0, 1, 1);
+        w.act(QStringLiteral("tbl.merge"))->trigger();
+        QCOMPARE(unused(), 0);
+        QVERIFY(allThere());
+        w.act(QStringLiteral("tbl.split"))->trigger();
+        QCOMPARE(unused(), 0);
+        QVERIFY(allThere());
+        ed->selectCells(id, 0, 0, 2, 1);
+        w.act(QStringLiteral("tbl.diagNone"))->trigger();
+        QCOMPARE(unused(), 0);
+        QVERIFY(allThere());
+    }
+
     // Line spacing in points, as Publisher sets it (measured in its PDFs of 10 and 24 point text in Times New
     // Roman, Arial, and Calibri, every value from 1 to 30 points): "Exactly" spaces the lines by the value
     // whatever the text, with the baseline one descent above the bottom of the line, or, when the line is
