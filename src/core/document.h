@@ -4,6 +4,7 @@
 // the mail-merge recipient list.
 
 #include "core/items.h"
+#include "text/textengine.h"
 
 #include <QByteArray>
 #include <QDateTime>
@@ -208,7 +209,7 @@ struct PrintInfo {
     OverprintSettings overprint;
 };
 
-class Document {
+class Document : public FieldSource {
 public:
     Document();
     ~Document();
@@ -267,7 +268,14 @@ public:
 
     // stories
     Story *story(const QString &id) const;
-    QTextDocument *storyDoc(const QString &id) const;
+    QTextDocument *storyDoc(const QString &id) const override;
+    // What its fields read (FieldSource).
+    int firstPageNumber() const override { return setup.firstPageNumber; }
+    QString pageNumberFormat() const override { return setup.pageNumberFormat; }
+    QString businessField(const QString &key) const override { return business().field(key); }
+    QStringList mergeFields() const override { return merge.fields; }
+    QString mergeValue(int record, const QString &field) const override { return merge.value(record, field); }
+    QList<const QTextDocument *> storyDocs() const override;
     QString createStory(const QString &text = QString());
     QString copyStory(const QString &id);   // deep copy, returns new id
     void removeStory(const QString &id);

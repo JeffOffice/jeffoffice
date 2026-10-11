@@ -22,14 +22,28 @@ class QTextDocument;
 
 namespace jp {
 
-class Document;
+// What fields and notes read from the publication they're in: its page
+// numbering, business information, mail merge, and the text of its stories
+// (a note's number counts the notes in every story). The publication
+// answers; the text engine never needs the rest of it.
+class FieldSource {
+public:
+    virtual ~FieldSource() = default;
+    virtual int firstPageNumber() const = 0;
+    virtual QString pageNumberFormat() const = 0;
+    virtual QString businessField(const QString &key) const = 0;
+    virtual QStringList mergeFields() const = 0;
+    virtual QString mergeValue(int record, const QString &field) const = 0;
+    virtual const QTextDocument *storyDoc(const QString &id) const = 0;
+    virtual QList<const QTextDocument *> storyDocs() const = 0;   // every story, in the publication's order
+};
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
 // unit .pub tracking is measured in; -1 when it isn't one JeffPub knows.
 double originalAverageCharEm(const QString &family, bool bold, bool italic);
 
 struct FieldContext {
-    const Document *doc = nullptr;
+    const FieldSource *doc = nullptr;
     int pageNumber = 1;           // 1-based
     int pageCount = 1;
     int mergeRecord = -1;         // -1 shows «Field» codes
