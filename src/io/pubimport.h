@@ -23,5 +23,10 @@ std::unique_ptr<Document> importPublisherFile(const QString &path, QString *erro
 // A Publisher date and time format (Windows' letters) as Qt's QDateTime
 // writes it, for a "datetime:" field.
 QString pubDateFormat(QString f);
+// Where a picture is drawn, in its frame's coordinates: the whole picture
+// around the frame, trimmed by its crops (fractions of the picture, from the
+// top, bottom, left, and right). A page's background picture is drawn
+// 2.5 points past the page on every side before the crops trim it.
+QRectF pubPictureRect(const QSizeF &frame, double top, double bottom, double left, double right, bool pageBackground);
 
 } // namespace jp
