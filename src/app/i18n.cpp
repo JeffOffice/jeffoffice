@@ -18,6 +18,16 @@ QStringList availableUiLanguages()
     return out;
 }
 
+QString uiLanguageName(const QString &language)
+{
+    // The language's plain name ("português", not "português europeu"),
+    // then the country.
+    QString name = QLocale(language.section(QLatin1Char('_'), 0, 0)).nativeLanguageName();
+    if (language.contains(QLatin1Char('_'))) name += QStringLiteral(" (%1)").arg(QLocale(language).nativeTerritoryName());
+    if (!name.isEmpty()) name[0] = name[0].toUpper();
+    return name;
+}
+
 namespace {
 QString s_language = QStringLiteral("en");
 QString installTranslationsFor();
@@ -64,14 +74,18 @@ QString installTranslationsFor()
     }
     auto *own = new QTranslator(QCoreApplication::instance());
     if (own->load(QStringLiteral(":/i18n/jeffpub_%1.qm").arg(lang))) QCoreApplication::installTranslator(own);
-    // Qt's own text (standard buttons such as Cancel, file dialogs): beside
-    // the program in packages, else where Qt keeps it.
+    // Qt's own text (standard buttons such as Cancel, file dialogs): built
+    // in beside JeffPub's (Portugal's falls back to Brazil's, the one Qt
+    // has), else beside the program, else where Qt keeps it.
     auto *qt = new QTranslator(QCoreApplication::instance());
+    QStringList builtIn{lang, lang.section(QLatin1Char('_'), 0, 0)};
+    if (lang.startsWith(QLatin1String("pt"))) builtIn << QStringLiteral("pt_BR");
+    bool found = false;
+    for (const QString &l : builtIn)
+        if ((found = qt->load(QStringLiteral(":/i18n/qtbase_%1.qm").arg(l)))) break;
     for (const QString &dir : {QCoreApplication::applicationDirPath() + QStringLiteral("/translations"), QLibraryInfo::path(QLibraryInfo::TranslationsPath)})
-        if (qt->load(QStringLiteral("qtbase_%1").arg(lang), dir)) {
-            QCoreApplication::installTranslator(qt);
-            break;
-        }
+        if (!found) found = qt->load(QStringLiteral("qtbase_%1").arg(lang), dir);
+    if (found) QCoreApplication::installTranslator(qt);
     return lang;
 }
 } // namespace

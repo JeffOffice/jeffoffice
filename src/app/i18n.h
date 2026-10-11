@@ -11,6 +11,10 @@ namespace jp {
 // besides English, which its text is written in.
 QStringList availableUiLanguages();
 
+// A language's name as its speakers write it, with the country when the
+// language comes in more than one ("Português (Brasil)").
+QString uiLanguageName(const QString &language);
+
 // Loads the translation for the language chosen in Options (ui/language),
 // or the system's first language JeffPub has, at startup. Returns the
 // language in use ("en" when none applies).

@@ -39,11 +39,17 @@ public:
     // Every control the group lays out, in order (rows and columns
     // flattened; the launcher sits outside the layout and isn't one).
     QList<QWidget *> controls() const;
+    // At least as wide as its title: a translated title can be wider than
+    // the controls under it ("TABELLEN" over one button).
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
 
 protected:
     void paintEvent(QPaintEvent *e) override;
 
 private:
+    QFont titleFont() const;   // small capitals, as drawn
+    int titleWidth() const;    // the group's width that shows the whole title
     QHBoxLayout *m_cols;
     QVBoxLayout *m_col = nullptr;
     int m_rows = 0;

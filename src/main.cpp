@@ -25,6 +25,8 @@
 #include "core/fonts.h"
 #include "templates/templates.h"
 
+#include <algorithm>
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QCoreApplication>
@@ -50,7 +52,11 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/app.png")));
     jp::moveFromJeffPub79();   // settings and files kept under the old name
-    jp::installTranslations();   // before the command line and any window build their text
+    // Before the command line and any window build their text. Not for the
+    // wiki: its pages are Help in English, whatever the system's language.
+    const QStringList args = QCoreApplication::arguments();
+    if (std::none_of(args.cbegin(), args.cend(), [](const QString &a) { return a.startsWith(QLatin1String("--export-help-wiki")); }))
+        jp::installTranslations();
 
     QCommandLineParser cli;
     cli.setApplicationDescription(QCoreApplication::translate("Main", "JeffPub desktop publishing"));

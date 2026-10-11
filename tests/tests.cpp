@@ -7358,6 +7358,133 @@ private Q_SLOTS:
                  "translations/jeffpub_en.ts has a plural without its English forms");
     }
 
+    // Every translation keeps what the program fills in or acts on: its
+    // placeholders (%1, %n; a singular may spell the number out), HTML
+    // tags, line breaks, & shortcut markers, and both plural forms. A
+    // translation that lost one would show the wrong text, or none.
+    void translationsKeepTheirMarks()
+    {
+        static const QRegularExpression placeholder(QStringLiteral("%L?\\d+|%n")), tag(QStringLiteral("</?[A-Za-z][^>]*>"));
+        auto all = [](const QRegularExpression &re, const QString &s) {
+            QStringList out;
+            for (auto m = re.globalMatch(s); m.hasNext();) out << m.next().captured();
+            out.sort();
+            return out;
+        };
+        // A shortcut marker is an & right before a letter; "Header & Footer" has none.
+        static const QRegularExpression marker(QStringLiteral("(?<!&)&(?=[^\\s&])"));
+        auto marks = [](const QString &s) { return int(s.count(marker)); };
+        const QDir dir(QStringLiteral(JP_TEST_DATA "/../../translations"));
+        QStringList problems;
+        int checked = 0;
+        for (const QString &name : dir.entryList({QStringLiteral("jeffpub_*.ts")}, QDir::Files)) {
+            if (name == QLatin1String("jeffpub_en.ts")) continue;
+            QFile f(dir.filePath(name));
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QXmlStreamReader xml(&f);
+            QString context, source;
+            bool plural = false;
+            QStringList forms;
+            while (!xml.atEnd()) {
+                xml.readNext();
+                if (xml.isStartElement()) {
+                    if (xml.name() == QLatin1String("name")) context = xml.readElementText();
+                    else if (xml.name() == QLatin1String("message")) {
+                        plural = xml.attributes().value(QLatin1String("numerus")) == QLatin1String("yes");
+                        forms.clear();
+                    } else if (xml.name() == QLatin1String("source")) source = xml.readElementText();
+                    else if (xml.name() == QLatin1String("translation")) {
+                        const QStringView type = xml.attributes().value(QLatin1String("type"));
+                        if (type == QLatin1String("vanished") || type == QLatin1String("obsolete")) {
+                            xml.skipCurrentElement();
+                            continue;
+                        }
+                        if (!plural) forms << xml.readElementText();
+                    } else if (xml.name() == QLatin1String("numerusform")) forms << xml.readElementText();
+                } else if (xml.isEndElement() && xml.name() == QLatin1String("message")) {
+                    if (forms.join(QString()).isEmpty()) continue;   // not translated yet: shows in English
+                    ++checked;
+                    const QString where = QStringLiteral("%1 [%2] \"%3\"").arg(name, context, source);
+                    if (plural && (forms.size() != 2 || forms.contains(QString()))) problems << where + QStringLiteral(": plural forms");
+                    for (int i = 0; i < forms.size(); ++i) {
+                        QStringList want = all(placeholder, source);
+                        const QStringList have = all(placeholder, forms[i]);
+                        if (plural && i == 0 && have != want) want.removeAll(QStringLiteral("%n"));
+                        if (have != want) problems << where + QStringLiteral(": placeholders");
+                        if (all(tag, forms[i]) != all(tag, source)) problems << where + QStringLiteral(": tags");
+                        if (forms[i].count(QLatin1Char('\n')) != source.count(QLatin1Char('\n'))) problems << where + QStringLiteral(": line breaks");
+                        if (marks(forms[i]) != marks(source)) problems << where + QStringLiteral(": & marker");
+                    }
+                }
+            }
+            QVERIFY2(!xml.hasError(), qPrintable(name + QStringLiteral(": ") + xml.errorString()));
+        }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("\n"))));
+        qInfo("%d translated strings checked", checked);
+    }
+
+    // A translated Help topic is one of the English ones, with a title and
+    // search words, the same links as the English, and no other company's
+    // product names; each language with Help has the program's text too,
+    // and Qt's own (standard buttons) built in.
+    void translatedHelpIsComplete()
+    {
+        const QDir help(QStringLiteral(JP_TEST_DATA "/../../resources/help"));
+        static const QRegularExpression link(QStringLiteral("\\]\\(([^)\\s]+)\\)"));
+        static const QRegularExpression banned(QStringLiteral("\\b(Microsoft|Publisher|Office|Word|Excel|PowerPoint|WordArt)\\b"));
+        auto read = [](const QString &path) {
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+        };
+        auto links = [](const QString &md) {
+            QStringList out;
+            for (auto m = link.globalMatch(md); m.hasNext();) out << m.next().captured(1);
+            out.sort();
+            return out;
+        };
+        QStringList problems;
+        for (const QString &lang : help.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (lang == QLatin1String("en")) continue;
+            if (!jp::availableUiLanguages().contains(lang)) problems << lang + QStringLiteral(": Help without the program's text");
+            if (!QFile::exists(QStringLiteral(":/i18n/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
+            for (const QString &file : QDir(help.filePath(lang)).entryList({QStringLiteral("*.md")}, QDir::Files)) {
+                const QString en = read(help.filePath(QStringLiteral("en/") + file)), md = read(help.filePath(lang + QLatin1Char('/') + file));
+                const QString where = lang + QLatin1Char('/') + file;
+                if (en.isEmpty()) {
+                    problems << where + QStringLiteral(": no English topic");
+                    continue;
+                }
+                if (!md.startsWith(QStringLiteral("# "))) problems << where + QStringLiteral(": no title");
+                if (en.contains(QStringLiteral("<!-- keywords:")) && !md.contains(QStringLiteral("<!-- keywords:"))) problems << where + QStringLiteral(": no keywords");
+                if (links(md) != links(en)) problems << where + QStringLiteral(": links differ from the English");
+                if (const auto m = banned.match(md); m.hasMatch()) problems << where + QStringLiteral(": says ") + m.captured(1);
+            }
+        }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
+    }
+
+    // A ribbon group is at least as wide as its title, so a translated title
+    // longer than the controls under it ("TABELLEN" over one button) shows
+    // whole instead of cut short.
+    void ribbonGroupFitsItsTitle()
+    {
+        QAction a(QStringLiteral("Table"));
+        jp::RibbonGroup shortTitle(QStringLiteral("Tables")), longTitle(QStringLiteral("Tabellen und Tabellenformate"));
+        shortTitle.addLarge(&a);
+        longTitle.addLarge(&a);
+        QVERIFY(longTitle.sizeHint().width() > shortTitle.sizeHint().width());
+        QVERIFY(longTitle.minimumSizeHint().width() > shortTitle.minimumSizeHint().width());
+    }
+
+    // The name each language goes by in Options, as its speakers write it,
+    // with the country when one language comes in two.
+    void uiLanguageNames()
+    {
+        QCOMPARE(jp::uiLanguageName(QStringLiteral("de")), QStringLiteral("Deutsch"));
+        QCOMPARE(jp::uiLanguageName(QStringLiteral("pt_BR")), QStringLiteral("Português (Brasil)"));
+        QCOMPARE(jp::uiLanguageName(QStringLiteral("pt_PT")), QStringLiteral("Português (Portugal)"));
+    }
+
     // The ribbon's text, in resources/ribbon.json where lupdate can't see
     // it, is listed for translators in src/app/ribbon_strings.cpp; this
     // keeps that list current (run tools/ribbon_strings.py).

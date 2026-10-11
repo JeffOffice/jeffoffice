@@ -282,6 +282,25 @@ QList<QWidget *> RibbonGroup::controls() const
     return out;
 }
 
+QFont RibbonGroup::titleFont() const
+{
+    QFont f = font();
+    f.setPointSizeF(f.pointSizeF() * 0.74);
+    f.setWeight(QFont::DemiBold);
+    f.setLetterSpacing(QFont::PercentageSpacing, 108);
+    return f;
+}
+
+// The card is inset 3 on each side, and the title 9 from its left, beside
+// room for the launcher (paintEvent).
+int RibbonGroup::titleWidth() const
+{
+    return QFontMetrics(titleFont()).horizontalAdvance(m_title.toUpper()) + 6 + (m_launcher ? 30 : 18) + 1;
+}
+
+QSize RibbonGroup::sizeHint() const { return QFrame::sizeHint().expandedTo(QSize(titleWidth(), 0)); }
+QSize RibbonGroup::minimumSizeHint() const { return QFrame::minimumSizeHint().expandedTo(QSize(titleWidth(), 0)); }
+
 void RibbonGroup::paintEvent(QPaintEvent *e)
 {
     QFrame::paintEvent(e);
@@ -292,10 +311,7 @@ void RibbonGroup::paintEvent(QPaintEvent *e)
     p.setPen(uiHighContrast() ? QPen(lineColor(), 1) : Qt::NoPen);
     p.setBrush(uiHighContrast() ? QBrush(Qt::NoBrush) : dark() ? QBrush(QColor(255, 255, 255, 10)) : QBrush(QColor(0x1E, 0x29, 0x3B, 9)));
     p.drawRoundedRect(card, 9, 9);
-    QFont f = font();
-    f.setPointSizeF(f.pointSizeF() * 0.74);
-    f.setWeight(QFont::DemiBold);
-    f.setLetterSpacing(QFont::PercentageSpacing, 108);
+    const QFont f = titleFont();
     p.setFont(f);
     p.setPen(mutedText());
     const QRectF label(card.left() + 9, card.top() + 3, card.width() - (m_launcher ? 30 : 18), 13);
