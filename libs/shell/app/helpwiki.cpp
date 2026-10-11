@@ -1,4 +1,5 @@
 #include "app/help.h"
+#include "core/appinfo.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -96,7 +97,7 @@ bool exportWiki(const QString &dir, AppWindow *win, QString *error)
             if (const qsizetype sections = md.indexOf(QLatin1String("\n## ")); sections >= 0) {
                 const qsizetype start = md.startsWith(QLatin1String("# ")) ? md.indexOf(QLatin1Char('\n')) + 1 : 0;
                 md = md.left(start) + (start ? QStringLiteral("\n") : QString())
-                     + QCoreApplication::translate("Help", "This is JeffPub's built-in Help, as web pages. In the program, press **F1** at any time for help on what you're doing, or type in Help's search box to find a topic or a command to run.")
+                     + QCoreApplication::translate("Help", "This is %1's built-in Help, as web pages. In the program, press **F1** at any time for help on what you're doing, or type in Help's search box to find a topic or a command to run.").arg(appInfo().name)
                      + QLatin1Char('\n') + md.mid(sections);
             }
         // The comments leave blank lines behind.
@@ -114,7 +115,8 @@ bool exportWiki(const QString &dir, AppWindow *win, QString *error)
     side += QString(home.mid(sections < 0 ? 0 : sections + 1)).replace(QRegularExpression(QStringLiteral("^## (.+)$"), QRegularExpression::MultilineOption), QStringLiteral("**\\1**"));
     files.insert(kSidebar + QStringLiteral(".md"), side);
     files.insert(kFooter + QStringLiteral(".md"),
-                 QCoreApplication::translate("Help", "These pages are generated from JeffPub's built-in Help (`resources/help/en` in the [repository](https://github.com/JeffOffice/jeffpub/tree/main/resources/help/en)) and are replaced on each update, so edits belong in the repository.")
+                 QCoreApplication::translate("Help", "These pages are generated from %1's built-in Help (`resources/help/en` in the [repository](%2)) and are replaced on each update, so edits belong in the repository.")
+                     .arg(appInfo().name, QStringLiteral("https://github.com/") + appInfo().repository + QStringLiteral("/tree/main/resources/help/en"))
                      + QLatin1Char('\n'));
 
     // Only into a folder with nothing in it: the pages replace a wiki's whole

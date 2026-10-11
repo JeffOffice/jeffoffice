@@ -1,6 +1,7 @@
 #include "app/help.h"
 
 #include "app/i18n.h"
+#include "core/appinfo.h"
 #include "app/icons.h"
 #include "app/appwindow.h"
 #include "app/ribbon.h"
@@ -292,17 +293,17 @@ QString displayMarkdown(const Topic &t, AppWindow *win)
 QUrl feedbackUrl()
 {
     // One page for a problem or an idea, with the version and system filled in.
-    QUrl u(QStringLiteral("https://github.com/JeffOffice/jeffpub/issues/new"));
+    QUrl u(QStringLiteral("https://github.com/") + appInfo().repository + QStringLiteral("/issues/new"));
     QUrlQuery q;
     q.addQueryItem(QStringLiteral("body"), QStringLiteral("**What would you like to tell us?** (a problem, or an idea)\n\n\n"
                                                           "**For a problem: what did you do just before it happened?**\n\n\n"
-                                                          "JeffPub %1 on %2 (%3)\n")
-                                               .arg(QStringLiteral(JP_VERSION), QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture()));
+                                                          "%1 %2 on %3 (%4)\n")
+                                               .arg(appInfo().name, QStringLiteral(JP_VERSION), QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture()));
     u.setQuery(q);
     return u;
 }
 
-QUrl whatsNewUrl() { return QUrl(QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/tag/v" JP_VERSION)); }
+QUrl whatsNewUrl() { return QUrl(QStringLiteral("https://github.com/") + appInfo().repository + QStringLiteral("/releases/tag/v" JP_VERSION)); }
 
 } // namespace help
 

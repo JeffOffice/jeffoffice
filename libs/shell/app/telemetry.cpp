@@ -1,6 +1,7 @@
 #include "app/telemetry.h"
 
 #include "app/settings.h"
+#include "core/appinfo.h"
 
 #include <QCheckBox>
 #include <QCoreApplication>
@@ -57,7 +58,7 @@ void send(QNetworkAccessManager *net)
     const QDate today = QDate::currentDate();
     QNetworkRequest req{QUrl(QString::fromLatin1(kUrl))};
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("JeffPub/%1").arg(QStringLiteral(JP_VERSION)));
+    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + QStringLiteral(JP_VERSION));
     req.setTransferTimeout(15000);
     const QJsonObject sent = payload();
     QNetworkReply *r = net->post(req, QJsonDocument(sent).toJson(QJsonDocument::Compact));
@@ -84,13 +85,13 @@ void send(QNetworkAccessManager *net)
 void ask(QWidget *window)
 {
     QDialog d(window);
-    d.setWindowTitle(QCoreApplication::translate("Telemetry", "Help improve JeffPub"));
+    d.setWindowTitle(QCoreApplication::translate("Telemetry", "Help improve %1").arg(appInfo().name));
     auto *v = new QVBoxLayout(&d);
     auto *text = new QLabel(QCoreApplication::translate("Telemetry",
-        "JeffPub can send anonymous usage statistics once a day (and when it's updated): its version, your operating system and language, "
+        "%1 can send anonymous usage statistics once a day (and when it's updated): its version, your operating system and language, "
         "and how often each of its commands is used. That shows how many people use it and which parts matter most.<br><br>"
-        "It never sends your files, their names, or anything in them. <a href=\"%1\">What's sent</a><br><br>"
-        "You can change this anytime in File &gt; Options.").arg(QString::fromLatin1(kAbout)), &d);
+        "It never sends your files, their names, or anything in them. <a href=\"%2\">What's sent</a><br><br>"
+        "You can change this anytime in File &gt; Options.").arg(appInfo().name, QString::fromLatin1(kAbout)), &d);
     text->setWordWrap(true);
     text->setOpenExternalLinks(true);
     text->setMinimumWidth(420);
