@@ -279,14 +279,43 @@ those paragraph styles equals the hang and adds nothing: lists with it
 (0.15 in, 0.125 in) had their text at the left indent.
 
 A tab after a hanging paragraph's first words ("b.<tab>text") goes to the
-left indent (57.6 pt with the first line at 28.8), not to a stop 36 pt past
-where the line starts; the stops after it are 36 pt apart from where the
-first line starts (Publisher's PDFs: 57.6 for the lettered lists, 49.5 for a
-tab at the start of a line in a paragraph indented 13.5). Not checked: stops
-saved in the paragraph (no file in the corpus has any), a tab at the start
-of a line in a hanging paragraph other than -18, and a tab that falls past
-the end of its line (Publisher moves it to the next line, which starts it
-at the left indent; JeffPub leaves it at the end of the line).
+left indent (57.6 pt with the first line at 28.8), and the default stops
+before it are gone. The default stops are 36 pt apart from the text area's
+edge, not from where the first line starts or from the left indent. Checked
+in Publisher's PDFs: with the left indent at 13.5, a tab at the start of a
+line puts the text at 36, 22.5 pt from the line's start (the four
+"Name<spaces><tab>number" lines of a newsletter: their numbers stand in a
+column there, and 36 pt from the line's start put them 13 pt too far right),
+and the second line of a paragraph hanging 18 goes to 36 too. Qt counts
+stops from each line's start and keeps one list per paragraph, so JeffPub
+measures it from where the first line starts: a tab on a later line that
+starts elsewhere (a hanging paragraph's) finds each stop as far from its
+start as the first line's are from its own: right for the corpus's cases (36
+from the edge, after a left indent of 18), not in general.
+
+A tab goes with the text after it. When that text does not fit after the
+tab's stop, Publisher starts the next line with the tab (the spaces before
+it stay at the end of the line above) and the tab goes to the first stop
+past the line's start. The four "Name<spaces><tab>number" lines had their
+stop (144) past the end of the line; a course list's "Title<tab>Management"
+had its stop (180) on the line and the word (55 pt) too long for what was
+left, and moved the same way. Of several tabs together only the last goes on
+with the text: the ones before it stay while their stops are on the line and
+move with it once past its end (a line ended with one tab, and the next
+began with two, from three in a row). Qt leaves such a tab at the end of the
+line, so JeffPub lays the line out as Qt does and starts the next one that
+far in (the tab's width, and the spaces after it) instead of moving the
+character. Not checked: stops saved in the paragraph (no file in the corpus
+has any), and a hanging paragraph's tabs on its second line when the left
+indent is not 18.
+
+A bullet in the list's own font (Symbol, Wingdings) is that font's regular
+face, whatever the item's first run is. Publisher's PDFs hold one SymbolMT
+(or Wingdings-Regular) for bold and plain items alike, and the asterisk
+bullets of a bold booklet list stand thin in its own pictures; JeffPub drew
+them in the text's font at the run's weight, bold. The glyph is still a stand-in's when Symbol is
+missing: Publisher's asterisk is about 0.44 em across (7 px at 12 pt and 96
+dpi), the stand-in's about 0.56.
 
 ### Process colors
 
@@ -631,6 +660,16 @@ bottom of the line's text (its fonts' ascent and descent), not into the
 spacing below it; and text centered or set at the bottom of its box wraps
 where it ends up. Until October 2026 JeffPub opened every object as not
 wrapping and saved every one as through (`04` = 0x103).
+
+A text box pushes another's text aside only when its frame reaches into
+that box's text area (the frame less its insets) by more than about half a
+point: Publisher's designs butt boxes together, and in its pictures a frame
+0.5 pt into a text area moved nothing, while one 0.6 pt in (a book cover's
+spine) and one 0.72 pt in (a newsletter's columns) moved the lines beside
+it to the frame's edge plus its wrap distance (the newsletter's PDF puts
+the bullets at 433.87, 431.1 + 2.88 less 0.1; the cover's centered lines
+stand 3.5 pt narrower, 1.7 pt off center). JeffPub let anything under a
+point go.
 
 ### Connectors
 
