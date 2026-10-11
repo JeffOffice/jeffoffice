@@ -64,9 +64,18 @@ static void joinHalves(Document *d, TableCell &cell)
         dc.movePosition(QTextCursor::End);
         dc.insertFragment(QTextDocumentFragment(src));
     }
+    d->removeStory(cell.storyId2);   // its text is in the first half now: nothing else may count or save it
     cell.storyId2.clear();
     cell.diagonal = 0;
     cell.diagonalLine = Stroke::none();
+}
+
+// Drops the stories no object uses any more, as deleting objects does.
+static void dropUnusedStories(Document *d)
+{
+    const QSet<QString> used = d->storiesInUse();
+    for (const auto &sid : d->stories.keys())
+        if (!used.contains(sid)) d->removeStory(sid);
 }
 
 // Table structure edits keep stories, spans and borders consistent.
@@ -1388,7 +1397,10 @@ void MainWindow::createActions()
         if (!t) return;
         const CellRange rg = m_ed->targetCells();
         m_ed->endTextEdit();
-        m_ed->change(label, [&] { fn(t, rg); });
+        m_ed->change(label, [&] {
+            fn(t, rg);
+            dropUnusedStories(m_ed->doc());
+        });
         m_ed->select(t->id);
     };
     mk("tbl.insAbove", tr("Insert Above"), "between-horizontal-end", QKeySequence(), [this, tableEdit] { tableEdit(tr("Insert Row"), [this](TableItem *t, const CellRange &rg) { tableInsertRow(m_ed, t, std::max(0, rg.r0)); }); });
@@ -1454,6 +1466,7 @@ void MainWindow::createActions()
             head.rowSpan = rg.r1 - rg.r0 + 1;
             head.colSpan = rg.c1 - rg.c0 + 1;
             m_ed->fitTableRows(t);   // all the words are in one cell now
+            dropUnusedStories(m_ed->doc());
         });
         m_ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
     });
@@ -1473,6 +1486,7 @@ void MainWindow::createActions()
                     cell.rowSpan = cell.colSpan = 1;
                 }
             m_ed->fitTableRows(t);   // the words of a merged cell now have less room
+            dropUnusedStories(m_ed->doc());
         });
         m_ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
     });
@@ -1500,6 +1514,7 @@ void MainWindow::createActions()
                         cell.diagonalLine = cell.border.top.isNone() ? Stroke::line(ColorRef::scheme(Main), 0.75) : cell.border.top;
                     }
                 m_ed->fitTableRows(t);   // the halves' words may now be in one place
+                dropUnusedStories(m_ed->doc());
             });
             if (editing) m_ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
         });
