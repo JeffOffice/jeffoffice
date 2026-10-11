@@ -3473,6 +3473,38 @@ private Q_SLOTS:
                 }
     }
 
+    // Into pixels no line is thinner than one pixel: Publisher's pictures of
+    // lines 0.1, 0.25, 0.5, and 0.75 points wide (Oct 11, at 96 dpi) are all
+    // one pixel of black, where a 0.25 point rule drawn as it is came out a
+    // faint quarter. A line already wider (3 points) is as wide as it is.
+    void hairlinesAreAPixelWide()
+    {
+        using namespace jp;
+        auto render = [](double width, double scale) {
+            auto doc = Document::blank(QSizeF(200, 200));
+            auto line = std::make_shared<LineItem>();
+            line->p1 = QPointF(20, 100.5);
+            line->p2 = QPointF(180, 100.5);
+            line->stroke = Stroke::line(ColorRef::rgb(Qt::black), width);
+            line->syncRect();
+            doc->pages[0]->items.push_back(line);
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = doc.get();
+            ctx.cache = &cache;
+            return Renderer::renderToImage(ctx, 0, scale);
+        };
+        // At 72 dpi, a point is a pixel: the row the line is on, dark all through.
+        QVERIFY2(qGray(render(0.25, 1.0).pixel(100, 100)) < 40, qPrintable(QString::number(qGray(render(0.25, 1.0).pixel(100, 100)))));
+        QVERIFY(qGray(render(0.1, 1.0).pixel(100, 100)) < 40);
+        // The rows on either side stay clear.
+        QVERIFY(qGray(render(0.25, 1.0).pixel(100, 98)) > 240 && qGray(render(0.25, 1.0).pixel(100, 102)) > 240);
+        // Zoomed in, the line is as thick as it is: 3 points at 4 times is 12 pixels.
+        const QImage thick = render(3, 4.0);
+        QVERIFY(qGray(thick.pixel(400, 402 - 5)) < 40 && qGray(thick.pixel(400, 402 + 4)) < 40);
+        QVERIFY(qGray(thick.pixel(400, 402 - 8)) > 240 && qGray(thick.pixel(400, 402 + 8)) > 240);
+    }
+
     // A page's background picture is drawn past the page's edge, 2.5 points
     // on every side, and the picture's crops (fractions of the picture) then
     // trim that larger picture. Publisher (Oct 11), a background made from a
