@@ -65,8 +65,12 @@ bool Updater::trustedInstaller(const QString &url, const QString &tag, const QSt
 {
     static const QRegularExpression tagChars(QStringLiteral("^[A-Za-z0-9._-]{1,40}$"));
     static const QRegularExpression sha(QStringLiteral("^sha256:[0-9a-fA-F]{64}$"));
-    return url.startsWith(QLatin1String("https://github.com/JeffOffice/jeffpub/releases/download/")) && tagChars.match(tag).hasMatch() &&
-           sha.match(digest).hasMatch();
+    // The project's releases, under its name now and the name it moves to
+    // (jeffoffice): the release list follows GitHub's redirect after the
+    // rename and then gives the new addresses.
+    const bool ours = url.startsWith(QLatin1String("https://github.com/JeffOffice/jeffpub/releases/download/")) ||
+                      url.startsWith(QLatin1String("https://github.com/JeffOffice/jeffoffice/releases/download/"));
+    return ours && tagChars.match(tag).hasMatch() && sha.match(digest).hasMatch();
 }
 
 bool Updater::checksOnStartup()

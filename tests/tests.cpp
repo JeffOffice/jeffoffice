@@ -19418,6 +19418,10 @@ private Q_SLOTS:
         const QString url = QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/download/v0.1.17/JeffPub-Setup.exe");
         const QString digest = QStringLiteral("sha256:63e329c3c1a9aea0f90af5e2519c9315af365cb424a7bd00abb3ad9d201573e7");
         QVERIFY(jp::Updater::trustedInstaller(url, QStringLiteral("v0.1.17"), digest));
+        // The project's name after it moves (JeffOffice/jeffoffice), and no other.
+        QVERIFY(jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/download/v0.7.0/JeffOffice-Setup.exe"), QStringLiteral("v0.7.0"), digest));
+        QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffoffice-evil/releases/download/v0.7.0/x.exe"), QStringLiteral("v0.7.0"), digest));
+        QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://github.com/someone/jeffoffice/releases/download/v0.7.0/x.exe"), QStringLiteral("v0.7.0"), digest));
         QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://example.com/JeffPub-Setup.exe"), QStringLiteral("v0.1.17"), digest));
         QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("http://github.com/JeffOffice/jeffpub/releases/download/v0.1.17/x.exe"), QStringLiteral("v0.1.17"), digest));
         QVERIFY(!jp::Updater::trustedInstaller(url, QStringLiteral("../../Startup/evil"), digest));   // the tag names the saved file
