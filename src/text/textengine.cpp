@@ -810,7 +810,7 @@ static bool usesTypoMetrics(const QString &family)
 // the font, not by any flag in it: checked line by line against the
 // baselines in its PDFs of 284 publications (Oct 7; Arial Narrow and
 // Bookman Old Style use hhea, Times New Roman Bold its own typo ascender).
-struct KnownMetrics { double line = 0, descent = 0; };
+struct KnownMetrics { double line = 0, descent = 0, lift = 0; };
 static KnownMetrics knownMetrics(const QString &family, bool bold = false)
 {
     const QString f = family.toLower();
@@ -827,10 +827,10 @@ static KnownMetrics knownMetrics(const QString &family, bool bold = false)
     if (f == "century gothic") return {(1536.0 + 426 + 229) / 2048, 426.0 / 2048};
     if (f == "gill sans mt condensed") return {(1913.0 + 553) / 2048, 553.0 / 2048};   // hhea
     if (f == "gill sans mt ext condensed bold") return {1.227, 407.0 / 2048};   // measured (Publisher test page); nearest metric hhea = 1.197
-    if (f.startsWith("franklin gothic")) return {(1877.0 + 445) / 2048, 445.0 / 2048};   // hhea
+    if (f.startsWith("franklin gothic")) return {(1877.0 + 445) / 2048, 445.0 / 2048, 0.088};   // hhea
     if (f == "georgia") return {(1549.0 + 444 + 198) / 2048, 444.0 / 2048};              // OS/2 typo
     if (f == "arial black") return {(1466.0 + 434 + 291) / 2048, 434.0 / 2048};
-    if (f.startsWith("gill sans mt")) return {(1903.0 + 472) / 2048, 472.0 / 2048};
+    if (f.startsWith("gill sans mt")) return {(1903.0 + 472) / 2048, 472.0 / 2048, 0.096};
     if (f == "century schoolbook") return {(2019.0 + 443) / 2048, 443.0 / 2048};
     if (f == "calibri") return {(1536.0 + 512 + 452) / 2048, 512.0 / 2048};
     if (f == "lucida handwriting") return {(2098.0 + 727) / 2048, 727.0 / 2048};
@@ -1107,16 +1107,17 @@ double singleSpacing(const QVector<QTextLayout::FormatRange> &ranges, int from, 
 
 // Descent (document points) of the proprietary fonts with known metrics on a
 // line (installed or not), or 0 when none is known; the baseline sits this far above the line's bottom.
-double knownDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, bool fullSize)
+// Single spaced text up to 31 pt sits higher in some fonts' lines (KnownMetrics::lift).
+double knownDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, bool fullSize, bool single)
 {
     double d = 0;
     for (const auto &r : ranges)
         if (r.start < from + len && r.start + r.length > from) {
             const QFont f = r.format.font();
             const QString fam = requestedFamily(f);
-            const double kd = knownMetrics(fam, f.weight() >= QFont::DemiBold).descent;
+            const KnownMetrics km = knownMetrics(fam, f.weight() >= QFont::DemiBold);
             const double size = fullSize && r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF();
-            if (kd > 0) d = std::max(d, size / fontPointFactor() * kd);
+            if (km.descent > 0) d = std::max(d, size / fontPointFactor() * (km.descent + (single && size / fontPointFactor() < 32 ? km.lift : 0)));
         }
     return d;
 }
@@ -2116,7 +2117,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // 10 points of 10 point Times, Arial, and Calibri, and up to 24 of
                     // 24 point text; the lines are the value apart whatever the text).
                     const bool closer = (bf.lineHeightType() == QTextBlockFormat::ProportionalHeight || bf.lineHeightType() == QTextBlockFormat::FixedHeight) && h < single && single > 0;
-                    const double kd = knownDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer);
+                    const double kd = knownDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer,
+                                                   bf.lineHeightType() != QTextBlockFormat::FixedHeight && std::abs(h - single) < 0.01);
                     const double fd = kd > 0 ? 0 : fontDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer);
                     const double descent = kd > 0 ? kd : fd > 0 ? fd : line.height() - line.ascent();
                     double baseDown = closer ? h / single * (single - descent) : textH - descent;
