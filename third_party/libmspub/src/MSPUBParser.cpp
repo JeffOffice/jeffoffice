@@ -935,6 +935,14 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
     {
       unsigned nr = numRows.get();
       unsigned nc = numCols.get();
+      // JeffPub: every cell of a table is made, so one over twice Publisher's
+      // largest (128 x 128) is a damaged file: the table is left out, not
+      // the whole file. A file of a few KB could ask for gigabytes.
+      if (nr > 256 || nc > 256)
+      {
+        MSPUB_DEBUG_MSG(("WARNING: Table %u has %u rows and %u columns, skipping it.\n", chunk.seqNum, nr, nc));
+        return true;
+      }
       unsigned rcao = rowcolArrayOffset.get();
       unsigned csn = cellsSeqNum.get();
       std::vector<unsigned> rowHeightsInEmu;

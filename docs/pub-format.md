@@ -461,7 +461,10 @@ A table is a Contents chunk of type 0x10 (directory version 0x0102, 0b =
 0x16): `02:08, 04:10 = 259, 0c, 0d, 27 = text id, 2a:08, 66 = rows, 67 =
 columns, 68 = width, 69 = height, 6b → cell list, 6d = edges, 70 =
 0xFFFFFFFD, b7 = 0`. The edges list (0x90) holds a record per column, then
-per row: `01` = where it ends, `02` = its size.
+per row: `01` = where it ends, `02` = its size. JeffPub's reader leaves out a
+table of more than 256 rows or 256 columns (twice the largest Publisher
+makes), since every cell of it would be made, and goes on with the rest of
+the file.
 
 The cell list (type 0x63, parent the table, directory 08 and 0b = 1) is
 `01:18 count, 02 list`; each cell has `01` first row, `02` last row, `03`
