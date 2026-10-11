@@ -27,8 +27,9 @@ int stretchToAsk(int percent, bool appliedTwice = kStretchAppliedTwice);
 // the Mac, a family of its own on Linux).
 QString standInOnThisPlatform(const QString &standIn);
 // The style to ask for in that family ("Light"), empty when the stand-in is a
-// family of its own or the font is installed.
-QString substituteStyleName(const QString &family);
+// family of its own or the font is installed. A face asked for by weight is
+// named too ("ExtraBold"), so font matching can't take the bold beside it.
+QString substituteStyleName(const QString &family, bool bold = false, bool italic = false);
 // A font file with its italic flags set when its letters slant but its flags
 // say upright (Libre Franklin ExtraBold Italic: DirectWrite can't tell it from
 // ExtraBold); empty when the file needs no change.
@@ -46,7 +47,9 @@ QStringList standInFamiliesForTest();
 QString interchangeFontName(const QString &family);  // horizontal scale (percent) to imitate a condensed original, 100 if none
 // Weight a missing font's name implies ("Franklin Gothic Medium" -> 500), so its
 // substitute is set in that weight; 0 when the font is installed or no hint.
-int substituteWeight(const QString &family);
+// For a bold run, the weight its stand-in's bold is replaced by (Roboto Slab
+// ExtraBold for Rockwell Condensed), 0 where the bold face stays.
+int substituteWeight(const QString &family, bool bold = false);
 // The width (ems) of a space in a missing font whose stand-in's spaces are
 // narrower or wider; 0 when the font is installed or the stand-in matches.
 double substituteSpaceEm(const QString &family, bool bold = false, bool italic = false);

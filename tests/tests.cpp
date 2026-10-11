@@ -2517,14 +2517,17 @@ private Q_SLOTS:
     // Publisher's PDFs (Oct 10), Roboto Slab Regular at 71% carried 0.85 of
     // Rockwell Condensed's ink and EB Garamond Regular at 72% only 0.6 of
     // Gloucester's. Their bold faces, narrowed to the original's letter
-    // widths (60% and 62%), carry 1.0 and 0.85.
+    // widths (60% and 62%), carry 1.0 and 0.85; Rockwell Condensed Bold
+    // wants the ExtraBold (0.9 in Roboto Slab Bold at 86%), and Gloucester
+    // too (0.85 in EB Garamond Bold).
     void condensedStandInsAreDrawnBold()
     {
-        struct Case { const char *family, *standIn; int regular, bold; };
-        for (const Case &c : {Case{"Rockwell Condensed", "Roboto Slab", 60, 86}, Case{"Gloucester MT Extra Condensed", "EB Garamond", 62, 62}}) {
+        struct Case { const char *family, *standIn; int regular, bold, regularWeight, boldWeight; };
+        for (const Case &c : {Case{"Rockwell Condensed", "Roboto Slab", 60, 86, 700, 800}, Case{"Gloucester MT Extra Condensed", "EB Garamond", 62, 62, 800, 800}}) {
             const QString fam = QString::fromLatin1(c.family);
             if (QFontDatabase::hasFamily(fam)) continue;   // installed: its own face
-            QCOMPARE(jp::substituteWeight(fam), 700);
+            QCOMPARE(jp::substituteWeight(fam), c.regularWeight);
+            QCOMPARE(jp::substituteWeight(fam, true), c.boldWeight);
             for (bool bold : {false, true}) {
                 QTextCharFormat cf;
                 cf.setFontFamilies(QStringList{fam});
@@ -2534,8 +2537,80 @@ private Q_SLOTS:
                 const QFontInfo info(r.font());
                 const QString what = QStringLiteral("%1 %2").arg(fam, bold ? QStringLiteral("bold") : QStringLiteral("regular"));
                 QCOMPARE(info.family(), QString::fromLatin1(c.standIn));
-                QVERIFY2(info.weight() >= QFont::Bold, qPrintable(what + QStringLiteral(": weight %1").arg(info.weight())));
+                QVERIFY2(info.weight() >= (bold ? c.boldWeight : c.regularWeight) - 50, qPrintable(what + QStringLiteral(": weight %1").arg(info.weight())));
                 QCOMPARE(r.fontStretch(), jp::stretchToAsk(bold ? c.bold : c.regular));
+            }
+        }
+    }
+
+    // Three missing fonts' stand-ins carried less ink than Publisher's
+    // letters in the bundled Regular and Bold faces (Oct 10, line by line
+    // against its PDFs): Tw Cen MT's regular runs are drawn in Jost Medium,
+    // Rockwell Condensed's bold runs in Roboto Slab ExtraBold, Gloucester MT
+    // Extra Condensed's in EB Garamond ExtraBold. Each face is a style of
+    // its family, asked for by weight and by name (the Mac's font matching
+    // gave Libre Franklin Bold for the ExtraBold it was asked), and every
+    // platform draws the weight asked: Medium 500, ExtraBold 800.
+    void heavierStandInFaces()
+    {
+        // How much ink a face puts down: the letters drawn, the alpha summed.
+        const auto inkOf = [](const QFont &font) {
+            QImage img(900, 160, QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::transparent);
+            {
+                QPainter p(&img);
+                p.setFont(font);
+                p.setPen(Qt::black);
+                p.drawText(QPointF(10, 100), QStringLiteral("Hamburgefonstiv Wxyz"));
+            }
+            double sum = 0;
+            for (int y = 0; y < img.height(); ++y) {
+                const QRgb *row = reinterpret_cast<const QRgb *>(img.constScanLine(y));
+                for (int x = 0; x < img.width(); ++x) sum += qAlpha(row[x]);
+            }
+            return sum;
+        };
+        // weight 0: not checked (an italic run's face is the family's italic one);
+        // heavier: carries more ink than the family's own regular (500) or bold (800);
+        // stretch: percent (Medium is wider than Jost Regular, whose 94 became 85).
+        struct Case { const char *family, *standIn, *style; bool bold, italic; int weight; bool heavier; int stretch; };
+        for (const Case &c : {Case{"Tw Cen MT", "Jost", "Medium", false, false, 500, true, 85}, Case{"Tw Cen MT", "Jost", "Bold", true, false, 700, false, 89},
+                              Case{"Tw Cen MT", "Jost", "Italic", false, true, 0, false, 94},
+                              Case{"Rockwell Condensed", "Roboto Slab", "Bold", false, false, 700, false, 60},
+                              Case{"Rockwell Condensed", "Roboto Slab", "ExtraBold", true, false, 800, true, 86},
+                              Case{"Gloucester MT Extra Condensed", "EB Garamond", "ExtraBold", false, false, 800, true, 62},
+                              Case{"Gloucester MT Extra Condensed", "EB Garamond", "ExtraBold", true, false, 800, true, 62}}) {
+            const QString fam = QString::fromLatin1(c.family), standIn = QString::fromLatin1(c.standIn), style = QString::fromLatin1(c.style);
+            if (QFontDatabase::hasFamily(fam)) continue;   // installed: its own face
+            const QString what = QStringLiteral("%1 %2%3").arg(fam, c.bold ? QStringLiteral("bold") : QStringLiteral("regular"), c.italic ? QStringLiteral(" italic") : QString());
+            // The bundled file is a style of the family, not a family of its own.
+            QVERIFY2(QFontDatabase::styles(standIn).contains(style, Qt::CaseInsensitive), qPrintable(standIn + QStringLiteral(" lists: ") + QFontDatabase::styles(standIn).join(QLatin1Char(','))));
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{fam});
+            cf.setFontPointSize(24);
+            if (c.bold) cf.setFontWeight(QFont::Bold);
+            if (c.italic) cf.setFontItalic(true);
+            const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
+            const QFontInfo info(r.font());
+            const QString drawn = QStringLiteral("%1: %2 %3 %4").arg(what, info.family(), info.styleName()).arg(info.weight());
+            QCOMPARE(info.family(), standIn);
+            QCOMPARE(info.italic(), c.italic);
+            QCOMPARE(r.fontStretch(), jp::stretchToAsk(c.stretch));
+            if (c.weight >= 750) QVERIFY2(info.weight() >= 750, qPrintable(drawn));
+            else if (c.weight == 500) QVERIFY2(info.weight() == 500, qPrintable(drawn));
+            else if (c.weight) QVERIFY2(info.weight() >= c.weight - 50 && info.weight() <= c.weight + 50, qPrintable(drawn));
+            // Named when a weight alone could land on its neighbor (never an italic run: that name is the upright face).
+            if (c.weight == 500 || c.weight == 800) QCOMPARE(r.fontStyleName().toString(), style);
+            else QVERIFY(r.fontStyleName().toString().isEmpty());
+            if (c.heavier) {
+                QFont heavy = r.font(), plain = r.font();
+                heavy.setStretch(QFont::Unstretched);
+                plain.setStretch(QFont::Unstretched);
+                plain.setStyleName(QString());
+                plain.setWeight(c.weight >= 750 ? QFont::Bold : QFont::Normal);
+                plain.setPixelSize(48);
+                heavy.setPixelSize(48);
+                QVERIFY2(inkOf(heavy) > inkOf(plain) * 1.03, qPrintable(drawn + QStringLiteral(": ink %1, the family's plain face %2").arg(inkOf(heavy)).arg(inkOf(plain))));
             }
         }
     }

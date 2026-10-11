@@ -1648,7 +1648,7 @@ QWidget *Backstage::buildAbout()
          "https://github.com/JeffOffice/jeffpub/blob/main/resources/dict/pt_PT/LICENSES.txt"},
         {"Lucide icons", "https://lucide.dev/", tr("Interface icons, Insert > Icons"), "ISC", "https://lucide.dev/license"},
         {"Open fonts", "https://github.com/JeffOffice/jeffpub/blob/main/resources/fonts/README.md", tr("Fonts and substitutes"),
-         "SIL OFL 1.1, GUST, Bitstream Vera, GPL v2 + font exceptions", "https://github.com/JeffOffice/jeffpub/blob/main/resources/fonts/README.md"},
+         "SIL OFL 1.1, Apache 2.0, GUST, Bitstream Vera, GPL v2 + font exceptions", "https://github.com/JeffOffice/jeffpub/blob/main/resources/fonts/README.md"},
         {"zlib", "https://zlib.net/", tr("Compression (also in PDFium)"), "zlib license", "https://zlib.net/zlib_license.html"},
         // PDFium and what's built into it; the texts ship with the program
         // (third_party/pdfium/licenses).

@@ -361,10 +361,11 @@ static const QHash<QString, StandInWidths> &standInWidths()
         {"Gill Sans MT Ext Condensed Bold", {"Oswald", {60, 60, 0, 0}, {0, 0, 0, 0}}},
         {"Gill Sans Ultra Bold", {"Archivo Black", {115, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Gill Sans Ultra Bold Condensed", {"Anton", {112, 0, 0, 0}, {0, 0, 0, 0}}},
-        // Drawn in the stand-in's bold face (substituteWeight), one weight
-        // for both: its regular face at 72% carried 0.6 of the original's
-        // ink, the bold at 62% 0.85 (line by line against Publisher's PDFs,
-        // Oct 10; capitals alone want 60%, small letters 64%).
+        // Drawn in the stand-in's ExtraBold face (substituteWeight), one
+        // weight for both: its regular face at 72% carried 0.6 of the
+        // original's ink, the bold at 62% 0.85, the ExtraBold at 62% 0.91
+        // (line by line against Publisher's PDFs, Oct 10; capitals alone want
+        // 60%, small letters 64%; wider carries more ink but scores worse).
         {"Gloucester MT Extra Condensed", {"EB Garamond", {62, 62, 0, 0}, {0, 0, 0, 0}}},
         {"Goudy Old Style", {"Crimson Text", {0, 95, 0, 0}, {0, 0, 0, 0}}},
         {"Goudy Stout", {"Alfa Slab One", {160, 160, 0, 0}, {0, 0, 0, 0}}},
@@ -406,8 +407,10 @@ static const QHash<QString, StandInWidths> &standInWidths()
         {"Ravie", {"Bungee", {113, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Rockwell", {"Arvo", {96, 0, 90, 92}, {0, 0, 0, 0}}},
         // Regular Rockwell Condensed is drawn in Roboto Slab Bold (its own
-        // bold is wider, 86%): Roboto Slab Regular at 71% carried 0.85 of the
-        // original's ink, the bold at 60% 1.0 (Oct 10, as Gloucester).
+        // bold is wider, 86%, and drawn in the ExtraBold): Roboto Slab Regular
+        // at 71% carried 0.85 of the original's ink, the bold at 60% 1.0; its
+        // bold in the Bold at 86% 0.94, the ExtraBold 1.01 (Oct 10, as
+        // Gloucester).
         {"Rockwell Condensed", {"Roboto Slab", {60, 86, 0, 0}, {0, 0, 0, 0}}},
         {"Rockwell Extra Bold", {"Alfa Slab One", {111, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Script MT Bold", {"Pacifico", {98, 0, 0, 0}, {0, 0, 0, 0}}},
@@ -434,7 +437,11 @@ static const QHash<QString, StandInWidths> &standInWidths()
         {"Tahoma", {"DejaVu Sans", {85, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Tempus Sans ITC", {"Comic Neue", {0, 98, 0, 0}, {0, 0, 0, 0}}},
         {"Trebuchet MS", {"Open Sans", {98, 96, 105, 103}, {0, 0, 0, 0}}},
-        {"Tw Cen MT", {"Jost", {94, 89, 0, 83}, {0, 0, 0, 0}}},
+        // Regular Tw Cen MT is drawn in Jost Medium (substituteWeight): Jost
+        // Regular at 94% carried 0.88 of the original's ink, the Medium at 85%
+        // 1.0 (at 90%, its letters' own width, 1.05, and scored worse against
+        // Publisher's pictures); italic keeps the Regular's 94% (Oct 10).
+        {"Tw Cen MT", {"Jost", {85, 89, 94, 83}, {0, 0, 0, 0}}},
         {"Tw Cen MT Condensed", {"Archivo Narrow", {82, 90, 0, 0}, {0, 0, 0, 0}}},
         {"Tw Cen MT Condensed Extra Bold", {"Oswald", {94, 0, 0, 0}, {0, 0, 0, 0}}},
         {"Viner Hand ITC", {"Kaushan Script", {117, 0, 0, 0}, {0, 0, 0, 0}}},
@@ -588,28 +595,41 @@ double substituteHeightScale(const QString &family, bool bold)
     return s > 0 ? s : 1;
 }
 
-int substituteWeight(const QString &family)
+// Fonts whose names say nothing of the weight their stand-in is drawn at: the
+// weight for a run that isn't bold and for one that is (0: the stand-in's own
+// bold stays).
+struct NamedWeights { int regular, bold; };
+static const QHash<QString, NamedWeights> &weightsByName()
+{
+    static const QHash<QString, NamedWeights> t{
+        {"arial rounded mt bold", {700, 0}},
+        {"bauhaus 93", {700, 0}},
+        {"britannic bold", {700, 0}},
+        {"copperplate gothic bold", {700, 0}},
+        {"eras bold itc", {700, 0}},
+        {"gill sans mt ext condensed bold", {700, 0}},
+        {"gloucester mt extra condensed", {800, 800}},
+        {"rockwell condensed", {700, 800}},
+        {"tw cen mt", {500, 0}},
+        {"tw cen mt condensed extra bold", {700, 0}},
+    };
+    return t;
+}
+
+int substituteWeight(const QString &family, bool bold)
 {
     static QHash<QString, int> cache;
-    auto it = cache.constFind(family);
+    const QString key = family + (bold ? QStringLiteral("|1") : QStringLiteral("|0"));
+    auto it = cache.constFind(key);
     if (it != cache.constEnd()) return *it;
     int w = 0;
     if (!QFontDatabase::hasFamily(family)) {
         const QString f = family.toLower();
-        // Fonts whose names say nothing of the weight their stand-in is drawn at.
-        static const QHash<QString, int> byName{
-        {"arial rounded mt bold", 700},
-        {"bauhaus 93", 700},
-        {"britannic bold", 700},
-        {"copperplate gothic bold", 700},
-        {"eras bold itc", 700},
-        {"gill sans mt ext condensed bold", 700},
-        {"gloucester mt extra condensed", 700},
-        {"rockwell condensed", 700},
-        {"tw cen mt condensed extra bold", 700},
-        };
+        const auto o = weightsByName().constFind(f);
+        // A bold run keeps its stand-in's bold unless the table names another.
+        if (bold) w = o != weightsByName().constEnd() ? o->bold : 0;
+        else if (o != weightsByName().constEnd()) w = o->regular;
         // Franklin Gothic's weights run heavy: its Medium looks like a SemiBold.
-        if (const auto o = byName.constFind(f); o != byName.constEnd()) w = *o;
         else if (f.startsWith("franklin gothic") && f.contains("medium")) w = 600;
         else if (f.startsWith("franklin gothic") && f.contains("demi")) w = 700;
         else if (f.startsWith("franklin gothic") && f.contains("heavy")) w = 800;   // Libre Franklin ExtraBold
@@ -620,7 +640,7 @@ int substituteWeight(const QString &family)
         else if (f.contains("light")) w = 300;
         else if (f.contains("thin")) w = 100;
     }
-    cache.insert(family, w);
+    cache.insert(key, w);
     return w;
 }
 
@@ -686,11 +706,24 @@ QString standInOnThisPlatform(const QString &standIn)
     return standIn;
 }
 
-QString substituteStyleName(const QString &family)
+QString substituteStyleName(const QString &family, bool bold, bool italic)
 {
     if (haveFamily(family)) return {};
     const QString standIn = table().value(family), here = standInOnThisPlatform(standIn);
-    return here.size() < standIn.size() ? standIn.mid(here.size()).trimmed() : QString();
+    if (here.size() < standIn.size()) return standIn.mid(here.size()).trimmed();
+    // A face of the stand-in's family drawn by weight (Jost Medium, Roboto
+    // Slab ExtraBold) is named too, where the family lists it. An italic run
+    // isn't: that name is the upright face.
+    if (italic || !weightsByName().contains(family.toLower())) return {};
+    static QHash<QString, QString> named;   // main thread only, like all layout
+    const QString key = family + (bold ? QStringLiteral("|1") : QStringLiteral("|0"));
+    auto it = named.constFind(key);
+    if (it == named.constEnd()) {
+        const int w = substituteWeight(family, bold);
+        const QString style = w == 500 ? QStringLiteral("Medium") : w == 800 ? QStringLiteral("ExtraBold") : QString();
+        it = named.insert(key, !style.isEmpty() && QFontDatabase::styles(here).contains(style, Qt::CaseInsensitive) ? style : QString());
+    }
+    return *it;
 }
 
 QByteArray fontWithItalicFlags(const QByteArray &font)

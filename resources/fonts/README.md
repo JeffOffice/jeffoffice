@@ -4,7 +4,8 @@ These open fonts ship with JeffPub so publications look the same on Linux and Wi
 
 | Fonts | License |
 |---|---|
-| Families downloaded from Google Fonts (Arimo, Tinos, Cousine, Carlito, Caladea, Gelasio, and the rest of the `.ttf` files not listed below) | SIL Open Font License 1.1 (`OFL.txt`); copyright is held by each family's authors, as recorded in the font files |
+| Families downloaded from Google Fonts (Arimo, Tinos, Cousine, Carlito, Caladea, Gelasio, and the rest of the `.ttf` files not listed below) | SIL Open Font License 1.1 (`OFL.txt`); copyright is held by each family's authors, as recorded in the font files. Roboto Slab, Permanent Marker, and Satisfy are under the Apache License 2.0 instead (`Apache-2.0.txt`, as each font file's license entry says) |
+| Jost Medium, Roboto Slab ExtraBold, and EB Garamond ExtraBold (`Jost-Medium.ttf`, `RobotoSlab-ExtraBold.ttf`, `EBGaramond-ExtraBold.ttf`, the static files of Google Fonts' family download packages, unmodified; they carry the family and style names (16 and 17), so platforms list each as a style of its family) | The same as the family's other files: OFL for Jost and EB Garamond (`OFL.txt`), Apache License 2.0 for Roboto Slab (`Apache-2.0.txt`) |
 | TeX Gyre Pagella, Bonum, Schola, Adventor (`TeXGyre*.otf`) | GUST Font License (`GUST-FONT-LICENSE.txt`) |
 | DejaVu Sans (`DejaVuSans*.ttf`) | Bitstream Vera / DejaVu license (`DejaVu-LICENSE.txt`) |
 | Comic Relief (`ComicRelief-*.ttf`, v1.210, from [github.com/loudifier/Comic-Relief](https://github.com/loudifier/Comic-Relief)) | SIL Open Font License 1.1 (`OFL.txt`) |

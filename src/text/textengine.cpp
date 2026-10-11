@@ -430,11 +430,11 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
             if (st != 100) r.setFontStretch(stretchToAsk(st));
             else r.clearProperty(QTextFormat::FontStretch);
             // "Medium", "Demi", "Black"... in a missing font's name become a real weight.
-            const int wt = substituteWeight(fams.first());
-            if (wt > 0 && !(f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::Bold)) {
+            const bool boldRun = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::Bold;
+            if (const int wt = substituteWeight(fams.first(), boldRun); wt > 0) {
                 r.setFontWeight(wt);
                 // Selawik's Light and Semilight weigh the same where they are styles of one family.
-                if (const QString style = substituteStyleName(fams.first()); !style.isEmpty()) r.setFontStyleName(style);
+                if (const QString style = substituteStyleName(fams.first(), boldRun, f.fontItalic()); !style.isEmpty()) r.setFontStyleName(style);
             }
             // Letters as high as the missing font's (drawing only), by the
             // weight asked for: a regular run's stand-in may be drawn bold.
