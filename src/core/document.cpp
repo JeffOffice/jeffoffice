@@ -1144,6 +1144,7 @@ QJsonObject Document::toJson() const
     o["template"] = templateId;
     o["templateOptions"] = templateOptions;
     o["facing"] = facingPages;
+    if (std::abs(defaultTabStop - 36) > 1e-9) o["defaultTab"] = defaultTabStop;
     if (!rulerZero.isNull()) o["rulerZero"] = QJsonArray{rulerZero.x(), rulerZero.y()};
     if (!pubFonts.isEmpty()) o["pubFonts"] = QJsonArray::fromStringList(pubFonts);
     QJsonArray spots;
@@ -1254,6 +1255,7 @@ void Document::fromJson(const QJsonObject &o)
     templateId = o["template"].toString();
     templateOptions = o["templateOptions"].toObject();
     facingPages = o["facing"].toBool();
+    defaultTabStop = std::clamp(o["defaultTab"].toDouble(36), 1.0, 1584.0);
     const QJsonArray rz = o["rulerZero"].toArray();
     rulerZero = rz.size() == 2 ? QPointF(rz[0].toDouble(), rz[1].toDouble()) : QPointF();
     pubFonts.clear();

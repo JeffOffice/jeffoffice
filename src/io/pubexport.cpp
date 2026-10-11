@@ -2639,8 +2639,10 @@ QByteArray PubWriter::write(QStringList *skipped)
         for (int id : m_textIds) putU32(syid, quint32(id));
         if (m_textIds.isEmpty()) putU32(syid, 0);
         secs << Section{"SYID", "SYID", 0, syid, false};
+        // The publication's default tab stop (Document.DefaultTabStop) is the one property of the story group, 00:22 in EMU, left out at 36 points.
         QByteArray sgp, ink;
-        putU32(sgp, 4);
+        if (std::abs(m_doc.defaultTabStop - 36) > 1e-6) sgp = lengthPrefixed({u32(0x00, emuCapped(std::max(1.0, m_doc.defaultTabStop)), 0x22)});
+        else putU32(sgp, 4);
         putU16(ink, 0x74);
         putU16(ink, 0x74);
         secs << Section{"SGP ", "SGP ", 0, sgp, false} << Section{"INK ", "INK ", 0, ink, false};

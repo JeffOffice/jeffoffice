@@ -3377,6 +3377,117 @@ private Q_SLOTS:
         QVERIFY2(roomy.lines.size() == 2 && std::abs(roomy.starts[1] - 36) < 0.01, qPrintable(what(roomy)));
     }
 
+    // A publication's default tab stops (Publisher's Document.DefaultTabStop,
+    // 36 points unless it says otherwise) are the places the stops of a
+    // paragraph without its own are, counted from the text area's edge, not
+    // from the line's start: Publisher's PDFs of a publication set to 20 and
+    // to 14.4 put the text after a tab at multiples of those from the edge,
+    // with the paragraph indented 13.5 too (a MIVDF flyer has 14.4).
+    void defaultTabStopsFollowThePublication()
+    {
+        auto after = [](double def, double left, const QString &text) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(left);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(8);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(200, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::LayoutEnv env;
+            env.defaultTab = def;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, env);
+            QStringList xs;
+            for (int i = 0; i < text.size(); ++i) {
+                if (text[i] != QLatin1Char('\t')) continue;
+                int frame = -1;
+                QRectF r;
+                l.caretRect(i + 1, &frame, &r);
+                xs << QString::number(r.x(), 'f', 1);
+            }
+            return xs.join(QLatin1Char(' '));
+        };
+        const QString text = QStringLiteral("a\tb\tc\td");
+        QCOMPARE(after(36, 0, text), QStringLiteral("36.0 72.0 108.0"));
+        QCOMPARE(after(20, 0, text), QStringLiteral("20.0 40.0 60.0"));
+        QCOMPARE(after(20, 13.5, QStringLiteral("a\tb\tc")), QStringLiteral("20.0 40.0"));
+        QCOMPARE(after(14.4, 0, QStringLiteral("aa\tbb\tcc")), QStringLiteral("14.4 28.8"));
+        QCOMPARE(after(14.4, 13.5, QStringLiteral("g\th\ti")), QStringLiteral("28.8 43.2"));
+    }
+
+    // The default is saved in a .pub file's text stream (its SGP section, a
+    // property block with 00:22 in EMU, left empty at 36 points: found in
+    // Publisher's files and in ones it saved with several settings), kept by
+    // JeffPub's own files, and laid out with: a publication set to 14.4
+    // reads back at 14.4, and its tabs go there.
+    void defaultTabStopIsSavedAndRead()
+    {
+        using namespace jp;
+        auto make = [](double def) {
+            auto doc = Document::blank(QSizeF(612, 792));
+            doc->defaultTabStop = def;
+            auto t = std::make_shared<TextItem>();
+            t->rect = QRectF(72, 72, 300, 100);
+            t->storyId = doc->createStory(QStringLiteral("aa\tbb\tcc"));
+            doc->pages[0]->items.push_back(t);
+            return doc;
+        };
+        // The SGP section's bytes.
+        auto sgp = [](const QString &path) {
+            const QByteArray q = cfb::readStream(path, QStringLiteral("Quill/QuillSub/CONTENTS"));
+            auto u32 = [&](qsizetype at) { return qFromLittleEndian<quint32>(q.constData() + at); };
+            for (quint32 at = 0x18; at != 0xffffffffu && at + 8 <= quint32(q.size()); at = u32(at + 4))
+                for (int k = 0; k < qFromLittleEndian<quint16>(q.constData() + at + 2); ++k) {
+                    const qsizetype e = at + 8 + 24 * k;
+                    if (q.mid(e + 2, 4) == "SGP ") return q.mid(u32(e + 16), u32(e + 20));
+                }
+            return QByteArray("none");
+        };
+        QTemporaryDir dir;
+        QString err;
+        const QString plain = dir.filePath(QStringLiteral("plain.pub")), set = dir.filePath(QStringLiteral("set.pub"));
+        QVERIFY2(exportPublisher(*make(36), plain, &err), qPrintable(err));
+        QVERIFY2(exportPublisher(*make(14.4), set, &err), qPrintable(err));
+        QCOMPARE(sgp(plain), QByteArray::fromHex("04000000"));
+        QCOMPARE(sgp(set), QByteArray::fromHex("0a000000" "0022" "60ca0200"));   // 182,880 EMU
+        auto back = importPublisherFile(set, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(std::abs(back->defaultTabStop - 14.4) < 0.001, qPrintable(QString::number(back->defaultTabStop)));
+        auto backPlain = importPublisherFile(plain, &err);
+        QVERIFY2(backPlain, qPrintable(err));
+        QCOMPARE(backPlain->defaultTabStop, 36.0);
+        // Laid out with it.
+        const TextItem *bt = nullptr;
+        walkItems(back->pages[0]->items, [&](const ItemPtr &it) {
+            if (it->type() == ItemType::Text) bt = static_cast<const TextItem *>(it.get());
+        });
+        QVERIFY(bt);
+        LayoutCache cache;
+        RenderOptions opt;
+        const auto fl = cache.textFrame(*back, *bt, 1, opt);
+        QVERIFY(fl.layout);
+        const QTextBlock b = back->storyDoc(bt->storyId)->begin();
+        int frame = -1;
+        QRectF origin, first, second;
+        fl.layout->caretRect(b.position(), &frame, &origin);
+        fl.layout->caretRect(b.position() + 3, &frame, &first);
+        fl.layout->caretRect(b.position() + 6, &frame, &second);
+        QVERIFY2(std::abs(first.x() - origin.x() - 14.4) < 0.01 && std::abs(second.x() - origin.x() - 28.8) < 0.01, qPrintable(QStringLiteral("%1 %2 from %3").arg(first.x()).arg(second.x()).arg(origin.x())));
+        // And in JeffPub's own file, which says nothing at 36.
+        QVERIFY(!publicationBytes(*make(36), QImage()).contains("defaultTab"));
+        const QString own = dir.filePath(QStringLiteral("set.jpub"));
+        QVERIFY2(savePublication(*make(20), own, QImage(), &err), qPrintable(err));
+        auto again = loadPublication(own, &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(again->defaultTabStop, 20.0);
+    }
+
     // Centered and right-aligned lines have their text shifted by Qt, which
     // the stops don't share: a tab at the end of one was taken for past its
     // stop (the shift added to where it started) and went on to the next line

@@ -284,8 +284,9 @@ those paragraph styles equals the hang and adds nothing: lists with it
 
 A tab after a hanging paragraph's first words ("b.<tab>text") goes to the
 left indent (57.6 pt with the first line at 28.8), and the default stops
-before it are gone. The default stops are 36 pt apart from the text area's
-edge, not from where the first line starts or from the left indent. Checked
+before it are gone. The default stops are 36 pt apart (or what the
+publication says, below) from the text area's edge, not from where the first
+line starts or from the left indent. Checked
 in Publisher's PDFs: with the left indent at 13.5, a tab at the start of a
 line puts the text at 36, 22.5 pt from the line's start (the four
 "Name<spaces><tab>number" lines of a newsletter: their numbers stand in a
@@ -400,7 +401,7 @@ an offset, and a length:
 | STRS | Story lengths |
 | MCLD | Text frame layout per story (below); required once a table is present |
 | FONT | Font table |
-| SGP, INK, PL | Small fixed sections; PL is the text color list (below) |
+| SGP, INK, PL | Small fixed sections; PL is the text color list (below); SGP holds the publication's default tab stop (below) |
 | TCD | Table cell text ends (tables only) |
 
 A blank file has no TEXT, FDPC, FDPP, BTEC, BTEP, STRS, or MCLD sections.
@@ -939,6 +940,23 @@ reference PDF, bold Century Schoolbook at 112.5% got 0.063–0.067 em (0.0655
 predicted), bold Times New Roman at 87.5% got -0.055 em (-0.053), and
 CloisterBlack at 115% got 0.045 em (0.049). Small capitals get tracking at
 their own (0.8×) size.
+
+The default tab stop distance is the publication's, not a paragraph's
+(Publisher's `Document.DefaultTabStop`, 36 pt unless set; its Paragraph
+dialog's Tabs page shows it as "Default tab stops", 0.2" for 14.4): the text
+stream's SGP section, a block list of one property, `00:22` in EMU, 182,880
+for 14.4 pt. A publication left at 36 pt has an empty list (length 4 only).
+Saved by Publisher with 14.4, 20, 72, and 100 pt (Oct 11): next to a file
+at 36 they differ in that section, in what moves with its six bytes, and in
+one style sheet byte (0x35 at 36, 0 in the others) that JeffPub doesn't
+write and Publisher doesn't need. Publisher takes 1 to 1,584 pt. A MIVDF
+flyer (2006) has 14.4 pt, and Publisher's PDF puts the text after its tabs
+at multiples of 14.4 from the text area's edge (28.8 after two tabs, 28.0 to
+28.1 after one and six spaces), where JeffPub used 36 for them all.
+Publisher's PDFs of a publication at 14.4, 20, and 36 and of JeffPub's files
+at 14.4, 20, 36, 100, and 1,584 agree with the layout to 0.1 pt, with the
+paragraph's left indent 13.5 as well: the stops are the same places on every
+line, the indent not moving them.
 
 Tab stops (FDPP `32:82`): `27:1a` count, then `28:8a` with a record per
 stop: `00:20` position (EMU), `01:10` alignment in the low byte (left left

@@ -139,7 +139,11 @@ class Collector : public librevenge::RVNGDrawingInterface {
 public:
     Collector(Document &d, PubImportReport &r) : m_doc(d), m_rep(r) {}
 
-    void startDocument(const RVNGPropertyList &) override {}
+    void startDocument(const RVNGPropertyList &p) override
+    {
+        // The publication's default tab stop (Document.DefaultTabStop), within the 1 to 1,584 points Publisher takes.
+        if (p["jp:default-tab-stop"]) m_doc.defaultTabStop = std::clamp(toPt(p["jp:default-tab-stop"]), 1.0, 1584.0);
+    }
     void endDocument() override {}
     void setDocumentMetaData(const RVNGPropertyList &p) override
     {

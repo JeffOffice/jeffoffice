@@ -236,6 +236,9 @@ public:
     QString templateId;
     QJsonObject templateOptions;
     bool facingPages = false;   // default spread display
+    // Publisher's Document.DefaultTabStop: where the tab stops of a paragraph
+    // without its own are, in points apart from the text area's edge.
+    double defaultTabStop = 36;
     // Where the rulers count from, in points from the page's corner. Saved
     // with the publication, and left out of the file at the corner.
     QPointF rulerZero;

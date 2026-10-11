@@ -280,6 +280,7 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     LayoutEnv env;
     env.colors = doc.colors;
     env.fonts = doc.fonts;
+    env.defaultTab = doc.defaultTabStop;
     sig += env.key();
     const bool autofit = chain.size() == 1 && (head->autofit == TextItem::BestFit || head->autofit == TextItem::ShrinkOnOverflow);
     if (autofit) sig += QStringLiteral("|fit%1%2").arg(int(head->autofit)).arg(head->fitAsStored ? "s" : "");
@@ -344,6 +345,7 @@ const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &sto
     LayoutEnv env;
     env.colors = doc.colors;
     env.fonts = doc.fonts;
+    env.defaultTab = doc.defaultTabStop;
     const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {

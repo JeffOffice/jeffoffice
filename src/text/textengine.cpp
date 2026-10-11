@@ -156,6 +156,7 @@ QString FieldContext::key() const
 QString LayoutEnv::key() const
 {
     QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "");
+    if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (int i = 0; i < SlotCount; ++i) k += colors.c[i].name();
     return k;
 }
@@ -1711,7 +1712,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         QList<QTextOption::Tab> tabs = bf.tabPositions();
         for (auto &t : tabs) t.position *= scale * kFine;
         opt.setTabs(tabs);
-        opt.setTabStopDistance(36 * scale * kFine);
+        opt.setTabStopDistance(std::max(1.0, env.defaultTab) * scale * kFine);
         B->leaders = bf.stringProperty(tp::TabLeaders);
         if (bf.layoutDirection() == Qt::RightToLeft) opt.setTextDirection(Qt::RightToLeft);
         opt.setFlags(QTextOption::IncludeTrailingSpaces);
@@ -1849,10 +1850,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // 48-point Times New Roman lines: the 53 points of its ascent and
             // descent, not the 55 of its single spacing).
             const double estText = std::min(estH, heightOf(base));
-            // Tab stops are 36 points apart from the text area's edge, not from
-            // where a line starts (Publisher), and a line that hangs (the first
-            // of a paragraph indented less than the rest) has its left indent as
-            // a stop, so "b.<tab>text" lines up its text there, the stops before
+            // Tab stops are the publication's default distance (36 points, or
+            // what it says) apart from the text area's edge, not from where a
+            // line starts (Publisher), and a line that hangs (the first of a
+            // paragraph indented less than the rest) has its left indent as a
+            // stop, so "b.<tab>text" lines up its text there, the stops before
             // it gone. Qt counts stops from each line's own start, so each line
             // is laid out with a list of its own, or none when it starts on a
             // stop (Qt's spacing is the same places, and a list makes it go over
@@ -1860,7 +1862,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // with tab stops of its own keeps Qt's.
             const bool hangs = textIndent < -0.01;
             const bool gridTabs = bf.tabPositions().isEmpty() && bf.layoutDirection() != Qt::RightToLeft && B->disp.contains(QLatin1Char('\t'));
-            const double step = 36 * scale;
+            const double step = std::max(1.0, env.defaultTab) * scale;
             auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && B->marker.isEmpty() && leftM > from + 0.01; };
             // The first stop past `pen`, measured from the text area's edge.
             auto nextStop = [&](double pen, bool hangLine) { return hangStop(pen, hangLine) ? leftM : (std::floor((pen + 0.01) / step) + 1) * step; };

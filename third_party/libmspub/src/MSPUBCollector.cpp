@@ -2478,7 +2478,10 @@ bool MSPUBCollector::go()
       get(it->second.m_tableInfo).m_formats = tf.second;
   }
   assignShapesToPages();
-  m_painter->startDocument(librevenge::RVNGPropertyList());
+  librevenge::RVNGPropertyList docProps;
+  if (m_defaultTabStopEmu)
+    docProps.insert("jp:default-tab-stop", double(m_defaultTabStopEmu) / EMUS_IN_INCH);   // JeffPub
+  m_painter->startDocument(docProps);
   m_painter->setDocumentMetaData(m_metaData);
 
   for (std::list<EmbeddedFontInfo>::const_iterator i = m_embeddedFonts.begin(); i != m_embeddedFonts.end(); ++i)
