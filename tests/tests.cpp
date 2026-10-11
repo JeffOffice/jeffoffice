@@ -3488,6 +3488,176 @@ private Q_SLOTS:
         QCOMPARE(again->defaultTabStop, 20.0);
     }
 
+    // Paragraph > Tabs has the publication's Default tab stops under the list
+    // of stops, in the units of the dialog's other measurements and from 1 to
+    // 1,584 points (what Publisher takes), with or without a text box
+    // selected. Setting it is one undo step that moves the tabs of
+    // paragraphs without stops of their own, and it is saved in .jpub and
+    // .pub files.
+    void defaultTabStopIsSetInTheTabsDialog()
+    {
+        using namespace jp;
+        Settings &st = Settings::get();
+        const Unit was = st.unit();
+        const auto restoreUnit = qScopeGuard([&] { st.setUnit(was); });
+        st.setUnit(Unit::Centimeter);
+        MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->setDocument(Document::blank(QSizeF(612, 792)));
+        auto box = ed->newTextBox(QRectF(72, 72, 400, 100), QStringLiteral("aa\tbb\tcc"));
+        ed->addItem(box);
+        const QString id = box->id;
+        ed->select(id);
+        // How far from the line's start the text after each tab begins.
+        auto stops = [&] {
+            const auto *t = static_cast<const TextItem *>(ed->doc()->item(id));
+            const auto fl = ed->cache().textFrame(*ed->doc(), *t, 1, ed->renderOptions());
+            if (!fl.layout) return QStringLiteral("no layout");
+            const int start = ed->doc()->storyDoc(t->storyId)->begin().position();
+            int frame = -1;
+            QRectF origin, first, second;
+            fl.layout->caretRect(start, &frame, &origin);
+            fl.layout->caretRect(start + 3, &frame, &first);
+            fl.layout->caretRect(start + 6, &frame, &second);
+            return QStringLiteral("%1 %2").arg(first.x() - origin.x(), 0, 'f', 1).arg(second.x() - origin.x(), 0, 'f', 1);
+        };
+        // Opens Tabs, reads the box, sets it to `points` (when positive), and presses OK.
+        struct Seen {
+            bool found = false;
+            QString text, name, label;
+            double lowest = 0, highest = 0;
+            int page = -1;
+        } seen;
+        auto tabsDialog = [&](double points) {
+            seen = Seen();
+            QTimer::singleShot(0, &w, [&, points] {
+                auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!d) return;
+                if (auto *tabs = d->findChild<QTabWidget *>()) seen.page = tabs->currentIndex();
+                if (auto *spin = d->findChild<MeasureSpin *>(QStringLiteral("defaultTabStop"))) {
+                    seen.found = true;
+                    seen.text = spin->text();
+                    seen.name = spin->accessibleName();
+                    seen.lowest = spin->minimum();
+                    seen.highest = spin->maximum();
+                    for (QLabel *l : d->findChildren<QLabel *>())
+                        if (l->buddy() == spin) seen.label = l->text();
+                    if (points > 0) spin->setValue(points);
+                    if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) d->grab().save(qEnvironmentVariable("JP_SHOT_DIR") + QStringLiteral("/tabs-dialog.png"));
+                    d->accept();
+                } else {
+                    d->reject();
+                }
+            });
+            w.act(QStringLiteral("para.tabs"))->trigger();
+        };
+        QCOMPARE(stops(), QStringLiteral("36.0 72.0"));
+
+        // The box shows 36 points as 1.27 cm, on the Tabs page, named, from 1 to 1,584 points.
+        tabsDialog(0);
+        QVERIFY(seen.found);
+        QCOMPARE(seen.page, 2);
+        QCOMPARE(seen.text, QStringLiteral("1.27 cm"));
+        QCOMPARE(seen.lowest, 1.0);
+        QCOMPARE(seen.highest, 1584.0);
+        QCOMPARE(seen.name, QStringLiteral("Default tab stops"));
+        QVERIFY2(seen.label.startsWith(QLatin1String("Default tab stops")), qPrintable(seen.label));
+        QCOMPARE(ed->doc()->defaultTabStop, 36.0);
+
+        // Setting it is one step, and the tabs move.
+        int steps = ed->undoStack()->index();
+        tabsDialog(20);
+        QCOMPARE(ed->doc()->defaultTabStop, 20.0);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Default Tab Stops"));
+        QCOMPARE(stops(), QStringLiteral("20.0 40.0"));
+        tabsDialog(0);
+        QCOMPARE(seen.text, QStringLiteral("0.706 cm"));   // 20 points
+        ed->undo();
+        QCOMPARE(ed->doc()->defaultTabStop, 36.0);
+        QCOMPARE(stops(), QStringLiteral("36.0 72.0"));
+        ed->redo();
+        QCOMPARE(ed->doc()->defaultTabStop, 20.0);
+        QCOMPARE(stops(), QStringLiteral("20.0 40.0"));
+
+        // Past Publisher's range it stops at the ends of it.
+        tabsDialog(5000);
+        QCOMPARE(ed->doc()->defaultTabStop, 1584.0);
+        tabsDialog(0.2);
+        QCOMPARE(ed->doc()->defaultTabStop, 1.0);
+
+        // With nothing selected it still sets the publication's.
+        ed->clearSelection();
+        steps = ed->undoStack()->index();
+        tabsDialog(14.4);
+        QVERIFY(seen.found);
+        QCOMPARE(ed->doc()->defaultTabStop, 14.4);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QCOMPARE(stops(), QStringLiteral("14.4 28.8"));
+
+        // Saved and opened again as JeffPub's own file and as a .pub file.
+        QTemporaryDir dir;
+        QString err;
+        const QString own = dir.filePath(QStringLiteral("tabs.jpub")), pub = dir.filePath(QStringLiteral("tabs.pub"));
+        QVERIFY2(savePublication(*ed->doc(), own, QImage(), &err), qPrintable(err));
+        QVERIFY2(exportPublisher(*ed->doc(), pub, &err), qPrintable(err));
+        auto fromOwn = loadPublication(own, &err);
+        QVERIFY2(fromOwn, qPrintable(err));
+        QCOMPARE(fromOwn->defaultTabStop, 14.4);
+        auto fromPub = importPublisherFile(pub, &err);
+        QVERIFY2(fromPub, qPrintable(err));
+        QVERIFY2(std::abs(fromPub->defaultTabStop - 14.4) < 0.001, qPrintable(QString::number(fromPub->defaultTabStop)));
+    }
+
+    // Boxes that grow to fit their text, and table rows that grow, follow
+    // the new tab stops when words now wrap onto another line; a box whose
+    // text has no tab is left as it was.
+    void defaultTabStopRefitsGrowingBoxesAndTableRows()
+    {
+        using namespace jp;
+        MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->setDocument(Document::blank(QSizeF(612, 792)));
+        auto grows = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 150, 20), QStringLiteral("a\tb\tc\td")));
+        auto plain = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(300, 72, 150, 90), QStringLiteral("hello")));
+        grows->autofit = plain->autofit = TextItem::GrowBox;
+        auto table = std::static_pointer_cast<TableItem>(ed->newTable(QRectF(72, 300, 150, 20), 1, 1));
+        table->growToFit = true;
+        QTextCursor(ed->doc()->storyDoc(table->cells[0].storyId)).insertText(QStringLiteral("a\tb\tc\td"));
+        for (const ItemPtr &it : {ItemPtr(grows), ItemPtr(plain), ItemPtr(table)}) ed->addItem(it);
+        ed->autoGrowText(grows.get());
+        ed->fitTableRows(table.get());
+        const double boxHeight = grows->rect.height(), rowHeight = table->rowH[0];
+        QVERIFY2(boxHeight < 40 && rowHeight < 40, qPrintable(QStringLiteral("%1 %2").arg(boxHeight).arg(rowHeight)));   // one line each
+        QTimer::singleShot(0, &w, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            auto *spin = d->findChild<MeasureSpin *>(QStringLiteral("defaultTabStop"));
+            if (spin) {
+                spin->setValue(100);
+                d->accept();
+            } else {
+                d->reject();
+            }
+        });
+        w.act(QStringLiteral("para.tabs"))->trigger();
+        QCOMPARE(ed->doc()->defaultTabStop, 100.0);
+        QVERIFY2(grows->rect.height() > boxHeight * 1.5, qPrintable(QStringLiteral("%1 from %2").arg(grows->rect.height()).arg(boxHeight)));
+        QVERIFY2(table->rowH[0] > rowHeight * 1.5, qPrintable(QStringLiteral("%1 from %2").arg(table->rowH[0]).arg(rowHeight)));
+        QCOMPARE(plain->rect.height(), 90.0);
+        // Undoing puts the sizes back with the stops.
+        ed->undo();
+        QCOMPARE(ed->doc()->defaultTabStop, 36.0);
+        QCOMPARE(static_cast<TextItem *>(ed->doc()->item(grows->id))->rect.height(), boxHeight);
+        QCOMPARE(static_cast<TableItem *>(ed->doc()->item(table->id))->rowH[0], rowHeight);
+    }
+
     // Of several tabs together the last goes on with the text: when the line
     // breaks inside the group, so that the next line starts with the last of
     // them, the tab at the end of the line above stays there (its stop is on
