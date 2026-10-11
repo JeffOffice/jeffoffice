@@ -14234,6 +14234,54 @@ private Q_SLOTS:
         }
     }
 
+    // Every cell of a table is made when a .pub file is read, so a table over 256 rows or 256 columns (twice
+    // Publisher's largest, and the .jpub reader's limit) is left out, and the rest of the file opens.
+    void pubTableOverTheLimitIsLeftOut()
+    {
+        auto read = [&](int rows, int cols, bool *textKept) {
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            auto box = std::make_shared<jp::TextItem>();
+            box->rect = QRectF(36, 36, 300, 40);
+            box->storyId = doc->createStory(QStringLiteral("Before the table"));
+            doc->pages[0]->items.push_back(box);
+            auto t = std::make_shared<jp::TableItem>();
+            t->rows = rows;
+            t->cols = cols;
+            t->colW = QVector<double>(cols, 2.0);
+            t->rowH = QVector<double>(rows, 2.0);
+            t->rect = QRectF(36, 100, 0, 0);
+            t->syncRect();
+            t->cells.resize(rows * cols);
+            doc->pages[0]->items.push_back(t);
+            QTemporaryDir dir;
+            const QString path = dir.filePath(QStringLiteral("table-size.pub"));
+            QString err;
+            *textKept = false;
+            if (!jp::exportPublisher(*doc, path, &err)) return QSize(-2, -2);
+            auto back = jp::importPublisherFile(path, &err);
+            if (!back) return QSize(-1, -1);
+            QSize size(0, 0);
+            jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+                if (it->type() == jp::ItemType::Table) {
+                    auto *tb = static_cast<const jp::TableItem *>(it.get());
+                    size = QSize(tb->cols, tb->rows);
+                }
+                if (it->type() == jp::ItemType::Text)
+                    *textKept = back->storyDoc(static_cast<const jp::TextItem *>(it.get())->storyId)->toPlainText() == QStringLiteral("Before the table");
+            });
+            return size;
+        };
+        bool kept = false;
+        QCOMPARE(read(2, 256, &kept), QSize(256, 2));
+        QVERIFY(kept);
+        QCOMPARE(read(256, 2, &kept), QSize(2, 256));
+        QVERIFY(kept);
+        QCOMPARE(read(2, 257, &kept), QSize(0, 0));
+        QVERIFY(kept);
+        QCOMPARE(read(257, 2, &kept), QSize(0, 0));
+        QVERIFY(kept);
+    }
+
     // The cell list's count is 16 bits, so a table of 65,536 cells (256 x 256), or fewer cells with many divided
     // ones (each divided cell is two entries), would wrap it to a small number. The cells come first, then as
     // many second halves as fit; the save says what it left out.
