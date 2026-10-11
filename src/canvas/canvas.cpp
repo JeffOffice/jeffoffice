@@ -1577,7 +1577,7 @@ void Canvas::mousePressEvent(QMouseEvent *e)
         const Hit h = hitTest(e->position());
         // Right-clicking a word in the text being edited puts the caret there,
         // so the menu can offer spelling suggestions for it.
-        if (m_ed->isEditingText() && h.kind == HitKind::Item && m_ed->textTarget().itemId == h.id && h.textInterior && h.half == m_ed->textTarget().half) {
+        if (m_ed->isEditingText() && h.kind == HitKind::Item && m_ed->textTarget().itemId == h.id && h.textInterior && h.row == m_ed->textTarget().row && h.col == m_ed->textTarget().col && h.half == m_ed->textTarget().half) {
             const int pos = textPosAt(h.id, m_pressPage, h.row, h.col, h.half);
             QTextCursor c = m_ed->cursor();
             if (pos >= 0 && !(c.hasSelection() && pos >= c.selectionStart() && pos <= c.selectionEnd())) {

@@ -14296,6 +14296,37 @@ private Q_SLOTS:
         QTest::mouseClick(cv->viewport(), Qt::LeftButton, {}, QPoint(5, 5));   // the mouse in use again: no focus ring in the tests after
     }
 
+    // Right-clicking in another cell while typing in a table leaves the caret where it is (it once tried to put it
+    // at that cell's position in this cell's text); in the cell being typed in, it puts the caret at the click.
+    void tableRightClickInAnotherCellWhileEditing()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        jp::Editor *ed = w.editor();
+        auto made = ed->newTable(QRectF(72, 72, 400, 100), 1, 2);
+        ed->addItem(made);
+        const QString id = made->id;
+        auto table = [&] { return static_cast<jp::TableItem *>(ed->doc()->item(id)); };
+        ed->doc()->storyDoc(table()->cell(0, 0).storyId)->setPlainText(QStringLiteral("aa"));
+        ed->doc()->storyDoc(table()->cell(0, 1).storyId)->setPlainText(QStringLiteral("a very long second cell text that goes on and on"));
+        ed->beginTextEdit(id, 0, 0, 0, 0);
+        auto *cv = w.findChild<jp::Canvas *>();
+        auto rightClick = [&](int col, double dx) {
+            const QRectF cell = table()->cellRect(0, col).translated(table()->rect.topLeft());
+            QTest::mouseClick(cv->viewport(), Qt::RightButton, {}, cv->pageToView(QPointF(cell.left() + dx, cell.top() + 10)).toPoint());
+        };
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("out of range")));
+        rightClick(1, 60);
+        QCOMPARE(ed->textTarget().col, 0);
+        QCOMPARE(ed->cursor().position(), 0);
+        rightClick(0, 12);   // past the two letters
+        QCOMPARE(ed->textTarget().col, 0);
+        QCOMPARE(ed->cursor().position(), 2);
+        QTest::mouseClick(cv->viewport(), Qt::LeftButton, {}, QPoint(5, 5));
+    }
+
     // Line spacing in points, as Publisher sets it (measured in its PDFs of 10 and 24 point text in Times New
     // Roman, Arial, and Calibri, every value from 1 to 30 points): "Exactly" spaces the lines by the value
     // whatever the text, with the baseline one descent above the bottom of the line, or, when the line is
