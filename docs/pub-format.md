@@ -237,6 +237,13 @@ stays as written. A separate rectangle drawn just before a text box at the
 same place, which JeffPub reads as the box's border, takes the line's share
 off the box's margins, since the text of the original sat inside no line.
 
+A line of weight 0 (a text box, a rectangle, or a straight line, 0x01cb at 0
+with the line switched on; COM reports Visible and Weight 0) is no line:
+Publisher's pictures and its PDF (Oct 11, weights 0, 0.25, and 0.75 side by
+side) draw nothing for it, and the text sits where a box with no line has it.
+Many old newsletters have text boxes so (a hairline the author never saw);
+JeffPub read the 0 as a visible 0.25 and drew a border Publisher does not.
+
 ### Picture settings and picture shapes
 
 A picture's OPT can add 0x0109 brightness (signed; 0x8000 is all the way

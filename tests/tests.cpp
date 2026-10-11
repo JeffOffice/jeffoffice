@@ -3846,6 +3846,53 @@ private Q_SLOTS:
         }
     }
 
+    // A line of weight 0 is no line in Publisher: its picture and its PDF
+    // (Oct 11, a text box, a rectangle, and a straight line of weight 0,
+    // 0.25, and 0.75) show nothing for the 0, and the text sits where a box
+    // with no line has it. JeffPub read it as a hairline, so a box whose line
+    // was 0 had a border it never had, and saved it as a visible 0.25.
+    void aLineOfWeightZeroIsNoLine()
+    {
+        using namespace jp;
+        auto doc = Document::blank(QSizeF(300, 200));
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(20, 20, 100, 60);
+        box->insets = QMarginsF(3, 3, 3, 3);
+        box->storyId = doc->createStory(QStringLiteral("Hi"));
+        box->stroke = Stroke::line(ColorRef::rgb(Qt::black), 0.00001);   // written as 0 EMU
+        auto rect = std::make_shared<ShapeItem>();
+        rect->shape = QStringLiteral("rect");
+        rect->rect = QRectF(150, 20, 100, 60);
+        rect->fill = Fill::none();
+        rect->stroke = Stroke::line(ColorRef::rgb(Qt::black), 0.00001);
+        doc->pages[0]->items.push_back(box);
+        doc->pages[0]->items.push_back(rect);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("zero-line.pub"));
+        QString err;
+        QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        int seen = 0;
+        std::function<void(const Item &)> visit = [&](const Item &it) {
+            if (it.type() == ItemType::Group) {
+                for (const auto &c : static_cast<const GroupItem &>(it).children) visit(*c);
+                return;
+            }
+            if (it.type() == ItemType::Text) {
+                ++seen;
+                const auto &t = static_cast<const TextItem &>(it);
+                QVERIFY2(t.stroke.isNone(), qPrintable(QStringLiteral("text box line %1").arg(t.stroke.width)));
+            } else if (it.type() == ItemType::Shape) {
+                ++seen;
+                const auto &sh = static_cast<const ShapeItem &>(it);
+                QVERIFY2(sh.stroke.isNone(), qPrintable(QStringLiteral("shape line %1").arg(sh.stroke.width)));
+            }
+        };
+        for (const auto &it : back->pages[0]->items) visit(*it);
+        QVERIFY(seen >= 1);   // the text box (the rectangle, with no fill and no line, draws nothing)
+    }
+
     // A page's background picture is drawn past the page's edge, 2.5 points
     // on every side, and the picture's crops (fractions of the picture) then
     // trim that larger picture. Publisher (Oct 11), a background made from a
