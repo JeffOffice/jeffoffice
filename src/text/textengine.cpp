@@ -2105,7 +2105,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // line of a column sits one ascent below the top, and a
                     // paragraph after one with wider spacing starts that much
                     // lower. Whether a line fits counts its text, not that space.
-                    const double below = h > single && bf.lineHeightType() == QTextBlockFormat::ProportionalHeight ? h - single : 0;
+                    double below = h > single && bf.lineHeightType() == QTextBlockFormat::ProportionalHeight ? h - single : 0;
                     double textH = h - below;
                     // Baseline one descent above the text's bottom (for a substituted
                     // proprietary font, the original font's descent). Set closer than
@@ -2137,6 +2137,23 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     h += rise;
                     textH += rise;
                     baseDown += rise;
+                    // A line of nothing but objects has no text above or below
+                    // them: it is as tall as the tallest, inside its distances,
+                    // whatever the paragraph's font, and single or wider spaced
+                    // (Publisher, Oct 11: a 100 pt box alone in 12, 36, and 72
+                    // pt text, single, 1.5, and double spaced, took 2.88 + 100 +
+                    // 2.88; one 20 pt tall took 25.76, less than a text line).
+                    if (objUp > 0 && (bf.lineHeightType() == QTextBlockFormat::SingleHeight || (bf.lineHeightType() == QTextBlockFormat::ProportionalHeight && bf.lineHeight() >= 100))) {
+                        bool onlyObjects = true;
+                        for (int k = line.textStart(); k < line.textStart() + line.textLength() && onlyObjects; ++k) {
+                            if (B->disp[k].isSpace() || B->disp[k] == QChar::LineSeparator) continue;
+                            onlyObjects = std::any_of(B->objects.cbegin(), B->objects.cend(), [k](const auto &ob) { return ob.disp == k; });
+                        }
+                        if (onlyObjects) {
+                            h = textH = baseDown = objUp;
+                            below = 0;
+                        }
+                    }
                     // The first line of a column goes there however tall it
                     // is, unless notes going on from the column before fill it.
                     const bool firstInColumn = (y <= 0.001) && rowIdx == 0 && !reserve.contains(rkey(f, c));
