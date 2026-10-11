@@ -43,6 +43,7 @@
 #include "app/mainwindow.h"
 #include "app/recovery.h"
 #include "app/i18n.h"
+#include "app/pubinfo.h"
 #include "app/keytips.h"
 #include "app/help.h"
 #include "app/taskpane.h"
@@ -256,6 +257,7 @@ class Tests : public QObject {
 private Q_SLOTS:
     void initTestCase()
     {
+        jp::setAppInfo(jp::pubAppInfo());
         QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDir.path());
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_settingsDir.path());
         initCore();
