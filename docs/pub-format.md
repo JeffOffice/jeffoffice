@@ -86,7 +86,11 @@ the file was last saved to. Not fully decoded yet.
 A shape chunk (rectangle): 04 = 259, 0c/0d = 8 zero bytes, aa = width,
 ab = height, b7 = 0; a text box (or a shape holding text) adds 27 = its
 text id, and 35 = vertical alignment (1 middle, 2 bottom; left out for
-top). Publisher doesn't use the drawing property 0x0087 for this.
+top). Publisher doesn't use the drawing property 0x0087 for this. A shape
+chunk with no text has 34 = 0 as well; one that holds text must not (a
+shape holding text with 34 = 0 makes Publisher refuse the file, "cannot
+open the file", Oct 11), as a text box leaves it out unless its text runs
+top to bottom (34 = 2).
 
 ## Drawing records (EscherStm)
 
@@ -837,6 +841,18 @@ a 0x8000) fill alternately, so holes cut through; a shape whose parts
 merge on screen is written as its merged outline plus, when it has an
 outline, each part twice more (an even number of layers leaves the fill
 alone but draws the inner lines, like a smiley's eyes).
+
+Text in shapes: Publisher's rectangle holds text itself, and so do its own
+preset shapes (a star, a callout: COM `AddShape` shapes take text, and their
+file records are the preset's `Sp` with a text id in OPT 0x0080 and in the
+chunk's 27). A freeform has no text frame (`HasTextFrame` is 0) and Publisher
+refuses a file with a text id in one. JeffPub writes the text of a rectangle
+as the rectangle's own, and the text of any other shape (the preset or the
+freeform that draws it) as a text box over the shape: the box is the shape's
+text rectangle turned with the shape, with the shape's margins plus the
+line's share (see "Text and the line around its box"), no fill and no line,
+and the shape's vertical alignment. Publisher shows them as JeffPub does
+(ten presets, turned and not, Oct 11).
 
 Publisher's own freeforms (shape type 100 in its designs) can take their
 coordinates from formulas. The coordinate space runs from 0x0140/0x0141
