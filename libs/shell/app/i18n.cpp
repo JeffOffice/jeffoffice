@@ -1,6 +1,7 @@
 #include "app/i18n.h"
 
 #include "app/settings.h"
+#include "core/appinfo.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -13,8 +14,9 @@ namespace jp {
 QStringList availableUiLanguages()
 {
     QStringList out;
-    for (const QString &f : QDir(QStringLiteral(":/i18n")).entryList({QStringLiteral("jeffpub_*.qm")}, QDir::Files))
-        if (f != QLatin1String("jeffpub_en.qm")) out << f.mid(8, f.size() - 11);   // jeffpub_<language>.qm; English is the text itself
+    const QString prefix = appInfo().fileName + QLatin1Char('_');
+    for (const QString &f : QDir(QStringLiteral(":/i18n")).entryList({prefix + QStringLiteral("*.qm")}, QDir::Files))
+        if (f != prefix + QStringLiteral("en.qm")) out << f.mid(prefix.size(), f.size() - prefix.size() - 3);   // <fileName>_<language>.qm; English is the text itself
     return out;
 }
 
@@ -45,8 +47,10 @@ namespace {
 QString installTranslationsFor()
 {
     // A translator's own file, to see it in place before it's built in:
-    // JEFFPUB_TRANSLATION=/path/to/jeffpub_xx.qm.
-    if (const QString own = qEnvironmentVariable("JEFFPUB_TRANSLATION"); !own.isEmpty()) {
+    // <FILENAME>_TRANSLATION=/path/to/<fileName>_xx.qm (JEFFPUB_TRANSLATION
+    // for JeffPub).
+    const QByteArray variable = (appInfo().fileName.toUpper() + QStringLiteral("_TRANSLATION")).toLatin1();
+    if (const QString own = qEnvironmentVariable(variable.constData()); !own.isEmpty()) {
         auto *t = new QTranslator(QCoreApplication::instance());
         if (t->load(own)) {
             QCoreApplication::installTranslator(t);
@@ -69,11 +73,11 @@ QString installTranslationsFor()
     if (lang.isEmpty()) {
         // English: only its plural forms ("1 page", "2 pages") need a file.
         auto *plurals = new QTranslator(QCoreApplication::instance());
-        if (plurals->load(QStringLiteral(":/i18n/jeffpub_en.qm"))) QCoreApplication::installTranslator(plurals);
+        if (plurals->load(QStringLiteral(":/i18n/%1_en.qm").arg(appInfo().fileName))) QCoreApplication::installTranslator(plurals);
         return QStringLiteral("en");
     }
     auto *own = new QTranslator(QCoreApplication::instance());
-    if (own->load(QStringLiteral(":/i18n/jeffpub_%1.qm").arg(lang))) QCoreApplication::installTranslator(own);
+    if (own->load(QStringLiteral(":/i18n/%1_%2.qm").arg(appInfo().fileName, lang))) QCoreApplication::installTranslator(own);
     // Qt's own text (standard buttons such as Cancel, file dialogs): built
     // in beside JeffPub's (Portugal's falls back to Brazil's, the one Qt
     // has), else beside the program, else where Qt keeps it.

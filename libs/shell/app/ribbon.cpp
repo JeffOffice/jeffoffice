@@ -3,6 +3,7 @@
 #include "app/theme.h"
 
 #include "app/icons.h"
+#include "core/appinfo.h"
 
 #include <QAction>
 #include <QGuiApplication>
@@ -635,7 +636,7 @@ public:
         m_collapse = new HeaderButton(HeaderButton::Collapse, r, -1, this);
         m_help = new HeaderButton(HeaderButton::Help, r, -1, this);
         m_help->setAccessibleName(QCoreApplication::translate("Ribbon", "Help"));
-        m_help->setAccessibleDescription(QCoreApplication::translate("Ribbon", "Opens Help: how to do things in JeffPub, and a search that finds commands too."));
+        m_help->setAccessibleDescription(QCoreApplication::translate("Ribbon", "Opens Help: how to do things in %1, and a search that finds commands too.").arg(appInfo().name));
         m_help->setWhatsThis(m_help->accessibleDescription());
         m_help->setToolTip(QCoreApplication::translate("Ribbon", "Help (F1)"));
     }
@@ -721,7 +722,7 @@ protected:
         brand.setPointSizeF(brand.pointSizeF() * 0.85);
         p.setFont(brand);
         p.setPen(mutedText());
-        p.drawText(QRect(width() - 80, 1, 74, 16), Qt::AlignLeft | Qt::AlignVCenter, QStringLiteral("JeffPub"));
+        p.drawText(QRect(width() - 80, 1, 74, 16), Qt::AlignLeft | Qt::AlignVCenter, appInfo().name);
         p.setPen(lineColor());
         p.drawLine(0, height() - 1, width(), height() - 1);
     }

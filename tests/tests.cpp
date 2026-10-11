@@ -8173,6 +8173,22 @@ private Q_SLOTS:
         QVERIFY(longTitle.minimumSizeHint().width() > shortTitle.minimumSizeHint().width());
     }
 
+    // The shared libraries name the program from its AppInfo: another app's
+    // issue tracker, update server, and translations, not JeffPub's.
+    void sharedPartsFollowTheAppInfo()
+    {
+        struct Restore {
+            ~Restore() { jp::setAppInfo(jp::pubAppInfo()); }
+        } restore;
+        jp::setAppInfo({QStringLiteral("JeffDeck"), QStringLiteral("jeffdeck"), QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice/jeffoffice")});
+        QVERIFY(jp::help::whatsNewUrl().toString().startsWith(QLatin1String("https://github.com/JeffOffice/jeffoffice/releases/tag/v")));
+        QVERIFY(jp::help::feedbackUrl().toString().startsWith(QLatin1String("https://github.com/JeffOffice/jeffoffice/issues/new")));
+        const QString digest = QStringLiteral("sha256:63e329c3c1a9aea0f90af5e2519c9315af365cb424a7bd00abb3ad9d201573e7");
+        QVERIFY(jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/download/v0.7.0/JeffDeck-Setup.exe"), QStringLiteral("v0.7.0"), digest));
+        QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/download/v0.7.0/JeffPub-Setup.exe"), QStringLiteral("v0.7.0"), digest));
+        QVERIFY(jp::availableUiLanguages().isEmpty());   // there are no jeffdeck_*.qm files
+    }
+
     // Until Options sets a unit, JeffPub measures in inches where the region
     // does (the United States) and in centimeters elsewhere.
     void defaultUnits()
