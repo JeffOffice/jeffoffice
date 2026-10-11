@@ -124,7 +124,7 @@ Features JeffPub has that Publisher never did, then the ones planned before vers
 - [x] Collapse the Ribbon with Ctrl+F1, as well as with its chevron or a double-click on a tab
 
 ## Help tab
-- [x] Help (F1, or the "?" beside the ribbon's collapse button) **(alt: built in and working offline, instead of web pages)**: a Help pane of 50 topics in plain language, with a contents page, links between topics, Back and Forward, and a search that finds topics and also commands, which it runs; F1 opens the topic for what you're doing (the ribbon tab, the task pane, the File page, the dialog, or the selected object), over a dialog in a window of its own
+- [x] Help (F1, or the "?" beside the ribbon's collapse button) **(alt: built in and working offline, instead of web pages)**: a Help pane of 50 topics in plain language, with a contents page, links between topics, Back and Forward, and a search that finds topics and also commands, which it runs; F1 opens the topic for what you're doing (the ribbon tab, the task pane, the File page, the dialog, or the selected object), over a dialog in a window of its own; the same topics are published to the project's GitHub wiki with every push to main (`JeffPub --export-help-wiki`, see docs/help-wiki.md)
 - [x] Feedback **(alt: a JeffPub GitHub page for reporting a problem or suggesting an idea, with the version filled in)**
 - [x] Keyboard Shortcuts (a table of every command's keys, made from the commands themselves) and What's New (this version's release notes)
 
