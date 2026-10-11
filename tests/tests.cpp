@@ -19820,6 +19820,97 @@ private Q_SLOTS:
         }
     }
 
+    // Publisher draws bold by hand on a font with no bold face: its PDFs fill
+    // and stroke the letters, the stroke 1/35 em wide in the text's color.
+    // It does so for Franklin Gothic Demi and Forte set bold, and for Arial
+    // Black and Rockwell Extra Bold always; a font with a bold face (Arial),
+    // one whose face is bold already (Script MT Bold), and text from 200 pt
+    // up (set as plain outlines) are drawn as they were.
+    void boldIsDrawnByHandOnFontsWithoutBoldFaces()
+    {
+        struct Case { const char *family; bool bold; double size; bool outlined; };
+        int checked = 0;
+        for (const Case &k : {Case{"Franklin Gothic Demi", true, 24, true}, Case{"Franklin Gothic Demi", false, 24, false}, Case{"Forte", true, 100, true},
+                              Case{"Arial Black", false, 60, true}, Case{"Rockwell Extra Bold", false, 60, true}, Case{"Rockwell Extra Bold", false, 239, false},
+                              Case{"Script MT Bold", true, 24, false}, Case{"Arial", true, 24, false}}) {
+            const QString fam = QString::fromLatin1(k.family);
+            if (QFontDatabase::hasFamily(fam)) continue;
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{fam});
+            cf.setFontPointSize(k.size);
+            cf.setForeground(QColor(QStringLiteral("#336699")));
+            if (k.bold) cf.setFontWeight(QFont::Bold);
+            const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
+            const QString what = QStringLiteral("%1 %2 pt%3").arg(fam).arg(k.size).arg(k.bold ? QStringLiteral(" bold") : QString());
+            QVERIFY2(r.hasProperty(QTextFormat::TextOutline) == k.outlined, qPrintable(what));
+            if (k.outlined) {
+                const QPen pen = r.textOutline();
+                QVERIFY2(std::abs(pen.widthF() - k.size / 35) < 1e-6, qPrintable(what + QStringLiteral(": ") + QString::number(pen.widthF())));
+                QCOMPARE(pen.color(), QColor(QStringLiteral("#336699")));
+                // The stand-in is the face the run without bold gets (Qt would embolden a second time).
+                QTextCharFormat plain = cf;
+                plain.setFontWeight(QFont::Normal);
+                QCOMPARE(r.fontWeight(), jp::resolveCharFormat(plain, jp::LayoutEnv()).fontWeight());
+            }
+            ++checked;
+        }
+        if (!checked) QSKIP("the fonts are installed here");
+    }
+
+    // The letters of a stand-in drawn taller or shorter (run by run) take
+    // their stroke too: Franklin Gothic Demi set bold stands the stroke's
+    // width (1/35 em) higher than the same text unbolded.
+    void handBoldStrokeShowsOnScaledStandIns()
+    {
+        const QString fam = QStringLiteral("Franklin Gothic Demi");
+        if (QFontDatabase::hasFamily(fam)) QSKIP("Franklin Gothic Demi is installed here");
+        auto inkHeight = [&](bool bold) {
+            auto doc = Document::blank(QSizeF(612, 792));
+            auto t = std::make_shared<TextItem>();
+            t->id = QStringLiteral("t");
+            t->rect = QRectF(36, 36, 500, 200);
+            t->insets = QMarginsF(0, 0, 0, 0);
+            t->storyId = doc->createStory(QStringLiteral("H"));
+            {
+                QTextCursor c(doc->storyDoc(t->storyId));
+                c.select(QTextCursor::Document);
+                QTextCharFormat f;
+                f.setFontFamilies(QStringList{fam});
+                f.setFontPointSize(100);
+                if (bold) f.setFontWeight(QFont::Bold);
+                c.mergeCharFormat(f);
+            }
+            doc->pages[0]->items.push_back(t);
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = doc.get();
+            ctx.cache = &cache;
+            QImage img(612 * 4, 792 * 4, QImage::Format_ARGB32);
+            img.fill(Qt::white);
+            {
+                QPainter p(&img);
+                p.setRenderHint(QPainter::Antialiasing);
+                p.scale(4, 4);
+                jp::Renderer::paintPage(&p, ctx, 0);
+            }
+            int top = img.height(), bottom = -1;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (qGray(img.pixel(x, y)) < 128) { top = std::min(top, y); bottom = std::max(bottom, y); }
+            return bottom > top ? (bottom - top + 1) / 4.0 : 0.0;
+        };
+        jp::LayoutEnv env;
+        QTextCharFormat f;
+        f.setFontFamilies(QStringList{fam});
+        f.setFontPointSize(100);
+        const QTextCharFormat r = jp::resolveCharFormat(f, env);
+        if (QFontInfo(r.font()).family() != QLatin1String("Libre Franklin") || !r.hasProperty(jp::tp::GlyphScaleY)) QSKIP("the scaled stand-in isn't drawn here");
+        const double plain = inkHeight(false), bold = inkHeight(true);
+        QVERIFY(plain > 0);
+        const double stroke = 100.0 / 35 * r.property(jp::tp::GlyphScaleY).toDouble();
+        QVERIFY2(std::abs(bold - plain - stroke) < 0.6, qPrintable(QStringLiteral("plain %1, bold %2, stroke %3").arg(plain).arg(bold).arg(stroke)));
+    }
+
     // Best fit grows text only as far as the box holds it: a banner's short
     // headline grew to fill the width, its one line three times taller than
     // the box (Publisher's banner designs fit theirs inside).

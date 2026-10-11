@@ -575,6 +575,7 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
     // Imitate condensed fonts that are missing on this computer, times the
     // run's own character scaling. A stated 100% is left unsaid: an
     // explicit 100 makes font matching pass over a stand-in's narrower faces.
+    bool fauxBold = false;
     if (f.hasProperty(QTextFormat::FontFamilies)) {
         const QStringList fams = f.fontFamilies().toStringList();
         if (!fams.isEmpty()) {
@@ -583,11 +584,17 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
             if (st != 100) r.setFontStretch(stretchToAsk(st));
             else r.clearProperty(QTextFormat::FontStretch);
             // "Medium", "Demi", "Black"... in a missing font's name become a real weight.
-            const bool boldRun = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::Bold;
+            const bool setBold = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::Bold;
+            // Bold set on a font with no bold face is drawn by hand: its
+            // regular face with the letters outlined, below.
+            fauxBold = !substituteFor(fams.first()).isEmpty() && originalBoldByHand(fams.first(), setBold);
+            const bool boldRun = setBold && !fauxBold;
             if (const int wt = substituteWeight(fams.first(), boldRun); wt > 0) {
                 r.setFontWeight(wt);
                 // Selawik's Light and Semilight weigh the same where they are styles of one family.
                 if (const QString style = substituteStyleName(fams.first(), boldRun, f.fontItalic()); !style.isEmpty()) r.setFontStyleName(style);
+            } else if (fauxBold) {
+                r.setFontWeight(QFont::Normal);
             }
             // Letters as high as the missing font's (drawing only), by the
             // weight asked for: a regular run's stand-in may be drawn bold.
@@ -680,6 +687,15 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
     if (!oref.isEmpty()) {
         QPen pen(ColorRef::fromString(oref).resolve(env.colors), f.hasProperty(tp::OutlineWidth) ? f.property(tp::OutlineWidth).toDouble() : 0.5);
         pen.setJoinStyle(Qt::RoundJoin);
+        r.setTextOutline(pen);
+    } else if (fauxBold && sz * env.fontScale < 200 && r.foreground().style() == Qt::SolidPattern) {
+        // A stroke 1/35 em wide in the text's own color, as Publisher's PDFs
+        // draw it (miter joins, the PDF default); text from 200 pt up it
+        // sets as outlines, plain (a banner's 239 pt headline in Rockwell
+        // Extra Bold carries the ink of the unstroked letters).
+        QPen pen(r.foreground(), sz * env.fontScale / 35);
+        pen.setJoinStyle(Qt::MiterJoin);
+        pen.setMiterLimit(10);
         r.setTextOutline(pen);
     }
     if (f.boolProperty(tp::TrueSmallCaps)) r.setFontCapitalization(QFont::SmallCaps);
@@ -1757,16 +1773,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
         ranges = applyLetterWidths(ranges, B->disp);
         B->tl->setFormats(fineRanges(ranges));
-        // Letters drawn taller, shorter, or slanted are drawn run by run, unless the
-        // paragraph has outlined, highlighted or wavy-underlined text (Qt's
-        // own drawing then) or text no run covers.
+        // Letters drawn taller, shorter, or slanted are drawn run by run, unless
+        // the paragraph has highlighted or wavy-underlined text (Qt's own
+        // drawing then) or text no run covers.
         {
             bool scaled = false, plain = true;
             int covered = 0;
             for (const auto &r : ranges) {
                 scaled |= r.format.hasProperty(tp::GlyphScaleY) || r.format.hasProperty(tp::SyntheticItalic);
-                plain &= !r.format.hasProperty(QTextFormat::TextOutline) && !r.format.hasProperty(QTextFormat::BackgroundBrush)
-                         && r.format.underlineStyle() != QTextCharFormat::WaveUnderline;
+                plain &= !r.format.hasProperty(QTextFormat::BackgroundBrush) && r.format.underlineStyle() != QTextCharFormat::WaveUnderline;
                 covered += r.length;
             }
             B->directGlyphs = scaled && plain && covered == B->disp.size();
@@ -2792,7 +2807,23 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                         p->scale(1, ys);
                         p->translate(0, -base);
                     }
-                    for (const QGlyphRun &g : line.glyphRuns(s, e - s)) p->drawGlyphRun(QPointF(0, 0), g);
+                    for (const QGlyphRun &g : line.glyphRuns(s, e - s)) {
+                        p->drawGlyphRun(QPointF(0, 0), g);
+                        // Outlined letters (an outline, or bold drawn by hand) take their stroke too.
+                        if (r.format.hasProperty(QTextFormat::TextOutline)) {
+                            const QRawFont raw = g.rawFont();
+                            const QList<quint32> glyphs = g.glyphIndexes();
+                            const QList<QPointF> where = g.positions();
+                            p->setPen(r.format.textOutline());
+                            p->setBrush(Qt::NoBrush);
+                            for (int k = 0; k < glyphs.size() && k < where.size(); ++k) {
+                                QPainterPath path = raw.pathForGlyph(glyphs[k]);
+                                path.translate(where[k]);
+                                p->drawPath(path);
+                            }
+                            p->setPen(QPen(br, 0));
+                        }
+                    }
                     p->restore();
                     // Lines under, through and over the run, unscaled, where
                     // Qt's own drawing puts them (glyph runs carry none).
