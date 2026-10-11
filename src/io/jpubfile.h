@@ -14,6 +14,10 @@ namespace jp {
 // `folder`, when given, is where the publication will be read from, if that is not
 // where `path` is (AutoRecover's copy is read as if it were in the original's folder).
 bool savePublication(const Document &doc, const QString &path, const QImage &thumbnail, QString *error, bool embedLinks = false, const QString &folder = QString());
+// An AutoRecover copy of a publication (recovery::write), its pictures' links
+// kept relative to the original's folder, where the copy is read as being
+// when it is recovered.
+bool saveRecoveryCopy(const Document &doc, const QString &copy, const QString &docPath, const QString &title, QString *error = nullptr);
 std::unique_ptr<Document> loadPublication(const QString &path, QString *error);
 
 // `folder` is where the bytes will be saved: linked pictures keep their paths

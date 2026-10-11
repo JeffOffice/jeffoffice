@@ -8293,15 +8293,15 @@ private Q_SLOTS:
         // that's still going holds its lock; an older version left a copy
         // loose in the folder. This run's own copies aren't offered.
         const auto doc = jp::Document::blank(QSizeF(612, 792));
-        QVERIFY(jp::recovery::write(*doc, a, QStringLiteral("/one/Cover.pub"), QStringLiteral("Cover")));
+        QVERIFY(jp::saveRecoveryCopy(*doc, a, QStringLiteral("/one/Cover.pub"), QStringLiteral("Cover")));
         const QString crashed = dir.filePath(QStringLiteral("AutoRecover/crashed"));
         QDir().mkpath(crashed);
-        QVERIFY(jp::recovery::write(*doc, crashed + QStringLiteral("/Flyer 0123abcd.jpub"), QStringLiteral("/docs/Flyer.jpub"), QStringLiteral("Flyer")));
+        QVERIFY(jp::saveRecoveryCopy(*doc, crashed + QStringLiteral("/Flyer 0123abcd.jpub"), QStringLiteral("/docs/Flyer.jpub"), QStringLiteral("Flyer")));
         const QString live = dir.filePath(QStringLiteral("AutoRecover/live"));
         QDir().mkpath(live);
         QLockFile liveLock(live + QStringLiteral("/session.lock"));
         QVERIFY(liveLock.tryLock(0));
-        QVERIFY(jp::recovery::write(*doc, live + QStringLiteral("/Card 0123abcd.jpub"), QString(), QStringLiteral("Card")));
+        QVERIFY(jp::saveRecoveryCopy(*doc, live + QStringLiteral("/Card 0123abcd.jpub"), QString(), QStringLiteral("Card")));
         QVERIFY(QFile::copy(a, dir.filePath(QStringLiteral("AutoRecover/Publication1.autorecover.jpub"))));
         const QVector<jp::recovery::Recovered> found = jp::recovery::orphans();
         QStringList titles;
@@ -8351,7 +8351,7 @@ private Q_SLOTS:
             titled->props.title = QStringLiteral("Spring Newsletter");
             const QString lost = dir.filePath(QStringLiteral("AutoRecover/lost"));
             QDir().mkpath(lost);
-            QVERIFY(jp::recovery::write(*titled, lost + QStringLiteral("/Cover 0123abcd.jpub"), QStringLiteral("/docs/Cover.jpub"), QStringLiteral("Cover")));
+            QVERIFY(jp::saveRecoveryCopy(*titled, lost + QStringLiteral("/Cover 0123abcd.jpub"), QStringLiteral("/docs/Cover.jpub"), QStringLiteral("Cover")));
             const QVector<jp::recovery::Recovered> left = jp::recovery::orphans();
             QCOMPARE(left.size(), 2);   // and the loose Publication1 copy
             const auto it = std::find_if(left.begin(), left.end(), [](const auto &r) { return r.title == QLatin1String("Cover"); });
@@ -9873,7 +9873,7 @@ private Q_SLOTS:
         const QString lost = root.filePath(QStringLiteral("AutoRecover/lost"));
         QVERIFY(root.mkpath(QStringLiteral("AutoRecover/lost")));
         const QString copy = lost + QStringLiteral("/Book 0123abcd.jpub");
-        QVERIFY(jp::recovery::write(*doc, copy, original, QStringLiteral("Book")));
+        QVERIFY(jp::saveRecoveryCopy(*doc, copy, original, QStringLiteral("Book")));
         for (const QString &f : {inside, outside}) linkPicture(f, size, QColor(250, 250, 10));   // changed since: what is read shows
 
         // The copy keeps the links relative to the original folder, as the file does
@@ -9905,7 +9905,7 @@ private Q_SLOTS:
         fresh->pages[0]->items.push_back(item);
         QVERIFY(root.mkpath(QStringLiteral("AutoRecover/lost2")));
         const QString copy2 = root.filePath(QStringLiteral("AutoRecover/lost2/Publication2 4567abcd.jpub"));
-        QVERIFY(jp::recovery::write(*fresh, copy2, QString(), QStringLiteral("Publication2")));
+        QVERIFY(jp::saveRecoveryCopy(*fresh, copy2, QString(), QStringLiteral("Publication2")));
         jp::MainWindow v;
         QCOMPARE(v.openRecovered(jp::recovery::Recovered{copy2, QString(), QStringLiteral("Publication2"), QDateTime::currentDateTime()}), &v);
         QCOMPARE(v.editor()->doc()->linkStatus(item->imageId), jp::LinkStatus::NotUpdated);

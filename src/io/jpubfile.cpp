@@ -1,5 +1,7 @@
 #include "io/jpubfile.h"
 
+#include "app/recovery.h"
+
 #include "io/cfb.h"
 #include "io/zip.h"
 #include "render/metafile.h"
@@ -79,6 +81,14 @@ QByteArray publicationBytes(const Document &doc, const QImage &thumbnail, const 
         z.add("thumbnail.png", png);
     }
     return z.finish();
+}
+
+bool saveRecoveryCopy(const Document &doc, const QString &copy, const QString &docPath, const QString &title, QString *error)
+{
+    auto save = [&](const QString &path, QString *err) {
+        return savePublication(doc, path, QImage(), err, false, docPath.isEmpty() ? QString() : QFileInfo(docPath).absolutePath());
+    };
+    return recovery::write(save, copy, docPath, title, error);
 }
 
 bool savePublication(const Document &doc, const QString &path, const QImage &thumbnail, QString *error, bool embedLinks, const QString &folder)
