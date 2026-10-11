@@ -319,7 +319,12 @@ began with two, from three in a row). Qt leaves such a tab at the end of the
 line, so JeffPub lays the line out as Qt does and starts the next one that
 far in (the tab's width, and the spaces after it) instead of moving the
 character, from where that line starts (the stops being the same places
-whatever the line). That is done only when the text after the tab, its first
+whatever the line). When the line breaks inside the group, so that the next
+line starts with the last of the tabs, the tab ending the line above stays,
+unless its stop is past that line's end (a flyer's "Strategic<spaces><tab>
+<2 spaces>" ending a line and "<tab><6 spaces>National" starting the next:
+Publisher's PDF has "National" 28.1 from the edge, a stop and the spaces,
+not a stop further, as when that tab had gone on too). That is done only when the text after the tab, its first
 word, fits on the next line after the tab's stop; otherwise the tab stays at
 the end of the line above and the text starts the next line at the left
 indent, as Qt sets it. The tab had gone anyway and left what was after its

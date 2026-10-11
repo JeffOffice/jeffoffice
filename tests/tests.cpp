@@ -3488,6 +3488,46 @@ private Q_SLOTS:
         QCOMPARE(again->defaultTabStop, 20.0);
     }
 
+    // Of several tabs together the last goes on with the text: when the line
+    // breaks inside the group, so that the next line starts with the last of
+    // them, the tab at the end of the line above stays there (its stop is on
+    // the line) and is not moved too. A MIVDF flyer's list items (default stops
+    // 14.4) have "Strategic<spaces><tab><2 spaces>" ending a line and
+    // "<tab><6 spaces>National" starting the next, which Publisher's PDF
+    // sets with the text at 28.1 from the edge (one stop and the spaces),
+    // where the tab that stayed had gone on too, a stop further.
+    void tabGroupSplitByALineBreakKeepsItsLastTabForTheNextLine()
+    {
+        auto at = [](const QString &text, const QString &word) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setTextIndent(25.44);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(9);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(201.6, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::LayoutEnv env;
+            env.defaultTab = 14.4;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, env);
+            int frame = -1;
+            QRectF r;
+            l.caretRect(int(text.indexOf(word)), &frame, &r);
+            return r.x();
+        };
+        const double national = at(QStringLiteral("Support the operation of the SNS (Strategic       \t  \t      National Stockpile)"), QStringLiteral("National"));
+        QVERIFY2(std::abs(national - 27.9) < 0.3, qPrintable(QString::number(national)));
+        // Three tabs in a row, the last two starting the next line: the text after a stop and a stop (28.8, Publisher's PDF 28.84).
+        const double emergency = at(QStringLiteral(" Logistics management of donations during        \t\t\tan emergency."), QStringLiteral("an emergency"));
+        QVERIFY2(std::abs(emergency - 28.8) < 0.1, qPrintable(QString::number(emergency)));
+    }
+
     // Centered and right-aligned lines have their text shifted by Qt, which
     // the stops don't share: a tab at the end of one was taken for past its
     // stop (the shift added to where it started) and went on to the next line

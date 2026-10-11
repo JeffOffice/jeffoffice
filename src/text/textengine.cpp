@@ -1904,6 +1904,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (last < 0 && B->disp[w0] == QLatin1Char('\t')) last = w0;
                 }
                 if (last < 0) return -1;
+                // The last tab of a group goes with the text after it: when the next
+                // line starts with more blanks and a tab, that tab is the last, and
+                // these stay, but for the ones whose stops are past this line's end.
+                bool lastOnNext = false;
+                for (int j = endPos; j < B->disp.size() && blank(j); ++j) lastOnNext |= B->disp[j] == QLatin1Char('\t');
                 // From the line's text, not Qt's: a centered or right line's text is shifted, as the stops are not.
                 double pen = off + (w0 > s0 ? line.cursorToX(w0) - line.cursorToX(s0) : 0);
                 for (int i = w0; i < endPos; ++i) {
@@ -1912,7 +1917,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         continue;
                     }
                     const double stop = nextStop(pen, hangLine);
-                    if (i == last || stop - off > w + 0.01) return i > s0 ? i : -1;
+                    if ((i == last && !lastOnNext) || stop - off > w + 0.01) return i > s0 ? i : -1;
                     pen = stop;
                 }
                 return -1;
