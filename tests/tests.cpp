@@ -3454,6 +3454,30 @@ private Q_SLOTS:
         QVERIFY2(roomy.y() < 1 && std::abs(roomy.x() - (140 + 18)) < 0.01 && roomy.width() > 40, qPrintable(what(roomy)));
     }
 
+    // A bundled font whose table directory claims a table that runs past the
+    // end of the file is corrupt, and is left alone: the checksums were summed
+    // over the length it claimed, beyond the font's bytes.
+    void italicFlagsLeaveCorruptFontAlone()
+    {
+        QFile f(QStringLiteral(JP_TEST_DATA "/../../resources/fonts/LibreFranklin-ExtraBoldItalic.ttf"));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray font = f.readAll();
+        QVERIFY(!jp::fontWithItalicFlags(font).isEmpty());   // an intact one is fixed
+        const auto u16 = [&](qsizetype at) { return quint16(uchar(font[at]) << 8 | uchar(font[at + 1])); };
+        for (const char *tag : {"OS/2", "head", "post"}) {
+            qsizetype record = -1;
+            for (int i = 0, n = u16(4); i < n; ++i)
+                if (font.mid(12 + 16 * i, 4) == tag) record = 12 + 16 * i;
+            QVERIFY(record > 0);
+            // The table's length past the end of the file, by a few bytes.
+            const quint32 offset = quint32(u16(record + 8)) << 16 | u16(record + 10);
+            const quint32 length = quint32(font.size() - offset + 8);
+            QByteArray corrupt = font;
+            for (int k = 0; k < 4; ++k) corrupt[record + 12 + k] = char(length >> (24 - 8 * k));
+            QVERIFY2(jp::fontWithItalicFlags(corrupt).isEmpty(), tag);
+        }
+    }
+
     // A bullet drawn in the list's own font (as .pub lists name it: Symbol,
     // Wingdings) keeps that font's regular weight whatever the item's first
     // run is. Publisher's asterisk bullets stand thin beside bold items (its

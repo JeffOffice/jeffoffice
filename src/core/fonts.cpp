@@ -761,7 +761,8 @@ QByteArray fontWithItalicFlags(const QByteArray &font)
         else if (tag == "post") post = record;
     }
     if (os2 < 0 || head < 0 || post < 0) return {};
-    const auto inside = [&](qsizetype record, qsizetype size) { return u32(record + 12) >= size && qsizetype(u32(record + 8)) + size <= font.size(); };
+    // A table is inside the file, all of the length its record claims (the checksums are summed over it), and holds the bytes read from it.
+    const auto inside = [&](qsizetype record, qsizetype size) { return u32(record + 12) >= size && qsizetype(u32(record + 8)) + qsizetype(u32(record + 12)) <= font.size(); };
     if (!inside(os2, 64) || !inside(head, 54) || !inside(post, 8)) return {};
     const qsizetype os2At = u32(os2 + 8), headAt = u32(head + 8), postAt = u32(post + 8);
     // Flagged italic already, or its letters are upright (the post table's italic angle).
