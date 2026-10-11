@@ -3411,6 +3411,49 @@ private Q_SLOTS:
         }
     }
 
+    // The room a line needs beside a picture counts the hang of a bullet:
+    // the first line of a list item starts one hang in from the first place
+    // it has, so a gap of 20 points beside a picture left an 18-point hanging
+    // bullet a line 2 points wide. A gap too narrow for the bullet and a
+    // word is passed over, and the line goes below the picture (as for text
+    // without a bullet, whose 20 points are enough for a word).
+    void bulletHangCountsInTheRoomBesideAPicture()
+    {
+        auto first = [](bool bullet, double gap) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(18);
+            bf.setTextIndent(-18);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(8);
+            c.insertText(QStringLiteral("Item with several words that must wrap around"), cf);
+            if (bullet) {
+                QTextListFormat lf;
+                lf.setStyle(QTextListFormat::ListDisc);
+                c.createList(lf);
+            }
+            jp::FrameSpec fs;
+            fs.size = QSizeF(200, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            fs.obstacles << QPolygonF(QRectF(-50, -50, 50 + (200 - gap), 70));   // the top 20 points, leaving `gap` on its right
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            return l.lineInfo(0).first().rect;
+        };
+        const auto what = [](const QRectF &r) { return QStringLiteral("line at %1,%2, %3 wide").arg(r.x()).arg(r.y()).arg(r.width()); };
+        const QRectF plain = first(false, 20);
+        QVERIFY2(plain.y() < 1 && plain.width() > 19.9, qPrintable(what(plain)));
+        const QRectF bullet = first(true, 20);
+        QVERIFY2(bullet.y() > 19.9 && bullet.width() > 100, qPrintable(what(bullet)));
+        // Room for the hang and a word: beside the picture, after the bullet.
+        const QRectF roomy = first(true, 60);
+        QVERIFY2(roomy.y() < 1 && std::abs(roomy.x() - (140 + 18)) < 0.01 && roomy.width() > 40, qPrintable(what(roomy)));
+    }
+
     // A bullet drawn in the list's own font (as .pub lists name it: Symbol,
     // Wingdings) keeps that font's regular weight whatever the item's first
     // run is. Publisher's asterisk bullets stand thin beside bold items (its
