@@ -83,7 +83,7 @@
 
 namespace jp {
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
+MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
 {
     setWindowIcon(drawnIcon([](QPainter *p, const QRectF &r) {
         p->setPen(Qt::NoPen);

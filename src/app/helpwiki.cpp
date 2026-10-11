@@ -59,7 +59,7 @@ bool wikiLinks(QString &md, const QHash<QString, QString> &pages, QString *error
     return true;
 }
 
-bool exportWiki(const QString &dir, MainWindow *win, QString *error)
+bool exportWiki(const QString &dir, AppWindow *win, QString *error)
 {
     auto fail = [error](const QString &why) {
         if (error) *error = why;

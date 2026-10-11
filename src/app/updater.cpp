@@ -1,5 +1,7 @@
 #include "app/updater.h"
 
+#include "app/appwindow.h"
+
 #include "app/icons.h"
 #include "app/settings.h"
 
@@ -293,8 +295,8 @@ void Updater::downloadAndRun(const QString &url, const QString &tag, const QStri
             return;
         }
         // Give every window a chance to save, then hand over to the installer.
-        for (QWidget *w : QApplication::topLevelWidgets())
-            if (w->inherits("jp::MainWindow") && w->isVisible() && !w->close()) return;
+        for (AppWindow *w : AppWindow::windows())
+            if (w->isVisible() && !w->close()) return;
         if (!QProcess::startDetached(dest, {})) {
             QMessageBox::warning(m_win, tr("Update"), tr("JeffPub couldn't start the installer. You can run it yourself from %1.").arg(QDir::toNativeSeparators(dest)));
             return;

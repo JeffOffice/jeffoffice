@@ -2,7 +2,7 @@
 
 #include "app/i18n.h"
 #include "app/icons.h"
-#include "app/mainwindow.h"
+#include "app/appwindow.h"
 #include "app/ribbon.h"
 
 #include <QAction>
@@ -204,7 +204,7 @@ namespace {
 
 // Where each command sits on the ribbon: "Home > Font", or with the menu
 // that holds it, "Insert > Text > Text Art".
-QHash<QString, QString> commandPlaces(MainWindow *win, QHash<QString, int> *order = nullptr)
+QHash<QString, QString> commandPlaces(AppWindow *win, QHash<QString, int> *order = nullptr)
 {
     QHash<QString, QString> places;
     Ribbon *r = win ? win->ribbon() : nullptr;
@@ -254,7 +254,7 @@ QString commandName(const QAction *a)
 QString cell(QString s) { return s.replace(QLatin1Char('|'), QStringLiteral("\\|")); }
 
 // Every command with a keyboard shortcut, as a Markdown table in ribbon order.
-QString shortcutTable(MainWindow *win)
+QString shortcutTable(AppWindow *win)
 {
     QHash<QString, int> order;
     const QHash<QString, QString> places = commandPlaces(win, &order);
@@ -281,7 +281,7 @@ QString shortcutTable(MainWindow *win)
 
 } // namespace
 
-QString displayMarkdown(const Topic &t, MainWindow *win)
+QString displayMarkdown(const Topic &t, AppWindow *win)
 {
     QString md = t.markdown;
     if (win && md.contains(QLatin1String("<!-- shortcuts -->"))) md.replace(QLatin1String("<!-- shortcuts -->"), shortcutTable(win));
@@ -323,7 +323,7 @@ QToolButton *navButton(const QString &iconName, const QString &name, const QStri
 }
 } // namespace
 
-HelpView::HelpView(MainWindow *win, QWidget *parent, bool commands) : QWidget(parent), m_win(win), m_commands(commands && win)
+HelpView::HelpView(AppWindow *win, QWidget *parent, bool commands) : QWidget(parent), m_win(win), m_commands(commands && win)
 {
     setObjectName(QStringLiteral("jpHelpView"));
     auto *v = new QVBoxLayout(this);
@@ -567,7 +567,7 @@ bool HelpView::eventFilter(QObject *o, QEvent *e)
 }
 
 // ---------------- over a dialog ----------------
-HelpWindow::HelpWindow(MainWindow *win, QWidget *owner) : QDialog(owner)
+HelpWindow::HelpWindow(AppWindow *win, QWidget *owner) : QDialog(owner)
 {
     setWindowTitle(tr("Help"));
     setAttribute(Qt::WA_DeleteOnClose);
