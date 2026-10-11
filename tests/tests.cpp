@@ -3522,6 +3522,46 @@ private Q_SLOTS:
         }
     }
 
+    // A bullet drawn as a glyph fitted to Publisher's box (a missing symbol
+    // font's stand-in) has its outline built once, not for each bullet each
+    // time it is painted: 400 arrows took 23 ms a paint.
+    void fittedBulletOutlinesAreKept()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        for (int i = 0; i < 400; ++i) {
+            QTextBlockFormat bf;
+            bf.setLeftMargin(12);
+            bf.setTextIndent(-12);
+            if (i) c.insertBlock(bf);
+            else c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(10);
+            c.insertText(QStringLiteral("Item %1").arg(i), cf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setProperty(jp::tp::BulletFont, QStringLiteral("Wingdings"));
+            lf.setProperty(jp::tp::BulletChar, QString(QChar(0xF0E8)));   // the heavy arrow
+            c.createList(lf);
+        }
+        jp::FrameSpec fs;
+        fs.size = QSizeF(300, 5000);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        jp::StoryLayout lay;
+        lay.build(&doc, {fs}, jp::LayoutEnv());
+        QImage img(300, 600, QImage::Format_RGB32);
+        img.fill(Qt::white);
+        const int before = jp::fittedMarkerOutlinesBuiltForTest();
+        for (int pass = 0; pass < 2; ++pass) {
+            QPainter p(&img);
+            lay.paint(&p, 0, jp::PaintOptions());
+        }
+        const int built = jp::fittedMarkerOutlinesBuiltForTest() - before;
+        if (QFontDatabase::hasFamily(QStringLiteral("Wingdings"))) QSKIP("Wingdings is installed here: its own arrow is drawn");
+        QVERIFY2(built == 1, qPrintable(QStringLiteral("%1 outlines built for 800 bullets").arg(built)));
+    }
+
     // A bullet drawn in the list's own font (as .pub lists name it: Symbol,
     // Wingdings) keeps that font's regular weight whatever the item's first
     // run is. Publisher's asterisk bullets stand thin beside bold items (its
