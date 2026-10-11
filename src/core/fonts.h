@@ -68,6 +68,11 @@ const QHash<char16_t, double> *originalLetterWidths(const QString &family, bool 
 // The same fonts' pair kerning (em), keyed first << 16 | second, from
 // resources/fontkerning.txt. Null when JeffPub has none for the family.
 const QHash<quint32, double> *originalKerning(const QString &family, bool bold, bool italic);
+// Whether Publisher draws a font's text bold by hand, its letters stroked 1/35
+// em in their own color (it does so for bold set on a measured font with no
+// bold face, such as Franklin Gothic Demi or Forte, and for Arial Black and
+// Rockwell Extra Bold whether or not bold is set).
+bool originalBoldByHand(const QString &family, bool boldSet);
 QStringList bundledFamilies();
 
 // Symbol fonts (Symbol, Wingdings) give their pictures their own character

@@ -928,4 +928,31 @@ const QHash<quint32, double> *originalKerning(const QString &family, bool bold, 
     return nullptr;
 }
 
+bool originalBoldByHand(const QString &family, bool boldSet)
+{
+    const QString f = family.toLower();
+    // These two are stroked whether or not bold is set (in all 85 runs of
+    // them in Publisher's PDFs); a "Bold" font is already bold, and Lucida's
+    // bold is its Demibold face.
+    if (f == QLatin1String("arial black") || f == QLatin1String("rockwell extra bold")) return true;
+    if (!boldSet || f == QLatin1String("script mt bold") || f.startsWith(QLatin1String("lucida"))) return false;
+    // From the faces fontwidths.txt measures: a family listed with no bold
+    // (or bold italic) one has none.
+    static const QHash<QString, bool> faces = [] {
+        QHash<QString, bool> t;
+        if (!QFile::exists(QStringLiteral(":/fontwidths.txt"))) initCoreResources();
+        QFile file(QStringLiteral(":/fontwidths.txt"));
+        if (!file.open(QIODevice::ReadOnly)) return t;
+        for (const QByteArray &line : file.readAll().split('\n')) {
+            const QList<QByteArray> p = line.split('\t');
+            if (line.startsWith('#') || p.size() < 3) continue;
+            bool &bold = t[QString::fromUtf8(p[0]).toLower()];
+            bold |= (p[1].toInt() & 1) != 0;
+        }
+        return t;
+    }();
+    const auto it = faces.constFind(f);
+    return it != faces.constEnd() && !*it;
+}
+
 } // namespace jp
