@@ -1,0 +1,83 @@
+name: Translate
+
+# Each night, and on demand before a release: list the program's text again
+# (lupdate), translate what is new or changed into every language with
+# Claude (tools/translate/translate.py), and commit the result as
+# JeffOffice LLC. Without the ANTHROPIC_API_KEY secret it does nothing.
+
+on:
+  schedule:
+    - cron: '17 7 * * *'   # 3:17 AM Eastern
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: 'Languages, comma-separated, or all (empty: the ones already started)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: translate
+  cancel-in-progress: false
+
+jobs:
+  translate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Look for the API key
+        id: key
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then echo "have=yes" >> "$GITHUB_OUTPUT"; else echo "::notice::No ANTHROPIC_API_KEY secret: nothing translated."; fi
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.have == 'yes'
+
+      - uses: jurplel/install-qt-action@v4
+        if: steps.key.outputs.have == 'yes'
+        with:
+          version: '6.8.3'
+          modules: 'qtimageformats'
+          cache: true
+
+      - uses: actions/setup-python@v5
+        if: steps.key.outputs.have == 'yes'
+        with:
+          python-version: '3.13'
+
+      - name: List the program's text
+        if: steps.key.outputs.have == 'yes'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target jeffpub_lupdate
+
+      - name: Translate
+        if: steps.key.outputs.have == 'yes'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LANGUAGES: ${{ inputs.languages }}
+        run: |
+          pip install -q -r tools/translate/requirements.txt
+          python3 tools/translate/translate.py ${LANGUAGES:+--lang "$LANGUAGES"} --report report.md || echo "::warning::Some text was not translated; see the summary."
+          cat report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Commit
+        if: steps.key.outputs.have == 'yes'
+        run: |
+          # The lists of English text are the developers' to commit (lupdate
+          # before a release); only the translations go in here.
+          git checkout -- translations/jeffpub.ts translations/jeffpub_en.ts
+          git add translations resources/help resources/resources.qrc
+          if git diff --cached --quiet; then echo "Nothing new to translate."; exit 0; fi
+          git -c user.name="JeffOffice LLC" -c user.email="info@jeffoffice.com" commit -q -m "Translations of new and changed text"
+          for i in 1 2 3 4 5; do
+            # On a clash in a translation file, this run's version wins: it
+            # holds lupdate's latest list and the new translations.
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            sleep 20
+          done
+          echo "::error::Could not push the translations."
+          exit 1

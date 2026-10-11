@@ -1,0 +1,175 @@
+# Terms every translation keeps the same in every string and in Help.
+# One English term a line; the ribbon's tab and group names are added to
+# these automatically. translate.py asks for the missing ones in each
+# language and keeps them in translations/glossary/<language>.json, where
+# a person may correct them (a corrected term is never asked for again).
+publication
+page
+master page
+two-page master
+two-page spread
+scratch area
+text box
+linked text boxes
+text in overflow
+best fit
+shrink text on overflow
+grow text box to fit
+picture
+picture placeholder
+shape
+line
+arrow
+connector
+freeform
+edit points
+table
+cell
+merge cells
+Text Art
+icon
+online pictures
+barcode
+symbol
+building blocks
+page parts
+calendars
+borders and accents
+advertisements
+business information
+business information set
+mail merge
+email merge
+catalog merge
+recipient list
+data source
+merge field
+address block
+greeting line
+template
+design
+color scheme
+font scheme
+scheme color
+spot color
+process color
+tint
+fill
+outline
+gradient
+texture
+pattern
+shadow
+glow
+reflection
+soft edges
+bevel
+3-D rotation
+wrap text
+square
+tight
+through
+top and bottom
+in line with text
+bring forward
+bring to front
+send backward
+send to back
+group
+ungroup
+align
+distribute
+rotate
+flip horizontal
+flip vertical
+crop
+picture styles
+caption
+alternative text
+hyperlink
+bookmark
+field
+page number
+date and time
+header
+footer
+footnote
+endnote
+table of contents
+ruler
+ruler guides
+margin guides
+grid guides
+baseline guides
+boundaries
+snap to guides
+nudge
+zoom
+whole page
+page width
+booklet
+folded card
+envelope
+labels
+page size
+orientation
+margins
+character spacing
+tracking
+kerning
+scaling
+line spacing
+indents
+tab stop
+leader
+drop cap
+bullets
+numbering
+style
+character style
+paragraph style
+hyphenation
+spelling
+thesaurus
+design checker
+commercial print
+overprint
+export
+print
+save as picture
+embed fonts
+ligatures
+stylistic sets
+small caps
+superscript
+subscript
+AutoRecover
+Quick Access Toolbar
+ribbon
+KeyTips
+task pane
+File
+Options
+Recent
+Pinned
+Graphics Manager
+linked picture
+embedded picture
+update link
+change picture
+reset picture
+compress pictures
+recolor
+brightness
+contrast
+transparency
+adjustment handle
+rotation handle
+Format Painter
+paste special
+clipboard
+find and replace
+undo
+redo
+gridlines
+display language
