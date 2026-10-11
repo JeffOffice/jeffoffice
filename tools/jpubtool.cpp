@@ -11,6 +11,7 @@
 #include "io/importers.h"
 #include "io/jpubfile.h"
 #include "io/pubimport.h"
+#include "app/pubinfo.h"
 #include "render/pdfpage.h"
 #include "render/renderer.h"
 #include "templates/templates.h"
@@ -41,6 +42,7 @@ int main(int argc, char **argv)
     // seconds for a slow IBus daemon at every start.
     if (!qEnvironmentVariableIsSet("QT_IM_MODULE")) qputenv("QT_IM_MODULE", "none");
     QGuiApplication app(argc, argv);
+    setAppInfo(pubAppInfo());
     initCore();
     const QStringList args = app.arguments();
     QTextStream out(stdout);

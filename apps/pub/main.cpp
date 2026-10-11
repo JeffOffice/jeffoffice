@@ -13,6 +13,7 @@
 #include "app/telemetry.h"
 #include "app/editor.h"
 #include "app/mainwindow.h"
+#include "app/pubinfo.h"
 #include "app/recovery.h"
 #include "app/theme.h"
 #include "app/i18n.h"
@@ -45,6 +46,7 @@
 int main(int argc, char **argv)
 {
     Q_INIT_RESOURCE(resources);   // the icons live in the static jpcore library
+    jp::setAppInfo(jp::pubAppInfo());   // who the shared libraries say is running
     QApplication::setApplicationName(QStringLiteral("JeffPub"));
     QApplication::setOrganizationName(QStringLiteral("JeffOffice"));
     QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
