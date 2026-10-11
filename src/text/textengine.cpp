@@ -1844,7 +1844,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // this one), as do the tabs before it whose stops are past this
             // line's end. It is laid out as Qt does, and the next line starts
             // that far in (the tab's width, and the spaces after it) instead of
-            // the character moving.
+            // the character moving. That is done only if the text after the tab
+            // (its first word) fits on the next line from there: when it doesn't
+            // (a box 36 wide, a word 46 long in a line 60 wide) the line starts at
+            // the left indent, as Qt sets it, and the tab stays where it is.
             int moveFrom = -1, moveTo = 0;   // the characters going on, from the tab to where the next line starts
             auto goesOn = [&](const PtLine &line, double off, double w, bool hangLine) {
                 const int s0 = line.textStart(), endPos = s0 + line.textLength();
@@ -1855,6 +1858,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (last < 0 && B->disp[w0] == QLatin1Char('\t')) last = w0;
                 }
                 if (last < 0) return -1;
+                // From the line's text, not Qt's: a centered or right line's text is shifted, as the stops are not.
                 double pen = off + (w0 > s0 ? line.cursorToX(w0) - line.cursorToX(s0) : 0);
                 for (int i = w0; i < endPos; ++i) {
                     if (B->disp[i] != QLatin1Char('\t')) {
@@ -1867,11 +1871,27 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 }
                 return -1;
             };
-            // How far in a line starting `left` from the edge begins, for what went on to it.
-            auto movedBy = [&](double left) {
+            // How far in a line from `left` to `right` (from the edge) begins, for what went on to it.
+            auto movedBy = [&](double left, double right) {
+                const int n = int(B->disp.size());
                 double pen = left;
-                for (int i = moveFrom; i < moveTo; ++i) pen = B->disp[i] == QLatin1Char('\t') ? nextStop(pen, false) : pen + advanceAt(i);
-                return pen - left;
+                int i = moveFrom;
+                auto walk = [&](int to) {
+                    for (; i < to; ++i) pen = B->disp[i] == QLatin1Char('\t') ? nextStop(pen, false) : pen + advanceAt(i);
+                };
+                walk(moveTo);
+                const double shift = pen - left;
+                // The blanks the line starts with, and the word after them: whole,
+                // as a line may break at its soft hyphens only when it must.
+                while (i < n && blank(i)) walk(i + 1);
+                for (; i < n; ++i) {
+                    const QChar ch = B->disp[i];
+                    if (ch.isSpace() && ch.unicode() != 0x00A0 && ch.unicode() != 0x202F) break;
+                    if (ch.unicode() == 0x00AD || ch.unicode() == 0x200B) continue;
+                    pen += advanceAt(i);
+                    if (ch == QLatin1Char('-')) break;
+                }
+                return pen <= right + 0.01 ? shift : 0;
             };
             if (gridTabs) B->tl->resetTabs();
             B->tl->beginLayout();
@@ -1925,7 +1945,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     Iv iv = row[rowIdx];
                     if (lead > 0 && lineNo == 0 && rowIdx == 0) iv.x0 = std::min(iv.x0 + lead, iv.x1);
                     if (gridTabs) {
-                        if (moveFrom >= 0) iv.x0 = std::min(iv.x0 + movedBy(iv.x0 - col.left()), iv.x1);
+                        if (moveFrom >= 0) iv.x0 = std::min(iv.x0 + movedBy(iv.x0 - col.left(), iv.x1 - col.left()), iv.x1);
                         B->tl->setLineTabs(stopsFor(iv.x0 - col.left(), iv.x1 - iv.x0, lineNo == 0));
                     }
                     line.setLineWidth(std::max(1.0, iv.x1 - iv.x0));

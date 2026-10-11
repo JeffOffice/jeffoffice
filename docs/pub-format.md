@@ -314,7 +314,19 @@ began with two, from three in a row). Qt leaves such a tab at the end of the
 line, so JeffPub lays the line out as Qt does and starts the next one that
 far in (the tab's width, and the spaces after it) instead of moving the
 character, from where that line starts (the stops being the same places
-whatever the line). Not checked: stops saved in the paragraph (no file in
+whatever the line). That is done only when the text after the tab, its first
+word, fits on the next line after the tab's stop; otherwise the tab stays at
+the end of the line above and the text starts the next line at the left
+indent, as Qt sets it. The tab had gone anyway and left what was after its
+stop: in a box 36 pt wide "Qty<tab>125 units" came out "Qty", "1" at the
+edge, and "25 units", and in one 60 wide the word of "Name Smith<tab>Management"
+(46 pt) had 24 pt after its stop and broke (Mana-gement, or Man-agement when
+hyphenating). Not checked against Publisher: what it does in these cases (the
+assumption is that it doesn't break a word that fits whole on a line).
+Qt shifts a centered or right-aligned line's text, which the stops don't
+share, so where its tab ends is counted from the line's text, not from where
+Qt draws it (a centered line's tab was taken for past its stop and went on,
+36 pt too far in). Not checked: stops saved in the paragraph (no file in
 the corpus has any), and a hanging paragraph's tabs on its second line when
 the left indent is not 18.
 
