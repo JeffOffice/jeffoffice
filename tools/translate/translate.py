@@ -519,8 +519,12 @@ def ui_table(lang):
     for m in sorted(messages, key=lambda m: (m.context != "Ribbon", m.context)):
         if m.plural or m.empty() or "%" in m.source or len(m.source.split()) > 8 or "\n" in m.source:
             continue
-        rows.setdefault(m.source.strip(), m.current.strip())
-    return "\n".join(f"{en} = {tr}" for en, tr in sorted(rows.items(), key=lambda kv: kv[0].lower()))
+        tr = rows.setdefault(m.source.strip(), [])
+        if m.current.strip() not in tr:
+            tr.append(m.current.strip())
+    # An English word the program translates two ways (a command and a
+    # noun: "Group") lists both, for the Help to pick by context.
+    return "\n".join(f"{en} = {' | '.join(tr)}" for en, tr in sorted(rows.items(), key=lambda kv: kv[0].lower()))
 
 
 def help_system(lang, terms, table):
@@ -534,7 +538,7 @@ How to translate:
 - "<!-- keywords: a, b, c -->": keep the markers, and translate the keywords into words a {name} user would search for (add common {name} synonyms if useful).
 - Keep "<!-- shortcuts -->" and every other <!-- --> comment exactly as it is.
 - Links: in [text](target), translate the text and never change the target (topic names such as linked-text-boxes, and web addresses).
-- When the text names a command, tab, group, button, box, or dialog, use exactly the {name} label the program shows, from "Program text" below; for one not listed, translate consistently with the glossary.
+- When the text names a command, tab, group, button, box, or dialog, use exactly the {name} label the program shows, from "Program text" below (where it lists two, separated by |, pick the one that fits: the command or the noun); for one not listed, translate consistently with the glossary.
 - Keyboard shortcuts: write key names as {name} keyboards print them (German, for example, writes Strg+C), keeping the + between keys.
 - Measurements: {name} readers measure in centimeters, and JeffPub shows them centimeters unless they choose otherwise. Give lengths, sizes, and distances in centimeters (millimeters for small ones), converting from inches (1 inch = 2.54 cm) and rounding as {name} documentation would (2 inches becomes 5 cm; a quarter inch, 0.6 cm). Where an example depends on US paper sizes (Letter, half-letter), use A4 and A5 instead when the example works the same way. Units that name a measure stay as they are: points, picas, ppi and dpi (pixels or dots per inch), and a point being 1/72 inch.
 - Keep file names, file extensions, code, and web addresses as they are. Product and format names stay as they are (JeffPub, PDF, EPUB, CMYK...). Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt.
