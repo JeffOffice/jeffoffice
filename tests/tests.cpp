@@ -14234,6 +14234,71 @@ private Q_SLOTS:
         }
     }
 
+    // One table that disagrees with itself (rows that its size entries don't match, a list of cells that isn't
+    // there, or no row count) is left out of a .pub file, and the rest of the file opens.
+    void pubTableThatDisagreesWithItselfIsLeftOut()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(36, 36, 300, 40);
+        box->storyId = doc->createStory(QStringLiteral("Before the table"));
+        doc->pages[0]->items.push_back(box);
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 2;
+        t->cols = 2;
+        t->colW = {100, 100};
+        t->rowH = {40, 40};
+        t->rect = QRectF(36, 100, 0, 0);
+        t->syncRect();
+        t->cells.resize(4);
+        for (jp::TableCell &c : t->cells) c.storyId = doc->createStory(QStringLiteral("Cell"));
+        doc->pages[0]->items.push_back(t);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("table.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        QFile in(path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        jp::cfb::File file;
+        QVERIFY(jp::cfb::read(in.readAll(), &file));
+        in.close();
+        const QByteArray contents = file.stream(QStringLiteral("Contents"));
+        // The table's chunk: 66 rows, 67 columns, 68 and 69 its size, then 6b, the cell list's number.
+        const QByteArray fields("\x66\x20\x02\x00\x00\x00\x67\x20\x02\x00\x00\x00", 12);
+        QCOMPARE(contents.count(fields), 1);
+        const qsizetype at = contents.indexOf(fields);
+        QCOMPARE(contents.mid(at + 24, 2), QByteArray("\x6b\x70", 2));
+        auto reopened = [&](const std::function<void(QByteArray &)> &damage, bool *tableKept) {
+            QByteArray c = contents;
+            damage(c);
+            jp::cfb::File copy = file;
+            if (!copy.setStream(QStringLiteral("Contents"), c)) return false;
+            const QString damaged = dir.filePath(QStringLiteral("damaged.pub"));
+            QFile out(damaged);
+            if (!out.open(QIODevice::WriteOnly)) return false;
+            out.write(jp::cfb::write(copy));
+            out.close();
+            auto back = jp::importPublisherFile(damaged, &err);
+            if (!back) return false;
+            bool text = false;
+            *tableKept = false;
+            jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+                if (it->type() == jp::ItemType::Table) *tableKept = true;
+                if (it->type() == jp::ItemType::Text)
+                    text = back->storyDoc(static_cast<const jp::TextItem *>(it.get())->storyId)->toPlainText() == QStringLiteral("Before the table");
+            });
+            return text;
+        };
+        bool tableKept = true;
+        QVERIFY2(reopened([](QByteArray &) {}, &tableKept) && tableKept, "the undamaged file");
+        QVERIFY2(reopened([&](QByteArray &c) { c[at + 2] = 3; }, &tableKept), "three rows, two size entries");
+        QVERIFY(!tableKept);
+        QVERIFY2(reopened([&](QByteArray &c) { qToLittleEndian<quint32>(0x7ffffff0, c.data() + at + 26); }, &tableKept), "no cell list");
+        QVERIFY(!tableKept);
+        QVERIFY2(reopened([&](QByteArray &c) { c[at] = 0x6e; }, &tableKept), "no row count");
+        QVERIFY(!tableKept);
+    }
+
     // Every cell of a table is made when a .pub file is read, so a table over 256 rows or 256 columns (twice
     // Publisher's largest, and the .jpub reader's limit) is left out, and the rest of the file opens.
     void pubTableOverTheLimitIsLeftOut()

@@ -464,7 +464,8 @@ columns, 68 = width, 69 = height, 6b → cell list, 6d = edges, 70 =
 per row: `01` = where it ends, `02` = its size. JeffPub's reader leaves out a
 table of more than 256 rows or 256 columns (twice the largest Publisher
 makes), since every cell of it would be made, and goes on with the rest of
-the file.
+the file. It does the same for a table whose row or column count doesn't
+match its edges, whose cell list isn't in the file, or that lacks a count.
 
 The cell list (type 0x63, parent the table, directory 08 and 0b = 1) is
 `01:18 count, 02 list`; each cell has `01` first row, `02` last row, `03`
