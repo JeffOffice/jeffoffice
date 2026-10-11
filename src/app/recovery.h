@@ -7,12 +7,15 @@
 #include <QDateTime>
 #include <QString>
 #include <QVector>
+#include <functional>
 
 namespace jp {
-
-class Document;
-
 namespace recovery {
+
+// The file ending of the app's copies (".jpub" for JeffPub's documents);
+// the app sets it before using anything below.
+void setCopySuffix(const QString &suffix);
+QString copySuffix();
 
 // Where every run keeps its folder (tests point it elsewhere).
 QString root();
@@ -26,12 +29,14 @@ QString sessionDir();
 // "Cover.pub" files in different folders keep separate copies.
 QString copyPath(const QString &docPath, const QString &displayName, quint64 windowSerial);
 
-// Writes the copy and, beside it, where the work came from.
-bool write(const Document &doc, const QString &copy, const QString &docPath, const QString &title, QString *error = nullptr);
+// Writes the copy with `save` (the app's own way of writing its document to
+// a file) and, beside it, where the work came from.
+bool write(const std::function<bool(const QString &copy, QString *error)> &save, const QString &copy, const QString &docPath, const QString &title,
+           QString *error = nullptr);
 void remove(const QString &copy);
 
 struct Recovered {
-    QString file;       // the copy (.jpub)
+    QString file;       // the copy (ending in copySuffix())
     QString source;     // the publication it was made from (empty if never saved)
     QString title;
     QDateTime saved;

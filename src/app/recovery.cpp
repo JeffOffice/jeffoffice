@@ -1,8 +1,5 @@
 #include "app/recovery.h"
 
-#include "core/document.h"
-#include "io/jpubfile.h"
-
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
@@ -41,7 +38,9 @@ QString safeName(QString s)
     return s;
 }
 
-QString sidecar(const QString &copy) { return copy.left(copy.size() - 5) + QStringLiteral(".json"); }
+QString s_suffix = QStringLiteral(".jpub");
+
+QString sidecar(const QString &copy) { return copy.left(copy.size() - s_suffix.size()) + QStringLiteral(".json"); }
 
 Recovered describe(const QString &file)
 {
@@ -67,6 +66,9 @@ Recovered describe(const QString &file)
     return r;
 }
 } // namespace
+
+void setCopySuffix(const QString &suffix) { s_suffix = suffix; }
+QString copySuffix() { return s_suffix; }
 
 QString root()
 {
@@ -99,15 +101,14 @@ QString copyPath(const QString &docPath, const QString &displayName, quint64 win
     if (dir.isEmpty()) return QString();
     const QString key = docPath.isEmpty() ? QStringLiteral("window:%1").arg(windowSerial) : QFileInfo(docPath).absoluteFilePath();
     const QByteArray h = QCryptographicHash::hash(key.toUtf8(), QCryptographicHash::Sha1).toHex().left(8);
-    return dir + QLatin1Char('/') + safeName(displayName) + QLatin1Char(' ') + QString::fromLatin1(h) + QStringLiteral(".jpub");
+    return dir + QLatin1Char('/') + safeName(displayName) + QLatin1Char(' ') + QString::fromLatin1(h) + s_suffix;
 }
 
-bool write(const Document &doc, const QString &copy, const QString &docPath, const QString &title, QString *error)
+bool write(const std::function<bool(const QString &copy, QString *error)> &save, const QString &copy, const QString &docPath, const QString &title,
+           QString *error)
 {
     if (copy.isEmpty()) return false;
-    // Its pictures' links are kept relative to the original's folder, which is
-    // where the copy is read as being when it is recovered.
-    if (!savePublication(doc, copy, QImage(), error, false, docPath.isEmpty() ? QString() : QFileInfo(docPath).absolutePath())) return false;
+    if (!save(copy, error)) return false;
     QSaveFile meta(sidecar(copy));
     if (!meta.open(QIODevice::WriteOnly)) return true;   // the copy alone still recovers
     const QJsonObject o{{QStringLiteral("source"), docPath}, {QStringLiteral("title"), title},
@@ -130,7 +131,7 @@ QVector<Recovered> orphans()
     const QDir top(root());
     if (!top.exists()) return out;
     // Copies older versions kept loose in the folder.
-    for (const QFileInfo &f : top.entryInfoList({QStringLiteral("*.jpub")}, QDir::Files)) out << describe(f.absoluteFilePath());
+    for (const QFileInfo &f : top.entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files)) out << describe(f.absoluteFilePath());
     for (const QFileInfo &d : top.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         const QString dir = d.absoluteFilePath();
         if (dir == g_session) continue;
@@ -140,7 +141,7 @@ QVector<Recovered> orphans()
         probe.setStaleLockTime(0);
         if (!probe.tryLock(0)) continue;
         probe.unlock();
-        const QFileInfoList copies = QDir(dir).entryInfoList({QStringLiteral("*.jpub")}, QDir::Files);
+        const QFileInfoList copies = QDir(dir).entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files);
         if (copies.isEmpty()) QDir(dir).removeRecursively();   // nothing left to offer
         for (const QFileInfo &f : copies) out << describe(f.absoluteFilePath());
     }
@@ -154,7 +155,7 @@ void discard(const Recovered &r)
     const QFileInfo fi(r.file);
     QDir dir = fi.absoluteDir();
     if (QDir::cleanPath(dir.absolutePath()) == QDir::cleanPath(root())) return;
-    if (dir.entryInfoList({QStringLiteral("*.jpub")}, QDir::Files).isEmpty()) dir.removeRecursively();
+    if (dir.entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files).isEmpty()) dir.removeRecursively();
 }
 
 void endSession()

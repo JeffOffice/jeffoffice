@@ -552,7 +552,7 @@ void MainWindow::autoRecover()
     const QString copy = recovery::copyPath(m_ed->filePath(), m_ed->displayName(), m_serial);
     if (copy != m_recoveryCopy) dropRecoveryCopy();
     QString err;
-    if (recovery::write(*m_ed->doc(), copy, m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath(), m_ed->displayName(), &err))
+    if (saveRecoveryCopy(*m_ed->doc(), copy, m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath(), m_ed->displayName(), &err))
         m_recoveryCopy = copy;
 }
 
