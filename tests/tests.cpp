@@ -3328,6 +3328,89 @@ private Q_SLOTS:
         QVERIFY2(tabbed < 5 * plain + 200, qPrintable(QStringLiteral("%1 ms with tabs, %2 ms without").arg(tabbed).arg(plain)));
     }
 
+    // A tab goes on to the next line with the text after it only when that
+    // text fits there, after the tab's stop. Where it does not (a quantity
+    // in a box 36 wide, a name's word longer than the 24 left after the stop)
+    // the tab stays at the end of the line above and the text starts the next
+    // line at the left indent, whole, as Qt sets it: the tab had been moved
+    // anyway, and left a point or none for the text, which broke after a
+    // letter or two (or hyphenated: "Man-", "agement").
+    void tabStaysWhenItsTextWouldNotFitAfterItsStop()
+    {
+        struct Laid {
+            QStringList lines;
+            QList<double> starts;
+        };
+        auto lay = [](double width, const QString &text, bool hyphenate = false) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(8);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(width, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = hyphenate;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            Laid r;
+            for (const auto &li : l.lineInfo(0)) {
+                r.lines << QString(li.text).replace(QLatin1Char('\t'), QLatin1Char('|')).remove(QChar(0x00AD));
+                r.starts << li.rect.x();
+            }
+            return r;
+        };
+        auto what = [](const Laid &r) { return r.lines.join(QLatin1Char('/')); };
+        // The stop (36) is at the edge of the line: "125" stays whole at the left indent.
+        for (double width : {30.0, 36.0}) {
+            const Laid qty = lay(width, QStringLiteral("Qty\t125 units"));
+            QVERIFY2(qty.lines.size() >= 2 && qty.lines[1].startsWith(QLatin1String("125")) && std::abs(qty.starts[1]) < 0.01, qPrintable(what(qty)));
+        }
+        // 60 wide: "Management" is 46 long, 24 would be left after the stop.
+        for (bool hyphenate : {false, true}) {
+            const Laid name = lay(60, QStringLiteral("Name Smith\tManagement"), hyphenate);
+            QVERIFY2(name.lines.size() == 2 && name.lines[1] == QLatin1String("Management") && std::abs(name.starts[1]) < 0.01, qPrintable(what(name)));
+        }
+        // With room for it after the stop, the tab goes on with the word.
+        const Laid roomy = lay(100, QStringLiteral("Name Smith\tManagement"));
+        QVERIFY2(roomy.lines.size() == 2 && std::abs(roomy.starts[1] - 36) < 0.01, qPrintable(what(roomy)));
+    }
+
+    // Centered and right-aligned lines have their text shifted by Qt, which
+    // the stops don't share: a tab at the end of one was taken for past its
+    // stop (the shift added to where it started) and went on to the next line
+    // with its neighbor, which started 36 points in too far. They are set as
+    // a line at the left is.
+    void tabsInCenteredAndRightTextGoOnAsAtTheLeft()
+    {
+        auto lay = [](Qt::Alignment al, const QString &text) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setAlignment(al);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(8);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(100, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            QStringList lines;
+            for (const auto &li : l.lineInfo(0)) lines << QStringLiteral("%1 at %2").arg(QString(li.text).replace(QLatin1Char('\t'), QLatin1Char('|'))).arg(li.rect.x());
+            return lines.join(QStringLiteral(" / "));
+        };
+        for (const QString &text : {QStringLiteral("Colonel Smith, Esq\t\tManagement of it"), QStringLiteral("Colonel Smith, Esq\tMgr\t98 units")}) {
+            const QString left = lay(Qt::AlignLeft, text);
+            for (Qt::Alignment al : {Qt::AlignHCenter, Qt::AlignRight, Qt::AlignJustify})
+                QCOMPARE(lay(al, text), left);
+        }
+    }
+
     // A bullet drawn in the list's own font (as .pub lists name it: Symbol,
     // Wingdings) keeps that font's regular weight whatever the item's first
     // run is. Publisher's asterisk bullets stand thin beside bold items (its
