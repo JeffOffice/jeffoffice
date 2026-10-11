@@ -3036,9 +3036,9 @@ private Q_SLOTS:
     }
 
     // A tab after the hanging text of a first line goes to the left indent
-    // (Publisher's "b.<tab>text" lists), then to stops 36 points apart from
-    // where the first line starts; on the lines after, the stops are those
-    // same places, not 36 points apart from the line's own start.
+    // (Publisher's "b.<tab>text" lists), then to the stops 36 points apart
+    // from the text area's edge; on the lines after, the stops are the same
+    // places, not 36 points apart from the line's own start.
     void hangingIndentIsATabStop()
     {
         auto tabX = [](double left, double first, const QString &text) {
@@ -3066,13 +3066,16 @@ private Q_SLOTS:
         const QString b = QStringLiteral("b.\tUnited States Code");
         // The left indent 57.6, the first line 28.8 (a lettered list): the text is at the left indent, not at 36 on from where the line starts (64.8).
         QVERIFY2(std::abs(tabX(57.6, -28.8, b) - 57.6) < 0.01, qPrintable(QString::number(tabX(57.6, -28.8, b))));
-        // After the left indent, the next stop is 36 on from where the first line starts.
-        QVERIFY2(std::abs(tabX(57.6, -28.8, QStringLiteral("b.\t\tText")) - 64.8) < 0.01, qPrintable(QString::number(tabX(57.6, -28.8, QStringLiteral("b.\t\tText")))));
+        // After the left indent, the next stop is the next of those 36 apart from the edge: 72.
+        QVERIFY2(std::abs(tabX(57.6, -28.8, QStringLiteral("b.\t\tText")) - 72) < 0.01, qPrintable(QString::number(tabX(57.6, -28.8, QStringLiteral("b.\t\tText")))));
         // A line after a line break starts at the left indent; its tab goes to
-        // the next stop from the first line's start (0 here): 36, not 54.
+        // the next stop from the edge: 36, not 54.
         QVERIFY2(std::abs(tabX(18, -18, QStringLiteral("Saturday \t0900")) - 36) < 0.01, qPrintable(QString::number(tabX(18, -18, QStringLiteral("Saturday \t0900")))));
-        // Not hanging: stops 36 on from where the lines start, as before.
-        QVERIFY2(std::abs(tabX(13.5, 0, QStringLiteral("Name \t989")) - 49.5) < 0.01, qPrintable(QString::number(tabX(13.5, 0, QStringLiteral("Name \t989")))));
+        // Not hanging, the left indent 13.5: the stops are still 36, 72, ... from the
+        // edge, not 36 on from where the line starts: a tab at the start of a line (after
+        // a line break) goes to 36, not 49.5, and one after "Name " (past 36) to 72.
+        QVERIFY2(std::abs(tabX(13.5, 0, QStringLiteral("Name \t989")) - 36) < 0.01, qPrintable(QString::number(tabX(13.5, 0, QStringLiteral("Name \t989")))));
+        QVERIFY2(std::abs(tabX(13.5, 0, QStringLiteral("Name \t989")) - 72) < 0.01, qPrintable(QString::number(tabX(13.5, 0, QStringLiteral("Name \t989")))));
     }
 
     // The same from a file: a lettered paragraph and a bulleted one, as saved
@@ -3132,6 +3135,155 @@ private Q_SLOTS:
         for (const auto &li : fl.layout->lineInfo(0))
             if (li.docStart == second.position()) { textX = li.rect.x(); break; }
         QVERIFY2(std::abs(textX - (inset + 18)) < 0.05, qPrintable(QString::number(textX - inset)));
+    }
+
+    // A tab goes with the text after it. When that text doesn't fit after the
+    // tab's stop, the tab starts the next line with it, and there goes to the
+    // first stop past the left indent (Publisher's "Name<spaces><tab>number"
+    // blocks: the numbers stand in a column, not off the end of the lines
+    // above; a course list's second column went to the next line with a
+    // title too long for it). The stops are 36 points apart from the text
+    // area's edge, not from where the lines start: with the left indent at
+    // 13.5, a tab at the start of a line goes to 36.
+    void tabMovesToTheNextLineWithItsText()
+    {
+        struct Result {
+            QStringList lines;
+            double textX = 0;
+        };
+        // The lines of a 100-point box, and where the text after the last tab starts
+        // (or `at`, a word in it).
+        auto lay = [](double left, const QString &text, const QString &at = QString()) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(left);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(8);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(100, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            Result r;
+            for (const auto &li : l.lineInfo(0)) r.lines << li.text;
+            int frame = -1;
+            QRectF rect;
+            l.caretRect(at.isEmpty() ? int(text.lastIndexOf(QLatin1Char('\t'))) + 1 : int(text.indexOf(at)), &frame, &rect);
+            r.textX = rect.x();
+            return r;
+        };
+        const QString name = QStringLiteral("Colonel Smith");
+        // Spaces that end short of the line's end, and spaces that run past it:
+        // the tab is at the start of the second line either way, and goes to 36.
+        for (int spaces : {8, 25}) {
+            const Result r = lay(13.5, name + QString(spaces, QLatin1Char(' ')) + QStringLiteral("\t98"));
+            const QString what = QStringLiteral("%1 spaces: %2").arg(spaces).arg(r.lines.join(QLatin1Char('|')));
+            QVERIFY2(r.lines.size() == 2, qPrintable(what));
+            QVERIFY2(r.lines[1].endsWith(QLatin1String("98")), qPrintable(what));
+            QVERIFY2(std::abs(r.textX - 36) < 0.01, qPrintable(what + QStringLiteral(": ") + QString::number(r.textX)));
+        }
+        // The stop (72) is on the line, the word after it is too long for what is left of it: both move.
+        const Result word = lay(0, name + QStringLiteral("\tManagement"));
+        QVERIFY2(word.lines.size() == 2, qPrintable(word.lines.join(QLatin1Char('|'))));
+        QVERIFY2(std::abs(word.textX - 36) < 0.01, qPrintable(QString::number(word.textX)));
+        // Two tabs: the first, whose stop (72) is on the line, stays; the second goes on with the word.
+        const Result two = lay(0, name + QStringLiteral("\t\tManagement"));
+        QVERIFY2(two.lines.size() == 2, qPrintable(two.lines.join(QLatin1Char('|'))));
+        QVERIFY2(std::abs(two.textX - 36) < 0.01, qPrintable(QString::number(two.textX)));
+        // The spaces between the tab and the word go with them: six are 13.3 points.
+        const Result spaced = lay(0, name + QStringLiteral("\t      Management"), QStringLiteral("Man"));
+        QVERIFY2(spaced.lines.size() == 2, qPrintable(spaced.lines.join(QLatin1Char('|'))));
+        QVERIFY2(std::abs(spaced.textX - (36 + 13.3)) < 0.2, qPrintable(QString::number(spaced.textX)));
+        // A tab with room for the text after it stays: the stop after "Colonel" is 72.
+        const Result near = lay(13.5, QStringLiteral("Colonel\t98"));
+        QVERIFY2(near.lines.size() == 1, qPrintable(near.lines.join(QLatin1Char('|'))));
+        QVERIFY2(std::abs(near.textX - 72) < 0.01, qPrintable(QString::number(near.textX)));
+    }
+
+    // A bullet drawn in the list's own font (as .pub lists name it: Symbol,
+    // Wingdings) keeps that font's regular weight whatever the item's first
+    // run is. Publisher's asterisk bullets stand thin beside bold items (its
+    // pictures; its PDFs hold one Symbol face); JeffPub drew them bold.
+    void bulletInItsOwnFontIgnoresTheRunsWeight()
+    {
+        // The ink in the 12 points before the text, where only the bullet is.
+        auto bulletInk = [](bool bold, bool italic, const QString &bulletFont) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(12);
+            bf.setTextIndent(-12);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(24);
+            cf.setFontWeight(bold ? QFont::Bold : QFont::Normal);
+            cf.setFontItalic(italic);
+            c.insertText(QStringLiteral("Item"), cf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setProperty(jp::tp::BulletChar, QString(QChar(0xF02A)));   // Symbol's asterisk
+            lf.setProperty(jp::tp::BulletFont, bulletFont);
+            c.createList(lf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(200, 40);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            QImage img(800, 160, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.scale(4, 4);
+            lay.paint(&p, 0, jp::PaintOptions());
+            p.end();
+            int ink = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < 11 * 4; ++x) ink += 255 - qGray(img.pixel(x, y));
+            return ink;
+        };
+        for (const QString &font : {QStringLiteral("Symbol"), QStringLiteral("Wingdings")}) {
+            const int regular = bulletInk(false, false, font);
+            QVERIFY2(regular > 1000, qPrintable(QStringLiteral("%1: %2").arg(font).arg(regular)));
+            QCOMPARE(bulletInk(true, false, font), regular);    // a bold run's bullet
+            QCOMPARE(bulletInk(false, true, font), regular);    // an italic run's
+        }
+    }
+
+    // A text box whose frame reaches into another's text area pushes that
+    // text aside, even by less than a point: in Publisher's picture of a
+    // newsletter's columns, a box 0.72 points into the next one had the
+    // lines beside it start at its edge plus its wrap distance. Half a point
+    // pushed nothing.
+    void textBoxReachingIntoTheTextAreaWraps()
+    {
+        auto doc = Document::blank(QSizeF(612, 792));
+        auto box = [&](const QRectF &r, const QString &text) {
+            auto t = std::make_shared<TextItem>();
+            t->rect = r;
+            t->insets = QMarginsF(2.88, 2.88, 2.88, 2.88);
+            t->storyId = doc->createStory(text);
+            QTextCursor c(doc->storyDoc(t->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontPointSize(8);
+            c.mergeCharFormat(f);
+            doc->pages[0]->items.push_back(t);
+            return t;
+        };
+        auto column = box(QRectF(100, 100, 200, 100), QStringLiteral("The quick brown fox jumps over the lazy dog."));
+        auto beside = box(QRectF(40, 100, 63.6, 100), QStringLiteral("Beside"));   // its edge at 103.6, 0.72 into the text area
+        LayoutCache cache;
+        RenderOptions opt;
+        auto firstX = [&] { return cache.textFrame(*doc, *column, 1, opt).layout->lineInfo(0).value(0).rect.x(); };
+        // The box's edge, 103.6, and its wrap distance, 2.88, from the column's left edge: 6.48.
+        QVERIFY2(std::abs(firstX() - 6.48) < 0.01, qPrintable(QString::number(firstX())));
+        beside->rect.setWidth(63.38);   // 0.5 in
+        QVERIFY2(std::abs(firstX() - 2.88) < 0.01, qPrintable(QString::number(firstX())));
     }
 
     // Save as E-book can make a fixed-layout EPUB: each page as designed (an

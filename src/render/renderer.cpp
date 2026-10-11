@@ -148,8 +148,9 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
         // reaches into the text area; then the wrap distance widens the gap.
         // Publisher's designs butt boxes together, their distances (2.88 pt)
         // reaching past their insets (2.85): a name in a 12.7-pt-high box
-        // lost its only line to a box beside it.
-        if (o->type() == ItemType::Text && !o->bounds().adjusted(1, 1, -1, -1).intersects(fb.marginsRemoved(frame.insets))) return;
+        // lost its only line to a box beside it. A frame 0.5 pt into the text
+        // area pushed nothing in Publisher's pictures, one 0.6 pt in did.
+        if (o->type() == ItemType::Text && !o->bounds().adjusted(0.55, 0.55, -0.55, -0.55).intersects(fb.marginsRemoved(frame.insets))) return;
         const Wrap &w = o->wrap;
         QPainterPath pagePath;
         bool covers = false;

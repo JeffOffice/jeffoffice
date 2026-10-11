@@ -25,7 +25,7 @@ To turn this off, clear **AutoFormat as you type** on the **Proofing** tab of **
 
 ## What tab stops are
 
-A tab stop is a place on the line where text jumps when you press the Tab key. If you set none, Tab jumps to the next half inch. A stop can be one of four kinds:
+A tab stop is a place on the line where text jumps when you press the Tab key. If you set none, Tab jumps to the next half inch from the left edge of the text. If the text after a Tab does not fit on the line, the Tab and that text move to the start of the next line together. A stop can be one of four kinds:
 
 - **Left:** the text starts at the stop.
 - **Center:** the text is centered on the stop.

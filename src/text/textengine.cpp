@@ -1612,6 +1612,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 B->markerFont.setPointSizeF(std::max(1.0, lf.property(tp::BulletSize).toDouble() * env.fontScale) * fontPointFactor());
             const QString bfont = lf.stringProperty(tp::BulletFont);
             if (!bfont.isEmpty() && !custom.isEmpty()) {
+                // A bullet in its own font is that font's regular face, not
+                // the weight or slant of the item's first run (Publisher draws
+                // an asterisk bullet thin beside bold text).
+                B->markerFont.setWeight(QFont::Normal);
+                B->markerFont.setItalic(false);
                 if (isSymbolFont(bfont) && !QFontDatabase::hasFamily(bfont)) {
                     // A missing symbol font: the same picture from Unicode, in
                     // the text's font (or a round bullet if it has none).
@@ -1693,20 +1698,24 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // 48-point Times New Roman lines: the 53 points of its ascent and
             // descent, not the 55 of its single spacing).
             const double estText = std::min(estH, heightOf(base));
-            // A paragraph that hangs (its first line indented less than the
-            // rest) has its left indent as a tab stop on the first line, so
-            // "b.<tab>text" lines up its text there (Publisher); the default
-            // stops, 36 points apart from where that line starts, come after
-            // it. (Qt counts stops from each line's own start: on the lines
-            // after, this stop is as far from their left indent.)
+            // Tab stops are 36 points apart from the text area's edge, not from
+            // where a line starts (Publisher). Qt counts them from each line's
+            // start and keeps one list for the paragraph, here measured from
+            // where its first line starts. A paragraph that hangs (its first
+            // line indented less than the rest) has its left indent as a stop
+            // on that line, so "b.<tab>text" lines up its text there, the stops
+            // before it gone. A paragraph with tab stops of its own keeps Qt's.
             const bool hangs = textIndent < -0.01;
-            if (hangs && B->marker.isEmpty() && bf.tabPositions().isEmpty()) {
-                QTextOption hangOpt = B->tl->textOption();
-                hangOpt.setTabs({QTextOption::Tab((leftM - std::max(0.0, leftM + textIndent)) * kFine, QTextOption::LeftTab)});
-                B->tl->setTextOption(hangOpt);
-            }
+            const bool gridTabs = bf.tabPositions().isEmpty() && bf.layoutDirection() != Qt::RightToLeft && B->disp.contains(QLatin1Char('\t'));
+            QVector<double> stops;   // from the first line's start
+            auto runFont = [&](int i) {
+                for (const auto &r : std::as_const(ranges))
+                    if (i >= r.start && i < r.start + r.length) return r.format.font();
+                return base;
+            };
             B->tl->beginLayout();
             int lineNo = 0;
+            double tabShift = 0;   // how far in the next line starts, for a tab moved to it
             while (true) {
                 PtLine line(B->tl->createLine());
                 if (!line.isValid()) break;
@@ -1755,7 +1764,62 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     Iv iv = row[rowIdx];
                     if (lead > 0 && lineNo == 0 && rowIdx == 0) iv.x0 = std::min(iv.x0 + lead, iv.x1);
+                    if (tabShift > 0) iv.x0 = std::min(iv.x0 + tabShift, iv.x1);
+                    if (gridTabs && lineNo == 0) {
+                        const double off = iv.x0 - col.left(), step = 36 * scale;
+                        double after = 0;
+                        stops.clear();
+                        if (hangs && B->marker.isEmpty() && leftM - off > 0.01) {
+                            stops << leftM - off;
+                            after = leftM;
+                        }
+                        for (int k = 1; k < 1000 && (k - 1) * step <= off + col.width() + step; ++k)
+                            if (k * step > after + 0.01 && k * step - off > 0.01) stops << k * step - off;
+                        QList<QTextOption::Tab> tabs;
+                        for (double st : std::as_const(stops)) tabs << QTextOption::Tab(st * kFine, QTextOption::LeftTab);
+                        QTextOption o = B->tl->textOption();
+                        o.setTabs(tabs);
+                        B->tl->setTextOption(o);
+                    }
                     line.setLineWidth(std::max(1.0, iv.x1 - iv.x0));
+                    // A tab goes with the text after it: when that text doesn't fit,
+                    // the tab starts the next line (Publisher; Qt leaves it at the
+                    // end of this one), as do the tabs before it whose stops are
+                    // past this line's end. What moves is laid out at the start of
+                    // the next line, which begins that much further in.
+                    double moved = 0;
+                    const int endPos = line.textStart() + line.textLength();
+                    if (gridTabs && !stops.isEmpty() && endPos < B->disp.size()) {
+                        const int s0 = line.textStart();
+                        auto blank = [&](int i) { return B->disp[i] == QLatin1Char(' ') || B->disp[i] == QLatin1Char('\t'); };
+                        int w0 = endPos, last = -1;
+                        while (w0 > s0 && blank(w0 - 1)) {
+                            --w0;
+                            if (last < 0 && B->disp[w0] == QLatin1Char('\t')) last = w0;
+                        }
+                        double pen = w0 > s0 ? line.cursorToX(w0) : 0;
+                        int from = -1;
+                        for (int i = w0; i < endPos && from < 0; ++i) {
+                            if (B->disp[i] != QLatin1Char('\t')) {
+                                pen += advanceOf(runFont(i), QString(B->disp[i]));
+                                continue;
+                            }
+                            const auto stop = std::find_if(stops.cbegin(), stops.cend(), [&](double st) { return st > pen + 0.01; });
+                            if (i == last || stop == stops.cend() || *stop > iv.x1 - iv.x0 + 0.01) from = i;
+                            else pen = *stop;
+                        }
+                        if (from > s0) {
+                            for (int i = from; i < endPos; ++i) {
+                                if (B->disp[i] != QLatin1Char('\t')) {
+                                    moved += advanceOf(runFont(i), QString(B->disp[i]));
+                                    continue;
+                                }
+                                const auto stop = std::find_if(stops.cbegin(), stops.cend(), [&](double st) { return st > moved + 0.01; });
+                                if (stop == stops.cend()) break;
+                                moved = *stop;
+                            }
+                        }
+                    }
                     // Hyphenation zone: a word is broken only if moving it whole to
                     // the next line would leave more than the zone empty here.
                     if (hyphenate && zone > 0) {
@@ -1913,6 +1977,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     columnEmpty = false;
                     rowH = std::max(rowH, h);
                     if (++rowIdx >= row.size()) { y += rowH; rowActive = false; }
+                    tabShift = moved;
                     placed = true;
                 }
                 ++lineNo;
