@@ -150,7 +150,7 @@ Features JeffPub has that Publisher never did, then the ones planned before vers
 - [x] Linking: Create Link (pitcher cursor), Break, Previous, Next, overflow indicator, autoflow
 - [x] Font group mirrored from Home
 - [x] Effects: Shadow, Outline, Emboss, Engrave, Text Fill (solid and gradient), Text Outline, Text Effects (shadow, reflection, glow, bevel)
-- [x] Typography: Drop Cap (gallery and custom: lines, size, font, color), Number Style (lining, old-style, proportional, tabular), Ligatures, Stylistic Sets, Stylistic Alternates, Swash, Small Caps, True Small Caps
+- [x] Typography: Drop Cap (gallery and custom: lines, size, font, color), Number Style (lining, old-style, proportional, tabular), Ligatures, Stylistic Sets, Stylistic Alternates, Swash, Small Caps, True Small Caps *(True Small Caps uses the font's own small capitals when every letter of a paragraph asks for them; where only some runs do, those runs get small capitals made of capitals, because Qt takes a font feature for a whole paragraph)*
 - [x] Arrange and Size
 
 ## Picture Tools Format tab

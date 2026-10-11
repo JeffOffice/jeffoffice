@@ -605,6 +605,26 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env
     return r;
 }
 
+// A paragraph has true small capitals (the font's own, an OpenType feature)
+// when every run with letters in it asks for them. Qt takes a feature from the
+// paragraph's layout font, for all its runs alike, so in a paragraph where only
+// some ask, the runs that do have small capitals made of capitals instead
+// (buildOnce) and the others are as they are.
+static bool hasTrueSmallCaps(const QTextBlock &b)
+{
+    if (b.begin().atEnd()) return b.charFormat().boolProperty(tp::TrueSmallCaps);
+    bool any = false;
+    for (auto it = b.begin(); !it.atEnd(); ++it) {
+        const QTextFragment frag = it.fragment();
+        if (!frag.isValid()) continue;
+        const QString text = frag.text();
+        if (std::none_of(text.cbegin(), text.cend(), [](QChar ch) { return ch.isLetter(); })) continue;
+        if (!frag.charFormat().boolProperty(tp::TrueSmallCaps)) return false;
+        any = true;
+    }
+    return any;
+}
+
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
 {
     QTextCharFormat cf = b.charFormat();
@@ -626,7 +646,7 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (cf.boolProperty(tp::Alternates)) f.setFeature(QFont::Tag("salt"), 1);
     // Other capitals are made in the layout's text, run by run (buildOnce); Qt
     // would take them from this font, the first run's, for the whole paragraph.
-    if (cf.boolProperty(tp::TrueSmallCaps)) f.setFeature(QFont::Tag("smcp"), 1);
+    if (hasTrueSmallCaps(b)) f.setFeature(QFont::Tag("smcp"), 1);
     else f.setCapitalization(QFont::MixedCase);
     return f;
 }
@@ -1454,6 +1474,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const FieldContext &ctx = frames.isEmpty() ? FieldContext() : frames[std::min(f, nF - 1)].ctx;
 
         // Build the display string, mapping fields and the drop cap.
+        const bool trueSmallCaps = hasTrueSmallCaps(b);
         const int dropLines = bf.intProperty(tp::DropCapLines);
         int dropRemaining = dropLines > 0 ? std::max(1, bf.intProperty(tp::DropCapChars)) : 0;
         QVector<QTextLayout::FormatRange> ranges;
@@ -1593,7 +1614,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 }
                 const int len = int(shown.size());
                 QTextLayout::FormatRange fr{int(B->disp.size()), len, rf};
-                if (rf.fontCapitalization() == QFont::SmallCaps && !cf.boolProperty(tp::TrueSmallCaps)) {
+                if (rf.fontCapitalization() == QFont::SmallCaps && !(cf.boolProperty(tp::TrueSmallCaps) && trueSmallCaps)) {
                     // .pub small capitals: lowercase letters become capitals at
                     // 0.8 x the size (Qt would use 0.7). Display text keeps its length,
                     // so positions still map one to one.
