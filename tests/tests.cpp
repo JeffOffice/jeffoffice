@@ -2535,7 +2535,7 @@ private Q_SLOTS:
                 const QString what = QStringLiteral("%1 %2").arg(fam, bold ? QStringLiteral("bold") : QStringLiteral("regular"));
                 QCOMPARE(info.family(), QString::fromLatin1(c.standIn));
                 QVERIFY2(info.weight() >= QFont::Bold, qPrintable(what + QStringLiteral(": weight %1").arg(info.weight())));
-                QCOMPARE(r.fontStretch(), bold ? c.bold : c.regular);
+                QCOMPARE(r.fontStretch(), jp::stretchToAsk(bold ? c.bold : c.regular));
             }
         }
     }
