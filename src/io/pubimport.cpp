@@ -392,7 +392,7 @@ public:
         applyWrap(*t, p);
         // Stories marked in the file as not hyphenated (others are).
         if (p["jp:no-hyphenation"] && p["jp:no-hyphenation"]->getInt()) t->hyphenate = false;
-        if (p["jp:hyphenation-zone"]) t->hyphenZone = toPt(p["jp:hyphenation-zone"]);
+        if (p["jp:hyphenation-zone"]) t->hyphenZone = std::clamp(toPt(p["jp:hyphenation-zone"]), 0.0, 720.0);   // the writer's limit too
         if (p["jp:shape-seq"]) m_seqItems[p["jp:shape-seq"]->getInt()] = t->id;
         // AutoFit Text: 1 best fit, 2 shrink on overflow, 3 grow the box.
         if (p["jp:autofit"]) {
@@ -731,7 +731,7 @@ public:
         // A table's text is one story, so the file's hyphenation (off, and the
         // zone) is the whole table's: every cell takes it.
         m_tableHyphenate = !(p["jp:no-hyphenation"] && p["jp:no-hyphenation"]->getInt());
-        m_tableHyphenZone = p["jp:hyphenation-zone"] ? toPt(p["jp:hyphenation-zone"]) : TableCell().hyphenZone;
+        m_tableHyphenZone = p["jp:hyphenation-zone"] ? std::clamp(toPt(p["jp:hyphenation-zone"]), 0.0, 720.0) : TableCell().hyphenZone;
     }
     void openTableRow(const RVNGPropertyList &p) override
     {
