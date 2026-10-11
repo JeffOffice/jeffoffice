@@ -67,6 +67,7 @@ enum : int {
     TabLeaders,                                  // QString per-tab leader characters
     BulletSize,                                  // double points: a list marker's own size (list format)
     TocLevel,                                    // int: a table of contents' paragraph (0 its title, 1-3 an entry), rebuilt by Update
+    BulletTab,                                   // double points: the list's indent: its text starts this far from the text area's edge, or at the bullet's end (list format)
 };
 
 // Copies every property of `from` onto `to`. QTextFormat::properties()

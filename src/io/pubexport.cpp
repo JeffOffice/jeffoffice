@@ -1037,6 +1037,7 @@ QVector<B> PubWriter::paraBlocks(const QTextBlock &block)
         p << u32(0x02, quint32(emu(size)), 0x22) << u16(0x03, quint32(fontIndex(bulletFont)), 0x1a)
           << rec(0x57, {u32(0x00, kind, 0x22), u32(0x01, ch, 0x22), u32(0x02, 0, 0x22)}, 0x8a);
         if (!bullet) p << u32(0x58, delim << 16, 0x22);
+        else if (lf.hasProperty(tp::BulletTab) && f.layoutDirection() != Qt::RightToLeft) p << u32(0x06, quint32(emu(lf.property(tp::BulletTab).toDouble())), 0x22);   // the list's indent
     }
     // The paragraph's style: its place in the style sheet (Normal, 0, is left out).
     if (const int si = int(styleNames().indexOf(f.stringProperty(tp::StyleName))) + 1; si > 0) p << u16(0x19, quint32(si), 0x1a);

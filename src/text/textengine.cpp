@@ -384,6 +384,34 @@ void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, cons
     drawFine(p, baseline - QPointF(0, line.ascent() / kFine), line.glyphRuns());
 }
 
+// A bullet drawn to the box Publisher's glyph fills, whose origin is `at` on
+// the baseline: a circle, or the glyph the font has for it scaled to fit (a
+// missing symbol font's stand-in, whose own size and place don't match).
+static void drawFittedMarker(QPainter *p, const QPointF &at, const QFont &font, const QString &text, const QRectF &ink, bool round, const QColor &color)
+{
+    const QRectF box = ink.translated(at);
+    QPainterPath path;
+    if (round) {
+        path.addEllipse(box);
+    } else {
+        QFont f = font;
+        f.setPointSizeF(100);
+        QPainterPath glyph;
+        glyph.addText(QPointF(), f, text);
+        const QRectF b = glyph.boundingRect();
+        if (b.width() <= 0 || b.height() <= 0) {
+            drawPlainText(p, at, font, text);
+            return;
+        }
+        QTransform t;
+        t.translate(box.left(), box.top());
+        t.scale(box.width() / b.width(), box.height() / b.height());
+        t.translate(-b.left(), -b.top());
+        path = t.map(glyph);
+    }
+    p->fillPath(path, color);
+}
+
 // ---------- formats ----------
 namespace { static double trackingSpace(const QTextCharFormat &f, const QFont &resolved); }
 
@@ -1611,13 +1639,30 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (lf.hasProperty(tp::BulletSize))
                 B->markerFont.setPointSizeF(std::max(1.0, lf.property(tp::BulletSize).toDouble() * env.fontScale) * fontPointFactor());
             const QString bfont = lf.stringProperty(tp::BulletFont);
-            if (!bfont.isEmpty() && !custom.isEmpty()) {
+            // A Symbol or Wingdings bullet whose glyph Publisher's PDFs measured
+            // is drawn to that glyph's size and advance: its own font's, or a
+            // stand-in fitted to it when the font is missing. (The plain round
+            // Symbol bullet has no character of its own, and is drawn so
+            // wherever Symbol is: the text font's bullet is smaller.)
+            SymbolBullet sb;
+            const uint code = custom.size() == 1 ? custom.at(0).unicode() : custom.isEmpty() && bfont.compare(QLatin1String("Symbol"), Qt::CaseInsensitive) == 0 ? 0xB7 : 0;
+            const bool measured = code && isSymbolFont(bfont) && (custom.isEmpty() || !QFontDatabase::hasFamily(bfont)) && symbolBullet(bfont, code, &sb);
+            if (!bfont.isEmpty() && (!custom.isEmpty() || measured)) {
                 // A bullet in its own font is that font's regular face, not
                 // the weight or slant of the item's first run (Publisher draws
                 // an asterisk bullet thin beside bold text).
                 B->markerFont.setWeight(QFont::Normal);
                 B->markerFont.setItalic(false);
-                if (isSymbolFont(bfont) && !QFontDatabase::hasFamily(bfont)) {
+                if (measured) {
+                    B->marker = sb.standIn.isEmpty() ? QStringLiteral("•") : sb.standIn;
+                    const double em = B->markerFont.pointSizeF() / fontPointFactor();
+                    if (!sb.ink.isEmpty()) {
+                        B->markerFit = true;
+                        B->markerRound = sb.standIn.isEmpty();
+                        B->markerInk = QRectF(sb.ink.x() * em, -sb.ink.bottom() * em, sb.ink.width() * em, sb.ink.height() * em);
+                    }
+                    if (sb.advance > 0) B->markerAdv = sb.advance * em;
+                } else if (isSymbolFont(bfont) && !QFontDatabase::hasFamily(bfont)) {
                     // A missing symbol font: the same picture from Unicode, in
                     // the text's font (or a round bullet if it has none).
                     const QString uni = symbolToUnicode(bfont, custom.at(0).unicode());
@@ -1632,7 +1677,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             B->markerColor = mf.foreground().color();
             const QString bc = lf.stringProperty(tp::BulletColor);
             if (!bc.isEmpty()) B->markerColor = ColorRef::fromString(bc).resolve(env.colors);
-            markerW = advanceOf(B->markerFont, B->marker) + 4 * scale;
+            if (B->markerAdv <= 0) B->markerAdv = advanceOf(B->markerFont, B->marker);
+            // A bullet from a .pub list is followed by its text at once (Publisher's
+            // PDFs: the text starts at the glyph's advance) unless the list's
+            // indent, measured from the text area's edge, is further; one of
+            // JeffPub's own has a little room.
+            B->markerGap = bfont.isEmpty() ? 4 * scale : 0;
+            markerW = B->markerAdv + B->markerGap;
+            if (lf.hasProperty(tp::BulletTab)) markerW = std::max(markerW, lf.property(tp::BulletTab).toDouble() * scale - (leftM + textIndent));
+            B->markerOff = markerW;
             // The bullet's own line height counts on the item's first line: a
             // Symbol bullet (as .pub lists have) is taller than most text.
             const QString mfam = bfont.isEmpty() ? requestedFamily(B->markerFont) : bfont;
@@ -2144,8 +2197,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         QTextBlock tb = doc->findBlock(B->docStart);
         const QTextBlockFormat bf = tb.blockFormat();
         const double ti = bf.textIndent() * scale, lm = bf.leftMargin() * scale;
-        const double markerW = advanceOf(B->markerFont, B->marker) + 4 * scale;
-        B->markerX = ti < 0 ? lineX + ti : lineX - markerW;
+        B->markerX = ti < 0 ? lineX + ti : lineX - B->markerOff;
         Q_UNUSED(lm);
     }
 
@@ -2594,7 +2646,9 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             const PtLine l0(B->tl->lineAt(0));
             if (!B->marker.isEmpty()) {
                 p->setPen(B->markerColor);
-                drawPlainText(p, QPointF(B->markerX, l0.position().y() - frameY(frame) + l0.ascent()), B->markerFont, B->marker);
+                const QPointF at(B->markerX, l0.position().y() - frameY(frame) + l0.ascent());
+                if (B->markerFit) drawFittedMarker(p, at, B->markerFont, B->marker, B->markerInk, B->markerRound, B->markerColor);
+                else drawPlainText(p, at, B->markerFont, B->marker);
             }
             if (!B->dropText.isEmpty()) {
                 // A raised cap stands on the first line; a dropped one on the last line it spans.

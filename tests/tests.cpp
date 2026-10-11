@@ -3254,6 +3254,163 @@ private Q_SLOTS:
         }
     }
 
+    // A bullet from Symbol or Wingdings is drawn the size and place Publisher's
+    // glyph is, measured in its PDFs (SymbolMT, Wingdings-Regular), whichever
+    // font the item is in and whether or not this machine has the symbol font:
+    // the round Symbol bullet, which nearly every .pub list has, is a circle
+    // 0.355 em across with its middle 0.28 em above the baseline (the text
+    // font's own bullet, as it was drawn, was 0.24 across in a condensed face
+    // and 0.27 in Arial), and the text after a bullet that doesn't hang starts
+    // at the glyph's advance, with no gap (it started 4 points on).
+    void symbolBulletsHavePublishersSize()
+    {
+        struct Drawn {
+            QRectF ink;       // in ems of the bullet's size: x from its origin, y (its bottom) up from the baseline
+            double textX = 0; // where the text after it starts, in ems
+        };
+        auto bullet = [](const QString &font, uint code, double size, const QString &run, bool bold) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{run});
+            cf.setFontPointSize(12);
+            cf.setFontWeight(bold ? QFont::Bold : QFont::Normal);
+            c.insertText(QStringLiteral("Item"), cf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            if (code) lf.setProperty(jp::tp::BulletChar, QString(QChar(char16_t(0xF000 + code))));
+            lf.setProperty(jp::tp::BulletFont, font);
+            lf.setProperty(jp::tp::BulletSize, size);
+            c.createList(lf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(200, 60);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            const double scale = 16;
+            QImage img(int(200 * scale), int(60 * scale), QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.scale(scale, scale);
+            lay.paint(&p, 0, jp::PaintOptions());
+            p.end();
+            const auto first = lay.lineInfo(0).first();
+            int x0 = img.width(), x1 = 0, y0 = img.height(), y1 = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < int(first.rect.x() * scale); ++x)
+                    if (255 - qGray(img.pixel(x, y)) > 60) {
+                        x0 = std::min(x0, x); x1 = std::max(x1, x + 1);
+                        y0 = std::min(y0, y); y1 = std::max(y1, y + 1);
+                    }
+            Drawn d;
+            d.ink = QRectF(x0 / scale / size, (first.baseline - y1 / scale) / size, (x1 - x0) / scale / size, (y1 - y0) / scale / size);
+            d.textX = first.rect.x() / size;
+            return d;
+        };
+        auto check = [&](const QString &what, const Drawn &got, const QRectF &want, double advance) {
+            const double tol = 0.025;
+            QVERIFY2(std::abs(got.ink.x() - want.x()) < tol && std::abs(got.ink.y() - want.y()) < tol
+                         && std::abs(got.ink.width() - want.width()) < tol && std::abs(got.ink.height() - want.height()) < tol,
+                     qPrintable(QStringLiteral("%1: ink at %2,%3, %4 by %5 em; wanted %6,%7, %8 by %9").arg(what).arg(got.ink.x()).arg(got.ink.y()).arg(got.ink.width())
+                                    .arg(got.ink.height()).arg(want.x()).arg(want.y()).arg(want.width()).arg(want.height())));
+            if (advance > 0) QVERIFY2(std::abs(got.textX - advance) < 0.01, qPrintable(QStringLiteral("%1: text at %2 em, wanted %3").arg(what).arg(got.textX).arg(advance)));
+        };
+        // The round bullet: 0.052..0.407 across, 0.103..0.458 up; the advance 0.458.
+        for (const QString &run : {QStringLiteral("Arial"), QStringLiteral("Times New Roman"), QStringLiteral("Gill Sans MT")})
+            for (bool bold : {false, true})
+                check(QStringLiteral("round bullet, %1 %2").arg(run, bold ? "bold" : "regular"), bullet(QStringLiteral("Symbol"), 0, 10, run, bold),
+                      QRectF(0.052, 0.103, 0.355, 0.355), 0.458);
+        // The others are drawn from a stand-in glyph fitted to the real one's box, when the symbol font is missing
+        // (and a font on this machine has the stand-in). The greater-than sign's box is estimated from Publisher's
+        // pictures (96 dpi); the rest are measured in its PDFs.
+        struct Glyph { QString font; uint code; QRectF want; double advance; };
+        const QList<Glyph> glyphs = {
+            {QStringLiteral("Symbol"), 0x2A, QRectF(0.070, 0.129, 0.360, 0.405), 0.5},                 // the asterisk
+            {QStringLiteral("Symbol"), 0x3E, QRectF(0.090, 0.030, 0.410, 0.440), 0},                   // the greater-than sign
+            {QStringLiteral("Wingdings"), 0xE8, QRectF(0.085, 0.0, 0.899, 0.723), 1.067},              // the arrow
+            {QStringLiteral("Wingdings"), 0xD8, QRectF(0.084, 0.0, 0.627, 0.724), 0.795},              // the arrowhead
+        };
+        for (const Glyph &g : glyphs) {
+            if (QFontDatabase::hasFamily(g.font)) continue;   // the real glyph is drawn
+            jp::SymbolBullet sb;
+            QVERIFY(jp::symbolBullet(g.font, g.code, &sb));
+            QPainterPath standIn;
+            standIn.addText(QPointF(), QFont(QStringLiteral("Arial"), 100), sb.standIn);
+            if (standIn.boundingRect().isEmpty()) continue;   // no font here has it
+            check(QStringLiteral("%1 %2").arg(g.font).arg(g.code, 0, 16), bullet(g.font, g.code, 12, QStringLiteral("Arial"), false), g.want, g.advance);
+        }
+    }
+
+    // The text after a bullet that doesn't hang starts at the list's indent
+    // from the text area's edge (a quarter inch unless the style says
+    // otherwise: 18 in most of Publisher's Web designs, 7.2 in some), or at
+    // the bullet's end when that is further (a 10-point bullet's is 4.58, a
+    // 32-point arrowhead's 25.4). Publisher's tables of contents and flyers
+    // had it so: the bullet at 15.3 ended at 19.88, past 18. A list of JeffPub's
+    // own has no indent, and follows its bullet with a little room. The indent is
+    // saved and read back as Publisher keeps it (a design's own, 7.2 here).
+    void bulletTabStartsTheText()
+    {
+        auto textX = [](const QString &font, uint code, double size, bool tab, double left = 0, double first = 0) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(left);
+            bf.setTextIndent(first);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(9);
+            c.insertText(QStringLiteral("More details"), cf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            if (code) lf.setProperty(jp::tp::BulletChar, QString(QChar(char16_t(0xF000 + code))));
+            lf.setProperty(jp::tp::BulletFont, font);
+            lf.setProperty(jp::tp::BulletSize, size);
+            if (tab) lf.setProperty(jp::tp::BulletTab, 18.0);
+            c.createList(lf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(200, 60);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            return lay.lineInfo(0).first().rect.x();
+        };
+        QVERIFY(std::abs(textX(QStringLiteral("Symbol"), 0, 10, true) - 18) < 0.01);
+        QVERIFY(std::abs(textX(QStringLiteral("Symbol"), 0, 10, false) - 4.58) < 0.01);
+        QVERIFY2(std::abs(textX(QStringLiteral("Wingdings"), 0xD8, 32, true) - 25.44) < 0.05, qPrintable(QString::number(textX(QStringLiteral("Wingdings"), 0xD8, 32, true))));
+        // A table of contents' entry: the bullet at 15.3 (the left indent 10.8, the first line 4.5) ends at 19.88, past the 18.
+        QVERIFY2(std::abs(textX(QStringLiteral("Symbol"), 0, 10, true, 10.8, 4.5) - 19.88) < 0.01, qPrintable(QString::number(textX(QStringLiteral("Symbol"), 0, 10, true, 10.8, 4.5))));
+        // A bullet starting nearer the edge has the indent to reach: the left indent 0, the first line 2.
+        QVERIFY2(std::abs(textX(QStringLiteral("Symbol"), 0, 10, true, 0, 2) - 18) < 0.01, qPrintable(QString::number(textX(QStringLiteral("Symbol"), 0, 10, true, 0, 2))));
+        // Through a saved file.
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 300, 100);
+        box->storyId = doc->createStory();
+        QTextCursor c(doc->storyDoc(box->storyId));
+        c.insertText(QStringLiteral("More details"));
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        lf.setProperty(jp::tp::BulletTab, 7.2);   // a design's own indent, not the quarter inch
+        c.createList(lf);
+        doc->pages[0]->items.push_back(box);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("tabbed.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TextItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Text) bt = static_cast<const jp::TextItem *>(it.get());
+        });
+        QVERIFY(bt);
+        const QTextBlock b = back->storyDoc(bt->storyId)->begin();
+        QVERIFY(b.textList());
+        QVERIFY2(std::abs(b.textList()->format().property(jp::tp::BulletTab).toDouble() - 7.2) < 0.01, qPrintable(b.textList()->format().property(jp::tp::BulletTab).toString()));
+    }
+
     // A text box whose frame reaches into another's text area pushes that
     // text aside, even by less than a point: in Publisher's picture of a
     // newsletter's columns, a box 0.72 points into the next one had the

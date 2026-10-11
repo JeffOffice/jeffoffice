@@ -313,9 +313,36 @@ A bullet in the list's own font (Symbol, Wingdings) is that font's regular
 face, whatever the item's first run is. Publisher's PDFs hold one SymbolMT
 (or Wingdings-Regular) for bold and plain items alike, and the asterisk
 bullets of a bold booklet list stand thin in its own pictures; JeffPub drew
-them in the text's font at the run's weight, bold. The glyph is still a stand-in's when Symbol is
-missing: Publisher's asterisk is about 0.44 em across (7 px at 12 pt and 96
-dpi), the stand-in's about 0.56.
+them in the text's font at the run's weight, bold.
+
+The glyphs themselves, measured in those PDFs (ems of the bullet's size,
+from the pen's origin, y up from the baseline): Symbol's round bullet (0xB7,
+nearly every list) is a circle 0.355 across, x 0.052 to 0.407, y 0.103 to
+0.458, its advance 0.458; its asterisk (0x2A) a five-petal asterisk, advance
+0.5, x 0.070 to 0.430, y 0.129 to 0.534; Wingdings' heavy arrow (0xE8) has
+advance 1.067, x 0.085 to 0.983, y 0 to 0.723, and its arrowhead (0xD8)
+advance 0.795, x 0.084 to 0.711, y 0 to 0.724. The text font's own bullet,
+which JeffPub drew for the round one, is 0.24 to 0.28 across (a dot with 41
+to 59% of Publisher's ink); the stand-in drawn for the arrow filled 45% of
+the real one's area, and the asterisk's box was 1.4 to 1.6 times too large.
+When a symbol font is missing, the bullet is now drawn as a circle, or as a
+stand-in glyph scaled to the real one's box (the round bullet is a circle
+wherever Symbol is). The greater-than sign (Symbol 0x3E, 119 bullets in the
+built-in designs) is estimated from Publisher's 96 dpi pictures: a box about
+0.41 by 0.44 from x 0.09, y 0.03; it was drawn as a round bullet.
+
+The text after a bullet that doesn't hang starts at the list's indent,
+measured from the text area's edge, or at the bullet's end when that is
+further, with no gap after the bullet: a table of contents (the bullet at
+15.3 ends at 19.88: the text is at 462.34 = 457.78 + 4.58 in its PDF), a
+flyer (563.83 = 538.39 + 25.44). The indent is property 0x06 of the
+paragraph's style, in EMU (7.2, 9.4, and 10.8 pt in the built-in Web
+designs, 0 in one; a quarter inch, 18 pt, where the style leaves it out),
+and 0 on a right-to-left paragraph; the list's delimiter (0x58's high half,
+-1, 0, or 3) makes no difference. Publisher's pictures of the 154
+left-aligned Web designs with a Symbol bullet put the text where this does,
+to the glyph's side bearing; JeffPub put it 4 pt past the bullet, whatever
+the indent. The text of a centered list is not checked.
 
 ### Process colors
 

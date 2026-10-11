@@ -679,6 +679,26 @@ uint unicodeToSymbol(QChar c, QString *family)
     return 0;
 }
 
+bool symbolBullet(const QString &family, uint code, SymbolBullet *out)
+{
+    if (code >= 0xF000 && code <= 0xF0FF) code -= 0xF000;
+    const QString f = family.toLower();
+    if (f == QLatin1String("symbol")) {
+        if (code == 0xB7) *out = {QString(), 0.458, QRectF(0.052, 0.103, 0.355, 0.355)};                     // the round bullet
+        else if (code == 0x2A) *out = {QStringLiteral("*"), 0.5, QRectF(0.070, 0.129, 0.360, 0.405)};        // an asterisk
+        else if (code == 0x3E) *out = {QStringLiteral(">"), 0, QRectF(0.090, 0.030, 0.410, 0.440)};          // a greater-than sign
+        else return false;
+        return true;
+    }
+    if (f == QLatin1String("wingdings")) {
+        if (code == 0xE8) *out = {QString(QChar(0x2794)), 1.067, QRectF(0.085, 0, 0.899, 0.723)};            // a heavy arrow
+        else if (code == 0xD8) *out = {QString(QChar(0x27A2)), 0.795, QRectF(0.084, 0, 0.627, 0.724)};      // an arrowhead
+        else return false;
+        return true;
+    }
+    return false;
+}
+
 QString substituteFor(const QString &family)
 {
     if (haveFamily(family)) return {};

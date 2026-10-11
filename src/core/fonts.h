@@ -3,6 +3,7 @@
 // are missing on Linux. A substitute is used only when the named font is absent.
 
 #include <QByteArray>
+#include <QRectF>
 #include <QString>
 #include <QStringList>
 
@@ -73,6 +74,20 @@ QString symbolToUnicode(const QString &family, uint code);
 // The other way: the symbol font and code (0xF020-0xF0FF) for a Unicode
 // picture, or 0 when no symbol font has it.
 uint unicodeToSymbol(QChar c, QString *family);
+
+// A bullet from a symbol font, as Publisher draws it. Measured in Publisher's
+// PDFs, which hold the real glyphs (SymbolMT, Wingdings-Regular): the glyph's
+// advance and the box its ink fills, in ems, from the pen's origin with y up
+// from the baseline. When the font is missing the bullet is drawn from a
+// stand-in glyph fitted to that box (an empty stand-in is a circle), so its
+// size and place don't depend on which font the stand-in comes from.
+// `standIn` alone, the other two empty: the glyph as it comes, no box known.
+struct SymbolBullet {
+    QString standIn;
+    double advance = 0;
+    QRectF ink;
+};
+bool symbolBullet(const QString &family, uint code, SymbolBullet *out);
 
 // Qt measures a QFont's point size at the platform's logical DPI (96 on most
 // systems), but publication geometry is in points. Multiply a document point
