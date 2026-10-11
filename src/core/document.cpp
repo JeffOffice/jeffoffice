@@ -552,6 +552,14 @@ Story *Document::story(const QString &id) const
     return it == stories.end() ? nullptr : it->get();
 }
 
+QList<const QTextDocument *> Document::storyDocs() const
+{
+    QList<const QTextDocument *> out;
+    for (auto it = stories.cbegin(); it != stories.cend(); ++it)
+        if (it.value() && it.value()->doc) out << it.value()->doc.get();
+    return out;
+}
+
 QTextDocument *Document::storyDoc(const QString &id) const
 {
     Story *s = story(id);

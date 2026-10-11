@@ -1,6 +1,5 @@
 #include "text/textengine.h"
 
-#include "core/document.h"
 #include "core/fonts.h"
 #include "text/hyphenation.h"
 #include "text/textprops.h"
@@ -36,13 +35,11 @@ static QString toRoman(int n)
 
 // A note's number outside layout (exports): its place among the story's
 // notes of the same kind.
-static QString noteNumber(const Document *doc, const QString &kind, const QString &storyId)
+static QString noteNumber(const FieldSource *doc, const QString &kind, const QString &storyId)
 {
     if (!doc) return QStringLiteral("*");
     const QString prefix = kind + QLatin1Char(':');
-    for (auto it = doc->stories.cbegin(); it != doc->stories.cend(); ++it) {
-        const QTextDocument *sd = it.value() ? it.value()->doc.get() : nullptr;
-        if (!sd) continue;
+    for (const QTextDocument *sd : doc->storyDocs()) {
         int n = 0;
         for (QTextBlock b = sd->begin(); b.isValid(); b = b.next())
             for (auto f = b.begin(); !f.atEnd(); ++f) {
@@ -65,8 +62,8 @@ QString FieldContext::resolve(const QString &code) const
     if (kind == "page") {
         // Numbered from the publication's first page number, in its style
         // unless the field names one (Format Page Numbers).
-        const int from = doc ? doc->setup.firstPageNumber - 1 : 0;
-        const QString style = arg.isEmpty() && doc ? doc->setup.pageNumberFormat : arg;
+        const int from = doc ? doc->firstPageNumber() - 1 : 0;
+        const QString style = arg.isEmpty() && doc ? doc->pageNumberFormat() : arg;
         auto shown = [&](int n) {
             if (style == "roman" || style == "ROMAN") { const QString r = toRoman(n); return style == "roman" ? r.toLower() : r; }
             if (style == "alpha" || style == "ALPHA") {
@@ -90,22 +87,22 @@ QString FieldContext::resolve(const QString &code) const
         const bool oneLine = arg.endsWith(QLatin1String(":oneline"));
         const QString key = oneLine ? arg.chopped(8) : arg;
         if (!doc) return QStringLiteral("[%1]").arg(key);
-        QString v = doc->business().field(key);
+        QString v = doc->businessField(key);
         static const QRegularExpression lineBreak(QStringLiteral("\\s*\\r?\\n\\s*"));
         if (oneLine) v = v.split(lineBreak, Qt::SkipEmptyParts).join(QStringLiteral(", "));
         return v;
     }
     if (kind == "merge") {
         if (!doc || mergeRecord < 0) return QStringLiteral("«%1»").arg(arg);
-        return doc->merge.value(mergeRecord, arg);
+        return doc->mergeValue(mergeRecord, arg);
     }
     if (kind == "mergeblock") {
         if (!doc || mergeRecord < 0) return arg == "greeting" ? QCoreApplication::translate("Text", "«Greeting Line»") : QCoreApplication::translate("Text", "«Address Block»");
         auto v = [&](const QStringList &names) {
             for (const auto &n : names)
-                for (const auto &f : doc->merge.fields)
+                for (const auto &f : doc->mergeFields())
                     if (f.compare(n, Qt::CaseInsensitive) == 0) {
-                        const QString x = doc->merge.value(mergeRecord, f);
+                        const QString x = doc->mergeValue(mergeRecord, f);
                         if (!x.isEmpty()) return x;
                     }
             return QString();
@@ -150,7 +147,7 @@ QString FieldContext::key() const
     // With Format Page Numbers' settings, which change every page number.
     return QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9").arg(pageNumber).arg(pageCount).arg(mergeRecord).arg(continuedOnPage).arg(continuedFromPage)
         .arg(nextPage).arg(prevPage).arg(now.toString("yyyyMMddhhmm"))
-        .arg(doc ? QString::number(doc->setup.firstPageNumber) + doc->setup.pageNumberFormat : QString());
+        .arg(doc ? QString::number(doc->firstPageNumber()) + doc->pageNumberFormat() : QString());
 }
 
 QString LayoutEnv::key() const
@@ -1483,7 +1480,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_notesHeading = Heading();
     static thread_local int noteDepth = 0;
     const bool withNotes = noteDepth == 0 && nF > 0;
-    const Document *notesDoc = nF > 0 ? frames.first().ctx.doc : nullptr;
+    const FieldSource *notesDoc = nF > 0 ? frames.first().ctx.doc : nullptr;
     int footCount = 0, endCount = 0;
     QHash<int, double> reserve;   // a column's room for footnotes, by frame * 64 + column
     auto rkey = [](int fi, int ci) { return fi * 64 + ci; };
