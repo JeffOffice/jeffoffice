@@ -61,6 +61,8 @@ QByteArray paintArt(const ColorScheme &s, const QString &kind, const QSize &px, 
     const double fit = longest > 3000 ? 3000.0 / longest : 1.0;
     const QSize made = QSize(std::max(1, int(std::lround(px.width() * fit))), std::max(1, int(std::lround(px.height() * fit))));
     QImage img(made, QImage::Format_ARGB32_Premultiplied);
+    // A new image holds whatever its memory held: the stripes leave gaps.
+    img.fill(Qt::transparent);
     QPainter p(&img);
     p.setRenderHint(QPainter::Antialiasing);
     p.scale(double(made.width()) / std::max(1, px.width()), double(made.height()) / std::max(1, px.height()));
