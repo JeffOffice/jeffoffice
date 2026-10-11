@@ -259,6 +259,8 @@ private Q_SLOTS:
         QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDir.path());
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_settingsDir.path());
         initCore();
+        // Measurements in inches, whatever the region of the computer running the tests.
+        jp::Settings::get().setUnit(jp::Unit::Inch);
     }
     void publisherSamplesImport_data()
     {
@@ -7474,6 +7476,17 @@ private Q_SLOTS:
         longTitle.addLarge(&a);
         QVERIFY(longTitle.sizeHint().width() > shortTitle.sizeHint().width());
         QVERIFY(longTitle.minimumSizeHint().width() > shortTitle.minimumSizeHint().width());
+    }
+
+    // Until Options sets a unit, JeffPub measures in inches where the region
+    // does (the United States) and in centimeters elsewhere.
+    void defaultUnits()
+    {
+        QCOMPARE(jp::defaultUnit(QLocale(QStringLiteral("en_US"))), jp::Unit::Inch);
+        QCOMPARE(jp::defaultUnit(QLocale(QStringLiteral("es_US"))), jp::Unit::Inch);
+        QCOMPARE(jp::defaultUnit(QLocale(QStringLiteral("en_GB"))), jp::Unit::Centimeter);
+        QCOMPARE(jp::defaultUnit(QLocale(QStringLiteral("de_DE"))), jp::Unit::Centimeter);
+        QCOMPARE(jp::defaultUnit(QLocale(QStringLiteral("pt_BR"))), jp::Unit::Centimeter);
     }
 
     // The name each language goes by in Options, as its speakers write it,

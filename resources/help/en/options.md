@@ -28,7 +28,7 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 
 ## Advanced
 
-- **Measurement units** are **Inches**, **Centimeters**, **Millimeters**, **Points**, or **Picas**. They set the rulers and every measurement box. A point is 1/72 inch, and a pica is 12 points.
+- **Measurement units** are **Inches**, **Centimeters**, **Millimeters**, **Points**, or **Picas**. They set the rulers and every measurement box. Until you choose, JeffPub uses inches if your computer's region measures in inches, as in the United States, and centimeters everywhere else. A point is 1/72 inch, and a pica is 12 points.
 - **Arrow keys nudge objects by** sets how far an arrow key moves a selected object.
 - **Show this number of Recent Publications** is how many names the **Open** page lists, from 0 to 50.
 - **When selecting, automatically select entire word** selects whole words as you drag across text.
