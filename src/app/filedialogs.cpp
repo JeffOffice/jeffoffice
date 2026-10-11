@@ -7,9 +7,8 @@
 // every new name with "File not found". Here the check is off; if Windows
 // blocks the real save, the save reports it with a way out.
 
-#include "app/appfuncs.h"
+#include "app/filedialogs.h"
 #include "app/settings.h"
-#include "core/document.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
