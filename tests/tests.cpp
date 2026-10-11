@@ -19748,7 +19748,7 @@ private Q_SLOTS:
         cf.setFontPointSize(24);
         const QTextCharFormat r = jp::resolveCharFormat(cf, jp::LayoutEnv());
         if (QFontInfo(r.font()).family() != QLatin1String("Pacifico")) QSKIP("the stand-in isn't drawn here");
-        QCOMPARE(r.fontStretch(), 86);
+        QCOMPARE(r.fontStretch(), jp::stretchToAsk(86));
     }
 
     // Best Fit counts a missing font's text by the original's height, not its
