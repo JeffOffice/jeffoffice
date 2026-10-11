@@ -8,7 +8,7 @@ Units: lengths are EMU (914400 per inch, 12700 per point) unless noted.
 
 ## Container
 
-A compound file (`src/io/cfb.cpp`) with these streams:
+A compound file (`libs/base/io/cfb.cpp`) with these streams:
 
 | Stream | Contents |
 |---|---|
@@ -829,7 +829,7 @@ Most shapes use the shape chunk of type 1 (as rectangles do); the drawing
 `Sp` instance is the shape number (2 rounded rectangle, 5 triangle, 12
 star, ...), with handle settings in OPT 0x0147 onward. JeffPub writes a
 preset as Publisher's own shape only where the two look the same at every
-proportion (`src/io/pubshapes.cpp`; `jpubtool shapecheck` measures it);
+proportion (`apps/pub/io/pubshapes.cpp`; `jpubtool shapecheck` measures it);
 anything else is a freeform: `Sp` instance 0 with OPT 0x0142/0x0143 = the
 coordinate space (the frame in EMU), 0x0144 = 4, 0xC145 = the points
 (count, count, 8, then 32-bit x/y pairs), and 0xC146 = the segments (count,

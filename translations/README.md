@@ -42,7 +42,7 @@ language.
 - English has `jeffpub_en.ts` for plurals only ("%n page(s)"): lupdate adds
   each new plural there empty; give it its singular and plural forms.
 - The ribbon's labels come from `resources/ribbon.json`; they are listed for
-  translators in `src/app/ribbon_strings.cpp`, which a test keeps in step
+  translators in `apps/pub/app/ribbon_strings.cpp`, which a test keeps in step
   with the file.
 - Help's topics are Markdown files in `resources/help/en/`, one per topic.
   To translate them, copy the folder to `resources/help/<language>/` (the

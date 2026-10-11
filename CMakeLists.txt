@@ -11,36 +11,55 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Netwo
 add_subdirectory(third_party)
 include(cmake/pdfium.cmake)
 
-file(GLOB_RECURSE JP_CORE_SOURCES CONFIGURE_DEPENDS
-  src/core/*.cpp src/core/*.h
-  src/text/*.cpp src/text/*.h
-  src/render/*.cpp src/render/*.h
-  src/io/*.cpp src/io/*.h
-  src/templates/*.cpp src/templates/*.h)
-file(GLOB_RECURSE JP_UI_SOURCES CONFIGURE_DEPENDS
-  src/canvas/*.cpp src/canvas/*.h
-  src/app/*.cpp src/app/*.h)
+# The shared libraries every JeffOffice app builds on, lowest first. Each
+# uses only the ones below it (tools/check_layers.py checks every include):
+#   jo_base   colors, fonts, measurements, file containers, PDF, proofing
+#   jo_draw   shapes, fills and outlines, Text Art, placed objects, SVG
+#   jo_text   the text engine
+#   jo_shell  the window: ribbon, KeyTips, themes, Help, updater, AutoRecover
+# Inside each, the files keep the folders they had under src/ (core/, io/,
+# app/...), so an include names the same file wherever it lives.
+function(jo_library name dir)
+  file(GLOB_RECURSE sources CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/*.h ${dir}/*.inc)
+  add_library(${name} STATIC ${sources})
+  target_include_directories(${name} PUBLIC ${dir})
+endfunction()
 
-# Everything except main() lives in a library so the tests can link it.
-add_library(jpcore STATIC ${JP_CORE_SOURCES} ${JP_UI_SOURCES} resources/resources.qrc)
-target_include_directories(jpcore PUBLIC src)
-target_link_libraries(jpcore PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network PRIVATE jp_libmspub jp_hunspell jp_zlib pdfium)
-target_compile_definitions(jpcore PUBLIC JP_VERSION="${PROJECT_VERSION}" QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-target_compile_options(jpcore PUBLIC -Wall -Wextra -Wno-unused-parameter)
+jo_library(jo_base libs/base)
+# The program's built-in files (fonts' measured widths and kerning, icons,
+# Help, the ribbon) sit at the bottom, where every layer can read them;
+# each app gets its own when a second app needs different ones.
+target_sources(jo_base PRIVATE resources/resources.qrc)
+target_link_libraries(jo_base PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network PRIVATE jp_hunspell jp_zlib pdfium)
+target_compile_definitions(jo_base PUBLIC JP_VERSION="${PROJECT_VERSION}" QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_compile_options(jo_base PUBLIC -Wall -Wextra -Wno-unused-parameter)
+jo_library(jo_draw libs/draw)
+target_link_libraries(jo_draw PUBLIC jo_base)
+jo_library(jo_text libs/text)
+target_link_libraries(jo_text PUBLIC jo_draw)
+jo_library(jo_shell libs/shell)
+target_link_libraries(jo_shell PUBLIC jo_text)
 if(WIN32)
   # The system Save dialog (filedialogs.cpp).
-  target_link_libraries(jpcore PRIVATE ole32 uuid shell32)
+  target_link_libraries(jo_shell PRIVATE ole32 uuid shell32)
 endif()
+
+# JeffPub: everything except main() lives in a library so the tests can link it.
+file(GLOB_RECURSE JP_PUB_SOURCES CONFIGURE_DEPENDS apps/pub/*.cpp apps/pub/*.h apps/pub/*.inc)
+list(REMOVE_ITEM JP_PUB_SOURCES ${CMAKE_SOURCE_DIR}/apps/pub/main.cpp)
+add_library(jpcore STATIC ${JP_PUB_SOURCES})
+target_include_directories(jpcore PUBLIC apps/pub)
+target_link_libraries(jpcore PUBLIC jo_shell PRIVATE jp_libmspub)
 if(WIN32)
   # Programs find pdfium.dll beside them.
   file(COPY ${JP_PDFIUM_LIBRARY} DESTINATION ${CMAKE_BINARY_DIR})
 endif()
 if(MINGW)
   # Large translation units exceed the default COFF section limit.
-  target_compile_options(jpcore PUBLIC -Wa,-mbig-obj -D_USE_MATH_DEFINES)
+  target_compile_options(jo_base PUBLIC -Wa,-mbig-obj -D_USE_MATH_DEFINES)
 endif()
 
-qt_add_executable(jeffpub WIN32 MACOSX_BUNDLE src/main.cpp)
+qt_add_executable(jeffpub WIN32 MACOSX_BUNDLE apps/pub/main.cpp)
 if(APPLE)
   # A macOS app: an icon made from the 256-pixel picture, document types for
   # .jpub and .pub, and the fonts and dictionaries in Contents/Resources.
@@ -91,7 +110,7 @@ if(Qt6LinguistTools_FOUND)
   list(REMOVE_ITEM JP_TRANSLATIONS ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts)
   qt_add_lupdate(TS_FILES ${CMAKE_SOURCE_DIR}/translations/jeffpub.ts ${JP_TRANSLATIONS}
                  PLURALS_TS_FILE ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts
-                 SOURCE_TARGETS jpcore jeffpub
+                 SOURCE_TARGETS jo_base jo_draw jo_text jo_shell jpcore jeffpub
                  LUPDATE_TARGET jeffpub_lupdate
                  OPTIONS -no-obsolete -locations relative)
   qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)

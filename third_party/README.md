@@ -11,7 +11,7 @@ zlib is downloaded at build time when the system has none.
 
 ## PDFium
 
-PDFium places PDF pages as pictures (`src/render/pdfpage.cpp`). The build downloads the prebuilt library from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) release `chromium/8086` and checks it against its SHA-256 (`cmake/pdfium.cmake`); it isn't modified. The texts in `pdfium/licenses/` come from that release (`LICENSE`, saved as `pdfium-binaries.txt`, and `licenses/`); update them with the version.
+PDFium places PDF pages as pictures (`libs/base/render/pdfpage.cpp`). The build downloads the prebuilt library from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) release `chromium/8086` and checks it against its SHA-256 (`cmake/pdfium.cmake`); it isn't modified. The texts in `pdfium/licenses/` come from that release (`LICENSE`, saved as `pdfium-binaries.txt`, and `licenses/`); update them with the version.
 
 | Component | License | Text |
 |---|---|---|
