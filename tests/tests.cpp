@@ -2912,6 +2912,152 @@ private Q_SLOTS:
         QCOMPARE(jp::baseFontFor(small.begin(), env).capitalization(), QFont::MixedCase);
     }
 
+    // A paragraph that hangs (its first line indented less than the rest)
+    // starts its first line at the left edge of the room it has, and a list's
+    // text comes one hanging indent after that: past a picture's text wrap,
+    // the bullet starts at the wrap and the text 9 points on (Publisher drew
+    // the bullet beside the picture, not under it). A line can't start left
+    // of the text area either: with the left indent at 0 and the first line
+    // at -18, the line starts at the edge and a list's text is 18 in.
+    void hangingFirstLineStartsAtTheEdge()
+    {
+        auto firstX = [](double left, double hang, double wrapRight, bool bullet) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(left);
+            bf.setTextIndent(-hang);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(10);
+            c.insertText(QStringLiteral("First item of a list that runs on to a second line"), cf);
+            if (bullet) {
+                QTextListFormat lf;
+                lf.setStyle(QTextListFormat::ListDisc);
+                c.createList(lf);
+            }
+            jp::FrameSpec fs;
+            fs.size = QSizeF(200, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            if (wrapRight > 0) fs.obstacles << QPolygonF(QRectF(-100, -100, 100 + wrapRight, 400));
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            const auto lines = lay.lineInfo(0);
+            return QPointF(lines.value(0).rect.x(), lines.value(1).rect.x());
+        };
+        // Room all the way to the edge: the text is at the left indent.
+        QCOMPARE(firstX(9, 9, 0, true), QPointF(9, 9));
+        // A wrap to 30: the bullet starts at 30, its text at 39; the second
+        // line is at the left indent, past the wrap.
+        QCOMPARE(firstX(9, 9, 30, true), QPointF(39, 30));
+        // Hung outside the text area: the bullet at the edge, the text 18 in.
+        QCOMPARE(firstX(0, 18, 0, true), QPointF(18, 0));
+        // Without a bullet, the line starts at the edge.
+        QCOMPARE(firstX(0, 18, 0, false), QPointF(0, 0));
+        QCOMPARE(firstX(30, 12, 0, false), QPointF(18, 30));
+    }
+
+    // A tab after the hanging text of a first line goes to the left indent
+    // (Publisher's "b.<tab>text" lists), then to stops 36 points apart from
+    // where the first line starts; on the lines after, the stops are those
+    // same places, not 36 points apart from the line's own start.
+    void hangingIndentIsATabStop()
+    {
+        auto tabX = [](double left, double first, const QString &text) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(left);
+            bf.setTextIndent(first);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(8);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(400, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            int frame = -1;
+            QRectF r;
+            lay.caretRect(int(text.lastIndexOf(QLatin1Char('\t'))) + 1, &frame, &r);
+            return r.x();
+        };
+        const QString b = QStringLiteral("b.\tUnited States Code");
+        // The left indent 57.6, the first line 28.8 (a lettered list): the text is at the left indent, not at 36 on from where the line starts (64.8).
+        QVERIFY2(std::abs(tabX(57.6, -28.8, b) - 57.6) < 0.01, qPrintable(QString::number(tabX(57.6, -28.8, b))));
+        // After the left indent, the next stop is 36 on from where the first line starts.
+        QVERIFY2(std::abs(tabX(57.6, -28.8, QStringLiteral("b.\t\tText")) - 64.8) < 0.01, qPrintable(QString::number(tabX(57.6, -28.8, QStringLiteral("b.\t\tText")))));
+        // A line after a line break starts at the left indent; its tab goes to
+        // the next stop from the first line's start (0 here): 36, not 54.
+        QVERIFY2(std::abs(tabX(18, -18, QStringLiteral("Saturday \t0900")) - 36) < 0.01, qPrintable(QString::number(tabX(18, -18, QStringLiteral("Saturday \t0900")))));
+        // Not hanging: stops 36 on from where the lines start, as before.
+        QVERIFY2(std::abs(tabX(13.5, 0, QStringLiteral("Name \t989")) - 49.5) < 0.01, qPrintable(QString::number(tabX(13.5, 0, QStringLiteral("Name \t989")))));
+    }
+
+    // The same from a file: a lettered paragraph and a bulleted one, as saved
+    // and read back, lay out with the tab at the left indent and the bullet's
+    // text a hanging indent from the text area's edge.
+    void hangingParagraphsFromAFile()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 300, 200);
+        box->storyId = doc->createStory();
+        QTextCursor c(doc->storyDoc(box->storyId));
+        QTextCharFormat cf;
+        cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+        cf.setFontPointSize(8);
+        QTextBlockFormat lettered;
+        lettered.setLeftMargin(57.6);
+        lettered.setTextIndent(-28.8);
+        c.setBlockFormat(lettered);
+        c.insertText(QStringLiteral("b.\tUnited States Code, Title 32"), cf);
+        QTextBlockFormat bulleted;
+        bulleted.setLeftMargin(0);
+        bulleted.setTextIndent(-18);
+        c.insertBlock(bulleted);
+        c.insertText(QStringLiteral("Bulleted item"), cf);
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        c.createList(lf);
+        doc->pages[0]->items.push_back(box);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("hanging.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TextItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Text) bt = static_cast<const jp::TextItem *>(it.get());
+        });
+        QVERIFY(bt);
+        jp::LayoutCache cache;
+        jp::RenderOptions opt;
+        const auto fl = cache.textFrame(*back, *bt, 1, opt);
+        QVERIFY(fl.layout);
+        const QTextDocument *sd = back->storyDoc(bt->storyId);
+        const QTextBlock first = sd->begin();
+        QVERIFY(first.text().startsWith(QLatin1String("b.")));
+        int frame = -1;
+        QRectF r;
+        QVERIFY(fl.layout->caretRect(first.position() + first.text().indexOf(QLatin1Char('\t')) + 1, &frame, &r));
+        const double inset = fl.layout->lineInfo(0).value(0).rect.x() - first.blockFormat().leftMargin() - first.blockFormat().textIndent();
+        QVERIFY2(std::abs(r.x() - (inset + 57.6)) < 0.05, qPrintable(QString::number(r.x() - inset)));
+        // The bulleted paragraph: its text 18 points in from the text area's edge.
+        const QTextBlock second = first.next();
+        QVERIFY(second.textList());
+        double textX = -1;
+        for (const auto &li : fl.layout->lineInfo(0))
+            if (li.docStart == second.position()) { textX = li.rect.x(); break; }
+        QVERIFY2(std::abs(textX - (inset + 18)) < 0.05, qPrintable(QString::number(textX - inset)));
+    }
+
     // Save as E-book can make a fixed-layout EPUB: each page as designed (an
     // SVG drawing) at the page's size, its words underneath in reading order,
     // the contents from Heading 1-3 at the pages they're on.
