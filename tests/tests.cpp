@@ -14234,6 +14234,52 @@ private Q_SLOTS:
         }
     }
 
+    // A cell's Text Direction is read from the low byte of its 06, as its vertical alignment (07) and division (05) are:
+    // stray bits above it (seen in 07 of a first cell) don't turn the cell upright.
+    void pubTableCellTextDirectionReadsItsLowByte()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 2;
+        t->cols = 2;
+        t->colW = {100, 100};
+        t->rowH = {40, 40};
+        t->rect = QRectF(36, 100, 0, 0);
+        t->syncRect();
+        t->cells.resize(4);
+        for (jp::TableCell &c : t->cells) c.storyId = doc->createStory(QStringLiteral("Cell"));
+        t->cell(0, 1).vertical = true;
+        doc->pages[0]->items.push_back(t);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("direction.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        QFile in(path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        jp::cfb::File file;
+        QVERIFY(jp::cfb::read(in.readAll(), &file));
+        in.close();
+        QByteArray contents = file.stream(QStringLiteral("Contents"));
+        // The one cell with a 06 (= 2, a u32) has stray bits above it.
+        const QByteArray field("\x06\x20\x02\x00\x00\x00\x0a\x20", 8);
+        QCOMPARE(contents.count(field), 1);
+        contents.replace(contents.indexOf(field), 6, QByteArray("\x06\x20\x02\x6c\x00\x00", 6));
+        QVERIFY(file.setStream(QStringLiteral("Contents"), contents));
+        QFile out(path);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(jp::cfb::write(file));
+        out.close();
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TableItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(bt);
+        QVERIFY(bt->cell(0, 1).vertical);
+        QVERIFY(!bt->cell(0, 0).vertical);
+    }
+
     // One table that disagrees with itself (rows that its size entries don't match, a list of cells that isn't
     // there, or no row count) is left out of a .pub file, and the rest of the file opens.
     void pubTableThatDisagreesWithItselfIsLeftOut()
