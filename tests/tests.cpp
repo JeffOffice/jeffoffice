@@ -3205,6 +3205,129 @@ private Q_SLOTS:
         QVERIFY2(std::abs(near.textX - 72) < 0.01, qPrintable(QString::number(near.textX)));
     }
 
+    // Tab stops are the same places on every line of a paragraph, 36 points
+    // apart from the text area's edge, wherever a line starts: at the left
+    // indent, indented or hung on its first line, beside a picture, or after a
+    // tab that went on to it. Qt counts a stop from each line's own start and
+    // keeps one list for the layout, so a paragraph's lines starting in
+    // different places had the stops of the first line's start, and where the
+    // text was asked for later (the caret, the drawing) those of the last.
+    void tabStopsStayOnTheGridOnEveryLine()
+    {
+        struct Tab {
+            double before, after;   // the caret before the tab, and after it
+        };
+        struct Laid {
+            QList<Tab> tabs;
+            QList<double> starts;   // where each line starts
+        };
+        auto lay = [](double left, double first, const QString &text, double width, double wrapRight = 0, double wrapBottom = 0) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(left);
+            bf.setTextIndent(first);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(8);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(width, 200);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            if (wrapRight > 0) fs.obstacles << QPolygonF(QRectF(-100, -100, 100 + wrapRight, 100 + wrapBottom));
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            Laid r;
+            for (const auto &li : l.lineInfo(0)) r.starts << li.rect.x();
+            for (int i = 0; i < text.size(); ++i) {
+                if (text[i] != QLatin1Char('\t')) continue;
+                int frame = -1;
+                QRectF a, b;
+                l.caretRect(i, &frame, &a);
+                l.caretRect(i + 1, &frame, &b);
+                r.tabs << Tab{a.x(), b.x()};
+            }
+            return r;
+        };
+        // A tab that stays on its line goes to the first stop past where it starts.
+        auto onTheGrid = [](const Laid &r, int skip = 0) {
+            int checked = 0;
+            for (int i = skip; i < r.tabs.size(); ++i) {
+                const Tab &t = r.tabs[i];
+                if (t.after <= t.before) continue;   // went on to the next line
+                const double want = (std::floor((t.before + 0.01) / 36) + 1) * 36;
+                if (std::abs(t.after - want) > 0.02) return -1;
+                ++checked;
+            }
+            return checked;
+        };
+        auto what = [](const Laid &r) {
+            QStringList tabs, starts;
+            for (const Tab &t : r.tabs) tabs << QStringLiteral("%1 to %2").arg(t.before).arg(t.after);
+            for (double x : r.starts) starts << QString::number(x);
+            return tabs.join(QStringLiteral("; ")) + QStringLiteral(" (lines at ") + starts.join(QStringLiteral(", ")) + QLatin1Char(')');
+        };
+        // The first line indented 20: its tab goes to 36, the one on the lines
+        // after (starting at 0, not 20) to 72, and the tab at the end of the
+        // second line goes on to the third, which starts at the first stop, 36.
+        const Laid indented = lay(0, 20, QStringLiteral("aa\tbb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss\ttt uu vv\tww"), 112);
+        QVERIFY2(indented.tabs.size() == 3 && std::abs(indented.tabs[0].after - 36) < 0.02, qPrintable(what(indented)));
+        QVERIFY2(onTheGrid(indented) >= 2, qPrintable(what(indented)));
+        QVERIFY2(indented.starts.size() == 3 && std::abs(indented.starts[2] - 36) < 0.02, qPrintable(what(indented)));
+        // Hung by 28.8 at a left indent of 57.6: the first tab goes to the left
+        // indent, the ones after it on the second line to 108 and 144.
+        const Laid hung = lay(57.6, -28.8, QStringLiteral("b.\tcc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt\tuu\tvv ww"), 200);
+        QVERIFY2(hung.tabs.size() == 3 && std::abs(hung.tabs[0].after - 57.6) < 0.02, qPrintable(what(hung)));
+        QVERIFY2(onTheGrid(hung, 1) == 2, qPrintable(what(hung)));
+        // A first line beside a picture, the rest of the paragraph clear of it.
+        const Laid beside = lay(0, 0, QStringLiteral("ab\tcd ef gh ij kl mn op qr st uv wx yz\tqq\trr ss tt uu vv"), 120, 7, 8);
+        QVERIFY2(beside.starts.size() == 3 && std::abs(beside.starts[0] - 7) < 0.02 && std::abs(beside.starts[1]) < 0.02, qPrintable(what(beside)));
+        QVERIFY2(onTheGrid(beside) == 3, qPrintable(what(beside)));
+        // Left indent 13.5: the tab that goes on to the second line goes to 36, and that line's own tab from there to 72, not 58.5.
+        const Laid indent = lay(13.5, 0, QStringLiteral("Colonel Smith, Esq\tMgr\t98 units"), 120);
+        QVERIFY2(indent.tabs.size() == 2 && std::abs(indent.tabs[0].after - 36) < 0.02 && std::abs(indent.tabs[1].after - 72) < 0.02, qPrintable(what(indent)));
+    }
+
+    // A price list in one paragraph (rows ended by line breaks, two tabs in
+    // each) laid out in a few milliseconds until Qt was handed a list of
+    // stops: every tab the list answered cost a pass over the rest of the
+    // paragraph's items, and 3,000 rows took 5.9 s against 0.26. A paragraph
+    // whose lines start on a stop needs no list: Qt's own spacing is the same
+    // places.
+    void tabbedRowsLayOutLikePlainOnes()
+    {
+        auto timed = [](bool tabs) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(9);
+            QString text;
+            for (int i = 0; i < 1000; ++i) {
+                if (i) text += QChar(0x2028);
+                text += tabs ? QStringLiteral("Item number %1\t$%2.50\tin stock").arg(i).arg(i % 90) : QStringLiteral("Item number %1 $%2.50 in stock").arg(i).arg(i % 90);
+            }
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(400, 700);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            qint64 best = std::numeric_limits<qint64>::max();
+            for (int pass = 0; pass < 2; ++pass) {
+                QElapsedTimer t;
+                t.start();
+                jp::StoryLayout l;
+                l.build(&doc, {fs}, jp::LayoutEnv());
+                best = std::min(best, t.elapsed());
+            }
+            return best;
+        };
+        const qint64 plain = timed(false), tabbed = timed(true);
+        QVERIFY2(tabbed < 5 * plain + 200, qPrintable(QStringLiteral("%1 ms with tabs, %2 ms without").arg(tabbed).arg(plain)));
+    }
+
     // A bullet drawn in the list's own font (as .pub lists name it: Symbol,
     // Wingdings) keeps that font's regular weight whatever the item's first
     // run is. Publisher's asterisk bullets stand thin beside bold items (its

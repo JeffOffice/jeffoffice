@@ -370,6 +370,60 @@ double hangTrailingSpaces(const PtLine &line, const QString &disp, const QTextOp
 }
 } // namespace
 
+void ParagraphLayout::resetTabs()
+{
+    m_sets.clear();
+    m_lineSet.clear();
+    m_current = -1;
+    QTextOption o = textOption();
+    o.setTabs({});
+    setTextOption(o);
+}
+
+void ParagraphLayout::setLineTabs(const QList<QTextOption::Tab> &tabs)
+{
+    int k = m_sets.indexOf(tabs);
+    if (k < 0) {
+        m_sets << tabs;
+        k = int(m_sets.size()) - 1;
+    }
+    use(k);
+}
+
+void ParagraphLayout::keepLineTabs(int line)
+{
+    if (m_lineSet.size() <= line) m_lineSet.resize(line + 1);
+    m_lineSet[line] = m_current;
+}
+
+void ParagraphLayout::use(int set)
+{
+    if (set == m_current || set < 0 || set >= m_sets.size()) return;
+    QTextOption o = textOption();
+    o.setTabs(m_sets[set]);
+    setTextOption(o);
+    m_current = set;
+}
+
+QTextLine ParagraphLayout::lineAt(int i)
+{
+    if (m_sets.size() > 1) use(m_lineSet.value(i, m_current));
+    return QTextLayout::lineAt(i);
+}
+
+void ParagraphLayout::draw(QPainter *p, const QPointF &pos, const QList<FormatRange> &selections, const QRectF &clip)
+{
+    if (m_sets.size() < 2 || !selections.isEmpty()) {
+        QTextLayout::draw(p, pos, selections, clip);
+        return;
+    }
+    for (int i = 0; i < lineCount(); ++i) {
+        const QTextLine l = lineAt(i);
+        if (clip.isValid() && (l.y() > clip.bottom() - pos.y() || l.y() + l.height() < clip.top() - pos.y())) continue;
+        l.draw(p, pos);
+    }
+}
+
 void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, const QString &text)
 {
     if (text.isEmpty()) return;
@@ -1581,7 +1635,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         }
         // Qt draws U+2028 as a line break; keep it.
         const QFont base = baseFontFor(b, env);
-        B->tl = std::make_unique<QTextLayout>(B->disp, fineFont(base));
+        B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
         ranges = applyLetterWidths(ranges, B->disp);
         B->tl->setFormats(fineRanges(ranges));
         // Letters drawn taller or shorter are drawn run by run, unless the
@@ -1752,23 +1806,76 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // descent, not the 55 of its single spacing).
             const double estText = std::min(estH, heightOf(base));
             // Tab stops are 36 points apart from the text area's edge, not from
-            // where a line starts (Publisher). Qt counts them from each line's
-            // start and keeps one list for the paragraph, here measured from
-            // where its first line starts. A paragraph that hangs (its first
-            // line indented less than the rest) has its left indent as a stop
-            // on that line, so "b.<tab>text" lines up its text there, the stops
-            // before it gone. A paragraph with tab stops of its own keeps Qt's.
+            // where a line starts (Publisher), and a line that hangs (the first
+            // of a paragraph indented less than the rest) has its left indent as
+            // a stop, so "b.<tab>text" lines up its text there, the stops before
+            // it gone. Qt counts stops from each line's own start, so each line
+            // is laid out with a list of its own, or none when it starts on a
+            // stop (Qt's spacing is the same places, and a list makes it go over
+            // the rest of the paragraph for every tab it answers). A paragraph
+            // with tab stops of its own keeps Qt's.
             const bool hangs = textIndent < -0.01;
             const bool gridTabs = bf.tabPositions().isEmpty() && bf.layoutDirection() != Qt::RightToLeft && B->disp.contains(QLatin1Char('\t'));
-            QVector<double> stops;   // from the first line's start
+            const double step = 36 * scale;
+            auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && B->marker.isEmpty() && leftM > from + 0.01; };
+            // The first stop past `pen`, measured from the text area's edge.
+            auto nextStop = [&](double pen, bool hangLine) { return hangStop(pen, hangLine) ? leftM : (std::floor((pen + 0.01) / step) + 1) * step; };
+            // The list for a line that starts `off` from the edge and is `w` wide, measured from its start.
+            auto stopsFor = [&](double off, double w, bool hangLine) {
+                QList<QTextOption::Tab> tabs;
+                if (!hangStop(off, hangLine) && std::abs(off - std::round(off / step) * step) < 0.01) return tabs;
+                for (double pen = off; tabs.size() < 1000;) {
+                    const double stop = nextStop(pen, hangLine);
+                    tabs << QTextOption::Tab((stop - off) * kFine, QTextOption::LeftTab);
+                    if (stop - off > w) break;
+                    pen = stop;
+                }
+                return tabs;
+            };
             auto runFont = [&](int i) {
-                for (const auto &r : std::as_const(ranges))
-                    if (i >= r.start && i < r.start + r.length) return r.format.font();
+                const auto r = std::upper_bound(ranges.cbegin(), ranges.cend(), i, [](int at, const QTextLayout::FormatRange &x) { return at < x.start; });
+                if (r != ranges.cbegin() && i < (r - 1)->start + (r - 1)->length) return (r - 1)->format.font();
                 return base;
             };
+            auto blank = [&](int i) { return B->disp[i] == QLatin1Char(' ') || B->disp[i] == QLatin1Char('\t'); };
+            auto advanceAt = [&](int i) { return advanceOf(runFont(i), QString(B->disp[i])); };
+            // A tab goes with the text after it: when that text doesn't fit, the
+            // tab starts the next line (Publisher; Qt leaves it at the end of
+            // this one), as do the tabs before it whose stops are past this
+            // line's end. It is laid out as Qt does, and the next line starts
+            // that far in (the tab's width, and the spaces after it) instead of
+            // the character moving.
+            int moveFrom = -1, moveTo = 0;   // the characters going on, from the tab to where the next line starts
+            auto goesOn = [&](const PtLine &line, double off, double w, bool hangLine) {
+                const int s0 = line.textStart(), endPos = s0 + line.textLength();
+                if (endPos >= B->disp.size()) return -1;
+                int w0 = endPos, last = -1;
+                while (w0 > s0 && blank(w0 - 1)) {
+                    --w0;
+                    if (last < 0 && B->disp[w0] == QLatin1Char('\t')) last = w0;
+                }
+                if (last < 0) return -1;
+                double pen = off + (w0 > s0 ? line.cursorToX(w0) - line.cursorToX(s0) : 0);
+                for (int i = w0; i < endPos; ++i) {
+                    if (B->disp[i] != QLatin1Char('\t')) {
+                        pen += advanceAt(i);
+                        continue;
+                    }
+                    const double stop = nextStop(pen, hangLine);
+                    if (i == last || stop - off > w + 0.01) return i > s0 ? i : -1;
+                    pen = stop;
+                }
+                return -1;
+            };
+            // How far in a line starting `left` from the edge begins, for what went on to it.
+            auto movedBy = [&](double left) {
+                double pen = left;
+                for (int i = moveFrom; i < moveTo; ++i) pen = B->disp[i] == QLatin1Char('\t') ? nextStop(pen, false) : pen + advanceAt(i);
+                return pen - left;
+            };
+            if (gridTabs) B->tl->resetTabs();
             B->tl->beginLayout();
             int lineNo = 0;
-            double tabShift = 0;   // how far in the next line starts, for a tab moved to it
             while (true) {
                 PtLine line(B->tl->createLine());
                 if (!line.isValid()) break;
@@ -1817,62 +1924,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     Iv iv = row[rowIdx];
                     if (lead > 0 && lineNo == 0 && rowIdx == 0) iv.x0 = std::min(iv.x0 + lead, iv.x1);
-                    if (tabShift > 0) iv.x0 = std::min(iv.x0 + tabShift, iv.x1);
-                    if (gridTabs && lineNo == 0) {
-                        const double off = iv.x0 - col.left(), step = 36 * scale;
-                        double after = 0;
-                        stops.clear();
-                        if (hangs && B->marker.isEmpty() && leftM - off > 0.01) {
-                            stops << leftM - off;
-                            after = leftM;
-                        }
-                        for (int k = 1; k < 1000 && (k - 1) * step <= off + col.width() + step; ++k)
-                            if (k * step > after + 0.01 && k * step - off > 0.01) stops << k * step - off;
-                        QList<QTextOption::Tab> tabs;
-                        for (double st : std::as_const(stops)) tabs << QTextOption::Tab(st * kFine, QTextOption::LeftTab);
-                        QTextOption o = B->tl->textOption();
-                        o.setTabs(tabs);
-                        B->tl->setTextOption(o);
+                    if (gridTabs) {
+                        if (moveFrom >= 0) iv.x0 = std::min(iv.x0 + movedBy(iv.x0 - col.left()), iv.x1);
+                        B->tl->setLineTabs(stopsFor(iv.x0 - col.left(), iv.x1 - iv.x0, lineNo == 0));
                     }
                     line.setLineWidth(std::max(1.0, iv.x1 - iv.x0));
-                    // A tab goes with the text after it: when that text doesn't fit,
-                    // the tab starts the next line (Publisher; Qt leaves it at the
-                    // end of this one), as do the tabs before it whose stops are
-                    // past this line's end. What moves is laid out at the start of
-                    // the next line, which begins that much further in.
-                    double moved = 0;
-                    const int endPos = line.textStart() + line.textLength();
-                    if (gridTabs && !stops.isEmpty() && endPos < B->disp.size()) {
-                        const int s0 = line.textStart();
-                        auto blank = [&](int i) { return B->disp[i] == QLatin1Char(' ') || B->disp[i] == QLatin1Char('\t'); };
-                        int w0 = endPos, last = -1;
-                        while (w0 > s0 && blank(w0 - 1)) {
-                            --w0;
-                            if (last < 0 && B->disp[w0] == QLatin1Char('\t')) last = w0;
-                        }
-                        double pen = w0 > s0 ? line.cursorToX(w0) : 0;
-                        int from = -1;
-                        for (int i = w0; i < endPos && from < 0; ++i) {
-                            if (B->disp[i] != QLatin1Char('\t')) {
-                                pen += advanceOf(runFont(i), QString(B->disp[i]));
-                                continue;
-                            }
-                            const auto stop = std::find_if(stops.cbegin(), stops.cend(), [&](double st) { return st > pen + 0.01; });
-                            if (i == last || stop == stops.cend() || *stop > iv.x1 - iv.x0 + 0.01) from = i;
-                            else pen = *stop;
-                        }
-                        if (from > s0) {
-                            for (int i = from; i < endPos; ++i) {
-                                if (B->disp[i] != QLatin1Char('\t')) {
-                                    moved += advanceOf(runFont(i), QString(B->disp[i]));
-                                    continue;
-                                }
-                                const auto stop = std::find_if(stops.cbegin(), stops.cend(), [&](double st) { return st > moved + 0.01; });
-                                if (stop == stops.cend()) break;
-                                moved = *stop;
-                            }
-                        }
-                    }
                     // Hyphenation zone: a word is broken only if moving it whole to
                     // the next line would leave more than the zone empty here.
                     if (hyphenate && zone > 0) {
@@ -2030,7 +2086,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     columnEmpty = false;
                     rowH = std::max(rowH, h);
                     if (++rowIdx >= row.size()) { y += rowH; rowActive = false; }
-                    tabShift = moved;
+                    if (gridTabs) {
+                        B->tl->keepLineTabs(lineNo);
+                        moveFrom = goesOn(line, iv.x0 - col.left(), iv.x1 - iv.x0, lineNo == 0);
+                        moveTo = line.textStart() + line.textLength();
+                    }
                     placed = true;
                 }
                 ++lineNo;

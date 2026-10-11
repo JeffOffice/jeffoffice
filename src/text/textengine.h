@@ -75,6 +75,28 @@ struct PaintOptions {
     QVector<QPair<int, int>> misspelled;  // document ranges
 };
 
+// A paragraph's text layout. Qt works out a tab's width from the layout's tab
+// stops whenever it is asked where text is (the caret, the drawing), not once
+// when the line is laid out, and keeps one list of stops for every line. The
+// lines of a paragraph that start in different places need stops of their own,
+// so each is laid out with its list (setLineTabs) and handed out with it again
+// (lineAt, draw). With one list for all its lines it works as a QTextLayout.
+class ParagraphLayout : public QTextLayout {
+public:
+    using QTextLayout::QTextLayout;
+    void resetTabs();                                        // before the lines are laid out again
+    void setLineTabs(const QList<QTextOption::Tab> &tabs);   // the stops for the line to lay out next
+    void keepLineTabs(int line);                             // the line just laid out used them
+    QTextLine lineAt(int i);
+    void draw(QPainter *p, const QPointF &pos, const QList<FormatRange> &selections = {}, const QRectF &clip = QRectF());
+
+private:
+    void use(int set);
+    QVector<QList<QTextOption::Tab>> m_sets;   // the distinct lists of stops
+    QVector<int> m_lineSet;                    // the list each line was laid out with
+    int m_current = -1;                        // the list the option has now
+};
+
 class StoryLayout {
 public:
     StoryLayout();
@@ -113,7 +135,7 @@ public:
         int docStart = 0, docLen = 0;
         QString disp;
         QVector<Seg> map;
-        std::unique_ptr<QTextLayout> tl;
+        std::unique_ptr<ParagraphLayout> tl;
         QVector<Line> lines;
         QString marker; QFont markerFont; QColor markerColor; double markerX = 0;
         double markerAdv = 0, markerGap = 0;         // the marker's advance, and the space after it
