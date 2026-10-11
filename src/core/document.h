@@ -4,6 +4,7 @@
 // the mail-merge recipient list.
 
 #include "core/items.h"
+#include "core/pictureinsert.h"
 #include "text/textengine.h"
 
 #include <QByteArray>
@@ -24,9 +25,6 @@ namespace jp {
 constexpr double PT_PER_IN = 72.0;
 inline double in2pt(double in) { return in * PT_PER_IN; }
 
-// How a picture file joins a publication: copied in (Embed), only tied to
-// its file (Link), or both (EmbedAndLink).
-enum class PictureInsert { Embed, Link, EmbedAndLink };
 // Where a picture stands with its file.
 enum class LinkStatus { Embedded, Linked, Missing, Modified, NotUpdated };
 
