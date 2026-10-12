@@ -74,6 +74,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
+#include <QSvgRenderer>
 #include <QPlainTextEdit>
 #include <QPointer>
 #include <QPrinter>
@@ -8824,6 +8825,790 @@ private Q_SLOTS:
         }
         // Nothing else is added for them.
         QCOMPARE(int(d->pages[0]->items.size()), readerReadsPictures() ? 6 : 5);
+    }
+
+private:
+    // A 4 by 4 picture of one color (a different one from tinyPng's, which the theme's first accent matches).
+    static QByteArray colorPng(const QColor &color)
+    {
+        QImage img(4, 4, QImage::Format_RGB32);
+        img.fill(color);
+        QByteArray bytes;
+        QBuffer buf(&bytes);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        return bytes;
+    }
+    static QString dspNamespace() { return QStringLiteral("http://schemas.microsoft.com/office/drawing/2008/diagram"); }
+    static QString diagramDrawingType() { return QStringLiteral("http://schemas.microsoft.com/office/2007/relationships/diagramDrawing"); }
+    // One shape of a diagram's drawing, as the presentation program writes it: the shape, its style, its text, and the rectangle the text goes in.
+    static QString diagramShape(const QString &place, const QString &geometry, const QString &fill, const QString &text, const QString &textPlace)
+    {
+        return QStringLiteral("<dsp:sp modelId=\"{AAAAAAAA-0000-4000-8000-%1}\"><dsp:nvSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvSpPr/></dsp:nvSpPr>"
+                              "<dsp:spPr><a:xfrm>%2</a:xfrm><a:prstGeom prst=\"%3\"><a:avLst/></a:prstGeom>%4<a:ln w=\"12700\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\">"
+                              "<a:solidFill><a:srgbClr val=\"FFFFFF\"/></a:solidFill><a:prstDash val=\"solid\"/><a:miter lim=\"800000\"/></a:ln><a:effectLst/></dsp:spPr>"
+                              "<dsp:style><a:lnRef idx=\"2\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:lnRef><a:fillRef idx=\"1\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:fillRef>"
+                              "<a:effectRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"lt1\"/></a:fontRef></dsp:style>"
+                              "<dsp:txBody><a:bodyPr spcFirstLastPara=\"0\" vert=\"horz\" wrap=\"square\" lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" numCol=\"1\" spcCol=\"1270\" anchor=\"ctr\" anchorCtr=\"0\"><a:noAutofit/></a:bodyPr>"
+                              "<a:lstStyle/><a:p><a:pPr algn=\"ctr\"/><a:r><a:rPr lang=\"en-US\" sz=\"2400\" kern=\"1200\"/><a:t>%5</a:t></a:r></a:p></dsp:txBody>"
+                              "<dsp:txXfrm>%6</dsp:txXfrm></dsp:sp>")
+            .arg(QStringLiteral("%1").arg(qHash(text) % 1000000000000ULL, 12, 10, QLatin1Char('0')), place, geometry, fill, text, textPlace);
+    }
+    static QString diagramPlace(qint64 x, qint64 y, qint64 cx, qint64 cy)
+    {
+        return QStringLiteral("<a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"%3\" cy=\"%4\"/>").arg(x).arg(y).arg(cx).arg(cy);
+    }
+    // The diagram's drawing: three shapes (a rectangle in the theme's first accent color, a rounded one with its text inset, a rectangle filled with a
+    // picture of the drawing part's own), in the space of the frame, which is 3657600 by 1828800.
+    static QByteArray diagramDrawing()
+    {
+        const QString head = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><dsp:drawing xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" "
+                                            "xmlns:dsp=\"%1\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                                            "<dsp:spTree><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>").arg(dspNamespace());
+        const QString accent = QStringLiteral("<a:solidFill><a:schemeClr val=\"accent1\"><a:hueOff val=\"0\"/><a:satOff val=\"0\"/><a:lumOff val=\"0\"/><a:alphaOff val=\"0\"/></a:schemeClr></a:solidFill>");
+        const QString picture = QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill>");
+        return (head
+                + diagramShape(diagramPlace(0, 457200, 1066800, 914400), QStringLiteral("rect"), accent, QStringLiteral("First"), diagramPlace(0, 457200, 1066800, 914400))
+                + diagramShape(diagramPlace(1295400, 457200, 1066800, 914400), QStringLiteral("roundRect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>"),
+                               QStringLiteral("Second"), diagramPlace(1447800, 609600, 762000, 609600))
+                + diagramShape(diagramPlace(2590800, 457200, 1066800, 914400), QStringLiteral("rect"), picture, QStringLiteral("Third"), diagramPlace(2590800, 457200, 1066800, 914400))
+                + QStringLiteral("</dsp:spTree></dsp:drawing>")).toUtf8();
+    }
+    // The sample presentation with a diagram (SmartArt) on its first slide, as the presentation program writes one: the frame names the diagram's
+    // data, layout, quick style, and colors by the slide's links to them; the slide also links to the drawing part (the shapes as they were
+    // drawn), which the data part names by that link's id (dsp:dataModelExt). `alone`: the slide has nothing else, so the links
+    // are numbered as the presentation program numbers them (the layout 1, the data 2, and on to the drawing's 6).
+    static Parts smartArtPptx(bool alone = false, bool withDrawing = true)
+    {
+        Parts p = samplePptx();
+        const QString slide = QStringLiteral("/ppt/slides/slide1.xml");
+        if (alone) {
+            p.rels.erase(std::remove_if(p.rels.begin(), p.rels.end(), [&](const Rel &r) { return r.source == slide && r.type != QLatin1String("slideLayout"); }), p.rels.end());
+            p.data[slide].xml = slideXml(QString(), QString(), QString()).toUtf8();
+        }
+        int next = 1;
+        for (const Rel &r : std::as_const(p.rels)) next += r.source == slide;
+        const QString frame = QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"9\" name=\"Diagram 8\" descr=\"A process\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                                             "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1828800\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\">"
+                                             "<dgm:relIds xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" r:dm=\"rId%1\" r:lo=\"rId%2\" r:qs=\"rId%3\" r:cs=\"rId%4\"/>"
+                                             "</a:graphicData></a:graphic></p:graphicFrame>").arg(next).arg(next + 1).arg(next + 2).arg(next + 3);
+        QString xml = QString::fromUtf8(p.data[slide].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), frame + QStringLiteral("</p:spTree>"));
+        p.data[slide].xml = xml.toUtf8();
+        const QString diagramType = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.diagram");
+        const QString ext = withDrawing ? QStringLiteral("<dgm:extLst><a:ext uri=\"http://schemas.microsoft.com/office/drawing/2008/diagram\"><dsp:dataModelExt xmlns:dsp=\"%1\" relId=\"rId%2\" "
+                                                         "minVer=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\"/></a:ext></dgm:extLst>").arg(dspNamespace()).arg(next + 4)
+                                        : QString();
+        const QString head = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+        const QString dgmNs = QStringLiteral("xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"");
+        p.data["/ppt/diagrams/data1.xml"] = {diagramType + QStringLiteral("Data+xml"),
+            (head + QStringLiteral("<dgm:dataModel %1><dgm:ptLst><dgm:pt modelId=\"{1}\" type=\"doc\"><dgm:prSet loTypeId=\"urn:test:layout\"/><dgm:spPr/><dgm:t><a:bodyPr/><a:p><a:r><a:t>First</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst>"
+                                 "<dgm:cxnLst/><dgm:bg/><dgm:whole/>%2</dgm:dataModel>").arg(dgmNs, ext)).toUtf8()};
+        p.data["/ppt/diagrams/layout1.xml"] = {diagramType + QStringLiteral("Layout+xml"), (head + QStringLiteral("<dgm:layoutDef %1 uniqueId=\"urn:test:layout\"><dgm:title val=\"\"/><dgm:desc val=\"\"/></dgm:layoutDef>").arg(dgmNs)).toUtf8()};
+        p.data["/ppt/diagrams/quickStyle1.xml"] = {diagramType + QStringLiteral("Style+xml"), (head + QStringLiteral("<dgm:styleDef %1 uniqueId=\"urn:test:style\"><dgm:title val=\"\"/><dgm:desc val=\"\"/></dgm:styleDef>").arg(dgmNs)).toUtf8()};
+        p.data["/ppt/diagrams/colors1.xml"] = {diagramType + QStringLiteral("Colors+xml"), (head + QStringLiteral("<dgm:colorsDef %1 uniqueId=\"urn:test:colors\"><dgm:title val=\"\"/><dgm:desc val=\"\"/></dgm:colorsDef>").arg(dgmNs)).toUtf8()};
+        p.rels << Rel{slide, "diagramData", "/ppt/diagrams/data1.xml"} << Rel{slide, "diagramLayout", "/ppt/diagrams/layout1.xml"} << Rel{slide, "diagramQuickStyle", "/ppt/diagrams/quickStyle1.xml"}
+               << Rel{slide, "diagramColors", "/ppt/diagrams/colors1.xml"};
+        if (withDrawing) {
+            p.data["/ppt/diagrams/drawing1.xml"] = {QStringLiteral("application/vnd.ms-office.drawingml.diagramDrawing+xml"), diagramDrawing()};
+            p.data["/ppt/media/diagram1.png"] = {QStringLiteral("image/png"), colorPng(QColor(0x20, 0x90, 0x40))};
+            p.rels << Rel{slide, diagramDrawingType(), "/ppt/diagrams/drawing1.xml"} << Rel{"/ppt/diagrams/drawing1.xml", "image", "/ppt/media/diagram1.png"};
+        }
+        return p;
+    }
+    // The picture a kept frame of one kind ("diagram", "equation") is on the slide: the one the slide's kept frames of that kind name.
+    static const PictureItem *keptPicture(const Document &d, const Page &page, const QString &kind)
+    {
+        for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray()) {
+            if (v.toObject().value(QStringLiteral("kind")).toString() != kind) continue;
+            const Document::Loc at = d.find(v.toObject().value(QStringLiteral("item")).toString());
+            if (at.item && at.item->type() == ItemType::Picture) return static_cast<const PictureItem *>(at.item);
+        }
+        return nullptr;
+    }
+    static QJsonObject keptFrameOf(const Page &page, const QString &kind)
+    {
+        for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray())
+            if (v.toObject().value(QStringLiteral("kind")).toString() == kind) return v.toObject();
+        return QJsonObject();
+    }
+    // Every element called `name` (by local name) in `e` and below it, in document order.
+    static void collectNamed(const QDomElement &e, const QString &name, QVector<QDomElement> *out)
+    {
+        if (e.localName() == name) out->append(e);
+        for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collectNamed(c, name, out);
+    }
+    // The place an a:xfrm (or p:xfrm) says, in EMU: x, y, cx, cy.
+    static QVector<qint64> placeOf(const QDomElement &xfrm)
+    {
+        const QDomElement off = office::child(xfrm, office::ns::A, QStringLiteral("off")), ext = office::child(xfrm, office::ns::A, QStringLiteral("ext"));
+        return {off.attribute(QStringLiteral("x")).toLongLong(), off.attribute(QStringLiteral("y")).toLongLong(), ext.attribute(QStringLiteral("cx")).toLongLong(), ext.attribute(QStringLiteral("cy")).toLongLong()};
+    }
+    // The graphic frame called `name` in the XML of a slide.
+    static QDomElement frameNamed(const QDomElement &root, const QString &name)
+    {
+        QVector<QDomElement> all;
+        collectNamed(root, QStringLiteral("graphicFrame"), &all);
+        for (const QDomElement &f : std::as_const(all))
+            if (office::child(office::child(f, office::ns::P, QStringLiteral("nvGraphicFramePr")), office::ns::P, QStringLiteral("cNvPr")).attribute(QStringLiteral("name")) == name) return f;
+        return QDomElement();
+    }
+    static QByteArray keptBytes(const QJsonObject &frame, const QString &part)
+    {
+        return QByteArray::fromBase64(frame.value(QStringLiteral("parts")).toObject().value(part).toObject().value(QStringLiteral("data")).toString().toLatin1());
+    }
+    // The SVG a picture is, drawn into pixels `size` big on a clear ground.
+    static QImage svgPixels(const Document &d, const PictureItem &pic, const QSize &size)
+    {
+        QSvgRenderer svg(d.images.value(pic.imageId).bytes);
+        QImage img(size, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::transparent);
+        QPainter painter(&img);
+        svg.render(&painter);
+        return img;
+    }
+
+private Q_SLOTS:
+    // A diagram (SmartArt) on a slide is a picture of its drawing (an SVG, drawn from the shapes the drawing part holds, in the frame's place), and
+    // what it is made of (the data, layout, style, and colors, the drawing, and the pictures in it) is kept with the slide to be written back.
+    void importReadsDiagramsAsPictures()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Page &page = *d->pages[0];
+        const PictureItem *pic = keptPicture(*d, page, QStringLiteral("diagram"));
+        QVERIFY(pic);
+        QCOMPARE(pic->name, QStringLiteral("Diagram 8"));
+        QCOMPARE(pic->altText, QStringLiteral("A process"));
+        QCOMPARE(pic->rect, QRectF(72, 72, 288, 144));
+        QCOMPARE(pic->imgRect, QRectF(0, 0, 288, 144));
+        QCOMPARE(d->images.value(pic->imageId).format, QStringLiteral("svg"));
+        // Drawn as the shapes are: in the theme's accent, in the color the shape names, with the white of the line and the text.
+        const QByteArray svg = d->images.value(pic->imageId).bytes;
+        QVERIFY(svg.contains("#b6420f"));
+        QVERIFY(svg.contains("#336699"));
+        QVERIFY(svg.contains("#fefefe"));   // the theme's lt1: the text, by the style's font reference
+        QVERIFY(!svg.contains("JeffPub"));
+        // The drawing is in points, and asks to be drawn three pixels to the point: a screen draws it at that size however far it is zoomed in.
+        QSvgRenderer drawing(svg);
+        QCOMPARE(drawing.viewBoxF(), QRectF(0, 0, 288, 144));
+        QCOMPARE(drawing.defaultSize(), QSize(864, 432));
+        QCOMPARE(d->images.value(pic->imageId).image().size(), QSize(1200, 600));   // and a picture of it is as large as a screen needs: 1200 across at least
+        const QImage img = svgPixels(*d, *pic, QSize(288, 144));
+        QCOMPARE(img.pixelColor(10, 45), QColor(0xB6, 0x42, 0x0F));    // the first shape, at 0 to 84 across and 36 to 108 down
+        QCOMPARE(img.pixelColor(110, 45), QColor(0x33, 0x66, 0x99));   // the second, from 102 across
+        QCOMPARE(img.pixelColor(210, 45), QColor(0x20, 0x90, 0x40));   // the third is filled with its picture
+        QCOMPARE(img.pixelColor(100, 10).alpha(), 0);                   // nothing in between, or around
+        QCOMPARE(img.pixelColor(10, 130).alpha(), 0);
+        // The text is in the rectangle the drawing gives it: light letters in the middle of the first shape, none at its corner.
+        bool light = false;
+        for (int y = 56; y < 88 && !light; ++y)
+            for (int x = 20; x < 64 && !light; ++x) light = img.pixelColor(x, y).red() > 0xE0 && img.pixelColor(x, y).green() > 0xE0;
+        QVERIFY(light);
+        // Only the unknown frame of the sample is left unread, and the diagram's frame is kept apart from it.
+        QCOMPARE(int(page.props.value(QStringLiteral("unread")).toArray().size()), 1);
+        const QJsonObject kept = keptFrameOf(page, QStringLiteral("diagram"));
+        QCOMPARE(kept.value(QStringLiteral("item")).toString(), pic->id);
+        QDomDocument dom;
+        QString why;
+        QVERIFY2(office::parseXml(kept.value(QStringLiteral("frameXml")).toString().toUtf8(), &dom, &why), qPrintable(why));
+        QVERIFY(office::isElement(dom.documentElement(), office::ns::P, QStringLiteral("graphicFrame")));
+        const Parts source = smartArtPptx();
+        const QJsonObject parts = kept.value(QStringLiteral("parts")).toObject();
+        QCOMPARE(parts.keys(), (QStringList{"/ppt/diagrams/colors1.xml", "/ppt/diagrams/data1.xml", "/ppt/diagrams/drawing1.xml", "/ppt/diagrams/layout1.xml", "/ppt/diagrams/quickStyle1.xml", "/ppt/media/diagram1.png"}));
+        for (const QString &name : parts.keys()) {
+            QCOMPARE(keptBytes(kept, name), source.data.value(name).xml);
+            QCOMPARE(parts.value(name).toObject().value(QStringLiteral("type")).toString(), source.data.value(name).type);
+        }
+        // The slide's links to them, as the file has them.
+        const QJsonArray links = kept.value(QStringLiteral("links")).toArray();
+        QCOMPARE(int(links.size()), 5);
+        QStringList types;
+        for (const QJsonValue &l : links) types << l.toObject().value(QStringLiteral("type")).toString().section(QLatin1Char('/'), -1);
+        types.sort();
+        QCOMPARE(types, (QStringList{"diagramColors", "diagramData", "diagramDrawing", "diagramLayout", "diagramQuickStyle"}));
+    }
+
+    // A diagram that has no drawing part (an older file) is kept as the frame it is, as before: nothing is shown for it.
+    void importLeavesADiagramWithoutADrawingUnread()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx(false, false)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);
+        QCOMPARE(int(d->pages[0]->items.size()), readerReadsPictures() ? 6 : 5);
+        // A drawing that isn't a drawing, or has no shapes to draw from, is the same.
+        Parts p = smartArtPptx();
+        p.data["/ppt/diagrams/drawing1.xml"].xml = "<dsp:other xmlns:dsp=\"http://schemas.microsoft.com/office/drawing/2008/diagram\"/>";
+        d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);
+        // A diagram whose data part is gone from the file is the same.
+        p = smartArtPptx();
+        p.data.remove(QStringLiteral("/ppt/diagrams/data1.xml"));
+        d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+    }
+
+    // A diagram that many frames show is read and drawn once for each size and look, and its parts are kept once.
+    void importDrawsADiagramOnceForTheFramesThatShowIt()
+    {
+        QMap<QString, QByteArray> zip;
+        QString err;
+        QVERIFY2(readZip(pack(smartArtPptx()), zip, &err), qPrintable(err));
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        const int at = int(slide.indexOf(QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"9\"")));
+        const int end = int(slide.indexOf(QStringLiteral("</p:graphicFrame>"), at)) + 17;
+        const QString frame = slide.mid(at, end - at);
+        QString more;
+        for (int i = 0; i < 60; ++i)
+            more += QString(frame).replace(QStringLiteral("id=\"9\""), QStringLiteral("id=\"%1\"").arg(100 + i)).replace(QStringLiteral("Diagram 8"), QStringLiteral("Diagram %1").arg(100 + i))
+                        .replace(QStringLiteral("x=\"914400\""), QStringLiteral("x=\"%1\"").arg(914400 + i * 1000));
+        slide.insert(end, more);
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto d = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QJsonArray kept = d->pages[0]->props.value(QStringLiteral("charts")).toArray();
+        QCOMPARE(int(kept.size()), 61);
+        QSet<QString> images;
+        for (const QJsonValue &v : kept) {
+            const Document::Loc at = d->find(v.toObject().value(QStringLiteral("item")).toString());
+            QVERIFY(at.item && at.item->type() == ItemType::Picture);
+            images << static_cast<const PictureItem *>(at.item)->imageId;
+        }
+        QCOMPARE(int(images.size()), 1);
+        int svgs = 0;
+        for (const ImageData &image : std::as_const(d->images)) svgs += image.format == QLatin1String("svg");
+        QCOMPARE(svgs, 1);
+    }
+
+    // A file may have a thousand diagrams drawn: past that the frames are kept as they are, and the notes say so (each drawing is read, set, and
+    // kept as an SVG, and a package may name thousands of parts that each hold one).
+    void importLimitsTheDiagramsItDraws()
+    {
+        const Parts base = smartArtPptx(true);
+        QMap<QString, QByteArray> zip;
+        QString err;
+        QVERIFY2(readZip(pack(base), zip, &err), qPrintable(err));
+        // 1001 frames on the slide, each with a data part of its own that names a drawing part of its own (the layout, style, and colors are shared).
+        const int count = 1001;
+        QString frames, slideRels = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/_rels/slide1.xml.rels")));
+        slideRels.remove(QStringLiteral("</Relationships>"));
+        QString rels;
+        const QByteArray dataXml = zip.value(QStringLiteral("ppt/diagrams/data1.xml"));
+        const QByteArray drawingXml = (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><dsp:drawing xmlns:dsp=\"%1\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dsp:spTree>"
+                                                      "<dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>").arg(dspNamespace())
+                                       + diagramShape(diagramPlace(0, 0, 914400, 914400), QStringLiteral("rect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>"), QString(), diagramPlace(0, 0, 914400, 914400))
+                                             .replace(QRegularExpression(QStringLiteral("<dsp:txBody>.*</dsp:txBody>")), QString())
+                                       + QStringLiteral("</dsp:spTree></dsp:drawing>")).toUtf8();
+        for (int i = 0; i < count; ++i) {
+            const int dm = 100 + 2 * i, dr = 101 + 2 * i;
+            frames += QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"%1\" name=\"Diagram %1\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x=\"%2\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1828800\"/></p:xfrm>"
+                                    "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\"><dgm:relIds xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" r:dm=\"rId%3\" r:lo=\"rId3\" r:qs=\"rId4\" r:cs=\"rId5\"/></a:graphicData></a:graphic></p:graphicFrame>")
+                          .arg(10 + i).arg(914400 + i).arg(dm);
+            rels += QStringLiteral("<Relationship Id=\"rId%1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData\" Target=\"../diagrams/d%2.xml\"/>"
+                                   "<Relationship Id=\"rId%3\" Type=\"%4\" Target=\"../diagrams/w%2.xml\"/>").arg(dm).arg(i).arg(dr).arg(diagramDrawingType());
+            zip[QStringLiteral("ppt/diagrams/d%1.xml").arg(i)] = QByteArray(dataXml).replace("relId=\"rId6\"", QStringLiteral("relId=\"rId%1\"").arg(dr).toUtf8());
+            zip[QStringLiteral("ppt/diagrams/w%1.xml").arg(i)] = drawingXml;
+        }
+        zip[QStringLiteral("ppt/slides/_rels/slide1.xml.rels")] = (slideRels + rels + QStringLiteral("</Relationships>")).toUtf8();
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        slide.replace(QRegularExpression(QStringLiteral("<p:graphicFrame>.*</p:graphicFrame>")), frames);
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        QString types = QString::fromUtf8(zip.value(QStringLiteral("[Content_Types].xml")));
+        QString more;
+        for (int i = 0; i < count; ++i)
+            more += QStringLiteral("<Override PartName=\"/ppt/diagrams/d%1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml\"/>"
+                                   "<Override PartName=\"/ppt/diagrams/w%1.xml\" ContentType=\"application/vnd.ms-office.drawingml.diagramDrawing+xml\"/>").arg(i);
+        types.replace(QStringLiteral("</Types>"), more + QStringLiteral("</Types>"));
+        zip[QStringLiteral("[Content_Types].xml")] = types.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto d = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("charts")).toArray().size()), 1000);
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 1);
+        QVERIFY2(err.contains(QStringLiteral("more than 1000 diagrams")), qPrintable(err));
+    }
+
+    // Saved, the diagram is a frame again, with its parts and links in the package as they were: the same names, the same bytes, the links
+    // under the ids the file gave them (so what names them, the frame and the data part, is as it was).
+    void exportWritesTheKeptDiagramParts()
+    {
+        const Parts source = smartArtPptx(true);
+        QString err;
+        auto d = deck::importPresentation(pack(source), &err);
+        QVERIFY2(d, qPrintable(err));
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.filter(QStringLiteral("Slide 1")).isEmpty(), qPrintable(skipped.join('\n')));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slidePart = QStringLiteral("/ppt/slides/slide1.xml");
+        // The parts, byte for byte, with their content types.
+        for (const QString &name : {QStringLiteral("/ppt/diagrams/data1.xml"), QStringLiteral("/ppt/diagrams/layout1.xml"), QStringLiteral("/ppt/diagrams/quickStyle1.xml"),
+                                    QStringLiteral("/ppt/diagrams/colors1.xml"), QStringLiteral("/ppt/diagrams/drawing1.xml"), QStringLiteral("/ppt/media/diagram1.png")}) {
+            QVERIFY2(e.pkg.hasPart(name) || e.pkg.hasPart(QStringLiteral("/ppt/diagrams/") + name.section(QLatin1Char('/'), -1)), qPrintable(name));
+            const QString at = e.pkg.hasPart(name) ? name : QStringLiteral("/ppt/diagrams/") + name.section(QLatin1Char('/'), -1);
+            QCOMPARE(e.pkg.part(at), source.data.value(name).xml);
+            QCOMPARE(e.pkg.contentType(at), source.data.value(name).type);
+        }
+        // The slide's links, under the ids the file had: the layout is rId1, then the data (rId2) and on, to the drawing's rId6.
+        const QStringList ids = {QStringLiteral("rId2"), QStringLiteral("rId3"), QStringLiteral("rId4"), QStringLiteral("rId5"), QStringLiteral("rId6")};
+        const QStringList targets = {QStringLiteral("/ppt/diagrams/data1.xml"), QStringLiteral("/ppt/diagrams/layout1.xml"), QStringLiteral("/ppt/diagrams/quickStyle1.xml"),
+                                     QStringLiteral("/ppt/diagrams/colors1.xml"), QStringLiteral("/ppt/diagrams/drawing1.xml")};
+        const QStringList types = {QStringLiteral("/diagramData"), QStringLiteral("/diagramLayout"), QStringLiteral("/diagramQuickStyle"), QStringLiteral("/diagramColors"), QStringLiteral("/diagramDrawing")};
+        for (int i = 0; i < 5; ++i) {
+            const office::Relationship r = e.pkg.relationship(slidePart, ids[i]);
+            QCOMPARE(r.target, targets[i]);
+            QVERIFY2(r.type.endsWith(types[i]), qPrintable(r.type));
+        }
+        QCOMPARE(e.pkg.relationship(slidePart, QStringLiteral("rId6")).type, diagramDrawingType());
+        // The drawing's own link, to its picture.
+        QCOMPARE(int(relationshipTargets(e, QStringLiteral("/ppt/diagrams/drawing1.xml"), QStringLiteral("/image")).size()), 1);
+        // The frame as it was: its shape number, its name, its place, and its links to the data, layout, style, and colors.
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(slidePart.mid(1)), &dom);
+        const QDomElement frame = frameNamed(root, QStringLiteral("Diagram 8"));
+        QVERIFY(!frame.isNull());
+        const QDomElement cNvPr = office::child(office::child(frame, office::ns::P, QStringLiteral("nvGraphicFramePr")), office::ns::P, QStringLiteral("cNvPr"));
+        QCOMPARE(cNvPr.attribute(QStringLiteral("id")), QStringLiteral("9"));
+        QCOMPARE(cNvPr.attribute(QStringLiteral("descr")), QStringLiteral("A process"));
+        QCOMPARE(placeOf(office::child(frame, office::ns::P, QStringLiteral("xfrm"))), (QVector<qint64>{914400, 914400, 3657600, 1828800}));
+        QVector<QDomElement> relIds;
+        collectNamed(frame, QStringLiteral("relIds"), &relIds);
+        QCOMPARE(int(relIds.size()), 1);
+        QCOMPARE(office::attrNs(relIds[0], office::ns::R, QStringLiteral("dm")), QStringLiteral("rId2"));
+        QCOMPARE(office::attrNs(relIds[0], office::ns::R, QStringLiteral("lo")), QStringLiteral("rId3"));
+        QCOMPARE(office::attrNs(relIds[0], office::ns::R, QStringLiteral("qs")), QStringLiteral("rId4"));
+        QCOMPARE(office::attrNs(relIds[0], office::ns::R, QStringLiteral("cs")), QStringLiteral("rId5"));
+        const QString slide = part(e, slidePart);
+        // Nothing is left in place of it: no picture, no empty box.
+        QVERIFY(!slide.contains(QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"9\"")));
+    }
+
+    // When the slide's other links come first, the diagram's are numbered after them: the frame and the data part name the parts by the new ids, and
+    // nothing else in the data part changes.
+    void exportKeepsDiagramLinksWorkingWhenTheirIdsChange()
+    {
+        const Parts source = smartArtPptx();
+        QString err;
+        auto d = deck::importPresentation(pack(source), &err);
+        QVERIFY2(d, qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slidePart = QStringLiteral("/ppt/slides/slide1.xml");
+        const QStringList data = relationshipTargets(e, slidePart, QStringLiteral("/diagramData")), drawing = relationshipTargets(e, slidePart, QStringLiteral("/diagramDrawing"));
+        QCOMPARE(int(data.size()), 1);
+        QCOMPARE(int(drawing.size()), 1);
+        // The data part names the drawing by the link it has now.
+        const QString dataXml = QString::fromUtf8(e.pkg.part(data[0]));
+        const QRegularExpression named(QStringLiteral("<dsp:dataModelExt\\b[^>]*\\brelId=\"([^\"]*)\""));
+        QVERIFY2(named.match(dataXml).hasMatch(), qPrintable(dataXml));
+        QCOMPARE(e.pkg.relationship(slidePart, named.match(dataXml).captured(1)).target, drawing[0]);
+        QVERIFY(named.match(dataXml).captured(1) != QStringLiteral("rId8"));   // it was rId8 when the slide had its notes and picture linked first
+        // And is what it was but for that.
+        QString was = QString::fromUtf8(source.data.value(QStringLiteral("/ppt/diagrams/data1.xml")).xml);
+        was.replace(QStringLiteral("relId=\"rId8\""), QStringLiteral("relId=\"%1\"").arg(named.match(dataXml).captured(1)));
+        QCOMPARE(dataXml, was);
+        // The frame names the other three by their new ids.
+        const QString slide = part(e, slidePart);
+        for (const QString &kind : {QStringLiteral("lo"), QStringLiteral("qs"), QStringLiteral("cs")}) {
+            const QRegularExpression ref(QStringLiteral("r:%1=\"([^\"]*)\"").arg(kind));
+            QVERIFY2(ref.match(slide).hasMatch(), qPrintable(kind));
+            const office::Relationship r = e.pkg.relationship(slidePart, ref.match(slide).captured(1));
+            QVERIFY2(r.target.contains(kind == QLatin1String("lo") ? QStringLiteral("layout") : kind == QLatin1String("qs") ? QStringLiteral("quickStyle") : QStringLiteral("colors")), qPrintable(r.target));
+        }
+        QVERIFY(e.pkg.relationship(slidePart, QRegularExpression(QStringLiteral("r:dm=\"([^\"]*)\"")).match(slide).captured(1)).target == data[0]);
+    }
+
+    // A diagram that was moved or resized: its frame goes where the picture is, and only its place changes. One that wasn't is written with the
+    // place it had (even a size the reader holds to a slide's).
+    void exportPlacesAndDropsDiagrams()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx(true)), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto *pic = const_cast<PictureItem *>(keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        QVERIFY(pic);
+        pic->rect = QRectF(100, 50, 200, 150);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<p:xfrm><a:off x=\"1270000\" y=\"635000\"/><a:ext cx=\"2540000\" cy=\"1905000\"/></p:xfrm>")), qPrintable(slide));
+        // The data, layout, and drawing are as they were: the picture was moved, not the diagram's parts.
+        QCOMPARE(e.pkg.part(QStringLiteral("/ppt/diagrams/drawing1.xml")), diagramDrawing());
+        // Named again: the name and the alternative text of the picture are the frame's.
+        pic->name = QStringLiteral("Process");
+        pic->altText = QStringLiteral("Three steps");
+        Exported named;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &named, &err), qPrintable(err));
+        slide = part(named, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<p:cNvPr id=\"9\" name=\"Process\" descr=\"Three steps\"/>")), qPrintable(slide));
+        // Taken off the slide, its parts are not written, and nothing points at them.
+        auto &items = d->pages[0]->items;
+        for (size_t i = 0; i < items.size(); ++i)
+            if (items[i].get() == pic) {
+                items.erase(items.begin() + i);
+                break;
+            }
+        Exported gone;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &gone, &err), qPrintable(err));
+        QVERIFY2(packageProblem(gone).isEmpty(), qPrintable(packageProblem(gone)));
+        QVERIFY(!part(gone, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("drawingml/2006/diagram")));
+        for (const QString &name : gone.pkg.partNames()) QVERIFY2(!name.contains(QStringLiteral("/diagrams/")), qPrintable(name));
+    }
+
+    // The links a frame has to addresses outside the file (a click that opens a page) are not kept, and what they were on stays: none is left pointing
+    // at a link the slide no longer has.
+    void exportDropsTheHyperlinksOfADiagramFrame()
+    {
+        QString err;
+        Parts p = smartArtPptx(true);
+        QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        slide.replace(QStringLiteral("<p:cNvPr id=\"9\" name=\"Diagram 8\" descr=\"A process\"/>"), QStringLiteral("<p:cNvPr id=\"9\" name=\"Diagram 8\" descr=\"A process\"><a:hlinkClick r:id=\"rId7\"/></p:cNvPr>"));
+        p.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        p.rels << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("https://example.com/x"), true};
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QVERIFY(!part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("hlinkClick")));
+        QDomDocument dom;
+        QVERIFY(!frameNamed(rootOf(e.zip.value(QStringLiteral("ppt/slides/slide1.xml")), &dom), QStringLiteral("Diagram 8")).isNull());
+    }
+
+    void exportKeepsTheFrameOfAnUnmovedDiagramAsItWas()
+    {
+        QString err;
+        Parts p = smartArtPptx(true);
+        // A frame larger than a slide can be is drawn at the largest size, and written as it was while it isn't moved or resized.
+        QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        slide.replace(QStringLiteral("<a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1828800\"/>"), QStringLiteral("<a:off x=\"-914400\" y=\"914400\"/><a:ext cx=\"60000000\" cy=\"1828800\"/>"));
+        p.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto *pic = const_cast<PictureItem *>(keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(-72, 72, office::kChartMaxSide, 144));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QDomDocument dom;
+        QCOMPARE(placeOf(office::child(frameNamed(rootOf(e.zip.value(QStringLiteral("ppt/slides/slide1.xml")), &dom), QStringLiteral("Diagram 8")), office::ns::P, QStringLiteral("xfrm"))),
+                 (QVector<qint64>{-914400, 914400, 60000000, 1828800}));
+        // Moved, it is written where it is.
+        pic->rect.moveTo(10, 20);
+        Exported moved;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &moved, &err), qPrintable(err));
+        QVERIFY2(part(moved, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:xfrm><a:off x=\"127000\" y=\"254000\"/><a:ext cx=\"51206400\" cy=\"1828800\"/></p:xfrm>")),
+                 qPrintable(part(moved, QStringLiteral("/ppt/slides/slide1.xml"))));
+    }
+
+    // A duplicated slide keeps its diagram (the copy of the diagram's picture is written as the diagram, once more).
+    void duplicatedSlideKeepsItsDiagram()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(deck::duplicateSlide(*d, 0), 1);
+        QVERIFY(keptPicture(*d, *d->pages[1], QStringLiteral("diagram")));
+        QVERIFY(keptPicture(*d, *d->pages[1], QStringLiteral("diagram"))->id != keptPicture(*d, *d->pages[0], QStringLiteral("diagram"))->id);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        for (const QString &slide : {QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/ppt/slides/slide2.xml")}) {
+            QCOMPARE(int(relationshipTargets(e, slide, QStringLiteral("/diagramData")).size()), 1);
+            QCOMPARE(int(relationshipTargets(e, slide, QStringLiteral("/diagramDrawing")).size()), 1);
+        }
+        // Each frame has parts of its own.
+        QVERIFY(relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/diagramData")) != relationshipTargets(e, QStringLiteral("/ppt/slides/slide2.xml"), QStringLiteral("/diagramData")));
+    }
+
+    // What was saved reads again as it did: the picture of the diagram, and its parts, for the next save.
+    void diagramsSurviveAnotherRoundTrip()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const PictureItem *pic = keptPicture(*back, *back->pages[0], QStringLiteral("diagram"));
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(72, 72, 288, 144));
+        // The drawing is drawn as it was (but for the number the writer gives a picture fill).
+        QString svgWas = QString::fromUtf8(d->images.value(keptPicture(*d, *d->pages[0], QStringLiteral("diagram"))->imageId).bytes), svgNow = QString::fromUtf8(back->images.value(pic->imageId).bytes);
+        svgWas.replace(QRegularExpression(QStringLiteral("texpattern_[0-9a-f]+")), QStringLiteral("texpattern"));
+        svgNow.replace(QRegularExpression(QStringLiteral("texpattern_[0-9a-f]+")), QStringLiteral("texpattern"));
+        QVERIFY(svgWas == svgNow);
+        const QJsonObject was = keptFrameOf(*d->pages[0], QStringLiteral("diagram")), now = keptFrameOf(*back->pages[0], QStringLiteral("diagram"));
+        QCOMPARE(now.value(QStringLiteral("parts")).toObject().keys(), was.value(QStringLiteral("parts")).toObject().keys());   // the picture in the drawing keeps its name too
+        QCOMPARE(keptBytes(now, QStringLiteral("/ppt/diagrams/drawing1.xml")), diagramDrawing());
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QCOMPARE(e.pkg.part(QStringLiteral("/ppt/diagrams/drawing1.xml")), diagramDrawing());
+    }
+
+private:
+    static QString mathNamespace() { return QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/math"); }
+    static QByteArray equationPicture()
+    {
+        QImage img(60, 20, QImage::Format_RGB32);
+        img.fill(QColor(0xC0, 0x30, 0x30));
+        QByteArray bytes;
+        QBuffer buf(&bytes);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        return bytes;
+    }
+    // An equation as the presentation program writes one: a pair of alternatives, the shape with its text (the math in a14:m, among the
+    // runs of the paragraph) for the programs that know it, and a picture of the shape for the others. `fallback`: "pic" (a picture) or "shape" (a
+    // shape filled with the picture, as an older version wrote it). `mixed`: a text box with other text around the equation.
+    static QString equationAlternative(int id, int embed, const QString &fallback = QStringLiteral("pic"), bool mixed = false)
+    {
+        const QString math = QStringLiteral("<m:oMath><m:r><a:rPr lang=\"en-US\" sz=\"2800\" i=\"1\"><a:latin typeface=\"Cambria Math\" panose=\"02040503050406030204\" pitchFamily=\"18\" charset=\"0\"/></a:rPr>"
+                                            "<m:t>E=mc</m:t></m:r><m:sSup><m:sSupPr><m:ctrlPr><a:rPr lang=\"en-US\" sz=\"2800\" i=\"1\"/></m:ctrlPr></m:sSupPr><m:e/><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup></m:oMath>");
+        const QString body = mixed ? QStringLiteral("<a:r><a:rPr lang=\"en-US\" sz=\"2800\"/><a:t>Energy </a:t></a:r><a14:m>%1</a14:m><a:r><a:rPr lang=\"en-US\" sz=\"2800\"/><a:t> is mass</a:t></a:r>").arg(math)
+                                   : QStringLiteral("<a14:m><m:oMathPara><m:oMathParaPr><m:jc m:val=\"centerGroup\"/></m:oMathParaPr>%1</m:oMathPara></a14:m>").arg(math);
+        const QString place = QStringLiteral("<a:xfrm><a:off x=\"1524000\" y=\"2209800\"/><a:ext cx=\"1905000\" cy=\"508000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>");
+        const QString fallbackShape = fallback == QLatin1String("pic")
+            ? QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"%1\" name=\"TextBox %2\"/><p:cNvPicPr><a:picLocks noRot=\"1\" noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>"
+                             "<p:blipFill><a:blip r:embed=\"rId%3\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>%4</p:spPr></p:pic>")
+                  .arg(id).arg(id - 1).arg(embed).arg(place)
+            : QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"TextBox %2\"/><p:cNvSpPr txBox=\"1\"><a:spLocks noRot=\"1\" noChangeArrowheads=\"1\"/></p:cNvSpPr><p:nvPr/></p:nvSpPr>"
+                             "<p:spPr bwMode=\"auto\">%4<a:blipFill><a:blip r:embed=\"rId%3\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:ln><a:noFill/></a:ln></p:spPr>"
+                             "<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"><a:noFill/></a:rPr><a:t> </a:t></a:r></a:p></p:txBody></p:sp>")
+                  .arg(id).arg(id - 1).arg(embed).arg(place);
+        return QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\">"
+                              "<mc:Choice xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" Requires=\"a14\"><p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"TextBox %2\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr>"
+                              "<p:spPr>%3<a:noFill/></p:spPr><p:txBody><a:bodyPr wrap=\"none\" rtlCol=\"0\"><a:spAutoFit/></a:bodyPr><a:lstStyle/><a:p>%4<a:endParaRPr lang=\"en-US\" sz=\"2800\"/></a:p></p:txBody></p:sp></mc:Choice>"
+                              "<mc:Fallback>%5</mc:Fallback></mc:AlternateContent>")
+            .arg(id).arg(id - 1).arg(place, body, fallbackShape)
+            .replace(QStringLiteral("<m:oMathPara>"), QStringLiteral("<m:oMathPara xmlns:m=\"%1\">").arg(mathNamespace()))
+            .replace(QStringLiteral("<m:oMath>"), mixed ? QStringLiteral("<m:oMath xmlns:m=\"%1\">").arg(mathNamespace()) : QStringLiteral("<m:oMath>"));
+    }
+    // The sample presentation with an equation on its first slide (the picture of it has a link of its own).
+    static Parts equationPptx(const QString &fallback = QStringLiteral("pic"), bool mixed = false, bool withPicture = true)
+    {
+        Parts p = samplePptx();
+        const QString slide = QStringLiteral("/ppt/slides/slide1.xml");
+        int next = 1;
+        for (const Rel &r : std::as_const(p.rels)) next += r.source == slide;
+        QString xml = QString::fromUtf8(p.data[slide].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), equationAlternative(9, next, fallback, mixed) + QStringLiteral("</p:spTree>"));
+        p.data[slide].xml = xml.toUtf8();
+        if (withPicture) {
+            p.data["/ppt/media/equation1.png"] = {QStringLiteral("image/png"), equationPicture()};
+            p.rels << Rel{slide, "image", "/ppt/media/equation1.png"};
+        }
+        return p;
+    }
+    // The pair of alternatives in the XML of a slide.
+    static QString equationIn(const QString &slide)
+    {
+        const int at = int(slide.indexOf(QStringLiteral("<mc:AlternateContent")));
+        if (at < 0) return QString();
+        return slide.mid(at, slide.indexOf(QStringLiteral("</mc:AlternateContent>"), at) + 22 - at);
+    }
+
+private Q_SLOTS:
+    // An equation is a shape whose text holds math this reader can't draw. The shape beside it, for the programs that don't know math, is
+    // a picture of it: that picture is what the equation looks like here, and the whole pair is kept to write back.
+    void importReadsAnEquationAsItsPicture()
+    {
+        for (const QString &form : {QStringLiteral("pic"), QStringLiteral("shape")}) {
+            QString err;
+            auto d = deck::importPresentation(pack(equationPptx(form)), &err);
+            QVERIFY2(d, qPrintable(err));
+            const Page &page = *d->pages[0];
+            const PictureItem *pic = keptPicture(*d, page, QStringLiteral("equation"));
+            QVERIFY2(pic, qPrintable(form));
+            QCOMPARE(pic->name, QStringLiteral("TextBox 8"));
+            QCOMPARE(pic->rect, QRectF(120, 174, 150, 40));
+            QCOMPARE(pic->imgRect, QRectF(0, 0, 150, 40));
+            QCOMPARE(d->images.value(pic->imageId).bytes, equationPicture());
+            // The picture, and not the shape with the math: no text box is left empty in its place.
+            for (const ItemPtr &it : page.items) QVERIFY2(it->name != QStringLiteral("TextBox 8") || it->type() == ItemType::Picture, qPrintable(form));
+            QCOMPARE(int(page.items.size()), readerReadsPictures() ? 7 : 6);
+            QCOMPARE(int(page.props.value(QStringLiteral("unread")).toArray().size()), 1);
+            const QJsonObject kept = keptFrameOf(page, QStringLiteral("equation"));
+            QCOMPARE(kept.value(QStringLiteral("item")).toString(), pic->id);
+            QVERIFY(kept.value(QStringLiteral("xml")).toString().contains(QStringLiteral("<m:t>E=mc</m:t>")));
+            QDomDocument dom;
+            QString why;
+            QVERIFY2(office::parseXml(kept.value(QStringLiteral("xml")).toString().toUtf8(), &dom, &why), qPrintable(why));
+            QCOMPARE(dom.documentElement().localName(), QStringLiteral("AlternateContent"));
+        }
+    }
+
+    // A text box with other text around the equation is the same pair, and its picture is of the whole box.
+    void importReadsATextBoxWithAnEquationAsItsPicture()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(equationPptx(QStringLiteral("pic"), true)), &err);
+        QVERIFY2(d, qPrintable(err));
+        const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("equation"));
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(120, 174, 150, 40));
+        QVERIFY(keptFrameOf(*d->pages[0], QStringLiteral("equation")).value(QStringLiteral("xml")).toString().contains(QStringLiteral("Energy ")));
+    }
+
+    // A pair with no picture of the shape to show is read as it was before: the shape of the first alternative that can be read.
+    void importReadsAnEquationWithoutAPictureAsAShape()
+    {
+        QString err;
+        Parts p = equationPptx(QStringLiteral("pic"), false, false);
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QRegularExpression(QStringLiteral("<mc:Fallback>.*?</mc:Fallback>")), QStringLiteral("<mc:Fallback/>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("equation")));
+        QVERIFY(d->pages[0]->props.value(QStringLiteral("charts")).toArray().isEmpty());
+        bool box = false;
+        for (const ItemPtr &it : d->pages[0]->items) box = box || (it->name == QStringLiteral("TextBox 8") && it->type() == ItemType::Text);
+        QVERIFY(box);
+        // And so is a picture that can't be read.
+        p = equationPptx();
+        p.data["/ppt/media/equation1.png"].xml = "not a picture";
+        d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("equation")));
+    }
+
+    // Saved, the pair is written whole: the shape with its math as it was, and the picture beside it, with its link.
+    void exportWritesTheWholeEquation()
+    {
+        for (const QString &form : {QStringLiteral("pic"), QStringLiteral("shape")}) {
+            QString err;
+            auto d = deck::importPresentation(pack(equationPptx(form, form == QLatin1String("pic"))), &err);
+            QVERIFY2(d, qPrintable(err));
+            QStringList skipped;
+            Exported e;
+            QVERIFY2(unpack(deck::exportPresentation(*d, &err, &skipped), &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+            QVERIFY2(skipped.filter(QStringLiteral("Slide 1")).isEmpty(), qPrintable(skipped.join('\n')));
+            const QString pair = equationIn(part(e, QStringLiteral("/ppt/slides/slide1.xml")));
+            QVERIFY2(!pair.isEmpty(), qPrintable(form));
+            QCOMPARE(int(part(e, QStringLiteral("/ppt/slides/slide1.xml")).count(QStringLiteral("<mc:AlternateContent"))), 1);
+            // The first alternative: asks for a14, and holds the shape with its math.
+            QVERIFY2(pair.contains(QStringLiteral("Requires=\"a14\"")), qPrintable(pair));
+            QVERIFY(pair.contains(QStringLiteral("xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\"")));
+            QVERIFY(pair.contains(QStringLiteral("<a14:m>")));
+            QVERIFY(pair.contains(QStringLiteral("<m:t>E=mc</m:t>")));
+            QVERIFY(pair.contains(QStringLiteral("<m:sSup>")));
+            QVERIFY(pair.contains(QStringLiteral("typeface=\"Cambria Math\"")));
+            QVERIFY(pair.indexOf(QStringLiteral("<mc:Choice")) < pair.indexOf(QStringLiteral("<mc:Fallback")));
+            if (form == QLatin1String("pic")) QVERIFY(pair.contains(QStringLiteral("<a:t>Energy </a:t>")) && pair.contains(QStringLiteral("<a:t> is mass</a:t>")));
+            // The second: the picture, which the shape's link leads to, written as it was.
+            QVERIFY(pair.mid(pair.indexOf(QStringLiteral("<mc:Fallback"))).contains(form == QLatin1String("pic") ? QStringLiteral("<p:pic ") : QStringLiteral("<p:sp ")));
+            const QRegularExpression embed(QStringLiteral("r:embed=\"([^\"]*)\""));
+            QVERIFY(embed.match(pair).hasMatch());
+            const office::Relationship picture = e.pkg.relationship(QStringLiteral("/ppt/slides/slide1.xml"), embed.match(pair).captured(1));
+            QVERIFY(picture.type.endsWith(QStringLiteral("/image")));
+            QCOMPARE(e.pkg.part(picture.target), equationPicture());
+            // Its places in both are the ones it had, with its number and name.
+            QDomDocument dom;
+            QVERIFY(office::parseXml(pair.toUtf8(), &dom));
+            QVector<QDomElement> places, names;
+            collectNamed(dom.documentElement(), QStringLiteral("xfrm"), &places);
+            collectNamed(dom.documentElement(), QStringLiteral("cNvPr"), &names);
+            QCOMPARE(int(places.size()), 2);
+            for (const QDomElement &x : std::as_const(places)) QCOMPARE(placeOf(x), (QVector<qint64>{1524000, 2209800, 1905000, 508000}));
+            QCOMPARE(int(names.size()), 2);
+            for (const QDomElement &n : std::as_const(names)) QVERIFY(n.attribute(QStringLiteral("id")) == QLatin1String("9") && n.attribute(QStringLiteral("name")) == QLatin1String("TextBox 8"));
+            // No empty text box stands in for it: the pair is the only thing named so.
+            QCOMPARE(int(part(e, QStringLiteral("/ppt/slides/slide1.xml")).count(QStringLiteral("name=\"TextBox 8\""))), 2);
+        }
+    }
+
+    // Moved or resized, the equation is written where it is, in both alternatives, and nothing else of it changes.
+    void exportPlacesBothAlternativesOfAnEquation()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(equationPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        Exported before;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &before, &err), qPrintable(err));
+        auto *pic = const_cast<PictureItem *>(keptPicture(*d, *d->pages[0], QStringLiteral("equation")));
+        QVERIFY(pic);
+        pic->rect = QRectF(100, 50, 200, 60);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString pair = equationIn(part(e, QStringLiteral("/ppt/slides/slide1.xml")));
+        // Its places in both alternatives (the pair is part of the slide's XML, which declares the prefixes).
+        auto places = [](const QString &slide) {
+            QDomDocument dom;
+            office::parseXml(slide.toUtf8(), &dom);
+            QVector<QDomElement> pairs, xfrms;
+            collectNamed(dom.documentElement(), QStringLiteral("AlternateContent"), &pairs);
+            if (!pairs.isEmpty()) collectNamed(pairs[0], QStringLiteral("xfrm"), &xfrms);
+            QVector<QVector<qint64>> out;
+            for (const QDomElement &x : std::as_const(xfrms)) out << placeOf(x);
+            return out;
+        };
+        QCOMPARE(places(part(e, QStringLiteral("/ppt/slides/slide1.xml"))), (QVector<QVector<qint64>>{{1270000, 635000, 2540000, 762000}, {1270000, 635000, 2540000, 762000}}));
+        // The same but for the places (the XML of the shapes is kept, in the order it has).
+        auto withoutPlaces = [](QString xml) { return xml.replace(QRegularExpression(QStringLiteral("<a:xfrm\\b[^>]*>.*?</a:xfrm>")), QStringLiteral("<a:xfrm/>")); };
+        QCOMPARE(withoutPlaces(pair), withoutPlaces(equationIn(part(before, QStringLiteral("/ppt/slides/slide1.xml")))));
+        QVERIFY(pair.contains(QStringLiteral("<m:t>E=mc</m:t>")));
+        // Turned and flipped, it is written so.
+        pic->rotation = 30;
+        pic->flipH = true;
+        Exported turned;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &turned, &err), qPrintable(err));
+        const QString turnedPair = equationIn(part(turned, QStringLiteral("/ppt/slides/slide1.xml")));
+        QCOMPARE(int(turnedPair.count(QStringLiteral("<a:xfrm rot=\"1800000\" flipH=\"1\"><a:off x=\"1270000\" y=\"635000\"/>"))), 2);
+        // Taken off the slide, none of it is written.
+        auto &items = d->pages[0]->items;
+        for (size_t i = 0; i < items.size(); ++i)
+            if (items[i].get() == pic) {
+                items.erase(items.begin() + i);
+                break;
+            }
+        Exported gone;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &gone, &err), qPrintable(err));
+        QVERIFY2(packageProblem(gone).isEmpty(), qPrintable(packageProblem(gone)));
+        QVERIFY(equationIn(part(gone, QStringLiteral("/ppt/slides/slide1.xml"))).isEmpty());
+        QVERIFY(!part(gone, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("TextBox 8")));
+    }
+
+    // A duplicated slide keeps its equation, and what was saved reads again as it did.
+    void equationsSurviveDuplicatingAndAnotherRoundTrip()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(equationPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(deck::duplicateSlide(*d, 0), 1);
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        for (const QString &slide : {QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/ppt/slides/slide2.xml")}) QVERIFY2(part(e, slide).contains(QStringLiteral("<m:t>E=mc</m:t>")), qPrintable(slide));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        for (int i = 0; i < 2; ++i) {
+            const PictureItem *pic = keptPicture(*back, *back->pages[i], QStringLiteral("equation"));
+            QVERIFY(pic);
+            QCOMPARE(pic->rect, QRectF(120, 174, 150, 40));
+            QCOMPARE(back->images.value(pic->imageId).bytes, equationPicture());
+        }
     }
 
     void importReadsNotes()

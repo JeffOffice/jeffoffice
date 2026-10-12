@@ -23,6 +23,8 @@ namespace jp::office {
 namespace {
 
 constexpr int kMaxGroupDepth = 64;
+// The drawing a diagram (SmartArt) keeps beside its data: shapes like a slide's, in this namespace.
+constexpr QLatin1String kDsp("http://schemas.microsoft.com/office/drawing/2008/diagram");
 constexpr int kMaxShapes = 10000;
 constexpr double kMaxPoint = 1e6;     // points: the farthest a position or a size is taken to be
 
@@ -266,6 +268,25 @@ QVector<QDomElement> propertiesOf(const QDomElement &e, const QVector<QDomElemen
     return out;
 }
 
+// Where the whole picture of a p:blipFill (or a shape's a:blipFill) is in a frame of `size`: it is cut by a:srcRect (a negative cut is room around it),
+// and what is left is stretched over the frame, or over part of it (a:fillRect; a negative inset spreads it past the frame).
+QRectF pictureRect(const QDomElement &blipFill, const QSizeF &size)
+{
+    QRectF target(0, 0, size.width(), size.height());
+    const QDomElement fillRect = childNamed(childNamed(blipFill, "stretch"), "fillRect");
+    if (!fillRect.isNull()) {
+        const double l = parsePercent(attr(fillRect, QStringLiteral("l")), 0), t = parsePercent(attr(fillRect, QStringLiteral("t")), 0);
+        const double r = parsePercent(attr(fillRect, QStringLiteral("r")), 0), b = parsePercent(attr(fillRect, QStringLiteral("b")), 0);
+        if (l + r < 1 && t + b < 1) target = QRectF(size.width() * l, size.height() * t, size.width() * (1 - l - r), size.height() * (1 - t - b));
+    }
+    const QDomElement src = childNamed(blipFill, "srcRect");
+    double cl = parsePercent(attr(src, QStringLiteral("l")), 0), ct = parsePercent(attr(src, QStringLiteral("t")), 0);
+    double cr = parsePercent(attr(src, QStringLiteral("r")), 0), cb = parsePercent(attr(src, QStringLiteral("b")), 0);
+    if (1 - cl - cr <= 0.001 || 1 - ct - cb <= 0.001) cl = ct = cr = cb = 0;
+    const double w = target.width() / (1 - cl - cr), h = target.height() / (1 - ct - cb);
+    return QRectF(position(target.x() - cl * w), position(target.y() - ct * h), extent(w), extent(h));
+}
+
 class Reader {
 public:
     Reader(const DrawingContext &ctx, const TextStyleStack &styles) : m_ctx(ctx), m_styles(styles) {}
@@ -297,6 +318,13 @@ private:
     void media(const QDomElement &nvPr, PictureItem &p);
     // A p:sp or p:cxnSp; `nv` is its p:nvSpPr or p:nvCxnSpPr.
     ItemPtr drawn(const QDomElement &e, const QDomElement &nv, const QVector<QDomElement> &inheritsFrom, bool connector);
+    // A shape of a diagram's drawing: as a p:sp, but its text goes in the rectangle of dsp:txXfrm.
+    ItemPtr diagramShape(const QDomElement &e);
+    ItemPtr diagramShapeText(const QDomElement &e);
+    ItemPtr withCutPicture(const ItemPtr &item, const QDomElement &spPr);
+    // The text of `body` in `frame`, as a box of its own; its look is `decoration`'s, the text's `style`'s.
+    ItemPtr makeTextBox(const QDomElement &cNvPr, const Frame &frame, const QVector<QDomElement> &properties, const QDomElement &decoration, const QDomElement &style,
+                    const BodyProperties &props, const QDomElement &body);
     ItemPtr line(const Frame &frame, const QString &prst, const QHash<QString, double> &adjust, const QDomElement &cNvPr, const QDomElement &nv,
                  const QVector<QDomElement> &properties, const QDomElement &style);
     void decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, const QVector<QDomElement> &properties, const QDomElement &style);
@@ -308,6 +336,7 @@ private:
     const TextStyleStack &m_styles;
     int m_count = 0;
     int m_depth = 0;
+    bool m_noText = false;   // reading a shape whose text is read apart (diagramShape)
     const Fill *m_groupFill = nullptr;
     QHash<QString, QString> m_images;
     QHash<qint64, ItemPtr> m_byId;
@@ -333,7 +362,7 @@ ItemPtr Reader::shape(const QDomElement &e, const QVector<QDomElement> &inherits
     if (isPicture) return pic(e, inheritsFrom);
     if (isConnector) return drawn(e, childNamed(e, "nvCxnSpPr"), inheritsFrom, true);
     const QDomElement nv = childNamed(e, "nvSpPr");
-    ItemPtr it = drawn(e, nv.isNull() ? e : nv, inheritsFrom, false);
+    ItemPtr it = e.namespaceURI() == kDsp ? diagramShape(e) : drawn(e, nv.isNull() ? e : nv, inheritsFrom, false);
     // A shape filled with the page's background (a design's panel the color of the slide behind it).
     if (it && parseBool(attr(e, QStringLiteral("useBgFill")))) it->fill = m_ctx.background;
     return it;
@@ -452,9 +481,9 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     const QDomElement cNvPr = childNamed(nv, "cNvPr");
     if (parseBool(attr(cNvPr, QStringLiteral("hidden")))) return nullptr;
     const QVector<QDomElement> properties = propertiesOf(e, inheritsFrom);
-    const QDomElement body = childNamed(e, "txBody");
+    const QDomElement body = m_noText ? QDomElement() : childNamed(e, "txBody");
     const QDomElement ph = childNamed(childNamed(nv, "nvPr"), "ph");
-    const bool textBox = !connector && parseBool(attr(childNamed(nv, "cNvSpPr"), QStringLiteral("txBox")));
+    const bool textBox = !connector && !m_noText && parseBool(attr(childNamed(nv, "cNvSpPr"), QStringLiteral("txBox")));
     const QDomElement style = firstWith(QVector<QDomElement>{e} + inheritsFrom, "style");
     // The geometry is the first said, among the shape's own and those it inherits from.
     QDomElement geom;
@@ -547,23 +576,7 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     if (!connector && plainRect && (textBox || !ph.isNull() || hasText(body))) {
         // A text box is its text: past the import's stories it is left out.
         if (m_ctx.newStory && m_ctx.budget && !m_ctx.budget->take(DrawingBudget::Stories)) return nullptr;
-        auto t = std::make_shared<TextItem>();
-        decorate(*t, cNvPr, frame, properties, style);
-        t->hyphenate = false;
-        t->insets = props.insets;
-        t->valign = props.valign;
-        t->autofit = props.autofit;
-        t->fitScale = props.fitScale;
-        t->fitLineCut = props.fitLineCut;
-        // Text the program shrank keeps the size it was given (a:normAutofit's fontScale) until it is edited.
-        t->fitAsStored = t->autofit == TextItem::ShrinkOnOverflow;
-        t->columns = props.columns;
-        t->columnGap = props.columnGap;
-        t->vertical = props.vertical;
-        if (m_ctx.newStory) {
-            t->storyId = m_ctx.newStory();
-            fillText(body, t->storyId, style);
-        }
+        ItemPtr t = makeTextBox(cNvPr, frame, properties, style, style, props, body);
         remember(cNvPr, t);
         return t;
     }
@@ -650,6 +663,143 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     return result;
 }
 
+ItemPtr Reader::makeTextBox(const QDomElement &cNvPr, const Frame &frame, const QVector<QDomElement> &properties, const QDomElement &decoration, const QDomElement &style,
+                        const BodyProperties &props, const QDomElement &body)
+{
+    auto t = std::make_shared<TextItem>();
+    decorate(*t, cNvPr, frame, properties, decoration);
+    t->hyphenate = false;
+    t->insets = props.insets;
+    t->valign = props.valign;
+    t->autofit = props.autofit;
+    t->fitScale = props.fitScale;
+    t->fitLineCut = props.fitLineCut;
+    // Text the program shrank keeps the size it was given (a:normAutofit's fontScale) until it is edited.
+    t->fitAsStored = t->autofit == TextItem::ShrinkOnOverflow;
+    t->columns = props.columns;
+    t->columnGap = props.columnGap;
+    t->vertical = props.vertical;
+    if (m_ctx.newStory) {
+        t->storyId = m_ctx.newStory();
+        fillText(body, t->storyId, style);
+    }
+    return t;
+}
+
+// A shape of a diagram's drawing (dsp:sp) is a p:sp, with the rectangle its text is laid out in (dsp:txXfrm), which is in the shape's own space:
+// the shape's turn carries it round the shape's center, and its own turn is added to the shape's. A text rectangle that is the shape's own (a
+// plain rectangle) leaves the text in the shape; any other is a text box of its own over the shape, which keeps its fill and line to itself.
+ItemPtr Reader::diagramShapeText(const QDomElement &e)
+{
+    const QDomElement nv = childNamed(e, "nvSpPr"), body = childNamed(e, "txBody"), txXfrm = childNamed(e, "txXfrm");
+    const QDomElement from = nv.isNull() ? e : nv;
+    if (txXfrm.isNull() || !hasText(body)) return drawn(e, from, {}, false);
+    const QVector<QDomElement> properties = propertiesOf(e, {});
+    const Frame shapeFrame = readFrame(firstWith(properties, "xfrm")), textFrame = readFrame(txXfrm);
+    QDomElement geom = firstWith(properties, "custGeom");
+    if (geom.isNull()) geom = firstWith(properties, "prstGeom");
+    const QString prst = geom.localName() == QLatin1String("custGeom") ? QStringLiteral("custom") : attr(geom, QStringLiteral("prst"));
+    const bool ownRect = (prst.isEmpty() || prst == QLatin1String("rect")) && textFrame.rect == shapeFrame.rect && textFrame.rotation == 0;
+    if (ownRect) return drawn(e, from, {}, false);
+
+    m_noText = true;
+    ItemPtr shape = drawn(e, from, {}, false);
+    m_noText = false;
+    if (!shape) return nullptr;
+    // A text box is one more object, and a story: past the import's, the shape stays without its text.
+    if (m_count >= kMaxShapes) {
+        if (m_ctx.budget) m_ctx.budget->ranOut[DrawingBudget::Objects] = true;
+        return shape;
+    }
+    if (m_ctx.budget && (!m_ctx.budget->take(DrawingBudget::Objects) || (m_ctx.newStory && !m_ctx.budget->take(DrawingBudget::Stories)))) return shape;
+    ++m_count;
+
+    QPointF center = textFrame.rect.center();
+    const QPointF shapeCenter = shapeFrame.rect.center();
+    if (shapeFrame.flipH) center.setX(2 * shapeCenter.x() - center.x());
+    if (shapeFrame.flipV) center.setY(2 * shapeCenter.y() - center.y());
+    if (shapeFrame.rotation != 0) {
+        QTransform turned;
+        turned.translate(shapeCenter.x(), shapeCenter.y());
+        turned.rotate(shapeFrame.rotation);
+        turned.translate(-shapeCenter.x(), -shapeCenter.y());
+        center = turned.map(center);
+    }
+    Frame place;
+    place.rect = QRectF(position(center.x() - textFrame.rect.width() / 2), position(center.y() - textFrame.rect.height() / 2), textFrame.rect.width(), textFrame.rect.height());
+    place.rotation = turn(shapeFrame.rotation + textFrame.rotation);
+    const QDomElement style = firstWith(QVector<QDomElement>{e}, "style");
+    const BodyProperties props = readBodyProperties({childNamed(body, "bodyPr")});
+    ItemPtr text = makeTextBox(childNamed(nv, "cNvPr"), place, {}, QDomElement(), style, props, body);
+    auto g = std::make_shared<GroupItem>();
+    g->children = {shape, text};
+    g->name = shape->name;
+    g->altText = shape->altText;
+    g->hyperlink = shape->hyperlink;
+    g->wrap.mode = Wrap::None;
+    g->syncRect();
+    return g;
+}
+
+// A shape of a diagram's drawing, with a picture fill that is cut or spread past the shape (a:srcRect, a:fillRect: a picture cut to fill the shape
+// is spread past it) is the picture, cut to the shape's outline, with the shape (its line and its text) over it: a fill has no such cut here.
+ItemPtr Reader::diagramShape(const QDomElement &e)
+{
+    ItemPtr item = diagramShapeText(e);
+    const QDomElement spPr = childNamed(e, "spPr");
+    return item ? withCutPicture(item, spPr) : item;
+}
+
+ItemPtr Reader::withCutPicture(const ItemPtr &item, const QDomElement &spPr)
+{
+    const QDomElement blipFill = childNamed(spPr, "blipFill");
+    if (blipFill.isNull() || !childNamed(spPr, "custGeom").isNull()) return item;
+    auto moved = [](const QDomElement &e) {
+        if (e.isNull()) return false;
+        const QDomNamedNodeMap attrs = e.attributes();
+        for (int i = 0; i < attrs.length(); ++i)
+            if (parsePercent(attrs.item(i).nodeValue(), 0) != 0) return true;
+        return false;
+    };
+    if (!moved(childNamed(blipFill, "srcRect")) && !moved(childNamed(childNamed(blipFill, "stretch"), "fillRect"))) return item;
+    // The shape the picture is on: the item itself, or the first of a shape and its text box.
+    const bool paired = item->type() == ItemType::Group;
+    if (paired && (static_cast<GroupItem &>(*item).children.size() != 2 || static_cast<GroupItem &>(*item).children[1]->type() != ItemType::Text)) return item;
+    ItemPtr shape = paired ? static_cast<GroupItem &>(*item).children.front() : item;
+    if (shape->type() != ItemType::Shape && shape->type() != ItemType::Text) return item;
+    if (shape->fill.type != Fill::Picture || shape->fill.imageId.isEmpty() || shape->fill.tile) return item;
+    const QString prst = attr(childNamed(spPr, "prstGeom"), QStringLiteral("prst"));
+    const QString mask = prst.isEmpty() ? QStringLiteral("rect") : shapeForPreset(prst);
+    if (mask.isEmpty() || (m_ctx.budget && !m_ctx.budget->take(DrawingBudget::Objects))) return item;
+    auto pic = std::make_shared<PictureItem>();
+    pic->name = shape->name;
+    pic->altText = shape->altText;
+    pic->rect = shape->rect;
+    pic->rotation = shape->rotation;
+    pic->flipH = shape->flipH;
+    pic->flipV = shape->flipV;
+    pic->wrap.mode = Wrap::None;
+    pic->imageId = shape->fill.imageId;
+    pic->transparency = shape->fill.transparency;
+    pic->maskShape = mask;
+    pic->imgRect = pictureRect(blipFill, shape->rect.size());
+    shape->fill = Fill();
+    if (paired) {
+        auto &g = static_cast<GroupItem &>(*item);
+        g.children.insert(g.children.begin(), pic);
+        g.syncRect();
+        return item;
+    }
+    auto g = std::make_shared<GroupItem>();
+    g->children = {pic, item};
+    g->name = item->name;
+    g->altText = item->altText;
+    g->hyperlink = item->hyperlink;
+    g->wrap.mode = Wrap::None;
+    g->syncRect();
+    return g;
+}
+
 ItemPtr Reader::line(const Frame &frame, const QString &prst, const QHash<QString, double> &adjust, const QDomElement &cNvPr, const QDomElement &nv,
                      const QVector<QDomElement> &properties, const QDomElement &style)
 {
@@ -707,22 +857,8 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     p->imageId = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), styleContext());
     media(childNamed(childNamed(e, "nvPicPr"), "nvPr"), *p);
 
-    // The whole picture's place in the frame: it is cut by a:srcRect (a negative cut is
-    // room around it), and what is left is stretched over the frame, or over part of it.
-    const QSizeF size = frame.rect.size();
-    QRectF target(0, 0, size.width(), size.height());
-    const QDomElement fillRect = childNamed(childNamed(blipFill, "stretch"), "fillRect");
-    if (!fillRect.isNull()) {
-        const double l = parsePercent(attr(fillRect, QStringLiteral("l")), 0), t = parsePercent(attr(fillRect, QStringLiteral("t")), 0);
-        const double r = parsePercent(attr(fillRect, QStringLiteral("r")), 0), b = parsePercent(attr(fillRect, QStringLiteral("b")), 0);
-        if (l + r < 1 && t + b < 1) target = QRectF(size.width() * l, size.height() * t, size.width() * (1 - l - r), size.height() * (1 - t - b));
-    }
-    const QDomElement src = childNamed(blipFill, "srcRect");
-    double cl = parsePercent(attr(src, QStringLiteral("l")), 0), ct = parsePercent(attr(src, QStringLiteral("t")), 0);
-    double cr = parsePercent(attr(src, QStringLiteral("r")), 0), cb = parsePercent(attr(src, QStringLiteral("b")), 0);
-    if (1 - cl - cr <= 0.001 || 1 - ct - cb <= 0.001) cl = ct = cr = cb = 0;
-    const double w = target.width() / (1 - cl - cr), h = target.height() / (1 - ct - cb);
-    p->imgRect = QRectF(position(target.x() - cl * w), position(target.y() - ct * h), extent(w), extent(h));
+    // The whole picture's place in the frame.
+    p->imgRect = pictureRect(blipFill, frame.rect.size());
 
     // The shape it is cut to.
     QDomElement geom;

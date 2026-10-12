@@ -18,7 +18,7 @@ on the same yardstick as JeffPub's.
 | Area | What it covers | Status |
 | --- | --- | --- |
 | Slides | Layouts, slide masters, themes and their variants, backgrounds, sections, the slide sorter, outline view, speaker notes, and notes and handout masters | Layouts, masters, notes, backgrounds, slide size, header and footer, sections (saved, and shown in the slides pane and Slide Sorter), Slide Sorter, Outline view: started |
-| On a slide | Text, shapes, pictures, icons, Text Art, tables, charts, audio, and video. SmartArt diagrams and equations show as saved at first; editing them follows | Text, shapes, pictures, tables: shown and saved; charts: drawn from their stored values and saved whole; movies and sounds: kept and saved, not yet played; Text Art, old files' too: shown and saved |
+| On a slide | Text, shapes, pictures, icons, Text Art, tables, charts, audio, and video. SmartArt diagrams and equations show as saved at first; editing them follows | Text, shapes, pictures, tables: shown and saved; charts: drawn from their stored values and saved whole; SmartArt diagrams: drawn from the drawing the file keeps of them (one picture on the slide: selected, moved, resized, copied, and deleted as a whole; printed as vectors) and saved whole with all their parts; equations: shown as the picture the file keeps beside them (in a text box with other words too) and saved whole; movies and sounds: kept and saved, not yet played; Text Art, old files' too: shown and saved |
 | Motion | Slide transitions, including Morph, and animations (entrance, emphasis, exit, motion paths) with the animation pane and timings | Nine transitions with a Transitions tab, read from and saved to the file (an effect JeffDeck has no form for plays as a fade and is saved as it was); animations play in the show click by click (appear, fade, wipe, moves, turns, sizes, motion paths, builds by paragraph; other effects play as a fade); editing them not yet |
 | Slide Show | Full screen, Presenter View on a second screen (notes, next slide, timer), pen and highlighter, rehearsed timings, custom shows, and looping for kiosks | Full screen, Presenter View, rehearsal (Alt+F5): started |
 | Working together | Comments on slides, and reusing slides from another presentation | Comments: read, shown, edited, and saved (the presentation program shows them with their replies); Reuse Slides, keeping the source's design or taking this one's |
@@ -55,8 +55,12 @@ libs/base            colors, fonts, files, PDF
   package, the theme, and the DrawingML shapes and text that slides share
   with documents and spreadsheets; `apps/deck/io` reads the presentation's
   own structure (masters, layouts, slides, notes) on top.
-- **Nothing in a file is lost.** What JeffDeck can't show yet (SmartArt,
-  animations, movies, and sounds) is kept with the slide to be written back.
+- **Nothing in a file is lost.** What JeffDeck can't show yet (animations,
+  movies, and sounds) is kept with the slide to be written back. A chart, a
+  SmartArt diagram, or an equation is a picture on the slide, with what it is
+  made of in the page's `props` ("charts", each with a "kind"); saving writes
+  the real thing again. A duplicated slide keeps them; a copy of the picture
+  pasted on a slide is only a picture.
 - **Text is set as on a slide.** A presentation's `Document::slideText`
   switches the shared text engine to the presentation program's rules: a
   single line is 1.2 times the text size whatever the font, a wider line's
