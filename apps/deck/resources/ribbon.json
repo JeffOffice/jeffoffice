@@ -562,6 +562,10 @@
               "keytip": "NM"
             },
             {
+              "large": "view.outline",
+              "keytip": "OV"
+            },
+            {
               "large": "view.sorter",
               "keytip": "SB"
             },
