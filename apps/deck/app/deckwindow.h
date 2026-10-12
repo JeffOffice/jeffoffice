@@ -70,6 +70,17 @@ public:
     void duplicateSlide();
     void deleteSlide();
     void toggleHidden();
+    // Sections (deckwindow_sections.cpp), each one step that undoes. A section
+    // is named by its index, -1 for the one the slide being edited is in.
+    // Add Section starts one at that slide (-1: the slide being edited);
+    // Rename asks for the name; moving takes the section's slides along (by -1
+    // up, 1 down); Remove Section & Slides keeps at least one slide.
+    void addSection(int before = -1);
+    void renameSection(int section = -1);
+    void removeSection(int section = -1);
+    void removeSectionAndSlides(int section = -1);
+    void moveSection(int section, int by);
+    void removeAllSections();
     void setLayout(const QString &layoutType);
     void resetSlide();
     // Gives the slides another size, everything on them scaled to fit (as
@@ -138,6 +149,7 @@ private:
     void createActions();
     void createSaveActions();     // deckwindow_save.cpp
     void createDialogActions();   // deckwindow_dialogs.cpp
+    void createSectionActions();  // deckwindow_sections.cpp
     void createOutputActions();   // deckwindow_output.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();

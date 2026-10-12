@@ -13,6 +13,7 @@
 
 #include "core/document.h"
 
+#include <QHash>
 #include <QList>
 #include <QString>
 #include <QVector>
@@ -65,8 +66,8 @@ int moveSection(Document &d, int section, int by);
 
 // The slide list changed: slide `at` was just inserted (it joins the section
 // of the slide before it, the first section if there is none), slide `at`
-// was just taken away (from the section that held it), or the slides were put
-// in another order, as `order` says (the old index of each slide now, as a
+// is about to be or was just taken away (from the section that held it), or
+// the slides were put in another order, as `order` says (the old index of each slide now, as a
 // list that holds every slide once). Slides listed in `moved` (old indices)
 // went to a new place and join the section there: `into`, when it is a
 // section's index, or else the section of the slide before them (the first
@@ -79,5 +80,18 @@ void slidesReordered(Document &d, const QList<int> &order, const QList<int> &mov
 // before slide `before` (the slide count for the end) makes: for
 // slidesReordered().
 QList<int> orderAfterMoving(int count, const QList<int> &moved, int before);
+
+// For a change that makes the slide list again out of the slides it had, in
+// any order and with others added (the outline): take note of where the
+// slides stand first, and restore after. The slides that keep their order
+// keep their sections, those moved or new join the section of the slide
+// before them.
+struct SectionMemory {
+    QHash<QString, int> index;   // a slide's place, by its page id
+    QVector<int> section;        // the section of each place
+    bool isEmpty() const { return section.isEmpty(); }
+};
+SectionMemory rememberSections(const Document &d);
+void restoreSections(Document &d, const SectionMemory &was);
 
 } // namespace jp::deck

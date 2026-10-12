@@ -44,6 +44,7 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QDialogButtonBox>
 #include <QRadioButton>
 #include <QDeadlineTimer>
@@ -80,6 +81,7 @@
 #include <QToolButton>
 #include <QUrl>
 #include <QXmlStreamWriter>
+#include <functional>
 
 using namespace jp;
 
@@ -697,6 +699,22 @@ private Q_SLOTS:
         QCOMPARE(letters(*fresh), QStringLiteral("CDAEFB"));
         QCOMPARE(sectionCounts(*fresh), (QList<int>{0, 2, 4}));
         QCOMPARE(deck::orderAfterMoving(5, {3, 1, 3, 9}, 0), (QList<int>{1, 3, 0, 2, 4}));
+
+        // A list made again out of the slides it had (the outline does): those that keep their order keep their
+        // sections, a moved one and a new one join the section of the slide before them, and a slide left out is gone.
+        auto again = lettered(6);
+        deck::addSection(*again, 2, QStringLiteral("Plan"));
+        deck::addSection(*again, 4, QStringLiteral("Budget"));   // AB | CD | EF
+        const deck::SectionMemory memory = deck::rememberSections(*again);
+        QVERIFY(!memory.isEmpty());
+        auto added = std::make_shared<Page>();
+        added->title = QStringLiteral("N");
+        const QVector<std::shared_ptr<Page>> was = again->pages;
+        again->pages = QVector<std::shared_ptr<Page>>{was[2], was[0], was[1], was[3], added, was[5]};
+        deck::restoreSections(*again, memory);
+        QCOMPARE(letters(*again), QStringLiteral("CABDNF"));
+        QCOMPARE(sectionCounts(*again), (QList<int>{3, 2, 1}));
+        QVERIFY(deck::rememberSections(*lettered(3)).isEmpty());   // none to keep without sections
         QCOMPARE(deck::orderAfterMoving(5, {0}, 5), (QList<int>{1, 2, 3, 4, 0}));
 
         // Counts that don't add up are made to: slides they miss join the last section, counts past the end are cut.
@@ -707,6 +725,481 @@ private Q_SLOTS:
         QCOMPARE(sectionCounts(*odd), (QList<int>{4, 1}));
         deck::setSections(*odd, {});
         QVERIFY(!deck::hasSections(*odd));
+    }
+
+private:
+    // The names of the actions a menu offers, in order (separators left out).
+    static QStringList menuTexts(const QMenu *menu)
+    {
+        QStringList out;
+        for (const QAction *a : menu->actions())
+            if (!a->isSeparator()) out << a->text();
+        return out;
+    }
+    // Opens the right-click menu of a widget at `pos` and, while it is open, tells `inspect` about it; it closes after.
+    static void rightClick(QWidget *viewport, const QPoint &pos, const std::function<void(QMenu *)> &inspect)
+    {
+        QTimer::singleShot(0, [inspect] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            if (!menu) return;
+            inspect(menu);
+            menu->close();
+        });
+        QContextMenuEvent e(QContextMenuEvent::Mouse, pos, viewport->mapToGlobal(pos));
+        QApplication::sendEvent(viewport, &e);
+    }
+    // Answers the Rename Section box: what the name shows when it opens, then the name to give (cancel when empty).
+    static void answerRename(QString *shown, QString *selected, const QString &name)
+    {
+        QTimer::singleShot(0, [shown, selected, name] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            auto *edit = dlg->findChild<QLineEdit *>();
+            *shown = edit->text();
+            *selected = edit->selectedText();
+            if (name.isEmpty()) {
+                dlg->reject();
+                return;
+            }
+            edit->setText(name);
+            dlg->accept();
+        });
+    }
+
+private Q_SLOTS:
+    // Every section command is one undo step; Rename asks for the name with it selected; Add Section is at
+    // the slide being edited, and the others are on its section.
+    void sectionCommandsAreOneUndoStepEach()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D", "E", "F"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        for (const char *id : {"section.rename", "section.remove", "section.removeAll", "section.collapseAll", "section.expandAll"}) QVERIFY(!w.act(id)->isEnabled());
+        QVERIFY(w.act("section.add")->isEnabled());
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->currentPage(), 2);
+        for (const char *id : {"section.rename", "section.remove", "section.removeAll", "section.collapseAll", "section.expandAll"}) QTRY_VERIFY(w.act(id)->isEnabled());
+        ed->undo();
+        QVERIFY(!deck::hasSections(*d));
+        ed->redo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+
+        // Rename: the box opens with the name selected; Cancel changes nothing.
+        QString shown, selected;
+        answerRename(&shown, &selected, QString());
+        w.act("section.rename")->trigger();
+        QCOMPARE(shown, QStringLiteral("Untitled Section"));
+        QCOMPARE(selected, shown);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        answerRename(&shown, &selected, QStringLiteral("Budget"));
+        w.act("section.rename")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Budget"}));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->setCurrentPage(0);
+        answerRename(&shown, &selected, QStringLiteral("Intro"));
+        w.act("section.rename")->trigger();
+        QCOMPARE(shown, QStringLiteral("Default Section"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Budget"}));
+        ed->redo();
+
+        // Moving a section takes its slides; the current slide stays the one being edited.
+        ed->setCurrentPage(3);
+        w.moveSection(1, -1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget", "Intro"}));
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F", "A", "B"}));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        QCOMPARE(ed->currentPage(), 3);
+        w.moveSection(0, 1);
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F", "A", "B"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2}));
+        w.moveSection(0, -1);   // the first can't go up: no step
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        ed->undoStack()->clear();
+
+        // Remove Section is on the section of the slide being edited; its slides join the one before.
+        ed->setCurrentPage(4);
+        w.act("section.remove")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{6}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        // Remove Section & Slides takes the slides too, and the editor lands on a slide that is there.
+        ed->setCurrentPage(5);
+        w.removeSectionAndSlides(1);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B"}));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        // The last section holding every slide can't take them all with it.
+        ed->undoStack()->clear();
+        w.removeSectionAndSlides(0);
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F"}));
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget"}));
+        w.removeSectionAndSlides(0);
+        QCOMPARE(int(d->pages.size()), 4);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        w.act("section.removeAll")->trigger();
+        QVERIFY(!deck::hasSections(*d));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+    }
+
+    // New, duplicated, deleted, and moved slides keep the sections' counts right, whichever view
+    // does it, each as the one step it was.
+    void sectionCountsFollowSlidesChangedInTheWindow()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D", "E", "F"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // AB | CDEF
+        ed->setCurrentPage(4);
+        w.act("section.add")->trigger();   // AB | CD | EF
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        ed->undoStack()->clear();
+        // A new slide after the last slide of a section is in that section.
+        ed->setCurrentPage(3);
+        w.newSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 2}));
+        QCOMPARE(ed->currentPage(), 4);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        ed->redo();
+        w.duplicateSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4, 2}));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        w.deleteSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 2}));
+        QCOMPARE(ed->undoStack()->count(), 3);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4, 2}));
+        ed->undo();
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        ed->undoStack()->clear();
+
+        // The slide sorter: deleting, duplicating, and moving (the last slide dropped under a header joins its section).
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        s->select({3, 4}, 4);
+        s->deleteSelected();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "F"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 1, 1}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        s->select({0}, 0);
+        s->duplicateSelected();
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 1, 1}));
+        s->moveSlides({4}, 1);   // F to between A and its copy: the first section
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "F", "A", "B", "C"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 1, 0}));
+        s->moveSlides({0}, 5, 2);   // A to the end, asked into the last section
+        QCOMPARE(titlesOf(*d), (QStringList{"F", "A", "B", "C", "A"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 1, 1}));
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 1, 0}));
+        w.act("view.normal")->trigger();
+    }
+
+    // Enter on a title makes a slide in its section, and a slide folded into
+    // the one before leaves its section.
+    void sectionCountsFollowTheOutline()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // AB | CD
+        ed->undoStack()->clear();
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        auto lineAt = [&](int block) {
+            QTextCursor c(o->document()->findBlockByNumber(block));
+            c.movePosition(QTextCursor::EndOfBlock);
+            o->setTextCursor(c);
+        };
+        lineAt(1);
+        QTest::keyClick(o, Qt::Key_Return);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "", "C", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 2}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2}));
+        lineAt(2);   // "C", the first of its section
+        QTest::keyClick(o, Qt::Key_Tab);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 1}));
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2}));
+        lineAt(3);
+        QTest::keyClick(o, Qt::Key_Return);
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3}));
+    }
+
+    // The slides pane puts a heading row before each section's slides; a click on it folds the section
+    // away, and its menu has the section's commands.
+    void slidesPaneGroupsSlidesUnderSectionHeaders()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four", "Five"});
+        Editor *ed = w.editor();
+        SlidesPane *pane = w.slidesPane();
+        QCOMPARE(pane->count(), 5);   // no sections: one row a slide
+        QVERIFY(!pane->isHeaderRow(0));
+        QCOMPARE(pane->rowOfSlide(3), 3);
+        QCOMPARE(pane->slideOfRow(3), 3);
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // One Two | Three Four Five
+        QString shown, selected;
+        answerRename(&shown, &selected, QStringLiteral("Budget"));
+        w.act("section.rename")->trigger();
+        QTRY_COMPARE(pane->count(), 7);
+        QVERIFY(pane->isHeaderRow(0) && pane->isHeaderRow(3));
+        QCOMPARE(pane->headerRow(0), 0);
+        QCOMPARE(pane->headerRow(1), 3);
+        QCOMPARE(pane->item(0)->text(), QStringLiteral("Default Section"));
+        QCOMPARE(pane->item(3)->text(), QStringLiteral("Budget"));
+        QCOMPARE(pane->item(0)->data(SlidesPane::CountRole).toInt(), 2);
+        QCOMPARE(pane->item(3)->data(SlidesPane::CountRole).toInt(), 3);
+        QCOMPARE(pane->rowOfSlide(0), 1);
+        QCOMPARE(pane->rowOfSlide(1), 2);
+        QCOMPARE(pane->rowOfSlide(2), 4);
+        QCOMPARE(pane->slideOfRow(4), 2);
+        QCOMPARE(pane->slideOfRow(3), -1);
+        QCOMPARE(pane->item(pane->rowOfSlide(2))->text(), QStringLiteral("3"));   // numbers run on through the sections
+        QCOMPARE(pane->currentRow(), 4);
+        // Clicking a thumbnail goes to its slide; the editor's slide is the one marked.
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->thumbnailRect(1).center());
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(pane->currentRow(), pane->rowOfSlide(1));
+        ed->setCurrentPage(3);
+        QCOMPARE(pane->currentRow(), pane->rowOfSlide(3));
+        // Clicking a heading folds its section away, and again brings it back; the slide being edited stays.
+        QVERIFY(!pane->isCollapsed(0));
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->headerRect(0).center());
+        QVERIFY(pane->isCollapsed(0));
+        QVERIFY(pane->isRowHidden(pane->rowOfSlide(0)) && pane->isRowHidden(pane->rowOfSlide(1)));
+        QVERIFY(pane->thumbnailRect(0).isNull());
+        QVERIFY(!pane->thumbnailRect(2).isNull());
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(ed->undoStack()->count(), 2);   // folding is not a change to the presentation
+        QVERIFY(w.slideSorter()->isCollapsed(0));   // the Slide Sorter folds the same way
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->headerRect(0).center());
+        QVERIFY(!pane->isCollapsed(0) && !pane->isRowHidden(pane->rowOfSlide(0)));
+        QVERIFY(!w.slideSorter()->isCollapsed(0));
+        w.act("section.collapseAll")->trigger();
+        QVERIFY(pane->isCollapsed(0) && pane->isCollapsed(1));
+        QVERIFY(w.slideSorter()->isCollapsed(0) && w.slideSorter()->isCollapsed(1));
+        // A slide chosen from elsewhere opens its section.
+        ed->setCurrentPage(0);
+        QVERIFY(!pane->isCollapsed(0) && pane->isCollapsed(1));
+        QVERIFY(!pane->thumbnailRect(0).isNull());
+        w.act("section.expandAll")->trigger();
+        QVERIFY(!pane->isCollapsed(0) && !pane->isCollapsed(1));
+        QCOMPARE(ed->undoStack()->count(), 2);
+
+        // The menu of a heading, and of a slide.
+        QStringList texts;
+        QList<bool> enabled;
+        rightClick(pane->viewport(), pane->headerRect(1).center(), [&](QMenu *m) {
+            texts = menuTexts(m);
+            for (const QAction *a : m->actions())
+                if (!a->isSeparator()) enabled << a->isEnabled();
+        });
+        QCOMPARE(texts, (QStringList{"Rename Section", "Remove Section", "Remove Section && Slides", "Move Section Up", "Move Section Down", "Collapse All", "Expand All"}));
+        QCOMPARE(enabled, (QList<bool>{true, true, true, true, false, true, true}));   // the last section can't go down
+        rightClick(pane->viewport(), pane->headerRect(0).center(), [&](QMenu *m) {
+            enabled.clear();
+            for (const QAction *a : m->actions())
+                if (!a->isSeparator()) enabled << a->isEnabled();
+        });
+        QCOMPARE(enabled, (QList<bool>{true, true, true, false, true, true, true}));
+        rightClick(pane->viewport(), pane->thumbnailRect(1).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QVERIFY(texts.contains(QStringLiteral("Add Section")) && texts.contains(QStringLiteral("Duplicate Slide")));
+        // Move Section Up, from the menu, takes the section's slides along.
+        rightClick(pane->viewport(), pane->headerRect(1).center(), [&](QMenu *m) {
+            for (QAction *a : m->actions())
+                if (a->text() == QLatin1String("Move Section Up")) a->trigger();
+        });
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionNames(*ed->doc()), (QStringList{"Budget", "Default Section"}));
+        QCOMPARE(ed->undoStack()->count(), 3);
+        QTRY_COMPARE(pane->item(0)->text(), QStringLiteral("Budget"));
+        // Remove Section from the menu, and Remove Section & Slides.
+        rightClick(pane->viewport(), pane->headerRect(0).center(), [&](QMenu *m) {
+            for (QAction *a : m->actions())
+                if (a->text() == QLatin1String("Remove Section && Slides")) a->trigger();
+        });
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"One", "Two"}));
+        QCOMPARE(sectionNames(*ed->doc()), (QStringList{"Default Section"}));
+        QTRY_COMPARE(pane->count(), 3);
+        ed->undo();
+        QTRY_COMPARE(pane->count(), 7);
+        // Dragging a thumbnail to another section's place (what a drop does): it joins the section it lands in.
+        pane->moveSlide(0, 3, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Four", "Five", "One", "Three", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{2, 3}));
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{3, 2}));
+    }
+
+    // The slide sorter starts each section on a row of its own under its heading; a heading folds
+    // its section, and a slide dropped among a section's slides is in the section.
+    void slideSorterGroupsThumbnailsUnderSectionHeaders()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four", "Five", "Six"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();
+        ed->setCurrentPage(5);
+        w.act("section.add")->trigger();   // One Two | Three Four Five | Six
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 1}));
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        QTRY_COMPARE(s->renderedCount(), 6);
+        auto row = [&](int slide) { return s->thumbnailRect(slide).top(); };
+        // A heading above each section's first row; a section's slides in rows from there.
+        for (int section = 0; section < 3; ++section) {
+            QVERIFY(!s->sectionHeaderRect(section).isNull());
+            QCOMPARE(s->headerAt(s->sectionHeaderRect(section).center()), section);
+            QCOMPARE(s->slideAt(s->sectionHeaderRect(section).center()), -1);
+        }
+        QVERIFY(s->sectionHeaderRect(0).bottom() < row(0));
+        QCOMPARE(row(1), row(0));
+        QVERIFY(row(2) > row(1) + s->thumbnailRect(1).height());
+        QVERIFY(s->sectionHeaderRect(1).top() >= s->thumbnailRect(1).bottom());
+        QVERIFY(s->sectionHeaderRect(1).bottom() < row(2));
+        QCOMPARE(row(3), row(2));
+        QCOMPARE(row(4), row(2));
+        QVERIFY(row(5) > row(4) + s->thumbnailRect(4).height());
+        QVERIFY(s->sectionHeaderRect(2).bottom() < row(5));
+        QCOMPARE(s->slideAt(centerOf(s, 4)), 4);
+        // Folding: the slides go and the rest comes up.
+        const int before = row(5);
+        QTest::mouseClick(s->viewport(), Qt::LeftButton, Qt::NoModifier, s->sectionHeaderRect(1).center());
+        QVERIFY(s->isCollapsed(1));
+        QVERIFY(s->thumbnailRect(3).isNull());
+        QCOMPARE(s->slideAt(QPoint(5, 5)), -1);
+        QVERIFY(row(5) < before);
+        QVERIFY(w.slidesPane()->isCollapsed(1));
+        s->setCollapsed(1, false);
+        QCOMPARE(row(5), before);
+        QVERIFY(!w.slidesPane()->isCollapsed(1));
+        // Dragging "Six" to the left of the first slide puts it first in the first section.
+        QTRY_COMPARE(s->renderedCount(), 6);
+        QWidget *vp = s->viewport();
+        const QPoint from = centerOf(s, 5), to(s->thumbnailRect(0).left() + 3, s->thumbnailRect(0).center().y());
+        ed->undoStack()->clear();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(vp, from + QPoint(-12, 0));
+        QTest::mouseMove(vp, from + QPoint(-40, 0));
+        QTest::mouseMove(vp, to);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(titlesOf(*d), (QStringList{"Six", "One", "Two", "Three", "Four", "Five"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 3, 0}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 1}));
+        // Dropped at the right of a section's last slide, it is that section's (not the next one's first).
+        QTRY_COMPARE(s->renderedCount(), 6);
+        const QRect last = s->thumbnailRect(4);
+        const QPoint far(last.right() + 8, last.center().y());
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, centerOf(s, 0));
+        QTest::mouseMove(vp, centerOf(s, 0) + QPoint(14, 14));
+        QTest::mouseMove(vp, centerOf(s, 0) + QPoint(60, 40));
+        QTest::mouseMove(vp, far);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, far);
+        QCOMPARE(titlesOf(*d), (QStringList{"Two", "Three", "Four", "Five", "One", "Six"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{1, 4, 1}));
+        ed->undo();
+        // A heading's menu is the section's, as in the slides pane.
+        QStringList texts;
+        rightClick(vp, s->sectionHeaderRect(2).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QCOMPARE(texts, (QStringList{"Rename Section", "Remove Section", "Remove Section && Slides", "Move Section Up", "Move Section Down", "Collapse All", "Expand All"}));
+        rightClick(vp, s->thumbnailRect(2).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QVERIFY(texts.contains(QStringLiteral("Add Section")));
+        // Left and Right go from slide to slide across the sections; Down to the row below.
+        ed->setCurrentPage(1);
+        QTest::keyClick(s, Qt::Key_Right);
+        QCOMPARE(ed->currentPage(), 2);
+        QTest::keyClick(s, Qt::Key_Left);
+        QCOMPARE(ed->currentPage(), 1);
+        QTest::keyClick(s, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 3);   // the nearest slide of the section below
+        QTest::keyClick(s, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 5);
+        QTest::keyClick(s, Qt::Key_Up);
+        QCOMPARE(ed->currentPage(), 2);   // the one across from "Six", at the left
+    }
+
+    // The Home tab's Section button: Add, Rename, Remove, Remove All, Collapse All, and Expand All.
+    void ribbonSectionMenu()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QAction *command = w.findChild<QAction *>(QStringLiteral("ribbon.section"));
+        QVERIFY(command);
+        QMenu *menu = nullptr;
+        for (QObject *o : command->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        QCOMPARE(menu->actions(), (QList<QAction *>{w.act("section.add"), w.act("section.rename"), w.act("section.remove"), w.act("section.removeAll"), menu->actions().at(4),
+                                                    w.act("section.collapseAll"), w.act("section.expandAll")}));
+        QVERIFY(menu->actions().at(4)->isSeparator());
+        QCOMPARE(w.act("section.add")->text(), QStringLiteral("Add Section"));
+        QCOMPARE(w.act("section.rename")->text(), QStringLiteral("Rename Section"));
+        QCOMPARE(w.act("section.remove")->text(), QStringLiteral("Remove Section"));
+        QCOMPARE(w.act("section.removeAll")->text(), QStringLiteral("Remove All Sections"));
+        QCOMPARE(w.act("section.collapseAll")->text(), QStringLiteral("Collapse All"));
+        QCOMPARE(w.act("section.expandAll")->text(), QStringLiteral("Expand All"));
+        // In the Slides group, after Reset.
+        RibbonGroup *slides = nullptr;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Home"))->groups())
+            if (g->title() == QLatin1String("Slides")) slides = g;
+        QVERIFY(slides);
+        QList<QToolButton *> buttons = slides->findChildren<QToolButton *>();
+        int reset = -1, section = -1;
+        for (int i = 0; i < buttons.size(); ++i) {
+            if (buttons[i]->defaultAction() == w.act("slide.reset")) reset = i;
+            if (buttons[i]->defaultAction() == command) section = i;
+        }
+        QVERIFY(reset >= 0 && section > reset);
     }
 
     // Outline view: the presentation's text, each slide a numbered heading
