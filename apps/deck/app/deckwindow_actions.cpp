@@ -173,9 +173,6 @@ void DeckWindow::createDesignActions()
 
 void DeckWindow::createViewActions()
 {
-    mk("view.normal", tr("Normal"), "layout-panel-top", QKeySequence(), [this] { refreshUi(); }, true);   // the only view: it stays checked
-    mk("view.sorter", tr("Slide Sorter"), "layout-grid", QKeySequence(), [] {}, true)->setEnabled(false);
-    act("view.sorter")->setToolTip(tr("Slide Sorter is coming."));
     mk("view.slideShow", tr("Slide Show"), "presentation", QKeySequence(), [this] { startShow(m_ed->currentPage()); });
     mk("view.rulers", tr("Ruler"), "ruler", QKeySequence(), [this] {
         m_ed->view.rulers = !m_ed->view.rulers;
