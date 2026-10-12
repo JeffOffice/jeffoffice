@@ -703,9 +703,10 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     if (!office::isChartFrame(frame)) return false;
     const office::Relationship rel = m_pkg.relationship(sc.ctx.part, office::chartFrameRelId(frame));
     if (rel.id.isEmpty() || rel.external || !m_pkg.hasPart(rel.target)) return false;
+    const QDomElement cNvPr = pChild(pChild(frame, "nvGraphicFramePr"), "cNvPr");
+    if (office::parseBool(office::attr(cNvPr, QStringLiteral("hidden")))) return false;
     office::Chart chart;
     if (!office::readChart(m_pkg.part(rel.target), sc.ctx.theme, sc.ctx.colors, &chart)) return false;
-    const QDomElement cNvPr = pChild(pChild(frame, "nvGraphicFramePr"), "cNvPr");
     const QDomElement xfrm = pChild(frame, "xfrm"), off = aChild(xfrm, "off"), ext = aChild(xfrm, "ext");
     auto points = [](const QDomElement &e, const char *name) { return office::emuToPoints(office::parseInt(office::attr(e, QLatin1String(name)))); };
     const QRectF rect(points(off, "x"), points(off, "y"), std::max(0.0, points(ext, "cx")), std::max(0.0, points(ext, "cy")));

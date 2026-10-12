@@ -126,6 +126,7 @@ private:
     // Draws the text so that the anchor falls at `ha` across it (0: its left, 1: its right) and `va` down it, the text turned `angle` degrees about the anchor.
     void drawText(const QString &text, const QFont &font, const QColor &color, const QPointF &anchor, double ha, double va, double angle = 0);
     QPen penFor(const ChartLine &line, const QColor &fallback, double fallbackWidth) const;
+    QColor lineColor() const;
 
     // ---- the pieces of a chart
     QVector<Entry> legendEntries() const;
@@ -249,6 +250,16 @@ QPen ChartPainter::penFor(const ChartLine &line, const QColor &fallback, double 
         pen.setCapStyle(Qt::FlatCap);
     }
     return pen;
+}
+
+// The gray of the lines (gridlines, axes, borders) a chart's style draws: the text's color a quarter of the way to the background.
+QColor ChartPainter::lineColor() const
+{
+    const QColor text = m_chart.textColor.isValid() ? m_chart.textColor : QColor(Qt::black);
+    if (text.lightnessF() <= 0.5) return tinted(text, 0.75);
+    const QColor back = m_chart.backgroundColor.isValid() ? m_chart.backgroundColor : QColor(Qt::black);
+    auto mix = [](int a, int b) { return int(std::lround(a * 0.55 + b * 0.45)); };
+    return QColor(mix(text.red(), back.red()), mix(text.green(), back.green()), mix(text.blue(), back.blue()));
 }
 
 void ChartPainter::titleBlock(const ChartTitle &t, double defaultSize, QFont *font, QColor *color) const
@@ -1077,7 +1088,7 @@ void ChartPainter::paintAxes(const QRectF &outer)
     // ---- the plot area's own fill and border
     m_p->save();
     if (c.plotFill.isValid()) m_p->fillRect(m_inner, c.plotFill);
-    const QColor classic = tinted(c.textColor.isValid() ? c.textColor : QColor(Qt::black), 0.75);
+    const QColor classic = lineColor();
     if (c.plotBorder.set && !c.plotBorder.none) {
         m_p->setPen(penFor(c.plotBorder, classic, 0.75));
         m_p->setBrush(Qt::NoBrush);
@@ -1242,7 +1253,7 @@ void ChartPainter::paint()
     const QRectF full(QPointF(0, 0), m_size);
     if (c.background.isValid()) m_p->fillRect(full, c.background);
     if (c.border.set && !c.border.none) {
-        m_p->setPen(penFor(c.border, tinted(c.textColor, 0.75), 0.75));
+        m_p->setPen(penFor(c.border, lineColor(), 0.75));
         m_p->setBrush(Qt::NoBrush);
         m_p->drawRect(full.adjusted(0.4, 0.4, -0.4, -0.4));
     }

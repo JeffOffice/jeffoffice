@@ -1073,6 +1073,58 @@ private Q_SLOTS:
         QCOMPARE(c.font.color, theme.colors[Theme::Light1]);
     }
 
+    void chartStyleColorsTheSeriesTheFileLeavesBare()
+    {
+        QString series;
+        for (int i = 0; i < 4; ++i) series += chartSeries(i, QStringLiteral("S%1").arg(i), {"a", "b"}, {1.0 + i, 2.0});
+        const QString plot = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>") + series + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>") + chartAxes();
+        const Theme theme = defaultTheme();
+        auto styled = [&](int style) {
+            QByteArray xml = chartPart(plot);
+            xml.replace("<c:roundedCorners val=\"0\"/>", QByteArray("<c:roundedCorners val=\"0\"/><c:style val=\"") + QByteArray::number(style) + "\"/>");
+            Chart c;
+            QString err;
+            [&] { QVERIFY2(readChart(xml, theme, ColorMap(), &c, &err), qPrintable(err)); }();
+            return c;
+        };
+        // Style 2, and what has none, takes the accents; so do the styles that count up from it eight at a time.
+        for (int style : {0, 2, 10, 26, 42}) {
+            const Chart c = styled(style);
+            QCOMPARE(c.style, style == 0 ? 2 : style);
+            for (int i = 0; i < 4; ++i) QCOMPARE(c.plots[0].series[i].color, theme.colors[Theme::Accent1 + i]);
+        }
+        // Style 1 is shades of gray, darkest first.
+        const Chart gray = styled(1);
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY2(gray.plots[0].series[i].color.saturationF() < 0.05, qPrintable(gray.plots[0].series[i].color.name()));
+            if (i > 0) QVERIFY(gray.plots[0].series[i].color.lightnessF() > gray.plots[0].series[i - 1].color.lightnessF());
+        }
+        // Style 3 is shades of the first accent, style 8 of the sixth (and 19 again of the first).
+        for (const QPair<int, int> &p : {qMakePair(3, 0), qMakePair(8, 5), qMakePair(19, 0)}) {
+            const Chart c = styled(p.first);
+            const QColor accent = theme.colors[Theme::Accent1 + p.second];
+            for (int i = 0; i < 4; ++i) {
+                const QColor shade = c.plots[0].series[i].color;
+                QVERIFY2(qAbs(shade.hueF() - accent.hueF()) < 0.03 || accent.saturationF() < 0.1, qPrintable(QString("%1: %2").arg(p.first).arg(shade.name())));
+                if (i > 0) QVERIFY(shade.lightnessF() > c.plots[0].series[i - 1].color.lightnessF());
+            }
+            QVERIFY(c.plots[0].series[0].color.lightnessF() < accent.lightnessF());
+            QVERIFY(c.plots[0].series[3].color.lightnessF() > accent.lightnessF());
+        }
+        // A color the file gives stays.
+        const QString own = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>")
+                            + chartSeries(0, QStringLiteral("A"), {"a"}, {1}, QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></c:spPr>")) + chartSeries(1, QStringLiteral("B"), {"a"}, {2})
+                            + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>") + chartAxes();
+        QByteArray xml = chartPart(own);
+        xml.replace("<c:roundedCorners val=\"0\"/>", "<c:roundedCorners val=\"0\"/><c:style val=\"3\"/>");
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(xml, theme, ColorMap(), &c, &err), qPrintable(err));
+        QCOMPARE(c.plots[0].series[0].color, QColor(0xFF, 0, 0));
+        QVERIFY(!c.plots[0].series[1].colorFromFile);
+        QVERIFY(qAbs(c.plots[0].series[1].color.hueF() - theme.colors[Theme::Accent1].hueF()) < 0.03);
+    }
+
     void chartReadsTitleLegendAndAxes()
     {
         const QString title = QStringLiteral("<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:pPr><a:defRPr sz=\"1400\" b=\"1\"/></a:pPr><a:r><a:rPr lang=\"en-US\" sz=\"1800\" b=\"0\"/><a:t>Sales by </a:t></a:r>"
