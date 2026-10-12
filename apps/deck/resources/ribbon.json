@@ -73,6 +73,9 @@
         {
           "name": "Font",
           "keytip": "ZF",
+          "launcher": "font",
+          "launcherTip": "Font",
+          "launcherKeytip": "FN",
           "items": [
             {
               "row": [
@@ -132,7 +135,9 @@
                     "spacing.Tight",
                     "spacing.Normal",
                     "spacing.Loose",
-                    "spacing.Very Loose"
+                    "spacing.Very Loose",
+                    "-",
+                    "fmt.spacingDialog"
                   ]
                 },
                 {
@@ -161,6 +166,9 @@
         {
           "name": "Paragraph",
           "keytip": "ZP",
+          "launcher": "paragraph",
+          "launcherTip": "Paragraph",
+          "launcherKeytip": "PG",
           "items": [
             {
               "row": [
@@ -178,7 +186,8 @@
                     "bullet.star",
                     "bullet.dash",
                     "-",
-                    "para.listNone"
+                    "para.listNone",
+                    "para.bulletsDialog"
                   ]
                 },
                 {
@@ -194,7 +203,8 @@
                     "number.5",
                     "number.6",
                     "-",
-                    "para.listNone"
+                    "para.listNone",
+                    "para.numberingDialog"
                   ]
                 },
                 {
@@ -218,7 +228,9 @@
                     "ls.1.5",
                     "ls.2",
                     "ls.2.5",
-                    "ls.3"
+                    "ls.3",
+                    "-",
+                    "para.dialog"
                   ]
                 },
                 {
@@ -390,6 +402,30 @@
             {
               "large": "insert.headerFooter",
               "keytip": "HF"
+            },
+            {
+              "small": "insert.dateTime",
+              "keytip": "DT"
+            }
+          ]
+        },
+        {
+          "name": "Links",
+          "keytip": "ZK",
+          "items": [
+            {
+              "large": "insert.link",
+              "keytip": "K"
+            }
+          ]
+        },
+        {
+          "name": "Symbols",
+          "keytip": "ZY",
+          "items": [
+            {
+              "large": "insert.symbol",
+              "keytip": "SY"
             }
           ]
         }
@@ -544,6 +580,30 @@
             {
               "large": "show.presenterView",
               "keytip": "P"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Review",
+      "keytip": "R",
+      "groups": [
+        {
+          "name": "Proofing",
+          "keytip": "ZP",
+          "items": [
+            {
+              "large": "review.spelling",
+              "keytip": "SP"
+            },
+            {
+              "large": "review.thesaurus",
+              "keytip": "TH"
+            },
+            {
+              "large": "review.wordCount",
+              "keytip": "WC"
             }
           ]
         }
