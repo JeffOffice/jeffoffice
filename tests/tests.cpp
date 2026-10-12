@@ -5253,6 +5253,28 @@ private Q_SLOTS:
         QVERIFY(!jp::readZip(zip, bad));
     }
 
+    // A picture kept in a .jpub file is held to what any picture is: an SVG
+    // that names a file to draw from (or has a script) is left out; the
+    // others stay.
+    void jpubPicturesAreHeldToThePictureChecks()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        QMap<QString, QByteArray> entries;
+        QVERIFY(jp::readZip(jp::publicationBytes(*doc, QImage()), entries));
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), entries["mimetype"]);
+        z.add(QStringLiteral("document.json"), entries["document.json"]);
+        const QByteArray head("<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"10\" height=\"10\">");
+        z.add(QStringLiteral("images/bad.svg"), head + "<image xlink:href=\"/etc/hostname\" width=\"10\" height=\"10\"/></svg>");
+        z.add(QStringLiteral("images/good.svg"), head + "<rect width=\"10\" height=\"10\" fill=\"red\"/></svg>");
+        QString err;
+        auto back = jp::publicationFromBytes(z.finish(), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(back->images.value(QStringLiteral("bad")).bytes.isEmpty());
+        QVERIFY(!back->images.value(QStringLiteral("good")).bytes.isEmpty());
+        QVERIFY(!back->image(QStringLiteral("good")).isNull());
+    }
+
     // Vector pictures inside .pub files come from the file, so their
     // records may lie: a header shorter than it claims, a text length that is
     // negative, a character count that wraps a 32-bit size check. Each must

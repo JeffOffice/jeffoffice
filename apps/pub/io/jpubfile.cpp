@@ -139,6 +139,13 @@ std::unique_ptr<Document> publicationFromBytes(const QByteArray &bytes, QString 
         }
         d.bytes = it.value();
         if (d.format.isEmpty()) d.format = file.section('.', 1);
+        // A stranger's file may hold an SVG that draws from a file on this
+        // computer, or one built to stall the drawing: it is held to what any
+        // picture added is (Document::addImage), and shows as missing.
+        if ((d.format.compare(QLatin1String("svg"), Qt::CaseInsensitive) == 0 || d.bytes.left(2048).contains("<svg")) && !svgIsSafe(d.bytes)) {
+            d.bytes.clear();
+            continue;
+        }
         if (!d.pixelSize.isValid()) d.pixelSize = d.image().size();
     }
     // Only the files in the publication's own folder are read for the links
