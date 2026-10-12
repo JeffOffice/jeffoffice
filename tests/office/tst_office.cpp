@@ -1,6 +1,8 @@
 // Tests of libs/office: packages, the theme, and DrawingML colors. Every
 // package they read is built in memory (never a real-world file).
+#include "office/drawingml.h"
 #include "office/drawingml_color.h"
+#include "office/drawingml_geometry.h"
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
@@ -1384,6 +1386,298 @@ private Q_SLOTS:
                 if (parseXml(bad, &doc)) readColor(doc.documentElement(), colorTestTheme(), ColorMap(), QColor(Qt::red));
             }
         }
+    }
+
+private:
+    // ---- DrawingML shapes: what the tests below build their drawings from
+
+    static QString dmlNamespaces()
+    {
+        return QStringLiteral("xmlns:a=\"%1\" xmlns:p=\"%2\" xmlns:r=\"%3\"").arg(QString(ns::A), QString(ns::P), QString(ns::R));
+    }
+
+    static QString emu(double points) { return QString::number(qint64(points * 12700)); }
+
+    // <a:custGeom> holding `inner`, as the first child of a throwaway document.
+    static QDomElement dmlElement(QDomDocument *doc, const QString &xml)
+    {
+        const QByteArray text = QStringLiteral("<root %1>%2</root>").arg(dmlNamespaces(), xml).toUtf8();
+        if (!parseXml(text, doc)) return QDomElement();
+        return doc->documentElement().firstChildElement();
+    }
+
+    static bool near(double a, double b, double tolerance = 1e-6) { return qAbs(a - b) <= tolerance * qMax(1.0, qAbs(b)); }
+
+    static Geometry customGeometryOf(const QString &inner, const QSizeF &size)
+    {
+        QDomDocument doc;
+        const QDomElement e = dmlElement(&doc, QStringLiteral("<a:custGeom>%1</a:custGeom>").arg(inner));
+        return readCustomGeometry(e, size);
+    }
+
+    // The path "M x y L x y ..." the tests draw lines with, in a path of `w` by `h`.
+    static QString linePath(const QString &attrs, const QList<QPair<QString, QString>> &points, bool close = true)
+    {
+        QString out = QStringLiteral("<a:path %1>").arg(attrs);
+        for (int i = 0; i < points.size(); ++i)
+            out += QStringLiteral("<a:%1><a:pt x=\"%2\" y=\"%3\"/></a:%1>").arg(i == 0 ? QStringLiteral("moveTo") : QStringLiteral("lnTo"), points[i].first, points[i].second);
+        return out + (close ? QStringLiteral("<a:close/>") : QString()) + QStringLiteral("</a:path>");
+    }
+
+private Q_SLOTS:
+    // ---- DrawingML shapes: guides and geometry
+
+    void dmlGuideFormulas_data()
+    {
+        QTest::addColumn<QString>("formula");
+        QTest::addColumn<double>("expected");
+        QTest::newRow("val") << "val 42" << 42.0;
+        QTest::newRow("multiply and divide") << "*/ 10 20 4" << 50.0;
+        QTest::newRow("add and subtract") << "+- 10 3 4" << 9.0;
+        QTest::newRow("add and divide") << "+/ 10 20 5" << 6.0;
+        QTest::newRow("if positive") << "?: 1 7 9" << 7.0;
+        QTest::newRow("if zero") << "?: 0 7 9" << 9.0;
+        QTest::newRow("if negative") << "?: -1 7 9" << 9.0;
+        QTest::newRow("abs") << "abs -5" << 5.0;
+        QTest::newRow("at2 of 45 degrees") << "at2 1 1" << 2700000.0;
+        QTest::newRow("at2 straight down") << "at2 0 1" << 5400000.0;
+        QTest::newRow("at2 straight left") << "at2 -1 0" << 10800000.0;
+        QTest::newRow("cat2") << "cat2 100 3 4" << 60.0;
+        QTest::newRow("sat2") << "sat2 100 3 4" << 80.0;
+        QTest::newRow("cos zero") << "cos 100 0" << 100.0;
+        QTest::newRow("cos 60 degrees") << "cos 100 3600000" << 50.0;
+        QTest::newRow("sin 90 degrees") << "sin 100 5400000" << 100.0;
+        QTest::newRow("sin 45 degrees") << "sin 100 2700000" << 70.71067811865476;
+        QTest::newRow("tan 45 degrees") << "tan 100 2700000" << 100.0;
+        QTest::newRow("max") << "max 3 9" << 9.0;
+        QTest::newRow("min") << "min 3 9" << 3.0;
+        QTest::newRow("mod") << "mod 3 4 12" << 13.0;
+        QTest::newRow("pin inside") << "pin 0 5 10" << 5.0;
+        QTest::newRow("pin below") << "pin 0 -5 10" << 0.0;
+        QTest::newRow("pin above") << "pin 0 15 10" << 10.0;
+        QTest::newRow("sqrt") << "sqrt 144" << 12.0;
+        QTest::newRow("sqrt of a negative") << "sqrt -4" << 0.0;
+        QTest::newRow("divide by zero") << "*/ 1 2 0" << 0.0;
+        QTest::newRow("add and divide by zero") << "+/ 1 2 0" << 0.0;
+        QTest::newRow("unknown operator") << "frob 1 2 3" << 0.0;
+        QTest::newRow("missing arguments") << "+-" << 0.0;
+        QTest::newRow("empty") << "" << 0.0;
+        QTest::newRow("extra spaces") << "  */   6   7  2 " << 21.0;
+        QTest::newRow("a name never defined") << "+- nothing 3 0" << 3.0;
+    }
+
+    void dmlGuideFormulas()
+    {
+        QFETCH(QString, formula);
+        QFETCH(double, expected);
+        GuideEvaluator g(1000, 600);
+        g.define(QStringLiteral("x"), formula);
+        QVERIFY2(near(g.value(QStringLiteral("x")), expected, 1e-9), qPrintable(QString::number(g.value(QStringLiteral("x")))));
+    }
+
+    void dmlGuideBuiltInNames()
+    {
+        GuideEvaluator g(1000, 600);
+        const struct { const char *name; double value; } names[] = {
+            {"w", 1000}, {"h", 600}, {"l", 0}, {"t", 0}, {"r", 1000}, {"b", 600}, {"hc", 500}, {"vc", 300},
+            {"wd2", 500}, {"wd3", 1000.0 / 3}, {"wd4", 250}, {"wd5", 200}, {"wd6", 1000.0 / 6}, {"wd8", 125}, {"wd10", 100}, {"wd32", 31.25},
+            {"hd2", 300}, {"hd3", 200}, {"hd4", 150}, {"hd5", 120}, {"hd6", 100}, {"hd8", 75},
+            {"ss", 600}, {"ls", 1000}, {"ssd2", 300}, {"ssd4", 150}, {"ssd6", 100}, {"ssd8", 75}, {"ssd16", 37.5}, {"ssd32", 18.75},
+            {"cd2", 10800000}, {"cd4", 5400000}, {"cd8", 2700000}, {"3cd4", 16200000}, {"3cd8", 8100000}, {"5cd8", 13500000}, {"7cd8", 18900000}};
+        for (const auto &n : names) QVERIFY2(near(g.value(QString::fromLatin1(n.name)), n.value), n.name);
+        // A number written out is its value, and a name that was never defined is 0.
+        QCOMPARE(g.value(QStringLiteral("123")), 123.0);
+        QCOMPARE(g.value(QStringLiteral("-4.5")), -4.5);
+        QCOMPARE(g.value(QStringLiteral("nothing")), 0.0);
+        QCOMPARE(g.value(QStringLiteral("nan")), 0.0);
+        QCOMPARE(g.value(QStringLiteral("inf")), 0.0);
+        // The shorter side is ss however the shape is turned.
+        GuideEvaluator tall(300, 900);
+        QCOMPARE(tall.value(QStringLiteral("ss")), 300.0);
+        QCOMPARE(tall.value(QStringLiteral("ls")), 900.0);
+    }
+
+    void dmlGuidesReferToEachOther()
+    {
+        GuideEvaluator g(1000, 600);
+        g.set(QStringLiteral("adj"), 25000);
+        g.define(QStringLiteral("dx"), QStringLiteral("*/ ss adj 100000"));       // 150
+        g.define(QStringLiteral("x1"), QStringLiteral("+- l dx 0"));              // 150
+        g.define(QStringLiteral("x2"), QStringLiteral("+- r 0 dx"));              // 850
+        g.define(QStringLiteral("early"), QStringLiteral("+- late 1 0"));         // a guide used before it is defined
+        g.define(QStringLiteral("late"), QStringLiteral("val 5"));
+        QCOMPARE(g.value(QStringLiteral("x1")), 150.0);
+        QCOMPARE(g.value(QStringLiteral("x2")), 850.0);
+        QCOMPARE(g.value(QStringLiteral("early")), 6.0);
+        // The first definition of a name is the one that counts.
+        g.define(QStringLiteral("x1"), QStringLiteral("val 1"));
+        QCOMPARE(g.value(QStringLiteral("x1")), 150.0);
+        // A value set outright wins over a formula for the name.
+        g.set(QStringLiteral("dx"), 7);
+        QCOMPARE(g.value(QStringLiteral("dx")), 7.0);
+    }
+
+    void dmlGuidesSurviveLoopsAndExcess()
+    {
+        GuideEvaluator g(1000, 600);
+        g.define(QStringLiteral("a"), QStringLiteral("+- b 1 0"));
+        g.define(QStringLiteral("b"), QStringLiteral("+- a 1 0"));
+        g.define(QStringLiteral("self"), QStringLiteral("+- self 1 0"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("a"))));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("b"))));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("self"))));
+        // A chain far longer than any drawing has: it ends, and gives a number.
+        g.define(QStringLiteral("g0"), QStringLiteral("val 1"));
+        for (int i = 1; i < 20000; ++i) g.define(QStringLiteral("g%1").arg(i), QStringLiteral("+- g%1 1 0").arg(i - 1));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("g19999"))));
+        // Results are kept finite and of a size a path can use.
+        g.define(QStringLiteral("big"), QStringLiteral("*/ 1000000000000 1000000000000 1"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("big"))));
+        QVERIFY(qAbs(g.value(QStringLiteral("big"))) <= 1e15);
+        g.define(QStringLiteral("tan90"), QStringLiteral("tan 100 5400000"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("tan90"))));
+        g.define(QStringLiteral("nanner"), QStringLiteral("mod nan 1 1"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("nanner"))));
+    }
+
+    void dmlCustomGeometryScalesItsPath()
+    {
+        // The path's own 100 by 50 is stretched over a frame of 200 by 100 points.
+        const QString p = linePath(QStringLiteral("w=\"100\" h=\"50\""), {{"10", "10"}, {"90", "10"}, {"90", "40"}});
+        const Geometry g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(200, 100));
+        QCOMPARE(g.paths.size(), 1);
+        const QRectF r = g.paths[0].path.boundingRect();
+        QVERIFY2(near(r.left(), 20) && near(r.top(), 20) && near(r.right(), 180) && near(r.bottom(), 80), qPrintable(QString::number(r.left())));
+        QVERIFY(g.paths[0].fill == GeometryPath::Normal);
+        QVERIFY(g.paths[0].stroke);
+    }
+
+    void dmlCustomGeometryWithoutPathSizeIsInEmu()
+    {
+        const QString p = linePath(QString(), {{"0", "0"}, {QStringLiteral("2540000"), QStringLiteral("1270000")}}, false);
+        const Geometry g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(300, 300));
+        QCOMPARE(g.paths.size(), 1);
+        const QRectF r = g.paths[0].path.boundingRect();
+        QVERIFY(near(r.right(), 200) && near(r.bottom(), 100));
+        // The frame's size doesn't stretch a path that names none.
+        const Geometry g2 = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(30, 30));
+        QVERIFY(near(g2.paths[0].path.boundingRect().right(), 200));
+    }
+
+    void dmlCustomGeometryEvaluatesGuides()
+    {
+        // A triangle whose apex is a quarter of the way along, by guides.
+        const QString gd = QStringLiteral("<a:avLst><a:gd name=\"adj\" fmla=\"val 25000\"/></a:avLst>"
+                                          "<a:gdLst><a:gd name=\"x1\" fmla=\"*/ w adj 100000\"/><a:gd name=\"y1\" fmla=\"*/ h 1 2\"/></a:gdLst>");
+        const QString p = linePath(QString(), {{"l", "b"}, {"x1", "t"}, {"r", "y1"}});
+        const Geometry g = customGeometryOf(gd + QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(400, 200));
+        QCOMPARE(g.paths.size(), 1);
+        const QPainterPath &path = g.paths[0].path;
+        QVERIFY(near(path.elementAt(0).x, 0) && near(path.elementAt(0).y, 200));
+        QVERIFY(near(path.elementAt(1).x, 100) && near(path.elementAt(1).y, 0));
+        QVERIFY(near(path.elementAt(2).x, 400) && near(path.elementAt(2).y, 100));
+    }
+
+    void dmlCustomGeometryDrawsArcsAndCurves()
+    {
+        // A whole circle from an arc: left-center, once around.
+        const QString circle = QStringLiteral("<a:path><a:moveTo><a:pt x=\"l\" y=\"vc\"/></a:moveTo>"
+                                              "<a:arcTo wR=\"wd2\" hR=\"hd2\" stAng=\"cd2\" swAng=\"21600000\"/><a:close/></a:path>");
+        Geometry g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(circle), QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 1);
+        QRectF r = g.paths[0].path.boundingRect();
+        QVERIFY2(near(r.left(), 0, 1e-3) && near(r.top(), 0, 1e-3) && near(r.right(), 100, 1e-3) && near(r.bottom(), 100, 1e-3),
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(r.left()).arg(r.top()).arg(r.width()).arg(r.height())));
+        // The center of the circle is inside it and a corner is not.
+        QVERIFY(g.paths[0].path.contains(QPointF(50, 50)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(3, 3)));
+        // A quarter ellipse: from the left-center sweeping a quarter turn clockwise ends at the top-center.
+        const QString quarter = QStringLiteral("<a:path><a:moveTo><a:pt x=\"l\" y=\"vc\"/></a:moveTo>"
+                                               "<a:arcTo wR=\"wd2\" hR=\"hd2\" stAng=\"cd2\" swAng=\"5400000\"/></a:path>");
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(quarter), QSizeF(300, 100));
+        const QPointF end = g.paths[0].path.currentPosition();
+        QVERIFY2(near(end.x(), 150, 1e-3) && near(end.y(), 0, 1e-3), qPrintable(QStringLiteral("%1,%2").arg(end.x()).arg(end.y())));
+        // A counterclockwise quarter turn ends at the bottom-center.
+        const QString back = QStringLiteral("<a:path><a:moveTo><a:pt x=\"l\" y=\"vc\"/></a:moveTo>"
+                                            "<a:arcTo wR=\"wd2\" hR=\"hd2\" stAng=\"cd2\" swAng=\"-5400000\"/></a:path>");
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(back), QSizeF(300, 100));
+        QVERIFY(near(g.paths[0].path.currentPosition().x(), 150, 1e-3) && near(g.paths[0].path.currentPosition().y(), 100, 1e-3));
+        // Quadratic and cubic curves end where they are told to.
+        const QString curves = QStringLiteral("<a:path w=\"10\" h=\"10\"><a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo>"
+                                              "<a:quadBezTo><a:pt x=\"5\" y=\"0\"/><a:pt x=\"10\" y=\"5\"/></a:quadBezTo>"
+                                              "<a:cubicBezTo><a:pt x=\"10\" y=\"8\"/><a:pt x=\"8\" y=\"10\"/><a:pt x=\"5\" y=\"10\"/></a:cubicBezTo></a:path>");
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(curves), QSizeF(100, 100));
+        QVERIFY(near(g.paths[0].path.currentPosition().x(), 50) && near(g.paths[0].path.currentPosition().y(), 100));
+        QVERIFY(g.paths[0].path.elementCount() >= 6);
+    }
+
+    void dmlCustomGeometryKeepsFillAndStrokeModes()
+    {
+        const QString sq = QStringLiteral("<a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo><a:lnTo><a:pt x=\"10\" y=\"0\"/></a:lnTo><a:lnTo><a:pt x=\"10\" y=\"10\"/></a:lnTo>");
+        const QString paths = QStringLiteral("<a:pathLst><a:path w=\"10\" h=\"10\">%1</a:path><a:path w=\"10\" h=\"10\" fill=\"none\">%1</a:path>"
+                                             "<a:path w=\"10\" h=\"10\" stroke=\"0\">%1</a:path><a:path w=\"10\" h=\"10\" fill=\"darkenLess\" stroke=\"false\">%1</a:path>"
+                                             "<a:path w=\"10\" h=\"10\" fill=\"lighten\">%1</a:path><a:path w=\"10\" h=\"10\" fill=\"lightenLess\">%1</a:path>"
+                                             "<a:path w=\"10\" h=\"10\" fill=\"darken\">%1</a:path></a:pathLst>").arg(sq);
+        const Geometry g = customGeometryOf(paths, QSizeF(10, 10));
+        QCOMPARE(g.paths.size(), 7);
+        QVERIFY(g.paths[0].fill == GeometryPath::Normal && g.paths[0].stroke);
+        QVERIFY(g.paths[1].fill == GeometryPath::None && g.paths[1].stroke);
+        QVERIFY(g.paths[2].fill == GeometryPath::Normal && !g.paths[2].stroke);
+        QVERIFY(g.paths[3].fill == GeometryPath::DarkenLess && !g.paths[3].stroke);
+        QVERIFY(g.paths[4].fill == GeometryPath::Lighten);
+        QVERIFY(g.paths[5].fill == GeometryPath::LightenLess);
+        QVERIFY(g.paths[6].fill == GeometryPath::Darken);
+    }
+
+    void dmlCustomGeometryReadsTheTextRectangle()
+    {
+        const QString p = linePath(QStringLiteral("w=\"10\" h=\"10\""), {{"0", "0"}, {"10", "0"}, {"10", "10"}});
+        Geometry g;
+        g = customGeometryOf(QStringLiteral("<a:rect l=\"wd4\" t=\"hd4\" r=\"r\" b=\"b\"/><a:pathLst>%1</a:pathLst>").arg(p), QSizeF(200, 100));
+        QVERIFY2(near(g.textRect.left(), 50) && near(g.textRect.top(), 25) && near(g.textRect.right(), 200) && near(g.textRect.bottom(), 100),
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(g.textRect.left()).arg(g.textRect.top()).arg(g.textRect.width()).arg(g.textRect.height())));
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(200, 100));
+        QVERIFY(g.textRect.isNull());
+    }
+
+    void dmlCustomGeometryToleratesNonsense()
+    {
+        QVERIFY(customGeometryOf(QString(), QSizeF(10, 10)).isEmpty());
+        QVERIFY(customGeometryOf(QStringLiteral("<a:pathLst/>"), QSizeF(10, 10)).isEmpty());
+        QVERIFY(readCustomGeometry(QDomElement(), QSizeF(10, 10)).isEmpty());
+        // Garbage coordinates are 0, a path with no points is skipped, a zero-size frame has nothing.
+        Geometry g = customGeometryOf(QStringLiteral("<a:pathLst><a:path w=\"10\" h=\"10\"><a:moveTo><a:pt x=\"zz\" y=\"\"/></a:moveTo>"
+                                                     "<a:lnTo/><a:lnTo><a:pt x=\"5\"/></a:lnTo><a:bogus/></a:path><a:path/></a:pathLst>"), QSizeF(10, 10));
+        QVERIFY(g.paths.size() <= 1);
+        if (!g.paths.isEmpty()) QVERIFY(g.paths[0].path.boundingRect().width() >= 0);
+        const QString p = linePath(QStringLiteral("w=\"10\" h=\"10\""), {{"0", "0"}, {"10", "10"}});
+        QVERIFY(customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(0, 0)).isEmpty() ||
+                customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(0, 0)).paths[0].path.boundingRect().isEmpty());
+    }
+
+    void dmlCustomGeometryLimitsHostilePaths()
+    {
+        // Far more commands than a drawing has are cut off, and the points stay where a page can hold them.
+        QString many = QStringLiteral("<a:path w=\"100\" h=\"100\"><a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo>");
+        for (int i = 0; i < 150000; ++i) many += QStringLiteral("<a:lnTo><a:pt x=\"%1\" y=\"5\"/></a:lnTo>").arg(i % 100);
+        many += QStringLiteral("</a:path>");
+        Geometry g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(many), QSizeF(100, 100));
+        QVERIFY(g.paths.isEmpty() || g.paths[0].path.elementCount() <= 100000);
+        const QString far = linePath(QString(), {{"0", "0"}, {QStringLiteral("99999999999999999"), QStringLiteral("-99999999999999999")}}, false);
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(far), QSizeF(100, 100));
+        QVERIFY(g.paths.isEmpty() || g.paths[0].path.boundingRect().right() <= 1e6);
+        QVERIFY(g.paths.isEmpty() || g.paths[0].path.boundingRect().top() >= -1e6);
+        // An arc with radii of nothing, or of billions, neither hangs nor makes a bad number.
+        const QString arcs = QStringLiteral("<a:path><a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo><a:arcTo wR=\"0\" hR=\"0\" stAng=\"0\" swAng=\"5400000\"/>"
+                                            "<a:arcTo wR=\"99999999999\" hR=\"99999999999\" stAng=\"0\" swAng=\"99999999999\"/></a:path>");
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(arcs), QSizeF(100, 100));
+        for (const GeometryPath &p : g.paths)
+            for (int i = 0; i < p.path.elementCount(); ++i) QVERIFY(std::isfinite(p.path.elementAt(i).x) && std::isfinite(p.path.elementAt(i).y));
+        // Too many guides are ignored from the limit on.
+        QString gds;
+        for (int i = 0; i < 20000; ++i) gds += QStringLiteral("<a:gd name=\"g%1\" fmla=\"val %1\"/>").arg(i);
+        g = customGeometryOf(QStringLiteral("<a:gdLst>%1</a:gdLst><a:pathLst>%2</a:pathLst>").arg(gds, linePath(QString(), {{"g1", "g2"}, {"g3", "g4"}})), QSizeF(100, 100));
+        QVERIFY(g.paths.size() <= 1);
     }
 
     void writerRoundTrip()
