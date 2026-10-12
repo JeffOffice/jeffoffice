@@ -1045,6 +1045,7 @@ void ChartPainter::paintAxes(const QRectF &outer)
     const QRectF given = manual ? QRectF(c.plotX * m_size.width(), c.plotY * m_size.height(), c.plotW * m_size.width(), c.plotH * m_size.height()) : outer;
     const bool fixed = manual && c.plotInner;
     LabelFit fit;
+    const bool valueAxisAtTop = (m_val->crosses == QLatin1String("max")) != m_catReversed;
     double leftSpace = 0, rightSpace = 0, topSpace = 0, bottomSpace = 0;
     auto categoriesAcross = [&]() { return std::max(1.0, m_between ? double(m_n) : double(std::max(1, m_n - 1))); };
     for (int pass = 0; pass < 2; ++pass) {
@@ -1060,7 +1061,9 @@ void ChartPainter::paintAxes(const QRectF &outer)
             const double slot = (given.height() - bottomSpace) / std::max(1, m_n);
             fit = fitLabels(cats, catFont, slot, *m_cat, false);
             leftSpace = (catLabels ? fit.extent + 5 : 0) + (outTick(*m_cat) ? tickLen : 0) + catTitleH;
-            bottomSpace = (valLabels ? valLineH + 4 : 0) + (outTick(*m_val) ? tickLen : 0) + valTitleH;
+            // The value axis is along the bottom, or along the top when it crosses at the last category (or the categories are turned round).
+            const double valueSpace = (valLabels ? valLineH + 4 : 0) + (outTick(*m_val) ? tickLen : 0) + valTitleH;
+            (valueAxisAtTop ? topSpace : bottomSpace) = valueSpace;
             rightSpace = valueLabels.isEmpty() ? 0 : widthOf(valFont, valueLabels.last()) / 2;
         } else {
             leftSpace = (valLabels ? widest(valueLabels, valFont) + 3.5 : 0) + (outTick(*m_val) ? tickLen : 0) + valTitleH;
@@ -1193,7 +1196,8 @@ void ChartPainter::paintAxes(const QRectF &outer)
         for (int which = 0; which < (m_val2 ? 2 : 1); ++which) {
             const ChartAxis &a = which == 0 ? *m_val : *m_val2;
             const Scale &scale = which == 0 ? m_scale : m_scale2;
-            const bool right = which == 1 || a.crosses == QLatin1String("max") || a.position == QLatin1String("r");
+            // The value axis stands at the first category (its far end if it crosses at the last), and turning the categories round swaps the ends.
+            const bool right = which == 1 || ((a.crosses == QLatin1String("max")) != m_catReversed);
             const double x = right ? m_inner.right() : m_inner.left();
             const QVector<double> &ticks = which == 0 ? valueTicks : secondTicks;
             QVector<double> along;
@@ -1219,13 +1223,14 @@ void ChartPainter::paintAxes(const QRectF &outer)
             for (int i = 0; i < m_n && i < cats.size(); i += fit.skip)
                 drawText(cats[i], catFont, colorOf(m_cat->font), QPointF(labelX, catAlong(catUnit(i))), right ? 0.0 : 1.0, 0.5);
         }
-        const double y = m_val->crosses == QLatin1String("max") ? m_inner.top() : m_inner.bottom();
+        const double y = valueAxisAtTop ? m_inner.top() : m_inner.bottom();
+        const double away = valueAxisAtTop ? -1 : 1;
         QVector<double> along;
         for (double t : valueTicks) along << valueAlong(t, m_scale);
-        axisLine(*m_val, QPointF(m_inner.left(), y), QPointF(m_inner.right(), y), along, true, QPointF(0, 1));
+        axisLine(*m_val, QPointF(m_inner.left(), y), QPointF(m_inner.right(), y), along, true, QPointF(0, away));
         if (valLabels)
             for (int i = 0; i < valueTicks.size(); ++i)
-                drawText(valueLabels[i], valFont, colorOf(m_val->font), QPointF(along[i], y + 4 + (outTick(*m_val) ? tickLen : 0)), 0.5, 0);
+                drawText(valueLabels[i], valFont, colorOf(m_val->font), QPointF(along[i], y + away * (4 + (outTick(*m_val) ? tickLen : 0))), 0.5, valueAxisAtTop ? 1 : 0);
     }
     m_p->restore();
 
@@ -1236,7 +1241,7 @@ void ChartPainter::paintAxes(const QRectF &outer)
         else drawText(m_cat->title.text, catTitleFont, catTitleColor, QPointF(m_inner.center().x(), given.bottom() - 1), 0.5, 1.0, turn(m_cat->title, 0));
     }
     if (valTitleH > 0) {
-        if (m_swap) drawText(m_val->title.text, valTitleFont, valTitleColor, QPointF(m_inner.center().x(), given.bottom() - 1), 0.5, 1.0, turn(m_val->title, 0));
+        if (m_swap) drawText(m_val->title.text, valTitleFont, valTitleColor, QPointF(m_inner.center().x(), valueAxisAtTop ? given.top() + 1 : given.bottom() - 1), 0.5, valueAxisAtTop ? 0.0 : 1.0, turn(m_val->title, 0));
         else drawText(m_val->title.text, valTitleFont, valTitleColor, QPointF(given.left() + valTitleH / 2 - 2, m_inner.center().y()), 0.5, 0.5, turn(m_val->title, -90));
     }
     if (secondTitleH > 0 && !m_swap)

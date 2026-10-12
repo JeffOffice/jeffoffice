@@ -1388,6 +1388,44 @@ private Q_SLOTS:
         QVERIFY(qAbs(bars[0].height() - bars[2].height()) <= 2);
     }
 
+    void chartSvgPutsReversedCategoriesFirstAtTheTop()
+    {
+        const QString red = QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></c:spPr>");
+        auto bars = [&](const QString &order, const QString &crosses) {
+            return QStringLiteral("<c:barChart><c:barDir val=\"bar\"/><c:grouping val=\"clustered\"/>") + chartSeries(0, QStringLiteral("S"), {"a", "b", "c"}, {10, 20, 40}, red)
+                   + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>")
+                   + QStringLiteral("<c:catAx><c:axId val=\"111\"/><c:scaling><c:orientation val=\"%1\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:majorTickMark val=\"out\"/><c:minorTickMark val=\"none\"/>"
+                                    "<c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"222\"/><c:crosses val=\"autoZero\"/><c:auto val=\"1\"/><c:lblAlgn val=\"ctr\"/><c:lblOffset val=\"100\"/></c:catAx>"
+                                    "<c:valAx><c:axId val=\"222\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/><c:majorGridlines/><c:numFmt formatCode=\"General\" sourceLinked=\"1\"/>"
+                                    "<c:majorTickMark val=\"out\"/><c:minorTickMark val=\"none\"/><c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"111\"/><c:crosses val=\"%2\"/><c:crossBetween val=\"between\"/></c:valAx>").arg(order, crosses);
+        };
+        // Where the value axis' labels are: dark text along the bottom of the picture, or along its top. (The bars are red, the lines gray.)
+        auto darkIn = [](const QImage &img, int from, int to) {
+            for (int y = from; y < to; ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (qRed(img.pixel(x, y)) < 100 && qGreen(img.pixel(x, y)) < 100 && qBlue(img.pixel(x, y)) < 120) return true;
+            return false;
+        };
+        Chart plain, turned, atTop;
+        QString err;
+        QVERIFY2(readChart(chartPart(bars(QStringLiteral("minMax"), QStringLiteral("autoZero"))), defaultTheme(), ColorMap(), &plain, &err), qPrintable(err));
+        QVERIFY2(readChart(chartPart(bars(QStringLiteral("maxMin"), QStringLiteral("max"))), defaultTheme(), ColorMap(), &turned, &err), qPrintable(err));
+        QVERIFY2(readChart(chartPart(bars(QStringLiteral("maxMin"), QStringLiteral("autoZero"))), defaultTheme(), ColorMap(), &atTop, &err), qPrintable(err));
+        QVERIFY(plain.axis(111) && !plain.axis(111)->reversed);
+        QVERIFY(turned.axis(111)->reversed);
+        // The first category is at the bottom, or at the top once the categories are turned round.
+        const QVector<QRect> up = colorRuns(renderChart(plain, QSizeF(400, 300), 2), Qt::red, true), down = colorRuns(renderChart(turned, QSizeF(400, 300), 2), Qt::red, true);
+        QCOMPARE(int(up.size()), 3);
+        QCOMPARE(int(down.size()), 3);
+        QVERIFY(up[0].width() > up[2].width());
+        QVERIFY(down[0].width() < down[2].width());
+        // The value axis crosses at the first category, which turned round is the top, unless it is said to cross at the last.
+        const QImage a = renderChart(plain, QSizeF(400, 300), 2), b = renderChart(turned, QSizeF(400, 300), 2), t = renderChart(atTop, QSizeF(400, 300), 2);
+        QVERIFY(darkIn(a, 540, 600) && !darkIn(a, 0, 60));
+        QVERIFY(darkIn(b, 540, 600) && !darkIn(b, 0, 60));
+        QVERIFY(darkIn(t, 0, 60) && !darkIn(t, 540, 600));
+    }
+
     void chartSvgDrawsPieSlices()
     {
         const QString colored = QStringLiteral("<c:dPt><c:idx val=\"0\"/><c:spPr><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></c:spPr></c:dPt>"
