@@ -103,24 +103,37 @@ bool DeckWindow::insertMedia(const QString &path, const QString &kind)
 {
     const QString name = QFileInfo(path).fileName();
     const QString found = deck::mediaKindOfFile(path);
+    const bool audio = (kind.isEmpty() ? found : kind) == QLatin1String("audio");
+    const QString title = audio ? tr("Insert Audio") : tr("Insert Video");
+    // It goes on a slide; before anything is read, say so if this isn't one.
+    Document *d = m_ed->doc();
+    const int page = m_ed->currentPage();
+    if (!m_ed->masterView().isEmpty() || page < 0 || page >= d->pages.size()) {
+        QMessageBox::information(this, title, tr("A movie or sound goes on a slide. Go to a slide (not a slide master or layout), and try again."));
+        return false;
+    }
     if (found.isEmpty() || (!kind.isEmpty() && found != kind)) {
-        QMessageBox::warning(this, kind == QLatin1String("audio") ? tr("Insert Audio") : tr("Insert Video"),
-                             tr("%1 isn't a %2 file that %3 can put on a slide.").arg(name, kind == QLatin1String("audio") ? tr("sound") : tr("movie"), appInfo().name));
+        QMessageBox::warning(this, title, tr("%1 isn't a %2 file that %3 can put on a slide.").arg(name, audio ? tr("sound") : tr("movie"), appInfo().name));
         return false;
     }
     const bool video = found == QLatin1String("video");
-    const QString title = video ? tr("Insert Video") : tr("Insert Audio");
     QFile f(path);
-    if (QFileInfo(path).size() > kMaxMediaBytes) {
-        QMessageBox::warning(this, title, tr("%1 is too large to keep in a presentation (the most is 1 GB).").arg(name));
-        return false;
-    }
     if (!f.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(this, title, tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, f.errorString()));
         return false;
     }
-    const QByteArray bytes = f.readAll();
+    // What the file says its size is can't be trusted (a pipe or a device says 0), so what is read is counted.
+    QByteArray bytes;
+    if (!deck::readMediaBytes(f, kMaxMediaBytes, &bytes)) {
+        QMessageBox::warning(this, title, tr("%1 is too large to keep in a presentation (the most is 1 GB).").arg(name));
+        return false;
+    }
     f.close();
+    if (!deck::mediaWouldFit(*d, bytes)) {
+        QMessageBox::warning(this, title, tr("%1 is too large to put in this presentation: with it, the file could not be opened again. All its pictures, movies, and sounds together may come to %2 GB.")
+                                              .arg(name, QString::number(double(deck::mediaByteLimit()) / (1024.0 * 1024.0 * 1024.0), 'f', 1)));
+        return false;
+    }
     QGuiApplication::setOverrideCursor(Qt::WaitCursor);
     const MediaProbe probe = probeMedia(bytes, QFileInfo(path).suffix(), video);
     QGuiApplication::restoreOverrideCursor();
@@ -128,9 +141,6 @@ bool DeckWindow::insertMedia(const QString &path, const QString &kind)
         QMessageBox::warning(this, title, tr("%1 can't read \"%2\" as a %3, so it isn't put on the slide.").arg(appInfo().name, name, video ? tr("movie") : tr("sound")));
         return false;
     }
-    Document *d = m_ed->doc();
-    const int page = m_ed->currentPage();
-    if (!m_ed->masterView().isEmpty() || page < 0 || page >= d->pages.size()) return false;
     m_ed->endTextEdit();
     m_ed->beginChange(title);
     auto pic = deck::newMediaPicture(*d, *d->pages[page], bytes, path, probe.frame, probe.duration);
@@ -173,16 +183,13 @@ void DeckWindow::playMedia()
     refreshMedia();
 }
 
-// How long the file lasts, in milliseconds, for the Trim box: from the player if it has been asked, else by reading the file.
-static qint64 mediaLength(const Document &d, const PictureItem &pic, const MediaPlayback *pb)
+// How long the whole file lasts, in milliseconds, for the Trim box, without reading the file: the player knows when it has been asked to play
+// it; else the timing says how long the part that plays lasts (the whole, when nothing is trimmed off its end). 0 when neither does.
+static qint64 knownMediaLength(const deck::MediaPlay &play, const MediaPlayback *pb)
 {
-    if (pb && pb->length() > 0 && pb->settings().trimStart == 0 && pb->settings().trimEnd == 0) return pb->length();
-    const auto data = d.media.constFind(pic.mediaId);
-    if (data == d.media.cend()) return 0;
-    QGuiApplication::setOverrideCursor(Qt::WaitCursor);
-    const MediaProbe probe = probeMedia(data->bytes, data->extension, false);
-    QGuiApplication::restoreOverrideCursor();
-    return probe.duration;
+    if (pb && pb->fileLength() > 0) return pb->fileLength();
+    if (play.trimEnd == 0 && play.lengthHint > 0) return qint64(play.trimStart) + play.lengthHint;
+    return 0;
 }
 
 void DeckWindow::trimMedia()
@@ -190,7 +197,7 @@ void DeckWindow::trimMedia()
     const PictureItem *pic = selectedMedia(m_ed);
     if (!pic) return;
     const deck::MediaPlay play = currentPlay(m_ed);
-    const qint64 length = mediaLength(*m_ed->doc(), *pic, m_canvas->media()->playbackOf(pic->id));
+    const qint64 length = knownMediaLength(play, m_canvas->media()->playbackOf(pic->id));
     MediaTrimDialog dlg(pic->mediaKind == QLatin1String("audio") ? tr("Trim Audio") : tr("Trim Video"), length, play.trimStart, play.trimEnd, this);
     if (dlg.exec() != QDialog::Accepted) return;
     const int start = dlg.startMs(), end = dlg.endMs();

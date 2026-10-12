@@ -1,6 +1,7 @@
 #include "core/media.h"
 
 #include "core/animation.h"
+#include "office/package.h"
 
 #include <QBuffer>
 #include <QFileInfo>
@@ -753,6 +754,45 @@ QImage soundPoster()
     p.drawArc(QRectF(100, 98, 60, 60), -50 * 16, 100 * 16);
     p.drawArc(QRectF(82, 70, 116, 116), -52 * 16, 104 * 16);
     return img;
+}
+
+namespace {
+qint64 g_mediaLimit = 0;
+}
+
+qint64 mediaByteLimit()
+{
+    // What a file may inflate to when it is read, less room for the slides' own parts.
+    return g_mediaLimit > 0 ? g_mediaLimit : office::Package::kDefaultMaxInflated - (qint64(128) << 20);
+}
+
+void setMediaByteLimit(qint64 limit) { g_mediaLimit = limit; }
+
+bool mediaWouldFit(const Document &doc, const QByteArray &bytes)
+{
+    qint64 used = 0;
+    bool kept = false;
+    for (const MediaData &m : doc.media) {
+        used += m.bytes.size();
+        kept = kept || (m.bytes.size() == bytes.size() && m.bytes == bytes);
+    }
+    for (const ImageData &image : doc.images) used += image.bytes.size();
+    return used + (kept ? 0 : bytes.size()) <= mediaByteLimit();
+}
+
+bool readMediaBytes(QIODevice &device, qint64 most, QByteArray *out)
+{
+    out->clear();
+    QByteArray data;
+    // One byte past the most is as far as it goes.
+    while (data.size() <= most) {
+        const QByteArray chunk = device.read(std::min<qint64>(qint64(1) << 20, most + 1 - data.size()));
+        if (chunk.isEmpty()) break;
+        data += chunk;
+    }
+    if (data.size() > most) return false;
+    *out = data;
+    return true;
 }
 
 std::shared_ptr<PictureItem> newMediaPicture(Document &doc, Page &slide, const QByteArray &bytes, const QString &fileName, const QImage &poster, qint64 lengthMs, const QPointF &at)

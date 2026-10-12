@@ -14,6 +14,7 @@
 
 #include <QHash>
 #include <QImage>
+#include <QIODevice>
 #include <QPointF>
 #include <QSet>
 #include <QString>
@@ -120,5 +121,15 @@ std::shared_ptr<PictureItem> newMediaPicture(Document &doc, Page &slide, const Q
 
 // The speaker picture a sound shows (a dark circle with a speaker).
 QImage soundPoster();
+
+// What a file can be written and read with: all the presentation's pictures, movies, and sounds together may come to this much (a file
+// is read only up to Package::kDefaultMaxInflated inflated, and the rest of it takes room too). A file is never put in past it.
+qint64 mediaByteLimit();
+void setMediaByteLimit(qint64 limit);   // for the tests; 0 puts the usual one back
+// Whether `bytes` can go among the document's media and the whole still be read again: bytes it already keeps add nothing.
+bool mediaWouldFit(const Document &doc, const QByteArray &bytes);
+// What a file holds, at most `most` bytes of it: false, with nothing read, when there is more. A file's size can't be trusted (a pipe or a
+// device says 0 and goes on), so what is read is counted, and one byte past the most is as far as it goes.
+bool readMediaBytes(QIODevice &device, qint64 most, QByteArray *out);
 
 } // namespace jp::deck
