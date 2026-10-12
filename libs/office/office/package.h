@@ -93,6 +93,7 @@ private:
     QHash<QString, QString> m_defaults;             // lower-cased extension -> content type
     QHash<QString, QString> m_overrides;            // lower-cased part name -> content type
     QHash<QString, QVector<Relationship>> m_rels;   // lower-cased source ("/" or part name) -> its links
+    QHash<QString, QHash<QString, int>> m_relIds;   // lower-cased source -> each link's Id -> where it is in m_rels
     int m_skipped = 0;                              // parts and relationships left out as unusable
 };
 

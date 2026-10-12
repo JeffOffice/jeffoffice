@@ -348,7 +348,11 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
         QVector<Relationship> links;
         if (!parseRelationships(it.value(), source.isEmpty() ? QStringLiteral("/") : source, &links, &m_skipped))
             return fail(translate("A part that holds the file's relationships, %1, is damaged.").arg(it.key()));
-        if (!source.isEmpty()) m_rels.insert(source.toLower(), links);
+        if (!source.isEmpty()) {
+            QHash<QString, int> &ids = m_relIds[source.toLower()];
+            for (int i = 0; i < int(links.size()); ++i) ids.insert(links[i].id, i);
+            m_rels.insert(source.toLower(), links);
+        }
     }
     return true;
 }
@@ -384,9 +388,11 @@ QVector<Relationship> Package::relationships(const QString &source) const
 
 Relationship Package::relationship(const QString &source, const QString &id) const
 {
-    for (const Relationship &r : relationships(source))
-        if (r.id == id) return r;
-    return {};
+    const QString key = nameKey(source.isEmpty() ? QStringLiteral("/") : source);
+    const auto ids = m_relIds.constFind(key);
+    if (ids == m_relIds.cend()) return {};
+    const auto at = ids->constFind(id);
+    return at == ids->cend() ? Relationship() : m_rels.value(key).at(*at);
 }
 
 QVector<Relationship> Package::relationshipsOfType(const QString &source, const QString &typeSuffix) const

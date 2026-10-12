@@ -330,6 +330,27 @@ private Q_SLOTS:
         QVERIFY(p.relationships(QStringLiteral("/ppt/nothing.xml")).isEmpty());
     }
 
+    // A part may have tens of thousands of links; each is found by its Id at
+    // once, not by going through the others.
+    void packageFindsEachRelationshipAtOnce()
+    {
+        PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<x/>", QStringLiteral("application/xml"));
+        QStringList ids;
+        for (int i = 0; i < 40000; ++i)
+            ids << w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("http://x/image"), QStringLiteral("../media/image%1.png").arg(i));
+        Package pkg;
+        QString err;
+        QVERIFY2(pkg.read(w.finish(), &err), qPrintable(err));
+        QElapsedTimer t;
+        t.start();
+        for (int i = 0; i < ids.size(); ++i)
+            QCOMPARE(pkg.relationship(QStringLiteral("/ppt/slides/slide1.xml"), ids[i]).target, QStringLiteral("/ppt/media/image%1.png").arg(i));
+        QVERIFY2(t.elapsed() < 2000, qPrintable(QString::number(t.elapsed())));
+        QVERIFY(pkg.relationship(QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("rIdNone")).id.isEmpty());
+        QVERIFY(pkg.relationship(QStringLiteral("/nowhere.xml"), ids[0]).id.isEmpty());
+    }
+
     void packageFindsRelationships()
     {
         Package p;
