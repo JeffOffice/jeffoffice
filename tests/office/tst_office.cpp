@@ -876,6 +876,50 @@ private Q_SLOTS:
         QCOMPARE(parseInt(QStringLiteral("12x"), 8), qint64(8));
     }
 
+    // A package of the open document kind has no content types or relationships: its parts are
+    // read by name, with the same refusals as any package.
+    void packageReadsAnOpenDocumentZip()
+    {
+        const QByteArray mime = "application/vnd.oasis.opendocument.presentation";
+        const Entries entries = {{QStringLiteral("mimetype"), mime},
+                                 {QStringLiteral("META-INF/manifest.xml"), "<manifest/>"},
+                                 {QStringLiteral("content.xml"), "<content/>"},
+                                 {QStringLiteral("Pictures/"), QByteArray()},
+                                 {QStringLiteral("Pictures/10000 a.png"), "png"},
+                                 {QStringLiteral("Object 1/content.xml"), "<chart/>"}};
+        Package p;
+        QString err;
+        QVERIFY2(p.readOpenDocument(zipOf(entries, false), &err), qPrintable(err));
+        QCOMPARE(p.part(QStringLiteral("/mimetype")), mime);
+        QCOMPARE(p.part(QStringLiteral("/content.xml")), QByteArray("<content/>"));
+        QCOMPARE(p.part(QStringLiteral("/pictures/10000 A.png")), QByteArray("png"));
+        QVERIFY(p.hasPart(QStringLiteral("/Object 1/content.xml")));
+        QVERIFY(p.hasPart(QStringLiteral("/META-INF/manifest.xml")));
+        QCOMPARE(p.partNames().size(), 5);
+        QVERIFY(p.mainPart().isEmpty());
+        QVERIFY(p.relationships(QStringLiteral("/")).isEmpty());
+        // The usual read still wants the content types an open document lacks.
+        QVERIFY(!p.read(zipOf(entries, false)));
+        QVERIFY(p.partNames().isEmpty());
+        // Hostile names and damage are refused here too, and nothing of the file is kept.
+        for (const QString &name : {QStringLiteral("../evil.xml"), QStringLiteral("Pictures/../../evil.png"), QStringLiteral("a\\b.xml"),
+                                    QStringLiteral("Pictures/%2e%2e/x.png"), QStringLiteral("CONTENT.xml")}) {
+            Entries bad = entries;
+            bad.append({name, "x"});
+            err.clear();
+            QVERIFY2(!p.readOpenDocument(zipOf(bad, false), &err), qPrintable(name));
+            QVERIFY(!err.isEmpty());
+            QVERIFY(p.partNames().isEmpty());
+        }
+        err.clear();
+        QVERIFY(!p.readOpenDocument(zipOf(entries, false).left(60), &err));
+        QVERIFY(!err.isEmpty());
+        QVERIFY(!p.readOpenDocument(declaredHuge(), &err));
+        QVERIFY(!p.readOpenDocument(QByteArray(), &err));
+        // A reader is told apart from a package that is no open document by what is in it, not by this.
+        QVERIFY(p.readOpenDocument(zipOf({{QStringLiteral("a.txt"), "x"}}, false), &err));
+    }
+
     // ---- charts
 
     void chartReadsClusteredColumns()

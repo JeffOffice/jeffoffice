@@ -199,7 +199,7 @@ void DeckWindow::createActions()
     });
     mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] {
         const QString p = QFileDialog::getOpenFileName(this, tr("Open Presentation"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       tr("Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                       tr("Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)") + QStringLiteral(";;") + tr("All Files (*)"));
         if (p.isEmpty()) return;
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);
