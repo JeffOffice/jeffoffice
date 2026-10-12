@@ -29,6 +29,9 @@ struct DrawingContext {
     // placeholder's layout and master), by document: a picture fill it
     // inherits is named by that part's relationships.
     QVector<QPair<QDomDocument, QString>> inheritedParts;
+    // The page's background as it shows (its own, else its layout's or
+    // master's), for a shape filled with it (p:sp useBgFill).
+    Fill background;
     Theme theme;
     ColorMap colors;
     // The theme's a:fmtScheme, for style references (p:style's lnRef,

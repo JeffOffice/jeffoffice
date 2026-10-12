@@ -824,6 +824,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     sc.master = m.get();
     sc.ctx = contextFor(*m, m->colors, part);
     if (const QDomElement bg = pChild(cSld, "bg"); !bg.isNull()) page->background = office::readBackground(bg, sc.ctx);
+    sc.ctx.background = page->background;
     const QDomElement tree = pChild(cSld, "spTree");
     m->placeholders = placeholdersIn(tree);
     readTree(tree, sc);
@@ -899,6 +900,7 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
     sc.master = base;
     sc.ctx = contextFor(*base, l->colors, part);
     if (const QDomElement bg = pChild(cSld, "bg"); !bg.isNull()) page->background = office::readBackground(bg, sc.ctx);
+    sc.ctx.background = !page->background.isNone() ? page->background : base->page->background;
     const QDomElement tree = pChild(cSld, "spTree");
     l->placeholders = placeholdersIn(tree);
     readTree(tree, sc);
@@ -1210,6 +1212,9 @@ bool Importer::readSlide(int number, const QString &part)
     sc.ctx = contextFor(master, colorsOf(pChild(root, "clrMapOvr"), layout ? layout->colors : master.colors), part);
     const QDomElement cSld = pChild(root, "cSld");
     if (const QDomElement bg = pChild(cSld, "bg"); !bg.isNull()) page->background = office::readBackground(bg, sc.ctx);
+    sc.ctx.background = !page->background.isNone() ? page->background
+                      : layout && !layout->page->background.isNone() ? layout->page->background
+                                                                      : master.page->background;
     readTree(pChild(cSld, "spTree"), sc);
 
     // How the slide changes to the next, and what moves on it, as written.

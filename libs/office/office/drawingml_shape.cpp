@@ -325,7 +325,10 @@ ItemPtr Reader::shape(const QDomElement &e, const QVector<QDomElement> &inherits
     if (isPicture) return pic(e, inheritsFrom);
     if (isConnector) return drawn(e, childNamed(e, "nvCxnSpPr"), inheritsFrom, true);
     const QDomElement nv = childNamed(e, "nvSpPr");
-    return drawn(e, nv.isNull() ? e : nv, inheritsFrom, false);
+    ItemPtr it = drawn(e, nv.isNull() ? e : nv, inheritsFrom, false);
+    // A shape filled with the page's background (a design's panel the color of the slide behind it).
+    if (it && parseBool(attr(e, QStringLiteral("useBgFill")))) it->fill = m_ctx.background;
+    return it;
 }
 
 ItemList Reader::tree(const QDomElement &parent)
