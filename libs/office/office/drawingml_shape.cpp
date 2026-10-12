@@ -44,28 +44,6 @@ void readTransform(const QDomElement &xfrm, Item &it)
 
 } // namespace
 
-Fill readFill(const QDomElement &spPr, const QDomElement &, const DrawingContext &ctx)
-{
-    const QDomElement solid = firstChild(spPr, QStringLiteral("solidFill"));
-    if (solid.isNull()) return Fill();
-    const QColor c = readColor(solid, ctx.theme, ctx.colors);
-    return c.isValid() ? Fill::solid(ColorRef::rgb(QColor(c.red(), c.green(), c.blue())), 1.0 - c.alphaF()) : Fill();
-}
-
-Stroke readLine(const QDomElement &spPr, const QDomElement &, const DrawingContext &ctx)
-{
-    const QDomElement ln = firstChild(spPr, QStringLiteral("ln"));
-    const QDomElement solid = firstChild(ln, QStringLiteral("solidFill"));
-    if (solid.isNull()) return Stroke();
-    const QColor c = readColor(solid, ctx.theme, ctx.colors);
-    return c.isValid() ? Stroke::line(ColorRef::rgb(c), emuToPoints(parseInt(attr(ln, QStringLiteral("w")), 9525))) : Stroke();
-}
-
-Fill readBackground(const QDomElement &bg, const DrawingContext &ctx)
-{
-    return readFill(firstChild(bg, QStringLiteral("bgPr")), QDomElement(), ctx);
-}
-
 ItemPtr readShape(const QDomElement &e, const DrawingContext &ctx, const TextStyleStack &styles, const QVector<QDomElement> &inheritsFrom)
 {
     const QString kind = e.localName();
