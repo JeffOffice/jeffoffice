@@ -19,6 +19,7 @@ namespace jp {
 
 class ColorButton;
 class DeckCanvas;
+class DeckFileScreen;
 class Editor;
 class FontCombo;
 class NotesPane;
@@ -29,6 +30,7 @@ class SlidesPane;
 
 namespace deck {
 struct FooterOptions;
+struct OutputOptions;
 }
 namespace recovery {
 struct Recovered;
@@ -102,8 +104,20 @@ public:
     // nothing, else in a window of its own. Null, with the reason, if it can't be read.
     DeckWindow *openRecovered(const recovery::Recovered &r, QString *error = nullptr);
 
+    // The File screen over the window, on a page ("new", "open", "print",
+    // "export", "about"; the Open page when none is named), and back to the slides.
+    void showFileScreen(const QString &page = QString());
+    void hideFileScreen();
+    // What the File screen's Print and Export pages do: ask where, then write
+    // or print. False when nothing was written or sent.
+    bool printOutput(const deck::OutputOptions &options);
+    bool exportPdf();
+    bool exportPicture();
+
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void resizeEvent(QResizeEvent *e) override;
+    bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
@@ -128,7 +142,6 @@ private:
     void askSlideSize(const QSizeF &size);
     void insertPictureFromFile();
     void updateTitle();
-    void showFileMenu();
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
 
@@ -137,6 +150,7 @@ private:
     Ribbon *m_ribbon = nullptr;
     SlidesPane *m_slides = nullptr;
     NotesPane *m_notes = nullptr;
+    DeckFileScreen *m_fileScreen = nullptr;
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr;
     QLabel *m_slideLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
