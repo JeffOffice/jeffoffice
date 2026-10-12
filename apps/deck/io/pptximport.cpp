@@ -3,6 +3,7 @@
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "office/drawingml.h"
+#include "office/drawingml_table.h"
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
@@ -291,6 +292,8 @@ private:
     void readAlternate(const QDomElement &alternate, Scope &sc);
     ItemPtr readOne(const QDomElement &shape, Scope &sc);
     bool readFramePicture(const QDomElement &frame, Scope &sc);
+    bool readFrameTable(const QDomElement &frame, Scope &sc);
+    QDomElement tableStyles();
     void keepUnread(const QDomElement &whole, const QDomElement &frame, Scope &sc);
     QDomElement withEmptyText(const QDomElement &shape);
     QDomElement textStyleFor(const MasterCtx &m, const QString &type) const;
@@ -308,6 +311,9 @@ private:
     QHash<QString, QDomElement> m_notesStyles;    // by notes master part
     int m_layoutCount = 0;
     bool m_footers = false;
+    QString m_mainPart;
+    bool m_tableStylesRead = false;
+    QDomElement m_tableStyles;                    // the root of the table styles part, once read; null if there is none
 };
 
 void Importer::note(const QString &text)
@@ -554,7 +560,7 @@ void Importer::readChild(const QDomElement &c, Scope &sc)
     if (office::isElement(c, kMc, QStringLiteral("AlternateContent"))) {
         readAlternate(c, sc);
     } else if (name == QLatin1String("graphicFrame") || name == QLatin1String("contentPart")) {
-        if (!readFramePicture(c, sc)) keepUnread(c, c, sc);
+        if (!readFrameTable(c, sc) && !readFramePicture(c, sc)) keepUnread(c, c, sc);
     } else if (isOneOf(name, {"sp", "pic", "grpSp", "cxnSp"})) {
         if (ItemPtr it = readOne(c, sc)) sc.page->items.push_back(it);
     }
@@ -574,7 +580,7 @@ void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
         if (!office::isElement(alt, kMc, QStringLiteral("Choice"))) continue;
         for (QDomElement e = alt.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
             if (isOneOf(e.localName(), {"graphicFrame", "contentPart"})) {
-                if (readFramePicture(e, sc)) read = true;
+                if (readFrameTable(e, sc) || readFramePicture(e, sc)) read = true;
                 else if (frame.isNull()) frame = e;
             } else if (isOneOf(e.localName(), {"sp", "pic", "grpSp", "cxnSp"})) {
                 read = true;
@@ -591,6 +597,36 @@ void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
         }
     }
     if (!read) keepUnread(alternate, frame.isNull() ? alternate : frame, sc);
+}
+
+// The table styles part (a:tblStyleLst), read once; null if the presentation has none.
+QDomElement Importer::tableStyles()
+{
+    if (m_tableStylesRead) return m_tableStyles;
+    m_tableStylesRead = true;
+    const QVector<office::Relationship> rels = m_pkg.relationshipsOfType(m_mainPart, QStringLiteral("/tableStyles"));
+    if (rels.isEmpty() || rels[0].external) return m_tableStyles;
+    QDomDocument &dom = newDom();
+    QString why;
+    if (!parsePart(rels[0].target, QStringLiteral("tblStyleLst"), "http://schemas.openxmlformats.org/drawingml/2006/main", &dom, &m_tableStyles, &why)) {
+        m_tableStyles = QDomElement();
+        note(say("The table styles of the presentation can't be read (%1), so its tables take the usual style.").arg(why));
+    }
+    return m_tableStyles;
+}
+
+// A frame that holds a table: the table, in the place of the frame.
+bool Importer::readFrameTable(const QDomElement &frame, Scope &sc)
+{
+    if (!office::isTableFrame(frame)) return false;
+    office::TextStyleStack styles;
+    if (!m_defaultStyle.isNull()) styles << m_defaultStyle;
+    ItemPtr it = office::readTable(frame, sc.ctx, styles, tableStyles());
+    if (!it) return false;
+    PhRef ph;
+    if (placeholderOf(frame, &ph)) it->role = roleOf(ph);
+    sc.page->items.push_back(it);
+    return true;
 }
 
 // What a frame shows for itself, when it holds a picture of it.
@@ -791,6 +827,7 @@ bool Importer::run(const QString &mainPart, QString *error)
     if (!parsePart(mainPart, QStringLiteral("presentation"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why))
         return fail(say("The file has no presentation in it: %1").arg(why));
     m_doc.masters.clear();
+    m_mainPart = mainPart;
     readSize(root);
     m_defaultStyle = pChild(root, "defaultTextStyle");
 
