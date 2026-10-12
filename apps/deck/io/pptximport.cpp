@@ -1374,6 +1374,7 @@ bool Importer::run(const QString &mainPart, QString *error)
         }
         if (readSlide(number, rel.target)) pageOfSlideId.insert(office::parseInt(office::attr(id, QStringLiteral("id")), -1), int(m_doc.pages.size()) - 1);
     }
+    if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
     readSections(root, pageOfSlideId);
     m_doc.appData[QStringLiteral("footers")] = m_footers;
     if (error) {

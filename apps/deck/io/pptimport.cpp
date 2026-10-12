@@ -2425,6 +2425,10 @@ std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QStr
     bool ok = false;
     try {
         ok = importer.run(&why);
+        if (ok && !ensureASlide(*doc)) {
+            ok = false;
+            why = QCoreApplication::translate("PptImport", "The presentation has no slides.");
+        }
     } catch (const std::bad_alloc &) {
         why = QCoreApplication::translate("PptImport", "The presentation is too big to open.");
     }

@@ -420,6 +420,17 @@ std::unique_ptr<Document> newPresentation()
     return d;
 }
 
+bool ensureASlide(Document &d)
+{
+    if (!d.pages.isEmpty()) return true;
+    const MasterPage *layout = layoutOfType(d, QStringLiteral("title"));
+    if (!layout) layout = layouts(d).value(0);
+    if (!layout && !d.masters.isEmpty()) layout = d.masters.first().get();
+    if (!layout) return false;
+    addSlide(d, *layout);
+    return true;
+}
+
 int addSlide(Document &d, const MasterPage &layout, int at)
 {
     auto slide = std::make_shared<Page>();
