@@ -45,9 +45,12 @@ QString promptFor(const QString &type);
 bool isSlideMaster(const MasterPage &m);
 bool isLayout(const MasterPage &m);
 QString layoutType(const MasterPage &m);
-// The layouts, in the order the New Slide gallery lists them.
-QVector<MasterPage *> layouts(const Document &d);
-MasterPage *layoutOfType(const Document &d, const QString &type);
+// The layouts, in the order the New Slide gallery lists them: of the slide
+// master `masterId`, or of every master.
+QVector<MasterPage *> layouts(const Document &d, const QString &masterId = QString());
+MasterPage *layoutOfType(const Document &d, const QString &type, const QString &masterId = QString());
+// The slide master under slide `slide` (its layout's base), or "".
+QString slideMasterOf(const Document &d, int slide);
 
 // A new presentation: 16:9 slides, the default theme, a slide master with
 // the nine standard layouts, and one Title Slide.

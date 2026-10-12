@@ -152,6 +152,10 @@ void DeckWindow::createShowActions()
         m_show->setRehearsal(true);
         if (QScreen *s = screen()) m_show->setGeometry(s->availableGeometry());
         connect(m_show, &SlideShow::destroyed, this, [this] { activateWindow(); });
+        // Back in the window, on the last slide the show showed.
+        connect(m_show, &SlideShow::ended, this, [this](int last) {
+            if (last >= 0) m_ed->setCurrentPage(last);
+        });
         m_show->show();
         m_show->activateWindow();
         m_show->setFocus();

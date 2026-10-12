@@ -54,6 +54,9 @@ public:
     // What a document with no file of its own is called, in place of its
     // title (recovered work keeps its file's name until it's saved again).
     void setUntitledName(const QString &name) { m_untitledName = name; }
+    // What a new, unsaved, untitled document is called in this app
+    // ("Publication1" unless the app says otherwise); kept across documents.
+    void setNewDocumentName(const QString &name) { m_newName = name; }
     bool isModified() const { return !m_undo.isClean(); }
     void markSaved() { m_undo.setClean(); }
     void markUnsaved() { m_undo.resetClean(); }   // a recovered copy: unsaved until saved
@@ -313,6 +316,7 @@ private:
     QUndoStack m_undo;
     QString m_path;
     QString m_untitledName;
+    QString m_newName;
     int m_page = 0;
     QString m_master;
     bool m_spread = false;
