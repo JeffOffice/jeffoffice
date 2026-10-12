@@ -8200,6 +8200,37 @@ private Q_SLOTS:
         QVERIFY(jp::availableUiLanguages().contains(QStringLiteral("de")));   // jeffoffice_*.qm, whichever app
     }
 
+    // JeffPub's Help lists the topic files directly in :/help/en, and none of
+    // the folder an app with Help of its own keeps beside them (JeffDeck's
+    // deck/); each app's Help follows its AppInfo.
+    void pubHelpListsOnlyItsOwnTopics()
+    {
+        struct Restore {
+            ~Restore() { jp::setAppInfo(jp::pubAppInfo()); }
+        } restore;
+        QStringList files;
+        for (const QString &f : QDir(QStringLiteral(":/help/en")).entryList(QDir::Files, QDir::Name)) {
+            QVERIFY2(f.endsWith(QLatin1String(".md")), qPrintable(f));
+            files << f.chopped(3);
+        }
+        const QStringList ids = jp::help::topicIds();
+        QCOMPARE(ids, files);
+        QVERIFY(ids.contains(QStringLiteral("printing")));
+        // The app's folder decides: with JeffDeck's, Help lists that folder's topics, and with JeffPub's again, its own.
+        const QStringList deckFiles = QDir(QStringLiteral(":/help/en/deck")).entryList({QStringLiteral("*.md")}, QDir::Files, QDir::Name);
+        QVERIFY(!deckFiles.isEmpty());
+        QStringList own;
+        for (const QString &f : deckFiles) own << f.chopped(3);
+        jp::AppInfo other = jp::pubAppInfo();
+        other.helpFolder = QStringLiteral("deck");
+        jp::setAppInfo(other);
+        QCOMPARE(jp::help::topicIds(), own);
+        QVERIFY(jp::help::topic(QStringLiteral("mail-merge")).isNull());
+        jp::setAppInfo(jp::pubAppInfo());
+        QCOMPARE(jp::help::topicIds(), files);
+        QVERIFY(!jp::help::topic(QStringLiteral("mail-merge")).isNull());
+    }
+
     // Until Options sets a unit, JeffPub measures in inches where the region
     // does (the United States) and in centimeters elsewhere.
     void defaultUnits()
