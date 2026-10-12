@@ -19,6 +19,7 @@
 #include "app/slideshow.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
+#include "core/comments.h"
 #include "core/deck.h"
 #include "core/fonts.h"
 #include "core/transition.h"
@@ -75,6 +76,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
+#include <QTimeZone>
 #include <QTimer>
 #include <QToolButton>
 #include <QUrl>
@@ -3125,6 +3127,118 @@ private Q_SLOTS:
         QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.symbol")));
         QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.link")));
         QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.dateTime")));
+    }
+
+    // A slide's comments live in its page props, so undo covers them: add,
+    // reply, edit, resolve, move, and delete; the author comes from File > Options.
+    void commentModelKeepsCommentsInThePageProps()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        Page &slide = *d->pages[0];
+        QVERIFY(deck::commentsOf(slide).isEmpty());
+        QVERIFY(!slide.props.contains(QStringLiteral("comments")));
+        const deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Lee Roy"), QString()};
+        const QDateTime noon(QDate(2026, 10, 12), QTime(12, 0, 5, 125), QTimeZone::UTC);
+        const QString first = deck::addComment(slide, pat, QStringLiteral("Check\r\nthe numbers"), QPointF(100.5, 40.25), noon);
+        QVERIFY(!first.isEmpty());
+        // As the props hold it.
+        const QJsonObject o = slide.props.value(QStringLiteral("comments")).toArray().at(0).toObject();
+        QCOMPARE(o.value(QStringLiteral("id")).toString(), first);
+        QCOMPARE(o.value(QStringLiteral("author")).toString(), QStringLiteral("Pat Doe"));
+        QCOMPARE(o.value(QStringLiteral("initials")).toString(), QStringLiteral("PD"));
+        QCOMPARE(o.value(QStringLiteral("date")).toString(), QStringLiteral("2026-10-12T12:00:05.125Z"));
+        QCOMPARE(o.value(QStringLiteral("text")).toString(), QStringLiteral("Check\nthe numbers"));
+        QCOMPARE(o.value(QStringLiteral("x")).toDouble(), 100.5);
+        QCOMPARE(o.value(QStringLiteral("y")).toDouble(), 40.25);
+        QVERIFY(o.value(QStringLiteral("replies")).isArray() && o.value(QStringLiteral("replies")).toArray().isEmpty());
+        QCOMPARE(o.value(QStringLiteral("done")).toBool(true), false);
+
+        // Replies belong to a comment; initials left out are made from the name.
+        QVERIFY(deck::addReply(slide, QStringLiteral("nope"), pat, QStringLiteral("x")).isEmpty());
+        const QString answer = deck::addReply(slide, first, lee, QStringLiteral("Agreed"), noon.addSecs(90));
+        QVERIFY(!answer.isEmpty() && answer != first);
+        const QString second = deck::addComment(slide, lee, QStringLiteral("Second"), QPointF(300, 200), noon.addSecs(120));
+        QVector<deck::Comment> list = deck::commentsOf(slide);
+        QCOMPARE(int(list.size()), 2);
+        QCOMPARE(list[0].id, first);
+        QCOMPARE(list[1].id, second);
+        QCOMPARE(int(list[0].replies.size()), 1);
+        QCOMPARE(list[0].replies[0].author, QStringLiteral("Lee Roy"));
+        QCOMPARE(list[0].replies[0].initials, QStringLiteral("LR"));
+        QCOMPARE(list[0].replies[0].date, noon.addSecs(90));
+        QCOMPARE(list[0].replies[0].text, QStringLiteral("Agreed"));
+        QCOMPARE(list[0].date, noon);
+        QCOMPARE(list[0].at, QPointF(100.5, 40.25));
+        QCOMPARE(deck::commentCount(slide), 2);
+        QVERIFY(deck::findComment(slide, second));
+        QVERIFY(!deck::findComment(slide, answer));   // a reply is not a comment
+        QVERIFY(!deck::findComment(slide, QStringLiteral("nope")));
+
+        // Edit (a comment or a reply), resolve and reopen, and move.
+        QVERIFY(deck::editComment(slide, first, QStringLiteral("Check again")));
+        QVERIFY(deck::editComment(slide, answer, QStringLiteral("Agreed, doing it")));
+        QVERIFY(!deck::editComment(slide, QStringLiteral("nope"), QStringLiteral("x")));
+        QVERIFY(deck::resolveComment(slide, first));
+        QVERIFY(!deck::resolveComment(slide, QStringLiteral("nope")));
+        QVERIFY(deck::moveComment(slide, second, QPointF(12, 34)));
+        list = deck::commentsOf(slide);
+        QCOMPARE(list[0].text, QStringLiteral("Check again"));
+        QCOMPARE(list[0].replies[0].text, QStringLiteral("Agreed, doing it"));
+        QVERIFY(list[0].done && !list[1].done);
+        QCOMPARE(list[1].at, QPointF(12, 34));
+        QVERIFY(deck::resolveComment(slide, first, false));
+        QVERIFY(!deck::commentsOf(slide)[0].done);
+
+        // Delete a reply, then a comment with its replies.
+        QVERIFY(deck::deleteComment(slide, answer));
+        QVERIFY(deck::commentsOf(slide)[0].replies.isEmpty());
+        QVERIFY(!deck::deleteComment(slide, answer));
+        deck::addReply(slide, first, lee, QStringLiteral("Again"));
+        QVERIFY(deck::deleteComment(slide, first));
+        QCOMPARE(int(deck::commentsOf(slide).size()), 1);
+        QCOMPARE(deck::commentsOf(slide)[0].id, second);
+
+        // All of a slide's, and all of the presentation's; with none the key is gone.
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        deck::addComment(*d->pages[1], pat, QStringLiteral("On the second slide"), QPointF(10, 10));
+        deck::addComment(*d->pages[1], pat, QStringLiteral("Another"), QPointF(30, 10));
+        const QVector<deck::CommentRef> all = deck::allComments(*d);
+        QCOMPARE(int(all.size()), 3);
+        QCOMPARE(all[0].slide, 0);
+        QCOMPARE(all[0].id, second);
+        QCOMPARE(all[1].slide, 1);
+        QCOMPARE(all[2].slide, 1);
+        QCOMPARE(deck::deleteComments(*d->pages[1]), 2);
+        QVERIFY(!d->pages[1]->props.contains(QStringLiteral("comments")));
+        deck::addComment(*d->pages[1], pat, QStringLiteral("Again"), QPointF(10, 10));
+        QCOMPARE(deck::deleteAllComments(*d), 2);
+        QVERIFY(deck::allComments(*d).isEmpty());
+        QVERIFY(!d->pages[0]->props.contains(QStringLiteral("comments")));
+
+        // A comment can't hold more than a page of text.
+        deck::addComment(slide, pat, QString(deck::kMaxCommentText + 500, QLatin1Char('x')), QPointF(1, 1));
+        QCOMPARE(int(deck::commentsOf(slide)[0].text.size()), int(deck::kMaxCommentText));
+
+        QCOMPARE(deck::initialsFor(QStringLiteral("Pat Doe")), QStringLiteral("PD"));
+        QCOMPARE(deck::initialsFor(QStringLiteral("  mary jane watson parker ")), QStringLiteral("MJW"));
+        QCOMPARE(deck::initialsFor(QString()), QString());
+
+        // The author is the user of File > Options; initials left empty come from the name.
+        Settings &st = Settings::get();
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+        QVERIFY(!deck::commentAuthor().known());
+        deck::setCommentAuthor({QStringLiteral(" Pat Doe "), QString()});
+        QCOMPARE(st.value(QStringLiteral("user/name")).toString(), QStringLiteral("Pat Doe"));
+        QCOMPARE(st.value(QStringLiteral("user/initials")).toString(), QStringLiteral("PD"));
+        QVERIFY(deck::commentAuthor().known());
+        QCOMPARE(deck::commentAuthor().initials, QStringLiteral("PD"));
+        deck::setCommentAuthor({QStringLiteral("Lee Roy"), QStringLiteral("LRY")});
+        QCOMPARE(deck::commentAuthor().name, QStringLiteral("Lee Roy"));
+        QCOMPARE(deck::commentAuthor().initials, QStringLiteral("LRY"));
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
     }
 
     // File > Options is the shared dialog: its General tab has the user name
