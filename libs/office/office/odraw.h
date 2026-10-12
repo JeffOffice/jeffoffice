@@ -28,7 +28,7 @@ QVector<OdrawRecord> odrawRecords(const QByteArray &data, qsizetype offset = 0, 
 // What reading a drawing needs from the format around it.
 struct OdrawContext {
     // The drawing group's default properties: the property records (0xF00B,
-    // 0xF121, 0xF122, header included) of its OfficeArtDggContainer. A shape
+    // 0xF121, 0xF122, header included) of its container (0xF000). A shape
     // that leaves a property out has the value these give, before the one the
     // format gives it when nothing does.
     QByteArray defaults;
