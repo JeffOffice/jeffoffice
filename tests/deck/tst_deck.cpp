@@ -2862,6 +2862,10 @@ private Q_SLOTS:
         QVERIFY(x.timing.hold);
         // A step that starts when the slide is shown says so; a slide without timing, or with a broken one, has no steps.
         QVERIFY(deck::readTimeline(animTiming(animStep({animGroup(0, {animAppear(4, "afterEffect")})}, true))).steps[0].automatic);
+        // Even when the file leaves out the main sequence's start, if the first effect goes with or after one before it.
+        QVERIFY(deck::readTimeline(animTiming(animStep({animGroup(0, {animAppear(4, "withEffect")})}))).steps[0].automatic);
+        QVERIFY(!deck::readTimeline(animTiming(animStep({animGroup(0, {animAppear(4)})}))).steps[0].automatic);
+        QVERIFY(!deck::readTimeline(animTiming(animSteps({animAppear(4), animAppear(5, "withEffect")}))).steps[1].automatic);
         QVERIFY(deck::readTimeline(QString()).isEmpty());
         QVERIFY(deck::readTimeline(QStringLiteral("<p:timing")).isEmpty());
         Page none;
@@ -2971,6 +2975,11 @@ private Q_SLOTS:
         QVERIFY(animNear(deck::statesAt(line, g, 1).value(deck::Target{4}).offset.x(), 240));
         QVERIFY(animNear(deck::statesAt(line, g, 1).value(deck::Target{4}).offset.y(), 54));
         QVERIFY(deck::statesAt(line, g, 0).value(deck::Target{4}).visible);
+        const deck::Behavior &motion = line.steps[0].effects[0].behaviors[0];
+        QVERIFY(motion.kind == deck::Behavior::Kind::Motion);
+        QCOMPARE(motion.origin, QStringLiteral("layout"));
+        QCOMPARE(motion.pathEditMode, QStringLiteral("relative"));
+        QCOMPARE(motion.path.elementCount(), 2);
         // Along two lines, 96 and 108 points long: halfway is 6 points into the second.
         const deck::Timeline bend = deck::readTimeline(animTiming(animSteps({animPath(4, 2000, "M 0 0 L 0.1 0 L 0.1 0.2 E")})));
         QVERIFY(animNear(at(bend, 1000).x(), 96));
@@ -3156,6 +3165,46 @@ private Q_SLOTS:
         slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animMediaCall(4), animAppear(5)}));
         QCOMPARE(int(deck::playableTimeline(slide).steps.size()), 1);
         QCOMPARE(int(deck::timelineOf(slide).steps.size()), 2);
+    }
+
+    // What can't be read is left out and the rest plays: a behavior that aims
+    // at nothing, an animation with no values, a set of something that is not
+    // played, a time that makes no sense, and a file that is not timing at all.
+    void animationReadsDamagedTimingWithoutHarm()
+    {
+        const deck::Geometry g = animGeometry();
+        QVERIFY(deck::readTimeline(QStringLiteral("<p:transition xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>")).isEmpty());
+        QVERIFY(deck::readTimeline(animTiming(QString())).isEmpty());
+        // Aimed at no shape: a step is read, and plays nothing.
+        const deck::Timeline nowhere = deck::readTimeline(animTiming(animSteps({animNode("entr", 10, 0, "clickEffect", 0, {animShow(0, true)})})));
+        QCOMPARE(int(nowhere.steps.size()), 1);
+        QVERIFY(!nowhere.steps[0].visual());
+        QVERIFY(deck::statesAt(nowhere, g, 1).isEmpty());
+        // No values, a set of a color, a duration below nothing, and a keyframe past the end.
+        const QString noValues = QStringLiteral("<p:anim calcmode=\"lin\" valueType=\"num\"><p:cBhvr><p:cTn id=\"90\" dur=\"400\" fill=\"hold\"/>") + animTarget(4) +
+                                 QStringLiteral("<p:attrNameLst><p:attrName>ppt_x</p:attrName></p:attrNameLst></p:cBhvr></p:anim>");
+        const QString color = QStringLiteral("<p:set><p:cBhvr><p:cTn id=\"91\" dur=\"1\" fill=\"hold\"/>") + animTarget(4) +
+                              QStringLiteral("<p:attrNameLst><p:attrName>fill.color</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:clrVal><a:srgbClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" val=\"FF0000\"/></p:clrVal></p:to></p:set>");
+        const QString negative = QStringLiteral("<p:animEffect transition=\"in\" filter=\"fade\"><p:cBhvr><p:cTn id=\"92\" dur=\"-5\"/>") + animTarget(4) + QStringLiteral("</p:cBhvr></p:animEffect>");
+        const QString late = QStringLiteral("<p:anim calcmode=\"lin\"><p:cBhvr><p:cTn id=\"93\" dur=\"400\" fill=\"hold\"/>") + animTarget(4) +
+                             QStringLiteral("<p:attrNameLst><p:attrName>ppt_y</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst><p:tav tm=\"250000\"><p:val><p:fltVal val=\"0.9\"/></p:val></p:tav><p:tav tm=\"-5\"><p:val><p:fltVal val=\"0.1\"/></p:val></p:tav></p:tavLst></p:anim>");
+        const deck::Timeline odd = deck::readTimeline(animTiming(animSteps({animNode("emph", 0, 0, "clickEffect", 0, {noValues, color, negative, late})})));
+        QCOMPARE(int(odd.steps.size()), 1);
+        for (const double ms : {0.0, 100.0, 399.0, 5000.0}) {
+            const deck::TargetState s = deck::statesAt(odd, g, 0, ms).value(deck::Target{4});
+            QVERIFY(s.visible);
+            QCOMPARE(s.offset.x(), 0.0);   // no values: where it is
+            QVERIFY(std::isfinite(s.offset.y()) && std::isfinite(s.opacity));
+        }
+        // A target that is a number that is not one, and a paragraph range backwards.
+        const deck::Timeline backwards = deck::readTimeline(animTiming(animStep({animGroup(0, {animNode("entr", 1, 0, "clickEffect", 0, {QStringLiteral(
+            "<p:set><p:cBhvr><p:cTn id=\"94\" dur=\"1\" fill=\"hold\"/><p:tgtEl><p:spTgt spid=\"4\"><p:txEl><p:pRg st=\"3\" end=\"1\"/></p:txEl></p:spTgt></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val=\"visible\"/></p:to></p:set>")})})})));
+        const deck::Target range = backwards.steps[0].effects[0].behaviors[0].target;
+        QCOMPARE(range.firstParagraph, 1);
+        QCOMPARE(range.lastParagraph, 3);
+        const deck::Timeline junk = deck::readTimeline(animTiming(animSteps({animNode("entr", 1, 0, "clickEffect", 0, {QStringLiteral(
+            "<p:set><p:cBhvr><p:cTn id=\"95\" dur=\"1\"/><p:tgtEl><p:spTgt spid=\"x\"/></p:tgtEl></p:cBhvr><p:to><p:strVal val=\"visible\"/></p:to></p:set>")})})));
+        QVERIFY(!junk.steps[0].visual());
     }
 
     // The shapes' places are found by the number the file gave, in groups too.
