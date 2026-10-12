@@ -72,6 +72,7 @@ class Document;
 struct Page;
 class LayoutCache;
 class PresenterView;
+class ShowMedia;
 class StepFrames;
 
 // A slide drawn to fill `size` device-independent pixels at `dpr`, centered
@@ -132,6 +133,8 @@ public:
     const Document *document() const { return m_doc; }
     LayoutCache *cache() const { return m_cache; }
     PresenterView *presenterView() const;
+    // The movies and sounds of the slide on the screen.
+    ShowMedia *media() const { return m_media; }
 
     void next();
     void previous();
@@ -333,6 +336,7 @@ private:
     qreal m_nowRatio = 1;
     bool m_nowValid = false;
     QPointer<PresenterView> m_presenter;
+    ShowMedia *m_media = nullptr;   // the movies and sounds (showmedia.h)
     // The pointer, and the ink the pen and highlighter left, by slide.
     Pointer m_pointer = Pointer::Arrow;
     QColor m_penColor, m_highlighterColor;

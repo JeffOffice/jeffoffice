@@ -40,6 +40,7 @@ class SlidesPane;
 
 namespace deck {
 struct FooterOptions;
+struct MediaPlay;
 struct OutputOptions;
 }
 namespace recovery {
@@ -118,6 +119,15 @@ public:
     bool insertPicture(const QString &path, const QPointF &at = QPointF(-1, -1));
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
+    // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
+    // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
+    // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
+    bool insertMedia(const QString &path, const QString &kind = QString());
+    // Changes how the selected movie or sound plays, as one step that undoes (the Playback tab's boxes).
+    // `fileLength` is how long the whole file lasts, in milliseconds, when the change knows it (a trim does).
+    void editMedia(const QString &label, const std::function<void(deck::MediaPlay &)> &change, qint64 fileLength = 0);
+    // Plays the selected movie or sound on the slide, or pauses it.
+    void playMedia();
     // Starts the slide show at `slide` (0 is the first), with every slide in
     // play from there; the rest of how it goes is what the presentation is set
     // up for (Set Up Slide Show).
@@ -223,6 +233,11 @@ private:
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
     void createHelpActions();     // deckwindow_help.cpp
+    void createMediaActions();    // deckwindow_media.cpp
+    void addMediaParts(struct RibbonParts &parts);
+    void insertMediaFromFile(const QString &kind);
+    void trimMedia();
+    void refreshMedia();
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
 

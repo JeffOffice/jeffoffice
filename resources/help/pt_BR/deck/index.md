@@ -46,3 +46,4 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a ser 
 ## As guias da faixa de opções
 
 - [Página Inicial](tab-home), [Inserir](tab-insert), [Design](tab-design), [Transições](tab-transitions), [Animações](tab-animations), [Apresentação de Slides](tab-slide-show), [Revisão](tab-review) e [Exibir](tab-view)
+- [Reprodução](tab-playback) aparece quando um filme ou um som está selecionado
