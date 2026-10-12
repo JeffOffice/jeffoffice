@@ -88,7 +88,7 @@ int animateDemo(const QString &path, const QString &tablePath)
     const MasterPage &layout = *deck::layoutOfType(*doc, QStringLiteral("obj"));
     QString table;
     QTextStream t(&table);
-    t << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\n";
+    t << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\tafter\n";
     int slideNumber = 0;
     for (const deck::EffectKind &kind : deck::effectKinds()) {
         const int at = deck::addSlide(*doc, layout);
@@ -120,9 +120,24 @@ int animateDemo(const QString &path, const QString &tablePath)
         };
         const QString first = kind.firstVariant().key;
         add(shape(QStringLiteral("A")), first, deck::EffectStart::OnClick);
+        // What happens to the shape when the effect is over (an exit has hidden it already).
+        if (kind.cls != deck::EffectClass::Exit) {
+            const int hideAfter = add(shape(QStringLiteral("H1")), first, deck::EffectStart::OnClick);
+            seq.effects[hideAfter].after = deck::AfterEffect::Hide;
+            const int hideNext = add(shape(QStringLiteral("H2")), first, deck::EffectStart::OnClick);
+            seq.effects[hideNext].after = deck::AfterEffect::HideOnNextClick;
+        }
         add(shape(QStringLiteral("B")), first, deck::EffectStart::WithPrevious);
         add(shape(QStringLiteral("C")), first, deck::EffectStart::AfterPrevious);
         add(shape(QStringLiteral("D")), first, deck::EffectStart::OnClick, 1500, 250);
+        if (kind.duration > 0) {
+            // Smooth start and end the other way round from the kind's, and repeats with a rewind.
+            const int smooth = add(shape(QStringLiteral("S")), first, deck::EffectStart::OnClick);
+            seq.effects[smooth].smoothStart = seq.effects[smooth].smoothEnd = !kind.smooth;
+            const int again = add(shape(QStringLiteral("R")), first, deck::EffectStart::WithPrevious);
+            seq.effects[again].repeat = 3;
+            seq.effects[again].rewind = true;
+        }
         // The list, by paragraph.
         const int body = add(page.items[1], first, deck::EffectStart::OnClick);
         deck::setByParagraph(seq, body, true, *doc, page);
@@ -137,7 +152,7 @@ int animateDemo(const QString &path, const QString &tablePath)
             walkItems(page.items, [&](const ItemPtr &it) {
                 if (it->sourceId == a.shape && name.isEmpty()) name = it->name;
             });
-            t << slideNumber + 1 << '\t' << i + 1 << '\t' << a.kind << '\t' << a.variant << '\t' << name << '\t' << int(a.start) << '\t' << a.duration << '\t' << a.delay << '\t' << a.firstParagraph << '\t' << a.amount << '\n';
+            t << slideNumber + 1 << '\t' << i + 1 << '\t' << a.kind << '\t' << a.variant << '\t' << name << '\t' << int(a.start) << '\t' << a.duration << '\t' << a.delay << '\t' << a.firstParagraph << '\t' << a.amount << '\t' << int(a.after) << '\n';
         }
     }
     // The first slide stays the title slide the presentation began with.
@@ -275,7 +290,7 @@ int main(int argc, char **argv)
     }
 
     if (cmd == "animations") {
-        out << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\n";
+        out << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\tafter\n";
         for (int i = 0; i < doc->pages.size(); ++i) {
             const Page &page = *doc->pages[i];
             const deck::AnimSequence seq = deck::readAnimations(page);
@@ -286,7 +301,7 @@ int main(int argc, char **argv)
                     if (it->sourceId == a.shape && name.isEmpty()) name = it->name;
                 });
                 out << i + 1 << '\t' << k + 1 << '\t' << (a.custom() ? QStringLiteral("(custom)") : a.kind) << '\t' << a.variant << '\t' << name << '\t' << int(a.start) << '\t' << a.duration << '\t'
-                    << a.delay << '\t' << a.firstParagraph << '\t' << a.amount << '\n';
+                    << a.delay << '\t' << a.firstParagraph << '\t' << a.amount << '\t' << int(a.after) << '\n';
             }
         }
         return 0;

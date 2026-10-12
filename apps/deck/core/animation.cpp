@@ -420,6 +420,26 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
                         b.timing.decel = decel;
                     }
             completeVisibility(e);
+            // What the effect does to its shape when it is over: hides it at once, or at the next click.
+            for (const QDomElement &set : pChildren(pChild(cTn, "subTnLst"), "set")) {
+                const QDomElement hidden = pChild(set, "to");
+                const QDomElement bhvr = pChild(set, "cBhvr");
+                if (valueOf(hidden) != QLatin1String("hidden") || pChild(pChild(bhvr, "attrNameLst"), "attrName").text().trimmed() != QLatin1String("style.visibility")) continue;
+                const QString master = attr(pChild(bhvr, "cTn"), QStringLiteral("masterRel"));
+                if (master == QLatin1String("nextClick")) {
+                    e.hideOnNextClick = true;
+                } else if (const auto first = std::find_if(e.behaviors.cbegin(), e.behaviors.cend(), [](const Behavior &b) { return b.target.shape > 0 && playsBehavior(b); }); first != e.behaviors.cend()) {
+                    Behavior b;
+                    b.kind = Behavior::Kind::Set;
+                    b.target = first->target;
+                    b.attribute = QStringLiteral("style.visibility");
+                    b.to = QStringLiteral("hidden");
+                    b.timing.begin = e.end();
+                    b.timing.duration = 1;
+                    b.timing.hold = true;
+                    e.behaviors.push_back(b);
+                }
+            }
             out.push_back(e);
         } else {
             collectEffects(pChild(cTn, "childTnLst"), begin, out);
@@ -434,6 +454,7 @@ void readSequence(const QDomElement &seq, Timeline &tl)
     const QDomElement list = pChild(cTn, "childTnLst");
     if (nodeType == QLatin1String("mainSeq")) {
         if (!tl.steps.isEmpty()) return;
+        QVector<Target> hideNext;
         for (const QDomElement &par : pChildren(list, "par")) {
             const QDomElement stepNode = pChild(par, "cTn");
             Step step;
@@ -441,6 +462,30 @@ void readSequence(const QDomElement &seq, Timeline &tl)
                 if (attr(cond, QStringLiteral("evt")) == QLatin1String("onBegin")) step.automatic = true;
             collectEffects(pChild(stepNode, "childTnLst"), 0, step.effects);
             if (step.effects.isEmpty()) continue;
+            // Shapes the step before said to hide at this click go with it, the moment it starts.
+            for (const Target &t : std::as_const(hideNext)) {
+                Effect hide;
+                hide.cls = EffectClass::Exit;
+                hide.start = EffectStart::WithPrevious;
+                hide.implied = true;
+                Behavior b;
+                b.kind = Behavior::Kind::Set;
+                b.target = t;
+                b.attribute = QStringLiteral("style.visibility");
+                b.to = QStringLiteral("hidden");
+                b.timing.duration = 1;
+                b.timing.hold = true;
+                hide.behaviors.push_back(b);
+                step.effects.push_back(hide);
+            }
+            hideNext.clear();
+            for (const Effect &e : std::as_const(step.effects))
+                if (e.hideOnNextClick)
+                    for (const Behavior &b : e.behaviors)
+                        if (b.target.shape > 0 && playsBehavior(b)) {
+                            hideNext.push_back(b.target);
+                            break;
+                        }
             // With nothing before it, an effect that goes with or after the previous one goes by itself.
             if (tl.steps.isEmpty() && step.effects.first().start != EffectStart::OnClick) step.automatic = true;
             tl.steps.push_back(step);
