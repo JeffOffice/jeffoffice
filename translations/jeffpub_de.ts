@@ -169,7 +169,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="+1714"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1716"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished">Überschrift mit Akzentbalken</translation>
     </message>
@@ -965,7 +965,7 @@ Artikel auf der Rückseite	4</translation>
 <context>
     <name>Dialogs</name>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+105"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+106"/>
         <source>No Color</source>
         <translation type="unfinished">Keine Farbe</translation>
     </message>
@@ -1033,19 +1033,19 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+1"/>
         <location line="+897"/>
-        <location line="+1520"/>
+        <location line="+1531"/>
         <source>Width:</source>
         <translation type="unfinished">Breite:</translation>
     </message>
     <message>
-        <location line="-2416"/>
+        <location line="-2427"/>
         <location line="+895"/>
-        <location line="+1522"/>
+        <location line="+1533"/>
         <source>Height:</source>
         <translation type="unfinished">Höhe:</translation>
     </message>
     <message>
-        <location line="-2416"/>
+        <location line="-2427"/>
         <source>Orientation:</source>
         <translation type="unfinished">Ausrichtung:</translation>
     </message>
@@ -1146,12 +1146,12 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+2174"/>
+        <location line="+2185"/>
         <source>Name:</source>
         <translation type="unfinished">Name:</translation>
     </message>
     <message>
-        <location line="-2211"/>
+        <location line="-2222"/>
         <location line="+51"/>
         <location line="+33"/>
         <source>Page Size</source>
@@ -1277,19 +1277,19 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+1885"/>
+        <location line="+1896"/>
         <source>Position:</source>
         <translation type="unfinished">Position:</translation>
     </message>
     <message>
-        <location line="-1879"/>
+        <location line="-1890"/>
         <location line="+425"/>
-        <location line="+1567"/>
+        <location line="+1578"/>
         <source>Remove</source>
         <translation type="unfinished">Entfernen</translation>
     </message>
     <message>
-        <location line="-1992"/>
+        <location line="-2003"/>
         <source>Remove All</source>
         <translation type="unfinished">Alle entfernen</translation>
     </message>
@@ -1442,12 +1442,12 @@ Artikel auf der Rückseite	4</translation>
         <location line="+324"/>
         <location line="+760"/>
         <location line="+165"/>
-        <location line="+347"/>
+        <location line="+358"/>
         <source>Color:</source>
         <translation type="unfinished">Farbe:</translation>
     </message>
     <message>
-        <location line="-1901"/>
+        <location line="-1912"/>
         <source>Effects</source>
         <translation type="unfinished">Effekte</translation>
     </message>
@@ -1614,12 +1614,12 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="-1456"/>
-        <location line="+1925"/>
+        <location line="+1936"/>
         <source>Line spacing:</source>
         <translation type="unfinished">Zeilenabstand:</translation>
     </message>
     <message>
-        <location line="-1923"/>
+        <location line="-1934"/>
         <source>Indents and Spacing</source>
         <translation type="unfinished">Einzüge und Abstände</translation>
     </message>
@@ -2042,12 +2042,12 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+1521"/>
+        <location line="+1532"/>
         <source>Rotation:</source>
         <translation type="unfinished">Drehung:</translation>
     </message>
     <message>
-        <location line="-1519"/>
+        <location line="-1530"/>
         <source>Size</source>
         <translation type="unfinished">Größe</translation>
     </message>
@@ -2088,18 +2088,18 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+1501"/>
+        <location line="+1512"/>
         <source>Horizontal position:</source>
         <translation type="unfinished">Horizontale Position:</translation>
     </message>
     <message>
-        <location line="-1500"/>
-        <location line="+1501"/>
+        <location line="-1511"/>
+        <location line="+1512"/>
         <source>Vertical position:</source>
         <translation type="unfinished">Vertikale Position:</translation>
     </message>
     <message>
-        <location line="-1500"/>
+        <location line="-1511"/>
         <source>Wrapping style:</source>
         <translation type="unfinished">Umbruchart:</translation>
     </message>
@@ -3005,12 +3005,12 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+8"/>
-        <location line="+825"/>
+        <location line="+836"/>
         <source>Base color:</source>
         <translation type="unfinished">Grundfarbe:</translation>
     </message>
     <message>
-        <location line="-824"/>
+        <location line="-835"/>
         <source>Tint (left) or shade (right):</source>
         <translation type="unfinished">Farbton (links) oder Schattierung (rechts):</translation>
     </message>
@@ -3209,7 +3209,17 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Beim Start von JeffPub nach Updates suchen</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
+        <source>Get beta versions (early builds for testing)</source>
+        <translation type="unfinished">Betaversionen erhalten (frühe Builds zum Testen)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Beta versions arrive before the regular ones and may have rough edges. Leave this off to get only the regular versions.</source>
+        <translation type="unfinished">Betaversionen erscheinen vor den regulären Versionen und können noch Fehler enthalten. Lassen Sie diese Option deaktiviert, um nur reguläre Versionen zu erhalten.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>General</source>
         <translation type="unfinished">Allgemein</translation>
     </message>
@@ -3339,7 +3349,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">JeffPub zeigt seinen Text beim nächsten Start in der neuen Sprache an.</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+27"/>
         <location line="+22"/>
         <source>Page Number</source>
         <translation type="unfinished">Seitenzahl</translation>
@@ -4291,7 +4301,7 @@ Open them with your email program to send.</source>
 <context>
     <name>Main</name>
     <message>
-        <location filename="../apps/pub/main.cpp" line="+65"/>
+        <location filename="../apps/pub/main.cpp" line="+67"/>
         <source>JeffPub desktop publishing</source>
         <translation type="unfinished">JeffPub Desktop-Publishing</translation>
     </message>
@@ -6569,17 +6579,17 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Telemetry</name>
     <message>
-        <location filename="../libs/shell/app/telemetry.cpp" line="+88"/>
+        <location filename="../libs/shell/app/telemetry.cpp" line="+129"/>
         <source>Help improve %1</source>
         <translation type="unfinished">Helfen Sie, %1 zu verbessern</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>%1 can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used. That shows how many people use it and which parts matter most.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%2&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
-        <translation type="unfinished">%1 kann einmal täglich (und nach einer Aktualisierung) anonyme Nutzungsstatistiken senden: die Version, Ihr Betriebssystem und Ihre Sprache sowie wie oft die einzelnen Befehle verwendet werden. Daran lässt sich erkennen, wie viele Personen das Programm nutzen und welche Teile am wichtigsten sind.&lt;br&gt;&lt;br&gt;Es werden niemals Ihre Dateien, deren Namen oder Inhalte gesendet. &lt;a href=&quot;%2&quot;&gt;Was gesendet wird&lt;/a&gt;&lt;br&gt;&lt;br&gt;Sie können dies jederzeit unter Datei &amp;gt; Optionen ändern.</translation>
+        <source>%1 can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. That shows how many people use it, which parts matter most, and what to fix first.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%2&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
+        <translation type="unfinished">%1 kann einmal täglich (und nach einem Update) anonyme Nutzungsstatistiken senden: die Version, Ihr Betriebssystem und Ihre Sprache, wie oft die einzelnen Befehle verwendet werden und, falls das Programm einmal unerwartet beendet wird, an welcher Stelle im Programm dies geschah. Daran lässt sich erkennen, wie viele Personen es verwenden, welche Bereiche am wichtigsten sind und was zuerst behoben werden sollte.&lt;br&gt;&lt;br&gt;Ihre Dateien, deren Namen oder Inhalte werden niemals gesendet. &lt;a href=&quot;%2&quot;&gt;Was gesendet wird&lt;/a&gt;&lt;br&gt;&lt;br&gt;Sie können dies jederzeit unter Datei &amp;gt; Optionen ändern.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Send anonymous usage statistics</source>
         <translation type="unfinished">Anonyme Nutzungsstatistiken senden</translation>
     </message>
@@ -8738,12 +8748,12 @@ Desktop-Publishing</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1080"/>
+        <location line="+1129"/>
         <source>About</source>
         <translation type="unfinished">Info</translation>
     </message>
     <message>
-        <location line="-1080"/>
+        <location line="-1129"/>
         <source>Options</source>
         <translation type="unfinished">Optionen</translation>
     </message>
@@ -9397,7 +9407,57 @@ Desktop-Publishing</translation>
         <translation type="unfinished">Fügt diese Publikation unter „Datei &gt; Neu“ zu „Meine Vorlagen“ hinzu.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+80"/>
+        <source>JeffOffice apps</source>
+        <translation type="unfinished">JeffOffice-Apps</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Publications</source>
+        <translation type="unfinished">Publikationen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Presentations</source>
+        <translation type="unfinished">Präsentationen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Documents</source>
+        <translation type="unfinished">Dokumente</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spreadsheets</source>
+        <translation type="unfinished">Tabellenkalkulationen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Email and calendar</source>
+        <translation type="unfinished">E-Mail und Kalender</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Databases</source>
+        <translation type="unfinished">Datenbanken</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>You&apos;re using it</source>
+        <translation type="unfinished">Wird gerade verwendet</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Coming soon</source>
+        <translation type="unfinished">Demnächst verfügbar</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>%1, %2, %3</source>
+        <translation type="unfinished">%1, %2, %3</translation>
+    </message>
+    <message>
+        <location line="+39"/>
         <source>Version %1 · Built with Qt %2</source>
         <translation type="unfinished">Version %1 · Erstellt mit Qt %2</translation>
     </message>
@@ -14669,7 +14729,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::Updater</name>
     <message>
-        <location filename="../libs/shell/app/updater.cpp" line="+104"/>
+        <location filename="../libs/shell/app/updater.cpp" line="+114"/>
         <location line="+30"/>
         <source>Check for Updates</source>
         <translation type="unfinished">Nach Updates suchen</translation>
