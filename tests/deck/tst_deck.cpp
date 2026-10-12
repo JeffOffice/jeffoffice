@@ -2,6 +2,8 @@
 // its window.
 
 #include "../../apps/pub/app/pubinfo.h"   // only its inline pubAppInfo(): the other app's colors, to compare
+#include "app/animationdialogs.h"
+#include "app/animationpane.h"
 #include "app/commentspane.h"
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
@@ -17,19 +19,24 @@
 #include "app/outlineview.h"
 #include "app/presenterview.h"
 #include "app/recovery.h"
+#include "app/rehearsebar.h"
 #include "app/reusepane.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/showdialogs.h"
 #include "app/slideshow.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
 #include "app/themegallery.h"
+#include "app/widgets.h"
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/ink.h"
 #include "core/reuse.h"
 #include "core/sections.h"
+#include "core/showsettings.h"
 #include "core/themes.h"
 #include "core/transition.h"
 #include "io/cfb.h"
@@ -38,6 +45,7 @@
 #include "io/pptimport.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
+#include "io/pptxshow.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
 #include "io/zip.h"
@@ -79,6 +87,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
+#include <QSvgRenderer>
 #include <QPlainTextEdit>
 #include <QPointer>
 #include <QPrinter>
@@ -5295,6 +5304,2425 @@ private Q_SLOTS:
         QVERIFY(SlideShow::usePresenterView());
     }
 
+    // The slide show's settings are the presentation's own: the defaults leave no key, what a person sets comes back whole, and a value that
+    // makes no sense takes its default.
+    void showSettingsAreKept()
+    {
+        auto d = lettered(3);
+        QVERIFY(!d->appData.contains(QStringLiteral("showSettings")));
+        QVERIFY(deck::showSettingsOf(*d) == deck::ShowSettings());
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Kiosk;
+        s.slides = deck::ShowSettings::Slides::Range;
+        s.from = 2;
+        s.to = 3;
+        s.loop = true;
+        s.animation = false;
+        s.useTimings = false;
+        s.penColor = QColor(QStringLiteral("#2060c0"));
+        s.laserColor = QColor(QStringLiteral("#00ff00"));
+        deck::setShowSettings(*d, s);
+        QVERIFY(deck::showSettingsOf(*d) == s);
+        QVERIFY(s.looping());
+        QVERIFY(s.usesTimings());   // a kiosk has nothing else to move it on
+        deck::setShowSettings(*d, deck::ShowSettings());
+        QVERIFY(!d->appData.contains(QStringLiteral("showSettings")));
+        QVERIFY(!deck::ShowSettings().looping());
+        // Nonsense takes the defaults: no show is "custom" without one, a color that isn't one is red.
+        const deck::ShowSettings odd = deck::ShowSettings::fromJson({{"type", "spin"}, {"slides", "custom"}, {"from", -4}, {"to", "x"}, {"pen", "nope"}, {"loop", 3}});
+        QVERIFY(odd == deck::ShowSettings());
+    }
+
+    // A custom show lists slides by their pages, in any order, a slide twice if it likes. A slide taken from the presentation leaves
+    // its shows, and a show left with none is gone.
+    void customShowsFollowTheSlides()
+    {
+        auto d = lettered(5);
+        deck::CustomShow a, b, c;
+        a.id = 7;
+        a.name = QStringLiteral("Short");
+        a.slides = {d->pages[3]->id, d->pages[0]->id, d->pages[3]->id};
+        b.id = 7;   // an id twice: the second gets a new one
+        b.name = QStringLiteral("Other");
+        b.slides = {d->pages[1]->id};
+        c.id = 2;
+        c.name = QStringLiteral("Stray");
+        c.slides = {QStringLiteral("not a page")};
+        deck::setCustomShows(*d, {a, b, c});
+        QVector<deck::CustomShow> shows = deck::customShowsOf(*d);
+        QCOMPARE(shows.size(), 2);   // the one with no slide that exists is not a show
+        QCOMPARE(shows[0].id, qint64(7));
+        QVERIFY(shows[1].id != 7);
+        QCOMPARE(deck::customShowSlides(*d, shows[0]), (QList<int>{3, 0, 3}));
+        QVERIFY(deck::customShowById(shows, shows[1].id));
+        QVERIFY(!deck::customShowById(shows, 99));
+        QCOMPARE(deck::newCustomShowName(shows), QStringLiteral("Custom Show 1"));
+        QVERIFY(deck::newCustomShowId(shows) > shows[1].id);
+        // Plans: a custom show plays the slides it lists, hidden ones too; the others leave hidden slides to the show.
+        d->pages[3]->hidden = true;
+        const deck::ShowPlan plan = deck::planOfCustomShow(*d, shows[0]);
+        QCOMPARE(plan.slides, (QList<int>{3, 0, 3}));
+        QVERIFY(plan.hidden);
+        deck::ShowSettings s;
+        QVERIFY(deck::planOf(*d, s).slides.isEmpty());   // every slide
+        s.slides = deck::ShowSettings::Slides::Range;
+        s.from = 2;
+        s.to = 4;
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{1, 2, 3}));
+        QVERIFY(!deck::planOf(*d, s).hidden);
+        QVERIFY(deck::planOf(*d, s, false).slides.isEmpty());   // From Current Slide plays every slide
+        s.to = 99;   // past the last slide is the last slide
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{1, 2, 3, 4}));
+        s.from = 4;
+        s.to = 2;   // nothing between: every slide
+        QVERIFY(deck::planOf(*d, s).slides.isEmpty());
+        s.slides = deck::ShowSettings::Slides::Custom;
+        s.customShow = 7;
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{3, 0, 3}));
+        // Slide D goes: the show keeps the others, in their order.
+        d->pages.removeAt(3);
+        shows = deck::customShowsOf(*d);
+        QCOMPARE(shows.size(), 2);
+        QCOMPARE(deck::customShowSlides(*d, shows[0]), (QList<int>{0}));
+        QCOMPARE(shows[0].slides.size(), 1);
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{0}));
+        // Slide A goes too: Short has nothing left and is gone, and a presentation set to play it plays every slide.
+        d->pages.removeAt(0);
+        shows = deck::customShowsOf(*d);
+        QCOMPARE(shows.size(), 1);
+        QCOMPARE(shows[0].name, QStringLiteral("Other"));
+        QVERIFY(deck::planOf(*d, s).slides.isEmpty());
+    }
+
+    // The settings are p:showPr in the presentation properties, in the order the schema has: the kind of show, which slides, the pen's
+    // color, then the extensions with the laser pointer's color. They come back as set, and a show with defaults writes none.
+    void showSettingsAreWrittenAndReadBack()
+    {
+        auto d = lettered(4);
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Kiosk;
+        s.slides = deck::ShowSettings::Slides::Range;
+        s.from = 2;
+        s.to = 3;
+        s.loop = true;
+        s.animation = false;
+        s.useTimings = false;
+        s.penColor = QColor(QStringLiteral("#2060c0"));
+        s.laserColor = QColor(QStringLiteral("#00ff00"));
+        s.kioskRestart = 60000;
+        deck::setShowSettings(*d, s);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presProps.xml")), &dom);
+        QCOMPARE(root.localName(), QStringLiteral("presentationPr"));
+        const QDomElement show = office::child(root, office::ns::P, QStringLiteral("showPr"));
+        QVERIFY(!show.isNull());
+        QCOMPARE(show.attribute(QStringLiteral("loop")), QStringLiteral("1"));
+        QCOMPARE(show.attribute(QStringLiteral("showAnimation")), QStringLiteral("0"));
+        QCOMPARE(show.attribute(QStringLiteral("useTimings")), QStringLiteral("0"));
+        QVERIFY(!show.hasAttribute(QStringLiteral("showNarration")));   // the default is not written
+        QStringList order;
+        for (const QDomElement &c : office::children(show)) order << c.localName();
+        QCOMPARE(order, (QStringList{"kiosk", "sldRg", "penClr", "extLst"}));
+        QCOMPARE(office::child(show, office::ns::P, QStringLiteral("kiosk")).attribute(QStringLiteral("restart")), QStringLiteral("60000"));
+        const QDomElement range = office::child(show, office::ns::P, QStringLiteral("sldRg"));
+        QCOMPARE(range.attribute(QStringLiteral("st")), QStringLiteral("2"));
+        QCOMPARE(range.attribute(QStringLiteral("end")), QStringLiteral("3"));
+        QCOMPARE(office::child(office::child(show, office::ns::P, QStringLiteral("penClr")), office::ns::A, QStringLiteral("srgbClr")).attribute(QStringLiteral("val")),
+                 QStringLiteral("2060C0"));
+        const QString p14 = QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main");
+        const QDomElement ext = office::child(office::child(show, office::ns::P, QStringLiteral("extLst")), office::ns::P, QStringLiteral("ext"));
+        QCOMPARE(ext.attribute(QStringLiteral("uri")), QStringLiteral("{EC167BDD-8182-4AB7-AECC-EB403E3ABB37}"));
+        QCOMPARE(office::child(office::child(ext, p14, QStringLiteral("laserClr")), office::ns::A, QStringLiteral("srgbClr")).attribute(QStringLiteral("val")),
+                 QStringLiteral("00FF00"));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::showSettingsOf(*back) == s);
+        // Saved again, the file is the same.
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QCOMPARE(again.zip.value(QStringLiteral("ppt/presProps.xml")), e.zip.value(QStringLiteral("ppt/presProps.xml")));
+        // A speaker's show, and a show in a window; narration, the scroll bar, and a show that plays a custom show.
+        auto other = lettered(3);
+        deck::CustomShow c;
+        c.id = 4;
+        c.name = QStringLiteral("Quick");
+        c.slides = {other->pages[2]->id};
+        deck::setCustomShows(*other, {c});
+        deck::ShowSettings t;
+        t.type = deck::ShowSettings::Type::Individual;
+        t.scrollbar = false;
+        t.narration = true;
+        t.slides = deck::ShowSettings::Slides::Custom;
+        t.customShow = 4;
+        deck::setShowSettings(*other, t);
+        Exported second;
+        QVERIFY2(unpack(deck::exportPresentation(*other, &err), &second, &err), qPrintable(err));
+        const QDomElement browsed = office::child(rootOf(second.zip.value(QStringLiteral("ppt/presProps.xml")), &dom), office::ns::P, QStringLiteral("showPr"));
+        QCOMPARE(browsed.attribute(QStringLiteral("showNarration")), QStringLiteral("1"));
+        QCOMPARE(office::child(browsed, office::ns::P, QStringLiteral("browse")).attribute(QStringLiteral("showScrollbar")), QStringLiteral("0"));
+        QCOMPARE(office::child(browsed, office::ns::P, QStringLiteral("custShow")).attribute(QStringLiteral("id")), QStringLiteral("4"));
+        auto otherBack = deck::importPresentation(deck::exportPresentation(*other, &err), &err);
+        QVERIFY2(otherBack, qPrintable(err));
+        QVERIFY(deck::showSettingsOf(*otherBack) == t);
+        // Defaults write no show properties.
+        auto plain = lettered(2);
+        Exported none;
+        QVERIFY2(unpack(deck::exportPresentation(*plain, &err), &none, &err), qPrintable(err));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presProps.xml")).contains(QStringLiteral("showPr")));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("custShow")));
+    }
+
+    // The custom shows are p:custShowLst in the presentation, after the notes size and before the default text style, each show's
+    // slides named by the relationship the presentation has to them; they come back with their slides in order, a slide twice too.
+    void customShowsAreWrittenAndReadBack()
+    {
+        auto d = lettered(4);
+        deck::CustomShow a, b;
+        a.id = 0;
+        a.name = QStringLiteral("Q & \"A\"");
+        a.slides = {d->pages[2]->id, d->pages[0]->id, d->pages[2]->id};
+        b.id = 5;
+        b.name = QStringLiteral("Closing");
+        b.slides = {d->pages[3]->id};
+        deck::setCustomShows(*d, {a, b});
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presentation.xml")), &dom);
+        QStringList order;
+        for (const QDomElement &c : office::children(root)) order << c.localName();
+        const int sizes = int(order.indexOf(QStringLiteral("notesSz")));
+        QVERIFY(sizes >= 0);
+        QCOMPARE(order.mid(sizes), (QStringList{"notesSz", "custShowLst", "defaultTextStyle"}));
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(root, office::ns::P, QStringLiteral("sldIdLst")), office::ns::P, QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        QCOMPARE(int(rels.size()), 4);
+        const QVector<QDomElement> written = office::children(office::child(root, office::ns::P, QStringLiteral("custShowLst")), office::ns::P, QStringLiteral("custShow"));
+        QCOMPARE(int(written.size()), 2);
+        QCOMPARE(written[0].attribute(QStringLiteral("name")), a.name);
+        QCOMPARE(written[0].attribute(QStringLiteral("id")), QStringLiteral("0"));
+        QCOMPARE(written[1].attribute(QStringLiteral("id")), QStringLiteral("5"));
+        QStringList listed;
+        for (const QDomElement &s : office::children(office::child(written[0], office::ns::P, QStringLiteral("sldLst")), office::ns::P, QStringLiteral("sld")))
+            listed << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        QCOMPARE(listed, (QStringList{rels[2], rels[0], rels[2]}));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QVector<deck::CustomShow> shows = deck::customShowsOf(*back);
+        QCOMPARE(shows.size(), 2);
+        QCOMPARE(shows[0].name, a.name);
+        QCOMPARE(shows[0].id, qint64(0));
+        QCOMPARE(shows[1].id, qint64(5));
+        QCOMPARE(deck::customShowSlides(*back, shows[0]), (QList<int>{2, 0, 2}));
+        QCOMPARE(deck::customShowSlides(*back, shows[1]), (QList<int>{3}));
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QCOMPARE(again.zip.value(QStringLiteral("ppt/presentation.xml")), e.zip.value(QStringLiteral("ppt/presentation.xml")));
+    }
+
+    // A file the presentation program wrote: show properties with its extensions, custom shows, and a show set to play one read in;
+    // what JeffDeck has no form for (the recent colors, the media controls, the image settings) is written back as it was.
+    void showSettingsFromTheProgramAreRead()
+    {
+        const QString p14 = QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main");
+        auto d = lettered(4);
+        QString err;
+        const QByteArray plain = deck::exportPresentation(*d, &err);
+        Exported base;
+        QVERIFY2(unpack(plain, &base, &err), qPrintable(err));
+        QDomDocument dom;
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(rootOf(base.zip.value(QStringLiteral("ppt/presentation.xml")), &dom), office::ns::P, QStringLiteral("sldIdLst")), office::ns::P,
+                                                     QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        QCOMPARE(int(rels.size()), 4);
+        const QString namespaces = QStringLiteral("xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                                                  "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"");
+        auto written = [&](const QString &props, const QString &shows) {
+            QMap<QString, QByteArray> zip = base.zip;
+            zip[QStringLiteral("ppt/presProps.xml")] = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<p:presentationPr %1>%2</p:presentationPr>").arg(namespaces, props).toUtf8();
+            QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+            const qsizetype at = xml.indexOf(QStringLiteral("<p:defaultTextStyle>"));
+            xml.insert(at, shows);
+            zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+            ZipWriter z;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+            return z.finish();
+        };
+        const QString shows = QStringLiteral("<p:custShowLst><p:custShow name=\"Tour\" id=\"2\"><p:sldLst><p:sld r:id=\"%1\"/><p:sld r:id=\"%2\"/></p:sldLst></p:custShow>"
+                                             "<p:custShow name=\"Lost\" id=\"3\"><p:sldLst><p:sld r:id=\"rId999\"/></p:sldLst></p:custShow></p:custShowLst>")
+                                  .arg(rels[3], rels[1]);
+        const QString props = QStringLiteral("<p:showPr loop=\"1\" showNarration=\"1\" showAnimation=\"0\" useTimings=\"0\"><p:browse showScrollbar=\"0\"/><p:custShow id=\"2\"/>"
+                                             "<p:penClr><a:srgbClr val=\"0070C0\"/></p:penClr><p:extLst>"
+                                             "<p:ext uri=\"{EC167BDD-8182-4AB7-AECC-EB403E3ABB37}\"><p14:laserClr xmlns:p14=\"%1\"><a:srgbClr val=\"00FF00\"/></p14:laserClr></p:ext>"
+                                             "<p:ext uri=\"{2FDB2607-1784-4EEB-B798-7EB5836EED8A}\"><p14:showMediaCtrls xmlns:p14=\"%1\" val=\"1\"/></p:ext></p:extLst></p:showPr>"
+                                             "<p:clrMru><a:srgbClr val=\"FF0000\"/></p:clrMru>"
+                                             "<p:extLst><p:ext uri=\"{E76CE94A-603C-4142-B9EB-6D1370010A27}\"><p14:discardImageEditData xmlns:p14=\"%1\" val=\"0\"/></p:ext>"
+                                             "<p:ext uri=\"{D31A062A-798A-4329-ABDD-BBA856620510}\"><p14:defaultImageDpi xmlns:p14=\"%1\" val=\"220\"/></p:ext></p:extLst>")
+                                  .arg(p14);
+        const QByteArray file = written(props, shows);
+        auto d2 = deck::importPresentation(file, &err);
+        QVERIFY2(d2, qPrintable(err));
+        const deck::ShowSettings s = deck::showSettingsOf(*d2);
+        QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Individual));
+        QVERIFY(!s.scrollbar);
+        QVERIFY(s.loop);
+        QVERIFY(s.narration);
+        QVERIFY(!s.animation);
+        QVERIFY(!s.useTimings);
+        QCOMPARE(int(s.slides), int(deck::ShowSettings::Slides::Custom));
+        QCOMPARE(s.customShow, qint64(2));
+        QCOMPARE(s.penColor, QColor(0x00, 0x70, 0xC0));
+        QCOMPARE(s.laserColor, QColor(0x00, 0xFF, 0x00));
+        const QVector<deck::CustomShow> custom = deck::customShowsOf(*d2);
+        QCOMPARE(custom.size(), 1);   // the one that names a slide the file doesn't have is left out
+        QCOMPARE(custom[0].name, QStringLiteral("Tour"));
+        QCOMPARE(deck::customShowSlides(*d2, custom[0]), (QList<int>{3, 1}));
+        QCOMPARE(deck::planOf(*d2, s).slides, (QList<int>{3, 1}));
+        // Saved again, what was kept is there, in the schema's order.
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d2, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presProps.xml")), &dom);
+        QStringList order;
+        for (const QDomElement &c : office::children(root)) order << c.localName();
+        QCOMPARE(order, (QStringList{"showPr", "clrMru", "extLst"}));
+        const QDomElement show = office::child(root, office::ns::P, QStringLiteral("showPr"));
+        QStringList inShow;
+        for (const QDomElement &c : office::children(show)) inShow << c.localName();
+        QCOMPARE(inShow, (QStringList{"browse", "custShow", "penClr", "extLst"}));
+        QStringList exts;
+        for (const QDomElement &x : office::children(office::child(show, office::ns::P, QStringLiteral("extLst")))) exts << x.attribute(QStringLiteral("uri"));
+        QCOMPARE(exts, (QStringList{"{EC167BDD-8182-4AB7-AECC-EB403E3ABB37}", "{2FDB2607-1784-4EEB-B798-7EB5836EED8A}"}));
+        const QString text = part(e, QStringLiteral("/ppt/presProps.xml"));
+        QVERIFY(text.contains(QStringLiteral("showMediaCtrls")));
+        QVERIFY(text.contains(QStringLiteral("defaultImageDpi")));
+        QVERIFY(text.contains(QStringLiteral("discardImageEditData")));
+        QVERIFY(text.contains(QStringLiteral("<p:clrMru")));
+        auto back = deck::importPresentation(deck::exportPresentation(*d2, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::showSettingsOf(*back) == s);
+        // A speaker's range, and a pen the program names by a preset color, read as such.
+        auto ranged = deck::importPresentation(written(QStringLiteral("<p:showPr><p:present/><p:sldRg st=\"2\" end=\"3\"/><p:penClr><a:prstClr val=\"red\"/></p:penClr></p:showPr>"), QString()), &err);
+        QVERIFY2(ranged, qPrintable(err));
+        const deck::ShowSettings r = deck::showSettingsOf(*ranged);
+        QCOMPARE(int(r.type), int(deck::ShowSettings::Type::Speaker));
+        QCOMPARE(int(r.slides), int(deck::ShowSettings::Slides::Range));
+        QCOMPARE(r.from, 2);
+        QCOMPARE(r.to, 3);
+        QCOMPARE(r.penColor, QColor(255, 0, 0));
+        QVERIFY(r.animation && r.useTimings && !r.loop);
+        // A kiosk.
+        auto kiosk = deck::importPresentation(written(QStringLiteral("<p:showPr loop=\"1\" showNarration=\"1\"><p:kiosk/><p:sldAll/></p:showPr>"), QString()), &err);
+        QVERIFY2(kiosk, qPrintable(err));
+        QCOMPARE(int(deck::showSettingsOf(*kiosk).type), int(deck::ShowSettings::Type::Kiosk));
+        QCOMPARE(deck::showSettingsOf(*kiosk).kioskRestart, qint64(300000));
+        // A show set to play a custom show the file doesn't have plays every slide, and the file says so.
+        auto missing = deck::importPresentation(written(QStringLiteral("<p:showPr><p:present/><p:custShow id=\"41\"/></p:showPr>"), QString()), &err);
+        QVERIFY2(missing, qPrintable(err));
+        QCOMPARE(int(deck::showSettingsOf(*missing).slides), int(deck::ShowSettings::Slides::All));
+        QVERIFY2(err.contains(QStringLiteral("custom slide show")), qPrintable(err));
+    }
+
+    // A file may list only so many custom shows and slides in them; the rest are left out, with a note, and what is kept reads as it
+    // would anywhere. Properties that can't be read leave the defaults.
+    void customShowsInHostileFilesAreLimited()
+    {
+        auto d = lettered(2);
+        QString err;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &err), qPrintable(err));
+        QDomDocument dom;
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(rootOf(base.zip.value(QStringLiteral("ppt/presentation.xml")), &dom), office::ns::P, QStringLiteral("sldIdLst")), office::ns::P,
+                                                     QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        auto with = [&](const QString &shows, const QByteArray &props = QByteArray()) {
+            QMap<QString, QByteArray> zip = base.zip;
+            QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+            xml.insert(xml.indexOf(QStringLiteral("<p:defaultTextStyle>")), shows);
+            zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+            if (!props.isEmpty()) zip[QStringLiteral("ppt/presProps.xml")] = props;
+            ZipWriter z;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+            return z.finish();
+        };
+        // 1,500 shows of one slide: 1,000 are read.
+        QString many = QStringLiteral("<p:custShowLst>");
+        for (int i = 0; i < 1500; ++i) many += QStringLiteral("<p:custShow name=\"Show %1\" id=\"%1\"><p:sldLst><p:sld r:id=\"%2\"/></p:sldLst></p:custShow>").arg(i).arg(rels[0]);
+        many += QStringLiteral("</p:custShowLst>");
+        auto d1 = deck::importPresentation(with(many), &err);
+        QVERIFY2(d1, qPrintable(err));
+        QCOMPARE(int(deck::customShowsOf(*d1).size()), 1000);
+        QVERIFY2(err.contains(QStringLiteral("1000")), qPrintable(err));
+        // One show that lists a slide 12,000 times: 10,000 are read.
+        QString slides;
+        for (int i = 0; i < 12000; ++i) slides += QStringLiteral("<p:sld r:id=\"%1\"/>").arg(rels[i % 2]);
+        auto d2 = deck::importPresentation(with(QStringLiteral("<p:custShowLst><p:custShow name=\"Long\" id=\"1\"><p:sldLst>%1</p:sldLst></p:custShow></p:custShowLst>").arg(slides)), &err);
+        QVERIFY2(d2, qPrintable(err));
+        const QVector<deck::CustomShow> longShow = deck::customShowsOf(*d2);
+        QCOMPARE(int(longShow.size()), 1);
+        QCOMPARE(int(longShow[0].slides.size()), 10000);
+        // A name past 255 characters is cut, an id twice is made new, a show with no name is given one.
+        auto d3 = deck::importPresentation(with(QStringLiteral("<p:custShowLst><p:custShow name=\"%1\" id=\"4\"><p:sldLst><p:sld r:id=\"%2\"/></p:sldLst></p:custShow>"
+                                                               "<p:custShow name=\"\" id=\"4\"><p:sldLst><p:sld r:id=\"%2\"/></p:sldLst></p:custShow></p:custShowLst>")
+                                                    .arg(QString(400, QLatin1Char('x')), rels[0])),
+                                           &err);
+        QVERIFY2(d3, qPrintable(err));
+        const QVector<deck::CustomShow> odd = deck::customShowsOf(*d3);
+        QCOMPARE(int(odd.size()), 2);
+        QCOMPARE(int(odd[0].name.size()), 255);
+        QVERIFY(odd[1].id != 4);
+        QVERIFY(!odd[1].name.isEmpty());
+        // Presentation properties that are not XML leave the defaults, with a note.
+        auto d4 = deck::importPresentation(with(QString(), QByteArray("<p:presentationPr")), &err);
+        QVERIFY2(d4, qPrintable(err));
+        QVERIFY(deck::showSettingsOf(*d4) == deck::ShowSettings());
+        // Kept properties are held to a size too.
+        QString huge;
+        for (int i = 0; i < 3000; ++i) huge += QStringLiteral("<p:ext uri=\"{%1}\"/>").arg(i);
+        const QByteArray props = QStringLiteral("<p:presentationPr xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:extLst>%1</p:extLst></p:presentationPr>").arg(huge).toUtf8();
+        auto d5 = deck::importPresentation(with(QString(), props), &err);
+        QVERIFY2(d5, qPrintable(err));
+        QVERIFY(d5->appData.value(QStringLiteral("presPropsKept")).toObject().isEmpty() || QJsonDocument(d5->appData.value(QStringLiteral("presPropsKept")).toObject()).toJson().size() < 200000);
+    }
+
+    // A file that repeats the show properties, or lists many shows for them to name, makes the program do the work once: only the first
+    // properties are read, and the shows are looked through once.
+    void showPropertiesInHostileFilesAreReadOnce()
+    {
+        auto d = lettered(2);
+        QString err;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &err), qPrintable(err));
+        QDomDocument dom;
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(rootOf(base.zip.value(QStringLiteral("ppt/presentation.xml")), &dom), office::ns::P, QStringLiteral("sldIdLst")), office::ns::P,
+                                                     QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        // 1,000 shows of 90 slides, and 20,000 show properties that each name one of them.
+        QString shows = QStringLiteral("<p:custShowLst>");
+        for (int i = 0; i < 1000; ++i) {
+            shows += QStringLiteral("<p:custShow name=\"Show %1\" id=\"%1\"><p:sldLst>").arg(i);
+            for (int k = 0; k < 90; ++k) shows += QStringLiteral("<p:sld r:id=\"%1\"/>").arg(rels[k % 2]);
+            shows += QStringLiteral("</p:sldLst></p:custShow>");
+        }
+        shows += QStringLiteral("</p:custShowLst>");
+        QString props = QStringLiteral("<p:presentationPr xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">");
+        props += QStringLiteral("<p:showPr loop=\"1\"><p:kiosk/><p:custShow id=\"7\"/></p:showPr>");
+        for (int i = 0; i < 20000; ++i) props += QStringLiteral("<p:showPr><p:present/><p:custShow id=\"%1\"/></p:showPr>").arg(i % 1000);
+        props += QStringLiteral("</p:presentationPr>");
+        QMap<QString, QByteArray> zip = base.zip;
+        QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+        xml.insert(xml.indexOf(QStringLiteral("<p:defaultTextStyle>")), shows);
+        zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+        zip[QStringLiteral("ppt/presProps.xml")] = props.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        QElapsedTimer clock;
+        clock.start();
+        auto back = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(clock.elapsed() < 5000, qPrintable(QString::number(clock.elapsed())));
+        const deck::ShowSettings s = deck::showSettingsOf(*back);
+        QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Kiosk));   // the first one's
+        QCOMPARE(s.customShow, qint64(7));
+        QVERIFY(s.loop);
+        QCOMPARE(int(deck::customShowsOf(*back).size()), 1000);
+        QCOMPARE(int(deck::customShowsOf(*back)[0].slides.size()), 90);
+        // Saved again, the shows and the properties are written once, in a moment.
+        clock.restart();
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QVERIFY2(clock.elapsed() < 5000, qPrintable(QString::number(clock.elapsed())));
+        QCOMPARE(int(part(again, QStringLiteral("/ppt/presProps.xml")).count(QStringLiteral("<p:showPr"))), 1);
+        QCOMPARE(int(part(again, QStringLiteral("/ppt/presentation.xml")).count(QStringLiteral("<p:custShow "))), 1000);
+    }
+
+    // Kept ink is a freeform line for each stroke above the slide's objects: the pen opaque and thin, the highlighter wide and
+    // see-through, both as lines the file holds and the program shows.
+    void inkBecomesFreeformShapes()
+    {
+        auto d = lettered(2);
+        const int before = int(d->pages[0]->items.size());
+        deck::InkStroke pen, marker, dot;
+        for (int i = 0; i <= 200; ++i) pen.points << QPointF(100 + i * 2, 100 + 30 * std::sin(i / 10.0));
+        pen.color = QColor(255, 0, 0);
+        pen.width = deck::penWeightFor(d->pageSize().width());
+        marker.points = {QPointF(100, 300), QPointF(400, 300)};
+        marker.color = QColor(255, 255, 0);
+        marker.width = deck::highlighterWeightFor(d->pageSize().width());
+        marker.highlighter = true;
+        dot.points = {QPointF(50, 50)};
+        dot.color = QColor(0, 0, 255);
+        dot.width = pen.width;
+        deck::addInk(*d->pages[0], {pen, marker, dot});
+        QCOMPARE(int(d->pages[0]->items.size()), before + 3);
+        QCOMPARE(int(d->pages[1]->items.size()), before);
+        const ShapeItem *p = static_cast<const ShapeItem *>(d->pages[0]->items[before].get());
+        const ShapeItem *m = static_cast<const ShapeItem *>(d->pages[0]->items[before + 1].get());
+        const ShapeItem *dotShape = static_cast<const ShapeItem *>(d->pages[0]->items[before + 2].get());
+        QVERIFY(p->type() == ItemType::Shape && m->type() == ItemType::Shape);
+        QVERIFY(!p->customPath.isEmpty());
+        QVERIFY(p->fill.isNone());
+        QVERIFY(p->customPath.elementCount() < 120);   // thinned to the points that matter, not all 201
+        QVERIFY(p->rect.contains(QPointF(300, 100)));
+        QCOMPARE(p->stroke.width, 2.5 * d->pageSize().width() / 960);
+        QCOMPARE(p->stroke.transparency, 0.0);   // opaque
+        QCOMPARE(m->stroke.transparency, 0.5);   // see-through
+        QVERIFY(m->stroke.width > 5 * p->stroke.width);
+        QVERIFY(p->stroke.width < 4);
+        QVERIFY(p->stroke.cap == Qt::RoundCap);
+        QVERIFY(dotShape->rect.width() >= 1 && dotShape->rect.height() >= 1);
+        QVERIFY(m->customPath.elementCount() == 2);
+        // Saved, each is a freeform with its own line, and the file reads back with them.
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QCOMPARE(int(slide.count(QStringLiteral("<a:custGeom>"))), 3);
+        QVERIFY(slide.contains(QStringLiteral("<a:ln w=\"%1\"").arg(qRound64(p->stroke.width * 12700))));
+        QVERIFY(slide.contains(QStringLiteral("<a:alpha val=\"50000\"/>")));
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages[0]->items.size()), before + 3);
+        // A stroke with no point makes nothing.
+        QVERIFY(!deck::inkShape(deck::InkStroke()));
+        // The eraser reaches a stroke by its line and half its weight.
+        QVERIFY(deck::inkTouches(marker, QPointF(250, 305), 1));
+        QVERIFY(!deck::inkTouches(marker, QPointF(250, 330), 1));
+        QVERIFY(deck::inkTouches(dot, QPointF(52, 50), 1));
+        QVERIFY(!deck::inkTouches(dot, QPointF(60, 50), 1));
+    }
+
+    // A show set to loop starts again at the first slide after the last, with the transition into it; one that does not ends with
+    // the black screen. Back from the first slide stays on it.
+    void showLoopsWhenSetTo()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow plain(d.get(), &cache, 0);
+        plain.goTo(2);
+        plain.next();
+        QCOMPARE(plain.currentSlide(), -1);
+        SlideShow loop(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.loop = true;
+        loop.setSettings(s);
+        loop.goTo(2);
+        loop.next();
+        QCOMPARE(loop.currentSlide(), 0);
+        loop.previous();
+        QCOMPARE(loop.currentSlide(), 0);
+        deck::setTransition(*d->pages[0], showTransition("fade", 30));
+        loop.goTo(2);
+        loop.next();
+        QVERIFY(loop.isAnimating());
+        QCOMPARE(loop.targetSlide(), 0);
+        loop.finishTransition();
+        QCOMPARE(loop.currentSlide(), 0);
+        // A hidden first slide is passed over on the way round.
+        d->pages[0]->hidden = true;
+        loop.goTo(2);
+        loop.next();
+        QCOMPARE(loop.currentSlide(), 1);
+    }
+
+    // At a kiosk the keys and clicks do nothing but Esc ends the show and a link opens; the slides' times move it on, and it
+    // starts again after the last.
+    void showAtAKioskMovesOnOnlyByTimings()
+    {
+        auto d = showDeck(3);
+        for (int i = 0; i < 3; ++i) {
+            deck::Transition t;
+            t.advanceAfter = 0.05;
+            deck::setTransition(*d->pages[i], t);
+        }
+        d->pages[1]->items[0]->hyperlink = QStringLiteral("https://example.com/kiosk");
+        LinkCatcher catcher;
+        QDesktopServices::setUrlHandler(QStringLiteral("https"), &catcher, "open");
+        LayoutCache cache;
+        QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Kiosk;
+        show->setSettings(s);
+        QVERIFY(show->isKiosk());
+        QVERIFY(!show->isWindowed());
+        QSignalSpy ended(show.data(), &SlideShow::ended);
+        show->resize(960, 540);
+        QTest::keyClick(show.data(), Qt::Key_Right);
+        QTest::keyClick(show.data(), Qt::Key_Space);
+        QTest::mouseClick(show.data(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 530));
+        QTest::mouseClick(show.data(), Qt::RightButton, Qt::NoModifier, QPoint(5, 530));
+        QTest::keyClick(show.data(), Qt::Key_P, Qt::ControlModifier);
+        QCOMPARE(show->currentSlide(), 0);
+        QVERIFY(!show->findChild<QMenu *>(QStringLiteral("showMenu")));
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));
+        QCOMPARE(ended.count(), 0);
+        // A link opens, and the show stays where it is.
+        show->goTo(1);
+        QTest::mouseClick(show.data(), Qt::LeftButton, Qt::NoModifier, d->pages[1]->items[0]->bounds().center().toPoint());
+        QCOMPARE(catcher.urls, (QStringList{"https://example.com/kiosk"}));
+        QCOMPARE(show->currentSlide(), 1);
+        QDesktopServices::unsetUrlHandler(QStringLiteral("https"));
+        // The times move it on, round and round.
+        QList<int> seen;
+        connect(show.data(), &SlideShow::changed, this, [&] { seen << show->currentSlide(); });
+        show->goTo(0);
+        seen.clear();
+        show->show();
+        QTRY_VERIFY(seen.size() >= 4);
+        QCOMPARE(seen.mid(0, 4), (QList<int>{1, 2, 0, 1}));
+        QTest::keyClick(show.data(), Qt::Key_Escape);
+        QCOMPARE(ended.count(), 1);
+        QTRY_VERIFY(show.isNull());
+    }
+
+    // Moving on by the slides' times is a setting: off, they do nothing.
+    void showFollowsTimingsOnlyWhenSetTo()
+    {
+        auto d = showDeck(2);
+        deck::Transition t;
+        t.advanceAfter = 30;
+        deck::setTransition(*d->pages[0], t);
+        LayoutCache cache;
+        SlideShow timed(d.get(), &cache, 0);
+        timed.show();
+        QVERIFY(timed.autoAdvanceActive());
+        SlideShow manual(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.useTimings = false;
+        manual.setSettings(s);
+        manual.show();
+        QVERIFY(!manual.autoAdvanceActive());
+        manual.next();   // by hand it still goes
+        QCOMPARE(manual.currentSlide(), 1);
+    }
+
+    // A show without animation has no steps to click through, and shows each slide whole.
+    void showWithoutAnimationShowsSlidesWhole()
+    {
+        auto d = animatedDeck(100);
+        LayoutCache cache;
+        SlideShow animated(d.get(), &cache, 0);
+        QCOMPARE(animated.stepCount(), 2);
+        SlideShow still(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.animation = false;
+        still.setSettings(s);
+        QCOMPARE(still.stepCount(), 0);
+        const QSize size(640, 360);
+        const QImage start = animated.renderView(SlideShow::View{0, 0}, -1, size, 1.0);
+        const QImage end = animated.renderView(SlideShow::View{0, 2}, -1, size, 1.0);
+        QVERIFY(start != end);
+        QCOMPARE(still.renderView(SlideShow::View{0, 0}, -1, size, 1.0), end);
+        still.next();   // the first click moves on
+        QCOMPARE(still.currentSlide(), 1);
+    }
+
+    // A show plays the slides it is given in the order it is given them, a slide twice if it lists it twice, and hidden slides if it
+    // is a custom show; back goes the way it came; a number goes to the first place a slide has.
+    void showPlaysTheSlidesItIsGiven()
+    {
+        auto d = showDeck(5);
+        d->pages[3]->hidden = true;
+        LayoutCache cache;
+        SlideShow ranged(d.get(), &cache, 0);
+        ranged.setSlides({1, 2, 3}, false);
+        QCOMPARE(ranged.currentSlide(), 1);
+        QCOMPARE(ranged.playedSlides(), (QList<int>{1, 2}));
+        ranged.next();
+        QCOMPARE(ranged.currentSlide(), 2);
+        ranged.next();
+        QCOMPARE(ranged.currentSlide(), -1);   // the hidden slide is passed over
+        SlideShow custom(d.get(), &cache, 0);
+        custom.setSlides({3, 0, 3, 4}, true);
+        QCOMPARE(custom.currentSlide(), 3);
+        QCOMPARE(custom.playedSlides(), (QList<int>{3, 0, 3, 4}));
+        PresenterView pv(&custom);
+        QCOMPARE(pv.nextSlide(), 0);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 4 of 5"));
+        custom.next();
+        QCOMPARE(custom.currentSlide(), 0);
+        custom.next();
+        QCOMPARE(custom.currentSlide(), 3);
+        QCOMPARE(pv.nextSlide(), 4);
+        custom.previous();
+        QCOMPARE(custom.currentSlide(), 0);   // not the first 3: back is the place before
+        custom.next();
+        custom.next();
+        QCOMPARE(custom.currentSlide(), 4);
+        custom.next();
+        QCOMPARE(custom.currentSlide(), -1);
+        custom.previous();
+        QCOMPARE(custom.currentSlide(), 4);
+        custom.goTo(3);
+        QCOMPARE(custom.currentSlide(), 3);
+        custom.next();
+        QCOMPARE(custom.currentSlide(), 0);   // the first place of 3 came before 0
+        custom.goTo(2);                        // not in the show
+        QCOMPARE(custom.currentSlide(), 0);
+        QTest::keyClick(&custom, Qt::Key_End);
+        QCOMPARE(custom.currentSlide(), 4);
+        QTest::keyClick(&custom, Qt::Key_Home);
+        QCOMPARE(custom.currentSlide(), 3);
+        // A show of every slide starts where it is asked to.
+        SlideShow all(d.get(), &cache, 2);
+        all.setSlides({}, false);
+        QCOMPARE(all.currentSlide(), 2);
+    }
+
+    // Ctrl+P, Ctrl+I, Ctrl+L, and Ctrl+E choose the pen, the highlighter, the laser pointer, and the eraser; Ctrl+A and Esc bring the
+    // arrow back (Esc ends the show only from the arrow); P alone still goes back.
+    void showKeysChooseThePointer()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 1);
+        QSignalSpy ended(show.data(), &SlideShow::ended);
+        QSignalSpy changed(show.data(), &SlideShow::overlayChanged);
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));
+        auto press = [&](int key, SlideShow::Pointer expect) {
+            QTest::keyClick(show.data(), key, Qt::ControlModifier);
+            QCOMPARE(int(show->pointer()), int(expect));
+        };
+        press(Qt::Key_P, SlideShow::Pointer::Pen);
+        QVERIFY(changed.count() > 0);
+        press(Qt::Key_I, SlideShow::Pointer::Highlighter);
+        press(Qt::Key_L, SlideShow::Pointer::Laser);
+        press(Qt::Key_E, SlideShow::Pointer::Eraser);
+        press(Qt::Key_A, SlideShow::Pointer::Arrow);
+        press(Qt::Key_P, SlideShow::Pointer::Pen);
+        QTest::keyClick(show.data(), Qt::Key_Escape);   // the arrow first
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));
+        QCOMPARE(ended.count(), 0);
+        QCOMPARE(show->currentSlide(), 1);
+        QTest::keyClick(show.data(), Qt::Key_P);        // plain P: back
+        QCOMPARE(show->currentSlide(), 0);
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));
+        QTest::keyClick(show.data(), Qt::Key_Escape);
+        QCOMPARE(ended.count(), 1);
+        QTRY_VERIFY(show.isNull());
+    }
+
+    // The pen and the highlighter draw on the slide where the pointer drags, a click doesn't move the show on, the ink stays on its slide
+    // while the show runs and is on the screen, the eraser takes a stroke it touches, and E takes all the slide's.
+    void showDrawsInkOnTheSlide()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);   // slide points are pixels
+        auto mouse = [&](QEvent::Type type, QPoint p, Qt::MouseButton button, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            QMouseEvent e(type, QPointF(p), QPointF(show.mapToGlobal(p)), type == QEvent::MouseMove ? Qt::NoButton : button,
+                          type == QEvent::MouseButtonRelease ? Qt::NoButton : button, mods);
+            QApplication::sendEvent(&show, &e);
+        };
+        auto stroke = [&](QPoint from, QPoint to) {
+            mouse(QEvent::MouseButtonPress, from, Qt::LeftButton);
+            mouse(QEvent::MouseMove, QPoint((from.x() + to.x()) / 2, (from.y() + to.y()) / 2 + 10), Qt::LeftButton);
+            mouse(QEvent::MouseMove, to, Qt::LeftButton);
+            mouse(QEvent::MouseButtonRelease, to, Qt::LeftButton);
+        };
+        // The arrow draws nothing.
+        stroke(QPoint(100, 100), QPoint(300, 100));
+        QCOMPARE(show.inkCount(), 0);
+        QCOMPARE(show.currentSlide(), 1);   // (a click moved on)
+        show.goTo(0);
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        stroke(QPoint(100, 100), QPoint(300, 100));
+        QCOMPARE(show.currentSlide(), 0);   // a pen's click doesn't
+        QCOMPARE(show.inkCount(), 1);
+        QCOMPARE(int(show.ink(0).size()), 1);
+        const deck::InkStroke &pen = show.ink(0)[0];
+        QVERIFY(pen.points.size() >= 3);
+        QVERIFY(!pen.highlighter);
+        QCOMPARE(pen.color, QColor(255, 0, 0));
+        QCOMPARE(pen.width, 2.5);
+        QCOMPARE(pen.points.first(), QPointF(100, 100));
+        QVERIFY(!show.isDrawing());
+        // It is on the screen: red where the line goes.
+        auto redNear = [&](QPoint at) {
+            const QImage shot = show.grab().toImage();
+            for (int y = at.y() - 3; y <= at.y() + 3; ++y)
+                for (int x = at.x() - 3; x <= at.x() + 3; ++x)
+                    if (shot.pixelColor(x, y).red() > 200 && shot.pixelColor(x, y).green() < 60) return true;
+            return false;
+        };
+        QVERIFY(redNear(QPoint(300, 100)));
+        // Another color, and the highlighter: wide and yellow.
+        show.setInkColor(QColor(0, 112, 192));
+        QCOMPARE(show.inkColor(), QColor(0, 112, 192));
+        QTest::keyClick(&show, Qt::Key_I, Qt::ControlModifier);
+        QCOMPARE(show.inkColor(), QColor(255, 255, 0));
+        stroke(QPoint(100, 300), QPoint(400, 300));
+        QCOMPARE(int(show.ink(0).size()), 2);
+        QVERIFY(show.ink(0)[1].highlighter);
+        QCOMPARE(show.ink(0)[1].width, 18.0);
+        QCOMPARE(show.ink(0)[1].color, QColor(255, 255, 0));
+        // The pen kept its color.
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        QCOMPARE(show.inkColor(), QColor(0, 112, 192));
+        // Ink stays on its slide: gone from the screen on another, back when the show returns.
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.ink(1).size(), 0);
+        QVERIFY(!redNear(QPoint(300, 100)));
+        show.previous();
+        QCOMPARE(int(show.ink(0).size()), 2);
+        QCOMPARE(show.allInk().size(), 1);
+        // The eraser takes the stroke it touches, the rest stay.
+        QTest::keyClick(&show, Qt::Key_E, Qt::ControlModifier);
+        mouse(QEvent::MouseButtonPress, QPoint(250, 300), Qt::LeftButton);
+        mouse(QEvent::MouseButtonRelease, QPoint(250, 300), Qt::LeftButton);
+        QCOMPARE(int(show.ink(0).size()), 1);
+        QVERIFY(!show.ink(0)[0].highlighter);
+        // A press away from every stroke takes none.
+        mouse(QEvent::MouseButtonPress, QPoint(700, 450), Qt::LeftButton);
+        mouse(QEvent::MouseButtonRelease, QPoint(700, 450), Qt::LeftButton);
+        QCOMPARE(int(show.ink(0).size()), 1);
+        // E alone takes all the ink of the slide.
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        stroke(QPoint(500, 200), QPoint(600, 250));
+        QCOMPARE(int(show.ink(0).size()), 2);
+        show.goTo(1);
+        stroke(QPoint(500, 200), QPoint(600, 250));
+        QCOMPARE(show.inkCount(), 3);
+        QTest::keyClick(&show, Qt::Key_E);
+        QCOMPARE(int(show.ink(1).size()), 0);
+        QCOMPARE(int(show.ink(0).size()), 2);   // only the slide on the screen
+        QCOMPARE(show.inkCount(), 2);
+        // A click without a drag is a dot.
+        mouse(QEvent::MouseButtonPress, QPoint(50, 400), Qt::LeftButton);
+        mouse(QEvent::MouseButtonRelease, QPoint(50, 400), Qt::LeftButton);
+        QCOMPARE(int(show.ink(1).size()), 1);
+        QCOMPARE(int(show.ink(1)[0].points.size()), 1);
+    }
+
+    // The laser pointer is a dot on the slide that follows the mouse and leaves nothing behind; Ctrl and the button give it for as long as
+    // they are held, from the arrow.
+    void showLaserPointerFollowsTheMouse()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        auto mouse = [&](QEvent::Type type, QPoint p, Qt::MouseButton button, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            QMouseEvent e(type, QPointF(p), QPointF(show.mapToGlobal(p)), type == QEvent::MouseMove ? Qt::NoButton : button,
+                          type == QEvent::MouseButtonRelease ? Qt::NoButton : button, mods);
+            QApplication::sendEvent(&show, &e);
+        };
+        auto laserNear = [&](QPoint at) {
+            const QImage shot = show.grab().toImage();
+            return shot.pixelColor(at.x(), at.y()).red() > 200 && shot.pixelColor(at.x(), at.y()).green() < 80 && shot.pixelColor(at.x(), at.y()).blue() < 80;
+        };
+        QTest::keyClick(&show, Qt::Key_L, Qt::ControlModifier);
+        QVERIFY(!laserNear(QPoint(700, 400)));
+        mouse(QEvent::MouseMove, QPoint(700, 400), Qt::NoButton);
+        QVERIFY(laserNear(QPoint(700, 400)));
+        mouse(QEvent::MouseMove, QPoint(200, 400), Qt::NoButton);
+        QVERIFY(laserNear(QPoint(200, 400)));
+        QVERIFY(!laserNear(QPoint(700, 400)));
+        QCOMPARE(show.inkCount(), 0);
+        show.pointerLeft();
+        QVERIFY(!laserNear(QPoint(200, 400)));
+        // The color is the setting's.
+        deck::ShowSettings s;
+        s.laserColor = QColor(0, 255, 0);
+        show.setSettings(s);
+        QCOMPARE(show.laserColor(), QColor(0, 255, 0));
+        mouse(QEvent::MouseMove, QPoint(300, 300), Qt::NoButton);
+        QCOMPARE(show.grab().toImage().pixelColor(300, 300), QColor(0, 255, 0));
+        // From the arrow, Ctrl and the button.
+        QTest::keyClick(&show, Qt::Key_A, Qt::ControlModifier);
+        mouse(QEvent::MouseMove, QPoint(500, 300), Qt::NoButton);
+        QVERIFY(show.grab().toImage().pixelColor(500, 300) != QColor(0, 255, 0));   // no dot
+        mouse(QEvent::MouseButtonPress, QPoint(500, 300), Qt::LeftButton, Qt::ControlModifier);
+        QCOMPARE(show.currentSlide(), 0);   // it did not click
+        QCOMPARE(show.grab().toImage().pixelColor(500, 300), QColor(0, 255, 0));
+        mouse(QEvent::MouseButtonRelease, QPoint(500, 300), Qt::LeftButton, Qt::ControlModifier);
+        QCOMPARE(int(show.pointer()), int(SlideShow::Pointer::Arrow));
+        QVERIFY(show.grab().toImage().pixelColor(500, 300) != QColor(0, 255, 0));
+        QCOMPARE(show.inkCount(), 0);
+    }
+
+    // A right click opens a menu of the show: next and previous, go to a slide, the pointer's tools and ink colors, the screens, and
+    // the end; its pointer part is the same in Presenter View.
+    void showRightClickOpensTheMenu()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 1);
+        show.resize(960, 540);
+        QTest::mouseClick(&show, Qt::RightButton, Qt::NoModifier, QPoint(10, 10));
+        QCOMPARE(show.currentSlide(), 1);   // a right click no longer goes back: the menu has Previous
+        QMenu *menu = show.findChild<QMenu *>(QStringLiteral("showMenu"));
+        QVERIFY(menu);
+        QVERIFY(menu->isVisible());
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("menuNext")));
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("menuEnd")));
+        QMenu *go = menu->findChild<QMenu *>(QStringLiteral("goToSlideMenu"));
+        QVERIFY(go);
+        QCOMPARE(int(go->actions().size()), 3);
+        QVERIFY(go->actions()[1]->isChecked());
+        QVERIFY(go->actions()[0]->text().contains(QStringLiteral("Slide 1 title")));
+        go->actions()[2]->trigger();
+        QCOMPARE(show.currentSlide(), 2);
+        menu->findChild<QAction *>(QStringLiteral("menuPrevious"))->trigger();
+        QCOMPARE(show.currentSlide(), 1);
+        // The pointer's tools: each chooses it; the checked one is the pointer.
+        QAction *pen = menu->findChild<QAction *>(QStringLiteral("pointerPen"));
+        QVERIFY(pen);
+        QVERIFY(pen->isCheckable());
+        QVERIFY(!pen->isChecked());
+        QVERIFY(pen->text().contains(QKeySequence(Qt::CTRL | Qt::Key_P).toString(QKeySequence::NativeText)));
+        pen->trigger();
+        QCOMPARE(int(show.pointer()), int(SlideShow::Pointer::Pen));
+        for (const auto &pair : {QPair<const char *, SlideShow::Pointer>{"pointerHighlighter", SlideShow::Pointer::Highlighter},
+                                 {"pointerEraser", SlideShow::Pointer::Eraser}, {"pointerLaser", SlideShow::Pointer::Laser}, {"pointerArrow", SlideShow::Pointer::Arrow}}) {
+            QAction *a = menu->findChild<QAction *>(QString::fromLatin1(pair.first));
+            QVERIFY(a);
+            a->trigger();
+            QCOMPARE(int(show.pointer()), int(pair.second));
+        }
+        // Ink color: from the list, for the tool in hand.
+        show.setPointer(SlideShow::Pointer::Pen);
+        QMenu *colors = menu->findChild<QMenu *>(QStringLiteral("inkColorMenu"));
+        QVERIFY(colors);
+        QAction *blue = nullptr;
+        for (QAction *a : colors->actions())
+            if (a->data().value<QColor>() == QColor(0, 112, 192)) blue = a;
+        QVERIFY(blue);
+        blue->trigger();
+        QCOMPARE(show.inkColor(), QColor(0, 112, 192));
+        // Erase All Ink on Slide is there when the slide has ink.
+        QMenu *fresh = show.pointerMenu(&show);
+        QVERIFY(!fresh->findChild<QAction *>(QStringLiteral("eraseAllInk"))->isEnabled());
+        delete fresh;
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        QTest::mousePress(&show, Qt::LeftButton, Qt::NoModifier, QPoint(100, 100));
+        QTest::mouseRelease(&show, Qt::LeftButton, Qt::NoModifier, QPoint(100, 100));
+        QCOMPARE(show.inkCount(), 1);
+        fresh = show.pointerMenu(&show);
+        QAction *erase = fresh->findChild<QAction *>(QStringLiteral("eraseAllInk"));
+        QVERIFY(erase->isEnabled());
+        erase->trigger();
+        QCOMPARE(show.inkCount(), 0);
+        delete fresh;
+        // End Show ends it.
+        QSignalSpy ended(&show, &SlideShow::ended);
+        menu->findChild<QAction *>(QStringLiteral("menuEnd"))->trigger();
+        QCOMPARE(ended.count(), 1);
+        delete menu;
+    }
+
+    // Presenter View draws with the pen on its large slide, and the audience's screen follows; its button opens the pointer menu.
+    void presenterViewDrawsInk()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        PresenterView pv(&show);
+        pv.resize(1100, 700);
+        pv.show();
+        QWidget *large = pv.findChild<QWidget *>(QStringLiteral("currentSlide"));
+        QVERIFY(large);
+        QVERIFY(pv.findChild<QAbstractButton *>(QStringLiteral("pointerButton")));
+        QSignalSpy overlay(&show, &SlideShow::overlayChanged);
+        auto mouse = [&](QEvent::Type type, QPoint p) {
+            QMouseEvent e(type, QPointF(p), QPointF(large->mapToGlobal(p)), type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton,
+                          type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(large, &e);
+        };
+        // The arrow: a click moves on.
+        mouse(QEvent::MouseButtonPress, QPoint(10, 10));
+        mouse(QEvent::MouseButtonRelease, QPoint(10, 10));
+        QCOMPARE(show.currentSlide(), 1);
+        show.goTo(0);
+        QTest::keyClick(&pv, Qt::Key_P, Qt::ControlModifier);   // keys reach the show from this window too
+        QCOMPARE(int(show.pointer()), int(SlideShow::Pointer::Pen));
+        QVERIFY(pv.findChild<QAbstractButton *>(QStringLiteral("pointerButton"))->isChecked());
+        const QRectF at = slideRectIn(d->pageSize(), large->size());
+        const QPoint a(int(at.left() + at.width() * 0.25), int(at.top() + at.height() * 0.5)), b(int(at.left() + at.width() * 0.75), int(at.top() + at.height() * 0.5));
+        mouse(QEvent::MouseButtonPress, a);
+        mouse(QEvent::MouseMove, QPoint((a.x() + b.x()) / 2, a.y() + 8));
+        mouse(QEvent::MouseMove, b);
+        mouse(QEvent::MouseButtonRelease, b);
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.inkCount(), 1);
+        QVERIFY(overlay.count() >= 3);
+        // The stroke is in the slide's own points: a quarter of the way across to three quarters.
+        const QPointF first = show.ink(0)[0].points.first(), last = show.ink(0)[0].points.last();
+        QVERIFY(std::abs(first.x() - 0.25 * d->pageSize().width()) < 4);
+        QVERIFY(std::abs(last.x() - 0.75 * d->pageSize().width()) < 4);
+        // It shows in Presenter View.
+        const QImage shot = large->grab().toImage();
+        bool red = false;
+        for (int x = a.x(); x < b.x() && !red; ++x)
+            for (int y = a.y() - 12; y < a.y() + 12 && !red; ++y) red = shot.pixelColor(x, y).red() > 200 && shot.pixelColor(x, y).green() < 60;
+        QVERIFY(red);
+        // A right click on the large slide opens the show's menu.
+        {
+            QMouseEvent press(QEvent::MouseButtonPress, QPointF(a), QPointF(large->mapToGlobal(a)), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+            QApplication::sendEvent(large, &press);
+            QMenu *shown = pv.findChild<QMenu *>(QStringLiteral("showMenu"));
+            QVERIFY(shown);
+            QVERIFY(shown->findChild<QAction *>(QStringLiteral("menuNext")));
+            QCOMPARE(show.currentSlide(), 0);   // it did not move on
+            delete shown;
+        }
+        // The button opens the menu of the pointer.
+        pv.findChild<QAbstractButton *>(QStringLiteral("pointerButton"))->click();
+        QMenu *menu = nullptr;
+        for (QMenu *m : pv.findChildren<QMenu *>(QStringLiteral("pointerMenu"))) menu = m;
+        QVERIFY(menu);
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("pointerLaser")));
+        delete menu;
+    }
+
+    // Rehearse Timings: the show times each slide from when it comes on the screen to when it goes, with the bar's next, pause, repeat,
+    // and the two clocks; it moves on only when told, and has no pen and no menu.
+    void showRecordsTheTimeOfEachSlide()
+    {
+        auto d = showDeck(3);
+        deck::Transition t;
+        t.advanceAfter = 0.05;
+        deck::setTransition(*d->pages[0], t);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        qint64 now = 1000;
+        show.setClock([&now] { return now; });
+        show.setRecording(true);
+        QVERIFY(show.isRecording());
+        RehearseBar *bar = show.rehearseBar();
+        QVERIFY(bar);
+        QAbstractButton *next = bar->findChild<QAbstractButton *>(QStringLiteral("rehearseNext"));
+        QAbstractButton *pause = bar->findChild<QAbstractButton *>(QStringLiteral("rehearsePause"));
+        QAbstractButton *repeat = bar->findChild<QAbstractButton *>(QStringLiteral("rehearseRepeat"));
+        QVERIFY(next && pause && repeat);
+        show.show();   // the slides' own times do not move it
+        QVERIFY(!show.autoAdvanceActive());
+        now = 1000 + 3000;
+        QCOMPARE(show.slideClock(), qint64(3000));
+        QCOMPARE(show.totalClock(), qint64(3000));
+        bar->refresh();
+        QCOMPARE(bar->slideText(), QStringLiteral("0:00:03"));
+        QCOMPARE(bar->totalText(), QStringLiteral("0:00:03"));
+        next->click();   // the bar's Next is the click
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.slideClock(), qint64(0));
+        now += 5000;
+        QCOMPARE(show.slideClock(), qint64(5000));
+        QCOMPARE(show.totalClock(), qint64(8000));
+        // Paused, the clocks hold; resumed, they go on.
+        pause->click();
+        QVERIFY(show.isRecordingPaused());
+        now += 9999;
+        QCOMPARE(show.slideClock(), qint64(5000));
+        QCOMPARE(show.totalClock(), qint64(8000));
+        pause->click();
+        QVERIFY(!show.isRecordingPaused());
+        now += 1000;
+        QCOMPARE(show.slideClock(), qint64(6000));
+        // Repeat starts the slide's time from nothing, and the total goes back by it.
+        repeat->click();
+        QCOMPARE(show.slideClock(), qint64(0));
+        QCOMPARE(show.totalClock(), qint64(3000));
+        now += 2000;
+        show.next();
+        QCOMPARE(show.currentSlide(), 2);
+        now += 700;
+        show.next();   // past the last slide: the end
+        QCOMPARE(show.currentSlide(), -1);
+        now += 5000;   // the black screen is no slide's time
+        const QMap<int, double> seconds = show.recordedSeconds();
+        QCOMPARE(seconds.keys(), (QList<int>{0, 1, 2}));
+        QCOMPARE(seconds.value(0), 3.0);
+        QCOMPARE(seconds.value(1), 2.0);
+        QCOMPARE(seconds.value(2), 0.7);
+        QCOMPARE(show.recordedTotal(), 5.7);
+        // No pen, no menu; a right click goes back as before.
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        QCOMPARE(int(show.pointer()), int(SlideShow::Pointer::Arrow));
+        show.previous();
+        QCOMPARE(show.currentSlide(), 2);
+        show.resize(960, 540);
+        QTest::mouseClick(&show, Qt::RightButton, Qt::NoModifier, QPoint(300, 300));
+        QCOMPARE(show.currentSlide(), 1);
+        QVERIFY(!show.findChild<QMenu *>(QStringLiteral("showMenu")));
+        // Going back to a slide times it again.
+        now += 4000;
+        show.next();
+        QCOMPARE(show.recordedSeconds().value(1), 4.0);
+    }
+
+    // The Slide Show tab: Custom Slide Show lists the custom shows by name above Custom Shows..., and plays one; Set Up has Set Up Slide
+    // Show, Rehearse Timings, and the Use Timings check box.
+    void windowSlideShowTabHasSetUpAndCustomShows()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        for (const char *id : {"show.setUp", "show.rehearse", "show.customShows", "show.useTimings"}) QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QVERIFY(w.act("show.useTimings")->isCheckable());
+        QVERIFY(w.act("show.useTimings")->isChecked());
+        auto *box = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("useTimings"));
+        QVERIFY(box);
+        QVERIFY(box->isChecked());
+        QStringList groups;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Slide Show"))->groups()) groups << g->title();
+        QCOMPARE(groups, (QStringList{"Start Slide Show", "Set Up", "Monitors"}));
+        QAction *command = w.findChild<QAction *>(QStringLiteral("ribbon.customShow"));
+        QVERIFY(command);
+        QMenu *menu = nullptr;
+        for (QObject *o : command->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        auto listed = [&] {
+            Q_EMIT menu->aboutToShow();
+            QStringList names;
+            for (QAction *a : menu->actions())
+                if (!a->isSeparator()) names << a->text();
+            return names;
+        };
+        QCOMPARE(listed(), (QStringList{w.act("show.customShows")->text()}));   // none yet: only the way to make some
+        deck::CustomShow a, b;
+        a.id = 1;
+        a.name = QStringLiteral("Overview");
+        a.slides = {ed->doc()->pages[2]->id, ed->doc()->pages[0]->id};
+        b.id = 2;
+        b.name = QStringLiteral("Details");
+        b.slides = {ed->doc()->pages[1]->id};
+        ed->beginChange(QStringLiteral("test"));
+        deck::setCustomShows(*ed->doc(), {a, b});
+        ed->endChange();
+        QCOMPARE(listed(), (QStringList{"Overview", "Details", w.act("show.customShows")->text()}));
+        // Choosing one plays it, from its first slide, in its order.
+        for (QAction *action : menu->actions())
+            if (action->text() == QLatin1String("Overview")) action->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        QCOMPARE(show->playedSlides(), (QList<int>{2, 0}));
+        QCOMPARE(show->currentSlide(), 2);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        // A show set to play it, and the slide taken out of the presentation leaves it.
+        ed->setCurrentPage(2);
+        w.deleteSlide();
+        QCOMPARE(deck::customShowsOf(*ed->doc()).size(), 2);
+        QCOMPARE(int(deck::customShowsOf(*ed->doc())[0].slides.size()), 1);
+        QCOMPARE(listed().first(), QStringLiteral("Overview"));
+    }
+
+    // The Use Timings check box is the setting: one step that undoes, and the box and the command follow.
+    void windowUseTimingsCheckBox()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto *box = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("useTimings"));
+        QVERIFY(box);
+        QVERIFY(!ed->isModified());
+        box->click();
+        QVERIFY(!deck::showSettingsOf(*ed->doc()).useTimings);
+        QVERIFY(!w.act("show.useTimings")->isChecked());
+        QVERIFY(ed->isModified());
+        ed->undo();
+        QVERIFY(deck::showSettingsOf(*ed->doc()).useTimings);
+        QVERIFY(box->isChecked());
+        QVERIFY(w.act("show.useTimings")->isChecked());
+        ed->redo();
+        QVERIFY(!box->isChecked());
+        QVERIFY(!deck::showSettingsOf(*ed->doc()).useTimings);
+        // A show started now does not move on by the slides' times.
+        deck::Transition t;
+        t.advanceAfter = 30;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setTransition(*ed->doc()->pages[0], t);
+        ed->endChange();
+        w.startShow(0);
+        QVERIFY(w.slideShow());
+        QVERIFY(!w.slideShow()->autoAdvanceActive());
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // Set Up Slide Show: the dialog shows what the presentation has, and OK is one step that undoes; a kiosk loops and moves on by the
+    // times; the show follows what was set.
+    void windowSetUpSlideShowDialog()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        w.newSlide();
+        deck::CustomShow c;
+        c.id = 3;
+        c.name = QStringLiteral("Two and four");
+        c.slides = {ed->doc()->pages[1]->id, ed->doc()->pages[3]->id};
+        ed->beginChange(QStringLiteral("test"));
+        deck::setCustomShows(*ed->doc(), {c});
+        ed->endChange();
+        QVERIFY(w.act("show.setUp")->shortcut().isEmpty());
+        // Shown with the defaults.
+        bool opened = false;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            opened = true;
+            QCOMPARE(d->objectName(), QStringLiteral("setUpShowDialog"));
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("typeSpeaker"))->isChecked());
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("slidesAll"))->isChecked());
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("advanceTimings"))->isChecked());
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("loop"))->isChecked());
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("noAnimation"))->isChecked());
+            QVERIFY(d->findChild<QSpinBox *>(QStringLiteral("rangeFrom")));
+            QVERIFY(!d->findChild<QSpinBox *>(QStringLiteral("rangeFrom"))->isEnabled());   // only for From...To
+            QVERIFY(!d->findChild<QComboBox *>(QStringLiteral("customShow"))->isEnabled());   // only for a custom show
+            d->findChild<QRadioButton *>(QStringLiteral("slidesRange"))->setChecked(true);
+            QVERIFY(d->findChild<QSpinBox *>(QStringLiteral("rangeFrom"))->isEnabled());
+            QVERIFY(d->findChild<QSpinBox *>(QStringLiteral("rangeTo"))->isEnabled());
+            d->findChild<QRadioButton *>(QStringLiteral("slidesAll"))->setChecked(true);
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("rangeTo"))->maximum(), 4);
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("customShow"))->count(), 1);
+            d->reject();
+        });
+        w.act("show.setUp")->trigger();
+        QVERIFY(opened);
+        QVERIFY(!ed->doc()->appData.contains(QStringLiteral("showSettings")));   // Cancel changed nothing
+        // A kiosk with slides 2 to 3 and no animation.
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            d->findChild<QRadioButton *>(QStringLiteral("typeKiosk"))->setChecked(true);
+            QCheckBox *loop = d->findChild<QCheckBox *>(QStringLiteral("loop"));
+            QVERIFY(loop->isChecked());     // a kiosk loops
+            QVERIFY(!loop->isEnabled());
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("advanceTimings"))->isChecked());
+            QVERIFY(!d->findChild<QRadioButton *>(QStringLiteral("advanceManual"))->isEnabled());
+            d->findChild<QCheckBox *>(QStringLiteral("noAnimation"))->setChecked(true);
+            d->findChild<QRadioButton *>(QStringLiteral("slidesRange"))->setChecked(true);
+            d->findChild<QSpinBox *>(QStringLiteral("rangeFrom"))->setValue(2);
+            d->findChild<QSpinBox *>(QStringLiteral("rangeTo"))->setValue(3);
+            d->findChild<QComboBox *>(QStringLiteral("laserColor"))->setCurrentIndex(1);   // green
+            d->accept();
+        });
+        w.act("show.setUp")->trigger();
+        deck::ShowSettings s = deck::showSettingsOf(*ed->doc());
+        QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Kiosk));
+        QCOMPARE(int(s.slides), int(deck::ShowSettings::Slides::Range));
+        QCOMPARE(s.from, 2);
+        QCOMPARE(s.to, 3);
+        QVERIFY(!s.animation);
+        QVERIFY(s.loop);
+        QVERIFY(s.useTimings);
+        QCOMPARE(s.laserColor.green(), 255);
+        QCOMPARE(s.laserColor.red(), 0);
+        QVERIFY(ed->isModified());
+        ed->undo();
+        QVERIFY(!ed->doc()->appData.contains(QStringLiteral("showSettings")));
+        ed->redo();
+        QCOMPARE(int(deck::showSettingsOf(*ed->doc()).type), int(deck::ShowSettings::Type::Kiosk));
+        // The dialog opens on what is set; a custom show and the pen's color.
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("typeKiosk"))->isChecked());
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("slidesRange"))->isChecked());
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("rangeFrom"))->value(), 2);
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("rangeTo"))->value(), 3);
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("noAnimation"))->isChecked());
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("laserColor"))->currentIndex(), 1);
+            d->findChild<QRadioButton *>(QStringLiteral("typeSpeaker"))->setChecked(true);
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("loop"))->isEnabled());
+            d->findChild<QRadioButton *>(QStringLiteral("slidesCustom"))->setChecked(true);
+            d->findChild<QRadioButton *>(QStringLiteral("advanceManual"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("loop"))->setChecked(true);
+            d->accept();
+        });
+        w.act("show.setUp")->trigger();
+        s = deck::showSettingsOf(*ed->doc());
+        QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Speaker));
+        QCOMPARE(int(s.slides), int(deck::ShowSettings::Slides::Custom));
+        QCOMPARE(s.customShow, qint64(3));
+        QVERIFY(!s.useTimings);
+        QVERIFY(s.loop);
+        QVERIFY(w.act("show.useTimings")->isChecked() == false);
+        // From Beginning follows the set up (the custom show, looping); From Current Slide plays every slide from there.
+        w.act("show.fromStart")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        QCOMPARE(show->playedSlides(), (QList<int>{1, 3}));
+        QCOMPARE(show->currentSlide(), 1);
+        QVERIFY(show->settings().looping());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        ed->setCurrentPage(2);
+        w.act("show.fromCurrent")->trigger();
+        show = w.slideShow();
+        QVERIFY(show);
+        QCOMPARE(show->currentSlide(), 2);
+        QCOMPARE(show->playedSlides(), (QList<int>{0, 1, 2, 3}));
+        QVERIFY(show->settings().looping());   // the rest of the set up still applies
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A show by an individual is a window; the others are full screen.
+    void windowShowTypesAreWindowOrFullScreen()
+    {
+        DeckWindow w;
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Individual;
+        w.editor()->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*w.editor()->doc(), s);
+        w.editor()->endChange();
+        w.startShow(0);
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        QVERIFY(show->isWindowed());
+        QVERIFY(!show->isFullScreen());
+        QVERIFY(!(show->windowFlags() & Qt::FramelessWindowHint));
+        QVERIFY(!show->presenterView());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        s.type = deck::ShowSettings::Type::Kiosk;
+        w.editor()->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*w.editor()->doc(), s);
+        w.editor()->endChange();
+        w.startShow(0);
+        show = w.slideShow();
+        QVERIFY(show);
+        QVERIFY(show->isKiosk());
+        QVERIFY(show->isFullScreen());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        s.type = deck::ShowSettings::Type::Speaker;
+        w.editor()->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*w.editor()->doc(), s);
+        w.editor()->endChange();
+        w.startShow(0);
+        show = w.slideShow();
+        QVERIFY(show && show->isFullScreen() && !show->isWindowed());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // Custom Shows: the dialog lists the shows, and New, Edit, Copy, and Remove change them; Show plays one. Making one asks for a name
+    // and picks slides from the presentation in any order.
+    void customShowsDialogMakesEditsCopiesAndDeletes()
+    {
+        auto d = lettered(4);
+        deck::CustomShow existing;
+        existing.id = 0;
+        existing.name = QStringLiteral("First");
+        existing.slides = {d->pages[0]->id, d->pages[1]->id};
+        // The editor of one show.
+        {
+            CustomShowEditDialog edit(*d, QVector<deck::CustomShow>{existing}, nullptr);
+            QCOMPARE(edit.findChild<QLineEdit *>(QStringLiteral("showName"))->text(), QStringLiteral("Custom Show 1"));
+            QListWidget *all = edit.findChild<QListWidget *>(QStringLiteral("slidesInPresentation"));
+            QListWidget *mine = edit.findChild<QListWidget *>(QStringLiteral("slidesInShow"));
+            QVERIFY(all && mine);
+            QCOMPARE(all->count(), 4);
+            QCOMPARE(mine->count(), 0);
+            QAbstractButton *ok = edit.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+            QVERIFY(!ok->isEnabled());   // no slide yet
+            QAbstractButton *add = edit.findChild<QAbstractButton *>(QStringLiteral("addSlide"));
+            QAbstractButton *remove = edit.findChild<QAbstractButton *>(QStringLiteral("removeSlide"));
+            QAbstractButton *up = edit.findChild<QAbstractButton *>(QStringLiteral("moveUp"));
+            QAbstractButton *down = edit.findChild<QAbstractButton *>(QStringLiteral("moveDown"));
+            QVERIFY(add && remove && up && down);
+            QVERIFY(!remove->isEnabled());
+            all->item(3)->setSelected(true);
+            all->item(0)->setSelected(true);
+            add->click();   // the selected ones, in the order the presentation has them
+            QCOMPARE(mine->count(), 2);
+            all->clearSelection();
+            all->item(0)->setSelected(true);
+            add->click();   // a slide twice
+            QCOMPARE(mine->count(), 3);
+            QVERIFY(ok->isEnabled());
+            auto order = [&] {
+                QStringList out;
+                for (int i = 0; i < mine->count(); ++i) out << mine->item(i)->data(Qt::UserRole).toString();
+                return out;
+            };
+            QCOMPARE(order(), (QStringList{d->pages[0]->id, d->pages[3]->id, d->pages[0]->id}));
+            mine->setCurrentRow(2);
+            up->click();
+            QCOMPARE(order(), (QStringList{d->pages[0]->id, d->pages[0]->id, d->pages[3]->id}));
+            mine->setCurrentRow(0);
+            down->click();
+            down->click();
+            QCOMPARE(order(), (QStringList{d->pages[0]->id, d->pages[3]->id, d->pages[0]->id}));
+            mine->setCurrentRow(1);
+            remove->click();
+            QCOMPARE(order(), (QStringList{d->pages[0]->id, d->pages[0]->id}));
+            // The name must be there and not another show's.
+            QLineEdit *name = edit.findChild<QLineEdit *>(QStringLiteral("showName"));
+            name->setText(QStringLiteral("  "));
+            QVERIFY(!ok->isEnabled());
+            name->setText(QStringLiteral("FIRST"));
+            QVERIFY(!ok->isEnabled());   // the same as another's, in other letters
+            name->setText(QStringLiteral("Mine"));
+            QVERIFY(ok->isEnabled());
+            ok->click();
+            QCOMPARE(edit.result(), int(QDialog::Accepted));
+            const deck::CustomShow made = edit.show();
+            QCOMPARE(made.name, QStringLiteral("Mine"));
+            QCOMPARE(made.slides, (QStringList{d->pages[0]->id, d->pages[0]->id}));
+        }
+        // Editing one starts from it, and the name it has is its own to keep.
+        {
+            CustomShowEditDialog edit(*d, QVector<deck::CustomShow>{existing}, &existing);
+            QCOMPARE(edit.findChild<QLineEdit *>(QStringLiteral("showName"))->text(), QStringLiteral("First"));
+            QCOMPARE(edit.findChild<QListWidget *>(QStringLiteral("slidesInShow"))->count(), 2);
+            QVERIFY(edit.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->isEnabled());
+            QCOMPARE(edit.show().id, existing.id);
+        }
+        // The list.
+        CustomShowsDialog dlg(*d, QVector<deck::CustomShow>{existing});
+        QListWidget *list = dlg.findChild<QListWidget *>(QStringLiteral("customShowList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 1);
+        QAbstractButton *edit = dlg.findChild<QAbstractButton *>(QStringLiteral("editShow"));
+        QAbstractButton *copy = dlg.findChild<QAbstractButton *>(QStringLiteral("copyShow"));
+        QAbstractButton *remove = dlg.findChild<QAbstractButton *>(QStringLiteral("removeShow"));
+        QAbstractButton *play = dlg.findChild<QAbstractButton *>(QStringLiteral("playShow"));
+        QAbstractButton *create = dlg.findChild<QAbstractButton *>(QStringLiteral("newShow"));
+        QVERIFY(edit && copy && remove && play && create);
+        list->setCurrentRow(0);
+        // Copy: the same slides under a new name and id.
+        copy->click();
+        QCOMPARE(list->count(), 2);
+        QCOMPARE(dlg.shows().size(), 2);
+        QCOMPARE(dlg.shows()[1].slides, existing.slides);
+        QVERIFY(dlg.shows()[1].id != existing.id);
+        QVERIFY(dlg.shows()[1].name != existing.name);
+        QVERIFY2(dlg.shows()[1].name.contains(QStringLiteral("First")), qPrintable(dlg.shows()[1].name));
+        // New: the editor opens, and what it makes is added.
+        QTimer::singleShot(0, [&] {
+            auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!e) return;
+            QCOMPARE(e->objectName(), QStringLiteral("customShowEditDialog"));
+            e->findChild<QLineEdit *>(QStringLiteral("showName"))->setText(QStringLiteral("Fresh"));
+            e->findChild<QListWidget *>(QStringLiteral("slidesInPresentation"))->item(2)->setSelected(true);
+            e->findChild<QAbstractButton *>(QStringLiteral("addSlide"))->click();
+            e->accept();
+        });
+        create->click();
+        QCOMPARE(dlg.shows().size(), 3);
+        QCOMPARE(dlg.shows()[2].name, QStringLiteral("Fresh"));
+        QCOMPARE(dlg.shows()[2].slides, (QStringList{d->pages[2]->id}));
+        // Edit: changes the one selected.
+        list->setCurrentRow(2);
+        QTimer::singleShot(0, [&] {
+            auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!e) return;
+            QCOMPARE(e->findChild<QLineEdit *>(QStringLiteral("showName"))->text(), QStringLiteral("Fresh"));
+            e->findChild<QLineEdit *>(QStringLiteral("showName"))->setText(QStringLiteral("Fresher"));
+            e->accept();
+        });
+        const qint64 freshId = dlg.shows()[2].id;
+        edit->click();
+        QCOMPARE(dlg.shows()[2].name, QStringLiteral("Fresher"));
+        QCOMPARE(dlg.shows()[2].id, freshId);
+        // Cancelling the editor changes nothing.
+        QTimer::singleShot(0, [&] {
+            if (auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget())) e->reject();
+        });
+        create->click();
+        QCOMPARE(dlg.shows().size(), 3);
+        // Remove.
+        list->setCurrentRow(1);
+        remove->click();
+        QCOMPARE(dlg.shows().size(), 2);
+        QCOMPARE(dlg.shows()[1].name, QStringLiteral("Fresher"));
+        // Show: plays the selected one.
+        QCOMPARE(dlg.playId(), qint64(-1));
+        list->setCurrentRow(1);
+        play->click();
+        QCOMPARE(dlg.result(), int(QDialog::Accepted));
+        QCOMPARE(dlg.playId(), dlg.shows()[1].id);
+    }
+
+    // The window applies the dialog: one step that undoes, and what is made is saved and read back.
+    void windowCustomShowsDialogIsOneStep()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            QCOMPARE(d->objectName(), QStringLiteral("customShowsDialog"));
+            QTimer::singleShot(0, [&] {
+                auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!e) return;
+                e->findChild<QLineEdit *>(QStringLiteral("showName"))->setText(QStringLiteral("Tour"));
+                QListWidget *all = e->findChild<QListWidget *>(QStringLiteral("slidesInPresentation"));
+                all->item(2)->setSelected(true);
+                all->item(1)->setSelected(true);
+                e->findChild<QAbstractButton *>(QStringLiteral("addSlide"))->click();
+                e->accept();
+            });
+            d->findChild<QAbstractButton *>(QStringLiteral("newShow"))->click();
+            d->accept();   // Close
+        });
+        w.act("show.customShows")->trigger();
+        QVector<deck::CustomShow> shows = deck::customShowsOf(*ed->doc());
+        QCOMPARE(shows.size(), 1);
+        QCOMPARE(shows[0].name, QStringLiteral("Tour"));
+        QCOMPARE(deck::customShowSlides(*ed->doc(), shows[0]), (QList<int>{1, 2}));
+        QVERIFY(ed->isModified());
+        ed->undo();
+        QVERIFY(deck::customShowsOf(*ed->doc()).isEmpty());
+        ed->redo();
+        QCOMPARE(deck::customShowsOf(*ed->doc()).size(), 1);
+        // Close with nothing changed is no step.
+        ed->flushTyping();
+        ed->undo();   // the step made is gone, and Close with nothing changed makes none
+        QVERIFY(deck::customShowsOf(*ed->doc()).isEmpty());
+        QTimer::singleShot(0, [&] {
+            if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) d->accept();
+        });
+        w.act("show.customShows")->trigger();
+        QVERIFY(deck::customShowsOf(*ed->doc()).isEmpty());
+        ed->redo();
+        QCOMPARE(deck::customShowsOf(*ed->doc()).size(), 1);
+        // Show plays the one selected, and the dialog closes.
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            d->findChild<QListWidget *>(QStringLiteral("customShowList"))->setCurrentRow(0);
+            d->findChild<QAbstractButton *>(QStringLiteral("playShow"))->click();
+        });
+        w.act("show.customShows")->trigger();
+        QVERIFY(w.slideShow());
+        QCOMPARE(w.slideShow()->playedSlides(), (QList<int>{1, 2}));
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // When a show ends with ink drawn, the window asks whether to keep it. Keep puts one freeform line on its slide for each stroke, as one
+    // step that undoes; Discard leaves the slides as they were.
+    void windowAsksWhetherToKeepInk()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        QStringList asked;
+        bool keep = true;
+        w.setShowQuestion([&](const QString &q) {
+            asked << q;
+            return keep;
+        });
+        const int before0 = int(ed->doc()->pages[0]->items.size()), before1 = int(ed->doc()->pages[1]->items.size());
+        auto draw = [&](int slide, QPointF from, QPointF to, bool highlight) {
+            SlideShow *show = w.slideShow();
+            show->goTo(slide);
+            show->setPointer(highlight ? SlideShow::Pointer::Highlighter : SlideShow::Pointer::Pen);
+            show->pressAt(from);
+            show->moveTo((from + to) / 2 + QPointF(0, 10));
+            show->moveTo(to);
+            show->releasePointer();
+        };
+        // A show with no ink asks nothing.
+        w.startShow(0);
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+        QVERIFY(asked.isEmpty());
+        // Kept.
+        w.startShow(0);
+        draw(0, QPointF(100, 100), QPointF(300, 150), false);
+        draw(0, QPointF(100, 300), QPointF(400, 300), true);
+        draw(1, QPointF(50, 50), QPointF(200, 80), false);
+        QCOMPARE(w.slideShow()->inkCount(), 3);
+        w.slideShow()->close();
+        QTRY_COMPARE(asked.size(), 1);
+        QVERIFY2(asked[0].contains(QStringLiteral("ink annotations")), qPrintable(asked[0]));
+        QTRY_COMPARE(int(ed->doc()->pages[0]->items.size()), before0 + 2);
+        QCOMPARE(int(ed->doc()->pages[1]->items.size()), before1 + 1);
+        const ShapeItem *pen = static_cast<const ShapeItem *>(ed->doc()->pages[0]->items[before0].get());
+        const ShapeItem *marker = static_cast<const ShapeItem *>(ed->doc()->pages[0]->items[before0 + 1].get());
+        QVERIFY(pen->type() == ItemType::Shape && !pen->customPath.isEmpty());
+        QCOMPARE(pen->stroke.transparency, 0.0);
+        QCOMPARE(marker->stroke.transparency, 0.5);
+        QVERIFY(marker->stroke.width > pen->stroke.width * 5);
+        QVERIFY(ed->isModified());
+        // One step takes all of it away.
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before0);
+        QCOMPARE(int(ed->doc()->pages[1]->items.size()), before1);
+        ed->redo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before0 + 2);
+        ed->undo();
+        // Discarded.
+        keep = false;
+        asked.clear();
+        w.startShow(0);
+        draw(0, QPointF(100, 100), QPointF(300, 150), false);
+        w.slideShow()->close();
+        QTRY_COMPARE(asked.size(), 1);
+        QCoreApplication::processEvents();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before0);
+        // The slides can be saved with the kept ink and the file reads back with it.
+        keep = true;
+        w.startShow(0);
+        draw(0, QPointF(100, 100), QPointF(300, 150), false);
+        w.slideShow()->close();
+        QTRY_COMPARE(int(ed->doc()->pages[0]->items.size()), before0 + 1);
+        QString err;
+        auto back = deck::importPresentation(deck::exportPresentation(*ed->doc(), &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages[0]->items.size()), before0 + 1);
+    }
+
+    // Rehearse Timings plays the show from the first slide with the toolbar; at the end it asks whether to keep the times. Kept, each
+    // slide's After is its time, Use Timings turns on, and it is one step that undoes.
+    void windowRehearseTimingsKeepsTheTimes()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        QVERIFY(w.act("show.rehearse"));
+        // The show's own setting is off, and a slide already has a time.
+        deck::ShowSettings s;
+        s.useTimings = false;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        deck::Transition t;
+        t.advanceAfter = 99;
+        deck::setTransition(*ed->doc()->pages[0], t);
+        ed->endChange();
+        QStringList asked;
+        bool keep = true;
+        w.setShowQuestion([&](const QString &q) {
+            asked << q;
+            return keep;
+        });
+        ed->setCurrentPage(2);   // it starts at the first slide anyway
+        w.act("show.rehearse")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        QVERIFY(show->isRecording());
+        QCOMPARE(show->currentSlide(), 0);
+        QVERIFY(show->rehearseBar());
+        qint64 now = 0;
+        show->setClock([&now] { return now; });
+        now += 2500;
+        show->next();
+        now += 4000;
+        show->next();
+        now += 1040;
+        show->next();
+        QCOMPARE(show->currentSlide(), -1);
+        show->next();   // the end screen is clicked away
+        QTRY_COMPARE(asked.size(), 1);
+        QVERIFY2(asked[0].contains(QStringLiteral("0:00:07")), qPrintable(asked[0]));
+        QTRY_VERIFY(deck::showSettingsOf(*ed->doc()).useTimings);
+        auto after = [&](int i) { return deck::transitionOf(*ed->doc()->pages[i]).advanceAfter; };
+        QVERIFY(after(0) && after(1) && after(2));
+        QCOMPARE(*after(0), 2.5);
+        QCOMPARE(*after(1), 4.0);
+        QCOMPARE(*after(2), 1.0);
+        QVERIFY(ed->isModified());
+        QTRY_VERIFY(!w.slideShow());
+        // The Transitions tab's After box shows the time.
+        ed->setCurrentPage(1);
+        auto *box = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("advanceAfter"));
+        auto *seconds = w.ribbon()->findChild<QDoubleSpinBox *>(QStringLiteral("advanceAfterSeconds"));
+        QTRY_VERIFY(box->isChecked());
+        QCOMPARE(seconds->value(), 4.0);
+        // One step undoes the times and the setting.
+        ed->undo();
+        QVERIFY(!deck::showSettingsOf(*ed->doc()).useTimings);
+        QCOMPARE(*after(0), 99.0);
+        QVERIFY(!after(1));
+        // Not kept: nothing changes.
+        keep = false;
+        asked.clear();
+        w.act("show.rehearse")->trigger();
+        show = w.slideShow();
+        QVERIFY(show);
+        show->setClock([&now] { return now; });
+        now += 3000;
+        show->close();   // Esc part way: asks too
+        QTRY_COMPARE(asked.size(), 1);
+        QCoreApplication::processEvents();
+        QVERIFY(!after(1));
+        QVERIFY(!deck::showSettingsOf(*ed->doc()).useTimings);
+        QCOMPARE(*after(0), 99.0);
+        // A time under a tenth of a second is a tenth, and the slides not reached keep theirs.
+        keep = true;
+        asked.clear();
+        w.act("show.rehearse")->trigger();
+        show = w.slideShow();
+        show->setClock([&now] { return now; });
+        now += 20;
+        show->next();
+        show->close();
+        QTRY_COMPARE(asked.size(), 1);
+        QTRY_VERIFY(deck::showSettingsOf(*ed->doc()).useTimings);
+        QCOMPARE(*after(0), 0.1);
+        QVERIFY(!after(2));
+    }
+
+    // F1 in each of the show's dialogs opens the Help topic of the show, in a window over the dialog; the Help finds them by their titles.
+    void showDialogsOpenHelpOnF1()
+    {
+        DeckWindow w;
+        auto d = lettered(2);
+        SetUpShowDialog setUp(deck::ShowSettings(), QVector<deck::CustomShow>(), 2, w.editor()->doc()->colors, &w);
+        CustomShowsDialog shows(*d, QVector<deck::CustomShow>(), &w);
+        CustomShowEditDialog edit(*d, QVector<deck::CustomShow>(), nullptr, &w);
+        for (QDialog *dlg : {static_cast<QDialog *>(&setUp), static_cast<QDialog *>(&shows), static_cast<QDialog *>(&edit)}) {
+            QCOMPARE(help::contextTopic(QStringLiteral("dialog:") + dlg->windowTitle()), QStringLiteral("show"));
+            dlg->show();
+            QTest::keyClick(dlg, Qt::Key_F1);
+            auto *hw = dlg->findChild<HelpWindow *>(QString(), Qt::FindDirectChildrenOnly);
+            QVERIFY2(hw, qPrintable(dlg->windowTitle()));
+            QCOMPARE(hw->view()->currentTopic(), QStringLiteral("show"));
+            hw->close();
+            QTRY_VERIFY(!dlg->findChild<HelpWindow *>());
+        }
+        // Esc in the list closes it, keeping what it holds.
+        shows.show();
+        QTest::keyClick(&shows, Qt::Key_Escape);
+        QCOMPARE(shows.result(), int(QDialog::Accepted));
+    }
+
+    // A show in a window leaves the deck editable, so the show follows the slides by their pages: a slide taken away, one before it
+    // gone, and slides moved or put back leave it on the slide it was on (or the next, when that one is gone), and nothing reads a
+    // slide that isn't there.
+    void windowedShowFollowsTheDecksPages()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        w.newSlide();   // four slides
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Individual;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        w.setShowQuestion([](const QString &) { return true; });
+        // The slide the show is on is taken away: it lands on the one that took its place, and moves on from there.
+        w.startShow(3);
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->isWindowed());
+        QCOMPARE(show->currentSlide(), 3);
+        ed->deletePage(3);
+        QCOMPARE(show->currentSlide(), 2);
+        QCOMPARE(show->playedSlides(), (QList<int>{0, 1, 2}));
+        show->resize(960, 540);
+        QTest::mouseClick(show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 530));
+        QCOMPARE(show->currentSlide(), -1);   // the end: nothing past the last slide was read
+        QTest::keyClick(show, Qt::Key_Left);
+        QCOMPARE(show->currentSlide(), 2);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        // A slide before it goes, one is moved, and the change is undone: it stays on its own slide.
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 4);
+        const QString third = ed->doc()->pages[2]->id;
+        w.startShow(2);
+        show = w.slideShow();
+        QVERIFY(show);
+        show->setPointer(SlideShow::Pointer::Pen);
+        show->pressAt(QPointF(100, 100));
+        show->moveTo(QPointF(200, 120));
+        show->releasePointer();
+        ed->deletePage(0);
+        QCOMPARE(ed->doc()->pages[1]->id, third);
+        QCOMPARE(show->currentSlide(), 1);
+        QCOMPARE(int(show->ink(1).size()), 1);   // the ink went with its slide
+        QCOMPARE(int(show->ink(2).size()), 0);
+        ed->movePage(1, 2);
+        QCOMPARE(ed->doc()->pages[2]->id, third);
+        QCOMPARE(show->currentSlide(), 2);
+        QCOMPARE(int(show->ink(2).size()), 1);
+        ed->undo();   // moved back
+        QCOMPARE(show->currentSlide(), 1);
+        ed->undo();   // the deleted slide is back before it
+        QCOMPARE(int(ed->doc()->pages.size()), 4);
+        QCOMPARE(show->currentSlide(), 2);
+        QCOMPARE(show->playedSlides(), (QList<int>{0, 1, 2, 3}));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        // A custom show: the slides it lists are followed too, and a place that goes is passed to the next.
+        deck::CustomShow c;
+        c.id = 5;
+        c.name = QStringLiteral("Around");
+        c.slides = {ed->doc()->pages[3]->id, ed->doc()->pages[0]->id, ed->doc()->pages[3]->id};
+        ed->beginChange(QStringLiteral("test"));
+        deck::setCustomShows(*ed->doc(), {c});
+        ed->endChange();
+        const QString first = ed->doc()->pages[0]->id;
+        w.startCustomShow(5);
+        show = w.slideShow();
+        QVERIFY(show);
+        show->next();
+        QCOMPARE(show->currentSlide(), 0);   // the middle place: slide 1
+        ed->deletePage(2);                  // a slide the show does not list
+        QCOMPARE(show->currentSlide(), 0);
+        QCOMPARE(show->playedSlides(), (QList<int>{2, 0, 2}));
+        ed->deletePage(0);                  // the slide it is on: the next place, which is the last slide again
+        QCOMPARE(show->playedSlides(), (QList<int>{1, 1}));
+        QCOMPARE(show->currentSlide(), 1);
+        show->next();
+        QCOMPARE(show->currentSlide(), -1);
+        QVERIFY(ed->doc()->pages[0]->id != first);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // The rehearsal window (Alt+F5) and Presenter View beside it follow the deck's pages too.
+    void rehearsalWindowFollowsTheDecksPages()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        ed->setCurrentPage(2);
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        QCOMPARE(show->currentSlide(), 2);
+        ed->deletePage(2);
+        QCOMPARE(show->currentSlide(), 1);
+        QCOMPARE(show->presenterView()->counterText(), QStringLiteral("Slide 2 of 2"));
+        show->resize(640, 360);
+        QTest::mouseClick(show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QCOMPARE(show->currentSlide(), -1);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A new presentation put in the window while a show is open ends the show, with nothing read from the old one.
+    void windowedShowEndsWhenTheDocumentIsReplaced()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Individual;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        QStringList asked;
+        w.setShowQuestion([&](const QString &q) {
+            asked << q;
+            return true;
+        });
+        w.startShow(1);
+        QPointer<SlideShow> show = w.slideShow();
+        QVERIFY(show);
+        show->setPointer(SlideShow::Pointer::Pen);
+        show->pressAt(QPointF(100, 100));
+        show->moveTo(QPointF(200, 120));
+        show->releasePointer();
+        ed->setDocument(deck::newPresentation());
+        QTRY_VERIFY(show.isNull() || !show->isVisible());
+        QTRY_VERIFY(!w.slideShow());
+        QCOMPARE(ed->currentPage(), 0);
+        QCoreApplication::processEvents();
+        QVERIFY(asked.isEmpty());   // the ink was on slides this presentation does not have
+    }
+
+    // Ink is kept on the slide it was drawn on, whatever happened to the slides' places, and not asked about when its slide is gone.
+    void keptInkLandsOnItsOwnSlide()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Individual;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        QStringList asked;
+        w.setShowQuestion([&](const QString &q) {
+            asked << q;
+            return true;
+        });
+        auto draw = [&](SlideShow *show) {
+            show->setPointer(SlideShow::Pointer::Pen);
+            show->pressAt(QPointF(100, 100));
+            show->moveTo(QPointF(200, 120));
+            show->releasePointer();
+        };
+        // Ink on the third slide, and the first goes: it lands on the page it was drawn on.
+        const QString third = ed->doc()->pages[2]->id;
+        const int before = int(ed->doc()->pages[2]->items.size());
+        w.startShow(2);
+        draw(w.slideShow());
+        ed->deletePage(0);
+        w.slideShow()->close();
+        QTRY_COMPARE(asked.size(), 1);
+        QTRY_COMPARE(int(ed->doc()->pages[1]->items.size()), before + 1);
+        QCOMPARE(ed->doc()->pages[1]->id, third);
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        // Ink on a slide that is then deleted is nothing to keep, and nothing is asked.
+        asked.clear();
+        w.startShow(1);
+        draw(w.slideShow());
+        ed->deletePage(1);
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+        QVERIFY(asked.isEmpty());
+        QCOMPARE(int(ed->doc()->pages.size()), 1);
+    }
+
+    // The mouse pointer shows while the times are recorded: the bar's buttons are clicked with it.
+    void rehearsalShowsTheArrow()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        show.setSettings(s);
+        QCOMPARE(int(show.cursor().shape()), int(Qt::BlankCursor));
+        show.setRecording(true);
+        QVERIFY(show.cursor().shape() != Qt::BlankCursor);
+        QVERIFY(show.rehearseBar()->cursor().shape() != Qt::BlankCursor);
+        QVERIFY(show.rehearseBar()->findChild<QAbstractButton *>(QStringLiteral("rehearseNext"))->cursor().shape() != Qt::BlankCursor);
+        show.resize(960, 540);
+        QMouseEvent move(QEvent::MouseMove, QPointF(300, 300), QPointF(show.mapToGlobal(QPoint(300, 300))), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(&show, &move);
+        QVERIFY(show.cursor().shape() != Qt::BlankCursor);
+        show.setSettings(s);   // however the settings came
+        QVERIFY(show.cursor().shape() != Qt::BlankCursor);
+        show.setRecording(false);
+        QCOMPARE(int(show.cursor().shape()), int(Qt::BlankCursor));
+    }
+
+    // A file's unnamed custom shows are named in one pass: a thousand take a moment, not half a minute.
+    void unnamedCustomShowsAreNamedQuickly()
+    {
+        auto d = lettered(2);
+        QString err;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &err), qPrintable(err));
+        QDomDocument dom;
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(rootOf(base.zip.value(QStringLiteral("ppt/presentation.xml")), &dom), office::ns::P, QStringLiteral("sldIdLst")), office::ns::P,
+                                                     QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        QString shows = QStringLiteral("<p:custShowLst>");
+        for (int i = 0; i < 1000; ++i) shows += QStringLiteral("<p:custShow name=\"\" id=\"%1\"><p:sldLst><p:sld r:id=\"%2\"/></p:sldLst></p:custShow>").arg(i).arg(rels[0]);
+        shows += QStringLiteral("</p:custShowLst>");
+        QMap<QString, QByteArray> zip = base.zip;
+        QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+        xml.insert(xml.indexOf(QStringLiteral("<p:defaultTextStyle>")), shows);
+        zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        QElapsedTimer clock;
+        clock.start();
+        auto back = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(clock.elapsed() < 4000, qPrintable(QString::number(clock.elapsed())));
+        const QVector<deck::CustomShow> got = deck::customShowsOf(*back);
+        QCOMPARE(int(got.size()), 1000);
+        QSet<QString> names;
+        for (const deck::CustomShow &s : got) names.insert(s.name.toLower());
+        QCOMPARE(int(names.size()), 1000);   // each its own
+        QCOMPARE(got[0].name, QStringLiteral("Custom Show 1"));
+        QCOMPARE(got[999].name, QStringLiteral("Custom Show 1000"));
+    }
+
+    // A stroke being drawn stays on the slide it began on when the show moves on with the button held; so does an erasing.
+    void strokeStaysOnItsSlideWhenTheShowMovesOn()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 1);
+        show.setPointer(SlideShow::Pointer::Pen);
+        show.pressAt(QPointF(100, 100));
+        show.moveTo(QPointF(200, 100));
+        show.releasePointer();   // a stroke on slide 2
+        QCOMPARE(int(show.ink(1)[0].points.size()), 2);
+        show.goTo(0);
+        show.pressAt(QPointF(100, 300));
+        show.moveTo(QPointF(150, 300));
+        QTest::keyClick(&show, Qt::Key_Right);   // on with the button held
+        QCOMPARE(show.currentSlide(), 1);
+        QVERIFY(!show.isDrawing());
+        show.moveTo(QPointF(300, 300));
+        show.moveTo(QPointF(400, 300));
+        show.releasePointer();
+        QCOMPARE(int(show.ink(1).size()), 1);
+        QCOMPARE(int(show.ink(1)[0].points.size()), 2);   // the other slide's stroke did not grow
+        QCOMPARE(int(show.ink(0).size()), 1);
+        QCOMPARE(int(show.ink(0)[0].points.size()), 2);
+        // The same for the eraser, held down over a slide change.
+        show.setPointer(SlideShow::Pointer::Eraser);
+        show.pressAt(QPointF(5, 5));
+        show.goTo(2);
+        show.next();
+        QVERIFY(show.currentSlide() == -1 || show.currentSlide() == 2);
+        show.goTo(1);
+        show.moveTo(QPointF(150, 100));   // over the stroke on slide 2
+        show.releasePointer();
+        QCOMPARE(int(show.ink(1).size()), 1);
+        // And with a transition playing into a slide that has a stroke of its own.
+        deck::setTransition(*d->pages[2], showTransition("fade", 30));
+        show.setPointer(SlideShow::Pointer::Pen);
+        show.goTo(2);
+        show.pressAt(QPointF(100, 400));
+        show.moveTo(QPointF(200, 400));
+        show.releasePointer();
+        show.goTo(1);
+        show.pressAt(QPointF(100, 300));
+        show.next();   // onto slide 3, with its transition
+        QVERIFY(show.isAnimating());
+        QVERIFY(!show.isDrawing());
+        show.finishTransition();
+        QCOMPARE(show.currentSlide(), 2);
+        show.moveTo(QPointF(250, 250));
+        show.moveTo(QPointF(300, 250));
+        show.releasePointer();
+        QCOMPARE(int(show.ink(2).size()), 1);
+        QCOMPARE(int(show.ink(2)[0].points.size()), 2);
+    }
+
+    // A custom show that lists a slide twice: End, a number typed, and Go to Slide go to a place of it, not the first one.
+    void customShowPlacesAreNotTheirSlides()
+    {
+        auto d = showDeck(5);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.setSlides({3, 0, 3}, true);
+        QCOMPARE(show.currentSlide(), 3);
+        // End is the last place: back from it is the place before.
+        QTest::keyClick(&show, Qt::Key_End);
+        QCOMPARE(show.currentSlide(), 3);
+        QTest::keyClick(&show, Qt::Key_Left);
+        QCOMPARE(show.currentSlide(), 0);
+        // Home is the first place: forward from it is the second.
+        QTest::keyClick(&show, Qt::Key_Home);
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 0);
+        // Go to Slide lists the places, and each goes to its own.
+        QMenu *menu = show.buildMenu(&show);
+        QMenu *go = menu->findChild<QMenu *>(QStringLiteral("goToSlideMenu"));
+        QVERIFY(go);
+        QCOMPARE(int(go->actions().size()), 3);
+        QVERIFY(go->actions()[1]->isChecked());   // the place the show is at
+        QVERIFY(!go->actions()[0]->isChecked() && !go->actions()[2]->isChecked());
+        go->actions()[2]->trigger();
+        QCOMPARE(show.currentSlide(), 3);
+        QTest::keyClick(&show, Qt::Key_Left);
+        QCOMPARE(show.currentSlide(), 0);   // that was the last place
+        go->actions()[0]->trigger();
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 0);   // that was the first
+        delete menu;
+        // A number goes to the next place that slide has, going round: typing it again goes to the other.
+        QTest::keyClick(&show, Qt::Key_Home);
+        QTest::keyClick(&show, Qt::Key_Right);   // the middle place, slide 1
+        QTest::keyClicks(&show, "4");
+        QTest::keyClick(&show, Qt::Key_Return);
+        QCOMPARE(show.currentSlide(), 3);
+        QTest::keyClick(&show, Qt::Key_Left);
+        QCOMPARE(show.currentSlide(), 0);   // it was the last place
+        QTest::keyClick(&show, Qt::Key_Right);   // the last place
+        QTest::keyClicks(&show, "4");
+        QTest::keyClick(&show, Qt::Key_Return);
+        QCOMPARE(show.currentSlide(), 3);        // round to the first place
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 0);        // so the second is next
+    }
+
+    // A custom show's id is never used again: a show taken out and one made after it are two, and what was set to play the first plays
+    // every slide, not the second. The settings never name a show that is not there.
+    void customShowIdsAreNotReused()
+    {
+        auto d = lettered(4);
+        deck::CustomShow a, b, c;
+        a.id = 0;
+        a.name = QStringLiteral("A");
+        a.slides = {d->pages[0]->id};
+        b.id = 1;
+        b.name = QStringLiteral("B");
+        b.slides = {d->pages[1]->id};
+        c.id = 2;
+        c.name = QStringLiteral("C");
+        c.slides = {d->pages[2]->id};
+        deck::setCustomShows(*d, {a, b, c});
+        deck::ShowSettings s;
+        s.slides = deck::ShowSettings::Slides::Custom;
+        s.customShow = 2;
+        deck::setShowSettings(*d, s);
+        QCOMPARE(deck::showSettingsOf(*d).customShow, qint64(2));
+        // C goes; the next show made is not number 2.
+        deck::setCustomShows(*d, {a, b});
+        QVERIFY(deck::newCustomShowId(*d, {a, b}) > 2);
+        deck::CustomShow n;
+        n.id = deck::newCustomShowId(*d, {a, b});
+        n.name = QStringLiteral("New");
+        n.slides = {d->pages[3]->id};
+        deck::setCustomShows(*d, {a, b, n});
+        QVERIFY(n.id != 2);
+        // The show set to play C is a show that is not there: every slide plays, and the dialog and the file say so.
+        QCOMPARE(int(deck::showSettingsOf(*d).slides), int(deck::ShowSettings::Slides::All));
+        QVERIFY(deck::planOf(*d, deck::showSettingsOf(*d)).slides.isEmpty());
+        QVERIFY(!deck::planOf(*d, deck::showSettingsOf(*d)).none);
+        // Everything out and one made: still a new number.
+        deck::setCustomShows(*d, {});
+        QVERIFY(deck::newCustomShowId(*d, {}) > n.id);
+        // A show whose slides are all deleted is gone, and what was set to play it plays every slide.
+        deck::setCustomShows(*d, {a, b, n});
+        s.customShow = n.id;
+        deck::setShowSettings(*d, s);
+        QCOMPARE(deck::showSettingsOf(*d).customShow, n.id);
+        d->pages.removeAt(3);
+        QCOMPARE(int(deck::showSettingsOf(*d).slides), int(deck::ShowSettings::Slides::All));
+        QCOMPARE(deck::showSettingsOf(*d).customShow, qint64(-1));
+        // And the ids stay as a file keeps them: read back, the next is past the largest.
+        QString err;
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::newCustomShowId(*back, deck::customShowsOf(*back)) > b.id);
+    }
+
+    // The window gives a new show an id no show had, and the setting that named a removed show is reset.
+    void windowCustomShowRemovedAndMadeAgainIsAnotherShow()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        deck::CustomShow a, b;
+        a.id = 0;
+        a.name = QStringLiteral("A");
+        a.slides = {ed->doc()->pages[0]->id};
+        b.id = 1;
+        b.name = QStringLiteral("B");
+        b.slides = {ed->doc()->pages[1]->id};
+        deck::ShowSettings s;
+        s.slides = deck::ShowSettings::Slides::Custom;
+        s.customShow = 1;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setCustomShows(*ed->doc(), {a, b});
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            QListWidget *list = d->findChild<QListWidget *>(QStringLiteral("customShowList"));
+            list->setCurrentRow(1);
+            d->findChild<QAbstractButton *>(QStringLiteral("removeShow"))->click();
+            QTimer::singleShot(0, [&] {
+                auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!e) return;
+                e->findChild<QLineEdit *>(QStringLiteral("showName"))->setText(QStringLiteral("B again"));
+                e->findChild<QListWidget *>(QStringLiteral("slidesInPresentation"))->item(2)->setSelected(true);
+                e->findChild<QAbstractButton *>(QStringLiteral("addSlide"))->click();
+                e->accept();
+            });
+            d->findChild<QAbstractButton *>(QStringLiteral("newShow"))->click();
+            d->accept();
+        });
+        w.act("show.customShows")->trigger();
+        const QVector<deck::CustomShow> shows = deck::customShowsOf(*ed->doc());
+        QCOMPARE(int(shows.size()), 2);
+        QCOMPARE(shows[1].name, QStringLiteral("B again"));
+        QVERIFY(shows[1].id != 1);
+        QCOMPARE(int(deck::showSettingsOf(*ed->doc()).slides), int(deck::ShowSettings::Slides::All));
+        QVERIFY(!ed->doc()->appData.value(QStringLiteral("showSettings")).toObject().value(QStringLiteral("slides")).toString().contains(QStringLiteral("custom")));
+    }
+
+    // Ink is drawn again from a picture of the strokes that are finished: a stroke of a hundred thousand points does not make every
+    // repaint take over a second, and the stroke being drawn is added on top.
+    void inkRepaintsFromAPictureOfFinishedStrokes()
+    {
+        auto d = showDeck(1);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.setPointer(SlideShow::Pointer::Pen);
+        show.pressAt(QPointF(480, 270));
+        for (int i = 1; i < 100000; ++i) {
+            const double r = 20 + i * 0.0025, a = i * 0.012;
+            show.moveTo(QPointF(480 + r * std::cos(a), 270 + r * 0.8 * std::sin(a)));
+        }
+        show.releasePointer();
+        QVERIFY(show.ink(0)[0].points.size() > 50000);
+        auto alike = [](const QImage &a, const QImage &b) {
+            if (a.size() != b.size()) return false;
+            int worst = 0;
+            for (int y = 0; y < a.height(); ++y)
+                for (int x = 0; x < a.width(); ++x) {
+                    const QColor p = a.pixelColor(x, y), q = b.pixelColor(x, y);
+                    worst = std::max({worst, std::abs(p.red() - q.red()), std::abs(p.green() - q.green()), std::abs(p.blue() - q.blue())});
+                }
+            return worst <= 4;
+        };
+        QElapsedTimer clock;
+        const QImage first = show.grab().toImage();   // the picture is made
+        clock.start();
+        const QImage again = show.grab().toImage();
+        QVERIFY2(clock.elapsed() < 500, qPrintable(QString::number(clock.elapsed())));
+        QCOMPARE(again, first);
+        // A stroke being drawn over it: each repaint is the picture and that stroke.
+        show.pressAt(QPointF(50, 50));
+        for (int i = 1; i < 200; ++i) show.moveTo(QPointF(50 + i, 50 + (i % 7)));
+        clock.restart();
+        const QImage live = show.grab().toImage();
+        QVERIFY2(clock.elapsed() < 500, qPrintable(QString::number(clock.elapsed())));
+        QVERIFY(live != first);
+        show.releasePointer();
+        // The same picture as drawing every stroke: once finished, the stroke is in the picture as it was on top of it.
+        QVERIFY(alike(show.grab().toImage(), live));
+        // An erased stroke is gone from it.
+        show.setPointer(SlideShow::Pointer::Eraser);
+        show.pressAt(QPointF(100, 50 + 3));
+        show.releasePointer();
+        QCOMPARE(int(show.ink(0).size()), 1);
+        QVERIFY(alike(show.grab().toImage(), first));
+    }
+
+    // At the last slide of a looping show the slide Next shows is the first, as a click goes there.
+    void presenterViewNextWrapsInALoopingShow()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.loop = true;
+        show.setSettings(s);
+        PresenterView pv(&show);
+        show.goTo(2);
+        QCOMPARE(show.slideAfter(), 0);
+        QCOMPARE(pv.nextSlide(), 0);
+        show.next();
+        QCOMPARE(show.currentSlide(), 0);
+        SlideShow plain(d.get(), &cache, 0);
+        plain.goTo(2);
+        QCOMPARE(plain.slideAfter(), -1);
+    }
+
+    // A slide title with an ampersand is not read as a menu key.
+    void goToSlideMenuKeepsAmpersands()
+    {
+        auto d = showDeck(2);
+        d->storyDoc(static_cast<TextItem *>(d->pages[1]->items[0].get())->storyId)->setPlainText(QStringLiteral("Q&A"));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        QMenu *menu = show.buildMenu(&show);
+        QMenu *go = menu->findChild<QMenu *>(QStringLiteral("goToSlideMenu"));
+        QVERIFY(go);
+        QCOMPARE(int(go->actions().size()), 2);
+        QVERIFY2(go->actions()[1]->text().contains(QStringLiteral("Q&&A")), qPrintable(go->actions()[1]->text()));
+        delete menu;
+    }
+
+    // A range past the end of the deck is clamped to it; wholly past, it plays nothing, and the window says so; it does not play every slide.
+    void rangePastTheDeckPlaysNothing()
+    {
+        auto d = lettered(5);
+        deck::ShowSettings s;
+        s.slides = deck::ShowSettings::Slides::Range;
+        s.from = 4;
+        s.to = 9;
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{3, 4}));
+        QVERIFY(!deck::planOf(*d, s).none);
+        s.from = 7;
+        s.to = 9;
+        const deck::ShowPlan none = deck::planOf(*d, s);
+        QVERIFY(none.none);
+        QVERIFY(none.slides.isEmpty());
+        // The window plays nothing and says so.
+        DeckWindow w;
+        w.newSlide();
+        QStringList told;
+        w.setShowQuestion([&](const QString &text) {
+            told << text;
+            return true;
+        });
+        w.editor()->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*w.editor()->doc(), s);
+        w.editor()->endChange();
+        w.act("show.fromStart")->trigger();
+        QVERIFY(!w.slideShow());
+        QCOMPARE(told.size(), 1);
+        QVERIFY2(told[0].contains(QStringLiteral("7")), qPrintable(told[0]));
+        // From Current Slide plays every slide as it always does.
+        w.act("show.fromCurrent")->trigger();
+        QVERIFY(w.slideShow());
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // Set Up opens on "All" when the show it names is not there; the pen and the laser pointer's colors are shown by name, and a color
+    // the lists lack by its code.
+    void setUpDialogShowsMissingShowsAndColorsByName()
+    {
+        DeckWindow w;
+        deck::CustomShow c;
+        c.id = 3;
+        c.name = QStringLiteral("Only");
+        c.slides = {w.editor()->doc()->pages[0]->id};
+        deck::ShowSettings s;
+        s.slides = deck::ShowSettings::Slides::Custom;
+        s.customShow = 99;
+        SetUpShowDialog dlg(s, QVector<deck::CustomShow>{c}, 1, w.editor()->doc()->colors, &w);
+        QVERIFY(dlg.findChild<QRadioButton *>(QStringLiteral("slidesAll"))->isChecked());
+        QVERIFY(!dlg.findChild<QRadioButton *>(QStringLiteral("slidesCustom"))->isChecked());
+        QCOMPARE(int(dlg.settings().slides), int(deck::ShowSettings::Slides::All));
+        QCOMPARE(dlg.settings().customShow, qint64(-1));
+        // Colors by name.
+        auto *pen = dlg.findChild<QComboBox *>(QStringLiteral("penColor"));
+        auto *laser = dlg.findChild<QComboBox *>(QStringLiteral("laserColor"));
+        QVERIFY(pen && laser);
+        QCOMPARE(pen->currentText(), QStringLiteral("Red"));
+        QCOMPARE(laser->currentText(), QStringLiteral("Red"));
+        int blue = -1;
+        for (int i = 0; i < pen->count(); ++i)
+            if (pen->itemText(i) == QLatin1String("Blue")) blue = i;
+        QVERIFY(blue >= 0);
+        pen->setCurrentIndex(blue);
+        QCOMPARE(dlg.settings().penColor, QColor(0, 112, 192));
+        // A color the lists lack is shown by its code, and kept.
+        deck::ShowSettings odd;
+        odd.penColor = QColor(0x12, 0x34, 0x56);
+        odd.laserColor = QColor(0xAB, 0xCD, 0xEF);
+        SetUpShowDialog other(odd, QVector<deck::CustomShow>(), 1, w.editor()->doc()->colors, &w);
+        QCOMPARE(other.findChild<QComboBox *>(QStringLiteral("penColor"))->currentText(), QStringLiteral("#123456"));
+        QCOMPARE(other.findChild<QComboBox *>(QStringLiteral("laserColor"))->currentText(), QStringLiteral("#ABCDEF"));
+        QCOMPARE(other.settings().penColor, QColor(0x12, 0x34, 0x56));
+        QCOMPARE(other.settings().laserColor, QColor(0xAB, 0xCD, 0xEF));
+        // A pen color the program names (a theme's blue as an RGB) is the name, and what a name stands for.
+        deck::ShowSettings blueSettings;
+        blueSettings.penColor = QColor(0, 112, 192);
+        SetUpShowDialog named(blueSettings, QVector<deck::CustomShow>(), 1, w.editor()->doc()->colors, &w);
+        QCOMPARE(named.findChild<QComboBox *>(QStringLiteral("penColor"))->currentText(), QStringLiteral("Blue"));
+    }
+
+    // The questions that end a show are answered by Esc with the safe answer, since Esc has just ended the show: ink is discarded and
+    // the new times are not kept.
+    void escapeAnswersTheShowsQuestionsWithTheSafeOne()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        const int before = int(ed->doc()->pages[0]->items.size());
+        QString escape;
+        QTimer poll;
+        poll.setInterval(10);
+        QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
+            auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            if (!box || !box->escapeButton()) return;
+            escape = box->escapeButton()->text();
+            poll.stop();
+            QTest::keyClick(box, Qt::Key_Escape);
+        });
+        // Ink.
+        w.startShow(0);
+        w.slideShow()->setPointer(SlideShow::Pointer::Pen);
+        w.slideShow()->pressAt(QPointF(100, 100));
+        w.slideShow()->moveTo(QPointF(200, 120));
+        w.slideShow()->releasePointer();
+        poll.start();
+        w.slideShow()->close();
+        QTRY_VERIFY(!escape.isEmpty());
+        QCOMPARE(escape, QStringLiteral("Discard"));
+        QTRY_VERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        // Times.
+        escape.clear();
+        w.act("show.rehearse")->trigger();
+        SlideShow *show = w.slideShow();
+        qint64 now = 0;
+        show->setClock([&now] { return now; });
+        now += 3000;
+        poll.start();
+        show->close();
+        QTRY_VERIFY(!escape.isEmpty());
+        QCOMPARE(escape, QStringLiteral("No"));
+        QTRY_VERIFY(!QApplication::activeModalWidget());
+        QVERIFY(!deck::transitionOf(*ed->doc()->pages[0]).advanceAfter);
+    }
+
+    // A stroke of a hundred thousand points is thinned in a moment, however it winds.
+    void inkThinningIsQuickOnSpirals()
+    {
+        deck::InkStroke spiral;
+        for (int i = 0; i < 100000; ++i) {
+            const double r = 5 + i * 0.004, a = i * 0.05;
+            spiral.points << QPointF(480 + r * std::cos(a), 270 + r * std::sin(a));
+        }
+        spiral.color = QColor(255, 0, 0);
+        spiral.width = 2.5;
+        QElapsedTimer clock;
+        clock.start();
+        const ItemPtr shape = deck::inkShape(spiral);
+        QVERIFY(shape);
+        QVERIFY2(clock.elapsed() < 500, qPrintable(QString::number(clock.elapsed())));
+        const auto *line = static_cast<const ShapeItem *>(shape.get());
+        QVERIFY(line->customPath.elementCount() > 100);
+        QVERIFY(line->customPath.elementCount() < 100000);
+        // It is still the line: the ends stay, and the points stay within the thinning's reach of the stroke.
+        QCOMPARE(line->customPath.elementAt(0).x + line->rect.left(), spiral.points.first().x());
+        QCOMPARE(line->customPath.elementAt(line->customPath.elementCount() - 1).y + line->rect.top(), spiral.points.last().y());
+    }
+
+    // The old "Rehearse with Presenter View" window plays as the presentation is set up: without animation, with its looping, and its colors.
+    void rehearsalWindowFollowsTheSetUp()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        deck::ShowSettings s;
+        s.animation = false;
+        s.loop = true;
+        s.type = deck::ShowSettings::Type::Kiosk;   // a window for rehearsing is never a kiosk
+        s.laserColor = QColor(0, 255, 0);
+        s.penColor = QColor(0, 112, 192);
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        QVERIFY(!show->settings().animation);
+        QVERIFY(show->settings().loop);
+        QCOMPARE(show->laserColor(), QColor(0, 255, 0));
+        QVERIFY(!show->isKiosk());
+        QVERIFY(show->isWindowed());
+        QTest::keyClick(show, Qt::Key_P, Qt::ControlModifier);   // a rehearsal window has a pen
+        QCOMPARE(show->inkColor(), QColor(0, 112, 192));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
     // Slides that have a transition are marked in the thumbnails.
     void slidesPaneMarksTransitions()
     {
@@ -6168,6 +8596,1360 @@ private Q_SLOTS:
         };
         QVERIFY(inkLeft(plain) >= 0);
         QCOMPARE(inkLeft(mv), inkLeft(plain) + 300);
+    }
+
+    // ---- editing animations ----
+
+    // A slide with shapes numbered as a file would number them: the title 2, the body 3, and more boxes from 10 on.
+    static std::unique_ptr<Document> editDeck(int boxes = 0)
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId)->setPlainText(QStringLiteral("First paragraph\nSecond paragraph\nThird paragraph"));
+        for (int i = 0; i < boxes; ++i) {
+            auto box = std::make_shared<ShapeItem>();
+            box->rect = QRectF(20 + 90 * (i % 8), 400 + 40 * (i / 8), 80, 30);
+            box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+            box->sourceId = 10 + i;
+            box->name = QStringLiteral("Box %1").arg(i + 1);
+            slide.items.push_back(box);
+        }
+        return d;
+    }
+
+    // The effects of a timing as its tree lays them out: "<click> <part's delay> <how it starts> <shape> <preset>/<subtype>" each.
+    static QStringList animOutline(const QString &timing)
+    {
+        QStringList out;
+        QDomDocument dom;
+        if (!office::parseXml(timing.toUtf8(), &dom)) return out;
+        int clicks = 0;
+        std::function<void(const QDomElement &, int, int)> walk = [&](const QDomElement &e, int click, int part) {
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                if (c.localName() == QLatin1String("cTn")) {
+                    const QString type = c.attribute(QStringLiteral("nodeType"));
+                    if (type.endsWith(QLatin1String("Effect"))) {
+                        QString spid;
+                        QVector<QDomElement> stack{c};
+                        while (!stack.isEmpty() && spid.isEmpty()) {
+                            const QDomElement x = stack.takeLast();
+                            if (x.localName() == QLatin1String("spTgt")) spid = x.attribute(QStringLiteral("spid"));
+                            for (QDomElement k = x.firstChildElement(); !k.isNull(); k = k.nextSiblingElement()) stack << k;
+                        }
+                        out << QStringLiteral("%1 %2 %3 %4 %5/%6").arg(click).arg(part).arg(type, spid, c.attribute(QStringLiteral("presetID")), c.attribute(QStringLiteral("presetSubtype")));
+                        continue;
+                    }
+                    const QDomElement cond = c.firstChildElement(QStringLiteral("stCondLst")).firstChildElement(QStringLiteral("cond"));
+                    const QString delay = cond.attribute(QStringLiteral("delay"));
+                    bool byItself = false;
+                    for (QDomElement k = c.firstChildElement(QStringLiteral("stCondLst")).firstChildElement(); !k.isNull(); k = k.nextSiblingElement())
+                        byItself |= k.attribute(QStringLiteral("evt")) == QLatin1String("onBegin");
+                    if (delay == QLatin1String("indefinite")) walk(c.firstChildElement(QStringLiteral("childTnLst")), byItself ? 0 : ++clicks, 0);
+                    else if (type.isEmpty()) walk(c.firstChildElement(QStringLiteral("childTnLst")), click, delay.toInt());
+                    else walk(c.firstChildElement(QStringLiteral("childTnLst")), click, part);
+                } else {
+                    walk(c, click, part);
+                }
+            }
+        };
+        const QDomElement main = [&] {
+            QVector<QDomElement> stack{dom.documentElement()};
+            while (!stack.isEmpty()) {
+                const QDomElement x = stack.takeLast();
+                if (x.localName() == QLatin1String("cTn") && x.attribute(QStringLiteral("nodeType")) == QLatin1String("mainSeq")) return x;
+                for (QDomElement k = x.firstChildElement(); !k.isNull(); k = k.nextSiblingElement()) stack << k;
+            }
+            return QDomElement();
+        }();
+        walk(main.firstChildElement(QStringLiteral("childTnLst")), 0, 0);
+        return out;
+    }
+
+    // Each kind of effect, in each of its ways, is written so that it reads back as the same kind, way, and length: the
+    // timing is exactly what the presentation program writes for it.
+    void animationEditKindsRoundTrip()
+    {
+        const auto &kinds = deck::effectKinds();
+        QVERIFY(kinds.size() > 20);
+        QSet<QString> ids;
+        QSet<deck::EffectClass> classes;
+        for (const deck::EffectKind &kind : kinds) {
+            QVERIFY2(!ids.contains(kind.id), qPrintable(kind.id));
+            ids.insert(kind.id);
+            classes.insert(kind.cls);
+            QVERIFY(!kind.name.isEmpty() && !kind.variants.isEmpty());
+        }
+        QCOMPARE(int(classes.size()), 4);   // entrance, exit, emphasis, and motion path
+        QVERIFY(deck::effectKind(QStringLiteral("entr.fade")) && deck::effectKind(QStringLiteral("exit.fly")) && deck::effectKind(QStringLiteral("emph.spin")) && deck::effectKind(QStringLiteral("path.lines")));
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        int made = 0;
+        for (const deck::EffectKind &kind : kinds) {
+            QSet<QString> keys;
+            for (const deck::EffectVariant &v : kind.variants) {
+                QVERIFY2(!keys.contains(v.key), qPrintable(kind.id + " " + v.key));
+                keys.insert(v.key);
+                deck::AnimSequence seq;
+                deck::Anim a = deck::makeAnim(kind, 3);
+                a.variant = v.key;
+                seq.add(a);
+                deck::setAnimations(*d, slide, seq);
+                const QString where = kind.id + QLatin1Char(' ') + v.key;
+                QVERIFY2(animIdProblem(slide.props.value(QStringLiteral("timingXml")).toString()).isEmpty(), qPrintable(where));
+                QVERIFY2(!slide.props.value(QStringLiteral("timingXml")).toString().isEmpty(), qPrintable(where));
+                const deck::AnimSequence back = deck::readAnimations(slide);
+                QVERIFY2(back.effects.size() == 1, qPrintable(where));
+                const deck::Anim &b = back.effects[0];
+                QVERIFY2(!b.custom() && b.kind == kind.id && b.variant == v.key, qPrintable(where + " read as " + b.kind + " " + b.variant));
+                QCOMPARE(b.duration, a.duration);
+                QCOMPARE(b.shape, 3);
+                QCOMPARE(b.smoothStart, a.smoothStart);
+                QCOMPARE(b.amount, a.amount);
+                ++made;
+            }
+        }
+        QVERIFY(made > 100);   // the motion paths alone are 64
+    }
+
+    // The first effect of a title, as the presentation program writes it for a Fade on a click: the same XML, ids and all.
+    void animationEditWritesAFadeAsTheProgramDoes()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 2));
+        deck::setAnimations(*d, slide, seq);
+        const QString expected = animXml(
+            "<p:timing xmlns:p='http://schemas.openxmlformats.org/presentationml/2006/main'><p:tnLst><p:par><p:cTn id='1' dur='indefinite' restart='never' nodeType='tmRoot'><p:childTnLst>"
+            "<p:seq concurrent='1' nextAc='seek'><p:cTn id='2' dur='indefinite' nodeType='mainSeq'><p:childTnLst>"
+            "<p:par><p:cTn id='3' fill='hold'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst><p:childTnLst>"
+            "<p:par><p:cTn id='4' fill='hold'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+            "<p:par><p:cTn id='5' presetID='10' presetClass='entr' presetSubtype='0' fill='hold' grpId='0' nodeType='clickEffect' nodePh='1'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+            "<p:set><p:cBhvr><p:cTn id='6' dur='1' fill='hold'><p:stCondLst><p:cond delay='0'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='2'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='visible'/></p:to></p:set>"
+            "<p:animEffect transition='in' filter='fade'><p:cBhvr><p:cTn id='7' dur='500'/><p:tgtEl><p:spTgt spid='2'/></p:tgtEl></p:cBhvr></p:animEffect>"
+            "</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn>"
+            "<p:prevCondLst><p:cond evt='onPrev' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
+            "<p:nextCondLst><p:cond evt='onNext' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>"
+            "</p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst><p:bldP spid='2' grpId='0'/></p:bldLst></p:timing>");
+        QCOMPARE(slide.props.value(QStringLiteral("timingXml")).toString(), expected);
+        // A box with a fill is built with its background; a number it did not have goes into the timing.
+        auto d2 = editDeck(1);
+        deck::AnimSequence two;
+        two.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        deck::setAnimations(*d2, *d2->pages[0], two);
+        QVERIFY(d2->pages[0]->props.value(QStringLiteral("timingXml")).toString().contains(QStringLiteral("<p:bldP spid=\"10\" grpId=\"0\" animBg=\"1\"/>")));
+    }
+
+    // The click steps, and the effects in them that start with or after the one before, nest as the program nests them, and the
+    // part that follows another starts when it ends (delays, durations, and all).
+    void animationEditNestsTheSteps()
+    {
+        auto d = editDeck(9);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        const deck::EffectStart C = deck::EffectStart::OnClick, W = deck::EffectStart::WithPrevious, A = deck::EffectStart::AfterPrevious;
+        const deck::EffectStart starts[] = {C, W, A, W, C, A, A, W, C};
+        for (int i = 0; i < 9; ++i) {
+            deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 10 + i);
+            a.start = starts[i];
+            seq.add(a);
+        }
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(animOutline(slide.props.value(QStringLiteral("timingXml")).toString()),
+                 (QStringList{QStringLiteral("1 0 clickEffect 10 10/0"), QStringLiteral("1 0 withEffect 11 10/0"), QStringLiteral("1 500 afterEffect 12 10/0"),
+                              QStringLiteral("1 500 withEffect 13 10/0"), QStringLiteral("2 0 clickEffect 14 10/0"), QStringLiteral("2 500 afterEffect 15 10/0"),
+                              QStringLiteral("2 1000 afterEffect 16 10/0"), QStringLiteral("2 1000 withEffect 17 10/0"), QStringLiteral("3 0 clickEffect 18 10/0")}));
+        QCOMPARE(seq.clicks(), 3);
+        QCOMPARE(seq.clickOf(3), 1);
+        QCOMPARE(seq.clickOf(8), 3);
+        // Those that start when the slide shows: the click step is marked to begin by itself.
+        deck::AnimSequence early;
+        for (int i = 0; i < 3; ++i) {
+            deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 10 + i);
+            a.start = i == 0 ? W : i == 1 ? A : C;
+            early.add(a);
+        }
+        deck::setAnimations(*d, slide, early);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"2\"/></p:cond>")));
+        QCOMPARE(animOutline(xml), (QStringList{QStringLiteral("0 0 withEffect 10 10/0"), QStringLiteral("0 500 afterEffect 11 10/0"), QStringLiteral("1 0 clickEffect 12 10/0")}));
+        QCOMPARE(deck::readAnimations(slide).effects[0].start, W);
+        // Delays and durations: a part starts after the delay and length of what came before it in its step.
+        deck::AnimSequence timed;
+        deck::Anim p0 = deck::makeAnim(QStringLiteral("entr.fade"), 10);
+        p0.delay = 1000;
+        deck::Anim p1 = deck::makeAnim(QStringLiteral("entr.wipe"), 11);
+        p1.start = A;
+        p1.delay = 500;
+        p1.duration = 2000;
+        deck::Anim p2 = deck::makeAnim(QStringLiteral("entr.fade"), 12);
+        p2.start = W;
+        p2.delay = 2000;
+        deck::Anim p3 = deck::makeAnim(QStringLiteral("entr.fade"), 13);
+        p3.start = A;
+        timed.add(p0);
+        timed.add(p1);
+        timed.add(p2);
+        timed.add(p3);
+        deck::setAnimations(*d, slide, timed);
+        QCOMPARE(animOutline(slide.props.value(QStringLiteral("timingXml")).toString()),
+                 (QStringList{QStringLiteral("1 0 clickEffect 10 10/0"), QStringLiteral("1 1500 afterEffect 11 22/4"), QStringLiteral("1 1500 withEffect 12 10/0"),
+                              QStringLiteral("1 4000 afterEffect 13 10/0")}));
+        QCOMPARE(timed.beginOf(1), 1500 + 500);
+        QCOMPARE(timed.endOf(3), 4000 + 500);
+    }
+
+    // What the presentation program writes for effects reads as the kind it is, with its own settings: an exit that flies
+    // out to the bottom, and a fade with a delay, smooth start, and repeats.
+    void animationEditReadsWhatTheProgramWrites()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        const QString flyOut = animXml(
+            "<p:par><p:cTn id='5' presetID='2' presetClass='exit' presetSubtype='4' fill='hold' grpId='0' nodeType='clickEffect'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+            "<p:anim calcmode='lin' valueType='num'><p:cBhvr additive='base'><p:cTn id='6' dur='500'/><p:tgtEl><p:spTgt spid='3'/></p:tgtEl><p:attrNameLst><p:attrName>ppt_x</p:attrName></p:attrNameLst></p:cBhvr>"
+            "<p:tavLst><p:tav tm='0'><p:val><p:strVal val='ppt_x'/></p:val></p:tav><p:tav tm='100000'><p:val><p:strVal val='ppt_x'/></p:val></p:tav></p:tavLst></p:anim>"
+            "<p:anim calcmode='lin' valueType='num'><p:cBhvr additive='base'><p:cTn id='7' dur='500'/><p:tgtEl><p:spTgt spid='3'/></p:tgtEl><p:attrNameLst><p:attrName>ppt_y</p:attrName></p:attrNameLst></p:cBhvr>"
+            "<p:tavLst><p:tav tm='0'><p:val><p:strVal val='ppt_y'/></p:val></p:tav><p:tav tm='100000'><p:val><p:strVal val='1+ppt_h/2'/></p:val></p:tav></p:tavLst></p:anim>"
+            "<p:set><p:cBhvr><p:cTn id='8' dur='1' fill='hold'><p:stCondLst><p:cond delay='499'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='3'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='hidden'/></p:to></p:set>"
+            "</p:childTnLst></p:cTn></p:par>");
+        auto wrap = [](const QString &effects) {
+            return animXml("<p:timing xmlns:p='http://schemas.openxmlformats.org/presentationml/2006/main'><p:tnLst><p:par><p:cTn id='1' dur='indefinite' restart='never' nodeType='tmRoot'><p:childTnLst>"
+                           "<p:seq concurrent='1' nextAc='seek'><p:cTn id='2' dur='indefinite' nodeType='mainSeq'><p:childTnLst>"
+                           "<p:par><p:cTn id='3' fill='hold'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst><p:childTnLst><p:par><p:cTn id='4' fill='hold'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>")
+                + effects + animXml("</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
+        };
+        slide.props[QStringLiteral("timingXml")] = wrap(flyOut);
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.effects[0].kind, QStringLiteral("exit.fly"));
+        QCOMPARE(seq.effects[0].variant, QStringLiteral("bottom"));
+        QCOMPARE(seq.effects[0].duration, 500);
+        QCOMPARE(seq.effects[0].shape, 3);
+        QVERIFY(!seq.effects[0].custom());
+        // A fade with a delay, smooth start and end, repeated twice, rewound.
+        QString fade = animFadeIn(3, 1500, "withEffect", 250);
+        fade.replace(QStringLiteral("presetSubtype=\"0\" fill=\"hold\""), QStringLiteral("presetSubtype=\"0\" repeatCount=\"2000\" accel=\"50000\" decel=\"50000\" fill=\"remove\" grpId=\"0\""));
+        slide.props[QStringLiteral("timingXml")] = wrap(fade);
+        seq = deck::readAnimations(slide);
+        QCOMPARE(seq.effects.size(), 1);
+        const deck::Anim &f = seq.effects[0];
+        QVERIFY2(!f.custom(), "a fade with the settings the Timing dialog gives is a fade");
+        QCOMPARE(f.start, deck::EffectStart::WithPrevious);
+        QCOMPARE(f.delay, 250);
+        QCOMPARE(f.duration, 1500);
+        QVERIFY(f.smoothStart && f.smoothEnd && f.rewind);
+        QCOMPARE(f.repeat, 2.0);
+        // The same effect written again is the same effect (the ids aside).
+        deck::setAnimations(*d, slide, seq);
+        const deck::AnimSequence again = deck::readAnimations(slide);
+        QCOMPARE(again.effects.size(), 1);
+        QVERIFY(!again.effects[0].custom());
+        QCOMPARE(again.effects[0].duration, 1500);
+        QCOMPARE(again.effects[0].repeat, 2.0);
+        QVERIFY(again.effects[0].rewind);
+    }
+
+    // What JeffDeck has no kind for stays as the file wrote it: it lists as Custom, can be moved, removed, and started another
+    // way, and the rest of the timing is written around it.
+    void animationEditKeepsWhatItDoesNotKnow()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        // A wheel (entrance 21): an effect with no kind here.
+        const QString wheel = animNode("entr", 21, 1, "clickEffect", 0, {animShow(10, true), animFilter(10, "wheel(1)", true, 2000)});
+        slide.props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {wheel})}) + animStep({animGroup(0, {animFadeIn(3, 500)})}));
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(seq.effects.size(), 2);
+        QVERIFY(seq.effects[0].custom());
+        QCOMPARE(seq.effects[0].shape, 10);
+        QCOMPARE(seq.effects[0].cls, deck::EffectClass::Entrance);
+        QVERIFY(!seq.effects[1].custom());
+        QCOMPARE(seq.effects[0].duration, 2000);
+        // Written again with the fade before it, the wheel's behaviors are as they were.
+        seq.move(1, 0);
+        QVERIFY(seq.effects[1].custom());
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("presetID=\"21\"")) && xml.contains(QStringLiteral("filter=\"wheel(1)\"")));
+        QCOMPARE(animOutline(xml), (QStringList{QStringLiteral("1 0 clickEffect 3 10/0"), QStringLiteral("2 0 clickEffect 10 21/1")}));
+        // Ids stay unique and sequential in document order.
+        QDomDocument dom;
+        QVERIFY(office::parseXml(xml.toUtf8(), &dom));
+        QStringList ids;
+        QVector<QDomElement> stack{dom.documentElement()};
+        while (!stack.isEmpty()) {
+            const QDomElement e = stack.takeFirst();
+            if (e.localName() == QLatin1String("cTn")) ids << e.attribute(QStringLiteral("id"));
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+        }
+        QCOMPARE(int(QSet<QString>(ids.cbegin(), ids.cend()).size()), int(ids.size()));
+        // It can start with the one before, and be removed.
+        seq = deck::readAnimations(slide);
+        seq.effects[1].start = deck::EffectStart::WithPrevious;
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(animOutline(slide.props.value(QStringLiteral("timingXml")).toString()), (QStringList{QStringLiteral("1 0 clickEffect 3 10/0"), QStringLiteral("1 0 withEffect 10 21/1")}));
+        seq = deck::readAnimations(slide);
+        seq.remove(1);
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(deck::readAnimations(slide).effects.size(), 1);
+        seq.remove(0);
+        deck::setAnimations(*d, slide, seq);
+        QVERIFY(!slide.props.contains(QStringLiteral("timingXml")));   // nothing left: no timing
+    }
+
+    // Removing an effect that took a click gives the click to the next effect of its step; moving and starting effects another way.
+    void animationEditOrdersTheEffects()
+    {
+        auto d = editDeck(4);
+        deck::AnimSequence seq;
+        const deck::EffectStart C = deck::EffectStart::OnClick, W = deck::EffectStart::WithPrevious;
+        const deck::EffectStart starts[] = {C, W, C, W};
+        for (int i = 0; i < 4; ++i) {
+            deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 10 + i);
+            a.start = starts[i];
+            seq.add(a);
+        }
+        QCOMPARE(seq.effectsOf(11), (QVector<int>{1}));
+        seq.remove(0);
+        QCOMPARE(seq.effects.size(), 3);
+        QCOMPARE(seq.effects[0].shape, 11);
+        QCOMPARE(seq.effects[0].start, C);   // the click stays
+        QCOMPARE(seq.clicks(), 2);
+        // Later: the effect goes after the next.
+        seq.move(0, 1);
+        QCOMPARE(seq.effects[1].shape, 11);
+        QCOMPARE(seq.effects[0].shape, 12);
+        seq.move(1, 99);   // out of range goes to the end
+        QCOMPARE(seq.effects.last().shape, 11);
+        seq.move(-1, 0);   // nothing
+        QCOMPARE(seq.effects.size(), 3);
+        // A new kind keeps what the effect aims at, how it starts, and its delay.
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.wipe"), 11);
+        a.start = deck::EffectStart::AfterPrevious;
+        a.delay = 700;
+        a.duration = 1200;
+        deck::changeKind(a, *deck::effectKind(QStringLiteral("entr.fly")));
+        QCOMPARE(a.kind, QStringLiteral("entr.fly"));
+        QCOMPARE(a.start, deck::EffectStart::AfterPrevious);
+        QCOMPARE(a.delay, 700);
+        QCOMPARE(a.shape, 11);
+        QCOMPARE(a.variant, QStringLiteral("bottom"));
+        QCOMPARE(a.duration, 1200);
+        deck::changeKind(a, *deck::effectKind(QStringLiteral("entr.appear")));
+        QCOMPARE(a.duration, 0);
+        deck::changeKind(a, *deck::effectKind(QStringLiteral("path.lines")));
+        QCOMPARE(a.duration, 2000);
+        QVERIFY(a.smoothStart && a.smoothEnd);
+    }
+
+    // A build by paragraph is one effect for each paragraph (with the ones indented below it), and back to one for the shape.
+    void animationEditBuildsByParagraph()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        QCOMPARE(deck::paragraphGroups(*d, slide, 3), (QVector<QPair<int, int>>{{0, 0}, {1, 1}, {2, 2}}));
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 3));
+        deck::setByParagraph(seq, 0, true, *d, slide);
+        QCOMPARE(seq.effects.size(), 3);
+        QCOMPARE(seq.effects[1].firstParagraph, 1);
+        QCOMPARE(seq.effects[2].start, deck::EffectStart::OnClick);
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("<p:bldP spid=\"3\" grpId=\"0\" build=\"p\"/>")));
+        QVERIFY(xml.contains(QStringLiteral("<p:txEl><p:pRg st=\"2\" end=\"2\"/></p:txEl>")));
+        QCOMPARE(xml.count(QStringLiteral("<p:bldP ")), 1);   // one build for the shape's three effects
+        QCOMPARE(xml.count(QStringLiteral("grpId=\"0\" nodeType")), 3);
+        const deck::AnimSequence back = deck::readAnimations(slide);
+        QCOMPARE(back.effects.size(), 3);
+        QVERIFY(!back.effects[0].custom() && back.effects[2].paragraphs());
+        // Indented paragraphs go with the one above them.
+        QTextDocument *story = d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId);
+        QTextBlock second = story->findBlockByNumber(1);
+        QTextCursor cur(second);
+        QTextBlockFormat bf = second.blockFormat();
+        bf.setProperty(tp::ListLevel, 1);
+        cur.setBlockFormat(bf);
+        QCOMPARE(deck::paragraphGroups(*d, slide, 3), (QVector<QPair<int, int>>{{0, 1}, {2, 2}}));
+        // Back to the whole shape.
+        deck::AnimSequence one = back;
+        deck::setByParagraph(one, 1, false, *d, slide);
+        QCOMPARE(one.effects.size(), 1);
+        QVERIFY(!one.effects[0].paragraphs());
+    }
+
+    // Effects can be copied from one shape onto others (Animation Painter).
+    void animationEditCopiesEffects()
+    {
+        auto d = editDeck(2);
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fly"), 10);
+        a.variant = QStringLiteral("left");
+        a.duration = 900;
+        seq.add(a);
+        seq.add(deck::makeAnim(QStringLiteral("emph.spin"), 10));
+        deck::copyEffects(seq, 10, {11});
+        QCOMPARE(seq.effects.size(), 4);
+        QCOMPARE(seq.effects[2].shape, 11);
+        QCOMPARE(seq.effects[2].variant, QStringLiteral("left"));
+        QCOMPARE(seq.effects[2].duration, 900);
+        QCOMPARE(seq.effects[3].kind, QStringLiteral("emph.spin"));
+        QCOMPARE(int(seq.effectsOf(11).size()), 2);
+    }
+
+    // What the show plays of the effects JeffDeck makes: a fly in comes from off the slide, an exit moves out (its formulas
+    // have no # in them), a spin turns, a pulse grows and returns, a split opens from the middle, and repeats play again.
+    void animationEditPlaysWhatItMakes()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        auto states = [&](const deck::AnimSequence &seq, double ms) {
+            deck::setAnimations(*d, slide, seq);
+            const deck::Timeline tl = deck::playableTimeline(slide);
+            return deck::statesAt(tl, deck::geometryOf(*d, slide), 0, ms);
+        };
+        const deck::Target box{10};
+        // Fly in from the bottom: starts below the slide, ends where it is.
+        deck::AnimSequence fly;
+        fly.add(deck::makeAnim(QStringLiteral("entr.fly"), 10));
+        QVERIFY(states(fly, 0)[box].offset.y() > 100);
+        QCOMPARE(states(fly, 0)[box].offset.x(), 0.0);
+        QCOMPARE(states(fly, 100000)[box].offset, QPointF());
+        QVERIFY(states(fly, 100000)[box].visible);
+        // And out to the bottom: where it is, then below.
+        deck::AnimSequence out;
+        out.add(deck::makeAnim(QStringLiteral("exit.fly"), 10));
+        QCOMPARE(states(out, 0)[box].offset, QPointF());
+        QVERIFY(states(out, 250)[box].offset.y() > 50);
+        QVERIFY(!states(out, 100000)[box].visible);
+        // A spin turns a full circle; grow/shrink resizes; a pulse grows and comes back.
+        deck::AnimSequence spin;
+        spin.add(deck::makeAnim(QStringLiteral("emph.spin"), 10));
+        QVERIFY(std::abs(states(spin, 1000)[box].rotation - 180) < 1);
+        QVERIFY(std::abs(states(spin, 100000)[box].rotation - 360) < 1e-6);
+        deck::AnimSequence grow;
+        grow.add(deck::makeAnim(QStringLiteral("emph.growshrink"), 10));
+        QVERIFY(std::abs(states(grow, 100000)[box].scaleX - 1.5) < 1e-6);
+        deck::AnimSequence pulse;
+        pulse.add(deck::makeAnim(QStringLiteral("emph.pulse"), 10));
+        QVERIFY(states(pulse, 250)[box].scaleX > 1.04);
+        QVERIFY(states(pulse, 250)[box].opacity < 0.6);   // half see-through at its middle
+        QVERIFY(std::abs(states(pulse, 100000)[box].scaleX - 1) < 1e-6);
+        QCOMPARE(states(pulse, 100000)[box].opacity, 1.0);
+        // A split from the middle shows a strip, then all.
+        deck::AnimSequence split;
+        deck::Anim sp = deck::makeAnim(QStringLiteral("entr.split"), 10);
+        sp.variant = QStringLiteral("verticalOut");
+        split.add(sp);
+        const deck::TargetState half = states(split, 250)[box];
+        QVERIFY(std::abs(half.clip.left() - 0.25) < 0.01 && std::abs(half.clip.width() - 0.5) < 0.01);
+        sp.variant = QStringLiteral("verticalIn");
+        deck::AnimSequence closing;
+        closing.add(sp);
+        const deck::TargetState parts = states(closing, 250)[box];
+        QVERIFY(!parts.clip2.isNull());
+        QVERIFY(std::abs(parts.clip.width() - 0.25) < 0.01 && std::abs(parts.clip2.right() - 1) < 0.01);
+        // Repeated twice, an effect plays twice: a spin of 1 s by 90 degrees is 45 halfway, and halfway through the second run is 45 again.
+        deck::AnimSequence twice;
+        deck::Anim t = deck::makeAnim(QStringLiteral("emph.spin"), 10);
+        t.duration = 1000;
+        t.amount = 90;
+        t.repeat = 2;
+        twice.add(t);
+        QVERIFY(std::abs(states(twice, 500)[box].rotation - 45) < 1);
+        QVERIFY(std::abs(states(twice, 1500)[box].rotation - 45) < 1);
+        QVERIFY(std::abs(states(twice, 100000)[box].rotation - 90) < 1);
+        // Rewound, it goes back when it ends.
+        t.repeat = 1;
+        t.rewind = true;
+        deck::AnimSequence rewound;
+        rewound.add(t);
+        QVERIFY(std::abs(states(rewound, 500)[box].rotation - 45) < 1);
+        QCOMPARE(states(rewound, 100000)[box].rotation, 0.0);
+    }
+
+    // An effect plays smoothly when the effect says so, not only when each behavior does.
+    void animationEditSmoothness()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("emph.spin"), 10);
+        a.duration = 1000;
+        seq.add(a);
+        auto at = [&](const deck::AnimSequence &s, double ms) {
+            deck::setAnimations(*d, slide, s);
+            return deck::statesAt(deck::playableTimeline(slide), deck::geometryOf(*d, slide), 0, ms)[deck::Target{10}].rotation;
+        };
+        QVERIFY(std::abs(at(seq, 250) - 90) < 1e-6);   // straight: a quarter of the way is a quarter turn
+        seq.effects[0].smoothStart = true;
+        seq.effects[0].smoothEnd = true;
+        QVERIFY(at(seq, 250) < 80);                    // slow at the start
+        QVERIFY(std::abs(at(seq, 500) - 180) < 1e-6);
+    }
+
+    // The builds are listed by where the shapes are on the slide, as the presentation program lists them, whatever order the
+    // effects play in; a shape with two effects has two builds, numbered from 0.
+    void animationEditBuildsListByShape()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 11));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        const qsizetype a = xml.indexOf(QStringLiteral("<p:bldP spid=\"3\"")), b = xml.indexOf(QStringLiteral("<p:bldP spid=\"10\"")), c = xml.indexOf(QStringLiteral("<p:bldP spid=\"11\""));
+        QVERIFY(a > 0 && b > a && c > b);
+        deck::AnimSequence two;
+        two.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        two.add(deck::makeAnim(QStringLiteral("emph.spin"), 10));
+        deck::setAnimations(*d, slide, two);
+        const QString twoXml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(twoXml.contains(QStringLiteral("<p:bldP spid=\"10\" grpId=\"0\" animBg=\"1\"/><p:bldP spid=\"10\" grpId=\"1\" animBg=\"1\"/>")));
+        QCOMPARE(twoXml.count(QStringLiteral("nodeType=\"clickEffect\"")), 2);
+        QVERIFY(twoXml.contains(QStringLiteral("grpId=\"1\" nodeType")));
+    }
+
+    // Saved, the effects of shapes the slide no longer has are left out and the rest stay, in a file that reads back; a shape
+    // that was given a number to be animated keeps it, so its effect is still on it.
+    void animationEditSavesOnlyEffectsOfShapesThatAreThere()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        // A shape new to the file has no number: animating it gives it one, and it is written with it.
+        auto fresh = std::make_shared<ShapeItem>();
+        fresh->name = QStringLiteral("Fresh");
+        fresh->rect = QRectF(400, 100, 80, 40);
+        slide.items.push_back(fresh);
+        QCOMPARE(fresh->sourceId, 0);
+        const int number = deck::shapeNumber(slide, fresh->id);
+        QVERIFY(number > 11);   // past the numbers the boxes have
+        QCOMPARE(deck::shapeNumber(slide, fresh->id), number);   // the same again
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), number));
+        seq.add(deck::makeAnim(QStringLiteral("exit.fade"), 11));
+        deck::setAnimations(*d, slide, seq);
+        QString err;
+        QStringList skipped;
+        QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        deck::AnimSequence read = deck::readAnimations(*back->pages[0]);
+        QCOMPARE(read.effects.size(), 3);
+        QVERIFY(!read.effects[0].custom() && !read.effects[1].custom() && !read.effects[2].custom());
+        // Each still aims at the shape it did, by name.
+        auto nameOf = [&](const Document &doc, int shape) {
+            QString name;
+            walkItems(doc.pages[0]->items, [&](const ItemPtr &it) {
+                if (it->sourceId == shape) name = it->name;
+            });
+            return name;
+        };
+        QCOMPARE(nameOf(*back, read.effects[0].shape), QStringLiteral("Box 1"));
+        QCOMPARE(nameOf(*back, read.effects[1].shape), QStringLiteral("Fresh"));
+        QCOMPARE(nameOf(*back, read.effects[2].shape), QStringLiteral("Box 2"));
+        // Delete "Box 1": its effect is not written, the others are, and the file says so.
+        for (auto it = slide.items.begin(); it != slide.items.end(); ++it)
+            if ((*it)->name == QLatin1String("Box 1")) {
+                slide.items.erase(it);
+                break;
+            }
+        skipped.clear();
+        bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        read = deck::readAnimations(*back->pages[0]);
+        QCOMPARE(read.effects.size(), 2);
+        QCOMPARE(nameOf(*back, read.effects[0].shape), QStringLiteral("Fresh"));
+        QCOMPARE(nameOf(*back, read.effects[1].shape), QStringLiteral("Box 2"));
+        QVERIFY(!read.effects[0].custom() && read.effects[0].kind == QLatin1String("entr.fly"));
+        bool noted = false;
+        for (const QString &s : std::as_const(skipped)) noted |= s.startsWith(QLatin1String("Slide 1")) && s.contains(QStringLiteral("animation"));
+        QVERIFY2(noted, qPrintable(skipped.join('\n')));
+    }
+
+    // The Animations tab: between Transitions and Slide Show, with its gallery, Effect Options, Add Animation, the pane, the
+    // painter, and the timing controls; the commands are steps that undo, and the pane lists the effects.
+    void windowAnimationsTab()
+    {
+        DeckWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        Ribbon *r = w.ribbon();
+        int transitions = -1, animations = -1, show = -1;
+        for (int i = 0; i < r->tabCount(); ++i) {
+            if (r->tabName(i) == QLatin1String("Transitions")) transitions = i;
+            if (r->tabName(i) == QLatin1String("Animations")) animations = i;
+            if (r->tabName(i) == QLatin1String("Slide Show")) show = i;
+        }
+        QVERIFY(animations > 0);
+        QCOMPARE(animations, transitions + 1);
+        QCOMPARE(show, animations + 1);
+        for (const char *id : {"anim.preview", "anim.pane", "anim.painter", "anim.earlier", "anim.later", "anim.none", "anim.options", "anim.timing", "anim.remove", "anim.set.entr.fade", "anim.add.exit.fly"})
+            QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QVERIFY(r->findChild<Gallery *>(QStringLiteral("animationGallery")));
+        Editor *ed = w.editor();
+        auto slidePage = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        ed->doc()->storyDoc(static_cast<TextItem *>(slidePage().items[1].get())->storyId)->setPlainText(QStringLiteral("One\nTwo\nThree"));
+        QVERIFY(!slidePage().props.contains(QStringLiteral("timingXml")));
+        QVERIFY(!w.act("anim.preview")->isEnabled());
+        // Nothing selected, nothing happens.
+        w.act("anim.set.entr.fade")->trigger();
+        QVERIFY(!slidePage().props.contains(QStringLiteral("timingXml")));
+        // A shape selected: the effect is made, on a click, and undoes.
+        ed->select(slidePage().items[0]->id);
+        w.act("anim.set.entr.fade")->trigger();
+        deck::AnimSequence seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.effects[0].kind, QStringLiteral("entr.fade"));
+        QCOMPARE(seq.effects[0].shape, slidePage().items[0]->sourceId);
+        QVERIFY(slidePage().items[0]->sourceId > 0);
+        QVERIFY(w.act("anim.preview")->isEnabled());
+        auto *pane = w.animationPane();
+        QVERIFY(pane);
+        QCOMPARE(pane->rowCount(), 1);
+        QVERIFY(pane->list()->item(0)->text().contains(QStringLiteral("Fade")));
+        // Another effect on the same shape replaces the first; Add Animation adds one.
+        w.act("anim.set.entr.fly")->trigger();
+        seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.effects[0].kind, QStringLiteral("entr.fly"));
+        w.act("anim.add.emph.spin")->trigger();
+        seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects.size(), 2);
+        QCOMPARE(seq.effects[1].kind, QStringLiteral("emph.spin"));
+        QCOMPARE(pane->rowCount(), 2);
+        // The timing controls follow the effect picked.
+        auto *start = r->findChild<QComboBox *>(QStringLiteral("animStartBox"));
+        auto *duration = r->findChild<QDoubleSpinBox *>(QStringLiteral("animDuration"));
+        auto *delay = r->findChild<QDoubleSpinBox *>(QStringLiteral("animDelay"));
+        QVERIFY(start && duration && delay);
+        pane->list()->setCurrentRow(1, QItemSelectionModel::ClearAndSelect);
+        QCOMPARE(int(ed->selection().size()), 1);   // the row's shape is selected on the slide
+        QCOMPARE(duration->value(), 2.0);           // the spin takes 2 seconds
+        QCOMPARE(start->currentData().toInt(), int(deck::EffectStart::OnClick));
+        duration->setValue(1.25);
+        delay->setValue(0.5);
+        start->setCurrentIndex(start->findData(int(deck::EffectStart::AfterPrevious)));
+        Q_EMIT start->activated(start->currentIndex());
+        seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects[1].duration, 1250);
+        QCOMPARE(seq.effects[1].delay, 500);
+        QCOMPARE(seq.effects[1].start, deck::EffectStart::AfterPrevious);
+        QCOMPARE(seq.effects[0].duration, 500);   // the other is as it was
+        // Each was a step.
+        ed->undo();
+        QCOMPARE(deck::readAnimations(slidePage()).effects[1].start, deck::EffectStart::OnClick);
+        ed->undo();
+        QCOMPARE(deck::readAnimations(slidePage()).effects[1].delay, 0);
+        ed->undo();
+        QCOMPARE(deck::readAnimations(slidePage()).effects[1].duration, 2000);
+        // Re-Order from the pane: the picked effect moves earlier, and later.
+        pane->list()->setCurrentRow(1, QItemSelectionModel::ClearAndSelect);
+        Q_EMIT pane->reorderRequested(-1);
+        seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects[0].kind, QStringLiteral("emph.spin"));
+        w.act("anim.later")->trigger();
+        QCOMPARE(deck::readAnimations(slidePage()).effects[1].kind, QStringLiteral("emph.spin"));
+        // Remove, and None.
+        Q_EMIT pane->removeRequested({1});
+        QCOMPARE(int(deck::readAnimations(slidePage()).effects.size()), 1);
+        w.act("anim.none")->trigger();
+        QVERIFY(!slidePage().props.contains(QStringLiteral("timingXml")));
+    }
+
+    // Effect Options lists what the effect picked can do: its directions, its amounts, and by paragraph for text; each choice is a step.
+    void windowAnimationEffectOptions()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        auto slidePage = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        ed->doc()->storyDoc(static_cast<TextItem *>(slidePage().items[1].get())->storyId)->setPlainText(QStringLiteral("One\nTwo\nThree"));
+        QMenu *menu = nullptr;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() && b->defaultAction()->objectName() == QLatin1String("ribbon.animEffectOptions") && b->menu()) menu = b->menu();
+        QVERIFY(menu);
+        auto texts = [&] {
+            Q_EMIT menu->aboutToShow();
+            QStringList out;
+            for (QAction *a : menu->actions()) out << a->text();
+            return out;
+        };
+        QCOMPARE(texts(), (QStringList{QStringLiteral("No Effect Options")}));
+        ed->select(slidePage().items[1]->id);
+        w.act("anim.set.entr.fly")->trigger();
+        const QStringList fly = texts();
+        QVERIFY(fly.contains(QStringLiteral("From Left")) && fly.contains(QStringLiteral("From Bottom-Right")) && fly.contains(QStringLiteral("By Paragraph")));
+        auto choose = [&](const QString &text) {
+            Q_EMIT menu->aboutToShow();
+            for (QAction *a : menu->actions())
+                if (a->text() == text) {
+                    a->trigger();
+                    return true;
+                }
+            return false;
+        };
+        QVERIFY(choose(QStringLiteral("From Left")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].variant, QStringLiteral("left"));
+        QVERIFY(choose(QStringLiteral("By Paragraph")));
+        QCOMPARE(int(deck::readAnimations(slidePage()).effects.size()), 3);   // a paragraph each
+        QCOMPARE(deck::readAnimations(slidePage()).effects[2].variant, QStringLiteral("left"));
+        QVERIFY(choose(QStringLiteral("From Top")));
+        for (const deck::Anim &a : deck::readAnimations(slidePage()).effects) QCOMPARE(a.variant, QStringLiteral("top"));   // the build changes together
+        QVERIFY(choose(QStringLiteral("As One Object")));
+        QCOMPARE(int(deck::readAnimations(slidePage()).effects.size()), 1);
+        // Amounts: grow/shrink and spin.
+        w.act("anim.set.emph.growshrink")->trigger();
+        QVERIFY(texts().contains(QStringLiteral("Huge")));
+        QVERIFY(choose(QStringLiteral("Huge")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].amount, 400.0);
+        QVERIFY(choose(QStringLiteral("Horizontal")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].variant, QStringLiteral("horizontal"));
+        w.act("anim.set.emph.spin")->trigger();
+        QVERIFY(choose(QStringLiteral("Half Spin")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].amount, 180.0);
+        QVERIFY(choose(QStringLiteral("Counterclockwise")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].variant, QStringLiteral("ccw"));
+        // A motion path: its paths.
+        w.act("anim.set.path.shapes")->trigger();
+        QVERIFY(texts().contains(QStringLiteral("5 Point Star")));
+        QVERIFY(choose(QStringLiteral("5 Point Star")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].variant, QStringLiteral("p5"));
+    }
+
+    // The dialog for one effect shows its settings and gives them back.
+    void animationOptionsDialogReadsAndGives()
+    {
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fly"), 3);
+        a.delay = 500;
+        a.duration = 1500;
+        a.smoothStart = true;
+        a.repeat = 3;
+        AnimationOptionsDialog dlg(a, true, AnimationOptionsDialog::TimingTab);
+        QCOMPARE(dlg.findChild<QTabWidget *>()->currentIndex(), int(AnimationOptionsDialog::TimingTab));
+        QCOMPARE(dlg.findChild<QDoubleSpinBox *>(QStringLiteral("animDelay"))->value(), 0.5);
+        QCOMPARE(dlg.findChild<QDoubleSpinBox *>(QStringLiteral("animDuration"))->value(), 1.5);
+        QVERIFY(dlg.findChild<QCheckBox *>(QStringLiteral("animSmoothStart"))->isChecked());
+        QVERIFY(!dlg.findChild<QCheckBox *>(QStringLiteral("animSmoothEnd"))->isChecked());
+        QCOMPARE(dlg.findChild<QComboBox *>(QStringLiteral("animRepeat"))->currentData().toInt(), 3);
+        QVERIFY(!dlg.byParagraph());
+        auto *variant = dlg.findChild<QComboBox *>(QStringLiteral("animVariant"));
+        variant->setCurrentIndex(variant->findData(QStringLiteral("right")));
+        dlg.findChild<QDoubleSpinBox *>(QStringLiteral("animDuration"))->setValue(2.25);
+        dlg.findChild<QCheckBox *>(QStringLiteral("animRewind"))->setChecked(true);
+        dlg.findChild<QRadioButton *>(QStringLiteral("animByParagraph"))->setChecked(true);
+        const deck::Anim r = dlg.result();
+        QCOMPARE(r.variant, QStringLiteral("right"));
+        QCOMPARE(r.duration, 2250);
+        QCOMPARE(r.delay, 500);
+        QVERIFY(r.rewind && r.smoothStart);
+        QVERIFY(dlg.byParagraph());
+        // An appearing shape has no length to set, and an effect from another program offers only how it starts.
+        AnimationOptionsDialog d2(deck::makeAnim(QStringLiteral("entr.appear"), 3), false, AnimationOptionsDialog::EffectTab);
+        QVERIFY(!d2.findChild<QDoubleSpinBox *>(QStringLiteral("animDuration"))->isEnabled());
+        QVERIFY(!d2.findChild<QRadioButton *>(QStringLiteral("animByParagraph"))->isEnabled());
+        deck::Anim custom;
+        custom.cls = deck::EffectClass::Entrance;
+        custom.shape = 3;
+        custom.start = deck::EffectStart::WithPrevious;
+        AnimationOptionsDialog d3(custom, true, AnimationOptionsDialog::TimingTab);
+        QVERIFY(!d3.findChild<QDoubleSpinBox *>(QStringLiteral("animDelay"))->isEnabled());
+        QCOMPARE(d3.result().start, deck::EffectStart::WithPrevious);
+    }
+
+    // Preview plays the slide's effects over the slide and hides itself when they are over; the numbers sit by the shapes while
+    // the tab or the pane shows, and not otherwise.
+    void windowAnimationPreviewAndNumbers()
+    {
+        DeckWindow w;
+        w.resize(1300, 800);
+        w.show();
+        Editor *ed = w.editor();
+        auto slidePage = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        ed->select(slidePage().items[0]->id);
+        w.act("anim.set.entr.fade")->trigger();
+        ed->select(slidePage().items[1]->id);
+        w.act("anim.set.entr.fly")->trigger();
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 0);
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Animations")));
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 2);
+        QCOMPARE(w.canvas()->animationBadges()[1].text, QStringLiteral("2"));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Home")));
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 0);
+        w.showAnimationPane(true);
+        QVERIFY(w.act("anim.pane")->isChecked());
+        QTRY_VERIFY(w.animationPane()->isVisible());
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 2);   // the pane shows them too
+        w.showAnimationPane(false);
+        QVERIFY(!w.act("anim.pane")->isChecked());
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 0);
+        w.act("anim.preview")->trigger();
+        auto *preview = w.canvas()->findChild<AnimationPreview *>(QStringLiteral("animationPreview"));
+        QVERIFY(preview);
+        QVERIFY(preview->isPlaying());
+        QTRY_VERIFY2_WITH_TIMEOUT(!w.canvas()->findChild<AnimationPreview *>(QStringLiteral("animationPreview")), "the preview ends", 8000);
+    }
+
+    // What an effect does to its shape when it is over: hide it when the effect ends, or at the next click. It is written as the
+    // presentation program writes it, reads back, and plays that way in the show.
+    void animationEditHidesAfterAnEffect()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 10);
+        a.after = deck::AfterEffect::Hide;
+        deck::Anim b = deck::makeAnim(QStringLiteral("emph.spin"), 11);
+        b.after = deck::AfterEffect::HideOnNextClick;
+        seq.add(a);
+        seq.add(b);
+        seq.add(deck::makeAnim(QStringLiteral("entr.appear"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        // The first effect's time node is 5; its hiding ends with it.
+        QVERIFY(xml.contains(QStringLiteral("<p:subTnLst><p:set><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"sameClick\" afterEffect=\"1\">"
+                                            "<p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"5\"/></p:cond></p:stCondLst></p:cTn>")));
+        QVERIFY(xml.contains(QStringLiteral("masterRel=\"nextClick\" afterEffect=\"1\"/>")));
+        const deck::AnimSequence back = deck::readAnimations(slide);
+        QCOMPARE(int(back.effects.size()), 3);
+        QVERIFY(!back.effects[0].custom() && !back.effects[1].custom());
+        QCOMPARE(back.effects[0].after, deck::AfterEffect::Hide);
+        QCOMPARE(back.effects[1].after, deck::AfterEffect::HideOnNextClick);
+        QCOMPARE(back.effects[2].after, deck::AfterEffect::None);
+        // Played: gone after its effect, and the second at the click after it.
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        auto visible = [&](int done, double ms, int shape) { return deck::statesAt(tl, g, done, ms).value(deck::Target{shape}).visible; };
+        QVERIFY(visible(0, 250, 10));     // while its fade plays, it is there
+        QVERIFY(!visible(1, -1, 10));     // and hidden when it ends
+        QVERIFY(visible(2, -1, 11));      // the spin is over, and the shape stays...
+        QVERIFY(!visible(3, -1, 11));     // ...until the next click: the step after it hides it
+        QVERIFY(visible(3, -1, 3));       // as the third step shows its own shape
+        QCOMPARE(int(tl.steps.size()), 3);
+        // Changing the kind of an effect keeps what it does when it is over, unless the kind is an exit.
+        deck::Anim c = a;
+        deck::changeKind(c, *deck::effectKind(QStringLiteral("entr.wipe")));
+        QCOMPARE(c.after, deck::AfterEffect::Hide);
+        deck::changeKind(c, *deck::effectKind(QStringLiteral("exit.wipe")));
+        QCOMPARE(c.after, deck::AfterEffect::None);
+        // The dialog gives it back.
+        AnimationOptionsDialog dlg(a, false, AnimationOptionsDialog::EffectTab);
+        auto *after = dlg.findChild<QComboBox *>(QStringLiteral("animAfter"));
+        QVERIFY(after && after->isEnabled());
+        QCOMPARE(after->currentData().toInt(), int(deck::AfterEffect::Hide));
+        after->setCurrentIndex(after->findData(int(deck::AfterEffect::HideOnNextClick)));
+        QCOMPARE(dlg.result().after, deck::AfterEffect::HideOnNextClick);
+        AnimationOptionsDialog exit(deck::makeAnim(QStringLiteral("exit.fade"), 3), false, AnimationOptionsDialog::EffectTab);
+        QVERIFY(!exit.findChild<QComboBox *>(QStringLiteral("animAfter"))->isEnabled());
+    }
+
+    // A timing a file makes hostile is read within limits and never rewritten: one with more effects than a slide could have, and
+    // one that nests its effects deeper than any program does, are shown as far as they can be and not changed.
+    void animationEditReadsHostileTiming()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        QStringList many;
+        for (int i = 0; i < 2600; ++i) many << animFadeIn(3, 100);
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps(many));
+        QElapsedTimer clock;
+        clock.start();
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QVERIFY2(clock.elapsed() < 8000, "reading 2,600 effects took too long");
+        QVERIFY(!seq.editable);
+        QCOMPARE(int(seq.effects.size()), 2000);
+        // Nested thirty deep, the effect is not found by the editing reader, which then does not rewrite the timing.
+        QString nested = animFadeIn(3, 100);
+        for (int i = 0; i < 30; ++i) nested = animGroup(0, {nested});
+        slide.props[QStringLiteral("timingXml")] = animTiming(animStep({nested}));
+        seq = deck::readAnimations(slide);
+        QVERIFY(!seq.editable);
+        // Garbage is nothing, and a timing with no sequence is none.
+        slide.props[QStringLiteral("timingXml")] = QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst/></p:timing>");
+        QVERIFY(deck::readAnimations(slide).effects.isEmpty());
+        QVERIFY(deck::readAnimations(slide).editable);
+        slide.props[QStringLiteral("timingXml")] = QStringLiteral("<p:timing");
+        QVERIFY(deck::readAnimations(slide).effects.isEmpty());
+        QVERIFY(!deck::readAnimations(slide).editable);   // never an empty sequence that an edit would write over it
+    }
+
+    // ---- what the review of real slides found ----
+
+    // The problem with a timing's time nodes, "" for none: each has an id of its own, and what refers to a node refers to one there is.
+    static QString animIdProblem(const QString &timing)
+    {
+        QDomDocument dom;
+        if (!office::parseXml(timing.toUtf8(), &dom)) return QStringLiteral("not XML");
+        QSet<QString> ids;
+        QStringList refs;
+        QVector<QDomElement> stack{dom.documentElement()};
+        while (!stack.isEmpty()) {
+            const QDomElement e = stack.takeLast();
+            if (e.localName() == QLatin1String("cTn") && e.hasAttribute(QStringLiteral("id"))) {
+                const QString id = e.attribute(QStringLiteral("id"));
+                if (ids.contains(id)) return QStringLiteral("the id %1 is on two time nodes").arg(id);
+                ids.insert(id);
+            }
+            if (e.localName() == QLatin1String("tn")) refs << e.attribute(QStringLiteral("val"));
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+        }
+        for (const QString &r : std::as_const(refs))
+            if (!ids.contains(r)) return QStringLiteral("a reference to the time node %1, which is not there").arg(r);
+        return QString();
+    }
+
+    static const QString animMainNs() { return QStringLiteral("http://schemas.openxmlformats.org/presentationml/2006/main"); }
+
+    // A timing of one click step holding the effects (written as XML text), the way a file lays it out; the ids come last in each time node, which a file may do.
+    static QString animBareTiming(const QString &effects, const QString &around = QString(), const QString &before = QString(), const QString &after = QString())
+    {
+        return animXml("<p:timing xmlns:p='http://schemas.openxmlformats.org/presentationml/2006/main'><p:tnLst><p:par><p:cTn dur='indefinite' restart='never' nodeType='tmRoot' id='1'><p:childTnLst>")
+            + before + animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn dur='indefinite' nodeType='mainSeq' id='2'><p:childTnLst><p:par><p:cTn fill='hold' id='3'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst>"
+                               "<p:childTnLst><p:par><p:cTn fill='hold' id='4'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>")
+            + effects + animXml("</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:seq>") + after
+            + animXml("</p:childTnLst></p:cTn></p:par></p:tnLst>") + around + animXml("</p:timing>");
+    }
+
+    // An effect JeffDeck has no kind for (preset 77), on shape `spid`, its time nodes numbered from `id`, the id the last attribute of each.
+    static QString animUnknownEffect(int spid, int id)
+    {
+        return animXml("<p:par><p:cTn presetID='77' presetClass='entr' presetSubtype='0' fill='hold' grpId='0' nodeType='clickEffect' id='%1'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+                       "<p:set><p:cBhvr><p:cTn dur='1' fill='hold' id='%2'><p:stCondLst><p:cond delay='0'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='%4'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='visible'/></p:to></p:set>"
+                       "<p:animEffect transition='in' filter='wheel(1)'><p:cBhvr><p:cTn dur='2000' id='%3'/><p:tgtEl><p:spTgt spid='%4'/></p:tgtEl></p:cBhvr></p:animEffect>"
+                       "</p:childTnLst></p:cTn></p:par>").arg(id).arg(id + 1).arg(id + 2).arg(spid);
+    }
+
+    // Writing a slide's animations back gives each time node an id of its own, a kept effect's too, whatever order a file wrote its attributes in.
+    void animationEditNumbersTimeNodesOnce()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(animUnknownEffect(10, 5));
+        QVERIFY2(animIdProblem(slide.props.value(QStringLiteral("timingXml")).toString()).isEmpty(), "the timing a file has is sound");
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(int(seq.effects.size()), 1);
+        QVERIFY(seq.effects[0].custom());
+        // Written again as it is, and with an effect added to it: the ids are all different.
+        deck::setAnimations(*d, slide, seq);
+        QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+        QVERIFY(xml.contains(QStringLiteral("presetID=\"77\"")) && xml.contains(QStringLiteral("filter=\"wheel(1)\"")));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 11));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), 3));
+        deck::setAnimations(*d, slide, seq);
+        xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 3);
+        // Two kept effects, one after the other, and a start that refers to a time node of its own.
+        QString second = animUnknownEffect(11, 5).replace(QStringLiteral("<p:cond delay=\"0\"/></p:stCondLst><p:childTnLst><p:set>"),
+                                                          QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"6\"/></p:cond></p:stCondLst><p:childTnLst><p:set>"));
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(animUnknownEffect(10, 5) + second.replace(QStringLiteral("id=\"5\""), QStringLiteral("id=\"8\"")).replace(QStringLiteral("id=\"6\""), QStringLiteral("id=\"9\""))
+                                                                  .replace(QStringLiteral("id=\"7\""), QStringLiteral("id=\"10\"")).replace(QStringLiteral("<p:tn val=\"6\"/>"), QStringLiteral("<p:tn val=\"9\"/>")));
+        QVERIFY2(animIdProblem(slide.props.value(QStringLiteral("timingXml")).toString()).isEmpty(), qPrintable(animIdProblem(slide.props.value(QStringLiteral("timingXml")).toString())));
+        seq = deck::readAnimations(slide);
+        QCOMPARE(int(seq.effects.size()), 2);
+        deck::setAnimations(*d, slide, seq);
+        xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));   // the reference follows its node to the new number
+    }
+
+    // What a timing holds beside its main sequence (a movie's or sound's node, a sequence that waits for a click) is written back
+    // just as it was, in its place, with its own ids; the main sequence takes the numbers it leaves.
+    void animationEditKeepsMediaNodesAsWritten()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        const QString video = QStringLiteral("<p:video><p:cMediaNode vol=\"80000\" numSld=\"1\" showWhenStopped=\"0\"><p:cTn id=\"9\" fill=\"hold\" display=\"0\"><p:stCondLst><p:cond delay=\"indefinite\"/>"
+                                             "<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"2\"/></p:cond></p:stCondLst><p:endCondLst><p:cond evt=\"onStopAudio\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:endCondLst></p:cTn>"
+                                             "<p:tgtEl><p:spTgt spid=\"10\"/></p:tgtEl></p:cMediaNode></p:video>");
+        const QString audio = QString::fromUtf8("<p:audio isNarration=\"1\" descr=\"caf\u00E9 \u2603 &amp; \U0001F600 &#x41;\"><p:cMediaNode vol=\"80000\" numSld=\"3\" showWhenStopped=\"0\"><p:cTn id=\"6\" repeatCount=\"indefinite\" fill=\"hold\" display=\"0\">"
+                                                "<p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"11\"/></p:tgtEl></p:cMediaNode></p:audio>");
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(animFadeIn(3, 500), QString(), video, audio);
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QVERIFY(seq.editable);
+        QCOMPARE(int(seq.effects.size()), 1);
+        QCOMPARE(int(seq.kept.size()), 2);
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), 10));
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(video));   // byte for byte
+        QVERIFY(xml.contains(audio));
+        const qsizetype v = xml.indexOf(video), m = xml.indexOf(QStringLiteral("nodeType=\"mainSeq\"")), a = xml.indexOf(audio);
+        QVERIFY(v > 0 && m > v && a > m);   // in the places they had
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 2);
+        // When the file is saved with some effects dropped for shapes that are gone, they stay too.
+        int dropped = 0;
+        const QString saved = deck::timingForSave(*d, slide, [](int shape) { return shape != 3; }, &dropped);
+        QCOMPARE(dropped, 1);
+        QVERIFY(saved.contains(video) && saved.contains(audio));
+        QVERIFY2(animIdProblem(saved).isEmpty(), qPrintable(animIdProblem(saved)));
+    }
+
+    // A frame the slide has but JeffDeck has no object for (a diagram kept as written) and a table are shapes an effect can be on; an
+    // edit keeps their effects, and a chart or a table read from a file carries the number the file gave it.
+    void animationEditKeepsEffectsOnFramesAndTables()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        auto table = std::make_shared<TableItem>();
+        table->sourceId = 14;
+        table->rect = QRectF(300, 100, 200, 80);
+        slide.items.push_back(table);
+        QJsonArray unread;
+        unread.append(QJsonObject{{"xml", QStringLiteral("<p:graphicFrame xmlns:p=\"%1\"><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Diagram\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr></p:graphicFrame>").arg(animMainNs())}});
+        slide.props[QStringLiteral("unread")] = unread;
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 14));
+        seq.add(deck::makeAnim(QStringLiteral("entr.wipe"), 8));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), 10));
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 3);
+        // Another edit keeps them.
+        seq = deck::readAnimations(slide);
+        seq.add(deck::makeAnim(QStringLiteral("emph.spin"), 14));
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 4);
+        // A number no frame, table, or other shape has is a shape that is gone.
+        deck::AnimSequence gone = deck::readAnimations(slide);
+        gone.add(deck::makeAnim(QStringLiteral("entr.fade"), 99));
+        deck::setAnimations(*d, slide, gone);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 4);
+    }
+
+    // A table and a chart read from a file are given the number the file gave their frame, so that an effect on them finds them.
+    void importGivesTablesAndChartsTheirFrameNumbers()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const auto *pic = chartPicture(*d, *d->pages[0]);
+        QVERIFY(pic);
+        QCOMPARE(pic->sourceId, 9);
+        const QString table =
+            QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Grid\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                           "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"914400\" cy=\"254000\"/></p:xfrm>"
+                           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr/><a:tblGrid><a:gridCol w=\"914400\"/></a:tblGrid>"
+                           "<a:tr h=\"254000\"><a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"/><a:t>x</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc></a:tr>"
+                           "</a:tbl></a:graphicData></a:graphic></p:graphicFrame>");
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(unknownFrame(8), table);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        auto withTable = deck::importPresentation(pack(p), &err);
+        QVERIFY2(withTable, qPrintable(err));
+        const TableItem *t = nullptr;
+        for (const auto &it : withTable->pages[0]->items)
+            if (it->type() == ItemType::Table) t = static_cast<const TableItem *>(it.get());
+        QVERIFY(t);
+        QCOMPARE(t->sourceId, 8);
+    }
+
+    // Effects on a chart and on a frame kept as written are saved with the file, and read back from it.
+    void animationEditSavesEffectsOnChartsAndFrames()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 9));    // the chart
+        seq.add(deck::makeAnim(QStringLiteral("entr.wipe"), 8));    // the frame kept as written
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 2);
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const deck::AnimSequence read = deck::readAnimations(*back->pages[0]);
+        QCOMPARE(int(read.effects.size()), 2);
+        QVERIFY(!read.effects[0].custom() && !read.effects[1].custom());
+    }
+
+    // What an effect does to its shape afterwards takes no part in the effect's own time: hide after a fade that plays three times is
+    // at the end of the third, and a spin that goes back when it ends still hides its shape.
+    void animationEditHidesAfterTheEffectEnds()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim fade = deck::makeAnim(QStringLiteral("entr.fade"), 10);
+        fade.repeat = 3;
+        fade.after = deck::AfterEffect::Hide;
+        seq.add(fade);
+        deck::setAnimations(*d, slide, seq);
+        deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        auto visible = [&](int done, double ms, int shape) { return deck::statesAt(tl, g, done, ms).value(deck::Target{shape}).visible; };
+        QVERIFY(std::abs(tl.steps[0].duration() - 1500) < 5);
+        QVERIFY(visible(0, 1400, 10));
+        QVERIFY(!visible(0, 1600, 10));
+        QVERIFY(!visible(1, -1, 10));
+        // A spin that rewinds, and hides.
+        deck::AnimSequence spin;
+        deck::Anim a = deck::makeAnim(QStringLiteral("emph.spin"), 11);
+        a.duration = 1000;
+        a.rewind = true;
+        a.after = deck::AfterEffect::Hide;
+        spin.add(a);
+        deck::setAnimations(*d, slide, spin);
+        tl = deck::playableTimeline(slide);
+        QVERIFY(visible(0, 500, 11));
+        QVERIFY(!visible(1, -1, 11));
+        QCOMPARE(deck::statesAt(tl, g, 1, -1).value(deck::Target{11}).rotation, 0.0);   // and it is as it was
+    }
+
+    // A repeat count a file makes huge does not make a step that long: an effect plays its repeats for at most twenty seconds.
+    void animationEditLimitsHugeRepeats()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("emph.spin"), 10);
+        a.duration = 500;
+        a.repeat = 9999;
+        seq.add(a);
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(deck::readAnimations(slide).effects[0].repeat, 9999.0);   // the file keeps what it says
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        QVERIFY2(tl.steps[0].duration() <= 20500, qPrintable(QString::number(tl.steps[0].duration())));
+        QVERIFY(tl.steps[0].duration() >= 19000);
+        // "Until the end" plays once.
+        QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        xml.replace(QRegularExpression(QStringLiteral("repeatCount=\"\\d+\"")), QStringLiteral("repeatCount=\"indefinite\""));
+        slide.props[QStringLiteral("timingXml")] = xml;
+        QVERIFY(deck::playableTimeline(slide).steps[0].duration() < 600);
+    }
+
+    // A new shape does not take the number of one that was deleted, or of any shape the timing names, in its effects, its kept
+    // sequences, or its builds.
+    void animationEditNumbersNewShapesPastGoneOnes()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(animFadeIn(10, 300) + animFadeIn(20, 300), animXml("<p:bldLst><p:bldP spid='23' grpId='0'/></p:bldLst>"));
+        auto fresh = std::make_shared<ShapeItem>();
+        fresh->rect = QRectF(400, 100, 80, 40);
+        slide.items.push_back(fresh);
+        const int number = deck::shapeNumber(slide, fresh->id);
+        QVERIFY2(number > 23, qPrintable(QString::number(number)));
+    }
+
+    // A shape that is deleted has no effects in the pane, or in the show, and the next change to the slide's animations leaves them
+    // out; undoing the deletion brings them back.
+    void windowAnimationsFollowDeletedShapes()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        auto page = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        ed->select(page().items[0]->id);
+        w.act("anim.set.entr.fade")->trigger();
+        ed->select(page().items[1]->id);
+        w.act("anim.set.entr.fly")->trigger();
+        QCOMPARE(w.animationPane()->rowCount(), 2);
+        const QString bodyName = page().items[1]->name;
+        ed->select(page().items[1]->id);
+        ed->deleteSelection();
+        QCOMPARE(w.animationPane()->rowCount(), 1);
+        QCOMPARE(int(deck::readAnimations(page(), ed->doc()).effects.size()), 1);
+        QCOMPARE(int(deck::playableTimeline(*ed->doc(), page()).steps.size()), 1);   // no click for the shape that is gone
+        QCOMPARE(int(deck::playableTimeline(page()).steps.size()), 2);
+        ed->undo();
+        QCOMPARE(w.animationPane()->rowCount(), 2);
+        // Deleted again, a change to the animations takes the stale effect out of the file.
+        ed->select(page().items[1]->id);
+        ed->deleteSelection();
+        ed->select(page().items[0]->id);
+        w.act("anim.add.emph.spin")->trigger();
+        QCOMPARE(int(deck::readAnimations(page()).effects.size()), 2);
+        QCOMPARE(w.animationPane()->rowCount(), 2);
+    }
+
+    // A build of what a kept sequence aims at stays with it.
+    void animationEditKeepsBuildsOfKeptSequences()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        deck::setAnimations(*d, slide, seq);
+        QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        const QString waits = animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn id='30' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='11'/></p:tgtEl></p:cond></p:stCondLst>"
+                                      "<p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst/></p:cTn><p:nextCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='11'/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
+        const QString tail = QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst>");
+        QVERIFY(xml.contains(tail));
+        xml.replace(tail, waits + tail);
+        xml.replace(QStringLiteral("</p:bldLst>"), QStringLiteral("<p:bldP spid=\"11\" grpId=\"0\" animBg=\"1\"/></p:bldLst>"));
+        slide.props[QStringLiteral("timingXml")] = xml;
+        seq = deck::readAnimations(slide);
+        QVERIFY(seq.editable);
+        QCOMPARE(int(seq.kept.size()), 1);
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const QString written = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(written.contains(waits));
+        QVERIFY2(written.contains(QStringLiteral("<p:bldP spid=\"11\"")), qPrintable(written.right(500)));
+        QVERIFY2(animIdProblem(written).isEmpty(), qPrintable(animIdProblem(written)));
+    }
+
+    // A paragraph that is gone has no effect: not in the pane, not written, and not a click in the show.
+    void animationEditDropsParagraphsThatAreGone()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 3));
+        deck::setByParagraph(seq, 0, true, *d, slide);
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(int(deck::playableTimeline(*d, slide).steps.size()), 3);
+        QTextDocument *story = d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId);
+        story->setPlainText(QStringLiteral("First paragraph\nSecond paragraph"));
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 3);
+        QCOMPARE(int(deck::readAnimations(slide, d.get()).effects.size()), 2);
+        QCOMPARE(int(deck::playableTimeline(*d, slide).steps.size()), 2);
+        // The next write leaves it out.
+        deck::AnimSequence again = deck::readAnimations(slide);
+        again.add(deck::makeAnim(QStringLiteral("entr.fly"), 2));
+        deck::setAnimations(*d, slide, again);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 3);
+    }
+
+    // A kept effect nested deeper than a hundred levels is written back whole.
+    void animationEditKeepsDeepEffects()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        QString inner = animXml("<p:set><p:cBhvr><p:cTn dur='1' fill='hold' id='900'/><p:tgtEl><p:spTgt spid='10'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='visible'/></p:to></p:set>");
+        for (int i = 0; i < 40; ++i) inner = animXml("<p:par><p:cTn fill='hold' id='%1'><p:childTnLst>").arg(100 + i) + inner + animXml("</p:childTnLst></p:cTn></p:par>");
+        const QString effect = animXml("<p:par><p:cTn presetID='77' presetClass='entr' presetSubtype='0' fill='hold' nodeType='clickEffect' id='5'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>")
+                               + inner + animXml("</p:childTnLst></p:cTn></p:par>");
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(effect);
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(int(seq.effects.size()), 1);
+        QVERIFY(seq.effects[0].custom());
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QCOMPARE(xml.count(QStringLiteral("<p:par>")), effect.count(QStringLiteral("<p:par>")) + 5);   // the nested pars, and each click's two and the new effect's one
+        QVERIFY(xml.contains(QStringLiteral("spid=\"10\"")));
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+    }
+
+    // The Repeat box keeps a repeat that is not a whole number.
+    void animationOptionsDialogKeepsFractionalRepeats()
+    {
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 3);
+        a.repeat = 2.5;
+        AnimationOptionsDialog dlg(a, false, AnimationOptionsDialog::TimingTab);
+        QCOMPARE(dlg.result().repeat, 2.5);
+        a.repeat = 3;
+        AnimationOptionsDialog whole(a, false, AnimationOptionsDialog::TimingTab);
+        QCOMPARE(whole.result().repeat, 3.0);
+    }
+
+    // The gallery's pictures say what each effect is called, under the picture.
+    void animationGalleryPicturesAreNamed()
+    {
+        const deck::EffectKind &kind = *deck::effectKind(QStringLiteral("entr.fly"));
+        const QSize size(64, 60);
+        const QImage plain = effectIcon(kind).pixmap(size).toImage(), named = effectIcon(kind, QString(), true).pixmap(size).toImage();
+        QVERIFY(plain != named);
+        // The name is in the bottom of the picture, and the slide above it.
+        int ink = 0;
+        for (int y = size.height() - 12; y < size.height(); ++y)
+            for (int x = 8; x < size.width() - 8; ++x)
+                if (qAlpha(named.pixel(x, y)) > 160) ++ink;
+        QVERIFY2(ink > 15, qPrintable(QString::number(ink)));
+        QCOMPARE(qAlpha(named.pixel(4, size.height() - 3)), 0);
+        QVERIFY(qAlpha(plain.pixel(4, size.height() - 3)) > 0);
+    }
+
+    // The windows of the animation feature, as pictures, when JD_ANIM_SHOTS names a folder (the other times it only checks that they draw).
+    void animationScreenshots()
+    {
+        const QString folder = qEnvironmentVariable("JD_ANIM_SHOTS");
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        w.newSlide(QStringLiteral("obj"));
+        auto slidePage = [ed]() -> Page & { return *ed->doc()->pages[ed->currentPage()]; };
+        ed->doc()->storyDoc(static_cast<TextItem *>(slidePage().items[0].get())->storyId)->setPlainText(QStringLiteral("Quarterly review"));
+        ed->doc()->storyDoc(static_cast<TextItem *>(slidePage().items[1].get())->storyId)->setPlainText(QStringLiteral("Sales grew in every region\nThree new offices opened\nCosts stayed flat"));
+        auto box = std::make_shared<ShapeItem>();
+        box->name = QStringLiteral("Growth chart");
+        box->rect = QRectF(560, 330, 300, 150);
+        box->fill = Fill::solid(ColorRef::rgb(QColor(0x3A, 0x6E, 0xA5)));
+        slidePage().items.push_back(box);
+        auto pick = [&](const QString &id, const char *action) {
+            ed->select(id);
+            w.act(action)->trigger();
+        };
+        pick(slidePage().items[0]->id, "anim.set.entr.fade");
+        pick(slidePage().items[1]->id, "anim.set.entr.fly");
+        {
+            const deck::AnimSequence seq = deck::readAnimations(slidePage());
+            deck::AnimSequence two = seq;
+            two.effects[0].start = deck::EffectStart::OnClick;
+            deck::setByParagraph(two, 1, true, *ed->doc(), slidePage());
+            deck::setAnimations(*ed->doc(), slidePage(), two);
+        }
+        pick(box->id, "anim.set.emph.spin");
+        w.act("anim.add.path.shapes")->trigger();
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Animations")));
+        w.showAnimationPane(true);
+        w.animationPane()->list()->setCurrentRow(3, QItemSelectionModel::ClearAndSelect);
+        QTRY_VERIFY(w.animationPane()->isVisible());
+        QApplication::processEvents();
+        QCOMPARE(w.animationPane()->rowCount(), 6);
+        auto save = [&](const QImage &img, const char *name) {
+            QVERIFY(!img.isNull());
+            if (!folder.isEmpty()) QVERIFY(img.save(QDir(folder).filePath(QString::fromLatin1(name))));
+        };
+        save(w.grab().toImage(), "tab-and-pane.png");
+        // The gallery, all open.
+        auto *gallery = w.ribbon()->findChild<Gallery *>(QStringLiteral("animationGallery"));
+        QVERIFY(gallery);
+        for (QToolButton *b : gallery->findChildren<QToolButton *>())
+            if (b->accessibleName() == QLatin1String("Show all")) b->click();
+        QTRY_VERIFY(QApplication::activePopupWidget());
+        save(QApplication::activePopupWidget()->grab().toImage(), "gallery.png");
+        QApplication::activePopupWidget()->close();
+        // Effect Options of the fly in.
+        w.animationPane()->list()->setCurrentRow(1, QItemSelectionModel::ClearAndSelect);
+        QMenu *menu = nullptr;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() && b->defaultAction()->objectName() == QLatin1String("ribbon.animEffectOptions") && b->menu()) menu = b->menu();
+        QVERIFY(menu);
+        menu->popup(QPoint(300, 200));
+        QTRY_VERIFY(menu->isVisible());
+        save(menu->grab().toImage(), "effect-options-menu.png");
+        menu->close();
+        // The row menu.
+        // The dialogs.
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fly"), 3);
+        a.variant = QStringLiteral("left");
+        a.duration = 1500;
+        a.delay = 250;
+        a.smoothEnd = true;
+        for (auto tab : {AnimationOptionsDialog::EffectTab, AnimationOptionsDialog::TimingTab, AnimationOptionsDialog::TextTab}) {
+            AnimationOptionsDialog dlg(a, true, tab, &w);
+            dlg.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&dlg));
+            save(dlg.grab().toImage(), tab == AnimationOptionsDialog::EffectTab ? "dialog-effect.png" : tab == AnimationOptionsDialog::TimingTab ? "dialog-timing.png" : "dialog-text.png");
+        }
     }
 
     // ---- the show plays them ----
@@ -8829,6 +12611,790 @@ private Q_SLOTS:
         }
         // Nothing else is added for them.
         QCOMPARE(int(d->pages[0]->items.size()), readerReadsPictures() ? 6 : 5);
+    }
+
+private:
+    // A 4 by 4 picture of one color (a different one from tinyPng's, which the theme's first accent matches).
+    static QByteArray colorPng(const QColor &color)
+    {
+        QImage img(4, 4, QImage::Format_RGB32);
+        img.fill(color);
+        QByteArray bytes;
+        QBuffer buf(&bytes);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        return bytes;
+    }
+    static QString dspNamespace() { return QStringLiteral("http://schemas.microsoft.com/office/drawing/2008/diagram"); }
+    static QString diagramDrawingType() { return QStringLiteral("http://schemas.microsoft.com/office/2007/relationships/diagramDrawing"); }
+    // One shape of a diagram's drawing, as the presentation program writes it: the shape, its style, its text, and the rectangle the text goes in.
+    static QString diagramShape(const QString &place, const QString &geometry, const QString &fill, const QString &text, const QString &textPlace)
+    {
+        return QStringLiteral("<dsp:sp modelId=\"{AAAAAAAA-0000-4000-8000-%1}\"><dsp:nvSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvSpPr/></dsp:nvSpPr>"
+                              "<dsp:spPr><a:xfrm>%2</a:xfrm><a:prstGeom prst=\"%3\"><a:avLst/></a:prstGeom>%4<a:ln w=\"12700\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\">"
+                              "<a:solidFill><a:srgbClr val=\"FFFFFF\"/></a:solidFill><a:prstDash val=\"solid\"/><a:miter lim=\"800000\"/></a:ln><a:effectLst/></dsp:spPr>"
+                              "<dsp:style><a:lnRef idx=\"2\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:lnRef><a:fillRef idx=\"1\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:fillRef>"
+                              "<a:effectRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"lt1\"/></a:fontRef></dsp:style>"
+                              "<dsp:txBody><a:bodyPr spcFirstLastPara=\"0\" vert=\"horz\" wrap=\"square\" lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" numCol=\"1\" spcCol=\"1270\" anchor=\"ctr\" anchorCtr=\"0\"><a:noAutofit/></a:bodyPr>"
+                              "<a:lstStyle/><a:p><a:pPr algn=\"ctr\"/><a:r><a:rPr lang=\"en-US\" sz=\"2400\" kern=\"1200\"/><a:t>%5</a:t></a:r></a:p></dsp:txBody>"
+                              "<dsp:txXfrm>%6</dsp:txXfrm></dsp:sp>")
+            .arg(QStringLiteral("%1").arg(qHash(text) % 1000000000000ULL, 12, 10, QLatin1Char('0')), place, geometry, fill, text, textPlace);
+    }
+    static QString diagramPlace(qint64 x, qint64 y, qint64 cx, qint64 cy)
+    {
+        return QStringLiteral("<a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"%3\" cy=\"%4\"/>").arg(x).arg(y).arg(cx).arg(cy);
+    }
+    // The diagram's drawing: three shapes (a rectangle in the theme's first accent color, a rounded one with its text inset, a rectangle filled with a
+    // picture of the drawing part's own), in the space of the frame, which is 3657600 by 1828800.
+    static QByteArray diagramDrawing()
+    {
+        const QString head = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><dsp:drawing xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" "
+                                            "xmlns:dsp=\"%1\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                                            "<dsp:spTree><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>").arg(dspNamespace());
+        const QString accent = QStringLiteral("<a:solidFill><a:schemeClr val=\"accent1\"><a:hueOff val=\"0\"/><a:satOff val=\"0\"/><a:lumOff val=\"0\"/><a:alphaOff val=\"0\"/></a:schemeClr></a:solidFill>");
+        const QString picture = QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill>");
+        return (head
+                + diagramShape(diagramPlace(0, 457200, 1066800, 914400), QStringLiteral("rect"), accent, QStringLiteral("First"), diagramPlace(0, 457200, 1066800, 914400))
+                + diagramShape(diagramPlace(1295400, 457200, 1066800, 914400), QStringLiteral("roundRect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>"),
+                               QStringLiteral("Second"), diagramPlace(1447800, 609600, 762000, 609600))
+                + diagramShape(diagramPlace(2590800, 457200, 1066800, 914400), QStringLiteral("rect"), picture, QStringLiteral("Third"), diagramPlace(2590800, 457200, 1066800, 914400))
+                + QStringLiteral("</dsp:spTree></dsp:drawing>")).toUtf8();
+    }
+    // The sample presentation with a diagram (SmartArt) on its first slide, as the presentation program writes one: the frame names the diagram's
+    // data, layout, quick style, and colors by the slide's links to them; the slide also links to the drawing part (the shapes as they were
+    // drawn), which the data part names by that link's id (dsp:dataModelExt). `alone`: the slide has nothing else, so the links
+    // are numbered as the presentation program numbers them (the layout 1, the data 2, and on to the drawing's 6).
+    static Parts smartArtPptx(bool alone = false, bool withDrawing = true)
+    {
+        Parts p = samplePptx();
+        const QString slide = QStringLiteral("/ppt/slides/slide1.xml");
+        if (alone) {
+            p.rels.erase(std::remove_if(p.rels.begin(), p.rels.end(), [&](const Rel &r) { return r.source == slide && r.type != QLatin1String("slideLayout"); }), p.rels.end());
+            p.data[slide].xml = slideXml(QString(), QString(), QString()).toUtf8();
+        }
+        int next = 1;
+        for (const Rel &r : std::as_const(p.rels)) next += r.source == slide;
+        const QString frame = QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"9\" name=\"Diagram 8\" descr=\"A process\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                                             "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1828800\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\">"
+                                             "<dgm:relIds xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" r:dm=\"rId%1\" r:lo=\"rId%2\" r:qs=\"rId%3\" r:cs=\"rId%4\"/>"
+                                             "</a:graphicData></a:graphic></p:graphicFrame>").arg(next).arg(next + 1).arg(next + 2).arg(next + 3);
+        QString xml = QString::fromUtf8(p.data[slide].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), frame + QStringLiteral("</p:spTree>"));
+        p.data[slide].xml = xml.toUtf8();
+        const QString diagramType = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.diagram");
+        const QString ext = withDrawing ? QStringLiteral("<dgm:extLst><a:ext uri=\"http://schemas.microsoft.com/office/drawing/2008/diagram\"><dsp:dataModelExt xmlns:dsp=\"%1\" relId=\"rId%2\" "
+                                                         "minVer=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\"/></a:ext></dgm:extLst>").arg(dspNamespace()).arg(next + 4)
+                                        : QString();
+        const QString head = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+        const QString dgmNs = QStringLiteral("xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"");
+        p.data["/ppt/diagrams/data1.xml"] = {diagramType + QStringLiteral("Data+xml"),
+            (head + QStringLiteral("<dgm:dataModel %1><dgm:ptLst><dgm:pt modelId=\"{1}\" type=\"doc\"><dgm:prSet loTypeId=\"urn:test:layout\"/><dgm:spPr/><dgm:t><a:bodyPr/><a:p><a:r><a:t>First</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst>"
+                                 "<dgm:cxnLst/><dgm:bg/><dgm:whole/>%2</dgm:dataModel>").arg(dgmNs, ext)).toUtf8()};
+        p.data["/ppt/diagrams/layout1.xml"] = {diagramType + QStringLiteral("Layout+xml"), (head + QStringLiteral("<dgm:layoutDef %1 uniqueId=\"urn:test:layout\"><dgm:title val=\"\"/><dgm:desc val=\"\"/></dgm:layoutDef>").arg(dgmNs)).toUtf8()};
+        p.data["/ppt/diagrams/quickStyle1.xml"] = {diagramType + QStringLiteral("Style+xml"), (head + QStringLiteral("<dgm:styleDef %1 uniqueId=\"urn:test:style\"><dgm:title val=\"\"/><dgm:desc val=\"\"/></dgm:styleDef>").arg(dgmNs)).toUtf8()};
+        p.data["/ppt/diagrams/colors1.xml"] = {diagramType + QStringLiteral("Colors+xml"), (head + QStringLiteral("<dgm:colorsDef %1 uniqueId=\"urn:test:colors\"><dgm:title val=\"\"/><dgm:desc val=\"\"/></dgm:colorsDef>").arg(dgmNs)).toUtf8()};
+        p.rels << Rel{slide, "diagramData", "/ppt/diagrams/data1.xml"} << Rel{slide, "diagramLayout", "/ppt/diagrams/layout1.xml"} << Rel{slide, "diagramQuickStyle", "/ppt/diagrams/quickStyle1.xml"}
+               << Rel{slide, "diagramColors", "/ppt/diagrams/colors1.xml"};
+        if (withDrawing) {
+            p.data["/ppt/diagrams/drawing1.xml"] = {QStringLiteral("application/vnd.ms-office.drawingml.diagramDrawing+xml"), diagramDrawing()};
+            p.data["/ppt/media/diagram1.png"] = {QStringLiteral("image/png"), colorPng(QColor(0x20, 0x90, 0x40))};
+            p.rels << Rel{slide, diagramDrawingType(), "/ppt/diagrams/drawing1.xml"} << Rel{"/ppt/diagrams/drawing1.xml", "image", "/ppt/media/diagram1.png"};
+        }
+        return p;
+    }
+    // The picture a kept frame of one kind ("diagram", "equation") is on the slide: the one the slide's kept frames of that kind name.
+    static const PictureItem *keptPicture(const Document &d, const Page &page, const QString &kind)
+    {
+        for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray()) {
+            if (v.toObject().value(QStringLiteral("kind")).toString() != kind) continue;
+            const Document::Loc at = d.find(v.toObject().value(QStringLiteral("item")).toString());
+            if (at.item && at.item->type() == ItemType::Picture) return static_cast<const PictureItem *>(at.item);
+        }
+        return nullptr;
+    }
+    static QJsonObject keptFrameOf(const Page &page, const QString &kind)
+    {
+        for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray())
+            if (v.toObject().value(QStringLiteral("kind")).toString() == kind) return v.toObject();
+        return QJsonObject();
+    }
+    // Every element called `name` (by local name) in `e` and below it, in document order.
+    static void collectNamed(const QDomElement &e, const QString &name, QVector<QDomElement> *out)
+    {
+        if (e.localName() == name) out->append(e);
+        for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collectNamed(c, name, out);
+    }
+    // The place an a:xfrm (or p:xfrm) says, in EMU: x, y, cx, cy.
+    static QVector<qint64> placeOf(const QDomElement &xfrm)
+    {
+        const QDomElement off = office::child(xfrm, office::ns::A, QStringLiteral("off")), ext = office::child(xfrm, office::ns::A, QStringLiteral("ext"));
+        return {off.attribute(QStringLiteral("x")).toLongLong(), off.attribute(QStringLiteral("y")).toLongLong(), ext.attribute(QStringLiteral("cx")).toLongLong(), ext.attribute(QStringLiteral("cy")).toLongLong()};
+    }
+    // The graphic frame called `name` in the XML of a slide.
+    static QDomElement frameNamed(const QDomElement &root, const QString &name)
+    {
+        QVector<QDomElement> all;
+        collectNamed(root, QStringLiteral("graphicFrame"), &all);
+        for (const QDomElement &f : std::as_const(all))
+            if (office::child(office::child(f, office::ns::P, QStringLiteral("nvGraphicFramePr")), office::ns::P, QStringLiteral("cNvPr")).attribute(QStringLiteral("name")) == name) return f;
+        return QDomElement();
+    }
+    static QByteArray keptBytes(const QJsonObject &frame, const QString &part)
+    {
+        return QByteArray::fromBase64(frame.value(QStringLiteral("parts")).toObject().value(part).toObject().value(QStringLiteral("data")).toString().toLatin1());
+    }
+    // The SVG a picture is, drawn into pixels `size` big on a clear ground.
+    static QImage svgPixels(const Document &d, const PictureItem &pic, const QSize &size)
+    {
+        QSvgRenderer svg(d.images.value(pic.imageId).bytes);
+        QImage img(size, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::transparent);
+        QPainter painter(&img);
+        svg.render(&painter);
+        return img;
+    }
+
+private Q_SLOTS:
+    // A diagram (SmartArt) on a slide is a picture of its drawing (an SVG, drawn from the shapes the drawing part holds, in the frame's place), and
+    // what it is made of (the data, layout, style, and colors, the drawing, and the pictures in it) is kept with the slide to be written back.
+    void importReadsDiagramsAsPictures()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Page &page = *d->pages[0];
+        const PictureItem *pic = keptPicture(*d, page, QStringLiteral("diagram"));
+        QVERIFY(pic);
+        QCOMPARE(pic->name, QStringLiteral("Diagram 8"));
+        QCOMPARE(pic->altText, QStringLiteral("A process"));
+        QCOMPARE(pic->rect, QRectF(72, 72, 288, 144));
+        QCOMPARE(pic->imgRect, QRectF(0, 0, 288, 144));
+        QCOMPARE(d->images.value(pic->imageId).format, QStringLiteral("svg"));
+        // Drawn as the shapes are: in the theme's accent, in the color the shape names, with the white of the line and the text.
+        const QByteArray svg = d->images.value(pic->imageId).bytes;
+        QVERIFY(svg.contains("#b6420f"));
+        QVERIFY(svg.contains("#336699"));
+        QVERIFY(svg.contains("#fefefe"));   // the theme's lt1: the text, by the style's font reference
+        QVERIFY(!svg.contains("JeffPub"));
+        // The drawing is in points, and asks to be drawn three pixels to the point: a screen draws it at that size however far it is zoomed in.
+        QSvgRenderer drawing(svg);
+        QCOMPARE(drawing.viewBoxF(), QRectF(0, 0, 288, 144));
+        QCOMPARE(drawing.defaultSize(), QSize(864, 432));
+        QCOMPARE(d->images.value(pic->imageId).image().size(), QSize(1200, 600));   // and a picture of it is as large as a screen needs: 1200 across at least
+        const QImage img = svgPixels(*d, *pic, QSize(288, 144));
+        QCOMPARE(img.pixelColor(10, 45), QColor(0xB6, 0x42, 0x0F));    // the first shape, at 0 to 84 across and 36 to 108 down
+        QCOMPARE(img.pixelColor(110, 45), QColor(0x33, 0x66, 0x99));   // the second, from 102 across
+        QCOMPARE(img.pixelColor(210, 45), QColor(0x20, 0x90, 0x40));   // the third is filled with its picture
+        QCOMPARE(img.pixelColor(100, 10).alpha(), 0);                   // nothing in between, or around
+        QCOMPARE(img.pixelColor(10, 130).alpha(), 0);
+        // The text is in the rectangle the drawing gives it: light letters in the middle of the first shape, none at its corner.
+        bool light = false;
+        for (int y = 56; y < 88 && !light; ++y)
+            for (int x = 20; x < 64 && !light; ++x) light = img.pixelColor(x, y).red() > 0xE0 && img.pixelColor(x, y).green() > 0xE0;
+        QVERIFY(light);
+        // Only the unknown frame of the sample is left unread, and the diagram's frame is kept apart from it.
+        QCOMPARE(int(page.props.value(QStringLiteral("unread")).toArray().size()), 1);
+        const QJsonObject kept = keptFrameOf(page, QStringLiteral("diagram"));
+        QCOMPARE(kept.value(QStringLiteral("item")).toString(), pic->id);
+        QDomDocument dom;
+        QString why;
+        QVERIFY2(office::parseXml(kept.value(QStringLiteral("frameXml")).toString().toUtf8(), &dom, &why), qPrintable(why));
+        QVERIFY(office::isElement(dom.documentElement(), office::ns::P, QStringLiteral("graphicFrame")));
+        const Parts source = smartArtPptx();
+        const QJsonObject parts = kept.value(QStringLiteral("parts")).toObject();
+        QCOMPARE(parts.keys(), (QStringList{"/ppt/diagrams/colors1.xml", "/ppt/diagrams/data1.xml", "/ppt/diagrams/drawing1.xml", "/ppt/diagrams/layout1.xml", "/ppt/diagrams/quickStyle1.xml", "/ppt/media/diagram1.png"}));
+        for (const QString &name : parts.keys()) {
+            QCOMPARE(keptBytes(kept, name), source.data.value(name).xml);
+            QCOMPARE(parts.value(name).toObject().value(QStringLiteral("type")).toString(), source.data.value(name).type);
+        }
+        // The slide's links to them, as the file has them.
+        const QJsonArray links = kept.value(QStringLiteral("links")).toArray();
+        QCOMPARE(int(links.size()), 5);
+        QStringList types;
+        for (const QJsonValue &l : links) types << l.toObject().value(QStringLiteral("type")).toString().section(QLatin1Char('/'), -1);
+        types.sort();
+        QCOMPARE(types, (QStringList{"diagramColors", "diagramData", "diagramDrawing", "diagramLayout", "diagramQuickStyle"}));
+    }
+
+    // A diagram that has no drawing part (an older file) is kept as the frame it is, as before: nothing is shown for it.
+    void importLeavesADiagramWithoutADrawingUnread()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx(false, false)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);
+        QCOMPARE(int(d->pages[0]->items.size()), readerReadsPictures() ? 6 : 5);
+        // A drawing that isn't a drawing, or has no shapes to draw from, is the same.
+        Parts p = smartArtPptx();
+        p.data["/ppt/diagrams/drawing1.xml"].xml = "<dsp:other xmlns:dsp=\"http://schemas.microsoft.com/office/drawing/2008/diagram\"/>";
+        d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);
+        // A diagram whose data part is gone from the file is the same.
+        p = smartArtPptx();
+        p.data.remove(QStringLiteral("/ppt/diagrams/data1.xml"));
+        d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+    }
+
+    // A diagram that many frames show is read and drawn once for each size and look, and its parts are kept once.
+    void importDrawsADiagramOnceForTheFramesThatShowIt()
+    {
+        QMap<QString, QByteArray> zip;
+        QString err;
+        QVERIFY2(readZip(pack(smartArtPptx()), zip, &err), qPrintable(err));
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        const int at = int(slide.indexOf(QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"9\"")));
+        const int end = int(slide.indexOf(QStringLiteral("</p:graphicFrame>"), at)) + 17;
+        const QString frame = slide.mid(at, end - at);
+        QString more;
+        for (int i = 0; i < 60; ++i)
+            more += QString(frame).replace(QStringLiteral("id=\"9\""), QStringLiteral("id=\"%1\"").arg(100 + i)).replace(QStringLiteral("Diagram 8"), QStringLiteral("Diagram %1").arg(100 + i))
+                        .replace(QStringLiteral("x=\"914400\""), QStringLiteral("x=\"%1\"").arg(914400 + i * 1000));
+        slide.insert(end, more);
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto d = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QJsonArray kept = d->pages[0]->props.value(QStringLiteral("charts")).toArray();
+        QCOMPARE(int(kept.size()), 61);
+        QSet<QString> images;
+        for (const QJsonValue &v : kept) {
+            const Document::Loc at = d->find(v.toObject().value(QStringLiteral("item")).toString());
+            QVERIFY(at.item && at.item->type() == ItemType::Picture);
+            images << static_cast<const PictureItem *>(at.item)->imageId;
+        }
+        QCOMPARE(int(images.size()), 1);
+        int svgs = 0;
+        for (const ImageData &image : std::as_const(d->images)) svgs += image.format == QLatin1String("svg");
+        QCOMPARE(svgs, 1);
+    }
+
+    // A file may have a thousand diagrams drawn: past that the frames are kept as they are, and the notes say so (each drawing is read, set, and
+    // kept as an SVG, and a package may name thousands of parts that each hold one).
+    void importLimitsTheDiagramsItDraws()
+    {
+        const Parts base = smartArtPptx(true);
+        QMap<QString, QByteArray> zip;
+        QString err;
+        QVERIFY2(readZip(pack(base), zip, &err), qPrintable(err));
+        // 1001 frames on the slide, each with a data part of its own that names a drawing part of its own (the layout, style, and colors are shared).
+        const int count = 1001;
+        QString frames, slideRels = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/_rels/slide1.xml.rels")));
+        slideRels.remove(QStringLiteral("</Relationships>"));
+        QString rels;
+        const QByteArray dataXml = zip.value(QStringLiteral("ppt/diagrams/data1.xml"));
+        const QByteArray drawingXml = (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><dsp:drawing xmlns:dsp=\"%1\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dsp:spTree>"
+                                                      "<dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>").arg(dspNamespace())
+                                       + diagramShape(diagramPlace(0, 0, 914400, 914400), QStringLiteral("rect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>"), QString(), diagramPlace(0, 0, 914400, 914400))
+                                             .replace(QRegularExpression(QStringLiteral("<dsp:txBody>.*</dsp:txBody>")), QString())
+                                       + QStringLiteral("</dsp:spTree></dsp:drawing>")).toUtf8();
+        for (int i = 0; i < count; ++i) {
+            const int dm = 100 + 2 * i, dr = 101 + 2 * i;
+            frames += QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"%1\" name=\"Diagram %1\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x=\"%2\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1828800\"/></p:xfrm>"
+                                    "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\"><dgm:relIds xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" r:dm=\"rId%3\" r:lo=\"rId3\" r:qs=\"rId4\" r:cs=\"rId5\"/></a:graphicData></a:graphic></p:graphicFrame>")
+                          .arg(10 + i).arg(914400 + i).arg(dm);
+            rels += QStringLiteral("<Relationship Id=\"rId%1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData\" Target=\"../diagrams/d%2.xml\"/>"
+                                   "<Relationship Id=\"rId%3\" Type=\"%4\" Target=\"../diagrams/w%2.xml\"/>").arg(dm).arg(i).arg(dr).arg(diagramDrawingType());
+            zip[QStringLiteral("ppt/diagrams/d%1.xml").arg(i)] = QByteArray(dataXml).replace("relId=\"rId6\"", QStringLiteral("relId=\"rId%1\"").arg(dr).toUtf8());
+            zip[QStringLiteral("ppt/diagrams/w%1.xml").arg(i)] = drawingXml;
+        }
+        zip[QStringLiteral("ppt/slides/_rels/slide1.xml.rels")] = (slideRels + rels + QStringLiteral("</Relationships>")).toUtf8();
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        slide.replace(QRegularExpression(QStringLiteral("<p:graphicFrame>.*</p:graphicFrame>")), frames);
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        QString types = QString::fromUtf8(zip.value(QStringLiteral("[Content_Types].xml")));
+        QString more;
+        for (int i = 0; i < count; ++i)
+            more += QStringLiteral("<Override PartName=\"/ppt/diagrams/d%1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml\"/>"
+                                   "<Override PartName=\"/ppt/diagrams/w%1.xml\" ContentType=\"application/vnd.ms-office.drawingml.diagramDrawing+xml\"/>").arg(i);
+        types.replace(QStringLiteral("</Types>"), more + QStringLiteral("</Types>"));
+        zip[QStringLiteral("[Content_Types].xml")] = types.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto d = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("charts")).toArray().size()), 1000);
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 1);
+        QVERIFY2(err.contains(QStringLiteral("more than 1000 diagrams")), qPrintable(err));
+    }
+
+    // Saved, the diagram is a frame again, with its parts and links in the package as they were: the same names, the same bytes, the links
+    // under the ids the file gave them (so what names them, the frame and the data part, is as it was).
+    void exportWritesTheKeptDiagramParts()
+    {
+        const Parts source = smartArtPptx(true);
+        QString err;
+        auto d = deck::importPresentation(pack(source), &err);
+        QVERIFY2(d, qPrintable(err));
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.filter(QStringLiteral("Slide 1")).isEmpty(), qPrintable(skipped.join('\n')));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slidePart = QStringLiteral("/ppt/slides/slide1.xml");
+        // The parts, byte for byte, with their content types.
+        for (const QString &name : {QStringLiteral("/ppt/diagrams/data1.xml"), QStringLiteral("/ppt/diagrams/layout1.xml"), QStringLiteral("/ppt/diagrams/quickStyle1.xml"),
+                                    QStringLiteral("/ppt/diagrams/colors1.xml"), QStringLiteral("/ppt/diagrams/drawing1.xml"), QStringLiteral("/ppt/media/diagram1.png")}) {
+            QVERIFY2(e.pkg.hasPart(name) || e.pkg.hasPart(QStringLiteral("/ppt/diagrams/") + name.section(QLatin1Char('/'), -1)), qPrintable(name));
+            const QString at = e.pkg.hasPart(name) ? name : QStringLiteral("/ppt/diagrams/") + name.section(QLatin1Char('/'), -1);
+            QCOMPARE(e.pkg.part(at), source.data.value(name).xml);
+            QCOMPARE(e.pkg.contentType(at), source.data.value(name).type);
+        }
+        // The slide's links, under the ids the file had: the layout is rId1, then the data (rId2) and on, to the drawing's rId6.
+        const QStringList ids = {QStringLiteral("rId2"), QStringLiteral("rId3"), QStringLiteral("rId4"), QStringLiteral("rId5"), QStringLiteral("rId6")};
+        const QStringList targets = {QStringLiteral("/ppt/diagrams/data1.xml"), QStringLiteral("/ppt/diagrams/layout1.xml"), QStringLiteral("/ppt/diagrams/quickStyle1.xml"),
+                                     QStringLiteral("/ppt/diagrams/colors1.xml"), QStringLiteral("/ppt/diagrams/drawing1.xml")};
+        const QStringList types = {QStringLiteral("/diagramData"), QStringLiteral("/diagramLayout"), QStringLiteral("/diagramQuickStyle"), QStringLiteral("/diagramColors"), QStringLiteral("/diagramDrawing")};
+        for (int i = 0; i < 5; ++i) {
+            const office::Relationship r = e.pkg.relationship(slidePart, ids[i]);
+            QCOMPARE(r.target, targets[i]);
+            QVERIFY2(r.type.endsWith(types[i]), qPrintable(r.type));
+        }
+        QCOMPARE(e.pkg.relationship(slidePart, QStringLiteral("rId6")).type, diagramDrawingType());
+        // The drawing's own link, to its picture.
+        QCOMPARE(int(relationshipTargets(e, QStringLiteral("/ppt/diagrams/drawing1.xml"), QStringLiteral("/image")).size()), 1);
+        // The frame as it was: its shape number, its name, its place, and its links to the data, layout, style, and colors.
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(slidePart.mid(1)), &dom);
+        const QDomElement frame = frameNamed(root, QStringLiteral("Diagram 8"));
+        QVERIFY(!frame.isNull());
+        const QDomElement cNvPr = office::child(office::child(frame, office::ns::P, QStringLiteral("nvGraphicFramePr")), office::ns::P, QStringLiteral("cNvPr"));
+        QCOMPARE(cNvPr.attribute(QStringLiteral("id")), QStringLiteral("9"));
+        QCOMPARE(cNvPr.attribute(QStringLiteral("descr")), QStringLiteral("A process"));
+        QCOMPARE(placeOf(office::child(frame, office::ns::P, QStringLiteral("xfrm"))), (QVector<qint64>{914400, 914400, 3657600, 1828800}));
+        QVector<QDomElement> relIds;
+        collectNamed(frame, QStringLiteral("relIds"), &relIds);
+        QCOMPARE(int(relIds.size()), 1);
+        QCOMPARE(office::attrNs(relIds[0], office::ns::R, QStringLiteral("dm")), QStringLiteral("rId2"));
+        QCOMPARE(office::attrNs(relIds[0], office::ns::R, QStringLiteral("lo")), QStringLiteral("rId3"));
+        QCOMPARE(office::attrNs(relIds[0], office::ns::R, QStringLiteral("qs")), QStringLiteral("rId4"));
+        QCOMPARE(office::attrNs(relIds[0], office::ns::R, QStringLiteral("cs")), QStringLiteral("rId5"));
+        const QString slide = part(e, slidePart);
+        // Nothing is left in place of it: no picture, no empty box.
+        QVERIFY(!slide.contains(QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"9\"")));
+    }
+
+    // When the slide's other links come first, the diagram's are numbered after them: the frame and the data part name the parts by the new ids, and
+    // nothing else in the data part changes.
+    void exportKeepsDiagramLinksWorkingWhenTheirIdsChange()
+    {
+        const Parts source = smartArtPptx();
+        QString err;
+        auto d = deck::importPresentation(pack(source), &err);
+        QVERIFY2(d, qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slidePart = QStringLiteral("/ppt/slides/slide1.xml");
+        const QStringList data = relationshipTargets(e, slidePart, QStringLiteral("/diagramData")), drawing = relationshipTargets(e, slidePart, QStringLiteral("/diagramDrawing"));
+        QCOMPARE(int(data.size()), 1);
+        QCOMPARE(int(drawing.size()), 1);
+        // The data part names the drawing by the link it has now.
+        const QString dataXml = QString::fromUtf8(e.pkg.part(data[0]));
+        const QRegularExpression named(QStringLiteral("<dsp:dataModelExt\\b[^>]*\\brelId=\"([^\"]*)\""));
+        QVERIFY2(named.match(dataXml).hasMatch(), qPrintable(dataXml));
+        QCOMPARE(e.pkg.relationship(slidePart, named.match(dataXml).captured(1)).target, drawing[0]);
+        QVERIFY(named.match(dataXml).captured(1) != QStringLiteral("rId8"));   // it was rId8 when the slide had its notes and picture linked first
+        // And is what it was but for that.
+        QString was = QString::fromUtf8(source.data.value(QStringLiteral("/ppt/diagrams/data1.xml")).xml);
+        was.replace(QStringLiteral("relId=\"rId8\""), QStringLiteral("relId=\"%1\"").arg(named.match(dataXml).captured(1)));
+        QCOMPARE(dataXml, was);
+        // The frame names the other three by their new ids.
+        const QString slide = part(e, slidePart);
+        for (const QString &kind : {QStringLiteral("lo"), QStringLiteral("qs"), QStringLiteral("cs")}) {
+            const QRegularExpression ref(QStringLiteral("r:%1=\"([^\"]*)\"").arg(kind));
+            QVERIFY2(ref.match(slide).hasMatch(), qPrintable(kind));
+            const office::Relationship r = e.pkg.relationship(slidePart, ref.match(slide).captured(1));
+            QVERIFY2(r.target.contains(kind == QLatin1String("lo") ? QStringLiteral("layout") : kind == QLatin1String("qs") ? QStringLiteral("quickStyle") : QStringLiteral("colors")), qPrintable(r.target));
+        }
+        QVERIFY(e.pkg.relationship(slidePart, QRegularExpression(QStringLiteral("r:dm=\"([^\"]*)\"")).match(slide).captured(1)).target == data[0]);
+    }
+
+    // A diagram that was moved or resized: its frame goes where the picture is, and only its place changes. One that wasn't is written with the
+    // place it had (even a size the reader holds to a slide's).
+    void exportPlacesAndDropsDiagrams()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx(true)), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto *pic = const_cast<PictureItem *>(keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        QVERIFY(pic);
+        pic->rect = QRectF(100, 50, 200, 150);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<p:xfrm><a:off x=\"1270000\" y=\"635000\"/><a:ext cx=\"2540000\" cy=\"1905000\"/></p:xfrm>")), qPrintable(slide));
+        // The data, layout, and drawing are as they were: the picture was moved, not the diagram's parts.
+        QCOMPARE(e.pkg.part(QStringLiteral("/ppt/diagrams/drawing1.xml")), diagramDrawing());
+        // Named again: the name and the alternative text of the picture are the frame's.
+        pic->name = QStringLiteral("Process");
+        pic->altText = QStringLiteral("Three steps");
+        Exported named;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &named, &err), qPrintable(err));
+        slide = part(named, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<p:cNvPr id=\"9\" name=\"Process\" descr=\"Three steps\"/>")), qPrintable(slide));
+        // Taken off the slide, its parts are not written, and nothing points at them.
+        auto &items = d->pages[0]->items;
+        for (size_t i = 0; i < items.size(); ++i)
+            if (items[i].get() == pic) {
+                items.erase(items.begin() + i);
+                break;
+            }
+        Exported gone;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &gone, &err), qPrintable(err));
+        QVERIFY2(packageProblem(gone).isEmpty(), qPrintable(packageProblem(gone)));
+        QVERIFY(!part(gone, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("drawingml/2006/diagram")));
+        for (const QString &name : gone.pkg.partNames()) QVERIFY2(!name.contains(QStringLiteral("/diagrams/")), qPrintable(name));
+    }
+
+    // The links a frame has to addresses outside the file (a click that opens a page) are not kept, and what they were on stays: none is left pointing
+    // at a link the slide no longer has.
+    void exportDropsTheHyperlinksOfADiagramFrame()
+    {
+        QString err;
+        Parts p = smartArtPptx(true);
+        QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        slide.replace(QStringLiteral("<p:cNvPr id=\"9\" name=\"Diagram 8\" descr=\"A process\"/>"), QStringLiteral("<p:cNvPr id=\"9\" name=\"Diagram 8\" descr=\"A process\"><a:hlinkClick r:id=\"rId7\"/></p:cNvPr>"));
+        p.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        p.rels << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("https://example.com/x"), true};
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QVERIFY(!part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("hlinkClick")));
+        QDomDocument dom;
+        QVERIFY(!frameNamed(rootOf(e.zip.value(QStringLiteral("ppt/slides/slide1.xml")), &dom), QStringLiteral("Diagram 8")).isNull());
+    }
+
+    void exportKeepsTheFrameOfAnUnmovedDiagramAsItWas()
+    {
+        QString err;
+        Parts p = smartArtPptx(true);
+        // A frame larger than a slide can be is drawn at the largest size, and written as it was while it isn't moved or resized.
+        QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        slide.replace(QStringLiteral("<a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1828800\"/>"), QStringLiteral("<a:off x=\"-914400\" y=\"914400\"/><a:ext cx=\"60000000\" cy=\"1828800\"/>"));
+        p.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto *pic = const_cast<PictureItem *>(keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(-72, 72, office::kChartMaxSide, 144));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QDomDocument dom;
+        QCOMPARE(placeOf(office::child(frameNamed(rootOf(e.zip.value(QStringLiteral("ppt/slides/slide1.xml")), &dom), QStringLiteral("Diagram 8")), office::ns::P, QStringLiteral("xfrm"))),
+                 (QVector<qint64>{-914400, 914400, 60000000, 1828800}));
+        // Moved, it is written where it is.
+        pic->rect.moveTo(10, 20);
+        Exported moved;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &moved, &err), qPrintable(err));
+        QVERIFY2(part(moved, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:xfrm><a:off x=\"127000\" y=\"254000\"/><a:ext cx=\"51206400\" cy=\"1828800\"/></p:xfrm>")),
+                 qPrintable(part(moved, QStringLiteral("/ppt/slides/slide1.xml"))));
+    }
+
+    // A duplicated slide keeps its diagram (the copy of the diagram's picture is written as the diagram, once more).
+    void duplicatedSlideKeepsItsDiagram()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(deck::duplicateSlide(*d, 0), 1);
+        QVERIFY(keptPicture(*d, *d->pages[1], QStringLiteral("diagram")));
+        QVERIFY(keptPicture(*d, *d->pages[1], QStringLiteral("diagram"))->id != keptPicture(*d, *d->pages[0], QStringLiteral("diagram"))->id);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        for (const QString &slide : {QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/ppt/slides/slide2.xml")}) {
+            QCOMPARE(int(relationshipTargets(e, slide, QStringLiteral("/diagramData")).size()), 1);
+            QCOMPARE(int(relationshipTargets(e, slide, QStringLiteral("/diagramDrawing")).size()), 1);
+        }
+        // Each frame has parts of its own.
+        QVERIFY(relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/diagramData")) != relationshipTargets(e, QStringLiteral("/ppt/slides/slide2.xml"), QStringLiteral("/diagramData")));
+    }
+
+    // What was saved reads again as it did: the picture of the diagram, and its parts, for the next save.
+    void diagramsSurviveAnotherRoundTrip()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const PictureItem *pic = keptPicture(*back, *back->pages[0], QStringLiteral("diagram"));
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(72, 72, 288, 144));
+        // The drawing is drawn as it was (but for the number the writer gives a picture fill).
+        QString svgWas = QString::fromUtf8(d->images.value(keptPicture(*d, *d->pages[0], QStringLiteral("diagram"))->imageId).bytes), svgNow = QString::fromUtf8(back->images.value(pic->imageId).bytes);
+        svgWas.replace(QRegularExpression(QStringLiteral("texpattern_[0-9a-f]+")), QStringLiteral("texpattern"));
+        svgNow.replace(QRegularExpression(QStringLiteral("texpattern_[0-9a-f]+")), QStringLiteral("texpattern"));
+        QVERIFY(svgWas == svgNow);
+        const QJsonObject was = keptFrameOf(*d->pages[0], QStringLiteral("diagram")), now = keptFrameOf(*back->pages[0], QStringLiteral("diagram"));
+        QCOMPARE(now.value(QStringLiteral("parts")).toObject().keys(), was.value(QStringLiteral("parts")).toObject().keys());   // the picture in the drawing keeps its name too
+        QCOMPARE(keptBytes(now, QStringLiteral("/ppt/diagrams/drawing1.xml")), diagramDrawing());
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QCOMPARE(e.pkg.part(QStringLiteral("/ppt/diagrams/drawing1.xml")), diagramDrawing());
+    }
+
+private:
+    static QString mathNamespace() { return QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/math"); }
+    static QByteArray equationPicture()
+    {
+        QImage img(60, 20, QImage::Format_RGB32);
+        img.fill(QColor(0xC0, 0x30, 0x30));
+        QByteArray bytes;
+        QBuffer buf(&bytes);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        return bytes;
+    }
+    // An equation as the presentation program writes one: a pair of alternatives, the shape with its text (the math in a14:m, among the
+    // runs of the paragraph) for the programs that know it, and a picture of the shape for the others. `fallback`: "pic" (a picture) or "shape" (a
+    // shape filled with the picture, as an older version wrote it). `mixed`: a text box with other text around the equation.
+    static QString equationAlternative(int id, int embed, const QString &fallback = QStringLiteral("pic"), bool mixed = false)
+    {
+        const QString math = QStringLiteral("<m:oMath><m:r><a:rPr lang=\"en-US\" sz=\"2800\" i=\"1\"><a:latin typeface=\"Cambria Math\" panose=\"02040503050406030204\" pitchFamily=\"18\" charset=\"0\"/></a:rPr>"
+                                            "<m:t>E=mc</m:t></m:r><m:sSup><m:sSupPr><m:ctrlPr><a:rPr lang=\"en-US\" sz=\"2800\" i=\"1\"/></m:ctrlPr></m:sSupPr><m:e/><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup></m:oMath>");
+        const QString body = mixed ? QStringLiteral("<a:r><a:rPr lang=\"en-US\" sz=\"2800\"/><a:t>Energy </a:t></a:r><a14:m>%1</a14:m><a:r><a:rPr lang=\"en-US\" sz=\"2800\"/><a:t> is mass</a:t></a:r>").arg(math)
+                                   : QStringLiteral("<a14:m><m:oMathPara><m:oMathParaPr><m:jc m:val=\"centerGroup\"/></m:oMathParaPr>%1</m:oMathPara></a14:m>").arg(math);
+        const QString place = QStringLiteral("<a:xfrm><a:off x=\"1524000\" y=\"2209800\"/><a:ext cx=\"1905000\" cy=\"508000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>");
+        const QString fallbackShape = fallback == QLatin1String("pic")
+            ? QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"%1\" name=\"TextBox %2\"/><p:cNvPicPr><a:picLocks noRot=\"1\" noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>"
+                             "<p:blipFill><a:blip r:embed=\"rId%3\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>%4</p:spPr></p:pic>")
+                  .arg(id).arg(id - 1).arg(embed).arg(place)
+            : QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"TextBox %2\"/><p:cNvSpPr txBox=\"1\"><a:spLocks noRot=\"1\" noChangeArrowheads=\"1\"/></p:cNvSpPr><p:nvPr/></p:nvSpPr>"
+                             "<p:spPr bwMode=\"auto\">%4<a:blipFill><a:blip r:embed=\"rId%3\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:ln><a:noFill/></a:ln></p:spPr>"
+                             "<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"><a:noFill/></a:rPr><a:t> </a:t></a:r></a:p></p:txBody></p:sp>")
+                  .arg(id).arg(id - 1).arg(embed).arg(place);
+        return QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\">"
+                              "<mc:Choice xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" Requires=\"a14\"><p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"TextBox %2\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr>"
+                              "<p:spPr>%3<a:noFill/></p:spPr><p:txBody><a:bodyPr wrap=\"none\" rtlCol=\"0\"><a:spAutoFit/></a:bodyPr><a:lstStyle/><a:p>%4<a:endParaRPr lang=\"en-US\" sz=\"2800\"/></a:p></p:txBody></p:sp></mc:Choice>"
+                              "<mc:Fallback>%5</mc:Fallback></mc:AlternateContent>")
+            .arg(id).arg(id - 1).arg(place, body, fallbackShape)
+            .replace(QStringLiteral("<m:oMathPara>"), QStringLiteral("<m:oMathPara xmlns:m=\"%1\">").arg(mathNamespace()))
+            .replace(QStringLiteral("<m:oMath>"), mixed ? QStringLiteral("<m:oMath xmlns:m=\"%1\">").arg(mathNamespace()) : QStringLiteral("<m:oMath>"));
+    }
+    // The sample presentation with an equation on its first slide (the picture of it has a link of its own).
+    static Parts equationPptx(const QString &fallback = QStringLiteral("pic"), bool mixed = false, bool withPicture = true)
+    {
+        Parts p = samplePptx();
+        const QString slide = QStringLiteral("/ppt/slides/slide1.xml");
+        int next = 1;
+        for (const Rel &r : std::as_const(p.rels)) next += r.source == slide;
+        QString xml = QString::fromUtf8(p.data[slide].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), equationAlternative(9, next, fallback, mixed) + QStringLiteral("</p:spTree>"));
+        p.data[slide].xml = xml.toUtf8();
+        if (withPicture) {
+            p.data["/ppt/media/equation1.png"] = {QStringLiteral("image/png"), equationPicture()};
+            p.rels << Rel{slide, "image", "/ppt/media/equation1.png"};
+        }
+        return p;
+    }
+    // The pair of alternatives in the XML of a slide.
+    static QString equationIn(const QString &slide)
+    {
+        const int at = int(slide.indexOf(QStringLiteral("<mc:AlternateContent")));
+        if (at < 0) return QString();
+        return slide.mid(at, slide.indexOf(QStringLiteral("</mc:AlternateContent>"), at) + 22 - at);
+    }
+
+private Q_SLOTS:
+    // An equation is a shape whose text holds math this reader can't draw. The shape beside it, for the programs that don't know math, is
+    // a picture of it: that picture is what the equation looks like here, and the whole pair is kept to write back.
+    void importReadsAnEquationAsItsPicture()
+    {
+        for (const QString &form : {QStringLiteral("pic"), QStringLiteral("shape")}) {
+            QString err;
+            auto d = deck::importPresentation(pack(equationPptx(form)), &err);
+            QVERIFY2(d, qPrintable(err));
+            const Page &page = *d->pages[0];
+            const PictureItem *pic = keptPicture(*d, page, QStringLiteral("equation"));
+            QVERIFY2(pic, qPrintable(form));
+            QCOMPARE(pic->name, QStringLiteral("TextBox 8"));
+            QCOMPARE(pic->rect, QRectF(120, 174, 150, 40));
+            QCOMPARE(pic->imgRect, QRectF(0, 0, 150, 40));
+            QCOMPARE(d->images.value(pic->imageId).bytes, equationPicture());
+            // The picture, and not the shape with the math: no text box is left empty in its place.
+            for (const ItemPtr &it : page.items) QVERIFY2(it->name != QStringLiteral("TextBox 8") || it->type() == ItemType::Picture, qPrintable(form));
+            QCOMPARE(int(page.items.size()), readerReadsPictures() ? 7 : 6);
+            QCOMPARE(int(page.props.value(QStringLiteral("unread")).toArray().size()), 1);
+            const QJsonObject kept = keptFrameOf(page, QStringLiteral("equation"));
+            QCOMPARE(kept.value(QStringLiteral("item")).toString(), pic->id);
+            QVERIFY(kept.value(QStringLiteral("xml")).toString().contains(QStringLiteral("<m:t>E=mc</m:t>")));
+            QDomDocument dom;
+            QString why;
+            QVERIFY2(office::parseXml(kept.value(QStringLiteral("xml")).toString().toUtf8(), &dom, &why), qPrintable(why));
+            QCOMPARE(dom.documentElement().localName(), QStringLiteral("AlternateContent"));
+        }
+    }
+
+    // A text box with other text around the equation is the same pair, and its picture is of the whole box.
+    void importReadsATextBoxWithAnEquationAsItsPicture()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(equationPptx(QStringLiteral("pic"), true)), &err);
+        QVERIFY2(d, qPrintable(err));
+        const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("equation"));
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(120, 174, 150, 40));
+        QVERIFY(keptFrameOf(*d->pages[0], QStringLiteral("equation")).value(QStringLiteral("xml")).toString().contains(QStringLiteral("Energy ")));
+    }
+
+    // A pair with no picture of the shape to show is read as it was before: the shape of the first alternative that can be read.
+    void importReadsAnEquationWithoutAPictureAsAShape()
+    {
+        QString err;
+        Parts p = equationPptx(QStringLiteral("pic"), false, false);
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QRegularExpression(QStringLiteral("<mc:Fallback>.*?</mc:Fallback>")), QStringLiteral("<mc:Fallback/>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("equation")));
+        QVERIFY(d->pages[0]->props.value(QStringLiteral("charts")).toArray().isEmpty());
+        bool box = false;
+        for (const ItemPtr &it : d->pages[0]->items) box = box || (it->name == QStringLiteral("TextBox 8") && it->type() == ItemType::Text);
+        QVERIFY(box);
+        // And so is a picture that can't be read.
+        p = equationPptx();
+        p.data["/ppt/media/equation1.png"].xml = "not a picture";
+        d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("equation")));
+    }
+
+    // Saved, the pair is written whole: the shape with its math as it was, and the picture beside it, with its link.
+    void exportWritesTheWholeEquation()
+    {
+        for (const QString &form : {QStringLiteral("pic"), QStringLiteral("shape")}) {
+            QString err;
+            auto d = deck::importPresentation(pack(equationPptx(form, form == QLatin1String("pic"))), &err);
+            QVERIFY2(d, qPrintable(err));
+            QStringList skipped;
+            Exported e;
+            QVERIFY2(unpack(deck::exportPresentation(*d, &err, &skipped), &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+            QVERIFY2(skipped.filter(QStringLiteral("Slide 1")).isEmpty(), qPrintable(skipped.join('\n')));
+            const QString pair = equationIn(part(e, QStringLiteral("/ppt/slides/slide1.xml")));
+            QVERIFY2(!pair.isEmpty(), qPrintable(form));
+            QCOMPARE(int(part(e, QStringLiteral("/ppt/slides/slide1.xml")).count(QStringLiteral("<mc:AlternateContent"))), 1);
+            // The first alternative: asks for a14, and holds the shape with its math.
+            QVERIFY2(pair.contains(QStringLiteral("Requires=\"a14\"")), qPrintable(pair));
+            QVERIFY(pair.contains(QStringLiteral("xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\"")));
+            QVERIFY(pair.contains(QStringLiteral("<a14:m>")));
+            QVERIFY(pair.contains(QStringLiteral("<m:t>E=mc</m:t>")));
+            QVERIFY(pair.contains(QStringLiteral("<m:sSup>")));
+            QVERIFY(pair.contains(QStringLiteral("typeface=\"Cambria Math\"")));
+            QVERIFY(pair.indexOf(QStringLiteral("<mc:Choice")) < pair.indexOf(QStringLiteral("<mc:Fallback")));
+            if (form == QLatin1String("pic")) QVERIFY(pair.contains(QStringLiteral("<a:t>Energy </a:t>")) && pair.contains(QStringLiteral("<a:t> is mass</a:t>")));
+            // The second: the picture, which the shape's link leads to, written as it was.
+            QVERIFY(pair.mid(pair.indexOf(QStringLiteral("<mc:Fallback"))).contains(form == QLatin1String("pic") ? QStringLiteral("<p:pic ") : QStringLiteral("<p:sp ")));
+            const QRegularExpression embed(QStringLiteral("r:embed=\"([^\"]*)\""));
+            QVERIFY(embed.match(pair).hasMatch());
+            const office::Relationship picture = e.pkg.relationship(QStringLiteral("/ppt/slides/slide1.xml"), embed.match(pair).captured(1));
+            QVERIFY(picture.type.endsWith(QStringLiteral("/image")));
+            QCOMPARE(e.pkg.part(picture.target), equationPicture());
+            // Its places in both are the ones it had, with its number and name.
+            QDomDocument dom;
+            QVERIFY(office::parseXml(pair.toUtf8(), &dom));
+            QVector<QDomElement> places, names;
+            collectNamed(dom.documentElement(), QStringLiteral("xfrm"), &places);
+            collectNamed(dom.documentElement(), QStringLiteral("cNvPr"), &names);
+            QCOMPARE(int(places.size()), 2);
+            for (const QDomElement &x : std::as_const(places)) QCOMPARE(placeOf(x), (QVector<qint64>{1524000, 2209800, 1905000, 508000}));
+            QCOMPARE(int(names.size()), 2);
+            for (const QDomElement &n : std::as_const(names)) QVERIFY(n.attribute(QStringLiteral("id")) == QLatin1String("9") && n.attribute(QStringLiteral("name")) == QLatin1String("TextBox 8"));
+            // No empty text box stands in for it: the pair is the only thing named so.
+            QCOMPARE(int(part(e, QStringLiteral("/ppt/slides/slide1.xml")).count(QStringLiteral("name=\"TextBox 8\""))), 2);
+        }
+    }
+
+    // Moved or resized, the equation is written where it is, in both alternatives, and nothing else of it changes.
+    void exportPlacesBothAlternativesOfAnEquation()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(equationPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        Exported before;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &before, &err), qPrintable(err));
+        auto *pic = const_cast<PictureItem *>(keptPicture(*d, *d->pages[0], QStringLiteral("equation")));
+        QVERIFY(pic);
+        pic->rect = QRectF(100, 50, 200, 60);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString pair = equationIn(part(e, QStringLiteral("/ppt/slides/slide1.xml")));
+        // Its places in both alternatives (the pair is part of the slide's XML, which declares the prefixes).
+        auto places = [](const QString &slide) {
+            QDomDocument dom;
+            office::parseXml(slide.toUtf8(), &dom);
+            QVector<QDomElement> pairs, xfrms;
+            collectNamed(dom.documentElement(), QStringLiteral("AlternateContent"), &pairs);
+            if (!pairs.isEmpty()) collectNamed(pairs[0], QStringLiteral("xfrm"), &xfrms);
+            QVector<QVector<qint64>> out;
+            for (const QDomElement &x : std::as_const(xfrms)) out << placeOf(x);
+            return out;
+        };
+        QCOMPARE(places(part(e, QStringLiteral("/ppt/slides/slide1.xml"))), (QVector<QVector<qint64>>{{1270000, 635000, 2540000, 762000}, {1270000, 635000, 2540000, 762000}}));
+        // The same but for the places (the XML of the shapes is kept, in the order it has).
+        auto withoutPlaces = [](QString xml) { return xml.replace(QRegularExpression(QStringLiteral("<a:xfrm\\b[^>]*>.*?</a:xfrm>")), QStringLiteral("<a:xfrm/>")); };
+        QCOMPARE(withoutPlaces(pair), withoutPlaces(equationIn(part(before, QStringLiteral("/ppt/slides/slide1.xml")))));
+        QVERIFY(pair.contains(QStringLiteral("<m:t>E=mc</m:t>")));
+        // Turned and flipped, it is written so.
+        pic->rotation = 30;
+        pic->flipH = true;
+        Exported turned;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &turned, &err), qPrintable(err));
+        const QString turnedPair = equationIn(part(turned, QStringLiteral("/ppt/slides/slide1.xml")));
+        QCOMPARE(int(turnedPair.count(QStringLiteral("<a:xfrm rot=\"1800000\" flipH=\"1\"><a:off x=\"1270000\" y=\"635000\"/>"))), 2);
+        // Taken off the slide, none of it is written.
+        auto &items = d->pages[0]->items;
+        for (size_t i = 0; i < items.size(); ++i)
+            if (items[i].get() == pic) {
+                items.erase(items.begin() + i);
+                break;
+            }
+        Exported gone;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &gone, &err), qPrintable(err));
+        QVERIFY2(packageProblem(gone).isEmpty(), qPrintable(packageProblem(gone)));
+        QVERIFY(equationIn(part(gone, QStringLiteral("/ppt/slides/slide1.xml"))).isEmpty());
+        QVERIFY(!part(gone, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("TextBox 8")));
+    }
+
+    // A duplicated slide keeps its equation, and what was saved reads again as it did.
+    void equationsSurviveDuplicatingAndAnotherRoundTrip()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(equationPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(deck::duplicateSlide(*d, 0), 1);
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        for (const QString &slide : {QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/ppt/slides/slide2.xml")}) QVERIFY2(part(e, slide).contains(QStringLiteral("<m:t>E=mc</m:t>")), qPrintable(slide));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        for (int i = 0; i < 2; ++i) {
+            const PictureItem *pic = keptPicture(*back, *back->pages[i], QStringLiteral("equation"));
+            QVERIFY(pic);
+            QCOMPARE(pic->rect, QRectF(120, 174, 150, 40));
+            QCOMPARE(back->images.value(pic->imageId).bytes, equationPicture());
+        }
     }
 
     void importReadsNotes()

@@ -3,6 +3,7 @@
 
 #include "app/deckwindow.h"
 
+#include "app/animationpane.h"
 #include "app/commentspane.h"
 #include "app/deckfilescreen.h"
 #include "app/editor.h"
@@ -77,6 +78,7 @@ QString DeckWindow::helpContext() const
     } else if (inside(m_notes)) key = QStringLiteral("pane:notes");
     else if (inside(m_comments)) key = QStringLiteral("pane:comments");
     else if (inside(m_reuse)) key = QStringLiteral("pane:reuse");
+    else if (inside(m_animPane)) key = QStringLiteral("pane:animation");
     else if (inside(m_slides)) key = QStringLiteral("pane:slides");
     else if (inside(m_outline)) key = QStringLiteral("view:outline");
     else if (inside(m_sorter)) key = QStringLiteral("view:sorter");
