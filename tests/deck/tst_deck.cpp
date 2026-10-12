@@ -17350,6 +17350,101 @@ private Q_SLOTS:
         checkBackdrops(again, QStringLiteral("back to style 1"));
     }
 
+    // ---- pictures in placeholders ----
+
+    // A picture of `pixels` that stands in the placeholder of `type` on a slide: it fills the placeholder (cropped to fill as a picture
+    // placeholder does) and keeps the placeholder's role. Returns it.
+    static PictureItem *pictureIn(Document &d, Page &slide, const QString &type, const QSize &pixels)
+    {
+        for (auto &it : slide.items) {
+            if (deck::placeholderType(*it) != type) continue;
+            auto pic = std::make_shared<PictureItem>();
+            pic->name = QStringLiteral("held picture");
+            pic->role = it->role;
+            pic->rect = it->rect;
+            pic->imageId = d.addImage(odptest::png(pixels.width(), pixels.height(), QColor(0x30, 0x90, 0x60)), QStringLiteral("png"));
+            pic->fitImage(pixels, true);
+            it = pic;
+            return pic.get();
+        }
+        return nullptr;
+    }
+
+    // The part of the picture its frame shows, in the picture's own proportions (0 to 1 across and down).
+    static QRectF shownPart(const PictureItem &p)
+    {
+        const QRectF frame(QPointF(0, 0), p.rect.size());
+        const QRectF seen = frame.intersected(p.imgRect);
+        return QRectF((seen.left() - p.imgRect.left()) / p.imgRect.width(), (seen.top() - p.imgRect.top()) / p.imgRect.height(), seen.width() / p.imgRect.width(), seen.height() / p.imgRect.height());
+    }
+
+    // A picture in a content placeholder moves to the new layout's place and keeps what it showed, whole and in its proportions: it is fitted
+    // inside the place, not cropped and not offset. One in a picture placeholder fills the new place, cropped to fill and centered. A picture
+    // that stands in no placeholder stays where it is.
+    void picturesInPlaceholdersFollowThemesAndLayouts()
+    {
+        for (int step = 0; step < 2; ++step) {   // 0: a change of theme, 1: a change of layout
+            auto d = deck::newPresentation();
+            deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+            deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("picTx")));
+            PictureItem *content = pictureIn(*d, *d->pages[1], QStringLiteral("obj"), QSize(400, 300));
+            PictureItem *placed = pictureIn(*d, *d->pages[2], QStringLiteral("pic"), QSize(300, 400));
+            QVERIFY(content && placed);
+            auto loose = std::make_shared<PictureItem>();
+            loose->name = QStringLiteral("loose picture");
+            loose->rect = QRectF(700, 380, 120, 90);
+            loose->imageId = content->imageId;
+            loose->imgRect = QRectF(-10, -5, 150, 100);   // cropped by hand
+            d->pages[1]->items.push_back(loose);
+            const QRectF looseRect = loose->rect, looseImg = loose->imgRect;
+            const QRectF seenBefore = shownPart(*content);
+            const QRectF frameBefore = content->rect;
+            const QRectF placedSeen = shownPart(*placed);
+
+            if (step == 0) {
+                deck::applyThemeToAll(*d, *deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Harbor"))));
+            } else {
+                deck::applyLayout(*d, *d->pages[1], *deck::layoutOfType(*d, QStringLiteral("twoObj")));
+                deck::applyLayout(*d, *d->pages[2], *deck::layoutOfType(*d, QStringLiteral("picTx")));
+            }
+            const auto *c = static_cast<const PictureItem *>(itemNamed(*d->pages[1], QStringLiteral("held picture")));
+            const auto *p = static_cast<const PictureItem *>(itemNamed(*d->pages[2], QStringLiteral("held picture")));
+            QVERIFY(c && p);
+            const MasterPage &layoutC = *d->masterFor(*d->pages[1]);
+            const MasterPage &layoutP = *d->masterFor(*d->pages[2]);
+            auto placeOf = [](const MasterPage &layout, const QString &role) {
+                for (const auto &it : layout.items)
+                    if (it->role == role) return it->rect;
+                return QRectF();
+            };
+            // Content placeholder: inside the place, centered in it, touching it on one side, the same proportions, the same part shown, whole.
+            const QRectF cell = placeOf(layoutC, c->role);
+            QVERIFY(!cell.isEmpty());
+            QVERIFY2(cell.adjusted(-0.01, -0.01, 0.01, 0.01).contains(c->rect), qPrintable(QStringLiteral("step %1: %2 not in %3").arg(step).arg(c->rect.x()).arg(cell.x())));
+            QVERIFY(std::abs(c->rect.center().x() - cell.center().x()) < 0.01 && std::abs(c->rect.center().y() - cell.center().y()) < 0.01);
+            QVERIFY(std::abs(c->rect.width() - cell.width()) < 0.01 || std::abs(c->rect.height() - cell.height()) < 0.01);
+            QVERIFY(std::abs(c->rect.width() / c->rect.height() - frameBefore.width() / frameBefore.height()) < 0.001);
+            const QRectF seenNow = shownPart(*c);
+            QVERIFY(std::abs(seenNow.x() - seenBefore.x()) < 0.001 && std::abs(seenNow.y() - seenBefore.y()) < 0.001);
+            QVERIFY(std::abs(seenNow.width() - seenBefore.width()) < 0.001 && std::abs(seenNow.height() - seenBefore.height()) < 0.001);
+            // The picture is not stretched: its pixels are as wide as they are tall on the page.
+            QVERIFY(std::abs(c->imgRect.width() / c->imgRect.height() - 400.0 / 300.0) < 0.001);
+            // Picture placeholder: the new place exactly, filled by the picture (no gap), centered on what it showed, not stretched.
+            const QRectF spot = placeOf(layoutP, p->role);
+            QVERIFY(!spot.isEmpty());
+            QCOMPARE(p->rect, spot);
+            QVERIFY(p->imgRect.adjusted(-0.01, -0.01, 0.01, 0.01).contains(QRectF(QPointF(0, 0), p->rect.size())));
+            QVERIFY(std::abs(p->imgRect.width() / p->imgRect.height() - 300.0 / 400.0) < 0.001);
+            const QRectF placedNow = shownPart(*p);
+            QVERIFY(std::abs((placedNow.center().x()) - placedSeen.center().x()) < 0.001 && std::abs(placedNow.center().y() - placedSeen.center().y()) < 0.001);
+            // A picture in no placeholder stays as it was.
+            const auto *l = static_cast<const PictureItem *>(itemNamed(*d->pages[1], QStringLiteral("loose picture")));
+            QVERIFY(l);
+            QCOMPARE(l->rect, looseRect);
+            QCOMPARE(l->imgRect, looseImg);
+        }
+    }
+
     // A presentation that isn't in a built-in theme has variants too: its own colors on four backgrounds.
     void variantsOfAnotherThemeAreItsColorsOnFourBackgrounds()
     {
