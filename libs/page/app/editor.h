@@ -6,7 +6,6 @@
 
 #include "core/document.h"
 #include "render/renderer.h"
-#include "templates/changetemplate.h"
 
 #include <QObject>
 #include <QTextCursor>
@@ -222,11 +221,10 @@ public:
     QStringList insertItemsJson(const QByteArray &json, const QString &label);
     bool canPaste() const;
 
-    // ---- Change Template ----
-    // Applies a built design to this publication as one undo step: its stories
-    // and pictures move into the design (see templates/changetemplate.h), and
-    // what has no place there goes to Extra Content.
-    void applyTemplate(std::unique_ptr<Document> design, ChangeReport *report = nullptr);
+    // Replaces the whole document with `made` as one step that undoes,
+    // named `what` in the Undo list, and goes to its first page (Change
+    // Template's last step).
+    void replaceDocument(std::unique_ptr<Document> made, const QString &what);
     // Extra Content: puts the item on the page being edited, at `at` or near
     // its middle, as a text box or picture you can work with (returns its id,
     // or nothing when there is no such item); or discards it.

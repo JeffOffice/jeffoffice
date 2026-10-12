@@ -16,6 +16,8 @@
 
 namespace jp {
 
+class Editor;
+
 namespace role {
 inline const QString Title = QStringLiteral("title");               // the headline (a text box or a TextArt)
 inline const QString Subtitle = QStringLiteral("subtitle");         // a second line of display type on the first page
@@ -55,5 +57,10 @@ struct ChangeReport {
 // information, properties, and mail merge list, and the Extra Content it
 // already had. The result takes the design's page size and pages.
 std::unique_ptr<Document> applyDesign(const Document &current, std::unique_ptr<Document> design, ChangeReport *report = nullptr);
+
+// Applies a built design to the editor's publication as one undo step: its
+// stories and pictures move into the design, and what has no place there
+// goes to Extra Content.
+void applyTemplate(Editor *ed, std::unique_ptr<Document> design, ChangeReport *report = nullptr);
 
 } // namespace jp

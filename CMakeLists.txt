@@ -17,6 +17,8 @@ include(cmake/pdfium.cmake)
 #   jo_draw   shapes, fills and outlines, Text Art, placed objects, SVG
 #   jo_text   the text engine
 #   jo_shell  the window: ribbon, KeyTips, themes, Help, updater, AutoRecover
+#   jo_page   pages of placed objects: the document, its drawing, the editor
+#             and the canvas (JeffPub's publications, JeffDeck's slides)
 # Inside each, the files keep the folders they had under src/ (core/, io/,
 # app/...), so an include names the same file wherever it lives.
 function(jo_library name dir)
@@ -43,12 +45,14 @@ if(WIN32)
   # The system Save dialog (filedialogs.cpp).
   target_link_libraries(jo_shell PRIVATE ole32 uuid shell32)
 endif()
+jo_library(jo_page libs/page)
+target_link_libraries(jo_page PUBLIC jo_shell)
 
 # Each shared library links on its own, with only the ones below it: every
 # object of it is pulled in, so a call into a higher layer (which the include
 # check can't see) fails to link here. Linux's linker is enough to catch one.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  foreach(lib jo_base jo_draw jo_text jo_shell)
+  foreach(lib jo_base jo_draw jo_text jo_shell jo_page)
     add_executable(${lib}_linkcheck tools/linkcheck.cpp)
     target_link_libraries(${lib}_linkcheck PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
   endforeach()
@@ -59,7 +63,7 @@ file(GLOB_RECURSE JP_PUB_SOURCES CONFIGURE_DEPENDS apps/pub/*.cpp apps/pub/*.h a
 list(REMOVE_ITEM JP_PUB_SOURCES ${CMAKE_SOURCE_DIR}/apps/pub/main.cpp)
 add_library(jpcore STATIC ${JP_PUB_SOURCES})
 target_include_directories(jpcore PUBLIC apps/pub)
-target_link_libraries(jpcore PUBLIC jo_shell PRIVATE jp_libmspub)
+target_link_libraries(jpcore PUBLIC jo_page PRIVATE jp_libmspub)
 if(WIN32)
   # Programs find pdfium.dll beside them.
   file(COPY ${JP_PDFIUM_LIBRARY} DESTINATION ${CMAKE_BINARY_DIR})
@@ -120,7 +124,7 @@ if(Qt6LinguistTools_FOUND)
   list(REMOVE_ITEM JP_TRANSLATIONS ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts)
   qt_add_lupdate(TS_FILES ${CMAKE_SOURCE_DIR}/translations/jeffpub.ts ${JP_TRANSLATIONS}
                  PLURALS_TS_FILE ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts
-                 SOURCE_TARGETS jo_base jo_draw jo_text jo_shell jpcore jeffpub
+                 SOURCE_TARGETS jo_base jo_draw jo_text jo_shell jo_page jpcore jeffpub
                  LUPDATE_TARGET jeffpub_lupdate
                  OPTIONS -no-obsolete -locations relative)
   qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)

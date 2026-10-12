@@ -23,6 +23,7 @@
 #include "render/textart.h"
 #include "templates/templates.h"
 #include "app/appfuncs.h"
+#include "templates/changetemplate.h"
 #include "io/importers.h"
 #include "io/zip.h"
 #include "io/qtpdf.h"
@@ -5529,7 +5530,7 @@ private Q_SLOTS:
         design->templateId = event->id;
         const int steps = ed->undoStack()->count();
         jp::ChangeReport rep;
-        ed->applyTemplate(std::move(design), &rep);
+        applyTemplate(ed, std::move(design), &rep);
         QCOMPARE(ed->undoStack()->count(), steps + 1);
         d = ed->doc();
         QCOMPARE(d->templateId, event->id);
@@ -5689,7 +5690,7 @@ private Q_SLOTS:
         ed->addItem(ed->newTextBox(QRectF(50, 600, 300, 60), QStringLiteral("Lower story, written first, long enough to count as running text.")));
         ed->addItem(ed->newTextBox(QRectF(50, 300, 300, 60), QStringLiteral("Upper story, written second, long enough to count as running text.")));
         auto catalog = jp::findTemplate(QStringLiteral("catalog-fall"))->build(jp::optionsForChange(*d, jp::TemplateOptions()));
-        ed->applyTemplate(std::move(catalog));
+        applyTemplate(ed, std::move(catalog));
         d = ed->doc();
         auto reading = [&](int page, jp::ItemType type) {
             QVector<jp::Item *> out;
@@ -5734,7 +5735,7 @@ private Q_SLOTS:
             const jp::TemplateInfo *to = jp::findTemplate(id);
             auto design = to->build(jp::optionsForChange(*d, jp::TemplateOptions()));
             design->templateId = id;
-            ed->applyTemplate(std::move(design), r);
+            applyTemplate(ed, std::move(design), r);
             d = ed->doc();
         };
         auto editStory = [&](const QString &storyId, const QString &text) {

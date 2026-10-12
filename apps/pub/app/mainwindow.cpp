@@ -1,4 +1,5 @@
 #include "app/mainwindow.h"
+#include "templates/changetemplate.h"
 #include "app/help.h"
 #include "app/recovery.h"
 #include "app/keytips.h"
@@ -396,7 +397,7 @@ MainWindow *MainWindow::changeTemplate(std::unique_ptr<Document> design, bool to
         target->m_ed->markUnsaved();
         target->show();
     } else {
-        m_ed->applyTemplate(std::move(design), &report);
+        applyTemplate(m_ed, std::move(design), &report);
     }
     hideBackstage();
     target->hideBackstage();

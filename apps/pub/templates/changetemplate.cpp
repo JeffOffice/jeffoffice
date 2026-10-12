@@ -1,8 +1,11 @@
 #include "templates/changetemplate.h"
 
+#include "app/editor.h"
+
 #include "text/storyio.h"
 #include "text/textprops.h"
 
+#include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
@@ -674,6 +677,13 @@ std::unique_ptr<Document> applyDesign(const Document &current, std::unique_ptr<D
         if (!used.contains(id)) r.removeStory(id);
     if (report) *report = rep;
     return design;
+}
+
+void applyTemplate(Editor *ed, std::unique_ptr<Document> design, ChangeReport *report)
+{
+    ed->endTextEdit();
+    std::unique_ptr<Document> made = applyDesign(*ed->doc(), std::move(design), report);
+    ed->replaceDocument(std::move(made), QCoreApplication::translate("jp::Editor", "Change Template"));
 }
 
 } // namespace jp
