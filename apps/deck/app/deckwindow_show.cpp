@@ -169,17 +169,7 @@ void DeckWindow::createShowActions()
 
     // Presenter View: Alt+F5 rehearses in windows, on any number of screens.
     mk("show.presenterView", tr("Presenter View"), "monitor-up", QKeySequence(Qt::ALT | Qt::Key_F5), [this] {
-        m_notes->commit();
-        if (m_outline) m_outline->commit();
-        m_ed->endTextEdit();
-        if (m_show) m_show->close();
-        m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), m_ed->currentPage());
-        m_show->setRehearsal(true);
-        if (QScreen *s = screen()) m_show->setGeometry(s->availableGeometry());
-        watchShow(m_show, false);
-        m_show->show();
-        m_show->activateWindow();
-        m_show->setFocus();
+        playShow(m_ed->currentPage(), deck::ShowPlan(), false, true);
     });
     QAction *use = mk("show.usePresenterView", tr("Use Presenter View"), QString(), QKeySequence(), [this] {
         SlideShow::setUsePresenterView(act("show.usePresenterView")->isChecked());
@@ -448,7 +438,14 @@ namespace jp {
 void DeckWindow::startShowFromBeginning()
 {
     const Document &d = *m_ed->doc();
-    playShow(0, deck::planOf(d, deck::showSettingsOf(d)), false);
+    const deck::ShowSettings settings = deck::showSettingsOf(d);
+    const deck::ShowPlan plan = deck::planOf(d, settings);
+    if (plan.none) {
+        tellAboutShow(tr("The slide show is set to play slides %1 to %2, and the presentation has only %3. Change this in Set Up Slide Show.")
+                          .arg(settings.from).arg(settings.to).arg(d.pages.size()));
+        return;
+    }
+    playShow(0, plan, false);
 }
 
 void DeckWindow::startCustomShow(qint64 id)
@@ -464,8 +461,9 @@ void DeckWindow::startCustomShow(qint64 id)
 void DeckWindow::rehearseTimings() { playShow(0, deck::ShowPlan(), true); }
 
 // Starts the show as the presentation is set up: the slides `plan` names (every slide when it names none) from `slide`; `recording`
-// times the slides (Rehearse Timings), as a speaker's show that does not loop.
-void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording)
+// times the slides (Rehearse Timings), as a speaker's show that does not loop. `rehearsal` is the window Alt+F5 opens, with Presenter View
+// beside it: the set up applies to it, except that it is a window for a speaker, never a kiosk.
+void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording, bool rehearsal)
 {
     m_notes->commit();
     if (m_outline) m_outline->commit();
@@ -476,12 +474,16 @@ void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording)
         settings.type = deck::ShowSettings::Type::Speaker;
         settings.loop = false;
     }
+    if (rehearsal) settings.type = deck::ShowSettings::Type::Speaker;
     m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), slide);
+    if (rehearsal) m_show->setRehearsal(true);
     m_show->setSettings(settings);
     if (!plan.slides.isEmpty()) m_show->setSlides(plan.slides, plan.hidden);
     if (recording) m_show->setRecording(true);
     QScreen *s = screen();
-    if (m_show->isWindowed()) {
+    if (rehearsal) {
+        if (s) m_show->setGeometry(s->availableGeometry());
+    } else if (m_show->isWindowed()) {
         // By an individual, in a window: three quarters of the screen, in the middle.
         if (s) {
             const QRect area = s->availableGeometry();
@@ -503,24 +505,35 @@ void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording)
 void DeckWindow::watchShow(SlideShow *show, bool recording)
 {
     connect(show, &SlideShow::destroyed, this, [this] { activateWindow(); });
+    // A show in a window leaves the deck open to editing: it follows the slides by their pages; a presentation put in the window in
+    // place of this one ends it.
+    connect(m_ed, &Editor::changed, show, &SlideShow::documentChanged);
+    connect(m_ed, &Editor::documentReplaced, show, [this, show] {
+        show->rebind(m_ed->doc());
+        show->close();
+    });
     connect(show, &SlideShow::ended, this, [this, show, recording](int last) {
-        if (last >= 0) m_ed->setCurrentPage(last);
-        const QHash<int, QVector<deck::InkStroke>> ink = show->allInk();
+        if (last >= 0 && last < m_ed->doc()->pages.size()) m_ed->setCurrentPage(last);
+        const QHash<QString, QVector<deck::InkStroke>> ink = show->allInk();
         const QMap<int, double> seconds = recording ? show->recordedSeconds() : QMap<int, double>();
         const double total = recording ? show->recordedTotal() : 0;
         QMetaObject::invokeMethod(this, [this, ink, seconds, total, recording] { afterShow(ink, seconds, total, recording); }, Qt::QueuedConnection);
     });
 }
 
-void DeckWindow::afterShow(const QHash<int, QVector<deck::InkStroke>> &ink, const QMap<int, double> &seconds, double total, bool recording)
+void DeckWindow::afterShow(const QHash<QString, QVector<deck::InkStroke>> &ink, const QMap<int, double> &seconds, double total, bool recording)
 {
     Document *d = m_ed->doc();
-    // Ink: a freeform line for each stroke on its slide, all as one step.
-    if (!ink.isEmpty() && askAboutShow(tr("Do you want to keep your ink annotations?"), tr("Keep"), tr("Discard"))) {
+    // Ink: a freeform line for each stroke on the slide it was drawn on (by its page: the slides may have moved or gone), all as one step.
+    // Ink on slides that are gone is nothing to keep.
+    const QHash<QString, int> pages = deck::pageIndexById(*d);
+    QList<QPair<int, QVector<deck::InkStroke>>> drawn;
+    for (auto it = ink.cbegin(); it != ink.cend(); ++it)
+        if (const auto at = pages.constFind(it.key()); at != pages.constEnd() && !it.value().isEmpty()) drawn << qMakePair(at.value(), it.value());
+    if (!drawn.isEmpty() && askAboutShow(tr("Do you want to keep your ink annotations?"), tr("Keep"), tr("Discard"))) {
         m_ed->endTextEdit();
         m_ed->beginChange(tr("Keep Ink"));
-        for (auto it = ink.cbegin(); it != ink.cend(); ++it)
-            if (it.key() >= 0 && it.key() < d->pages.size()) deck::addInk(*d->pages[it.key()], it.value());
+        for (const auto &slide : std::as_const(drawn)) deck::addInk(*d->pages[slide.first], slide.second);
         m_ed->endChange();
     }
     // Times: each slide's After, and Use Timings on.
@@ -546,11 +559,20 @@ bool DeckWindow::askAboutShow(const QString &question, const QString &keep, cons
     if (m_showQuestion) return m_showQuestion(question);
     QMessageBox box(QMessageBox::Question, appInfo().name, question, QMessageBox::NoButton, this);
     QPushButton *yes = box.addButton(keep, QMessageBox::AcceptRole);
-    box.addButton(discard, QMessageBox::RejectRole);
+    QPushButton *no = box.addButton(discard, QMessageBox::RejectRole);
     box.setDefaultButton(yes);
-    box.setEscapeButton(yes);   // nothing is lost by closing the box
+    box.setEscapeButton(no);   // Esc has just ended the show: it must not also change the slides
     box.exec();
     return box.clickedButton() == yes;
+}
+
+void DeckWindow::tellAboutShow(const QString &text)
+{
+    if (m_showQuestion) {
+        m_showQuestion(text);
+        return;
+    }
+    QMessageBox::information(this, appInfo().name, text);
 }
 
 // ---- Set Up Slide Show and Custom Shows ----
@@ -574,14 +596,7 @@ void DeckWindow::editCustomShows()
     if (after != before) {
         m_ed->endTextEdit();
         m_ed->beginChange(tr("Custom Shows"));
-        deck::setCustomShows(*d, after);
-        // A show set to play one that is gone plays every slide.
-        deck::ShowSettings s = deck::showSettingsOf(*d);
-        if (s.slides == deck::ShowSettings::Slides::Custom && !deck::customShowById(after, s.customShow)) {
-            s.slides = deck::ShowSettings::Slides::All;
-            s.customShow = -1;
-            deck::setShowSettings(*d, s);
-        }
+        deck::setCustomShows(*d, after);   // a show set to play one that is gone plays every slide
         m_ed->endChange();
     }
     if (dlg.playId() >= 0) startCustomShow(dlg.playId());

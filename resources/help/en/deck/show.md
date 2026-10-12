@@ -30,7 +30,7 @@ A click on a link opens it when it is a web page or an email address. Other link
 
 ## Draw on the slides
 
-You can write on a slide while the show plays. What you draw is called **ink**. Choose a tool with the keys, or from the right-click menu under **Pointer Options**.
+You can write on a slide while the show plays. What you draw is called **ink**. Choose a tool with the keys, or from the right-click menu under **Pointer Options**. On a Mac, press **Command** where this topic says **Ctrl**.
 
 - **Pen:** press **Ctrl+P**. Hold the mouse button down and move the mouse. The pen draws a thin, solid line.
 - **Highlighter:** press **Ctrl+I**. It draws a wide line that you can see through, like a marker.
@@ -56,11 +56,11 @@ Click **Slide Show > Set Up > Set Up Slide Show**. The choices are saved with th
 
 - **Show type:**
   - **Presented by a speaker (full screen)** is the usual show.
-  - **Browsed by an individual (window)** shows the slides in a window, with the mouse pointer showing, so a person can look through them.
+  - **Browsed by an individual (window)** shows the slides in a window, with the mouse pointer showing, so a person can look through them. You can keep editing the slides while it is open. The window stays on the slide it is on, and draws the slides again.
   - **Browsed at a kiosk (full screen)** is for a show that runs by itself. It always loops, and it moves on only by the slides' times. Keys and clicks do nothing, except Esc to end it. A click on a link still opens it. A slide with no time stays on the screen.
 - **Loop continuously until 'Esc':** after the last slide, the show starts again at the first.
 - **Show without animation:** the slides show whole, with no animation steps to click through. Transitions still play.
-- **Pen color** is the color the pen starts with. **Laser pointer color** is red, green, or blue.
+- **Pen color** is the color the pen starts with. Choose it by name, or click **More Colors**. **Laser pointer color** is red, green, or blue.
 - **Show slides:** **All**, or **From** one slide **To** another, or a **Custom show**. Hidden slides are skipped, except in a custom show.
 - **Advance slides:** **Manually** moves on only when the presenter does. **Using timings, if present** also moves on by itself after each slide's **After** seconds. The **Use Timings** check box in the **Set Up** group does the same.
 

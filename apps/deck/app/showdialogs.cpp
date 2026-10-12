@@ -5,9 +5,11 @@
 #include "app/icons.h"
 #include "app/widgets.h"
 #include "core/document.h"
+#include "core/ink.h"
 #include "core/reuse.h"
 
 #include <QCheckBox>
+#include <QColorDialog>
 #include <QCoreApplication>
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -19,6 +21,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QPainter>
+#include <QPixmap>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSignalBlocker>
@@ -53,6 +57,19 @@ QString slideLabel(const Document &doc, int slide)
     return QStringLiteral("%1. %2").arg(slide + 1).arg(title.isEmpty() ? QCoreApplication::translate("ShowDialogs", "Slide %1").arg(slide + 1) : title);
 }
 
+// A small square of a color, for the lists of colors.
+QIcon swatch(const QColor &c)
+{
+    QPixmap pix(16, 16);
+    pix.fill(Qt::transparent);
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setPen(QPen(QColor(0, 0, 0, 90), 1));
+    p.setBrush(c);
+    p.drawRoundedRect(QRectF(1.5, 1.5, 13, 13), 2, 2);
+    return QIcon(pix);
+}
+
 struct LaserChoice {
     const char *name;
     QColor color;
@@ -67,8 +84,9 @@ const LaserChoice kLasers[] = {{QT_TRANSLATE_NOOP("ShowDialogs", "Red"), QColor(
 // ---- Set Up Show
 
 SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck::CustomShow> &shows, int slideCount, const ColorScheme &scheme, QWidget *parent)
-    : QDialog(parent), m_base(s), m_scheme(scheme), m_pen(s.penColor), m_loopChosen(s.loop), m_timingsChosen(s.useTimings)
+    : QDialog(parent), m_base(s), m_pen(s.penColor), m_loopChosen(s.loop), m_timingsChosen(s.useTimings)
 {
+    Q_UNUSED(scheme)
     setWindowTitle(tr("Set Up Show"));
     setObjectName(QStringLiteral("setUpShowDialog"));
     auto *lay = new QVBoxLayout(this);
@@ -102,25 +120,24 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
     optionsLay->addWidget(m_loop);
     optionsLay->addWidget(m_noAnimation);
     auto *colors = new QFormLayout();
-    m_penButton = new ColorButton(QStringLiteral("pen"), tr("Pen color"), false, QString());
-    m_penButton->setScheme(scheme);
-    m_penButton->setCurrent(ColorRef::rgb(m_pen));
-    m_penButton->setWell(true);
-    m_penButton->setObjectName(QStringLiteral("penColor"));
+    m_penBox = new QComboBox();
+    m_penBox->setObjectName(QStringLiteral("penColor"));
+    m_penBox->setAccessibleName(tr("Pen color"));
     m_laser = new QComboBox();
     m_laser->setObjectName(QStringLiteral("laserColor"));
     m_laser->setAccessibleName(tr("Laser pointer color"));
-    for (const LaserChoice &c : kLasers) m_laser->addItem(QCoreApplication::translate("ShowDialogs", c.name), c.color);
+    for (const LaserChoice &c : kLasers) m_laser->addItem(swatch(c.color), QCoreApplication::translate("ShowDialogs", c.name), c.color);
     // A color the file asks for that the list lacks stays, under its code.
     int laserAt = -1;
     for (int i = 0; i < m_laser->count(); ++i)
         if (m_laser->itemData(i).value<QColor>() == s.laserColor) laserAt = i;
     if (laserAt < 0) {
-        m_laser->addItem(s.laserColor.name(QColor::HexRgb).toUpper(), s.laserColor);
+        m_laser->addItem(swatch(s.laserColor), deck::inkColorName(s.laserColor), s.laserColor);
         laserAt = m_laser->count() - 1;
     }
     m_laser->setCurrentIndex(laserAt);
-    colors->addRow(tr("Pen color:"), m_penButton);
+    fillPen(m_pen);
+    colors->addRow(tr("Pen color:"), m_penBox);
     colors->addRow(tr("Laser pointer color:"), m_laser);
     optionsLay->addLayout(colors);
     grid->addWidget(optionsBox, 0, 1);
@@ -178,7 +195,10 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
     for (int i = 0; i < m_shows->count(); ++i)
         if (m_shows->itemData(i).toLongLong() == s.customShow) showAt = i;
     m_shows->setCurrentIndex(showAt);
-    if (s.slides == deck::ShowSettings::Slides::Custom && m_shows->count()) m_custom->setChecked(true);
+    // A custom show the settings name that is not in the list is not a choice: it is All.
+    bool haveShow = false;
+    for (int i = 0; i < m_shows->count(); ++i) haveShow |= m_shows->itemData(i).toLongLong() == s.customShow;
+    if (s.slides == deck::ShowSettings::Slides::Custom && haveShow) m_custom->setChecked(true);
     else if (range) m_range->setChecked(true);
     else m_all->setChecked(true);
     m_custom->setEnabled(m_shows->count() > 0);
@@ -189,11 +209,39 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
     connect(m_timings, &QRadioButton::clicked, this, [this] { m_timingsChosen = true; });
     connect(m_from, &QSpinBox::valueChanged, this, [this](int v) { if (m_to->value() < v) m_to->setValue(v); });
     connect(m_to, &QSpinBox::valueChanged, this, [this](int v) { if (m_from->value() > v) m_from->setValue(v); });
-    connect(m_penButton, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
-        m_pen = c.resolve(m_scheme);
-        m_penButton->setCurrent(ColorRef::rgb(m_pen));
+    connect(m_penBox, &QComboBox::currentIndexChanged, this, [this](int i) {
+        const QVariant color = m_penBox->itemData(i);
+        if (color.isValid()) {
+            m_pen = color.value<QColor>();
+            m_penAt = i;
+            return;
+        }
+        // More Colors...: the color chosen is the pen's, shown by name or by its code; Cancel leaves the pen as it was.
+        const QColor chosen = QColorDialog::getColor(m_pen, this, tr("Pen Color"));
+        fillPen(chosen.isValid() ? chosen : m_pen);
+        if (chosen.isValid()) m_pen = QColor(chosen.red(), chosen.green(), chosen.blue());
     });
     refresh();
+}
+
+// The pen's list: the colors by name, the current color too when the list lacks it (by its code), and More Colors....
+void SetUpShowDialog::fillPen(const QColor &current)
+{
+    const QSignalBlocker block(m_penBox);
+    const QColor rgb(current.red(), current.green(), current.blue());
+    m_penBox->clear();
+    int at = -1;
+    for (const deck::InkColor &c : deck::inkColors()) {
+        m_penBox->addItem(swatch(c.color), c.name, c.color);
+        if (c.color == rgb) at = m_penBox->count() - 1;
+    }
+    if (at < 0) {
+        m_penBox->addItem(swatch(rgb), deck::inkColorName(rgb), rgb);
+        at = m_penBox->count() - 1;
+    }
+    m_penBox->addItem(tr("More Colors…"));
+    m_penBox->setCurrentIndex(at);
+    m_penAt = at;
 }
 
 // A kiosk loops and moves on by the times, whatever the boxes were: they are held until another kind of show is chosen.
@@ -254,7 +302,7 @@ CustomShowEditDialog::CustomShowEditDialog(const Document &doc, const QVector<de
     setObjectName(QStringLiteral("customShowEditDialog"));
     if (editing) m_show = *editing;
     else {
-        m_show.id = deck::newCustomShowId(all);
+        m_show.id = deck::newCustomShowId(doc, all);
         m_show.name = deck::newCustomShowName(all);
     }
     auto *lay = new QVBoxLayout(this);
@@ -452,7 +500,7 @@ CustomShowsDialog::CustomShowsDialog(const Document &doc, const QVector<deck::Cu
         const int at = current();
         if (at < 0) return;
         deck::CustomShow copy = m_shows[at];
-        copy.id = deck::newCustomShowId(m_shows);
+        copy.id = deck::newCustomShowId(m_doc, m_shows);
         QString name = tr("Copy of %1").arg(m_shows[at].name);
         for (int n = 2;; ++n) {
             bool taken = false;

@@ -22,10 +22,10 @@ class QSpinBox;
 
 namespace jp {
 
-class ColorButton;
 class Document;
 
-// How the show goes. The settings it is given are the ones it starts from;
+// How the show goes. The pen's and the laser pointer's colors are chosen from lists by name (the pen's ends with More Colors...; a color the
+// lists lack is shown by its code). The settings it is given are the ones it starts from;
 // `settings()` is them with what was changed. A kiosk loops and moves on by
 // the times, so the choices that would say otherwise are held until another
 // kind of show is chosen.
@@ -40,18 +40,18 @@ protected:
 
 private:
     void refresh();
+    void fillPen(const QColor &current);
     deck::ShowSettings m_base;
-    ColorScheme m_scheme;
     QColor m_pen;
+    int m_penAt = 0;
     bool m_loopChosen = false;     // what the check box said before a kiosk held it
     bool m_timingsChosen = true;
     QRadioButton *m_speaker, *m_individual, *m_kiosk;
     QRadioButton *m_all, *m_range, *m_custom;
     QRadioButton *m_manual, *m_timings;
     QSpinBox *m_from, *m_to;
-    QComboBox *m_shows, *m_laser;
+    QComboBox *m_shows, *m_laser, *m_penBox;
     QCheckBox *m_loop, *m_noAnimation;
-    ColorButton *m_penButton;
 };
 
 // The editor of one custom show: its name, and the slides in it. `all` are the
