@@ -55,7 +55,7 @@ JeffDeck has nine themes of its own:
 
 The up and down arrows beside the pictures show the next row of themes. The last button opens all nine at once. The theme your presentation has is outlined.
 
-Your slides keep what is on them. Each slide moves to the layout of its own kind, so a Title Slide stays a Title Slide and a Two Content slide stays a Two Content slide. The words stay, and the boxes move to the new layout's places. Text that used the old theme's fonts and colors takes the new theme's. Text you set yourself keeps its look: a red word, a bold line, or a font you chose.
+Your slides keep what is on them. Each slide moves to the layout of its own kind, so a Title Slide stays a Title Slide and a Two Content slide stays a Two Content slide. The words stay, and the boxes move to the new layout's places. Text that used the old theme's fonts and colors takes the new theme's. Text you set yourself keeps its look: a red word, a bold line, or a font you chose. A change of theme or background also looks at what each piece of text stands on. Text in a table cell or a shape that has a color of its own, or on a picture, does not turn light or dark with the slide's background. And if a color you set would be hard to read on the new background (below 4.5 to 1), it moves toward light or dark, just far enough to read.
 
 ### Right-click a theme
 
