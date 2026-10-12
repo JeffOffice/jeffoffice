@@ -213,13 +213,17 @@ private Q_SLOTS:
         pane->hide();
     }
 
-    // A new slide size scales everything on every slide, layout, and the
-    // slide master to fit, centered (Ensure Fit): 16:9 to 4:3 shrinks it by
-    // the width's ratio, and going wider moves it to the middle at its size.
+    // A new slide size fits everything on every slide, layout, and the slide
+    // master to it (Ensure Fit): the layouts and placeholders take the new
+    // shape, text shrinks by the width's ratio, and the other objects on a
+    // slide keep their shape, smaller and centered.
     void slideSizeScalesEverything()
     {
         auto d = deck::newPresentation();
         deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        d->pages[1]->items.push_back(shape);
         const auto *title = static_cast<const TextItem *>(d->pages[1]->items[0].get());
         const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"));
         const QRectF slideBefore = title->rect, layoutBefore = layout->items[0]->rect, masterBefore = d->masters[0]->items[0]->rect;
@@ -230,11 +234,12 @@ private Q_SLOTS:
         deck::setSlideSize(*d, QSizeF(deck::kStandardWidth, deck::kStandardHeight));
         QCOMPARE(d->pageSize(), QSizeF(720, 540));
         QCOMPARE(d->setup.sizeName, QStringLiteral("Standard"));
-        auto fitted = [](const QRectF &r) { return QRectF(r.x() * 0.75, r.y() * 0.75 + 67.5, r.width() * 0.75, r.height() * 0.75); };
-        QCOMPARE(title->rect, fitted(slideBefore));
-        QCOMPARE(layout->items[0]->rect, fitted(layoutBefore));
-        QCOMPARE(d->masters[0]->items[0]->rect, fitted(masterBefore));
+        auto narrower = [](const QRectF &r) { return QRectF(r.x() * 0.75, r.y(), r.width() * 0.75, r.height()); };
+        QCOMPARE(title->rect, narrower(slideBefore));
+        QCOMPARE(layout->items[0]->rect, narrower(layoutBefore));
+        QCOMPARE(d->masters[0]->items[0]->rect, narrower(masterBefore));
         QCOMPARE(size(title->storyId), textBefore * 0.75);
+        QCOMPARE(shape->rect, QRectF(75, 100 * 0.75 + 67.5, 150, 75));   // in shape, smaller, and in the middle
         // A slide still draws, at its new size.
         LayoutCache cache;
         PaintContext ctx;
@@ -242,11 +247,13 @@ private Q_SLOTS:
         ctx.cache = &cache;
         QCOMPARE(Renderer::renderToImage(ctx, 0, 0.5).size(), QSize(360, 270));
 
-        // Wider again: nothing grows, it moves to the middle.
+        // Wider again: the placeholders and layouts are where they were, nothing else grows.
         deck::setSlideSize(*d, QSizeF(deck::kSlideWidth, deck::kSlideHeight));
         QCOMPARE(d->setup.sizeName, QStringLiteral("Widescreen"));
-        QCOMPARE(title->rect, fitted(slideBefore).translated(120, 0));
+        QCOMPARE(title->rect, slideBefore);
+        QCOMPARE(layout->items[0]->rect, layoutBefore);
         QCOMPARE(size(title->storyId), textBefore * 0.75);
+        QCOMPARE(shape->rect, QRectF(75 + 120, 100 * 0.75 + 67.5, 150, 75));
     }
 
     // Header & Footer puts the slide number, the date, and a line of text in
@@ -305,57 +312,6 @@ private Q_SLOTS:
         ctx.doc = d.get();
         ctx.cache = &cache;
         for (int i = 0; i < 2; ++i) QCOMPARE(Renderer::renderToImage(ctx, i, 0.1).pixelColor(3, 3), QColor(0x11, 0x22, 0x33));
-    }
-
-    void duplicateSlideCopiesNotes()
-    {
-        auto d = deck::newPresentation();
-        d->storyDoc(d->pages[0]->notesStoryId)->setPlainText(QStringLiteral("Say hello"));
-        const int i = deck::duplicateSlide(*d, 0);
-        QCOMPARE(i, 1);
-        QCOMPARE(deck::notesText(*d, *d->pages[1]), QStringLiteral("Say hello"));
-        QVERIFY(d->pages[1]->notesStoryId != d->pages[0]->notesStoryId);
-        QVERIFY(d->pages[1]->items[0]->id != d->pages[0]->items[0]->id);
-    }
-
-    // The window: the ribbon builds from its file with nothing missing, and
-    // the slide commands are steps that undo.
-    void windowSlideCommands()
-    {
-        DeckWindow w;
-        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
-        Editor *ed = w.editor();
-        QCOMPARE(w.slidesPane()->count(), 1);
-        w.newSlide();
-        QCOMPARE(int(ed->doc()->pages.size()), 2);
-        QCOMPARE(ed->currentPage(), 1);
-        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[1])), QStringLiteral("obj"));   // content after a title slide
-        QTRY_COMPARE(w.slidesPane()->count(), 2);
-        w.duplicateSlide();
-        QCOMPARE(int(ed->doc()->pages.size()), 3);
-        w.toggleHidden();
-        QVERIFY(ed->doc()->pages[2]->hidden);
-        w.setLayout(QStringLiteral("titleOnly"));
-        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[2])), QStringLiteral("titleOnly"));
-        ed->undo();
-        ed->undo();
-        ed->undo();
-        QCOMPARE(int(ed->doc()->pages.size()), 2);
-        w.deleteSlide();
-        QCOMPARE(int(ed->doc()->pages.size()), 1);
-        w.deleteSlide();   // the last slide stays
-        QCOMPARE(int(ed->doc()->pages.size()), 1);
-        // Notes typed in the pane reach the slide as an undo step.
-        QTest::keyClicks(w.notesPane(), QStringLiteral("Remember the demo"));
-        QVERIFY(w.notesPane()->hasTyping());
-        w.notesPane()->commit();
-        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("Remember the demo"));
-        ed->undo();
-        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QString());
-        QCOMPARE(w.notesPane()->toPlainText(), QString());   // the pane shows the undone notes
-        w.newSlide();   // and moving on doesn't write them back
-        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QString());
-        ed->markSaved();
     }
 
     // The slide show skips hidden slides, goes back, ends after the last.

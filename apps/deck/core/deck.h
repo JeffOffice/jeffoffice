@@ -73,10 +73,11 @@ QString notesText(const Document &d, const Page &slide);
 // "Widescreen" (16:9), or "Custom".
 QString slideSizeName(const QSizeF &size);
 // Gives every slide, layout, and the slide master another size, as Ensure
-// Fit does: all they hold shrinks or grows by one factor, the smaller of
-// the width's and the height's, and sits centered on the new slide.
-// Positions, sizes, text sizes, outline weights, and ruler guides scale;
-// notes keep their text sizes.
+// Fit does: text sizes and outline weights scale by the smaller of the
+// width's and the height's ratio; the layouts, the master,
+// and the placeholders on slides stretch to the new shape; the other objects
+// on slides keep their shape, scaled by that ratio and centered. Ruler guides
+// keep their share of the slide. Notes keep their text sizes.
 void setSlideSize(Document &d, const QSizeF &size);
 
 // What Header & Footer shows on slides: the date (as the field that keeps

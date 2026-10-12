@@ -259,10 +259,13 @@ void scaleStoryText(QTextDocument *sd, double k)
     }
 }
 
-// Everything on one master or slide at a new size.
-void scaleItems(Document &d, ItemList &items, const QRectF &from, const QRectF &to, double k, QSet<QString> &stories)
+// Everything on one master or slide at a new size: stretched to the new
+// shape (`whole`), or, on a slide, objects that aren't placeholders kept in
+// shape, scaled by `k` and centered (`fitted`). Text sizes and outline
+// weights go by `k`.
+void scaleItems(Document &d, ItemList &items, const QRectF &from, const QRectF &whole, const QRectF &fitted, double k, bool onSlide, QSet<QString> &stories)
 {
-    for (const auto &it : items) it->scaleInto(from, to);
+    for (const auto &it : items) it->scaleInto(from, onSlide && placeholderType(*it).isEmpty() ? fitted : whole);
     walkItems(items, [&](const ItemPtr &it) {
         if (!it->stroke.isNone()) it->stroke.width *= k;
         QStringList ids;
@@ -283,10 +286,10 @@ void scaleItems(Document &d, ItemList &items, const QRectF &from, const QRectF &
     });
 }
 
-void scaleGuides(RulerGuides &g, double k, double dx, double dy)
+void scaleGuides(RulerGuides &g, double sx, double sy)
 {
-    for (double &y : g.h) y = dy + y * k;
-    for (double &x : g.v) x = dx + x * k;
+    for (double &y : g.h) y *= sy;
+    for (double &x : g.v) x *= sx;
 }
 
 } // namespace
@@ -505,17 +508,17 @@ void setSlideSize(Document &d, const QSizeF &size)
 {
     const QSizeF old = d.pageSize();
     if (size.isEmpty() || old.isEmpty() || size == old) return;
-    const double k = std::min(size.width() / old.width(), size.height() / old.height());
-    const QRectF from(QPointF(0, 0), old);
-    const QRectF to((size.width() - old.width() * k) / 2, (size.height() - old.height() * k) / 2, old.width() * k, old.height() * k);
+    const double sx = size.width() / old.width(), sy = size.height() / old.height(), k = std::min(sx, sy);
+    const QRectF from(QPointF(0, 0), old), whole(QPointF(0, 0), size);
+    const QRectF fitted((size.width() - old.width() * k) / 2, (size.height() - old.height() * k) / 2, old.width() * k, old.height() * k);
     QSet<QString> stories;
     for (auto &m : d.masters) {
-        scaleItems(d, m->items, from, to, k, stories);
-        scaleGuides(m->guides, k, to.left(), to.top());
+        scaleItems(d, m->items, from, whole, fitted, k, false, stories);
+        scaleGuides(m->guides, sx, sy);
     }
     for (auto &p : d.pages) {
-        scaleItems(d, p->items, from, to, k, stories);
-        scaleGuides(p->guides, k, to.left(), to.top());
+        scaleItems(d, p->items, from, whole, fitted, k, true, stories);
+        scaleGuides(p->guides, sx, sy);
     }
     d.setup.size = d.setup.sheet = size;
     d.setup.sizeName = slideSizeName(size);
