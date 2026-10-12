@@ -7,6 +7,7 @@
 
 #include <QHash>
 #include <QPainterPath>
+#include <functional>
 #include <memory>
 
 class QPainter;
@@ -65,6 +66,14 @@ struct PaintContext {
     RenderOptions opt;
     int pageNumber = 1;           // 1-based number of the page being drawn
     int pageCount = 1;
+    // For a caller that moves things on a page (a slide show's animations).
+    // Unset, a page is painted as it is. `around` is called for each of the
+    // page's own objects, not the master pages' (and not when transparency is
+    // flattened), in place of painting it: `draw` paints it.
+    std::function<void(QPainter *, const Item &, const std::function<void(QPainter *)> &draw)> around;
+    // Likewise for the text of a text box or a shape: `paintText` paints the
+    // lines of `layout`'s `frame`, with the painter placed as they are placed.
+    std::function<void(QPainter *, const Item &, const StoryLayout &layout, int frame, const std::function<void(QPainter *)> &paintText)> aroundText;
 };
 
 class Renderer {
