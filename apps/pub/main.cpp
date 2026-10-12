@@ -11,6 +11,7 @@
 //                                         with QT_QPA_PLATFORM=offscreen)
 
 #include "app/telemetry.h"
+#include "app/crash.h"
 #include "app/editor.h"
 #include "app/mainwindow.h"
 #include "app/pubinfo.h"
@@ -54,6 +55,7 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/app.png")));
     jp::moveFromJeffPub79();   // settings and files kept under the old name
+    jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
     jp::recovery::setCopySuffix(QStringLiteral(".jpub"));   // AutoRecover keeps publications
     // Before the command line and any window build their text. Not for the
     // wiki: its pages are Help in English, whatever the system's language.

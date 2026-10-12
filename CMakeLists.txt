@@ -158,6 +158,12 @@ target_include_directories(jptests PRIVATE ${CMAKE_SOURCE_DIR}/third_party/libms
 target_compile_definitions(jptests PRIVATE JP_TEST_DATA="${CMAKE_SOURCE_DIR}/tests/data")
 # qt_add_executable makes Windows GUI programs by default; tests must keep their console output.
 set_target_properties(jptests PROPERTIES WIN32_EXECUTABLE OFF)
+# Crashes on purpose, for the test of crash reports.
+qt_add_executable(jpcrashtest tests/crashtest.cpp)
+target_link_libraries(jpcrashtest PRIVATE jo_shell)
+set_target_properties(jpcrashtest PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+add_dependencies(jptests jpcrashtest)
+target_compile_definitions(jptests PRIVATE JP_CRASHTEST="$<TARGET_FILE:jpcrashtest>")
 add_test(NAME jptests COMMAND jptests)
 set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 

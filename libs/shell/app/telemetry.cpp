@@ -1,13 +1,16 @@
 #include "app/telemetry.h"
 
+#include "app/crash.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 
 #include <QCheckBox>
 #include <QCoreApplication>
 #include <QDate>
+#include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFile>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLocale>
@@ -26,6 +29,7 @@ namespace jp::telemetry {
 namespace {
 
 const char *kUrl = "https://telemetry-production-9964.up.railway.app/v1/ping";
+const char *kCrashUrl = "https://telemetry-production-9964.up.railway.app/v1/crash";
 const char *kAbout = "https://telemetry-production-9964.up.railway.app/";
 const QString kEnabled = QStringLiteral("telemetry/enabled");
 const QString kInstall = QStringLiteral("telemetry/install");
@@ -52,14 +56,31 @@ QString clean(QString s, const QString &bad, int max)
     return s.left(max);
 }
 
+QString osName()
+{
+#if defined(Q_OS_WIN)
+    return QStringLiteral("windows");
+#elif defined(Q_OS_MACOS)
+    return QStringLiteral("macos");
+#else
+    return QStringLiteral("linux");
+#endif
+}
+
+QNetworkRequest request(const char *url)
+{
+    QNetworkRequest req{QUrl(QString::fromLatin1(url))};
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + QStringLiteral(JP_VERSION));
+    req.setTransferTimeout(15000);
+    return req;
+}
+
 void send(QNetworkAccessManager *net)
 {
     if (!due()) return;
     const QDate today = QDate::currentDate();
-    QNetworkRequest req{QUrl(QString::fromLatin1(kUrl))};
-    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + QStringLiteral(JP_VERSION));
-    req.setTransferTimeout(15000);
+    QNetworkRequest req = request(kUrl);
     const QJsonObject sent = payload();
     QNetworkReply *r = net->post(req, QJsonDocument(sent).toJson(QJsonDocument::Compact));
     QObject::connect(r, &QNetworkReply::finished, r, [r, sent, today] {
@@ -81,6 +102,26 @@ void send(QNetworkAccessManager *net)
     });
 }
 
+// The report a crash left (crash.h), sent once; one the collector has
+// taken or turned down is deleted, and one the network kept waits for the
+// next start.
+void sendCrash(QNetworkAccessManager *net)
+{
+    const QString path = crash::reportPath();
+    if (!QFile::exists(path)) return;
+    QJsonObject report = crashPayload(crash::readReport(path));
+    if (report.isEmpty()) {
+        QFile::remove(path);
+        return;
+    }
+    QNetworkReply *r = net->post(request(kCrashUrl), QJsonDocument(report).toJson(QJsonDocument::Compact));
+    QObject::connect(r, &QNetworkReply::finished, r, [r, path] {
+        r->deleteLater();
+        const int status = r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status >= 200 && status < 500) QFile::remove(path);
+    });
+}
+
 // Asked once, when JeffPub first starts (unless setup already asked).
 void ask(QWidget *window)
 {
@@ -89,7 +130,8 @@ void ask(QWidget *window)
     auto *v = new QVBoxLayout(&d);
     auto *text = new QLabel(QCoreApplication::translate("Telemetry",
         "%1 can send anonymous usage statistics once a day (and when it's updated): its version, your operating system and language, "
-        "and how often each of its commands is used. That shows how many people use it and which parts matter most.<br><br>"
+        "and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. "
+        "That shows how many people use it, which parts matter most, and what to fix first.<br><br>"
         "It never sends your files, their names, or anything in them. <a href=\"%2\">What's sent</a><br><br>"
         "You can change this anytime in File &gt; Options.").arg(appInfo().name, QString::fromLatin1(kAbout)), &d);
     text->setWordWrap(true);
@@ -142,14 +184,25 @@ void count(const QString &feature)
     Settings::get().setValue(kCounts, counts);
 }
 
+QJsonObject crashPayload(const QJsonObject &report)
+{
+    const QDate when = QDate::fromString(report.value(QStringLiteral("when")).toString(), Qt::ISODate);
+    const QDate today = QDateTime::currentDateTimeUtc().date();
+    if (!enabled() || report.isEmpty() || !when.isValid() || when > today || when.daysTo(today) > 30) return {};
+    QJsonObject sent = report;
+    sent.insert(QStringLiteral("install"), installId());
+    sent.insert(QStringLiteral("os"), osName());
+    return sent;
+}
+
 QJsonObject payload()
 {
 #if defined(Q_OS_WIN)
-    const QString os = QStringLiteral("windows"), osVersion = QSysInfo::kernelVersion();
+    const QString osVersion = QSysInfo::kernelVersion();
 #elif defined(Q_OS_MACOS)
-    const QString os = QStringLiteral("macos"), osVersion = QSysInfo::productVersion();
+    const QString osVersion = QSysInfo::productVersion();
 #else
-    const QString os = QStringLiteral("linux"), osVersion = QSysInfo::productType() + QLatin1Char(' ') + QSysInfo::productVersion();
+    const QString osVersion = QSysInfo::productType() + QLatin1Char(' ') + QSysInfo::productVersion();
 #endif
     QJsonObject counts;
     const QVariantMap stored = Settings::get().value(kCounts).toMap();
@@ -157,7 +210,7 @@ QJsonObject payload()
         if (it.value().toInt() > 0) counts.insert(it.key(), std::min(it.value().toInt(), 100000));
     return QJsonObject{{QStringLiteral("install"), installId()},
                        {QStringLiteral("version"), clean(QStringLiteral(JP_VERSION), QStringLiteral("[^0-9A-Za-z.+-]"), 20)},
-                       {QStringLiteral("os"), os},
+                       {QStringLiteral("os"), osName()},
                        {QStringLiteral("osVersion"), clean(osVersion, QStringLiteral("[^0-9A-Za-z .()_+-]"), 40)},
                        {QStringLiteral("lang"), clean(QLocale::system().name(), QStringLiteral("[^A-Za-z_-]"), 20)},
                        {QStringLiteral("launches"), std::clamp(Settings::get().value(kLaunches).toInt(), 0, 1000)},
@@ -176,7 +229,10 @@ void start(QWidget *window)
         if (!w) return;
         if (!decided()) ask(w);
         if (enabled()) Settings::get().setValue(kLaunches, Settings::get().value(kLaunches).toInt() + 1);
-        QTimer::singleShot(20000, net, [net] { send(net); });
+        QTimer::singleShot(20000, net, [net] {
+            send(net);
+            sendCrash(net);
+        });
         // A day that turns over while JeffPub is open gets its ping too.
         auto *hourly = new QTimer(net);
         QObject::connect(hourly, &QTimer::timeout, net, [net] { send(net); });
