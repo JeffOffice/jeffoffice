@@ -90,10 +90,21 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
       System::Call 'kernel32::CloseHandle(p r1)'
       StrCpy $R9 1
   no_old_mutex:
+    ; A virus scanner can hold the program for a moment after it closes,
+    ; so a locked file is checked again for up to 5 seconds (unless a mutex
+    ; already said it's running).
+    IntCmp $R9 1 decide
+    StrCpy $R8 0
+  check_file:
     IfFileExists "$INSTDIR\${EXE}" 0 decide
       ClearErrors
       FileOpen $2 "$INSTDIR\${EXE}" a
-      IfErrors locked
+      IfErrors 0 unlocked
+        IntOp $R8 $R8 + 1
+        IntCmp $R8 10 locked
+        Sleep 500
+        Goto check_file
+    unlocked:
       FileClose $2
       Goto decide
     locked:
