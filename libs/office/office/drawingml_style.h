@@ -21,15 +21,18 @@ struct StyleContext {
     const Fill *groupFill = nullptr;
     // The shape's size, if it is known: a gradient written as scaled follows it.
     QSizeF frame;
-    // The pictures added so far, by relationship, so that one used again isn't kept twice.
+    // The pictures added so far, by part and relationship (and recoloring),
+    // so that one used again isn't kept twice.
     QHash<QString, QString> *images = nullptr;
+    // Reading one of the theme's styles: its pictures' relationships are the theme part's.
+    bool fromTheme = false;
 };
 
 QDomElement childNamed(const QDomElement &e, const char *local);
 
 // The picture that relationship `rId` of the drawing's part links to, kept
 // with ctx.addImage; empty if the link isn't to a picture this can read.
-QString loadImage(const QString &rId, const StyleContext &sc);
+QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QColor> &duotone = {});
 // "png", "jpeg", "gif", "bmp", "tiff", "emf", "wmf", or "svg" for what the
 // bytes are (by how they begin, whatever the part is called); empty if none.
 QString imageFormat(const QByteArray &bytes);

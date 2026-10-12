@@ -1937,7 +1937,9 @@ private Q_SLOTS:
         QCOMPARE(slide.items[4]->rect, QRectF(0, 0, 100, 50));                          // its own, whatever the layout says
         QCOMPARE(d->masters[2]->items[3]->rect, d->masters[0]->items[1]->rect);
         QCOMPARE(slide.items[3]->role, QStringLiteral("ph:pic:13"));
-        QCOMPARE(static_cast<const TextItem *>(slide.items[3].get())->prompt, deck::promptFor(QStringLiteral("pic")));
+        // An empty picture place: a picture frame waiting for its picture, or a text box prompting for one.
+        if (slide.items[3]->type() == ItemType::Picture) QVERIFY(static_cast<const PictureItem *>(slide.items[3].get())->imageId.isEmpty());
+        else QCOMPARE(static_cast<const TextItem *>(slide.items[3].get())->prompt, deck::promptFor(QStringLiteral("pic")));
     }
 
     // The size a file names, in the names the presentation program gives them.
