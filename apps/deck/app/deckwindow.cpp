@@ -33,14 +33,14 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     setObjectName(QStringLiteral("deckWindow"));
     setWindowIcon(drawnIcon([](QPainter *p, const QRectF &r) {
         p->setPen(Qt::NoPen);
-        p->setBrush(QColor(0xB6, 0x42, 0x0F));
+        p->setBrush(appInfo().accent);
         p->drawRoundedRect(r.adjusted(1, 1, -1, -1), r.width() * 0.24, r.width() * 0.24);
         QFont f;
         f.setPixelSize(int(r.height() * 0.42));
         f.setWeight(QFont::DemiBold);
         p->setFont(f);
         p->setPen(Qt::white);
-        p->drawText(r, Qt::AlignCenter, QStringLiteral("JD"));
+        p->drawText(r, Qt::AlignCenter, appInfo().badge);
     }));
     m_ed = new Editor(this);
     m_ed->setDocument(deck::newPresentation());

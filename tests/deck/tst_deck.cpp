@@ -1,16 +1,20 @@
 // JeffDeck's tests: its presentation model on the shared page model, and
 // its window.
 
+#include "../../apps/pub/app/pubinfo.h"   // only its inline pubAppInfo(): the other app's colors, to compare
 #include "app/deckinfo.h"
 #include "app/deckwindow.h"
 #include "app/editor.h"
+#include "app/icons.h"
 #include "app/notespane.h"
+#include "app/ribbon.h"
 #include "app/slideshow.h"
 #include "app/slidespane.h"
 #include "core/deck.h"
 #include "core/fonts.h"
 #include "render/renderer.h"
 
+#include <QAbstractButton>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
@@ -114,6 +118,48 @@ private Q_SLOTS:
         title->rect.translate(50, 50);
         deck::resetSlide(*d, slide);
         QCOMPARE(title->rect, twoContent->items[0]->rect);
+    }
+
+    // Each app names its color and badge for the shared window: the File
+    // button and every accent in it follow, and the dark shade reads on the
+    // dark ribbon.
+    void appInfoColorsPerApp()
+    {
+        auto contrast = [](const QColor &a, const QColor &b) {
+            auto lum = [](const QColor &c) {
+                auto f = [](double v) { return v <= 0.03928 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4); };
+                return 0.2126 * f(c.redF()) + 0.7152 * f(c.greenF()) + 0.0722 * f(c.blueF());
+            };
+            const double la = lum(a), lb = lum(b);
+            return (std::max(la, lb) + 0.05) / (std::min(la, lb) + 0.05);
+        };
+        const AppInfo pub = pubAppInfo(), deckInfo = deckAppInfo();
+        QCOMPARE(pub.accent, QColor(0x9E, 0x1F, 0x63));
+        QCOMPARE(pub.accentDark, QColor(0xE0, 0x6A, 0xA5));
+        QCOMPARE(pub.badge, QStringLiteral("JP"));
+        QCOMPARE(deckInfo.accent, QColor(0xB6, 0x42, 0x0F));
+        QCOMPARE(deckInfo.badge, QStringLiteral("JD"));
+        QVERIFY(deckInfo.accentDark.isValid());
+        QVERIFY(contrast(deckInfo.accentDark, QColor(0x26, 0x2B, 0x33)) >= 4.5);   // on the dark ribbon
+        QVERIFY(contrast(deckInfo.accent, QColor(0xFB, 0xFB, 0xFC)) >= 4.5);       // on the light one
+        QVERIFY(contrast(deckInfo.highlight, Qt::white) >= 4.5);                   // selected text on the dark selection
+        // The shared parts read the running app's.
+        setUiDark(false);
+        QCOMPARE(uiAccent(), deckInfo.accent);
+        {
+            DeckWindow w;
+            auto *file = w.ribbon()->findChild<QAbstractButton *>(QStringLiteral("jpRibbonFile"));
+            QVERIFY(file);
+            file->resize(file->sizeHint());
+            // The badge is a circle of the accent at the button's left.
+            const QColor badge = file->grab().toImage().pixelColor(7, file->height() / 2);
+            QVERIFY2(std::abs(badge.red() - deckInfo.accent.red()) < 12 && std::abs(badge.green() - deckInfo.accent.green()) < 12
+                         && std::abs(badge.blue() - deckInfo.accent.blue()) < 12,
+                     qPrintable(badge.name()));
+        }
+        setUiDark(true);
+        QCOMPARE(uiAccent(), deckInfo.accentDark);
+        setUiDark(false);
     }
 
     void duplicateSlideCopiesNotes()
