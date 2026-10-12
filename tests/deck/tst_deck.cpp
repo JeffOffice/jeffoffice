@@ -3310,6 +3310,245 @@ private Q_SLOTS:
         QCOMPARE(inkLeft(mv), inkLeft(plain) + 300);
     }
 
+    // ---- the show plays them ----
+
+    // Slide 1: the title fades in at the first click, the body appears at the second.
+    static std::unique_ptr<Document> animatedDeck(int fadeMs)
+    {
+        auto d = showDeck(3);
+        numberShowShapes(*d->pages[0]);
+        d->storyDoc(static_cast<TextItem *>(d->pages[0]->items[1].get())->storyId)->setPlainText(QStringLiteral("The body of the slide"));
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeIn(2, fadeMs), animAppear(3)}));
+        return d;
+    }
+
+    // A click plays the slide's next step; the slide changes only when the
+    // steps are played. Going back goes back a step, to its end state.
+    void showPlaysClickStepsBeforeMovingOn()
+    {
+        auto d = animatedDeck(100);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QCOMPARE(show.stepCount(), 2);
+        QCOMPARE(show.step(), 0);
+        const QImage start = show.grab().toImage();
+        show.next();
+        QCOMPARE(show.currentSlide(), 0);
+        QVERIFY(show.isPlayingStep());
+        QTRY_VERIFY(!show.isPlayingStep());
+        QCOMPARE(show.step(), 1);
+        QCOMPARE(show.currentSlide(), 0);
+        const QImage first = show.grab().toImage();
+        QVERIFY(first != start);
+        show.next();                       // the body appears at once
+        QCOMPARE(show.step(), 2);
+        QVERIFY(!show.isPlayingStep());
+        const QImage second = show.grab().toImage();
+        QVERIFY(second != first);
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.stepCount(), 0);
+        // Back: to the slide as it was left, then a step at a time.
+        show.previous();
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.step(), 2);
+        QCOMPARE(show.grab().toImage(), second);
+        show.previous();
+        QCOMPARE(show.step(), 1);
+        QCOMPARE(show.grab().toImage(), first);
+        show.previous();
+        QCOMPARE(show.step(), 0);
+        QCOMPARE(show.grab().toImage(), start);
+        show.previous();                   // nothing before the first slide's start
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.step(), 0);
+        // A jump shows the slide at its start.
+        show.next();
+        QTRY_COMPARE(show.step(), 1);
+        show.goTo(2);
+        show.goTo(0);
+        QCOMPARE(show.step(), 0);
+        QCOMPARE(show.grab().toImage(), start);
+        // Home does too.
+        show.next();
+        QTRY_COMPARE(show.step(), 1);
+        QTest::keyClick(&show, Qt::Key_Home);
+        QCOMPARE(show.step(), 0);
+    }
+
+    // A click while an effect plays finishes it at once, and nothing more; a
+    // step undone by Back can be played again.
+    void showClickDuringAnEffectFinishesIt()
+    {
+        auto d = animatedDeck(60000);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        show.next();
+        QVERIFY(show.isPlayingStep());
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QVERIFY(!show.isPlayingStep());
+        QCOMPARE(show.step(), 1);
+        QCOMPARE(show.currentSlide(), 0);
+        // Back in the middle of an effect stops it and takes the step back.
+        show.previous();
+        QCOMPARE(show.step(), 0);
+        show.next();
+        QVERIFY(show.isPlayingStep());
+        show.previous();
+        QVERIFY(!show.isPlayingStep());
+        QCOMPARE(show.step(), 0);
+        QCOMPARE(show.currentSlide(), 0);
+        show.next();
+        QVERIFY(show.isPlayingStep());
+        // The key does what the click does.
+        QTest::keyClick(&show, Qt::Key_Space);
+        QVERIFY(!show.isPlayingStep());
+        QCOMPARE(show.step(), 1);
+    }
+
+    // A slide that does not move on at a click still plays its steps at one.
+    void showClickPlaysStepsOnASlideThatIgnoresClicks()
+    {
+        auto d = animatedDeck(30);
+        deck::Transition t;
+        t.advanceOnClick = false;
+        deck::setTransition(*d->pages[0], t);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QTRY_COMPARE(show.step(), 1);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QCOMPARE(show.step(), 2);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));   // all played: the slide ignores it
+        QCOMPARE(show.currentSlide(), 0);
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 1);
+    }
+
+    // A step that starts after or with the previous one with nothing before it
+    // starts by itself once the slide, and its transition, is shown.
+    void showStartsAutomaticStepsWhenTheSlideIsShown()
+    {
+        auto d = showDeck(3);
+        numberShowShapes(*d->pages[0]);
+        numberShowShapes(*d->pages[1]);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {animFadeIn(2, 60, "afterEffect")})}, true) + animStep({animGroup(0, {animAppear(3)})}));
+        d->pages[1]->props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {animFadeIn(2, 60, "withEffect")})}, true));
+        deck::setTransition(*d->pages[1], showTransition("fade", 0.25));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QCOMPARE(show.stepCount(), 2);
+        QCOMPARE(show.step(), 0);
+        QVERIFY(!show.isPlayingStep());       // not before the show is shown
+        show.show();
+        QTRY_COMPARE(show.step(), 1);
+        QVERIFY(!show.isPlayingStep());
+        show.next();                          // the click step, not the automatic one
+        QCOMPARE(show.step(), 2);
+        // The next slide's steps wait for its transition.
+        show.next();
+        QVERIFY(show.isAnimating());
+        QCOMPARE(show.targetSlide(), 1);
+        QVERIFY(!show.isPlayingStep());
+        QTRY_VERIFY(!show.isAnimating());
+        QTRY_COMPARE(show.step(), 1);
+        QCOMPARE(show.currentSlide(), 1);
+        // A jump starts them too; going back to a slide shows it with its steps played.
+        show.goTo(0);
+        QTRY_COMPARE(show.step(), 1);
+        show.goTo(1);
+        QTRY_COMPARE(show.step(), 1);
+        show.goTo(0);
+        show.next();
+        show.next();
+        QCOMPARE(show.step(), 2);
+        show.next();
+        QTRY_COMPARE(show.currentSlide(), 1);
+        QTRY_COMPARE(show.step(), 1);
+        show.previous();                      // back a step on the slide, then to the one before
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.step(), 0);
+        show.previous();
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.step(), 2);
+        QVERIFY(!show.isPlayingStep());
+    }
+
+    // A slide's seconds count from the end of its automatic steps; clicks left
+    // unplayed when they are up are skipped.
+    void showAdvanceAfterCountsFromTheLastEffect()
+    {
+        auto d = showDeck(3);
+        numberShowShapes(*d->pages[0]);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {animFadeIn(2, 400, "afterEffect")})}, true) + animStep({animGroup(0, {animAppear(3)})}));
+        deck::Transition t = showTransition("none", 0.7);
+        t.advanceAfter = 0.05;
+        deck::setTransition(*d->pages[0], t);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QElapsedTimer sinceShown;
+        sinceShown.start();
+        show.show();
+        QVERIFY(show.isPlayingStep());
+        QVERIFY(!show.autoAdvanceActive());    // the effect is playing
+        QTRY_VERIFY(show.autoAdvanceActive() || show.currentSlide() == 1);
+        QTRY_COMPARE(show.currentSlide(), 1);
+        QVERIFY(sinceShown.elapsed() >= 400);
+        QCOMPARE(show.step(), 0);              // the second step was skipped
+    }
+
+    // A step with only a media call takes no click.
+    void showSkipsStepsThatShowNothing()
+    {
+        auto d = showDeck(2);
+        numberShowShapes(*d->pages[0]);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animSteps({animMediaCall(2)}));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        QCOMPARE(show.stepCount(), 0);
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+    }
+
+    // Presenter View's Next shows what the next click gives: the slide with its
+    // next step played, then the next slide.
+    void presenterViewNextShowsTheNextStep()
+    {
+        auto d = animatedDeck(30);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        PresenterView pv(&show);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 1 of 3"));
+        QCOMPARE(pv.nextSlide(), 0);            // the same slide, a click on
+        const QImage afterFirst = pv.nextImage();
+        QVERIFY(!afterFirst.isNull());
+        show.next();
+        QTRY_VERIFY(!show.isPlayingStep());
+        QCOMPARE(pv.nextSlide(), 0);
+        const QImage afterSecond = pv.nextImage();
+        QVERIFY(afterSecond != afterFirst);
+        show.next();
+        QCOMPARE(pv.nextSlide(), 1);            // all played: the next slide
+        QVERIFY(pv.nextImage() != afterSecond);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 1 of 3"));
+        show.previous();
+        QCOMPARE(show.step(), 1);
+        QCOMPARE(pv.nextSlide(), 0);
+        QCOMPARE(pv.nextImage(), afterSecond);
+        show.previous();
+        QCOMPARE(show.step(), 0);
+        QCOMPARE(pv.nextImage(), afterFirst);
+        // The buttons play steps too.
+        pv.findChild<QAbstractButton *>("nextButton")->click();
+        QTRY_COMPARE(show.step(), 1);
+        pv.grab();
+    }
+
     // The window: the ribbon builds from its file with nothing missing, and
     // the slide commands are steps that undo.
     void windowSlideCommands()

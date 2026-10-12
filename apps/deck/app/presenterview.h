@@ -6,7 +6,8 @@
 // reset); the clock; "Slide N of M"; Previous and Next; Black Screen; See All
 // Slides, a grid to jump to any slide; and End Slide Show. The show drives it
 // and its controls call the show; keys work in either window and a click on
-// the large slide moves on.
+// the large slide moves on. It shows the slide as the audience sees it, an
+// effect partway through included, and Next shows what the next click gives.
 
 #include <QElapsedTimer>
 #include <QImage>
@@ -34,8 +35,11 @@ public:
     // "Slide 2 of 12", or "End of slide show".
     QString counterText() const;
     QString notesText() const;
-    // The slide shown under Next, -1 for none, and its picture.
+    // What the next click shows, under Next: the slide (the one on the screen,
+    // while it has steps left to play), -1 for none, how many of its steps have
+    // played, and its picture.
     int nextSlide() const { return m_next; }
+    int nextSteps() const { return m_nextSteps; }
     QImage nextImage() const;
 
     int notesPointSize() const { return m_notesSize; }
@@ -56,6 +60,8 @@ public:
 public Q_SLOTS:
     // Reads where the show is again.
     void refresh();
+    // Draws the large slide again: a frame of an effect.
+    void frame();
 
 protected:
     void keyPressEvent(QKeyEvent *e) override;
@@ -78,7 +84,7 @@ private:
     QElapsedTimer m_since;     // when the timer last started running
     qint64 m_before = 0;       // what it had counted before that
     bool m_paused = false;
-    int m_next = -1;
+    int m_next = -1, m_nextSteps = 0;
     int m_notesSize = 20;
 };
 
