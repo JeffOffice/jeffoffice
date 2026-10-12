@@ -21,11 +21,12 @@ bool isTableFrame(const QDomElement &graphicFrame);
 
 // The table in a graphic frame; null if the frame holds none, or one that
 // can't be a table here (no columns or rows, more cells than a table is
-// kept to). `styles` is as for readTextBody: the list styles the cells' text
-// inherits. The table styles are `tableStyles` (the root, a:tblStyleLst, of
-// the presentation's tableStyles part) if given, else read from the part the
-// package's main part links to; a style with no definition there is
-// approximated by the usual one (kBuiltinStyles in drawingml_table.cpp).
+// kept to, or more than ctx.budget has cells left). `styles` is as for
+// readTextBody: the list styles the cells' text inherits. The table styles
+// are `tableStyles` (the root, a:tblStyleLst, of the presentation's
+// tableStyles part) if given, else read from the part the package's main part
+// links to; a style with no definition there is approximated by the usual
+// one (kBuiltinStyles in drawingml_table.cpp).
 ItemPtr readTable(const QDomElement &graphicFrame, const DrawingContext &ctx, const TextStyleStack &styles = {},
                   const QDomElement &tableStyles = QDomElement());
 
