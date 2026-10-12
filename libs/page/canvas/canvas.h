@@ -149,6 +149,7 @@ private:
     void paintPageSlot(QPainter &p, const Slot &s, bool current);
     void paintGuides(QPainter &p, const Slot &s);
     void paintCatalogArea(QPainter &p, const Slot &s);
+    void paintPrompts(QPainter &p, const Slot &s);
     void paintOverlay(QPainter &p);
     void paintHandles(QPainter &p, Item *it);
     QVector<QPointF> handlePoints(const Item *it) const;     // 8 resize handles in view coordinates

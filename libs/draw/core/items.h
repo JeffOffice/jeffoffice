@@ -94,6 +94,9 @@ public:
     // gives that size again), shrinking only if a stand-in font no longer
     // fits, until Best Fit is chosen again.
     bool fitAsStored = false;
+    // Shown on screen, in gray, while the text is empty and not being typed
+    // in (a slide placeholder's "Click to add title"); never printed.
+    QString prompt;
 
     QJsonObject toJson() const override;
     void fromJson(const QJsonObject &o) override;

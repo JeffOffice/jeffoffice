@@ -455,10 +455,43 @@ void Canvas::paintPageSlot(QPainter &p, const Slot &s, bool current)
         if (!current) ctx.opt.editStory.clear();
         Renderer::paintPage(&p, ctx, s.page);
     }
+    paintPrompts(p, s);
     if (m_ed->view.guides) paintGuides(p, s);
     if (s.page >= 0) paintCatalogArea(p, s);
     p.restore();
     if (s.page >= 0 && !current) return;
+}
+
+// Empty text boxes with a prompt ("Click to add title") show it in gray, in
+// their text's font, size, and alignment, until text is typed; never printed.
+void Canvas::paintPrompts(QPainter &p, const Slot &s)
+{
+    const Document *d = m_ed->doc();
+    const MasterPage *m = s.page < 0 ? d->master(m_ed->masterView()) : nullptr;
+    const ItemList &items = s.page < 0 ? (m ? m->items : ItemList()) : d->pages[s.page]->items;
+    for (const auto &it : items) {
+        if (it->type() != ItemType::Text) continue;
+        const auto *t = static_cast<const TextItem *>(it.get());
+        if (t->prompt.isEmpty() || (m_ed->isEditingText() && m_ed->textTarget().itemId == t->id)) continue;
+        const QTextDocument *story = d->storyDoc(t->storyId);
+        if (!story || !story->isEmpty()) continue;
+        const QTextCursor c(const_cast<QTextDocument *>(story));
+        const QTextCharFormat cf = c.charFormat();
+        QFont f = story->defaultFont();
+        if (!cf.fontFamilies().toStringList().isEmpty()) f.setFamilies(cf.fontFamilies().toStringList());
+        const double size = cf.fontPointSize() > 0 ? cf.fontPointSize() : f.pointSizeF();
+        f.setPointSizeF(size * 72.0 / std::max(1, logicalDpiY()));
+        f.setBold(cf.fontWeight() >= QFont::DemiBold);
+        p.save();
+        p.setTransform(t->transform(), true);
+        const QRectF area = QRectF(QPointF(0, 0), t->rect.size()).marginsRemoved(t->insets);
+        const Qt::Alignment v = t->valign == VAlign::Middle ? Qt::AlignVCenter : t->valign == VAlign::Bottom ? Qt::AlignBottom : Qt::AlignTop;
+        const Qt::Alignment h = c.blockFormat().alignment() & Qt::AlignHorizontal_Mask;
+        p.setFont(f);
+        p.setPen(QColor(0x6B, 0x72, 0x80));
+        p.drawText(area, int(v | (h ? h : Qt::AlignLeft)) | Qt::TextWordWrap, t->prompt);
+        p.restore();
+    }
 }
 
 // The catalog merge area: its outline and cells, never printed.

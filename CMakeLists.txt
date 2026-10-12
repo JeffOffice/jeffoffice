@@ -173,6 +173,22 @@ set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 
+# JeffDeck, the presentation app: like JeffPub, everything except main() is a
+# library its tests link. Built and tested everywhere; not packaged yet.
+file(GLOB_RECURSE JD_SOURCES CONFIGURE_DEPENDS apps/deck/*.cpp apps/deck/*.h)
+list(REMOVE_ITEM JD_SOURCES ${CMAKE_SOURCE_DIR}/apps/deck/main.cpp)
+add_library(jdcore STATIC ${JD_SOURCES} apps/deck/resources/deck.qrc)
+target_include_directories(jdcore PUBLIC apps/deck)
+target_link_libraries(jdcore PUBLIC jo_page)
+qt_add_executable(jeffdeck WIN32 MACOSX_BUNDLE apps/deck/main.cpp)
+target_link_libraries(jeffdeck PRIVATE jdcore)
+set_target_properties(jeffdeck PROPERTIES OUTPUT_NAME JeffDeck)
+qt_add_executable(jdtests tests/deck/tst_deck.cpp)
+target_link_libraries(jdtests PRIVATE jdcore Qt6::Test)
+set_target_properties(jdtests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME jdtests COMMAND jdtests)
+set_tests_properties(jdtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # Developer tool for rendering and converting publications from the command line.
 qt_add_executable(jpubtool tools/jpubtool.cpp)
 target_link_libraries(jpubtool PRIVATE jpcore)
