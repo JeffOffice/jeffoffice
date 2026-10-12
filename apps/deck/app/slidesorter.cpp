@@ -20,6 +20,7 @@
 #include <QScrollBar>
 #include <QTextBlock>
 #include <QWheelEvent>
+#include <algorithm>
 #include <cmath>
 
 namespace jp {
@@ -258,6 +259,9 @@ QList<QByteArray> SlideSorter::slideKeys() const
 
 QByteArray SlideSorter::keyOf(int slide) const { return slide >= 0 && slide < m_keys.size() ? m_keys[slide] : QByteArray(); }
 
+// What a slide looks like, apart from the size its thumbnail is drawn at.
+QByteArray SlideSorter::lookOf(const QByteArray &key) { return key.left(std::max<qsizetype>(0, key.indexOf('@'))); }
+
 int SlideSorter::renderedCount() const
 {
     int n = 0;
@@ -333,6 +337,7 @@ void SlideSorter::renderNext()
     QImage img = Renderer::renderToImage(ctx, pick, thumbSize().width() * dpr / std::max(1.0, d->pageSize().width()));
     img.setDevicePixelRatio(dpr);
     m_images.insert(m_keys[pick], img);
+    m_latest.insert(lookOf(m_keys[pick]), img);
     prune(first - 2 * reach, last + 2 * reach);
     viewport()->update(thumbnailRect(pick).adjusted(-kPad, -kPad, kPad, kPad));
     m_renderTimer.start();
@@ -342,10 +347,14 @@ void SlideSorter::renderNext()
 // from view when there are many.
 void SlideSorter::prune(int first, int last)
 {
-    QSet<QByteArray> keep;
+    QSet<QByteArray> keep, looks;
     for (int i = 0; i < m_keys.size(); ++i)
-        if (i >= first && i <= last) keep.insert(m_keys[i]);
+        if (i >= first && i <= last) {
+            keep.insert(m_keys[i]);
+            looks.insert(lookOf(m_keys[i]));
+        }
     for (auto it = m_images.begin(); it != m_images.end();) it = keep.contains(it.key()) ? std::next(it) : m_images.erase(it);
+    for (auto it = m_latest.begin(); it != m_latest.end();) it = looks.contains(it.key()) ? std::next(it) : m_latest.erase(it);
 }
 
 void SlideSorter::setZoom(double zoom)
@@ -394,7 +403,9 @@ void SlideSorter::paintEvent(QPaintEvent *e)
         }
         const QRect thumb(cell.topLeft() + QPoint(kPad, kPad), ts);
         p.setOpacity(hidden ? 0.4 : 1.0);
-        const QImage img = m_images.value(keyOf(i));
+        // Until its thumbnail is drawn at this size, the one drawn at another stands in.
+        QImage img = m_images.value(keyOf(i));
+        if (img.isNull()) img = m_latest.value(lookOf(keyOf(i)));
         if (img.isNull()) {
             p.fillRect(thumb, Qt::white);
         } else {
@@ -435,7 +446,8 @@ void SlideSorter::paintEvent(QPaintEvent *e)
         int shown = 0;
         for (int i : m_sel) {
             if (shown >= 3) break;
-            const QImage img = m_images.value(keyOf(i));
+            QImage img = m_images.value(keyOf(i));
+            if (img.isNull()) img = m_latest.value(lookOf(keyOf(i)));
             const QSize small(ts.width() / 2, ts.height() / 2);
             const QRect at(m_lastPos - QPoint(small.width() / 2, small.height() / 2) + QPoint(shown * 8, shown * 8), small);
             if (img.isNull()) p.fillRect(at, Qt::white);
@@ -794,7 +806,6 @@ void SlideSorter::moveSlides(const QList<int> &slides, int before)
     m_anchor = cur;
     setCurrent(cur);
     m_ed->endChange();
-    sync();
     updateAccessibleText();
     ensureVisible(cur);
 }
@@ -816,7 +827,6 @@ void SlideSorter::deleteSelected()
     m_anchor = to;
     setCurrent(to);
     m_ed->endChange();
-    sync();
     updateAccessibleText();
     ensureVisible(to);
 }
@@ -837,7 +847,6 @@ void SlideSorter::duplicateSelected()
     m_anchor = made.last();
     setCurrent(made.last());
     m_ed->endChange();
-    sync();
     updateAccessibleText();
     ensureVisible(made.last());
 }

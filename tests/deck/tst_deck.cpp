@@ -498,6 +498,15 @@ private Q_SLOTS:
         QApplication::sendEvent(s->viewport(), &wheel);
         QVERIFY(s->thumbnailRect(0).width() < bigger);
         QCOMPARE(percent->text(), QStringLiteral("%1%").arg(qRound(s->zoom() * 100)));
+        // While its thumbnail is drawn again at the new size, the old one stands in.
+        QTRY_COMPARE(s->renderedCount(), 2);
+        s->setZoom(s->zoom() * 1.3);
+        QCOMPARE(s->renderedCount(), 0);
+        const QImage standIn = s->viewport()->grab(s->thumbnailRect(0)).toImage();
+        bool text = false;
+        for (int y = 0; y < standIn.height() && !text; ++y)
+            for (int x = 0; x < standIn.width() && !text; ++x) text = standIn.pixelColor(x, y).lightness() < 140;
+        QVERIFY(text);
         // Far out and far in stop at the smallest and the largest.
         s->setZoom(0.001);
         QVERIFY(s->thumbnailRect(0).width() >= 40);
