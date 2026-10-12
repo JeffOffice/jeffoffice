@@ -7002,6 +7002,116 @@ private Q_SLOTS:
         QCOMPARE(shows.result(), int(QDialog::Accepted));
     }
 
+    // A file's unnamed custom shows are named in one pass: a thousand take a moment, not half a minute.
+    void unnamedCustomShowsAreNamedQuickly()
+    {
+        auto d = lettered(2);
+        QString err;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &err), qPrintable(err));
+        QDomDocument dom;
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(rootOf(base.zip.value(QStringLiteral("ppt/presentation.xml")), &dom), office::ns::P, QStringLiteral("sldIdLst")), office::ns::P,
+                                                     QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        QString shows = QStringLiteral("<p:custShowLst>");
+        for (int i = 0; i < 1000; ++i) shows += QStringLiteral("<p:custShow name=\"\" id=\"%1\"><p:sldLst><p:sld r:id=\"%2\"/></p:sldLst></p:custShow>").arg(i).arg(rels[0]);
+        shows += QStringLiteral("</p:custShowLst>");
+        QMap<QString, QByteArray> zip = base.zip;
+        QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+        xml.insert(xml.indexOf(QStringLiteral("<p:defaultTextStyle>")), shows);
+        zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        QElapsedTimer clock;
+        clock.start();
+        auto back = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(clock.elapsed() < 4000, qPrintable(QString::number(clock.elapsed())));
+        const QVector<deck::CustomShow> got = deck::customShowsOf(*back);
+        QCOMPARE(int(got.size()), 1000);
+        QSet<QString> names;
+        for (const deck::CustomShow &s : got) names.insert(s.name.toLower());
+        QCOMPARE(int(names.size()), 1000);   // each its own
+        QCOMPARE(got[0].name, QStringLiteral("Custom Show 1"));
+        QCOMPARE(got[999].name, QStringLiteral("Custom Show 1000"));
+    }
+
+    // A custom show's id is never used again: a show taken out and one made after it are two, and what was set to play the first plays
+    // every slide, not the second. The settings never name a show that is not there.
+    void customShowIdsAreNotReused()
+    {
+        auto d = lettered(4);
+        deck::CustomShow a, b, c;
+        a.id = 0;
+        a.name = QStringLiteral("A");
+        a.slides = {d->pages[0]->id};
+        b.id = 1;
+        b.name = QStringLiteral("B");
+        b.slides = {d->pages[1]->id};
+        c.id = 2;
+        c.name = QStringLiteral("C");
+        c.slides = {d->pages[2]->id};
+        deck::setCustomShows(*d, {a, b, c});
+        deck::ShowSettings s;
+        s.slides = deck::ShowSettings::Slides::Custom;
+        s.customShow = 2;
+        deck::setShowSettings(*d, s);
+        QCOMPARE(deck::showSettingsOf(*d).customShow, qint64(2));
+        // C goes; the next show made is not number 2.
+        deck::setCustomShows(*d, {a, b});
+        QVERIFY(deck::newCustomShowId(*d, {a, b}) > 2);
+        deck::CustomShow n;
+        n.id = deck::newCustomShowId(*d, {a, b});
+        n.name = QStringLiteral("New");
+        n.slides = {d->pages[3]->id};
+        deck::setCustomShows(*d, {a, b, n});
+        QVERIFY(n.id != 2);
+        // The show set to play C is a show that is not there: every slide plays, and the dialog and the file say so.
+        QCOMPARE(int(deck::showSettingsOf(*d).slides), int(deck::ShowSettings::Slides::All));
+        QVERIFY(deck::planOf(*d, deck::showSettingsOf(*d)).slides.isEmpty());
+        QVERIFY(!deck::planOf(*d, deck::showSettingsOf(*d)).none);
+        // Everything out and one made: still a new number.
+        deck::setCustomShows(*d, {});
+        QVERIFY(deck::newCustomShowId(*d, {}) > n.id);
+        // A show whose slides are all deleted is gone, and what was set to play it plays every slide.
+        deck::setCustomShows(*d, {a, b, n});
+        s.customShow = n.id;
+        deck::setShowSettings(*d, s);
+        QCOMPARE(deck::showSettingsOf(*d).customShow, n.id);
+        d->pages.removeAt(3);
+        QCOMPARE(int(deck::showSettingsOf(*d).slides), int(deck::ShowSettings::Slides::All));
+        QCOMPARE(deck::showSettingsOf(*d).customShow, qint64(-1));
+        // And the ids stay as a file keeps them: read back, the next is past the largest.
+        QString err;
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::newCustomShowId(*back, deck::customShowsOf(*back)) > b.id);
+    }
+
+    // A stroke of a hundred thousand points is thinned in a moment, however it winds.
+    void inkThinningIsQuickOnSpirals()
+    {
+        deck::InkStroke spiral;
+        for (int i = 0; i < 100000; ++i) {
+            const double r = 5 + i * 0.004, a = i * 0.05;
+            spiral.points << QPointF(480 + r * std::cos(a), 270 + r * std::sin(a));
+        }
+        spiral.color = QColor(255, 0, 0);
+        spiral.width = 2.5;
+        QElapsedTimer clock;
+        clock.start();
+        const ItemPtr shape = deck::inkShape(spiral);
+        QVERIFY(shape);
+        QVERIFY2(clock.elapsed() < 500, qPrintable(QString::number(clock.elapsed())));
+        const auto *line = static_cast<const ShapeItem *>(shape.get());
+        QVERIFY(line->customPath.elementCount() > 100);
+        QVERIFY(line->customPath.elementCount() < 100000);
+        // It is still the line: the ends stay, and the points stay within the thinning's reach of the stroke.
+        QCOMPARE(line->customPath.elementAt(0).x + line->rect.left(), spiral.points.first().x());
+        QCOMPARE(line->customPath.elementAt(line->customPath.elementCount() - 1).y + line->rect.top(), spiral.points.last().y());
+    }
+
     // Slides that have a transition are marked in the thumbnails.
     void slidesPaneMarksTransitions()
     {

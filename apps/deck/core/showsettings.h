@@ -62,6 +62,7 @@ struct ShowSettings {
     static ShowSettings fromJson(const QJsonObject &o);
 };
 
+// The settings the presentation has. A show set to play a custom show that is not there (removed, or left with no slide) plays every slide.
 ShowSettings showSettingsOf(const Document &d);
 // Stores the settings; the defaults take the key out.
 void setShowSettings(Document &d, const ShowSettings &s);
@@ -76,12 +77,19 @@ struct CustomShow {
 // The custom shows, their slides as the presentation has them now.
 QVector<CustomShow> customShowsOf(const Document &d);
 // Stores the shows (none: the key goes). Ids that repeat or are out of range
-// are made new, names are cut to what a file allows.
+// are made new, names are cut to what a file allows. The presentation
+// remembers the next id to give (appData "customShowNextId"), so an id is never
+// used twice, and a show set to play one that is gone is set to play every slide.
 void setCustomShows(Document &d, const QVector<CustomShow> &shows);
 const CustomShow *customShowById(const QVector<CustomShow> &shows, qint64 id);
-// An id no show has, and a name no show has ("Custom Show 1"...).
+// An id no show has had in this presentation (past the ones `shows` and the
+// presentation's own remembered next id), and a name no show has
+// ("Custom Show 1"...).
 qint64 newCustomShowId(const QVector<CustomShow> &shows);
+qint64 newCustomShowId(const Document &d, const QVector<CustomShow> &shows);
 QString newCustomShowName(const QVector<CustomShow> &shows);
+// What the nth show nobody named is called.
+QString customShowDefaultName(int n);
 // The slides (indices) of a show, in order, for the presentation as it is.
 // For many shows, the index of the pages by id is made once.
 QList<int> customShowSlides(const Document &d, const CustomShow &show);
@@ -92,10 +100,12 @@ constexpr int kMaxCustomShowName = 255;
 
 // Which slides a show plays: `slides` in the order they go (empty: every
 // slide, in order), and whether hidden slides play (a custom show plays the
-// slides it lists, as it says; the others skip hidden ones).
+// slides it lists, as it says; the others skip hidden ones). `none`: a range
+// that begins past the last slide leaves nothing to play.
 struct ShowPlan {
     QList<int> slides;
     bool hidden = false;
+    bool none = false;
 };
 // The plan the settings ask for; `honorSlides` false plays every slide (From Current Slide).
 ShowPlan planOf(const Document &d, const ShowSettings &s, bool honorSlides = true);

@@ -36,6 +36,14 @@ double highlighterWeightFor(double pageWidth);
 double eraserReachFor(double pageWidth);
 // The default color of the highlighter (a yellow).
 QColor highlighterColor();
+// The colors the pen and the highlighter can be chosen in, by name (Red, Orange, Yellow, Green, Light Blue, Blue, Purple, Black, White),
+// and the name a color has: its own when the list has it, else its code ("#123456").
+struct InkColor {
+    QString name;
+    QColor color;
+};
+QVector<InkColor> inkColors();
+QString inkColorName(const QColor &color);
 
 // The stroke as a path (a stroke of one point is a dot).
 QPainterPath inkPath(const InkStroke &stroke);
