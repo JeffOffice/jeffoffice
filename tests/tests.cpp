@@ -19710,6 +19710,83 @@ private Q_SLOTS:
         raw.remove(QStringLiteral("updates/channel"));
     }
 
+    // Slides use the page model: speaker notes, hidden slides, an app's own
+    // data on a page and on the document, and masters drawn under masters
+    // (a slide's layout over its slide master), whose placeholder boxes are
+    // prompts that don't show on the slides themselves.
+    void slidePagesKeepNotesLayoutsAndMasterChains()
+    {
+        using namespace jp;
+        auto doc = Document::blank(QSizeF(200, 100));
+        auto box = [](const QRectF &r, const QColor &c, const QString &role = QString()) {
+            auto s = std::make_shared<ShapeItem>();
+            s->rect = r;
+            s->fill = Fill::solid(ColorRef::rgb(c));
+            s->stroke = Stroke();
+            s->role = role;
+            return s;
+        };
+        auto slideMaster = doc->masters[0];
+        slideMaster->items.push_back(box(QRectF(0, 0, 40, 40), Qt::red));
+        slideMaster->items.push_back(box(QRectF(50, 0, 40, 40), Qt::green, QStringLiteral("ph:title")));
+        slideMaster->background = Fill::solid(ColorRef::rgb(QColor(0, 0, 255)));
+        auto layout = std::make_shared<MasterPage>();
+        layout->abbr = QStringLiteral("L");
+        layout->baseId = slideMaster->id;
+        layout->items.push_back(box(QRectF(100, 0, 40, 40), Qt::black));
+        layout->props[QStringLiteral("type")] = QStringLiteral("title");
+        doc->masters.push_back(layout);
+        Page &slide = *doc->pages[0];
+        slide.masterId = layout->id;
+        slide.notesStoryId = doc->createStory(QStringLiteral("Speaker notes"));
+        slide.hidden = true;
+        slide.props[QStringLiteral("transition")] = QStringLiteral("fade");
+        doc->appData[QStringLiteral("theme")] = QStringLiteral("JeffOffice");
+
+        QCOMPARE(doc->masterChain(layout.get()), (QVector<MasterPage *>{slideMaster.get(), layout.get()}));
+        QVERIFY(doc->storiesInUse().contains(slide.notesStoryId));
+
+        // Saved and read back whole.
+        Document back;
+        back.fromJson(doc->toJson());
+        QCOMPARE(back.pages[0]->notesStoryId, slide.notesStoryId);
+        QVERIFY(back.pages[0]->hidden);
+        QCOMPARE(back.pages[0]->props.value(QStringLiteral("transition")).toString(), QStringLiteral("fade"));
+        QCOMPARE(back.masters[1]->baseId, slideMaster->id);
+        QCOMPARE(back.masters[1]->props.value(QStringLiteral("type")).toString(), QStringLiteral("title"));
+        QCOMPARE(back.appData.value(QStringLiteral("theme")).toString(), QStringLiteral("JeffOffice"));
+        QCOMPARE(back.storyDoc(slide.notesStoryId)->toPlainText(), QStringLiteral("Speaker notes"));
+
+        // A publication without them saves as before.
+        auto pub = Document::blank(QSizeF(200, 100));
+        const QJsonObject pj = pub->toJson();
+        const QJsonObject pageJ = pj[QStringLiteral("pages")].toArray()[0].toObject(), masterJ = pj[QStringLiteral("masters")].toArray()[0].toObject();
+        for (const char *key : {"notes", "hidden", "props", "masterItems"}) QVERIFY2(!pageJ.contains(QLatin1String(key)), key);
+        for (const char *key : {"base", "props", "masterItems"}) QVERIFY2(!masterJ.contains(QLatin1String(key)), key);
+        QVERIFY(!pj.contains(QStringLiteral("appData")));
+
+        // Drawn: the slide master's background and objects under the
+        // layout's, but not the placeholder prompt.
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = doc.get();
+        ctx.cache = &cache;
+        auto at = [&](int x, int y) { return Renderer::renderToImage(ctx, 0, 1.0).pixelColor(x, y); };
+        QCOMPARE(at(20, 20), QColor(Qt::red));
+        QCOMPARE(at(70, 20), QColor(0, 0, 255));   // the placeholder isn't drawn; the background shows
+        QCOMPARE(at(120, 20), QColor(Qt::black));
+        QCOMPARE(at(170, 70), QColor(0, 0, 255));
+        // A layout can hide its slide master's objects, and a slide all of them.
+        layout->showMasterItems = false;
+        QCOMPARE(at(20, 20), QColor(0, 0, 255));
+        QCOMPARE(at(120, 20), QColor(Qt::black));
+        slide.showMasterItems = false;
+        QCOMPARE(at(120, 20), QColor(0, 0, 255));
+        // A loop of bases ends.
+        slideMaster->baseId = layout->id;
+        QVERIFY(doc->masterChain(layout.get()).size() <= 2);
+    }
+
     void movesJeffPub79Settings()
     {
         // JeffPub 79's settings come over, except what setup already chose.

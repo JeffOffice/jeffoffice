@@ -1149,6 +1149,35 @@ void Renderer::paintMaster(QPainter *p, const PaintContext &ctx, const MasterPag
     p->restore();
 }
 
+// The objects of the master pages under a page, bottom first: each master's
+// own, without its placeholder prompts, down as far as the masters let the
+// ones beneath show.
+static void paintMastersUnder(QPainter *p, const PaintContext &c, const PageBase &pg, const QVector<MasterPage *> &chain, double xOffset)
+{
+    if (!pg.showMasterItems || chain.isEmpty()) return;
+    int lowest = int(chain.size()) - 1;
+    while (lowest > 0 && chain[lowest]->showMasterItems) --lowest;
+    for (int i = lowest; i < chain.size(); ++i) {
+        const MasterPage &m = *chain[i];
+        ItemList shown;
+        for (const auto &it : m.items)
+            if (!it->role.startsWith(QLatin1String("ph:"))) shown.push_back(it);
+        MasterPage drawn;
+        drawn.twoPage = m.twoPage;
+        drawn.items = std::move(shown);
+        Renderer::paintMaster(p, c, drawn, xOffset);
+    }
+}
+
+// A page's background: its own, else its master's, else that one's base's.
+static Fill backgroundOf(const PageBase &pg, const QVector<MasterPage *> &chain)
+{
+    if (pg.background.type != Fill::NoFill) return pg.background;
+    for (int i = int(chain.size()) - 1; i >= 0; --i)
+        if (chain[i]->background.type != Fill::NoFill) return chain[i]->background;
+    return Fill();
+}
+
 // Catalog merge: the catalog area's other cells repeat the objects in its
 // first cell, each with the next record; while designing on screen they show
 // faded, with the field names.
@@ -1191,11 +1220,12 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     c.pageCount = doc.pages.size();
     const QRectF pr(QPointF(0, 0), doc.pageSize());
     MasterPage *m = doc.masterFor(pg);
-    const Fill bg = pg.background.type != Fill::NoFill ? pg.background : (m ? m->background : Fill());
+    const QVector<MasterPage *> chain = doc.masterChain(m);
+    const Fill bg = backgroundOf(pg, chain);
     paintBackground(p, c, bg, pr);
     if (m) {
         const bool right = (pageIndex + 1) % 2 == 1;
-        paintMaster(p, c, *m, m->twoPage && right ? -doc.pageSize().width() : 0);
+        paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
     }
     if (!ctx.opt.flattenTransparency) {
         paintItems(p, c, pg.items);
@@ -1231,7 +1261,7 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
             PaintContext under = c;
             under.opt.flattenTransparency = false;
             paintBackground(&pp, under, bg, pr);
-            if (m) paintMaster(&pp, under, *m, m->twoPage && (pageIndex + 1) % 2 == 1 ? -doc.pageSize().width() : 0);
+            if (m) paintMastersUnder(&pp, under, pg, chain, m->twoPage && (pageIndex + 1) % 2 == 1 ? -doc.pageSize().width() : 0);
             for (size_t j = 0; j <= k; ++j) paintItem(&pp, under, *pg.items[j]);
         }
         p->drawImage(br, patch);
