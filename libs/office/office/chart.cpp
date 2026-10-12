@@ -20,6 +20,8 @@ const QString kMarkupNs = QStringLiteral("http://schemas.openxmlformats.org/mark
 
 // What a chart part may hold: more is left out.
 constexpr int kMaxSeries = 256, kMaxPoints = 50000, kMaxPlots = 16, kMaxAxes = 16;
+// The points all of a chart's series may have between them.
+constexpr int kMaxChartPoints = 400000;
 
 QString say(const char *text) { return QCoreApplication::translate("Chart", text); }
 
@@ -377,10 +379,12 @@ private:
     bool readPlot(const QDomElement &e);
     ChartAxis readAxis(const QDomElement &e) const;
     void readLayout(const QDomElement &layout);
+    void applyStyleColors();
 
     const Theme &m_theme;
     ColorMap m_map;
     Chart *m_chart;
+    mutable int m_pointsLeft = kMaxChartPoints;
 };
 
 void Reader::readFill(const QDomElement &spPr, QColor *color, bool *none) const
@@ -529,7 +533,8 @@ Data Reader::readData(const QDomElement &parent) const
         count = 0;
         for (const QDomElement &pt : pts) count = std::max(count, parseInt(attr(pt, QStringLiteral("idx")), -1) + 1);
     }
-    count = std::clamp<qint64>(count, 0, kMaxPoints);
+    count = std::clamp<qint64>(count, 0, std::min(kMaxPoints, m_pointsLeft));
+    m_pointsLeft -= int(count);
     if (data.numeric) data.numbers = QVector<double>(int(count), kNaN);
     else data.strings = QStringList(int(count));
     for (const QDomElement &pt : pts) {
@@ -760,6 +765,35 @@ void Reader::readLayout(const QDomElement &layout)
     m_chart->plotH = std::clamp(h, 0.01, 1.0);
 }
 
+// The color of the series (or point) number `k` of `n` in a chart style that colors them in shades of one color: from darker than it to lighter.
+static QColor shadeOf(const QColor &base, int k, int n)
+{
+    const double f = n <= 1 ? 0.0 : -0.45 + 1.0 * k / (n - 1);
+    const QColor hsl = base.toHsl();
+    const double l = hsl.lightnessF();
+    return QColor::fromHslF(hsl.hslHueF() < 0 ? 0 : hsl.hslHueF(), hsl.hslSaturationF(), std::clamp(f < 0 ? l * (1 + f) : l + (1 - l) * f, 0.0, 1.0));
+}
+
+// The chart styles count in blocks of eight: the first of each is shades of gray, the second the accents in turn, and the other six shades of
+// one accent each. A series the file gives no color takes the one its style says.
+void Reader::applyStyleColors()
+{
+    Chart &c = *m_chart;
+    const int kind = (c.style - 1) % 8;
+    if (kind == 1) return;
+    int total = 0;
+    for (const ChartPlot &p : std::as_const(c.plots)) total += int(p.series.size());
+    const QColor base = kind == 0 ? QColor(128, 128, 128) : m_theme.colors[m_map.accent[kind - 2]];
+    int k = 0;
+    for (ChartPlot &p : c.plots)
+        for (ChartSeries &s : p.series) {
+            if (!s.colorFromFile) s.color = shadeOf(base, k, total);
+            ++k;
+        }
+    // Slices, and points that vary their color, step through the shades too.
+    for (int i = 0; i < c.palette.size(); ++i) c.palette[i] = shadeOf(base, i % 9, 9);
+}
+
 bool Reader::read(const QDomElement &root, QString *error)
 {
     Chart &c = *m_chart;
@@ -812,6 +846,7 @@ bool Reader::read(const QDomElement &root, QString *error)
         c.legend.font = readTxPr(cChild(legend, "txPr"));
     }
     c.blanksAs = valOf(cChild(chart, "dispBlanksAs"), QStringLiteral("gap"));
+    applyStyleColors();
     // A title with no text of its own is named for the series, or has the usual words.
     if (c.title.present && c.title.text.isEmpty()) {
         int count = 0;
