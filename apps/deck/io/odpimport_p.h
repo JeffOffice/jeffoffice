@@ -243,6 +243,8 @@ private:
 
     // odpimport_chart.cpp: the picture (an image id) of a chart object, drawn from its numbers; empty if it is no chart that can be drawn.
     QString chartImage(const QDomElement &object, const QSizeF &size);
+    QString drawChart(const QString &part, const QSizeF &size);
+    struct ChartCache;
 
     // odpimport_shape.cpp
     void readShapes(const QDomElement &parent, Scope &sc, ItemList &out, const QTransform &parentTransform);
@@ -290,6 +292,7 @@ private:
     std::unique_ptr<StyleSheet> m_contentSheet, m_masterSheet;
     std::vector<std::unique_ptr<MasterInfo>> m_masters;
     QHash<QString, QString> m_pictures;     // part name -> image id
+    std::shared_ptr<ChartCache> m_charts;   // the drawings of charts made so far (odpimport_chart.cpp)
     QHash<QString, QString> m_linkIds;      // address -> the id of its relationship in m_links
     office::Package m_links;
     QVector<QPair<Page *, FooterOptions>> m_pendingFooters;

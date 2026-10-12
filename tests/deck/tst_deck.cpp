@@ -330,6 +330,51 @@ QByteArray sampleChart()
         "</table:table-rows></table:table></chart:chart></office:chart></office:body></office:document-content>")).toUtf8();
 }
 
+// A chart object's content with a table of its own: the first column names the categories, each other column is a series (named S1, S2...),
+// drawn as `cls`. `autoStyles` are the styles it uses, `plotXml` goes in the plot area before the series, `seriesXml` inside each series, and
+// `categories` is the range the x axis names, or empty for the column of names itself.
+QByteArray chartContent(const QString &cls, const QStringList &names, const QVector<QVector<double>> &columns, const QString &autoStyles = QString(), const QString &plotXml = QString(),
+                        const QString &seriesAttrs = QString(), const QString &seriesXml = QString(), const QString &categories = QString(), const QString &axesXml = QString())
+{
+    const int n = int(names.size());
+    QString header = QStringLiteral("<table:table-row><table:table-cell/>"), body;
+    for (int c = 0; c < columns.size(); ++c) header += QStringLiteral("<table:table-cell office:value-type=\"string\"><text:p>S%1</text:p></table:table-cell>").arg(c + 1);
+    header += QStringLiteral("</table:table-row>");
+    for (int r = 0; r < n; ++r) {
+        body += QStringLiteral("<table:table-row><table:table-cell office:value-type=\"string\"><text:p>%1</text:p></table:table-cell>").arg(names[r]);
+        for (const QVector<double> &column : columns)
+            body += QStringLiteral("<table:table-cell office:value-type=\"float\" office:value=\"%1\"><text:p>%1</text:p></table:table-cell>").arg(r < column.size() ? column[r] : 0);
+        body += QStringLiteral("</table:table-row>");
+    }
+    QString series;
+    for (int c = 0; c < columns.size(); ++c) {
+        const QChar col = QChar('B' + c);
+        series += QStringLiteral("<chart:series chart:values-cell-range-address=\"local-table.$%1$2:.$%1$%2\" chart:label-cell-address=\"local-table.$%1$1\" chart:class=\"%3\" %4>%5</chart:series>")
+                      .arg(col).arg(n + 1).arg(cls, seriesAttrs, seriesXml);
+    }
+    const QString axes = axesXml.isEmpty() ? QStringLiteral("<chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"><chart:categories table:cell-range-address=\"%1\"/></chart:axis>"
+                                                           "<chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"><chart:grid chart:class=\"major\"/></chart:axis>")
+                                                 .arg(categories.isEmpty() ? QStringLiteral("local-table.$A$2:.$A$%1").arg(n + 1) : categories)
+                                           : axesXml;
+    return (QStringLiteral("<?xml version=\"1.0\"?><office:document-content") + kNs + QStringLiteral("><office:automatic-styles>") + autoStyles
+            + QStringLiteral("</office:automatic-styles><office:body><office:chart><chart:chart chart:class=\"%1\"><chart:legend chart:legend-position=\"end\"/><chart:plot-area>").arg(cls)
+            + plotXml + axes + series + QStringLiteral("</chart:plot-area><table:table table:name=\"local-table\"><table:table-header-rows>") + header
+            + QStringLiteral("</table:table-header-rows><table:table-rows>") + body + QStringLiteral("</table:table-rows></table:table></chart:chart></office:chart></office:body></office:document-content>"))
+        .toUtf8();
+}
+
+// A presentation of one slide with a frame for each of `sizes` (width and height in points), every one holding the chart `chart` (as another part
+// of the file, with a picture of its own that can't be shown).
+QByteArray chartDeck(const QByteArray &chart, const QVector<QSizeF> &sizes)
+{
+    QString frames;
+    for (const QSizeF &s : sizes)
+        frames += QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"%1pt\" svg:height=\"%2pt\" svg:x=\"1cm\" svg:y=\"1cm\"><draw:object xlink:href=\"./Object 1\"/>"
+                                 "<draw:image xlink:href=\"./ObjectReplacements/Object 1\"/></draw:frame>").arg(s.width()).arg(s.height());
+    return odpZip(odpContent(sampleAutomaticStyles(), QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">") + frames + QStringLiteral("</draw:page>")),
+                  odpStyles(), {{QStringLiteral("Object 1/content.xml"), chart}, {QStringLiteral("ObjectReplacements/Object 1"), QByteArray("VCLMTF\1\0 a metafile of the producer's own")}});
+}
+
 QByteArray sampleOdp()
 {
     return odpZip(sampleContent(), odpStyles(), {{QStringLiteral("Pictures/a.png"), png(200, 100, QColor(200, 30, 30))},
@@ -3052,6 +3097,196 @@ private Q_SLOTS:
         for (const auto &it : third.items)
             if (deck::placeholderType(*it) == QLatin1String("ftr")) QCOMPARE(textOf(*d, *it), QStringLiteral("Confidential"));
         QVERIFY(d->appData.value(QStringLiteral("footers")).toBool());
+    }
+
+    // A range of cells the file names past its table (a chart that names a million rows of a table of three) is read as far as the table goes.
+    void odpChartCategoryRangeStaysInItsTable()
+    {
+        QString err;
+        const QByteArray chart = odptest::chartContent(QStringLiteral("chart:bar"), {QStringLiteral("North"), QStringLiteral("South"), QStringLiteral("West")}, {{4, 8, 6}}, QString(), QString(),
+                                                       QString(), QString(), QStringLiteral("local-table.$A$2:.$A$3000"));
+        auto d = deck::importOdp(odptest::chartDeck(chart, {QSizeF(300, 200)}), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QVector<QByteArray> svgs = chartPictures(*d);
+        QCOMPARE(svgs.size(), 1);
+        QVERIFY2(svgs[0].count('<') < 700, qPrintable(QString::number(svgs[0].count('<'))));
+        const QStringList texts = textsOf(svgs[0]);
+        QVERIFY2(texts.join(QString()).contains(QStringLiteral("North")), qPrintable(texts.join(QLatin1Char('|'))));
+        // The values' own range, and the one that names categories for series with none, are bounded the same way.
+        const QByteArray values = odptest::chartContent(QStringLiteral("chart:bar"), {QStringLiteral("North"), QStringLiteral("South")}, {{4, 8}}, QString(), QString(), QString(), QString(), QStringLiteral("local-table.$A$2:.$A$3"),
+                                                        QStringLiteral("<chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"/><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"/>"));
+        QString widened = QString::fromUtf8(values);
+        widened.replace(QStringLiteral("$B$3\""), QStringLiteral("$B$300000\""));
+        d = deck::importOdp(odptest::chartDeck(widened.toUtf8(), {QSizeF(300, 200)}), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(chartPictures(*d).value(0).count('<') < 700, qPrintable(QString::number(chartPictures(*d).value(0).count('<'))));
+    }
+
+    // A scatter chart's points stand at the x values of the series' domain, not at 1, 2, 3.
+    void odpChartScatterUsesItsDomain()
+    {
+        // The table as the other suite writes it: a column of y values (and the series' name above it), and the column of x values beside it.
+        const QString content = QStringLiteral("<?xml version=\"1.0\"?><office:document-content") + odptest::kNs + QStringLiteral("><office:automatic-styles/><office:body><office:chart>"
+            "<chart:chart chart:class=\"chart:scatter\"><chart:plot-area><chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"/><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"/>"
+            "<chart:series chart:values-cell-range-address=\"local-table.$B$2:.$B$5\" chart:label-cell-address=\"local-table.$B$1\" chart:class=\"chart:scatter\"><chart:domain table:cell-range-address=\"local-table.$C$2:.$C$5\"/></chart:series>"
+            "</chart:plot-area><table:table table:name=\"local-table\"><table:table-header-rows><table:table-row><table:table-cell/><table:table-cell office:value-type=\"string\"><text:p>S</text:p></table:table-cell>"
+            "<table:table-cell office:value-type=\"string\"><text:p>X</text:p></table:table-cell></table:table-row></table:table-header-rows><table:table-rows>"
+            "<table:table-row><table:table-cell/><table:table-cell office:value-type=\"float\" office:value=\"1\"/><table:table-cell office:value-type=\"float\" office:value=\"10\"/></table:table-row>"
+            "<table:table-row><table:table-cell/><table:table-cell office:value-type=\"float\" office:value=\"2\"/><table:table-cell office:value-type=\"float\" office:value=\"20\"/></table:table-row>"
+            "<table:table-row><table:table-cell/><table:table-cell office:value-type=\"float\" office:value=\"3\"/><table:table-cell office:value-type=\"float\" office:value=\"40\"/></table:table-row>"
+            "<table:table-row><table:table-cell/><table:table-cell office:value-type=\"float\" office:value=\"2.5\"/><table:table-cell office:value-type=\"float\" office:value=\"80\"/></table:table-row>"
+            "</table:table-rows></table:table></chart:chart></office:chart></office:body></office:document-content>");
+        QString err;
+        auto d = deck::importOdp(odptest::chartDeck(content.toUtf8(), {QSizeF(300, 200)}), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QVector<QByteArray> svgs = chartPictures(*d);
+        QCOMPARE(svgs.size(), 1);
+        const QStringList texts = textsOf(svgs[0]);
+        // The horizontal axis runs to 90 for x values to 80, and to 4.5 for the numbers 1 to 4.
+        QVERIFY2(texts.contains(QStringLiteral("80")) && texts.contains(QStringLiteral("90")) && !texts.contains(QStringLiteral("4.5")), qPrintable(texts.join(QLatin1Char('|'))));
+    }
+
+    // A series that has no color of its own takes the next of the palette, as a slice of a pie does; it isn't black.
+    void odpChartSeriesWithoutColorTakeThePalette()
+    {
+        const QByteArray chart = odptest::chartContent(QStringLiteral("chart:bar"), {QStringLiteral("a"), QStringLiteral("b")}, {{1, 2}, {2, 3}, {3, 1}});
+        QString err;
+        auto d = deck::importOdp(odptest::chartDeck(chart, {QSizeF(300, 200)}), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray svg = chartPictures(*d).value(0);
+        QVERIFY(!svg.isEmpty());
+        QVERIFY2(svg.contains("fill=\"#004586\"") && svg.contains("fill=\"#ff420e\"") && svg.contains("fill=\"#ffd320\""), qPrintable(QString::fromUtf8(svg.left(1500))));
+        QVERIFY2(!svg.contains("<g fill=\"#000000\""), "a series is drawn black");
+        // A series with a color of its own keeps it.
+        const QByteArray own = odptest::chartContent(QStringLiteral("chart:bar"), {QStringLiteral("a"), QStringLiteral("b")}, {{1, 2}, {2, 3}},
+                                                    QStringLiteral("<style:style style:name=\"ch2\" style:family=\"chart\"><style:graphic-properties draw:fill-color=\"#123456\"/></style:style>"));
+        QString withStyle = QString::fromUtf8(own);
+        withStyle.replace(QStringLiteral("chart:class=\"chart:bar\" >"), QStringLiteral("chart:class=\"chart:bar\" chart:style-name=\"ch2\">"));
+        d = deck::importOdp(odptest::chartDeck(withStyle.toUtf8(), {QSizeF(300, 200)}), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray two = chartPictures(*d).value(0);
+        QVERIFY(two.contains("fill=\"#123456\""));
+        QVERIFY(!two.contains("<g fill=\"#000000\""));
+    }
+
+    // A chart object that frames name again and again is read and drawn once for each size, and a presentation draws only so many.
+    void odpChartFramesShareTheirDrawingAndAreLimited()
+    {
+        const QByteArray chart = odptest::chartContent(QStringLiteral("chart:bar"), {QStringLiteral("a"), QStringLiteral("b")}, {{1, 2}});
+        QString err;
+        QStringList notes;
+        // The same frame 500 times: one drawing, and every frame has its picture.
+        auto d = deck::importOdp(odptest::chartDeck(chart, QVector<QSizeF>(500, QSizeF(300, 8))), &err, &notes);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(chartPictures(*d).size(), 500);
+        QCOMPARE(d->images.size(), 1);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("300")) == false, qPrintable(notes.join(QLatin1Char('|'))));
+        // A thousand sizes: the first 300 are drawn, the rest left out, with a note.
+        QVector<QSizeF> sizes;
+        for (int i = 0; i < 1000; ++i) sizes << QSizeF(300 + i, 8);
+        notes.clear();
+        d = deck::importOdp(odptest::chartDeck(chart, sizes), &err, &notes);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(chartPictures(*d).size(), 300);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("300")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // A chart with more points than a picture can show is drawn from some of them, and the file's notes say so.
+    void odpChartWithMorePointsThanAPictureCanShowSaysSo()
+    {
+        QStringList names;
+        QVector<double> values;
+        for (int i = 0; i < 6000; ++i) {
+            names << QStringLiteral("r%1").arg(i);
+            values << i % 70;
+        }
+        QString err;
+        QStringList notes;
+        auto d = deck::importOdp(odptest::chartDeck(odptest::chartContent(QStringLiteral("chart:line"), names, {values}), {QSizeF(400, 300)}), &err, &notes);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(notes.join(QLatin1Char('|')).contains(QStringLiteral("more points")));
+        QCOMPARE(chartPictures(*d).size(), 1);
+        notes.clear();
+        d = deck::importOdp(odptest::chartDeck(odptest::chartContent(QStringLiteral("chart:line"), names.mid(0, 50), {values.mid(0, 50)}), {QSizeF(400, 300)}), &err, &notes);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(!notes.join(QLatin1Char('|')).contains(QStringLiteral("more points")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // A frame is drawn no larger than a slide can be, however large the file says it is.
+    void odpChartFrameSizeIsClamped()
+    {
+        const QByteArray chart = odptest::chartContent(QStringLiteral("chart:bar"), {QStringLiteral("a"), QStringLiteral("b")}, {{1, 2}});
+        QString err;
+        auto d = deck::importOdp(odptest::chartDeck(chart, {QSizeF(900000, 900000)}), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray svg = chartPictures(*d).value(0);
+        QVERIFY2(svg.contains("viewBox=\"0 0 4032 4032\""), qPrintable(QString::fromUtf8(svg.left(400))));
+    }
+
+    // A font name in a chart's style, with the characters an SVG attribute can't hold, doesn't make the chart vanish.
+    void odpChartFontNameCannotBreakTheChart()
+    {
+        const QByteArray chart = odptest::chartContent(QStringLiteral("chart:bar"), {QStringLiteral("a"), QStringLiteral("b")}, {{1, 2}},
+                                                       QStringLiteral("<style:style style:name=\"axs\" style:family=\"chart\"><style:text-properties fo:font-family=\"A&lt;B&amp;C&gt;D\" fo:font-size=\"10pt\"/></style:style>"),
+                                                       QString(), QString(), QString(), QString(),
+                                                       QStringLiteral("<chart:axis chart:dimension=\"x\" chart:name=\"primary-x\" chart:style-name=\"axs\"><chart:categories table:cell-range-address=\"local-table.$A$2:.$A$3\"/></chart:axis>"
+                                                                      "<chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"/>"));
+        QString err;
+        auto d = deck::importOdp(odptest::chartDeck(chart, {QSizeF(300, 200)}), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray svg = chartPictures(*d).value(0);
+        QVERIFY(!svg.isEmpty());
+        QXmlStreamReader xml(svg);
+        while (!xml.atEnd()) xml.readNext();
+        QVERIFY2(!xml.hasError(), qPrintable(xml.errorString()));
+        QVERIFY(textsOf(svg).contains(QStringLiteral("a")));
+    }
+
+    // A chart with more points than a picture can show is drawn from some of them, and the file's notes say so.
+    void pptxChartWithMorePointsThanAPictureCanShowSaysSo()
+    {
+        auto withPoints = [](int n) {
+            QString points;
+            for (int i = 0; i < n; ++i) points += QStringLiteral("<c:pt idx=\"%1\"><c:v>%2</c:v></c:pt>").arg(i).arg(i % 90);
+            Parts p = chartPptx();
+            p.data["/ppt/charts/chart1.xml"].xml = (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" "
+                "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><c:chart><c:autoTitleDeleted val=\"1\"/>"
+                "<c:plotArea><c:layout/><c:lineChart><c:grouping val=\"standard\"/><c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:val><c:numRef><c:f>Sheet1!$B$2</c:f><c:numCache><c:formatCode>General</c:formatCode>"
+                "<c:ptCount val=\"%1\"/>%2</c:numCache></c:numRef></c:val></c:ser><c:marker val=\"0\"/><c:axId val=\"1\"/><c:axId val=\"2\"/></c:lineChart>"
+                "<c:catAx><c:axId val=\"1\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/><c:crossAx val=\"2\"/></c:catAx>"
+                "<c:valAx><c:axId val=\"2\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:crossAx val=\"1\"/></c:valAx></c:plotArea></c:chart>"
+                "<c:externalData r:id=\"rId1\"><c:autoUpdate val=\"0\"/></c:externalData><c:userShapes r:id=\"rId2\"/></c:chartSpace>")
+                                                         .arg(n).arg(points)).toUtf8();
+            return pack(p);
+        };
+        QString err;
+        auto d = deck::importPresentation(withPoints(9000), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(chartPicture(*d, *d->pages[0]));
+        QVERIFY2(err.contains(QStringLiteral("Chart 8")) && err.contains(QStringLiteral("more points")), qPrintable(err));
+        err.clear();
+        d = deck::importPresentation(withPoints(90), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(!err.contains(QStringLiteral("more points")), qPrintable(err));
+    }
+
+    // A chart frame of a slide is drawn no larger than a slide can be.
+    void pptxChartFrameSizeIsClamped()
+    {
+        Parts p = chartPptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QVERIFY(xml.contains(QStringLiteral("<a:ext cx=\"3657600\" cy=\"2743200\"/>")));
+        xml.replace(QStringLiteral("<a:ext cx=\"3657600\" cy=\"2743200\"/>"), QStringLiteral("<a:ext cx=\"9000000000000\" cy=\"700000000000\"/>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const auto *pic = chartPicture(*d, *d->pages[0]);
+        QVERIFY(pic);
+        QCOMPARE(pic->rect.size(), QSizeF(4032, 4032));
+        QCOMPARE(pic->imgRect, QRectF(0, 0, 4032, 4032));
+        const QByteArray svg = d->images.value(pic->imageId).bytes;
+        QVERIFY2(svg.contains("viewBox=\"0 0 4032 4032\""), qPrintable(QString::fromUtf8(svg.left(400))));
     }
 
     // A presentation saved with no slides (a template can be, and so can a
@@ -8927,6 +9162,24 @@ private:
         }
         // A chart that was not kept shows as no picture at all: pictures with an SVG of their own and the name the frame had.
         return nullptr;
+    }
+    // The pictures a presentation's charts are, in order, as the SVG each one is.
+    static QVector<QByteArray> chartPictures(const Document &d)
+    {
+        QVector<QByteArray> out;
+        for (const auto &page : d.pages)
+            for (const auto &it : page->items)
+                if (it->type() == ItemType::Picture && d.images.value(static_cast<const PictureItem *>(it.get())->imageId).format == QLatin1String("svg"))
+                    out << d.images.value(static_cast<const PictureItem *>(it.get())->imageId).bytes;
+        return out;
+    }
+    static QStringList textsOf(const QByteArray &svg)
+    {
+        QStringList texts;
+        static const QRegularExpression textEl(QStringLiteral("<text[^>]*>([^<]*)</text>"));
+        const QString s = QString::fromUtf8(svg);
+        for (auto m = textEl.globalMatch(s); m.hasNext();) texts << m.next().captured(1).trimmed();
+        return texts;
     }
 
 private Q_SLOTS:
