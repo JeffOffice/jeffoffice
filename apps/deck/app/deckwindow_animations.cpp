@@ -36,6 +36,8 @@ namespace jp {
 
 namespace {
 
+const QSize kGalleryItem(64, 52);   // a gallery picture: the slide, and the name under it
+
 // What the controls do, kept in one place. The pane shows the sequence and the ribbon says what was asked; this reads the
 // slide's animations, changes them as one undo step, and keeps what shows them in step.
 struct Anims {
@@ -45,7 +47,8 @@ struct Anims {
     QVector<int> picked;          // the rows picked in the pane, until a pick on the slide takes them back
     bool pickingShapes = false;   // the selection is being changed from the pane
     int painterFrom = 0;          // the shape whose effects Animation Painter copies, while it waits for the next shape
-    QString cachedKey;
+    QString cachedPage;
+    quint64 cachedSignature = 0;
     deck::AnimSequence cached;
     // What shows the effects picked (the commands' and controls' states) says so here, to be told when the pick changes.
     QList<std::function<void()>> listeners;
@@ -68,10 +71,11 @@ struct Anims {
         static const deck::AnimSequence none;
         const Page *p = slide();
         if (!p) return none;
-        const QString key = p->id + QLatin1Char('\n') + p->props.value(QStringLiteral("timingXml")).toString();
-        if (key != cachedKey) {
-            cachedKey = key;
-            cached = deck::readAnimations(*p);
+        const quint64 signature = deck::animationSignature(*doc(), *p);
+        if (p->id != cachedPage || signature != cachedSignature) {
+            cachedPage = p->id;
+            cachedSignature = signature;
+            cached = signature ? deck::readAnimations(*p, doc()) : deck::AnimSequence();
             // The rows picked that the sequence no longer has are not picked.
             picked.erase(std::remove_if(picked.begin(), picked.end(), [this](int r) { return r >= cached.effects.size(); }), picked.end());
         }
@@ -84,9 +88,9 @@ struct Anims {
     {
         Page *p = slide();
         if (!p) return false;
-        deck::AnimSequence seq = deck::readAnimations(*p);
+        deck::AnimSequence seq = deck::readAnimations(*p, doc());
         if (!seq.editable) {
-            w->statusBar()->showMessage(QCoreApplication::translate("Animation", "This slide has too many animations to change here."), 6000);
+            w->statusBar()->showMessage(QCoreApplication::translate("Animation", "The animations on this slide can't be changed here."), 6000);
             return false;
         }
         ed->endTextEdit();
@@ -329,7 +333,7 @@ void DeckWindow::createAnimationActions()
         delete m_canvas->findChild<AnimationPreview *>(QStringLiteral("animationPreview"), Qt::FindDirectChildrenOnly);
         auto *preview = new AnimationPreview(m_ed->doc(), &m_ed->cache(), m_canvas);
         const QRect area = QRectF(m_canvas->pageToView(QPointF(0, 0)), m_canvas->pageToView(QPointF(m_ed->doc()->pageSize().width(), m_ed->doc()->pageSize().height()))).toAlignedRect();
-        const deck::AnimSequence seq = deck::readAnimations(*p);
+        const deck::AnimSequence seq = deck::readAnimations(*p, m_ed->doc());
         connect(preview, &AnimationPreview::stepChanged, this, [this, seq](int step) {
             int shown = -1;
             if (step >= 0) {
@@ -379,7 +383,7 @@ void DeckWindow::createAnimationActions()
     auto options = [this, st](AnimationOptionsDialog::Tab tab) {
         Page *p = st->slide();
         if (!p) return;
-        const deck::AnimSequence seq = deck::readAnimations(*p);
+        const deck::AnimSequence seq = deck::readAnimations(*p, m_ed->doc());
         const QVector<int> rows = st->targets(seq, *p);
         if (rows.isEmpty()) return;
         const deck::Anim shown = seq.effects[rows.first()];
@@ -574,23 +578,17 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
     // The kinds, in sections, for the gallery and for Add Animation.
     auto items = [this](bool none) {
         QVector<GalleryItem> list;
-        if (none) list << GalleryItem{QStringLiteral("none"), tr("None"), drawnIcon([](QPainter *p, const QRectF &rc) {
-                                          p->setRenderHint(QPainter::Antialiasing);
-                                          p->setPen(QPen(QColor(0x80, 0x84, 0x8C), 1.4));
-                                          p->setBrush(Qt::NoBrush);
-                                          p->drawRoundedRect(rc.adjusted(1, 1, -1, -1), 3, 3);
-                                          p->drawLine(rc.topLeft() + QPointF(rc.width() * 0.3, rc.height() * 0.3), rc.bottomRight() - QPointF(rc.width() * 0.3, rc.height() * 0.3));
-                                      }), QString()};
+        if (none) list << GalleryItem{QStringLiteral("none"), tr("None"), noEffectIcon(), QString()};
         for (const deck::EffectKind &k : deck::effectKinds()) {
             const QString section = k.cls == deck::EffectClass::Entrance ? tr("Entrance") : k.cls == deck::EffectClass::Emphasis ? tr("Emphasis")
                                     : k.cls == deck::EffectClass::Exit ? tr("Exit") : tr("Motion Paths");
-            list << GalleryItem{k.id, k.name, effectIcon(k), section};
+            list << GalleryItem{k.id, k.name, effectIcon(k, QString(), true), section};
         }
         return list;
     };
     auto itemsNone = std::make_shared<std::function<QVector<GalleryItem>(bool)>>(items);
     parts.widgets[QStringLiteral("animationGallery")] = [this, st, syncs, itemsNone] {
-        auto *gallery = new Gallery(QSize(56, 44), 5);
+        auto *gallery = new Gallery(kGalleryItem, 5);
         gallery->setObjectName(QStringLiteral("animationGallery"));
         gallery->setTitle(tr("Animation"));
         gallery->setItems((*itemsNone)(true));
@@ -601,7 +599,7 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
         if (!buttons.isEmpty()) {
             QToolButton *all = buttons.last();
             all->disconnect(gallery);
-            connect(all, &QToolButton::clicked, gallery, [gallery, itemsNone, pick] { galleryPopup((*itemsNone)(true), QSize(56, 44), 9, {}, pick, gallery); });
+            connect(all, &QToolButton::clicked, gallery, [gallery, itemsNone, pick] { galleryPopup((*itemsNone)(true), kGalleryItem, 9, {}, pick, gallery); });
         }
         syncs->append([gallery, st] {
             Page *p = st->slide();
@@ -614,7 +612,7 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
         return gallery;
     };
     parts.widgets[QStringLiteral("addAnimation")] = [this, st, syncs, itemsNone] {
-        auto *button = new GalleryButton(icon("plus"), tr("Add Animation"), QSize(56, 44), 9, true);
+        auto *button = new GalleryButton(icon("plus"), tr("Add Animation"), kGalleryItem, 9, true);
         button->setObjectName(QStringLiteral("addAnimation"));
         button->setItemsProvider([itemsNone] { return (*itemsNone)(false); });
         connect(button, &GalleryButton::activated, this, [this](const QString &id) { act(QStringLiteral("anim.add.") + id)->trigger(); });
@@ -629,7 +627,7 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
         auto fill = [this, st, menu] {
             menu->clear();
             Page *p = st->slide();
-            const deck::AnimSequence seq = p ? deck::readAnimations(*p) : deck::AnimSequence();
+            const deck::AnimSequence seq = p ? deck::readAnimations(*p, m_ed->doc()) : deck::AnimSequence();
             const QVector<int> rows = p ? st->targets(seq, *p) : QVector<int>();
             const deck::Anim *a = rows.isEmpty() ? nullptr : &seq.effects[rows.first()];
             const deck::EffectKind *kind = a && !a->custom() ? deck::effectKind(a->kind) : nullptr;

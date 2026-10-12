@@ -8,6 +8,8 @@
 #include <QAbstractItemView>
 #include <QCoreApplication>
 #include <QDropEvent>
+#include <QFontMetricsF>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
 #include <QKeyEvent>
@@ -247,11 +249,52 @@ QString effectLabel(const deck::Anim &a)
     return named ? kind->name + QStringLiteral(": ") + v->name : kind->name;
 }
 
-QIcon effectIcon(const deck::EffectKind &kindIn, const QString &variantIn)
+namespace {
+
+constexpr double kNameStrip = 12;   // the height of the name under a gallery picture
+
+// An effect's name, centered in `strip`, in a size that fits the width (and cut with an ellipsis if even the smallest does not).
+void paintName(QPainter *p, const QRectF &strip, const QString &name)
+{
+    QFont font = QGuiApplication::font();
+    int size = 10;
+    font.setPixelSize(size);
+    QFontMetricsF fm(font);
+    while (size > 7 && fm.horizontalAdvance(name) > strip.width() - 2) {
+        font.setPixelSize(--size);
+        fm = QFontMetricsF(font);
+    }
+    p->save();
+    p->setFont(font);
+    p->setPen(uiDark() ? QColor(0xE4, 0xE6, 0xEA) : QColor(0x2B, 0x2F, 0x36));
+    p->drawText(strip, Qt::AlignCenter, fm.elidedText(name, Qt::ElideRight, strip.width() - 2));
+    p->restore();
+}
+
+} // namespace
+
+QIcon noEffectIcon()
+{
+    const QString name = QCoreApplication::translate("Animation", "None");
+    return drawnIcon([name](QPainter *p, const QRectF &rc) {
+        const QRectF picture = rc.adjusted(0, 0, 0, -kNameStrip);
+        p->setRenderHint(QPainter::Antialiasing);
+        p->setPen(QPen(QColor(0x80, 0x84, 0x8C), 1.4));
+        p->setBrush(Qt::NoBrush);
+        p->drawRoundedRect(picture.adjusted(1, 1, -1, -1), 3, 3);
+        p->drawLine(picture.topLeft() + QPointF(picture.width() * 0.3, picture.height() * 0.3), picture.bottomRight() - QPointF(picture.width() * 0.3, picture.height() * 0.3));
+        paintName(p, QRectF(rc.left(), rc.bottom() - kNameStrip, rc.width(), kNameStrip), name);
+    });
+}
+
+QIcon effectIcon(const deck::EffectKind &kindIn, const QString &variantIn, bool named)
 {
     const deck::EffectKind kind = kindIn;
     const QString variant = variantIn.isEmpty() ? kind.firstVariant().key : variantIn;
-    return drawnIcon([kind, variant](QPainter *p, const QRectF &rc) {
+    return drawnIcon([kind, variant, named](QPainter *p, const QRectF &rcFull) {
+        // Named, the picture is above a strip that holds the name.
+        const QRectF rc = named ? rcFull.adjusted(0, 0, 0, -kNameStrip) : rcFull;
+        if (named) paintName(p, QRectF(rcFull.left(), rcFull.bottom() - kNameStrip, rcFull.width(), kNameStrip), kind.name);
         p->save();
         p->translate(rc.topLeft());
         p->setRenderHint(QPainter::Antialiasing);
@@ -455,14 +498,11 @@ void AnimationPane::reload()
     if (!d || slide < 0 || slide >= d->pages.size()) return;
     const Page &page = *d->pages[slide];
     // The rows show the shapes' names, so they are drawn again when those or the animations are not what they show.
-    QStringList names;
-    walkItems(page.items, [&](const ItemPtr &it) {
-        if (it->sourceId > 0) names << QStringLiteral("%1=%2").arg(it->sourceId).arg(it->name);
-    });
-    const QString signature = page.id + QLatin1Char('\n') + page.props.value(QStringLiteral("timingXml")).toString() + QLatin1Char('\n') + names.join(QLatin1Char('\n'));
-    if (signature == m_signature) return;
+    const quint64 signature = deck::animationSignature(*d, page);
+    if (page.id == m_page && signature == m_signature) return;
+    m_page = page.id;
     m_signature = signature;
-    m_seq = deck::readAnimations(page);
+    m_seq = signature ? deck::readAnimations(page, d) : deck::AnimSequence();
     rebuild();
 }
 
@@ -541,7 +581,7 @@ bool AnimationPreview::play(int slide, const QRect &area, int fromStep)
 {
     if (slide < 0 || slide >= m_doc->pages.size()) return false;
     const Page &page = *m_doc->pages[slide];
-    m_timeline = deck::playableTimeline(page);
+    m_timeline = deck::playableTimeline(*m_doc, page);
     if (m_timeline.steps.isEmpty()) return false;
     m_geometry = deck::geometryOf(*m_doc, page);
     m_slide = slide;

@@ -31,7 +31,10 @@ class LayoutCache;
 
 // What an effect's kind looks like halfway through, drawn small on a slide
 // (a motion path: the path itself): the gallery's and the pane's pictures.
-QIcon effectIcon(const deck::EffectKind &kind, const QString &variant = QString());
+// `named` puts the effect's name under the picture, as the gallery shows it.
+QIcon effectIcon(const deck::EffectKind &kind, const QString &variant = QString(), bool named = false);
+// The gallery's picture for no effect, with its name.
+QIcon noEffectIcon();
 // The color of an effect's class: entrance green, emphasis amber, exit red, motion path blue, kept gray.
 QColor effectColor(deck::EffectClass cls);
 // "Fade", "Fly In: From Left", "Lines: Down", or "Custom" for what is kept as it was written.
@@ -88,7 +91,8 @@ private:
     deck::AnimSequence m_seq;
     QVector<Row> m_rows;
     int m_scale = 1000;       // ms the bars run to
-    QString m_signature;
+    QString m_page;
+    quint64 m_signature = 0;
     bool m_quiet = false;
 };
 
