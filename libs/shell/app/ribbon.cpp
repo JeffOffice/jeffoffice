@@ -485,7 +485,7 @@ protected:
         const QRectF r = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
         const bool hot = underMouse();
         if (m_kind == File) {
-            // One pill holding the "JP" badge, the label and a chevron, so it
+            // One pill holding the app's badge, the label and a chevron, so it
             // reads as a single control that opens the File screen.
             QColor bg = uiAccent();
             bg.setAlphaF(dark() ? (hot ? 0.34f : 0.22f) : (hot ? 0.18f : 0.10f));
@@ -503,7 +503,7 @@ protected:
             bf.setPixelSize(9);
             p.setFont(bf);
             p.setPen(uiHighContrast() ? palette().color(QPalette::HighlightedText) : QColor(Qt::white));
-            p.drawText(badge, Qt::AlignCenter, QStringLiteral("JP"));
+            p.drawText(badge, Qt::AlignCenter, appInfo().badge);
             QFont lf = font();
             lf.setWeight(QFont::DemiBold);
             p.setFont(lf);

@@ -20,6 +20,8 @@ namespace jp::deck {
 
 // 16:9 slides, 13.333 by 7.5 inches.
 constexpr double kSlideWidth = 960, kSlideHeight = 540;
+// 4:3 slides, 10 by 7.5 inches.
+constexpr double kStandardWidth = 720, kStandardHeight = 540;
 
 // The colors and fonts a presentation's slides draw with.
 struct DeckTheme {
@@ -43,9 +45,12 @@ QString promptFor(const QString &type);
 bool isSlideMaster(const MasterPage &m);
 bool isLayout(const MasterPage &m);
 QString layoutType(const MasterPage &m);
-// The layouts, in the order the New Slide gallery lists them.
-QVector<MasterPage *> layouts(const Document &d);
-MasterPage *layoutOfType(const Document &d, const QString &type);
+// The layouts, in the order the New Slide gallery lists them: of the slide
+// master `masterId`, or of every master.
+QVector<MasterPage *> layouts(const Document &d, const QString &masterId = QString());
+MasterPage *layoutOfType(const Document &d, const QString &type, const QString &masterId = QString());
+// The slide master under slide `slide` (its layout's base), or "".
+QString slideMasterOf(const Document &d, int slide);
 
 // A new presentation: 16:9 slides, the default theme, a slide master with
 // the nine standard layouts, and one Title Slide.
@@ -66,5 +71,42 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout);
 void resetSlide(Document &d, Page &slide);
 
 QString notesText(const Document &d, const Page &slide);
+
+// The name a slide size goes by in setup.sizeName: "Standard" (4:3),
+// "Widescreen" (16:9), or "Custom".
+QString slideSizeName(const QSizeF &size);
+// Gives every slide, layout, and the slide master another size, as Ensure
+// Fit does: text sizes and outline weights scale by the smaller of the
+// width's and the height's ratio; the layouts, the master,
+// and the placeholders on slides stretch to the new shape; the other objects
+// on slides keep their shape, scaled by that ratio and centered. Ruler guides
+// keep their share of the slide. Notes keep their text sizes.
+void setSlideSize(Document &d, const QSizeF &size);
+
+// What Header & Footer shows on slides: the date (as the field that keeps
+// it current), the slide number, and a line of footer text, each in the
+// placeholder its layout has for it.
+struct FooterOptions {
+    bool date = false, slideNumber = false, footer = false;
+    QString footerText;
+    bool skipTitleSlide = false;   // not on slides whose layout is Title Slide
+    bool any() const { return date || slideNumber || footer; }
+    // Whether a slide with this layout type shows the placeholder of that type ("dt", "ftr", "sldNum").
+    bool shows(const QString &placeholderType, const QString &layoutType) const;
+    QJsonObject toJson() const;
+    static FooterOptions fromJson(const QJsonObject &o);
+};
+// What the presentation says: its appData "footerOptions", or, when only
+// appData "footers" is on, all three.
+FooterOptions footerOptions(const Document &d);
+// Gives `only`, or every slide (and new ones, through appData), the
+// placeholders the options want, with the date, number, and text in them,
+// and takes away the ones they don't.
+void applyFooters(Document &d, const FooterOptions &o, Page *only = nullptr);
+
+// A solid background for one slide; for all of them, the slide master's,
+// with the slides' and layouts' own cleared so they follow it.
+void setSlideBackground(Page &slide, const QColor &color);
+void setAllBackgrounds(Document &d, const QColor &color);
 
 } // namespace jp::deck

@@ -1,5 +1,5 @@
-// Binary OfficeArt drawings (odraw.h). This first version walks records; the
-// shapes, pictures, and picture store follow.
+// Binary OfficeArt drawings (odraw.h): the records. The shapes are in
+// odraw_shapes.cpp, the pictures and the picture store in odraw_blip.cpp.
 
 #include "office/odraw.h"
 
@@ -26,17 +26,5 @@ QVector<OdrawRecord> odrawRecords(const QByteArray &data, qsizetype offset, qsiz
     }
     return out;
 }
-
-ItemList readOdrawShapes(const QByteArray &, const OdrawContext &) { return {}; }
-
-Fill odrawBackground(const QByteArray &, const OdrawContext &) { return Fill(); }
-
-QByteArray odrawBlip(const QByteArray &, QString *format)
-{
-    if (format) format->clear();
-    return QByteArray();
-}
-
-QVector<OdrawStoreEntry> odrawStore(const QByteArray &) { return {}; }
 
 } // namespace jp::office

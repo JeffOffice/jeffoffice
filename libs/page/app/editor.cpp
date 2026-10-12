@@ -105,7 +105,8 @@ QString Editor::displayName() const
 {
     if (!m_path.isEmpty()) return QFileInfo(m_path).completeBaseName();
     if (!m_untitledName.isEmpty()) return m_untitledName;
-    return m_doc->props.title.isEmpty() ? tr("Publication1") : m_doc->props.title;
+    if (!m_doc->props.title.isEmpty()) return m_doc->props.title;
+    return m_newName.isEmpty() ? tr("Publication1") : m_newName;
 }
 
 // ---------- view ----------

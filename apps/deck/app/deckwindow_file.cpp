@@ -1,5 +1,6 @@
 // Opening presentation files in JeffDeck's window.
 
+#include "app/deckcanvas.h"
 #include "app/deckwindow.h"
 
 #include "app/editor.h"

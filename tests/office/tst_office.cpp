@@ -1,19 +1,53 @@
 // Tests of libs/office: packages, the theme, and DrawingML colors. Every
 // package they read is built in memory (never a real-world file).
+#include "office/drawingml.h"
 #include "office/drawingml_color.h"
+#include "office/drawingml_geometry.h"
+#include "office/drawingml_style.h"
+#include "office/odraw.h"
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
 #include "io/zip.h"
+#include "render/metafile.h"
+#include "render/shapes.h"
+#include "text/textengine.h"
+#include "text/textprops.h"
 
+#include <QBuffer>
 #include <QFile>
+#include <QImage>
+#include <QPainter>
+#include <QTextDocument>
 #include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QTemporaryDir>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextDocument>
+#include <QTextList>
 #include <QtEndian>
 #include <QtTest>
 
+#include <cmath>
+#include <memory>
+#include <vector>
+
 using namespace jp::office;
+using jp::Arrow;
+using jp::ColorRef;
+using jp::Fill;
+using jp::GradientStop;
+using jp::GroupItem;
+using jp::ItemList;
+using jp::ItemPtr;
+using jp::ItemType;
+using jp::LineItem;
+using jp::PictureItem;
+using jp::ShapeItem;
+using jp::Stroke;
+using jp::TextArtItem;
+using jp::TextItem;
 
 namespace {
 
@@ -1353,6 +1387,1154 @@ private Q_SLOTS:
         QVERIFY(!colorOf(QStringLiteral("<a:scrgbClr r=\"x\" g=\"0\" b=\"0\"/>")).isValid());
     }
 
+private:
+    // ---- binary drawings ([MS-ODRAW]): every record is built by hand here
+
+    static QByteArray odU16(quint32 v)
+    {
+        QByteArray b(2, 0);
+        qToLittleEndian<quint16>(quint16(v), b.data());
+        return b;
+    }
+    static QByteArray odU32(quint32 v)
+    {
+        QByteArray b(4, 0);
+        qToLittleEndian<quint32>(v, b.data());
+        return b;
+    }
+    static QByteArray odRecord(quint16 version, quint16 instance, quint16 type, const QByteArray &data)
+    {
+        return odU16(quint32(instance << 4) | version) + odU16(type) + odU32(quint32(data.size())) + data;
+    }
+    static QByteArray odContainer(quint16 type, const QByteArray &children, quint16 instance = 0)
+    {
+        return odRecord(0xF, instance, type, children);
+    }
+    static QByteArray odUid(char fill) { return QByteArray(16, fill); }
+    // A bitmap picture record: its one or two uids, the tag byte, the file.
+    static QByteArray odBitmapBlip(quint16 type, quint16 instance, const QByteArray &file)
+    {
+        const int uids = (instance & 1) ? 2 : 1;
+        return odRecord(0, instance, type, odUid('u') + (uids == 2 ? odUid('v') : QByteArray()) + QByteArray(1, '\xFF') + file);
+    }
+    // A metafile picture record: uids, the 34-byte header (size, bounds, size in
+    // EMU, saved size, compression, filter), then the data deflated or stored.
+    static QByteArray odMetafileBlip(quint16 type, quint16 instance, const QByteArray &file, bool deflate, const QRect &bounds = QRect(0, 0, 200, 100),
+                                     const QSize &emu = QSize(2540000, 1270000))
+    {
+        const int uids = (instance & 1) ? 2 : 1;
+        const QByteArray saved = deflate ? qCompress(file, 9).mid(4) : file;
+        QByteArray head = odU32(quint32(file.size()));
+        for (int v : {bounds.left(), bounds.top(), bounds.left() + bounds.width(), bounds.top() + bounds.height(), emu.width(), emu.height()}) head += odU32(quint32(v));
+        head += odU32(quint32(saved.size())) + QByteArray(1, deflate ? '\x00' : '\xFE') + QByteArray(1, '\xFE');
+        return odRecord(0, instance, type, odUid('m') + (uids == 2 ? odUid('n') : QByteArray()) + head + saved);
+    }
+    static QByteArray odFakeEmf(int size = 120)
+    {
+        QByteArray e(size, '\0');
+        qToLittleEndian<quint32>(1, e.data());
+        qToLittleEndian<quint32>(88, e.data() + 4);
+        qToLittleEndian<quint32>(0x464D4520u, e.data() + 40);
+        for (int i = 88; i < size; ++i) e[i] = char(i * 7);
+        return e;
+    }
+    static QByteArray odFakeWmf()
+    {
+        QByteArray w;
+        w += odU16(1) + odU16(9) + odU16(0x300) + odU32(60) + odU16(1) + odU32(20) + odU16(0);
+        w += odU32(3) + odU16(0) + odU32(3) + odU16(0);
+        return w + QByteArray(40, '\x01');
+    }
+    // A DIB: the info header, a palette of `colors` entries, then rows.
+    static QByteArray odDib(int w, int h, int bits, int colors, const QByteArray &rows)
+    {
+        QByteArray d = odU32(40) + odU32(quint32(w)) + odU32(quint32(h)) + odU16(1) + odU16(bits) + odU32(0) + odU32(quint32(rows.size())) +
+                       odU32(2835) + odU32(2835) + odU32(quint32(colors)) + odU32(0);
+        for (int i = 0; i < colors; ++i) d += QByteArray("\x10\x20\x30\x00", 4);
+        return d + rows;
+    }
+    // A picture store entry: the file block record that holds or points to a picture.
+    static QByteArray odFbse(quint16 blipType, quint32 size, quint32 refs, quint32 delayOffset, const QByteArray &name = QByteArray(), const QByteArray &blip = QByteArray())
+    {
+        QByteArray d;
+        d += QByteArray(1, char(blipType)) + QByteArray(1, '\x00') + odUid('s') + odU16(0xFF) + odU32(size) + odU32(refs) + odU32(delayOffset);
+        d += QByteArray(1, '\0') + QByteArray(1, char(name.size())) + QByteArray(2, '\0') + name + blip;
+        return odRecord(2, blipType, 0xF007, d);
+    }
+
+private Q_SLOTS:
+    void odrawBlipReadsBitmapPictures()
+    {
+        const QByteArray png = QByteArray("\x89PNG\r\n\x1a\n", 8) + QByteArray(50, 'p');
+        QString format;
+        // One uid (0x6E0) or two (0x6E1) before the tag byte.
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF01E, 0x6E0, png), &format), png);
+        QCOMPARE(format, QStringLiteral("png"));
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF01E, 0x6E1, png), &format), png);
+        QCOMPARE(format, QStringLiteral("png"));
+        const QByteArray jpeg = QByteArray("\xFF\xD8\xFF\xE0", 4) + QByteArray(30, 'j');
+        for (quint16 inst : {0x46A, 0x46B, 0x6E2, 0x6E3}) {
+            QCOMPARE(odrawBlip(odBitmapBlip(0xF01D, inst, jpeg), &format), jpeg);
+            QCOMPARE(format, QStringLiteral("jpeg"));
+        }
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF02A, 0x6E2, jpeg), &format), jpeg);
+        QCOMPARE(format, QStringLiteral("jpeg"));
+        const QByteArray tiff = QByteArray("II*\0", 4) + QByteArray(30, 't');
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF029, 0x6E4, tiff), &format), tiff);
+        QCOMPARE(format, QStringLiteral("tiff"));
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF029, 0x6E5, tiff), &format), tiff);
+        // The format pointer is optional, and the record may be followed by more.
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF01E, 0x6E0, png) + QByteArray(9, 'x'), nullptr), png);
+    }
+
+    void odrawBlipInflatesMetafiles()
+    {
+        const QByteArray emf = odFakeEmf();
+        QString format;
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01A, 0x3D4, emf, true), &format), emf);
+        QCOMPARE(format, QStringLiteral("emf"));
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01A, 0x3D5, emf, true), &format), emf);   // two uids
+        QCOMPARE(format, QStringLiteral("emf"));
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01A, 0x3D4, emf, false), &format), emf);  // stored, compression 0xFE
+        QCOMPARE(format, QStringLiteral("emf"));
+        // Inflating agrees with zlib at every level, for data of every kind.
+        QByteArray noise(70000, '\0');
+        QRandomGenerator g(7);
+        for (char &c : noise) c = char(g.generate());
+        QByteArray text;
+        for (int i = 0; i < 4000; ++i) text += QByteArray("line ") + QByteArray::number(i % 37) + " of a metafile\n";
+        const QByteArray runs = QByteArray(300000, 'a') + QByteArray(5, 'b') + QByteArray(100000, 'c');
+        for (const QByteArray &payload : {QByteArray(), QByteArray("x"), noise, text, runs}) {
+            QByteArray file = odFakeEmf() + payload;
+            for (int level : {0, 1, 6, 9}) {
+                const QByteArray saved = qCompress(file, level).mid(4);
+                QByteArray head = odU32(quint32(file.size())) + QByteArray(16, '\0') + QByteArray(8, '\0') + odU32(quint32(saved.size())) + QByteArray("\x00\xFE", 2);
+                const QByteArray rec = odRecord(0, 0x3D4, 0xF01A, odUid('m') + head + saved);
+                QCOMPARE(odrawBlip(rec, &format), file);
+            }
+        }
+    }
+
+    void odrawBlipRebuildsAPlaceableHeader()
+    {
+        // A WMF in a picture record has no placeable header; one is made from
+        // the bounds and the size in EMU (2 x 1 inch here, in 100 units per inch).
+        QString format;
+        const QByteArray wmf = odFakeWmf();
+        const QByteArray out = odrawBlip(odMetafileBlip(0xF01B, 0x216, wmf, true, QRect(0, 0, 200, 100), QSize(1828800, 914400)), &format);
+        QCOMPARE(format, QStringLiteral("wmf"));
+        QCOMPARE(out.size(), wmf.size() + 22);
+        QCOMPARE(out.mid(22), wmf);
+        QCOMPARE(qFromLittleEndian<quint32>(out.constData()), 0x9AC6CDD7u);
+        QCOMPARE(qFromLittleEndian<qint16>(out.constData() + 6), qint16(0));
+        QCOMPARE(qFromLittleEndian<qint16>(out.constData() + 10), qint16(200));
+        QCOMPARE(qFromLittleEndian<qint16>(out.constData() + 12), qint16(100));
+        QCOMPARE(qFromLittleEndian<quint16>(out.constData() + 14), quint16(100));
+        quint16 sum = 0;
+        for (int i = 0; i < 10; ++i) sum ^= qFromLittleEndian<quint16>(out.constData() + i * 2);
+        QCOMPARE(qFromLittleEndian<quint16>(out.constData() + 20), sum);
+        // The player reads it with that size: 2 x 1 inch, in points.
+        jp::Metafile mf;
+        QVERIFY(mf.load(out));
+        QVERIFY(!mf.isEmf());
+        QVERIFY(qAbs(mf.naturalSize().width() - 144) < 0.5 && qAbs(mf.naturalSize().height() - 72) < 0.5);
+        // A metafile that has its header already is left as it is.
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01B, 0x217, out, false), &format), out);
+        QCOMPARE(format, QStringLiteral("wmf"));
+        // Without bounds, the size in EMU gives them (hundredths of a millimeter).
+        const QByteArray noBounds = odrawBlip(odMetafileBlip(0xF01B, 0x216, wmf, true, QRect(), QSize(3600000, 1800000)), &format);
+        jp::Metafile mf2;
+        QVERIFY(mf2.load(noBounds));
+        QVERIFY(qAbs(mf2.naturalSize().width() - 283.46) < 1 && qAbs(mf2.naturalSize().height() - 141.73) < 1);
+    }
+
+    void odrawBlipMakesABitmapFileFromADib()
+    {
+        QString format;
+        // 2 x 2, 24 bits: rows of 6 bytes padded to 8, bottom row first.
+        const QByteArray rows = QByteArray("\x00\x00\xFF\x00\xFF\x00\x00\x00", 8) + QByteArray("\xFF\x00\x00\xFF\xFF\xFF\x00\x00", 8);
+        QByteArray bmp = odrawBlip(odBitmapBlip(0xF01F, 0x7A8, odDib(2, 2, 24, 0, rows)), &format);
+        QCOMPARE(format, QStringLiteral("bmp"));
+        QCOMPARE(bmp.left(2), QByteArray("BM"));
+        QCOMPARE(qFromLittleEndian<quint32>(bmp.constData() + 2), quint32(bmp.size()));
+        QCOMPARE(qFromLittleEndian<quint32>(bmp.constData() + 10), quint32(54));
+        QImage im = QImage::fromData(bmp);
+        QCOMPARE(im.size(), QSize(2, 2));
+        QCOMPARE(im.pixel(0, 1), qRgb(255, 0, 0));      // bottom-left, stored BGR 00 00 FF
+        QCOMPARE(im.pixel(1, 1), qRgb(0, 255, 0));
+        QCOMPARE(im.pixel(0, 0), qRgb(0, 0, 255));
+        QCOMPARE(im.pixel(1, 0), qRgb(255, 255, 255));
+        // With a palette (and two uids): the pixels start after its entries.
+        bmp = odrawBlip(odBitmapBlip(0xF01F, 0x7A9, odDib(8, 1, 1, 2, QByteArray("\xA5\0\0\0", 4))), &format);
+        QCOMPARE(qFromLittleEndian<quint32>(bmp.constData() + 10), quint32(14 + 40 + 8));
+        QCOMPARE(QImage::fromData(bmp).size(), QSize(8, 1));
+        // An 8-bit one without a color count has 256 entries.
+        bmp = odrawBlip(odBitmapBlip(0xF01F, 0x7A8, odDib(1, 1, 8, 0, QByteArray(4, '\0'))), &format);
+        QVERIFY(bmp.isEmpty());   // no room for the 256 entries
+        QVERIFY(format.isEmpty());
+    }
+
+    void odrawBlipRefusesDamagedRecords()
+    {
+        const QByteArray png = QByteArray(40, 'p');
+        QString format = QStringLiteral("x");
+        QVERIFY(odrawBlip(QByteArray(), &format).isEmpty());
+        QVERIFY(format.isEmpty());
+        const QByteArray good = odBitmapBlip(0xF01E, 0x6E0, png);
+        for (int cut : {0, 3, 7, 8, 20, 24, 25, 40, int(good.size()) - 1}) {
+            format = QStringLiteral("x");
+            QVERIFY2(odrawBlip(good.left(cut), &format).isEmpty(), qPrintable(QString::number(cut)));
+            QVERIFY(format.isEmpty());
+        }
+        // A length that runs past the data; an unknown record type; a picture with no data.
+        QByteArray past = good;
+        qToLittleEndian<quint32>(0x7FFFFFF0u, past.data() + 4);
+        QVERIFY(odrawBlip(past, &format).isEmpty());
+        QVERIFY(odrawBlip(odRecord(0, 0x6E0, 0xF020, odUid('u') + QByteArray(1, 'x') + png), &format).isEmpty());
+        QVERIFY(odrawBlip(odRecord(0, 0x6E0, 0xF01E, odUid('u') + QByteArray(1, '\xFF')), &format).isEmpty());
+        QVERIFY(odrawBlip(odRecord(0, 0x6E1, 0xF01E, odUid('u') + QByteArray(5, 'x')), &format).isEmpty());   // two uids need 32 bytes
+        // A Macintosh picture can't be shown.
+        QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, QByteArray(100, 'q'), true), &format).isEmpty());
+        QVERIFY(format.isEmpty());
+        // Deflated data that is not a deflate stream, cut short, or too big to keep.
+        const QByteArray emf = odFakeEmf();
+        QByteArray rec = odMetafileBlip(0xF01A, 0x3D4, emf, true);
+        QByteArray junk = rec;
+        for (int i = 8 + 16 + 34; i < junk.size(); ++i) junk[i] = char(0x5A + i);
+        junk[8 + 16 + 34] = '\x78';
+        QVERIFY(odrawBlip(junk, &format).isEmpty());
+        QVERIFY(odrawBlip(rec.left(rec.size() - 6), &format).isEmpty());
+        QByteArray huge = rec;
+        qToLittleEndian<quint32>(0x20000000u, huge.data() + 8 + 16);   // cbSize of 512 MB
+        QVERIFY(odrawBlip(huge, &format).isEmpty());
+        QVERIFY(format.isEmpty());
+        // A small stream that inflates to far more than the size it gives is damaged.
+        const QByteArray bomb = qCompress(QByteArray(60 * 1024 * 1024, '\0'), 9).mid(4);
+        const QByteArray head = odU32(100) + QByteArray(24, '\0') + odU32(quint32(bomb.size())) + QByteArray("\x00\xFE", 2);
+        QVERIFY(odrawBlip(odRecord(0, 0x3D4, 0xF01A, odUid('m') + head + bomb), &format).isEmpty());
+        // Bytes of every kind never crash it.
+        QRandomGenerator g(11);
+        for (int round = 0; round < 300; ++round) {
+            QByteArray b = round % 3 == 0 ? rec : round % 3 == 1 ? good : odBitmapBlip(0xF01F, 0x7A8, odDib(2, 2, 24, 0, QByteArray(16, 'r')));
+            for (int k = 0; k < 4; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
+            odrawBlip(b.left(int(g.bounded(quint32(b.size() + 1)))), &format);
+        }
+    }
+
+    void odrawStoreListsEmbeddedAndDelayedBlips()
+    {
+        const QByteArray png = QByteArray("\x89PNG", 4) + QByteArray(30, 'p');
+        const QByteArray blip1 = odBitmapBlip(0xF01E, 0x6E0, png);
+        const QByteArray emfBlip = odMetafileBlip(0xF01A, 0x3D4, odFakeEmf(), true);
+        QByteArray children;
+        children += odFbse(6, quint32(blip1.size()), 1, 0xFFFFFFFFu, QByteArray(), blip1);              // 1: inside the record
+        children += odFbse(2, 12345, 2, 0x4000);                                                         // 2: at 0x4000 in the other stream
+        children += odFbse(2, 999, 1, 0x80, QByteArray("n\0a\0", 4), emfBlip);                          // 3: with a name, and its picture
+        children += odFbse(0, 0, 0, 0xFFFFFFFFu);                                                        // 4: an empty slot
+        children += blip1;                                                                               // 5: a picture record by itself
+        const QByteArray store = odContainer(0xF001, children, 5);
+        const QVector<OdrawStoreEntry> e = odrawStore(store);
+        QCOMPARE(e.size(), 5);
+        for (int i = 0; i < 5; ++i) QCOMPARE(e[i].index, i + 1);
+        QCOMPARE(e[0].embedded, blip1);
+        QCOMPARE(e[1].embedded, QByteArray());
+        QCOMPARE(e[1].delayOffset, quint32(0x4000));
+        QCOMPARE(e[2].embedded, emfBlip);
+        QCOMPARE(e[2].delayOffset, quint32(0x80));
+        QVERIFY(e[3].embedded.isEmpty());
+        QCOMPARE(e[3].delayOffset, 0xFFFFFFFFu);
+        QCOMPARE(e[4].embedded, blip1);
+        QString format;
+        QCOMPARE(odrawBlip(e[0].embedded, &format), png);
+        QCOMPARE(format, QStringLiteral("png"));
+        QCOMPARE(odrawBlip(e[2].embedded, &format), odFakeEmf());
+        // The container's own header may be left off: the file blocks alone.
+        QCOMPARE(odrawStore(children).size(), 5);
+        QVERIFY(odrawStore(QByteArray()).isEmpty());
+        // Damage: cut anywhere, a name past the end, a lying count of entries, and bytes of every kind.
+        for (int cut = 0; cut < store.size(); cut += 3) odrawStore(store.left(cut));
+        QByteArray longName = odFbse(6, 10, 1, 0, QByteArray(), QByteArray());
+        longName[8 + 33] = char(250);
+        QVERIFY(odrawStore(odContainer(0xF001, longName)).size() == 1);
+        QVERIFY(odrawStore(odContainer(0xF001, longName))[0].embedded.isEmpty());
+        QRandomGenerator g(5);
+        for (int round = 0; round < 300; ++round) {
+            QByteArray b = store;
+            for (int k = 0; k < 5; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
+            odrawStore(b);
+        }
+    }
+
+private:
+    // A property of a shape: its number, its value, the complex data after the
+    // table (then the value is its length), and whether it is a picture index.
+    struct OdProp {
+        quint16 id;
+        quint32 value = 0;
+        QByteArray complex = QByteArray();
+        bool blip = false;
+        int lessBy = 0;   // the length is that much short of the data's (an array whose header isn't counted)
+    };
+    static QByteArray odProps(const QVector<OdProp> &props, quint16 type = 0xF00B)
+    {
+        QByteArray table, tail;
+        for (const OdProp &p : props) {
+            quint16 id = p.id;
+            quint32 value = p.value;
+            if (p.blip) id |= 0x4000;
+            if (!p.complex.isEmpty()) {
+                id |= 0x8000;
+                value = quint32(p.complex.size() - p.lessBy);
+                tail += p.complex;
+            }
+            table += odU16(id) + odU32(value);
+        }
+        return odRecord(3, quint16(props.size()), type, table + tail);
+    }
+    static QByteArray odFsp(int shapeType, quint32 flags, quint32 spid = 1025) { return odRecord(2, quint16(shapeType), 0xF00A, odU32(spid) + odU32(flags)); }
+    // The host's anchor in these tests: left, top, right, bottom in points, 16 bits each.
+    static QByteArray odClientAnchor(int l, int t, int r, int b) { return odRecord(0, 0, 0xF010, odU16(quint32(l)) + odU16(quint32(t)) + odU16(quint32(r)) + odU16(quint32(b))); }
+    static QByteArray odChildAnchor(int l, int t, int r, int b)
+    {
+        return odRecord(0, 0, 0xF00F, odU32(quint32(l)) + odU32(quint32(t)) + odU32(quint32(r)) + odU32(quint32(b)));
+    }
+    // A shape container: its shape record, properties, anchor, and any client records.
+    static QByteArray odShape(int type, quint32 flags, const QVector<OdProp> &props, const QByteArray &anchor = QByteArray(), const QByteArray &client = QByteArray())
+    {
+        return odContainer(0xF004, odFsp(type, flags) + (props.isEmpty() ? QByteArray() : odProps(props)) + anchor + client);
+    }
+    // A group: the shape that describes it (its child rectangle, flags, anchor), then its shapes.
+    static QByteArray odGroup(const QRect &children, quint32 flags, const QByteArray &anchor, const QByteArray &shapes, const QVector<OdProp> &props = {})
+    {
+        const QByteArray rect = odU32(quint32(children.left())) + odU32(quint32(children.top())) + odU32(quint32(children.left() + children.width())) + odU32(quint32(children.top() + children.height()));
+        return odContainer(0xF003, odContainer(0xF004, odRecord(1, 0, 0xF009, rect) + odFsp(0, 0x1 | flags) + (props.isEmpty() ? QByteArray() : odProps(props)) + anchor) + shapes);
+    }
+    // A drawing: the top group (its first shape is the patriarch), and maybe a background shape.
+    static QByteArray odDrawing(const QByteArray &shapes, const QByteArray &background = QByteArray())
+    {
+        const QByteArray patriarch = odContainer(0xF004, odRecord(1, 0, 0xF009, QByteArray(16, '\0')) + odFsp(0, 0x5, 1024));
+        return odContainer(0xF002, odRecord(0, 1, 0xF008, odU32(5) + odU32(1025)) + odContainer(0xF003, patriarch + shapes) + background);
+    }
+    static QByteArray odUtf16z(const QString &text)
+    {
+        QByteArray b;
+        for (const QChar c : text) b += odU16(c.unicode());
+        return b + odU16(0);
+    }
+    // An array property's data: the count twice, the element size, and the elements.
+    static QByteArray odArray(int count, int elementSize, const QByteArray &elements)
+    {
+        return odU16(quint32(count)) + odU16(quint32(count)) + odU16(quint32(elementSize)) + elements;
+    }
+    static QByteArray odVertices(const QVector<QPoint> &points, int elementSize = 8)
+    {
+        QByteArray e;
+        for (const QPoint &pt : points) e += elementSize == 8 ? odU32(quint32(pt.x())) + odU32(quint32(pt.y())) : odU16(quint32(pt.x())) + odU16(quint32(pt.y()));
+        return odArray(int(points.size()), elementSize == 8 ? 8 : 0xFFF0, e);
+    }
+    static QByteArray odSegments(const QVector<quint16> &segments)
+    {
+        QByteArray e;
+        for (quint16 seg : segments) e += odU16(seg);
+        return odArray(int(segments.size()), 2, e);
+    }
+    static QString odPathText(const QPainterPath &path)
+    {
+        QStringList parts;
+        auto pt = [](const QPainterPath::Element &e) { return QStringLiteral("%1,%2").arg(e.x, 0, 'g', 6).arg(e.y, 0, 'g', 6); };
+        for (int i = 0; i < path.elementCount(); ++i) {
+            const QPainterPath::Element e = path.elementAt(i);
+            if (e.type == QPainterPath::MoveToElement) parts << QStringLiteral("M") + pt(e);
+            else if (e.type == QPainterPath::LineToElement) parts << QStringLiteral("L") + pt(e);
+            else if (e.type == QPainterPath::CurveToElement && i + 2 < path.elementCount()) {
+                parts << QStringLiteral("C") + pt(e) + QLatin1Char(' ') + pt(path.elementAt(i + 1)) + QLatin1Char(' ') + pt(path.elementAt(i + 2));
+                i += 2;
+            }
+        }
+        return parts.join(QLatin1Char(' '));
+    }
+    // The hyperlink a shape holds (an IHlink), with an address, a place, and the text shown.
+    static QByteArray odHyperlinkString(const QString &text) { return odU32(quint32(text.size() + 1)) + odUtf16z(text); }
+    static QByteArray odUrlHyperlink(const QString &url, const QString &place, bool asString)
+    {
+        const quint32 flags = 0x1 | 0x10 | (place.isEmpty() ? 0 : 0x8) | (asString ? 0x100 : 0);
+        QByteArray h = odU32(2) + odU32(flags) + odHyperlinkString(QStringLiteral("shown"));
+        if (asString) {
+            h += odHyperlinkString(url);
+        } else {
+            const QByteArray guid("\xE0\xC9\xEA\x79\xF9\xBA\xCE\x11\x8C\x82\x00\xAA\x00\x4B\xA9\x0B", 16);
+            h += guid + odU32(quint32(odUtf16z(url).size() + 24)) + odUtf16z(url) + QByteArray(24, 's');
+        }
+        if (!place.isEmpty()) h += odHyperlinkString(place);
+        return h;
+    }
+    static QByteArray odFileHyperlink(const QString &ansi, const QString &wide)
+    {
+        const QByteArray guid("\x03\x03\x00\x00\x00\x00\x00\x00\xC0\x00\x00\x00\x00\x00\x00\x46", 16);
+        QByteArray h = odU32(2) + odU32(0x1) + guid + odU16(0) + odU32(quint32(ansi.size() + 1)) + ansi.toLatin1() + QByteArray(1, '\0');
+        h += odU16(0) + odU16(0) + QByteArray(20, '\0');
+        const QByteArray unicode = odU32(quint32(wide.size() * 2)) + odU16(3) + odUtf16z(wide).left(wide.size() * 2);
+        return h + odU32(quint32(unicode.size())) + unicode;
+    }
+
+    static OdrawContext odContext()
+    {
+        OdrawContext ctx;
+        ctx.clientAnchor = [](const QByteArray &a) {
+            if (a.size() < 8) return QRectF();
+            const double l = qFromLittleEndian<qint16>(a.constData()), t = qFromLittleEndian<qint16>(a.constData() + 2);
+            return QRectF(QPointF(l, t), QPointF(qFromLittleEndian<qint16>(a.constData() + 4), qFromLittleEndian<qint16>(a.constData() + 6)));
+        };
+        ctx.schemeColor = [](int index) { return index >= 0 && index < 8 ? QColor(10 * index, 20 + index, 30 + 2 * index) : QColor(); };
+        ctx.picture = [](int index) { return index > 0 ? QStringLiteral("pic%1").arg(index) : QString(); };
+        return ctx;
+    }
+    static ShapeItem *odShapeOf(const ItemList &items, int i)
+    {
+        return i < int(items.size()) && items[i]->type() == ItemType::Shape ? static_cast<ShapeItem *>(items[i].get()) : nullptr;
+    }
+    static QColor odRgb(const ColorRef &c) { return c.kind() == ColorRef::Rgb ? c.rgbValue() : QColor(); }
+
+private Q_SLOTS:
+    void odrawReadsAFilledRectangle()
+    {
+        const QByteArray sp = odShape(1, 0xA00, {{0x0181, 0x00C07030}, {0x0182, 0x8000}, {0x01BF, 0x00100010}, {0x01C0, 0x00402010}, {0x01CB, 25400}, {0x01FF, 0x00080008},
+                                                  {0x0380, 0, QByteArray("R\0e\0c\0t\0\0\0", 10)}, {0x0381, 0, QByteArray("a\0l\0t\0\0\0", 8)}},
+                                     odClientAnchor(100, 50, 300, 150));
+        const ItemList items = readOdrawShapes(odDrawing(sp), odContext());
+        QCOMPARE(int(items.size()), 1);
+        ShapeItem *s = odShapeOf(items, 0);
+        QVERIFY(s);
+        QCOMPARE(s->shape, QStringLiteral("rect"));
+        QCOMPARE(s->rect, QRectF(100, 50, 200, 100));
+        QVERIFY(s->fill.type == Fill::Solid);
+        QCOMPARE(odRgb(s->fill.color), QColor(0x30, 0x70, 0xC0));
+        QVERIFY(qAbs(s->fill.transparency - 0.5) < 0.001);
+        QVERIFY(!s->stroke.isNone());
+        QCOMPARE(odRgb(s->stroke.color), QColor(0x10, 0x20, 0x40));
+        QVERIFY(qAbs(s->stroke.width - 2.0) < 1e-9);
+        QCOMPARE(s->name, QStringLiteral("Rect"));
+        QCOMPARE(s->altText, QStringLiteral("alt"));
+        QVERIFY(s->rotation == 0 && !s->flipH && !s->flipV);
+        // The same shape, as the format has it when nothing is said: a white fill and a thin black line.
+        const ItemList plain = readOdrawShapes(odDrawing(odShape(1, 0xA00, {}, odClientAnchor(0, 0, 10, 10))), odContext());
+        s = odShapeOf(plain, 0);
+        QVERIFY(s);
+        QCOMPARE(odRgb(s->fill.color), QColor(Qt::white));
+        QCOMPARE(odRgb(s->stroke.color), QColor(Qt::black));
+        QVERIFY(qAbs(s->stroke.width - 0.75) < 1e-9);
+        // Not filled and without a line.
+        const ItemList bare = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100000}, {0x01FF, 0x00080000}}, odClientAnchor(0, 0, 10, 10))), odContext());
+        s = odShapeOf(bare, 0);
+        QVERIFY(s);
+        QVERIFY(s->fill.isNone());
+        QVERIFY(s->stroke.isNone());
+        // A shape with no anchor has no place; the host's client records may give it one.
+        const ItemList unplaced = readOdrawShapes(odDrawing(odShape(1, 0xA00, {})), odContext());
+        QCOMPARE(int(unplaced.size()), 1);
+        QVERIFY(unplaced[0]->rect.isNull());
+        // The drawing's top group alone reads the same, and so does one shape by itself.
+        const QByteArray top = odContainer(0xF003, odContainer(0xF004, odRecord(1, 0, 0xF009, QByteArray(16, '\0')) + odFsp(0, 0x5)) + sp);
+        QCOMPARE(int(readOdrawShapes(top, odContext()).size()), 1);
+        QCOMPARE(readOdrawShapes(top, odContext())[0]->rect, QRectF(100, 50, 200, 100));
+        QCOMPARE(int(readOdrawShapes(sp, odContext()).size()), 1);
+        QVERIFY(readOdrawShapes(odRecord(0, 0, 0xF00B, QByteArray()), odContext()).empty());
+    }
+
+    void odrawReadsPresetShapesLinesAndAdjustments()
+    {
+        const QByteArray anchor = odClientAnchor(0, 0, 100, 50);
+        auto shape = [&](int type, const QVector<OdProp> &props) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, props, anchor)), odContext());
+            return items.empty() ? ItemPtr() : items[0];
+        };
+        // Numbers the format gives presets; the ones JeffOffice has no shape for are rectangles.
+        auto presetOf = [&](int type) { return static_cast<ShapeItem *>(shape(type, {}).get())->shape; };
+        QCOMPARE(presetOf(3), QStringLiteral("ellipse"));
+        QCOMPARE(presetOf(4), QStringLiteral("diamond"));
+        QCOMPARE(presetOf(96), QStringLiteral("smiley"));
+        QCOMPARE(presetOf(4000), QStringLiteral("rect"));
+        QCOMPARE(presetOf(41), QStringLiteral("rect"));
+        QCOMPARE(presetOf(0), QStringLiteral("rect"));
+        // A rounded corner is a share of the shorter side, in 21600ths; a triangle's peak a share of the width.
+        const ItemPtr roundRect = shape(2, {{0x0147, 5400}});
+        auto *rr = static_cast<ShapeItem *>(roundRect.get());
+        QCOMPARE(rr->shape, QStringLiteral("roundRect"));
+        QCOMPARE(int(rr->adj.size()), 1);
+        QVERIFY(qAbs(rr->adj[0] - 0.25) < 1e-9);
+        const ItemPtr triangle = shape(5, {{0x0147, 21600}});
+        auto *tri = static_cast<ShapeItem *>(triangle.get());
+        QVERIFY(tri->adj.size() == 1 && qAbs(tri->adj[0] - 1.0) < 1e-9);
+        QVERIFY(static_cast<ShapeItem *>(shape(2, {}).get())->adj.isEmpty());   // the preset's own
+        // Block arrows: the shaft as a share of the width of the arrow, the head as a share of the shorter side, from where the format puts the head's rear.
+        auto arrow = [&](int type, const QVector<OdProp> &props) {
+            const ItemPtr it = shape(type, props);
+            return static_cast<ShapeItem *>(it.get())->adj;
+        };
+        auto same = [](const QVector<double> &a, const QVector<double> &b) {
+            if (a.size() != b.size()) return false;
+            for (int i = 0; i < a.size(); ++i) if (qAbs(a[i] - b[i]) > 1e-9) return false;
+            return true;
+        };
+        QVERIFY(same(arrow(13, {}), {0.5, 0.5}));                                              // the defaults, 100 wide and 50 high
+        QVERIFY(same(arrow(13, {{0x0147, 12000}, {0x0148, 3000}}), {1 - 2 * 3000 / 21600.0, (1 - 12000 / 21600.0) * 2}));
+        QVERIFY(same(arrow(66, {{0x0147, 9000}}), {0.5, 9000 / 21600.0 * 2}));
+        QVERIFY(same(arrow(68, {{0x0147, 4000}, {0x0148, 3000}}), {1 - 2 * 3000 / 21600.0, 4000 / 21600.0}));
+        QVERIFY(same(arrow(67, {{0x0147, 14000}}), {0.5, 1 - 14000 / 21600.0}));
+        // A head longer than the arrow is the arrow.
+        QVERIFY(same(arrow(13, {{0x0147, 0}}), {0.5, 1.0}));
+        // The dashes of a line: the format's numbers in JeffOffice's order.
+        const struct { int dashing; Stroke::Dash dash; } dashes[] = {{0, Stroke::SolidLine}, {1, Stroke::DashLine}, {2, Stroke::SquareDot}, {3, Stroke::DashDot},
+                                                                       {4, Stroke::LongDashDotDot}, {5, Stroke::RoundDot}, {6, Stroke::DashLine}, {7, Stroke::LongDash},
+                                                                       {8, Stroke::DashDot}, {9, Stroke::LongDashDot}, {10, Stroke::LongDashDotDot}};
+        for (const auto &d : dashes) {
+            const ItemPtr it = shape(3, {{0x01CE, quint32(d.dashing)}});
+            QVERIFY2(it->stroke.dash == d.dash, qPrintable(QString::number(d.dashing)));
+        }
+        // Width, compound line, join, cap, and opacity.
+        const ItemPtr styled = shape(3, {{0x01C0, 0x0000FF}, {0x01C1, 0x4000}, {0x01CB, 19050}, {0x01CD, 2}, {0x01D6, 1}, {0x01D7, 0}, {0x01FF, 0x00080008}});
+        QVERIFY(qAbs(styled->stroke.width - 1.5) < 1e-9);
+        QVERIFY(styled->stroke.compound == Stroke::ThickThin);
+        QVERIFY(styled->stroke.join == Qt::RoundJoin);
+        QVERIFY(styled->stroke.cap == Qt::RoundCap);
+        QVERIFY(qAbs(styled->stroke.transparency - 0.75) < 1e-3);
+        QCOMPARE(odRgb(styled->stroke.color), QColor(255, 0, 0));
+        const ItemPtr mitered = shape(3, {{0x01D6, 2}, {0x01D7, 1}, {0x01CD, 4}});
+        QVERIFY(mitered->stroke.join == Qt::MiterJoin && mitered->stroke.cap == Qt::SquareCap && mitered->stroke.compound == Stroke::Triple);
+        QVERIFY(shape(3, {{0x01D6, 0}})->stroke.join == Qt::BevelJoin);
+        QVERIFY(shape(3, {{0x01D7, 2}})->stroke.cap == Qt::FlatCap);
+    }
+
+    void odrawReadsRotationAndFlips()
+    {
+        const QByteArray anchor = odClientAnchor(10, 20, 110, 70);
+        auto one = [&](quint32 flags, const QVector<OdProp> &props, int type = 1) {
+            return readOdrawShapes(odDrawing(odShape(type, 0xA00 | flags, props, anchor)), odContext())[0];
+        };
+        ItemPtr it = one(0, {{0x0004, 30u << 16}});
+        QVERIFY(qAbs(it->rotation - 30) < 1e-9);
+        QCOMPARE(it->rect, QRectF(10, 20, 100, 50));   // the frame is the unturned one
+        // The format turns a shape and then flips it, so one flip shows the turn the other way round.
+        it = one(0x40, {{0x0004, quint32(-30 * 65536)}});   // negative: counterclockwise, as 330
+        QVERIFY(qAbs(it->rotation - 30) < 1e-9);
+        QVERIFY(it->flipH && !it->flipV);
+        it = one(0x80, {{0x0004, 0x00008000}});             // half a degree
+        QVERIFY(qAbs(it->rotation - 359.5) < 1e-9);
+        QVERIFY(!it->flipH && it->flipV);
+        it = one(0xC0, {{0x0004, 400u << 16}});             // both flips: a half turn, which turns the same way
+        QVERIFY(qAbs(it->rotation - 40) < 1e-9);
+        QVERIFY(it->flipH && it->flipV);
+        it = one(0x40, {});
+        QVERIFY(it->rotation == 0 && it->flipH);
+        // Turned about a quarter, the frame the file gives has its width and height exchanged, about its center.
+        for (double deg : {45.0, 90.0, 134.0, 225.0, 270.0, 314.0}) {
+            it = one(0, {{0x0004, quint32(deg * 65536)}});
+            QVERIFY2(qAbs(it->rect.width() - 50) < 1e-9 && qAbs(it->rect.height() - 100) < 1e-9 && qAbs(it->rect.center().x() - 60) < 1e-9 && qAbs(it->rect.center().y() - 45) < 1e-9,
+                     qPrintable(QString::number(deg)));
+        }
+        for (double deg : {0.0, 44.0, 135.0, 180.0, 224.0, 315.0, 359.0}) {
+            it = one(0, {{0x0004, quint32(deg * 65536)}});
+            QVERIFY2(it->rect == QRectF(10, 20, 100, 50), qPrintable(QString::number(deg)));
+        }
+        // The numbered trapezoid is wide at the top and JeffOffice's at the bottom: it is flipped to match, and its turn goes with the flip.
+        it = one(0, {}, 8);
+        QVERIFY(it->flipV && !it->flipH && it->rotation == 0);
+        it = one(0x80, {}, 8);   // as the format has one flipped to be wide at the bottom
+        QVERIFY(!it->flipV && !it->flipH);
+        it = one(0, {{0x0004, 30u << 16}}, 8);
+        QVERIFY(it->flipV && qAbs(it->rotation - 30) < 1e-9);
+        it = one(0x80, {{0x0004, 30u << 16}}, 8);
+        QVERIFY(!it->flipV && qAbs(it->rotation - 330) < 1e-9);
+    }
+
+    void odrawMapsGroupChildrenIntoTheGroupFrame()
+    {
+        // A group at (100,100)-(300,200) whose children are placed in 1000 x 1000 units.
+        const QByteArray inner = odGroup(QRect(0, 0, 100, 100), 0x2, odChildAnchor(0, 0, 500, 1000),
+                                         odShape(1, 0xA02, {}, odChildAnchor(0, 0, 50, 50)));
+        const QByteArray group = odGroup(QRect(0, 0, 1000, 1000), 0, odClientAnchor(100, 100, 300, 200),
+                                         odShape(1, 0xA02, {{0x0380, 0, QByteArray("A\0\0\0", 4)}}, odChildAnchor(0, 0, 500, 500)) +
+                                         odShape(3, 0xA02, {}, odChildAnchor(500, 500, 1000, 1000)) + inner);
+        const ItemList items = readOdrawShapes(odDrawing(group + odShape(1, 0xA00, {}, odClientAnchor(0, 0, 5, 5))), odContext());
+        QCOMPARE(int(items.size()), 2);
+        QVERIFY(items[0]->type() == ItemType::Group);
+        auto *g = static_cast<GroupItem *>(items[0].get());
+        QCOMPARE(int(g->children.size()), 3);
+        QCOMPARE(g->children[0]->rect, QRectF(100, 100, 100, 50));
+        QCOMPARE(g->children[0]->name, QStringLiteral("A"));
+        QCOMPARE(g->children[1]->rect, QRectF(200, 150, 100, 50));
+        QVERIFY(static_cast<ShapeItem *>(g->children[1].get())->shape == QLatin1String("ellipse"));
+        QVERIFY(g->children[2]->type() == ItemType::Group);
+        auto *g2 = static_cast<GroupItem *>(g->children[2].get());
+        QCOMPARE(int(g2->children.size()), 1);
+        QCOMPARE(g2->children[0]->rect, QRectF(100, 100, 50, 50));   // the inner group is 100 wide, for 100 units
+        QCOMPARE(g->rect, QRectF(100, 100, 200, 100));
+        QCOMPARE(g2->rect, QRectF(100, 100, 50, 50));
+        QVERIFY(items[1]->type() == ItemType::Shape);
+        QCOMPARE(items[1]->rect, QRectF(0, 0, 5, 5));
+        // A group whose first shape isn't made for describing one has no frame: its shapes are its own.
+        const ItemList plain = readOdrawShapes(odDrawing(odContainer(0xF003, odShape(1, 0xA00, {}, odClientAnchor(0, 0, 10, 10)) + odShape(3, 0xA00, {}, odClientAnchor(20, 0, 30, 10)))), odContext());
+        QCOMPARE(int(plain.size()), 1);
+        QVERIFY(plain[0]->type() == ItemType::Group);
+        QCOMPARE(int(static_cast<GroupItem *>(plain[0].get())->children.size()), 2);
+        QCOMPARE(plain[0]->rect, QRectF(0, 0, 30, 10));
+    }
+
+    void odrawTurnsAndFlipsAGroupAboutItsFrame()
+    {
+        auto groupOf = [&](quint32 flags, const QVector<OdProp> &props) {
+            const QByteArray g = odGroup(QRect(0, 0, 100, 100), flags, odClientAnchor(0, 0, 100, 100), odShape(1, 0xA02, {}, odChildAnchor(10, 10, 30, 20)), props);
+            return readOdrawShapes(odDrawing(g), odContext());
+        };
+        ItemList items = groupOf(0x40, {});   // flipped across
+        auto *g = static_cast<GroupItem *>(items[0].get());
+        QCOMPARE(g->children[0]->rect, QRectF(70, 10, 20, 10));
+        QVERIFY(g->children[0]->flipH && !g->children[0]->flipV);
+        items = groupOf(0x80, {});            // flipped upside down
+        g = static_cast<GroupItem *>(items[0].get());
+        QCOMPARE(g->children[0]->rect, QRectF(10, 80, 20, 10));
+        QVERIFY(!g->children[0]->flipH && g->children[0]->flipV);
+        items = groupOf(0, {{0x0004, 90u << 16}});   // a quarter turn about the middle
+        g = static_cast<GroupItem *>(items[0].get());
+        QVERIFY(qAbs(g->children[0]->rotation - 90) < 1e-9);
+        QVERIFY(qAbs(g->children[0]->rect.center().x() - 85) < 1e-9 && qAbs(g->children[0]->rect.center().y() - 20) < 1e-9);
+        QVERIFY(qAbs(g->children[0]->rect.width() - 20) < 1e-9);
+        // Turned, then flipped, as a shape is: the child (at 85,20 after the quarter turn) across the middle.
+        items = groupOf(0x40, {{0x0004, 90u << 16}});
+        g = static_cast<GroupItem *>(items[0].get());
+        QVERIFY(g->children[0]->flipH && !g->children[0]->flipV);
+        QVERIFY(qAbs(g->children[0]->rotation - 270) < 1e-9);
+        QVERIFY(qAbs(g->children[0]->rect.center().x() - 15) < 1e-9 && qAbs(g->children[0]->rect.center().y() - 20) < 1e-9);
+    }
+
+    void odrawSkipsDeletedHiddenAndBackgroundShapes()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        const QByteArray shapes = odShape(1, 0xA08, {}, at) +                          // deleted
+                                  odShape(1, 0xA00, {{0x03BF, 0x00020002}}, at) +      // hidden
+                                  odShape(1, 0xC00, {}, at) +                          // the background
+                                  odShape(3, 0xA00, {}, at) +                          // kept
+                                  odShape(1, 0xA01, {}, at) +                          // a group's own shape alone
+                                  odContainer(0xF004, odRecord(0, 0, 0xF00B, QByteArray()) + at) +   // no shape record
+                                  odGroup(QRect(0, 0, 10, 10), 0x8, at, odShape(1, 0xA02, {}, odChildAnchor(0, 0, 5, 5))) +   // a deleted group
+                                  odGroup(QRect(0, 0, 10, 10), 0, at, odShape(1, 0xA0A, {}, odChildAnchor(0, 0, 5, 5)));      // a group of nothing
+        const ItemList items = readOdrawShapes(odDrawing(shapes), odContext());
+        QCOMPARE(int(items.size()), 1);
+        QVERIFY(odShapeOf(items, 0) && odShapeOf(items, 0)->shape == QLatin1String("ellipse"));
+    }
+
+    void odrawResolvesEveryKindOfColor()
+    {
+        auto fillOf = [&](quint32 color, const QVector<OdProp> &more = {}, const OdrawContext *c = nullptr) {
+            QVector<OdProp> props = {{0x0181, color}, {0x01BF, 0x00100010}};
+            props += more;
+            const OdrawContext ctx = c ? *c : odContext();
+            const ItemList items = readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx);
+            return odRgb(items[0]->fill.color);
+        };
+        QCOMPARE(fillOf(0x00C07030), QColor(0x30, 0x70, 0xC0));
+        QCOMPARE(fillOf(0x02C07030), QColor(0x30, 0x70, 0xC0));   // from the palette: the color it gave
+        QCOMPARE(fillOf(0x04C07030), QColor(0x30, 0x70, 0xC0));   // a system RGB
+        // A scheme color is the host's; with none, or one it can't give, the fill is white.
+        QCOMPARE(fillOf(0x08000003), QColor(30, 23, 36));
+        OdrawContext none = odContext();
+        none.schemeColor = nullptr;
+        QCOMPARE(fillOf(0x08000003, {}, &none), QColor(Qt::white));
+        QCOMPARE(fillOf(0x08000009), QColor(Qt::white));
+        // System colors: a Windows one, and the references to the shape's own colors.
+        QCOMPARE(fillOf(0x10000005), QColor(Qt::white));          // window
+        QCOMPARE(fillOf(0x10000008), QColor(Qt::black));          // window text
+        QCOMPARE(fillOf(0x100000F2, {{0x01C0, 0x00102030}}), QColor(0x30, 0x20, 0x10));      // the line color
+        QCOMPARE(fillOf(0x100000F5, {{0x0183, 0x00010203}}), QColor(3, 2, 1));              // the back color
+        QCOMPARE(fillOf(0x100000F3, {{0x0201, 0x00FF8000}}), QColor(0, 0x80, 0xFF));        // the shadow color
+        // With a darkening or lightening function (1 and 2), by an amount of 255.
+        QCOMPARE(fillOf(0x10800100 | 0xF2, {{0x01C0, 0x00C8C8C8}}), QColor(100, 100, 100));
+        QCOMPARE(fillOf(0x10800200 | 0xF2, {{0x01C0, 0x00000000}}), QColor(126, 126, 126));
+        // A color that refers to itself ends at black.
+        QCOMPARE(fillOf(0x100000F0), QColor(Qt::black));
+        QCOMPARE(fillOf(0x100000F2, {{0x01C0, 0x100000F0}}), QColor(Qt::black));
+    }
+
+    void odrawBackgroundIsTheBackgroundShapesFill()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        const QByteArray bg = odShape(1, 0xC00, {{0x0181, 0x00FF8000}, {0x01BF, 0x00120012}});
+        const QByteArray drawing = odDrawing(odShape(1, 0xA00, {}, at), bg);
+        Fill f = odrawBackground(drawing, odContext());
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(odRgb(f.color), QColor(0, 0x80, 0xFF));
+        QCOMPARE(int(readOdrawShapes(drawing, odContext()).size()), 1);   // not among the shapes
+        // A scheme color is the host's.
+        f = odrawBackground(odDrawing(QByteArray(), odShape(1, 0xC00, {{0x0181, 0x08000002}})), odContext());
+        QCOMPARE(odRgb(f.color), QColor(20, 22, 34));
+        // No background shape, or one that isn't filled, has no fill.
+        QVERIFY(odrawBackground(odDrawing(odShape(1, 0xA00, {}, at)), odContext()).isNone());
+        QVERIFY(odrawBackground(odDrawing(QByteArray(), odShape(1, 0xC00, {{0x0181, 0x00FF8000}, {0x01BF, 0x00120002}})), odContext()).isNone());
+        QVERIFY(odrawBackground(QByteArray(), odContext()).isNone());
+    }
+
+    void odrawReadsTextBoxesThroughTheClientRecords()
+    {
+        QVector<QByteArray> boxes, datas;
+        OdrawContext ctx = odContext();
+        ctx.client = [&](jp::Item &item, const QByteArray &box, const QByteArray &data) {
+            boxes << box;
+            datas << data;
+            if (item.type() == ItemType::Text) static_cast<TextItem &>(item).storyId = QStringLiteral("story:") + QString::fromLatin1(box);
+            if (item.type() == ItemType::Shape) static_cast<ShapeItem &>(item).storyId = QStringLiteral("story:") + QString::fromLatin1(box);
+            item.role = QString::fromLatin1(data);
+        };
+        const QByteArray at = odClientAnchor(0, 0, 100, 50);
+        const QByteArray text = odRecord(0, 0, 0xF00D, QByteArray("hello")) + odRecord(0, 0, 0xF011, QByteArray("cd"));
+        // A text box: not filled, no line, the text's margins, where it sits, which way it runs.
+        ItemList items = readOdrawShapes(odDrawing(odShape(202, 0xA00, {{0x0081, 127000}, {0x0082, 63500}, {0x0083, 0}, {0x0084, 25400}, {0x0087, 2}, {0x0088, 1}, {0x00BF, 0x00010001}}, at, text)), ctx);
+        QCOMPARE(int(items.size()), 1);
+        QVERIFY(items[0]->type() == ItemType::Text);
+        auto *t = static_cast<TextItem *>(items[0].get());
+        QCOMPARE(t->storyId, QStringLiteral("story:hello"));
+        QCOMPARE(t->role, QStringLiteral("cd"));
+        QVERIFY(t->fill.isNone() && t->stroke.isNone());
+        QCOMPARE(t->insets, QMarginsF(10, 5, 0, 2));
+        QVERIFY(t->valign == jp::VAlign::Bottom);
+        QVERIFY(t->vertical);
+        QVERIFY(t->autofit == TextItem::GrowBox);
+        // Its own fill and line when it has them; the format's margins when it says none.
+        items = readOdrawShapes(odDrawing(odShape(202, 0xA00, {{0x0181, 0x0000FF}, {0x01BF, 0x00100010}, {0x01FF, 0x00080008}, {0x0087, 1}}, at, text)), ctx);
+        t = static_cast<TextItem *>(items[0].get());
+        QCOMPARE(odRgb(t->fill.color), QColor(255, 0, 0));
+        QVERIFY(!t->stroke.isNone());
+        QCOMPARE(t->insets, QMarginsF(7.2, 3.6, 7.2, 3.6));
+        QVERIFY(t->valign == jp::VAlign::Middle && !t->vertical && t->autofit == TextItem::NoAutofit);
+        // A rectangle with text is a text box; with a text id and no client records too (and the host isn't asked).
+        items = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0181, 0x0000FF}, {0x01BF, 0x00100010}}, at, text)), ctx);
+        QVERIFY(items[0]->type() == ItemType::Text);
+        QCOMPARE(odRgb(items[0]->fill.color), QColor(255, 0, 0));
+        const int calls = int(boxes.size());
+        items = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0080, 5}}, at)), ctx);
+        QVERIFY(items[0]->type() == ItemType::Text);
+        QCOMPARE(int(boxes.size()), calls);
+        // Another shape with text stays that shape, and its story is set by the host.
+        items = readOdrawShapes(odDrawing(odShape(3, 0xA00, {{0x0087, 4}}, at, text)), ctx);
+        QVERIFY(items[0]->type() == ItemType::Shape);
+        auto *s = static_cast<ShapeItem *>(items[0].get());
+        QCOMPARE(s->shape, QStringLiteral("ellipse"));
+        QCOMPARE(s->storyId, QStringLiteral("story:hello"));
+        QVERIFY(s->valign == jp::VAlign::Middle);
+        QVERIFY(!s->fill.isNone());
+        // Client data alone (a placeholder): the host gets an empty text box, and the shape's place is its to give.
+        boxes.clear();
+        datas.clear();
+        items = readOdrawShapes(odDrawing(odShape(1, 0xA00, {}, QByteArray(), odRecord(0, 0, 0xF011, QByteArray("ph")))), ctx);
+        QCOMPARE(int(boxes.size()), 1);
+        QVERIFY(boxes[0].isEmpty());
+        QCOMPARE(datas[0], QByteArray("ph"));
+        QCOMPARE(items[0]->role, QStringLiteral("ph"));
+        QVERIFY(items[0]->rect.isNull());
+        // The host's functions are all optional.
+        QCOMPARE(int(readOdrawShapes(odDrawing(odShape(202, 0xA00, {}, at, text)), OdrawContext()).size()), 1);
+    }
+
+    void odrawReadsPicturesWithTheirCrop()
+    {
+        QVector<int> asked;
+        OdrawContext ctx = odContext();
+        ctx.picture = [&](int index) {
+            asked << index;
+            return index == 9 ? QString() : QStringLiteral("pic%1").arg(index);
+        };
+        const QByteArray at = odClientAnchor(10, 20, 110, 70);
+        auto picture = [&](int type, quint32 flags, const QVector<OdProp> &props) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, flags, props, at)), ctx);
+            return items.empty() || items[0]->type() != ItemType::Picture ? std::shared_ptr<PictureItem>() : std::static_pointer_cast<PictureItem>(items[0]);
+        };
+        // A picture frame: the picture in the store at that number, in the frame, uncropped.
+        std::shared_ptr<PictureItem> pic = picture(75, 0xA00, {{0x0104, 3, {}, true}});
+        QVERIFY(pic);
+        QCOMPARE(pic->imageId, QStringLiteral("pic3"));
+        QCOMPARE(asked, QVector<int>({3}));
+        QCOMPARE(pic->rect, QRectF(10, 20, 100, 50));
+        QCOMPARE(pic->imgRect, QRectF(0, 0, 100, 50));
+        QVERIFY(pic->stroke.isNone() && pic->fill.isNone());
+        // Cropped: an eighth off the left and top, a quarter off the right and bottom, so the frame holds 5/8 of each side.
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x0100, 0x2000}, {0x0101, 0x4000}, {0x0102, 0x2000}, {0x0103, 0x4000}});
+        QCOMPARE(pic->imgRect, QRectF(-20, -10, 160, 80));
+        // Negative: the picture is smaller than the frame, with room around it.
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x0102, quint32(-0x4000)}, {0x0103, quint32(-0x4000)}});
+        QCOMPARE(pic->imgRect, QRectF(50.0 / 3, 0, 200.0 / 3, 50));
+        // Brightness and contrast, grayscale and black and white, a color made clear.
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x0109, 16384}, {0x0108, 0x18000}, {0x013F, 0x00040004}, {0x0107, 0x00FFFFFF}});
+        QVERIFY(qAbs(pic->brightness - 50) < 1e-9 && qAbs(pic->contrast - 50) < 1e-9);
+        QVERIFY(pic->recolor == PictureItem::Grayscale);
+        QVERIFY(pic->hasTransparentColor);
+        QCOMPARE(pic->transparentColor, QColor(Qt::white));
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x013F, 0x00020002}});
+        QVERIFY(pic->recolor == PictureItem::BlackWhite && pic->brightness == 0 && pic->contrast == 0 && !pic->hasTransparentColor);
+        // A frame around it, when the shape has a line.
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x01FF, 0x00080008}, {0x01CB, 12700}});
+        QVERIFY(!pic->stroke.isNone() && qAbs(pic->stroke.width - 1) < 1e-9);
+        // A picture the host can't give, a frame with none, a rectangle that names one, and an object with its picture.
+        pic = picture(75, 0xA00, {{0x0104, 9, {}, true}});
+        QVERIFY(pic && pic->imageId.isEmpty());
+        pic = picture(75, 0xA00, {});
+        QVERIFY(pic && pic->imageId.isEmpty());
+        pic = picture(1, 0xA00, {{0x0104, 4, {}, true}});
+        QVERIFY(pic && pic->imageId == QLatin1String("pic4"));
+        pic = picture(1, 0xA10, {{0x0104, 5, {}, true}});   // an OLE object
+        QVERIFY(pic && pic->imageId == QLatin1String("pic5"));
+        // The format's number in a picture's name: not asked for a missing one.
+        asked.clear();
+        picture(75, 0xA00, {{0x0104, 0, {}, true}});
+        QVERIFY(asked.isEmpty());
+    }
+
+    void odrawReadsGradientAndPictureFills()
+    {
+        auto fillOf = [&](const QVector<OdProp> &more, OdrawContext *c = nullptr) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}};
+            props += more;
+            const OdrawContext ctx = c ? *c : odContext();
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill;
+        };
+        const OdProp red{0x0181, 0x0000FF}, blue{0x0183, 0xFF0000};
+        // Linear: the first color runs toward 270 - a degrees for a stored angle a of 0 or more, 90 - a for a negative one.
+        const struct { double stored; double toward; } angles[] = {{0, 270}, {45, 225}, {90, 180}, {135, 135}, {180, 90}, {225, 45}, {270, 0}, {315, 315}, {-45, 135}, {-90, 180}, {-135, 225}};
+        for (const auto &a : angles) {
+            const Fill f = fillOf({{0x0180, 7}, red, blue, {0x018B, quint32(qint32(a.stored * 65536))}});
+            QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Linear);
+            QVERIFY2(qAbs(f.angle - a.toward) < 1e-6, qPrintable(QString::number(a.stored)));
+        }
+        Fill f = fillOf({{0x0180, 4}, red, blue});
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Linear);
+        QCOMPARE(int(f.stops.size()), 2);
+        QCOMPARE(f.stops[0].pos, 0.0);
+        QCOMPARE(odRgb(f.stops[0].color), QColor(255, 0, 0));
+        QCOMPARE(f.stops[1].pos, 1.0);
+        QCOMPARE(odRgb(f.stops[1].color), QColor(0, 0, 255));
+        QCOMPARE(odRgb(f.color), QColor(255, 0, 0));
+        QCOMPARE(odRgb(f.color2), QColor(0, 0, 255));
+        QVERIFY(fillOf({{0x0180, 8}, red, blue}).gradType == Fill::Linear);
+        // The focus: both ends the first color at 50, the colors the other way round at 100, swapped below zero.
+        auto stopsOf = [&](int focus) {
+            const Fill g = fillOf({{0x0180, 7}, red, blue, {0x018C, quint32(focus)}});
+            QStringList out;
+            for (const GradientStop &st : g.stops) out << QStringLiteral("%1%2").arg(odRgb(st.color) == QColor(255, 0, 0) ? 'r' : 'b').arg(st.pos);
+            return out.join(QLatin1Char(' '));
+        };
+        QCOMPARE(stopsOf(0), QStringLiteral("r0 b1"));
+        QCOMPARE(stopsOf(50), QStringLiteral("r0 b0.5 r1"));
+        QCOMPARE(stopsOf(100), QStringLiteral("b0 r1"));
+        QCOMPARE(stopsOf(-100), QStringLiteral("r0 b1"));
+        QCOMPARE(stopsOf(-50), QStringLiteral("b0 r0.5 b1"));
+        // Opacity of each color.
+        f = fillOf({{0x0180, 7}, red, blue, {0x0182, 0x8000}, {0x0184, 0x4000}});
+        QVERIFY(qAbs(f.stops[0].transparency - 0.5) < 1e-6 && qAbs(f.stops[1].transparency - 0.75) < 1e-6);
+        // A list of colors with their places, which may come in any order.
+        QByteArray list;
+        list += odU32(0x00FF0000) + odU32(65536);       // blue at the end
+        list += odU32(0x0000FF00) + odU32(0x4000);      // green a quarter along
+        list += odU32(0x000000FF) + odU32(0);           // red at the start
+        f = fillOf({{0x0180, 7}, red, blue, {0x0196, 0, odArray(3, 8, list)}});
+        QCOMPARE(int(f.stops.size()), 3);
+        QVERIFY(f.stops[0].pos == 0 && f.stops[1].pos == 0.25 && f.stops[2].pos == 1);
+        QCOMPARE(odRgb(f.stops[1].color), QColor(0, 255, 0));
+        QCOMPARE(odRgb(f.stops[2].color), QColor(0, 0, 255));
+        // From the center or along the outline, the first color is the outer one: JeffOffice puts the center first.
+        f = fillOf({{0x0180, 6}, red, blue});
+        QVERIFY(f.gradType == Fill::PathGrad);
+        QCOMPARE(odRgb(f.stops[0].color), QColor(0, 0, 255));
+        QCOMPARE(f.stops[0].pos, 0.0);
+        QCOMPARE(odRgb(f.stops[1].color), QColor(255, 0, 0));
+        QCOMPARE(f.stops[1].pos, 1.0);
+        f = fillOf({{0x0180, 5}, red, blue, {0x018C, 100}});
+        QVERIFY(f.gradType == Fill::Rectangular);
+        QCOMPARE(odRgb(f.stops[0].color), QColor(255, 0, 0));
+        // A picture: stretched, or tiled for a texture or a pattern; solid when there's none to be had.
+        f = fillOf({{0x0180, 3}, red, {0x0186, 2, {}, true}, {0x0182, 0x8000}});
+        QVERIFY(f.type == Fill::Picture && f.imageId == QLatin1String("pic2") && !f.tile && qAbs(f.transparency - 0.5) < 1e-6);
+        f = fillOf({{0x0180, 2}, {0x0186, 2, {}, true}});
+        QVERIFY(f.type == Fill::Texture && f.imageId == QLatin1String("pic2") && f.tile);
+        f = fillOf({{0x0180, 1}, {0x0186, 7, {}, true}});
+        QVERIFY(f.type == Fill::Texture && f.imageId == QLatin1String("pic7"));
+        f = fillOf({{0x0180, 3}, red, {0x0186, 0, {}, true}});
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(odRgb(f.color), QColor(255, 0, 0));
+        OdrawContext none = odContext();
+        none.picture = nullptr;
+        QVERIFY(fillOf({{0x0180, 3}, red, {0x0186, 2, {}, true}}, &none).type == Fill::Solid);
+        // The page's background: nothing of its own.
+        QVERIFY(fillOf({{0x0180, 9}, red}).isNone());
+        // Not filled: no gradient either.
+        QVERIFY(readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0180, 7}, red, blue, {0x01BF, 0x00100000}}, odClientAnchor(0, 0, 1, 1))), odContext())[0]->fill.isNone());
+    }
+
+    void odrawReadsArrowheadsShadowsAndHyperlinks()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 100, 50);
+        auto one = [&](int type, const QVector<OdProp> &props) { return readOdrawShapes(odDrawing(odShape(type, 0xA00, props, at)), odContext())[0]; };
+        // Heads: the kind, and a size from the width and length (0 small to 2 large).
+        ItemPtr it = one(20, {{0x01D0, 1}, {0x01D2, 2}, {0x01D3, 2}, {0x01D1, 5}, {0x01D4, 0}, {0x01D5, 1}});
+        QVERIFY(it->type() == ItemType::Line);
+        QVERIFY(it->stroke.startArrow == Arrow::Triangle && it->stroke.startSize == 2);
+        QVERIFY(it->stroke.endArrow == Arrow::Open && it->stroke.endSize == 1);
+        const struct { quint32 kind; Arrow arrow; } heads[] = {{0, Arrow::None}, {1, Arrow::Triangle}, {2, Arrow::Stealth}, {3, Arrow::Diamond}, {4, Arrow::Oval}, {5, Arrow::Open}, {6, Arrow::Open}, {99, Arrow::None}};
+        for (const auto &h : heads) QVERIFY(one(20, {{0x01D1, h.kind}})->stroke.endArrow == h.arrow);
+        it = one(20, {{0x01D0, 4}});
+        QVERIFY(it->stroke.startSize == 1 && it->stroke.endArrow == Arrow::None);   // medium without a say
+        // A shadow: its color, how clear, and where it falls (3 points across and down).
+        it = one(1, {{0x023F, 0x00020002}, {0x0201, 0x00000080}, {0x0204, 0x8000}, {0x0205, 38100}, {0x0206, 38100}});
+        QVERIFY(it->fx.shadow.on && !it->fx.shadow.inner);
+        QCOMPARE(odRgb(it->fx.shadow.color), QColor(0x80, 0, 0));
+        QVERIFY(qAbs(it->fx.shadow.transparency - 0.5) < 1e-6);
+        QVERIFY(qAbs(it->fx.shadow.distance - 3 * std::sqrt(2.0)) < 1e-6 && qAbs(it->fx.shadow.angle - 45) < 1e-6 && it->fx.shadow.blur == 0);
+        it = one(1, {{0x023F, 0x00020002}, {0x0205, 0}, {0x0206, 50800}});
+        QVERIFY(qAbs(it->fx.shadow.distance - 4) < 1e-6 && qAbs(it->fx.shadow.angle - 90) < 1e-6);
+        QVERIFY(!one(1, {{0x023F, 0x00020000}})->fx.shadow.on);
+        QVERIFY(!one(1, {})->fx.shadow.on);
+        // Hyperlinks: an address (a moniker, or a string), a place in it, a file.
+        auto linkOf = [&](const QByteArray &h) { return one(1, {{0x0382, 0, h}})->hyperlink; };
+        QCOMPARE(linkOf(odUrlHyperlink(QStringLiteral("http://example.com/a"), QString(), false)), QStringLiteral("http://example.com/a"));
+        QCOMPARE(linkOf(odUrlHyperlink(QStringLiteral("http://example.com/a"), QStringLiteral("top"), false)), QStringLiteral("http://example.com/a#top"));
+        QCOMPARE(linkOf(odUrlHyperlink(QStringLiteral("https://example.org/"), QString(), true)), QStringLiteral("https://example.org/"));
+        QCOMPARE(linkOf(odUrlHyperlink(QStringLiteral("https://example.org/"), QStringLiteral("p"), true)), QStringLiteral("https://example.org/#p"));
+        QCOMPARE(linkOf(odFileHyperlink(QStringLiteral("C:\\docs\\a.ppt"), QString())), QStringLiteral("C:\\docs\\a.ppt"));
+        QCOMPARE(linkOf(odFileHyperlink(QStringLiteral("C:\\docs\\a.ppt"), QStringLiteral("C:\\docs\\b.ppt"))), QStringLiteral("C:\\docs\\b.ppt"));
+        QVERIFY(linkOf(QByteArray()).isEmpty());
+        QVERIFY(linkOf(odU32(2) + odU32(0)).isEmpty());
+        const QByteArray whole = odUrlHyperlink(QStringLiteral("http://example.com/a"), QStringLiteral("top"), false);
+        for (int cut = 0; cut < whole.size(); ++cut) linkOf(whole.left(cut));   // none of them is a crash
+        QByteArray bad = whole;
+        qToLittleEndian<quint32>(0xFFFFFFF0u, bad.data() + 8);   // a length of the text shown that's past the end
+        QVERIFY(linkOf(bad).isEmpty());
+        // The name and the description, as the shape's.
+        it = one(1, {{0x0380, 0, odUtf16z(QStringLiteral("N\u00E9m"))}, {0x0381, 0, odUtf16z(QStringLiteral("d"))}});
+        QCOMPARE(it->name, QStringLiteral("N\u00E9m"));
+        QCOMPARE(it->altText, QStringLiteral("d"));
+    }
+
+    void odrawReadsLinesAndConnectors()
+    {
+        const QByteArray at = odClientAnchor(10, 20, 110, 70);
+        auto lineOf = [&](int type, quint32 flags, const QVector<OdProp> &props = {}) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00 | flags, props, at)), odContext());
+            return items.empty() || items[0]->type() != ItemType::Line ? std::shared_ptr<LineItem>() : std::static_pointer_cast<LineItem>(items[0]);
+        };
+        auto near = [](QPointF a, QPointF b) { return qAbs(a.x() - b.x()) < 1e-6 && qAbs(a.y() - b.y()) < 1e-6; };
+        // A line runs from the frame's top left to its bottom right, over and down for a flip.
+        std::shared_ptr<LineItem> l = lineOf(20, 0);
+        QVERIFY(l);
+        QVERIFY(near(l->p1, QPointF(10, 20)) && near(l->p2, QPointF(110, 70)));
+        QVERIFY(qAbs(l->stroke.width - 0.75) < 1e-9 && odRgb(l->stroke.color) == QColor(Qt::black));
+        QCOMPARE(l->rect, QRectF(10, 20, 100, 50));
+        QVERIFY(l->rotation == 0 && !l->flipH && !l->flipV);
+        l = lineOf(20, 0x40);
+        QVERIFY(near(l->p1, QPointF(110, 20)) && near(l->p2, QPointF(10, 70)));
+        l = lineOf(20, 0x80);
+        QVERIFY(near(l->p1, QPointF(10, 70)) && near(l->p2, QPointF(110, 20)));
+        l = lineOf(32, 0xC0);   // a straight connector, both ways
+        QVERIFY(near(l->p1, QPointF(110, 70)) && near(l->p2, QPointF(10, 20)));
+        // Turned about the middle of the frame (60,45), a quarter turn: the frame has its sides exchanged first.
+        l = lineOf(20, 0, {{0x0004, 90u << 16}});
+        QVERIFY(near(l->p1, QPointF(110, 20)) && near(l->p2, QPointF(10, 70)));
+        QVERIFY(l->rotation == 0);
+        l = lineOf(20, 0, {{0x0004, 30u << 16}});
+        QVERIFY(near(l->p1, QPointF(60, 45) + QTransform().rotate(30).map(QPointF(-50, -25))) && near(l->p2, QPointF(60, 45) + QTransform().rotate(30).map(QPointF(50, 25))));
+        // Without a line there is nothing to draw.
+        QVERIFY(lineOf(20, 0, {{0x01FF, 0x00080000}})->stroke.isNone());
+        // Bent and curved connectors are shapes with a path, in a frame of 100 x 50.
+        auto path = [&](int type, const QVector<OdProp> &props = {}) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, props, odClientAnchor(0, 0, 100, 50))), odContext());
+            return odShapeOf(items, 0) ? odPathText(odShapeOf(items, 0)->customPath) : QStringLiteral("not a shape");
+        };
+        QCOMPARE(path(33), QStringLiteral("M0,0 L100,0 L100,50"));
+        QCOMPARE(path(34), QStringLiteral("M0,0 L50,0 L50,50 L100,50"));
+        QCOMPARE(path(34, {{0x0147, 5400}}), QStringLiteral("M0,0 L25,0 L25,50 L100,50"));
+        QCOMPARE(path(35, {{0x0147, 5400}, {0x0148, 5400}}), QStringLiteral("M0,0 L25,0 L25,12.5 L100,12.5 L100,50"));
+        QCOMPARE(path(36, {{0x0147, 5400}, {0x0148, 16200}, {0x0149, 10800}}), QStringLiteral("M0,0 L25,0 L25,37.5 L50,37.5 L50,50 L100,50"));
+        QCOMPARE(path(37), QStringLiteral("M0,0 C50,0 100,25 100,50"));
+        QCOMPARE(path(38), QStringLiteral("M0,0 C25,0 50,12.5 50,25 C50,37.5 75,50 100,50"));
+        for (int type : {39, 40}) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, {}, odClientAnchor(0, 0, 100, 50))), odContext());
+            const QPainterPath &cp = odShapeOf(items, 0)->customPath;
+            QVERIFY(cp.elementCount() > 3);
+            QVERIFY(cp.elementAt(0).x == 0 && cp.elementAt(0).y == 0);
+            QVERIFY(cp.elementAt(cp.elementCount() - 1).x == 100 && cp.elementAt(cp.elementCount() - 1).y == 50);
+        }
+        const ItemList conn = readOdrawShapes(odDrawing(odShape(34, 0xA00, {}, odClientAnchor(0, 0, 100, 50))), odContext());
+        QVERIFY(odShapeOf(conn, 0)->fill.isNone() && !odShapeOf(conn, 0)->stroke.isNone());
+    }
+
+    void odrawReadsFreeforms()
+    {
+        auto path = [&](const QVector<OdProp> &props, int type = 0) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, props, odClientAnchor(0, 0, 100, 50))), odContext());
+            return odShapeOf(items, 0) ? odPathText(odShapeOf(items, 0)->customPath) : QStringLiteral("not a shape");
+        };
+        const QVector<QPoint> triangle = {{0, 0}, {21600, 0}, {10800, 21600}};
+        // Vertices alone: a closed polygon, scaled from the 21600 square to the frame.
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}}), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}, {0x0144, 0}}), QStringLiteral("M0,0 L100,0 L50,50"));       // an open one
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}, {0x0144, 1}}), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        // Another geometry rectangle.
+        QCOMPARE(path({{0x0145, 0, odVertices({{1000, 2000}, {3000, 2000}, {2000, 4000}})}, {0x0140, 1000}, {0x0141, 2000}, {0x0142, 3000}, {0x0143, 4000}}),
+                 QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        // Vertices of 16 bits.
+        QCOMPARE(path({{0x0145, 0, odVertices({{0, 0}, {21600, 0}, {10800, 21600}}, 4)}}), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        QCOMPARE(path({{0x0145, 0, odVertices({{-100, 0}, {100, 100}}, 4)}, {0x0140, quint32(-100)}, {0x0142, 100}, {0x0143, 100}}), QStringLiteral("M0,0 L100,50 L0,0"));
+        // Curves in threes.
+        QCOMPARE(path({{0x0145, 0, odVertices({{0, 0}, {10800, 0}, {21600, 10800}, {21600, 21600}})}, {0x0144, 2}}), QStringLiteral("M0,0 C50,0 100,25 100,50"));
+        // Segments: move, two lines, a curve, close, end.
+        const QVector<QPoint> six = {{0, 0}, {10800, 0}, {10800, 10800}, {21600, 10800}, {21600, 21600}, {10800, 21600}};
+        QCOMPARE(path({{0x0145, 0, odVertices(six)}, {0x0146, 0, odSegments({0x4000, 0x0002, 0x2001, 0x6001, 0x8000})}, {0x0144, 4}}),
+                 QStringLiteral("M0,0 L50,0 L50,25 C100,25 100,50 50,50 L0,0"));
+        // Several subpaths, and the marks for no fill or no line.
+        QCOMPARE(path({{0x0145, 0, odVertices({{0, 0}, {21600, 0}, {0, 10800}, {21600, 10800}})}, {0x0146, 0, odSegments({0x4000, 0xAB00, 0x0001, 0x8000, 0x4000, 0x0001, 0x8000})}}),
+                 QStringLiteral("M0,0 L100,0 M0,25 L100,25"));
+        // The marks for the kind of point (here auto, smooth, and symmetric curves) between segments take no vertices.
+        QCOMPARE(path({{0x0145, 0, odVertices({{0, 0}, {10800, 0}, {21600, 10800}, {21600, 21600}, {0, 21600}})}, {0x0146, 0, odSegments({0x4000, 0xB300, 0x2001, 0xAD00, 0xB100, 0x0001, 0x8000})}}),
+                 QStringLiteral("M0,0 C50,0 100,25 100,50 L0,50"));
+        // A length that leaves the array's header out of its count.
+        const QVector<OdProp> trimmed = {{0x0145, 0, odVertices(triangle), false, 6}, {0x0380, 0, odUtf16z(QStringLiteral("after"))}};
+        const ItemList items = readOdrawShapes(odDrawing(odShape(0, 0xA00, trimmed, odClientAnchor(0, 0, 100, 50))), odContext());
+        QCOMPARE(odPathText(odShapeOf(items, 0)->customPath), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        QCOMPARE(odShapeOf(items, 0)->name, QStringLiteral("after"));
+        // Quarters of an ellipse, starting along the width and along the height.
+        const QVector<QPoint> two = {{0, 0}, {21600, 21600}};
+        QCOMPARE(path({{0x0145, 0, odVertices(two)}, {0x0146, 0, odSegments({0x4000, 0xA701, 0x8000})}}), QStringLiteral("M0,0 C55.2285,0 100,22.3858 100,50"));
+        QCOMPARE(path({{0x0145, 0, odVertices(two)}, {0x0146, 0, odSegments({0x4000, 0xA801, 0x8000})}}), QStringLiteral("M0,0 C0,27.6142 44.7715,50 100,50"));
+        // Not enough vertices for the segments: what there is, and no more. One vertex is no path.
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}, {0x0146, 0, odSegments({0x4000, 0x0009, 0x6001})}}), QStringLiteral("M0,0 L100,0 L50,50"));
+        QVERIFY(odShapeOf(readOdrawShapes(odDrawing(odShape(0, 0xA00, {{0x0145, 0, odVertices({{5, 5}})}}, odClientAnchor(0, 0, 100, 50))), odContext()), 0)->customPath.isEmpty());
+        // A preset keeps its form when there are no vertices; one with them takes theirs.
+        QVERIFY(odShapeOf(readOdrawShapes(odDrawing(odShape(3, 0xA00, {}, odClientAnchor(0, 0, 100, 50))), odContext()), 0)->customPath.isEmpty());
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}}, 3), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+    }
+
+    void odrawReadsTextShapesAsTextArt()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 200, 50);
+        auto art = [&](int type, const QVector<OdProp> &props) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, props, at)), odContext());
+            return items.empty() || items[0]->type() != ItemType::TextArt ? std::shared_ptr<TextArtItem>() : std::static_pointer_cast<TextArtItem>(items[0]);
+        };
+        const OdProp words{0x00C0, 0, odUtf16z(QStringLiteral("Big\rNews"))};
+        std::shared_ptr<TextArtItem> t = art(136, {words});
+        QVERIFY(t);
+        QCOMPARE(t->text, QStringLiteral("Big\nNews"));
+        QCOMPARE(t->transform_, QStringLiteral("plain"));
+        QCOMPARE(t->size, 36.0);
+        QCOMPARE(t->align, 1);
+        QVERIFY(!t->bold && !t->italic && !t->vertical && !t->evenHeight);
+        QCOMPARE(odRgb(t->fill.color), QColor(Qt::white));   // the format's fill with nothing said
+        t = art(144, {words, {0x00C5, 0, odUtf16z(QStringLiteral("Arial"))}, {0x00C3, 24u << 16}, {0x00C4, 0x18000}, {0x00C2, 2}, {0x00FF, 0x00300030u}, {0x0181, 0x0000FF}});
+        QCOMPARE(t->transform_, QStringLiteral("archUp"));
+        QCOMPARE(t->font, QStringLiteral("Arial"));
+        QCOMPARE(t->size, 24.0);
+        QCOMPARE(t->spacing, 1.5);
+        QCOMPARE(t->align, 0);
+        QVERIFY(t->bold && t->italic && !t->evenHeight && !t->vertical);
+        QCOMPARE(odRgb(t->fill.color), QColor(255, 0, 0));
+        t = art(175, {words, {0x00FF, 0x20802080u}});
+        QVERIFY(t->vertical && t->evenHeight && !t->bold);
+        // Without words it is the shape it names.
+        const ItemList items = readOdrawShapes(odDrawing(odShape(136, 0xA00, {}, at)), odContext());
+        QVERIFY(items[0]->type() == ItemType::Shape);
+    }
+
+    void odrawSurvivesDamagedDrawings()
+    {
+        // A drawing with a bit of everything, cut anywhere and mangled in many ways.
+        OdrawContext ctx = odContext();
+        ctx.client = [](jp::Item &item, const QByteArray &box, const QByteArray &data) { item.role = QString::number(box.size() + data.size()); };
+        const QByteArray at = odClientAnchor(0, 0, 100, 50);
+        const QByteArray text = odRecord(0, 0xF, 0xF00D, QByteArray("hello")) + odRecord(0, 0, 0xF011, QByteArray("cd"));
+        QByteArray list;
+        list += odU32(0x00FF0000) + odU32(65536) + odU32(0x000000FF) + odU32(0);
+        const QByteArray inner = odGroup(QRect(0, 0, 100, 100), 0x2, odChildAnchor(0, 0, 500, 500), odShape(5, 0xA02, {{0x0147, 5400}}, odChildAnchor(0, 0, 50, 50)));
+        const QByteArray shapes =
+            odShape(1, 0xA00, {{0x0181, 0x08000003}, {0x0382, 0, odUrlHyperlink(QStringLiteral("http://example.com/a"), QStringLiteral("p"), false)}, {0x0380, 0, odUtf16z(QStringLiteral("n"))}, {0x0004, 30u << 16}}, at) +
+            odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {10800, 0}, {21600, 10800}, {21600, 21600}, {0, 21600}})}, {0x0146, 0, odSegments({0x4000, 0xB300, 0x2001, 0x0001, 0x6001, 0x8000})}}, at) +
+            odShape(202, 0xA00, {{0x0081, 127000}, {0x0087, 2}}, at, text) +
+            odShape(75, 0xA00, {{0x0104, 2, {}, true}, {0x0100, 0x2000}, {0x0102, 0x2000}}, at) +
+            odShape(3, 0xA00, {{0x0180, 7}, {0x0196, 0, odArray(2, 8, list)}, {0x01D0, 1}}, at) +
+            odShape(20, 0xA40, {}, at) + odShape(34, 0xA00, {{0x0147, 5400}}, at) +
+            odGroup(QRect(0, 0, 1000, 1000), 0x40, odClientAnchor(0, 0, 100, 100), odShape(1, 0xA02, {}, odChildAnchor(0, 0, 500, 500)) + inner, {{0x0004, 90u << 16}});
+        const QByteArray drawing = odDrawing(shapes, odShape(1, 0xC00, {{0x0181, 0x00FF8000}}));
+        QVERIFY(readOdrawShapes(drawing, ctx).size() >= 7);
+        for (int cut = 0; cut <= drawing.size(); ++cut) {
+            readOdrawShapes(drawing.left(cut), ctx);
+            odrawBackground(drawing.left(cut), ctx);
+        }
+        QRandomGenerator g(3);
+        const quint32 extremes[] = {0xFFFFFFFFu, 0x80000000u, 0x7FFFFFFFu, 0, 1, 0x00010000u};
+        for (int round = 0; round < 4000; ++round) {
+            QByteArray b = drawing;
+            const int n = 1 + int(g.bounded(8u));
+            for (int k = 0; k < n; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
+            if (round % 3 == 0) qToLittleEndian<quint32>(extremes[g.bounded(6u)], b.data() + int(g.bounded(quint32(b.size() - 4))));
+            readOdrawShapes(b, ctx);
+            odrawBackground(b, ctx);
+        }
+        // Not drawings at all.
+        for (int round = 0; round < 200; ++round) {
+            QByteArray b(int(g.bounded(400u)), '\0');
+            for (char &c : b) c = char(g.generate());
+            readOdrawShapes(b, ctx);
+            odrawBackground(b, ctx);
+            odrawRecords(b);
+        }
+    }
+
+    void odrawBoundsDepthCountsAndSizes()
+    {
+        const OdrawContext ctx = odContext();
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        // Groups inside groups: as deep as 64 are read, and nothing deeper (or its stack) is trusted.
+        auto nested = [&](int levels) {
+            QByteArray g = odShape(1, 0xA02, {}, odChildAnchor(0, 0, 10, 10));
+            for (int i = 0; i < levels; ++i) g = odGroup(QRect(0, 0, 10, 10), 0x2, odChildAnchor(0, 0, 10, 10), g);
+            return readOdrawShapes(odDrawing(g), ctx);
+        };
+        int depth = 0;
+        ItemList items = nested(60);
+        QCOMPARE(int(items.size()), 1);
+        for (const jp::Item *it = items[0].get(); it->type() == ItemType::Group; it = static_cast<const GroupItem *>(it)->children[0].get()) ++depth;
+        QCOMPARE(depth, 60);
+        QVERIFY(nested(100).empty());
+        QVERIFY(nested(3000).empty());
+        // More shapes than anyone has: the first 100,000.
+        QByteArray many;
+        const QByteArray one = odShape(1, 0xA00, {}, at);
+        for (int i = 0; i < 100100; ++i) many += one;
+        QCOMPARE(int(readOdrawShapes(odDrawing(many), ctx).size()), 100000);
+        // Lengths and counts that promise more than the data holds.
+        QByteArray shape = odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {5, 5}})}, {0x0146, 0, odSegments({0x0001})}}, at);
+        auto tryShape = [&](const QByteArray &sp) { return readOdrawShapes(odDrawing(sp), ctx); };
+        QByteArray big = odRecord(3, 0xFFF, 0xF00B, QByteArray(20, '\x11'));              // 4095 properties in 20 bytes
+        QCOMPARE(int(tryShape(odContainer(0xF004, odFsp(1, 0xA00) + big + at)).size()), 1);
+        big = odRecord(3, 1, 0xF00B, odU16(0x8000 | 0x0145) + odU32(0xFFFFFFF0u) + QByteArray(4, '\0'));   // complex data of 4 GB
+        QCOMPARE(int(tryShape(odContainer(0xF004, odFsp(0, 0xA00) + big + at)).size()), 1);
+        const QByteArray manyVertices = odArray(65535, 8, QByteArray(16, '\x07'));              // 65535 vertices of which two are there
+        QVERIFY(tryShape(odShape(0, 0xA00, {{0x0145, 0, manyVertices}}, at)).size() == 1);
+        QByteArray segs;
+        for (int i = 0; i < 20000; ++i) segs += odU16(0x1FFF);                                   // 20000 runs of 8191 lines, over three vertices
+        QVERIFY(tryShape(odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {1, 1}, {2, 2}})}, {0x0146, 0, odArray(20000, 2, segs)}}, at)).size() == 1);
+        QVERIFY(tryShape(odShape(3, 0xA00, {{0x0180, 7}, {0x0196, 0, odArray(65535, 8, QByteArray(24, '\x03'))}}, at)).size() == 1);
+        for (quint32 length : {0xFFFFFFFFu, 0x80000000u, 0x7FFFFFFFu}) {
+            QByteArray d = odDrawing(shape);
+            for (int at = 0; at + 4 <= d.size(); at += 2) {
+                QByteArray b = d;
+                qToLittleEndian<quint32>(length, b.data() + at);
+                readOdrawShapes(b, ctx);
+            }
+        }
+        // A picture promising a metafile of 4 GB, and a store of ten million empty blocks (kept to what fits).
+        QVERIFY(odrawBlip(odRecord(0, 0x3D4, 0xF01A, odUid('m') + odU32(0xFFFFFFFFu) + QByteArray(24, '\0') + odU32(0xFFFFFFFFu) + QByteArray("\x00\xFE", 2) + QByteArray(10, 'x')), nullptr).isEmpty());
+        QByteArray store;
+        for (int i = 0; i < 120000; ++i) store += odRecord(0, 0, 0xF007, QByteArray());
+        QVERIFY(odrawStore(odContainer(0xF001, store)).size() <= 100000);
+        QCOMPARE(int(odrawRecords(QByteArray(9, '\xFF')).size()), 0);
+    }
+
     void themeReadsAnyColorInASlot()
     {
         QByteArray xml = handWrittenTheme();
@@ -1382,6 +2564,2403 @@ private Q_SLOTS:
                 readTheme(bad, &t);
                 QDomDocument doc;
                 if (parseXml(bad, &doc)) readColor(doc.documentElement(), colorTestTheme(), ColorMap(), QColor(Qt::red));
+            }
+        }
+    }
+
+private:
+    // ---- DrawingML shapes: what the tests below build their drawings from
+
+    using Arrow = jp::Arrow;
+    using ColorRef = jp::ColorRef;
+    using Effects = jp::Effects;
+    using Fill = jp::Fill;
+    using GroupItem = jp::GroupItem;
+    using Item = jp::Item;
+    using ItemList = jp::ItemList;
+    using ItemPtr = jp::ItemPtr;
+    using ItemType = jp::ItemType;
+    using LineItem = jp::LineItem;
+    using PictureItem = jp::PictureItem;
+    using ShapeItem = jp::ShapeItem;
+    using Stroke = jp::Stroke;
+    using TextItem = jp::TextItem;
+    using VAlign = jp::VAlign;
+    using Wrap = jp::Wrap;
+
+    static QString dmlNamespaces()
+    {
+        return QStringLiteral("xmlns:a=\"%1\" xmlns:p=\"%2\" xmlns:r=\"%3\"").arg(QString(ns::A), QString(ns::P), QString(ns::R));
+    }
+
+    static QString emu(double points) { return QString::number(qint64(points * 12700)); }
+
+    // <a:custGeom> holding `inner`, as the first child of a throwaway document.
+    static QDomElement dmlElement(QDomDocument *doc, const QString &xml)
+    {
+        const QByteArray text = QStringLiteral("<root %1>%2</root>").arg(dmlNamespaces(), xml).toUtf8();
+        if (!parseXml(text, doc)) return QDomElement();
+        return doc->documentElement().firstChildElement();
+    }
+
+    static bool near(double a, double b, double tolerance = 1e-6) { return qAbs(a - b) <= tolerance * qMax(1.0, qAbs(b)); }
+
+    // A small format scheme, as a theme holds: each list has the three styles the references 1 to 3 (and 1001 to 1003) pick.
+    static QString dmlFormats()
+    {
+        return QStringLiteral(
+            "<a:fmtScheme name=\"T\"><a:fillStyleLst>"
+            "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>"
+            "<a:gradFill rotWithShape=\"1\"><a:gsLst><a:gs pos=\"0\"><a:schemeClr val=\"phClr\"><a:tint val=\"50000\"/></a:schemeClr></a:gs>"
+            "<a:gs pos=\"100000\"><a:schemeClr val=\"phClr\"/></a:gs></a:gsLst><a:lin ang=\"5400000\" scaled=\"0\"/></a:gradFill>"
+            "<a:solidFill><a:schemeClr val=\"phClr\"><a:lumMod val=\"50000\"/></a:schemeClr></a:solidFill></a:fillStyleLst>"
+            "<a:lnStyleLst>"
+            "<a:ln w=\"6350\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"solid\"/><a:miter lim=\"800000\"/></a:ln>"
+            "<a:ln w=\"12700\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"dash\"/><a:round/></a:ln>"
+            "<a:ln w=\"19050\" cap=\"rnd\" cmpd=\"dbl\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"solid\"/><a:bevel/></a:ln>"
+            "</a:lnStyleLst><a:effectStyleLst>"
+            "<a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle>"
+            "<a:effectStyle><a:effectLst><a:outerShdw blurRad=\"57150\" dist=\"19050\" dir=\"5400000\" algn=\"ctr\" rotWithShape=\"0\">"
+            "<a:srgbClr val=\"000000\"><a:alpha val=\"63000\"/></a:srgbClr></a:outerShdw></a:effectLst></a:effectStyle></a:effectStyleLst>"
+            "<a:bgFillStyleLst><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>"
+            "<a:solidFill><a:schemeClr val=\"phClr\"><a:tint val=\"95000\"/></a:schemeClr></a:solidFill>"
+            "<a:gradFill><a:gsLst><a:gs pos=\"0\"><a:schemeClr val=\"phClr\"/></a:gs><a:gs pos=\"100000\"><a:schemeClr val=\"phClr\"><a:shade val=\"80000\"/></a:schemeClr></a:gs></a:gsLst>"
+            "<a:path path=\"circle\"><a:fillToRect l=\"50000\" t=\"50000\" r=\"50000\" b=\"50000\"/></a:path></a:gradFill></a:bgFillStyleLst></a:fmtScheme>");
+    }
+
+    // A 4 by 4 picture of one color, as PNG bytes.
+    static QByteArray dmlPicture(const QColor &color = Qt::red)
+    {
+        QImage img(4, 4, QImage::Format_RGB32);
+        img.fill(color);
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        img.save(&buffer, "PNG");
+        return bytes;
+    }
+
+    // What reading a drawing is given, with a record of what it asks for: the pictures it keeps and the stories it starts.
+    struct DmlEnv {
+        struct Image { QByteArray bytes; QString format; };
+        DrawingContext ctx;
+        Package package;
+        QVector<Image> images;
+        QVector<std::shared_ptr<QTextDocument>> stories;
+        QVector<std::shared_ptr<QDomDocument>> documents;
+
+        DmlEnv()
+        {
+            ctx.theme = colorTestTheme();
+            ctx.addImage = [this](const QByteArray &bytes, const QString &format) {
+                images.append({bytes, format});
+                return QStringLiteral("img%1").arg(images.size());
+            };
+            ctx.newStory = [this]() {
+                stories.append(std::make_shared<QTextDocument>());
+                return QStringLiteral("story%1").arg(stories.size());
+            };
+            ctx.storyDoc = [this](const QString &id) -> QTextDocument * {
+                const int n = id.mid(5).toInt();
+                return n >= 1 && n <= stories.size() ? stories[n - 1].get() : nullptr;
+            };
+        }
+        DmlEnv(const DmlEnv &) = delete;
+        DmlEnv &operator=(const DmlEnv &) = delete;
+
+        // The first element in `xml`, with a, p, and r declared; it stays valid as long as this does.
+        QDomElement element(const QString &xml)
+        {
+            auto doc = std::make_shared<QDomDocument>();
+            documents.append(doc);
+            const QByteArray text = QStringLiteral("<root %1>%2</root>").arg(dmlNamespaces(), xml).toUtf8();
+            if (!parseXml(text, doc.get())) return QDomElement();
+            return doc->documentElement().firstChildElement();
+        }
+        void useFormats() { ctx.formats = element(dmlFormats()); }
+        // A package whose slide part has a picture (rId1) and an outside link (rId2, to `link`).
+        void usePackage(const QByteArray &picture = dmlPicture(), const QString &link = QStringLiteral("https://example.com/x"))
+        {
+            PackageWriter w;
+            w.addDefault(QStringLiteral("png"), QStringLiteral("image/png"));
+            w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<p:sld/>", kSlideType);
+            w.addPart(QStringLiteral("/ppt/media/image1.png"), picture, QStringLiteral("image/png"));
+            w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), kRelBase + "image", QStringLiteral("/ppt/media/image1.png"));
+            w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), kRelBase + "hyperlink", link, true);
+            package.read(w.finish());
+            ctx.package = &package;
+            ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
+        }
+    };
+
+    static Geometry customGeometryOf(const QString &inner, const QSizeF &size)
+    {
+        QDomDocument doc;
+        const QDomElement e = dmlElement(&doc, QStringLiteral("<a:custGeom>%1</a:custGeom>").arg(inner));
+        return readCustomGeometry(e, size);
+    }
+
+    // The path "M x y L x y ..." the tests draw lines with, in a path of `w` by `h`.
+    static QString linePath(const QString &attrs, const QList<QPair<QString, QString>> &points, bool close = true)
+    {
+        QString out = QStringLiteral("<a:path %1>").arg(attrs);
+        for (int i = 0; i < points.size(); ++i)
+            out += QStringLiteral("<a:%1><a:pt x=\"%2\" y=\"%3\"/></a:%1>").arg(i == 0 ? QStringLiteral("moveTo") : QStringLiteral("lnTo"), points[i].first, points[i].second);
+        return out + (close ? QStringLiteral("<a:close/>") : QString()) + QStringLiteral("</a:path>");
+    }
+
+private Q_SLOTS:
+    // ---- DrawingML shapes: guides and geometry
+
+    void dmlGuideFormulas_data()
+    {
+        QTest::addColumn<QString>("formula");
+        QTest::addColumn<double>("expected");
+        QTest::newRow("val") << "val 42" << 42.0;
+        QTest::newRow("multiply and divide") << "*/ 10 20 4" << 50.0;
+        QTest::newRow("add and subtract") << "+- 10 3 4" << 9.0;
+        QTest::newRow("add and divide") << "+/ 10 20 5" << 6.0;
+        QTest::newRow("if positive") << "?: 1 7 9" << 7.0;
+        QTest::newRow("if zero") << "?: 0 7 9" << 9.0;
+        QTest::newRow("if negative") << "?: -1 7 9" << 9.0;
+        QTest::newRow("abs") << "abs -5" << 5.0;
+        QTest::newRow("at2 of 45 degrees") << "at2 1 1" << 2700000.0;
+        QTest::newRow("at2 straight down") << "at2 0 1" << 5400000.0;
+        QTest::newRow("at2 straight left") << "at2 -1 0" << 10800000.0;
+        QTest::newRow("cat2") << "cat2 100 3 4" << 60.0;
+        QTest::newRow("sat2") << "sat2 100 3 4" << 80.0;
+        QTest::newRow("cos zero") << "cos 100 0" << 100.0;
+        QTest::newRow("cos 60 degrees") << "cos 100 3600000" << 50.0;
+        QTest::newRow("sin 90 degrees") << "sin 100 5400000" << 100.0;
+        QTest::newRow("sin 45 degrees") << "sin 100 2700000" << 70.71067811865476;
+        QTest::newRow("tan 45 degrees") << "tan 100 2700000" << 100.0;
+        QTest::newRow("max") << "max 3 9" << 9.0;
+        QTest::newRow("min") << "min 3 9" << 3.0;
+        QTest::newRow("mod") << "mod 3 4 12" << 13.0;
+        QTest::newRow("pin inside") << "pin 0 5 10" << 5.0;
+        QTest::newRow("pin below") << "pin 0 -5 10" << 0.0;
+        QTest::newRow("pin above") << "pin 0 15 10" << 10.0;
+        QTest::newRow("sqrt") << "sqrt 144" << 12.0;
+        QTest::newRow("sqrt of a negative") << "sqrt -4" << 0.0;
+        QTest::newRow("divide by zero") << "*/ 1 2 0" << 0.0;
+        QTest::newRow("add and divide by zero") << "+/ 1 2 0" << 0.0;
+        QTest::newRow("unknown operator") << "frob 1 2 3" << 0.0;
+        QTest::newRow("missing arguments") << "+-" << 0.0;
+        QTest::newRow("empty") << "" << 0.0;
+        QTest::newRow("extra spaces") << "  */   6   7  2 " << 21.0;
+        QTest::newRow("a name never defined") << "+- nothing 3 0" << 3.0;
+    }
+
+    void dmlGuideFormulas()
+    {
+        QFETCH(QString, formula);
+        QFETCH(double, expected);
+        GuideEvaluator g(1000, 600);
+        g.define(QStringLiteral("x"), formula);
+        QVERIFY2(near(g.value(QStringLiteral("x")), expected, 1e-9), qPrintable(QString::number(g.value(QStringLiteral("x")))));
+    }
+
+    void dmlGuideBuiltInNames()
+    {
+        GuideEvaluator g(1000, 600);
+        const struct { const char *name; double value; } names[] = {
+            {"w", 1000}, {"h", 600}, {"l", 0}, {"t", 0}, {"r", 1000}, {"b", 600}, {"hc", 500}, {"vc", 300},
+            {"wd2", 500}, {"wd3", 1000.0 / 3}, {"wd4", 250}, {"wd5", 200}, {"wd6", 1000.0 / 6}, {"wd8", 125}, {"wd10", 100}, {"wd32", 31.25},
+            {"hd2", 300}, {"hd3", 200}, {"hd4", 150}, {"hd5", 120}, {"hd6", 100}, {"hd8", 75},
+            {"ss", 600}, {"ls", 1000}, {"ssd2", 300}, {"ssd4", 150}, {"ssd6", 100}, {"ssd8", 75}, {"ssd16", 37.5}, {"ssd32", 18.75},
+            {"cd2", 10800000}, {"cd4", 5400000}, {"cd8", 2700000}, {"3cd4", 16200000}, {"3cd8", 8100000}, {"5cd8", 13500000}, {"7cd8", 18900000}};
+        for (const auto &n : names) QVERIFY2(near(g.value(QString::fromLatin1(n.name)), n.value), n.name);
+        // A number written out is its value, and a name that was never defined is 0.
+        QCOMPARE(g.value(QStringLiteral("123")), 123.0);
+        QCOMPARE(g.value(QStringLiteral("-4.5")), -4.5);
+        QCOMPARE(g.value(QStringLiteral("nothing")), 0.0);
+        QCOMPARE(g.value(QStringLiteral("nan")), 0.0);
+        QCOMPARE(g.value(QStringLiteral("inf")), 0.0);
+        // The shorter side is ss however the shape is turned.
+        GuideEvaluator tall(300, 900);
+        QCOMPARE(tall.value(QStringLiteral("ss")), 300.0);
+        QCOMPARE(tall.value(QStringLiteral("ls")), 900.0);
+    }
+
+    void dmlGuidesReferToEachOther()
+    {
+        GuideEvaluator g(1000, 600);
+        g.set(QStringLiteral("adj"), 25000);
+        g.define(QStringLiteral("dx"), QStringLiteral("*/ ss adj 100000"));       // 150
+        g.define(QStringLiteral("x1"), QStringLiteral("+- l dx 0"));              // 150
+        g.define(QStringLiteral("x2"), QStringLiteral("+- r 0 dx"));              // 850
+        g.define(QStringLiteral("early"), QStringLiteral("+- late 1 0"));         // a guide used before it is defined
+        g.define(QStringLiteral("late"), QStringLiteral("val 5"));
+        QCOMPARE(g.value(QStringLiteral("x1")), 150.0);
+        QCOMPARE(g.value(QStringLiteral("x2")), 850.0);
+        QCOMPARE(g.value(QStringLiteral("early")), 6.0);
+        // The first definition of a name is the one that counts.
+        g.define(QStringLiteral("x1"), QStringLiteral("val 1"));
+        QCOMPARE(g.value(QStringLiteral("x1")), 150.0);
+        // A value set outright wins over a formula for the name.
+        g.set(QStringLiteral("dx"), 7);
+        QCOMPARE(g.value(QStringLiteral("dx")), 7.0);
+    }
+
+    void dmlGuidesSurviveLoopsAndExcess()
+    {
+        GuideEvaluator g(1000, 600);
+        g.define(QStringLiteral("a"), QStringLiteral("+- b 1 0"));
+        g.define(QStringLiteral("b"), QStringLiteral("+- a 1 0"));
+        g.define(QStringLiteral("self"), QStringLiteral("+- self 1 0"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("a"))));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("b"))));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("self"))));
+        // A chain far longer than any drawing has: it ends, and gives a number.
+        g.define(QStringLiteral("g0"), QStringLiteral("val 1"));
+        for (int i = 1; i < 20000; ++i) g.define(QStringLiteral("g%1").arg(i), QStringLiteral("+- g%1 1 0").arg(i - 1));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("g19999"))));
+        // Results are kept finite and of a size a path can use.
+        g.define(QStringLiteral("big"), QStringLiteral("*/ 1000000000000 1000000000000 1"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("big"))));
+        QVERIFY(qAbs(g.value(QStringLiteral("big"))) <= 1e15);
+        g.define(QStringLiteral("tan90"), QStringLiteral("tan 100 5400000"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("tan90"))));
+        g.define(QStringLiteral("nanner"), QStringLiteral("mod nan 1 1"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("nanner"))));
+    }
+
+    void dmlCustomGeometryScalesItsPath()
+    {
+        // The path's own 100 by 50 is stretched over a frame of 200 by 100 points.
+        const QString p = linePath(QStringLiteral("w=\"100\" h=\"50\""), {{"10", "10"}, {"90", "10"}, {"90", "40"}});
+        const Geometry g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(200, 100));
+        QCOMPARE(g.paths.size(), 1);
+        const QRectF r = g.paths[0].path.boundingRect();
+        QVERIFY2(near(r.left(), 20) && near(r.top(), 20) && near(r.right(), 180) && near(r.bottom(), 80), qPrintable(QString::number(r.left())));
+        QVERIFY(g.paths[0].fill == GeometryPath::Normal);
+        QVERIFY(g.paths[0].stroke);
+    }
+
+    void dmlCustomGeometryWithoutPathSizeIsInEmu()
+    {
+        const QString p = linePath(QString(), {{"0", "0"}, {QStringLiteral("2540000"), QStringLiteral("1270000")}}, false);
+        const Geometry g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(300, 300));
+        QCOMPARE(g.paths.size(), 1);
+        const QRectF r = g.paths[0].path.boundingRect();
+        QVERIFY(near(r.right(), 200) && near(r.bottom(), 100));
+        // The frame's size doesn't stretch a path that names none.
+        const Geometry g2 = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(30, 30));
+        QVERIFY(near(g2.paths[0].path.boundingRect().right(), 200));
+    }
+
+    void dmlCustomGeometryEvaluatesGuides()
+    {
+        // A triangle whose apex is a quarter of the way along, by guides.
+        const QString gd = QStringLiteral("<a:avLst><a:gd name=\"adj\" fmla=\"val 25000\"/></a:avLst>"
+                                          "<a:gdLst><a:gd name=\"x1\" fmla=\"*/ w adj 100000\"/><a:gd name=\"y1\" fmla=\"*/ h 1 2\"/></a:gdLst>");
+        const QString p = linePath(QString(), {{"l", "b"}, {"x1", "t"}, {"r", "y1"}});
+        const Geometry g = customGeometryOf(gd + QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(400, 200));
+        QCOMPARE(g.paths.size(), 1);
+        const QPainterPath &path = g.paths[0].path;
+        QVERIFY(near(path.elementAt(0).x, 0) && near(path.elementAt(0).y, 200));
+        QVERIFY(near(path.elementAt(1).x, 100) && near(path.elementAt(1).y, 0));
+        QVERIFY(near(path.elementAt(2).x, 400) && near(path.elementAt(2).y, 100));
+    }
+
+    void dmlCustomGeometryDrawsArcsAndCurves()
+    {
+        // A whole circle from an arc: left-center, once around.
+        const QString circle = QStringLiteral("<a:path><a:moveTo><a:pt x=\"l\" y=\"vc\"/></a:moveTo>"
+                                              "<a:arcTo wR=\"wd2\" hR=\"hd2\" stAng=\"cd2\" swAng=\"21600000\"/><a:close/></a:path>");
+        Geometry g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(circle), QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 1);
+        QRectF r = g.paths[0].path.boundingRect();
+        QVERIFY2(near(r.left(), 0, 1e-3) && near(r.top(), 0, 1e-3) && near(r.right(), 100, 1e-3) && near(r.bottom(), 100, 1e-3),
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(r.left()).arg(r.top()).arg(r.width()).arg(r.height())));
+        // The center of the circle is inside it and a corner is not.
+        QVERIFY(g.paths[0].path.contains(QPointF(50, 50)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(3, 3)));
+        // A quarter ellipse: from the left-center sweeping a quarter turn clockwise ends at the top-center.
+        const QString quarter = QStringLiteral("<a:path><a:moveTo><a:pt x=\"l\" y=\"vc\"/></a:moveTo>"
+                                               "<a:arcTo wR=\"wd2\" hR=\"hd2\" stAng=\"cd2\" swAng=\"5400000\"/></a:path>");
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(quarter), QSizeF(300, 100));
+        const QPointF end = g.paths[0].path.currentPosition();
+        QVERIFY2(near(end.x(), 150, 1e-3) && near(end.y(), 0, 1e-3), qPrintable(QStringLiteral("%1,%2").arg(end.x()).arg(end.y())));
+        // A counterclockwise quarter turn ends at the bottom-center.
+        const QString back = QStringLiteral("<a:path><a:moveTo><a:pt x=\"l\" y=\"vc\"/></a:moveTo>"
+                                            "<a:arcTo wR=\"wd2\" hR=\"hd2\" stAng=\"cd2\" swAng=\"-5400000\"/></a:path>");
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(back), QSizeF(300, 100));
+        QVERIFY(near(g.paths[0].path.currentPosition().x(), 150, 1e-3) && near(g.paths[0].path.currentPosition().y(), 100, 1e-3));
+        // Quadratic and cubic curves end where they are told to.
+        const QString curves = QStringLiteral("<a:path w=\"10\" h=\"10\"><a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo>"
+                                              "<a:quadBezTo><a:pt x=\"5\" y=\"0\"/><a:pt x=\"10\" y=\"5\"/></a:quadBezTo>"
+                                              "<a:cubicBezTo><a:pt x=\"10\" y=\"8\"/><a:pt x=\"8\" y=\"10\"/><a:pt x=\"5\" y=\"10\"/></a:cubicBezTo></a:path>");
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(curves), QSizeF(100, 100));
+        QVERIFY(near(g.paths[0].path.currentPosition().x(), 50) && near(g.paths[0].path.currentPosition().y(), 100));
+        QVERIFY(g.paths[0].path.elementCount() >= 6);
+    }
+
+    void dmlCustomGeometryKeepsFillAndStrokeModes()
+    {
+        const QString sq = QStringLiteral("<a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo><a:lnTo><a:pt x=\"10\" y=\"0\"/></a:lnTo><a:lnTo><a:pt x=\"10\" y=\"10\"/></a:lnTo>");
+        const QString paths = QStringLiteral("<a:pathLst><a:path w=\"10\" h=\"10\">%1</a:path><a:path w=\"10\" h=\"10\" fill=\"none\">%1</a:path>"
+                                             "<a:path w=\"10\" h=\"10\" stroke=\"0\">%1</a:path><a:path w=\"10\" h=\"10\" fill=\"darkenLess\" stroke=\"false\">%1</a:path>"
+                                             "<a:path w=\"10\" h=\"10\" fill=\"lighten\">%1</a:path><a:path w=\"10\" h=\"10\" fill=\"lightenLess\">%1</a:path>"
+                                             "<a:path w=\"10\" h=\"10\" fill=\"darken\">%1</a:path></a:pathLst>").arg(sq);
+        const Geometry g = customGeometryOf(paths, QSizeF(10, 10));
+        QCOMPARE(g.paths.size(), 7);
+        QVERIFY(g.paths[0].fill == GeometryPath::Normal && g.paths[0].stroke);
+        QVERIFY(g.paths[1].fill == GeometryPath::None && g.paths[1].stroke);
+        QVERIFY(g.paths[2].fill == GeometryPath::Normal && !g.paths[2].stroke);
+        QVERIFY(g.paths[3].fill == GeometryPath::DarkenLess && !g.paths[3].stroke);
+        QVERIFY(g.paths[4].fill == GeometryPath::Lighten);
+        QVERIFY(g.paths[5].fill == GeometryPath::LightenLess);
+        QVERIFY(g.paths[6].fill == GeometryPath::Darken);
+    }
+
+    void dmlCustomGeometryReadsTheTextRectangle()
+    {
+        const QString p = linePath(QStringLiteral("w=\"10\" h=\"10\""), {{"0", "0"}, {"10", "0"}, {"10", "10"}});
+        Geometry g;
+        g = customGeometryOf(QStringLiteral("<a:rect l=\"wd4\" t=\"hd4\" r=\"r\" b=\"b\"/><a:pathLst>%1</a:pathLst>").arg(p), QSizeF(200, 100));
+        QVERIFY2(near(g.textRect.left(), 50) && near(g.textRect.top(), 25) && near(g.textRect.right(), 200) && near(g.textRect.bottom(), 100),
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(g.textRect.left()).arg(g.textRect.top()).arg(g.textRect.width()).arg(g.textRect.height())));
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(200, 100));
+        QVERIFY(g.textRect.isNull());
+    }
+
+    void dmlCustomGeometryToleratesNonsense()
+    {
+        QVERIFY(customGeometryOf(QString(), QSizeF(10, 10)).isEmpty());
+        QVERIFY(customGeometryOf(QStringLiteral("<a:pathLst/>"), QSizeF(10, 10)).isEmpty());
+        QVERIFY(readCustomGeometry(QDomElement(), QSizeF(10, 10)).isEmpty());
+        // Garbage coordinates are 0, a path with no points is skipped, a zero-size frame has nothing.
+        Geometry g = customGeometryOf(QStringLiteral("<a:pathLst><a:path w=\"10\" h=\"10\"><a:moveTo><a:pt x=\"zz\" y=\"\"/></a:moveTo>"
+                                                     "<a:lnTo/><a:lnTo><a:pt x=\"5\"/></a:lnTo><a:bogus/></a:path><a:path/></a:pathLst>"), QSizeF(10, 10));
+        QVERIFY(g.paths.size() <= 1);
+        if (!g.paths.isEmpty()) QVERIFY(g.paths[0].path.boundingRect().width() >= 0);
+        const QString p = linePath(QStringLiteral("w=\"10\" h=\"10\""), {{"0", "0"}, {"10", "10"}});
+        QVERIFY(customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(0, 0)).isEmpty() ||
+                customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(p), QSizeF(0, 0)).paths[0].path.boundingRect().isEmpty());
+    }
+
+    void dmlCustomGeometryLimitsHostilePaths()
+    {
+        // Far more commands than a drawing has are cut off, and the points stay where a page can hold them.
+        QString many = QStringLiteral("<a:path w=\"100\" h=\"100\"><a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo>");
+        for (int i = 0; i < 150000; ++i) many += QStringLiteral("<a:lnTo><a:pt x=\"%1\" y=\"5\"/></a:lnTo>").arg(i % 100);
+        many += QStringLiteral("</a:path>");
+        Geometry g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(many), QSizeF(100, 100));
+        QVERIFY(g.paths.isEmpty() || g.paths[0].path.elementCount() <= 100000);
+        const QString far = linePath(QString(), {{"0", "0"}, {QStringLiteral("99999999999999999"), QStringLiteral("-99999999999999999")}}, false);
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(far), QSizeF(100, 100));
+        QVERIFY(g.paths.isEmpty() || g.paths[0].path.boundingRect().right() <= 1e6);
+        QVERIFY(g.paths.isEmpty() || g.paths[0].path.boundingRect().top() >= -1e6);
+        // An arc with radii of nothing, or of billions, neither hangs nor makes a bad number.
+        const QString arcs = QStringLiteral("<a:path><a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo><a:arcTo wR=\"0\" hR=\"0\" stAng=\"0\" swAng=\"5400000\"/>"
+                                            "<a:arcTo wR=\"99999999999\" hR=\"99999999999\" stAng=\"0\" swAng=\"99999999999\"/></a:path>");
+        g = customGeometryOf(QStringLiteral("<a:pathLst>%1</a:pathLst>").arg(arcs), QSizeF(100, 100));
+        for (const GeometryPath &p : g.paths)
+            for (int i = 0; i < p.path.elementCount(); ++i) QVERIFY(std::isfinite(p.path.elementAt(i).x) && std::isfinite(p.path.elementAt(i).y));
+        // Too many guides are ignored from the limit on.
+        QString gds;
+        for (int i = 0; i < 20000; ++i) gds += QStringLiteral("<a:gd name=\"g%1\" fmla=\"val %1\"/>").arg(i);
+        g = customGeometryOf(QStringLiteral("<a:gdLst>%1</a:gdLst><a:pathLst>%2</a:pathLst>").arg(gds, linePath(QString(), {{"g1", "g2"}, {"g3", "g4"}})), QSizeF(100, 100));
+        QVERIFY(g.paths.size() <= 1);
+    }
+
+    // ---- DrawingML shapes: preset geometry
+
+private:
+    static QStringList dmlAllPresets()
+    {
+        return QStringLiteral(
+            "line lineInv triangle rtTriangle rect diamond parallelogram trapezoid nonIsoscelesTrapezoid pentagon hexagon heptagon octagon decagon "
+            "dodecagon star4 star5 star6 star7 star8 star10 star12 star16 star24 star32 roundRect round1Rect round2SameRect round2DiagRect "
+            "snipRoundRect snip1Rect snip2SameRect snip2DiagRect plaque ellipse teardrop homePlate chevron pieWedge pie blockArc donut noSmoking "
+            "rightArrow leftArrow upArrow downArrow stripedRightArrow notchedRightArrow bentUpArrow leftRightArrow upDownArrow leftUpArrow "
+            "leftRightUpArrow quadArrow leftArrowCallout rightArrowCallout upArrowCallout downArrowCallout leftRightArrowCallout upDownArrowCallout "
+            "quadArrowCallout bentArrow uturnArrow circularArrow leftCircularArrow leftRightCircularArrow curvedRightArrow curvedLeftArrow "
+            "curvedUpArrow curvedDownArrow swooshArrow cube can lightningBolt heart sun moon smileyFace irregularSeal1 irregularSeal2 foldedCorner "
+            "bevel frame halfFrame corner diagStripe chord arc leftBracket rightBracket leftBrace rightBrace bracketPair bracePair straightConnector1 "
+            "bentConnector2 bentConnector3 bentConnector4 bentConnector5 curvedConnector2 curvedConnector3 curvedConnector4 curvedConnector5 "
+            "callout1 callout2 callout3 accentCallout1 accentCallout2 accentCallout3 borderCallout1 borderCallout2 borderCallout3 "
+            "accentBorderCallout1 accentBorderCallout2 accentBorderCallout3 wedgeRectCallout wedgeRoundRectCallout wedgeEllipseCallout cloudCallout "
+            "cloud ribbon ribbon2 ellipseRibbon ellipseRibbon2 leftRightRibbon verticalScroll horizontalScroll wave doubleWave plus "
+            "flowChartProcess flowChartAlternateProcess flowChartDecision flowChartInputOutput flowChartPredefinedProcess flowChartInternalStorage "
+            "flowChartDocument flowChartMultidocument flowChartTerminator flowChartPreparation flowChartManualInput flowChartManualOperation "
+            "flowChartConnector flowChartOffpageConnector flowChartPunchedCard flowChartPunchedTape flowChartSummingJunction flowChartOr "
+            "flowChartCollate flowChartSort flowChartExtract flowChartMerge flowChartOfflineStorage flowChartOnlineStorage flowChartMagneticTape "
+            "flowChartMagneticDisk flowChartMagneticDrum flowChartDisplay flowChartDelay actionButtonBlank actionButtonHome actionButtonHelp "
+            "actionButtonInformation actionButtonForwardNext actionButtonBackPrevious actionButtonEnd actionButtonBeginning actionButtonReturn "
+            "actionButtonDocument actionButtonSound actionButtonMovie gear6 gear9 funnel mathPlus mathMinus mathMultiply mathDivide mathEqual "
+            "mathNotEqual cornerTabs squareTabs plaqueTabs chartX chartStar chartPlus").split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    }
+
+    // The presets that no shape and no definition here draws as they should be: the ones the report lists.
+    static QStringList dmlUnsupportedPresets()
+    {
+        return QStringLiteral("leftRightUpArrow quadArrowCallout leftCircularArrow leftRightCircularArrow swooshArrow "
+                              "leftRightRibbon gear6 gear9 funnel cornerTabs squareTabs plaqueTabs chartX chartStar chartPlus").split(QLatin1Char(' '));
+    }
+
+private Q_SLOTS:
+    void dmlPresetNamesMapToTheShapeLibrary_data()
+    {
+        QTest::addColumn<QString>("preset");
+        QTest::addColumn<QString>("shape");
+        const struct { const char *preset, *shape; } map[] = {
+            {"rect", "rect"}, {"roundRect", "roundRect"}, {"ellipse", "ellipse"}, {"triangle", "triangle"}, {"rtTriangle", "rtTriangle"},
+            {"diamond", "diamond"}, {"parallelogram", "parallelogram"}, {"trapezoid", "trapezoid"}, {"pentagon", "pentagon"},
+            {"hexagon", "hexagon"}, {"heptagon", "heptagon"}, {"octagon", "octagon"}, {"decagon", "decagon"}, {"dodecagon", "dodecagon"},
+            {"snip1Rect", "snip1"}, {"snip2SameRect", "snip2same"}, {"snip2DiagRect", "snip2diag"}, {"snipRoundRect", "snipRound"},
+            {"round1Rect", "round1"}, {"round2SameRect", "round2same"}, {"round2DiagRect", "round2diag"},
+            {"plaque", "plaque"}, {"teardrop", "teardrop"}, {"homePlate", "homePlate"}, {"chevron", "chevron"}, {"pie", "pie"}, {"chord", "chord"},
+            {"blockArc", "blockArc"}, {"arc", "arc"}, {"donut", "donut"}, {"noSmoking", "noSmoking"}, {"frame", "frame"}, {"halfFrame", "halfFrame"},
+            {"corner", "corner"}, {"diagStripe", "diagStripe"}, {"plus", "plus"}, {"can", "can"}, {"cube", "cube"}, {"bevel", "bevel"},
+            {"foldedCorner", "foldedCorner"}, {"smileyFace", "smiley"}, {"heart", "heart"}, {"lightningBolt", "lightning"}, {"sun", "sun"},
+            {"moon", "moon"}, {"cloud", "cloud"}, {"bracketPair", "bracketPair"}, {"bracePair", "bracePair"}, {"leftBracket", "leftBracket"},
+            {"rightBracket", "rightBracket"}, {"leftBrace", "leftBrace"}, {"rightBrace", "rightBrace"},
+            {"rightArrow", "rightArrow"}, {"leftArrow", "leftArrow"}, {"upArrow", "upArrow"}, {"downArrow", "downArrow"},
+            {"leftRightArrow", "leftRightArrow"}, {"upDownArrow", "upDownArrow"}, {"quadArrow", "quadArrow"}, {"bentArrow", "bentArrow"},
+            {"uturnArrow", "uturnArrow"}, {"leftUpArrow", "leftUpArrow"}, {"bentUpArrow", "bentUpArrow"}, {"curvedRightArrow", "curvedRightArrow"},
+            {"curvedLeftArrow", "curvedLeftArrow"}, {"curvedUpArrow", "curvedUpArrow"}, {"curvedDownArrow", "curvedDownArrow"},
+            {"stripedRightArrow", "stripedRightArrow"}, {"notchedRightArrow", "notchedRightArrow"}, {"rightArrowCallout", "rightArrowCallout"},
+            {"downArrowCallout", "downArrowCallout"}, {"circularArrow", "circularArrow"},
+            {"mathPlus", "mathPlus"}, {"mathMinus", "mathMinus"}, {"mathMultiply", "mathMultiply"}, {"mathDivide", "mathDivide"},
+            {"mathEqual", "mathEqual"}, {"mathNotEqual", "mathNotEqual"},
+            {"flowChartProcess", "fcProcess"}, {"flowChartAlternateProcess", "fcAltProcess"}, {"flowChartDecision", "fcDecision"},
+            {"flowChartInputOutput", "fcData"}, {"flowChartPredefinedProcess", "fcPredefined"}, {"flowChartInternalStorage", "fcInternalStorage"},
+            {"flowChartDocument", "fcDocument"}, {"flowChartMultidocument", "fcMultidocument"}, {"flowChartTerminator", "fcTerminator"},
+            {"flowChartPreparation", "fcPreparation"}, {"flowChartManualInput", "fcManualInput"}, {"flowChartManualOperation", "fcManualOperation"},
+            {"flowChartConnector", "fcConnector"}, {"flowChartOffpageConnector", "fcOffpage"}, {"flowChartPunchedCard", "fcCard"},
+            {"flowChartPunchedTape", "fcPunchedTape"}, {"flowChartSummingJunction", "fcSummingJunction"}, {"flowChartOr", "fcOr"},
+            {"flowChartCollate", "fcCollate"}, {"flowChartSort", "fcSort"}, {"flowChartExtract", "fcExtract"}, {"flowChartMerge", "fcMerge"},
+            {"flowChartOnlineStorage", "fcStoredData"}, {"flowChartDelay", "fcDelay"}, {"flowChartMagneticTape", "fcSequential"},
+            {"flowChartMagneticDisk", "fcMagneticDisk"}, {"flowChartMagneticDrum", "fcDirectAccess"}, {"flowChartDisplay", "fcDisplay"},
+            {"irregularSeal1", "irregularSeal1"}, {"irregularSeal2", "irregularSeal2"},
+            {"star4", "star4"}, {"star5", "star5"}, {"star6", "star6"}, {"star7", "star7"}, {"star8", "star8"}, {"star10", "star10"},
+            {"star12", "star12"}, {"star16", "star16"}, {"star24", "star24"}, {"star32", "star32"},
+            {"ribbon", "ribbon"}, {"ribbon2", "ribbon2"}, {"ellipseRibbon", "ellipseRibbon"}, {"ellipseRibbon2", "ellipseRibbon2"},
+            {"verticalScroll", "verticalScroll"}, {"horizontalScroll", "horizontalScroll"}, {"wave", "wave"}, {"doubleWave", "doubleWave"},
+            {"wedgeRectCallout", "wedgeRectCallout"}, {"wedgeRoundRectCallout", "wedgeRoundRectCallout"}, {"wedgeEllipseCallout", "wedgeEllipseCallout"},
+            {"borderCallout1", "borderCallout1"}, {"borderCallout2", "borderCallout2"}, {"accentCallout1", "accentCallout1"}, {"callout1", "callout1"},
+            {"actionButtonBlank", "actionButtonBlank"}, {"actionButtonHome", "actionButtonBlank"}, {"actionButtonSound", "actionButtonBlank"}};
+        for (const auto &m : map) QTest::newRow(m.preset) << QString::fromLatin1(m.preset) << QString::fromLatin1(m.shape);
+    }
+
+    void dmlPresetNamesMapToTheShapeLibrary()
+    {
+        QFETCH(QString, preset);
+        QFETCH(QString, shape);
+        QCOMPARE(shapeForPreset(preset), shape);
+        QVERIFY2(jp::shapeDef(shape) != nullptr, qPrintable(shape));
+    }
+
+    void dmlEveryShapeTheLibraryDrawsHasAPreset()
+    {
+        // The library holds two shapes the standard doesn't name (a tab and a flow arrow);
+        // every other has a preset that maps to it.
+        QSet<QString> reached;
+        for (const QString &prst : dmlAllPresets()) {
+            const QString id = shapeForPreset(prst);
+            if (!id.isEmpty()) {
+                QVERIFY2(jp::shapeDef(id) != nullptr, qPrintable(prst));
+                reached.insert(id);
+            }
+        }
+        for (const jp::ShapeDef &d : jp::shapeLibrary())
+            if (d.id != QLatin1String("tab") && d.id != QLatin1String("flowArrow")) QVERIFY2(reached.contains(d.id), qPrintable(d.id));
+    }
+
+    void dmlEveryPresetHasAShapeOrADefinitionOrIsListed()
+    {
+        const QStringList unsupported = dmlUnsupportedPresets();
+        for (const QString &prst : dmlAllPresets()) {
+            const bool line = prst == QLatin1String("line") || prst == QLatin1String("lineInv") || prst == QLatin1String("straightConnector1");
+            const bool drawn = !shapeForPreset(prst).isEmpty() || hasPresetGeometry(prst) || line;
+            QVERIFY2(drawn != unsupported.contains(prst), qPrintable(prst));
+        }
+        QVERIFY(shapeForPreset(QStringLiteral("noSuchShape")).isEmpty());
+        QVERIFY(shapeForPreset(QString()).isEmpty());
+        QVERIFY(shapeForPreset(QStringLiteral("Rect")).isEmpty());   // names are case sensitive
+    }
+
+private:
+    static QHash<QString, double> dmlAdjust(const QString &list)
+    {
+        QHash<QString, double> out;
+        for (const QString &item : list.split(QLatin1Char(';'), Qt::SkipEmptyParts)) out.insert(item.section(QLatin1Char('='), 0, 0), item.section(QLatin1Char('='), 1).toDouble());
+        return out;
+    }
+
+private Q_SLOTS:
+    void dmlLibraryAdjustments_data()
+    {
+        QTest::addColumn<QString>("preset");
+        QTest::addColumn<QString>("given");
+        QTest::addColumn<double>("width");
+        QTest::addColumn<double>("height");
+        QTest::addColumn<QList<double>>("expected");
+        using L = QList<double>;
+        QTest::newRow("roundRect default") << "roundRect" << "" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("roundRect half") << "roundRect" << "adj=50000" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("roundRect past half") << "roundRect" << "adj=75000" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("roundRect negative") << "roundRect" << "adj=-100" << 100.0 << 50.0 << L{0.0};
+        QTest::newRow("roundRect huge") << "roundRect" << "adj=999999999999" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("triangle default") << "triangle" << "" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("triangle apex at the left") << "triangle" << "adj=0" << 100.0 << 50.0 << L{0.0};
+        QTest::newRow("triangle apex at the right") << "triangle" << "adj=100000" << 100.0 << 50.0 << L{1.0};
+        QTest::newRow("parallelogram wide") << "parallelogram" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("parallelogram tall") << "parallelogram" << "" << 50.0 << 100.0 << L{0.25};
+        QTest::newRow("trapezoid") << "trapezoid" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("trapezoid set") << "trapezoid" << "adj=50000" << 200.0 << 100.0 << L{0.25};
+        QTest::newRow("hexagon") << "hexagon" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("octagon") << "octagon" << "" << 100.0 << 50.0 << L{0.29289};
+        QTest::newRow("plus") << "plus" << "" << 100.0 << 50.0 << L{0.25};
+        QTest::newRow("can") << "can" << "adj=40000" << 100.0 << 50.0 << L{0.4};
+        QTest::newRow("cube") << "cube" << "" << 100.0 << 50.0 << L{0.25};
+        QTest::newRow("bevel") << "bevel" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("donut") << "donut" << "" << 100.0 << 50.0 << L{0.25};
+        QTest::newRow("frame") << "frame" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("foldedCorner") << "foldedCorner" << "" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("chevron") << "chevron" << "" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("homePlate") << "homePlate" << "adj=30000" << 100.0 << 50.0 << L{0.3};
+        QTest::newRow("rightArrow default") << "rightArrow" << "" << 100.0 << 50.0 << L{0.5, 0.5};
+        QTest::newRow("rightArrow set") << "rightArrow" << "adj1=25000;adj2=75000" << 100.0 << 50.0 << L{0.25, 0.75};
+        QTest::newRow("leftArrow") << "leftArrow" << "adj1=30000" << 100.0 << 50.0 << L{0.3, 0.5};
+        QTest::newRow("upArrow") << "upArrow" << "adj2=20000" << 100.0 << 50.0 << L{0.5, 0.2};
+        QTest::newRow("leftRightArrow") << "leftRightArrow" << "" << 100.0 << 50.0 << L{0.5, 0.5};
+        QTest::newRow("quadArrow") << "quadArrow" << "" << 100.0 << 100.0 << L{0.1125, 0.225, 0.225};
+        QTest::newRow("star4") << "star4" << "" << 100.0 << 100.0 << L{0.125};
+        QTest::newRow("star5") << "star5" << "" << 100.0 << 100.0 << L{0.38196};
+        QTest::newRow("star5 set") << "star5" << "adj=25000" << 100.0 << 100.0 << L{0.5};
+        QTest::newRow("star6") << "star6" << "" << 100.0 << 100.0 << L{0.57736};
+        QTest::newRow("star24") << "star24" << "" << 100.0 << 100.0 << L{0.75};
+        QTest::newRow("mathPlus") << "mathPlus" << "" << 100.0 << 100.0 << L{0.2352};
+        QTest::newRow("wave") << "wave" << "" << 100.0 << 100.0 << L{0.125};
+        QTest::newRow("doubleWave") << "doubleWave" << "" << 100.0 << 100.0 << L{0.0625};
+        QTest::newRow("verticalScroll") << "verticalScroll" << "" << 100.0 << 100.0 << L{0.125};
+        QTest::newRow("smileyFace") << "smileyFace" << "" << 100.0 << 100.0 << L{0.04653};
+        QTest::newRow("sun") << "sun" << "" << 100.0 << 100.0 << L{0.25};
+        QTest::newRow("moon") << "moon" << "" << 100.0 << 100.0 << L{0.5};
+        QTest::newRow("snip1Rect") << "snip1Rect" << "adj=30000" << 100.0 << 50.0 << L{0.3};
+        QTest::newRow("round2DiagRect") << "round2DiagRect" << "" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("a name the preset doesn't use") << "roundRect" << "adj9=5" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("no adjustments: rect") << "rect" << "adj=5" << 100.0 << 50.0 << L{};
+        QTest::newRow("no adjustments: ellipse") << "ellipse" << "" << 100.0 << 50.0 << L{};
+        QTest::newRow("no such preset") << "noSuchShape" << "adj=5" << 100.0 << 50.0 << L{};
+    }
+
+    void dmlLibraryAdjustments()
+    {
+        QFETCH(QString, preset);
+        QFETCH(QString, given);
+        QFETCH(double, width);
+        QFETCH(double, height);
+        QFETCH(QList<double>, expected);
+        const QVector<double> got = libraryAdjustments(preset, dmlAdjust(given), QSizeF(width, height));
+        QCOMPARE(got.size(), expected.size());
+        for (int i = 0; i < expected.size(); ++i) QVERIFY2(qAbs(got[i] - expected[i]) < 1e-4, qPrintable(QStringLiteral("%1: %2 not %3").arg(i).arg(got[i]).arg(expected[i])));
+    }
+
+    void dmlLibraryAdjustmentsStayInRange()
+    {
+        // Whatever a file says, a library shape gets numbers in the range its handle has.
+        const QList<double> hostile = {-1e18, -100000, -1, 0, 1, 99999, 100000, 250000, 1e18};
+        for (const QString &prst : dmlAllPresets()) {
+            const QString id = shapeForPreset(prst);
+            const jp::ShapeDef *def = jp::shapeDef(id);
+            if (!def) continue;
+            for (double v : hostile) {
+                QHash<QString, double> given;
+                for (const char *name : {"adj", "adj1", "adj2", "adj3", "adj4", "adj5"}) given.insert(QString::fromLatin1(name), v);
+                const QVector<double> adj = libraryAdjustments(prst, given, QSizeF(300, 120));
+                QVERIFY2(adj.size() <= def->defaults.size() + 1, qPrintable(prst));
+                for (double a : adj) QVERIFY2(std::isfinite(a) && a >= -1 && a <= 3, qPrintable(QStringLiteral("%1 %2 %3").arg(prst).arg(v).arg(a)));
+                // And the shape can be drawn with them (a shape with a thickness of nothing may show nothing).
+                const QPainterPath path = jp::shapePath(id, QSizeF(300, 120), adj);
+                for (int i = 0; i < path.elementCount(); ++i) QVERIFY2(std::isfinite(path.elementAt(i).x) && std::isfinite(path.elementAt(i).y), qPrintable(prst));
+            }
+        }
+    }
+
+    void dmlPieAndChordFollowTheirAngles()
+    {
+        // A pie from the standard's defaults is three quarters, clockwise from the right: the top right is missing.
+        Geometry g = presetGeometry(QStringLiteral("pie"), {}, QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 1);
+        QVERIFY(g.paths[0].path.contains(QPointF(25, 25)));
+        QVERIFY(g.paths[0].path.contains(QPointF(75, 75)));
+        QVERIFY(g.paths[0].path.contains(QPointF(25, 75)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(75, 25)));
+        // A quarter from the right to the bottom.
+        g = presetGeometry(QStringLiteral("pie"), {{"adj1", 0}, {"adj2", 5400000}}, QSizeF(100, 100));
+        QVERIFY(g.paths[0].path.contains(QPointF(75, 75)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(25, 25)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(75, 25)));
+        // The same angles on a wide ellipse still bound the same quarter.
+        g = presetGeometry(QStringLiteral("pie"), {{"adj1", 0}, {"adj2", 5400000}}, QSizeF(300, 100));
+        QVERIFY(g.paths[0].path.contains(QPointF(225, 75)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(75, 25)));
+        const QRectF b = g.paths[0].path.boundingRect();
+        QVERIFY2(near(b.left(), 150, 1e-3) && near(b.top(), 50, 1e-3) && near(b.right(), 300, 1e-3) && near(b.bottom(), 100, 1e-3),
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(b.left()).arg(b.top()).arg(b.width()).arg(b.height())));
+        // A chord, from 45 to 270 degrees, is cut off by a straight line from the top to the lower right.
+        g = presetGeometry(QStringLiteral("chord"), {}, QSizeF(100, 100));
+        QVERIFY(g.paths[0].path.contains(QPointF(20, 50)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(80, 30)));
+        // Equal start and end angles are nothing odd, and no number makes it fail.
+        for (double v : {-1e18, -1.0, 0.0, 21600000.0, 1e18}) {
+            g = presetGeometry(QStringLiteral("pie"), {{"adj1", v}, {"adj2", v}}, QSizeF(100, 100));
+            QVERIFY(!g.paths.isEmpty());
+        }
+    }
+
+    void dmlArcDrawsAnOpenArcAndItsSector()
+    {
+        // The standard's arc is a quarter from the top to the right; its sector is filled, only the arc stroked.
+        const Geometry g = presetGeometry(QStringLiteral("arc"), {}, QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 2);
+        QVERIFY(g.paths[0].fill == GeometryPath::Normal && !g.paths[0].stroke);
+        QVERIFY(g.paths[1].fill == GeometryPath::None && g.paths[1].stroke);
+        const QRectF arc = g.paths[1].path.boundingRect();
+        QVERIFY2(near(arc.left(), 50, 1e-3) && near(arc.top(), 0, 1e-3) && near(arc.right(), 100, 1e-3) && near(arc.bottom(), 50, 1e-3),
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(arc.left()).arg(arc.top()).arg(arc.width()).arg(arc.height())));
+        QVERIFY(near(g.paths[1].path.elementAt(0).x, 50, 1e-3) && near(g.paths[1].path.elementAt(0).y, 0, 1e-3));
+        QVERIFY(near(g.paths[1].path.currentPosition().x(), 100, 1e-3) && near(g.paths[1].path.currentPosition().y(), 50, 1e-3));
+    }
+
+    void dmlBlockArcIsARingBand()
+    {
+        const Geometry g = presetGeometry(QStringLiteral("blockArc"), {}, QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 1);
+        const QPainterPath &p = g.paths[0].path;
+        QVERIFY(p.contains(QPointF(50, 20)));      // in the band at the top
+        QVERIFY(p.contains(QPointF(10, 45)));      // and at its left end
+        QVERIFY(!p.contains(QPointF(50, 40)));     // not in the hole
+        QVERIFY(!p.contains(QPointF(50, 70)));     // not in the missing lower half
+        // A thinner band.
+        const Geometry thin = presetGeometry(QStringLiteral("blockArc"), {{"adj3", 10000}}, QSizeF(100, 100));
+        QVERIFY(thin.paths[0].path.contains(QPointF(50, 5)));
+        QVERIFY(!thin.paths[0].path.contains(QPointF(50, 20)));
+    }
+
+    void dmlWedgeCalloutPointsAtItsTarget()
+    {
+        // By default the pointer comes from the bottom edge, toward a point below and left of the center.
+        Geometry g = presetGeometry(QStringLiteral("wedgeRectCallout"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths.size(), 1);
+        QPainterPath p = g.paths[0].path;
+        QVERIFY(p.contains(QPointF(100, 50)));
+        QVERIFY(p.contains(QPointF(58, 106)));
+        QVERIFY(!p.contains(QPointF(150, 106)));
+        QVERIFY(near(p.boundingRect().bottom(), 112.5, 1e-3));
+        QVERIFY(near(p.boundingRect().top(), 0) && near(p.boundingRect().left(), 0) && near(p.boundingRect().right(), 200));
+        // A pointer to the right of the box.
+        g = presetGeometry(QStringLiteral("wedgeRectCallout"), {{"adj1", 90000}, {"adj2", 10000}}, QSizeF(200, 100));
+        p = g.paths[0].path;
+        QVERIFY(near(p.boundingRect().right(), 280, 1e-3));
+        QVERIFY(p.contains(QPointF(240, 65)));
+        QVERIFY(!p.contains(QPointF(240, 40)));
+        // Rounded and oval ones reach the same point.
+        for (const char *name : {"wedgeRoundRectCallout", "wedgeEllipseCallout"}) {
+            g = presetGeometry(QString::fromLatin1(name), {{"adj1", -50000}, {"adj2", 90000}}, QSizeF(200, 100));
+            QCOMPARE(g.paths.size(), 1);
+            const QRectF r = g.paths[0].path.boundingRect();
+            QVERIFY2(near(r.bottom(), 140, 1e-3) && r.left() <= 50 + 1e-3 && r.top() >= -0.1,
+                     qPrintable(QStringLiteral("%1: %2,%3 %4x%5").arg(QString::fromLatin1(name)).arg(r.left()).arg(r.top()).arg(r.width()).arg(r.height())));
+            QVERIFY2(g.paths[0].path.contains(QPointF(100, 40)), name);
+        }
+    }
+
+    void dmlLineCalloutsHaveABoxAndALeader()
+    {
+        // borderCallout1: the box is stroked, the line (from outside the box to its target) is not filled.
+        Geometry g = presetGeometry(QStringLiteral("borderCallout1"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths.size(), 2);
+        QVERIFY(g.paths[0].stroke && g.paths[0].fill == GeometryPath::Normal);
+        QVERIFY(g.paths[1].fill == GeometryPath::None && g.paths[1].stroke);
+        QVERIFY(near(g.paths[1].path.elementAt(0).x, -16.666, 1e-3) && near(g.paths[1].path.elementAt(0).y, 18.75, 1e-3));
+        QVERIFY(near(g.paths[1].path.elementAt(1).x, -76.666, 1e-3) && near(g.paths[1].path.elementAt(1).y, 112.5, 1e-3));
+        // callout1 has no border; accentCallout1 an accent bar too; with a border as well, the box is stroked.
+        g = presetGeometry(QStringLiteral("callout1"), {}, QSizeF(200, 100));
+        QVERIFY(!g.paths[0].stroke);
+        g = presetGeometry(QStringLiteral("accentCallout1"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths.size(), 3);
+        QVERIFY(!g.paths[0].stroke);
+        QVERIFY(near(g.paths[1].path.elementAt(0).x, -16.666, 1e-3) && near(g.paths[1].path.elementAt(1).x, -16.666, 1e-3));
+        QVERIFY(near(g.paths[1].path.elementAt(1).y, 100));
+        g = presetGeometry(QStringLiteral("accentBorderCallout1"), {}, QSizeF(200, 100));
+        QVERIFY(g.paths[0].stroke);
+        // The second and third kinds bend the leader once and twice more.
+        g = presetGeometry(QStringLiteral("borderCallout2"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths[1].path.elementCount(), 3);
+        g = presetGeometry(QStringLiteral("borderCallout3"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths[1].path.elementCount(), 4);
+        QVERIFY(near(g.paths[1].path.currentPosition().x(), -16.666, 1e-3) && near(g.paths[1].path.currentPosition().y(), 112.963, 1e-3));
+    }
+
+    void dmlArrowCalloutsFillTheirFrame()
+    {
+        for (const char *name : {"rightArrowCallout", "leftArrowCallout", "upArrowCallout", "downArrowCallout", "leftRightArrowCallout", "upDownArrowCallout"}) {
+            const Geometry g = presetGeometry(QString::fromLatin1(name), {}, QSizeF(200, 120));
+            QCOMPARE(g.paths.size(), 1);
+            const QRectF r = g.paths[0].path.boundingRect();
+            QVERIFY2(near(r.left(), 0, 1e-3) && near(r.top(), 0, 1e-3) && near(r.right(), 200, 1e-3) && near(r.bottom(), 120, 1e-3), name);
+            QVERIFY2(g.paths[0].path.contains(QPointF(100, 60)) || g.paths[0].path.contains(QPointF(60, 60)), name);
+        }
+        // The right arrow's head is at the right, the box at the left.
+        const Geometry right = presetGeometry(QStringLiteral("rightArrowCallout"), {}, QSizeF(200, 120));
+        QVERIFY(right.paths[0].path.contains(QPointF(10, 5)));
+        QVERIFY(!right.paths[0].path.contains(QPointF(190, 5)));
+        QVERIFY(right.paths[0].path.contains(QPointF(180, 60)));
+        // Text goes in the box, not on the arrow.
+        QVERIFY2(dmlRectIs(right.textRect, 0, 0, 200 * 0.64977, 120, 1e-4), qPrintable(dmlRectText(right.textRect)));
+        const Geometry left = presetGeometry(QStringLiteral("leftArrowCallout"), {}, QSizeF(200, 120));
+        QVERIFY2(dmlRectIs(left.textRect, 200 * (1 - 0.64977), 0, 200 * 0.64977, 120, 1e-4), qPrintable(dmlRectText(left.textRect)));
+        const Geometry down = presetGeometry(QStringLiteral("downArrowCallout"), {}, QSizeF(120, 200));
+        QVERIFY(down.paths[0].path.contains(QPointF(5, 10)));
+        QVERIFY(!down.paths[0].path.contains(QPointF(5, 190)));
+        QVERIFY(down.paths[0].path.contains(QPointF(60, 190)));
+    }
+
+    void dmlShapesTheLibraryLacksHaveDefinitions()
+    {
+        // A quarter pie sits in the lower right corner; the trapezoid is narrower at the top on both sides.
+        Geometry g = presetGeometry(QStringLiteral("pieWedge"), {}, QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 1);
+        QVERIFY(g.paths[0].path.contains(QPointF(90, 90)));
+        QVERIFY(g.paths[0].path.contains(QPointF(5, 95)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(10, 10)));
+        g = presetGeometry(QStringLiteral("nonIsoscelesTrapezoid"), {}, QSizeF(200, 100));
+        QVERIFY(g.paths[0].path.contains(QPointF(100, 5)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(5, 5)));
+        QVERIFY(g.paths[0].path.contains(QPointF(5, 95)));
+    }
+
+    void dmlConnectorPresetsAreOpenPaths()
+    {
+        // The elbow with one bend goes along the top and down the right; with two, across at the adjusted position.
+        Geometry g = presetGeometry(QStringLiteral("bentConnector2"), {}, QSizeF(100, 60));
+        QCOMPARE(g.paths.size(), 1);
+        QVERIFY(g.paths[0].fill == GeometryPath::None);
+        QCOMPARE(g.paths[0].path.elementCount(), 3);
+        QVERIFY(near(g.paths[0].path.elementAt(1).x, 100) && near(g.paths[0].path.elementAt(1).y, 0));
+        g = presetGeometry(QStringLiteral("bentConnector3"), {{"adj1", 25000}}, QSizeF(100, 60));
+        QCOMPARE(g.paths[0].path.elementCount(), 4);
+        QVERIFY(near(g.paths[0].path.elementAt(1).x, 25) && near(g.paths[0].path.elementAt(2).x, 25) && near(g.paths[0].path.elementAt(2).y, 60));
+        g = presetGeometry(QStringLiteral("bentConnector4"), {}, QSizeF(100, 60));
+        QCOMPARE(g.paths[0].path.elementCount(), 5);
+        QVERIFY(near(g.paths[0].path.currentPosition().x(), 100) && near(g.paths[0].path.currentPosition().y(), 60));
+        g = presetGeometry(QStringLiteral("bentConnector5"), {{"adj1", 25000}, {"adj3", 75000}}, QSizeF(100, 60));
+        QCOMPARE(g.paths[0].path.elementCount(), 6);
+        QVERIFY(near(g.paths[0].path.elementAt(1).x, 25) && near(g.paths[0].path.elementAt(4).x, 75));
+        for (const char *name : {"curvedConnector2", "curvedConnector3", "curvedConnector4", "curvedConnector5"}) {
+            g = presetGeometry(QString::fromLatin1(name), {}, QSizeF(100, 60));
+            QCOMPARE(g.paths.size(), 1);
+            QVERIFY(near(g.paths[0].path.elementAt(0).x, 0) && near(g.paths[0].path.elementAt(0).y, 0));
+            QVERIFY2(near(g.paths[0].path.currentPosition().x(), 100) && near(g.paths[0].path.currentPosition().y(), 60), name);
+        }
+    }
+
+    // ---- DrawingML shapes: fills, lines, and styles
+
+private:
+    static Fill dmlFillOf(DmlEnv &env, const QString &properties, const QString &style = QString())
+    {
+        return readFill(env.element(QStringLiteral("<p:spPr>%1</p:spPr>").arg(properties)), style.isEmpty() ? QDomElement() : env.element(style), env.ctx);
+    }
+
+    static Stroke dmlLineOf(DmlEnv &env, const QString &properties, const QString &style = QString())
+    {
+        return readLine(env.element(QStringLiteral("<p:spPr>%1</p:spPr>").arg(properties)), style.isEmpty() ? QDomElement() : env.element(style), env.ctx);
+    }
+
+    // <p:style> with the references given.
+    static QString dmlStyle(const QString &lnIdx, const QString &fillIdx, const QString &effectIdx = QStringLiteral("0"), const QString &color = QStringLiteral("accent1"))
+    {
+        return QStringLiteral("<p:style><a:lnRef idx=\"%1\"><a:schemeClr val=\"%4\"/></a:lnRef><a:fillRef idx=\"%2\"><a:schemeClr val=\"%4\"/></a:fillRef>"
+                              "<a:effectRef idx=\"%3\"><a:schemeClr val=\"%4\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"lt1\"/></a:fontRef></p:style>")
+            .arg(lnIdx, fillIdx, effectIdx, color);
+    }
+
+    static QString dmlHex(const ColorRef &c) { return hexOf(c.rgbValue()); }
+
+private Q_SLOTS:
+    void dmlFillReadsSolidColors()
+    {
+        DmlEnv env;
+        Fill f = dmlFillOf(env, QStringLiteral("<a:solidFill><a:srgbClr val=\"FF8000\"/></a:solidFill>"));
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FF8000"));
+        QCOMPARE(f.transparency, 0.0);
+        f = dmlFillOf(env, QStringLiteral("<a:solidFill><a:schemeClr val=\"accent1\"><a:alpha val=\"25000\"/></a:schemeClr></a:solidFill>"));
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("4472C4"));
+        QVERIFY(near(f.transparency, 0.75, 1e-2));
+        // No fill, or none of the kinds, is none.
+        QVERIFY(dmlFillOf(env, QString()).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:noFill/>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:solidFill/>")).isNone());
+        QVERIFY(readFill(QDomElement(), QDomElement(), env.ctx).isNone());
+        // A strict file's elements are the same.
+        QDomDocument doc;
+        const QByteArray strict = QStringLiteral("<p:spPr xmlns:p=\"%2\" xmlns:a=\"%1\"><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></p:spPr>").arg(QString(ns::AStrict), QString(ns::PStrict)).toUtf8();
+        QVERIFY(parseXml(strict, &doc));
+        QCOMPARE(dmlHex(readFill(doc.documentElement(), QDomElement(), env.ctx).color), QStringLiteral("00FF00"));
+    }
+
+    void dmlFillReadsGradients()
+    {
+        DmlEnv env;
+        const QString stops = QStringLiteral("<a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"60000\"><a:srgbClr val=\"00FF00\"><a:alpha val=\"50000\"/></a:srgbClr></a:gs>"
+                                             "<a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs></a:gsLst>");
+        Fill f = dmlFillOf(env, QStringLiteral("<a:gradFill rotWithShape=\"1\">%1<a:lin ang=\"2700000\" scaled=\"0\"/></a:gradFill>").arg(stops));
+        QVERIFY(f.type == Fill::Gradient);
+        QVERIFY(f.gradType == Fill::Linear);
+        QVERIFY(near(f.angle, 45));
+        QCOMPARE(f.stops.size(), 3);
+        QVERIFY(near(f.stops[0].pos, 0) && near(f.stops[1].pos, 0.6) && near(f.stops[2].pos, 1));
+        QCOMPARE(dmlHex(f.stops[0].color), QStringLiteral("FF0000"));
+        QCOMPARE(dmlHex(f.stops[1].color), QStringLiteral("00FF00"));
+        QVERIFY(near(f.stops[1].transparency, 0.5, 1e-2));
+        QCOMPARE(f.stops[0].transparency, 0.0);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FF0000"));
+        QCOMPARE(dmlHex(f.color2), QStringLiteral("0000FF"));
+        // Angles: 0 is left to right, a quarter turn is top to bottom, and any turn is read modulo a full one.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:lin ang=\"0\"/></a:gradFill>").arg(stops));
+        QVERIFY(near(f.angle, 0));
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:lin ang=\"5400000\"/></a:gradFill>").arg(stops));
+        QVERIFY(near(f.angle, 90));
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:lin ang=\"-5400000\"/></a:gradFill>").arg(stops));
+        QVERIFY(near(f.angle, 270));
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:lin ang=\"27000000\"/></a:gradFill>").arg(stops));
+        QVERIFY(near(f.angle, 90));
+        // Without a direction it runs left to right.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1</a:gradFill>").arg(stops));
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Linear && near(f.angle, 0));
+        // Path gradients.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:path path=\"circle\"><a:fillToRect l=\"50000\" t=\"50000\" r=\"50000\" b=\"50000\"/></a:path></a:gradFill>").arg(stops));
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Radial);
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:path path=\"rect\"/></a:gradFill>").arg(stops));
+        QVERIFY(f.gradType == Fill::Rectangular);
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:path path=\"shape\"/></a:gradFill>").arg(stops));
+        QVERIFY(f.gradType == Fill::PathGrad);
+        // Stops come in order of position, whatever order they are written in; positions stay within the gradient.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill><a:gsLst><a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs><a:gs pos=\"-5\"><a:srgbClr val=\"FF0000\"/></a:gs>"
+                                          "<a:gs pos=\"900000\"><a:srgbClr val=\"00FF00\"/></a:gs></a:gsLst></a:gradFill>"));
+        QCOMPARE(f.stops.size(), 3);
+        QVERIFY(f.stops[0].pos == 0 && f.stops[1].pos <= f.stops[2].pos && f.stops[2].pos <= 1);
+        QCOMPARE(dmlHex(f.stops[0].color), QStringLiteral("FF0000"));
+        // One stop is a plain color; none is no fill.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"123456\"/></a:gs></a:gsLst></a:gradFill>"));
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("123456"));
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:gradFill><a:gsLst/></a:gradFill>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:gradFill/>")).isNone());
+    }
+
+    void dmlFillReadsPatterns()
+    {
+        DmlEnv env;
+        const auto pattern = [&](const char *name) {
+            return dmlFillOf(env, QStringLiteral("<a:pattFill prst=\"%1\"><a:fgClr><a:srgbClr val=\"FF0000\"/></a:fgClr><a:bgClr><a:srgbClr val=\"FFFFFF\"/></a:bgClr></a:pattFill>")
+                                      .arg(QString::fromLatin1(name)));
+        };
+        Fill f = pattern("ltHorz");
+        QVERIFY(f.type == Fill::Pattern);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FF0000"));
+        QCOMPARE(dmlHex(f.color2), QStringLiteral("FFFFFF"));
+        const QVector<Qt::BrushStyle> brushes = jp::patternBrushes();
+        QCOMPARE(brushes[pattern("horz").pattern], Qt::HorPattern);
+        QCOMPARE(brushes[pattern("dkHorz").pattern], Qt::HorPattern);
+        QCOMPARE(brushes[pattern("vert").pattern], Qt::VerPattern);
+        QCOMPARE(brushes[pattern("cross").pattern], Qt::CrossPattern);
+        QCOMPARE(brushes[pattern("smGrid").pattern], Qt::CrossPattern);
+        QCOMPARE(brushes[pattern("dnDiag").pattern], Qt::FDiagPattern);
+        QCOMPARE(brushes[pattern("upDiag").pattern], Qt::BDiagPattern);
+        QCOMPARE(brushes[pattern("diagCross").pattern], Qt::DiagCrossPattern);
+        QCOMPARE(brushes[pattern("pct5").pattern], Qt::Dense7Pattern);
+        QCOMPARE(brushes[pattern("pct50").pattern], Qt::Dense4Pattern);
+        QCOMPARE(brushes[pattern("pct90").pattern], Qt::Dense1Pattern);
+        // Every pattern the standard names draws as something; one it doesn't is the foreground color alone.
+        for (const char *name : {"pct10", "pct20", "pct25", "pct30", "pct40", "pct60", "pct70", "pct75", "pct80", "ltVert", "dkVert", "narHorz", "narVert",
+                                 "dashHorz", "dashVert", "ltDnDiag", "ltUpDiag", "dkDnDiag", "dkUpDiag", "wdDnDiag", "wdUpDiag", "dashDnDiag", "dashUpDiag", "smCheck",
+                                 "lgCheck", "lgGrid", "dotGrid", "smConfetti", "lgConfetti", "horzBrick", "diagBrick", "solidDmnd", "openDmnd", "dotDmnd", "plaid",
+                                 "sphere", "weave", "divot", "shingle", "wave", "trellis", "zigZag"})
+            QVERIFY2(pattern(name).type == Fill::Pattern && pattern(name).pattern >= 0 && pattern(name).pattern < brushes.size(), name);
+        f = pattern("noSuchPattern");
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FF0000"));
+        // No colors given: black on white, as the standard says.
+        f = dmlFillOf(env, QStringLiteral("<a:pattFill prst=\"horz\"/>"));
+        QVERIFY(f.type == Fill::Pattern);
+    }
+
+    void dmlFillReadsPictures()
+    {
+        DmlEnv env;
+        env.usePackage();
+        Fill f = dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill>"));
+        QVERIFY(f.type == Fill::Picture);
+        QCOMPARE(f.imageId, QStringLiteral("img1"));
+        QVERIFY(!f.tile);
+        QCOMPARE(env.images.size(), 1);
+        QCOMPARE(env.images[0].format, QStringLiteral("png"));
+        QCOMPARE(env.images[0].bytes, dmlPicture());
+        // A tiled one, at half its size, and with some transparency.
+        f = dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"><a:alphaModFix amt=\"40000\"/></a:blip><a:tile tx=\"0\" ty=\"0\" sx=\"50000\" sy=\"50000\" flip=\"none\" algn=\"tl\"/></a:blipFill>"));
+        QVERIFY(f.type == Fill::Picture && f.tile);
+        QVERIFY(near(f.tileScale, 0.5, 1e-6));
+        QVERIFY(near(f.transparency, 0.6, 1e-6));
+        // A picture that isn't there, or isn't a picture, is no fill and no crash.
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId9\"/></a:blipFill>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip/></a:blipFill>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill/>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId2\"/></a:blipFill>")).isNone());   // an outside link
+        DmlEnv bare;
+        QVERIFY(dmlFillOf(bare, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/></a:blipFill>")).isNone());
+        // The format comes from what the bytes are, whatever the part is called.
+        DmlEnv other;
+        QImage img(2, 2, QImage::Format_RGB32);
+        img.fill(Qt::blue);
+        QByteArray jpeg;
+        QBuffer buffer(&jpeg);
+        buffer.open(QIODevice::WriteOnly);
+        img.save(&buffer, "JPEG");
+        other.usePackage(jpeg);
+        f = dmlFillOf(other, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/></a:blipFill>"));
+        QVERIFY(f.type == Fill::Picture);
+        QCOMPARE(other.images[0].format, QStringLiteral("jpeg"));
+    }
+
+    void dmlFillTakesTheStyleWhenThePropertiesSayNothing()
+    {
+        DmlEnv env;
+        env.useFormats();
+        // Reference 1: a plain fill of the reference's color.
+        Fill f = dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("1"), QStringLiteral("0"), QStringLiteral("accent2")));
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("ED7D31"));
+        // 2: a gradient made of it, from lighter to the color itself.
+        f = dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("2")));
+        QVERIFY(f.type == Fill::Gradient);
+        QCOMPARE(f.stops.size(), 2);
+        QCOMPARE(dmlHex(f.stops[1].color), QStringLiteral("4472C4"));
+        QVERIFY(f.stops[0].color.rgbValue().lightness() > f.stops[1].color.rgbValue().lightness());
+        QVERIFY(near(f.angle, 90));
+        // 3: the darkened color.
+        f = dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("3")));
+        QCOMPARE(dmlHex(f.color), hexOf(colorOf(schemeClr(QStringLiteral("accent1"), {"lumMod 50000"}))));
+        // 0, and one that is past the list, are none; 1001 and on are the background fills.
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("0"))).isNone());
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("4"))).isNone());
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("-3"))).isNone());
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("junk"))).isNone());
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("99999999999999"))).isNone());
+        f = dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("1003"), QStringLiteral("0"), QStringLiteral("accent3")));
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Radial);
+        QCOMPARE(dmlHex(f.stops[0].color), QStringLiteral("A5A5A5"));
+        // The properties' own fill wins, and so does their saying no fill.
+        f = dmlFillOf(env, QStringLiteral("<a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill>"), dmlStyle(QStringLiteral("1"), QStringLiteral("1")));
+        QCOMPARE(dmlHex(f.color), QStringLiteral("112233"));
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:noFill/>"), dmlStyle(QStringLiteral("1"), QStringLiteral("1"))).isNone());
+        // Other properties (a line) leave the fill to the style.
+        f = dmlFillOf(env, QStringLiteral("<a:ln w=\"12700\"/>"), dmlStyle(QStringLiteral("1"), QStringLiteral("1")));
+        QVERIFY(f.type == Fill::Solid);
+        // Without a format scheme the style gives nothing.
+        DmlEnv bare;
+        QVERIFY(dmlFillOf(bare, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("1"))).isNone());
+    }
+
+    void dmlLineReadsWidthAndColor()
+    {
+        DmlEnv env;
+        Stroke s = dmlLineOf(env, QStringLiteral("<a:ln w=\"25400\"><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></a:ln>"));
+        QVERIFY(!s.isNone());
+        QVERIFY(near(s.width, 2));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("00FF00"));
+        QCOMPARE(s.transparency, 0.0);
+        QVERIFY(s.dash == Stroke::SolidLine && s.compound == Stroke::Single && s.cap == Qt::FlatCap);
+        // No width: the line's usual, a quarter point shy of a point.
+        s = dmlLineOf(env, QStringLiteral("<a:ln><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></a:ln>"));
+        QVERIFY(near(s.width, 0.75));
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"00FF00\"><a:alpha val=\"20000\"/></a:srgbClr></a:solidFill></a:ln>"));
+        QVERIFY(near(s.transparency, 0.8, 1e-2));
+        // No line, no fill in it, or a fill that isn't one gives none.
+        QVERIFY(dmlLineOf(env, QString()).isNone());
+        QVERIFY(dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"/>")).isNone());
+        QVERIFY(dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:noFill/></a:ln>")).isNone());
+        QVERIFY(readLine(QDomElement(), QDomElement(), env.ctx).isNone());
+        // A line of no width is the thinnest there is; a huge one is cut down.
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"0\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>"));
+        QVERIFY(!s.isNone() && s.width > 0 && s.width <= 0.5);
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"999999999999\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>"));
+        QVERIFY(s.width <= 1584);
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"-5\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>"));
+        QVERIFY(!s.isNone() && s.width > 0 && s.width <= 1);
+        // A gradient line is the color of its first stop; a pattern line is its foreground.
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs></a:gsLst></a:gradFill></a:ln>"));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("FF0000"));
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:pattFill prst=\"horz\"><a:fgClr><a:srgbClr val=\"123456\"/></a:fgClr><a:bgClr><a:srgbClr val=\"FFFFFF\"/></a:bgClr></a:pattFill></a:ln>"));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("123456"));
+    }
+
+    void dmlLineReadsDashesCapsAndJoins()
+    {
+        DmlEnv env;
+        const auto line = [&](const QString &inner, const QString &attrs = QString()) {
+            return dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\" %2><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill>%1</a:ln>").arg(inner, attrs));
+        };
+        const struct { const char *name; Stroke::Dash dash; } dashes[] = {
+            {"solid", Stroke::SolidLine}, {"dot", Stroke::RoundDot}, {"sysDot", Stroke::SquareDot}, {"dash", Stroke::DashLine}, {"sysDash", Stroke::DashLine},
+            {"dashDot", Stroke::DashDot}, {"sysDashDot", Stroke::DashDot}, {"lgDash", Stroke::LongDash}, {"lgDashDot", Stroke::LongDashDot},
+            {"lgDashDotDot", Stroke::LongDashDotDot}, {"sysDashDotDot", Stroke::LongDashDotDot}};
+        for (const auto &d : dashes) QVERIFY2(line(QStringLiteral("<a:prstDash val=\"%1\"/>").arg(QString::fromLatin1(d.name))).dash == d.dash, d.name);
+        QVERIFY(line(QStringLiteral("<a:custDash><a:ds d=\"100000\" sp=\"50000\"/></a:custDash>")).dash == Stroke::DashLine);
+        QVERIFY(line(QStringLiteral("<a:prstDash val=\"nonsense\"/>")).dash == Stroke::SolidLine);
+        QVERIFY(line(QString(), QStringLiteral("cap=\"rnd\"")).cap == Qt::RoundCap);
+        QVERIFY(line(QString(), QStringLiteral("cap=\"sq\"")).cap == Qt::SquareCap);
+        QVERIFY(line(QString(), QStringLiteral("cap=\"flat\"")).cap == Qt::FlatCap);
+        QVERIFY(line(QStringLiteral("<a:round/>")).join == Qt::RoundJoin);
+        QVERIFY(line(QStringLiteral("<a:bevel/>")).join == Qt::BevelJoin);
+        QVERIFY(line(QStringLiteral("<a:miter lim=\"800000\"/>")).join == Qt::MiterJoin);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"dbl\"")).compound == Stroke::Double);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"thickThin\"")).compound == Stroke::ThickThin);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"thinThick\"")).compound == Stroke::ThinThick);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"tri\"")).compound == Stroke::Triple);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"sng\"")).compound == Stroke::Single);
+        QVERIFY(!line(QString()).inset);
+        QVERIFY(line(QString(), QStringLiteral("algn=\"in\"")).inset);
+    }
+
+    void dmlLineReadsArrowheads()
+    {
+        DmlEnv env;
+        const auto line = [&](const QString &ends) {
+            return dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill>%1</a:ln>").arg(ends));
+        };
+        Stroke s = line(QStringLiteral("<a:headEnd type=\"triangle\" w=\"lg\" len=\"lg\"/><a:tailEnd type=\"stealth\" w=\"sm\" len=\"sm\"/>"));
+        QVERIFY(s.startArrow == Arrow::Triangle && s.endArrow == Arrow::Stealth);
+        QCOMPARE(s.startSize, 2);
+        QCOMPARE(s.endSize, 0);
+        s = line(QStringLiteral("<a:tailEnd type=\"arrow\"/>"));
+        QVERIFY(s.startArrow == Arrow::None && s.endArrow == Arrow::Open);
+        QCOMPARE(s.endSize, 1);
+        s = line(QStringLiteral("<a:headEnd type=\"diamond\"/><a:tailEnd type=\"oval\" w=\"med\" len=\"lg\"/>"));
+        QVERIFY(s.startArrow == Arrow::Diamond && s.endArrow == Arrow::Oval);
+        QVERIFY(s.endSize >= 1 && s.endSize <= 2);
+        s = line(QStringLiteral("<a:headEnd type=\"none\"/><a:tailEnd type=\"bogus\"/>"));
+        QVERIFY(s.startArrow == Arrow::None && s.endArrow == Arrow::None);
+        s = line(QString());
+        QVERIFY(s.startArrow == Arrow::None && s.endArrow == Arrow::None);
+    }
+
+    void dmlLineTakesTheStyleAndLetsPropertiesChangeIt()
+    {
+        DmlEnv env;
+        env.useFormats();
+        // Reference 1: a half point, the reference's color.
+        Stroke s = dmlLineOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("0"), QStringLiteral("0"), QStringLiteral("accent2")));
+        QVERIFY(!s.isNone());
+        QVERIFY(near(s.width, 0.5));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("ED7D31"));
+        // 2: a point, dashed, round joined; 3: one and a half, round capped, double, beveled.
+        s = dmlLineOf(env, QString(), dmlStyle(QStringLiteral("2"), QStringLiteral("0")));
+        QVERIFY(near(s.width, 1) && s.dash == Stroke::DashLine && s.join == Qt::RoundJoin);
+        s = dmlLineOf(env, QString(), dmlStyle(QStringLiteral("3"), QStringLiteral("0")));
+        QVERIFY(near(s.width, 1.5) && s.cap == Qt::RoundCap && s.compound == Stroke::Double && s.join == Qt::BevelJoin);
+        // 0 and a reference past the list give no line.
+        QVERIFY(dmlLineOf(env, QString(), dmlStyle(QStringLiteral("0"), QStringLiteral("0"))).isNone());
+        QVERIFY(dmlLineOf(env, QString(), dmlStyle(QStringLiteral("4"), QStringLiteral("0"))).isNone());
+        // The properties' width alone changes the width and keeps the style's color and dashes.
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"38100\"/>"), dmlStyle(QStringLiteral("2"), QStringLiteral("0")));
+        QVERIFY(near(s.width, 3));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("4472C4"));
+        QVERIFY(s.dash == Stroke::DashLine);
+        // Their color keeps the style's width.
+        s = dmlLineOf(env, QStringLiteral("<a:ln><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln>"), dmlStyle(QStringLiteral("3"), QStringLiteral("0")));
+        QVERIFY(near(s.width, 1.5));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("FF0000"));
+        // Their saying no fill is no line, and their dash replaces the style's.
+        QVERIFY(dmlLineOf(env, QStringLiteral("<a:ln><a:noFill/></a:ln>"), dmlStyle(QStringLiteral("2"), QStringLiteral("0"))).isNone());
+        s = dmlLineOf(env, QStringLiteral("<a:ln><a:prstDash val=\"solid\"/></a:ln>"), dmlStyle(QStringLiteral("2"), QStringLiteral("0")));
+        QVERIFY(s.dash == Stroke::SolidLine && !s.isNone());
+        // Without a format scheme, the style gives none.
+        DmlEnv bare;
+        QVERIFY(dmlLineOf(bare, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("0"))).isNone());
+    }
+
+    // A background that refers to a picture style of the theme: the picture
+    // is named by the THEME part's relationships, not the slide's, and its
+    // a:duotone recolors it from the first color (black) to the second
+    // (white).
+    void dmlThemePictureBackgroundWithDuotone()
+    {
+        DmlEnv env;
+        QImage source(2, 1, QImage::Format_RGB32);
+        source.setPixel(0, 0, qRgb(0, 0, 0));
+        source.setPixel(1, 0, qRgb(255, 255, 255));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        source.save(&buffer, "PNG");
+        PackageWriter w;
+        w.addDefault(QStringLiteral("png"), QStringLiteral("image/png"));
+        w.addPart(QStringLiteral("/ppt/slideMasters/slideMaster1.xml"), "<p:sldMaster/>", QStringLiteral("application/xml"));
+        w.addPart(QStringLiteral("/ppt/theme/theme1.xml"), "<a:theme/>", QStringLiteral("application/xml"));
+        w.addPart(QStringLiteral("/ppt/media/texture.png"), png, QStringLiteral("image/png"));
+        w.addPart(QStringLiteral("/ppt/media/other.png"), dmlPicture(), QStringLiteral("image/png"));
+        // rId1 means different pictures to the master and to the theme.
+        w.addRelationship(QStringLiteral("/ppt/slideMasters/slideMaster1.xml"), kRelBase + "image", QStringLiteral("/ppt/media/other.png"));
+        w.addRelationship(QStringLiteral("/ppt/theme/theme1.xml"), kRelBase + "image", QStringLiteral("/ppt/media/texture.png"));
+        QVERIFY(env.package.read(w.finish()));
+        env.ctx.package = &env.package;
+        env.ctx.part = QStringLiteral("/ppt/slideMasters/slideMaster1.xml");
+        env.ctx.themePart = QStringLiteral("/ppt/theme/theme1.xml");
+        env.ctx.formats = env.element(QStringLiteral(
+            "<a:fmtScheme><a:fillStyleLst/><a:lnStyleLst/><a:effectStyleLst/><a:bgFillStyleLst>"
+            "<a:blipFill><a:blip r:embed=\"rId1\"><a:duotone><a:srgbClr val=\"000080\"/><a:schemeClr val=\"phClr\"/></a:duotone></a:blip><a:stretch/></a:blipFill>"
+            "</a:bgFillStyleLst></a:fmtScheme>"));
+        const Fill f = readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:srgbClr val=\"FFFF00\"/></p:bgRef></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Picture);
+        QCOMPARE(env.images.size(), 1);
+        QImage got;
+        QVERIFY(got.loadFromData(env.images[0].bytes));
+        QCOMPARE(got.size(), QSize(2, 1));   // the theme's picture, not the master's
+        QCOMPARE(QColor(got.pixel(0, 0)), QColor(0x00, 0x00, 0x80));   // black takes the first color
+        QCOMPARE(QColor(got.pixel(1, 0)), QColor(0xFF, 0xFF, 0x00));   // white the second (here the reference's)
+    }
+
+    void dmlBackgroundReadsItsFill()
+    {
+        DmlEnv env;
+        env.useFormats();
+        Fill f = readBackground(env.element(QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"102030\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("102030"));
+        f = readBackground(env.element(QStringLiteral("<p:bg><p:bgPr><a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs></a:gsLst>"
+                                                      "<a:lin ang=\"5400000\"/></a:gradFill></p:bgPr></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Gradient);
+        QVERIFY(readBackground(env.element(QStringLiteral("<p:bg><p:bgPr><a:noFill/></p:bgPr></p:bg>")), env.ctx).isNone());
+        // A reference into the theme's background fills, with the color it gives.
+        f = readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FEFEFE"));
+        f = readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"1003\"><a:srgbClr val=\"336699\"/></p:bgRef></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Radial);
+        QCOMPARE(dmlHex(f.stops[0].color), QStringLiteral("336699"));
+        // A reference of 1 to 3 is into the fill styles.
+        f = readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"2\"><a:schemeClr val=\"accent1\"/></p:bgRef></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Gradient);
+        // Nothing, no scheme to refer to, or a reference past the list is no fill.
+        QVERIFY(readBackground(QDomElement(), env.ctx).isNone());
+        QVERIFY(readBackground(env.element(QStringLiteral("<p:bg/>")), env.ctx).isNone());
+        QVERIFY(readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"1009\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg>")), env.ctx).isNone());
+        DmlEnv bare;
+        QVERIFY(readBackground(bare.element(QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg>")), bare.ctx).isNone());
+    }
+
+    // ---- DrawingML shapes: reading shapes
+
+private:
+    static QString dmlXfrm(double x, double y, double w, double h, const QString &attrs = QString(), const char *tag = "a:xfrm")
+    {
+        return QStringLiteral("<%6 %5><a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"%3\" cy=\"%4\"/></%6>")
+            .arg(emu(x), emu(y), emu(w), emu(h), attrs, QString::fromLatin1(tag));
+    }
+
+    // A p:sp with the properties, text body, and style given.
+    static QString dmlSp(const QString &spPr, const QString &body = QString(), const QString &style = QString(), const QString &cNvSpPr = QString(),
+                         const QString &nvPr = QString(), const QString &cNvPrInner = QString(), const QString &id = QStringLiteral("2"))
+    {
+        return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%7\" name=\"Shape %7\" descr=\"alt %7\">%6</p:cNvPr><p:cNvSpPr %4/><p:nvPr>%5</p:nvPr></p:nvSpPr>"
+                              "<p:spPr>%1</p:spPr>%3%2</p:sp>")
+            .arg(spPr, body, style, cNvSpPr, nvPr, cNvPrInner, id);
+    }
+
+    static QString dmlBody(const QString &text = QStringLiteral("Hello"), const QString &bodyPr = QStringLiteral("<a:bodyPr/>"))
+    {
+        return QStringLiteral("<p:txBody>%2<a:lstStyle/><a:p><a:r><a:t>%1</a:t></a:r></a:p></p:txBody>").arg(text, bodyPr);
+    }
+
+    static QString dmlPic(const QString &blipInner, const QString &spPr, const QString &blipFillInner = QStringLiteral("<a:stretch><a:fillRect/></a:stretch>"),
+                          const QString &cNvPrInner = QString(), const QString &embed = QStringLiteral("rId1"))
+    {
+        return QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"5\" name=\"Picture 5\" descr=\"a picture\">%4</p:cNvPr><p:cNvPicPr/><p:nvPr/></p:nvPicPr>"
+                              "<p:blipFill><a:blip r:embed=\"%5\">%1</a:blip>%3</p:blipFill><p:spPr>%2</p:spPr></p:pic>")
+            .arg(blipInner, spPr, blipFillInner, cNvPrInner, embed);
+    }
+
+    static QString dmlCxn(const QString &spPr, const QString &cNvCxnSpPr = QString(), const QString &style = QString(), const QString &id = QStringLiteral("9"))
+    {
+        return QStringLiteral("<p:cxnSp><p:nvCxnSpPr><p:cNvPr id=\"%4\" name=\"Connector %4\"/><p:cNvCxnSpPr>%2</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr>"
+                              "<p:spPr>%1</p:spPr>%3</p:cxnSp>").arg(spPr, cNvCxnSpPr, style, id);
+    }
+
+    static QString dmlGrp(const QString &grpSpPr, const QString &children, const QString &id = QStringLiteral("20"))
+    {
+        return QStringLiteral("<p:grpSp><p:nvGrpSpPr><p:cNvPr id=\"%3\" name=\"Group %3\" descr=\"group alt\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
+                              "<p:grpSpPr>%1</p:grpSpPr>%2</p:grpSp>").arg(grpSpPr, children, id);
+    }
+
+    // The group frame (off, ext) with the child space (chOff, chExt), all in points.
+    static QString dmlGroupFrame(QRectF frame, QRectF child, const QString &attrs = QString())
+    {
+        return QStringLiteral("<a:xfrm %9><a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"%3\" cy=\"%4\"/><a:chOff x=\"%5\" y=\"%6\"/><a:chExt cx=\"%7\" cy=\"%8\"/></a:xfrm>")
+            .arg(emu(frame.x()), emu(frame.y()), emu(frame.width()), emu(frame.height()), emu(child.x()), emu(child.y()), emu(child.width()), emu(child.height()), attrs);
+    }
+
+    static QString dmlSolid(const QString &hex) { return QStringLiteral("<a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill>").arg(hex); }
+
+    static ItemList dmlTree(DmlEnv &env, const QString &shapes, const TextStyleStack &styles = {})
+    {
+        return readShapeTree(env.element(QStringLiteral("<p:spTree>%1</p:spTree>").arg(shapes)), env.ctx, styles);
+    }
+
+    static ItemPtr dmlOne(DmlEnv &env, const QString &shape, const QVector<QString> &inherits = {})
+    {
+        QVector<QDomElement> from;
+        for (const QString &x : inherits) from.append(env.element(x));
+        return readShape(env.element(shape), env.ctx, {}, from);
+    }
+
+    template <typename T> static std::shared_ptr<T> dmlAs(const ItemPtr &it) { return std::dynamic_pointer_cast<T>(it); }
+
+    static bool dmlRectIs(const QRectF &r, double x, double y, double w, double h, double tolerance = 1e-6)
+    {
+        return near(r.x(), x, tolerance) && near(r.y(), y, tolerance) && near(r.width(), w, tolerance) && near(r.height(), h, tolerance);
+    }
+
+    static QString dmlRectText(const QRectF &r) { return QStringLiteral("%1,%2 %3x%4").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height()); }
+
+private Q_SLOTS:
+    void dmlShapeReadsPositionSizeAndTurn()
+    {
+        DmlEnv env;
+        ItemPtr it = dmlOne(env, dmlSp(dmlXfrm(10, 20, 100, 50, QStringLiteral("rot=\"5400000\" flipH=\"1\"")) + QStringLiteral("<a:prstGeom prst=\"rect\"/>")));
+        auto s = dmlAs<ShapeItem>(it);
+        QVERIFY(s);
+        QVERIFY2(dmlRectIs(s->rect, 10, 20, 100, 50), qPrintable(dmlRectText(s->rect)));
+        QCOMPARE(s->rotation, 90.0);
+        QVERIFY(s->flipH && !s->flipV);
+        QCOMPARE(s->shape, QStringLiteral("rect"));
+        QCOMPARE(s->name, QStringLiteral("Shape 2"));
+        QCOMPARE(s->altText, QStringLiteral("alt 2"));
+        QVERIFY(s->storyId.isEmpty());
+        QVERIFY(s->wrap.mode == jp::Wrap::None);
+        // A turn is read as 0 up to a full one, whichever way it's written; both flips together.
+        for (const auto &row : QList<QPair<QString, double>>{{"0", 0}, {"-5400000", 270}, {"21600000", 0}, {"27000000", 90}, {"10800000", 180}, {"1800000", 30}, {"junk", 0}}) {
+            it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 10, 10, QStringLiteral("rot=\"%1\" flipH=\"true\" flipV=\"1\"").arg(row.first)) + QStringLiteral("<a:prstGeom prst=\"rect\"/>")));
+            QVERIFY2(near(it->rotation, row.second), qPrintable(row.first));
+            QVERIFY(it->flipH && it->flipV);
+        }
+        // Negative positions are fine, and a shape that says nothing of its place is a point at the origin.
+        it = dmlOne(env, dmlSp(dmlXfrm(-30, -40, 5, 6) + QStringLiteral("<a:prstGeom prst=\"rect\"/>")));
+        QVERIFY(dmlRectIs(it->rect, -30, -40, 5, 6));
+        it = dmlOne(env, dmlSp(QStringLiteral("<a:prstGeom prst=\"rect\"/>")));
+        QVERIFY2(it->rect.x() == 0 && it->rect.y() == 0 && it->rect.width() == 0 && it->rect.height() == 0, qPrintable(dmlRectText(it->rect)));
+        // Strict files write lengths with units.
+        it = dmlOne(env, dmlSp(QStringLiteral("<a:xfrm><a:off x=\"1in\" y=\"2cm\"/><a:ext cx=\"36pt\" cy=\"10mm\"/></a:xfrm><a:prstGeom prst=\"rect\"/>")));
+        QVERIFY2(dmlRectIs(it->rect, 72, 72 * 2 / 2.54, 36, 72 * 10 / 25.4, 1e-4), qPrintable(dmlRectText(it->rect)));
+    }
+
+    void dmlShapeMapsPresetsAndTheirAdjustments()
+    {
+        DmlEnv env;
+        const auto shape = [&](const QString &geometry, const QString &style = QString()) {
+            return dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + geometry + dmlSolid(QStringLiteral("FF0000")), QString(), style));
+        };
+        auto rr = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst/></a:prstGeom>")));
+        QVERIFY(rr);
+        QCOMPARE(rr->shape, QStringLiteral("roundRect"));
+        QCOMPARE(rr->adj.size(), 1);
+        QVERIFY(near(rr->adj[0], 0.16667, 1e-4));
+        QVERIFY(rr->customPath.isEmpty());
+        auto half = shape(QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst><a:gd name=\"adj\" fmla=\"val 50000\"/></a:avLst></a:prstGeom>"));
+        QVERIFY(near(dmlAs<ShapeItem>(half)->adj[0], 0.5));
+        auto arrow = shape(QStringLiteral("<a:prstGeom prst=\"rightArrow\"><a:avLst><a:gd name=\"adj1\" fmla=\"val 30000\"/><a:gd name=\"adj2\" fmla=\"val 60000\"/></a:avLst></a:prstGeom>"));
+        QCOMPARE(dmlAs<ShapeItem>(arrow)->shape, QStringLiteral("rightArrow"));
+        QVERIFY(near(dmlAs<ShapeItem>(arrow)->adj[0], 0.3) && near(dmlAs<ShapeItem>(arrow)->adj[1], 0.6));
+        auto flow = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"flowChartDecision\"/>")));
+        QCOMPARE(flow->shape, QStringLiteral("fcDecision"));
+        QVERIFY(flow->adj.isEmpty());
+        // The standard's defaults apply when it gives none, though the library's differ.
+        auto star = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"star24\"/>")));
+        QCOMPARE(star->shape, QStringLiteral("star24"));
+        QVERIFY(near(star->adj[0], 0.75));
+        // Geometry the library draws wrongly or not at all comes as the path the standard defines.
+        auto pie = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"pie\"/>")));
+        QCOMPARE(pie->shape, QStringLiteral("pie"));
+        QVERIFY(!pie->customPath.isEmpty());
+        QVERIFY(pie->customPath.contains(QPointF(25, 12.5)));
+        QVERIFY(!pie->customPath.contains(QPointF(75, 12.5)));
+        auto wedge = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"wedgeRectCallout\"/>")));
+        QVERIFY(!wedge->customPath.isEmpty());
+        QVERIFY(wedge->customPath.boundingRect().bottom() > 50);
+        auto trap = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"nonIsoscelesTrapezoid\"/>")));
+        QVERIFY(!trap->customPath.isEmpty());
+        // An arc is its curve, and with a fill its sector too, drawn as shapes whose names don't say "no fill".
+        auto arcItem = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"arc\"/>") + dmlSolid(QStringLiteral("FF0000")) +
+                                         QStringLiteral("<a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")))));
+        auto arcGroup = dmlAs<GroupItem>(arcItem);
+        QVERIFY(arcGroup && arcGroup->children.size() == 2);
+        QVERIFY(dmlAs<ShapeItem>(arcGroup->children[0])->shape != QLatin1String("arc") && !dmlAs<ShapeItem>(arcGroup->children[0])->fill.isNone());
+        QVERIFY(dmlAs<ShapeItem>(arcGroup->children[1])->fill.isNone() && !dmlAs<ShapeItem>(arcGroup->children[1])->stroke.isNone());
+        auto arcOnly = dmlAs<ShapeItem>(dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"arc\"/><a:noFill/><a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000"))))));
+        QVERIFY(arcOnly && arcOnly->fill.isNone() && !arcOnly->customPath.isEmpty());
+        // A preset nobody draws is a rectangle, and so is one that isn't one.
+        auto gear = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"gear6\"/>")));
+        QCOMPARE(gear->shape, QStringLiteral("rect"));
+        QVERIFY(gear->customPath.isEmpty());
+        QCOMPARE(dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"noSuchThing\"/>")))->shape, QStringLiteral("rect"));
+        QCOMPARE(dmlAs<ShapeItem>(shape(QString()))->shape, QStringLiteral("rect"));
+        // Fill and outline.
+        QCOMPARE(dmlHex(rr->fill.color), QStringLiteral("FF0000"));
+        QVERIFY(rr->stroke.isNone());
+    }
+
+    void dmlShapeReadsCustomGeometry()
+    {
+        DmlEnv env;
+        const QString triangle = QStringLiteral("<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l=\"0\" t=\"0\" r=\"r\" b=\"b\"/><a:pathLst>"
+                                                "<a:path w=\"100\" h=\"100\"><a:moveTo><a:pt x=\"0\" y=\"100\"/></a:moveTo><a:lnTo><a:pt x=\"50\" y=\"0\"/></a:lnTo>"
+                                                "<a:lnTo><a:pt x=\"100\" y=\"100\"/></a:lnTo><a:close/></a:path></a:pathLst></a:custGeom>");
+        ItemPtr it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 200, 100) + triangle + dmlSolid(QStringLiteral("00FF00")) + QStringLiteral("<a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")))));
+        auto s = dmlAs<ShapeItem>(it);
+        QVERIFY(s);
+        QVERIFY2(dmlRectIs(s->customPath.boundingRect(), 0, 0, 200, 100), qPrintable(dmlRectText(s->customPath.boundingRect())));
+        QVERIFY(s->customPath.contains(QPointF(100, 90)));
+        QVERIFY(!s->customPath.contains(QPointF(5, 5)));
+        QCOMPARE(dmlHex(s->fill.color), QStringLiteral("00FF00"));
+        QVERIFY(!s->stroke.isNone());
+        // Paths drawn without fill, or without outline, are their own objects so that each is drawn as it says.
+        const QString two = QStringLiteral("<a:custGeom><a:pathLst><a:path w=\"10\" h=\"10\"><a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo><a:lnTo><a:pt x=\"10\" y=\"0\"/></a:lnTo>"
+                                           "<a:lnTo><a:pt x=\"10\" y=\"10\"/></a:lnTo><a:close/></a:path>"
+                                           "<a:path w=\"10\" h=\"10\" fill=\"none\"><a:moveTo><a:pt x=\"0\" y=\"10\"/></a:moveTo><a:lnTo><a:pt x=\"10\" y=\"10\"/></a:lnTo></a:path></a:pathLst></a:custGeom>");
+        const QString looks = dmlSolid(QStringLiteral("00FF00")) + QStringLiteral("<a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")));
+        it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 100, 100, QStringLiteral("rot=\"900000\"")) + two + looks, dmlBody()));
+        auto g = dmlAs<GroupItem>(it);
+        QVERIFY(g);
+        QCOMPARE(int(g->children.size()), 2);
+        auto first = dmlAs<ShapeItem>(g->children[0]);
+        auto second = dmlAs<ShapeItem>(g->children[1]);
+        QVERIFY(first && second);
+        QVERIFY(!first->fill.isNone() && !first->stroke.isNone());
+        QVERIFY(second->fill.isNone() && !second->stroke.isNone());
+        QVERIFY(dmlRectIs(first->rect, 10, 10, 100, 100) && dmlRectIs(second->rect, 10, 10, 100, 100));
+        QCOMPARE(first->rotation, 15.0);
+        QCOMPARE(second->rotation, 15.0);
+        QVERIFY(!first->storyId.isEmpty() && second->storyId.isEmpty());   // the text is in the first
+        QCOMPARE(g->name, QStringLiteral("Shape 2"));
+        // With no fill on the shape, the path that is only for fill has nothing to do.
+        it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 100, 100) + two + QStringLiteral("<a:noFill/><a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")))));
+        QVERIFY(dmlAs<ShapeItem>(it));
+        // A callout is its box and its leader line.
+        it = dmlOne(env, dmlSp(dmlXfrm(100, 100, 200, 100) + QStringLiteral("<a:prstGeom prst=\"borderCallout1\"/>") + looks));
+        g = dmlAs<GroupItem>(it);
+        QVERIFY(g);
+        QCOMPARE(int(g->children.size()), 2);
+        // A line callout with no outline draws only the fill.
+        it = dmlOne(env, dmlSp(dmlXfrm(100, 100, 200, 100) + QStringLiteral("<a:prstGeom prst=\"callout1\"/>") + dmlSolid(QStringLiteral("00FF00")) + QStringLiteral("<a:ln><a:noFill/></a:ln>")));
+        QVERIFY(dmlAs<ShapeItem>(it));
+        QVERIFY(dmlAs<ShapeItem>(it)->stroke.isNone());
+    }
+
+    void dmlShapeBecomesATextBoxOrAShapeWithText()
+    {
+        DmlEnv env;
+        const QString rect = dmlXfrm(10, 10, 100, 40) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        // A text box.
+        ItemPtr it = dmlOne(env, dmlSp(rect, dmlBody(), QString(), QStringLiteral("txBox=\"1\"")));
+        auto t = dmlAs<TextItem>(it);
+        QVERIFY(t);
+        QVERIFY(!t->storyId.isEmpty());
+        QVERIFY(env.stories[0]->toPlainText().contains(QStringLiteral("Hello")));
+        QVERIFY(t->fill.isNone() && t->stroke.isNone());
+        QVERIFY(!t->hyphenate);
+        QVERIFY(t->wrap.mode == jp::Wrap::None);
+        // An empty one is a text box all the same, with a story to type into.
+        it = dmlOne(env, dmlSp(rect, QStringLiteral("<p:txBody><a:bodyPr/><a:p/></p:txBody>"), QString(), QStringLiteral("txBox=\"1\"")));
+        QVERIFY(dmlAs<TextItem>(it) && !dmlAs<TextItem>(it)->storyId.isEmpty());
+        it = dmlOne(env, dmlSp(rect, QString(), QString(), QStringLiteral("txBox=\"1\"")));
+        QVERIFY(dmlAs<TextItem>(it));
+        // A placeholder, with its fill and line.
+        it = dmlOne(env, dmlSp(rect + dmlSolid(QStringLiteral("123456")) + QStringLiteral("<a:ln w=\"25400\">%1</a:ln>").arg(dmlSolid(QStringLiteral("654321"))), dmlBody(),
+                               QString(), QString(), QStringLiteral("<p:ph type=\"title\"/>")));
+        t = dmlAs<TextItem>(it);
+        QVERIFY(t);
+        QCOMPARE(dmlHex(t->fill.color), QStringLiteral("123456"));
+        QVERIFY(near(t->stroke.width, 2));
+        // A placeholder with nothing in it still is one (and has no geometry of its own to say).
+        it = dmlOne(env, dmlSp(QString(), QString(), QString(), QString(), QStringLiteral("<p:ph type=\"body\" idx=\"1\"/>")));
+        QVERIFY(dmlAs<TextItem>(it));
+        // A rectangle with text, and one without.
+        it = dmlOne(env, dmlSp(rect + dmlSolid(QStringLiteral("FF0000")), dmlBody()));
+        QVERIFY(dmlAs<TextItem>(it));
+        QCOMPARE(dmlHex(it->fill.color), QStringLiteral("FF0000"));
+        it = dmlOne(env, dmlSp(rect, QStringLiteral("<p:txBody><a:bodyPr/><a:p/></p:txBody>")));
+        QVERIFY(dmlAs<ShapeItem>(it) && dmlAs<ShapeItem>(it)->storyId.isEmpty());
+        // Text in another shape stays in the shape.
+        it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 100, 40) + QStringLiteral("<a:prstGeom prst=\"roundRect\"/>"), dmlBody(QStringLiteral("Round"))));
+        auto s = dmlAs<ShapeItem>(it);
+        QVERIFY(s && !s->storyId.isEmpty());
+        QVERIFY(env.stories.last()->toPlainText().contains(QStringLiteral("Round")));
+        QCOMPARE(s->shape, QStringLiteral("roundRect"));
+        // A text box that isn't a rectangle is a shape with text, and one in a shape that is not a text box is not.
+        it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 100, 40) + QStringLiteral("<a:prstGeom prst=\"ellipse\"/>"), dmlBody(), QString(), QStringLiteral("txBox=\"1\"")));
+        QVERIFY(dmlAs<ShapeItem>(it) && !dmlAs<ShapeItem>(it)->storyId.isEmpty());
+        // An empty picture placeholder is a picture with no picture.
+        it = dmlOne(env, dmlSp(QString(), QString(), QString(), QString(), QStringLiteral("<p:ph type=\"pic\" idx=\"13\"/>")));
+        auto p = dmlAs<PictureItem>(it);
+        QVERIFY(p && p->imageId.isEmpty());
+        // Without a way to make stories, a text box has none and is no worse for it.
+        DmlEnv bare;
+        bare.ctx.newStory = nullptr;
+        it = dmlOne(bare, dmlSp(rect, dmlBody(), QString(), QStringLiteral("txBox=\"1\"")));
+        QVERIFY(dmlAs<TextItem>(it) && dmlAs<TextItem>(it)->storyId.isEmpty());
+    }
+
+    void dmlShapeReadsTextBoxProperties()
+    {
+        DmlEnv env;
+        const QString rect = dmlXfrm(10, 10, 100, 40) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        const auto box = [&](const QString &bodyPr, const QString &geometry = QString(), const QVector<QString> &inherits = {}) {
+            const QString g = geometry.isEmpty() ? rect : dmlXfrm(10, 10, 100, 40) + geometry;
+            return dmlOne(env, dmlSp(g, dmlBody(QStringLiteral("x"), bodyPr), QString(), QStringLiteral("txBox=\"1\""), QString()), inherits);
+        };
+        // The standard's insets and top anchor, which a shape or a text box has with nothing said.
+        auto t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr/>")));
+        QVERIFY(t);
+        QCOMPARE(t->insets.left(), 7.2);
+        QCOMPARE(t->insets.top(), 3.6);
+        QCOMPARE(t->insets.right(), 7.2);
+        QCOMPARE(t->insets.bottom(), 3.6);
+        QVERIFY(t->valign == VAlign::Top);
+        QVERIFY(t->autofit == TextItem::NoAutofit);
+        QCOMPARE(t->columns, 1);
+        QVERIFY(!t->vertical);
+        auto s = dmlAs<ShapeItem>(box(QStringLiteral("<a:bodyPr/>"), QStringLiteral("<a:prstGeom prst=\"ellipse\"/>")));
+        QVERIFY(s);
+        QCOMPARE(s->insets.left(), 7.2);
+        QCOMPARE(s->insets.top(), 3.6);
+        QVERIFY(s->valign == VAlign::Top);
+        // Each said inset, including none.
+        t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr lIns=\"0\" tIns=\"12700\" rIns=\"25400\" bIns=\"38100\"/>")));
+        QCOMPARE(t->insets.left(), 0.0);
+        QCOMPARE(t->insets.top(), 1.0);
+        QCOMPARE(t->insets.right(), 2.0);
+        QCOMPARE(t->insets.bottom(), 3.0);
+        s = dmlAs<ShapeItem>(box(QStringLiteral("<a:bodyPr lIns=\"12700\" bIns=\"0\"/>"), QStringLiteral("<a:prstGeom prst=\"ellipse\"/>")));
+        QCOMPARE(s->insets.left(), 1.0);
+        QCOMPARE(s->insets.bottom(), 0.0);
+        QCOMPARE(s->insets.top(), 3.6);
+        // Anchors.
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr anchor=\"ctr\"/>")))->valign == VAlign::Middle);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr anchor=\"b\"/>")))->valign == VAlign::Bottom);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr anchor=\"t\"/>")))->valign == VAlign::Top);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr anchor=\"just\"/>")))->valign == VAlign::Top);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr anchor=\"nonsense\"/>")))->valign == VAlign::Top);
+        QVERIFY(dmlAs<ShapeItem>(box(QStringLiteral("<a:bodyPr anchor=\"ctr\"/>"), QStringLiteral("<a:prstGeom prst=\"ellipse\"/>")))->valign == VAlign::Middle);
+        QVERIFY(dmlAs<ShapeItem>(box(QStringLiteral("<a:bodyPr anchor=\"b\"/>"), QStringLiteral("<a:prstGeom prst=\"ellipse\"/>")))->valign == VAlign::Bottom);
+        // Fitting the text to the box.
+        t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr><a:normAutofit fontScale=\"62500\" lnSpcReduction=\"20000\"/></a:bodyPr>")));
+        QVERIFY(t->autofit == TextItem::ShrinkOnOverflow);
+        QVERIFY(near(t->fitScale, 0.625));
+        t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr><a:normAutofit/></a:bodyPr>")));
+        QVERIFY(t->autofit == TextItem::ShrinkOnOverflow);
+        QCOMPARE(t->fitScale, 1.0);
+        t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr><a:normAutofit fontScale=\"5\"/></a:bodyPr>")));
+        QVERIFY(t->fitScale > 0 && t->fitScale <= 1);
+        t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr><a:normAutofit fontScale=\"500000\"/></a:bodyPr>")));
+        QVERIFY(t->fitScale > 0 && t->fitScale <= 1);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr><a:spAutoFit/></a:bodyPr>")))->autofit == TextItem::GrowBox);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr><a:noAutofit/></a:bodyPr>")))->autofit == TextItem::NoAutofit);
+        // Columns, and the way the text runs.
+        t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr numCol=\"3\" spcCol=\"228600\"/>")));
+        QCOMPARE(t->columns, 3);
+        QCOMPARE(t->columnGap, 18.0);
+        QCOMPARE(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr numCol=\"99999\"/>")))->columns <= 16, true);
+        QCOMPARE(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr numCol=\"0\"/>")))->columns, 1);
+        QCOMPARE(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr numCol=\"-4\"/>")))->columns, 1);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr vert=\"vert\"/>")))->vertical);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr vert=\"vert270\"/>")))->vertical);
+        QVERIFY(!dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr vert=\"horz\"/>")))->vertical);
+        QVERIFY(dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr wrap=\"none\"/>"))));
+        // What a placeholder's own body leaves out comes from the layout's, and then from the master's.
+        const QString layout = dmlSp(dmlXfrm(1, 2, 3, 4), QStringLiteral("<p:txBody><a:bodyPr lIns=\"0\" anchor=\"ctr\"><a:normAutofit/></a:bodyPr><a:p/></p:txBody>"));
+        const QString master = dmlSp(dmlXfrm(1, 2, 3, 4), QStringLiteral("<p:txBody><a:bodyPr tIns=\"25400\" anchor=\"b\" rIns=\"12700\"><a:spAutoFit/></a:bodyPr><a:p/></p:txBody>"));
+        t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr rIns=\"38100\"/>"), QString(), {layout, master}));
+        QCOMPARE(t->insets.left(), 0.0);        // the layout's
+        QCOMPARE(t->insets.top(), 2.0);         // the master's, which the layout lacks
+        QCOMPARE(t->insets.right(), 3.0);       // its own
+        QCOMPARE(t->insets.bottom(), 3.6);      // nobody's
+        QVERIFY(t->valign == VAlign::Middle);   // the layout's, over the master's
+        QVERIFY(t->autofit == TextItem::ShrinkOnOverflow);
+        t = dmlAs<TextItem>(box(QStringLiteral("<a:bodyPr anchor=\"t\"><a:noAutofit/></a:bodyPr>"), QString(), {layout, master}));
+        QVERIFY(t->valign == VAlign::Top);
+        QVERIFY(t->autofit == TextItem::NoAutofit);
+    }
+
+    void dmlShapeTakesWhatItInheritsFrom()
+    {
+        DmlEnv env;
+        // A placeholder that says nothing is placed, shaped, filled, and lined as the layout's, else the master's.
+        const QString layout = dmlSp(dmlXfrm(50, 60, 300, 100, QStringLiteral("rot=\"600000\"")) + dmlSolid(QStringLiteral("00FF00")),
+                                     QString(), QString(), QString(), QStringLiteral("<p:ph type=\"body\" idx=\"1\"/>"));
+        const QString master = dmlSp(dmlXfrm(1, 2, 3, 4) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + dmlSolid(QStringLiteral("0000FF")) +
+                                     QStringLiteral("<a:ln w=\"25400\">%1</a:ln>").arg(dmlSolid(QStringLiteral("FF00FF"))), QString(), QString(), QString(), QStringLiteral("<p:ph type=\"body\" idx=\"1\"/>"));
+        ItemPtr it = dmlOne(env, dmlSp(QString(), dmlBody(), QString(), QString(), QStringLiteral("<p:ph type=\"body\" idx=\"1\"/>")), {layout, master});
+        auto t = dmlAs<TextItem>(it);
+        QVERIFY(t);   // a placeholder is a text frame
+        QVERIFY2(dmlRectIs(t->rect, 50, 60, 300, 100), qPrintable(dmlRectText(t->rect)));
+        QVERIFY(near(t->rotation, 10));
+        QCOMPARE(dmlHex(t->fill.color), QStringLiteral("00FF00"));       // the layout's fill
+        QVERIFY(near(t->stroke.width, 2));                                // and the master's line
+        QCOMPARE(dmlHex(t->stroke.color), QStringLiteral("FF00FF"));
+        // Said itself, it's its own.
+        it = dmlOne(env, dmlSp(dmlXfrm(5, 6, 7, 8) + dmlSolid(QStringLiteral("123456")) + QStringLiteral("<a:ln><a:noFill/></a:ln>"), dmlBody(), QString(), QString(),
+                               QStringLiteral("<p:ph type=\"body\" idx=\"1\"/>")), {layout, master});
+        QVERIFY(dmlRectIs(it->rect, 5, 6, 7, 8));
+        QCOMPARE(dmlHex(it->fill.color), QStringLiteral("123456"));
+        QVERIFY(it->stroke.isNone());
+        // A shape inheriting a preset takes its shape, and its adjustments.
+        const QString shaped = dmlSp(dmlXfrm(50, 60, 300, 100) + QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst><a:gd name=\"adj\" fmla=\"val 40000\"/></a:avLst></a:prstGeom>"));
+        it = dmlOne(env, dmlSp(QString(), dmlBody(QStringLiteral("x")), QString(), QString(), QStringLiteral("<p:ph type=\"title\"/>")), {shaped});
+        QVERIFY(dmlAs<ShapeItem>(it) && !dmlAs<ShapeItem>(it)->storyId.isEmpty());   // a placeholder that isn't a rectangle holds its text as a shape does
+        it = dmlOne(env, dmlSp(QString(), QString(), QString(), QString(), QString()), {shaped});
+        QCOMPARE(dmlAs<ShapeItem>(it)->shape, QStringLiteral("roundRect"));
+        QVERIFY(near(dmlAs<ShapeItem>(it)->adj[0], 0.4));
+        // A picture placeholder takes the position of the layout's too.
+        const QString pic = dmlSp(dmlXfrm(11, 12, 130, 140), QString(), QString(), QString(), QStringLiteral("<p:ph type=\"pic\" idx=\"13\"/>"));
+        it = dmlOne(env, QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"4\" name=\"P\"/><p:cNvPicPr/><p:nvPr><p:ph type=\"pic\" idx=\"13\"/></p:nvPr></p:nvPicPr>"
+                                        "<p:blipFill><a:blip/></p:blipFill><p:spPr/></p:pic>"), {pic});
+        QVERIFY(dmlAs<PictureItem>(it));
+        QVERIFY(dmlRectIs(it->rect, 11, 12, 130, 140));
+    }
+
+    void dmlShapeTakesItsStyle()
+    {
+        DmlEnv env;
+        env.useFormats();
+        const QString style = dmlStyle(QStringLiteral("2"), QStringLiteral("1"), QStringLiteral("3"));
+        ItemPtr it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"), QString(), style));
+        auto s = dmlAs<ShapeItem>(it);
+        QCOMPARE(dmlHex(s->fill.color), QStringLiteral("4472C4"));
+        QCOMPARE(dmlHex(s->stroke.color), QStringLiteral("4472C4"));
+        QVERIFY(near(s->stroke.width, 1));
+        QVERIFY(s->stroke.dash == Stroke::DashLine);
+        // A shadow from effect style 3 (a 4.5 point blur, 1.5 points down, 63% opaque black).
+        QVERIFY(s->fx.shadow.on);
+        QVERIFY(near(s->fx.shadow.blur, 4.5, 1e-6) && near(s->fx.shadow.distance, 1.5, 1e-6) && near(s->fx.shadow.angle, 90));
+        QVERIFY(near(s->fx.shadow.transparency, 0.37, 2e-2));
+        // The shape's own say overrides it all; an empty effect list takes the shadow away.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:noFill/><a:ln><a:noFill/></a:ln><a:effectLst/>"), QString(), style));
+        QVERIFY(it->fill.isNone() && it->stroke.isNone() && !it->fx.shadow.on);
+        // A text box with no style has no fill or line, as it says.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"), dmlBody(), QString(), QStringLiteral("txBox=\"1\"")));
+        QVERIFY(it->fill.isNone() && it->stroke.isNone());
+    }
+
+    void dmlTextTakesTheStylesFontReference()
+    {
+        DmlEnv env;
+        const QString a(ns::A);
+        const QDomElement base = env.element(QStringLiteral("<a:lstStyle><a:lvl1pPr><a:defRPr sz=\"1800\"/></a:lvl1pPr></a:lstStyle>"));
+        const QDomElement other = env.element(QStringLiteral("<a:lstStyle><a:lvl1pPr algn=\"ctr\"/></a:lstStyle>"));
+        const QDomElement style = env.element(dmlStyle(QStringLiteral("1"), QStringLiteral("1")));
+        QDomDocument keep;
+        // As one more list style, above the others: the font reference's color (light 1 here) at every level.
+        TextStyleStack stack = withFontReference({base}, style, QDomElement(), &keep);
+        QCOMPARE(int(stack.size()), 2);
+        QVERIFY(stack[0] == base);
+        for (int level = 1; level <= 9; ++level) {
+            const QDomElement run = child(child(stack[1], a, QStringLiteral("lvl%1pPr").arg(level)), a, QStringLiteral("defRPr"));
+            QVERIFY(!run.isNull());
+            QCOMPARE(attr(child(child(run, a, QStringLiteral("solidFill")), a, QStringLiteral("schemeClr")), QStringLiteral("val")), QStringLiteral("lt1"));
+        }
+        // Below the shape's own list, when the stack ends in it.
+        stack = withFontReference({other, base}, style, base, &keep);
+        QCOMPARE(int(stack.size()), 3);
+        QVERIFY(stack[0] == other && stack[2] == base);
+        QVERIFY(!child(stack[1], a, QStringLiteral("lvl3pPr")).isNull());
+        stack = withFontReference({base, other}, style, base, &keep);
+        QVERIFY(stack.last() != other && stack.size() == 3);
+        // The heading font, with or without a color; no reference, nothing to say, no change.
+        const QDomElement major = env.element(QStringLiteral("<p:style><a:fontRef idx=\"major\"/></p:style>"));
+        stack = withFontReference({base}, major, QDomElement(), &keep);
+        QCOMPARE(int(stack.size()), 2);
+        const QDomElement run = child(child(stack[1], a, QStringLiteral("lvl1pPr")), a, QStringLiteral("defRPr"));
+        QCOMPARE(attr(child(run, a, QStringLiteral("latin")), QStringLiteral("typeface")), QStringLiteral("+mj-lt"));
+        QVERIFY(child(run, a, QStringLiteral("solidFill")).isNull());
+        QCOMPARE(int(withFontReference({base}, env.element(QStringLiteral("<p:style><a:fontRef idx=\"minor\"/></p:style>")), QDomElement(), &keep).size()), 1);
+        QCOMPARE(int(withFontReference({base}, env.element(QStringLiteral("<p:style/>")), QDomElement(), &keep).size()), 1);
+        QCOMPARE(int(withFontReference({base}, QDomElement(), QDomElement(), &keep).size()), 1);
+        QCOMPARE(int(withFontReference({}, style, QDomElement(), &keep).size()), 1);
+        // A shape that has the style reads its text with it.
+        const QString rect = dmlXfrm(0, 0, 100, 40) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        env.useFormats();
+        const ItemPtr it = dmlOne(env, dmlSp(rect, dmlBody(), dmlStyle(QStringLiteral("1"), QStringLiteral("1"))));
+        QVERIFY(dmlAs<TextItem>(it));
+        QVERIFY(env.stories[0]->toPlainText().contains(QStringLiteral("Hello")));
+    }
+
+    void dmlShapeReadsEffects()
+    {
+        DmlEnv env;
+        const QString shadow = QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"50800\" dist=\"38100\" dir=\"2700000\" algn=\"tl\" rotWithShape=\"0\"><a:srgbClr val=\"FF0000\"><a:alpha val=\"40000\"/></a:srgbClr></a:outerShdw>"
+                                              "<a:glow rad=\"101600\"><a:srgbClr val=\"00FF00\"><a:alpha val=\"60000\"/></a:srgbClr></a:glow><a:softEdge rad=\"63500\"/><a:reflection/></a:effectLst>");
+        ItemPtr it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + shadow));
+        QVERIFY(it->fx.shadow.on && !it->fx.shadow.inner);
+        QVERIFY(near(it->fx.shadow.blur, 4) && near(it->fx.shadow.distance, 3) && near(it->fx.shadow.angle, 45));
+        QCOMPARE(dmlHex(it->fx.shadow.color), QStringLiteral("FF0000"));
+        QVERIFY(near(it->fx.shadow.transparency, 0.6, 2e-2));
+        QVERIFY(it->fx.glow.on && near(it->fx.glow.size, 8) && near(it->fx.glow.transparency, 0.4, 2e-2));
+        QCOMPARE(dmlHex(it->fx.glow.color), QStringLiteral("00FF00"));
+        QVERIFY(near(it->fx.softEdge, 5));
+        QVERIFY(!it->fx.reflection.on);
+        // An inner shadow, when it's the only one.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:effectLst><a:innerShdw blurRad=\"12700\" dist=\"12700\" dir=\"0\"><a:srgbClr val=\"000000\"/></a:innerShdw></a:effectLst>")));
+        QVERIFY(it->fx.shadow.on && it->fx.shadow.inner);
+        // Hostile numbers are held to what a page can show.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:effectLst><a:outerShdw blurRad=\"99999999999999\" dist=\"-5\" dir=\"junk\"><a:srgbClr val=\"000000\"/></a:outerShdw>"
+                                                                       "<a:softEdge rad=\"99999999999999\"/></a:effectLst>")));
+        QVERIFY(it->fx.shadow.blur <= 1584 && it->fx.shadow.distance >= 0 && it->fx.softEdge <= 1584);
+        QVERIFY(std::isfinite(it->fx.shadow.angle));
+        // None is none.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>")));
+        QVERIFY(!it->fx.any());
+    }
+
+    void dmlShapeScalesAGradientAngleToItsShape()
+    {
+        DmlEnv env;
+        const QString grad = QStringLiteral("<a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs></a:gsLst>"
+                                            "<a:lin ang=\"2700000\" scaled=\"%1\"/></a:gradFill>");
+        ItemPtr it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 400, 100) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + grad.arg(QStringLiteral("1"))));
+        QVERIFY2(near(it->fill.angle, std::atan2(1.0 / 100, 1.0 / 400) * 180 / M_PI, 1e-6), qPrintable(QString::number(it->fill.angle)));
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 400, 100) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + grad.arg(QStringLiteral("0"))));
+        QVERIFY(near(it->fill.angle, 45));
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 100) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + grad.arg(QStringLiteral("1"))));
+        QVERIFY(near(it->fill.angle, 45, 1e-6));
+    }
+
+    void dmlGroupMapsItsChildrenIntoItsFrame()
+    {
+        DmlEnv env;
+        const auto rect = [](double x, double y, double w, double h, const QString &attrs = QString(), const QString &id = QStringLiteral("2")) {
+            return dmlSp(dmlXfrm(x, y, w, h, attrs) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"), QString(), QString(), QString(), QString(), QString(), id);
+        };
+        // Twice the size, and moved: the child space is 100 by 50, the frame 200 by 100.
+        ItemList list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(100, 100, 200, 100), QRectF(0, 0, 100, 50)), rect(10, 10, 20, 10)));
+        QCOMPARE(int(list.size()), 1);
+        auto g = dmlAs<GroupItem>(list[0]);
+        QVERIFY(g);
+        QCOMPARE(int(g->children.size()), 1);
+        QVERIFY2(dmlRectIs(g->children[0]->rect, 120, 120, 40, 20), qPrintable(dmlRectText(g->children[0]->rect)));
+        QVERIFY2(dmlRectIs(g->rect, 120, 120, 40, 20), qPrintable(dmlRectText(g->rect)));
+        QCOMPARE(g->name, QStringLiteral("Group 20"));
+        QCOMPARE(g->altText, QStringLiteral("group alt"));
+        // The child space doesn't start at the origin.
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 100, 100), QRectF(50, 50, 50, 50)), rect(60, 70, 10, 10)));
+        QVERIFY2(dmlRectIs(dmlAs<GroupItem>(list[0])->children[0]->rect, 20, 40, 20, 20), qPrintable(dmlRectText(dmlAs<GroupItem>(list[0])->children[0]->rect)));
+        // A different scale on each side, and a child turned a quarter: its width follows the other scale.
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 200, 100), QRectF(0, 0, 100, 100)), rect(10, 10, 20, 20, QStringLiteral("rot=\"5400000\""))));
+        const ItemPtr turned = dmlAs<GroupItem>(list[0])->children[0];
+        QVERIFY2(dmlRectIs(turned->rect, 30, 0, 20, 40, 1e-6), qPrintable(dmlRectText(turned->rect)));
+        QVERIFY(near(turned->rotation, 90));
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 200, 100), QRectF(0, 0, 100, 100)), rect(10, 10, 20, 10)));
+        QVERIFY(dmlRectIs(dmlAs<GroupItem>(list[0])->children[0]->rect, 20, 10, 40, 10));
+        // The group turned a quarter about the middle of its frame: its children go round with it.
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(100, 100, 200, 100), QRectF(0, 0, 100, 50), QStringLiteral("rot=\"5400000\"")), rect(10, 10, 20, 10)));
+        const ItemPtr round = dmlAs<GroupItem>(list[0])->children[0];
+        QVERIFY2(dmlRectIs(round->rect, 200, 80, 40, 20, 1e-6), qPrintable(dmlRectText(round->rect)));
+        QVERIFY(near(round->rotation, 90));
+        // Turned itself, a child's turn adds to the group's.
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(100, 100, 200, 100), QRectF(0, 0, 100, 50), QStringLiteral("rot=\"5400000\"")),
+                                    rect(10, 10, 20, 10, QStringLiteral("rot=\"1800000\""))));
+        QVERIFY(near(dmlAs<GroupItem>(list[0])->children[0]->rotation, 120));
+        // Flipped, a child goes to the other side, and is flipped too (its own turn reverses).
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(100, 100, 200, 100), QRectF(0, 0, 100, 50), QStringLiteral("flipH=\"1\"")),
+                                    rect(10, 10, 20, 10) + rect(10, 10, 20, 10, QStringLiteral("rot=\"1800000\""))));
+        g = dmlAs<GroupItem>(list[0]);
+        QVERIFY2(dmlRectIs(g->children[0]->rect, 240, 120, 40, 20), qPrintable(dmlRectText(g->children[0]->rect)));
+        QVERIFY(g->children[0]->flipH && !g->children[0]->flipV);
+        QVERIFY(g->children[1]->flipH);
+        QVERIFY(near(g->children[1]->rotation, 330));
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(100, 100, 200, 100), QRectF(0, 0, 100, 50), QStringLiteral("flipV=\"1\"")), rect(10, 10, 20, 10)));
+        QVERIFY2(dmlRectIs(dmlAs<GroupItem>(list[0])->children[0]->rect, 120, 160, 40, 20), qPrintable(dmlRectText(dmlAs<GroupItem>(list[0])->children[0]->rect)));
+        QVERIFY(dmlAs<GroupItem>(list[0])->children[0]->flipV);
+        // Groups in groups: each maps into the next.
+        const QString inner = dmlGrp(dmlGroupFrame(QRectF(10, 10, 20, 20), QRectF(0, 0, 20, 20)), rect(0, 0, 10, 10), QStringLiteral("21"));
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 200, 200), QRectF(0, 0, 100, 100)), inner));
+        auto outer = dmlAs<GroupItem>(list[0]);
+        QVERIFY(outer);
+        QVERIFY2(dmlRectIs(outer->children[0]->rect, 20, 20, 20, 20), qPrintable(dmlRectText(outer->children[0]->rect)));
+        QVERIFY2(dmlRectIs(dmlAs<GroupItem>(outer->children[0])->children[0]->rect, 20, 20, 20, 20), qPrintable(dmlRectText(outer->children[0]->rect)));
+        const QString innerTurned = dmlGrp(dmlGroupFrame(QRectF(10, 10, 20, 20), QRectF(0, 0, 20, 20), QStringLiteral("rot=\"5400000\"")), rect(0, 0, 10, 10), QStringLiteral("21"));
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 200, 200), QRectF(0, 0, 100, 100)), innerTurned));
+        outer = dmlAs<GroupItem>(list[0]);
+        QVERIFY2(dmlRectIs(outer->children[0]->rect, 40, 20, 20, 20, 1e-6), qPrintable(dmlRectText(outer->children[0]->rect)));
+        QVERIFY(near(dmlAs<GroupItem>(outer->children[0])->children[0]->rotation, 90));
+        // A group that says nothing of its frame leaves what is in it where it is; one with no child space is not scaled.
+        list = dmlTree(env, QStringLiteral("<p:grpSp><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"g\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>") + rect(10, 20, 30, 40) + QStringLiteral("</p:grpSp>"));
+        QVERIFY(dmlRectIs(dmlAs<GroupItem>(list[0])->children[0]->rect, 10, 20, 30, 40));
+        list = dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(10, 10, 100, 100), QRectF(0, 0, 0, 0)), rect(5, 5, 20, 20)));
+        QVERIFY2(dmlRectIs(dmlAs<GroupItem>(list[0])->children[0]->rect, 15, 15, 20, 20), qPrintable(dmlRectText(dmlAs<GroupItem>(list[0])->children[0]->rect)));
+        // No children, no group.
+        QVERIFY(dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 10, 10), QRectF(0, 0, 10, 10)), QString())).empty());
+        QVERIFY(!dmlOne(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 10, 10), QRectF(0, 0, 10, 10)), QString())));
+        // A group is a shape too.
+        QVERIFY(dmlAs<GroupItem>(dmlOne(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 10, 10), QRectF(0, 0, 10, 10)), rect(0, 0, 5, 5)))));
+    }
+
+    void dmlGroupScalesWhatIsInIt()
+    {
+        DmlEnv env;
+        env.usePackage();
+        const QString frame = dmlGroupFrame(QRectF(100, 100, 200, 100), QRectF(0, 0, 100, 50));
+        const QString triangle = QStringLiteral("<a:custGeom><a:pathLst><a:path w=\"100\" h=\"100\"><a:moveTo><a:pt x=\"0\" y=\"100\"/></a:moveTo><a:lnTo><a:pt x=\"50\" y=\"0\"/></a:lnTo>"
+                                                "<a:lnTo><a:pt x=\"100\" y=\"100\"/></a:lnTo><a:close/></a:path></a:pathLst></a:custGeom>");
+        const QString crop = QStringLiteral("<a:srcRect l=\"10000\" r=\"10000\"/>");
+        ItemList list = dmlTree(env, dmlGrp(frame, dmlSp(dmlXfrm(0, 0, 20, 10) + triangle + dmlSolid(QStringLiteral("FF0000"))) +
+                                                    dmlCxn(dmlXfrm(10, 10, 40, 20) + QStringLiteral("<a:prstGeom prst=\"line\"/>")) +
+                                                    dmlPic(QString(), dmlXfrm(0, 20, 50, 20) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"), crop)));
+        auto g = dmlAs<GroupItem>(list[0]);
+        QVERIFY(g && g->children.size() == 3);
+        auto s = dmlAs<ShapeItem>(g->children[0]);
+        QVERIFY(s);
+        QVERIFY2(dmlRectIs(s->rect, 100, 100, 40, 20), qPrintable(dmlRectText(s->rect)));
+        QVERIFY2(dmlRectIs(s->customPath.boundingRect(), 0, 0, 40, 20), qPrintable(dmlRectText(s->customPath.boundingRect())));
+        auto l = dmlAs<LineItem>(g->children[1]);
+        QVERIFY(l);
+        QVERIFY(near(l->p1.x(), 120) && near(l->p1.y(), 120) && near(l->p2.x(), 200) && near(l->p2.y(), 160));
+        auto p = dmlAs<PictureItem>(g->children[2]);
+        QVERIFY(p);
+        QVERIFY2(dmlRectIs(p->rect, 100, 140, 100, 40), qPrintable(dmlRectText(p->rect)));
+        // The picture is 125 wide behind a 100 frame cropped a tenth each side: still so in the larger frame.
+        QVERIFY2(dmlRectIs(p->imgRect, -12.5, 0, 125, 40), qPrintable(dmlRectText(p->imgRect)));
+        // Lines and shadows keep their weight.
+        list = dmlTree(env, dmlGrp(frame, dmlSp(dmlXfrm(0, 0, 20, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:ln w=\"25400\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000"))))));
+        QVERIFY(near(dmlAs<GroupItem>(list[0])->children[0]->stroke.width, 2));
+    }
+
+    void dmlGroupPassesItsFillDown()
+    {
+        DmlEnv env;
+        const QString inGroup = dmlSp(dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:grpFill/>"));
+        const QString frame = dmlGroupFrame(QRectF(0, 0, 100, 100), QRectF(0, 0, 100, 100));
+        ItemList list = dmlTree(env, dmlGrp(frame + dmlSolid(QStringLiteral("00FF00")), inGroup));
+        QCOMPARE(dmlHex(dmlAs<GroupItem>(list[0])->children[0]->fill.color), QStringLiteral("00FF00"));
+        // A group in the group, with no fill of its own, passes the outer's on.
+        list = dmlTree(env, dmlGrp(frame + dmlSolid(QStringLiteral("00FF00")), dmlGrp(frame, inGroup, QStringLiteral("21"))));
+        QCOMPARE(dmlHex(dmlAs<GroupItem>(dmlAs<GroupItem>(list[0])->children[0])->children[0]->fill.color), QStringLiteral("00FF00"));
+        // One with its own fill is a different group's.
+        list = dmlTree(env, dmlGrp(frame + dmlSolid(QStringLiteral("00FF00")), dmlGrp(frame + dmlSolid(QStringLiteral("0000FF")), inGroup, QStringLiteral("21"))));
+        QCOMPARE(dmlHex(dmlAs<GroupItem>(dmlAs<GroupItem>(list[0])->children[0])->children[0]->fill.color), QStringLiteral("0000FF"));
+        // A group with no fill gives none, and one outside groups has no group's to take.
+        list = dmlTree(env, dmlGrp(frame, inGroup));
+        QVERIFY(dmlAs<GroupItem>(list[0])->children[0]->fill.isNone());
+        list = dmlTree(env, inGroup);
+        QVERIFY(list[0]->fill.isNone());
+    }
+
+    void dmlPictureReadsCropMaskAndAdjustments()
+    {
+        DmlEnv env;
+        env.usePackage();
+        const QString frame = dmlXfrm(10, 20, 100, 50);
+        const auto pic = [&](const QString &blip, const QString &spPr = QString(), const QString &blipFill = QStringLiteral("<a:stretch><a:fillRect/></a:stretch>")) {
+            return dmlAs<PictureItem>(dmlOne(env, dmlPic(blip, frame + (spPr.isEmpty() ? QStringLiteral("<a:prstGeom prst=\"rect\"/>") : spPr), blipFill)));
+        };
+        auto p = pic(QString());
+        QVERIFY(p);
+        QCOMPARE(p->imageId, QStringLiteral("img1"));
+        QCOMPARE(env.images.size(), 1);
+        QVERIFY2(dmlRectIs(p->rect, 10, 20, 100, 50), qPrintable(dmlRectText(p->rect)));
+        QVERIFY2(dmlRectIs(p->imgRect, 0, 0, 100, 50), qPrintable(dmlRectText(p->imgRect)));
+        QCOMPARE(p->maskShape, QStringLiteral("rect"));
+        QCOMPARE(p->name, QStringLiteral("Picture 5"));
+        QCOMPARE(p->altText, QStringLiteral("a picture"));
+        QVERIFY(p->wrap.mode == jp::Wrap::None);
+        QVERIFY(p->recolor == PictureItem::NoRecolor && p->transparency == 0 && p->brightness == 0 && p->contrast == 0 && !p->hasTransparentColor);
+        // A tenth cut from the left and right, a fifth from the bottom: the whole picture is 125 wide and 62.5 high, begun 12.5 left of the frame.
+        p = pic(QString(), QString(), QStringLiteral("<a:srcRect l=\"10000\" r=\"10000\" b=\"20000\"/><a:stretch><a:fillRect/></a:stretch>"));
+        QVERIFY2(dmlRectIs(p->imgRect, -12.5, 0, 125, 62.5), qPrintable(dmlRectText(p->imgRect)));
+        // Cut from the top, too.
+        p = pic(QString(), QString(), QStringLiteral("<a:srcRect t=\"50000\"/><a:stretch><a:fillRect/></a:stretch>"));
+        QVERIFY2(dmlRectIs(p->imgRect, 0, -50, 100, 100), qPrintable(dmlRectText(p->imgRect)));
+        // Negative cuts are space around the picture.
+        p = pic(QString(), QString(), QStringLiteral("<a:srcRect l=\"-20000\"/><a:stretch><a:fillRect/></a:stretch>"));
+        QVERIFY2(dmlRectIs(p->imgRect, 100.0 / 1.2 * 0.2, 0, 100 / 1.2, 50), qPrintable(dmlRectText(p->imgRect)));
+        // The picture stretched into part of the frame.
+        p = pic(QString(), QString(), QStringLiteral("<a:stretch><a:fillRect l=\"10000\" t=\"20000\" r=\"30000\" b=\"0\"/></a:stretch>"));
+        QVERIFY2(dmlRectIs(p->imgRect, 10, 10, 60, 40), qPrintable(dmlRectText(p->imgRect)));
+        // Crops that cut away all of the picture (or more) are not applied.
+        p = pic(QString(), QString(), QStringLiteral("<a:srcRect l=\"60000\" r=\"60000\"/><a:stretch><a:fillRect/></a:stretch>"));
+        QVERIFY(dmlRectIs(p->imgRect, 0, 0, 100, 50));
+        p = pic(QString(), QString(), QStringLiteral("<a:srcRect l=\"99999999999\" t=\"-99999999999\"/>"));
+        QVERIFY(std::isfinite(p->imgRect.x()) && std::isfinite(p->imgRect.width()) && qAbs(p->imgRect.width()) <= 1e6 && qAbs(p->imgRect.x()) <= 1e6);
+        // The shape the picture is cut to.
+        QCOMPARE(pic(QString(), QStringLiteral("<a:prstGeom prst=\"ellipse\"/>"))->maskShape, QStringLiteral("ellipse"));
+        QCOMPARE(pic(QString(), QStringLiteral("<a:prstGeom prst=\"roundRect\"/>"))->maskShape, QStringLiteral("roundRect"));
+        QCOMPARE(pic(QString(), QStringLiteral("<a:prstGeom prst=\"star5\"/>"))->maskShape, QStringLiteral("star5"));
+        QCOMPARE(pic(QString(), QStringLiteral("<a:prstGeom prst=\"flowChartTerminator\"/>"))->maskShape, QStringLiteral("fcTerminator"));
+        QCOMPARE(pic(QString(), QStringLiteral("<a:prstGeom prst=\"gear6\"/>"))->maskShape, QStringLiteral("rect"));
+        QCOMPARE(pic(QString(), QStringLiteral("<a:custGeom><a:pathLst/></a:custGeom>"))->maskShape, QStringLiteral("rect"));
+        QVERIFY(jp::shapeDef(pic(QString(), QStringLiteral("<a:prstGeom prst=\"heart\"/>"))->maskShape) != nullptr);
+        // Transparency, gray, black and white, brightness, contrast.
+        p = pic(QStringLiteral("<a:alphaModFix amt=\"25000\"/>"));
+        QVERIFY(near(p->transparency, 0.75));
+        p = pic(QStringLiteral("<a:grayscl/>"));
+        QVERIFY(p->recolor == PictureItem::Grayscale);
+        p = pic(QStringLiteral("<a:biLevel thresh=\"50000\"/>"));
+        QVERIFY(p->recolor == PictureItem::BlackWhite);
+        p = pic(QStringLiteral("<a:lum bright=\"20000\" contrast=\"-30000\"/>"));
+        QVERIFY(near(p->brightness, 20) && near(p->contrast, -30));
+        p = pic(QStringLiteral("<a:lum bright=\"99999999\" contrast=\"-99999999\"/>"));
+        QVERIFY(p->brightness == 100 && p->contrast == -100);
+        // One color made clear.
+        p = pic(QStringLiteral("<a:clrChange><a:clrFrom><a:srgbClr val=\"FFFFFF\"/></a:clrFrom><a:clrTo><a:srgbClr val=\"FFFFFF\"><a:alpha val=\"0\"/></a:srgbClr></a:clrTo></a:clrChange>"));
+        QVERIFY(p->hasTransparentColor);
+        QCOMPARE(p->transparentColor.name(), QStringLiteral("#ffffff"));
+        // Outline and turn.
+        p = dmlAs<PictureItem>(dmlOne(env, dmlPic(QString(), dmlXfrm(0, 0, 10, 10, QStringLiteral("rot=\"10800000\" flipV=\"1\"")) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:ln w=\"19050\">%1</a:ln>").arg(dmlSolid(QStringLiteral("00FF00"))))));
+        QVERIFY(near(p->rotation, 180) && p->flipV && !p->flipH);
+        QVERIFY(near(p->stroke.width, 1.5));
+        // Two pictures of one picture keep it once.
+        env.images.clear();
+        const ItemList both = dmlTree(env, dmlPic(QString(), frame + QStringLiteral("<a:prstGeom prst=\"rect\"/>")) + dmlPic(QString(), frame + QStringLiteral("<a:prstGeom prst=\"rect\"/>")));
+        QCOMPARE(int(both.size()), 2);
+        QCOMPARE(env.images.size(), 1);
+        QCOMPARE(dmlAs<PictureItem>(both[0])->imageId, dmlAs<PictureItem>(both[1])->imageId);
+    }
+
+    void dmlPictureThatCannotBeReadIsAPlaceholder()
+    {
+        DmlEnv env;
+        env.usePackage();
+        const QString frame = dmlXfrm(10, 20, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        for (const char *embed : {"rId9", "rId2", "", "rIdX"}) {
+            auto p = dmlAs<PictureItem>(dmlOne(env, dmlPic(QString(), frame, QStringLiteral("<a:stretch/>"), QString(), QString::fromLatin1(embed))));
+            QVERIFY2(p, embed);
+            QVERIFY2(p->imageId.isEmpty(), embed);
+            QVERIFY(dmlRectIs(p->rect, 10, 20, 100, 50));
+            QVERIFY(dmlRectIs(p->imgRect, 0, 0, 100, 50));
+        }
+        // Bytes that are no picture the program knows, a part without bytes, and no package at all.
+        DmlEnv junk;
+        junk.usePackage(QByteArray("this is not a picture at all, nor any kind of image"));
+        auto p = dmlAs<PictureItem>(dmlOne(junk, dmlPic(QString(), frame)));
+        QVERIFY(p && p->imageId.isEmpty());
+        DmlEnv empty;
+        empty.usePackage(QByteArray());
+        p = dmlAs<PictureItem>(dmlOne(empty, dmlPic(QString(), frame)));
+        QVERIFY(p && p->imageId.isEmpty());
+        DmlEnv bare;
+        p = dmlAs<PictureItem>(dmlOne(bare, dmlPic(QString(), frame)));
+        QVERIFY(p && p->imageId.isEmpty());
+        // A picture with no blip at all.
+        p = dmlAs<PictureItem>(dmlOne(env, QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"5\" name=\"P\"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill/><p:spPr>%1</p:spPr></p:pic>").arg(frame)));
+        QVERIFY(p && p->imageId.isEmpty());
+        p = dmlAs<PictureItem>(dmlOne(env, QStringLiteral("<p:pic/>")));
+        QVERIFY(p && p->imageId.isEmpty());
+        // Without a way to keep pictures, none is kept.
+        DmlEnv noKeep;
+        noKeep.usePackage();
+        noKeep.ctx.addImage = nullptr;
+        p = dmlAs<PictureItem>(dmlOne(noKeep, dmlPic(QString(), frame)));
+        QVERIFY(p && p->imageId.isEmpty());
+    }
+
+    void dmlConnectorsBecomeLines()
+    {
+        DmlEnv env;
+        env.useFormats();
+        const QString style = dmlStyle(QStringLiteral("1"), QStringLiteral("0"), QStringLiteral("0"), QStringLiteral("accent1"));
+        // The frame's corners, upside down.
+        ItemPtr it = dmlOne(env, dmlCxn(dmlXfrm(10, 20, 100, 50, QStringLiteral("flipV=\"1\"")) + QStringLiteral("<a:prstGeom prst=\"straightConnector1\"/>"), QString(), style));
+        auto l = dmlAs<LineItem>(it);
+        QVERIFY(l);
+        QVERIFY(near(l->p1.x(), 10) && near(l->p1.y(), 70) && near(l->p2.x(), 110) && near(l->p2.y(), 20));
+        QVERIFY(l->route == LineItem::Straight);
+        QCOMPARE(l->name, QStringLiteral("Connector 9"));
+        QVERIFY(l->wrap.mode == jp::Wrap::None);
+        QCOMPARE(dmlHex(l->stroke.color), QStringLiteral("4472C4"));
+        // Turned a quarter about its center.
+        it = dmlOne(env, dmlCxn(dmlXfrm(10, 20, 100, 50, QStringLiteral("rot=\"5400000\"")) + QStringLiteral("<a:prstGeom prst=\"line\"/>"), QString(), style));
+        l = dmlAs<LineItem>(it);
+        QVERIFY2(near(l->p1.x(), 85) && near(l->p1.y(), -5) && near(l->p2.x(), 35) && near(l->p2.y(), 95), qPrintable(QStringLiteral("%1,%2 %3,%4").arg(l->p1.x()).arg(l->p1.y()).arg(l->p2.x()).arg(l->p2.y())));
+        // Arrowheads and weight, from the line properties.
+        it = dmlOne(env, dmlCxn(dmlXfrm(0, 0, 100, 0) + QStringLiteral("<a:prstGeom prst=\"line\"/><a:ln w=\"38100\">%1<a:headEnd type=\"oval\"/><a:tailEnd type=\"triangle\" w=\"lg\" len=\"lg\"/></a:ln>")
+                                   .arg(dmlSolid(QStringLiteral("FF0000")))));
+        l = dmlAs<LineItem>(it);
+        QVERIFY(near(l->stroke.width, 3));
+        QVERIFY(l->stroke.startArrow == Arrow::Oval && l->stroke.endArrow == Arrow::Triangle);
+        QVERIFY(near(l->p1.x(), 0) && near(l->p2.x(), 100) && near(l->p1.y(), 0) && near(l->p2.y(), 0));
+        // A connector that says nothing of its shape is a line from corner to corner.
+        it = dmlOne(env, dmlCxn(dmlXfrm(10, 20, 100, 50)));
+        l = dmlAs<LineItem>(it);
+        QVERIFY(l && near(l->p1.x(), 10) && near(l->p1.y(), 20) && near(l->p2.x(), 110) && near(l->p2.y(), 70));
+        // A line drawn as a shape is a line.
+        it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 80, 20) + QStringLiteral("<a:prstGeom prst=\"line\"/><a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")))));
+        l = dmlAs<LineItem>(it);
+        QVERIFY(l && near(l->p2.x(), 90) && near(l->p2.y(), 30));
+        // Elbows and curves keep their bend and the way they leave.
+        const auto route = [&](const char *prst, const QString &attrs, const QString &adj = QString()) {
+            return dmlAs<LineItem>(dmlOne(env, dmlCxn(dmlXfrm(10, 20, 100, 50, attrs) + QStringLiteral("<a:prstGeom prst=\"%1\"><a:avLst>%2</a:avLst></a:prstGeom>").arg(QString::fromLatin1(prst), adj), QString(), style)));
+        };
+        l = route("bentConnector3", QString(), QStringLiteral("<a:gd name=\"adj1\" fmla=\"val 25000\"/>"));
+        QVERIFY(l && l->route == LineItem::Elbow);
+        QVERIFY(near(l->bend, 0.25));
+        QVERIFY(!l->startVertical && !l->endVertical);
+        l = route("bentConnector3", QStringLiteral("rot=\"5400000\""));
+        QVERIFY(near(l->bend, 0.5));
+        QVERIFY(l->startVertical && l->endVertical);
+        l = route("bentConnector3", QStringLiteral("rot=\"10800000\""));
+        QVERIFY(!l->startVertical && !l->endVertical);
+        l = route("bentConnector3", QStringLiteral("rot=\"16200000\" flipH=\"1\""));
+        QVERIFY(l->startVertical && l->endVertical);
+        l = route("bentConnector3", QString(), QStringLiteral("<a:gd name=\"adj1\" fmla=\"val -300000\"/>"));
+        QVERIFY(l->bend >= -10 && l->bend <= 11);
+        l = route("bentConnector2", QString());
+        QVERIFY(l->route == LineItem::Elbow && !l->startVertical && l->endVertical);
+        l = route("bentConnector2", QStringLiteral("rot=\"5400000\""));
+        QVERIFY(l->startVertical && !l->endVertical);
+        l = route("curvedConnector3", QString());
+        QVERIFY(l->route == LineItem::Curved && !l->startVertical && !l->endVertical);
+        l = route("curvedConnector2", QString());
+        QVERIFY(l->route == LineItem::Curved && !l->startVertical && l->endVertical);
+        // With more bends than a line has, a path.
+        it = dmlOne(env, dmlCxn(dmlXfrm(10, 20, 100, 50) + QStringLiteral("<a:prstGeom prst=\"bentConnector4\"/>"), QString(), style));
+        auto s = dmlAs<ShapeItem>(it);
+        QVERIFY(s);
+        QVERIFY(s->fill.isNone());
+        QVERIFY(!s->stroke.isNone());
+        QVERIFY(s->customPath.elementCount() == 5);
+        QVERIFY2(dmlRectIs(s->rect, 10, 20, 100, 50), qPrintable(dmlRectText(s->rect)));
+        it = dmlOne(env, dmlCxn(dmlXfrm(10, 20, 100, 50) + QStringLiteral("<a:prstGeom prst=\"curvedConnector5\"/>"), QString(), style));
+        QVERIFY(dmlAs<ShapeItem>(it) && !dmlAs<ShapeItem>(it)->customPath.isEmpty());
+    }
+
+    void dmlConnectorsKeepWhatTheyAreJoinedTo()
+    {
+        DmlEnv env;
+        const QString rect = QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        const QString shapes = dmlSp(dmlXfrm(10, 10, 50, 50) + rect, QString(), QString(), QString(), QString(), QString(), QStringLiteral("3")) +
+                               dmlSp(dmlXfrm(200, 10, 50, 50) + QStringLiteral("<a:prstGeom prst=\"ellipse\"/>"), QString(), QString(), QString(), QString(), QString(), QStringLiteral("4"));
+        const auto joined = [&](const QString &ends) {
+            const ItemList list = dmlTree(env, shapes + dmlCxn(dmlXfrm(60, 35, 140, 0) + QStringLiteral("<a:prstGeom prst=\"straightConnector1\"/>"), ends));
+            return QPair<ItemList, std::shared_ptr<LineItem>>(list, dmlAs<LineItem>(list.back()));
+        };
+        auto result = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"3\"/><a:endCxn id=\"4\" idx=\"2\"/>"));
+        QCOMPARE(int(result.first.size()), 3);
+        auto l = result.second;
+        QVERIFY(l);
+        QCOMPARE(l->start.id, result.first[0]->id);
+        QCOMPARE(l->start.site, 3);          // the right side of the rectangle
+        QCOMPARE(l->end.id, result.first[1]->id);
+        QCOMPARE(l->end.site, 1);            // the ellipse's third point is its left
+        result = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"0\"/><a:endCxn id=\"4\" idx=\"6\"/>"));
+        QCOMPARE(result.second->start.site, 0);
+        QCOMPARE(result.second->end.site, 3);
+        result = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"2\"/>"));
+        QCOMPARE(result.second->start.site, 2);
+        QVERIFY(result.second->end.id.isEmpty());
+        // A point that the library's shape has no place for, a shape that isn't there, and a place that is not one: not joined.
+        result = joined(QStringLiteral("<a:stCxn id=\"4\" idx=\"3\"/><a:endCxn id=\"77\" idx=\"0\"/>"));
+        QVERIFY(result.second->start.id.isEmpty() && result.second->end.id.isEmpty());
+        result = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"9\"/><a:endCxn id=\"3\" idx=\"-1\"/>"));
+        QVERIFY(result.second->start.id.isEmpty() && result.second->end.id.isEmpty());
+        result = joined(QStringLiteral("<a:stCxn id=\"x\" idx=\"y\"/>"));
+        QVERIFY(result.second->start.id.isEmpty());
+        // Joined to something inside a group, and to something that comes after the line.
+        const QString grouped = dmlGrp(dmlGroupFrame(QRectF(0, 0, 100, 100), QRectF(0, 0, 100, 100)), dmlSp(dmlXfrm(10, 10, 50, 50) + rect, QString(), QString(), QString(), QString(), QString(), QStringLiteral("30")));
+        const ItemList list = dmlTree(env, dmlCxn(dmlXfrm(60, 35, 140, 0) + QStringLiteral("<a:prstGeom prst=\"straightConnector1\"/>"), QStringLiteral("<a:stCxn id=\"30\" idx=\"3\"/>")) + grouped);
+        QCOMPARE(dmlAs<LineItem>(list[0])->start.id, dmlAs<GroupItem>(list[1])->children[0]->id);
+    }
+
+    void dmlHyperlinksAreTheirExternalTargets()
+    {
+        DmlEnv env;
+        env.usePackage();
+        const QString link = QStringLiteral("<a:hlinkClick r:id=\"rId2\"/>");
+        const QString frame = dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        QCOMPARE(dmlOne(env, dmlSp(frame, QString(), QString(), QString(), QString(), link))->hyperlink, QStringLiteral("https://example.com/x"));
+        QCOMPARE(dmlOne(env, dmlSp(frame, dmlBody(), QString(), QStringLiteral("txBox=\"1\""), QString(), link))->hyperlink, QStringLiteral("https://example.com/x"));
+        QCOMPARE(dmlOne(env, dmlPic(QString(), frame, QStringLiteral("<a:stretch/>"), link))->hyperlink, QStringLiteral("https://example.com/x"));
+        const QString connector = QStringLiteral("<p:cxnSp><p:nvCxnSpPr><p:cNvPr id=\"9\" name=\"c\">%1</p:cNvPr><p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr><p:spPr>%2<a:prstGeom prst=\"line\"/></p:spPr></p:cxnSp>")
+                                    .arg(link, dmlXfrm(0, 0, 10, 10));
+        QCOMPARE(dmlOne(env, connector)->hyperlink, QStringLiteral("https://example.com/x"));
+        // Nothing to go to: a link to a part inside the file, one that isn't there, and one with no target.
+        QVERIFY(dmlOne(env, dmlSp(frame, QString(), QString(), QString(), QString(), QStringLiteral("<a:hlinkClick r:id=\"rId1\"/>")))->hyperlink.isEmpty());
+        QVERIFY(dmlOne(env, dmlSp(frame, QString(), QString(), QString(), QString(), QStringLiteral("<a:hlinkClick r:id=\"rId9\"/>")))->hyperlink.isEmpty());
+        QVERIFY(dmlOne(env, dmlSp(frame, QString(), QString(), QString(), QString(), QStringLiteral("<a:hlinkClick/>")))->hyperlink.isEmpty());
+        QVERIFY(dmlOne(env, dmlSp(frame))->hyperlink.isEmpty());
+        DmlEnv bare;
+        QVERIFY(dmlOne(bare, dmlSp(frame, QString(), QString(), QString(), QString(), link))->hyperlink.isEmpty());
+    }
+
+    void dmlTreeSkipsWhatIsHiddenAndTakesTheFallback()
+    {
+        DmlEnv env;
+        const QString frame = dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        // A hidden shape isn't drawn.
+        QString hidden = dmlSp(frame);
+        hidden.replace(QStringLiteral("name=\"Shape 2\""), QStringLiteral("name=\"Shape 2\" hidden=\"1\""));
+        QVERIFY(dmlTree(env, hidden).empty());
+        QVERIFY(!dmlOne(env, hidden));
+        QCOMPARE(int(dmlTree(env, hidden + dmlSp(frame)).size()), 1);
+        // What a newer program wrote with a fallback for older ones: the fallback.
+        const QString alt = QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"a14\">%1</mc:Choice>"
+                                           "<mc:Fallback>%2</mc:Fallback></mc:AlternateContent>");
+        ItemList list = dmlTree(env, dmlSp(frame) + alt.arg(dmlSp(frame, QString(), QString(), QString(), QString(), QString(), QStringLiteral("7")), dmlSp(frame, QString(), QString(), QString(), QString(), QString(), QStringLiteral("8")) +
+                                                                dmlSp(frame, QString(), QString(), QString(), QString(), QString(), QStringLiteral("9"))));
+        QCOMPARE(int(list.size()), 3);
+        QCOMPARE(list[1]->name, QStringLiteral("Shape 8"));
+        QCOMPARE(list[2]->name, QStringLiteral("Shape 9"));
+        // What isn't read yet (tables, charts) and the tree's own properties give nothing.
+        list = dmlTree(env, QStringLiteral("<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:graphicFrame/><p:contentPart/><p:unknown/>") + dmlSp(frame));
+        QCOMPARE(int(list.size()), 1);
+        QVERIFY(!dmlOne(env, QStringLiteral("<p:graphicFrame/>")));
+        QVERIFY(!dmlOne(env, QStringLiteral("<p:unknown/>")));
+        QVERIFY(!readShape(QDomElement(), env.ctx));
+        QVERIFY(readShapeTree(QDomElement(), env.ctx).empty());
+        // Shapes of a document's drawing are read the same, in their own namespace.
+        QDomDocument doc;
+        const QByteArray wps = QStringLiteral("<drawing xmlns:a=\"%1\" xmlns:wps=\"urn:test:wordprocessing-shape\"><wps:wsp><wps:cNvSpPr/>"
+                                              "<wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"254000\" cy=\"127000\"/></a:xfrm><a:prstGeom prst=\"ellipse\"/></wps:spPr></wps:wsp></drawing>")
+                                   .arg(QString(ns::A)).toUtf8();
+        QVERIFY(parseXml(wps, &doc));
+        const ItemList docShapes = readShapeTree(doc.documentElement(), env.ctx);
+        QCOMPARE(int(docShapes.size()), 1);
+        QCOMPARE(dmlAs<ShapeItem>(docShapes[0])->shape, QStringLiteral("ellipse"));
+        QVERIFY(dmlRectIs(docShapes[0]->rect, 0, 0, 20, 10));
+    }
+
+    void dmlHostileShapesAreHeldToWhatAPageCanShow()
+    {
+        DmlEnv env;
+        const auto check = [&](const ItemList &list) {
+            jp::walkItems(list, [&](const ItemPtr &it) {
+                QVERIFY(std::isfinite(it->rect.x()) && std::isfinite(it->rect.y()) && std::isfinite(it->rect.width()) && std::isfinite(it->rect.height()));
+                QVERIFY(qAbs(it->rect.x()) <= 1e6 && qAbs(it->rect.y()) <= 1e6 && it->rect.width() >= 0 && it->rect.height() >= 0);
+                if (it->type() != ItemType::Line && it->type() != ItemType::Group) QVERIFY(it->rect.width() <= 1e6 && it->rect.height() <= 1e6);
+                QVERIFY(std::isfinite(it->rotation) && it->rotation >= 0 && it->rotation < 360);
+                if (it->type() == ItemType::Line) {
+                    auto *l = static_cast<LineItem *>(it.get());
+                    QVERIFY(std::isfinite(l->p1.x()) && std::isfinite(l->p2.y()) && qAbs(l->p1.x()) <= 1e6 && qAbs(l->p2.y()) <= 1e6);
+                }
+            });
+        };
+        for (const char *huge : {"99999999999999999999", "-99999999999999999999", "1e300", "nan", "inf", "-5", "0", "9223372036854775807", "-9223372036854775808"}) {
+            const QString v = QString::fromLatin1(huge);
+            const QString xfrm = QStringLiteral("<a:xfrm rot=\"%1\"><a:off x=\"%1\" y=\"%1\"/><a:ext cx=\"%1\" cy=\"%1\"/></a:xfrm>").arg(v);
+            const QString geometries[] = {QStringLiteral("<a:prstGeom prst=\"rect\"/>"), QStringLiteral("<a:prstGeom prst=\"line\"/>"), QStringLiteral("<a:prstGeom prst=\"pie\"/>"),
+                                          QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst><a:gd name=\"adj\" fmla=\"val %1\"/></a:avLst></a:prstGeom>").arg(v)};
+            const QString groupFrame = QStringLiteral("<a:xfrm><a:off x=\"%1\" y=\"%1\"/><a:ext cx=\"%1\" cy=\"%1\"/><a:chOff x=\"%1\" y=\"%1\"/><a:chExt cx=\"%1\" cy=\"%1\"/></a:xfrm>").arg(v);
+            for (const QString &geometry : geometries) {
+                const QString all = dmlSp(xfrm + geometry) + dmlCxn(xfrm + geometry) + dmlPic(QString(), xfrm + geometry);
+                check(dmlTree(env, dmlSp(xfrm + geometry, dmlBody(), QString(), QStringLiteral("txBox=\"1\"")) + all + dmlGrp(groupFrame, all)));
+            }
+        }
+        // A group scaled to a speck of its child space or from one: positions stay where they can.
+        check(dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 1e5, 1e5), QRectF(0, 0, 1e-4, 1e-4)), dmlSp(dmlXfrm(1, 1, 5, 5) + QStringLiteral("<a:prstGeom prst=\"rect\"/>")))));
+        check(dmlTree(env, dmlGrp(dmlGroupFrame(QRectF(0, 0, 1e-4, 1e-4), QRectF(0, 0, 1e5, 1e5)), dmlSp(dmlXfrm(1, 1, 5, 5) + QStringLiteral("<a:prstGeom prst=\"rect\"/>")))));
+    }
+
+    void dmlGroupsAreReadToALimitedDepth()
+    {
+        DmlEnv env;
+        const QString leaf = dmlSp(dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"));
+        const QString frame = dmlGroupFrame(QRectF(0, 0, 100, 100), QRectF(0, 0, 100, 100));
+        const auto nested = [&](int levels) {
+            QString xml = leaf;
+            for (int i = 0; i < levels; ++i) xml = dmlGrp(frame, xml, QString::number(100 + i));
+            return xml;
+        };
+        const auto depth = [](const ItemList &list) {
+            int deepest = 0;
+            std::function<void(const ItemList &, int)> walk = [&](const ItemList &l, int d) {
+                for (const ItemPtr &it : l)
+                    if (it->type() == ItemType::Group) walk(static_cast<GroupItem *>(it.get())->children, d + 1);
+                    else deepest = qMax(deepest, d);
+            };
+            walk(list, 0);
+            return deepest;
+        };
+        QCOMPARE(depth(dmlTree(env, nested(10))), 10);
+        QCOMPARE(depth(dmlTree(env, nested(64))), 64);
+        QVERIFY(depth(dmlTree(env, nested(65))) <= 64);
+        QVERIFY(depth(dmlTree(env, nested(200))) <= 64);
+        // A single group is read to the same limit.
+        ItemList single;
+        if (const ItemPtr one = dmlOne(env, nested(100))) single.push_back(one);
+        QVERIFY(depth(single) <= 64);
+    }
+
+    void dmlTreesAreReadToALimitedSize()
+    {
+        DmlEnv env;
+        const QString leaf = dmlSp(dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"));
+        QString many;
+        for (int i = 0; i < 10001; ++i) many += leaf;
+        int count = 0;
+        jp::walkItems(dmlTree(env, many), [&](const ItemPtr &) { ++count; });
+        QCOMPARE(count, 10000);
+        // Counting shapes inside groups, and the groups themselves.
+        QString groups;
+        const QString frame = dmlGroupFrame(QRectF(0, 0, 100, 100), QRectF(0, 0, 100, 100));
+        for (int g = 0; g < 200; ++g) {
+            QString inside;
+            for (int i = 0; i < 100; ++i) inside += leaf;
+            groups += dmlGrp(frame, inside, QString::number(1000 + g));
+        }
+        count = 0;
+        jp::walkItems(dmlTree(env, groups), [&](const ItemPtr &) { ++count; });
+        QVERIFY2(count <= 10000, qPrintable(QString::number(count)));
+        QVERIFY(count > 9000);
+        // A million small shapes asked for through a tree of repeated pictures costs no more than the limit.
+        env.usePackage();
+        env.images.clear();
+        QString pics;
+        for (int i = 0; i < 3000; ++i) pics += dmlPic(QString(), dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"));
+        QCOMPARE(int(dmlTree(env, pics).size()), 3000);
+        QCOMPARE(env.images.size(), 1);
+    }
+
+    void dmlShapesSurviveRandomDamage()
+    {
+        DmlEnv env;
+        env.useFormats();
+        env.usePackage();
+        const QString tree = QStringLiteral("<p:spTree %1>").arg(dmlNamespaces()) +
+            dmlSp(dmlXfrm(10, 10, 100, 50, QStringLiteral("rot=\"5400000\" flipH=\"1\"")) + QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst><a:gd name=\"adj\" fmla=\"val 30000\"/></a:avLst></a:prstGeom>") +
+                  QStringLiteral("<a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"100000\"><a:schemeClr val=\"accent1\"/></a:gs></a:gsLst><a:lin ang=\"2700000\" scaled=\"1\"/></a:gradFill>"
+                                 "<a:ln w=\"12700\">%1<a:prstDash val=\"dash\"/><a:tailEnd type=\"triangle\"/></a:ln><a:effectLst><a:outerShdw blurRad=\"50800\" dist=\"38100\" dir=\"2700000\"><a:srgbClr val=\"000000\"/></a:outerShdw></a:effectLst>")
+                      .arg(dmlSolid(QStringLiteral("00FF00"))),
+                  dmlBody(QStringLiteral("Text"), QStringLiteral("<a:bodyPr lIns=\"0\" anchor=\"ctr\" numCol=\"2\"><a:normAutofit fontScale=\"50000\"/></a:bodyPr>")),
+                  dmlStyle(QStringLiteral("2"), QStringLiteral("2"), QStringLiteral("3")), QStringLiteral("txBox=\"1\""), QString(), QStringLiteral("<a:hlinkClick r:id=\"rId2\"/>")) +
+            dmlGrp(dmlGroupFrame(QRectF(100, 100, 200, 100), QRectF(0, 0, 100, 50), QStringLiteral("rot=\"600000\" flipV=\"1\"")) + QStringLiteral("<a:grpFill/>"),
+                   dmlSp(dmlXfrm(1, 2, 3, 4) + QStringLiteral("<a:custGeom><a:avLst><a:gd name=\"a\" fmla=\"val 5\"/></a:avLst><a:gdLst><a:gd name=\"x\" fmla=\"*/ w a 100\"/></a:gdLst><a:pathLst>"
+                                                              "<a:path w=\"10\" h=\"10\"><a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo><a:arcTo wR=\"x\" hR=\"hd2\" stAng=\"0\" swAng=\"5400000\"/>"
+                                                              "<a:cubicBezTo><a:pt x=\"1\" y=\"2\"/><a:pt x=\"3\" y=\"4\"/><a:pt x=\"5\" y=\"6\"/></a:cubicBezTo><a:close/></a:path></a:pathLst></a:custGeom><a:grpFill/>")) +
+                   dmlCxn(dmlXfrm(1, 2, 30, 40) + QStringLiteral("<a:prstGeom prst=\"bentConnector3\"><a:avLst><a:gd name=\"adj1\" fmla=\"val 20000\"/></a:avLst></a:prstGeom>"), QStringLiteral("<a:stCxn id=\"2\" idx=\"1\"/>")) +
+                   dmlSp(dmlXfrm(1, 2, 3, 4) + QStringLiteral("<a:prstGeom prst=\"wedgeRectCallout\"/>"))) +
+            dmlPic(QStringLiteral("<a:alphaModFix amt=\"50000\"/><a:lum bright=\"10000\"/>"), dmlXfrm(5, 5, 60, 40) + QStringLiteral("<a:prstGeom prst=\"ellipse\"/>"),
+                   QStringLiteral("<a:srcRect l=\"10000\" t=\"5000\"/><a:stretch><a:fillRect/></a:stretch>")) +
+            QStringLiteral("</p:spTree>");
+        QDomDocument pristine;
+        QVERIFY(parseXml(tree.toUtf8(), &pristine));
+        QVERIFY(!readShapeTree(pristine.documentElement(), env.ctx).empty());
+        QRandomGenerator gen(2024);
+        const QByteArray source = tree.toUtf8();
+        const QList<QByteArray> numbers = {"0", "1", "-1", "5400000", "21600000", "99999999999999999999", "-99999999999999999999", "100000", "12700", "7", "000"};
+        const QRegularExpression digits(QStringLiteral("-?[0-9]+"));
+        QList<QPair<int, int>> runs;   // where each number is written
+        for (auto m = digits.globalMatch(QString::fromUtf8(source)); m.hasNext();) {
+            const auto match = m.next();
+            runs.append({int(match.capturedStart()), int(match.capturedLength())});
+        }
+        int read = 0;
+        for (int i = 0; i < 900; ++i) {
+            QByteArray bad = source;
+            if (i % 3 == 0) {
+                // Bytes of the file at random.
+                for (int k = 0, n = 1 + int(gen.bounded(4)); k < n; ++k) bad[int(gen.bounded(quint32(bad.size())))] = char(gen.bounded(256u));
+            } else if (i % 3 == 1) {
+                // Letters and digits for others, which leaves most of it XML.
+                for (int k = 0, n = 1 + int(gen.bounded(4)); k < n; ++k) {
+                    const int at = int(gen.bounded(quint32(bad.size())));
+                    if (QChar(bad[at]).isLetterOrNumber()) bad[at] = "0123456789abcxyzAZ-"[gen.bounded(19u)];
+                }
+            } else {
+                // A number written another way, as many as three of them.
+                for (int k = 0, n = 1 + int(gen.bounded(3)); k < n; ++k) {
+                    const auto run = runs[int(gen.bounded(quint32(runs.size())))];
+                    bad.replace(run.first, run.second, QByteArray(run.second, ' '));   // the length stays, so the others' places hold
+                    bad.replace(run.first, 1, numbers[int(gen.bounded(quint32(numbers.size())))].left(run.second));
+                }
+            }
+            QDomDocument doc;
+            if (!parseXml(bad, &doc)) continue;
+            ++read;
+            const ItemList list = readShapeTree(doc.documentElement(), env.ctx);
+            jp::walkItems(list, [&](const ItemPtr &it) {
+                QVERIFY(std::isfinite(it->rect.x()) && std::isfinite(it->rect.width()) && std::isfinite(it->rotation));
+                QVERIFY(qAbs(it->rect.x()) <= 1e6 && it->rect.width() >= 0);
+            });
+            // The same damage in the pieces' own forms.
+            for (QDomElement e = doc.documentElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) readShape(e, env.ctx, {}, {});
+            env.images.clear();
+            env.stories.clear();
+        }
+        QVERIFY2(read > 400, qPrintable(QString::number(read)));   // enough of the damage left XML to read
+    }
+
+    void dmlReadsATreeAsTheProgramsWriteIt()
+    {
+        DmlEnv env;
+        env.useFormats();
+        env.usePackage();
+        // A slide's shape tree, written with the extra elements and attributes real files carry.
+        const QString tree = QStringLiteral(R"(<p:spTree>
+  <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+  <p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+  <p:sp>
+    <p:nvSpPr><p:cNvPr id="2" name="Title 1"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"/></a:extLst></p:cNvPr>
+      <p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr>
+    <p:spPr/>
+    <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" dirty="0"/><a:t>A title</a:t></a:r><a:endParaRPr lang="en-US" dirty="0"/></a:p></p:txBody>
+  </p:sp>
+  <p:sp>
+    <p:nvSpPr><p:cNvPr id="3" name="TextBox 2"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
+    <p:spPr><a:xfrm><a:off x="1143000" y="1524000"/><a:ext cx="2286000" cy="369332"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr>
+    <p:txBody><a:bodyPr wrap="none" rtlCol="0"><a:spAutoFit/></a:bodyPr><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" dirty="0"/><a:t>Some text</a:t></a:r></a:p></p:txBody>
+  </p:sp>
+  <p:sp>
+    <p:nvSpPr><p:cNvPr id="4" name="Rounded Rectangle 3"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+    <p:spPr><a:xfrm><a:off x="1143000" y="2286000"/><a:ext cx="2743200" cy="914400"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom></p:spPr>
+    <p:style><a:lnRef idx="2"><a:schemeClr val="accent1"><a:shade val="50000"/></a:schemeClr></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef>
+      <a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></p:style>
+    <p:txBody><a:bodyPr rtlCol="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-US" dirty="0"/><a:t>Shape</a:t></a:r></a:p></p:txBody>
+  </p:sp>
+  <p:pic>
+    <p:nvPicPr><p:cNvPr id="5" name="Picture 4" descr="A red square"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>
+    <p:blipFill><a:blip r:embed="rId1"><a:extLst><a:ext uri="{28A0092B-C50C-407E-A947-70E740481C1C}"/></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></p:blipFill>
+    <p:spPr><a:xfrm><a:off x="4572000" y="1524000"/><a:ext cx="1828800" cy="1371600"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+  </p:pic>
+  <p:grpSp>
+    <p:nvGrpSpPr><p:cNvPr id="10" name="Group 9"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+    <p:grpSpPr><a:xfrm><a:off x="6400800" y="1524000"/><a:ext cx="2286000" cy="1143000"/><a:chOff x="6400800" y="1524000"/><a:chExt cx="2286000" cy="1143000"/></a:xfrm></p:grpSpPr>
+    <p:sp><p:nvSpPr><p:cNvPr id="11" name="Oval 10"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="6400800" y="1524000"/><a:ext cx="914400" cy="1143000"/></a:xfrm><a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom></p:spPr>
+      <p:style><a:lnRef idx="2"><a:schemeClr val="accent1"/></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent2"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></p:style></p:sp>
+    <p:sp><p:nvSpPr><p:cNvPr id="12" name="Right Arrow 11"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="7543800" y="1752600"/><a:ext cx="1143000" cy="685800"/></a:xfrm><a:prstGeom prst="rightArrow"><a:avLst><a:gd name="adj1" fmla="val 50000"/><a:gd name="adj2" fmla="val 50000"/></a:avLst></a:prstGeom></p:spPr></p:sp>
+  </p:grpSp>
+  <p:cxnSp>
+    <p:nvCxnSpPr><p:cNvPr id="13" name="Elbow Connector 12"/><p:cNvCxnSpPr><a:stCxn id="4" idx="3"/><a:endCxn id="5" idx="1"/></p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr>
+    <p:spPr><a:xfrm><a:off x="3886200" y="2209800"/><a:ext cx="685800" cy="762000"/></a:xfrm><a:prstGeom prst="bentConnector3"><a:avLst><a:gd name="adj1" fmla="val 50000"/></a:avLst></a:prstGeom><a:ln w="19050"><a:tailEnd type="triangle"/></a:ln></p:spPr>
+    <p:style><a:lnRef idx="1"><a:schemeClr val="accent1"/></a:lnRef><a:fillRef idx="0"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="tx1"/></a:fontRef></p:style>
+  </p:cxnSp>
+  <p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="14" name="Table 13"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="0" y="0"/><a:ext cx="1" cy="1"/></p:xfrm></p:graphicFrame>
+</p:spTree>)");
+        const QString layoutTitle = dmlSp(dmlXfrm(100, 30, 760, 80), QString(), QString(), QString(), QStringLiteral("<p:ph type=\"title\"/>"));
+        QDomElement spTree = env.element(tree);
+        QVERIFY(!spTree.isNull());
+        // The tree reads in the order it is written, the table left for the caller to keep.
+        const ItemList list = readShapeTree(spTree, env.ctx);
+        QCOMPARE(int(list.size()), 6);
+        QVERIFY(dmlAs<TextItem>(list[0]));            // the title, with no place of its own (a placeholder read through a tree)
+        auto box = dmlAs<TextItem>(list[1]);
+        QVERIFY(box);
+        QVERIFY(dmlRectIs(box->rect, 90, 120, 180, 369332.0 / 12700, 1e-6));
+        QVERIFY(box->fill.isNone() && box->stroke.isNone());
+        QVERIFY(box->autofit == TextItem::GrowBox);
+        auto rounded = dmlAs<TextItem>(list[2]);      // a rectangle would be a text frame; this one is rounded, so a shape
+        QVERIFY(!rounded);
+        auto shape = dmlAs<ShapeItem>(list[2]);
+        QVERIFY(shape);
+        QCOMPARE(shape->shape, QStringLiteral("roundRect"));
+        QCOMPARE(dmlHex(shape->fill.color), QStringLiteral("4472C4"));
+        QVERIFY(near(shape->stroke.width, 1));
+        QVERIFY(shape->valign == VAlign::Middle);
+        QVERIFY(!shape->storyId.isEmpty());
+        auto picture = dmlAs<PictureItem>(list[3]);
+        QVERIFY(picture && !picture->imageId.isEmpty());
+        QCOMPARE(picture->altText, QStringLiteral("A red square"));
+        auto group = dmlAs<GroupItem>(list[4]);
+        QVERIFY(group && group->children.size() == 2);
+        QVERIFY(dmlRectIs(group->children[0]->rect, 504, 120, 72, 90));
+        QVERIFY(dmlRectIs(group->rect, 504, 120, 180, 90));
+        auto elbow = dmlAs<LineItem>(list[5]);
+        QVERIFY(elbow && elbow->route == LineItem::Elbow);
+        QVERIFY(elbow->stroke.endArrow == Arrow::Triangle);
+        QCOMPARE(elbow->start.id, list[2]->id);
+        QCOMPARE(elbow->start.site, 3);
+        QCOMPARE(elbow->end.id, list[3]->id);
+        QCOMPARE(elbow->end.site, 1);
+        // What is read can be saved and opened again by the program's own format.
+        jp::walkItems(list, [&](const ItemPtr &it) {
+            const ItemPtr again = Item::fromJsonAny(it->toJson());
+            QVERIFY(again && again->type() == it->type());
+            QVERIFY(dmlRectIs(again->rect, it->rect.x(), it->rect.y(), it->rect.width(), it->rect.height(), 1e-9));
+        });
+        // The same title as a placeholder with a layout to take its place from.
+        QDomElement titleElement = spTree.firstChildElement();
+        while (!titleElement.isNull() && titleElement.localName() != QLatin1String("sp")) titleElement = titleElement.nextSiblingElement();
+        QVERIFY(!titleElement.isNull());
+        const ItemPtr placed = readShape(titleElement, env.ctx, {}, {env.element(layoutTitle)});
+        QVERIFY2(dmlAs<TextItem>(placed), qPrintable(placed ? QString::number(int(placed->type())) : QStringLiteral("none")));
+        QVERIFY(dmlRectIs(placed->rect, 100, 30, 760, 80));
+    }
+
+    void dmlReadShapesDrawWhereTheyAre()
+    {
+        DmlEnv env;
+        const auto render = [](const ItemPtr &it, const QSize &size) {
+            QImage img(size, QImage::Format_ARGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            auto s = dmlAs<ShapeItem>(it);
+            const QPainterPath path = s->customPath.isEmpty() ? jp::shapePath(s->shape, s->rect.size(), s->adj) : s->customPath;
+            p.fillPath(path, s->fill.brush(path.boundingRect(), jp::ColorScheme()));
+            p.end();
+            return img;
+        };
+        // A rounded rectangle is ink in the middle and at the edge of a side, but not in the corner.
+        ItemPtr it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 100, 60) + QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst><a:gd name=\"adj\" fmla=\"val 50000\"/></a:avLst></a:prstGeom>") + dmlSolid(QStringLiteral("FF0000"))));
+        QImage img = render(it, QSize(100, 60));
+        QCOMPARE(img.pixelColor(50, 30), QColor(255, 0, 0));
+        QCOMPARE(img.pixelColor(50, 2), QColor(255, 0, 0));
+        QCOMPARE(img.pixelColor(2, 30), QColor(255, 0, 0));
+        QCOMPARE(img.pixelColor(1, 1), QColor(255, 255, 255));
+        QCOMPARE(img.pixelColor(98, 58), QColor(255, 255, 255));
+        // A pie is ink in three quarters.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 100) + QStringLiteral("<a:prstGeom prst=\"pie\"/>") + dmlSolid(QStringLiteral("0000FF"))));
+        img = render(it, QSize(100, 100));
+        QCOMPARE(img.pixelColor(25, 25), QColor(0, 0, 255));
+        QCOMPARE(img.pixelColor(75, 75), QColor(0, 0, 255));
+        QCOMPARE(img.pixelColor(75, 25), QColor(255, 255, 255));
+        // A shape of its own path, drawn only inside the path.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 100) + QStringLiteral("<a:custGeom><a:pathLst><a:path w=\"100\" h=\"100\"><a:moveTo><a:pt x=\"0\" y=\"100\"/></a:moveTo>"
+                                                                      "<a:lnTo><a:pt x=\"50\" y=\"0\"/></a:lnTo><a:lnTo><a:pt x=\"100\" y=\"100\"/></a:lnTo><a:close/></a:path></a:pathLst></a:custGeom>") + dmlSolid(QStringLiteral("00FF00"))));
+        img = render(it, QSize(100, 100));
+        QCOMPARE(img.pixelColor(50, 70), QColor(0, 255, 0));
+        QCOMPARE(img.pixelColor(5, 20), QColor(255, 255, 255));
+        // A star from the library, with the standard's own inner size.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 100) + QStringLiteral("<a:prstGeom prst=\"star5\"/>") + dmlSolid(QStringLiteral("FF00FF"))));
+        img = render(it, QSize(100, 100));
+        QCOMPARE(img.pixelColor(50, 50), QColor(255, 0, 255));
+        QCOMPARE(img.pixelColor(2, 2), QColor(255, 255, 255));
+    }
+
+    void dmlPresetGeometryUsesTheLibraryWhereItIsAsGood()
+    {
+        for (const char *name : {"rect", "roundRect", "ellipse", "triangle", "rightArrow", "star5", "hexagon", "flowChartProcess"})
+            QVERIFY2(!prefersPresetGeometry(QString::fromLatin1(name)), name);
+        for (const char *name : {"pie", "chord", "arc", "blockArc", "wedgeRectCallout", "wedgeRoundRectCallout", "wedgeEllipseCallout", "borderCallout1",
+                                 "rightArrowCallout", "downArrowCallout"})
+            QVERIFY2(prefersPresetGeometry(QString::fromLatin1(name)) && hasPresetGeometry(QString::fromLatin1(name)), name);
+        QVERIFY(!hasPresetGeometry(QStringLiteral("rect")));
+        QVERIFY(presetGeometry(QStringLiteral("rect"), {}, QSizeF(10, 10)).isEmpty());
+        QVERIFY(presetGeometry(QStringLiteral("pie"), {}, QSizeF(0, 0)).isEmpty());
+        QVERIFY(presetGeometry(QStringLiteral("pie"), {}, QSizeF(-5, 10)).isEmpty());
+    }
+
+    void dmlEveryPresetDefinitionSurvivesAnySizeAndAdjustment()
+    {
+        const QList<double> values = {-1e18, -100000, 0, 1, 50000, 100000, 21600000, 1e18};
+        const QList<QSizeF> sizes = {QSizeF(100, 100), QSizeF(0, 50), QSizeF(50, 0), QSizeF(1e6, 1), QSizeF(1, 1e6), QSizeF(0.001, 0.001)};
+        for (const QString &prst : dmlAllPresets()) {
+            if (!hasPresetGeometry(prst)) continue;
+            for (double v : values) {
+                QHash<QString, double> adj;
+                for (const char *name : {"adj", "adj1", "adj2", "adj3", "adj4", "adj5", "adj6", "adj7", "adj8"}) adj.insert(QString::fromLatin1(name), v);
+                for (const QSizeF &size : sizes) {
+                    const Geometry g = presetGeometry(prst, adj, size);
+                    for (const GeometryPath &gp : g.paths)
+                        for (int i = 0; i < gp.path.elementCount(); ++i) {
+                            const auto e = gp.path.elementAt(i);
+                            QVERIFY2(std::isfinite(e.x) && std::isfinite(e.y) && qAbs(e.x) <= 1e6 + 1 && qAbs(e.y) <= 1e6 + 1, qPrintable(prst));
+                        }
+                }
             }
         }
     }
@@ -1512,6 +5091,874 @@ private Q_SLOTS:
         QVERIFY(p.read(w.finish()));
         QCOMPARE(p.contentType(QStringLiteral("/a.xml")), QStringLiteral("text/xml"));
         QCOMPARE(p.contentType(QStringLiteral("/b.xml")), QStringLiteral("application/xml"));
+    }
+
+    // ---- text bodies (DrawingML text read into stories)
+
+private:
+    // The namespace declarations of a fragment; the strict forms may be given.
+    static QString declarations(const QString &a = QString(ns::A), const QString &p = QString(ns::P), const QString &r = QString(ns::R))
+    {
+        return QStringLiteral("xmlns:a=\"%1\" xmlns:p=\"%2\" xmlns:r=\"%3\"").arg(a, p, r);
+    }
+
+    // A text body read into a story. `paragraphs` is the XML of its a:p
+    // elements; `layers` are the children of one a:lstStyle each, the lowest
+    // priority first (the stack the shape would hand over). `lstStyle` is the
+    // body's own.
+    struct Body {
+        std::vector<std::unique_ptr<QDomDocument>> parsed;
+        QTextDocument doc;
+        DrawingContext ctx;
+        TextStyleStack styles;
+
+        QDomElement element(const QString &xml)
+        {
+            parsed.push_back(std::make_unique<QDomDocument>());
+            QString error;
+            if (!parseXml(xml.toUtf8(), parsed.back().get(), &error)) qWarning("bad test XML: %s", qPrintable(error));
+            return parsed.back()->documentElement();
+        }
+
+        explicit Body(const QString &paragraphs, const QStringList &layers = {}, const QString &lstStyle = QString(), const Package *package = nullptr,
+                      const Theme &theme = colorTestTheme(), const QString &decl = declarations())
+        {
+            ctx.theme = theme;
+            ctx.package = package;
+            if (package) ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
+            for (const QString &layer : layers) styles.append(element(QStringLiteral("<a:lstStyle %1>%2</a:lstStyle>").arg(decl, layer)));
+            readTextBody(element(QStringLiteral("<p:txBody %1><a:bodyPr/><a:lstStyle>%2</a:lstStyle>%3</p:txBody>").arg(decl, lstStyle, paragraphs)),
+                         &doc, ctx, styles);
+        }
+
+        // The blocks' text, joined by line feeds: toPlainText turns a line separator into one too.
+        QString text() const
+        {
+            QStringList lines;
+            for (QTextBlock b = doc.begin(); b.isValid(); b = b.next()) lines << b.text();
+            return lines.join(QLatin1Char('\n'));
+        }
+        QTextBlock block(int n = 0) const { return doc.findBlockByNumber(n); }
+        QTextBlockFormat blockFormat(int n = 0) const { return block(n).blockFormat(); }
+        // The character format of the letter at `offset` in the block.
+        QTextCharFormat charAt(int n = 0, int offset = 0) const
+        {
+            QTextCursor c(block(n));
+            c.setPosition(block(n).position() + offset + 1);
+            return c.charFormat();
+        }
+    };
+
+    // <a:p> with one run of `text` whose a:rPr has the given attributes and children.
+    static QString run(const QString &text, const QString &attrs = QString(), const QString &children = QString())
+    {
+        return QStringLiteral("<a:r><a:rPr %1>%2</a:rPr><a:t>%3</a:t></a:r>").arg(attrs, children, text);
+    }
+    static QString para(const QString &runs, const QString &pPr = QString())
+    {
+        return QStringLiteral("<a:p>%1%2</a:p>").arg(pPr, runs);
+    }
+    static QString solid(const QString &hex) { return QStringLiteral("<a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill>").arg(hex); }
+
+private Q_SLOTS:
+    void textBodyReadsParagraphsAndRunsExactly()
+    {
+        Body b(QStringLiteral("<a:p><a:r><a:t>Hello </a:t></a:r><a:r><a:t>world</a:t></a:r></a:p>"
+                              "<a:p><a:r><a:t>  Second\there  </a:t></a:r></a:p>"));
+        QCOMPARE(b.doc.blockCount(), 2);
+        QCOMPARE(b.text(), QStringLiteral("Hello world\n  Second\there  "));
+    }
+
+    void textBodyWithoutParagraphsIsOneEmptyParagraph()
+    {
+        Body none{QString()};
+        QCOMPARE(none.doc.blockCount(), 1);
+        QVERIFY(none.doc.isEmpty());
+        // Reading replaces what the story held, and a missing element or
+        // story is no crash.
+        QTextDocument doc;
+        doc.setPlainText(QStringLiteral("old\ntext"));
+        readTextBody(QDomElement(), &doc, DrawingContext());
+        QCOMPARE(doc.blockCount(), 1);
+        QVERIFY(doc.isEmpty());
+        readTextBody(QDomElement(), nullptr, DrawingContext());
+    }
+
+    void textBodyReadsTheStrictNamespaces()
+    {
+        Body b(QStringLiteral("<a:p><a:r><a:rPr sz=\"2000\" b=\"1\"/><a:t>strict</a:t></a:r></a:p>"), {}, QString(), nullptr, colorTestTheme(),
+               declarations(QString(ns::AStrict), QString(ns::PStrict), QString(ns::RStrict)));
+        QCOMPARE(b.text(), QStringLiteral("strict"));
+        QCOMPARE(b.charAt().fontPointSize(), 20.0);
+        QCOMPARE(b.charAt().fontWeight(), int(QFont::Bold));
+    }
+
+    void textHasThePresentationProgramsDefaultSize()
+    {
+        Body b(para(QStringLiteral("<a:r><a:t>x</a:t></a:r>")));
+        QCOMPARE(b.charAt().fontPointSize(), 18.0);
+    }
+
+    void textInheritsFromThreeStyleLayers()
+    {
+        // Lowest first: a size, italic, and a theme color; then a bigger
+        // size; then bold. The first run adds a color of its own, the second
+        // its own size and no bold.
+        const QStringList layers = {
+            QStringLiteral("<a:lvl1pPr><a:defRPr sz=\"1800\" i=\"1\" b=\"0\"><a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill></a:defRPr></a:lvl1pPr>"),
+            QStringLiteral("<a:lvl1pPr><a:defRPr sz=\"2400\"/></a:lvl1pPr>"),
+            QStringLiteral("<a:lvl1pPr><a:defRPr b=\"1\"/></a:lvl1pPr>")};
+        Body b(para(run(QStringLiteral("one"), QString(), solid(QStringLiteral("FF0000"))) + run(QStringLiteral(" two"), QStringLiteral("sz=\"3000\" b=\"0\""))), layers);
+        const QTextCharFormat one = b.charAt(0, 0), two = b.charAt(0, 5);
+        QCOMPARE(one.fontPointSize(), 24.0);
+        QCOMPARE(one.fontWeight(), int(QFont::Bold));
+        QVERIFY(one.fontItalic());
+        QCOMPARE(one.foreground().color(), QColor(0xFF, 0, 0));
+        QCOMPARE(one.stringProperty(jp::tp::ColorRefP), QStringLiteral("#FF0000"));
+        QCOMPARE(two.fontPointSize(), 30.0);
+        QVERIFY(two.fontWeight() != QFont::Bold);
+        QVERIFY(two.fontItalic());
+        QCOMPARE(two.foreground().color(), QColor(0x44, 0x72, 0xC4));
+        QCOMPARE(two.stringProperty(jp::tp::ColorRefP), QStringLiteral("#4472C4"));
+    }
+
+    void textTakesTheDefaultsOfAListOnlyWhereTheLevelsLeaveGaps()
+    {
+        // a:defPPr is below the level of its own layer: it fills in a size
+        // the level doesn't give, and the level's wins where both say.
+        const QStringList layers = {
+            QStringLiteral("<a:defPPr><a:defRPr sz=\"1000\" i=\"1\"/></a:defPPr><a:lvl2pPr><a:defRPr sz=\"2200\"/></a:lvl2pPr>")};
+        Body b(para(run(QStringLiteral("a"))) + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr lvl=\"1\"/>")), layers);
+        QCOMPARE(b.charAt(0).fontPointSize(), 10.0);
+        QVERIFY(b.charAt(0).fontItalic());
+        QCOMPARE(b.charAt(1).fontPointSize(), 22.0);
+        QVERIFY(b.charAt(1).fontItalic());
+    }
+
+    void textBodysOwnListStyleComesFirst()
+    {
+        const QStringList layers = {QStringLiteral("<a:lvl1pPr algn=\"r\"><a:defRPr sz=\"2400\"/></a:lvl1pPr>")};
+        Body b(para(run(QStringLiteral("x"))), layers, QStringLiteral("<a:lvl1pPr algn=\"ctr\"><a:defRPr sz=\"4000\"/></a:lvl1pPr>"));
+        QCOMPARE(b.charAt().fontPointSize(), 40.0);
+        QCOMPARE(int(b.blockFormat().alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignHCenter));
+        // Handed over as the top of the stack already, it reads the same.
+        Body again{QString()};
+        const QDomElement body = again.element(QStringLiteral("<p:txBody %1><a:bodyPr/><a:lstStyle><a:lvl1pPr><a:defRPr sz=\"3600\"/></a:lvl1pPr></a:lstStyle>%2</p:txBody>")
+                                                   .arg(declarations(), para(run(QStringLiteral("x")))));
+        readTextBody(body, &again.doc, again.ctx, TextStyleStack{body.firstChildElement().nextSiblingElement()});
+        QCOMPARE(again.charAt().fontPointSize(), 36.0);
+    }
+
+    void textReadsAStackShapedLikeAPresentations()
+    {
+        // The presentation's default text style, a master's body style, and a
+        // layout placeholder's list style, lowest first.
+        const QStringList layers = {
+            QStringLiteral("<a:defPPr><a:defRPr lang=\"en-US\"/></a:defPPr><a:lvl1pPr marL=\"0\" algn=\"l\" defTabSz=\"914400\" rtl=\"0\">"
+                           "<a:defRPr sz=\"1800\" kern=\"1200\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/>"
+                           "<a:ea typeface=\"+mn-ea\"/><a:cs typeface=\"+mn-cs\"/></a:defRPr></a:lvl1pPr>"),
+            QStringLiteral("<a:lvl1pPr marL=\"228600\" indent=\"-228600\"><a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc><a:spcBef><a:spcPts val=\"1000\"/></a:spcBef>"
+                           "<a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/><a:defRPr sz=\"2800\"/></a:lvl1pPr>"
+                           "<a:lvl2pPr marL=\"685800\" indent=\"-228600\"><a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc><a:spcBef><a:spcPts val=\"500\"/></a:spcBef>"
+                           "<a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/><a:defRPr sz=\"2400\"/></a:lvl2pPr>"),
+            QStringLiteral("<a:lvl1pPr><a:defRPr b=\"1\"/></a:lvl1pPr>")};
+        Body b(para(run(QStringLiteral("Heading"), QString(), QStringLiteral("<a:latin typeface=\"+mj-lt\"/>"))) + para(run(QStringLiteral("Detail")), QStringLiteral("<a:pPr lvl=\"1\"/>")), layers);
+        QCOMPARE(b.charAt(0).fontPointSize(), 28.0);
+        QCOMPARE(b.charAt(0).fontWeight(), int(QFont::Bold));
+        QCOMPARE(b.charAt(0).stringProperty(jp::tp::ThemeFont), QStringLiteral("major"));
+        QCOMPARE(b.charAt(0).property(jp::tp::KernAbove).toDouble(), 12.0);
+        QCOMPARE(b.charAt(0).stringProperty(jp::tp::Language), QStringLiteral("en-US"));
+        QCOMPARE(b.charAt(0).stringProperty(jp::tp::ColorRefP), QStringLiteral("#101010"));
+        QCOMPARE(b.blockFormat(0).leftMargin(), 18.0);
+        QCOMPARE(b.blockFormat(0).textIndent(), -18.0);
+        QCOMPARE(b.blockFormat(0).topMargin(), 10.0);
+        QCOMPARE(b.blockFormat(0).lineHeight(), 90.0);
+        QVERIFY(b.block(0).textList());
+        // The level below has its own size and margins, and nothing of the first layer's bold.
+        QCOMPARE(b.charAt(1).fontPointSize(), 24.0);
+        QVERIFY(b.charAt(1).fontWeight() != QFont::Bold);
+        QCOMPARE(b.charAt(1).stringProperty(jp::tp::ThemeFont), QString());
+        QCOMPARE(b.blockFormat(1).leftMargin(), 54.0);
+        QCOMPARE(b.blockFormat(1).topMargin(), 5.0);
+        QCOMPARE(b.block(1).textList()->format().intProperty(jp::tp::ListLevel), 1);
+    }
+
+    void textLevelsHaveTheirOwnIndentsAndBullets()
+    {
+        const QStringList layers = {QStringLiteral(
+            "<a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"3200\"/></a:lvl1pPr>"
+            "<a:lvl2pPr marL=\"457200\" indent=\"-285750\"><a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/><a:defRPr sz=\"2800\"/></a:lvl2pPr>"
+            "<a:lvl3pPr marL=\"914400\" indent=\"-228600\"><a:buFont typeface=\"Wingdings\"/><a:buChar char=\"&#167;\"/></a:lvl3pPr>")};
+        Body b(para(run(QStringLiteral("one"))) + para(run(QStringLiteral("two")), QStringLiteral("<a:pPr lvl=\"1\"/>"))
+                   + para(run(QStringLiteral("three")), QStringLiteral("<a:pPr lvl=\"2\"/>")),
+               layers);
+        QCOMPARE(b.doc.blockCount(), 3);
+        // Level 1: no bullet; a block at level 0.
+        QVERIFY(!b.block(0).textList());
+        QCOMPARE(b.blockFormat(0).leftMargin(), 0.0);
+        QCOMPARE(b.blockFormat(0).textIndent(), 0.0);
+        QCOMPARE(b.blockFormat(0).intProperty(jp::tp::ListLevel), 0);
+        QCOMPARE(b.charAt(0).fontPointSize(), 32.0);
+        // Level 2: a bullet in Arial, the text 36 pt in, the bullet 22.5 pt before it.
+        QTextList *two = b.block(1).textList();
+        QVERIFY(two);
+        QCOMPARE(two->format().style(), QTextListFormat::ListDisc);
+        QCOMPARE(two->format().stringProperty(jp::tp::BulletChar), QString(QChar(0x2022)));
+        QCOMPARE(two->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Arial"));
+        QCOMPARE(two->format().intProperty(jp::tp::ListLevel), 1);
+        QCOMPARE(b.blockFormat(1).intProperty(jp::tp::ListLevel), 1);
+        QCOMPARE(b.blockFormat(1).leftMargin(), 36.0);
+        QCOMPARE(b.blockFormat(1).textIndent(), -22.5);
+        QCOMPARE(b.charAt(1).fontPointSize(), 28.0);
+        // Level 3: another mark in another font, indented further; its size is the list's (none) so the default.
+        QTextList *three = b.block(2).textList();
+        QVERIFY(three);
+        QCOMPARE(three->format().stringProperty(jp::tp::BulletChar), QString(QChar(0xA7)));
+        QCOMPARE(three->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Wingdings"));
+        QCOMPARE(three->format().intProperty(jp::tp::ListLevel), 2);
+        QCOMPARE(b.blockFormat(2).leftMargin(), 72.0);
+        QCOMPARE(b.blockFormat(2).textIndent(), -18.0);
+        QCOMPARE(b.charAt(2).fontPointSize(), 18.0);
+    }
+
+    void textBulletsInheritTheirPartsSeparately()
+    {
+        // The layer gives the color and the size; the paragraph the mark and
+        // the font; the next paragraph turns the bullet off, then follows the
+        // text's color and size again.
+        const QStringList layers = {QStringLiteral("<a:lvl1pPr><a:buClr><a:srgbClr val=\"00FF00\"/></a:buClr><a:buSzPct val=\"50000\"/></a:lvl1pPr>")};
+        Body b(para(run(QStringLiteral("a"), QStringLiteral("sz=\"2000\"")), QStringLiteral("<a:pPr><a:buFont typeface=\"Courier New\"/><a:buChar char=\"-\"/></a:pPr>"))
+                   + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr><a:buNone/></a:pPr>"))
+                   + para(run(QStringLiteral("c"), QStringLiteral("sz=\"2000\"")),
+                          QStringLiteral("<a:pPr><a:buClrTx/><a:buSzPts val=\"1500\"/><a:buFontTx/><a:buChar char=\"*\"/></a:pPr>"))
+                   + para(run(QStringLiteral("d"), QStringLiteral("sz=\"2000\"")), QStringLiteral("<a:pPr><a:buClrTx/><a:buSzTx/><a:buBlip/></a:pPr>")),
+               layers);
+        const QTextListFormat a = b.block(0).textList()->format();
+        QCOMPARE(a.stringProperty(jp::tp::BulletChar), QStringLiteral("-"));
+        QCOMPARE(a.stringProperty(jp::tp::BulletFont), QStringLiteral("Courier New"));
+        QCOMPARE(jp::ColorRef::fromString(a.stringProperty(jp::tp::BulletColor)).rgbValue(), QColor(0, 255, 0));
+        QCOMPARE(a.property(jp::tp::BulletSize).toDouble(), 10.0);   // half of the first run's 20 pt
+        QVERIFY(!b.block(1).textList());
+        const QTextListFormat c = b.block(2).textList()->format();
+        QCOMPARE(c.stringProperty(jp::tp::BulletChar), QStringLiteral("*"));
+        QVERIFY(!c.hasProperty(jp::tp::BulletColor));
+        QVERIFY(!c.hasProperty(jp::tp::BulletFont));
+        QCOMPARE(c.property(jp::tp::BulletSize).toDouble(), 15.0);
+        // A picture bullet is a plain one.
+        const QTextListFormat d = b.block(3).textList()->format();
+        QCOMPARE(d.style(), QTextListFormat::ListDisc);
+        QVERIFY(!d.hasProperty(jp::tp::BulletChar));
+        QVERIFY(!d.hasProperty(jp::tp::BulletColor));
+        QVERIFY(!d.hasProperty(jp::tp::BulletSize));
+    }
+
+    void textBulletFontsMayNameTheThemeFonts()
+    {
+        Theme theme;
+        QVERIFY(readTheme(handWrittenTheme(), &theme));
+        Body b(para(run(QStringLiteral("a")), QStringLiteral("<a:pPr><a:buFont typeface=\"+mj-lt\"/><a:buChar char=\"o\"/></a:pPr>"))
+                   + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr><a:buFont typeface=\"+mn-lt\"/><a:buChar char=\"o\"/></a:pPr>")),
+               {}, QString(), nullptr, theme);
+        QCOMPARE(b.block(0).textList()->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Georgia"));
+        QCOMPARE(b.block(1).textList()->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Verdana"));
+    }
+
+    void textBulletsDrawnAtTheirIndents()
+    {
+        // The hanging bullet of a one-level list, laid out: the text starts
+        // at marL, the bullet an indent before it.
+        Body b(para(run(QStringLiteral("alpha beta"), QStringLiteral("sz=\"2000\"")), QStringLiteral("<a:pPr marL=\"457200\" indent=\"-228600\"><a:buChar char=\"&#8226;\"/></a:pPr>")));
+        jp::FrameSpec fs;
+        fs.size = QSizeF(400, 200);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        jp::StoryLayout lay;
+        lay.build(&b.doc, {fs}, jp::LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        QVERIFY2(qAbs(lines[0].rect.x() - 36) < 0.01, qPrintable(QString::number(lines[0].rect.x())));
+    }
+
+    void textAutonumbersContinueUntilInterrupted()
+    {
+        auto num = [](const QString &text, int lvl, const QString &bu) {
+            return para(run(text), QStringLiteral("<a:pPr lvl=\"%1\">%2</a:pPr>").arg(lvl).arg(bu));
+        };
+        const QString arabic = QStringLiteral("<a:buAutoNum type=\"arabicPeriod\"/>");
+        const QString arabicFrom5 = QStringLiteral("<a:buAutoNum type=\"arabicPeriod\" startAt=\"5\"/>");
+        const QString alpha = QStringLiteral("<a:buAutoNum type=\"alphaLcParenR\"/>");
+        Body b(num(QStringLiteral("a"), 0, arabic) + num(QStringLiteral("b"), 0, arabic)
+                   + num(QStringLiteral("c"), 1, alpha) + num(QStringLiteral("d"), 1, alpha)   // nested, with their own count
+                   + num(QStringLiteral("e"), 0, arabic)                                        // goes on at 3
+                   + num(QStringLiteral("f"), 0, QStringLiteral("<a:buNone/>"))                 // interrupts
+                   + num(QStringLiteral("g"), 0, arabic)                                        // starts again at 1
+                   + num(QStringLiteral("h"), 0, arabicFrom5)                                   // another start, another count
+                   + num(QStringLiteral("i"), 1, alpha)                                         // the outer item before it restarts the inner
+                   + num(QStringLiteral("j"), 0, arabicFrom5),
+               {});
+        const QStringList want = {QStringLiteral("1."), QStringLiteral("2."), QStringLiteral("a)"), QStringLiteral("b)"), QStringLiteral("3."), QString(),
+                                  QStringLiteral("1."), QStringLiteral("5."), QStringLiteral("a)"), QStringLiteral("6.")};
+        QCOMPARE(b.doc.blockCount(), int(want.size()));
+        for (int i = 0; i < want.size(); ++i) {
+            QTextList *l = b.block(i).textList();
+            QCOMPARE(l ? l->itemText(b.block(i)) : QString(), want[i]);
+        }
+    }
+
+    void textEmptyParagraphsHaveNoBulletAndKeepTheNumbering()
+    {
+        const QString pPr = QStringLiteral("<a:pPr><a:buAutoNum type=\"arabicPeriod\"/></a:pPr>");
+        Body b(para(run(QStringLiteral("a")), pPr) + QStringLiteral("<a:p>") + pPr + QStringLiteral("<a:endParaRPr sz=\"1800\"/></a:p>") + para(run(QStringLiteral("b")), pPr));
+        QVERIFY(b.block(0).textList());
+        QVERIFY(!b.block(1).textList());
+        QCOMPARE(b.block(2).textList()->itemText(b.block(2)), QStringLiteral("2."));
+    }
+
+    void textAutonumberSchemesBecomeListStyles()
+    {
+        using S = QTextListFormat;
+        struct Row { const char *type; S::Style style; const char *prefix; const char *suffix; int numberFormat; };
+        const Row rows[] = {
+            {"arabicPeriod", S::ListDecimal, "", ".", 1},      {"arabicParenR", S::ListDecimal, "", ")", 6},
+            {"arabicParenBoth", S::ListDecimal, "(", ")", 7},  {"arabicPlain", S::ListDecimal, "", "", 0},
+            {"alphaLcPeriod", S::ListLowerAlpha, "", ".", 2},  {"alphaLcParenR", S::ListLowerAlpha, "", ")", 0},
+            {"alphaLcParenBoth", S::ListLowerAlpha, "(", ")", 0}, {"alphaUcPeriod", S::ListUpperAlpha, "", ".", 3},
+            {"alphaUcParenR", S::ListUpperAlpha, "", ")", 0},  {"alphaUcParenBoth", S::ListUpperAlpha, "(", ")", 0},
+            {"romanLcPeriod", S::ListLowerRoman, "", ".", 4},  {"romanLcParenR", S::ListLowerRoman, "", ")", 0},
+            {"romanLcParenBoth", S::ListLowerRoman, "(", ")", 0}, {"romanUcPeriod", S::ListUpperRoman, "", ".", 5},
+            {"romanUcParenR", S::ListUpperRoman, "", ")", 0},  {"romanUcParenBoth", S::ListUpperRoman, "(", ")", 0},
+            // The ones of other scripts count in digits, with the same marks.
+            {"circleNumDbPlain", S::ListDecimal, "", "", 0},   {"circleNumWdBlackPlain", S::ListDecimal, "", "", 0},
+            {"circleNumWdWhitePlain", S::ListDecimal, "", "", 0}, {"arabicDbPeriod", S::ListDecimal, "", ".", 1},
+            {"arabicDbPlain", S::ListDecimal, "", "", 0},      {"ea1ChsPeriod", S::ListDecimal, "", ".", 1},
+            {"ea1ChsPlain", S::ListDecimal, "", "", 0},        {"ea1ChtPeriod", S::ListDecimal, "", ".", 1},
+            {"ea1ChtPlain", S::ListDecimal, "", "", 0},        {"ea1JpnChsDbPeriod", S::ListDecimal, "", ".", 1},
+            {"ea1JpnKorPlain", S::ListDecimal, "", "", 0},     {"ea1JpnKorPeriod", S::ListDecimal, "", ".", 1},
+            {"arabic1Minus", S::ListDecimal, "", "", 0},       {"arabic2Minus", S::ListDecimal, "", "", 0},
+            {"hebrew2Minus", S::ListDecimal, "", "", 0},       {"thaiAlphaPeriod", S::ListLowerAlpha, "", ".", 2},
+            {"thaiAlphaParenR", S::ListLowerAlpha, "", ")", 0}, {"thaiAlphaParenBoth", S::ListLowerAlpha, "(", ")", 0},
+            {"thaiNumPeriod", S::ListDecimal, "", ".", 1},     {"thaiNumParenR", S::ListDecimal, "", ")", 6},
+            {"thaiNumParenBoth", S::ListDecimal, "(", ")", 7}, {"hindiAlphaPeriod", S::ListLowerAlpha, "", ".", 2},
+            {"hindiAlpha1Period", S::ListLowerAlpha, "", ".", 2}, {"hindiNumPeriod", S::ListDecimal, "", ".", 1},
+            {"hindiNumParenR", S::ListDecimal, "", ")", 6},
+            // A scheme this edition doesn't know counts as the usual one.
+            {"fromTheFuture", S::ListDecimal, "", ".", 1},
+        };
+        for (const Row &r : rows) {
+            Body b(para(run(QStringLiteral("x")), QStringLiteral("<a:pPr><a:buAutoNum type=\"%1\"/></a:pPr>").arg(QLatin1String(r.type))));
+            QTextList *l = b.block(0).textList();
+            QVERIFY2(l, r.type);
+            const QTextListFormat f = l->format();
+            QVERIFY2(f.style() == r.style, r.type);
+            QVERIFY2(f.numberPrefix() == QLatin1String(r.prefix), r.type);
+            QVERIFY2(f.numberSuffix() == QLatin1String(r.suffix), r.type);
+            QVERIFY2(f.intProperty(jp::tp::NumberFormat) == r.numberFormat, r.type);
+            QVERIFY2(!jp::isBulletList(f.style()), r.type);
+        }
+    }
+
+    void textAutonumberStartsAtItsNumber()
+    {
+        Body b(para(run(QStringLiteral("x")), QStringLiteral("<a:pPr><a:buAutoNum type=\"romanUcPeriod\" startAt=\"4\"/></a:pPr>"))
+               + para(run(QStringLiteral("y")), QStringLiteral("<a:pPr><a:buAutoNum type=\"romanUcPeriod\" startAt=\"4\"/></a:pPr>")));
+        QCOMPARE(b.block(0).textList()->itemText(b.block(0)), QStringLiteral("IV."));
+        QCOMPARE(b.block(1).textList()->itemText(b.block(1)), QStringLiteral("V."));
+    }
+
+    void textParagraphsTakeAlignmentIndentsAndSpacing()
+    {
+        const QStringList layers = {QStringLiteral("<a:lvl1pPr marL=\"114300\" indent=\"-57150\" algn=\"just\"><a:spcBef><a:spcPts val=\"600\"/></a:spcBef></a:lvl1pPr>")};
+        Body b(para(run(QStringLiteral("a"), QStringLiteral("sz=\"2000\"")), QStringLiteral("<a:pPr marR=\"127000\"/>"))
+                   + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr algn=\"ctr\" marL=\"0\" indent=\"254000\"><a:spcBef><a:spcPct val=\"50000\"/></a:spcBef>"
+                                                                   "<a:spcAft><a:spcPts val=\"1250\"/></a:spcAft></a:pPr>"))
+                   + para(run(QStringLiteral("c")), QStringLiteral("<a:pPr algn=\"r\"/>")) + para(run(QStringLiteral("d")), QStringLiteral("<a:pPr algn=\"l\"/>")),
+               layers);
+        QCOMPARE(b.blockFormat(0).leftMargin(), 9.0);
+        QCOMPARE(b.blockFormat(0).textIndent(), -4.5);
+        QCOMPARE(b.blockFormat(0).rightMargin(), 10.0);
+        QCOMPARE(b.blockFormat(0).topMargin(), 6.0);
+        QCOMPARE(b.blockFormat(0).bottomMargin(), 0.0);
+        QCOMPARE(int(b.blockFormat(0).alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignJustify));
+        QVERIFY(!b.blockFormat(0).boolProperty(jp::tp::Distribute));
+        QCOMPARE(b.blockFormat(1).leftMargin(), 0.0);
+        QCOMPARE(b.blockFormat(1).textIndent(), 20.0);
+        // A percentage is of the line: 50% of one 18 pt line, 1.2 times the size.
+        QCOMPARE(b.blockFormat(1).topMargin(), 0.5 * 1.2 * 18);
+        QCOMPARE(b.blockFormat(1).bottomMargin(), 12.5);
+        QCOMPARE(int(b.blockFormat(1).alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignHCenter));
+        QCOMPARE(int(b.blockFormat(2).alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignRight));
+        QCOMPARE(int(b.blockFormat(3).alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignLeft));
+    }
+
+    void textPercentSpacingIsOfTheParagraphsLargestRun()
+    {
+        Body b(para(run(QStringLiteral("a"), QStringLiteral("sz=\"1000\"")) + run(QStringLiteral("b"), QStringLiteral("sz=\"3000\"")),
+                    QStringLiteral("<a:pPr><a:spcBef><a:spcPct val=\"100000\"/></a:spcBef><a:spcAft><a:spcPct val=\"50000\"/></a:spcAft></a:pPr>")));
+        QCOMPARE(b.blockFormat().topMargin(), 1.2 * 30);
+        QCOMPARE(b.blockFormat().bottomMargin(), 0.5 * 1.2 * 30);
+    }
+
+    void textDistributedAlignmentSpreadsTheLastLineToo()
+    {
+        Body b(para(run(QStringLiteral("a")), QStringLiteral("<a:pPr algn=\"dist\"/>")) + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr algn=\"justLow\"/>")));
+        QCOMPARE(int(b.blockFormat(0).alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignJustify));
+        QVERIFY(b.blockFormat(0).boolProperty(jp::tp::Distribute));
+        QCOMPARE(int(b.blockFormat(1).alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignJustify));
+        QVERIFY(!b.blockFormat(1).boolProperty(jp::tp::Distribute));
+    }
+
+    void textLineSpacingIsProportionalOrExact()
+    {
+        Body b(para(run(QStringLiteral("a")), QStringLiteral("<a:pPr><a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc></a:pPr>"))
+                   + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr><a:lnSpc><a:spcPts val=\"2400\"/></a:lnSpc></a:pPr>"))
+                   + para(run(QStringLiteral("c"))),
+               {QStringLiteral("<a:lvl1pPr><a:lnSpc><a:spcPct val=\"120000\"/></a:lnSpc></a:lvl1pPr>")});
+        QCOMPARE(b.blockFormat(0).lineHeightType(), int(QTextBlockFormat::ProportionalHeight));
+        QCOMPARE(b.blockFormat(0).lineHeight(), 90.0);
+        QCOMPARE(b.blockFormat(1).lineHeightType(), int(QTextBlockFormat::FixedHeight));
+        QCOMPARE(b.blockFormat(1).lineHeight(), 24.0);
+        QCOMPARE(b.blockFormat(2).lineHeightType(), int(QTextBlockFormat::ProportionalHeight));
+        QCOMPARE(b.blockFormat(2).lineHeight(), 120.0);
+    }
+
+    void textTabStopsAreReadWithTheirAlignment()
+    {
+        Body b(para(run(QStringLiteral("a\tb")),
+                    QStringLiteral("<a:pPr><a:tabLst><a:tab pos=\"914400\" algn=\"l\"/><a:tab pos=\"1828800\" algn=\"r\"/><a:tab pos=\"2743200\" algn=\"ctr\"/>"
+                                   "<a:tab pos=\"3657600\" algn=\"dec\"/><a:tab algn=\"l\"/></a:tabLst></a:pPr>")));
+        const QList<QTextOption::Tab> tabs = b.blockFormat().tabPositions();
+        QCOMPARE(tabs.size(), 4);
+        QCOMPARE(tabs[0].position, 72.0);
+        QCOMPARE(int(tabs[0].type), int(QTextOption::LeftTab));
+        QCOMPARE(tabs[1].position, 144.0);
+        QCOMPARE(int(tabs[1].type), int(QTextOption::RightTab));
+        QCOMPARE(tabs[2].position, 216.0);
+        QCOMPARE(int(tabs[2].type), int(QTextOption::CenterTab));
+        QCOMPARE(tabs[3].position, 288.0);
+        QCOMPARE(int(tabs[3].type), int(QTextOption::DelimiterTab));
+        QCOMPARE(tabs[3].delimiter, QChar('.'));
+    }
+
+    void textDefaultTabSizeMakesStopsOnlyWhereATabIsUsed()
+    {
+        // 36 pt apart, from the last stop of its own on.
+        Body b(para(run(QStringLiteral("a\tb")), QStringLiteral("<a:pPr defTabSz=\"457200\"/>"))
+                   + para(run(QStringLiteral("no tab here")), QStringLiteral("<a:pPr defTabSz=\"457200\"/>"))
+                   + para(run(QStringLiteral("a\tb")), QStringLiteral("<a:pPr defTabSz=\"457200\"><a:tabLst><a:tab pos=\"1000000\" algn=\"l\"/></a:tabLst></a:pPr>")));
+        const QList<QTextOption::Tab> first = b.blockFormat(0).tabPositions();
+        QVERIFY(first.size() >= 3);
+        QCOMPARE(first[0].position, 36.0);
+        QCOMPARE(first[1].position, 72.0);
+        QCOMPARE(first[2].position, 108.0);
+        QVERIFY(b.blockFormat(1).tabPositions().isEmpty());
+        const QList<QTextOption::Tab> third = b.blockFormat(2).tabPositions();
+        QVERIFY(third.size() >= 2);
+        QCOMPARE(third[0].position, 1000000 / 12700.0);
+        QVERIFY(third[1].position > third[0].position);
+        QCOMPARE(std::fmod(third[1].position, 36.0), 0.0);
+    }
+
+    void textRightToLeftParagraphsKeepTheirSides()
+    {
+        Body b(para(run(QStringLiteral("a")), QStringLiteral("<a:pPr rtl=\"1\" algn=\"r\"/>")) + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr rtl=\"1\" algn=\"l\"/>"))
+               + para(run(QStringLiteral("c")), QStringLiteral("<a:pPr rtl=\"0\" algn=\"r\"/>")));
+        QCOMPARE(b.blockFormat(0).layoutDirection(), Qt::RightToLeft);
+        // The standard's left and right are the page's: the engine swaps a
+        // right-to-left paragraph's, unless told they are absolute.
+        QVERIFY(bool(b.blockFormat(0).alignment() & Qt::AlignRight));
+        QVERIFY(bool(b.blockFormat(0).alignment() & Qt::AlignAbsolute));
+        QVERIFY(bool(b.blockFormat(1).alignment() & Qt::AlignLeft));
+        QVERIFY(bool(b.blockFormat(1).alignment() & Qt::AlignAbsolute));
+        QVERIFY(b.blockFormat(2).layoutDirection() != Qt::RightToLeft);
+        QVERIFY(bool(b.blockFormat(2).alignment() & Qt::AlignRight));
+    }
+
+    void textUnderlinesBecomeStylesAndKinds()
+    {
+        using U = QTextCharFormat;
+        struct Row { const char *u; U::UnderlineStyle style; int kind; };
+        const Row rows[] = {
+            {"sng", U::SingleUnderline, 0},       {"words", U::SingleUnderline, 2},      {"dbl", U::SingleUnderline, 1},
+            {"heavy", U::SingleUnderline, 4},     {"dotted", U::DotLine, 0},             {"dottedHeavy", U::DotLine, 4},
+            {"dash", U::DashUnderline, 0},        {"dashHeavy", U::DashUnderline, 4},    {"dashLong", U::DashUnderline, 0},
+            {"dashLongHeavy", U::DashUnderline, 4}, {"dotDash", U::DashDotLine, 0},      {"dotDashHeavy", U::DashDotLine, 4},
+            {"dotDotDash", U::DashDotDotLine, 0}, {"dotDotDashHeavy", U::DashDotDotLine, 4}, {"wavy", U::WaveUnderline, 0},
+            {"wavyHeavy", U::WaveUnderline, 4},   {"wavyDbl", U::WaveUnderline, 1},      {"none", U::NoUnderline, 0},
+        };
+        for (const Row &r : rows) {
+            Body b(para(run(QStringLiteral("x"), QStringLiteral("u=\"%1\"").arg(QLatin1String(r.u)))));
+            const QTextCharFormat f = b.charAt();
+            QVERIFY2(f.underlineStyle() == r.style, r.u);
+            QVERIFY2(f.intProperty(jp::tp::UnderlineKind) == r.kind, r.u);
+        }
+        // A run turns an underline from its layer off, and the layer's reaches a run that says nothing.
+        Body b(para(run(QStringLiteral("a")) + run(QStringLiteral("b"), QStringLiteral("u=\"none\""))), {QStringLiteral("<a:lvl1pPr><a:defRPr u=\"sng\"/></a:lvl1pPr>")});
+        QCOMPARE(b.charAt(0, 0).underlineStyle(), QTextCharFormat::SingleUnderline);
+        QCOMPARE(b.charAt(0, 1).underlineStyle(), QTextCharFormat::NoUnderline);
+    }
+
+    void textStrikeBaselineSpacingCapsAndKerning()
+    {
+        Body b(para(run(QStringLiteral("a"), QStringLiteral("strike=\"sngStrike\"")) + run(QStringLiteral("b"), QStringLiteral("strike=\"dblStrike\""))
+                    + run(QStringLiteral("c"), QStringLiteral("strike=\"noStrike\"")) + run(QStringLiteral("d"), QStringLiteral("baseline=\"30000\""))
+                    + run(QStringLiteral("e"), QStringLiteral("baseline=\"-25000\"")) + run(QStringLiteral("f"), QStringLiteral("baseline=\"0\""))
+                    + run(QStringLiteral("g"), QStringLiteral("spc=\"300\"")) + run(QStringLiteral("h"), QStringLiteral("spc=\"-50\""))
+                    + run(QStringLiteral("i"), QStringLiteral("cap=\"all\"")) + run(QStringLiteral("j"), QStringLiteral("cap=\"small\""))
+                    + run(QStringLiteral("k"), QStringLiteral("cap=\"none\"")) + run(QStringLiteral("l"), QStringLiteral("kern=\"1200\""))
+                    + run(QStringLiteral("m"), QStringLiteral("kern=\"0\"")) + run(QStringLiteral("n"), QStringLiteral("lang=\"fr-CA\" noProof=\"1\""))),
+               {QStringLiteral("<a:lvl1pPr><a:defRPr cap=\"all\"/></a:lvl1pPr>")});
+        QCOMPARE(int(b.charAt(0, 0).fontCapitalization()), int(QFont::AllUppercase));   // from the layer
+        QVERIFY(b.charAt(0, 0).fontStrikeOut());
+        QVERIFY(b.charAt(0, 1).fontStrikeOut());
+        QVERIFY(!b.charAt(0, 2).fontStrikeOut());
+        QCOMPARE(b.charAt(0, 3).verticalAlignment(), QTextCharFormat::AlignSuperScript);
+        QCOMPARE(b.charAt(0, 4).verticalAlignment(), QTextCharFormat::AlignSubScript);
+        QCOMPARE(b.charAt(0, 5).verticalAlignment(), QTextCharFormat::AlignNormal);
+        // Spacing is in points after each letter, as the engine's kerning is.
+        QCOMPARE(b.charAt(0, 6).fontLetterSpacingType(), QFont::AbsoluteSpacing);
+        QCOMPARE(b.charAt(0, 6).fontLetterSpacing(), 3.0);
+        QCOMPARE(b.charAt(0, 7).fontLetterSpacing(), -0.5);
+        QVERIFY(!b.charAt(0, 6).hasProperty(jp::tp::Tracking));
+        QCOMPARE(int(b.charAt(0, 8).fontCapitalization()), int(QFont::AllUppercase));
+        QCOMPARE(int(b.charAt(0, 9).fontCapitalization()), int(QFont::SmallCaps));
+        QCOMPARE(int(b.charAt(0, 10).fontCapitalization()), int(QFont::MixedCase));
+        QCOMPARE(b.charAt(0, 11).property(jp::tp::KernAbove).toDouble(), 12.0);
+        QVERIFY(b.charAt(0, 12).hasProperty(jp::tp::KernAbove));
+        QCOMPARE(b.charAt(0, 12).property(jp::tp::KernAbove).toDouble(), 0.0);
+        QVERIFY(!b.charAt(0, 0).hasProperty(jp::tp::KernAbove));
+        QCOMPARE(b.charAt(0, 13).stringProperty(jp::tp::Language), QStringLiteral("fr-CA"));
+        QVERIFY(b.charAt(0, 13).boolProperty(jp::tp::NoProof));
+        QVERIFY(b.charAt(0, 0).stringProperty(jp::tp::Language).isEmpty());
+    }
+
+    void textHighlightAndFillKinds()
+    {
+        Body b(para(run(QStringLiteral("a"), QString(), QStringLiteral("<a:highlight><a:srgbClr val=\"FFFF00\"/></a:highlight>"))
+                    + run(QStringLiteral("b"), QString(), QStringLiteral("<a:solidFill><a:schemeClr val=\"tx1\"><a:alpha val=\"50000\"/></a:schemeClr></a:solidFill>"))
+                    + run(QStringLiteral("c"), QString(), QStringLiteral("<a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"123456\"/></a:gs>"
+                                                                         "<a:gs pos=\"100000\"><a:srgbClr val=\"FFFFFF\"/></a:gs></a:gsLst></a:gradFill>"))));
+        QCOMPARE(b.charAt(0, 0).stringProperty(jp::tp::HighlightRefP), QStringLiteral("#FFFF00"));
+        QVERIFY(b.charAt(0, 1).stringProperty(jp::tp::HighlightRefP).isEmpty());
+        QVERIFY(qAbs(b.charAt(0, 1).foreground().color().alpha() - 128) <= 1);
+        QVERIFY(qAbs(jp::ColorRef::fromString(b.charAt(0, 1).stringProperty(jp::tp::ColorRefP)).rgbValue().alpha() - 128) <= 1);
+        QCOMPARE(b.charAt(0, 2).foreground().color(), QColor(0x12, 0x34, 0x56));
+    }
+
+    void textFontsAreThemeReferencesOrFamilies()
+    {
+        Theme theme;
+        QVERIFY(readTheme(handWrittenTheme(), &theme));
+        auto latin = [](const QString &typeface, const QString &more = QString()) {
+            return QStringLiteral("<a:latin typeface=\"%1\"/>%2").arg(typeface, more);
+        };
+        Body b(para(run(QStringLiteral("a"), QString(), latin(QStringLiteral("+mj-lt")))
+                    + run(QStringLiteral("b"), QString(), latin(QStringLiteral("+mn-lt")))
+                    + run(QStringLiteral("c"), QString(), latin(QStringLiteral("Arial")))
+                    + run(QStringLiteral("d"), QString(), latin(QStringLiteral("Arial"), QStringLiteral("<a:ea typeface=\"+mn-ea\"/><a:cs typeface=\"Tahoma\"/>")))
+                    + run(QStringLiteral("e"), QString(), QStringLiteral("<a:ea typeface=\"+mj-ea\"/>"))
+                    + run(QStringLiteral("f"), QString(), QStringLiteral("<a:cs typeface=\"+mn-cs\"/>"))
+                    + run(QStringLiteral("g"), QString(), QStringLiteral("<a:latin typeface=\"\"/>"))
+                    + run(QStringLiteral("h"))),
+               {QStringLiteral("<a:lvl1pPr><a:defRPr><a:latin typeface=\"Calibri\"/></a:defRPr></a:lvl1pPr>")}, QString(), nullptr, theme);
+        auto families = [&](int i) { return b.charAt(0, i).fontFamilies().toStringList(); };
+        // A theme font is no family: the engine takes the story's font scheme.
+        QCOMPARE(b.charAt(0, 0).stringProperty(jp::tp::ThemeFont), QStringLiteral("major"));
+        QVERIFY(!b.charAt(0, 0).hasProperty(QTextFormat::FontFamilies));
+        QCOMPARE(b.charAt(0, 1).stringProperty(jp::tp::ThemeFont), QStringLiteral("minor"));
+        QVERIFY(!b.charAt(0, 1).hasProperty(QTextFormat::FontFamilies));
+        QCOMPARE(families(2), QStringList({QStringLiteral("Arial")}));
+        QVERIFY(b.charAt(0, 2).stringProperty(jp::tp::ThemeFont).isEmpty());
+        // The East Asian and complex-script fonts follow as fallbacks when they are families.
+        QCOMPARE(families(3), QStringList({QStringLiteral("Arial"), QStringLiteral("Tahoma")}));
+        // With no Latin font of its own anywhere above a run takes its layer's Calibri.
+        QCOMPARE(families(4), QStringList({QStringLiteral("Calibri")}));
+        QCOMPARE(families(5), QStringList({QStringLiteral("Calibri")}));
+        QCOMPARE(families(6), QStringList({QStringLiteral("Calibri")}));
+        QCOMPARE(families(7), QStringList({QStringLiteral("Calibri")}));
+        // And the other way round: a theme font in a run replaces the layer's family.
+        QVERIFY(!b.charAt(0, 0).fontFamilies().toStringList().contains(QStringLiteral("Calibri")));
+    }
+
+    void textThemeFontsOfEastAsianAndComplexScriptsSetTheThemeFont()
+    {
+        Body b(para(run(QStringLiteral("a"), QString(), QStringLiteral("<a:ea typeface=\"+mj-ea\"/>")) + run(QStringLiteral("b"), QString(), QStringLiteral("<a:cs typeface=\"+mn-cs\"/>"))
+                    + run(QStringLiteral("c"), QString(), QStringLiteral("<a:ea typeface=\"SimSun\"/>"))));
+        QCOMPARE(b.charAt(0, 0).stringProperty(jp::tp::ThemeFont), QStringLiteral("major"));
+        QCOMPARE(b.charAt(0, 1).stringProperty(jp::tp::ThemeFont), QStringLiteral("minor"));
+        // A family for the East Asian script alone is not the Latin text's font.
+        QVERIFY(!b.charAt(0, 2).hasProperty(QTextFormat::FontFamilies));
+    }
+
+    void textSlideNumberIsThePageField()
+    {
+        Body b(QStringLiteral("<a:p><a:r><a:t>Slide </a:t></a:r><a:fld id=\"{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}\" type=\"slidenum\"><a:rPr sz=\"1200\" b=\"1\"/>"
+                              "<a:t>&#8249;#&#8250;</a:t></a:fld></a:p>"));
+        QCOMPARE(b.text(), QStringLiteral("Slide ") + QString(QChar::ObjectReplacementCharacter));
+        QCOMPARE(b.charAt(0, 6).stringProperty(jp::tp::Field), QStringLiteral("page"));
+        QCOMPARE(b.charAt(0, 6).fontPointSize(), 12.0);
+        QCOMPARE(b.charAt(0, 6).fontWeight(), int(QFont::Bold));
+        QVERIFY(b.charAt(0, 0).stringProperty(jp::tp::Field).isEmpty());
+        // Laid out on slide 7, it reads 7.
+        jp::FrameSpec fs;
+        fs.size = QSizeF(400, 100);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.ctx.pageNumber = 7;
+        jp::StoryLayout lay;
+        lay.build(&b.doc, {fs}, jp::LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        QCOMPARE(lines[0].text, QStringLiteral("Slide 7"));
+    }
+
+    void textDateFieldsHaveTheirFormats()
+    {
+        // The names of days and months are the locale's.
+        struct Restore {
+            QLocale was;
+            ~Restore() { QLocale::setDefault(was); }
+        } restore;
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        struct Row { const char *type; const char *shown; };
+        const Row rows[] = {
+            {"datetime", "10/11/2026"},                     {"datetime1", "10/11/2026"},
+            {"datetime2", "Sunday, October 11, 2026"},      {"datetime3", "11 October 2026"},
+            {"datetime4", "October 11, 2026"},              {"datetime5", "11-Oct-26"},
+            {"datetime6", "October 26"},                    {"datetime7", "Oct-26"},
+            {"datetime8", "10/11/2026 4:07 PM"},            {"datetime9", "10/11/2026 4:07:09 PM"},
+            {"datetime10", "16:07"},                        {"datetime11", "16:07:09"},
+            {"datetime12", "4:07 PM"},                      {"datetime13", "4:07:09 PM"},
+        };
+        jp::FieldContext now;
+        now.now = QDateTime(QDate(2026, 10, 11), QTime(16, 7, 9));
+        for (const Row &r : rows) {
+            Body b(QStringLiteral("<a:p><a:fld id=\"{00000000-0000-0000-0000-000000000000}\" type=\"%1\"><a:rPr/><a:t>whatever it said</a:t></a:fld></a:p>").arg(QLatin1String(r.type)));
+            const QString code = b.charAt().stringProperty(jp::tp::Field);
+            QVERIFY2(!code.isEmpty(), r.type);
+            QVERIFY2(now.resolve(code) == QLatin1String(r.shown), qPrintable(QStringLiteral("%1: %2 (%3)").arg(QLatin1String(r.type), now.resolve(code), code)));
+            QCOMPARE(b.text(), QString(QChar::ObjectReplacementCharacter));
+        }
+    }
+
+    void textOtherFieldsShowWhatTheyHeld()
+    {
+        Body b(QStringLiteral("<a:p><a:r><a:t>[</a:t></a:r><a:fld id=\"{1}\" type=\"datetimeFigureOut\"><a:rPr/><a:t>Tuesday</a:t></a:fld>"
+                              "<a:fld id=\"{2}\" type=\"somethingNew\"><a:t>cached</a:t></a:fld><a:fld id=\"{3}\"/><a:r><a:t>]</a:t></a:r></a:p>"));
+        QCOMPARE(b.text(), QStringLiteral("[Tuesdaycached]"));
+        for (int i = 0; i < b.doc.characterCount() - 1; ++i) QVERIFY(b.charAt(0, i).stringProperty(jp::tp::Field).isEmpty());
+    }
+
+    void textHyperlinksAreAnchorsToTheirExternalTargets()
+    {
+        PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<p:sld/>", kSlideType);
+        w.addPart(QStringLiteral("/ppt/slides/slide2.xml"), "<p:sld/>", kSlideType);
+        const QString slide = QStringLiteral("/ppt/slides/slide1.xml");
+        QCOMPARE(w.addRelationship(slide, kRelBase + "hyperlink", QStringLiteral("https://example.com/a?b=1&c=2"), true), QStringLiteral("rId1"));
+        QCOMPARE(w.addRelationship(slide, kRelBase + "slide", QStringLiteral("/ppt/slides/slide2.xml")), QStringLiteral("rId2"));
+        Package p;
+        QVERIFY(p.read(w.finish()));
+        auto link = [](const QString &id, const QString &extra = QString()) {
+            return QStringLiteral("<a:hlinkClick r:id=\"%1\" %2/>").arg(id, extra);
+        };
+        Body b(para(run(QStringLiteral("a"), QString(), solid(QStringLiteral("FF0000")) + link(QStringLiteral("rId1")))
+                    + run(QStringLiteral("b"), QString(), solid(QStringLiteral("FF0000")) + link(QStringLiteral("rId2")))
+                    + run(QStringLiteral("c"), QString(), link(QStringLiteral("rId9")))
+                    + run(QStringLiteral("d"), QString(), link(QString()))
+                    + run(QStringLiteral("e"))),
+               {}, QString(), &p);
+        const QTextCharFormat a = b.charAt(0, 0);
+        QVERIFY(a.isAnchor());
+        QCOMPARE(a.anchorHref(), QStringLiteral("https://example.com/a?b=1&c=2"));
+        // The presentation program shows a link in the theme's link color, underlined.
+        QCOMPARE(a.foreground().color(), QColor(0x05, 0x63, 0xC1));
+        QCOMPARE(a.stringProperty(jp::tp::ColorRefP), QStringLiteral("#0563C1"));
+        QCOMPARE(a.underlineStyle(), QTextCharFormat::SingleUnderline);
+        // A jump to a slide has no address; a link that names nothing is no link.
+        for (int i = 1; i <= 3; ++i) QVERIFY(!b.charAt(0, i).isAnchor());
+        QVERIFY(!b.charAt(0, 4).isAnchor());
+        QCOMPARE(b.charAt(0, 1).foreground().color(), QColor(0xFF, 0, 0));
+        // Without a package there is nothing to look the id up in.
+        Body none(para(run(QStringLiteral("a"), QString(), link(QStringLiteral("rId1")))));
+        QVERIFY(!none.charAt().isAnchor());
+    }
+
+    void textHyperlinkMayKeepTheTextColor()
+    {
+        PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<p:sld/>", kSlideType);
+        w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), kRelBase + "hyperlink", QStringLiteral("mailto:a@example.com"), true);
+        Package p;
+        QVERIFY(p.read(w.finish()));
+        const QString keep = QStringLiteral("<a:hlinkClick r:id=\"rId1\"><a:extLst><a:ext uri=\"{A12FA001-AC4F-418D-AE19-62706E023703}\">"
+                                            "<ahyp:hlinkClr xmlns:ahyp=\"urn:example:hyperlink-color\" val=\"tx\"/></a:ext></a:extLst></a:hlinkClick>");
+        Body b(para(run(QStringLiteral("a"), QString(), solid(QStringLiteral("FF0000")) + keep)), {}, QString(), &p);
+        QVERIFY(b.charAt().isAnchor());
+        QCOMPARE(b.charAt().foreground().color(), QColor(0xFF, 0, 0));
+    }
+
+    void textEmptyParagraphKeepsItsEndSize()
+    {
+        Body b(QStringLiteral("<a:p><a:endParaRPr sz=\"4400\"/></a:p><a:p><a:endParaRPr sz=\"1200\"/></a:p><a:p><a:r><a:t>x</a:t></a:r></a:p>"));
+        QCOMPARE(b.block(0).charFormat().fontPointSize(), 44.0);
+        QCOMPARE(b.block(1).charFormat().fontPointSize(), 12.0);
+        QVERIFY(b.block(0).text().isEmpty());
+        // Laid out, the empty line is as tall as its size says.
+        jp::FrameSpec fs;
+        fs.size = QSizeF(300, 400);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        jp::StoryLayout lay;
+        lay.build(&b.doc, {fs}, jp::LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 3);
+        QVERIFY2(lines[0].rect.height() > 3 * lines[1].rect.height(), qPrintable(QStringLiteral("%1 and %2").arg(lines[0].rect.height()).arg(lines[1].rect.height())));
+        QVERIFY(lines[0].rect.height() >= 44);
+    }
+
+    void textEndParagraphSizeInheritsToo()
+    {
+        Body b(QStringLiteral("<a:p/><a:p><a:endParaRPr b=\"1\"/></a:p>"), {QStringLiteral("<a:lvl1pPr><a:defRPr sz=\"3600\"/></a:lvl1pPr>")});
+        QCOMPARE(b.block(0).charFormat().fontPointSize(), 36.0);
+        QCOMPARE(b.block(1).charFormat().fontPointSize(), 36.0);
+        QCOMPARE(b.block(1).charFormat().fontWeight(), int(QFont::Bold));
+    }
+
+    void textLineBreaksAndTabsStayInTheirParagraph()
+    {
+        Body b(QStringLiteral("<a:p><a:r><a:t>a</a:t></a:r><a:br><a:rPr sz=\"2000\"/></a:br><a:r><a:t>b c</a:t></a:r><a:br/><a:r><a:t>x_x000B_y&#9;z_x0009_w</a:t></a:r></a:p>"));
+        QCOMPARE(b.doc.blockCount(), 1);
+        const QChar sep(QChar::LineSeparator);
+        QCOMPARE(b.text(), QStringLiteral("a") + sep + QStringLiteral("b c") + sep + QStringLiteral("x") + sep + QStringLiteral("y\tz\tw"));
+        QCOMPARE(b.charAt(0, 1).fontPointSize(), 20.0);   // the break has its own size
+        // A line feed inside a run is a line break too, never a new paragraph.
+        Body lf(QStringLiteral("<a:p><a:r><a:t>one&#10;two&#13;three</a:t></a:r></a:p>"));
+        QCOMPARE(lf.doc.blockCount(), 1);
+        QVERIFY(lf.text().contains(sep));
+        QVERIFY(!lf.text().contains(QLatin1Char('\n')));
+    }
+
+    void textBreaksLinesWhereTheSizeSaysItMust()
+    {
+        // The same two paragraphs at two sizes: bigger letters, more lines.
+        auto lines = [](int sz) {
+            const QString words = QStringLiteral("The quick brown fox jumps over the lazy dog and then runs back to the barn");
+            Body b(para(run(words, QStringLiteral("sz=\"%1\"").arg(sz))) + para(run(QStringLiteral("Second paragraph with a few more words in it"), QStringLiteral("sz=\"%1\"").arg(sz))));
+            jp::FrameSpec fs;
+            fs.size = QSizeF(240, 2000);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            jp::StoryLayout lay;
+            lay.build(&b.doc, {fs}, jp::LayoutEnv());
+            return int(lay.lineInfo(0).size());
+        };
+        const int fewer = lines(1200), more = lines(3600);
+        QVERIFY2(more > fewer, qPrintable(QStringLiteral("%1 lines at 12 pt, %2 at 36 pt").arg(fewer).arg(more)));
+        QVERIFY(fewer >= 2);
+    }
+
+    void textBodyHostileInputIsClamped()
+    {
+        // Sizes within 1 to 4000 pt; nonsense is ignored.
+        Body b(para(run(QStringLiteral("a"), QStringLiteral("sz=\"1\"")) + run(QStringLiteral("b"), QStringLiteral("sz=\"99999999\""))
+                    + run(QStringLiteral("c"), QStringLiteral("sz=\"0\"")) + run(QStringLiteral("d"), QStringLiteral("sz=\"-300\""))
+                    + run(QStringLiteral("e"), QStringLiteral("sz=\"abc\" spc=\"x\" baseline=\"y\" kern=\"z\"")) + run(QStringLiteral("f"), QStringLiteral("spc=\"99999999\""))));
+        QCOMPARE(b.charAt(0, 0).fontPointSize(), 1.0);
+        QCOMPARE(b.charAt(0, 1).fontPointSize(), 4000.0);
+        QCOMPARE(b.charAt(0, 2).fontPointSize(), 1.0);
+        QCOMPARE(b.charAt(0, 3).fontPointSize(), 1.0);
+        QCOMPARE(b.charAt(0, 4).fontPointSize(), 18.0);
+        QVERIFY(qAbs(b.charAt(0, 5).fontLetterSpacing()) <= 1584.0);
+    }
+
+    void textBodyDamagedElementsAreSurvived()
+    {
+        const QString junk = QStringLiteral(
+            "<a:p><a:pPr lvl=\"99\" marL=\"abc\" indent=\"\" algn=\"sideways\" defTabSz=\"x\" rtl=\"maybe\"><a:lnSpc/><a:spcBef><a:spcPct/></a:spcBef><a:spcAft><a:spcPts val=\"-5\"/></a:spcAft>"
+            "<a:buClr/><a:buSzPct/><a:buSzPts val=\"q\"/><a:buFont/><a:buChar/><a:buAutoNum/><a:buAutoNum type=\"arabicPeriod\" startAt=\"-4\"/>"
+            "<a:tabLst><a:tab/><a:tab pos=\"x\"/></a:tabLst><a:defRPr sz=\"abc\"/></a:pPr>"
+            "<a:r/><a:r><a:rPr><a:hlinkClick/><a:solidFill/><a:highlight/><a:latin/><a:ea/><a:cs/><a:gradFill/></a:rPr></a:r><a:fld/><a:br/><a:endParaRPr/><a:r><a:t/></a:r></a:p>"
+            "<a:p><a:pPr lvl=\"-3\"/></a:p><a:p/><a:p><a:r><a:rPr u=\"bogus\" strike=\"bogus\" cap=\"bogus\" b=\"bogus\"/><a:t>t</a:t></a:r></a:p>");
+        Body b(junk, {QStringLiteral("<a:lvl1pPr><a:defRPr/></a:lvl1pPr><a:lvl9pPr/><a:defPPr/>"), QString()});
+        QCOMPARE(b.doc.blockCount(), 4);
+        QCOMPARE(b.block(0).blockFormat().intProperty(jp::tp::ListLevel), 8);
+        QCOMPARE(b.block(1).blockFormat().intProperty(jp::tp::ListLevel), 0);
+        // And a body of the wrong kind of element.
+        QDomDocument dom;
+        QVERIFY(parseXml("<a:txBody xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:p><a:p><a:r><a:r/></a:r></a:p></a:p><a:t>stray</a:t></a:txBody>", &dom));
+        QTextDocument doc;
+        readTextBody(dom.documentElement(), &doc, DrawingContext());
+        QVERIFY(doc.blockCount() >= 1);
+        // And a stack with nothing in some of its layers.
+        readTextBody(dom.documentElement(), &doc, DrawingContext(), TextStyleStack{QDomElement(), dom.documentElement(), QDomElement()});
+        QVERIFY(doc.blockCount() >= 1);
+    }
+
+    void textBodySurvivesRandomDamage()
+    {
+        const QString layer = QStringLiteral(
+            "<a:lstStyle %1><a:defPPr><a:defRPr sz=\"1800\"/></a:defPPr><a:lvl1pPr marL=\"342900\" indent=\"-342900\" algn=\"ctr\" defTabSz=\"914400\" rtl=\"0\">"
+            "<a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc><a:spcBef><a:spcPts val=\"1000\"/></a:spcBef><a:buClr><a:srgbClr val=\"FF0000\"/></a:buClr>"
+            "<a:buSzPct val=\"80000\"/><a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/><a:tabLst><a:tab pos=\"914400\" algn=\"r\"/></a:tabLst>"
+            "<a:defRPr sz=\"2800\" kern=\"1200\" b=\"1\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/></a:defRPr></a:lvl1pPr>"
+            "</a:lstStyle>").arg(declarations());
+        const QString body = QStringLiteral(
+            "<p:txBody %1><a:bodyPr/><a:lstStyle/>"
+            "<a:p><a:pPr lvl=\"0\" marL=\"457200\"><a:buAutoNum type=\"arabicPeriod\" startAt=\"2\"/></a:pPr>"
+            "<a:r><a:rPr lang=\"en-US\" sz=\"2000\" b=\"1\" i=\"1\" u=\"wavyHeavy\" strike=\"sngStrike\" baseline=\"30000\" spc=\"-50\" cap=\"small\">"
+            "<a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill><a:highlight><a:srgbClr val=\"FFFF00\"/></a:highlight><a:latin typeface=\"Arial\"/>"
+            "<a:hlinkClick r:id=\"rId1\"/></a:rPr><a:t>Some text</a:t></a:r><a:br><a:rPr sz=\"1200\"/></a:br>"
+            "<a:fld id=\"{1}\" type=\"slidenum\"><a:rPr/><a:t>1</a:t></a:fld><a:fld id=\"{2}\" type=\"datetime9\"><a:t>now</a:t></a:fld>"
+            "<a:endParaRPr sz=\"900\"/></a:p>"
+            "<a:p><a:pPr lvl=\"1\" algn=\"dist\" rtl=\"1\"><a:lnSpc><a:spcPts val=\"2400\"/></a:lnSpc><a:spcAft><a:spcPct val=\"50000\"/></a:spcAft><a:buNone/></a:pPr>"
+            "<a:r><a:t>tab\there</a:t></a:r></a:p></p:txBody>").arg(declarations());
+        PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<p:sld/>", kSlideType);
+        w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), kRelBase + "hyperlink", QStringLiteral("https://example.com/"), true);
+        Package package;
+        QVERIFY(package.read(w.finish()));
+        DrawingContext ctx;
+        ctx.package = &package;
+        ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
+        ctx.theme = colorTestTheme();
+        QRandomGenerator gen(4711);
+        int read = 0;
+        for (int i = 0; i < 600; ++i) {
+            QByteArray badBody = body.toUtf8(), badLayer = layer.toUtf8();
+            for (QByteArray *bad : {&badBody, &badLayer})
+                if (gen.bounded(3) != 0)
+                    for (int k = 0, n = 1 + int(gen.bounded(4)); k < n; ++k) (*bad)[int(gen.bounded(quint32(bad->size())))] = char(gen.bounded(32u, 127u));
+            QDomDocument bodyDom, layerDom;
+            if (!parseXml(badBody, &bodyDom) || !parseXml(badLayer, &layerDom)) continue;
+            ++read;
+            QTextDocument doc;
+            readTextBody(bodyDom.documentElement(), &doc, ctx, TextStyleStack{layerDom.documentElement()});
+            QVERIFY(doc.blockCount() >= 1);
+            if (i % 12 == 0) {
+                // What was read goes through the text engine too.
+                jp::FrameSpec fs;
+                fs.size = QSizeF(300, 300);
+                jp::StoryLayout lay;
+                lay.build(&doc, {fs}, jp::LayoutEnv());
+            }
+        }
+        QVERIFY(read > 100);
+    }
+
+    void textBodyStopsAtAHundredThousandParagraphsAndRuns()
+    {
+        {
+            QString many;
+            many.reserve(100001 * 6);
+            for (int i = 0; i < 100001; ++i) many += QStringLiteral("<a:p/>");
+            Body b(many);
+            QCOMPARE(b.doc.blockCount(), 100000);
+        }
+        {
+            QString runs = QStringLiteral("<a:p>");
+            runs.reserve(100001 * 20);
+            for (int i = 0; i < 100001; ++i) runs += QStringLiteral("<a:r><a:t>x</a:t></a:r>");
+            runs += QStringLiteral("</a:p>");
+            Body b(runs);
+            QCOMPARE(b.doc.blockCount(), 1);
+            QCOMPARE(b.text().size(), 100000);
+        }
     }
 };
 
