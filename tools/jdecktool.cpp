@@ -2,11 +2,13 @@
 //   jdecktool render <file.pptx> <outdir> [width=1280]   each slide to slide-001.png ...
 //   jdecktool info <file.pptx>                           the masters, layouts, and slides found
 //   jdecktool save <file> <out.pptx>                     read it and save it again, listing what was left out
+//   jdecktool pdf <file> <out.pdf> [slides|notes|handout6]   print it to a PDF (also handout1|2|3|4|9, outline; "hidden", "frame", "gray", "down" add options; "samplenotes" gives slides without notes some)
 
 #include "app/deckinfo.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "io/deckoutput.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
 #include "render/renderer.h"
@@ -14,6 +16,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QGuiApplication>
+#include <QHash>
 #include <QJsonArray>
 #include <QTextDocument>
 #include <QTextStream>
@@ -58,8 +61,9 @@ int main(int argc, char **argv)
     initCore();
     const QStringList args = app.arguments();
     QTextStream out(stdout);
-    if (args.size() < 3 || ((args[1] == "render" || args[1] == "save") && args.size() < 4) || (args[1] != "render" && args[1] != "info" && args[1] != "save")) {
-        out << "usage: jdecktool render <file.pptx> <outdir> [width=1280] | info <file.pptx> | save <file> <out.pptx>\n";
+    if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) ||
+        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf")) {
+        out << "usage: jdecktool render <file.pptx> <outdir> [width=1280] | info <file.pptx> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...]\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -80,6 +84,41 @@ int main(int argc, char **argv)
         const bool ok = deck::savePresentationFile(*doc, args[3], &error, &skipped);
         for (const QString &s : skipped) out << "left out\t" << s << "\n";
         out << (ok ? "saved\t" + args[3] : "cannot save: " + error) << "\t" << timer.elapsed() << " ms\n";
+        return ok ? 0 : 1;
+    }
+
+    if (cmd == "pdf") {
+        // What to print: a layout, and any of hidden, frame, and gray.
+        static const QHash<QString, deck::PrintLayout> layouts = {
+            {"slides", deck::PrintLayout::Slides},     {"notes", deck::PrintLayout::NotesPages}, {"handout1", deck::PrintLayout::Handout1},
+            {"handout2", deck::PrintLayout::Handout2}, {"handout3", deck::PrintLayout::Handout3}, {"handout4", deck::PrintLayout::Handout4},
+            {"handout6", deck::PrintLayout::Handout6}, {"handout9", deck::PrintLayout::Handout9}, {"outline", deck::PrintLayout::Outline}};
+        deck::OutputOptions options;
+        for (int i = 4; i < args.size(); ++i) {
+            if (layouts.contains(args[i])) options.layout = layouts[args[i]];
+            else if (args[i] == "hidden") options.hiddenSlides = true;
+            else if (args[i] == "frame") options.frameSlides = true;
+            else if (args[i] == "gray") options.grayscale = true;
+            else if (args[i] == "down") options.horizontalOrder = false;
+            else if (args[i] == "samplenotes") {
+                // To see notes pages of a presentation that has none: a few lines on each slide, many on every fifth.
+                for (int k = 0; k < doc->pages.size(); ++k) {
+                    Page &slide = *doc->pages[k];
+                    if (!deck::notesText(*doc, slide).isEmpty()) continue;
+                    QStringList paragraphs;
+                    for (int n = 0; n < (k % 5 == 4 ? 40 : 1 + k % 3); ++n)
+                        paragraphs << QStringLiteral("Say that slide %1 shows the third quarter's results, and mention point %2 before moving on to the next topic.").arg(k + 1).arg(n + 1);
+                    slide.notesStoryId = doc->createStory(paragraphs.join(QLatin1Char('\n')));
+                }
+            }
+            else {
+                out << "unknown option: " << args[i] << "\n";
+                return 2;
+            }
+        }
+        QString error;
+        const bool ok = deck::exportPdf(*doc, args[3], options, &error);
+        out << (ok ? "wrote\t" + args[3] + "\t" + QString::number(deck::outputPageCount(*doc, options)) + " pages" : "cannot write: " + error) << "\t" << timer.elapsed() << " ms\n";
         return ok ? 0 : 1;
     }
 
