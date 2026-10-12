@@ -3241,6 +3241,219 @@ private Q_SLOTS:
         st.setValue(QStringLiteral("user/initials"), QString());
     }
 
+    // The older form: the authors in one part of the presentation, each slide's
+    // comments in a part of its own, a reply naming the comment it answers in
+    // an extension. Times are the author's own, with their offset from UTC.
+    void importReadsLegacyComments()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(withLegacyComments()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 2);
+        QVERIFY(deck::commentsOf(*d->pages[1]).isEmpty());
+        const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+        QCOMPARE(int(list.size()), 2);   // the file has three, one of them an answer
+        const deck::Comment &c = list[0];
+        QCOMPARE(c.author, QStringLiteral("Pat Doe"));
+        QCOMPARE(c.initials, QStringLiteral("PD"));
+        QCOMPARE(c.text, QStringLiteral("Check the numbers\non this slide"));
+        // 10:15:30.250 where UTC minus local is 420 minutes.
+        QCOMPARE(c.date, QDateTime(QDate(2026, 10, 12), QTime(17, 15, 30, 250), QTimeZone::UTC));
+        // Positions are 576ths of an inch: 5760 is 10 inches, 720 points.
+        QCOMPARE(c.at, QPointF(720, 144));
+        QVERIFY(!c.done);
+        QCOMPARE(int(c.replies.size()), 1);
+        QCOMPARE(c.replies[0].author, QStringLiteral("Lee Roy"));
+        QCOMPARE(c.replies[0].initials, QStringLiteral("LR"));
+        QCOMPARE(c.replies[0].text, QStringLiteral("Done, thanks"));
+        QCOMPARE(c.replies[0].date, QDateTime(QDate(2026, 10, 12), QTime(17, 20, 0, 0), QTimeZone::UTC));
+        QVERIFY(!c.replies[0].id.isEmpty() && c.replies[0].id != c.id);
+        // A time that says its zone is used as it is; one with no offset known is taken as UTC.
+        QCOMPARE(list[1].author, QStringLiteral("Lee Roy"));
+        QCOMPARE(list[1].text, QStringLiteral("Second thread"));
+        QCOMPARE(list[1].date, QDateTime(QDate(2026, 10, 12), QTime(11, 0, 0, 0), QTimeZone::UTC));
+        QCOMPARE(list[1].at, QPointF(100, 50));
+        QVERIFY(list[1].replies.isEmpty());
+        QVERIFY(list[1].id != c.id);
+        // The extension that says a comment is done.
+        Parts p = withLegacyComments();
+        QString xml = QString::fromUtf8(p.data["/ppt/comments/comment1.xml"].xml);
+        xml.replace(QStringLiteral("<p:text>Second thread</p:text>"),
+                    QStringLiteral("<p:text>Second thread</p:text><p:extLst><p:ext uri=\"{7C0E3E5B-5A0B-4B52-9D6E-2F1A8E4C9B21}\">"
+                                   "<jo:done xmlns:jo=\"http://jeffoffice.com/ns/deck/comments\" val=\"1\"/></p:ext></p:extLst>"));
+        p.data["/ppt/comments/comment1.xml"].xml = xml.toUtf8();
+        d = deck::importPresentation(pack(p), &err);
+        QVERIFY(d);
+        QVERIFY(deck::commentsOf(*d->pages[0])[1].done);
+        QVERIFY(!deck::commentsOf(*d->pages[0])[0].done);
+
+        // The strict form of the standard names the same parts.
+        Parts s = withLegacyComments();
+        for (auto it = s.data.begin(); it != s.data.end(); ++it) {
+            if (!it.key().endsWith(QLatin1String(".xml"))) continue;
+            QString text = QString::fromUtf8(it.value().xml);
+            text.replace(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main"), QStringLiteral("http://purl.oclc.org/ooxml/drawingml/main"));
+            text.replace(QStringLiteral("http://schemas.openxmlformats.org/presentationml/2006/main"), QStringLiteral("http://purl.oclc.org/ooxml/presentationml/main"));
+            text.replace(QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QStringLiteral("http://purl.oclc.org/ooxml/officeDocument/relationships"));
+            it.value().xml = text.toUtf8();
+        }
+        d = deck::importPresentation(pack(s), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(deck::commentsOf(*d->pages[0]).size()), 2);
+        QCOMPARE(int(deck::commentsOf(*d->pages[0])[0].replies.size()), 1);
+    }
+
+    // The newer form: authors by GUID, comments that are threads with replies
+    // inside, a status, and a place on the slide or the shape they stand on.
+    void importReadsModernComments()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(withModernComments()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QVERIFY(deck::commentsOf(*d->pages[0]).isEmpty());
+        const QVector<deck::Comment> list = deck::commentsOf(*d->pages[1]);
+        QCOMPARE(int(list.size()), 3);
+        const deck::Comment &c = list[0];
+        QCOMPARE(c.author, QStringLiteral("Pat Doe"));
+        QCOMPARE(c.initials, QStringLiteral("PD"));
+        QCOMPARE(c.text, QStringLiteral("Line one\nLine two"));
+        QCOMPARE(c.date, QDateTime(QDate(2026, 10, 12), QTime(17, 15, 30, 250), QTimeZone::UTC));
+        QVERIFY(c.done);   // status "resolved"
+        // The place is in EMU: 9144000 is 720 points.
+        QCOMPARE(c.at, QPointF(720, 108));
+        QCOMPARE(int(c.replies.size()), 1);
+        QCOMPARE(c.replies[0].author, QStringLiteral("Lee Roy"));
+        QCOMPARE(c.replies[0].initials, QStringLiteral("LR"));
+        QCOMPARE(c.replies[0].text, QStringLiteral("On it"));
+        QCOMPARE(c.replies[0].date, QDateTime(QDate(2026, 10, 12), QTime(17, 20, 0, 0), QTimeZone::UTC));
+        // One with no status is open; one on a shape stands at the shape's top right (the title, shape 2).
+        QCOMPARE(list[1].text, QStringLiteral("Anchored"));
+        QVERIFY(!list[1].done);
+        const Item *title = d->pages[1]->items[0].get();
+        QCOMPARE(title->sourceId, 2);
+        QCOMPARE(list[1].at, QPointF(title->rect.right(), title->rect.top()));
+        // One that says nowhere stands at the corner, clear of the others.
+        QCOMPARE(list[2].text, QStringLiteral("Nowhere"));
+        QVERIFY(list[2].at.x() >= 0 && list[2].at.x() < 100 && list[2].at.y() >= 0 && list[2].at.y() < 100);
+        QVERIFY(list[2].at != list[1].at && list[2].at != c.at);
+    }
+
+    // A comment file is a stranger's: what doesn't make sense is left out or
+    // mended, never fatal, and the slides are read all the same.
+    void importSurvivesHostileComments()
+    {
+        QString err;
+        // A comments part that isn't XML, or isn't comments at all.
+        for (const char *junk : {"<<< not xml", "<p:sld xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>"}) {
+            Parts p = withLegacyComments();
+            p.data["/ppt/comments/comment1.xml"].xml = junk;
+            err.clear();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(d->pages.size()), 2);
+            QVERIFY(deck::commentsOf(*d->pages[0]).isEmpty());
+            QVERIFY2(err.contains(QStringLiteral("comments")), qPrintable(err));
+        }
+        // No authors part, or an author the comments don't name: the comments stay.
+        {
+            Parts p = withLegacyComments();
+            p.data.remove(QStringLiteral("/ppt/commentAuthors.xml"));
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+            QCOMPARE(int(list.size()), 2);
+            QVERIFY(!list[0].author.isEmpty());
+            QCOMPARE(list[0].text, QStringLiteral("Check the numbers\non this slide"));
+        }
+        // A reply to itself, to a comment that isn't there, and two that answer each other: all stay, none loops.
+        {
+            Parts p = withLegacyComments();
+            QString body;
+            body += legacyComment(0, 1, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("Self"), 0, QStringLiteral("0:1"));
+            body += legacyComment(0, 2, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("Orphan"), 0, QStringLiteral("5:9"));
+            body += legacyComment(1, 1, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("Ping"), 0, QStringLiteral("1:2"));
+            body += legacyComment(1, 2, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("Pong"), 0, QStringLiteral("1:1"));
+            p.data["/ppt/comments/comment1.xml"].xml = legacyCommentList(body).toUtf8();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+            int comments = 0, replies = 0;
+            for (const deck::Comment &c : list) {
+                ++comments;
+                replies += int(c.replies.size());
+            }
+            QCOMPARE(comments + replies, 4);
+            QVERIFY(comments >= 3);
+        }
+        // Dates and places that aren't numbers, and text of any length.
+        {
+            Parts p = withLegacyComments();
+            QString body = legacyComment(0, 1, QStringLiteral("last Tuesday"), 0, 0, QStringLiteral("No date"));
+            body.replace(QStringLiteral("<p:pos x=\"0\" y=\"0\"/>"), QStringLiteral("<p:pos x=\"many\" y=\"-4000000000\"/>"));
+            body += legacyComment(0, 2, QStringLiteral("2026-10-12T10:00:00"), 0, 0, QString(deck::kMaxCommentText + 1000, QLatin1Char('y')));
+            body += QStringLiteral("<p:cm authorId=\"0\" idx=\"3\"><p:text>No place</p:text></p:cm><p:cm><p:text>No author</p:text></p:cm>");
+            p.data["/ppt/comments/comment1.xml"].xml = legacyCommentList(body).toUtf8();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+            QCOMPARE(int(list.size()), 4);
+            QVERIFY(!list[0].date.isValid());
+            QCOMPARE(list[0].text, QStringLiteral("No date"));
+            QVERIFY(list[0].at.x() >= 0 && list[0].at.x() <= 960 && list[0].at.y() >= 0 && list[0].at.y() <= 540);
+            QCOMPARE(int(list[1].text.size()), int(deck::kMaxCommentText));
+            QCOMPARE(list[2].text, QStringLiteral("No place"));
+        }
+        // More than a slide can hold are counted, not read.
+        {
+            Parts p = withLegacyComments();
+            QString body;
+            for (int i = 0; i < 1100; ++i) body += legacyComment(0, i + 1, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("C%1").arg(i));
+            p.data["/ppt/comments/comment1.xml"].xml = legacyCommentList(body).toUtf8();
+            err.clear();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(deck::commentsOf(*d->pages[0]).size()), 1000);
+            QVERIFY2(err.contains(QStringLiteral("1000")), qPrintable(err));
+        }
+        // Authors by the thousand are not all read either; the first ones are.
+        {
+            Parts p = withLegacyComments();
+            QString authors;
+            for (int i = 0; i < 12000; ++i) authors += QStringLiteral("<p:cmAuthor id=\"%1\" name=\"A%1\" initials=\"A\" lastIdx=\"1\" clrIdx=\"0\"/>").arg(i);
+            p.data["/ppt/commentAuthors.xml"].xml = (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:cmAuthorLst ") + nsDecl() + QStringLiteral(">") + authors + QStringLiteral("</p:cmAuthorLst>")).toUtf8();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(deck::commentsOf(*d->pages[0])[0].author, QStringLiteral("A0"));
+        }
+        // The newer form: a part that isn't XML, replies without end, text in odd places.
+        {
+            Parts p = withModernComments();
+            p.data["/ppt/comments/modernComment_101_5.xml"].xml = "<<< not xml";
+            err.clear();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(d->pages.size()), 2);
+            QVERIFY(deck::commentsOf(*d->pages[1]).isEmpty());
+            QVERIFY2(err.contains(QStringLiteral("comments")), qPrintable(err));
+            Parts q = withModernComments();
+            QString xml = QString::fromUtf8(q.data["/ppt/comments/modernComment_101_5.xml"].xml);
+            QString replies;
+            for (int i = 0; i < 1100; ++i)
+                replies += QStringLiteral("<p188:reply id=\"{%1}\" authorId=\"{22222222-2222-4222-8222-222222222222}\" created=\"bad\"><p188:txBody><a:p><a:r><a:t>r%1</a:t></a:r></a:p></p188:txBody></p188:reply>").arg(i);
+            xml.replace(QStringLiteral("<p188:replyLst>"), QStringLiteral("<p188:replyLst>") + replies);
+            q.data["/ppt/comments/modernComment_101_5.xml"].xml = xml.toUtf8();
+            err.clear();
+            d = deck::importPresentation(pack(q), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[1]);
+            QCOMPARE(int(list.size()), 3);
+            QCOMPARE(int(list[0].replies.size()), 1000);
+            QVERIFY2(err.contains(QStringLiteral("1000")), qPrintable(err));
+        }
+    }
+
     // File > Options is the shared dialog: its General tab has the user name
     // and the app's own name in the update check, Proofing follows, and
     // JeffDeck's View page sets the ruler and snapping for every open window.
@@ -3544,6 +3757,75 @@ private:
         w.addRelationship(QStringLiteral("/"), relBase() + QStringLiteral("officeDocument"), QStringLiteral("/ppt/presentation.xml"));
         for (const Rel &r : p.rels) w.addRelationship(r.source, r.type.contains(QLatin1String("://")) ? r.type : relBase() + r.type, r.target, r.external);
         return w.finish();
+    }
+    // A comment of the older form (p:cm). `bias`: the author's offset from UTC in minutes
+    // (INT_MIN: none given); `parent`: "author:idx" of the comment it answers.
+    static QString legacyComment(int author, int idx, const QString &when, qint64 x, qint64 y, const QString &text, int bias = INT_MIN, const QString &parent = QString())
+    {
+        QString ext;
+        if (bias != INT_MIN || !parent.isEmpty()) {
+            ext = QStringLiteral("<p:extLst><p:ext uri=\"{C676402C-5697-4E1C-873F-D02D1690AC5C}\"><p15:threadingInfo xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2012/main\"");
+            if (bias != INT_MIN) ext += QStringLiteral(" timeZoneBias=\"%1\"").arg(bias);
+            if (parent.isEmpty()) ext += QStringLiteral("/>");
+            else ext += QStringLiteral("><p15:parentCm authorId=\"%1\" idx=\"%2\"/></p15:threadingInfo>").arg(parent.section(QLatin1Char(':'), 0, 0), parent.section(QLatin1Char(':'), 1, 1));
+            ext += QStringLiteral("</p:ext></p:extLst>");
+        }
+        return QStringLiteral("<p:cm authorId=\"%1\" dt=\"%2\" idx=\"%3\"><p:pos x=\"%4\" y=\"%5\"/><p:text>%6</p:text>%7</p:cm>")
+            .arg(author).arg(when).arg(idx).arg(x).arg(y).arg(text.toHtmlEscaped(), ext);
+    }
+    static QString legacyCommentList(const QString &body)
+    {
+        return QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:cmLst ") + nsDecl() + QStringLiteral(">") + body + QStringLiteral("</p:cmLst>");
+    }
+    // The sample presentation with comments in the older form on its first slide: a comment
+    // by Pat and Lee's answer to it, then Lee's own, in the offset-free and the UTC form.
+    static Parts withLegacyComments()
+    {
+        Parts p = samplePptx();
+        p.data["/ppt/commentAuthors.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml"),
+            (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:cmAuthorLst ") + nsDecl() + QStringLiteral(">"
+             "<p:cmAuthor id=\"0\" name=\"Pat Doe\" initials=\"PD\" lastIdx=\"1\" clrIdx=\"0\"/>"
+             "<p:cmAuthor id=\"1\" name=\"Lee Roy\" initials=\"LR\" lastIdx=\"2\" clrIdx=\"1\"/></p:cmAuthorLst>")).toUtf8()};
+        p.rels << Rel{"/ppt/presentation.xml", "commentAuthors", "/ppt/commentAuthors.xml"};
+        QString body = legacyComment(0, 1, QStringLiteral("2026-10-12T10:15:30.250"), 5760, 1152, QStringLiteral("Check the numbers\non this slide"), 420);
+        body += legacyComment(1, 1, QStringLiteral("2026-10-12T10:20:00.000"), 5760, 1152, QStringLiteral("Done, thanks"), 420, QStringLiteral("0:1"));
+        body += legacyComment(1, 2, QStringLiteral("2026-10-12T11:00:00.000Z"), 800, 400, QStringLiteral("Second thread"));
+        p.data["/ppt/comments/comment1.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.comments+xml"), legacyCommentList(body).toUtf8()};
+        p.rels << Rel{"/ppt/slides/slide1.xml", "comments", "/ppt/comments/comment1.xml"};
+        return p;
+    }
+    // The sample presentation with comments in the newer form on its second slide.
+    static Parts withModernComments()
+    {
+        Parts p = samplePptx();
+        const QString head = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+        const QString modern = nsDecl() + QStringLiteral(" xmlns:p188=\"http://schemas.microsoft.com/office/powerpoint/2018/8/main\"");
+        const QString pat = QStringLiteral("{11111111-1111-4111-8111-111111111111}"), lee = QStringLiteral("{22222222-2222-4222-8222-222222222222}");
+        p.data["/ppt/authors.xml"] = {QStringLiteral("application/vnd.ms-powerpoint.authors+xml"),
+            (head + QStringLiteral("<p188:authorLst ") + modern + QStringLiteral(">"
+             "<p188:author id=\"%1\" name=\"Pat Doe\" initials=\"PD\" userId=\"S::pat@example.com::1\" providerId=\"AD\"/>"
+             "<p188:author id=\"%2\" name=\"Lee Roy\" initials=\"LR\" userId=\"lee\" providerId=\"None\"/></p188:authorLst>").arg(pat, lee)).toUtf8()};
+        p.rels << Rel{"/ppt/presentation.xml", "http://schemas.microsoft.com/office/2018/10/relationships/authors", "/ppt/authors.xml"};
+        auto body = [](const QString &text) {
+            return QStringLiteral("<p188:txBody><a:bodyPr/><a:lstStyle/>%1</p188:txBody>").arg(text);
+        };
+        auto line = [](const QString &text) { return QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:r></a:p>").arg(text); };
+        const QString slideMark = QStringLiteral("<pc:docMk/><pc:sldMk cId=\"123456\" sldId=\"257\"/>");
+        const QString pc = QStringLiteral("xmlns:pc=\"http://schemas.microsoft.com/office/powerpoint/2013/main/command\"");
+        QString xml = head + QStringLiteral("<p188:cmLst ") + modern + QStringLiteral(">");
+        xml += QStringLiteral("<p188:cm id=\"{AAAAAAAA-0000-4000-8000-000000000001}\" authorId=\"%1\" created=\"2026-10-12T17:15:30.250\" status=\"resolved\">"
+                              "<pc:sldMkLst %2>%3</pc:sldMkLst><p188:pos x=\"9144000\" y=\"1371600\"/>"
+                              "<p188:replyLst><p188:reply id=\"{BBBBBBBB-0000-4000-8000-000000000001}\" authorId=\"%4\" created=\"2026-10-12T17:20:00.000\">%5</p188:reply></p188:replyLst>%6</p188:cm>")
+                   .arg(pat, pc, slideMark, lee, body(line(QStringLiteral("On it"))), body(line(QStringLiteral("Line one")) + line(QStringLiteral("Line two"))));
+        xml += QStringLiteral("<p188:cm id=\"{AAAAAAAA-0000-4000-8000-000000000002}\" authorId=\"%1\" created=\"2026-10-12T18:00:00.000\">"
+                              "<ac:deMkLst xmlns:ac=\"http://schemas.microsoft.com/office/drawing/2013/main/command\" %2>%3<ac:spMk id=\"2\" creationId=\"{CCCCCCCC-0000-4000-8000-000000000001}\"/></ac:deMkLst>%4</p188:cm>")
+                   .arg(lee, pc, slideMark, body(line(QStringLiteral("Anchored"))));
+        xml += QStringLiteral("<p188:cm id=\"{AAAAAAAA-0000-4000-8000-000000000003}\" authorId=\"%1\" created=\"2026-10-12T18:30:00.000\"><pc:sldMkLst %2>%3</pc:sldMkLst>%4</p188:cm>")
+                   .arg(pat, pc, slideMark, body(line(QStringLiteral("Nowhere"))));
+        xml += QStringLiteral("</p188:cmLst>");
+        p.data["/ppt/comments/modernComment_101_5.xml"] = {QStringLiteral("application/vnd.ms-powerpoint.comments+xml"), xml.toUtf8()};
+        p.rels << Rel{"/ppt/slides/slide2.xml", "http://schemas.microsoft.com/office/2018/10/relationships/comments", "/ppt/comments/modernComment_101_5.xml"};
+        return p;
     }
     // Whether the shared reader reads pictures yet (a picture is the one
     // shape these tests need that its first version leaves out).
