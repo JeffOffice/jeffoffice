@@ -428,18 +428,15 @@ Node trigger(TimingTree &t, int shape, const QString &command, int preset, qint6
                el("p:nextCondLst", {}, {el("p:cond", {{"evt", QStringLiteral("onClick")}, {"delay", QStringLiteral("0")}}, {target(shape)})})});
 }
 
-// The p:video or p:audio that says how the media plays.
-Node mediaNode(TimingTree &t, const MediaPlay &p, int beginsWith)
+// The p:video or p:audio that says how the media plays. (The presentation program's says nothing of the call that starts it.)
+Node mediaNode(TimingTree &t, const MediaPlay &p)
 {
     const int id = t.takeId();
-    Node stCond = el("p:stCondLst", {}, {el("p:cond", {{"delay", QStringLiteral("indefinite")}})});
-    if (beginsWith > 0)
-        stCond.kids.push_back(el("p:cond", {{"evt", QStringLiteral("onBegin")}, {"delay", QStringLiteral("0")}}, {el("p:tn", {{"val", QString::number(beginsWith)}})}));
     Node cTn = el("p:cTn", {{"id", QString::number(id)}});
     if (p.loop) cTn.attrs.emplace_back(QStringLiteral("repeatCount"), QStringLiteral("indefinite"));
     cTn.attrs.emplace_back(QStringLiteral("fill"), p.rewind ? QStringLiteral("remove") : QStringLiteral("hold"));
     cTn.attrs.emplace_back(QStringLiteral("display"), QStringLiteral("0"));
-    cTn.kids.push_back(std::move(stCond));
+    cTn.kids.push_back(el("p:stCondLst", {}, {el("p:cond", {{"delay", QStringLiteral("indefinite")}})}));
     if (!p.video)
         cTn.kids.push_back(el("p:endCondLst", {}, {el("p:cond", {{"evt", QStringLiteral("onStopAudio")}, {"delay", QStringLiteral("0")}}, {el("p:tgtEl", {}, {el("p:sldTgt")})})}));
     Node media = el("p:cMediaNode", {{"vol", QString::number(p.volume)}});
@@ -458,9 +455,8 @@ Node mediaNode(TimingTree &t, const MediaPlay &p, int beginsWith)
 void addMedia(TimingTree &t, const MediaPlay &p, qint64 lengthMs)
 {
     if (!t.list) return;
-    // How long the call lasts: what the file's length leaves after the trim, else what the settings it comes from say, else nothing known.
-    const qint64 ms = lengthMs > 0 ? std::max<qint64>(1, (p.trimEnd > 0 && p.trimEnd < lengthMs ? p.trimEnd : lengthMs) - p.trimStart) : std::max<qint64>(1, p.lengthHint);
-    int effectId = 0;
+    // How long the call lasts: what the file's length leaves after what is cut off each end, else what the settings it comes from say, else nothing known.
+    const qint64 ms = lengthMs > 0 ? std::max<qint64>(1, lengthMs - p.trimStart - p.trimEnd) : std::max<qint64>(1, p.lengthHint);
     const QString start = QStringLiteral("playFrom(0.0)");
     if (p.start != MediaStart::WhenClickedOn) {
         if (!t.mainSeq) {
@@ -477,19 +473,25 @@ void addMedia(TimingTree &t, const MediaPlay &p, qint64 lengthMs)
                 const Timeline tl = readTimeline(treeXml(t.root));
                 const double end = tl.steps.isEmpty() ? 0 : tl.steps.last().duration();
                 const int groupId = t.takeId();
-                inner->kids.push_back(group(groupId, QString::number(qint64(end + 0.5)), mediaCall(t, p.shape, start, 1, "afterEffect", ms, &effectId)));
+                inner->kids.push_back(group(groupId, QString::number(qint64(end + 0.5)), mediaCall(t, p.shape, start, 1, "afterEffect", ms)));
             }
         } else {
             const int stepId = t.takeId(), groupId = t.takeId();
             Node stCond = el("p:stCondLst", {}, {el("p:cond", {{"delay", QStringLiteral("indefinite")}})});
             if (p.start == MediaStart::Automatically)
                 stCond.kids.push_back(el("p:cond", {{"evt", QStringLiteral("onBegin")}, {"delay", QStringLiteral("0")}}, {el("p:tn", {{"val", t.mainSeq->find("cTn")->attr("id")}})}));
-            Node call = group(groupId, QStringLiteral("0"), mediaCall(t, p.shape, start, 1, p.start == MediaStart::Automatically ? "afterEffect" : "clickEffect", ms, &effectId));
+            Node call = group(groupId, QStringLiteral("0"), mediaCall(t, p.shape, start, 1, p.start == MediaStart::Automatically ? "afterEffect" : "clickEffect", ms));
             steps->kids.push_back(el("p:par", {}, {el("p:cTn", {{"id", QString::number(stepId)}, {"fill", QStringLiteral("hold")}}, {std::move(stCond), el("p:childTnLst", {}, {std::move(call)})})}));
         }
     }
-    // The media's own node, after the main sequence and before the sequences a click starts.
-    Node node = mediaNode(t, p, p.start == MediaStart::Automatically ? effectId : 0);
+    // A movie or sound that waits for a click has its sequence first, and its node after it, as the program writes them; the others have their node
+    // before the sequences a click starts, and a movie's click on it pauses it or plays it again.
+    if (p.start == MediaStart::WhenClickedOn) {
+        t.list->kids.push_back(trigger(t, p.shape, p.video ? QStringLiteral("togglePause") : start, p.video ? 2 : 1, p.video ? 1 : ms));
+        t.list->kids.push_back(mediaNode(t, p));
+        return;
+    }
+    Node node = mediaNode(t, p);
     size_t at = t.list->kids.size();
     for (size_t i = 0; i < t.list->kids.size(); ++i) {
         const Node &k = t.list->kids[i];
@@ -500,9 +502,24 @@ void addMedia(TimingTree &t, const MediaPlay &p, qint64 lengthMs)
         }
     }
     t.list->kids.insert(t.list->kids.begin() + at, std::move(node));
-    // A click on a movie pauses it or plays it again; a click starts a sound or a movie that waits for one.
-    if (p.start == MediaStart::WhenClickedOn) t.list->kids.push_back(trigger(t, p.shape, p.video ? QStringLiteral("togglePause") : start, p.video ? 2 : 1, p.video ? 1 : ms));
-    else if (p.video) t.list->kids.push_back(trigger(t, p.shape, QStringLiteral("togglePause"), 2, 1));
+    if (p.video) t.list->kids.push_back(trigger(t, p.shape, QStringLiteral("togglePause"), 2, 1));
+}
+
+// Takes out a main sequence with no steps: the presentation program writes none, and refuses a file that has one.
+void dropEmptyMainSequence(TimingTree &t)
+{
+    if (!t.list) return;
+    for (size_t i = 0; i < t.list->kids.size(); ++i) {
+        const Node &k = t.list->kids[i];
+        const Node *cTn = k.local() == QLatin1String("seq") ? k.find("cTn") : nullptr;
+        if (!cTn || cTn->attr("nodeType") != QLatin1String("mainSeq")) continue;
+        const Node *inner = cTn->find("childTnLst");
+        if (!inner || inner->kids.empty()) {
+            t.list->kids.erase(t.list->kids.begin() + i);
+            t.mainSeq = nullptr;
+        }
+        return;
+    }
 }
 
 // Whether anything is left in the timing worth keeping.
@@ -545,6 +562,8 @@ bool MediaPlay::operator==(const MediaPlay &o) const
            hideWhenStopped == o.hideWhenStopped && acrossSlides == o.acrossSlides && trimStart == o.trimStart && trimEnd == o.trimEnd && fadeIn == o.fadeIn && fadeOut == o.fadeOut;
 }
 
+qint64 knownFileLength(const MediaPlay &play) { return play.lengthHint > 0 ? qint64(play.trimStart) + play.trimEnd + play.lengthHint : 0; }
+
 QVector<const PictureItem *> mediaPicturesOf(const Page &slide)
 {
     QVector<const PictureItem *> out;
@@ -583,6 +602,7 @@ void setMediaPlay(Page &slide, PictureItem &pic, const MediaPlay &play, qint64 l
     t.scanIds(t.root);
     removeMedia(t, p.shape);
     addMedia(t, p, lengthMs);
+    dropEmptyMainSequence(t);
     if (timingIsEmpty(t)) slide.props.remove(QStringLiteral("timingXml"));
     else slide.props[QStringLiteral("timingXml")] = treeXml(t.root);
 }
@@ -593,6 +613,7 @@ void clearMediaPlay(Page &slide, int shape)
     TimingTree t;
     if (shape <= 0 || was.isEmpty() || !readTree(was, &t.root) || t.root.local() != QLatin1String("timing") || !t.locate()) return;
     removeMedia(t, shape);
+    dropEmptyMainSequence(t);
     if (timingIsEmpty(t)) slide.props.remove(QStringLiteral("timingXml"));
     else slide.props[QStringLiteral("timingXml")] = treeXml(t.root);
 }
@@ -622,6 +643,7 @@ QString mediaTimingForShapes(const QString &timingXml, const QSet<qint64> &shape
             changed = true;
         }
     if (!changed) return timingXml;
+    dropEmptyMainSequence(t);
     return timingIsEmpty(t) ? QString() : treeXml(t.root);
 }
 

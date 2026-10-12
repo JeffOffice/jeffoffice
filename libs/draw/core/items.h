@@ -130,8 +130,8 @@ public:
     // the document's store (Document::media), or its address when the file
     // links to it outside. Kept to be written back.
     QString mediaKind, mediaId, mediaLink;
-    // Where in the file it plays from and to, and how long its volume rises
-    // and falls at the ends (milliseconds; 0 trim end: to the end of the file).
+    // How much is cut off the start of the file and off its end (p14:trim's st and end, in milliseconds; the movie or sound plays what is
+    // left), and how long its volume rises and falls at the ends.
     int mediaTrimStart = 0, mediaTrimEnd = 0, mediaFadeIn = 0, mediaFadeOut = 0;
 
     void fitImage(const QSize &px, bool fill);  // fill: crop to cover, else fit inside

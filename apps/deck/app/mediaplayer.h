@@ -94,7 +94,8 @@ private:
     void applyVolume();
     void reachedEnd();
     void seekFile(qint64 fileMs);
-    qint64 trimStart() const { return m_play.trimStart; }
+    // Where in the file it plays from and to (the file's length once known): what the trim cuts off each end, unless that leaves nothing.
+    qint64 trimStart() const;
     qint64 trimEnd() const;
     QByteArray m_bytes;
     QString m_extension;

@@ -42,7 +42,7 @@ struct MediaPlay {
     bool fullScreen = false;              // a movie fills the screen in the show
     bool hideWhenStopped = false;         // in the show, the picture shows only while it plays
     int acrossSlides = 1;                 // slides it plays across; more than 1 and it goes on when the slide changes
-    int trimStart = 0, trimEnd = 0;       // ms into the file it plays from and to; 0 for the end: the whole file
+    int trimStart = 0, trimEnd = 0;       // ms cut off the start of the file and off its end (as p14:trim says); it plays what is left
     int fadeIn = 0, fadeOut = 0;          // ms its volume rises at the start and falls at the end
     int lengthHint = 0;                   // ms it plays for, as the timing's call says (0 if it doesn't); for a bar to show before the file is played. Not compared
     bool operator==(const MediaPlay &o) const;
@@ -54,6 +54,10 @@ QVector<const PictureItem *> mediaPicturesOf(const Page &slide);
 
 // How the picture plays, as the slide's timing and the picture say.
 MediaPlay mediaPlayOf(const Page &slide, const PictureItem &pic);
+
+// How long the whole file lasts, as the timing's call says what is left after the trim: that and what is cut off each end; 0 when the call
+// says nothing (a movie that waits for a click has a call that lasts a millisecond).
+qint64 knownFileLength(const MediaPlay &play);
 
 // Makes the slide's timing and the picture say it plays as `play` does: what
 // the timing said of this picture is replaced (and the calls of others, and

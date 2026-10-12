@@ -1243,9 +1243,13 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
     // (The main sequence is filled in first: that numbers the kept effects the kept nodes may name.)
     const QString mainFilled = keptEffects.fill(mainXml);
     for (int i = 0; i < before; ++i) xml += keptEffects.follow(seq.kept[i]);
-    xml += QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"%1\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>").arg(mainId) + mainFilled + QStringLiteral("</p:childTnLst></p:cTn>");
-    xml += QStringLiteral("<p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
-                          "<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
+    // A main sequence with no effects in it isn't written: the presentation program writes none (a slide that has only what waits for a click
+    // has none), and refuses a file that has an empty one.
+    if (!mainXml.isEmpty()) {
+        xml += QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"%1\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>").arg(mainId) + mainFilled + QStringLiteral("</p:childTnLst></p:cTn>");
+        xml += QStringLiteral("<p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
+                              "<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
+    }
     for (qsizetype i = before; i < seq.kept.size(); ++i) xml += keptEffects.follow(seq.kept[i]);
     xml += QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst>");
     if (!buildXml.isEmpty()) xml += QStringLiteral("<p:bldLst>") + buildXml + QStringLiteral("</p:bldLst>");
