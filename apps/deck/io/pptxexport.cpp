@@ -3,6 +3,7 @@
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/sections.h"
+#include "io/pptxtransition.h"
 #include "office/chart.h"
 #include "office/drawingml_table.h"
 #include "office/drawingml_write.h"
@@ -983,7 +984,20 @@ void Exporter::writeSlide(int i)
     const QString fill = background(page, part, false, where);
     xml += fill + tree(page, part, where, &frameIds, &mediaIds) + QStringLiteral("</p:cSld>");
     xml += QStringLiteral("<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>");
-    xml += keptSlideXml(page, "transitionXml", say("transition"), where, frameIds, mediaIds);
+    // The transition as read when it is still that one (the XML keeps what the show has no form for, a sound
+    // included); else as it is now, made from the show's settings.
+    const deck::Transition transition = deck::transitionOf(page);
+    const QString readXml = page.props.value(QStringLiteral("transitionXml")).toString();
+    QString transitionOut = deck::transitionXml(transition);
+    if (!readXml.isEmpty() && deck::transitionFromXml(readXml) == transition) {
+        QDomDocument dom;
+        if (parsesAlone(readXml, &dom) && refersToParts(dom.documentElement())) {
+            note(say("%1: the transition's sound isn't kept; the transition is saved without it.").arg(where));
+        } else if (const QString kept = keptSlideXml(page, "transitionXml", say("transition"), where, frameIds, mediaIds); !kept.isEmpty()) {
+            transitionOut = kept;
+        }
+    }
+    xml += transitionOut;
     xml += keptSlideXml(page, "timingXml", say("animation"), where, frameIds, mediaIds);
     xml += QStringLiteral("</p:sld>");
     add(part, kTypeBase + QStringLiteral("slide+xml"), xml);
