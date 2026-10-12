@@ -8,6 +8,7 @@
 #include <QFileInfo>
 #include "app/mainwindow.h"
 #include "app/taskpane.h"
+#include "app/textartgallery.h"
 
 #include "app/dialogs.h"
 #include "app/icons.h"
@@ -569,26 +570,9 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
     // Insert > Text > Text Art.
     parts.widgets[QStringLiteral("textArtButton")] = [this]() -> QWidget * {
         auto *wa = new GalleryButton(icon("type"), tr("Text Art"), QSize(64, 40), 6, true);
-        wa->setItemsProvider([this] {
-            QVector<GalleryItem> v;
-            Editor *e = m_ed;
-            for (const auto &s : textArtStyles()) {
-                const QString sid = s.id;
-                v << GalleryItem{sid, s.name, drawnIcon([e, sid](QPainter *p, const QRectF &rc) {
-                    TextArtItem w;
-                    for (const auto &st : textArtStyles()) if (st.id == sid) applyTextArtStyle(w, st);
-                    w.text = QStringLiteral("Aa");
-                    w.rect = QRectF(QPointF(0, 0), rc.size() * 0.8);
-                    const QPainterPath path = textArtPath(w, w.rect.size()).translated(rc.topLeft() + QPointF(rc.width() * 0.1, rc.height() * 0.1));
-                    p->fillPath(path, w.fill.brush(path.boundingRect(), e->doc()->colors));
-                    if (!w.stroke.isNone()) p->strokePath(path, QPen(w.stroke.color.resolve(e->doc()->colors), std::max(0.5, w.stroke.width / 2)));
-                }), QString()};
-            }
-            return v;
-        });
+        wa->setItemsProvider([this] { return textArtGalleryItems(m_ed); });
         connect(wa, &GalleryButton::activated, this, [this](const QString &sid) {
-            auto w = std::make_shared<TextArtItem>();
-            for (const auto &st : textArtStyles()) if (st.id == sid) applyTextArtStyle(*w, st);
+            auto w = newTextArt(sid);
             const QSizeF ps = m_ed->doc()->pageSize();
             w->rect = QRectF(ps.width() / 2 - 144, ps.height() / 3, 288, 72);
             m_ed->addItem(w);

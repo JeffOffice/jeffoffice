@@ -61,6 +61,7 @@
 #include "app/toc.h"
 #include "app/notes.h"
 #include "app/iconpicker.h"
+#include "app/textartgallery.h"
 #include "app/widgets.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
@@ -5289,6 +5290,43 @@ private Q_SLOTS:
         QVERIFY(!art->text.isEmpty());
         w.editor()->undo();
         QVERIFY(!w.editor()->doc()->item(art->id));
+    }
+
+    // The Text Art gallery every app with pages shares: an item for each style, drawn as "Aa" in the document's colors, and a new
+    // Text Art in the style an item names (the plain style for a name no style has).
+    void textArtGalleryItemsAndNewTextArt()
+    {
+        jp::Editor ed;
+        ed.setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const auto &styles = jp::textArtStyles();
+        const QVector<jp::GalleryItem> items = jp::textArtGalleryItems(&ed);
+        QCOMPARE(items.size(), styles.size());
+        QSet<QString> seen;
+        for (int i = 0; i < items.size(); ++i) {
+            QCOMPARE(items[i].id, styles[i].id);
+            QCOMPARE(items[i].tip, styles[i].name);
+            QVERIFY(!seen.contains(items[i].id));
+            seen.insert(items[i].id);
+            QImage shown = items[i].icon.pixmap(QSize(64, 40)).toImage().convertToFormat(QImage::Format_ARGB32);
+            bool drawn = false;
+            for (int y = 0; y < shown.height() && !drawn; ++y)
+                for (int x = 0; x < shown.width() && !drawn; ++x) drawn = qAlpha(shown.pixel(x, y)) > 0;
+            QVERIFY2(drawn, qPrintable(items[i].id));
+        }
+        for (const auto &style : styles) {
+            const std::shared_ptr<jp::TextArtItem> art = jp::newTextArt(style.id);
+            QVERIFY(art);
+            QCOMPARE(art->styleId, style.id);
+            QCOMPARE(art->font, style.font);
+            QCOMPARE(art->bold, style.bold);
+            QCOMPARE(art->transform_, style.transform);
+            QCOMPARE(int(art->fill.type), int(style.fill.type));
+        }
+        const std::shared_ptr<jp::TextArtItem> plain = jp::newTextArt(QStringLiteral("no such style"));
+        QVERIFY(plain);
+        QVERIFY(plain->styleId.isEmpty());
+        QCOMPARE(plain->transform_, QStringLiteral("plain"));
+        QVERIFY(!plain->text.isEmpty());
     }
 
     // A picture kept in a .jpub file is held to what any picture is: an SVG
