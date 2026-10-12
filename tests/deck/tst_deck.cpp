@@ -19,6 +19,7 @@
 #include "app/slideshow.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
+#include "core/animation.h"
 #include "core/deck.h"
 #include "core/fonts.h"
 #include "core/transition.h"
@@ -79,6 +80,7 @@
 #include <QToolButton>
 #include <QUrl>
 #include <QXmlStreamWriter>
+#include <cmath>
 #include <functional>
 
 using namespace jp;
@@ -2664,6 +2666,648 @@ private Q_SLOTS:
         QVERIFY(without != plain);
         slide.items.pop_back();
         QCOMPARE(without, paintedSlide(d.get(), &cache, 0));
+    }
+
+    // ---- animations: slide timings as the presentation program writes them ----
+
+    // XML written with ' where an attribute's quotes go, so that it reads without escapes.
+    static QString animXml(const char *xml) { return QString::fromLatin1(xml).replace(QLatin1Char('\''), QLatin1Char('"')); }
+
+    static int animId() { static int n = 10; return ++n; }
+
+    static QString animTarget(int spid, int paragraph = -1)
+    {
+        if (paragraph < 0) return animXml("<p:tgtEl><p:spTgt spid='%1'/></p:tgtEl>").arg(spid);
+        return animXml("<p:tgtEl><p:spTgt spid='%1'><p:txEl><p:pRg st='%2' end='%2'/></p:txEl></p:spTgt></p:tgtEl>").arg(spid).arg(paragraph);
+    }
+
+    // What an entrance starts with and an exit ends with: the shape is shown or hidden at `delay` ms.
+    static QString animShow(int spid, bool visible, int delay = 0, int paragraph = -1)
+    {
+        return animXml("<p:set><p:cBhvr><p:cTn id='%1' dur='1' fill='hold'><p:stCondLst><p:cond delay='%2'/></p:stCondLst></p:cTn>%3<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='%4'/></p:to></p:set>")
+            .arg(animId()).arg(delay).arg(animTarget(spid, paragraph), visible ? QStringLiteral("visible") : QStringLiteral("hidden"));
+    }
+
+    static QString animFilter(int spid, const char *filter, bool entering, int ms, int paragraph = -1)
+    {
+        return animXml("<p:animEffect transition='%1' filter='%2'><p:cBhvr><p:cTn id='%3' dur='%4'/>%5</p:cBhvr></p:animEffect>")
+            .arg(entering ? QStringLiteral("in") : QStringLiteral("out"), QString::fromLatin1(filter)).arg(animId()).arg(ms).arg(animTarget(spid, paragraph));
+    }
+
+    // One attribute animated from a value or formula to another.
+    static QString animValues(int spid, const char *attribute, const char *from, const char *to, int ms)
+    {
+        return animXml("<p:anim calcmode='lin' valueType='num'><p:cBhvr additive='base'><p:cTn id='%1' dur='%2' fill='hold'/>%3<p:attrNameLst><p:attrName>%4</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst><p:tav tm='0'><p:val><p:strVal val='%5'/></p:val></p:tav><p:tav tm='100000'><p:val><p:strVal val='%6'/></p:val></p:tav></p:tavLst></p:anim>")
+            .arg(animId()).arg(ms).arg(animTarget(spid), QString::fromLatin1(attribute), QString::fromLatin1(from), QString::fromLatin1(to));
+    }
+
+    // An effect: a node of the step's tree with a preset and its behaviors.
+    static QString animNode(const char *cls, int preset, int subtype, const char *nodeType, int delay, const QStringList &behaviors)
+    {
+        return animXml("<p:par><p:cTn id='%1' presetID='%2' presetClass='%3' presetSubtype='%4' fill='hold' nodeType='%5'><p:stCondLst><p:cond delay='%6'/></p:stCondLst><p:childTnLst>%7</p:childTnLst></p:cTn></p:par>")
+            .arg(animId()).arg(preset).arg(QString::fromLatin1(cls)).arg(subtype).arg(QString::fromLatin1(nodeType)).arg(delay).arg(behaviors.join(QString()));
+    }
+
+    static QString animFadeIn(int spid, int ms, const char *nodeType = "clickEffect", int delay = 0, int paragraph = -1)
+    {
+        return animNode("entr", 10, 0, nodeType, delay, {animShow(spid, true, 0, paragraph), animFilter(spid, "fade", true, ms, paragraph)});
+    }
+
+    static QString animAppear(int spid, const char *nodeType = "clickEffect", int delay = 0)
+    {
+        return animNode("entr", 1, 0, nodeType, delay, {animShow(spid, true)});
+    }
+
+    // Fly in from the left: x runs from half the shape's width off the slide's edge to where it is.
+    static QString animFlyIn(int spid, int ms)
+    {
+        return animNode("entr", 2, 8, "clickEffect", 0,
+                        {animShow(spid, true), animValues(spid, "ppt_x", "0-#ppt_w/2", "#ppt_x", ms), animValues(spid, "ppt_y", "#ppt_y", "#ppt_y", ms)});
+    }
+
+    static QString animFadeOut(int spid, int ms, const char *nodeType = "clickEffect", int delay = 0)
+    {
+        return animNode("exit", 10, 0, nodeType, delay, {animFilter(spid, "fade", false, ms), animShow(spid, false, ms - 1)});
+    }
+
+    static QString animWipe(int spid, const char *direction, bool entering, int ms)
+    {
+        return animNode(entering ? "entr" : "exit", 22, 8, "clickEffect", 0,
+                        entering ? QStringList{animShow(spid, true), animFilter(spid, direction, true, ms)}
+                                 : QStringList{animFilter(spid, direction, false, ms), animShow(spid, false, ms - 1)});
+    }
+
+    static QString animSpin(int spid, int ms, int degrees)
+    {
+        return animNode("emph", 8, 0, "clickEffect", 0,
+                        {animXml("<p:animRot by='%1'><p:cBhvr><p:cTn id='%2' dur='%3' fill='hold'/>%4<p:attrNameLst><p:attrName>r</p:attrName></p:attrNameLst></p:cBhvr></p:animRot>")
+                             .arg(degrees * 60000).arg(animId()).arg(ms).arg(animTarget(spid))});
+    }
+
+    static QString animGrow(int spid, int ms, int percent)
+    {
+        return animNode("emph", 6, 0, "clickEffect", 0,
+                        {animXml("<p:animScale><p:cBhvr><p:cTn id='%1' dur='%2' fill='hold'/>%3</p:cBhvr><p:by x='%4' y='%4'/></p:animScale>")
+                             .arg(animId()).arg(ms).arg(animTarget(spid)).arg(percent * 1000)});
+    }
+
+    static QString animPath(int spid, int ms, const char *path)
+    {
+        return animNode("path", 0, 0, "clickEffect", 0,
+                        {animXml("<p:animMotion origin='layout' path='%1' pathEditMode='relative' rAng='0' ptsTypes='AA'><p:cBhvr><p:cTn id='%2' dur='%3' fill='hold'/>%4<p:attrNameLst><p:attrName>ppt_x</p:attrName><p:attrName>ppt_y</p:attrName></p:attrNameLst></p:cBhvr></p:animMotion>")
+                             .arg(QString::fromLatin1(path)).arg(animId()).arg(ms).arg(animTarget(spid))});
+    }
+
+    // Play a movie: a step that shows nothing.
+    static QString animMediaCall(int spid)
+    {
+        return animNode("mediacall", 1, 0, "clickEffect", 0,
+                        {animXml("<p:cmd type='call' cmd='playFrom(0.0)'><p:cBhvr><p:cTn id='%1' dur='1' fill='hold'/>%2</p:cBhvr></p:cmd>").arg(animId()).arg(animTarget(spid))});
+    }
+
+    static QString animGroup(int delay, const QStringList &effects)
+    {
+        return animXml("<p:par><p:cTn id='%1' fill='hold'><p:stCondLst><p:cond delay='%2'/></p:stCondLst><p:childTnLst>%3</p:childTnLst></p:cTn></p:par>")
+            .arg(animId()).arg(delay).arg(effects.join(QString()));
+    }
+
+    // A click step; one that starts by itself when the slide is shown has the main sequence's start as a second condition.
+    static QString animStep(const QStringList &groups, bool automatic = false)
+    {
+        return animXml("<p:par><p:cTn id='%1' fill='hold'><p:stCondLst><p:cond delay='indefinite'/>%2</p:stCondLst><p:childTnLst>%3</p:childTnLst></p:cTn></p:par>")
+            .arg(animId())
+            .arg(automatic ? animXml("<p:cond evt='onBegin' delay='0'><p:tn val='2'/></p:cond>") : QString(), groups.join(QString()));
+    }
+
+    // Each effect in a step of its own.
+    static QString animSteps(const QStringList &effects)
+    {
+        QString out;
+        for (const QString &e : effects) out += animStep({animGroup(0, {e})});
+        return out;
+    }
+
+    static QString animTiming(const QString &steps, const QString &after = QString())
+    {
+        return animXml("<p:timing xmlns:p='http://schemas.openxmlformats.org/presentationml/2006/main'><p:tnLst><p:par><p:cTn id='1' dur='indefinite' restart='never' nodeType='tmRoot'><p:childTnLst><p:seq concurrent='1' nextAc='seek'><p:cTn id='2' dur='indefinite' nodeType='mainSeq'><p:childTnLst>")
+            + steps
+            + animXml("</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt='onPrev' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt='onNext' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>")
+            + after + QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
+    }
+
+    // Where the shapes the samples aim at are, on a 16:9 slide.
+    static deck::Geometry animGeometry()
+    {
+        deck::Geometry g;
+        g.slide = QSizeF(960, 540);
+        g.shapes.insert(4, QRectF(100, 200, 200, 100));   // its middle is at 200, 250
+        g.shapes.insert(5, QRectF(500, 100, 100, 100));
+        g.shapes.insert(6, QRectF(700, 300, 100, 100));
+        return g;
+    }
+
+    static bool animNear(double a, double b) { return std::abs(a - b) < 1e-6; }
+
+    // The steps of a slide's timing, their effects, and the behaviors of each,
+    // with their times: a click starts a step, an effect that goes with the
+    // one before starts with it (its delay on top), and one after starts when
+    // the group before ends.
+    void animationReadsClickSteps()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(
+            animStep({animGroup(0, {animFadeIn(4, 500)})}) +
+            animStep({animGroup(0, {animFlyIn(4, 400), animFadeIn(5, 300, "withEffect", 200)}), animGroup(700, {animFadeOut(6, 500, "afterEffect", 100)})})));
+        QCOMPARE(int(tl.steps.size()), 2);
+        QVERIFY(!tl.steps[0].automatic);
+        QCOMPARE(int(tl.steps[0].effects.size()), 1);
+        const deck::Effect &fade = tl.steps[0].effects[0];
+        QVERIFY(fade.cls == deck::EffectClass::Entrance);
+        QVERIFY(fade.start == deck::EffectStart::OnClick);
+        QCOMPARE(fade.presetId, 10);
+        QCOMPARE(fade.begin, 0.0);
+        QCOMPARE(int(fade.behaviors.size()), 2);
+        QVERIFY(fade.behaviors[0].kind == deck::Behavior::Kind::Set);
+        QCOMPARE(fade.behaviors[0].attribute, QStringLiteral("style.visibility"));
+        QCOMPARE(fade.behaviors[0].to, QStringLiteral("visible"));
+        QCOMPARE(fade.behaviors[0].target.shape, 4);
+        QVERIFY(fade.behaviors[0].timing.hold);
+        QVERIFY(fade.behaviors[1].kind == deck::Behavior::Kind::Effect);
+        QCOMPARE(fade.behaviors[1].filter, QStringLiteral("fade"));
+        QVERIFY(fade.behaviors[1].entering);
+        QCOMPARE(fade.behaviors[1].timing.duration, 500.0);
+        QCOMPARE(fade.end(), 500.0);
+        QCOMPARE(tl.steps[0].duration(), 500.0);
+        QVERIFY(tl.steps[0].visual());
+        // The second click: a fly in, a fade with it 200 ms later, and an exit after both, 100 ms after the group's start.
+        const deck::Step &second = tl.steps[1];
+        QCOMPARE(int(second.effects.size()), 3);
+        QVERIFY(second.effects[0].start == deck::EffectStart::OnClick);
+        QVERIFY(second.effects[1].start == deck::EffectStart::WithPrevious);
+        QCOMPARE(second.effects[1].begin, 200.0);
+        QVERIFY(second.effects[2].start == deck::EffectStart::AfterPrevious);
+        QVERIFY(second.effects[2].cls == deck::EffectClass::Exit);
+        QCOMPARE(second.effects[2].begin, 800.0);
+        QCOMPARE(second.effects[2].end(), 1300.0);
+        QCOMPARE(second.duration(), 1300.0);
+        // The fly in is a set and a p:anim for x and for y; x runs from a formula to a formula.
+        QCOMPARE(int(second.effects[0].behaviors.size()), 3);
+        const deck::Behavior &x = second.effects[0].behaviors[1];
+        QVERIFY(x.kind == deck::Behavior::Kind::Animate);
+        QCOMPARE(x.attribute, QStringLiteral("ppt_x"));
+        QCOMPARE(int(x.keys.size()), 2);
+        QCOMPARE(x.keys[0].at, 0.0);
+        QCOMPARE(x.keys[0].value, QStringLiteral("0-#ppt_w/2"));
+        QCOMPARE(x.keys[1].at, 1.0);
+        QCOMPARE(x.keys[1].value, QStringLiteral("#ppt_x"));
+        QVERIFY(x.timing.hold);
+        // A step that starts when the slide is shown says so; a slide without timing, or with a broken one, has no steps.
+        QVERIFY(deck::readTimeline(animTiming(animStep({animGroup(0, {animAppear(4, "afterEffect")})}, true))).steps[0].automatic);
+        QVERIFY(deck::readTimeline(QString()).isEmpty());
+        QVERIFY(deck::readTimeline(QStringLiteral("<p:timing")).isEmpty());
+        Page none;
+        QVERIFY(deck::timelineOf(none).isEmpty());
+        none.props[QStringLiteral("timingXml")] = animTiming(animSteps({animAppear(4)}));
+        QCOMPARE(int(deck::timelineOf(none).steps.size()), 1);
+    }
+
+    // An entrance starts hidden; at its click it is shown and fades in with
+    // the time, and played it stays.
+    void animationFadeStates()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animFadeIn(4, 500)})));
+        const deck::Geometry g = animGeometry();
+        QVERIFY(!deck::statesAt(tl, g, 0).value(deck::Target{4}).visible);
+        auto at = [&](double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{4}); };
+        QVERIFY(at(0).visible);
+        QCOMPARE(at(0).opacity, 0.0);
+        QVERIFY(animNear(at(125).opacity, 0.25));
+        QVERIFY(animNear(at(250).opacity, 0.5));
+        QCOMPARE(at(500).opacity, 1.0);
+        QCOMPARE(at(90000).opacity, 1.0);
+        const deck::TargetState done = deck::statesAt(tl, g, 1).value(deck::Target{4});
+        QVERIFY(done.visible);
+        QCOMPARE(done.opacity, 1.0);
+        QCOMPARE(done.offset, QPointF());
+        QCOMPARE(done.scaleX, 1.0);
+        QVERIFY(done.clip.isNull());
+        QVERIFY(!deck::statesAt(tl, g, 0).contains(deck::Target{5}));
+    }
+
+    // Fly in from the left: x runs from -#ppt_w/2 (all of it off the slide) to
+    // #ppt_x, so the shape is moved by the difference.
+    void animationFlyInMoves()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animFlyIn(4, 500)})));
+        const deck::Geometry g = animGeometry();
+        auto at = [&](double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{4}); };
+        // The middle starts at -100 points (half the width off the edge), 300 left of where it is.
+        QVERIFY(animNear(at(0).offset.x(), -300));
+        QVERIFY(animNear(at(250).offset.x(), -150));
+        QVERIFY(animNear(at(500).offset.x(), 0));
+        QCOMPARE(at(0).offset.y(), 0.0);
+        QVERIFY(animNear(at(250).offset.y(), 0));
+        QVERIFY(at(0).visible);
+        QVERIFY(animNear(deck::statesAt(tl, g, 1).value(deck::Target{4}).offset.x(), 0));
+    }
+
+    // Effects with the one before and after it keep their own times, an exit
+    // starts shown and ends hidden.
+    void animationWithAndAfterPreviousAndExit()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animStep(
+            {animGroup(0, {animFlyIn(4, 400), animFadeIn(5, 300, "withEffect", 200)}), animGroup(700, {animFadeOut(6, 500, "afterEffect", 100)})})));
+        const deck::Geometry g = animGeometry();
+        auto at = [&](int shape, double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{shape}); };
+        QVERIFY(deck::statesAt(tl, g, 0).value(deck::Target{6}).visible);   // an exit's target is there at first
+        QVERIFY(!deck::statesAt(tl, g, 0).value(deck::Target{5}).visible);
+        QVERIFY(at(4, 100).visible);
+        QVERIFY(!at(5, 100).visible);                    // it waits 200 ms
+        QVERIFY(at(5, 200).visible);
+        QCOMPARE(at(5, 200).opacity, 0.0);
+        QVERIFY(animNear(at(5, 350).opacity, 0.5));
+        QVERIFY(at(6, 799).visible);
+        QCOMPARE(at(6, 799).opacity, 1.0);               // the group at 700 and the effect's 100 ms: it starts at 800
+        QVERIFY(animNear(at(6, 1050).opacity, 0.5));
+        QVERIFY(at(6, 1298).visible);
+        QVERIFY(!at(6, 1299).visible);                   // hidden when the fade is done
+        const deck::States end = deck::statesAt(tl, g, 1);
+        QVERIFY(end.value(deck::Target{4}).visible);
+        QVERIFY(end.value(deck::Target{5}).visible);
+        QCOMPARE(end.value(deck::Target{5}).opacity, 1.0);
+        QVERIFY(!end.value(deck::Target{6}).visible);
+        // An exit that comes after an entrance of the same shape: hidden, shown, then hidden.
+        const deck::Timeline both = deck::readTimeline(animTiming(animSteps({animFadeIn(4, 100), animFadeOut(4, 100)})));
+        QVERIFY(!deck::statesAt(both, g, 0).value(deck::Target{4}).visible);
+        QVERIFY(deck::statesAt(both, g, 1).value(deck::Target{4}).visible);
+        QVERIFY(!deck::statesAt(both, g, 2).value(deck::Target{4}).visible);
+    }
+
+    // A spin turns the shape about its middle, by the angle the file gives in
+    // 60,000ths of a degree, and keeps the turn; a scale grows it about the middle.
+    void animationSpinRotatesAndGrowScales()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animSpin(4, 2000, 360)})));
+        const deck::Geometry g = animGeometry();
+        QVERIFY(deck::statesAt(tl, g, 0).value(deck::Target{4}).visible);   // an emphasis starts in place
+        QVERIFY(animNear(deck::statesAt(tl, g, 0, 0).value(deck::Target{4}).rotation, 0));
+        QVERIFY(animNear(deck::statesAt(tl, g, 0, 500).value(deck::Target{4}).rotation, 90));
+        QVERIFY(animNear(deck::statesAt(tl, g, 0, 1500).value(deck::Target{4}).rotation, 270));
+        QVERIFY(animNear(deck::statesAt(tl, g, 1).value(deck::Target{4}).rotation, 360));
+        const deck::Timeline grow = deck::readTimeline(animTiming(animSteps({animGrow(4, 1000, 150)})));
+        QVERIFY(animNear(deck::statesAt(grow, g, 0, 500).value(deck::Target{4}).scaleX, 1.25));
+        QVERIFY(animNear(deck::statesAt(grow, g, 0, 500).value(deck::Target{4}).scaleY, 1.25));
+        QVERIFY(animNear(deck::statesAt(grow, g, 1).value(deck::Target{4}).scaleX, 1.5));
+    }
+
+    // A motion path is in fractions of the slide from where the shape is, and
+    // the shape moves along it at an even speed.
+    void animationMotionPath()
+    {
+        const deck::Geometry g = animGeometry();
+        const deck::Timeline line = deck::readTimeline(animTiming(animSteps({animPath(4, 2000, "M 0 0 L 0.25 0.1 E")})));
+        auto at = [&](const deck::Timeline &tl, double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{4}).offset; };
+        QVERIFY(animNear(at(line, 1000).x(), 120));   // 0.125 of 960
+        QVERIFY(animNear(at(line, 1000).y(), 27));    // 0.05 of 540
+        QVERIFY(animNear(deck::statesAt(line, g, 1).value(deck::Target{4}).offset.x(), 240));
+        QVERIFY(animNear(deck::statesAt(line, g, 1).value(deck::Target{4}).offset.y(), 54));
+        QVERIFY(deck::statesAt(line, g, 0).value(deck::Target{4}).visible);
+        // Along two lines, 96 and 108 points long: halfway is 6 points into the second.
+        const deck::Timeline bend = deck::readTimeline(animTiming(animSteps({animPath(4, 2000, "M 0 0 L 0.1 0 L 0.1 0.2 E")})));
+        QVERIFY(animNear(at(bend, 1000).x(), 96));
+        QVERIFY(animNear(at(bend, 1000).y(), 6));
+        // A curve: the path ends where it is told to.
+        const deck::Timeline curve = deck::readTimeline(animTiming(animSteps({animPath(4, 2000, "M 0 0 C 0.1 0 0.2 0.1 0.25 0.1 E")})));
+        QVERIFY(animNear(deck::statesAt(curve, g, 1).value(deck::Target{4}).offset.x(), 240));
+        QVERIFY(at(curve, 1000).x() > 0 && at(curve, 1000).x() < 240);
+    }
+
+    // A build by paragraph aims each effect at a range of the text box's
+    // paragraphs: they start hidden and come one click at a time, and the box
+    // itself, which no effect aims at, is not in the states.
+    void animationBuildsByParagraph()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animFadeIn(3, 300, "clickEffect", 0, 0), animFadeIn(3, 300, "clickEffect", 0, 1), animAppear(5)})));
+        QCOMPARE(int(tl.steps.size()), 3);
+        const deck::Target first{3, 0, 0}, second{3, 1, 1}, whole{3, -1, -1};
+        QVERIFY(tl.steps[1].effects[0].behaviors[0].target == second);
+        QVERIFY(second.paragraphs() && !whole.paragraphs());
+        const deck::Geometry g = animGeometry();
+        const deck::States start = deck::statesAt(tl, g, 0);
+        QVERIFY(!start.value(first).visible);
+        QVERIFY(!start.value(second).visible);
+        QVERIFY(!start.contains(whole));
+        const deck::States one = deck::statesAt(tl, g, 1);
+        QVERIFY(one.value(first).visible);
+        QVERIFY(!one.value(second).visible);
+        const deck::States halfway = deck::statesAt(tl, g, 1, 150);
+        QVERIFY(halfway.value(second).visible);
+        QVERIFY(animNear(halfway.value(second).opacity, 0.5));
+        QCOMPARE(halfway.value(first).opacity, 1.0);
+        QVERIFY(deck::statesAt(tl, g, 3).value(deck::Target{5}).visible);
+    }
+
+    // A wipe is a clip of the shape: the part shown, as shares of its size.
+    void animationWipeClips()
+    {
+        const deck::Geometry g = animGeometry();
+        auto clipOf = [&](const char *direction, bool entering) {
+            const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animWipe(4, direction, entering, 1000)})));
+            return deck::statesAt(tl, g, 0, 500).value(deck::Target{4}).clip;
+        };
+        QCOMPARE(clipOf("wipe(left)", true), QRectF(0, 0, 0.5, 1));      // from the left edge
+        QCOMPARE(clipOf("wipe(right)", true), QRectF(0.5, 0, 0.5, 1));
+        QCOMPARE(clipOf("wipe(up)", true), QRectF(0, 0, 1, 0.5));        // from the top
+        QCOMPARE(clipOf("wipe(down)", true), QRectF(0, 0.5, 1, 0.5));    // from the bottom
+        // Going out, the part left is the part the wipe has not reached.
+        QCOMPARE(clipOf("wipe(left)", false), QRectF(0.5, 0, 0.5, 1));
+        QCOMPARE(clipOf("wipe(down)", false), QRectF(0, 0, 1, 0.5));
+        // At the start nothing is shown, but the clip is there; at the end there is none.
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animWipe(4, "wipe(left)", true, 1000)})));
+        QVERIFY(!deck::statesAt(tl, g, 0, 0).value(deck::Target{4}).clip.isNull());
+        QVERIFY(deck::statesAt(tl, g, 1).value(deck::Target{4}).clip.isNull());
+        // Another filter is drawn as a fade.
+        const deck::Timeline wheel = deck::readTimeline(animTiming(animSteps({animNode("entr", 21, 1, "clickEffect", 0, {animShow(4, true), animFilter(4, "wheel(1)", true, 1000)})})));
+        const deck::TargetState w = deck::statesAt(wheel, g, 0, 250).value(deck::Target{4});
+        QVERIFY(animNear(w.opacity, 0.25));
+        QVERIFY(w.clip.isNull());
+    }
+
+    // A value a formula can't give leaves the shape where it is; the
+    // formulas read numbers, #names, + - * /, and parentheses.
+    void animationFormulasAndFallbacks()
+    {
+        const QHash<QString, double> v{{"ppt_x", 0.25}, {"ppt_y", 0.5}, {"ppt_w", 0.2}, {"ppt_h", 0.1}};
+        bool ok = false;
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("0-#ppt_w/2"), v, &ok), -0.1) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("1+#ppt_h/2"), v, &ok), 1.05) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("#ppt_x"), v, &ok), 0.25) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("(#ppt_x+#ppt_y)*2"), v, &ok), 1.5) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral(" 1 + 2 * 3 "), v, &ok), 7) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("2*(3+4)/7"), v, &ok), 2) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("-#ppt_x"), v, &ok), -0.25) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("0.5"), v, &ok), 0.5) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("1-1-1"), v, &ok), -1) && ok);   // left to right
+        for (const char *bad : {"", "#nope", "1 +", "(1", "abc", "1 2", "1/0", "#ppt_x)"}) {
+            ok = true;
+            QVERIFY2(std::isnan(deck::evaluateFormula(QString::fromLatin1(bad), v, &ok)), bad);
+            QVERIFY2(!ok, bad);
+        }
+        // An animation whose start value can't be read starts from where the shape is.
+        const deck::Geometry g = animGeometry();
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animNode("emph", 0, 0, "clickEffect", 0, {animValues(4, "ppt_x", "bogus(1)", "#ppt_x", 400)})})));
+        QCOMPARE(deck::statesAt(tl, g, 0, 100).value(deck::Target{4}).offset, QPointF());
+        QCOMPARE(deck::statesAt(tl, g, 1).value(deck::Target{4}).offset, QPointF());
+    }
+
+    // A behavior's time: its delay, how long a run is, speeding up and
+    // slowing down, going back, repeating, and the end.
+    void animationTimingEasesRepeatsAndReverses()
+    {
+        using Phase = deck::Timing::Phase;
+        deck::Timing t;
+        t.begin = 100;
+        t.duration = 1000;
+        double p = -1;
+        QVERIFY(t.phaseAt(99, &p) == Phase::Before);
+        QVERIFY(t.phaseAt(100, &p) == Phase::Running);
+        QCOMPARE(p, 0.0);
+        QVERIFY(t.phaseAt(600, &p) == Phase::Running);
+        QVERIFY(animNear(p, 0.5));
+        QVERIFY(t.phaseAt(1100, &p) == Phase::After);
+        QCOMPARE(p, 1.0);
+        QCOMPARE(t.end(), 1100.0);
+        // Half a run speeding up and half slowing down: a quarter in, an eighth of the way.
+        t.accel = 0.5;
+        t.decel = 0.5;
+        t.phaseAt(350, &p);
+        QVERIFY(animNear(p, 0.125));
+        t.phaseAt(850, &p);
+        QVERIFY(animNear(p, 0.875));
+        t.phaseAt(600, &p);
+        QVERIFY(animNear(p, 0.5));
+        // Going back after going: twice as long, and it ends where it began.
+        t = deck::Timing();
+        t.duration = 1000;
+        t.autoReverse = true;
+        QCOMPARE(t.activeDuration(), 2000.0);
+        QVERIFY(t.phaseAt(1500, &p) == Phase::Running);
+        QVERIFY(animNear(p, 0.5));
+        QVERIFY(t.phaseAt(2000, &p) == Phase::After);
+        QCOMPARE(p, 0.0);
+        // Twice: the second run starts over, and it ends at the end.
+        t = deck::Timing();
+        t.duration = 1000;
+        t.repeat = 2;
+        QCOMPARE(t.activeDuration(), 2000.0);
+        t.phaseAt(1500, &p);
+        QVERIFY(animNear(p, 0.5));
+        QVERIFY(t.phaseAt(2000, &p) == Phase::After);
+        QCOMPARE(p, 1.0);
+        // "Until the end" is played once; a cap on all the runs cuts them off.
+        t.repeat = -1;
+        QCOMPARE(t.activeDuration(), 1000.0);
+        t.repeat = 10;
+        t.repeatDuration = 2500;
+        QCOMPARE(t.activeDuration(), 2500.0);
+        QVERIFY(t.phaseAt(2500, &p) == Phase::After);
+        QVERIFY(animNear(p, 0.5));
+        // A duration that is indefinite counts as done where it begins.
+        t = deck::Timing();
+        t.begin = 40;
+        QVERIFY(t.phaseAt(39, &p) == Phase::Before);
+        QVERIFY(t.phaseAt(40, &p) == Phase::After);
+        QCOMPARE(p, 1.0);
+        QCOMPARE(t.activeDuration(), 0.0);
+        // And all of it from a file: the cTn's accel, decel, autoRev, repeatCount and fill.
+        const QString xml = animTiming(animSteps({animNode("emph", 0, 0, "clickEffect", 0, {
+            animXml("<p:animRot by='3600000'><p:cBhvr><p:cTn id='9' dur='1000' accel='50000' decel='50000' autoRev='1' repeatCount='2000' fill='hold'><p:stCondLst><p:cond delay='250'/></p:stCondLst></p:cTn>") + animTarget(4) +
+            QStringLiteral("</p:cBhvr></p:animRot>")})}));
+        const deck::Timing read = deck::readTimeline(xml).steps[0].effects[0].behaviors[0].timing;
+        QCOMPARE(read.begin, 250.0);
+        QCOMPARE(read.duration, 1000.0);
+        QCOMPARE(read.accel, 0.5);
+        QCOMPARE(read.decel, 0.5);
+        QVERIFY(read.autoReverse && read.hold);
+        QCOMPARE(read.repeat, 2.0);
+        QCOMPARE(read.activeDuration(), 4000.0);
+    }
+
+    // Media calls and interactive sequences are read, not played: a step with
+    // only a media call shows nothing and takes no click.
+    void animationReadsMediaAndTriggersWithoutPlayingThem()
+    {
+        const QString trigger = animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn id='40' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='6'/></p:tgtEl></p:cond></p:stCondLst><p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst>")
+            + animGroup(0, {animFadeIn(5, 500)}) + animXml("</p:childTnLst></p:cTn><p:nextCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='6'/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
+        const QString xml = animTiming(animSteps({animMediaCall(4)}), animXml("<p:video><p:cMediaNode vol='80000'><p:cTn id='30' fill='hold' display='0'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='4'/></p:tgtEl></p:cMediaNode></p:video>") + trigger);
+        const deck::Timeline tl = deck::readTimeline(xml);
+        QCOMPARE(int(tl.steps.size()), 1);
+        QVERIFY(tl.steps[0].effects[0].cls == deck::EffectClass::Media);
+        QVERIFY(tl.steps[0].effects[0].behaviors[0].kind == deck::Behavior::Kind::Command);
+        QCOMPARE(tl.steps[0].effects[0].behaviors[0].command, QStringLiteral("playFrom(0.0)"));
+        QVERIFY(!tl.steps[0].visual());
+        QCOMPARE(int(tl.triggers.size()), 1);
+        QCOMPARE(tl.triggers[0].shape, 6);
+        QCOMPARE(int(tl.triggers[0].effects.size()), 1);
+        // The interactive sequence's shape is not in the states of the main sequence.
+        QVERIFY(deck::statesAt(tl, animGeometry(), 0).isEmpty());
+        Page slide;
+        slide.props[QStringLiteral("timingXml")] = xml;
+        QVERIFY(deck::playableTimeline(slide).steps.isEmpty());
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animMediaCall(4), animAppear(5)}));
+        QCOMPARE(int(deck::playableTimeline(slide).steps.size()), 1);
+        QCOMPARE(int(deck::timelineOf(slide).steps.size()), 2);
+    }
+
+    // The shapes' places are found by the number the file gave, in groups too.
+    void animationGeometryFindsShapesByNumber()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto inner = std::make_shared<ShapeItem>();
+        inner->rect = QRectF(300, 380, 120, 80);
+        inner->sourceId = 9;
+        auto group = std::make_shared<GroupItem>();
+        group->children.push_back(inner);
+        group->syncRect();
+        group->sourceId = 8;
+        slide.items.push_back(group);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        QCOMPARE(g.slide, QSizeF(960, 540));
+        QCOMPARE(g.shapes.value(2), slide.items[0]->rect);
+        QCOMPARE(g.shapes.value(3), slide.items[1]->rect);
+        QCOMPARE(g.shapes.value(9), QRectF(300, 380, 120, 80));
+        QCOMPARE(g.shapes.value(8), QRectF(300, 380, 120, 80));
+        QVERIFY(!g.shapes.contains(0));
+    }
+
+    // The slide painted with the states: hidden, moved, turned, scaled, faded,
+    // and wiped shapes come out as drawing them so would.
+    void animationPaintsTheStates()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(600, 380, 120, 80);   // its middle is at 660, 420
+        box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+        box->sourceId = 7;
+        slide.items.push_back(box);
+        LayoutCache cache;
+        auto paint = [&](const deck::States &states) {
+            return paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        };
+        const QImage plain = paintedSlide(d.get(), &cache, 0);
+        QCOMPARE(paint({}), plain);   // nothing to change
+        const QColor fill(200, 60, 40);
+        QCOMPARE(plain.pixelColor(660, 420), fill);
+        // Hidden: as if it were not there.
+        deck::States hidden;
+        hidden[deck::Target{7}].visible = false;
+        const QImage hid = paint(hidden);
+        QVERIFY(hid != plain);
+        QCOMPARE(hid.pixelColor(660, 420), QColor(Qt::white));
+        slide.items.pop_back();
+        QCOMPARE(hid, paintedSlide(d.get(), &cache, 0));
+        slide.items.push_back(box);
+        // Moved 40 points: as if it were put there.
+        deck::States moved;
+        moved[deck::Target{7}].offset = QPointF(40, -20);
+        const QImage mv = paint(moved);
+        box->rect.translate(40, -20);
+        QCOMPARE(mv, paintedSlide(d.get(), &cache, 0));
+        box->rect.translate(-40, 20);
+        // Turned a quarter about its middle: 80 wide and 120 high.
+        deck::States turned;
+        turned[deck::Target{7}].rotation = 90;
+        const QImage tn = paint(turned);
+        QCOMPARE(tn.pixelColor(660, 365), fill);                        // above the old top, inside the new
+        QCOMPARE(tn.pixelColor(660 - 55, 420), QColor(Qt::white));      // inside the old left, outside the new
+        // Scaled to twice its size about its middle.
+        deck::States scaled;
+        scaled[deck::Target{7}].scaleX = 2;
+        scaled[deck::Target{7}].scaleY = 2;
+        const QImage sc = paint(scaled);
+        QCOMPARE(sc.pixelColor(660 + 110, 420 + 70), fill);
+        // Half see-through: the fill half way to white.
+        deck::States faded;
+        faded[deck::Target{7}].opacity = 0.5;
+        const QImage fd = paint(faded);
+        const QColor mid = fd.pixelColor(660, 420);
+        QVERIFY(std::abs(mid.red() - 227) <= 2 && std::abs(mid.green() - 157) <= 2 && std::abs(mid.blue() - 147) <= 2);
+        QCOMPARE(fd.pixelColor(300, 300), plain.pixelColor(300, 300));
+        // Wiped: the left half.
+        deck::States wiped;
+        wiped[deck::Target{7}].clip = QRectF(0, 0, 0.5, 1);
+        const QImage wp = paint(wiped);
+        QCOMPARE(wp.pixelColor(630, 420), fill);
+        QCOMPARE(wp.pixelColor(690, 420), QColor(Qt::white));
+        // Turned, wiped, and faded at once: the top half of the shape, which turned is its right half, half see-through.
+        deck::States all;
+        all[deck::Target{7}].rotation = 90;
+        all[deck::Target{7}].clip = QRectF(0, 0, 1, 0.5);
+        all[deck::Target{7}].opacity = 0.5;
+        const QImage al = paint(all);
+        QVERIFY(al.pixelColor(680, 420) != QColor(Qt::white));
+        QCOMPARE(al.pixelColor(640, 420), QColor(Qt::white));
+    }
+
+    // A paragraph that is a target is drawn on its own: hidden, it is gone and
+    // the lines around it stay where they are; moved, only its lines move.
+    void animationPaintsParagraphs()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto *body = static_cast<TextItem *>(slide.items[1].get());
+        d->storyDoc(body->storyId)->setPlainText(QStringLiteral("First paragraph\nSecond paragraph\nThird paragraph"));
+        LayoutCache cache;
+        auto paint = [&](const deck::States &states) {
+            return paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        };
+        const QImage plain = paintedSlide(d.get(), &cache, 0);
+        // The lines of paragraph 1, in the page's coordinates.
+        const LayoutCache::FrameLayout fl = cache.textFrame(*d, *body, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        const QTextBlock second = d->storyDoc(body->storyId)->findBlockByNumber(1);
+        QRectF band;
+        for (const QRectF &r : fl.layout->rangeRects(fl.frame, second.position(), second.position() + second.length())) band = band.united(r);
+        band.translate(body->rect.topLeft());
+        QVERIFY(band.isValid());
+        auto changedRows = [&](const QImage &a, const QImage &b) {
+            int top = -1, bottom = -1;
+            for (int y = 0; y < a.height(); ++y)
+                for (int x = 0; x < a.width(); ++x)
+                    if (a.pixel(x, y) != b.pixel(x, y)) {
+                        if (top < 0) top = y;
+                        bottom = y;
+                        break;
+                    }
+            return QPair<int, int>(top, bottom);
+        };
+        deck::States hidden;
+        hidden[deck::Target{3, 1, 1}].visible = false;
+        const QPair<int, int> rows = changedRows(plain, paint(hidden));
+        QVERIFY(rows.first >= 0);                       // something went
+        QVERIFY(rows.first >= band.top() - 2 && rows.second <= band.bottom() + 2);   // only its lines
+        // Shown, nothing differs.
+        deck::States shown;
+        shown[deck::Target{3, 1, 1}];
+        QCOMPARE(paint(shown), plain);
+        // Moved right: its lines are where they were, 300 points over.
+        deck::States moved;
+        moved[deck::Target{3, 1, 1}].offset = QPointF(300, 0);
+        const QImage mv = paint(moved);
+        const QPair<int, int> movedRows = changedRows(plain, mv);
+        QVERIFY(movedRows.first >= band.top() - 2 && movedRows.second <= band.bottom() + 2);
+        auto inkLeft = [&](const QImage &img) {
+            for (int x = 0; x < img.width(); ++x)
+                for (int y = int(band.top()); y < int(band.bottom()); ++y)
+                    if (img.pixel(x, y) != QColor(Qt::white).rgba()) return x;
+            return -1;
+        };
+        QVERIFY(inkLeft(plain) >= 0);
+        QCOMPARE(inkLeft(mv), inkLeft(plain) + 300);
     }
 
     // The window: the ribbon builds from its file with nothing missing, and
