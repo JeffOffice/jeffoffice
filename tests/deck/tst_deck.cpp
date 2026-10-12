@@ -11958,6 +11958,20 @@ private Q_SLOTS:
         // The slides on it are set in its fonts, the others in the old ones.
         QCOMPARE(familyOf(firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("title")))), part.majorLatin);
         QCOMPARE(familyOf(firstRunOf(*d, *placeholderOn(*d->pages[0], QStringLiteral("ctrTitle")))), deck::defaultTheme().headingFont);
+        // Trying one theme after another on the same slides leaves no master behind for each, and the presentation's own is never taken.
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Ember"))), {1, 2}));
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Marquee"))), {1, 2}));
+        masters = 0;
+        for (const auto &m : d->masters) masters += deck::isSlideMaster(*m);
+        QCOMPARE(masters, 2);
+        for (const auto &m : d->masters) QVERIFY(m->baseId.isEmpty() || d->master(m->baseId));
+        QCOMPARE(d->master(deck::slideMasterOf(*d, 1))->name, QStringLiteral("Marquee Slide Master"));
+        QCOMPARE(deck::slideMasterOf(*d, 0), firstMaster);
+        // Some slides on one of them: a master with slides left on it stays.
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Orchard"))), {1}));
+        masters = 0;
+        for (const auto &m : d->masters) masters += deck::isSlideMaster(*m);
+        QCOMPARE(masters, 3);
         // Every slide chosen is every slide.
         auto all = deckToRestyle();
         QVERIFY(deck::applyThemeToSlides(*all, *src, {0, 1, 2, 3, 4}));
@@ -12566,6 +12580,7 @@ private Q_SLOTS:
         QCOMPARE(ed->doc()->colors.slot(Main), deck::themeOf(*ed->doc()).colors[0]);
         QCOMPARE(ed->doc()->colors.slot(Accent1), deck::themeOf(*ed->doc()).colors[4]);
     }
+
 
 
     // A presentation that isn't in a built-in theme has variants too: its own colors on four backgrounds.
