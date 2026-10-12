@@ -14,7 +14,7 @@ namespace {
 // Property numbers.
 enum : quint16 {
     kFillType = 0x0180, kFillColor = 0x0181, kFillOpacity = 0x0182, kFillBackColor = 0x0183, kFillBackOpacity = 0x0184,
-    kFillBlip = 0x0186, kFillAngle = 0x018B, kFillFocus = 0x018C, kFillShadeColors = 0x0197, kFillStyleFlags = 0x01BF,
+    kFillBlip = 0x0186, kFillAngle = 0x018B, kFillFocus = 0x018C, kFillShadeColors = 0x0197, kFillShadeType = 0x019C, kFillStyleFlags = 0x01BF,
     kLineColor = 0x01C0, kLineOpacity = 0x01C1, kLineBackColor = 0x01C2, kLineWidth = 0x01CB, kLineStyle = 0x01CD,
     kLineDashing = 0x01CE, kLineStartArrow = 0x01D0, kLineEndArrow = 0x01D1, kLineStartArrowWidth = 0x01D2,
     kLineStartArrowLength = 0x01D3, kLineEndArrowWidth = 0x01D4, kLineEndArrowLength = 0x01D5, kLineJoin = 0x01D6,
@@ -102,6 +102,32 @@ QColor resolveColor(quint32 raw, const Props &p, const OdrawContext &ctx, const 
 
 double opacityOf(const Props &p, quint16 id) { return std::clamp(p.fixed(id, 1.0), 0.0, 1.0); }
 
+// A shaded fill's stops with each stretch between two colors made a curve: the position eased by the sigma shape (when the shade type has
+// its bit), and the colors blended in linear light (the gamma bit), as the program draws them.
+QVector<GradientStop> shaded(const QVector<GradientStop> &stops, quint32 shadeType)
+{
+    const bool gamma = shadeType & 1, sigma = shadeType & 2;
+    if ((!gamma && !sigma) || stops.size() < 2) return stops;
+    constexpr int kSteps = 8;
+    constexpr double kGamma = 2.2;
+    QVector<GradientStop> out;
+    for (int i = 0; i + 1 < stops.size(); ++i) {
+        const GradientStop &a = stops[i], &b = stops[i + 1];
+        out << a;
+        const QColor from = a.color.rgbValue(), to = b.color.rgbValue();
+        if (from == to || b.pos - a.pos < 1e-9) continue;
+        for (int k = 1; k < kSteps; ++k) {
+            const double u = double(k) / kSteps, e = sigma ? u * u * (3 - 2 * u) : u;
+            auto blend = [&](double x, double y) { return gamma ? std::pow((1 - e) * std::pow(x, kGamma) + e * std::pow(y, kGamma), 1 / kGamma) : x + (y - x) * e; };
+            out << GradientStop{a.pos + (b.pos - a.pos) * u, ColorRef::rgb(QColor::fromRgbF(float(blend(from.redF(), to.redF())), float(blend(from.greenF(), to.greenF())),
+                                                                                                float(blend(from.blueF(), to.blueF())))),
+                                a.transparency + (b.transparency - a.transparency) * u};
+        }
+    }
+    out << stops.last();
+    return out;
+}
+
 // A gradient: the colors run from the fill color's end to the back color's, or as the list of colors says, as the focus lays them out.
 Fill gradientFill(const Props &p, const OdrawContext &ctx, int type, const QColor &fillColor, const QColor &backColor, double opacity, double backOpacity)
 {
@@ -110,7 +136,8 @@ Fill gradientFill(const Props &p, const OdrawContext &ctx, int type, const QColo
     QVector<Color> ramp;
     const QByteArray list = p.complex(kFillShadeColors);
     const ArrayView colors = arrayOf(list);
-    if (colors.count >= 2 && colors.size >= 8) {
+    const bool hasList = colors.count >= 2 && colors.size >= 8;
+    if (hasList) {
         for (int i = 0; i < colors.count; ++i) {
             const double at = std::clamp(i32(list, colors.offset(i) + 4) / 65536.0, 0.0, 1.0);
             ramp << Color{at, resolveColor(u32(list, colors.offset(i)), p, ctx, QColor(Qt::white), 0), opacity + (backOpacity - opacity) * at};
@@ -138,6 +165,8 @@ Fill gradientFill(const Props &p, const OdrawContext &ctx, int type, const QColo
         for (const Color &c : std::as_const(ramp)) stop(c.at * (1 - a), c);
     if (a > 1e-9)
         for (int i = int(ramp.size()) - 1; i >= 0; --i) stop(1 - ramp[i].at * a, ramp[i]);
+    // The shading curve of two colors: gamma and sigma unless the shape says otherwise. A list of colors is drawn as it stands.
+    if (!hasList) stops = shaded(stops, p.value(kFillShadeType, 3) & 0xF);
     // From the center or along the outline, the first color is the outer one.
     const bool fromCenter = type == 5 || type == 6;
     if (fromCenter) {
