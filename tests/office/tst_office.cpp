@@ -2524,6 +2524,47 @@ private Q_SLOTS:
         QVERIFY(dmlLineOf(bare, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("0"))).isNone());
     }
 
+    // A background that refers to a picture style of the theme: the picture
+    // is named by the THEME part's relationships, not the slide's, and its
+    // a:duotone recolors it from the first color (black) to the second
+    // (white).
+    void dmlThemePictureBackgroundWithDuotone()
+    {
+        DmlEnv env;
+        QImage source(2, 1, QImage::Format_RGB32);
+        source.setPixel(0, 0, qRgb(0, 0, 0));
+        source.setPixel(1, 0, qRgb(255, 255, 255));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        source.save(&buffer, "PNG");
+        PackageWriter w;
+        w.addDefault(QStringLiteral("png"), QStringLiteral("image/png"));
+        w.addPart(QStringLiteral("/ppt/slideMasters/slideMaster1.xml"), "<p:sldMaster/>", QStringLiteral("application/xml"));
+        w.addPart(QStringLiteral("/ppt/theme/theme1.xml"), "<a:theme/>", QStringLiteral("application/xml"));
+        w.addPart(QStringLiteral("/ppt/media/texture.png"), png, QStringLiteral("image/png"));
+        w.addPart(QStringLiteral("/ppt/media/other.png"), dmlPicture(), QStringLiteral("image/png"));
+        // rId1 means different pictures to the master and to the theme.
+        w.addRelationship(QStringLiteral("/ppt/slideMasters/slideMaster1.xml"), kRelBase + "image", QStringLiteral("/ppt/media/other.png"));
+        w.addRelationship(QStringLiteral("/ppt/theme/theme1.xml"), kRelBase + "image", QStringLiteral("/ppt/media/texture.png"));
+        QVERIFY(env.package.read(w.finish()));
+        env.ctx.package = &env.package;
+        env.ctx.part = QStringLiteral("/ppt/slideMasters/slideMaster1.xml");
+        env.ctx.themePart = QStringLiteral("/ppt/theme/theme1.xml");
+        env.ctx.formats = env.element(QStringLiteral(
+            "<a:fmtScheme><a:fillStyleLst/><a:lnStyleLst/><a:effectStyleLst/><a:bgFillStyleLst>"
+            "<a:blipFill><a:blip r:embed=\"rId1\"><a:duotone><a:srgbClr val=\"000080\"/><a:schemeClr val=\"phClr\"/></a:duotone></a:blip><a:stretch/></a:blipFill>"
+            "</a:bgFillStyleLst></a:fmtScheme>"));
+        const Fill f = readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:srgbClr val=\"FFFF00\"/></p:bgRef></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Picture);
+        QCOMPARE(env.images.size(), 1);
+        QImage got;
+        QVERIFY(got.loadFromData(env.images[0].bytes));
+        QCOMPARE(got.size(), QSize(2, 1));   // the theme's picture, not the master's
+        QCOMPARE(QColor(got.pixel(0, 0)), QColor(0x00, 0x00, 0x80));   // black takes the first color
+        QCOMPARE(QColor(got.pixel(1, 0)), QColor(0xFF, 0xFF, 0x00));   // white the second (here the reference's)
+    }
+
     void dmlBackgroundReadsItsFill()
     {
         DmlEnv env;

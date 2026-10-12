@@ -21,6 +21,9 @@ namespace jp::office {
 struct DrawingContext {
     const Package *package = nullptr;
     QString part;                 // the part the drawing is in: its relationships name the pictures
+    // The theme's part: the pictures of its fill styles (a background
+    // referring to a picture style) are named by its relationships.
+    QString themePart;
     Theme theme;
     ColorMap colors;
     // The theme's a:fmtScheme, for style references (p:style's lnRef,

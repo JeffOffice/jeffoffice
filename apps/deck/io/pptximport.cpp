@@ -220,6 +220,7 @@ private:
     struct MasterCtx {
         std::shared_ptr<MasterPage> page;
         QString part;
+        QString themePart;    // its pictures' relationships are the theme part's
         office::Theme theme;
         QDomElement formats;
         office::ColorMap colors;
@@ -321,6 +322,7 @@ office::DrawingContext Importer::contextFor(const MasterCtx &master, const offic
     ctx.theme = master.theme;
     ctx.colors = colors;
     ctx.formats = master.formats;
+    ctx.themePart = master.themePart;
     ctx.addImage = [this](const QByteArray &bytes, const QString &format) { return addImage(bytes, format); };
     ctx.newStory = [this] { return m_doc.createStory(); };
     ctx.storyDoc = [this](const QString &id) { return m_doc.storyDoc(id); };
@@ -399,6 +401,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
             themeBytes.clear();
         } else {
             m->formats = aChild(aChild(themeDom.documentElement(), "themeElements"), "fmtScheme");
+            m->themePart = themes[0].target;
         }
     }
     m->colors = office::readColorMap(pChild(root, "clrMap"));
