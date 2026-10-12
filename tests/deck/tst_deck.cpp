@@ -390,6 +390,8 @@ private Q_SLOTS:
         QCOMPARE(theme.headingFont, QStringLiteral("Beta Serif"));
         QCOMPARE(theme.bodyFont, QStringLiteral("Alpha Sans"));
         QVERIFY(d->fromFile);
+        // Tabs go to every inch when the styles don't say otherwise.
+        QCOMPARE(d->defaultTabStop, 72.0);
     }
 
     // Text takes its look from the default styles of its kind and level, then
