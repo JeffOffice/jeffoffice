@@ -54,6 +54,8 @@ public:
     // Where it is in what plays (the part the trim leaves), and how long that is, in milliseconds; 0 until the file says.
     qint64 played() const;
     qint64 length() const;
+    // How long the whole file lasts, once the decoder has said (0 until it has).
+    qint64 fileLength() const { return m_fileDuration; }
     // The movie's picture now, null for a sound or before the first frame, and what it was when the movie ended unless it rewinds.
     QImage frame() const { return m_frame; }
     // The volume the bar sets (0 to 1; the settings' volume is the start), and mute.

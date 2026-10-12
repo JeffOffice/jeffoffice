@@ -214,7 +214,9 @@ void MediaPlayback::pause()
 
 void MediaPlayback::resume()
 {
-    if (m_player && m_state == State::Paused) m_player->play();
+    if (!m_player || m_state != State::Paused) return;
+    m_ending = false;   // it plays on, and stops where its trim ends again
+    m_player->play();
 }
 
 void MediaPlayback::togglePause()
@@ -240,6 +242,7 @@ void MediaPlayback::seek(qint64 playedMs)
 {
     if (failed() || !ensurePlayer()) return;
     m_started = true;
+    m_ending = false;
     seekFile(trimStart() + std::clamp<qint64>(playedMs, 0, std::max<qint64>(length(), 0)));
     // A movie that isn't playing shows the moment it was moved to.
     if (m_state == State::Stopped) m_player->pause();
