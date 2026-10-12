@@ -42,6 +42,19 @@ double eased(double x, double accel, double decel)
     return speed * (x - accel / 2);
 }
 
+// Where a run is shown to be, when the file maps how far through it is to how far it shows: between the points.
+double mapped(double x, const QVector<QPointF> &points)
+{
+    if (points.isEmpty()) return x;
+    if (x <= points.first().x()) return points.first().y();
+    for (qsizetype i = 1; i < points.size(); ++i) {
+        if (x > points[i].x()) continue;
+        const double span = points[i].x() - points[i - 1].x();
+        return span > 0 ? points[i - 1].y() + (points[i].y() - points[i - 1].y()) * (x - points[i - 1].x()) / span : points[i].y();
+    }
+    return points.last().y();
+}
+
 } // namespace
 
 double Timing::activeDuration() const
@@ -69,12 +82,12 @@ Timing::Phase Timing::phaseAt(double ms, double *progress) const
     const double run = autoReverse ? duration * 2 : duration;
     auto within = [&](double u) {
         const double x = u < duration ? u / duration : 1 - (u - duration) / duration;
-        return eased(std::clamp(x, 0.0, 1.0), accel, decel);
+        return mapped(eased(std::clamp(x, 0.0, 1.0), accel, decel), filter);
     };
     const double total = activeDuration();
     if (t >= total) {
         const double rest = std::fmod(total, run);
-        out = rest < 1e-9 || run - rest < 1e-9 ? (autoReverse ? 0.0 : 1.0) : within(rest);
+        out = rest < 1e-9 || run - rest < 1e-9 ? mapped(autoReverse ? 0.0 : 1.0, filter) : within(rest);
         return Phase::After;
     }
     out = within(std::fmod(t, run));
@@ -102,13 +115,22 @@ bool playsBehavior(const Behavior &b)
 
 } // namespace
 
-double Effect::end() const
+double Effect::once() const
 {
     double e = begin;
     for (const Behavior &b : behaviors)
-        if (b.timing.duration >= 0) e = std::max(e, b.timing.end());
-    return e;
+        if (!b.afterwards && b.timing.duration >= 0) e = std::max(e, b.timing.end());
+    return e - begin;
 }
+
+double Effect::repeats() const
+{
+    const double length = once();
+    if (length <= 0 || repeat <= 1) return 1;
+    return std::min(repeat, std::max(1.0, 20000.0 / length));
+}
+
+double Effect::end() const { return begin + once() * repeats(); }
 
 bool Effect::visual() const
 {
@@ -126,7 +148,7 @@ bool Step::visual() const { return std::any_of(effects.begin(), effects.end(), [
 
 bool TargetState::operator==(const TargetState &o) const
 {
-    return visible == o.visible && opacity == o.opacity && offset == o.offset && scaleX == o.scaleX && scaleY == o.scaleY && rotation == o.rotation && clip == o.clip;
+    return visible == o.visible && opacity == o.opacity && offset == o.offset && scaleX == o.scaleX && scaleY == o.scaleY && rotation == o.rotation && clip == o.clip && clip2 == o.clip2;
 }
 
 // ---- reading the file's timing ----
@@ -176,6 +198,14 @@ Timing timingOf(const QDomElement &cTn, double base)
     t.repeatDuration = repeatDur.isEmpty() || repeatDur == QLatin1String("indefinite") ? -1 : numberOr(repeatDur, -1);
     const QString fill = attr(cTn, QStringLiteral("fill"));
     t.hold = fill == QLatin1String("hold") || fill == QLatin1String("freeze");
+    // "0, 0; .2, .5; 1, 0": points of how far through a run is, and how far it shows.
+    for (const QString &pair : attr(cTn, QStringLiteral("tmFilter")).split(QLatin1Char(';'), Qt::SkipEmptyParts)) {
+        const QStringList xy = pair.split(QLatin1Char(','));
+        bool okx = false, oky = false;
+        const double x = xy.value(0).trimmed().toDouble(&okx), y = xy.value(1).trimmed().toDouble(&oky);
+        if (xy.size() == 2 && okx && oky && t.filter.size() < 64) t.filter.push_back(QPointF(std::clamp(x, 0.0, 1.0), y));
+    }
+    std::stable_sort(t.filter.begin(), t.filter.end(), [](const QPointF &a, const QPointF &b) { return a.x() < b.x(); });
     return t;
 }
 
@@ -384,7 +414,40 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
             e.presetSubtype = int(office::parseInt(attr(cTn, QStringLiteral("presetSubtype")), 0));
             e.begin = begin;
             collectBehaviors(pChild(cTn, "childTnLst"), begin, e);
+            // What the effect says of its whole run: it plays that many times, takes its work with it when it
+            // ends, and speeds up and slows down (each behavior does, unless it says otherwise).
+            const QString count = attr(cTn, QStringLiteral("repeatCount"));
+            e.repeat = count.isEmpty() || count == QLatin1String("indefinite") ? 1 : std::clamp(numberOr(count, 1000) / 1000, 1.0, 1000.0);
+            e.remove = attr(cTn, QStringLiteral("fill")) == QLatin1String("remove");
+            const double accel = numberOr(attr(cTn, QStringLiteral("accel")), 0) / 100000, decel = numberOr(attr(cTn, QStringLiteral("decel")), 0) / 100000;
+            if (accel > 0 || decel > 0)
+                for (Behavior &b : e.behaviors)
+                    if (b.timing.accel == 0 && b.timing.decel == 0 && b.timing.duration > 1) {
+                        b.timing.accel = accel;
+                        b.timing.decel = decel;
+                    }
             completeVisibility(e);
+            // What the effect does to its shape when it is over: hides it at once, or at the next click.
+            for (const QDomElement &set : pChildren(pChild(cTn, "subTnLst"), "set")) {
+                const QDomElement hidden = pChild(set, "to");
+                const QDomElement bhvr = pChild(set, "cBhvr");
+                if (valueOf(hidden) != QLatin1String("hidden") || pChild(pChild(bhvr, "attrNameLst"), "attrName").text().trimmed() != QLatin1String("style.visibility")) continue;
+                const QString master = attr(pChild(bhvr, "cTn"), QStringLiteral("masterRel"));
+                if (master == QLatin1String("nextClick")) {
+                    e.hideOnNextClick = true;
+                } else if (const auto first = std::find_if(e.behaviors.cbegin(), e.behaviors.cend(), [](const Behavior &b) { return b.target.shape > 0 && playsBehavior(b); }); first != e.behaviors.cend()) {
+                    Behavior b;
+                    b.kind = Behavior::Kind::Set;
+                    b.target = first->target;
+                    b.attribute = QStringLiteral("style.visibility");
+                    b.to = QStringLiteral("hidden");
+                    b.timing.begin = e.end();
+                    b.timing.duration = 1;
+                    b.timing.hold = true;
+                    b.afterwards = true;
+                    e.behaviors.push_back(b);
+                }
+            }
             out.push_back(e);
         } else {
             collectEffects(pChild(cTn, "childTnLst"), begin, out);
@@ -399,6 +462,7 @@ void readSequence(const QDomElement &seq, Timeline &tl)
     const QDomElement list = pChild(cTn, "childTnLst");
     if (nodeType == QLatin1String("mainSeq")) {
         if (!tl.steps.isEmpty()) return;
+        QVector<Target> hideNext;
         for (const QDomElement &par : pChildren(list, "par")) {
             const QDomElement stepNode = pChild(par, "cTn");
             Step step;
@@ -406,6 +470,30 @@ void readSequence(const QDomElement &seq, Timeline &tl)
                 if (attr(cond, QStringLiteral("evt")) == QLatin1String("onBegin")) step.automatic = true;
             collectEffects(pChild(stepNode, "childTnLst"), 0, step.effects);
             if (step.effects.isEmpty()) continue;
+            // Shapes the step before said to hide at this click go with it, the moment it starts.
+            for (const Target &t : std::as_const(hideNext)) {
+                Effect hide;
+                hide.cls = EffectClass::Exit;
+                hide.start = EffectStart::WithPrevious;
+                hide.implied = true;
+                Behavior b;
+                b.kind = Behavior::Kind::Set;
+                b.target = t;
+                b.attribute = QStringLiteral("style.visibility");
+                b.to = QStringLiteral("hidden");
+                b.timing.duration = 1;
+                b.timing.hold = true;
+                hide.behaviors.push_back(b);
+                step.effects.push_back(hide);
+            }
+            hideNext.clear();
+            for (const Effect &e : std::as_const(step.effects))
+                if (e.hideOnNextClick)
+                    for (const Behavior &b : e.behaviors)
+                        if (b.target.shape > 0 && playsBehavior(b)) {
+                            hideNext.push_back(b.target);
+                            break;
+                        }
             // With nothing before it, an effect that goes with or after the previous one goes by itself.
             if (tl.steps.isEmpty() && step.effects.first().start != EffectStart::OnClick) step.automatic = true;
             tl.steps.push_back(step);
@@ -555,6 +643,15 @@ private:
             *v = found.value();
             return true;
         }
+        // A name without the sign (an exit's formulas write ppt_x, ppt_h, and the like so).
+        if (m_s[m_i].isLetter() || m_s[m_i] == QLatin1Char('_')) {
+            const qsizetype first = m_i;
+            while (m_i < m_s.size() && (m_s[m_i].isLetterOrNumber() || m_s[m_i] == QLatin1Char('_') || m_s[m_i] == QLatin1Char('.'))) ++m_i;
+            const auto found = m_vars.constFind(m_s.mid(first, m_i - first));
+            if (found == m_vars.constEnd()) return false;
+            *v = found.value();
+            return true;
+        }
         const qsizetype start = m_i;
         while (m_i < m_s.size() && (m_s[m_i].isDigit() || m_s[m_i] == QLatin1Char('.'))) ++m_i;
         if (m_i < m_s.size() && (m_s[m_i] == QLatin1Char('e') || m_s[m_i] == QLatin1Char('E'))) {
@@ -611,7 +708,24 @@ QRectF intersectClips(const QRectF &a, const QRectF &b)
     return out.isNull() ? QRectF(0, 0, 0, 1) : out;   // null means no clip, so a clip that shows nothing is empty but not null
 }
 
-void clipTo(TargetState &s, const QRectF &clip) { s.clip = s.clip.isNull() ? clip : intersectClips(s.clip, clip); }
+void clipTo(TargetState &s, const QRectF &clip)
+{
+    s.clip = s.clip.isNull() ? clip : intersectClips(s.clip, clip);
+    if (!s.clip2.isNull()) s.clip2 = intersectClips(s.clip2, clip);
+}
+
+// Two parts shown (a split): where the shape is clipped already, both are cut to it.
+void clipToTwo(TargetState &s, const QRectF &a, const QRectF &b)
+{
+    if (s.clip.isNull()) {
+        s.clip = a;
+        s.clip2 = b;
+    } else {
+        const QRectF was = s.clip;
+        s.clip = intersectClips(was, a);
+        s.clip2 = intersectClips(was, b);
+    }
+}
 
 QHash<QString, double> variablesOf(const Geometry &g, const Target &t)
 {
@@ -682,6 +796,19 @@ QRectF wipeClip(const QString &direction, bool entering, double p)
     return entering ? QRectF(0, 1 - p, 1, p) : QRectF(0, 0, 1, 1 - p);   // down
 }
 
+// The parts of the shape a split has uncovered, `q` of the way: two strips closing in from the edges, or one opening from the middle.
+// An exit's `q` is how much is left.
+void barnClip(TargetState &s, const QString &way, double q)
+{
+    const bool vertical = way.endsWith(QLatin1String("Vertical"));
+    if (way.startsWith(QLatin1String("in"))) {
+        if (vertical) clipToTwo(s, QRectF(0, 0, q / 2, 1), QRectF(1 - q / 2, 0, q / 2, 1));
+        else clipToTwo(s, QRectF(0, 0, 1, q / 2), QRectF(0, 1 - q / 2, 1, q / 2));
+    } else {
+        clipTo(s, vertical ? QRectF(0.5 - q / 2, 0, q, 1) : QRectF(0, 0.5 - q / 2, 1, q));
+    }
+}
+
 void applyBehavior(TargetState &s, const Behavior &b, const Geometry &g, double ms)
 {
     double p = 0;
@@ -706,7 +833,9 @@ void applyBehavior(TargetState &s, const Behavior &b, const Geometry &g, double 
     }
     case Behavior::Kind::Effect: {
         static const QRegularExpression wipe(QStringLiteral("^wipe\\((left|right|up|down)\\)$"));
+        static const QRegularExpression barn(QStringLiteral("^barn\\((in|out)(Vertical|Horizontal)\\)$"));
         if (const QRegularExpressionMatch m = wipe.match(b.filter); m.hasMatch()) clipTo(s, wipeClip(m.captured(1), b.entering, p));
+        else if (const QRegularExpressionMatch n = barn.match(b.filter); n.hasMatch()) barnClip(s, n.captured(1) + n.captured(2), b.entering ? p : 1 - p);
         else s.opacity *= b.entering ? p : 1 - p;   // a fade, and every filter drawn as one
         break;
     }
@@ -730,9 +859,27 @@ void applyBehavior(TargetState &s, const Behavior &b, const Geometry &g, double 
 
 void applyStep(States &states, const Step &step, const Geometry &g, double ms)
 {
-    for (const Effect &e : step.effects)
-        for (const Behavior &b : e.behaviors)
-            if (b.target.shape > 0 && playsBehavior(b)) applyBehavior(states[b.target], b, g, ms);
+    for (const Effect &e : step.effects) {
+        // An effect that plays again starts over each time; one that takes its work with it leaves when it ends.
+        double t = ms;
+        bool gone = false;
+        const double once = e.once(), times = e.repeats();
+        if (once > 0 && (times > 1 || e.remove)) {
+            const double local = ms - e.begin;
+            if (local >= once * times) {
+                gone = e.remove;
+                t = e.begin + once;
+            } else if (local >= 0) {
+                t = e.begin + std::fmod(local, once);
+            }
+        }
+        for (const Behavior &b : e.behaviors) {
+            if (b.target.shape <= 0 || !playsBehavior(b)) continue;
+            // What it does to its shape when it is over goes on its own time, however the effect went.
+            if (b.afterwards) applyBehavior(states[b.target], b, g, ms);
+            else if (!gone) applyBehavior(states[b.target], b, g, t);
+        }
+    }
 }
 
 // Entrances start hidden; the first effect a target has decides.
@@ -775,7 +922,10 @@ void combine(TargetState &a, const TargetState &b)
     a.scaleX *= b.scaleX;
     a.scaleY *= b.scaleY;
     a.rotation += b.rotation;
-    if (!b.clip.isNull()) clipTo(a, b.clip);
+    if (!b.clip.isNull()) {
+        if (b.clip2.isNull()) clipTo(a, b.clip);
+        else clipToTwo(a, b.clip, b.clip2);
+    }
 }
 
 bool turns(const TargetState &s) { return !s.offset.isNull() || s.scaleX != 1 || s.scaleY != 1 || s.rotation != 0; }
@@ -794,6 +944,19 @@ QTransform movedAbout(const TargetState &s, const QPointF &middle)
 QRectF clipRectIn(const QRectF &box, const QRectF &share)
 {
     return QRectF(box.x() + box.width() * share.x(), box.y() + box.height() * share.y(), box.width() * share.width(), box.height() * share.height());
+}
+
+// The part of `box` the state shows: one rectangle, or two.
+void setClip(QPainter *p, const QRectF &box, const TargetState &s)
+{
+    if (s.clip2.isNull()) {
+        p->setClipRect(clipRectIn(box, s.clip), Qt::IntersectClip);
+        return;
+    }
+    QPainterPath parts;
+    parts.addRect(clipRectIn(box, s.clip));
+    parts.addRect(clipRectIn(box, s.clip2));
+    p->setClipPath(parts, Qt::IntersectClip);
 }
 
 // An object and what is in it that has a number, as the states have them.
@@ -841,7 +1004,7 @@ public:
             const QRectF box = it.type() == ItemType::Group ? it.bounds() : it.rect;
             p->save();
             p->setTransform(movedAbout(s, box.center()), true);
-            if (!s.clip.isNull()) p->setClipRect(clipRectIn(box, s.clip), Qt::IntersectClip);
+            if (!s.clip.isNull()) setClip(p, box, s);
             if (s.opacity < 1) drawFaded(p, box, s.opacity, draw);
             else draw(p);
             p->restore();
@@ -926,7 +1089,7 @@ public:
             QPainterPath mine;
             for (const auto &b : o.bands) mine.addRect(QRectF(-kFar, b.first, 2 * kFar, b.second - b.first));
             p->setClipPath(mine, Qt::IntersectClip);
-            if (!s.clip.isNull()) p->setClipRect(clipRectIn(o.box, s.clip), Qt::IntersectClip);
+            if (!s.clip.isNull()) setClip(p, o.box, s);
             if (s.opacity < 1) p->setOpacity(p->opacity() * s.opacity);
             paintText(p);
             p->restore();

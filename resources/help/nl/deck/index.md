@@ -45,4 +45,4 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 
 ## De tabbladen van het lint
 
-- [Start](tab-home), [Invoegen](tab-insert), [Ontwerp](tab-design), [Overgangen](tab-transitions), [Diavoorstelling](tab-slide-show), [Controleren](tab-review) en [Beeld](tab-view)
+- [Start](tab-home), [Invoegen](tab-insert), [Ontwerp](tab-design), [Overgangen](tab-transitions), [Animaties](tab-animations), [Diavoorstelling](tab-slide-show), [Controleren](tab-review) en [Beeld](tab-view)

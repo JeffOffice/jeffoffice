@@ -1224,6 +1224,13 @@ QDomElement Importer::tableStyles()
     return m_tableStyles;
 }
 
+// The number a file gave a frame (0 if it gave none that can be used), which an animation aims at it by.
+static int frameNumber(const QDomElement &frame)
+{
+    const qint64 n = office::parseInt(office::attr(pChild(pChild(frame, "nvGraphicFramePr"), "cNvPr"), QStringLiteral("id")), 0);
+    return n > 0 && n <= INT_MAX ? int(n) : 0;
+}
+
 // A frame that holds a table: the table, in the place of the frame.
 bool Importer::readFrameTable(const QDomElement &frame, Scope &sc)
 {
@@ -1233,6 +1240,7 @@ bool Importer::readFrameTable(const QDomElement &frame, Scope &sc)
     ItemPtr it = office::readTable(frame, sc.ctx, styles, tableStyles());
     if (!it) return false;
     fitRows(static_cast<TableItem &>(*it));
+    it->sourceId = frameNumber(frame);
     PhRef ph;
     if (placeholderOf(frame, &ph)) it->role = roleOf(ph);
     sc.page->items.push_back(it);
@@ -1335,6 +1343,7 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     pic->imgRect = QRectF(QPointF(0, 0), rect.size());
     pic->wrap.mode = Wrap::None;
     pic->imageId = drawn->imageId;
+    pic->sourceId = frameNumber(frame);
     if (drawn->coarser) note(say("The chart \"%1\" has more points than a picture of it can show, so its picture is drawn from some of them.").arg(pic->name));
     PhRef ph;
     if (placeholderOf(frame, &ph)) pic->role = roleOf(ph);

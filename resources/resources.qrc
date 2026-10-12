@@ -1656,6 +1656,7 @@
     <file alias="en/deck/show.md">help/en/deck/show.md</file>
     <file alias="en/deck/slides.md">help/en/deck/slides.md</file>
     <file alias="en/deck/start.md">help/en/deck/start.md</file>
+    <file alias="en/deck/tab-animations.md">help/en/deck/tab-animations.md</file>
     <file alias="en/deck/tab-design.md">help/en/deck/tab-design.md</file>
     <file alias="en/deck/tab-home.md">help/en/deck/tab-home.md</file>
     <file alias="en/deck/tab-insert.md">help/en/deck/tab-insert.md</file>

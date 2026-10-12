@@ -45,4 +45,4 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 
 ## Die Registerkarten des Menübands
 
-- [Start](tab-home), [Einfügen](tab-insert), [Entwurf](tab-design), [Übergänge](tab-transitions), [Bildschirmpräsentation](tab-slide-show), [Überprüfen](tab-review) und [Ansicht](tab-view)
+- [Start](tab-home), [Einfügen](tab-insert), [Entwurf](tab-design), [Übergänge](tab-transitions), [Animationen](tab-animations), [Bildschirmpräsentation](tab-slide-show), [Überprüfen](tab-review) und [Ansicht](tab-view)
