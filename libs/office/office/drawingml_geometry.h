@@ -8,6 +8,7 @@
 
 #include <QDomElement>
 #include <QHash>
+#include <QPair>
 #include <QPainterPath>
 #include <QRectF>
 #include <QSet>
@@ -82,5 +83,10 @@ bool prefersPresetGeometry(const QString &prst);
 // height, or shorter side). Empty for a preset the library has no
 // adjustments for.
 QVector<double> libraryAdjustments(const QString &prst, const QHash<QString, double> &given, const QSizeF &size);
+// The counterpart of libraryAdjustments, for writing: the standard's
+// adjustments ("adj", "adj1", ... with their values in 100,000ths) that a
+// shape of the library with `adj` is, leaving out those that are the
+// standard's own default. Empty for a preset the library has none for.
+QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVector<double> &adj, const QSizeF &size);
 
 } // namespace jp::office

@@ -505,7 +505,7 @@ void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ct
 {
     // A table needs a column and a row to be one; what has none, or lacks the sizes or cells it says it has, is nothing to write.
     if (t.rows <= 0 || t.cols <= 0 || t.colW.size() < t.cols || t.rowH.size() < t.rows || t.cells.size() < qsizetype(t.rows) * t.cols) return;
-    const int id = ctx.nextShapeId++;
+    const int id = shapeNumber(ctx, t);
     w.writeStartElement(QStringLiteral("p:graphicFrame"));
     w.writeStartElement(QStringLiteral("p:nvGraphicFramePr"));
     w.writeEmptyElement(QStringLiteral("p:cNvPr"));

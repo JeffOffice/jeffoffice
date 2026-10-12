@@ -23,6 +23,7 @@
 #include <QTextDocument>
 #include <QTextList>
 #include <QXmlStreamWriter>
+#include <climits>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -541,6 +542,7 @@ office::DrawingWriteContext Exporter::context(const QString &part)
     };
     ctx.storyDoc = [this](const QString &storyId) { return m_doc.storyDoc(storyId); };
     ctx.mediaParts = &m_media;
+    ctx.colors = m_doc.colors;
     return ctx;
 }
 
@@ -594,6 +596,7 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
 {
     // The frames to write back first: their shape numbers are theirs, and the shapes are numbered above them.
     QStringList frames;
+    QSet<qint64> frameNumbers;
     qint64 highest = 1;
     static const QRegularExpression numbers(QStringLiteral("<\\w+:cNvPr\\b[^>]*?\\bid=\"(\\d+)\""));
     for (const QJsonValue &v : page.props.value(QStringLiteral("unread")).toArray()) {
@@ -603,17 +606,34 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
         for (auto it = numbers.globalMatch(xml); it.hasNext();) {
             const qint64 n = it.next().captured(1).toLongLong();
             highest = std::max(highest, n);
+            frameNumbers.insert(n);
             if (frameIds) frameIds->insert(n);
         }
     }
     office::DrawingWriteContext ctx = context(part);
     ctx.nextShapeId = int(std::min<qint64>(highest + 1, 2000000000));
+    // The tree's own number and the frames' are taken; the shapes read from a file keep theirs, which new ones leave alone.
+    ctx.usedIds.insert(1);
+    for (const qint64 n : std::as_const(frameNumbers))
+        if (n <= INT_MAX) ctx.usedIds.insert(int(n));
+    walkItems(page.items, [&](const ItemPtr &it) {
+        if (it->sourceId >= 2) ctx.reservedIds.insert(it->sourceId);
+    });
+    office::assignShapeIds(page.items, ctx);
+    QStringList left;
     const QByteArray shapes = fragment([&](QXmlStreamWriter &w) {
         for (const ItemPtr &it : page.items) {
+            // A table keeps the style it names (writeTable); the drawing writer's own form has none.
             if (it->type() == ItemType::Table) office::writeTable(w, static_cast<const TableItem &>(*it), ctx);
-            else office::writeShape(w, *it, ctx, &m_skipped);
+            else office::writeShape(w, *it, ctx, &left);
         }
     });
+    for (const QString &text : std::as_const(left)) note(QStringLiteral("%1: %2").arg(where, text));
+    // A shape written with the number it came with is still what an animation aims at.
+    if (frameIds)
+        walkItems(page.items, [&](const ItemPtr &it) {
+            if (it->sourceId >= 2 && ctx.shapeIds.value(it->id) == it->sourceId) frameIds->insert(it->sourceId);
+        });
     return QStringLiteral("<p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
                           "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>")
            + QString::fromUtf8(shapes) + frames.join(QString()) + QStringLiteral("</p:spTree>");

@@ -3646,22 +3646,6 @@ private:
     }
     static QString part(const Exported &e, const QString &name) { return QString::fromUtf8(e.zip.value(name.mid(1))); }
 
-    // Whether a drawing writer that writes shapes is in place (the first version writes none).
-    static bool writerWritesShapes()
-    {
-        ShapeItem shape;
-        shape.rect = QRectF(0, 0, 10, 10);
-        office::PackageWriter package;
-        office::DrawingWriteContext ctx;
-        ctx.package = &package;
-        ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
-        ctx.storyDoc = [](const QString &) -> const QTextDocument * { return nullptr; };
-        QByteArray out;
-        QXmlStreamWriter w(&out);
-        office::writeShape(w, shape, ctx);
-        return !out.isEmpty();
-    }
-
     // The first thing wrong with a package, as a reader that stops at the first
     // damage would find it; empty when it is sound: every part has a content
     // type and every type names a part, every XML part parses, every
@@ -3955,8 +3939,7 @@ private Q_SLOTS:
 
     // Exported and read back, the slides are the same slides: their order,
     // layouts, hidden flags, and backgrounds, the notes, and what the reader
-    // keeps (transition, timing, frames) as it was. The shapes and the text in
-    // them come back once the drawing writer writes them.
+    // keeps (transition, timing, frames) as it was, and the shapes and the text in them.
     void exportRoundTripKeepsTheSlides()
     {
         QString err;
@@ -4006,20 +3989,16 @@ private Q_SLOTS:
 
         // The notes: a page for the first slide, none for the second.
         QCOMPARE(int(back->pages[0]->notesStoryId.isEmpty()), 0);
-        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
         QCOMPARE(deck::notesText(*back, *back->pages[0]), QStringLiteral("Say hello first\nThen the numbers"));
         QVERIFY(deck::notesText(*back, *back->pages[1]).isEmpty());
         // The shapes: the placeholders with their roles, the text, the picture.
-        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
         QCOMPARE(int(back->pages[0]->items.size()), int(d->pages[0]->items.size()));
-        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
         {
             QStringList roles, backRoles;
             for (const auto &it : d->pages[0]->items) roles << it->role;
             for (const auto &it : back->pages[0]->items) backRoles << it->role;
             QCOMPARE(backRoles, roles);
         }
-        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
         QCOMPARE(back->pages[0]->title, QStringLiteral("Quarterly results"));
     }
 
@@ -4060,9 +4039,7 @@ private Q_SLOTS:
         for (int i = 0; i < 12; ++i) QCOMPARE(deck::themeOf(*back).colors[i], deck::themeOf(*d).colors[i]);
         QCOMPARE(deck::themeOf(*back).headingFont, QStringLiteral("Carlito"));
         QCOMPARE(deck::themeOf(*back).bodyFont, QStringLiteral("Carlito"));
-        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
         QCOMPARE(int(back->pages[0]->items.size()), 2);
-        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
         QCOMPARE(deck::notesText(*back, *back->pages[2]), QStringLiteral("Third slide"));
     }
 
@@ -4077,9 +4054,9 @@ private Q_SLOTS:
                                              "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1371600\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">"
                                              "<c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"rId9\"/></a:graphicData></a:graphic></p:graphicFrame>");
         xml.replace(QStringLiteral("</p:spTree>"), chart + QStringLiteral("</p:spTree>"));
-        // An animation that aims at a shape by its number, and a transition with a sound.
+        // An animation that aims at a shape that is not there, and a transition with a sound.
         xml.replace(QRegularExpression(QStringLiteral("<p:timing>.*</p:timing>")),
-                    QStringLiteral("<p:timing><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childLst><p:set><p:cBhvr><p:cTn id=\"2\"/><p:tgtEl><p:spTgt spid=\"5\"/></p:tgtEl></p:cBhvr></p:set></p:childLst></p:cTn></p:par></p:tnLst></p:timing>"));
+                    QStringLiteral("<p:timing><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childLst><p:set><p:cBhvr><p:cTn id=\"2\"/><p:tgtEl><p:spTgt spid=\"99\"/></p:tgtEl></p:cBhvr></p:set></p:childLst></p:cTn></p:par></p:tnLst></p:timing>"));
         xml.replace(QStringLiteral("<p:transition spd=\"med\"><p:fade/></p:transition>"),
                     QStringLiteral("<p:transition spd=\"med\"><p:fade/><p:sndAc><p:stSnd><p:snd r:embed=\"rId8\" name=\"chime.wav\"/></p:stSnd></p:sndAc></p:transition>"));
         p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
@@ -4129,6 +4106,221 @@ private Q_SLOTS:
         Exported k;
         QVERIFY2(unpack(kept, &k, &err), qPrintable(err));
         QVERIFY(part(k, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:spTgt spid=\"8\"/>")));
+    }
+
+    // A shape read from a file is written with the number it had, so an animation
+    // that aims at it stays; one that is gone, and the new and copied ones, take
+    // no number an animation could still aim at.
+    void exportKeepsAnimationsOnShapesThatKeptTheirNumbers()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QMap<QString, int> numbers;
+        for (const auto &it : d->pages[0]->items) numbers.insert(it->name, it->sourceId);
+        QCOMPARE(numbers.value(QStringLiteral("TextBox 4")), 5);
+        QCOMPARE(numbers.value(QStringLiteral("Rectangle 5")), 6);
+        auto timingAt = [](const QStringList &targets) {
+            QString sets;
+            for (const QString &t : targets)
+                sets += QStringLiteral("<p:set><p:cBhvr><p:cTn id=\"%1\"/><p:tgtEl><p:spTgt spid=\"%1\"/></p:tgtEl></p:cBhvr></p:set>").arg(t);
+            return QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" nodeType=\"tmRoot\"><p:childTnLst>")
+                + sets + QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
+        };
+        auto numbersIn = [](const QString &slide) {
+            QMap<QString, QString> byName;
+            QDomDocument dom;
+            if (!office::parseXml(slide.toUtf8(), &dom)) return byName;
+            QVector<QDomElement> stack{dom.documentElement()};
+            while (!stack.isEmpty()) {
+                const QDomElement el = stack.takeLast();
+                if (el.localName() == QLatin1String("cNvPr")) byName.insert(el.attribute(QStringLiteral("name")), el.attribute(QStringLiteral("id")));
+                for (QDomElement c = el.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+            }
+            return byName;
+        };
+        d->pages[0]->props[QStringLiteral("timingXml")] = timingAt({QStringLiteral("5"), QStringLiteral("6")});
+        d->pages[0]->props.remove(QStringLiteral("transitionXml"));
+        QStringList skipped;
+        QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("<p:spTgt spid=\"5\"/>")) && slide.contains(QStringLiteral("<p:spTgt spid=\"6\"/>")));
+        QCOMPARE(numbersIn(slide).value(QStringLiteral("TextBox 4")), QStringLiteral("5"));
+        QCOMPARE(numbersIn(slide).value(QStringLiteral("Rectangle 5")), QStringLiteral("6"));
+        // And once read again they still have them.
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QMap<QString, int> backNumbers;
+        for (const auto &it : back->pages[0]->items) backNumbers.insert(it->name, it->sourceId);
+        QCOMPARE(backNumbers.value(QStringLiteral("TextBox 4")), 5);
+        QCOMPARE(backNumbers.value(QStringLiteral("Rectangle 5")), 6);
+
+        // A shape added, and a copy of one, are written with numbers of their own.
+        auto copy = d->pages[0]->items[3]->clone();
+        copy->name = QStringLiteral("Copy");
+        auto added = std::make_shared<ShapeItem>();
+        added->name = QStringLiteral("Added");
+        added->rect = QRectF(10, 10, 20, 20);
+        d->pages[0]->items.push_back(copy);
+        d->pages[0]->items.push_back(added);
+        QVERIFY2(!(bytes = deck::exportPresentation(*d, &err)).isEmpty(), qPrintable(err));
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("<p:spTgt spid=\"5\"/>")));
+        const QMap<QString, QString> ids = numbersIn(slide);
+        QVERIFY(ids.value(QStringLiteral("Copy")) != QStringLiteral("5") && ids.value(QStringLiteral("Copy")) != QStringLiteral("6"));
+        QVERIFY(!ids.value(QStringLiteral("Added")).isEmpty());
+        QCOMPARE(int(QSet<QString>(ids.cbegin(), ids.cend()).size()), int(ids.size()));
+
+        // With the shape an animation aims at gone, it goes with a note.
+        for (auto it = d->pages[0]->items.begin(); it != d->pages[0]->items.end(); ++it)
+            if ((*it)->name == QLatin1String("Rectangle 5")) {
+                d->pages[0]->items.erase(it);
+                break;
+            }
+        QVERIFY2(!(bytes = deck::exportPresentation(*d, &err, &skipped)).isEmpty(), qPrintable(err));
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(!part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:timing")));
+        bool noted = false;
+        for (const QString &s : std::as_const(skipped)) noted |= s.startsWith(QLatin1String("Slide 1")) && s.contains(QStringLiteral("animation"));
+        QVERIFY2(noted, qPrintable(skipped.join('\n')));
+    }
+
+    // What a person makes in the editor is written as it looks: scheme colors as
+    // the presentation's own, shapes as the standard's presets, a picture used
+    // twice once, lines with their ends and what they are attached to, and
+    // groups with what is in them.
+    void exportWritesWhatTheEditorMakes()
+    {
+        auto d = deck::newPresentation();
+        d->colors.c[jp::Accent1] = QColor(0x12, 0x34, 0x56);
+        const int at = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("titleOnly")));
+        Page &slide = *d->pages[at];
+        const size_t placeholders = slide.items.size();
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(50, 150, 300, 60);
+        box->storyId = d->createStory(QStringLiteral("Hello\nWorld"));
+        {
+            QTextCursor c(d->storyDoc(box->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat cf;
+            cf.setFontPointSize(20);
+            cf.setProperty(tp::ColorRefP, ColorRef::scheme(jp::Accent1).toString());
+            c.mergeCharFormat(cf);
+        }
+        auto arrow = std::make_shared<ShapeItem>();
+        arrow->rect = QRectF(400, 150, 200, 80);
+        arrow->shape = QStringLiteral("rightArrow");
+        arrow->adj = {0.4, 0.6};
+        arrow->fill = Fill::solid(ColorRef::scheme(jp::Accent1));
+        arrow->stroke = Stroke::none();
+        auto circle = std::make_shared<ShapeItem>();
+        circle->rect = QRectF(550, 300, 60, 60);
+        circle->shape = QStringLiteral("ellipse");
+        auto star = std::make_shared<ShapeItem>();
+        star->rect = QRectF(400, 300, 100, 100);
+        star->shape = QStringLiteral("star5");
+        QImage image(4, 4, QImage::Format_RGB32);
+        image.fill(Qt::green);
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        const QString imageId = d->addImage(png, QStringLiteral("png"), QString());
+        auto first = std::make_shared<PictureItem>(), second = std::make_shared<PictureItem>();
+        for (const auto &p : {first, second}) {
+            p->imageId = imageId;
+            p->imgRect = QRectF(0, 0, 100, 50);
+            p->rect = QRectF(50, 300, 100, 50);
+        }
+        second->rect.moveTo(200, 300);
+        auto line = std::make_shared<LineItem>();
+        line->p1 = QPointF(350, 180);
+        line->p2 = QPointF(400, 190);
+        line->start = LineItem::Glue{box->id, 3};
+        line->end = LineItem::Glue{circle->id, 2};
+        line->stroke.endArrow = Arrow::Triangle;
+        line->syncRect();
+        auto group = std::make_shared<GroupItem>();
+        group->children = {star, first};
+        group->syncRect();
+        auto table = std::make_shared<jp::TableItem>();
+        table->rect = QRectF(50, 400, 200, 60);
+        table->rows = 2;
+        table->cols = 2;
+        table->colW = {100, 100};
+        table->rowH = {30, 30};
+        table->cells.resize(4);
+        for (jp::TableCell &cell : table->cells) {
+            cell.storyId = d->createStory(QStringLiteral("cell"));
+            cell.fill = Fill::solid(ColorRef::scheme(jp::Accent1, 60));
+            cell.border.top = cell.border.bottom = cell.border.left = cell.border.right = Stroke::line(ColorRef::scheme(jp::Main), 1);
+        }
+        slide.items.push_back(table);
+        slide.items.push_back(box);
+        slide.items.push_back(arrow);
+        slide.items.push_back(circle);
+        slide.items.push_back(second);
+        slide.items.push_back(line);
+        slide.items.push_back(group);
+
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join('\n')));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        int media = 0;
+        for (const QString &name : e.pkg.partNames()) media += name.startsWith(QLatin1String("/ppt/media/"));
+        QCOMPARE(media, 1);
+
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const Page &page = *back->pages[at];
+        QCOMPARE(page.items.size(), placeholders + 6);
+        // The table is one the reader keeps as it was written, not one of the items.
+        QCOMPARE(int(page.props.value(QStringLiteral("unread")).toArray().size()), 1);
+        QVERIFY(page.props.value(QStringLiteral("unread")).toArray()[0].toObject().value(QStringLiteral("xml")).toString().contains(QStringLiteral("<a:tbl>")));
+        const auto *text = static_cast<TextItem *>(page.items[placeholders].get());
+        QCOMPARE(text->storyId.isEmpty(), false);
+        QCOMPARE(back->storyDoc(text->storyId)->toPlainText(), QStringLiteral("Hello\nWorld"));
+        QCOMPARE(back->storyDoc(text->storyId)->begin().begin().fragment().charFormat().stringProperty(tp::ColorRefP), QStringLiteral("#123456"));
+        const auto *shape = static_cast<ShapeItem *>(page.items[placeholders + 1].get());
+        QCOMPARE(shape->shape, QStringLiteral("rightArrow"));
+        QCOMPARE(shape->fill.color.rgbValue(), QColor(0x12, 0x34, 0x56));
+        QVERIFY(shape->stroke.isNone());
+        QCOMPARE(shape->adj.size(), 2);
+        QVERIFY(std::abs(shape->adj[0] - 0.4) < 1e-4 && std::abs(shape->adj[1] - 0.6) < 1e-4);
+        QCOMPARE(page.items[placeholders + 3]->type(), ItemType::Picture);
+        const auto *connector = static_cast<LineItem *>(page.items[placeholders + 4].get());
+        QVERIFY(connector->stroke.endArrow == Arrow::Triangle);
+        // The connector names the numbers of the two shapes it is attached to (the importer reads each shape alone, so what it joins is not read back).
+        QDomDocument dom;
+        QVERIFY(office::parseXml(part(e, QStringLiteral("/ppt/slides/slide%1.xml").arg(at + 1)).toUtf8(), &dom));
+        QStringList numbers;
+        for (QDomElement el = office::child(office::child(office::child(dom.documentElement(), office::ns::P, QStringLiteral("cSld")), office::ns::P, QStringLiteral("spTree")),
+                                            office::ns::P, QStringLiteral("sp"));
+             !el.isNull(); el = el.nextSiblingElement(QStringLiteral("sp")))
+            numbers << office::child(office::child(el, office::ns::P, QStringLiteral("nvSpPr")), office::ns::P, QStringLiteral("cNvPr")).attribute(QStringLiteral("id"));
+        const QDomElement cxn = office::child(office::child(office::child(office::child(dom.documentElement(), office::ns::P, QStringLiteral("cSld")), office::ns::P, QStringLiteral("spTree")),
+                                                            office::ns::P, QStringLiteral("cxnSp")), office::ns::P, QStringLiteral("nvCxnSpPr"));
+        const QDomElement props = office::child(cxn, office::ns::P, QStringLiteral("cNvCxnSpPr"));
+        const QDomElement start = office::child(props, office::ns::A, QStringLiteral("stCxn")), end = office::child(props, office::ns::A, QStringLiteral("endCxn"));
+        QCOMPARE(int(numbers.size()), int(placeholders) + 3);
+        QCOMPARE(start.attribute(QStringLiteral("id")), numbers[placeholders]);
+        QCOMPARE(start.attribute(QStringLiteral("idx")), QStringLiteral("3"));
+        QCOMPARE(end.attribute(QStringLiteral("id")), numbers[placeholders + 2]);
+        QCOMPARE(end.attribute(QStringLiteral("idx")), QStringLiteral("4"));   // the bottom of an ellipse is its fifth point
+        const auto *grouped = static_cast<GroupItem *>(page.items[placeholders + 5].get());
+        QCOMPARE(grouped->children.size(), size_t(2));
+        QCOMPARE(static_cast<ShapeItem *>(grouped->children[0].get())->shape, QStringLiteral("star5"));
+        QCOMPARE(static_cast<PictureItem *>(grouped->children[1].get())->imageId, static_cast<PictureItem *>(page.items[placeholders + 3].get())->imageId);
     }
 
     // Slide masters beyond the first keep their own themes, and every master and
