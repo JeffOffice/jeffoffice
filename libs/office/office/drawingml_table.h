@@ -25,13 +25,14 @@ bool isTableFrame(const QDomElement &graphicFrame);
 // inherits. The table styles are `tableStyles` (the root, a:tblStyleLst, of
 // the presentation's tableStyles part) if given, else read from the part the
 // package's main part links to; a style with no definition there is
-// approximated, see tableStyleOf in drawingml_table.cpp.
+// approximated by the usual one (kBuiltinStyles in drawingml_table.cpp).
 ItemPtr readTable(const QDomElement &graphicFrame, const DrawingContext &ctx, const TextStyleStack &styles = {},
                   const QDomElement &tableStyles = QDomElement());
 
 // The table as a p:graphicFrame, with the shape number ctx.nextShapeId (then
 // counted up). The cells carry their own fills, borders, margins, and
-// anchors; the style named in TableItem::format is named in a:tblPr.
+// anchors; the style named in TableItem::format is named in a:tblPr. Nothing,
+// and no shape number used, for a table with no rows or no columns.
 void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ctx);
 
 } // namespace jp::office

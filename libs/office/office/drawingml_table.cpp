@@ -33,11 +33,12 @@ const QLatin1String kStrictTableUri("http://purl.oclc.org/ooxml/drawingml/table"
 const QLatin1String kMediumStyle2("{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}");
 
 // Table styles the file may not define: the presentation program has them by
-// id. The first is the style new tables get ("Medium Style 2 - Accent 1"), and
-// stands in for any style id the file doesn't define and this doesn't know, which
-// only approximates it (the look of a style is much the same from one to the
-// next: an accent header, banded rows, white lines); the other two are what
-// their names say.
+// id. The first is the style new tables get ("Medium Style 2 - Accent 1"); it
+// also stands in for any other style id the file doesn't define, which is an
+// APPROXIMATION: the program's other styles differ in their colors and lines,
+// but most have the same parts (an accent header, banded rows in tints, white
+// lines), and a table with these is nearer its look than one with none. The
+// other two are what their names say.
 const char *const kBuiltinStyles =
     "<a:tblStyleLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">"
     "<a:tblStyle styleId=\"{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}\" styleName=\"Medium Style 2 - Accent 1\">"
@@ -225,12 +226,6 @@ QDomElement textLayer(QDomDocument *doc, std::optional<bool> bold, std::optional
     return list;
 }
 
-// One edge between cells, or at the table's side: the line there, if anything has said what it is.
-struct Edge {
-    bool set = false;
-    Stroke line;
-};
-
 int clampSpan(const QDomElement &tc, const char *name, int room)
 {
     return int(std::clamp<qint64>(parseInt(attr(tc, QLatin1String(name)), 1), 1, std::max(1, room)));
@@ -329,13 +324,9 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
         }
 
     // The borders: the style's first, each region over the ones before, then those the cells name.
-    std::vector<Edge> across(size_t(rows + 1) * cols), down(size_t(rows) * (cols + 1));   // the edges above each row; left of each column
-    const auto edgeAbove = [&](int r, int c) -> Edge & { return across[size_t(r) * cols + c]; };
-    const auto edgeLeft = [&](int r, int c) -> Edge & { return down[size_t(r) * (cols + 1) + c]; };
-    const auto put = [](Edge &e, const Stroke &s) {
-        e.set = true;
-        e.line = s;
-    };
+    std::vector<Stroke> across(size_t(rows + 1) * cols), down(size_t(rows) * (cols + 1));   // the lines above each row's cells; left of each column's
+    const auto edgeAbove = [&](int r, int c) -> Stroke & { return across[size_t(r) * cols + c]; };
+    const auto edgeLeft = [&](int r, int c) -> Stroke & { return down[size_t(r) * (cols + 1) + c]; };
     for (int k = 0; k < RegionCount; ++k) {
         const Look &look = looks[k];
         const bool any = std::any_of(std::begin(look.hasBorder), std::end(look.hasBorder), [](bool b) { return b; });
@@ -346,10 +337,10 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
                 if (!in(r, c)) continue;
                 const int left = in(r, c - 1) ? InsideV : Left, right = in(r, c + 1) ? InsideV : Right;
                 const int top = in(r - 1, c) ? InsideH : Top, bottom = in(r + 1, c) ? InsideH : Bottom;
-                if (look.hasBorder[left]) put(edgeLeft(r, c), look.border[left]);
-                if (look.hasBorder[right]) put(edgeLeft(r, c + 1), look.border[right]);
-                if (look.hasBorder[top]) put(edgeAbove(r, c), look.border[top]);
-                if (look.hasBorder[bottom]) put(edgeAbove(r + 1, c), look.border[bottom]);
+                if (look.hasBorder[left]) edgeLeft(r, c) = look.border[left];
+                if (look.hasBorder[right]) edgeLeft(r, c + 1) = look.border[right];
+                if (look.hasBorder[top]) edgeAbove(r, c) = look.border[top];
+                if (look.hasBorder[bottom]) edgeAbove(r + 1, c) = look.border[bottom];
             }
     }
     for (int r = 0; r < rows; ++r)
@@ -357,11 +348,11 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
             const QDomElement pr = childNamed(tcs[size_t(r) * cols + c], "tcPr");
             TableCell &cell = t->cell(r, c);
             // A merged cell's far sides are the sides of what it covers.
-            const struct { const char *name; Edge *edge; } named[4] = {
+            const struct { const char *name; Stroke *edge; } named[4] = {
                 {"lnL", &edgeLeft(r, c)}, {"lnR", &edgeLeft(r, c + cell.colSpan)}, {"lnT", &edgeAbove(r, c)}, {"lnB", &edgeAbove(r + cell.rowSpan, c)}};
             for (const auto &n : named) {
                 const QDomElement line = childNamed(pr, n.name);
-                if (!line.isNull() && saysLine(line)) put(*n.edge, cellLine(line, ctx, &scratch));
+                if (!line.isNull() && saysLine(line)) *n.edge = cellLine(line, ctx, &scratch);
             }
             if (cell.covered) continue;
             for (const auto &d : {std::make_pair("lnTlToBr", 1), std::make_pair("lnBlToTr", 2)}) {
@@ -416,10 +407,10 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
             const QString anchor = attr(pr, QStringLiteral("anchor"));
             cell.valign = anchor == QLatin1String("ctr") ? VAlign::Middle : anchor == QLatin1String("b") ? VAlign::Bottom : VAlign::Top;
             cell.vertical = attr(pr, QStringLiteral("vert")) == QLatin1String("vert");
-            cell.border.left = edgeLeft(r, c).line;
-            cell.border.right = edgeLeft(r, c + cell.colSpan).line;
-            cell.border.top = edgeAbove(r, c).line;
-            cell.border.bottom = edgeAbove(r + cell.rowSpan, c).line;
+            cell.border.left = edgeLeft(r, c);
+            cell.border.right = edgeLeft(r, c + cell.colSpan);
+            cell.border.top = edgeAbove(r, c);
+            cell.border.bottom = edgeAbove(r + cell.rowSpan, c);
         }
     return t;
 }
@@ -512,6 +503,8 @@ void writeCellLine(QXmlStreamWriter &w, const QString &name, const Stroke &s, Dr
 
 void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ctx)
 {
+    // A table needs a column and a row to be one; what has none, or lacks the sizes or cells it says it has, is nothing to write.
+    if (t.rows <= 0 || t.cols <= 0 || t.colW.size() < t.cols || t.rowH.size() < t.rows || t.cells.size() < qsizetype(t.rows) * t.cols) return;
     const int id = ctx.nextShapeId++;
     w.writeStartElement(QStringLiteral("p:graphicFrame"));
     w.writeStartElement(QStringLiteral("p:nvGraphicFramePr"));
