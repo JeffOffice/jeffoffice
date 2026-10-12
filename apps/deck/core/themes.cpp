@@ -763,6 +763,13 @@ QByteArray themePartXml(const DeckTheme &t)
 
 QByteArray patchThemePart(const QByteArray &xml, const DeckTheme &t)
 {
+    // A part that says it already is kept as it is, byte for byte.
+    office::Theme read;
+    if (office::readTheme(xml, &read)) {
+        bool same = read.name == t.name && (read.majorLatin.isEmpty() || read.majorLatin == t.headingFont) && (read.minorLatin.isEmpty() || read.minorLatin == t.bodyFont);
+        for (int i = 0; i < office::Theme::ColorCount && same; ++i) same = read.colors[i] == t.colors[i];
+        if (same) return xml;
+    }
     QDomDocument dom;
     if (!office::parseXml(xml, &dom)) return QByteArray();
     QDomElement root = dom.documentElement();
