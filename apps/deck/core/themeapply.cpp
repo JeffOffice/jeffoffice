@@ -136,40 +136,10 @@ QColor runColor(const QTextCharFormat &cf)
     return QColor();
 }
 
-void setRunColor(QTextCharFormat &cf, const QColor &c)
-{
-    cf.setForeground(QBrush(c));
-    cf.setProperty(tp::ColorRefP, ColorRef::rgb(c).toString());
-}
-
 // Changes the format of each run of a story (and of each paragraph's end) that `fn` changes.
 void editRuns(QTextDocument *sd, const std::function<bool(QTextCharFormat &)> &fn)
 {
-    struct Run {
-        int from, to;
-        QTextCharFormat format;
-    };
-    QVector<Run> runs;
-    QVector<QPair<int, QTextCharFormat>> ends;
-    for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
-        QTextCharFormat end = b.charFormat();
-        if (fn(end)) ends << qMakePair(b.position(), end);
-        for (auto it = b.begin(); !it.atEnd(); ++it) {
-            QTextCharFormat cf = it.fragment().charFormat();
-            if (fn(cf)) runs << Run{it.fragment().position(), it.fragment().position() + it.fragment().length(), cf};
-        }
-    }
-    for (const Run &r : runs) {
-        QTextCursor c(sd);
-        c.setPosition(r.from);
-        c.setPosition(r.to, QTextCursor::KeepAnchor);
-        c.setCharFormat(r.format);
-    }
-    for (const auto &e : ends) {
-        QTextCursor c(sd);
-        c.setPosition(e.first);
-        c.setBlockCharFormat(e.second);
-    }
+    editRunsAt(sd, [&](QTextCharFormat &cf, int, bool) { return fn(cf); });
 }
 
 // Swaps the old scheme's colors and fonts in a run; true if it changed.
@@ -306,6 +276,15 @@ QVector<MasterPage *> slideMasters(const Document &d)
     for (const auto &m : d.masters)
         if (isSlideMaster(*m)) out << m.get();
     return out;
+}
+
+// Calls `fn` with each page of a family and the master page it stands on (a layout or slide master: itself).
+template <typename F>
+void eachPageOf(const Document &d, const Family &f, F &&fn)
+{
+    if (f.master) fn(*f.master, f.master);
+    for (MasterPage *l : f.layouts) fn(*l, l);
+    for (Page *p : f.slides) fn(*p, d.masterFor(*p));
 }
 
 // ---- bringing a theme in ----
@@ -637,6 +616,7 @@ Swap swapFor(const Standing &was, const DeckTheme &to, bool toDark)
 {
     Swap swap;
     swap.colors = colorSwap(was.theme, to, was.dark != toDark);
+    swap.plain = colorSwap(was.theme, to, false);
     swap.fonts = FontSwap{was.theme.headingFont, was.theme.bodyFont, to.headingFont, to.bodyFont};
     return swap;
 }
@@ -652,6 +632,8 @@ bool applyThemeToAll(Document &d, const Document &source)
     QVector<Standing> was;
     Standings standings(d);
     for (const auto &p : d.pages) was << standings.of(*p);
+    TextReadable readable(d);
+    for (int i = 0; i < d.pages.size(); ++i) readable.note(*d.pages[i], was[i].layout);
     const QVector<std::shared_ptr<MasterPage>> olds = d.masters;
     const Copy made = copyMaster(d, source, *src);
     keepLinksReadable(target, made.master->background);
@@ -664,6 +646,7 @@ bool applyThemeToAll(Document &d, const Document &source)
     }
     for (const auto &m : olds) dropMaster(d, m);
     storeMasterTheme(d, *made.master, target, targetXml.isEmpty() ? QByteArray() : patchThemePart(targetXml, target));
+    for (int i = 0; i < d.pages.size(); ++i) readable.keep(*d.pages[i], d.masterFor(*d.pages[i]), swapFor(was[i], target, dark).plain);
     return true;
 }
 
@@ -681,6 +664,8 @@ bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &s
     QVector<Standing> was;
     Standings standings(d);
     for (const auto &p : d.pages) was << standings.of(*p);
+    TextReadable readable(d);
+    for (int i : chosen) readable.note(*d.pages[i], was[i].layout);
     const Copy made = copyMaster(d, source, *src);
     made.master->props[kMadeByTheme] = true;
     keepLinksReadable(target, made.master->background);
@@ -693,6 +678,7 @@ bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &s
         if (layout) moveSlide(d, slide, was[i].layout, *layout, swapFor(was[i], target, dark), places);
     }
     storeMasterTheme(d, *made.master, target, targetXml.isEmpty() ? QByteArray() : patchThemePart(targetXml, target));
+    for (int i : chosen) readable.keep(*d.pages[i], d.masterFor(*d.pages[i]), swapFor(was[i], target, dark).plain);
     dropUnusedThemeMasters(d, made.master);
     return true;
 }
@@ -714,10 +700,14 @@ void applyColors(Document &d, const ColorSet &colors)
         }
         keepLinksReadable(to, background);
         Swap swap;
-        swap.colors = colorSwap(from, to, false);
-        swapFamily(d, families.value(m->id), swap);
+        swap.colors = swap.plain = colorSwap(from, to, false);
+        const Family family = families.value(m->id);
+        TextReadable readable(d);
+        eachPageOf(d, family, [&](PageBase &p, const MasterPage *base) { readable.note(p, base); });
+        swapFamily(d, family, swap);
         m->background = background;
         storeMasterTheme(d, *m, to);
+        eachPageOf(d, family, [&](PageBase &p, const MasterPage *base) { readable.keep(p, base, swap.plain); });
     }
 }
 
@@ -747,12 +737,16 @@ void applyBackgroundStyle(Document &d, int style)
         keepLinksReadable(to, background);
         Swap swap;
         swap.colors = colorSwap(from, to, isDarkBackground(m->background) != backgroundStyleIsDark(style));
+        swap.plain = colorSwap(from, to, false);
         const Family family = families.value(m->id);
+        TextReadable readable(d);
+        eachPageOf(d, family, [&](PageBase &p, const MasterPage *base) { readable.note(p, base); });
         swapFamily(d, family, swap);
         m->background = background;
         for (MasterPage *l : family.layouts) l->background = Fill();
         for (Page *p : family.slides) p->background = Fill();
         storeMasterTheme(d, *m, to);
+        eachPageOf(d, family, [&](PageBase &p, const MasterPage *base) { readable.keep(p, base, swap.plain); });
     }
 }
 

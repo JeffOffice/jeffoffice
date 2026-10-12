@@ -409,6 +409,11 @@ public Q_SLOTS:
     void open(const QUrl &url) { urls << url.toString(); }
 };
 
+struct BackdropDeck {
+    std::unique_ptr<Document> doc;
+    QString plain, gray, callout, card, overRect, overPicture, table;
+};
+
 class DeckTests : public QObject {
     Q_OBJECT
     QTemporaryDir m_settingsDir;
@@ -16588,7 +16593,7 @@ private Q_SLOTS:
         QCOMPARE(now.name, was.name);
         QCOMPARE(now.headingFont, was.headingFont);
         const auto *accent = static_cast<const TextItem *>(itemNamed(*d->pages[3], QStringLiteral("accent text")));
-        QCOMPARE(colorOfRun(*d, firstRunOf(*d, *accent)), set.colors[4]);
+        followsAccent(colorOfRun(*d, firstRunOf(*d, *accent)), set.colors[4], colorsUnder(*d, *d->masterFor(*d->pages[3]), accent->rect.center()), 4.5, "accent text");
         QCOMPARE(itemNamed(*d->pages[3], QStringLiteral("accent shape"))->fill.color.rgbValue(), set.colors[5]);
         QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("title")))), set.colors[0]);
         const QTextDocument *bodyDoc = d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId);
@@ -16610,7 +16615,7 @@ private Q_SLOTS:
         QCOMPARE(familyOf(firstRunOf(*d, *static_cast<const TextItem *>(itemNamed(*d->pages[3], QStringLiteral("own font"))))), QStringLiteral("Courier Prime"));
         QCOMPARE(deck::fontSetOf(*d).heading, QStringLiteral("Poppins"));
 
-        // A dark background: the master's, with the slides' and layouts' own cleared; text turns light, the hand-set red stays.
+        // A dark background: the master's, with the slides' and layouts' own cleared; text turns light, the hand-set red stays red.
         d->pages[2]->background = Fill::solid(ColorRef::rgb(QColor(0x33, 0x66, 0x99)));
         deck::applyBackgroundStyle(*d, 11);
         const deck::DeckTheme dark = deck::themeOf(*d);
@@ -16618,7 +16623,12 @@ private Q_SLOTS:
         QVERIFY(d->pages[2]->background.type == Fill::NoFill);
         QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("title")))), dark.colors[1]);
         QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("obj")))), dark.colors[1]);
-        QCOMPARE(colorOfRun(*d, d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId)->findBlockByNumber(2).begin().fragment().charFormat()), QColor(0xC0, 0x00, 0x00));
+        {
+            // (A dark red that read on white does not on near black: it keeps its hue and goes lighter until it reads.)
+            const QColor red = colorOfRun(*d, d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId)->findBlockByNumber(2).begin().fragment().charFormat());
+            QVERIFY(red.hslHue() <= 5 || red.hslHue() >= 355);
+            for (const QColor &bg : colorsUnder(*d, *d->masterFor(*d->pages[1]), placeholderOn(*d->pages[1], QStringLiteral("obj"))->rect.center())) QVERIFY(deck::contrastRatio(red, bg) >= 4.5);
+        }
         QStringList bad = unreadableText(*d, QStringLiteral("dark"));
         bad.erase(std::remove_if(bad.begin(), bad.end(),
                                  [](const QString &s) {
@@ -17151,6 +17161,195 @@ private Q_SLOTS:
 
 
 
+    // ---- text on a backdrop of its own ----
+
+    // The explicit color of each run of a story (a block with no run: the block's), as drawn.
+    static QVector<QColor> runColorsOf(const Document &d, const QString &storyId)
+    {
+        QVector<QColor> out;
+        const QTextDocument *sd = d.storyDoc(storyId);
+        if (!sd) return out;
+        for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
+            if (b.begin().atEnd()) {
+                out << colorOfRun(d, b.charFormat());
+                continue;
+            }
+            for (auto it = b.begin(); !it.atEnd(); ++it) out << colorOfRun(d, it.fragment().charFormat());
+        }
+        return out;
+    }
+
+    static void setStoryColor(Document &d, const QString &storyId, const QColor &color)
+    {
+        QTextCursor c(d.storyDoc(storyId));
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setForeground(color);
+        f.setProperty(tp::ColorRefP, ColorRef::rgb(color).toString());
+        f.setFontPointSize(20);
+        c.mergeCharFormat(f);
+    }
+
+    // A slide of hand-colored things on a light design: a text box in black, one in a dark gray that is no color of the theme, a table
+    // with a near-black header row and gray body cells, a callout in dark blue with white text, a white card with black text, black text
+    // over a gray rectangle and over a picture.
+    static BackdropDeck deckWithBackdrops()
+    {
+        BackdropDeck out;
+        out.doc = deck::newPresentation();
+        Document &d = *out.doc;
+        // The text colors are the theme's own, as a file made in a design with black and white text has them.
+        deck::DeckTheme theme = deck::themeOf(d);
+        theme.colors[0] = Qt::black;
+        theme.colors[1] = Qt::white;
+        deck::setTheme(d, theme);
+        deck::addSlide(d, *deck::layoutOfType(d, QStringLiteral("blank")));
+        Page &slide = *d.pages.last();
+        auto text = [&](const QString &name, const QRectF &r, const QString &words, const QColor &color) {
+            auto box = std::make_shared<TextItem>();
+            box->name = name;
+            box->rect = r;
+            box->storyId = d.createStory(words);
+            setStoryColor(d, box->storyId, color);
+            slide.items.push_back(box);
+            return box;
+        };
+        auto shape = [&](const QString &name, const QRectF &r, const QColor &fill, const QString &words, const QColor &color) {
+            auto s = std::make_shared<ShapeItem>();
+            s->name = name;
+            s->rect = r;
+            s->fill = Fill::solid(ColorRef::rgb(fill));
+            if (!words.isEmpty()) {
+                s->storyId = d.createStory(words);
+                setStoryColor(d, s->storyId, color);
+            }
+            slide.items.push_back(s);
+            return s;
+        };
+        out.plain = text(QStringLiteral("plain"), QRectF(120, 20, 300, 40), QStringLiteral("Plain words"), Qt::black)->id;
+        out.gray = text(QStringLiteral("gray"), QRectF(120, 70, 300, 40), QStringLiteral("Gray words"), QColor(0x1A, 0x1A, 0x1A))->id;
+        auto table = std::make_shared<TableItem>();
+        table->name = QStringLiteral("grid");
+        table->rect = QRectF(40, 130, 400, 100);
+        table->rows = 2;
+        table->cols = 2;
+        table->colW = {200, 200};
+        table->rowH = {50, 50};
+        table->cells.resize(4);
+        const QColor fills[4] = {QColor(0x05, 0x05, 0x05), QColor(0x05, 0x05, 0x05), QColor(0xCB, 0xCB, 0xCB), QColor(0xE7, 0xE7, 0xE7)};
+        for (int i = 0; i < 4; ++i) {
+            table->cells[i].storyId = d.createStory(QStringLiteral("cell"));
+            table->cells[i].fill = Fill::solid(ColorRef::rgb(fills[i]));
+            setStoryColor(d, table->cells[i].storyId, i < 2 ? QColor(Qt::white) : QColor(Qt::black));
+        }
+        slide.items.push_back(table);
+        out.table = table->id;
+        out.callout = shape(QStringLiteral("callout"), QRectF(480, 20, 300, 80), QColor(0x1F, 0x4E, 0x79), QStringLiteral("Callout"), Qt::white)->id;
+        out.card = shape(QStringLiteral("card"), QRectF(480, 120, 300, 80), Qt::white, QStringLiteral("Card"), Qt::black)->id;
+        shape(QStringLiteral("rectangle"), QRectF(480, 220, 300, 80), QColor(0xCB, 0xCB, 0xCB), QString(), Qt::black);
+        out.overRect = text(QStringLiteral("over rectangle"), QRectF(490, 230, 280, 60), QStringLiteral("On gray"), Qt::black)->id;
+        auto photo = std::make_shared<PictureItem>();
+        photo->name = QStringLiteral("photo");
+        photo->rect = QRectF(480, 320, 300, 100);
+        photo->imageId = d.addImage(odptest::png(8, 8, QColor(0xE0, 0xD8, 0xC8)), QStringLiteral("png"));
+        photo->imgRect = QRectF(0, 0, 300, 100);
+        slide.items.push_back(photo);
+        out.overPicture = text(QStringLiteral("over picture"), QRectF(490, 330, 280, 60), QStringLiteral("On a photo"), Qt::black)->id;
+        return out;
+    }
+
+    // A color that follows an accent of the scheme: the accent itself where it reads on what is behind it (`need` to 1), else a color of its
+    // hue that does (a change of colors keeps the text readable).
+    static void followsAccent(const QColor &actual, const QColor &accent, const QVector<QColor> &behind, double need, const char *what)
+    {
+        bool reads = true;
+        for (const QColor &b : behind) reads = reads && deck::contrastRatio(accent, b) >= need;
+        if (reads) {
+            QVERIFY2(actual == accent, what);
+            return;
+        }
+        for (const QColor &b : behind) QVERIFY2(deck::contrastRatio(actual, b) >= need, what);
+        QVERIFY2(std::abs(actual.hslHue() - accent.hslHue()) <= 15, what);
+    }
+
+    static const MasterPage &firstMasterOf(const Document &d)
+    {
+        for (const auto &m : d.masters)
+            if (deck::isSlideMaster(*m)) return *m;
+        return *d.masters.first();
+    }
+
+    static const Item *itemById(const Page &p, const QString &id)
+    {
+        for (const auto &it : p.items)
+            if (it->id == id) return it.get();
+        return nullptr;
+    }
+
+    static QString storyOfItem(const Item &it)
+    {
+        if (it.type() == ItemType::Text) return static_cast<const TextItem &>(it).storyId;
+        if (it.type() == ItemType::Shape) return static_cast<const ShapeItem &>(it).storyId;
+        return QString();
+    }
+
+    // Every run of the hand-colored slide against what is behind it once a dark background or a dark theme is in.
+    static void checkBackdrops(const BackdropDeck &b, const QString &what)
+    {
+        const Document &d = *b.doc;
+        const Page &slide = *d.pages.last();
+        const MasterPage &layout = *d.masterFor(slide);
+        auto readable = [&](const QColor &fg, const QVector<QColor> &behind, const QString &which) {
+            for (const QColor &bg : behind)
+                QVERIFY2(deck::contrastRatio(fg, bg) >= 4.5, qPrintable(QStringLiteral("%1, %2: %3 on %4 is %5").arg(what, which, fg.name(), bg.name()).arg(deck::contrastRatio(fg, bg), 0, 'f', 2)));
+        };
+        // Text on the slide's own background follows it: light on a dark one.
+        for (const QString &id : {b.plain, b.gray}) {
+            const Item &it = *itemById(slide, id);
+            for (const QColor &c : runColorsOf(d, storyOfItem(it))) readable(c, colorsUnder(d, layout, it.rect.center()), it.name);
+        }
+        // Where a color of its own is behind, the text reads on it, and was not turned to the dark background's light.
+        auto on = [&](const QString &id, const QVector<QColor> &behind, const QString &which) {
+            for (const QColor &c : runColorsOf(d, storyOfItem(*itemById(slide, id)))) readable(c, behind, which);
+        };
+        on(b.callout, {QColor(0x1F, 0x4E, 0x79)}, QStringLiteral("callout"));
+        on(b.overRect, {QColor(0xCB, 0xCB, 0xCB)}, QStringLiteral("text over a gray rectangle"));
+        on(b.overPicture, {QColor(0xE0, 0xD8, 0xC8)}, QStringLiteral("text over a picture"));
+        // A card in a color of the theme turns with the theme, text and all.
+        const auto &card = static_cast<const ShapeItem &>(*itemById(slide, b.card));
+        readable(runColorsOf(d, card.storyId).value(0), {card.fill.color.resolve(d.colors)}, QStringLiteral("card"));
+        // A table: the cells with colors of their own keep them, and every cell's text reads on its fill.
+        const auto &table = static_cast<const TableItem &>(*itemById(slide, b.table));
+        QCOMPARE(table.cells[0].fill.color.resolve(d.colors), QColor(0x05, 0x05, 0x05));
+        QCOMPARE(table.cells[2].fill.color.resolve(d.colors), QColor(0xCB, 0xCB, 0xCB));
+        QCOMPARE(table.cells[3].fill.color.resolve(d.colors), QColor(0xE7, 0xE7, 0xE7));
+        for (const TableCell &cell : table.cells) readable(runColorsOf(d, cell.storyId).value(0), {cell.fill.color.resolve(d.colors)}, QStringLiteral("table cell"));
+    }
+
+    // A dark background style or a dark theme turns hand-set black and white text light or dark only where the slide's own background is
+    // behind it: inside a table cell or shape with a color of its own, or over a picture, the text stays as it was.
+    void darkBackgroundsTurnOnlyTextOnTheBackground()
+    {
+        for (int style : {6, 9, 10, 11}) {
+            BackdropDeck b = deckWithBackdrops();
+            deck::applyBackgroundStyle(*b.doc, style);
+            QVERIFY(deck::isDarkBackground(firstMasterOf(*b.doc).background));
+            checkBackdrops(b, QStringLiteral("background style %1").arg(style + 1));
+        }
+        for (const QString &name : {QStringLiteral("Ember"), QStringLiteral("Granite"), QStringLiteral("Marquee")}) {
+            BackdropDeck b = deckWithBackdrops();
+            const int theme = deck::builtinThemeIndex(name);
+            QVERIFY(theme > 0);
+            deck::applyThemeToAll(*b.doc, *deck::themePresentation(theme));
+            checkBackdrops(b, name);
+        }
+        // And back to a light one: nothing is left unreadable there either.
+        BackdropDeck again = deckWithBackdrops();
+        deck::applyBackgroundStyle(*again.doc, 10);
+        deck::applyBackgroundStyle(*again.doc, 0);
+        checkBackdrops(again, QStringLiteral("back to style 1"));
+    }
+
     // A presentation that isn't in a built-in theme has variants too: its own colors on four backgrounds.
     void variantsOfAnotherThemeAreItsColorsOnFourBackgrounds()
     {
@@ -17574,7 +17773,8 @@ private Q_SLOTS:
             const TextItem *body = bodyOf(*d->pages[1]);
             QVERIFY2(body, qPrintable(name));
             QCOMPARE(listSaid(d->storyDoc(body->storyId)->begin()), listSaid(layoutParagraph(*d, 0)));
-            QCOMPARE(d->storyDoc(body->storyId)->begin().textList()->format().stringProperty(tp::BulletColor).toLower(), ColorRef::rgb(deck::themeOf(*d).colors[4]).toString().toLower());
+            followsAccent(ColorRef::fromString(d->storyDoc(body->storyId)->begin().textList()->format().stringProperty(tp::BulletColor)).rgbValue(), deck::themeOf(*d).colors[4],
+                          colorsUnder(*d, layoutOf(*d, QStringLiteral("obj")), body->rect.center()), 3.0, qPrintable(name));
             QString err;
             Exported e;
             QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
@@ -17584,7 +17784,9 @@ private Q_SLOTS:
             const QString master = part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml"));
             const int style = master.indexOf(QStringLiteral("<p:bodyStyle>"));
             const QString first = master.mid(style, master.indexOf(QStringLiteral("</a:lvl1pPr>"), style) - style);
-            QVERIFY2(first.contains(QStringLiteral("<a:buClr><a:schemeClr val=\"accent1\"/></a:buClr>")) && first.contains(QStringLiteral("<a:buChar char=")), qPrintable(name + ": " + first));
+            // (The bullets are the theme's first accent where it reads on the page; where it doesn't, a color of its hue that does.)
+            const bool accentReads = deck::contrastRatio(deck::themeOf(*d).colors[4], colorsUnder(*d, layoutOf(*d, QStringLiteral("obj")), body->rect.center()).value(0)) >= 3.0;
+            QVERIFY2(first.contains(accentReads ? QStringLiteral("<a:buClr><a:schemeClr val=\"accent1\"/></a:buClr>") : QStringLiteral("<a:buClr><a:srgbClr")) && first.contains(QStringLiteral("<a:buChar char=")), qPrintable(name + ": " + first));
             // Two levels typed in.
             QTextCursor c(d->storyDoc(body->storyId));
             c.insertText(QStringLiteral("First"));
@@ -17666,12 +17868,15 @@ private Q_SLOTS:
         const deck::ColorSet set = deck::colorSets().value(4);   // Ember's
         deck::applyColors(*d, set);
         auto color = [](const QTextBlock &b) { return ColorRef::fromString(b.textList()->format().stringProperty(tp::BulletColor)).rgbValue(); };
-        QCOMPARE(color(d->storyDoc(bodyOf(*d->pages[1])->storyId)->begin()), set.colors[4]);
-        QCOMPARE(color(layoutParagraph(*d, 0)), set.colors[4]);
-        QCOMPARE(color(layoutParagraph(*d, 3)), set.colors[4]);
-        // And a dark background keeps them (accent colors don't turn).
+        const QVector<QColor> behind = colorsUnder(*d, layoutOf(*d, QStringLiteral("obj")), bodyOf(layoutOf(*d, QStringLiteral("obj")))->rect.center());
+        followsAccent(color(d->storyDoc(bodyOf(*d->pages[1])->storyId)->begin()), set.colors[4], behind, 3.0, "slide");
+        followsAccent(color(layoutParagraph(*d, 0)), set.colors[4], behind, 3.0, "layout level 1");
+        followsAccent(color(layoutParagraph(*d, 3)), set.colors[4], behind, 3.0, "layout level 4");
+        // And a dark background keeps them (accent colors don't turn), readable on it.
         deck::applyBackgroundStyle(*d, 9);
-        QCOMPARE(color(layoutParagraph(*d, 0)), set.colors[4]);
+        for (const QColor &bg : colorsUnder(*d, layoutOf(*d, QStringLiteral("obj")), bodyOf(layoutOf(*d, QStringLiteral("obj")))->rect.center()))
+            QVERIFY(deck::contrastRatio(color(layoutParagraph(*d, 0)), bg) >= 3.0);
+        QVERIFY(std::abs(color(layoutParagraph(*d, 0)).hslHue() - set.colors[4].hslHue()) <= 15);
     }
 
     // A theme's picture fills (its textures) point at pictures the reader did not keep:

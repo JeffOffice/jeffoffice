@@ -6,6 +6,8 @@
 #include "core/themes.h"
 
 #include <QHash>
+#include <QTextCharFormat>
+#include <functional>
 
 namespace jp::deck::detail {
 
@@ -62,6 +64,7 @@ struct FontSwap {
 
 struct Swap {
     ColorSwap colors;
+    ColorSwap plain;   // the same colors swapped without the turn of light and dark (for what stands on a backdrop that doesn't turn)
     FontSwap fonts;
     bool isEmpty() const { return colors.isEmpty() && fonts.isEmpty(); }
 };
@@ -77,5 +80,39 @@ struct Family {
 };
 // Every slide master's, by its id, found in one pass over the pages.
 QHash<QString, Family> familiesOf(Document &d);
+
+// ---- text on a backdrop ----
+
+// The color a run shows (a plain one or one of the scheme), or invalid when the run sets none.
+QColor shownRunColor(const Document &d, const QTextCharFormat &cf);
+// Gives a run a plain color.
+void setRunColor(QTextCharFormat &cf, const QColor &c);
+// Changes the format of each run of a story, and of each paragraph's end, that `fn` changes; `fn` is given the position and whether it is a
+// paragraph's end.
+void editRunsAt(QTextDocument *sd, const std::function<bool(QTextCharFormat &, int, bool)> &fn);
+
+// Keeps the text of pages readable through a change that moves colors, backgrounds, or layouts. `note` takes down, before the change, what
+// each run was set in and whether it read on what stood behind it; `keep`, after, looks at what stands behind it now, and where a run that
+// read no longer does it takes the old color (swapped plainly), else the nearest color that reads (4.5 to 1; bullets 3 to 1). Text on a
+// picture, whose colors aren't told, keeps its old color. Runs that didn't read before are left alone.
+class TextReadable {
+public:
+    explicit TextReadable(Document &d) : m_d(d) {}
+    // A page, and the master page it stands on (a layout or slide master: itself).
+    void note(const PageBase &page, const MasterPage *base);
+    void keep(PageBase &page, const MasterPage *base, const ColorSwap &plain);
+
+private:
+    struct Run {
+        int pos = 0;
+        QColor was;
+        bool read = false;
+    };
+    struct Story {
+        QVector<Run> runs, ends, bullets;
+    };
+    Document &m_d;
+    QHash<QString, Story> m_stories;   // by page and object (and cell)
+};
 
 } // namespace jp::deck::detail
