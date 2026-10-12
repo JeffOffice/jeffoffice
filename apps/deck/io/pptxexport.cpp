@@ -9,6 +9,7 @@
 #include "office/drawingml_write.h"
 #include "office/package.h"
 #include "office/theme.h"
+#include "core/fonts.h"
 #include "office/xml.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
@@ -160,6 +161,9 @@ struct Level {
     bool fixedHeight = false;
     bool bullet = false;
     QString bulletChar = QStringLiteral("\u2022");
+    QString bulletFont;            // a typeface of its own; empty for the text's
+    QColor bulletColor;            // a color of its own; invalid for the text's
+    double bulletSize = 0;         // points; 0 for the text's
 };
 
 QString alignName(Qt::Alignment a)
@@ -218,8 +222,12 @@ QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Th
         else if (bf.lineHeight() > 0 && bf.lineHeightType() == QTextBlockFormat::FixedHeight) l.lineHeight = bf.lineHeight(), l.fixedHeight = true;
         if (const QTextList *list = b.textList()) {
             l.bullet = true;
-            const QString c = list->format().stringProperty(tp::BulletChar);
+            const QTextListFormat lf = list->format();
+            const QString c = bf.stringProperty(tp::BulletChar).isEmpty() ? lf.stringProperty(tp::BulletChar) : bf.stringProperty(tp::BulletChar);
             if (!c.isEmpty()) l.bulletChar = c;
+            l.bulletFont = lf.stringProperty(tp::BulletFont);
+            if (const ColorRef color = ColorRef::fromString(lf.stringProperty(tp::BulletColor)); color.kind() == ColorRef::Rgb) l.bulletColor = color.rgbValue();
+            l.bulletSize = lf.property(tp::BulletSize).toDouble();
         }
     }
     // A level the placeholder has none of looks like the first, smaller the deeper it goes.
@@ -227,7 +235,10 @@ QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Th
     for (int i = 1; i < 9; ++i) {
         if (found[i]) continue;
         levels[i] = levels[0];
-        if (!heading && levels[0].size > 0) levels[i].size = levels[0].size * standard[i] / standard[0];
+        if (!heading && levels[0].size > 0) {
+            levels[i].size = levels[0].size * standard[i] / standard[0];
+            levels[i].bulletSize = levels[0].bulletSize * standard[i] / standard[0];
+        }
         levels[i].marL = -1;
     }
     return levels;
@@ -244,11 +255,25 @@ QString levelXml(int level, const Level &l, const office::Theme &theme, bool hea
                              : QStringLiteral("<a:lnSpc><a:spcPct val=\"%1\"/></a:lnSpc>").arg(std::clamp(int(std::lround(l.lineHeight * 1000)), 0, 13200000));
     out += QStringLiteral("<a:spcBef><a:spcPts val=\"%1\"/></a:spcBef>").arg(std::clamp(int(std::lround(l.before * 100)), 0, 158400));
     if (l.after > 0) out += QStringLiteral("<a:spcAft><a:spcPts val=\"%1\"/></a:spcAft>").arg(std::clamp(int(std::lround(l.after * 100)), 0, 158400));
-    if (body && l.bullet)
-        out += QStringLiteral("<a:buFont typeface=\"Arial\" panose=\"020B0604020202020204\" pitchFamily=\"34\" charset=\"0\"/><a:buChar char=\"%1\"/>").arg(esc(l.bulletChar));
-    else
-        out += QStringLiteral("<a:buNone/>");
     const double size = l.size > 0 ? l.size : defaultSize;
+    if (body && l.bullet) {
+        // The marker's own color, size (a share of the text's), and typeface, where the list has them: what a paragraph with no bullet of its own takes.
+        if (l.bulletColor.isValid()) {
+            const QString scheme = schemeName(l.bulletColor, theme);
+            out += QStringLiteral("<a:buClr>%1</a:buClr>")
+                       .arg(scheme.isEmpty() ? QStringLiteral("<a:srgbClr val=\"%1\"/>").arg(hex(l.bulletColor)) : QStringLiteral("<a:schemeClr val=\"%1\"/>").arg(scheme));
+        }
+        if (l.bulletSize > 0) out += QStringLiteral("<a:buSzPct val=\"%1\"/>").arg(std::clamp(int(std::lround(l.bulletSize / size * 100000)), 25000, 400000));
+        if (l.bulletFont.isEmpty())
+            out += QStringLiteral("<a:buFont typeface=\"Arial\" panose=\"020B0604020202020204\" pitchFamily=\"34\" charset=\"0\"/>");
+        else if (isSymbolFont(l.bulletFont))
+            out += QStringLiteral("<a:buFont typeface=\"%1\" pitchFamily=\"2\" charset=\"2\"/>").arg(esc(l.bulletFont));
+        else
+            out += QStringLiteral("<a:buFont typeface=\"%1\"/>").arg(esc(l.bulletFont));
+        out += QStringLiteral("<a:buChar char=\"%1\"/>").arg(esc(l.bulletChar));
+    } else {
+        out += QStringLiteral("<a:buNone/>");
+    }
     out += QStringLiteral("<a:defRPr sz=\"%1\"%2%3 kern=\"1200\">").arg(std::clamp(int(std::lround(size * 100)), 100, 400000)).arg(l.bold ? QStringLiteral(" b=\"1\"") : QString(),
                                                                                                                            l.italic ? QStringLiteral(" i=\"1\"") : QString());
     out += l.color.isValid() ? solidFill(l.color, theme) : QStringLiteral("<a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill>");
@@ -800,6 +825,7 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
         take(xml);
     }
     office::DrawingWriteContext ctx = context(part);
+    ctx.emptyParagraphsInherit = frameIds != nullptr;   // a slide's (asked for the numbers of its frames), not a layout's or a master's
     ctx.nextShapeId = int(std::min<qint64>(highest + 1, 2000000000));
     // The tree's own number and the frames' are taken; the shapes read from a file keep theirs, which new ones leave alone.
     ctx.usedIds.insert(1);

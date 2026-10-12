@@ -48,6 +48,7 @@
 #include "office/xml.h"
 #include "render/renderer.h"
 #include "render/shapes.h"
+#include "text/storyio.h"
 #include "text/textprops.h"
 
 #include <QAbstractButton>
@@ -12600,6 +12601,335 @@ private Q_SLOTS:
         QVERIFY(deck::backgroundStyleIsDark(deck::backgroundStyleOf(ed->doc()->masters[0]->background, deck::themeOf(*ed->doc()))));
         QCOMPARE(deck::themeOf(*ed->doc()).name, QStringLiteral("Mine"));
         QTRY_COMPARE(variants->grid()->current(), 2);
+    }
+
+    // ---- bullets of a layout's placeholder ----
+
+    // The body of a layout with bullets as a theme of the presentation program has them: a paragraph for each of five levels, each in a list
+    // of its own with a bullet in a font, a color, and a size, and its own indent, spacing, and text size.
+    static void giveBullets(Document &d, MasterPage &layout)
+    {
+        for (const auto &it : layout.items) {
+            // The body of a layout, or of the slide master (the placeholder that has the text styles of the body).
+            const QString type = deck::placeholderType(*it);
+            if ((type != QLatin1String("obj") && !(type == QLatin1String("body") && deck::isSlideMaster(layout))) || it->type() != ItemType::Text) continue;
+            QTextDocument *sd = d.storyDoc(static_cast<TextItem *>(it.get())->storyId);
+            sd->clear();
+            QTextCursor c(sd);
+            static const double margins[5] = {27, 58.5, 90, 126, 162}, hangs[5] = {-27, -22.5, -18, -18, -18}, sizes[5] = {18, 16, 14, 12, 12};
+            static const char *words[5] = {"Click to edit Master text styles", "Second level", "Third level", "Fourth level", "Fifth level"};
+            for (int i = 0; i < 5; ++i) {
+                QTextBlockFormat bf;
+                bf.setLeftMargin(margins[i]);
+                bf.setTextIndent(hangs[i]);
+                bf.setTopMargin(10);
+                if (i) bf.setProperty(tp::ListLevel, i);
+                QTextCharFormat cf;
+                cf.setFontPointSize(sizes[i]);
+                cf.setForeground(QColor(0x40, 0x40, 0x40));
+                cf.setProperty(tp::ColorRefP, QStringLiteral("#404040"));
+                cf.setFontFamilies({QStringLiteral("Carlito")});
+                if (i) c.insertBlock(bf, cf);
+                else {
+                    c.setBlockFormat(bf);
+                    c.setBlockCharFormat(cf);
+                }
+                QTextListFormat lf;
+                lf.setStyle(QTextListFormat::ListDisc);
+                lf.setProperty(tp::BulletFont, QStringLiteral("Wingdings 3"));
+                lf.setProperty(tp::BulletChar, QString(QChar(0xF07D)));
+                lf.setProperty(tp::BulletColor, QStringLiteral("#90C226"));
+                lf.setProperty(tp::BulletSize, sizes[i] * 0.8);
+                lf.setProperty(tp::ListLevel, i);
+                c.createList(lf);
+                c.insertText(QString::fromLatin1(words[i]), cf);
+            }
+        }
+    }
+
+    static std::unique_ptr<Document> bulletedDeck()
+    {
+        auto d = deck::newPresentation();
+        for (const auto &m : d->masters)
+            if (deck::isSlideMaster(*m) || deck::layoutType(*m) == QLatin1String("obj")) giveBullets(*d, *m);
+        return d;
+    }
+
+    // What a paragraph's list says: its level and its marker's character, font, color, and size ("" and 0 for none).
+    static QString listSaid(const QTextBlock &b)
+    {
+        const QTextList *l = b.textList();
+        if (!l) return QStringLiteral("none");
+        const QTextListFormat lf = l->format();
+        return QStringLiteral("%1|%2|%3|%4|%5|%6").arg(lf.intProperty(tp::ListLevel)).arg(int(lf.style())).arg(lf.stringProperty(tp::BulletChar), lf.stringProperty(tp::BulletFont),
+                                                                                                        lf.stringProperty(tp::BulletColor)).arg(lf.property(tp::BulletSize).toDouble());
+    }
+
+    static const TextItem *bodyOf(const PageBase &page) { return static_cast<const TextItem *>(placeholderOn(page, QStringLiteral("obj"))); }
+
+    static const MasterPage &layoutOf(const Document &d, const QString &type) { return *deck::layoutOfType(d, type); }
+
+    static QTextBlock layoutParagraph(const Document &d, int level)
+    {
+        const TextItem *place = bodyOf(layoutOf(d, QStringLiteral("obj")));
+        return d.storyDoc(place->storyId)->findBlockByNumber(level);
+    }
+
+    // A new slide takes the list of its layout's placeholder, so what is typed has its bullets: the character, font, color, and size of the
+    // bullet, and the indent, spacing, and text size of the first level.
+    void newSlideKeepsTheLayoutsBullets()
+    {
+        auto d = bulletedDeck();
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("obj")));
+        const TextItem *body = bodyOf(*d->pages[1]);
+        QVERIFY(body);
+        QTextDocument *sd = d->storyDoc(body->storyId);
+        QVERIFY(sd->isEmpty());
+        const QTextBlock first = sd->begin(), layoutFirst = layoutParagraph(*d, 0);
+        QVERIFY(first.textList());
+        QCOMPARE(listSaid(first), listSaid(layoutFirst));
+        QCOMPARE(first.blockFormat().leftMargin(), 27.0);
+        QCOMPARE(first.blockFormat().textIndent(), -27.0);
+        QCOMPARE(first.blockFormat().topMargin(), 10.0);
+        QCOMPARE(first.charFormat().fontPointSize(), 18.0);
+        QCOMPARE(first.charFormat().stringProperty(tp::ColorRefP), QStringLiteral("#404040"));
+        // Typing in it, and a second paragraph, are bulleted.
+        QTextCursor c(sd);
+        c.insertText(QStringLiteral("One"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("Two"));
+        QCOMPARE(sd->blockCount(), 2);
+        for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
+            QCOMPARE(listSaid(b), listSaid(layoutFirst));
+            QCOMPARE(b.begin().fragment().charFormat().fontPointSize(), 18.0);
+        }
+        // The layout's own paragraphs are as they were, and the other placeholders have no list.
+        QCOMPARE(layoutParagraph(*d, 1).textList()->format().intProperty(tp::ListLevel), 1);
+        QVERIFY(!d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("title"))->storyId)->begin().textList());
+        // A slide with a slide's footers too: a layout that has a list in no other placeholder gives none to them.
+        deck::FooterOptions o;
+        o.slideNumber = true;
+        deck::applyFooters(*d, o);
+        for (const auto &it : d->pages[1]->items)
+            if (deck::placeholderType(*it) == QLatin1String("sldNum")) QVERIFY(!d->storyDoc(static_cast<TextItem *>(it.get())->storyId)->begin().textList());
+    }
+
+    // A slide given a layout takes its bullets in the placeholders it had empty and in the ones it gets; the text it has stays as it was.
+    void changingALayoutKeepsTheLayoutsBullets()
+    {
+        auto d = bulletedDeck();
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("twoObj")));
+        Page &slide = *d->pages[1];
+        QVector<const TextItem *> bodies;
+        for (const auto &it : slide.items)
+            if (deck::placeholderType(*it) == QLatin1String("obj")) bodies << static_cast<const TextItem *>(it.get());
+        QCOMPARE(bodies.size(), 2);
+        sayIn(*d, *bodies[0], QStringLiteral("Typed before"));
+        deck::applyLayout(*d, slide, layoutOf(*d, QStringLiteral("obj")));
+        QCOMPARE(deck::layoutType(*d->masterFor(slide)), QStringLiteral("obj"));
+        const QTextBlock typed = d->storyDoc(bodies[0]->storyId)->begin();
+        QCOMPARE(typed.text(), QStringLiteral("Typed before"));
+        QVERIFY(!typed.textList());   // its own paragraph stays as it was
+        // An empty placeholder takes the layout's list; with Title Only first, the body the layout adds has it.
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("twoObj")));
+        Page &second = *d->pages[2];
+        deck::applyLayout(*d, second, layoutOf(*d, QStringLiteral("obj")));
+        const TextItem *emptied = bodyOf(second);
+        QVERIFY(d->storyDoc(emptied->storyId)->isEmpty());
+        QCOMPARE(listSaid(d->storyDoc(emptied->storyId)->begin()), listSaid(layoutParagraph(*d, 0)));
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("titleOnly")));
+        Page &third = *d->pages[3];
+        QVERIFY(!bodyOf(third));
+        deck::applyLayout(*d, third, layoutOf(*d, QStringLiteral("obj")));
+        QCOMPARE(listSaid(d->storyDoc(bodyOf(third)->storyId)->begin()), listSaid(layoutParagraph(*d, 0)));
+        // Back to a layout with no list: the empty paragraph has none, as that layout says.
+        deck::applyLayout(*d, third, layoutOf(*d, QStringLiteral("twoObj")));
+        QCOMPARE(listSaid(d->storyDoc(bodyOf(third)->storyId)->begin()), QStringLiteral("none"));
+    }
+
+    // A paragraph moves a level in or out and takes its new level's bullet, indent, spacing, and size from the layout; its text that looked as
+    // the old level's does too; the paragraphs around it stay.
+    void listLevelsTakeTheLayoutsLevels()
+    {
+        auto d = bulletedDeck();
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("obj")));
+        const TextItem *body = bodyOf(*d->pages[1]);
+        QTextDocument *sd = d->storyDoc(body->storyId);
+        QTextCursor c(sd);
+        c.insertText(QStringLiteral("One"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("Two"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("Three"));
+        // Two goes in a level.
+        QVERIFY(deck::layoutHasList(*d, *body));
+        QVERIFY(deck::changeListLevel(*d, *body, 1, 1, 1));
+        const QTextBlock two = sd->findBlockByNumber(1);
+        QCOMPARE(listSaid(two), listSaid(layoutParagraph(*d, 1)));
+        QCOMPARE(two.blockFormat().intProperty(tp::ListLevel), 1);
+        QCOMPARE(two.blockFormat().leftMargin(), 58.5);
+        QCOMPARE(two.blockFormat().textIndent(), -22.5);
+        QCOMPARE(two.begin().fragment().charFormat().fontPointSize(), 16.0);
+        QCOMPARE(two.charFormat().fontPointSize(), 16.0);
+        QCOMPARE(two.text(), QStringLiteral("Two"));
+        // The others are as they were.
+        QCOMPARE(listSaid(sd->findBlockByNumber(0)), listSaid(layoutParagraph(*d, 0)));
+        QCOMPARE(sd->findBlockByNumber(0).blockFormat().leftMargin(), 27.0);
+        QCOMPARE(listSaid(sd->findBlockByNumber(2)), listSaid(layoutParagraph(*d, 0)));
+        // Another level in, a hand-set color and bold stay, then back out two levels (never past the first).
+        QTextCursor mark(sd->findBlockByNumber(1));
+        mark.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        QTextCharFormat red;
+        red.setForeground(QColor(0xC0, 0, 0));
+        red.setProperty(tp::ColorRefP, QStringLiteral("#C00000"));
+        red.setFontWeight(QFont::Bold);
+        mark.mergeCharFormat(red);
+        QVERIFY(deck::changeListLevel(*d, *body, 1, 1, 1));
+        QCOMPARE(listSaid(sd->findBlockByNumber(1)), listSaid(layoutParagraph(*d, 2)));
+        QCOMPARE(sd->findBlockByNumber(1).begin().fragment().charFormat().fontPointSize(), 14.0);
+        QCOMPARE(sd->findBlockByNumber(1).begin().fragment().charFormat().stringProperty(tp::ColorRefP), QStringLiteral("#C00000"));
+        QCOMPARE(sd->findBlockByNumber(1).begin().fragment().charFormat().fontWeight(), int(QFont::Bold));
+        QVERIFY(deck::changeListLevel(*d, *body, 1, 1, -1));
+        QVERIFY(deck::changeListLevel(*d, *body, 1, 1, -1));
+        QVERIFY(deck::changeListLevel(*d, *body, 1, 1, -1));
+        QCOMPARE(listSaid(sd->findBlockByNumber(1)), listSaid(layoutParagraph(*d, 0)));
+        QVERIFY(!sd->findBlockByNumber(1).blockFormat().hasProperty(tp::ListLevel));
+        QCOMPARE(sd->findBlockByNumber(1).blockFormat().leftMargin(), 27.0);
+        QCOMPARE(sd->findBlockByNumber(1).begin().fragment().charFormat().fontPointSize(), 18.0);
+        // A level the layout has no paragraph for takes the deepest it has.
+        for (int i = 0; i < 7; ++i) QVERIFY(deck::changeListLevel(*d, *body, 2, 2, 1));
+        QCOMPARE(sd->findBlockByNumber(2).blockFormat().intProperty(tp::ListLevel), 7);
+        QCOMPARE(sd->findBlockByNumber(2).textList()->format().intProperty(tp::ListLevel), 7);
+        QCOMPARE(sd->findBlockByNumber(2).blockFormat().leftMargin(), 162.0 + 3 * 36.0);
+        // A layout with no list gives the levels nothing to take: the call says so and changes nothing.
+        auto plain = deck::newPresentation();
+        deck::addSlide(*plain, layoutOf(*plain, QStringLiteral("obj")));
+        const TextItem *plainBody = bodyOf(*plain->pages[1]);
+        QVERIFY(!deck::layoutHasList(*plain, *plainBody));
+        QVERIFY(!deck::changeListLevel(*plain, *plainBody, 0, 0, 1));
+        QVERIFY(!deck::layoutHasList(*plain, *placeholderOn(*plain->pages[1], QStringLiteral("title"))));
+    }
+
+    // Increase and Decrease List Level in a slide's placeholder (one step that undoes) take the layout's levels; in a text box that is no
+    // placeholder, and in a placeholder whose layout has no list, they are the editor's.
+    void listLevelButtonsUseTheLayoutsLevels()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->setDocument(bulletedDeck());
+        w.newSlide(QStringLiteral("obj"));
+        const QString storyId = bodyOf(*ed->doc()->pages[1])->storyId, itemId = bodyOf(*ed->doc()->pages[1])->id;   // (an undo makes the objects new)
+        ed->beginTextEdit(itemId);
+        QTextCursor c = ed->cursor();
+        c.insertText(QStringLiteral("One"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("Two"));
+        ed->setCursor(c);
+        ed->textEdited();
+        QTRY_VERIFY(w.act("para.indentInc")->isEnabled());
+        const QString before = QString::fromUtf8(QJsonDocument(storyToJson(ed->doc()->storyDoc(storyId))).toJson());
+        w.act("para.indentInc")->trigger();
+        QTextDocument *sd = ed->doc()->storyDoc(storyId);
+        QCOMPARE(listSaid(sd->findBlockByNumber(1)), listSaid(layoutParagraph(*ed->doc(), 1)));
+        QCOMPARE(sd->findBlockByNumber(1).blockFormat().leftMargin(), 58.5);
+        QCOMPARE(listSaid(sd->findBlockByNumber(0)), listSaid(layoutParagraph(*ed->doc(), 0)));
+        ed->undo();
+        QCOMPARE(QString::fromUtf8(QJsonDocument(storyToJson(ed->doc()->storyDoc(storyId))).toJson()), before);
+        ed->redo();
+        QCOMPARE(listSaid(ed->doc()->storyDoc(storyId)->findBlockByNumber(1)), listSaid(layoutParagraph(*ed->doc(), 1)));
+        ed->beginTextEdit(itemId);
+        ed->setCursor(QTextCursor(ed->doc()->storyDoc(storyId)->findBlockByNumber(1)));
+        QTRY_VERIFY(w.act("para.indentDec")->isEnabled());
+        w.act("para.indentDec")->trigger();
+        QCOMPARE(listSaid(ed->doc()->storyDoc(storyId)->findBlockByNumber(1)), listSaid(layoutParagraph(*ed->doc(), 0)));
+        ed->endTextEdit();
+        // A text box of the slide's own: the editor's own indent.
+        auto box = ed->newTextBox(QRectF(100, 400, 300, 60), QStringLiteral("Box"));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id);
+        QTRY_VERIFY(w.act("para.indentInc")->isEnabled());
+        const double was = ed->doc()->storyDoc(static_cast<TextItem *>(box.get())->storyId)->begin().blockFormat().leftMargin();
+        w.act("para.indentInc")->trigger();
+        QCOMPARE(ed->doc()->storyDoc(static_cast<TextItem *>(box.get())->storyId)->begin().blockFormat().leftMargin(), was + 18.0);
+        ed->endTextEdit();
+    }
+
+    // The saved file doesn't write a bullet (or the lack of one) on an empty paragraph of a slide's placeholder: it takes the layout's, as a
+    // new slide of the presentation program does, and the slide master's text styles say the bullets (font, color, size, character) for the
+    // program to take. What is typed says its own bullet. Read again, the empty paragraph has the layout's list.
+    void newSlidesWriteNoBulletOfTheirOwn()
+    {
+        auto d = bulletedDeck();
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("obj")));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        auto bulletsOfParagraphs = [](const QByteArray &xml) {
+            QDomDocument dom;
+            QVector<QStringList> out;
+            std::function<void(const QDomElement &)> visit = [&](const QDomElement &el) {
+                if (office::isElement(el, office::ns::A, QStringLiteral("p"))) {
+                    QStringList names;
+                    for (const QDomElement &k : office::children(office::child(el, office::ns::A, QStringLiteral("pPr")))) names << k.localName();
+                    out << names.filter(QRegularExpression(QStringLiteral("^bu")));
+                    return;
+                }
+                for (const QDomElement &k : office::children(el)) visit(k);
+            };
+            visit(rootOf(xml, &dom));
+            return out;
+        };
+        const QByteArray slide = e.zip.value(QStringLiteral("ppt/slides/slide2.xml"));
+        QCOMPARE(bulletsOfParagraphs(slide), (QVector<QStringList>{QStringList(), QStringList()}));   // the title's and the body's: nothing of their own
+        // The master's text styles carry the bullets of its body: the first level's in the font, color, and size the list has.
+        const QString master = part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml"));
+        const int body = master.indexOf(QStringLiteral("<p:bodyStyle>"));
+        QVERIFY(body > 0);
+        const QString first = master.mid(body, master.indexOf(QStringLiteral("</a:lvl1pPr>"), body) - body);
+        QVERIFY2(first.contains(QStringLiteral("<a:buFont typeface=\"Wingdings 3\"")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("<a:buClr><a:srgbClr val=\"90C226\"/></a:buClr>")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("<a:buSzPct val=\"80000\"/>")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("<a:buChar char=\"\"/>")), qPrintable(first));
+        // The second level's too, in its own.
+        const int second = master.indexOf(QStringLiteral("<a:lvl2pPr"), body);
+        QVERIFY(second > 0 && master.mid(second, master.indexOf(QStringLiteral("</a:lvl2pPr>"), second) - second).contains(QStringLiteral("<a:buSzPct val=\"80000\"/>")));
+        // Typed text says its bullet, as every paragraph with text does.
+        QTextCursor c(d->storyDoc(bodyOf(*d->pages[1])->storyId));
+        c.insertText(QStringLiteral("Typed"));
+        Exported typed;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &typed, &err), qPrintable(err));
+        const QVector<QStringList> written = bulletsOfParagraphs(typed.zip.value(QStringLiteral("ppt/slides/slide2.xml")));
+        QCOMPARE(written.size(), 2);
+        QVERIFY(written[1].contains(QStringLiteral("buChar")));
+        QVERIFY(written[1].contains(QStringLiteral("buFont")));
+        // Read again, a new slide's empty paragraph is left out of the list by the file, and takes the layout's when the presentation is opened
+        // in a window: the font, color, and size of the bullet, and the first level's indent.
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("obj")));
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        const TextItem *read = bodyOf(*back->pages[2]);
+        QVERIFY(read);
+        const QTextBlock empty = back->storyDoc(read->storyId)->begin();
+        QVERIFY(back->storyDoc(read->storyId)->isEmpty());
+        QVERIFY(!empty.textList());
+        QCOMPARE(empty.blockFormat().leftMargin(), 27.0);   // the layout's indent, as the file gives it
+        QCOMPARE(empty.charFormat().fontPointSize(), 18.0);
+        deck::inheritLayoutLists(*back);
+        QVERIFY(empty.textList());
+        QCOMPARE(listSaid(empty), listSaid(layoutParagraph(*back, 0)));
+        QCOMPARE(empty.textList()->format().stringProperty(tp::BulletFont), QStringLiteral("Wingdings 3"));
+        // The paragraphs with text in them, and the title's empty one, are as they were.
+        QVERIFY(back->storyDoc(bodyOf(*back->pages[1])->storyId)->begin().textList());
+        QVERIFY(!back->storyDoc(placeholderOn(*back->pages[2], QStringLiteral("title"))->storyId)->begin().textList());
+        // In a window it is done as the presentation opens.
+        DeckWindow w;
+        w.editor()->setDocument(std::move(back));
+        const QTextBlock typedInto = w.editor()->doc()->storyDoc(bodyOf(*w.editor()->doc()->pages[2])->storyId)->begin();
+        QCOMPARE(listSaid(typedInto), listSaid(layoutParagraph(*w.editor()->doc(), 0)));
     }
 
     // A theme's picture fills (its textures) point at pictures the reader did not keep:

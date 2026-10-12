@@ -629,14 +629,18 @@ void moveSlide(Document &d, Page &slide, const MasterPage *old, const MasterPage
         return;
     }
     QHash<const Item *, Look> was;
-    QSet<const Item *> before;
+    QSet<const Item *> before, empty;
     walkItems(slide.items, [&](const ItemPtr &it) {
         before.insert(it.get());
         if (old && !placeholderType(*it).isEmpty()) was.insert(it.get(), lookOf(d, places.of(*old, it->role)));
+        if (it->type() == ItemType::Text && !placeholderType(*it).isEmpty())
+            if (const QTextDocument *sd = d.storyDoc(static_cast<const TextItem *>(it.get())->storyId); sd && sd->isEmpty()) empty.insert(it.get());
     });
     applyLayout(d, slide, layout);
     walkItems(slide.items, [&](const ItemPtr &it) {
         if (!before.contains(it.get())) return;   // made from the new layout: already in its look
+        // An empty placeholder that has a place in the new layout was given its look (the first paragraph's, with its list) by applyLayout.
+        if (empty.contains(it.get()) && places.of(layout, it->role)) return;
         const QString type = placeholderType(*it);
         const bool title = isTitleType(type);
         Look now;
