@@ -133,6 +133,8 @@ struct Design {
     // The two layouts with a caption: the panel behind it and the colors of the title and the caption.
     Shape panel;
     int captionTitle = 1, captionText = 3;
+    // The color of the bullets of the body text (a theme color).
+    int bullet = 4;
     // The footers.
     int footer = 2;
     QRectF dt, ftr, num;         // empty to leave where they are
@@ -415,9 +417,46 @@ void setLook(Document &d, TextItem &t, const Text &x, const DeckTheme &theme)
     start.mergeBlockCharFormat(cf);
 }
 
+// The five sample paragraphs of a body place become the five levels of a list, as a body of the presentation program has them: each in a list of
+// its own with a bullet in the theme color, further in and a little smaller than the one before; `x` is the first level's text.
+void bulletize(Document &d, TextItem &t, const Text &x, const DeckTheme &theme, int slot)
+{
+    QTextDocument *sd = d.storyDoc(t.storyId);
+    if (!sd) return;
+    static const double smaller[5] = {0, 4, 6, 8, 8};
+    static const char16_t marks[5] = {u'\u2022', u'\u2013', u'\u25AA', u'\u2013', u'\u2022'};
+    const double base = x.size;
+    int level = 0;
+    for (QTextBlock b = sd->begin(); b.isValid() && level < 5; b = b.next(), ++level) {
+        QTextCursor c(b);
+        QTextBlockFormat bf = c.blockFormat();
+        bf.setLeftMargin(base * 0.9 + level * base * 1.25);
+        bf.setTextIndent(-base * 0.9);
+        bf.setTopMargin(level ? base * 0.18 : base * 0.3);
+        if (level) bf.setProperty(tp::ListLevel, level);
+        else bf.clearProperty(tp::ListLevel);
+        c.setBlockFormat(bf);
+        QTextCharFormat cf;
+        cf.setFontPointSize(std::max(14.0, base - smaller[level]));
+        QTextCursor text(b);
+        text.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        text.mergeCharFormat(cf);
+        c.mergeBlockCharFormat(cf);
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        lf.setIndent(0);
+        lf.setProperty(tp::BulletChar, QString(QChar(marks[level])));
+        lf.setProperty(tp::BulletFont, QStringLiteral("Arial"));
+        lf.setProperty(tp::BulletColor, plainHex(theme.colors[std::clamp(slot, 0, 11)]));
+        if (level) lf.setProperty(tp::ListLevel, level);
+        c.createList(lf);
+    }
+}
+
 struct Spot {
     QRectF rect;
     Text text;
+    bool bullets = false;   // body text: a list of five levels
 };
 
 // Where a placeholder goes and how its text is set, by the kind of layout it is on ("master" for the slide master) and its role.
@@ -437,9 +476,10 @@ bool spotFor(const Design &g, const QString &kind, const QString &role, Spot *sp
     Text captionText = txt(16, g.captionText, L, VAlign::Top, false);
     Text captionContent = g.bodyText;
     captionContent.size = std::max(20.0, g.bodyText.size);
-    auto set = [&](const QRectF &r, const Text &t) {
+    auto set = [&](const QRectF &r, const Text &t, bool bullets = false) {
         spot->rect = r;
         spot->text = t;
+        spot->bullets = bullets;
         return true;
     };
     // The date stands on the caption's panel on the two layouts that have one; the footer text keeps clear of it.
@@ -450,7 +490,7 @@ bool spotFor(const Design &g, const QString &kind, const QString &role, Spot *sp
     if (role == QLatin1String("ph:sldNum")) return set(g.num.isEmpty() ? QRectF(678, 500.5, 216, 28.75) : g.num, txt(12, g.footer, Qt::AlignRight, VAlign::Middle, false));
     if (kind == QLatin1String("master")) {
         if (role == QLatin1String("ph:title")) return set(g.title, g.titleText);
-        if (role == QLatin1String("ph:body:1")) return set(b, g.bodyText);
+        if (role == QLatin1String("ph:body:1")) return set(b, g.bodyText, true);
         return false;
     }
     if (kind == QLatin1String("title")) {
@@ -461,22 +501,22 @@ bool spotFor(const Design &g, const QString &kind, const QString &role, Spot *sp
         if (role == QLatin1String("ph:body:1")) return set(g.secBody, g.secBodyText);
     } else if (kind == QLatin1String("obj") || kind == QLatin1String("titleOnly")) {
         if (role == QLatin1String("ph:title")) return set(g.title, g.titleText);
-        if (role == QLatin1String("ph:obj:1")) return set(b, g.bodyText);
+        if (role == QLatin1String("ph:obj:1")) return set(b, g.bodyText, true);
     } else if (kind == QLatin1String("twoObj")) {
         if (role == QLatin1String("ph:title")) return set(g.title, g.titleText);
-        if (role == QLatin1String("ph:obj:1")) return set(leftColumn, columns);
-        if (role == QLatin1String("ph:obj:2")) return set(rightColumn, columns);
+        if (role == QLatin1String("ph:obj:1")) return set(leftColumn, columns, true);
+        if (role == QLatin1String("ph:obj:2")) return set(rightColumn, columns, true);
     } else if (kind == QLatin1String("twoTxTwoObj")) {
         const QRectF headLeft(leftColumn.x(), b.y(), columnWidth, 50), headRight(rightColumn.x(), b.y(), columnWidth, 50);
         const QRectF contentLeft(leftColumn.x(), b.y() + 54, columnWidth, b.height() - 54), contentRight(rightColumn.x(), b.y() + 54, columnWidth, b.height() - 54);
         if (role == QLatin1String("ph:title")) return set(g.title, g.titleText);
         if (role == QLatin1String("ph:body:1")) return set(headLeft, head);
-        if (role == QLatin1String("ph:obj:2")) return set(contentLeft, columns);
+        if (role == QLatin1String("ph:obj:2")) return set(contentLeft, columns, true);
         if (role == QLatin1String("ph:body:3")) return set(headRight, head);
-        if (role == QLatin1String("ph:obj:4")) return set(contentRight, columns);
+        if (role == QLatin1String("ph:obj:4")) return set(contentRight, columns, true);
     } else if (kind == QLatin1String("objTx") || kind == QLatin1String("picTx")) {
         if (role == QLatin1String("ph:title")) return set(QRectF(66.1, 36, 309.6, 126), captionTitle);
-        if (role == QLatin1String("ph:obj:1") || role == QLatin1String("ph:pic:1")) return set(QRectF(408.1, 77.8, 486, 383.8), captionContent);
+        if (role == QLatin1String("ph:obj:1") || role == QLatin1String("ph:pic:1")) return set(QRectF(408.1, 77.8, 486, 383.8), captionContent, role == QLatin1String("ph:obj:1"));
         if (role == QLatin1String("ph:body:2")) return set(QRectF(66.1, 162, 309.6, 300.1), captionText);
     }
     return false;
@@ -522,6 +562,7 @@ void applyDesign(Document &d, const ThemeSpec &spec, const Design &g)
             if (it->type() != ItemType::Text || !spotFor(g, kind, it->role, &spot)) continue;
             it->rect = spot.rect;
             setLook(d, *static_cast<TextItem *>(it.get()), spot.text, theme);
+            if (spot.bullets) bulletize(d, *static_cast<TextItem *>(it.get()), spot.text, theme, g.bullet);
         }
         if (isMaster) {
             drawShapes(*m, g.master, theme);

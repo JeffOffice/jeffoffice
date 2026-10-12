@@ -13,6 +13,7 @@
 #include "core/document.h"
 
 #include <QColor>
+#include <functional>
 #include <QString>
 #include <QVector>
 
@@ -81,6 +82,12 @@ struct Following {
 // that was as `was` has it (or as it has none) becomes as `now` has it (or none). `cf` says which of the colors and fonts it set.
 Following followLook(QTextCharFormat &cf, const QTextCharFormat &was, const QTextCharFormat &now);
 
+// The text of a slide's placeholder `t` takes the look of the layout `to` has for it where it had that of the layout `from` had (either may be
+// null: then nothing is followed): paragraph by paragraph, by their levels, each one's list (bullet, font, color, size), indent, spacing, and
+// alignment where they were the old paragraph's, and its text's font, size, weight, slant, capitals, and color that were. After each run
+// (and each paragraph's end) has what it followed, `rest` is called with the run's format and what was followed, to change what wasn't; it says
+// whether it changed anything.
+void followLayout(Document &d, TextItem &t, const Item *from, const Item *to, const std::function<bool(QTextCharFormat &, const Following &)> &rest);
 // A slide's placeholders that have nothing in them take the list of their layout's paragraph for their level, as a new slide's do (a file
 // leaves an empty paragraph out of its list), so that what is typed in them has its bullets. Nothing else about them changes.
 void inheritLayoutLists(Document &d);

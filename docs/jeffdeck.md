@@ -61,6 +61,14 @@ libs/base            colors, fonts, files, PDF
   Applying a theme copies its master and layouts in (`Copier`), moves each
   slide to the layout of its kind with `applyLayout`, and sets text that
   followed the old layout in the new layout's look.
+- **Layout lists.** A new slide's placeholder takes its layout's first
+  paragraph (list, indent, spacing, text size) for what is typed in it, and
+  Increase and Decrease List Level take the layout's paragraph of the new
+  level (`changeListLevel`). The saved file leaves an empty paragraph's bullet
+  to the layout, as the presentation program does, and says each level's
+  bullet in the slide master's body style; a file leaves an empty paragraph
+  out of its list, so a window gives an opened presentation's empty
+  placeholders their lists (`inheritLayoutLists`).
 - **Undo** is the shared editor's: every change is one step that restores the
   whole document.
 - **Files.** `.pptx` is ECMA-376 PresentationML: `libs/office` reads the

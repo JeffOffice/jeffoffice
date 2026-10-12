@@ -12584,6 +12584,7 @@ private Q_SLOTS:
 
 
 
+
     // A presentation that isn't in a built-in theme has variants too: its own colors on four backgrounds.
     void variantsOfAnotherThemeAreItsColorsOnFourBackgrounds()
     {
@@ -12930,6 +12931,181 @@ private Q_SLOTS:
         w.editor()->setDocument(std::move(back));
         const QTextBlock typedInto = w.editor()->doc()->storyDoc(bodyOf(*w.editor()->doc()->pages[2])->storyId)->begin();
         QCOMPARE(listSaid(typedInto), listSaid(layoutParagraph(*w.editor()->doc(), 0)));
+    }
+
+    // The built-in themes bullet the text of their body places as the presentation program's do: a paragraph for each of five levels in a list of
+    // its own, the bullet in the first accent color, each level smaller and further in than the one before. The first theme, a new presentation's
+    // own, has no bullets, as it always had none; no theme bullets a subtitle, a section's text, a heading of a comparison, or a caption.
+    void builtinThemesBulletTheirBodies()
+    {
+        auto bulleted = [](const Document &d, const MasterPage &page, const QString &role) {
+            for (const auto &it : page.items) {
+                if (it->role != role || it->type() != ItemType::Text) continue;
+                const QTextDocument *sd = d.storyDoc(static_cast<const TextItem *>(it.get())->storyId);
+                int listed = 0;
+                for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) listed += b.textList() != nullptr;
+                return listed == 0 ? 0 : listed == sd->blockCount() ? 2 : 1;   // none, some, all
+            }
+            return -1;   // no such placeholder
+        };
+        for (int i = 0; i < deck::builtinThemeCount(); ++i) {
+            auto d = deck::themePresentation(i);
+            const QString name = deck::builtinThemeName(i);
+            const deck::DeckTheme theme = deck::themeOf(*d);
+            const MasterPage *master = nullptr;
+            for (const auto &m : d->masters)
+                if (deck::isSlideMaster(*m)) master = m.get();
+            // Where the bullets are, and where they aren't.
+            struct Where {
+                const char *layout, *role;
+                int want;
+            };
+            const Where places[] = {{nullptr, "ph:body:1", 2},   {"obj", "ph:obj:1", 2},   {"twoObj", "ph:obj:1", 2},   {"twoObj", "ph:obj:2", 2},
+                                    {"twoTxTwoObj", "ph:obj:2", 2}, {"twoTxTwoObj", "ph:obj:4", 2}, {"objTx", "ph:obj:1", 2},  {"title", "ph:subTitle:1", 0},
+                                    {"secHead", "ph:body:1", 0}, {"twoTxTwoObj", "ph:body:1", 0}, {"twoTxTwoObj", "ph:body:3", 0}, {"objTx", "ph:body:2", 0},
+                                    {"obj", "ph:title", 0},      {"obj", "ph:sldNum", 0}};
+            for (const Where &w : places) {
+                const MasterPage &page = w.layout ? *deck::layoutOfType(*d, QString::fromLatin1(w.layout)) : *master;
+                QCOMPARE(bulleted(*d, page, QString::fromLatin1(w.role)), i == 0 ? 0 : w.want);
+            }
+            if (i == 0) continue;
+            // The levels of the slide master's body: five lists, each a level, with the same bullet in the accent color, smaller and further in.
+            const MasterPage &layout = *deck::layoutOfType(*d, QStringLiteral("obj"));
+            for (const MasterPage *page : {master, &layout}) {
+                const TextItem *body = static_cast<const TextItem *>(page == master ? placeholderOn(*page, QStringLiteral("body")) : placeholderOn(*page, QStringLiteral("obj")));
+                const QTextDocument *sd = d->storyDoc(body->storyId);
+                QCOMPARE(sd->blockCount(), 5);
+                double lastSize = 1000, lastMargin = -1;
+                for (int level = 0; level < 5; ++level) {
+                    const QTextBlock b = sd->findBlockByNumber(level);
+                    const QString where = QStringLiteral("%1 level %2").arg(name).arg(level + 1);
+                    QVERIFY2(b.textList(), qPrintable(where));
+                    const QTextListFormat lf = b.textList()->format();
+                    QCOMPARE(lf.intProperty(tp::ListLevel), level);
+                    QVERIFY2(!lf.stringProperty(tp::BulletChar).isEmpty() && !lf.stringProperty(tp::BulletFont).isEmpty(), qPrintable(where));
+                    QCOMPARE(ColorRef::fromString(lf.stringProperty(tp::BulletColor)).rgbValue(), theme.colors[4]);
+                    QVERIFY2(b.blockFormat().leftMargin() > lastMargin, qPrintable(where));
+                    QVERIFY2(b.blockFormat().textIndent() < 0, qPrintable(where));
+                    const double size = b.begin().fragment().charFormat().fontPointSize();
+                    QVERIFY2(size <= lastSize && size >= 14, qPrintable(where));
+                    lastSize = size;
+                    lastMargin = b.blockFormat().leftMargin();
+                    QCOMPARE(b.blockFormat().hasProperty(tp::ListLevel), level > 0);
+                }
+                QVERIFY(sd->findBlockByNumber(0).begin().fragment().charFormat().fontPointSize() > lastSize);
+            }
+        }
+    }
+
+    // A new slide in a built-in theme is bulleted as its layout says, its levels take the layout's, the file leaves the bullet of an empty
+    // paragraph to the layout, and the slide master's text styles say the bullet of each level; read again, the layouts keep their lists.
+    void newSlidesOfBuiltinThemesAreBulleted()
+    {
+        for (int i = 1; i < deck::builtinThemeCount(); ++i) {
+            auto d = deck::themePresentation(i, i % 4);
+            const QString name = deck::builtinThemeName(i);
+            deck::addSlide(*d, layoutOf(*d, QStringLiteral("obj")));
+            const TextItem *body = bodyOf(*d->pages[1]);
+            QVERIFY2(body, qPrintable(name));
+            QCOMPARE(listSaid(d->storyDoc(body->storyId)->begin()), listSaid(layoutParagraph(*d, 0)));
+            QCOMPARE(d->storyDoc(body->storyId)->begin().textList()->format().stringProperty(tp::BulletColor).toLower(), ColorRef::rgb(deck::themeOf(*d).colors[4]).toString().toLower());
+            QString err;
+            Exported e;
+            QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(name + ": " + packageProblem(e)));
+            const QString slide = part(e, QStringLiteral("/ppt/slides/slide2.xml"));
+            QVERIFY2(!slide.contains(QRegularExpression(QStringLiteral("<a:bu(Char|None|AutoNum|Font|Clr|Sz)"))), qPrintable(name));
+            const QString master = part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml"));
+            const int style = master.indexOf(QStringLiteral("<p:bodyStyle>"));
+            const QString first = master.mid(style, master.indexOf(QStringLiteral("</a:lvl1pPr>"), style) - style);
+            QVERIFY2(first.contains(QStringLiteral("<a:buClr><a:schemeClr val=\"accent1\"/></a:buClr>")) && first.contains(QStringLiteral("<a:buChar char=")), qPrintable(name + ": " + first));
+            // Two levels typed in.
+            QTextCursor c(d->storyDoc(body->storyId));
+            c.insertText(QStringLiteral("First"));
+            c.insertBlock();
+            c.insertText(QStringLiteral("Second"));
+            QVERIFY(deck::changeListLevel(*d, *body, 1, 1, 1));
+            QCOMPARE(listSaid(d->storyDoc(body->storyId)->findBlockByNumber(1)), listSaid(layoutParagraph(*d, 1)));
+            QCOMPARE(d->storyDoc(body->storyId)->findBlockByNumber(1).begin().fragment().charFormat().fontPointSize(), layoutParagraph(*d, 1).begin().fragment().charFormat().fontPointSize());
+            // Saved and read again: the layouts' paragraphs are in their lists as they were, and the slide's text.
+            auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+            QVERIFY2(back, qPrintable(err));
+            const QTextDocument *was = d->storyDoc(layoutOf(*d, QStringLiteral("obj")).items.front() ? static_cast<const TextItem *>(placeholderOn(layoutOf(*d, QStringLiteral("obj")), QStringLiteral("obj")))->storyId : QString());
+            const QTextDocument *now = back->storyDoc(static_cast<const TextItem *>(placeholderOn(layoutOf(*back, QStringLiteral("obj")), QStringLiteral("obj")))->storyId);
+            QCOMPARE(now->blockCount(), was->blockCount());
+            for (int level = 0; level < 5; ++level) QCOMPARE(listSaid(now->findBlockByNumber(level)).toLower(), listSaid(was->findBlockByNumber(level)).toLower());
+            const QTextDocument *typed = back->storyDoc(bodyOf(*back->pages[1])->storyId);
+            QCOMPARE(typed->findBlockByNumber(1).textList()->format().intProperty(tp::ListLevel), 1);
+            QCOMPARE(typed->findBlockByNumber(1).blockFormat().leftMargin(), d->storyDoc(body->storyId)->findBlockByNumber(1).blockFormat().leftMargin());
+        }
+    }
+
+    // A theme with bullets, applied to a presentation whose text had none from its layout, bullets it, as the presentation program does: the
+    // paragraphs that were as the old layout's go to the new layout's, with list, indent, and size; those set another way stay; and another
+    // theme without bullets takes them away again.
+    void applyingABulletedThemeBulletsTheText()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("obj")));
+        const TextItem *body = bodyOf(*d->pages[1]);
+        QTextDocument *sd = d->storyDoc(body->storyId);
+        QTextCursor c(sd);
+        c.insertText(QStringLiteral("Plain"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("Centered by hand"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("Bulleted by hand"));
+        {
+            QTextBlockFormat bf;
+            bf.setAlignment(Qt::AlignHCenter);
+            QTextCursor(sd->findBlockByNumber(1)).mergeBlockFormat(bf);
+            QTextBlock hand = sd->findBlockByNumber(2);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListSquare);
+            QTextCursor(hand).createList(lf);
+        }
+        const int harbor = deck::builtinThemeIndex(QStringLiteral("Harbor"));
+        auto source = deck::themePresentation(harbor);
+        const deck::DeckTheme theme = deck::themeOf(*source);
+        QVERIFY(deck::applyThemeToAll(*d, *source));
+        const QTextDocument *after = d->storyDoc(bodyOf(*d->pages[1])->storyId);
+        const MasterPage &layout = *d->masterFor(*d->pages[1]);
+        const QTextBlock first = layoutParagraph(*d, 0);
+        Q_UNUSED(layout);
+        QVERIFY(after->findBlockByNumber(0).textList());
+        QCOMPARE(listSaid(after->findBlockByNumber(0)), listSaid(first));
+        QCOMPARE(after->findBlockByNumber(0).blockFormat().leftMargin(), first.blockFormat().leftMargin());
+        QCOMPARE(after->findBlockByNumber(0).begin().fragment().charFormat().fontPointSize(), first.begin().fragment().charFormat().fontPointSize());
+        QCOMPARE(ColorRef::fromString(after->findBlockByNumber(0).textList()->format().stringProperty(tp::BulletColor)).rgbValue(), theme.colors[4]);
+        // The paragraph centered by hand stays centered, and has the bullet; the one with a bullet of its own keeps it.
+        QVERIFY(after->findBlockByNumber(1).textList());
+        QCOMPARE(after->findBlockByNumber(1).blockFormat().alignment(), Qt::AlignHCenter);
+        QCOMPARE(int(after->findBlockByNumber(2).textList()->format().style()), int(QTextListFormat::ListSquare));
+        QVERIFY(after->findBlockByNumber(2).textList()->format().stringProperty(tp::BulletChar).isEmpty());
+        // The first theme again, with none: the paragraphs that followed take its none.
+        QVERIFY(deck::applyThemeToAll(*d, *deck::themePresentation(0)));
+        const QTextDocument *plain = d->storyDoc(bodyOf(*d->pages[1])->storyId);
+        QVERIFY(!plain->findBlockByNumber(0).textList());
+        QCOMPARE(plain->findBlockByNumber(0).blockFormat().leftMargin(), 0.0);
+        QVERIFY(plain->findBlockByNumber(2).textList());   // the hand-made one stays
+    }
+
+    // The colors of bullets follow a change of colors, in the slides and in the layouts and slide master.
+    void bulletColorsFollowTheColors()
+    {
+        auto d = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Harbor")));
+        deck::addSlide(*d, layoutOf(*d, QStringLiteral("obj")));
+        const TextItem *body = bodyOf(*d->pages[1]);
+        QTextCursor(d->storyDoc(body->storyId)).insertText(QStringLiteral("Text"));
+        const deck::ColorSet set = deck::colorSets().value(4);   // Ember's
+        deck::applyColors(*d, set);
+        auto color = [](const QTextBlock &b) { return ColorRef::fromString(b.textList()->format().stringProperty(tp::BulletColor)).rgbValue(); };
+        QCOMPARE(color(d->storyDoc(bodyOf(*d->pages[1])->storyId)->begin()), set.colors[4]);
+        QCOMPARE(color(layoutParagraph(*d, 0)), set.colors[4]);
+        QCOMPARE(color(layoutParagraph(*d, 3)), set.colors[4]);
+        // And a dark background keeps them (accent colors don't turn).
+        deck::applyBackgroundStyle(*d, 9);
+        QCOMPARE(color(layoutParagraph(*d, 0)), set.colors[4]);
     }
 
     // A theme's picture fills (its textures) point at pictures the reader did not keep:

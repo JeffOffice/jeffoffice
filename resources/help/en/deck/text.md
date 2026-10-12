@@ -35,9 +35,11 @@ The small button with three dots in the corner of the group opens the **Font** w
 Click in a paragraph, or select several. Then use the **Home > Paragraph** group:
 
 - **Bullets** and **Numbering** turn a list on or off. The arrow beside each opens a choice of styles. Bullets can be a disc, circle, square, diamond, arrow, check mark, star, or dash. Numbering can be 1. 2. 3., a. b. c., A. B. C., i. ii. iii., I. II. III., 1) 2) 3), or (1) (2) (3). **Bullets and Numbering…** opens a window with more choices.
-- **Decrease List Level** and **Increase List Level** move a line out or in one level. Each level is indented further.
+- **Decrease List Level** and **Increase List Level** move a line out or in one level. Each level is indented further. In the text place of a slide, a line that moves takes the bullet, indent, and size that the slide's layout has for the new level, so it looks like the sample lines on the layout.
 - **Line Spacing** has 1, 1.15, 1.5, 2, 2.5, and 3, and **Paragraph…** for more.
 - **Align Left** (Ctrl+L), **Center** (Ctrl+E), **Align Right** (Ctrl+R), and **Justify** (Ctrl+J).
+
+A text place on a new slide already has the bullets of its layout, so what you type there is bulleted from the start. The first theme, JeffOffice, has none, and a layout that has none gives none.
 
 Three buttons change the whole box and not just a paragraph. **Text Direction** sets **Horizontal** or **Rotate All Text 90°**. **Align Text** puts the text at the **Top**, **Middle**, or **Bottom** of its box. **Columns** sets one, two, or three columns in a text box.
 
