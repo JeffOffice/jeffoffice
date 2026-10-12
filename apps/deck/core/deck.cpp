@@ -11,6 +11,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextList>
 
 namespace jp::deck {
 
@@ -61,18 +62,52 @@ void styleStory(Document &d, const QString &storyId, const Look &look, const Dec
     start.mergeBlockCharFormat(cf);
 }
 
-// The text cleared, its formatting kept for what is typed next.
+// How a placeholder sets a paragraph: the paragraph's own format, the characters it starts with, and the list it is in (bullet, font, color,
+// size, and level).
+struct ParaLook {
+    bool valid = false;
+    QTextBlockFormat block;
+    QTextCharFormat chars;
+    bool listed = false;
+    QTextListFormat list;
+};
+
+// The look of paragraph `b`; its characters are those of its first letter (the block's own when it has none).
+ParaLook paraLook(const QTextBlock &b)
+{
+    ParaLook p;
+    if (!b.isValid()) return p;
+    p.valid = true;
+    p.block = b.blockFormat();
+    p.block.clearProperty(QTextFormat::ObjectIndex);   // the list it is in is another story's
+    p.chars = b.begin().atEnd() ? b.charFormat() : b.begin().fragment().charFormat();
+    if (const QTextList *l = b.textList()) {
+        p.listed = true;
+        p.list = l->format();
+    }
+    return p;
+}
+
+// The first paragraph of a story takes the look, as what is typed in it will have it.
+void givePara(QTextDocument *sd, const ParaLook &look)
+{
+    if (!look.valid) return;
+    QTextBlock first = sd->begin();
+    if (QTextList *l = first.textList()) l->remove(first);
+    QTextCursor c(sd);
+    c.setBlockFormat(look.block);
+    c.setBlockCharFormat(look.chars);
+    if (look.listed) c.createList(look.list);
+}
+
+// The text cleared, its formatting kept for what is typed next: the first paragraph's, with its list.
 void clearStory(Document &d, const QString &storyId)
 {
     QTextDocument *sd = d.storyDoc(storyId);
     if (!sd || sd->isEmpty()) return;
-    QTextCursor first(sd);
-    const QTextCharFormat cf = first.charFormat();
-    const QTextBlockFormat bf = first.blockFormat();
+    const ParaLook first = paraLook(sd->begin());
     sd->clear();
-    QTextCursor c(sd);
-    c.setBlockFormat(bf);
-    c.setBlockCharFormat(cf);
+    givePara(sd, first);
 }
 
 ItemPtr placeholder(Document &d, const Place &pl, const DeckTheme &theme)
@@ -505,6 +540,9 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
                 t->valign = p->valign;
                 t->insets = p->insets;
                 t->prompt = promptFor(placeholderType(*place));
+                // With nothing in it, what is typed next has the new layout's look: its bullet, indent, and text.
+                QTextDocument *sd = d.storyDoc(t->storyId);
+                if (const QTextDocument *ls = d.storyDoc(p->storyId); sd && sd->isEmpty() && ls) givePara(sd, paraLook(ls->begin()));
             }
         }
     }
@@ -517,6 +555,211 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
         slide.items.push_back(slidePlaceholder(d, *l));
         if (chosen && isFooterType(type)) fillFooter(d, *slide.items.back(), type, footers);
     }
+}
+
+namespace {
+
+// The plain color a run is set in, or invalid (not set, or a color of the presentation's scheme).
+QColor runColorOf(const QTextCharFormat &cf)
+{
+    const QString ref = cf.stringProperty(tp::ColorRefP);
+    if (!ref.isEmpty()) {
+        const ColorRef r = ColorRef::fromString(ref);
+        return r.kind() == ColorRef::Rgb ? r.rgbValue() : QColor();
+    }
+    if (cf.hasProperty(QTextFormat::ForegroundBrush) && cf.foreground().style() == Qt::SolidPattern) return cf.foreground().color();
+    return QColor();
+}
+
+// The placeholder with that role on a layout (its own, else its slide master's); null for none.
+const Item *placeByRole(const Document &d, const MasterPage &layout, const QString &role)
+{
+    if (role.isEmpty()) return nullptr;
+    const QVector<MasterPage *> chain = d.masterChain(&layout);
+    for (int i = int(chain.size()) - 1; i >= 0; --i)
+        for (const auto &it : chain[i]->items)
+            if (it->role == role && it->type() == ItemType::Text) return it.get();
+    return nullptr;
+}
+
+// The layout's placeholder that a placeholder of a slide stands for, found by its role; null for none.
+const Item *layoutPlaceFor(const Document &d, const Item &placeholder)
+{
+    if (placeholder.type() != ItemType::Text) return nullptr;
+    const Document::Loc where = d.find(placeholder.id);
+    if (where.page < 0 || where.page >= d.pages.size()) return nullptr;
+    const MasterPage *layout = d.masterFor(*d.pages[where.page]);
+    return layout ? placeByRole(d, *layout, placeholder.role) : nullptr;
+}
+
+// The level of a paragraph of a slide's text: 0 is the first.
+int levelOfBlock(const QTextBlock &b)
+{
+    const QTextBlockFormat bf = b.blockFormat();
+    int level = bf.intProperty(tp::ListLevel);
+    if (!bf.hasProperty(tp::ListLevel))
+        if (const QTextList *list = b.textList()) level = list->format().intProperty(tp::ListLevel);
+    return std::clamp(level, 0, 8);
+}
+
+// The paragraph of a layout's placeholder that says how `level` looks: the one of that level, else the deepest above it, which is `past` levels
+// short of it.
+ParaLook levelLook(const QTextDocument *story, int level, int *past)
+{
+    QTextBlock best;
+    int bestLevel = -1;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const int l = levelOfBlock(b);
+        if (l <= level && l > bestLevel) {
+            best = b;
+            bestLevel = l;
+        }
+    }
+    if (!best.isValid()) best = story->begin();
+    *past = bestLevel >= 0 ? level - bestLevel : 0;
+    return paraLook(best);
+}
+
+constexpr double kLevelPoints = 36;   // a level the layout has no paragraph for is indented this much further
+
+// Paragraph `number` of a story goes to `level`, as the layout's paragraph `now` for it says (`was` is the one of the level it leaves): the list,
+// the indent, and, where they were as `was` said, the spacing and the looks of its text.
+void putOnLevel(QTextDocument *sd, int number, const ParaLook &was, const ParaLook &now, int level, int past)
+{
+    const QTextBlock b = sd->findBlockByNumber(number);
+    struct Run {
+        int from, to;
+        QTextCharFormat format;
+    };
+    QVector<Run> runs;
+    for (auto it = b.begin(); !it.atEnd(); ++it) {
+        QTextCharFormat cf = it.fragment().charFormat();
+        const QTextCharFormat before = cf;
+        followLook(cf, was.chars, now.chars);
+        if (cf != before) runs << Run{it.fragment().position(), it.fragment().position() + it.fragment().length(), cf};
+    }
+    QTextCursor c(b);
+    QTextCharFormat chars = c.blockCharFormat();
+    followLook(chars, was.chars, now.chars);
+    if (QTextList *list = b.textList()) list->remove(b);
+    QTextBlockFormat bf = c.blockFormat();
+    bf.clearProperty(QTextFormat::ObjectIndex);
+    // The indent is the level's; the spacing is the layout's where it was.
+    bf.setLeftMargin(now.block.leftMargin() + past * kLevelPoints);
+    bf.setTextIndent(now.block.textIndent());
+    bf.setIndent(now.block.indent());
+    for (int prop : {int(QTextFormat::BlockTopMargin), int(QTextFormat::BlockBottomMargin), int(QTextFormat::LineHeight), int(QTextFormat::LineHeightType)}) {
+        const bool has = bf.hasProperty(prop);
+        if (has != was.block.hasProperty(prop) || (has && bf.property(prop) != was.block.property(prop))) continue;
+        if (now.block.hasProperty(prop)) bf.setProperty(prop, now.block.property(prop));
+        else bf.clearProperty(prop);
+    }
+    if (level > 0) bf.setProperty(tp::ListLevel, level);
+    else bf.clearProperty(tp::ListLevel);
+    c.setBlockFormat(bf);
+    c.setBlockCharFormat(chars);
+    if (now.listed) {
+        QTextListFormat lf = now.list;
+        if (past > 0) lf.setProperty(tp::ListLevel, level);
+        // Numbers go on in the list of that level just above, if there is one.
+        QTextList *join = nullptr;
+        if (!isBulletList(lf.style()) && lf.style() != QTextListFormat::ListStyleUndefined) {
+            for (QTextBlock p = b.previous(); p.isValid(); p = p.previous()) {
+                QTextList *above = p.textList();
+                if (!above) break;
+                const int aboveLevel = above->format().intProperty(tp::ListLevel);
+                if (aboveLevel == level && above->format().style() == lf.style()) {
+                    join = above;
+                    break;
+                }
+                if (aboveLevel < level) break;
+            }
+        }
+        if (join) join->add(b);
+        else c.createList(lf);
+    }
+    for (const Run &r : runs) {
+        QTextCursor run(sd);
+        run.setPosition(r.from);
+        run.setPosition(r.to, QTextCursor::KeepAnchor);
+        run.setCharFormat(r.format);
+    }
+}
+
+} // namespace
+
+Following followLook(QTextCharFormat &cf, const QTextCharFormat &was, const QTextCharFormat &now)
+{
+    static const int props[] = {QTextFormat::FontFamilies, QTextFormat::FontPointSize, QTextFormat::FontWeight, QTextFormat::FontItalic,
+                                QTextFormat::FontCapitalization, tp::ThemeFont};
+    Following done;
+    const QTextCharFormat before = cf;
+    for (int p : props) {
+        const bool has = before.hasProperty(p);
+        if (has != was.hasProperty(p) || (has && before.property(p) != was.property(p))) continue;
+        if (now.hasProperty(p)) cf.setProperty(p, now.property(p));
+        else cf.clearProperty(p);
+        if (p == QTextFormat::FontFamilies) done.family = true;
+    }
+    if (runColorOf(before) == runColorOf(was)) {
+        const QColor c = runColorOf(now);
+        if (c.isValid()) {
+            cf.setForeground(QBrush(c));
+            cf.setProperty(tp::ColorRefP, ColorRef::rgb(c).toString());
+        } else {
+            cf.clearProperty(tp::ColorRefP);
+            cf.clearProperty(QTextFormat::ForegroundBrush);
+        }
+        done.color = true;
+    }
+    return done;
+}
+
+void inheritLayoutLists(Document &d)
+{
+    for (const auto &page : d.pages) {
+        const MasterPage *layout = d.masterFor(*page);
+        if (!layout) continue;
+        for (const auto &it : page->items) {
+            if (it->type() != ItemType::Text || placeholderType(*it).isEmpty()) continue;
+            QTextDocument *sd = d.storyDoc(static_cast<const TextItem *>(it.get())->storyId);
+            const Item *place = placeByRole(d, *layout, it->role);
+            const QTextDocument *ls = place ? d.storyDoc(static_cast<const TextItem *>(place)->storyId) : nullptr;
+            if (!sd || !ls || !sd->isEmpty() || sd->begin().textList()) continue;
+            int past = 0;
+            const ParaLook look = levelLook(ls, levelOfBlock(sd->begin()), &past);
+            if (!look.listed) continue;
+            QTextListFormat lf = look.list;
+            if (past > 0) lf.setProperty(tp::ListLevel, levelOfBlock(sd->begin()));
+            QTextCursor(sd).createList(lf);
+        }
+    }
+}
+
+bool layoutHasList(const Document &d, const Item &placeholder)
+{
+    const Item *place = layoutPlaceFor(d, placeholder);
+    const QTextDocument *ls = place ? d.storyDoc(static_cast<const TextItem *>(place)->storyId) : nullptr;
+    if (!ls) return false;
+    for (QTextBlock b = ls->begin(); b.isValid(); b = b.next())
+        if (b.textList()) return true;
+    return false;
+}
+
+bool changeListLevel(Document &d, const Item &placeholder, int first, int last, int dir)
+{
+    if (!layoutHasList(d, placeholder)) return false;
+    const QTextDocument *ls = d.storyDoc(static_cast<const TextItem *>(layoutPlaceFor(d, placeholder))->storyId);
+    QTextDocument *sd = d.storyDoc(static_cast<const TextItem &>(placeholder).storyId);
+    if (!sd) return false;
+    for (int n = std::max(0, first); n <= last && n < sd->blockCount(); ++n) {
+        const int level = levelOfBlock(sd->findBlockByNumber(n)), to = std::clamp(level + dir, 0, 8);
+        if (to == level) continue;
+        int past = 0, wasPast = 0;
+        const ParaLook was = levelLook(ls, level, &wasPast), now = levelLook(ls, to, &past);
+        putOnLevel(sd, n, was, now, to, past);
+    }
+    return true;
 }
 
 void resetSlide(Document &d, Page &slide)

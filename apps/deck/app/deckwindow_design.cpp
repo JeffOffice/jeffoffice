@@ -146,9 +146,12 @@ void DeckWindow::chooseBackgroundStyle(int style)
 void DeckWindow::addDesignParts(RibbonParts &parts)
 {
     Editor *ed = m_ed;
-    // New text on a dark presentation that was opened from a file is light, as it is on one made here.
+    // New text on a presentation that was opened from a file has the bullets of its layouts, and is light on a dark one, as on one made here.
     connect(ed, &Editor::documentReplaced, this, [ed] {
-        if (Document *d = ed->doc()) deck::keepTextReadable(*d);
+        if (Document *d = ed->doc()) {
+            deck::keepTextReadable(*d);
+            deck::inheritLayoutLists(*d);
+        }
     });
     parts.widgets[QStringLiteral("themeGallery")] = [this, ed]() -> QWidget * {
         auto *gallery = new ThemeGallery(ed);

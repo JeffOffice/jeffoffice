@@ -73,6 +73,25 @@ int duplicateSlide(Document &d, int index);
 // places and formatting by type (title to title, body to body...), the text
 // staying; placeholders the new layout has no place for stay where they were.
 void applyLayout(Document &d, Page &slide, const MasterPage &layout);
+// What followLook set from the other look.
+struct Following {
+    bool color = false, family = false;
+};
+// Text that looked as one placeholder's text said looks as another's says: of the font, size, weight, slant, capitals, and color of `cf`, each
+// that was as `was` has it (or as it has none) becomes as `now` has it (or none). `cf` says which of the colors and fonts it set.
+Following followLook(QTextCharFormat &cf, const QTextCharFormat &was, const QTextCharFormat &now);
+
+// A slide's placeholders that have nothing in them take the list of their layout's paragraph for their level, as a new slide's do (a file
+// leaves an empty paragraph out of its list), so that what is typed in them has its bullets. Nothing else about them changes.
+void inheritLayoutLists(Document &d);
+// Whether the layout of the slide that `placeholder` is on has a list in the place it has for it: the levels of a slide's text then have bullets
+// of their own to take (changeListLevel).
+bool layoutHasList(const Document &d, const Item &placeholder);
+// The paragraphs `first` to `last` (counted from 0) of the text of `placeholder`, a placeholder on a slide, go `dir` levels in (or out, when
+// negative): each takes the layout's paragraph of its new level (the deepest the layout has, indented as far again for each level past it): its
+// list (bullet character, font, color, and size), indent, and spacing, and its text that looked as the old level's does the same. Nothing
+// changes, and it says so, when the layout has no list for the placeholder.
+bool changeListLevel(Document &d, const Item &placeholder, int first, int last, int dir);
 // Puts the slide's placeholders back where its layout has them.
 void resetSlide(Document &d, Page &slide);
 

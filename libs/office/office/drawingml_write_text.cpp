@@ -321,6 +321,7 @@ double firstSizeOf(const QTextBlock &b)
 
 void writeBullet(QXmlStreamWriter &w, const QTextBlock &b, QTextList *list, DrawingWriteContext &ctx)
 {
+    if (ctx.emptyParagraphsInherit && ctx.placeholderText && b.text().isEmpty()) return;
     if (!list) {
         // Where the layout and master give a bullet, a paragraph that has none says so.
         if (ctx.placeholderText) leaf(w, "a:buNone");
