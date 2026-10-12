@@ -3927,6 +3927,20 @@ private Q_SLOTS:
         QVERIFY(format(1, 0).fontWeight() == int(QFont::Bold) && format(1, 0).fontItalic());
         QCOMPARE(hexOf(format(1, 0).foreground().color()), QStringLiteral("FFFFFF"));
         QVERIFY(format(1, 1).fontWeight() < int(QFont::Bold));
+
+        // Written, the table has all it got from its style in the cells themselves: read where the style isn't
+        // known, the cells are the same.
+        DmlEnv back;
+        auto u = dmlAs<TableItem>(readTable(back.element(dmlWriteTable(*t, env, 2)), back.ctx));
+        QVERIFY(u);
+        QCOMPARE(u->format, id);
+        for (int r = 0; r < t->rows; ++r)
+            for (int c = 0; c < t->cols; ++c) {
+                const QByteArray at = QStringLiteral("row %1, column %2").arg(r).arg(c).toLatin1();
+                QVERIFY2(u->cell(r, c).fill == t->cell(r, c).fill, at);
+                const jp::CellBorder &a = t->cell(r, c).border, &b = u->cell(r, c).border;
+                QVERIFY2(a.top == b.top && a.bottom == b.bottom && a.left == b.left && a.right == b.right, at);
+            }
     }
 
     // A style the file doesn't define is approximated by the usual one (an accent header, banded rows in tints, white
@@ -3996,6 +4010,10 @@ private Q_SLOTS:
         QVERIFY(!isTableFrame(env.element(chart)));
         QVERIFY(!readTable(env.element(chart), env.ctx));
         QVERIFY(isTableFrame(env.element(dmlTableFrame(QString(), grid, row, 0, 0, 100, 20))));
+        // The strict form of the standard names the table by another URI.
+        QString strict = dmlTableFrame(QString(), grid, row, 0, 0, 100, 20);
+        strict.replace(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/table"), QStringLiteral("http://purl.oclc.org/ooxml/drawingml/table"));
+        QVERIFY(readTable(env.element(strict), env.ctx));
         QVERIFY(!readTable(env.element(dmlTableFrame(QString(), QStringLiteral("<a:tblGrid/>"), row, 0, 0, 100, 20)), env.ctx));
         QVERIFY(!readTable(env.element(dmlTableFrame(QString(), grid, QString(), 0, 0, 100, 20)), env.ctx));
         // More columns than the table keeps.
@@ -4049,18 +4067,8 @@ private Q_SLOTS:
         QVERIFY(t);
         t->role = QStringLiteral("ph:tbl:3");
 
-        const auto writeIt = [&](const TableItem &item, DmlEnv &from, int firstId, int *nextId = nullptr) {
-            DrawingWriteContext wctx;
-            wctx.nextShapeId = firstId;
-            wctx.storyDoc = [&from](const QString &id) -> const QTextDocument * { return from.ctx.storyDoc(id); };
-            QByteArray xml;
-            QXmlStreamWriter w(&xml);
-            writeTable(w, item, wctx);
-            if (nextId) *nextId = wctx.nextShapeId;
-            return QString::fromUtf8(xml);
-        };
         int next = 0;
-        const QString xml = writeIt(*t, env, 7, &next);
+        const QString xml = dmlWriteTable(*t, env, 7, &next);
         QCOMPARE(next, 8);
         QVERIFY2(xml.startsWith(QStringLiteral("<p:graphicFrame>")), qPrintable(xml));
         QVERIFY(xml.contains(QStringLiteral("<p:cNvPr id=\"7\"")));
@@ -4112,6 +4120,12 @@ private Q_SLOTS:
         if (!dmlWriterWritesText()) QEXPECT_FAIL("", "drawing writer pending", Continue);
         QCOMPARE(back.ctx.storyDoc(u->cell(0, 0).storyId)->begin().begin().fragment().charFormat().fontWeight(), int(QFont::Bold));
 
+        // A table with nothing in it is nothing to write.
+        TableItem empty;
+        int used = 0;
+        QVERIFY(dmlWriteTable(empty, env, 11, &used).isEmpty());
+        QCOMPARE(used, 11);
+
         // A table made here, with a style of ours by name, names none; its role is kept only as a placeholder's.
         auto own = std::make_shared<TableItem>();
         own->rows = own->cols = 1;
@@ -4122,7 +4136,7 @@ private Q_SLOTS:
         own->header = false;
         own->banded = false;
         own->rect = QRectF(10, 20, 72, 36);
-        const QString plain = writeIt(*own, env, 2);
+        const QString plain = dmlWriteTable(*own, env, 2);
         QVERIFY2(!plain.contains(QStringLiteral("tableStyleId")), qPrintable(plain));
         QVERIFY(!plain.contains(QStringLiteral("<p:ph")));
         QVERIFY(plain.contains(QStringLiteral("<a:tblPr/>")));
@@ -4162,6 +4176,19 @@ private:
         QVERIFY(env.package.read(w.finish()));
         env.ctx.package = &env.package;
         env.ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
+    }
+
+    // The table as the writer writes it, with its stories from `from`.
+    static QString dmlWriteTable(const TableItem &item, DmlEnv &from, int firstId, int *nextId = nullptr)
+    {
+        DrawingWriteContext wctx;
+        wctx.nextShapeId = firstId;
+        wctx.storyDoc = [&from](const QString &id) -> const QTextDocument * { return from.ctx.storyDoc(id); };
+        QByteArray xml;
+        QXmlStreamWriter w(&xml);
+        writeTable(w, item, wctx);
+        if (nextId) *nextId = wctx.nextShapeId;
+        return QString::fromUtf8(xml);
     }
 
     // Whether the drawing writer writes the text of a story yet.
