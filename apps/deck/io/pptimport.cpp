@@ -2170,6 +2170,7 @@ bool Importer::run(QString *error)
 std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QString *error)
 {
     auto doc = std::make_unique<Document>();
+    doc->textRunsOver = true;
     Importer importer(bytes, *doc);
     QString why;
     bool ok = false;

@@ -1413,6 +1413,35 @@ void StoryLayout::build(const QTextDocument *doc, const QVector<FrameSpec> &fram
         return;
     }
     QVector<double> shifts = buildOnce(doc, frames, env);
+    if (m_overflow && frames.size() == 1 && frames[0].runsOver && frames[0].columns <= 1 && frames[0].obstacles.isEmpty() && !frames[0].fitToShape) {
+        // Set from the top in a frame that holds it all, then moved as far up
+        // as its alignment says for the frame it has.
+        FrameSpec tall = frames[0];
+        tall.valign = VAlign::Top;
+        tall.size.setHeight(std::max(tall.size.height(), 100000.0));
+        buildOnce(doc, {tall}, env);
+        double top = 1e18, bottom = -1e18;
+        for (const auto &B : m_blocks)
+            for (const Line &l : B->lines)
+                if (l.frame == 0) {
+                    top = std::min(top, l.rect.top());
+                    bottom = std::max(bottom, l.rect.bottom() - l.below);
+                }
+        const double room = frames[0].size.height() - frames[0].insets.top() - frames[0].insets.bottom();
+        const double share = frames[0].valign == VAlign::Middle ? 0.5 : frames[0].valign == VAlign::Bottom ? 1.0 : 0.0;
+        const double shift = bottom >= top ? (room - (bottom - frames[0].insets.top())) * share : 0;
+        if (shift != 0)
+            for (auto &B : m_blocks)
+                for (int i = 0; i < B->lines.size(); ++i)
+                    if (B->lines[i].frame == 0) {
+                        PtLine tl(B->tl->lineAt(i));
+                        tl.setPosition(tl.position() + QPointF(0, shift));
+                        B->lines[i].rect.translate(0, shift);
+                    }
+        if (!m_used.isEmpty()) m_used[0] += shift;
+        m_frames = frames;
+        return;
+    }
     // Text centered or set at the bottom meets the objects it wraps around
     // where it ends up, not at the frame's top (as in Publisher: a centered
     // line just below a picture stays whole). Lay it out again with the

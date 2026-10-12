@@ -974,6 +974,7 @@ bool Importer::run(const QString &mainPart, QString *error)
 std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *error)
 {
     auto doc = std::make_unique<Document>();
+    doc->textRunsOver = true;
     Importer importer(pkg, *doc);
     if (!importer.run(pkg.mainPart(), error)) return nullptr;
     doc->fromFile = true;   // what the file names outside itself is read only from beside it
