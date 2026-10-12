@@ -53,11 +53,21 @@ appdir() {
 # need (PDFium among them) into an AppDir; with "appimage" it writes one too.
 deploy() {
   local dir=$1 main=$2 output=$3; shift 3
-  local exes=()
-  for name in "$@"; do exes+=(--executable "$dir/usr/bin/$name"); done
+  local exes=() modules="svg"
+  for name in "$@"; do
+    exes+=(--executable "$dir/usr/bin/$name")
+    # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg
+    # plugin: the plugin goes in before linuxdeploy runs, which then brings
+    # the libraries it needs (FFmpeg's among them). JeffPub alone gets none.
+    if [ "$name" = JeffDeck ]; then
+      modules="svg;multimedia"
+      mkdir -p "$dir/usr/plugins"
+      cp -r "$("$QMAKE" -query QT_INSTALL_PLUGINS)/multimedia" "$dir/usr/plugins/"
+    fi
+  done
   local lower
   lower=$(echo "$main" | tr '[:upper:]' '[:lower:]')
-  ( cd "$out" && LDAI_OUTPUT="$main-$ver-x86_64.AppImage" "$ld" --appdir "$dir" "${exes[@]}" \
+  ( cd "$out" && EXTRA_QT_MODULES="$modules" LDAI_OUTPUT="$main-$ver-x86_64.AppImage" "$ld" --appdir "$dir" "${exes[@]}" \
       --library "$build/_deps/pdfium/lib/libpdfium.so" \
       --desktop-file "$dir/usr/share/applications/$lower.desktop" \
       --icon-file "$dir/usr/share/icons/hicolor/256x256/apps/$lower.png" \
@@ -94,7 +104,7 @@ Section: editors
 Priority: optional
 Architecture: $arch
 Installed-Size: $size
-Depends: libc6 (>= 2.35), libstdc++6, libgl1, libegl1, libfontconfig1, libfreetype6, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1, libglib2.0-0 | libglib2.0-0t64
+Depends: libc6 (>= 2.35), libstdc++6, libgl1, libegl1, libfontconfig1, libfreetype6, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1, libglib2.0-0 | libglib2.0-0t64, libpulse0
 Conflicts: jeffpub, jeffpub79
 Replaces: jeffpub, jeffpub79
 Provides: jeffpub, jeffpub79

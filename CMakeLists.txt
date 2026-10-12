@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Xml Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Xml Multimedia Test)
 
 add_subdirectory(third_party)
 include(cmake/pdfium.cmake)
@@ -146,7 +146,9 @@ file(GLOB_RECURSE JD_SOURCES CONFIGURE_DEPENDS apps/deck/*.cpp apps/deck/*.h)
 list(REMOVE_ITEM JD_SOURCES ${CMAKE_SOURCE_DIR}/apps/deck/main.cpp)
 add_library(jdcore STATIC ${JD_SOURCES} apps/deck/resources/deck.qrc)
 target_include_directories(jdcore PUBLIC apps/deck)
-target_link_libraries(jdcore PUBLIC jo_page)
+# Movies and sounds play through Qt Multimedia (its FFmpeg backend); JeffPub
+# doesn't link it.
+target_link_libraries(jdcore PUBLIC jo_page Qt6::Multimedia)
 qt_add_executable(jeffdeck WIN32 MACOSX_BUNDLE apps/deck/main.cpp)
 if(APPLE)
   # As JeffPub's: an icon from its 256-pixel picture, document types (the
