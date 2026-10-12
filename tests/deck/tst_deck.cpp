@@ -487,6 +487,36 @@ private Q_SLOTS:
         QCOMPARE(pv.timerText(), QStringLiteral("00:00"));
     }
 
+    // Alt+F5 on one screen rehearses: the show in a window and Presenter View
+    // in another; Esc in either ends both.
+    void windowPresenterViewRehearsal()
+    {
+        DeckWindow w;
+        w.newSlide();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.act("show.presenterView"));
+        QCOMPARE(w.act("show.presenterView")->shortcut(), QKeySequence(Qt::ALT | Qt::Key_F5));
+        w.act("show.presenterView")->trigger();
+        QPointer<SlideShow> show = w.slideShow();
+        QVERIFY(show);
+        QPointer<PresenterView> pv = show->presenterView();
+        QVERIFY(pv);
+        QCOMPARE(pv->counterText(), QStringLiteral("Slide 2 of 2"));   // from the current slide
+        QTest::keyClick(pv.data(), Qt::Key_Left);
+        QCOMPARE(show->currentSlide(), 0);
+        QTest::keyClick(show.data(), Qt::Key_Right);
+        QCOMPARE(pv->counterText(), QStringLiteral("Slide 2 of 2"));
+        QTest::keyClick(pv.data(), Qt::Key_Escape);
+        QTRY_VERIFY(show.isNull());
+        QTRY_VERIFY(pv.isNull());
+        // One screen and F5: the show alone.
+        w.startShow(0);
+        QVERIFY(w.slideShow());
+        QVERIFY(!w.slideShow()->presenterView());
+        QTest::keyClick(w.slideShow(), Qt::Key_Escape);
+        QTRY_VERIFY(!w.slideShow());
+    }
+
     // The Transitions tab: each command is a step that undoes; Apply To All
     // gives every slide the transition of the one being edited.
     void windowTransitionsTab()
@@ -664,6 +694,27 @@ private Q_SLOTS:
         QVERIFY(!preview->grab().isNull());
         QTRY_VERIFY(!preview->isPlaying());
         QVERIFY(preview->isHidden());
+    }
+
+    // The Slide Show tab's Use Presenter View is on until turned off, and is
+    // remembered.
+    void windowUsePresenterViewCheckBox()
+    {
+        DeckWindow w;
+        QAction *use = w.act("show.usePresenterView");
+        QVERIFY(use);
+        QVERIFY(use->isCheckable());
+        QVERIFY(use->isChecked());
+        QVERIFY(SlideShow::usePresenterView());
+        use->trigger();
+        QVERIFY(!use->isChecked());
+        QVERIFY(!SlideShow::usePresenterView());
+        auto *box = w.ribbon()->findChild<QCheckBox *>("usePresenterView");
+        QVERIFY(box);
+        QVERIFY(!box->isChecked());
+        box->click();
+        QVERIFY(use->isChecked());
+        QVERIFY(SlideShow::usePresenterView());
     }
 
     // Slides that have a transition are marked in the thumbnails.
