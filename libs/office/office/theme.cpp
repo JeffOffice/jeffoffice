@@ -1,9 +1,9 @@
 #include "office/theme.h"
 
+#include "office/drawingml_color.h"
 #include "office/xml.h"
 
 #include <QCoreApplication>
-#include <QRegularExpression>
 #include <QXmlStreamWriter>
 
 namespace jp::office {
@@ -12,29 +12,6 @@ namespace {
 
 const char *const kColorNames[Theme::ColorCount] = {"dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4",
                                                     "accent5", "accent6", "hlink", "folHlink"};
-
-// Six hex digits, as a:srgbClr and lastClr write a color.
-QColor hexColor(const QString &s)
-{
-    static const QRegularExpression six(QStringLiteral("^[0-9A-Fa-f]{6}$"));
-    return six.match(s).hasMatch() ? QColor(QLatin1Char('#') + s) : QColor();
-}
-
-// The color a theme slot holds: an RGB value, or a system color, which the
-// file gives as the value it had when saved (lastClr).
-QColor slotColor(const QDomElement &slot)
-{
-    const QDomElement rgb = child(slot, ns::A, QStringLiteral("srgbClr"));
-    if (!rgb.isNull()) return hexColor(attr(rgb, QStringLiteral("val")));
-    const QDomElement system = child(slot, ns::A, QStringLiteral("sysClr"));
-    if (system.isNull()) return QColor();
-    const QColor last = hexColor(attr(system, QStringLiteral("lastClr")));
-    if (last.isValid()) return last;
-    const QString val = attr(system, QStringLiteral("val"));
-    if (val == QLatin1String("window")) return QColor(Qt::white);
-    if (val == QLatin1String("windowText")) return QColor(Qt::black);
-    return QColor();
-}
 
 QString typeface(const QDomElement &fonts, const QString &kind)
 {
@@ -83,7 +60,8 @@ bool readTheme(const QByteArray &xml, Theme *theme, QString *error)
     t.colorSchemeName = attr(colors, QStringLiteral("name"));
     const Theme fallback = defaultTheme();
     for (int i = 0; i < Theme::ColorCount; ++i) {
-        t.colors[i] = slotColor(child(colors, ns::A, QString::fromLatin1(kColorNames[i])));
+        // Any color the schema allows, though files hold an RGB or system one.
+        t.colors[i] = readColor(child(colors, ns::A, QString::fromLatin1(kColorNames[i])), Theme(), ColorMap());
         if (!t.colors[i].isValid()) t.colors[i] = fallback.colors[i];
     }
     const QDomElement fonts = child(elements, ns::A, QStringLiteral("fontScheme"));
