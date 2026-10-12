@@ -7263,7 +7263,7 @@ private Q_SLOTS:
     }
 
     // A deck with a movie and a sound set every way the Playback tab sets them, for the presentation program to open (the
-    // gate): it is saved, read again as it was, and written to JD_MEDIA_SAMPLE when that names a file.
+    // gate): it is saved, read again as it was, and written to JD_MEDIA_SAMPLE_ALL when that names a file (JD_MEDIA_SAMPLE gets the plain one).
     void mediaSampleDeckSavesAndReadsBack()
     {
         auto d = deck::newPresentation();
@@ -7338,11 +7338,29 @@ private Q_SLOTS:
             QVERIFY2(got == want, qPrintable(QStringLiteral("picture %1").arg(k)));
             ++k;
         }
+        const QString all = qEnvironmentVariable("JD_MEDIA_SAMPLE_ALL");
+        if (!all.isEmpty()) {
+            QFile out(all);
+            QVERIFY(out.open(QIODevice::WriteOnly));
+            out.write(bytes);
+        }
+        // And the plainest: a movie and a sound as they are when they are put on a slide, nothing set.
+        auto plain = deck::newPresentation();
+        auto clip = deck::newMediaPicture(*plain, *plain->pages[0], movie, QStringLiteral("Clip.avi"), poster, 3000, QPointF(80, 150));
+        plain->pages[0]->items.push_back(clip);
+        auto song = deck::newMediaPicture(*plain, *plain->pages[0], tune, QStringLiteral("Tune.wav"), QImage(), 3000, QPointF(800, 400));
+        plain->pages[0]->items.push_back(song);
+        skipped.clear();
+        const QByteArray basic = deck::exportPresentation(*plain, &err, &skipped);
+        QVERIFY2(!basic.isEmpty() && skipped.isEmpty(), qPrintable(err + skipped.join('\n')));
+        Exported y;
+        QVERIFY2(unpack(basic, &y, &err), qPrintable(err));
+        QVERIFY2(packageProblem(y).isEmpty(), qPrintable(packageProblem(y)));
         const QString sample = qEnvironmentVariable("JD_MEDIA_SAMPLE");
         if (!sample.isEmpty()) {
             QFile out(sample);
             QVERIFY(out.open(QIODevice::WriteOnly));
-            out.write(bytes);
+            out.write(basic);
         }
     }
 
