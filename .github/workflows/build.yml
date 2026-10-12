@@ -117,6 +117,14 @@ jobs:
               "$G" -q -batch -ex run -ex "thread apply all bt 30" --args "$T" -silent 2>&1 | grep -v '^\[' | tail -120
             fi
           fi
+          # The shared file-format library's own tests, the same way; the
+          # step fails if either program does.
+          if [ "$RUNNER_OS" = "Windows" ]; then O=build/officetests.exe; else O=build/officetests; fi
+          "$O" -v1 -o officetests-results.txt,txt -o -,txt
+          ocode=$?
+          echo "--- officetests-results.txt"; cat officetests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
+          echo "officetests exit code: $ocode"
+          if [ "$code" -eq 0 ]; then code=$ocode; fi
           exit $code
         env:
           QT_QPA_PLATFORM: offscreen

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Xml Test)
 
 add_subdirectory(third_party)
 include(cmake/pdfium.cmake)
@@ -16,6 +16,8 @@ include(cmake/pdfium.cmake)
 #   jo_base   colors, fonts, measurements, file containers, PDF, proofing
 #   jo_draw   shapes, fills and outlines, Text Art, placed objects, SVG
 #   jo_text   the text engine
+#   jo_office the file packages (OPC), themes, and DrawingML colors of the
+#             presentation, word processor, and spreadsheet formats
 #   jo_shell  the window: ribbon, KeyTips, themes, Help, updater, AutoRecover
 # Inside each, the files keep the folders they had under src/ (core/, io/,
 # app/...), so an include names the same file wherever it lives.
@@ -37,8 +39,10 @@ jo_library(jo_draw libs/draw)
 target_link_libraries(jo_draw PUBLIC jo_base)
 jo_library(jo_text libs/text)
 target_link_libraries(jo_text PUBLIC jo_draw)
+jo_library(jo_office libs/office)
+target_link_libraries(jo_office PUBLIC jo_text Qt6::Xml)
 jo_library(jo_shell libs/shell)
-target_link_libraries(jo_shell PUBLIC jo_text)
+target_link_libraries(jo_shell PUBLIC jo_office)
 if(WIN32)
   # The system Save dialog (filedialogs.cpp).
   target_link_libraries(jo_shell PRIVATE ole32 uuid shell32)
@@ -48,7 +52,7 @@ endif()
 # object of it is pulled in, so a call into a higher layer (which the include
 # check can't see) fails to link here. Linux's linker is enough to catch one.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  foreach(lib jo_base jo_draw jo_text jo_shell)
+  foreach(lib jo_base jo_draw jo_text jo_office jo_shell)
     add_executable(${lib}_linkcheck tools/linkcheck.cpp)
     target_link_libraries(${lib}_linkcheck PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
   endforeach()
@@ -166,6 +170,13 @@ add_dependencies(jptests jpcrashtest)
 target_compile_definitions(jptests PRIVATE JP_CRASHTEST="$<TARGET_FILE:jpcrashtest>")
 add_test(NAME jptests COMMAND jptests)
 set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# The tests of libs/office, which need none of the app.
+qt_add_executable(officetests tests/office/tst_office.cpp)
+target_link_libraries(officetests PRIVATE jo_office Qt6::Test)
+set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME officetests COMMAND officetests)
+set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 
