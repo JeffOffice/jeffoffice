@@ -4,6 +4,7 @@
 #include "text/textprops.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QJsonArray>
 #include <QSet>
 #include <QTextBlock>
@@ -447,6 +448,27 @@ int duplicateSlide(Document &d, int index)
     slide->hidden = from.hidden;
     slide->title = from.title;
     slide->items = d.cloneItems(from.items);
+    // The copies stand where the originals do, on a slide of their own: they
+    // keep the shape numbers the slide's animations aim at (numbers count
+    // within a slide), and the charts the slide keeps are the copies' now.
+    std::vector<const Item *> originals;
+    std::vector<Item *> copies;
+    walkItems(from.items, [&](const ItemPtr &it) { originals.push_back(it.get()); });
+    walkItems(slide->items, [&](const ItemPtr &it) { copies.push_back(it.get()); });
+    if (originals.size() == copies.size()) {
+        QHash<QString, QString> ids;
+        for (size_t i = 0; i < copies.size(); ++i) {
+            copies[i]->sourceId = originals[i]->sourceId;
+            ids.insert(originals[i]->id, copies[i]->id);
+        }
+        QJsonArray charts = slide->props.value(QStringLiteral("charts")).toArray();
+        for (int i = 0; i < charts.size(); ++i) {
+            QJsonObject c = charts[i].toObject();
+            c[QStringLiteral("item")] = ids.value(c.value(QStringLiteral("item")).toString());
+            charts[i] = c;
+        }
+        if (!charts.isEmpty()) slide->props[QStringLiteral("charts")] = charts;
+    }
     slide->notesStoryId = from.notesStoryId.isEmpty() ? d.createStory() : d.copyStory(from.notesStoryId);
     d.pages.insert(index + 1, slide);
     return index + 1;

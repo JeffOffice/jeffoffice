@@ -61,7 +61,8 @@ std::unique_ptr<Document> newPresentation();
 // formatting and prompts (the date, footer, and slide number only when the
 // slide shows them), and an empty notes page. Returns its index.
 int addSlide(Document &d, const MasterPage &layout, int at = -1);
-// A copy of slide `index` right after it, notes included. Returns its index.
+// A copy of slide `index` right after it, notes included: its objects keep
+// their shape numbers, so its animations and charts stay theirs. Returns its index.
 int duplicateSlide(Document &d, int index);
 // Gives the slide another layout: its placeholders take the new layout's
 // places and formatting by type (title to title, body to body...), the text
