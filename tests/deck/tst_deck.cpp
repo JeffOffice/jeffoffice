@@ -29,6 +29,7 @@
 #include "io/pptximport.h"
 #include "io/presentationfile.h"
 #include "io/zip.h"
+#include "office/chart.h"
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 #include "office/package.h"
@@ -3659,6 +3660,296 @@ private Q_SLOTS:
         QVERIFY(d->pages[0]->notesStoryId != d->pages[1]->notesStoryId);
     }
 
+    // A chart on a slide is a picture of it (an SVG drawn from the values the file stores), in the frame's place, and its parts
+    // (the chart, the workbook behind it, and what they link to) are kept with the slide to be written back.
+    void importReadsChartsAsPictures()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Page &page = *d->pages[0];
+        const auto *pic = chartPicture(*d, page);
+        QVERIFY(pic);
+        QCOMPARE(pic->name, QStringLiteral("Chart 8"));
+        QCOMPARE(pic->altText, QStringLiteral("Sales by region"));
+        QCOMPARE(pic->rect, QRectF(72, 72, 288, 216));
+        QCOMPARE(pic->imgRect, QRectF(0, 0, 288, 216));
+        QVERIFY(d->images.contains(pic->imageId));
+        QCOMPARE(d->images.value(pic->imageId).format, QStringLiteral("svg"));
+        QVERIFY(d->images.value(pic->imageId).bytes.contains("<text"));
+        QVERIFY(d->images.value(pic->imageId).bytes.contains(">East<"));
+        QVERIFY(!d->images.value(pic->imageId).image().isNull());
+        // The frame the unknown kind of frame was kept as is still the only one left unread.
+        QCOMPARE(int(page.props.value(QStringLiteral("unread")).toArray().size()), 1);
+        // What is kept for the picture.
+        const QJsonArray charts = page.props.value(QStringLiteral("charts")).toArray();
+        QCOMPARE(int(charts.size()), 1);
+        const QJsonObject kept = charts[0].toObject();
+        QCOMPARE(kept.value(QStringLiteral("item")).toString(), pic->id);
+        QCOMPARE(kept.value(QStringLiteral("main")).toString(), QStringLiteral("/ppt/charts/chart1.xml"));
+        QDomDocument dom;
+        QString why;
+        QVERIFY2(office::parseXml(kept.value(QStringLiteral("frameXml")).toString().toUtf8(), &dom, &why), qPrintable(why));
+        QVERIFY(office::isElement(dom.documentElement(), office::ns::P, QStringLiteral("graphicFrame")));
+        QVERIFY(office::isChartFrame(dom.documentElement()));
+        const QJsonObject parts = kept.value(QStringLiteral("parts")).toObject();
+        QCOMPARE(parts.keys(), (QStringList{"/ppt/charts/chart1.xml", "/ppt/drawings/drawing1.xml", "/ppt/embeddings/Sheet1.xlsx", "/ppt/media/image1.png", "/ppt/theme/themeOverride1.xml"}));
+        const Parts source = chartPptx();
+        for (auto it = source.data.cbegin(); it != source.data.cend(); ++it) {
+            if (!parts.contains(it.key())) continue;
+            const QJsonObject one = parts.value(it.key()).toObject();
+            QCOMPARE(QByteArray::fromBase64(one.value(QStringLiteral("data")).toString().toLatin1()), it.value().xml);
+            QCOMPARE(one.value(QStringLiteral("type")).toString(), it.value().type);
+        }
+        const QJsonArray rels = parts.value(QStringLiteral("/ppt/charts/chart1.xml")).toObject().value(QStringLiteral("rels")).toArray();
+        QCOMPARE(int(rels.size()), 3);
+        QCOMPARE(rels[0].toObject().value(QStringLiteral("id")).toString(), QStringLiteral("rId1"));
+        QVERIFY(rels[0].toObject().value(QStringLiteral("type")).toString().endsWith(QStringLiteral("/package")));
+        QCOMPARE(rels[0].toObject().value(QStringLiteral("target")).toString(), QStringLiteral("/ppt/embeddings/Sheet1.xlsx"));
+    }
+
+    // A chart that can't be read is kept as the frame it is, like any other frame the reader can't read.
+    void importLeavesACorruptChartUnread()
+    {
+        Parts p = chartPptx();
+        p.data["/ppt/charts/chart1.xml"].xml = "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"/>";
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!chartPicture(*d, *d->pages[0]));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);
+        QVERIFY(!d->pages[0]->props.contains(QStringLiteral("charts")));
+    }
+
+    // Saved, the chart is a frame again, with its parts and links in the package: the chart, its workbook, and what they relate to.
+    void exportWritesTheKeptChartParts()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QVERIFY(!skipped.contains(chartPicture(*d, *d->pages[0])->id));   // the chart is written, not skipped
+        const QString slidePart = QStringLiteral("/ppt/slides/slide1.xml");
+        const QStringList chartParts = relationshipTargets(e, slidePart, QStringLiteral("/chart"));
+        QCOMPARE(int(chartParts.size()), 1);
+        // The frame's r:id is that link.
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(slidePart.mid(1)), &dom);
+        QDomElement chart;
+        for (QDomElement frame : office::children(office::child(office::child(root, office::ns::P, QStringLiteral("cSld")), office::ns::P, QStringLiteral("spTree")), office::ns::P, QStringLiteral("graphicFrame")))
+            if (office::isChartFrame(frame)) chart = frame;
+        QVERIFY(!chart.isNull());
+        const office::Relationship link = e.pkg.relationship(slidePart, office::chartFrameRelId(chart));
+        QCOMPARE(link.target, chartParts[0]);
+        QCOMPARE(e.pkg.contentType(chartParts[0]), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+        // The chart as it was, its workbook and drawing and theme beside it, each reached from the chart as before.
+        const Parts source = chartPptx();
+        QCOMPARE(e.pkg.part(chartParts[0]), source.data.value(QStringLiteral("/ppt/charts/chart1.xml")).xml);
+        const QStringList workbook = relationshipTargets(e, chartParts[0], QStringLiteral("/package"));
+        QCOMPARE(int(workbook.size()), 1);
+        QCOMPARE(e.pkg.part(workbook[0]), source.data.value(QStringLiteral("/ppt/embeddings/Sheet1.xlsx")).xml);
+        QCOMPARE(e.pkg.contentType(workbook[0]), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        const QStringList shapes = relationshipTargets(e, chartParts[0], QStringLiteral("/chartUserShapes"));
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(e.pkg.part(shapes[0]), source.data.value(QStringLiteral("/ppt/drawings/drawing1.xml")).xml);
+        const QStringList pictures = relationshipTargets(e, shapes[0], QStringLiteral("/image"));
+        QCOMPARE(int(pictures.size()), 1);
+        QCOMPARE(e.pkg.part(pictures[0]), tinyPng());
+        QCOMPARE(int(relationshipTargets(e, chartParts[0], QStringLiteral("/themeOverride")).size()), 1);
+        // The chart's own links keep the ids its XML names (externalData r:id="rId1", userShapes r:id="rId2").
+        QCOMPARE(e.pkg.relationship(chartParts[0], QStringLiteral("rId1")).target, workbook[0]);
+        QCOMPARE(e.pkg.relationship(chartParts[0], QStringLiteral("rId2")).target, shapes[0]);
+        // Its place: the frame keeps its shape number, and no other shape on the slide takes it. It stands where the picture does among the shapes.
+        QCOMPARE(chart.firstChildElement().firstChildElement().attribute(QStringLiteral("id")), QStringLiteral("9"));
+        QSet<QString> ids;
+        QStringList all;
+        QVector<QDomElement> stack{root};
+        while (!stack.isEmpty()) {
+            const QDomElement el = stack.takeLast();
+            if (el.localName() == QLatin1String("cNvPr")) {
+                QVERIFY2(!ids.contains(el.attribute(QStringLiteral("id"))), qPrintable(el.attribute(QStringLiteral("id"))));
+                ids << el.attribute(QStringLiteral("id"));
+            }
+            for (QDomElement c = el.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+        }
+        const QString slide = part(e, slidePart);
+        QVERIFY(slide.indexOf(QStringLiteral("name=\"Rectangle 5\"")) < slide.indexOf(QStringLiteral("name=\"Chart 8\"")));
+        // Every part of the package is reached, and the first slide's other frames are as before.
+        QVERIFY(slide.contains(QStringLiteral("Cell &amp; &lt;1&gt;")));
+    }
+
+    // A chart that was moved, resized, or deleted: its frame goes where the picture is, or is not written at all.
+    void exportPlacesAndDropsCharts()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto *pic = const_cast<PictureItem *>(chartPicture(*d, *d->pages[0]));
+        QVERIFY(pic);
+        pic->rect = QRectF(100, 50, 200, 150);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<a:off x=\"1270000\" y=\"635000\"/><a:ext cx=\"2540000\" cy=\"1905000\"/>")), qPrintable(slide.mid(slide.indexOf(QStringLiteral("Chart 8")), 600)));
+        QCOMPARE(int(relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/chart")).size()), 1);
+        // Taken off the slide, its kept parts are not written, and nothing points at them.
+        auto &items = d->pages[0]->items;
+        for (size_t i = 0; i < items.size(); ++i)
+            if (items[i].get() == pic) {
+                items.erase(items.begin() + i);
+                break;
+            }
+        Exported gone;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &gone, &err), qPrintable(err));
+        QVERIFY2(packageProblem(gone).isEmpty(), qPrintable(packageProblem(gone)));
+        QVERIFY(!part(gone, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("drawingml/2006/chart")));
+        for (const QString &name : gone.pkg.partNames()) {
+            QVERIFY2(!name.contains(QStringLiteral("/charts/")), qPrintable(name));
+            QVERIFY2(!name.contains(QStringLiteral("/embeddings/")), qPrintable(name));
+        }
+    }
+
+    // What was saved reads again as it did: the picture of the chart, and its parts, for the next save.
+    void chartsSurviveAnotherRoundTrip()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const auto *pic = chartPicture(*back, *back->pages[0]);
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(72, 72, 288, 216));
+        QCOMPARE(back->images.value(pic->imageId).format, QStringLiteral("svg"));
+        const QJsonObject was = d->pages[0]->props.value(QStringLiteral("charts")).toArray()[0].toObject().value(QStringLiteral("parts")).toObject();
+        const QJsonObject now = back->pages[0]->props.value(QStringLiteral("charts")).toArray()[0].toObject().value(QStringLiteral("parts")).toObject();
+        QCOMPARE(int(now.size()), int(was.size()));
+        // The workbook's bytes come back whole.
+        QByteArray workbook;
+        for (auto it = now.begin(); it != now.end(); ++it)
+            if (it.key().endsWith(QStringLiteral(".xlsx"))) workbook = QByteArray::fromBase64(it.value().toObject().value(QStringLiteral("data")).toString().toLatin1());
+        QCOMPARE(workbook, chartPptx().data.value(QStringLiteral("/ppt/embeddings/Sheet1.xlsx")).xml);
+        // And once more.
+        const QByteArray again = deck::exportPresentation(*back, &err);
+        QVERIFY2(!again.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(again, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+    }
+
+    // The parts a chart keeps are written under names no other part has, and its links keep working whatever their ids were.
+    void exportRenamesChartPartsAndKeepsLinksWorking()
+    {
+        // The chart's links are called R9 and x7 in the file; and a second frame on the slide shows the same chart (its parts are kept for each).
+        QMap<QString, QByteArray> zip;
+        QString err;
+        QVERIFY2(readZip(pack(chartPptx()), zip, &err), qPrintable(err));
+        auto swap = [&](const QString &name, const QString &from, const QString &to) {
+            QString text = QString::fromUtf8(zip.value(name));
+            QVERIFY2(text.contains(from), qPrintable(name + " " + from));
+            zip[name] = text.replace(from, to).toUtf8();
+        };
+        swap(QStringLiteral("ppt/charts/chart1.xml"), QStringLiteral("r:id=\"rId1\""), QStringLiteral("r:id=\"R9\""));
+        swap(QStringLiteral("ppt/charts/chart1.xml"), QStringLiteral("r:id=\"rId2\""), QStringLiteral("r:id=\"x7\""));
+        QString rels = QString::fromUtf8(zip.value(QStringLiteral("ppt/charts/_rels/chart1.xml.rels")));
+        rels.replace(QStringLiteral("Id=\"rId1\""), QStringLiteral("Id=\"R9\"")).replace(QStringLiteral("Id=\"rId2\""), QStringLiteral("Id=\"x7\"")).replace(QStringLiteral("Id=\"rId3\""), QStringLiteral("Id=\"a1\""));
+        zip[QStringLiteral("ppt/charts/_rels/chart1.xml.rels")] = rels.toUtf8();
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        const int at = int(slide.indexOf(QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"9\"")));
+        const int end = int(slide.indexOf(QStringLiteral("</p:graphicFrame>"), at)) + 17;
+        slide.insert(end, QString(slide.mid(at, end - at)).replace(QStringLiteral("id=\"9\""), QStringLiteral("id=\"10\"")).replace(QStringLiteral("Chart 8"), QStringLiteral("Chart 9")));
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto d = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("charts")).toArray().size()), 2);
+
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QStringList charts = relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/chart"));
+        QCOMPARE(int(charts.size()), 2);
+        QVERIFY(charts[0].compare(charts[1], Qt::CaseInsensitive) != 0);
+        for (const QString &chart : charts) {
+            // Its XML names its workbook and its drawing by the ids it has now.
+            const QString xml = QString::fromUtf8(e.pkg.part(chart));
+            const QRegularExpression ext(QStringLiteral("<c:externalData r:id=\"([^\"]*)\""));
+            const QRegularExpression shapes(QStringLiteral("<c:userShapes r:id=\"([^\"]*)\""));
+            QVERIFY2(ext.match(xml).hasMatch(), qPrintable(xml));
+            QVERIFY(shapes.match(xml).hasMatch());
+            const office::Relationship workbook = e.pkg.relationship(chart, ext.match(xml).captured(1)), drawing = e.pkg.relationship(chart, shapes.match(xml).captured(1));
+            QVERIFY(workbook.type.endsWith(QStringLiteral("/package")));
+            QVERIFY(drawing.type.endsWith(QStringLiteral("/chartUserShapes")));
+            QCOMPARE(e.pkg.part(workbook.target), chartPptx().data.value(QStringLiteral("/ppt/embeddings/Sheet1.xlsx")).xml);
+        }
+        // Each frame has its own link, and every part is written once under its own name.
+        QStringList names = e.pkg.partNames();
+        for (QString &n : names) n = n.toLower();
+        QCOMPARE(int(QSet<QString>(names.begin(), names.end()).size()), int(names.size()));
+    }
+
+private:
+    // The sample presentation with a chart on its first slide: a column chart of two series, the workbook it takes its numbers from, a
+    // drawing of shapes laid over it (with a picture of its own), and a theme of its own.
+    static Parts chartPptx()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const QString frame = QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"9\" name=\"Chart 8\" descr=\"Sales by region\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                                             "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"2743200\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">"
+                                             "<c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"rId4\"/></a:graphicData></a:graphic></p:graphicFrame>");
+        xml.replace(QStringLiteral("</p:spTree>"), frame + QStringLiteral("</p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        p.rels << Rel{"/ppt/slides/slide1.xml", "chart", "/ppt/charts/chart1.xml"};
+        auto series = [](int idx, const QString &name, const QString &values) {
+            return QStringLiteral("<c:ser><c:idx val=\"%1\"/><c:order val=\"%1\"/><c:tx><c:strRef><c:f>Sheet1!$B$1</c:f><c:strCache><c:ptCount val=\"1\"/><c:pt idx=\"0\"><c:v>%2</c:v></c:pt></c:strCache></c:strRef></c:tx>"
+                                  "<c:cat><c:strRef><c:f>Sheet1!$A$2:$A$4</c:f><c:strCache><c:ptCount val=\"3\"/><c:pt idx=\"0\"><c:v>East</c:v></c:pt><c:pt idx=\"1\"><c:v>West</c:v></c:pt><c:pt idx=\"2\"><c:v>North</c:v></c:pt></c:strCache></c:strRef></c:cat>"
+                                  "<c:val><c:numRef><c:f>Sheet1!$B$2:$B$4</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val=\"3\"/>%3</c:numCache></c:numRef></c:val></c:ser>")
+                .arg(idx).arg(name, values);
+        };
+        const QString chart = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" "
+                                             "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                                             "<c:chart><c:autoTitleDeleted val=\"1\"/><c:plotArea><c:layout/><c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>")
+                              + series(0, QStringLiteral("Q1"), QStringLiteral("<c:pt idx=\"0\"><c:v>10</c:v></c:pt><c:pt idx=\"1\"><c:v>20</c:v></c:pt><c:pt idx=\"2\"><c:v>40</c:v></c:pt>"))
+                              + series(1, QStringLiteral("Q2"), QStringLiteral("<c:pt idx=\"0\"><c:v>5</c:v></c:pt><c:pt idx=\"1\"><c:v>15</c:v></c:pt><c:pt idx=\"2\"><c:v>25</c:v></c:pt>"))
+                              + QStringLiteral("<c:axId val=\"1\"/><c:axId val=\"2\"/></c:barChart>"
+                                               "<c:catAx><c:axId val=\"1\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/><c:crossAx val=\"2\"/></c:catAx>"
+                                               "<c:valAx><c:axId val=\"2\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:majorGridlines/><c:crossAx val=\"1\"/></c:valAx>"
+                                               "</c:plotArea><c:legend><c:legendPos val=\"b\"/></c:legend><c:plotVisOnly val=\"1\"/></c:chart>"
+                                               "<c:externalData r:id=\"rId1\"><c:autoUpdate val=\"0\"/></c:externalData><c:userShapes r:id=\"rId2\"/></c:chartSpace>");
+        p.data["/ppt/charts/chart1.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"), chart.toUtf8()};
+        p.rels << Rel{"/ppt/charts/chart1.xml", "package", "/ppt/embeddings/Sheet1.xlsx"}
+               << Rel{"/ppt/charts/chart1.xml", "chartUserShapes", "/ppt/drawings/drawing1.xml"}
+               << Rel{"/ppt/charts/chart1.xml", "themeOverride", "/ppt/theme/themeOverride1.xml"};
+        p.data["/ppt/embeddings/Sheet1.xlsx"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), QByteArray("PK\x03\x04 a workbook, as far as this test goes")};
+        p.data["/ppt/drawings/drawing1.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chartshapes+xml"),
+            QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><c:userShapes xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"/>")};
+        p.rels << Rel{"/ppt/drawings/drawing1.xml", "image", "/ppt/media/image1.png"};
+        p.data["/ppt/theme/themeOverride1.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.themeOverride+xml"), themeXml()};
+        return p;
+    }
+    // The picture a chart is on the slide: the one the slide's kept charts name.
+    static const PictureItem *chartPicture(const Document &d, const Page &page)
+    {
+        const QJsonArray charts = page.props.value(QStringLiteral("charts")).toArray();
+        for (const QJsonValue &v : charts) {
+            const Document::Loc at = d.find(v.toObject().value(QStringLiteral("item")).toString());
+            if (at.item && at.item->type() == ItemType::Picture) return static_cast<const PictureItem *>(at.item);
+        }
+        // A chart that was not kept shows as no picture at all: pictures with an SVG of their own and the name the frame had.
+        return nullptr;
+    }
+
+private Q_SLOTS:
     // The theme's colors and fonts are the presentation's, and its part is kept to write back.
     // A transition the file wraps for newer readers names a prefix in
     // Requires; the kept copy declares that prefix where Requires is, or the

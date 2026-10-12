@@ -1,6 +1,7 @@
 #include "io/pptxexport.h"
 
 #include "core/deck.h"
+#include "office/chart.h"
 #include "office/drawingml_table.h"
 #include "office/drawingml_write.h"
 #include "office/package.h"
@@ -16,6 +17,7 @@
 #include <QDomDocument>
 #include <QImage>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QSet>
@@ -357,6 +359,54 @@ QByteArray presentationTheme(const Document &doc, office::Theme *out)
     return office::writeTheme(theme);
 }
 
+// The same XML with the relationship ids in the attributes of the relationships' namespace (r:id, r:embed...) changed as `ids` says, all at once.
+QString withRenumberedLinks(const QString &xml, const QHash<QString, QString> &ids)
+{
+    if (ids.isEmpty()) return xml;
+    // The prefixes the part binds to that namespace.
+    static const QRegularExpression declared(QStringLiteral("xmlns:(\\w+)=\"http://(?:schemas\\.openxmlformats\\.org|purl\\.oclc\\.org/ooxml)/officeDocument/(?:2006/)?relationships\""));
+    QStringList prefixes;
+    for (auto it = declared.globalMatch(xml); it.hasNext();) prefixes << it.next().captured(1);
+    if (prefixes.isEmpty()) return xml;
+    const QRegularExpression attribute(QStringLiteral("\\b(?:%1):\\w+=\"([^\"]*)\"").arg(prefixes.join(QLatin1Char('|'))));
+    QString out;
+    qsizetype from = 0;
+    for (auto it = attribute.globalMatch(xml); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        const auto found = ids.constFind(m.captured(1));
+        if (found == ids.cend()) continue;
+        out += xml.mid(from, m.capturedStart(1) - from) + found.value();
+        from = m.capturedEnd(1);
+    }
+    return out + xml.mid(from);
+}
+
+// A frame's p:xfrm set to a rectangle (points).
+QString withFramePlace(const QString &frame, const QRectF &rect)
+{
+    static const QRegularExpression place(QStringLiteral("(<(\\w+):xfrm\\b[^>]*>)(.*?)(</\\2:xfrm>)"), QRegularExpression::DotMatchesEverythingOption);
+    const QRegularExpressionMatch m = place.match(frame);
+    if (!m.hasMatch()) return frame;
+    static const QRegularExpression offPrefix(QStringLiteral("<(\\w+):off\\b"));
+    const QRegularExpressionMatch a = offPrefix.match(m.captured(3));
+    const QString p = a.hasMatch() ? a.captured(1) : QStringLiteral("a");
+    return frame.left(m.capturedStart(3)) + QStringLiteral("<%1:off x=\"%2\" y=\"%3\"/><%1:ext cx=\"%4\" cy=\"%5\"/>").arg(p, emu(rect.x()), emu(rect.y()), emu(std::max(0.0, rect.width())), emu(std::max(0.0, rect.height()))) + frame.mid(m.capturedEnd(3));
+}
+
+// A frame's name and alternative text (on its p:cNvPr) set to those of the item that stands for it.
+QString withFrameNames(const QString &frame, const QString &name, const QString &descr)
+{
+    static const QRegularExpression tag(QStringLiteral("<(\\w+):cNvPr\\b([^>]*?)(/?>)"));
+    const QRegularExpressionMatch m = tag.match(frame);
+    if (!m.hasMatch()) return frame;
+    static const QRegularExpression named(QStringLiteral("\\s(?:name|descr)=\"[^\"]*\""));
+    QString attrs = m.captured(2);
+    attrs.remove(named);
+    attrs += QStringLiteral(" name=\"%1\"").arg(esc(name));
+    if (!descr.isEmpty()) attrs += QStringLiteral(" descr=\"%1\"").arg(esc(descr));
+    return frame.left(m.capturedStart()) + QStringLiteral("<%1:cNvPr%2%3").arg(m.captured(1), attrs, m.captured(3)) + frame.mid(m.capturedEnd());
+}
+
 class Exporter {
 public:
     Exporter(const Document &doc, PresentationKind kind, QStringList *skipped) : m_doc(doc), m_kind(kind), m_callerSkipped(skipped) {}
@@ -386,6 +436,8 @@ private:
     office::DrawingWriteContext context(const QString &part);
     QString tree(const PageBase &page, const QString &part, const QString &where, QSet<qint64> *frameIds, QSet<qint64> *mediaIds = nullptr);
     QString keptFrame(const QString &xml, const QString &where);
+    QString chartFrame(const QJsonObject &kept, const Item &item, const QString &slidePart, const QString &where);
+    QString keptPartName(const QString &original);
     QString keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds,
                          const QSet<qint64> &mediaIds);
     QString background(const PageBase &page, const QString &part, bool required, const QString &where);
@@ -418,6 +470,7 @@ private:
     office::Theme m_theme;                       // the presentation's, for drawings
     QByteArray m_themeXml;
     QString m_notesThemePart;
+    QSet<QString> m_keptNames;                   // the names of kept chart parts written so far, lower-cased
     QByteArray m_thumbnail;
     QSizeF m_notesSize{kNotesWidth / 12700.0, kNotesHeight / 12700.0};
 };
@@ -619,6 +672,81 @@ QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString
     return xml;
 }
 
+// A part name for a kept chart part: the one it had when that is free and in a folder only charts write to, else a free one in the charts' folder.
+QString Exporter::keptPartName(const QString &original)
+{
+    const QString lower = original.toLower();
+    const bool own = lower.startsWith(QLatin1String("/ppt/charts/")) || lower.startsWith(QLatin1String("/ppt/embeddings/")) || lower.startsWith(QLatin1String("/ppt/drawings/"))
+                     || lower.startsWith(QLatin1String("/ppt/theme/themeoverride"));
+    const QString file = original.mid(original.lastIndexOf(QLatin1Char('/')) + 1);
+    const QString name = own ? original : QStringLiteral("/ppt/charts/") + file;
+    if (!m_keptNames.contains(name.toLower())) {
+        m_keptNames.insert(name.toLower());
+        return name;
+    }
+    // Another chart has it: the same name with the next number.
+    const QString dir = name.left(name.lastIndexOf(QLatin1Char('/')) + 1);
+    const int dot = int(file.lastIndexOf(QLatin1Char('.')));
+    QString stem = dot < 0 ? file : file.left(dot);
+    const QString extension = dot < 0 ? QString() : file.mid(dot);
+    while (!stem.isEmpty() && stem.back().isDigit()) stem.chop(1);
+    for (int n = 1;; ++n) {
+        const QString candidate = dir + stem + QString::number(n) + extension;
+        if (m_keptNames.contains(candidate.toLower())) continue;
+        m_keptNames.insert(candidate.toLower());
+        return candidate;
+    }
+}
+
+// The frame for a picture that stands for a chart, and the chart's parts in the package: what the reader kept, under names that are free, linked
+// as they were, with the frame placed where the picture is. Empty, with a note, if what was kept can't be written.
+QString Exporter::chartFrame(const QJsonObject &kept, const Item &item, const QString &slidePart, const QString &where)
+{
+    const QJsonObject parts = kept.value(QStringLiteral("parts")).toObject();
+    const QString main = kept.value(QStringLiteral("main")).toString();
+    QString frame = kept.value(QStringLiteral("frameXml")).toString();
+    QDomDocument dom;
+    bool sound = parts.contains(main) && parsesAlone(frame, &dom) && office::isChartFrame(dom.documentElement());
+    for (auto it = parts.begin(); sound && it != parts.end(); ++it) {
+        const QJsonObject part = it.value().toObject();
+        for (const QJsonValue &link : part.value(QStringLiteral("rels")).toArray())
+            if (!link.toObject().value(QStringLiteral("external")).toBool() && !parts.contains(link.toObject().value(QStringLiteral("target")).toString())) sound = false;
+    }
+    if (!sound) {
+        note(say("%1: a chart's parts can't be written, so it was left out.").arg(where));
+        return QString();
+    }
+    QHash<QString, QString> names;
+    for (const QString &key : parts.keys()) names.insert(key, keptPartName(key));
+    for (const QString &key : parts.keys()) {
+        const QJsonObject part = parts.value(key).toObject();
+        const QString name = names.value(key);
+        QByteArray data = QByteArray::fromBase64(part.value(QStringLiteral("data")).toString().toLatin1());
+        // Its links, in the order of their ids so that they keep them (rId1, rId2...); any that don't are changed in the part.
+        QVector<QJsonObject> links;
+        for (const QJsonValue &link : part.value(QStringLiteral("rels")).toArray()) links << link.toObject();
+        auto number = [](const QJsonObject &l) { return l.value(QStringLiteral("id")).toString().mid(3).toLongLong(); };
+        std::stable_sort(links.begin(), links.end(), [&](const QJsonObject &a, const QJsonObject &b) { return number(a) < number(b); });
+        QHash<QString, QString> renumbered;
+        for (const QJsonObject &link : std::as_const(links)) {
+            const bool external = link.value(QStringLiteral("external")).toBool();
+            const QString target = link.value(QStringLiteral("target")).toString();
+            const QString id = m_pkg.addRelationship(name, link.value(QStringLiteral("type")).toString(), external ? target : names.value(target), external);
+            const QString was = link.value(QStringLiteral("id")).toString();
+            if (id != was) renumbered.insert(was, id);
+        }
+        if (!renumbered.isEmpty()) data = withRenumberedLinks(QString::fromUtf8(data), renumbered).toUtf8();
+        const QString type = part.value(QStringLiteral("type")).toString();
+        m_pkg.addPart(name, data, type.isEmpty() ? QStringLiteral("application/octet-stream") : type);
+    }
+    // The slide's link to the chart, which the frame names, and the frame where the picture is.
+    const QString id = m_pkg.addRelationship(slidePart, kRelBase + QStringLiteral("chart"), names.value(main));
+    static const QRegularExpression chartTag(QStringLiteral("(<(\\w+):chart\\b[^>]*?\\b\\w+:id=\")[^\"]*(\")"));
+    frame.replace(chartTag, QStringLiteral("\\1") + id + QStringLiteral("\\3"));
+    frame = withFramePlace(frame, item.rect);
+    return withFrameNames(frame, item.name, item.altText);
+}
+
 QString Exporter::tree(const PageBase &page, const QString &part, const QString &where, QSet<qint64> *frameIds, QSet<qint64> *mediaIds)
 {
     // The frames to write back first: their shape numbers are theirs, and the shapes are numbered above them.
@@ -626,16 +754,30 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
     QSet<qint64> frameNumbers;
     qint64 highest = 1;
     static const QRegularExpression numbers(QStringLiteral("<\\w+:cNvPr\\b[^>]*?\\bid=\"(\\d+)\""));
-    for (const QJsonValue &v : page.props.value(QStringLiteral("unread")).toArray()) {
-        const QString xml = keptFrame(v.toObject().value(QStringLiteral("xml")).toString(), where);
-        if (xml.isEmpty()) continue;
-        frames << xml;
+    auto take = [&](const QString &xml) {
         for (auto it = numbers.globalMatch(xml); it.hasNext();) {
             const qint64 n = it.next().captured(1).toLongLong();
             highest = std::max(highest, n);
             frameNumbers.insert(n);
             if (frameIds) frameIds->insert(n);
         }
+    };
+    for (const QJsonValue &v : page.props.value(QStringLiteral("unread")).toArray()) {
+        const QString xml = keptFrame(v.toObject().value(QStringLiteral("xml")).toString(), where);
+        if (xml.isEmpty()) continue;
+        frames << xml;
+        take(xml);
+    }
+    // The charts: each picture the reader made of one that is still on the page is written as the chart's frame, in its place among the shapes.
+    QHash<QString, QJsonObject> charts;
+    for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray()) charts.insert(v.toObject().value(QStringLiteral("item")).toString(), v.toObject());
+    QHash<QString, QString> chartFrames;
+    for (const ItemPtr &it : page.items) {
+        if (it->type() != ItemType::Picture || !charts.contains(it->id)) continue;
+        const QString xml = chartFrame(charts.value(it->id), *it, part, where);
+        if (xml.isEmpty()) continue;
+        chartFrames.insert(it->id, xml);
+        take(xml);
     }
     office::DrawingWriteContext ctx = context(part);
     ctx.nextShapeId = int(std::min<qint64>(highest + 1, 2000000000));
@@ -644,26 +786,41 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
     for (const qint64 n : std::as_const(frameNumbers))
         if (n <= INT_MAX) ctx.usedIds.insert(int(n));
     walkItems(page.items, [&](const ItemPtr &it) {
-        if (it->sourceId >= 2) ctx.reservedIds.insert(it->sourceId);
+        if (it->sourceId >= 2 && !chartFrames.contains(it->id)) ctx.reservedIds.insert(it->sourceId);
     });
-    office::assignShapeIds(page.items, ctx);
+    // A picture that stands for a chart is written as the chart's frame, with the frame's number.
+    ItemList drawn;
+    for (const ItemPtr &it : page.items)
+        if (!chartFrames.contains(it->id)) drawn.push_back(it);
+    office::assignShapeIds(drawn, ctx);
     QStringList left;
-    const QByteArray shapes = fragment([&](QXmlStreamWriter &w) {
-        for (const ItemPtr &it : page.items) {
-            // A table keeps the style it names (writeTable); the drawing writer's own form has none.
-            if (it->type() == ItemType::Table) office::writeTable(w, static_cast<const TableItem &>(*it), ctx);
-            else office::writeShape(w, *it, ctx, &left);
-        }
-    });
+    auto write = [&](const ItemList &list, size_t from, size_t to) {
+        return QString::fromUtf8(fragment([&](QXmlStreamWriter &w) {
+            for (size_t i = from; i < to; ++i) {
+                const ItemPtr &it = list[i];
+                // A table keeps the style it names (writeTable); the drawing writer's own form has none.
+                if (it->type() == ItemType::Table) office::writeTable(w, static_cast<const TableItem &>(*it), ctx);
+                else office::writeShape(w, *it, ctx, &left);
+            }
+        }));
+    };
+    QString shapes;
+    size_t from = 0;
+    for (size_t i = 0; i < page.items.size(); ++i) {
+        if (!chartFrames.contains(page.items[i]->id)) continue;
+        shapes += write(page.items, from, i) + chartFrames.value(page.items[i]->id);
+        from = i + 1;
+    }
+    shapes += write(page.items, from, page.items.size());
     for (const QString &text : std::as_const(left)) note(QStringLiteral("%1: %2").arg(where, text));
     // A shape written with the number it came with is still what an animation aims at.
     if (frameIds)
-        walkItems(page.items, [&](const ItemPtr &it) {
+        walkItems(drawn, [&](const ItemPtr &it) {
             if (it->sourceId >= 2 && ctx.shapeIds.value(it->id) == it->sourceId) frameIds->insert(it->sourceId);
         });
     // The pictures written with the movie or sound they play.
     if (mediaIds)
-        walkItems(page.items, [&](const ItemPtr &it) {
+        walkItems(drawn, [&](const ItemPtr &it) {
             if (it->type() != ItemType::Picture || !ctx.shapeIds.contains(it->id)) return;
             const auto &p = static_cast<const PictureItem &>(*it);
             if (!p.imageId.isEmpty() && !p.mediaKind.isEmpty() && (m_doc.media.contains(p.mediaId) || !p.mediaLink.isEmpty()))
@@ -671,7 +828,7 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
         });
     return QStringLiteral("<p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
                           "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>")
-           + QString::fromUtf8(shapes) + frames.join(QString()) + QStringLiteral("</p:spTree>");
+           + shapes + frames.join(QString()) + QStringLiteral("</p:spTree>");
 }
 
 // The background of a page: its fill, or (a master has to have one) the theme's first.
