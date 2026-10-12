@@ -10017,9 +10017,9 @@ private Q_SLOTS:
         Parts p = samplePptx();
         QString shapes;
         const QString shape = QStringLiteral("<p:sp/>");
-        for (int i = 0; i < 70000; ++i) shapes += shape;
+        for (int i = 0; i < 5000; ++i) shapes += shape;
         QString ids;
-        for (int s = 1; s <= 3; ++s) {
+        for (int s = 1; s <= 45; ++s) {
             const QString name = QStringLiteral("/ppt/slides/many%1.xml").arg(s);
             p.data[name] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"), slideXml(QString(), QString(), shapes).toUtf8()};
             p.rels << Rel{"/ppt/presentation.xml", "slide", name} << Rel{name, "slideLayout", "/ppt/slideLayouts/slideLayout2.xml"};
@@ -10031,13 +10031,47 @@ private Q_SLOTS:
         QString err;
         auto d = deck::importPresentation(pack(p), &err);
         QVERIFY(d);
-        QCOMPARE(int(d->pages.size()), 3);
+        QCOMPARE(int(d->pages.size()), 45);
         // The layouts' and the master's objects are the file's too.
         qsizetype items = 0;
         for (const auto &page : d->pages) items += page->items.size();
         for (const auto &master : d->masters) items += master->items.size();
         QCOMPARE(int(items), 200000);
         QVERIFY2(err.contains(QStringLiteral("200000")), qPrintable(err));
+    }
+
+    // One slide is read to what a slide can show in a moment, whatever the
+    // file has left: 5,000 objects, 1,000 shapes with text, and 100,000
+    // letters (real slides hold under 50 objects and a few thousand letters).
+    void importHoldsEachSlideToWhatOneCanShow()
+    {
+        Parts p = samplePptx();
+        QString plain, texts, few;
+        for (int i = 0; i < 6000; ++i) plain += QStringLiteral("<p:sp/>");
+        for (int i = 0; i < 1200; ++i)
+            texts += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"t\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr/>"
+                                    "<p:txBody><a:bodyPr/><a:p><a:r><a:t>x</a:t></a:r></a:p></p:txBody></p:sp>").arg(i + 10);
+        for (int i = 0; i < 10; ++i) few += QStringLiteral("<p:sp/>");
+        QString ids;
+        int s = 0;
+        for (const QString &tree : {plain, texts, few}) {
+            ++s;
+            const QString name = QStringLiteral("/ppt/slides/dense%1.xml").arg(s);
+            p.data[name] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"), slideXml(QString(), QString(), tree).toUtf8()};
+            p.rels << Rel{"/ppt/presentation.xml", "slide", name} << Rel{name, "slideLayout", "/ppt/slideLayouts/slideLayout2.xml"};
+            ids += QStringLiteral("<p:sldId id=\"%1\" r:id=\"rId%2\"/>").arg(300 + s).arg(4 + s);
+        }
+        QString xml = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+        xml.replace(QRegularExpression(QStringLiteral("<p:sldIdLst>.*</p:sldIdLst>")), QStringLiteral("<p:sldIdLst>") + ids + QStringLiteral("</p:sldIdLst>"));
+        p.data["/ppt/presentation.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY(d);
+        QCOMPARE(int(d->pages.size()), 3);
+        QCOMPARE(int(d->pages[0]->items.size()), 5000);
+        QCOMPARE(int(d->pages[1]->items.size()), 1000);
+        QCOMPARE(int(d->pages[2]->items.size()), 10);
+        QVERIFY2(err.contains(QStringLiteral("A slide is read to")), qPrintable(err));
     }
 
     // A comment's time zone is held to a day either side of UTC, and a huge one doesn't overflow the seconds it is added as.
@@ -10086,14 +10120,15 @@ private Q_SLOTS:
         }
     }
 
-    // A slide's placeholders find their layout's by lookup, not by going over all of the layout's for each of the slide's.
+    // A slide's placeholders find their layout's by lookup, not by going over all of the layout's for each of the slide's
+    // (at the most a page keeps: 1,000 shapes with text against 5,000 objects).
     void importMatchesPlaceholdersByLookup()
     {
         Parts p = samplePptx();
         QString layoutShapes, slideShapes;
-        for (int i = 0; i < 20000; ++i)
-            layoutShapes += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"P\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"pic\" idx=\"%1\"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>").arg(i + 10);
         for (int i = 0; i < 5000; ++i)
+            layoutShapes += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"P\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"pic\" idx=\"%1\"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>").arg(i + 10);
+        for (int i = 0; i < 1000; ++i)
             slideShapes += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"Q\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"x%1\" idx=\"%2\"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>").arg(i + 2).arg(500000 + i);
         p.data["/ppt/slideLayouts/slideLayout2.xml"].xml = layoutXml(QStringLiteral("obj"), QStringLiteral("Wide"), QString(), layoutShapes).toUtf8();
         p.data["/ppt/slides/slide1.xml"].xml = slideXml(QString(), QString(), slideShapes).toUtf8();
@@ -10103,7 +10138,7 @@ private Q_SLOTS:
         auto d = deck::importPresentation(pack(p), &err);
         const qint64 ms = timer.elapsed();
         QVERIFY(d);
-        QVERIFY2(!d->pages.empty() && d->pages[0]->items.size() == 5000, qPrintable(err));
+        QVERIFY2(!d->pages.empty() && d->pages[0]->items.size() == 1000, qPrintable(err));
         QVERIFY2(ms < 6000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
     }
 
