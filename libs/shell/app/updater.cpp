@@ -81,6 +81,16 @@ bool Updater::checksOnStartup()
     return Settings::get().value(QStringLiteral("updates/auto"), true).toBool();
 }
 
+bool Updater::betaChannel()
+{
+    return Settings::get().value(QStringLiteral("updates/channel"), QStringLiteral("stable")).toString() == QLatin1String("beta");
+}
+
+void Updater::setBetaChannel(bool beta)
+{
+    Settings::get().setValue(QStringLiteral("updates/channel"), beta ? QStringLiteral("beta") : QStringLiteral("stable"));
+}
+
 void Updater::checkOnStartup()
 {
     // Every launch, once the window is up (a skipped version stays quiet).
@@ -109,7 +119,7 @@ void Updater::check(bool interactive)
         const QJsonArray releases = QJsonDocument::fromJson(r->readAll()).array();
         // The newest release is offered, with the notes of every release
         // since the one running (newest first).
-        const QVector<QJsonObject> newer = newerReleases(releases, QStringLiteral(JP_VERSION));
+        const QVector<QJsonObject> newer = newerReleases(releases, QStringLiteral(JP_VERSION), betaChannel());
         const QJsonObject newest = newer.value(0);
         if (!newest.isEmpty() && !interactive && Settings::get().value(QStringLiteral("updates/skip")).toString() == newest.value("tag_name").toString())
             return;
@@ -136,12 +146,12 @@ void Updater::check(bool interactive)
     });
 }
 
-QVector<QJsonObject> Updater::newerReleases(const QJsonArray &releases, const QString &current)
+QVector<QJsonObject> Updater::newerReleases(const QJsonArray &releases, const QString &current, bool beta)
 {
     QVector<QJsonObject> out;
     for (const QJsonValue &v : releases) {
         const QJsonObject rel = v.toObject();
-        if (!rel.value("draft").toBool() && isNewer(rel.value("tag_name").toString(), current)) out << rel;
+        if (!rel.value("draft").toBool() && (beta || !rel.value("prerelease").toBool()) && isNewer(rel.value("tag_name").toString(), current)) out << rel;
     }
     std::stable_sort(out.begin(), out.end(), [](const QJsonObject &a, const QJsonObject &b) {
         return isNewer(a.value("tag_name").toString(), b.value("tag_name").toString());

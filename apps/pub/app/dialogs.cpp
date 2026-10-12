@@ -8,6 +8,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/settings.h"
+#include "app/updater.h"
 #include "app/widgets.h"
 #include "core/presets.h"
 #include "io/importers.h"
@@ -2283,6 +2284,16 @@ void optionsDialog(QWidget *p, Editor *ed)
     updates->setObjectName(QStringLiteral("updates"));
     updates->setChecked(st.value("updates/auto", true).toBool());
     gf->addRow(updates);
+    // Beta versions are the test builds published ahead of each regular release.
+    auto *beta = new QCheckBox(QCoreApplication::translate("Dialogs", "Get beta versions (early builds for testing)"), gen);
+    beta->setObjectName(QStringLiteral("betaUpdates"));
+    const QString betaAbout = QCoreApplication::translate("Dialogs", "Beta versions arrive before the regular ones and may have rough edges. "
+                                                                    "Leave this off to get only the regular versions.");
+    beta->setToolTip(betaAbout);
+    beta->setWhatsThis(betaAbout);
+    beta->setAccessibleDescription(betaAbout);
+    beta->setChecked(Updater::betaChannel());
+    gf->addRow(beta);
     tabs->addTab(gen, QCoreApplication::translate("Dialogs", "General"));
     auto *proof = new QWidget();
     auto *pf = new QFormLayout(proof);
@@ -2364,6 +2375,7 @@ void optionsDialog(QWidget *p, Editor *ed)
     st.setValue("edit/hyphenate", hyphenate->isChecked());
     if (stats->isChecked() != telemetry::enabled()) telemetry::setEnabled(stats->isChecked());
     st.setValue("updates/auto", updates->isChecked());
+    Updater::setBetaChannel(beta->isChecked());
     ed->setView([&](ViewOptions &v) { v.spelling = asType->isChecked(); });
     // Every open window saves AutoRecover copies at the new interval.
     for (QWidget *w : QApplication::topLevelWidgets())
