@@ -35,17 +35,13 @@ namespace jp {
 
 namespace {
 
+// The endings JeffDeck writes. A file with another (an open document
+// presentation, an old binary one) is read, never written over: it is saved
+// under a new name.
 bool isKnownEnding(const QString &path)
 {
     const QString suffix = QFileInfo(path).suffix().toLower();
     return suffix == QLatin1String("pptx") || suffix == QLatin1String("potx") || suffix == QLatin1String("ppsx");
-}
-
-// An open document presentation is read, never written over: it is saved as a new .pptx.
-bool isOpenDocumentEnding(const QString &path)
-{
-    const QString suffix = QFileInfo(path).suffix().toLower();
-    return suffix == QLatin1String("odp") || suffix == QLatin1String("otp");
 }
 
 } // namespace
@@ -77,9 +73,9 @@ bool DeckWindow::save()
     const QString path = m_ed->filePath();
     // A presentation opened from a template is saved as a new presentation:
     // the template stays as it is, unless this window wrote it. So is one
-    // opened from an open document file, which is never written over.
+    // opened from a file of a kind JeffDeck doesn't write.
     const bool isTemplate = deck::kindOfFileName(path) == deck::PresentationKind::Template && path != m_templatePath;
-    if (path.isEmpty() || isTemplate || isOpenDocumentEnding(path)) return saveAs();
+    if (path.isEmpty() || isTemplate || !isKnownEnding(path)) return saveAs();
     return saveTo(path);
 }
 

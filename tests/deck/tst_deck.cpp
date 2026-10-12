@@ -2256,6 +2256,35 @@ private Q_SLOTS:
         QVERIFY(!d->pages[0]->props.contains(QStringLiteral("transition")));
     }
 
+    // An old binary presentation (.ppt, a show .pps, a template .pot) is
+    // read, never written over: Save asks for a new name, suggesting the
+    // newer kind beside it, and the old file stays as it was.
+    void oldBinaryFilesAreSavedUnderANewName()
+    {
+        QTemporaryDir dir;
+        const QByteArray bytes = buildPpt();
+        for (const auto &[ending, suggestedEnding] : {std::pair{"ppt", "pptx"}, std::pair{"pps", "ppsx"}, std::pair{"pot", "pptx"}}) {
+            const QString path = dir.filePath(QStringLiteral("old.") + QLatin1String(ending));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(bytes);
+            f.close();
+            DeckWindow w;
+            QVERIFY(w.openFile(path));
+            w.newSlide();
+            QStringList asked;
+            w.setSavePathChooser([&](const QString &suggested, const QString &) {
+                asked << suggested;
+                return QString();
+            });
+            QVERIFY(!w.save());
+            QCOMPARE(asked, QStringList{dir.filePath(QStringLiteral("old.") + QLatin1String(suggestedEnding))});
+            QCOMPARE(fileBytes(path), bytes);
+            w.editor()->markSaved();
+            Settings::get().removeRecentFile(path);
+        }
+    }
+
     // Files that can't be read say why: protected with a password, cut short,
     // edits that go round in a circle, no record of who edited last.
     void binaryPresentationRefusesDamagedFiles()
