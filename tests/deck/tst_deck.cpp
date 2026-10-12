@@ -79,6 +79,7 @@
 #include <QToolButton>
 #include <QUrl>
 #include <QXmlStreamWriter>
+#include <functional>
 
 using namespace jp;
 
@@ -2594,6 +2595,75 @@ private Q_SLOTS:
             }
             qInfo().noquote() << QStringLiteral("SHOWTIMES %1x%2:").arg(size.width()).arg(size.height()) << line.join(QStringLiteral(", "));
         }
+    }
+
+    // A slide's page props "timingXml" and the shapes it animates need a
+    // number each (the file's): the slide's title is 2 and its body 3.
+    static void numberShowShapes(Page &slide)
+    {
+        slide.items[0]->sourceId = 2;
+        slide.items[1]->sourceId = 3;
+    }
+
+    // A slide painted with the page's hooks, or without: a picture the size of the slide.
+    static QImage paintedSlide(Document *d, LayoutCache *cache, int slide, const std::function<void(PaintContext &)> &hook = nullptr)
+    {
+        QImage img(QSize(960, 540), QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::TextAntialiasing);
+        PaintContext ctx;
+        ctx.doc = d;
+        ctx.cache = cache;
+        if (hook) hook(ctx);
+        Renderer::paintPage(&p, ctx, slide);
+        p.end();
+        return img;
+    }
+
+    // The hooks on painting a page (the show's animations) change nothing
+    // while they are unset or only pass the drawing on; set, they are called
+    // for the page's own objects (not the master's, and not a group's
+    // children) and for the text of each object that has some.
+    void rendererHooksChangeNothingUnset()
+    {
+        auto d = showDeck(2);
+        Page &slide = *d->pages[0];
+        auto inner = std::make_shared<ShapeItem>();
+        inner->rect = QRectF(300, 380, 120, 80);
+        inner->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+        auto group = std::make_shared<GroupItem>();
+        group->children.push_back(inner);
+        group->syncRect();
+        slide.items.push_back(group);
+        LayoutCache cache;
+        const QImage plain = paintedSlide(d.get(), &cache, 0);
+        QVERIFY(plain != paintedSlide(d.get(), &cache, 1));
+        // Passed on, the page is the same picture.
+        int arounds = 0, texts = 0;
+        const QImage passed = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) {
+            ctx.around = [&](QPainter *p, const Item &, const std::function<void(QPainter *)> &draw) {
+                ++arounds;
+                draw(p);
+            };
+            ctx.aroundText = [&](QPainter *p, const Item &, const StoryLayout &, int, const std::function<void(QPainter *)> &paintText) {
+                ++texts;
+                paintText(p);
+            };
+        });
+        QCOMPARE(passed, plain);
+        QCOMPARE(arounds, int(slide.items.size()));
+        QVERIFY(texts >= 2);   // the title and the body; the group's shape has no text
+        // Not passed on, the object is not drawn.
+        const QImage without = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) {
+            ctx.around = [&](QPainter *p, const Item &it, const std::function<void(QPainter *)> &draw) {
+                if (&it != group.get()) draw(p);
+            };
+        });
+        QVERIFY(without != plain);
+        slide.items.pop_back();
+        QCOMPARE(without, paintedSlide(d.get(), &cache, 0));
     }
 
     // The window: the ribbon builds from its file with nothing missing, and
