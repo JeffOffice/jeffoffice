@@ -453,11 +453,22 @@
       "keytip": "G",
       "groups": [
         {
+          "name": "Themes",
+          "keytip": "ZH",
+          "items": [
+            {
+              "widget": "themeGallery",
+              "keytip": "TH"
+            }
+          ]
+        },
+        {
           "name": "Variants",
           "keytip": "ZV",
           "items": [
             {
-              "widget": "themeColors"
+              "widget": "themeVariants",
+              "keytip": "VA"
             }
           ]
         },
