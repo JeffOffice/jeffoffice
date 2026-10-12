@@ -622,68 +622,113 @@ ParaLook levelLook(const QTextDocument *story, int level, int *past)
 
 constexpr double kLevelPoints = 36;   // a level the layout has no paragraph for is indented this much further
 
-// Paragraph `number` of a story goes to `level`, as the layout's paragraph `now` for it says (`was` is the one of the level it leaves): the list,
-// the indent, and, where they were as `was` said, the spacing and the looks of its text.
-void putOnLevel(QTextDocument *sd, int number, const ParaLook &was, const ParaLook &now, int level, int past)
+// Whether a paragraph is set as `was` says (a layout's paragraph): the same list, indent, and spacing.
+bool sameList(const QTextListFormat &a, const QTextListFormat &b)
+{
+    return a.style() == b.style() && a.indent() == b.indent() && a.numberPrefix() == b.numberPrefix() && a.numberSuffix() == b.numberSuffix() && a.start() == b.start()
+           && a.intProperty(tp::ListLevel) == b.intProperty(tp::ListLevel) && a.stringProperty(tp::BulletChar) == b.stringProperty(tp::BulletChar)
+           && a.stringProperty(tp::BulletFont) == b.stringProperty(tp::BulletFont) && a.stringProperty(tp::BulletColor) == b.stringProperty(tp::BulletColor)
+           && a.property(tp::BulletSize).toDouble() == b.property(tp::BulletSize).toDouble() && a.intProperty(tp::NumberFormat) == b.intProperty(tp::NumberFormat);
+}
+
+bool blockFollows(const QTextBlock &b, const ParaLook &was)
+{
+    const QTextBlockFormat bf = b.blockFormat();
+    for (int prop : {int(QTextFormat::BlockLeftMargin), int(QTextFormat::TextIndent), int(QTextFormat::BlockIndent), int(QTextFormat::BlockTopMargin),
+                     int(QTextFormat::BlockBottomMargin), int(QTextFormat::LineHeight), int(QTextFormat::LineHeightType), int(tp::ListLevel)}) {
+        const bool has = bf.hasProperty(prop);
+        if (has != was.block.hasProperty(prop) || (has && bf.property(prop) != was.block.property(prop))) return false;
+    }
+    const QTextList *list = b.textList();
+    if ((list != nullptr) != was.listed) return false;
+    return !list || sameList(list->format(), was.list);
+}
+
+using Rest = std::function<bool(QTextCharFormat &, const Following &)>;
+
+// Paragraph `number` of a story takes the look of the layout's paragraph `now` for `level` (`past` levels short of it) where it had `was`'s: its
+// text (with `rest` called on what didn't follow), and, when `take` says so (it is set as `was` says, or it has moved to the level), its list, indent,
+// and spacing; with `alignment`, its alignment where that was `was`'s. The indent is the level's, the spacing the layout's where it was.
+void restyleParagraph(QTextDocument *sd, int number, const ParaLook &was, const ParaLook &now, int level, int past, bool take, bool alignment, const Rest &rest)
 {
     const QTextBlock b = sd->findBlockByNumber(number);
+    const bool both = was.valid && now.valid;
     struct Run {
         int from, to;
         QTextCharFormat format;
     };
     QVector<Run> runs;
+    auto restyle = [&](QTextCharFormat &cf) {
+        const QTextCharFormat before = cf;
+        const Following followed = both ? followLook(cf, was.chars, now.chars) : Following();
+        if (rest) rest(cf, followed);
+        return cf != before;
+    };
     for (auto it = b.begin(); !it.atEnd(); ++it) {
         QTextCharFormat cf = it.fragment().charFormat();
-        const QTextCharFormat before = cf;
-        followLook(cf, was.chars, now.chars);
-        if (cf != before) runs << Run{it.fragment().position(), it.fragment().position() + it.fragment().length(), cf};
+        if (restyle(cf)) runs << Run{it.fragment().position(), it.fragment().position() + it.fragment().length(), cf};
     }
     QTextCursor c(b);
     QTextCharFormat chars = c.blockCharFormat();
-    followLook(chars, was.chars, now.chars);
-    if (QTextList *list = b.textList()) list->remove(b);
-    QTextBlockFormat bf = c.blockFormat();
-    bf.clearProperty(QTextFormat::ObjectIndex);
-    // The indent is the level's; the spacing is the layout's where it was.
-    bf.setLeftMargin(now.block.leftMargin() + past * kLevelPoints);
-    bf.setTextIndent(now.block.textIndent());
-    bf.setIndent(now.block.indent());
-    for (int prop : {int(QTextFormat::BlockTopMargin), int(QTextFormat::BlockBottomMargin), int(QTextFormat::LineHeight), int(QTextFormat::LineHeightType)}) {
-        const bool has = bf.hasProperty(prop);
-        if (has != was.block.hasProperty(prop) || (has && bf.property(prop) != was.block.property(prop))) continue;
-        if (now.block.hasProperty(prop)) bf.setProperty(prop, now.block.property(prop));
-        else bf.clearProperty(prop);
-    }
-    if (level > 0) bf.setProperty(tp::ListLevel, level);
-    else bf.clearProperty(tp::ListLevel);
-    c.setBlockFormat(bf);
-    c.setBlockCharFormat(chars);
-    if (now.listed) {
-        QTextListFormat lf = now.list;
-        if (past > 0) lf.setProperty(tp::ListLevel, level);
-        // Numbers go on in the list of that level just above, if there is one.
-        QTextList *join = nullptr;
-        if (!isBulletList(lf.style()) && lf.style() != QTextListFormat::ListStyleUndefined) {
-            for (QTextBlock p = b.previous(); p.isValid(); p = p.previous()) {
-                QTextList *above = p.textList();
-                if (!above) break;
-                const int aboveLevel = above->format().intProperty(tp::ListLevel);
-                if (aboveLevel == level && above->format().style() == lf.style()) {
-                    join = above;
-                    break;
-                }
-                if (aboveLevel < level) break;
-            }
+    const bool charsChanged = restyle(chars);
+    if (take && both) {
+        if (QTextList *list = b.textList()) list->remove(b);
+        QTextBlockFormat bf = c.blockFormat();
+        bf.clearProperty(QTextFormat::ObjectIndex);
+        for (int prop : {int(QTextFormat::BlockLeftMargin), int(QTextFormat::TextIndent), int(QTextFormat::BlockIndent)}) {
+            if (now.block.hasProperty(prop)) bf.setProperty(prop, now.block.property(prop));
+            else bf.clearProperty(prop);
         }
-        if (join) join->add(b);
-        else c.createList(lf);
+        if (past > 0) bf.setLeftMargin(bf.leftMargin() + past * kLevelPoints);
+        for (int prop : {int(QTextFormat::BlockTopMargin), int(QTextFormat::BlockBottomMargin), int(QTextFormat::LineHeight), int(QTextFormat::LineHeightType)}) {
+            const bool has = bf.hasProperty(prop);
+            if (has != was.block.hasProperty(prop) || (has && bf.property(prop) != was.block.property(prop))) continue;
+            if (now.block.hasProperty(prop)) bf.setProperty(prop, now.block.property(prop));
+            else bf.clearProperty(prop);
+        }
+        if (level > 0) bf.setProperty(tp::ListLevel, level);
+        else bf.clearProperty(tp::ListLevel);
+        c.setBlockFormat(bf);
+        if (now.listed) {
+            QTextListFormat lf = now.list;
+            if (past > 0) lf.setProperty(tp::ListLevel, level);
+            // Numbers go on in the list of that level just above, if there is one.
+            QTextList *join = nullptr;
+            if (!isBulletList(lf.style()) && lf.style() != QTextListFormat::ListStyleUndefined) {
+                for (QTextBlock p = b.previous(); p.isValid(); p = p.previous()) {
+                    QTextList *above = p.textList();
+                    if (!above) break;
+                    const int aboveLevel = above->format().intProperty(tp::ListLevel);
+                    if (aboveLevel == level && above->format().style() == lf.style()) {
+                        join = above;
+                        break;
+                    }
+                    if (aboveLevel < level) break;
+                }
+            }
+            if (join) join->add(b);
+            else c.createList(lf);
+        }
     }
+    if (alignment && both) {
+        QTextBlockFormat bf = c.blockFormat();
+        if (bf.alignment() == was.block.alignment() && now.block.alignment() != was.block.alignment()) {
+            bf.setAlignment(now.block.alignment());
+            c.setBlockFormat(bf);
+        }
+    }
+    if (charsChanged) c.setBlockCharFormat(chars);
     for (const Run &r : runs) {
         QTextCursor run(sd);
         run.setPosition(r.from);
         run.setPosition(r.to, QTextCursor::KeepAnchor);
         run.setCharFormat(r.format);
     }
+}
+
+void putOnLevel(QTextDocument *sd, int number, const ParaLook &was, const ParaLook &now, int level, int past)
+{
+    restyleParagraph(sd, number, was, now, level, past, true, false, Rest());
 }
 
 } // namespace
@@ -733,6 +778,20 @@ void inheritLayoutLists(Document &d)
             if (past > 0) lf.setProperty(tp::ListLevel, levelOfBlock(sd->begin()));
             QTextCursor(sd).createList(lf);
         }
+    }
+}
+
+void followLayout(Document &d, TextItem &t, const Item *from, const Item *to, const std::function<bool(QTextCharFormat &, const Following &)> &rest)
+{
+    QTextDocument *sd = d.storyDoc(t.storyId);
+    if (!sd) return;
+    const QTextDocument *fs = from && from->type() == ItemType::Text ? d.storyDoc(static_cast<const TextItem *>(from)->storyId) : nullptr;
+    const QTextDocument *ts = to && to->type() == ItemType::Text ? d.storyDoc(static_cast<const TextItem *>(to)->storyId) : nullptr;
+    for (int n = 0; n < sd->blockCount(); ++n) {
+        const int level = levelOfBlock(sd->findBlockByNumber(n));
+        int wasPast = 0, past = 0;
+        const ParaLook was = fs ? levelLook(fs, level, &wasPast) : ParaLook(), now = ts ? levelLook(ts, level, &past) : ParaLook();
+        restyleParagraph(sd, n, was, now, level, past, was.valid && now.valid && blockFollows(sd->findBlockByNumber(n), was), true, rest);
     }
 }
 

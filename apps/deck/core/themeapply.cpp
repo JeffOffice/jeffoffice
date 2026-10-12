@@ -11,6 +11,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextList>
 #include <functional>
 
 namespace jp::deck {
@@ -201,6 +202,20 @@ void swapStory(Document &d, const QString &storyId, const Swap &swap, bool title
     QTextDocument *sd = storyId.isEmpty() ? nullptr : d.storyDoc(storyId);
     if (!sd) return;
     editRuns(sd, [&](QTextCharFormat &cf) { return swapRun(cf, swap, title); });
+    // The colors of bullets, as the lists say them.
+    QSet<QTextList *> seen;
+    for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
+        QTextList *list = b.textList();
+        if (!list || seen.contains(list)) continue;
+        seen.insert(list);
+        QTextListFormat lf = list->format();
+        const ColorRef ref = ColorRef::fromString(lf.stringProperty(tp::BulletColor));
+        if (ref.kind() != ColorRef::Rgb) continue;
+        const QColor n = swap.colors(ref.rgbValue());
+        if (n == ref.rgbValue()) continue;
+        lf.setProperty(tp::BulletColor, ColorRef::rgb(n).toString());
+        list->setFormat(lf);
+    }
 }
 
 void swapColor(ColorRef &c, const ColorSwap &s)
@@ -515,31 +530,6 @@ const MasterPage *targetLayout(const Document &d, const MasterPage *old, const P
     return l;
 }
 
-// How the first run of a placeholder's text looks where a layout says.
-struct Look {
-    bool valid = false;
-    QTextCharFormat run;
-    Qt::Alignment align = Qt::AlignLeft;
-};
-
-Look lookOf(const Document &d, const Item *place)
-{
-    Look l;
-    if (!place || place->type() != ItemType::Text) return l;
-    const QTextDocument *sd = d.storyDoc(static_cast<const TextItem *>(place)->storyId);
-    if (!sd) return l;
-    l.valid = true;
-    l.run = sd->begin().charFormat();
-    l.align = sd->begin().blockFormat().alignment();
-    for (QTextBlock b = sd->begin(); b.isValid(); b = b.next())
-        if (!b.begin().atEnd()) {
-            l.run = b.begin().fragment().charFormat();
-            l.align = b.blockFormat().alignment();
-            break;
-        }
-    return l;
-}
-
 // Placeholders found by role through a layout and its slide master (the layout's own first), the roles of each layout read once.
 class Places {
 public:
@@ -567,55 +557,11 @@ private:
 // where they are, so that a file can't make a change of theme take minutes.
 constexpr qint64 kMaxMatches = 90000;
 
-// Text that looked as the old layout said looks as the new layout says; whatever else was set stays, except that the old scheme's
-// colors and fonts become the new scheme's.
-void restyleStory(Document &d, const QString &storyId, const Look &old, const Look &now, const Swap &swap, bool title)
+// Text that looked as the old layout said looks as the new layout says, paragraph by paragraph; whatever else was set stays, except that the old
+// scheme's colors and fonts become the new scheme's.
+void restyleText(Document &d, TextItem &t, const Item *oldPlace, const Item *newPlace, const Swap &swap, bool title)
 {
-    QTextDocument *sd = storyId.isEmpty() ? nullptr : d.storyDoc(storyId);
-    if (!sd) return;
-    static const int kProps[] = {QTextFormat::FontFamilies, QTextFormat::FontPointSize, QTextFormat::FontWeight, QTextFormat::FontItalic,
-                                 QTextFormat::FontCapitalization, tp::ThemeFont};
-    editRuns(sd, [&](QTextCharFormat &cf) {
-        const QTextCharFormat was = cf;
-        bool colorDone = false, fontDone = false;
-        if (old.valid && now.valid) {
-            for (int p : kProps) {
-                const bool has = was.hasProperty(p);
-                if (has != old.run.hasProperty(p) || (has && was.property(p) != old.run.property(p))) continue;
-                if (now.run.hasProperty(p)) cf.setProperty(p, now.run.property(p));
-                else cf.clearProperty(p);
-                if (p == QTextFormat::FontFamilies) fontDone = true;
-            }
-            if (runColor(was) == runColor(old.run)) {
-                const QColor n = runColor(now.run);
-                if (n.isValid()) {
-                    setRunColor(cf, n);
-                } else {
-                    cf.clearProperty(tp::ColorRefP);
-                    cf.clearProperty(QTextFormat::ForegroundBrush);
-                }
-                colorDone = true;
-            }
-        }
-        // What didn't follow the old layout: the old scheme's colors and fonts, where it used them.
-        QTextCharFormat rest = was;
-        if (swapRun(rest, swap, title, !colorDone, !fontDone)) {
-            if (!colorDone && rest.stringProperty(tp::ColorRefP) != was.stringProperty(tp::ColorRefP)) {
-                cf.setForeground(rest.foreground());
-                cf.setProperty(tp::ColorRefP, rest.stringProperty(tp::ColorRefP));
-            }
-            if (!fontDone && rest.fontFamilies() != was.fontFamilies()) cf.setFontFamilies(rest.fontFamilies().toStringList());
-        }
-        return cf != was;
-    });
-    if (old.valid && now.valid && old.align != now.align) {
-        for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
-            if (b.blockFormat().alignment() != old.align) continue;
-            QTextBlockFormat bf;
-            bf.setAlignment(now.align);
-            QTextCursor(b).mergeBlockFormat(bf);
-        }
-    }
+    followLayout(d, t, oldPlace, newPlace, [&](QTextCharFormat &cf, const Following &followed) { return swapRun(cf, swap, title, !followed.color, !followed.family); });
 }
 
 // Puts a slide on `layout`, as applyLayout does, and sets its text in the new look.
@@ -628,11 +574,11 @@ void moveSlide(Document &d, Page &slide, const MasterPage *old, const MasterPage
         swapOnPage(d, slide, swap);
         return;
     }
-    QHash<const Item *, Look> was;
+    QHash<const Item *, const Item *> was;   // the old layout's place for each placeholder
     QSet<const Item *> before, empty;
     walkItems(slide.items, [&](const ItemPtr &it) {
         before.insert(it.get());
-        if (old && !placeholderType(*it).isEmpty()) was.insert(it.get(), lookOf(d, places.of(*old, it->role)));
+        if (old && !placeholderType(*it).isEmpty()) was.insert(it.get(), places.of(*old, it->role));
         if (it->type() == ItemType::Text && !placeholderType(*it).isEmpty())
             if (const QTextDocument *sd = d.storyDoc(static_cast<const TextItem *>(it.get())->storyId); sd && sd->isEmpty()) empty.insert(it.get());
     });
@@ -643,11 +589,9 @@ void moveSlide(Document &d, Page &slide, const MasterPage *old, const MasterPage
         if (empty.contains(it.get()) && places.of(layout, it->role)) return;
         const QString type = placeholderType(*it);
         const bool title = isTitleType(type);
-        Look now;
-        if (!type.isEmpty()) now = lookOf(d, places.of(layout, it->role));
-        const Look &then = was.contains(it.get()) ? was[it.get()] : Look();
+        const Item *then = was.value(it.get(), nullptr), *now = type.isEmpty() ? nullptr : places.of(layout, it->role);
         if (it->type() == ItemType::Text) {
-            restyleStory(d, static_cast<TextItem *>(it.get())->storyId, then, now, swap, title);
+            restyleText(d, *static_cast<TextItem *>(it.get()), then, now, swap, title);
         } else if (it->type() == ItemType::Shape) {
             swapStory(d, static_cast<ShapeItem *>(it.get())->storyId, swap, false);
         } else if (it->type() == ItemType::Table) {
