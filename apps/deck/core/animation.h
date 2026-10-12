@@ -94,6 +94,7 @@ struct Behavior {
     QPointF scaleFrom{1, 1}, scaleTo{1, 1};   // Scale: 1 is the size it has
     double rotateFrom = 0, rotateTo = 0;      // Rotate: degrees clockwise
     QString command;                 // Command
+    bool afterwards = false;         // hides its shape when its effect is over: not part of the effect's own time
 };
 
 enum class EffectClass { Entrance, Exit, Emphasis, MotionPath, Media, Verb, Other };
@@ -112,6 +113,8 @@ struct Effect {
     // ms after its step starts, when its last behavior with an end has ended
     // (once() is how long one play takes); end() counts the repeats.
     double once() const;
+    // How many times it plays: its repeat, but not for longer than twenty seconds (a file that asks for thousands would stall the show).
+    double repeats() const;
     double end() const;
     // Whether it changes anything on the slide (a media call and a color change don't).
     bool visual() const;
@@ -144,6 +147,8 @@ Timeline timelineOf(const Page &slide);
 // The timeline as the show plays it: steps that show nothing (only a media
 // call) take no click.
 Timeline playableTimeline(const Page &slide);
+// The same without the effects of shapes the slide no longer has (or paragraphs it no longer has): they take no click.
+Timeline playableTimeline(const Document &doc, const Page &slide);
 
 // How a shape is, partway through its animations.
 struct TargetState {
@@ -250,8 +255,10 @@ struct Anim {
 
 struct AnimSequence {
     QVector<Anim> effects;           // the main sequence, in order
-    QStringList kept;                // sequences that wait for a click on a shape, as written
-    QString extension;               // what follows the sequences in the timing, as written
+    QStringList kept;                // the other nodes under the timing's root (sequences that wait for a click on a shape, a movie's or sound's node), as the file wrote them
+    int keptBeforeMain = 0;          // how many of them come before the main sequence
+    QString declarations;            // the namespaces the timing declares, as XML attributes
+    QString extension;               // what follows the root node in the timing, as written
     QStringList builds;              // builds of what the file keeps (charts, diagrams), as written
     bool editable = true;            // false when the sequence is too long to be changed safely
     bool isEmpty() const { return effects.isEmpty() && kept.isEmpty(); }
@@ -276,7 +283,9 @@ Anim makeAnim(const QString &kind, int shape);
 // The effect with another kind: it keeps what it is aimed at and how it starts and when; the rest is the new kind's.
 void changeKind(Anim &anim, const EffectKind &kind);
 
-AnimSequence readAnimations(const Page &slide);
+// With the document, the effects of shapes the slide no longer has, and of paragraphs it no longer has, are left out.
+// A timing that can't be read is not editable.
+AnimSequence readAnimations(const Page &slide, const Document *doc = nullptr);
 // The XML of the slide's timing for the sequence, aiming only at shapes that are on the slide (an effect aimed at one that isn't is dropped);
 // empty when nothing is left.
 QString animationsXml(const Document &doc, const Page &slide, const AnimSequence &seq);
@@ -291,6 +300,10 @@ QVector<QPair<int, int>> paragraphGroups(const Document &doc, const Page &slide,
 void setByParagraph(AnimSequence &seq, int i, bool byParagraph, const Document &doc, const Page &slide);
 // Copies the effects aimed at `from` onto `to`.
 void copyEffects(AnimSequence &seq, int from, const QVector<int> &to);
+
+// A number that changes when what the animation rows show changes: the slide's timing, and the shapes (their numbers, names, and paragraphs)
+// it aims at; 0 for a slide with no timing. It is cheap, for being asked after every change.
+quint64 animationSignature(const Document &doc, const Page &slide);
 
 // The slide's timing for saving: the effects aimed at shapes `present` says are not in the file are left out, the rest as the sequence writes them;
 // the timing as it is when none is, or when it can't be read as a sequence. `dropped` says how many effects went.

@@ -5,6 +5,7 @@
 //   jdecktool pdf <file> <out.pdf> [slides|notes|handout6]   print it to a PDF (also handout1|2|3|4|9, outline; "hidden", "frame", "gray", "down" add options; "samplenotes" gives slides without notes
 //   jdecktool animate-demo <out.pptx> <out.tsv>               a presentation with every effect JeffDeck offers (each way of each kind, started on a click, with, and after the one before, and by paragraph), and a table of what is where
 //   jdecktool animations <file>                               each slide's effects as the animation pane lists them (the table animate-demo writes; "(custom)" for what JeffDeck keeps as it was)
+//   jdecktool animate-edit <file> <out.pptx>                  adds a Fade on the first shape of each slide that has animations, as the animation pane does, and saves it (to see that what the file had survives an edit)
 //   jdecktool steps <file> <slide> <outdir> [width=1280]       a slide's click steps listed, and the slide as the show has it at the start (step-00-start.png), halfway through each step (step-01-mid.png), and after it (step-01-end.png)
 
 #include "app/deckinfo.h"
@@ -185,8 +186,9 @@ int main(int argc, char **argv)
     QTextStream out(stdout);
     if (args.size() >= 4 && args[1] == "animate-demo") return animateDemo(args[2], args[3]);
     if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) || (args[1] == "steps" && args.size() < 5) || (args[1] == "lines" && args.size() < 4) ||
-        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines" && args[1] != "animations")) {
-        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-demo <out.pptx> <out.tsv>\n";
+        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines" && args[1] != "animations" && args[1] != "animate-edit") ||
+        (args[1] == "animate-edit" && args.size() < 4)) {
+        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-edit <file> <out.pptx> | animate-demo <out.pptx> <out.tsv>\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -293,7 +295,7 @@ int main(int argc, char **argv)
         out << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\tafter\n";
         for (int i = 0; i < doc->pages.size(); ++i) {
             const Page &page = *doc->pages[i];
-            const deck::AnimSequence seq = deck::readAnimations(page);
+            const deck::AnimSequence seq = deck::readAnimations(page, doc.get());
             for (int k = 0; k < seq.effects.size(); ++k) {
                 const deck::Anim &a = seq.effects[k];
                 QString name;
@@ -307,6 +309,32 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    if (cmd == "animate-edit") {
+        for (int i = 0; i < doc->pages.size(); ++i) {
+            Page &page = *doc->pages[i];
+            if (page.props.value(QStringLiteral("timingXml")).toString().isEmpty()) continue;
+            deck::AnimSequence seq = deck::readAnimations(page, doc.get());
+            if (!seq.editable) {
+                out << "slide " << i + 1 << "\tnot editable\n";
+                continue;
+            }
+            const qsizetype before = seq.effects.size();
+            QString target;
+            for (const ItemPtr &it : page.items)
+                if (target.isEmpty() && (it->type() == ItemType::Shape || it->type() == ItemType::Text)) target = it->id;
+            if (target.isEmpty()) continue;
+            seq.add(deck::makeAnim(QStringLiteral("entr.fade"), deck::shapeNumber(page, target)));
+            deck::setAnimations(*doc, page, seq);
+            out << "slide " << i + 1 << "\t" << before << " effects, " << seq.kept.size() << " other nodes kept, now " << deck::readAnimations(page, doc.get()).effects.size() << " effects\n";
+        }
+        QString error;
+        QStringList skipped;
+        const bool ok = deck::savePresentationFile(*doc, args[3], &error, &skipped);
+        for (const QString &s : skipped) out << "left out\t" << s << "\n";
+        out << (ok ? "saved\t" + args[3] : "cannot save: " + error) << "\n";
+        return ok ? 0 : 1;
+    }
+
     if (cmd == "steps") {
         static const char *classes[] = {"entrance", "exit", "emphasis", "motion path", "media", "verb", "other"};
         static const char *starts[] = {"on click", "with previous", "after previous"};
@@ -316,7 +344,7 @@ int main(int argc, char **argv)
             return 2;
         }
         const Page &page = *doc->pages[slide];
-        const deck::Timeline tl = deck::playableTimeline(page);
+        const deck::Timeline tl = deck::playableTimeline(*doc, page);
         out << "steps\tslide " << slide + 1 << "\t" << tl.steps.size() << " click steps\t" << deck::timelineOf(page).steps.size() << " read\t" << tl.triggers.size() << " triggers\n";
         if (tl.isEmpty()) {
             out << (page.props.contains(QStringLiteral("timingXml")) ? "the slide's timing has no steps that show anything\n" : "the slide has no animations\n");

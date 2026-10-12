@@ -119,11 +119,18 @@ double Effect::once() const
 {
     double e = begin;
     for (const Behavior &b : behaviors)
-        if (b.timing.duration >= 0) e = std::max(e, b.timing.end());
+        if (!b.afterwards && b.timing.duration >= 0) e = std::max(e, b.timing.end());
     return e - begin;
 }
 
-double Effect::end() const { return begin + once() * std::max(1.0, repeat); }
+double Effect::repeats() const
+{
+    const double length = once();
+    if (length <= 0 || repeat <= 1) return 1;
+    return std::min(repeat, std::max(1.0, 20000.0 / length));
+}
+
+double Effect::end() const { return begin + once() * repeats(); }
 
 bool Effect::visual() const
 {
@@ -437,6 +444,7 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
                     b.timing.begin = e.end();
                     b.timing.duration = 1;
                     b.timing.hold = true;
+                    b.afterwards = true;
                     e.behaviors.push_back(b);
                 }
             }
@@ -854,18 +862,23 @@ void applyStep(States &states, const Step &step, const Geometry &g, double ms)
     for (const Effect &e : step.effects) {
         // An effect that plays again starts over each time; one that takes its work with it leaves when it ends.
         double t = ms;
-        const double once = e.once();
-        if (once > 0 && (e.repeat > 1 || e.remove)) {
+        bool gone = false;
+        const double once = e.once(), times = e.repeats();
+        if (once > 0 && (times > 1 || e.remove)) {
             const double local = ms - e.begin;
-            if (local >= once * std::max(1.0, e.repeat)) {
-                if (e.remove) continue;
+            if (local >= once * times) {
+                gone = e.remove;
                 t = e.begin + once;
             } else if (local >= 0) {
                 t = e.begin + std::fmod(local, once);
             }
         }
-        for (const Behavior &b : e.behaviors)
-            if (b.target.shape > 0 && playsBehavior(b)) applyBehavior(states[b.target], b, g, t);
+        for (const Behavior &b : e.behaviors) {
+            if (b.target.shape <= 0 || !playsBehavior(b)) continue;
+            // What it does to its shape when it is over goes on its own time, however the effect went.
+            if (b.afterwards) applyBehavior(states[b.target], b, g, ms);
+            else if (!gone) applyBehavior(states[b.target], b, g, t);
+        }
     }
 }
 
