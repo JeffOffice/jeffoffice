@@ -1,6 +1,7 @@
 #include "io/pptxexport.h"
 
 #include "core/deck.h"
+#include "office/drawingml_table.h"
 #include "office/drawingml_write.h"
 #include "office/package.h"
 #include "office/theme.h"
@@ -608,7 +609,10 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
     office::DrawingWriteContext ctx = context(part);
     ctx.nextShapeId = int(std::min<qint64>(highest + 1, 2000000000));
     const QByteArray shapes = fragment([&](QXmlStreamWriter &w) {
-        for (const ItemPtr &it : page.items) office::writeShape(w, *it, ctx, &m_skipped);
+        for (const ItemPtr &it : page.items) {
+            if (it->type() == ItemType::Table) office::writeTable(w, static_cast<const TableItem &>(*it), ctx);
+            else office::writeShape(w, *it, ctx, &m_skipped);
+        }
     });
     return QStringLiteral("<p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
                           "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>")

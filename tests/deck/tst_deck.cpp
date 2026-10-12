@@ -1535,11 +1535,12 @@ private:
                               "<p:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>%2</p:spPr></p:pic>")
             .arg(id).arg(xfrm(x, y, 914400, 914400));
     }
-    static QString tableFrame(int id)
+    // A frame of a kind the reader doesn't know (a table by another name, as the reader reads tables), which is kept as it was.
+    static QString unknownFrame(int id)
     {
         return QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"%1\" name=\"Table %1\"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp=\"1\"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr>"
                               "<p:xfrm><a:off x=\"914400\" y=\"1828800\"/><a:ext cx=\"3657600\" cy=\"1371600\"/></p:xfrm>"
-                              "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr/><a:tblGrid><a:gridCol w=\"3657600\"/></a:tblGrid>"
+                              "<a:graphic><a:graphicData uri=\"urn:test:unknown-kind\"><a:tbl><a:tblPr/><a:tblGrid><a:gridCol w=\"3657600\"/></a:tblGrid>"
                               "<a:tr h=\"370840\"><a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Cell &amp; &lt;1&gt;</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc></a:tr></a:tbl></a:graphicData></a:graphic></p:graphicFrame>")
             .arg(id);
     }
@@ -1619,7 +1620,7 @@ private:
                          + QStringLiteral("<a:noFill/></p:spPr><p:txBody><a:bodyPr wrap=\"square\"/><a:lstStyle/>") + para(QStringLiteral("Plain text")) + QStringLiteral("</p:txBody></p:sp>")
                          + QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"6\" name=\"Rectangle 5\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>") + xfrm(5486400, 5029200, 1828800, 914400)
                          + QStringLiteral("<a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill></p:spPr></p:sp>")
-                         + pictureShape(7, 8229600, 5029200) + tableFrame(8),
+                         + pictureShape(7, 8229600, 5029200) + unknownFrame(8),
                      QStringLiteral("<p:transition spd=\"med\"><p:fade/></p:transition><p:timing><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"/></p:par></p:tnLst></p:timing>"))
                 .toUtf8()};
         p.data["/ppt/slides/slide2.xml"] = {slideType,
@@ -1858,7 +1859,7 @@ private Q_SLOTS:
         QVERIFY(frame.value(QStringLiteral("xml")).toString().contains(QStringLiteral("Cell &amp; &lt;1&gt;")));
         QCOMPARE(dom.documentElement().elementsByTagNameNS(QString::fromLatin1(office::ns::A.data()), QStringLiteral("t")).at(0).toElement().text(), QStringLiteral("Cell & <1>"));
         // The chart and the object on the second slide have pictures of themselves to read in their
-        // place; where the reader can't read pictures yet, they are kept like the table.
+        // place; where the reader can't read pictures yet, they are kept like that frame.
         const QJsonArray second = d->pages[1]->props.value(QStringLiteral("unread")).toArray();
         QCOMPARE(int(second.size()), readerReadsPictures() ? 0 : 2);
         if (!second.isEmpty()) {
@@ -1908,6 +1909,109 @@ private Q_SLOTS:
         const QString kept = d->pages[0]->props.value(QStringLiteral("transitionXml")).toString();
         QVERIFY2(QRegularExpression(QStringLiteral("<mc:Choice[^>]*xmlns:x14=\"urn:example:x14\"[^>]*Requires=\"x14\"|<mc:Choice[^>]*Requires=\"x14\"[^>]*xmlns:x14=\"urn:example:x14\""))
                      .match(kept).hasMatch(), qPrintable(kept));
+    }
+
+    // A table on a slide is a table (not a frame kept as it was): in its place, with its cells' text and look, and
+    // the style of the table styles part put into them. Saved, it is a graphic frame holding a table again.
+    void importReadsTablesAndExportWritesThem()
+    {
+        const QString id = QStringLiteral("{11111111-2222-3333-4444-555555555555}");
+        Parts p = samplePptx();
+        p.data["/ppt/tableStyles.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml"),
+            QStringLiteral("<a:tblStyleLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" def=\"%1\"><a:tblStyle styleId=\"%1\" styleName=\"Test\">"
+                           "<a:wholeTbl><a:tcTxStyle><a:fontRef idx=\"minor\"/><a:srgbClr val=\"202020\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:srgbClr val=\"EEEEEE\"/></a:solidFill></a:fill></a:tcStyle></a:wholeTbl>"
+                           "<a:firstRow><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:srgbClr val=\"FFFFFF\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:srgbClr val=\"1F3864\"/></a:solidFill></a:fill></a:tcStyle></a:firstRow>"
+                           "</a:tblStyle></a:tblStyleLst>").arg(id).toUtf8()};
+        p.rels << Rel{"/ppt/presentation.xml", "tableStyles", "/ppt/tableStyles.xml"};
+        const auto cell = [](const QString &text, const QString &pr = QString()) {
+            return QStringLiteral("<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:r></a:p></a:txBody><a:tcPr>%2</a:tcPr></a:tc>").arg(text, pr);
+        };
+        const QString table =
+            QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Results\"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp=\"1\"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr>"
+                           "<p:xfrm><a:off x=\"914400\" y=\"1828800\"/><a:ext cx=\"3657600\" cy=\"741680\"/></p:xfrm>"
+                           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl>"
+                           "<a:tblPr firstRow=\"1\"><a:tableStyleId>%1</a:tableStyleId></a:tblPr><a:tblGrid><a:gridCol w=\"1828800\"/><a:gridCol w=\"1828800\"/></a:tblGrid>"
+                           "<a:tr h=\"370840\">%2%3</a:tr><a:tr h=\"370840\">%4%5</a:tr></a:tbl></a:graphicData></a:graphic></p:graphicFrame>")
+                .arg(id, cell(QStringLiteral("Quarter")), cell(QStringLiteral("Revenue")), cell(QStringLiteral("Q1")),
+                     cell(QStringLiteral("12"), QStringLiteral("<a:solidFill><a:srgbClr val=\"FFC000\"/></a:solidFill>")));
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QVERIFY(xml.contains(unknownFrame(8)));
+        xml.replace(unknownFrame(8), table);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        // Nothing is kept unread on the slide: the table is an object on it.
+        QVERIFY(!d->pages[0]->props.contains(QStringLiteral("unread")));
+        const Page &slide = *d->pages[0];
+        const TableItem *t = nullptr;
+        for (const auto &it : slide.items)
+            if (it->type() == ItemType::Table) t = static_cast<const TableItem *>(it.get());
+        QVERIFY(t);
+        QCOMPARE(t->rows, 2);
+        QCOMPARE(t->cols, 2);
+        QCOMPARE(t->name, QStringLiteral("Results"));
+        QCOMPARE(t->rect, QRectF(72, 144, 288, 2 * 370840 / 12700.0));
+        QCOMPARE(t->colW, (QVector<double>{144, 144}));
+        QCOMPARE(t->format, id);
+        QVERIFY(t->header);
+        const auto text = [&](int r, int c) { return d->storyDoc(t->cell(r, c).storyId)->toPlainText(); };
+        QCOMPARE(text(0, 0), QStringLiteral("Quarter"));
+        QCOMPARE(text(1, 1), QStringLiteral("12"));
+        // The style's fills and header text, and the cell's own fill over the style's.
+        QCOMPARE(t->cell(0, 1).fill.color.rgbValue(), QColor(0x1F, 0x38, 0x64));
+        QCOMPARE(t->cell(1, 0).fill.color.rgbValue(), QColor(0xEE, 0xEE, 0xEE));
+        QCOMPARE(t->cell(1, 1).fill.color.rgbValue(), QColor(0xFF, 0xC0, 0x00));
+        const QTextCharFormat head = d->storyDoc(t->cell(0, 0).storyId)->begin().begin().fragment().charFormat();
+        QCOMPARE(head.fontWeight(), int(QFont::Bold));
+        QCOMPARE(head.foreground().color(), QColor(0xFF, 0xFF, 0xFF));
+        QVERIFY(d->storyDoc(t->cell(1, 0).storyId)->begin().begin().fragment().charFormat().fontWeight() < int(QFont::Bold));
+
+        // Saved: a graphic frame with a table, in the order of the slide's objects, with its own shape number.
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString saved = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(saved.contains(QStringLiteral("<p:graphicFrame>")) && saved.contains(QStringLiteral("<a:tbl>")), qPrintable(saved));
+        QVERIFY(saved.contains(QStringLiteral("uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"")));
+        QVERIFY(saved.contains(QStringLiteral("<a:tableStyleId>%1</a:tableStyleId>").arg(id)));
+        QCOMPARE(saved.count(QStringLiteral("<a:tr ")), 2);
+        QCOMPARE(saved.count(QStringLiteral("<a:tc>")), 4);
+        for (const QString &s : std::as_const(skipped)) QVERIFY2(!s.contains(QStringLiteral("Table")), qPrintable(s));
+        QDomDocument dom;
+        QVERIFY(office::parseXml(saved.toUtf8(), &dom));
+        QStringList ids;
+        QVector<QDomElement> stack{dom.documentElement()};
+        while (!stack.isEmpty()) {
+            const QDomElement el = stack.takeLast();
+            if (el.localName() == QLatin1String("cNvPr")) ids << el.attribute(QStringLiteral("id"));
+            for (QDomElement c = el.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+        }
+        QCOMPARE(int(QSet<QString>(ids.cbegin(), ids.cend()).size()), int(ids.size()));
+
+        // And read again, it is the same table.
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(!back->pages[0]->props.contains(QStringLiteral("unread")), qPrintable(err));
+        const TableItem *u = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->type() == ItemType::Table) u = static_cast<const TableItem *>(it.get());
+        QVERIFY(u);
+        QCOMPARE(u->rows, 2);
+        QCOMPARE(u->cols, 2);
+        QCOMPARE(u->colW, t->colW);
+        QCOMPARE(u->rowH, t->rowH);
+        QCOMPARE(u->rect, t->rect);
+        QCOMPARE(u->format, id);
+        for (int r = 0; r < 2; ++r)
+            for (int c = 0; c < 2; ++c) QVERIFY(u->cell(r, c).fill == t->cell(r, c).fill);
+        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
+        QCOMPARE(back->storyDoc(u->cell(0, 1).storyId)->toPlainText(), QStringLiteral("Revenue"));
     }
 
     void importKeepsTheme()
@@ -2693,7 +2797,7 @@ private Q_SLOTS:
         QString err;
         auto d = deck::importPresentation(pack(p), &err);
         QVERIFY2(d, qPrintable(err));
-        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);   // the table, and the chart
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);   // the unknown frame, and the chart
 
         QStringList skipped;
         const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
@@ -2702,7 +2806,7 @@ private Q_SLOTS:
         QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
         QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
         const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
-        QVERIFY(slide.contains(QStringLiteral("Cell &amp; &lt;1&gt;")));   // the table has nothing to point at, and stays
+        QVERIFY(slide.contains(QStringLiteral("Cell &amp; &lt;1&gt;")));   // the frame has nothing to point at, and stays
         QVERIFY(!slide.contains(QStringLiteral("c:chart")));
         QVERIFY(!slide.contains(QStringLiteral("rId9")));
         QVERIFY(!slide.contains(QStringLiteral("<p:timing")));
@@ -2712,7 +2816,7 @@ private Q_SLOTS:
         for (const QString &s : std::as_const(skipped))
             if (s.startsWith(QLatin1String("Slide 1"))) ++notes;
         QVERIFY2(notes >= 3, qPrintable(skipped.join('\n')));   // the chart, the animation, the transition
-        // The shape number of the table is not given to anything else on the slide.
+        // The shape number of the frame is not given to anything else on the slide.
         QDomDocument dom;
         QVERIFY(office::parseXml(slide.toUtf8(), &dom));
         QStringList ids;
