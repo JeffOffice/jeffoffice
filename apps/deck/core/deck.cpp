@@ -2,6 +2,7 @@
 
 #include "core/color.h"
 #include "core/sections.h"
+#include "office/drawingml_props.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -566,7 +567,8 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
                 t->prompt = promptFor(placeholderType(*place));
                 // With nothing in it, what is typed next has the new layout's look: its bullet, indent, and text.
                 QTextDocument *sd = d.storyDoc(t->storyId);
-                if (const QTextDocument *ls = d.storyDoc(p->storyId); sd && sd->isEmpty() && ls) givePara(sd, paraLook(ls->begin()));
+                if (const QTextDocument *ls = d.storyDoc(p->storyId); sd && sd->isEmpty() && ls && !sd->begin().blockFormat().boolProperty(office::kNoBulletParagraph))
+                    givePara(sd, paraLook(ls->begin()));
             }
         }
     }
@@ -794,7 +796,8 @@ void inheritLayoutLists(Document &d)
             QTextDocument *sd = d.storyDoc(static_cast<const TextItem *>(it.get())->storyId);
             const Item *place = placeByRole(d, *layout, it->role);
             const QTextDocument *ls = place ? d.storyDoc(static_cast<const TextItem *>(place)->storyId) : nullptr;
-            if (!sd || !ls || !sd->isEmpty() || sd->begin().textList()) continue;
+            // (A paragraph the file marks as having no bullet keeps none.)
+            if (!sd || !ls || !sd->isEmpty() || sd->begin().textList() || sd->begin().blockFormat().boolProperty(office::kNoBulletParagraph)) continue;
             int past = 0;
             const ParaLook look = levelLook(ls, levelOfBlock(sd->begin()), &past);
             if (!look.listed) continue;
