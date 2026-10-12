@@ -13,11 +13,13 @@
 #include "core/deck.h"
 #include "core/fonts.h"
 #include "render/renderer.h"
+#include "text/textprops.h"
 
 #include <QAbstractButton>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTextCursor>
 #include <QTextDocument>
 
 using namespace jp;
@@ -209,6 +211,100 @@ private Q_SLOTS:
         // Hidden: faded, so its white isn't white any more.
         QVERIFY(img.pixelColor(hid.left() + 4, hid.top() + 4) != QColor(Qt::white));
         pane->hide();
+    }
+
+    // A new slide size scales everything on every slide, layout, and the
+    // slide master to fit, centered (Ensure Fit): 16:9 to 4:3 shrinks it by
+    // the width's ratio, and going wider moves it to the middle at its size.
+    void slideSizeScalesEverything()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        const auto *title = static_cast<const TextItem *>(d->pages[1]->items[0].get());
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        const QRectF slideBefore = title->rect, layoutBefore = layout->items[0]->rect, masterBefore = d->masters[0]->items[0]->rect;
+        auto size = [&](const QString &storyId) { return QTextCursor(d->storyDoc(storyId)).charFormat().fontPointSize(); };
+        const double textBefore = size(title->storyId);
+        QVERIFY(textBefore > 0);
+
+        deck::setSlideSize(*d, QSizeF(deck::kStandardWidth, deck::kStandardHeight));
+        QCOMPARE(d->pageSize(), QSizeF(720, 540));
+        QCOMPARE(d->setup.sizeName, QStringLiteral("Standard"));
+        auto fitted = [](const QRectF &r) { return QRectF(r.x() * 0.75, r.y() * 0.75 + 67.5, r.width() * 0.75, r.height() * 0.75); };
+        QCOMPARE(title->rect, fitted(slideBefore));
+        QCOMPARE(layout->items[0]->rect, fitted(layoutBefore));
+        QCOMPARE(d->masters[0]->items[0]->rect, fitted(masterBefore));
+        QCOMPARE(size(title->storyId), textBefore * 0.75);
+        // A slide still draws, at its new size.
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QCOMPARE(Renderer::renderToImage(ctx, 0, 0.5).size(), QSize(360, 270));
+
+        // Wider again: nothing grows, it moves to the middle.
+        deck::setSlideSize(*d, QSizeF(deck::kSlideWidth, deck::kSlideHeight));
+        QCOMPARE(d->setup.sizeName, QStringLiteral("Widescreen"));
+        QCOMPARE(title->rect, fitted(slideBefore).translated(120, 0));
+        QCOMPARE(size(title->storyId), textBefore * 0.75);
+    }
+
+    // Header & Footer puts the slide number, the date, and a line of text in
+    // each slide's own placeholders for them, and takes them away again.
+    void headerAndFooterPlaceholders()
+    {
+        auto d = deck::newPresentation();   // a title slide
+        for (int i = 0; i < 2; ++i) deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        auto typesOf = [&](int i) {
+            QStringList t;
+            for (const auto &it : d->pages[i]->items) t << deck::placeholderType(*it);
+            return t;
+        };
+        deck::FooterOptions o;
+        o.slideNumber = true;
+        o.skipTitleSlide = true;
+        deck::applyFooters(*d, o);
+        QVERIFY(d->appData.value(QStringLiteral("footers")).toBool());
+        QCOMPARE(typesOf(0), (QStringList{"ctrTitle", "subTitle"}));   // not on the title slide
+        QCOMPARE(typesOf(1), (QStringList{"title", "obj", "sldNum"}));
+        QCOMPARE(typesOf(2), (QStringList{"title", "obj", "sldNum"}));
+        // The number is the page number field, in the layout's place and look.
+        const auto *num = static_cast<const TextItem *>(d->pages[1]->items.back().get());
+        QCOMPARE(num->rect, deck::layoutOfType(*d, QStringLiteral("obj"))->items.back()->rect);
+        const QTextDocument *sd = d->storyDoc(num->storyId);
+        QCOMPARE(sd->toPlainText(), QString(QChar(QChar::ObjectReplacementCharacter)));
+        QCOMPARE(QTextCursor(const_cast<QTextDocument *>(sd)).charFormat().stringProperty(tp::Field), QStringLiteral("page"));
+        // Apply to one slide: its own, and what new slides get stays.
+        o.date = o.footer = true;
+        o.footerText = QStringLiteral("Quarterly review");
+        o.skipTitleSlide = false;
+        deck::applyFooters(*d, o, d->pages[0].get());
+        QCOMPARE(typesOf(0), (QStringList{"ctrTitle", "subTitle", "dt", "ftr", "sldNum"}));
+        QCOMPARE(d->storyDoc(static_cast<const TextItem *>(d->pages[0]->items[3].get())->storyId)->toPlainText(), QStringLiteral("Quarterly review"));
+        QCOMPARE(typesOf(1), (QStringList{"title", "obj", "sldNum"}));
+        const int added = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("titleOnly")));
+        QCOMPARE(typesOf(added), (QStringList{"title", "sldNum"}));
+        // Apply to all with nothing chosen takes them all away.
+        deck::applyFooters(*d, deck::FooterOptions());
+        for (int i = 0; i < d->pages.size(); ++i) QVERIFY2(!typesOf(i).contains(QStringLiteral("sldNum")) && !typesOf(i).contains(QStringLiteral("ftr")), qPrintable(typesOf(i).join(',')));
+        QVERIFY(!d->appData.value(QStringLiteral("footers")).toBool());
+    }
+
+    // A slide's own background, or one for all of them through the master.
+    void backgroundsSetAndClear()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        deck::setSlideBackground(*d->pages[1], QColor(0x33, 0x66, 0x99));
+        QCOMPARE(d->pages[1]->background, Fill::solid(ColorRef::rgb(QColor(0x33, 0x66, 0x99))));
+        QVERIFY(d->pages[0]->background.type == Fill::NoFill);
+        deck::setAllBackgrounds(*d, QColor(0x11, 0x22, 0x33));
+        QVERIFY(d->pages[1]->background.type == Fill::NoFill);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        for (int i = 0; i < 2; ++i) QCOMPARE(Renderer::renderToImage(ctx, i, 0.1).pixelColor(3, 3), QColor(0x11, 0x22, 0x33));
     }
 
     void duplicateSlideCopiesNotes()
