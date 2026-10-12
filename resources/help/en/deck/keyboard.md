@@ -15,6 +15,8 @@ You can also hold Alt and press a tab's letter in one move. **Alt+H** opens the 
 
 Press **Esc** to go back one step. Press any other key to put the letters away. Letters that look faded belong to a button you can't use now.
 
+Press **Ctrl+F1** to hide the ribbon's buttons and show only the tab names, for more room on the slide. Press it again to bring them back.
+
 ## Work on the slide
 
 Click the slide. Then:

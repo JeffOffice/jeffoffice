@@ -10,6 +10,7 @@
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
+#include "app/ribbon.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
 #include "core/deck.h"
@@ -192,6 +193,7 @@ void DeckWindow::createViewActions()
         m_canvas->zoomToFit(Canvas::Fit::None);
         m_canvas->setZoom(m_canvas->zoom() * 1.2);
     });
+    mk("view.collapseRibbon", tr("Collapse the Ribbon"), "chevron-up", QKeySequence(Qt::CTRL | Qt::Key_F1), [this] { m_ribbon->setMinimized(!m_ribbon->isMinimized()); });
     mk("zoom.out", tr("Zoom Out"), "zoom-out", QKeySequence::ZoomOut, [this] {
         m_canvas->zoomToFit(Canvas::Fit::None);
         m_canvas->setZoom(m_canvas->zoom() / 1.2);
