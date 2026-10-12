@@ -125,6 +125,7 @@ DeckFileScreen::DeckFileScreen(DeckWindow *win) : FileScreen(win), m_win(win)
     addPage(QStringLiteral("export"), QStringLiteral("file-output"), tr("Export"));
     addCommand(QStringLiteral("close"), QStringLiteral("circle-x"), tr("Close"), [this] { m_win->act("file.close")->trigger(); Q_EMIT closeRequested(); });
     addSection(appInfo().name);
+    addCommand(QStringLiteral("options"), QStringLiteral("settings"), tr("Options"), [this] { m_win->act("file.options")->trigger(); });
     addPage(QStringLiteral("about"), QStringLiteral("info"), tr("About"));
 }
 

@@ -67,6 +67,8 @@
 #include <QSignalSpy>
 #include <QSlider>
 #include <QStatusBar>
+#include <QTabWidget>
+#include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextCursor>
@@ -2660,7 +2662,7 @@ private Q_SLOTS:
         QStringList entries;
         for (QAbstractButton *b : buttons) entries << b->text();
         const QStringList want = {QStringLiteral("Back to presentation"), QStringLiteral("New"), QStringLiteral("Open"), QStringLiteral("Save"), QStringLiteral("Save As"),
-                                  QStringLiteral("Print"), QStringLiteral("Export"), QStringLiteral("Close"), QStringLiteral("About")};
+                                  QStringLiteral("Print"), QStringLiteral("Export"), QStringLiteral("Close"), QStringLiteral("Options"), QStringLiteral("About")};
         QCOMPARE(entries, want);
         QTest::keyClick(&w, Qt::Key_Escape);
         QVERIFY(!screen->isVisible());
@@ -2936,7 +2938,264 @@ private Q_SLOTS:
         QVERIFY(!show.grab().isNull());
     }
 
+    // The Home tab's Font and Paragraph groups open the shared dialogs from
+    // their launchers, and the Font dialog changes the text selected in a
+    // placeholder.
+    void fontAndParagraphLaunchers()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        auto launcher = [&](const QString &group) -> QToolButton * {
+            for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Home"))->groups())
+                if (g->title() == group) return g->launcher();
+            return nullptr;
+        };
+        QToolButton *font = launcher(QStringLiteral("Font")), *paragraph = launcher(QStringLiteral("Paragraph"));
+        QVERIFY(font && paragraph);
+        QVERIFY(!keytip(font).isEmpty() && !keytip(paragraph).isEmpty());
+        QString title;
+        QTimer::singleShot(0, [&] {
+            if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+                title = d->windowTitle();
+                d->reject();
+            }
+        });
+        font->click();
+        QCOMPARE(title, QStringLiteral("Font"));
+        title.clear();
+        QTimer::singleShot(0, [&] {
+            if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+                title = d->windowTitle();
+                d->reject();
+            }
+        });
+        paragraph->click();
+        QCOMPARE(title, QStringLiteral("Paragraph"));
+        // Font, on the selected word: its size.
+        QTextDocument *story = editTitle(w, QStringLiteral("Hello world"), 0, 5);
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            d->findChild<QDoubleSpinBox *>()->setValue(40);
+            d->accept();
+        });
+        font->click();
+        QTextCursor c(story);
+        c.setPosition(2);
+        QCOMPARE(c.charFormat().fontPointSize(), 40.0);
+        c.setPosition(9);
+        QVERIFY(c.charFormat().fontPointSize() != 40.0);
+    }
+
+    // Review > Spelling (F7) goes through the slides to a misspelled word and
+    // selects it; Thesaurus is Shift+F7.
+    void spellingChecksTheSlides()
+    {
+        DeckWindow w;
+        QCOMPARE(w.act(QStringLiteral("review.spelling"))->shortcut(), QKeySequence(Qt::Key_F7));
+        QCOMPARE(w.act(QStringLiteral("review.thesaurus"))->shortcut(), QKeySequence(Qt::SHIFT | Qt::Key_F7));
+        Editor *ed = w.editor();
+        auto *title = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get());
+        QTextCursor(ed->doc()->storyDoc(title->storyId)).insertText(QStringLiteral("A mispelled word"));
+        QString shown, selected;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            for (QLabel *l : d->findChildren<QLabel *>())
+                if (l->text().startsWith(QLatin1String("<b>"))) shown = l->text();
+            selected = ed->cursor().selectedText();
+            d->reject();
+        });
+        w.act(QStringLiteral("review.spelling"))->trigger();
+        QVERIFY2(shown.contains(QStringLiteral("mispelled")), qPrintable(shown));
+        QCOMPARE(selected, QStringLiteral("mispelled"));
+        QVERIFY(ed->isEditingText());
+    }
+
+    // Word Count counts the words on the slides, not the prompts of the layouts.
+    void wordCountCountsTheSlidesWords()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        QTextCursor(ed->doc()->storyDoc(static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId)).insertText(QStringLiteral("One two three"));
+        QTextCursor(ed->doc()->storyDoc(static_cast<TextItem *>(ed->doc()->pages[0]->items[1].get())->storyId)).insertText(QStringLiteral("Four five"));
+        QString shown;
+        QTimer::singleShot(0, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                shown = box->text();
+                box->close();
+            }
+        });
+        w.act(QStringLiteral("review.wordCount"))->trigger();
+        QVERIFY2(shown.contains(QStringLiteral("Words: 5")), qPrintable(shown));
+    }
+
+    // Insert > Symbol puts the character chosen in the dialog into the
+    // placeholder being typed in; Date & Time puts in the format chosen.
+    void symbolAndDateGoIntoThePlaceholderBeingEdited()
+    {
+        DeckWindow w;
+        QTextDocument *story = editTitle(w, QStringLiteral("ab"), 1, 1);
+        QString title;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            title = d->windowTitle();
+            QTableWidget *grid = nullptr;
+            for (QTableWidget *t : d->findChildren<QTableWidget *>())
+                if (t->rowCount() > 1) grid = t;
+            QPushButton *insert = nullptr;
+            for (QPushButton *b : d->findChildren<QPushButton *>())
+                if (b->text() == QLatin1String("Insert")) insert = b;
+            if (grid && insert) {
+                grid->setCurrentCell(2, 1);   // Basic Latin from U+0020: 33 on is "A"
+                insert->click();
+            }
+            d->accept();
+        });
+        w.act(QStringLiteral("insert.symbol"))->trigger();
+        QCOMPARE(title, QStringLiteral("Symbol"));
+        QCOMPARE(story->toPlainText(), QStringLiteral("aAb"));
+        // Date & Time: the first format in the list.
+        QString shown;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            if (auto *list = d->findChild<QListWidget *>()) shown = list->currentItem()->text();
+            d->accept();
+        });
+        w.act(QStringLiteral("insert.dateTime"))->trigger();
+        QVERIFY(!shown.isEmpty());
+        QCOMPARE(story->toPlainText(), QStringLiteral("aA") + shown + QStringLiteral("b"));
+    }
+
+    // Insert > Link (Ctrl+K) makes the selected text a link to the address typed.
+    void hyperlinkLinksTheSelectedText()
+    {
+        DeckWindow w;
+        QCOMPARE(w.act(QStringLiteral("insert.link"))->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_K));
+        QTextDocument *story = editTitle(w, QStringLiteral("Visit our site"), 6, 9);
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            for (QLabel *l : d->findChildren<QLabel *>())
+                if (l->text() == QLatin1String("Address:") && l->buddy()) static_cast<QLineEdit *>(l->buddy())->setText(QStringLiteral("example.com"));
+            d->accept();
+        });
+        w.act(QStringLiteral("insert.link"))->trigger();
+        QTextCursor c(story);
+        c.setPosition(7);
+        QCOMPARE(c.charFormat().anchorHref(), QStringLiteral("https://example.com"));
+        c.setPosition(2);
+        QVERIFY(c.charFormat().anchorHref().isEmpty());
+    }
+
+    // The ribbon has a Review tab after Slide Show, with the proofing commands,
+    // and the Insert tab has the symbol, link, and date commands, each KeyTip its own.
+    void reviewTabAndInsertDialogs()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QStringList tabs;
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
+        QCOMPARE(tabs.indexOf(QStringLiteral("Review")), tabs.indexOf(QStringLiteral("Slide Show")) + 1);
+        for (const char *id : {"review.spelling", "review.thesaurus", "review.wordCount", "insert.symbol", "insert.link", "insert.dateTime", "fmt.fontDialog", "para.dialog", "fmt.spacingDialog",
+                               "para.bulletsDialog", "para.numberingDialog", "file.options"})
+            QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        for (const QString &name : {QStringLiteral("Home"), QStringLiteral("Insert"), QStringLiteral("Review")}) {
+            QVERIFY2(w.ribbon()->tab(name), qPrintable(name));
+            QStringList seen;
+            for (const QWidget *c : w.ribbon()->tab(name)->findChildren<QWidget *>()) {
+                const QString k = keytip(c);
+                if (k.isEmpty()) continue;
+                QVERIFY2(!seen.contains(k), qPrintable(name + ": two controls have the KeyTip " + k));
+                seen << k;
+            }
+        }
+        // Each is in its tab.
+        auto has = [&](const QString &tab, const QString &id) {
+            for (const QToolButton *b : w.ribbon()->tab(tab)->findChildren<QToolButton *>())
+                if (b->defaultAction() == w.act(id)) return true;
+            return false;
+        };
+        QVERIFY(has(QStringLiteral("Review"), QStringLiteral("review.spelling")));
+        QVERIFY(has(QStringLiteral("Review"), QStringLiteral("review.thesaurus")));
+        QVERIFY(has(QStringLiteral("Review"), QStringLiteral("review.wordCount")));
+        QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.symbol")));
+        QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.link")));
+        QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.dateTime")));
+    }
+
+    // File > Options is the shared dialog: its General tab has the user name
+    // and the app's own name in the update check, Proofing follows, and
+    // JeffDeck's View page sets the ruler and snapping for every open window.
+    void optionsHasTheGeneralTabAndTheViewPage()
+    {
+        DeckWindow w;
+        QVERIFY(w.act(QStringLiteral("file.options")));
+        QStringList tabNames;
+        QString title, shown, userName, updates;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            title = d->windowTitle();
+            if (auto *tabs = d->findChild<QTabWidget *>()) {
+                shown = tabs->tabText(tabs->currentIndex());
+                for (int i = 0; i < tabs->count(); ++i) tabNames << tabs->tabText(i);
+            }
+            for (QLabel *l : d->findChildren<QLabel *>())
+                if (l->text() == QLatin1String("User name:") && l->buddy()) userName = static_cast<QLineEdit *>(l->buddy())->text();
+            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("updates"))) updates = box->text();
+            d->reject();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QCOMPARE(title, QStringLiteral("JeffDeck Options"));
+        QCOMPARE(tabNames, (QStringList{"General", "Proofing", "View"}));
+        QCOMPARE(shown, QStringLiteral("General"));
+        QCOMPARE(userName, Settings::get().userName());
+        QCOMPARE(updates, QStringLiteral("Check for updates when JeffDeck starts"));
+        // The View page: the ruler and snapping, in this window now and in new ones.
+        QVERIFY(!w.editor()->view.rulers);
+        QVERIFY(w.editor()->view.snapObjects);
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("showRuler"))) box->setChecked(true);
+            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("snapObjects"))) box->setChecked(false);
+            d->accept();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(w.editor()->view.rulers);
+        QVERIFY(!w.canvas()->hRuler()->isHidden());
+        QVERIFY(!w.editor()->view.snapObjects);
+        {
+            DeckWindow another;
+            QVERIFY(another.editor()->view.rulers);
+            QVERIFY(!another.editor()->view.snapObjects);
+        }
+        Settings::get().setValue(QStringLiteral("view/rulers"), false);
+        Settings::get().setValue(QStringLiteral("view/snapObjects"), true);
+    }
+
 private:
+    // Types `text` in the first slide's title placeholder and leaves it being
+    // typed in, with from..to selected when that is a range. Returns the story.
+    static QTextDocument *editTitle(DeckWindow &w, const QString &text, int from, int to)
+    {
+        Editor *ed = w.editor();
+        auto *title = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get());
+        QTextCursor(ed->doc()->storyDoc(title->storyId)).insertText(text);
+        ed->select(title->id);
+        ed->beginTextEdit(title->id, from);
+        if (to > from) {
+            QTextCursor c = ed->cursor();
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            ed->setCursor(c);
+        }
+        return ed->doc()->storyDoc(title->storyId);
+    }
+
     struct Rel {
         QString source, type, target;   // type: the last word of one of the standard's, or a whole URI
         bool external = false;
