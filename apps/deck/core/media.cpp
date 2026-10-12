@@ -729,6 +729,8 @@ std::shared_ptr<PictureItem> newMediaPicture(Document &doc, Page &slide, const Q
         image = QImage(640, 360, QImage::Format_RGB32);
         image.fill(QColor(0x20, 0x24, 0x2B));
     }
+    // A picture of a frame is kept no larger than a screen needs.
+    if (image.width() > 1920) image = image.scaledToWidth(1920, Qt::SmoothTransformation);
     QByteArray png;
     QBuffer buffer(&png);
     buffer.open(QIODevice::WriteOnly);
