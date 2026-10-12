@@ -5,6 +5,7 @@
 // resolve to the global namespace on some compilers and fail to link.
 
 #include "app/filedialogs.h"
+#include "app/proofingdialogs.h"
 #include "app/spelling.h"
 #include "core/style.h"
 
@@ -39,7 +40,6 @@ bool packForPrinter(MainWindow *win, const QString &dir, QString *error = nullpt
 bool packToZip(MainWindow *win, const QString &path, int *fonts, QString *error);
 void saveForPhotoPrinter(QWidget *parent, MainWindow *win);
 void saveAsTemplate(QWidget *parent, MainWindow *win);
-QStringList thesaurusLookup(const QString &word);
 Stroke currentBorderStroke();
 int hyphenateStory(QTextDocument *doc);                   // returns hyphens inserted
 QStringList pressProblems(const Document &d);              // what a printer would object to (before PDF/X)
