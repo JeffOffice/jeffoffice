@@ -169,7 +169,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="+1714"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1716"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished">Kop met accentbalk</translation>
     </message>
@@ -965,7 +965,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>Dialogs</name>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+105"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+106"/>
         <source>No Color</source>
         <translation type="unfinished">Geen kleur</translation>
     </message>
@@ -1033,19 +1033,19 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+1"/>
         <location line="+897"/>
-        <location line="+1520"/>
+        <location line="+1531"/>
         <source>Width:</source>
         <translation type="unfinished">Breedte:</translation>
     </message>
     <message>
-        <location line="-2416"/>
+        <location line="-2427"/>
         <location line="+895"/>
-        <location line="+1522"/>
+        <location line="+1533"/>
         <source>Height:</source>
         <translation type="unfinished">Hoogte:</translation>
     </message>
     <message>
-        <location line="-2416"/>
+        <location line="-2427"/>
         <source>Orientation:</source>
         <translation type="unfinished">Afdrukstand:</translation>
     </message>
@@ -1146,12 +1146,12 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+2174"/>
+        <location line="+2185"/>
         <source>Name:</source>
         <translation type="unfinished">Naam:</translation>
     </message>
     <message>
-        <location line="-2211"/>
+        <location line="-2222"/>
         <location line="+51"/>
         <location line="+33"/>
         <source>Page Size</source>
@@ -1277,19 +1277,19 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+1885"/>
+        <location line="+1896"/>
         <source>Position:</source>
         <translation type="unfinished">Positie:</translation>
     </message>
     <message>
-        <location line="-1879"/>
+        <location line="-1890"/>
         <location line="+425"/>
-        <location line="+1567"/>
+        <location line="+1578"/>
         <source>Remove</source>
         <translation type="unfinished">Verwijderen</translation>
     </message>
     <message>
-        <location line="-1992"/>
+        <location line="-2003"/>
         <source>Remove All</source>
         <translation type="unfinished">Alles verwijderen</translation>
     </message>
@@ -1442,12 +1442,12 @@ Artikel achterpagina	4</translation>
         <location line="+324"/>
         <location line="+760"/>
         <location line="+165"/>
-        <location line="+347"/>
+        <location line="+358"/>
         <source>Color:</source>
         <translation type="unfinished">Kleur:</translation>
     </message>
     <message>
-        <location line="-1901"/>
+        <location line="-1912"/>
         <source>Effects</source>
         <translation type="unfinished">Effecten</translation>
     </message>
@@ -1614,12 +1614,12 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="-1456"/>
-        <location line="+1925"/>
+        <location line="+1936"/>
         <source>Line spacing:</source>
         <translation type="unfinished">Regelafstand:</translation>
     </message>
     <message>
-        <location line="-1923"/>
+        <location line="-1934"/>
         <source>Indents and Spacing</source>
         <translation type="unfinished">Inspringingen en afstand</translation>
     </message>
@@ -2042,12 +2042,12 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+1521"/>
+        <location line="+1532"/>
         <source>Rotation:</source>
         <translation type="unfinished">Draaiing:</translation>
     </message>
     <message>
-        <location line="-1519"/>
+        <location line="-1530"/>
         <source>Size</source>
         <translation type="unfinished">Grootte</translation>
     </message>
@@ -2088,18 +2088,18 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+1501"/>
+        <location line="+1512"/>
         <source>Horizontal position:</source>
         <translation type="unfinished">Horizontale positie:</translation>
     </message>
     <message>
-        <location line="-1500"/>
-        <location line="+1501"/>
+        <location line="-1511"/>
+        <location line="+1512"/>
         <source>Vertical position:</source>
         <translation type="unfinished">Verticale positie:</translation>
     </message>
     <message>
-        <location line="-1500"/>
+        <location line="-1511"/>
         <source>Wrapping style:</source>
         <translation type="unfinished">Terugloopstijl:</translation>
     </message>
@@ -3005,12 +3005,12 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+8"/>
-        <location line="+825"/>
+        <location line="+836"/>
         <source>Base color:</source>
         <translation type="unfinished">Basiskleur:</translation>
     </message>
     <message>
-        <location line="-824"/>
+        <location line="-835"/>
         <source>Tint (left) or shade (right):</source>
         <translation type="unfinished">Tint (links) of donkerder tint (rechts):</translation>
     </message>
@@ -3209,7 +3209,17 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Controleren op updates wanneer JeffPub wordt gestart</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
+        <source>Get beta versions (early builds for testing)</source>
+        <translation type="unfinished">Bètaversies ontvangen (vroege builds om te testen)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Beta versions arrive before the regular ones and may have rough edges. Leave this off to get only the regular versions.</source>
+        <translation type="unfinished">Bètaversies komen eerder uit dan de gewone versies en kunnen nog onvolkomenheden bevatten. Laat dit uit om alleen de gewone versies te ontvangen.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>General</source>
         <translation type="unfinished">Algemeen</translation>
     </message>
@@ -3339,7 +3349,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">JeffPub toont de tekst in de nieuwe taal wanneer het programma de volgende keer wordt gestart.</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+27"/>
         <location line="+22"/>
         <source>Page Number</source>
         <translation type="unfinished">Paginanummer</translation>
@@ -4291,7 +4301,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>Main</name>
     <message>
-        <location filename="../apps/pub/main.cpp" line="+65"/>
+        <location filename="../apps/pub/main.cpp" line="+67"/>
         <source>JeffPub desktop publishing</source>
         <translation type="unfinished">JeffPub desktop publishing</translation>
     </message>
@@ -6569,17 +6579,17 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Telemetry</name>
     <message>
-        <location filename="../libs/shell/app/telemetry.cpp" line="+88"/>
+        <location filename="../libs/shell/app/telemetry.cpp" line="+129"/>
         <source>Help improve %1</source>
         <translation type="unfinished">Help %1 te verbeteren</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>%1 can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used. That shows how many people use it and which parts matter most.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%2&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
-        <translation type="unfinished">%1 kan eenmaal per dag (en bij een update) anonieme gebruiksstatistieken verzenden: de versie, uw besturingssysteem en taal, en hoe vaak elke opdracht wordt gebruikt. Zo is te zien hoeveel mensen het programma gebruiken en welke onderdelen het belangrijkst zijn.&lt;br&gt;&lt;br&gt;Uw bestanden, de namen ervan of de inhoud worden nooit verzonden. &lt;a href=&quot;%2&quot;&gt;Wat wordt verzonden&lt;/a&gt;&lt;br&gt;&lt;br&gt;U kunt dit altijd wijzigen via Bestand &amp;gt; Opties.</translation>
+        <source>%1 can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. That shows how many people use it, which parts matter most, and what to fix first.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%2&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
+        <translation type="unfinished">%1 kan één keer per dag (en na een update) anonieme gebruiksstatistieken verzenden: de versie, uw besturingssysteem en taal, hoe vaak elke opdracht wordt gebruikt en, als het programma ooit onverwacht wordt afgesloten, waar in het programma dat gebeurde. Zo zien we hoeveel mensen het gebruiken, welke onderdelen het belangrijkst zijn en wat als eerste moet worden opgelost.&lt;br&gt;&lt;br&gt;Uw bestanden, hun namen of de inhoud ervan worden nooit verzonden. &lt;a href=&quot;%2&quot;&gt;Wat wordt er verzonden?&lt;/a&gt;&lt;br&gt;&lt;br&gt;U kunt dit altijd wijzigen via Bestand &amp;gt; Opties.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Send anonymous usage statistics</source>
         <translation type="unfinished">Anonieme gebruiksstatistieken verzenden</translation>
     </message>
@@ -8738,12 +8748,12 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1080"/>
+        <location line="+1129"/>
         <source>About</source>
         <translation type="unfinished">Info</translation>
     </message>
     <message>
-        <location line="-1080"/>
+        <location line="-1129"/>
         <source>Options</source>
         <translation type="unfinished">Opties</translation>
     </message>
@@ -9397,7 +9407,57 @@ Desktop publishing</translation>
         <translation type="unfinished">Voegt deze publicatie toe aan Mijn sjablonen in Bestand &gt; Nieuw.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+80"/>
+        <source>JeffOffice apps</source>
+        <translation type="unfinished">JeffOffice-apps</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Publications</source>
+        <translation type="unfinished">Publicaties</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Presentations</source>
+        <translation type="unfinished">Presentaties</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Documents</source>
+        <translation type="unfinished">Documenten</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spreadsheets</source>
+        <translation type="unfinished">Spreadsheets</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Email and calendar</source>
+        <translation type="unfinished">E-mail en agenda</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Databases</source>
+        <translation type="unfinished">Databases</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>You&apos;re using it</source>
+        <translation type="unfinished">U gebruikt deze app</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Coming soon</source>
+        <translation type="unfinished">Binnenkort beschikbaar</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>%1, %2, %3</source>
+        <translation type="unfinished">%1, %2, %3</translation>
+    </message>
+    <message>
+        <location line="+39"/>
         <source>Version %1 · Built with Qt %2</source>
         <translation type="unfinished">Versie %1 · Gebouwd met Qt %2</translation>
     </message>
@@ -14669,7 +14729,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::Updater</name>
     <message>
-        <location filename="../libs/shell/app/updater.cpp" line="+104"/>
+        <location filename="../libs/shell/app/updater.cpp" line="+114"/>
         <location line="+30"/>
         <source>Check for Updates</source>
         <translation type="unfinished">Controleren op updates</translation>
