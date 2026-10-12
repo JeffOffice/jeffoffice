@@ -82,6 +82,7 @@ private:
     void renderNext();
     void prune(int first, int last);
     QByteArray keyOf(int slide) const;
+    static QByteArray lookOf(const QByteArray &key);
     QList<QByteArray> slideKeys() const;
     QStringList pageIds() const;
     QList<int> validSelection() const;
@@ -107,6 +108,7 @@ private:
     QList<QByteArray> m_keys;
     QStringList m_ids;         // the slides' ids then
     QHash<QByteArray, QImage> m_images;
+    QHash<QByteArray, QImage> m_latest;   // the last thumbnail drawn for each look, at whatever size
     bool m_dirty = true;       // slides changed while the view was hidden
     bool m_selfChange = false; // the view itself is changing the editor's current slide
     QTimer m_syncTimer, m_renderTimer, m_scrollTimer;
