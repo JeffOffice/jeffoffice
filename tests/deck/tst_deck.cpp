@@ -8492,6 +8492,7 @@ private Q_SLOTS:
             QVERIFY2(timer.elapsed() < 5000, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
             QVERIFY(d->images.isEmpty());
             QVERIFY(d->imagesLeftOut >= 1);
+            QVERIFY2(err.contains(QStringLiteral("picture")), qPrintable(err));
         }
     }
 

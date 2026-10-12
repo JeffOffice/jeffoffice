@@ -1,6 +1,7 @@
 #include "io/odpimport.h"
 
 #include "io/odpimport_p.h"
+#include "io/presentationfile.h"
 
 #include "core/deck.h"
 #include "core/transition.h"
@@ -657,6 +658,7 @@ bool Reader::run(QString *error)
     if (m_masters.empty()) return fail(say("The presentation has no master page that can be read."));
     readSlides(presentation);
     if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
+    for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);
 
     // The theme: the colors the first master names, and the fonts of its title and outline.
     DeckTheme theme = defaultTheme();

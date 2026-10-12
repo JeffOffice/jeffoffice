@@ -94,7 +94,7 @@ Fill odrawBackground(const QByteArray &data, const OdrawContext &ctx);
 // PICT, 0xF01D JPEG, 0xF01E PNG, 0xF01F DIB, 0xF029 TIFF, 0xF02A JPEG), as
 // the picture file's bytes and its format ("emf", "wmf", "png", "jpeg",
 // "bmp", "tiff"); empty when it can't be read. EMF and WMF come compressed
-// in the record and are inflated (at most 256 MB). `data` holds the record,
+// in the record and are inflated (at most 32 MB). `data` holds the record,
 // header included.
 QByteArray odrawBlip(const QByteArray &data, QString *format);
 // The records of an OfficeArtBStoreContainer's file blocks (0xF007), in

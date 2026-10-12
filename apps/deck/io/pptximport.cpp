@@ -5,6 +5,7 @@
 #include "core/deck.h"
 #include "core/sections.h"
 #include "io/pptxtransition.h"
+#include "io/presentationfile.h"
 #include "office/chart.h"
 #include "office/drawingml.h"
 #include "office/drawingml_table.h"
@@ -1507,6 +1508,7 @@ bool Importer::run(const QString &mainPart, QString *error)
     readSections(root, pageOfSlideId);
     m_doc.appData[QStringLiteral("footers")] = m_footers;
     sayWhatRanOut();
+    for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);
     if (error) {
         QStringList lines = m_notes;
         if (m_extraNotes) lines << say("And %1 more.").arg(m_extraNotes);
