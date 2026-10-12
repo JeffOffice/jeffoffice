@@ -2669,7 +2669,13 @@ private Q_SLOTS:
         QVERIFY(!chartId.isEmpty());
         QCOMPARE(d->images.value(chartId).format, QStringLiteral("svg"));
         const QString svg = QString::fromUtf8(d->images.value(chartId).bytes);
-        QVERIFY2(svg.contains(QStringLiteral("Revenue")) && svg.contains(QStringLiteral("Q2")) && svg.contains(QStringLiteral("Sales by quarter")), qPrintable(svg.left(300)));
+        // The picture's text, its pieces joined: macOS writes "Q2" as "Q" and "2".
+        QStringList texts;
+        static const QRegularExpression textEl(QStringLiteral("<text[^>]*>([^<]*)</text>"));
+        for (auto m = textEl.globalMatch(svg); m.hasNext();) texts << m.next().captured(1).trimmed();
+        const QString shown = texts.join(QString());
+        QVERIFY2(shown.contains(QStringLiteral("Revenue")) && shown.contains(QStringLiteral("Q2")) && shown.contains(QStringLiteral("Sales by quarter")),
+                 qPrintable(QStringLiteral("%1 bytes, text: %2").arg(svg.size()).arg(texts.join(QStringLiteral(" | ")))));
 
         // A picture fill that doesn't say how it fills is tiled.
         QCOMPARE(items[9]->fill.type, Fill::Texture);
