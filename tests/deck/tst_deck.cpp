@@ -6165,6 +6165,497 @@ private Q_SLOTS:
         QCOMPARE(inkLeft(mv), inkLeft(plain) + 300);
     }
 
+    // ---- editing animations ----
+
+    // A slide with shapes numbered as a file would number them: the title 2, the body 3, and more boxes from 10 on.
+    static std::unique_ptr<Document> editDeck(int boxes = 0)
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId)->setPlainText(QStringLiteral("First paragraph\nSecond paragraph\nThird paragraph"));
+        for (int i = 0; i < boxes; ++i) {
+            auto box = std::make_shared<ShapeItem>();
+            box->rect = QRectF(20 + 90 * (i % 8), 400 + 40 * (i / 8), 80, 30);
+            box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+            box->sourceId = 10 + i;
+            box->name = QStringLiteral("Box %1").arg(i + 1);
+            slide.items.push_back(box);
+        }
+        return d;
+    }
+
+    // The effects of a timing as its tree lays them out: "<click> <part's delay> <how it starts> <shape> <preset>/<subtype>" each.
+    static QStringList animOutline(const QString &timing)
+    {
+        QStringList out;
+        QDomDocument dom;
+        if (!office::parseXml(timing.toUtf8(), &dom)) return out;
+        int clicks = 0;
+        std::function<void(const QDomElement &, int, int)> walk = [&](const QDomElement &e, int click, int part) {
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                if (c.localName() == QLatin1String("cTn")) {
+                    const QString type = c.attribute(QStringLiteral("nodeType"));
+                    if (type.endsWith(QLatin1String("Effect"))) {
+                        QString spid;
+                        QVector<QDomElement> stack{c};
+                        while (!stack.isEmpty() && spid.isEmpty()) {
+                            const QDomElement x = stack.takeLast();
+                            if (x.localName() == QLatin1String("spTgt")) spid = x.attribute(QStringLiteral("spid"));
+                            for (QDomElement k = x.firstChildElement(); !k.isNull(); k = k.nextSiblingElement()) stack << k;
+                        }
+                        out << QStringLiteral("%1 %2 %3 %4 %5/%6").arg(click).arg(part).arg(type, spid, c.attribute(QStringLiteral("presetID")), c.attribute(QStringLiteral("presetSubtype")));
+                        continue;
+                    }
+                    const QDomElement cond = c.firstChildElement(QStringLiteral("stCondLst")).firstChildElement(QStringLiteral("cond"));
+                    const QString delay = cond.attribute(QStringLiteral("delay"));
+                    bool byItself = false;
+                    for (QDomElement k = c.firstChildElement(QStringLiteral("stCondLst")).firstChildElement(); !k.isNull(); k = k.nextSiblingElement())
+                        byItself |= k.attribute(QStringLiteral("evt")) == QLatin1String("onBegin");
+                    if (delay == QLatin1String("indefinite")) walk(c.firstChildElement(QStringLiteral("childTnLst")), byItself ? 0 : ++clicks, 0);
+                    else if (type.isEmpty()) walk(c.firstChildElement(QStringLiteral("childTnLst")), click, delay.toInt());
+                    else walk(c.firstChildElement(QStringLiteral("childTnLst")), click, part);
+                } else {
+                    walk(c, click, part);
+                }
+            }
+        };
+        const QDomElement main = [&] {
+            QVector<QDomElement> stack{dom.documentElement()};
+            while (!stack.isEmpty()) {
+                const QDomElement x = stack.takeLast();
+                if (x.localName() == QLatin1String("cTn") && x.attribute(QStringLiteral("nodeType")) == QLatin1String("mainSeq")) return x;
+                for (QDomElement k = x.firstChildElement(); !k.isNull(); k = k.nextSiblingElement()) stack << k;
+            }
+            return QDomElement();
+        }();
+        walk(main.firstChildElement(QStringLiteral("childTnLst")), 0, 0);
+        return out;
+    }
+
+    // Each kind of effect, in each of its ways, is written so that it reads back as the same kind, way, and length: the
+    // timing is exactly what the presentation program writes for it.
+    void animationEditKindsRoundTrip()
+    {
+        const auto &kinds = deck::effectKinds();
+        QVERIFY(kinds.size() > 20);
+        QSet<QString> ids;
+        QSet<deck::EffectClass> classes;
+        for (const deck::EffectKind &kind : kinds) {
+            QVERIFY2(!ids.contains(kind.id), qPrintable(kind.id));
+            ids.insert(kind.id);
+            classes.insert(kind.cls);
+            QVERIFY(!kind.name.isEmpty() && !kind.variants.isEmpty());
+        }
+        QCOMPARE(int(classes.size()), 4);   // entrance, exit, emphasis, and motion path
+        QVERIFY(deck::effectKind(QStringLiteral("entr.fade")) && deck::effectKind(QStringLiteral("exit.fly")) && deck::effectKind(QStringLiteral("emph.spin")) && deck::effectKind(QStringLiteral("path.lines")));
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        int made = 0;
+        for (const deck::EffectKind &kind : kinds) {
+            QSet<QString> keys;
+            for (const deck::EffectVariant &v : kind.variants) {
+                QVERIFY2(!keys.contains(v.key), qPrintable(kind.id + " " + v.key));
+                keys.insert(v.key);
+                deck::AnimSequence seq;
+                deck::Anim a = deck::makeAnim(kind, 3);
+                a.variant = v.key;
+                seq.add(a);
+                deck::setAnimations(*d, slide, seq);
+                const QString where = kind.id + QLatin1Char(' ') + v.key;
+                QVERIFY2(!slide.props.value(QStringLiteral("timingXml")).toString().isEmpty(), qPrintable(where));
+                const deck::AnimSequence back = deck::readAnimations(slide);
+                QVERIFY2(back.effects.size() == 1, qPrintable(where));
+                const deck::Anim &b = back.effects[0];
+                QVERIFY2(!b.custom() && b.kind == kind.id && b.variant == v.key, qPrintable(where + " read as " + b.kind + " " + b.variant));
+                QCOMPARE(b.duration, a.duration);
+                QCOMPARE(b.shape, 3);
+                QCOMPARE(b.smoothStart, a.smoothStart);
+                QCOMPARE(b.amount, a.amount);
+                ++made;
+            }
+        }
+        QVERIFY(made > 100);   // the motion paths alone are 64
+    }
+
+    // The first effect of a title, as the presentation program writes it for a Fade on a click: the same XML, ids and all.
+    void animationEditWritesAFadeAsTheProgramDoes()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 2));
+        deck::setAnimations(*d, slide, seq);
+        const QString expected = animXml(
+            "<p:timing xmlns:p='http://schemas.openxmlformats.org/presentationml/2006/main'><p:tnLst><p:par><p:cTn id='1' dur='indefinite' restart='never' nodeType='tmRoot'><p:childTnLst>"
+            "<p:seq concurrent='1' nextAc='seek'><p:cTn id='2' dur='indefinite' nodeType='mainSeq'><p:childTnLst>"
+            "<p:par><p:cTn id='3' fill='hold'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst><p:childTnLst>"
+            "<p:par><p:cTn id='4' fill='hold'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+            "<p:par><p:cTn id='5' presetID='10' presetClass='entr' presetSubtype='0' fill='hold' grpId='0' nodeType='clickEffect' nodePh='1'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+            "<p:set><p:cBhvr><p:cTn id='6' dur='1' fill='hold'><p:stCondLst><p:cond delay='0'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='2'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='visible'/></p:to></p:set>"
+            "<p:animEffect transition='in' filter='fade'><p:cBhvr><p:cTn id='7' dur='500'/><p:tgtEl><p:spTgt spid='2'/></p:tgtEl></p:cBhvr></p:animEffect>"
+            "</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn>"
+            "<p:prevCondLst><p:cond evt='onPrev' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
+            "<p:nextCondLst><p:cond evt='onNext' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>"
+            "</p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst><p:bldP spid='2' grpId='0'/></p:bldLst></p:timing>");
+        QCOMPARE(slide.props.value(QStringLiteral("timingXml")).toString(), expected);
+        // A box with a fill is built with its background; a number it did not have goes into the timing.
+        auto d2 = editDeck(1);
+        deck::AnimSequence two;
+        two.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        deck::setAnimations(*d2, *d2->pages[0], two);
+        QVERIFY(d2->pages[0]->props.value(QStringLiteral("timingXml")).toString().contains(QStringLiteral("<p:bldP spid=\"10\" grpId=\"0\" animBg=\"1\"/>")));
+    }
+
+    // The click steps, and the effects in them that start with or after the one before, nest as the program nests them, and the
+    // part that follows another starts when it ends (delays, durations, and all).
+    void animationEditNestsTheSteps()
+    {
+        auto d = editDeck(9);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        const deck::EffectStart C = deck::EffectStart::OnClick, W = deck::EffectStart::WithPrevious, A = deck::EffectStart::AfterPrevious;
+        const deck::EffectStart starts[] = {C, W, A, W, C, A, A, W, C};
+        for (int i = 0; i < 9; ++i) {
+            deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 10 + i);
+            a.start = starts[i];
+            seq.add(a);
+        }
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(animOutline(slide.props.value(QStringLiteral("timingXml")).toString()),
+                 (QStringList{QStringLiteral("1 0 clickEffect 10 10/0"), QStringLiteral("1 0 withEffect 11 10/0"), QStringLiteral("1 500 afterEffect 12 10/0"),
+                              QStringLiteral("1 500 withEffect 13 10/0"), QStringLiteral("2 0 clickEffect 14 10/0"), QStringLiteral("2 500 afterEffect 15 10/0"),
+                              QStringLiteral("2 1000 afterEffect 16 10/0"), QStringLiteral("2 1000 withEffect 17 10/0"), QStringLiteral("3 0 clickEffect 18 10/0")}));
+        QCOMPARE(seq.clicks(), 3);
+        QCOMPARE(seq.clickOf(3), 1);
+        QCOMPARE(seq.clickOf(8), 3);
+        // Those that start when the slide shows: the click step is marked to begin by itself.
+        deck::AnimSequence early;
+        for (int i = 0; i < 3; ++i) {
+            deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 10 + i);
+            a.start = i == 0 ? W : i == 1 ? A : C;
+            early.add(a);
+        }
+        deck::setAnimations(*d, slide, early);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"2\"/></p:cond>")));
+        QCOMPARE(animOutline(xml), (QStringList{QStringLiteral("0 0 withEffect 10 10/0"), QStringLiteral("0 500 afterEffect 11 10/0"), QStringLiteral("1 0 clickEffect 12 10/0")}));
+        QCOMPARE(deck::readAnimations(slide).effects[0].start, W);
+        // Delays and durations: a part starts after the delay and length of what came before it in its step.
+        deck::AnimSequence timed;
+        deck::Anim p0 = deck::makeAnim(QStringLiteral("entr.fade"), 10);
+        p0.delay = 1000;
+        deck::Anim p1 = deck::makeAnim(QStringLiteral("entr.wipe"), 11);
+        p1.start = A;
+        p1.delay = 500;
+        p1.duration = 2000;
+        deck::Anim p2 = deck::makeAnim(QStringLiteral("entr.fade"), 12);
+        p2.start = W;
+        p2.delay = 2000;
+        deck::Anim p3 = deck::makeAnim(QStringLiteral("entr.fade"), 13);
+        p3.start = A;
+        timed.add(p0);
+        timed.add(p1);
+        timed.add(p2);
+        timed.add(p3);
+        deck::setAnimations(*d, slide, timed);
+        QCOMPARE(animOutline(slide.props.value(QStringLiteral("timingXml")).toString()),
+                 (QStringList{QStringLiteral("1 0 clickEffect 10 10/0"), QStringLiteral("1 1500 afterEffect 11 22/4"), QStringLiteral("1 1500 withEffect 12 10/0"),
+                              QStringLiteral("1 4000 afterEffect 13 10/0")}));
+        QCOMPARE(timed.beginOf(1), 1500 + 500);
+        QCOMPARE(timed.endOf(3), 4000 + 500);
+    }
+
+    // What the presentation program writes for effects reads as the kind it is, with its own settings: an exit that flies
+    // out to the bottom, and a fade with a delay, smooth start, and repeats.
+    void animationEditReadsWhatTheProgramWrites()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        const QString flyOut = animXml(
+            "<p:par><p:cTn id='5' presetID='2' presetClass='exit' presetSubtype='4' fill='hold' grpId='0' nodeType='clickEffect'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+            "<p:anim calcmode='lin' valueType='num'><p:cBhvr additive='base'><p:cTn id='6' dur='500'/><p:tgtEl><p:spTgt spid='3'/></p:tgtEl><p:attrNameLst><p:attrName>ppt_x</p:attrName></p:attrNameLst></p:cBhvr>"
+            "<p:tavLst><p:tav tm='0'><p:val><p:strVal val='ppt_x'/></p:val></p:tav><p:tav tm='100000'><p:val><p:strVal val='ppt_x'/></p:val></p:tav></p:tavLst></p:anim>"
+            "<p:anim calcmode='lin' valueType='num'><p:cBhvr additive='base'><p:cTn id='7' dur='500'/><p:tgtEl><p:spTgt spid='3'/></p:tgtEl><p:attrNameLst><p:attrName>ppt_y</p:attrName></p:attrNameLst></p:cBhvr>"
+            "<p:tavLst><p:tav tm='0'><p:val><p:strVal val='ppt_y'/></p:val></p:tav><p:tav tm='100000'><p:val><p:strVal val='1+ppt_h/2'/></p:val></p:tav></p:tavLst></p:anim>"
+            "<p:set><p:cBhvr><p:cTn id='8' dur='1' fill='hold'><p:stCondLst><p:cond delay='499'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='3'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='hidden'/></p:to></p:set>"
+            "</p:childTnLst></p:cTn></p:par>");
+        auto wrap = [](const QString &effects) {
+            return animXml("<p:timing xmlns:p='http://schemas.openxmlformats.org/presentationml/2006/main'><p:tnLst><p:par><p:cTn id='1' dur='indefinite' restart='never' nodeType='tmRoot'><p:childTnLst>"
+                           "<p:seq concurrent='1' nextAc='seek'><p:cTn id='2' dur='indefinite' nodeType='mainSeq'><p:childTnLst>"
+                           "<p:par><p:cTn id='3' fill='hold'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst><p:childTnLst><p:par><p:cTn id='4' fill='hold'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>")
+                + effects + animXml("</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
+        };
+        slide.props[QStringLiteral("timingXml")] = wrap(flyOut);
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.effects[0].kind, QStringLiteral("exit.fly"));
+        QCOMPARE(seq.effects[0].variant, QStringLiteral("bottom"));
+        QCOMPARE(seq.effects[0].duration, 500);
+        QCOMPARE(seq.effects[0].shape, 3);
+        QVERIFY(!seq.effects[0].custom());
+        // A fade with a delay, smooth start and end, repeated twice, rewound.
+        QString fade = animFadeIn(3, 1500, "withEffect", 250);
+        fade.replace(QStringLiteral("presetSubtype=\"0\" fill=\"hold\""), QStringLiteral("presetSubtype=\"0\" repeatCount=\"2000\" accel=\"50000\" decel=\"50000\" fill=\"remove\" grpId=\"0\""));
+        slide.props[QStringLiteral("timingXml")] = wrap(fade);
+        seq = deck::readAnimations(slide);
+        QCOMPARE(seq.effects.size(), 1);
+        const deck::Anim &f = seq.effects[0];
+        QVERIFY2(!f.custom(), "a fade with the settings the Timing dialog gives is a fade");
+        QCOMPARE(f.start, deck::EffectStart::WithPrevious);
+        QCOMPARE(f.delay, 250);
+        QCOMPARE(f.duration, 1500);
+        QVERIFY(f.smoothStart && f.smoothEnd && f.rewind);
+        QCOMPARE(f.repeat, 2.0);
+        // The same effect written again is the same effect (the ids aside).
+        deck::setAnimations(*d, slide, seq);
+        const deck::AnimSequence again = deck::readAnimations(slide);
+        QCOMPARE(again.effects.size(), 1);
+        QVERIFY(!again.effects[0].custom());
+        QCOMPARE(again.effects[0].duration, 1500);
+        QCOMPARE(again.effects[0].repeat, 2.0);
+        QVERIFY(again.effects[0].rewind);
+    }
+
+    // What JeffDeck has no kind for stays as the file wrote it: it lists as Custom, can be moved, removed, and started another
+    // way, and the rest of the timing is written around it.
+    void animationEditKeepsWhatItDoesNotKnow()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        // A wheel (entrance 21): an effect with no kind here.
+        const QString wheel = animNode("entr", 21, 1, "clickEffect", 0, {animShow(10, true), animFilter(10, "wheel(1)", true, 2000)});
+        slide.props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {wheel})}) + animStep({animGroup(0, {animFadeIn(3, 500)})}));
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(seq.effects.size(), 2);
+        QVERIFY(seq.effects[0].custom());
+        QCOMPARE(seq.effects[0].shape, 10);
+        QCOMPARE(seq.effects[0].cls, deck::EffectClass::Entrance);
+        QVERIFY(!seq.effects[1].custom());
+        QCOMPARE(seq.effects[0].duration, 2000);
+        // Written again with the fade before it, the wheel's behaviors are as they were.
+        seq.move(1, 0);
+        QVERIFY(seq.effects[1].custom());
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("presetID=\"21\"")) && xml.contains(QStringLiteral("filter=\"wheel(1)\"")));
+        QCOMPARE(animOutline(xml), (QStringList{QStringLiteral("1 0 clickEffect 3 10/0"), QStringLiteral("2 0 clickEffect 10 21/1")}));
+        // Ids stay unique and sequential in document order.
+        QDomDocument dom;
+        QVERIFY(office::parseXml(xml.toUtf8(), &dom));
+        QStringList ids;
+        QVector<QDomElement> stack{dom.documentElement()};
+        while (!stack.isEmpty()) {
+            const QDomElement e = stack.takeFirst();
+            if (e.localName() == QLatin1String("cTn")) ids << e.attribute(QStringLiteral("id"));
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+        }
+        QCOMPARE(int(QSet<QString>(ids.cbegin(), ids.cend()).size()), int(ids.size()));
+        // It can start with the one before, and be removed.
+        seq = deck::readAnimations(slide);
+        seq.effects[1].start = deck::EffectStart::WithPrevious;
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(animOutline(slide.props.value(QStringLiteral("timingXml")).toString()), (QStringList{QStringLiteral("1 0 clickEffect 3 10/0"), QStringLiteral("1 0 withEffect 10 21/1")}));
+        seq = deck::readAnimations(slide);
+        seq.remove(1);
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(deck::readAnimations(slide).effects.size(), 1);
+        seq.remove(0);
+        deck::setAnimations(*d, slide, seq);
+        QVERIFY(!slide.props.contains(QStringLiteral("timingXml")));   // nothing left: no timing
+    }
+
+    // Removing an effect that took a click gives the click to the next effect of its step; moving and starting effects another way.
+    void animationEditOrdersTheEffects()
+    {
+        auto d = editDeck(4);
+        deck::AnimSequence seq;
+        const deck::EffectStart C = deck::EffectStart::OnClick, W = deck::EffectStart::WithPrevious;
+        const deck::EffectStart starts[] = {C, W, C, W};
+        for (int i = 0; i < 4; ++i) {
+            deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 10 + i);
+            a.start = starts[i];
+            seq.add(a);
+        }
+        QCOMPARE(seq.effectsOf(11), (QVector<int>{1}));
+        seq.remove(0);
+        QCOMPARE(seq.effects.size(), 3);
+        QCOMPARE(seq.effects[0].shape, 11);
+        QCOMPARE(seq.effects[0].start, C);   // the click stays
+        QCOMPARE(seq.clicks(), 2);
+        // Later: the effect goes after the next.
+        seq.move(0, 1);
+        QCOMPARE(seq.effects[1].shape, 11);
+        QCOMPARE(seq.effects[0].shape, 12);
+        seq.move(1, 99);   // out of range goes to the end
+        QCOMPARE(seq.effects.last().shape, 11);
+        seq.move(-1, 0);   // nothing
+        QCOMPARE(seq.effects.size(), 3);
+        // A new kind keeps what the effect aims at, how it starts, and its delay.
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.wipe"), 11);
+        a.start = deck::EffectStart::AfterPrevious;
+        a.delay = 700;
+        a.duration = 1200;
+        deck::changeKind(a, *deck::effectKind(QStringLiteral("entr.fly")));
+        QCOMPARE(a.kind, QStringLiteral("entr.fly"));
+        QCOMPARE(a.start, deck::EffectStart::AfterPrevious);
+        QCOMPARE(a.delay, 700);
+        QCOMPARE(a.shape, 11);
+        QCOMPARE(a.variant, QStringLiteral("bottom"));
+        QCOMPARE(a.duration, 1200);
+        deck::changeKind(a, *deck::effectKind(QStringLiteral("entr.appear")));
+        QCOMPARE(a.duration, 0);
+        deck::changeKind(a, *deck::effectKind(QStringLiteral("path.lines")));
+        QCOMPARE(a.duration, 2000);
+        QVERIFY(a.smoothStart && a.smoothEnd);
+    }
+
+    // A build by paragraph is one effect for each paragraph (with the ones indented below it), and back to one for the shape.
+    void animationEditBuildsByParagraph()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        QCOMPARE(deck::paragraphGroups(*d, slide, 3), (QVector<QPair<int, int>>{{0, 0}, {1, 1}, {2, 2}}));
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 3));
+        deck::setByParagraph(seq, 0, true, *d, slide);
+        QCOMPARE(seq.effects.size(), 3);
+        QCOMPARE(seq.effects[1].firstParagraph, 1);
+        QCOMPARE(seq.effects[2].start, deck::EffectStart::OnClick);
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("<p:bldP spid=\"3\" grpId=\"0\" build=\"p\"/>")));
+        QVERIFY(xml.contains(QStringLiteral("<p:txEl><p:pRg st=\"2\" end=\"2\"/></p:txEl>")));
+        QCOMPARE(xml.count(QStringLiteral("<p:bldP ")), 1);   // one build for the shape's three effects
+        QCOMPARE(xml.count(QStringLiteral("grpId=\"0\" nodeType")), 3);
+        const deck::AnimSequence back = deck::readAnimations(slide);
+        QCOMPARE(back.effects.size(), 3);
+        QVERIFY(!back.effects[0].custom() && back.effects[2].paragraphs());
+        // Indented paragraphs go with the one above them.
+        QTextDocument *story = d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId);
+        QTextBlock second = story->findBlockByNumber(1);
+        QTextCursor cur(second);
+        QTextBlockFormat bf = second.blockFormat();
+        bf.setProperty(tp::ListLevel, 1);
+        cur.setBlockFormat(bf);
+        QCOMPARE(deck::paragraphGroups(*d, slide, 3), (QVector<QPair<int, int>>{{0, 1}, {2, 2}}));
+        // Back to the whole shape.
+        deck::AnimSequence one = back;
+        deck::setByParagraph(one, 1, false, *d, slide);
+        QCOMPARE(one.effects.size(), 1);
+        QVERIFY(!one.effects[0].paragraphs());
+    }
+
+    // Effects can be copied from one shape onto others (Animation Painter).
+    void animationEditCopiesEffects()
+    {
+        auto d = editDeck(2);
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fly"), 10);
+        a.variant = QStringLiteral("left");
+        a.duration = 900;
+        seq.add(a);
+        seq.add(deck::makeAnim(QStringLiteral("emph.spin"), 10));
+        deck::copyEffects(seq, 10, {11});
+        QCOMPARE(seq.effects.size(), 4);
+        QCOMPARE(seq.effects[2].shape, 11);
+        QCOMPARE(seq.effects[2].variant, QStringLiteral("left"));
+        QCOMPARE(seq.effects[2].duration, 900);
+        QCOMPARE(seq.effects[3].kind, QStringLiteral("emph.spin"));
+        QCOMPARE(int(seq.effectsOf(11).size()), 2);
+    }
+
+    // What the show plays of the effects JeffDeck makes: a fly in comes from off the slide, an exit moves out (its formulas
+    // have no # in them), a spin turns, a pulse grows and returns, a split opens from the middle, and repeats play again.
+    void animationEditPlaysWhatItMakes()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        auto states = [&](const deck::AnimSequence &seq, double ms) {
+            deck::setAnimations(*d, slide, seq);
+            const deck::Timeline tl = deck::playableTimeline(slide);
+            return deck::statesAt(tl, deck::geometryOf(*d, slide), 0, ms);
+        };
+        const deck::Target box{10};
+        // Fly in from the bottom: starts below the slide, ends where it is.
+        deck::AnimSequence fly;
+        fly.add(deck::makeAnim(QStringLiteral("entr.fly"), 10));
+        QVERIFY(states(fly, 0)[box].offset.y() > 100);
+        QCOMPARE(states(fly, 0)[box].offset.x(), 0.0);
+        QCOMPARE(states(fly, 100000)[box].offset, QPointF());
+        QVERIFY(states(fly, 100000)[box].visible);
+        // And out to the bottom: where it is, then below.
+        deck::AnimSequence out;
+        out.add(deck::makeAnim(QStringLiteral("exit.fly"), 10));
+        QCOMPARE(states(out, 0)[box].offset, QPointF());
+        QVERIFY(states(out, 250)[box].offset.y() > 50);
+        QVERIFY(!states(out, 100000)[box].visible);
+        // A spin turns a full circle; grow/shrink resizes; a pulse grows and comes back.
+        deck::AnimSequence spin;
+        spin.add(deck::makeAnim(QStringLiteral("emph.spin"), 10));
+        QVERIFY(std::abs(states(spin, 1000)[box].rotation - 180) < 1);
+        QVERIFY(std::abs(states(spin, 100000)[box].rotation - 360) < 1e-6);
+        deck::AnimSequence grow;
+        grow.add(deck::makeAnim(QStringLiteral("emph.growshrink"), 10));
+        QVERIFY(std::abs(states(grow, 100000)[box].scaleX - 1.5) < 1e-6);
+        deck::AnimSequence pulse;
+        pulse.add(deck::makeAnim(QStringLiteral("emph.pulse"), 10));
+        QVERIFY(states(pulse, 250)[box].scaleX > 1.04);
+        QVERIFY(states(pulse, 250)[box].opacity < 0.6);   // half see-through at its middle
+        QVERIFY(std::abs(states(pulse, 100000)[box].scaleX - 1) < 1e-6);
+        QCOMPARE(states(pulse, 100000)[box].opacity, 1.0);
+        // A split from the middle shows a strip, then all.
+        deck::AnimSequence split;
+        deck::Anim sp = deck::makeAnim(QStringLiteral("entr.split"), 10);
+        sp.variant = QStringLiteral("verticalOut");
+        split.add(sp);
+        const deck::TargetState half = states(split, 250)[box];
+        QVERIFY(std::abs(half.clip.left() - 0.25) < 0.01 && std::abs(half.clip.width() - 0.5) < 0.01);
+        sp.variant = QStringLiteral("verticalIn");
+        deck::AnimSequence closing;
+        closing.add(sp);
+        const deck::TargetState parts = states(closing, 250)[box];
+        QVERIFY(!parts.clip2.isNull());
+        QVERIFY(std::abs(parts.clip.width() - 0.25) < 0.01 && std::abs(parts.clip2.right() - 1) < 0.01);
+        // Repeated twice, an effect plays twice: a spin of 1 s by 90 degrees is 45 halfway, and halfway through the second run is 45 again.
+        deck::AnimSequence twice;
+        deck::Anim t = deck::makeAnim(QStringLiteral("emph.spin"), 10);
+        t.duration = 1000;
+        t.amount = 90;
+        t.repeat = 2;
+        twice.add(t);
+        QVERIFY(std::abs(states(twice, 500)[box].rotation - 45) < 1);
+        QVERIFY(std::abs(states(twice, 1500)[box].rotation - 45) < 1);
+        QVERIFY(std::abs(states(twice, 100000)[box].rotation - 90) < 1);
+        // Rewound, it goes back when it ends.
+        t.repeat = 1;
+        t.rewind = true;
+        deck::AnimSequence rewound;
+        rewound.add(t);
+        QVERIFY(std::abs(states(rewound, 500)[box].rotation - 45) < 1);
+        QCOMPARE(states(rewound, 100000)[box].rotation, 0.0);
+    }
+
+    // An effect plays smoothly when the effect says so, not only when each behavior does.
+    void animationEditSmoothness()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("emph.spin"), 10);
+        a.duration = 1000;
+        seq.add(a);
+        auto at = [&](const deck::AnimSequence &s, double ms) {
+            deck::setAnimations(*d, slide, s);
+            return deck::statesAt(deck::playableTimeline(slide), deck::geometryOf(*d, slide), 0, ms)[deck::Target{10}].rotation;
+        };
+        QVERIFY(std::abs(at(seq, 250) - 90) < 1e-6);   // straight: a quarter of the way is a quarter turn
+        seq.effects[0].smoothStart = true;
+        seq.effects[0].smoothEnd = true;
+        QVERIFY(at(seq, 250) < 80);                    // slow at the start
+        QVERIFY(std::abs(at(seq, 500) - 180) < 1e-6);
+    }
+
     // ---- the show plays them ----
 
     // Slide 1: the title fades in at the first click, the body appears at the second.
