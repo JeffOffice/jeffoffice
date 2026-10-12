@@ -4,6 +4,7 @@
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/sections.h"
+#include "io/pptxdiagram.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
 #include "office/chart.h"
@@ -67,6 +68,15 @@ constexpr qint64 kMinSlideEmu = 12700, kMaxSlideEmu = 51206400;
 // A chart keeps the parts it relates to (its workbook, a drawing laid over it...), down to this depth, at most so many, of at most this much in all.
 constexpr int kMaxChartParts = 32, kMaxChartDepth = 4;
 constexpr qint64 kMaxChartBytes = 64 << 20;
+// A diagram keeps its parts as a chart does, down to the pictures in its drawing; all the diagrams of a file keep no more than this between them.
+constexpr qint64 kMaxDiagramBytes = 256 << 20;
+// The diagrams a file may have drawn (each is read and set as a slide is, and kept as an SVG), and what their drawings come to: the sample has ten,
+// one on each slide, and real presentations a few dozen, with drawings of a few kilobytes (pictures in them are kept at most 1280 pixels across),
+// so these are 100 times as many, and 25 times that much with a picture on every other shape.
+constexpr int kMaxDiagrams = 1000;
+constexpr qint64 kMaxDiagramSvgBytes = 256 << 20;
+// The extension that holds a shape's math (a14:m) in a shape's text, which a newer program writes with a picture of the shape beside it.
+const QLatin1String kA14("http://schemas.microsoft.com/office/drawing/2010/main");
 
 QString say(const char *text) { return QCoreApplication::translate("PptxImport", text); }
 
@@ -736,6 +746,9 @@ private:
     bool readFramePicture(const QDomElement &frame, Scope &sc);
     bool readFrameTable(const QDomElement &frame, Scope &sc);
     bool readFrameChart(const QDomElement &frame, Scope &sc);
+    bool readFrameDiagram(const QDomElement &frame, Scope &sc);
+    bool readEquation(const QDomElement &alternate, Scope &sc);
+    QString drawingLook(const Scope &sc, const QString &part, const QRectF &rect) const;
     bool keepChartPart(const QString &part, QJsonObject *parts, QSet<QString> *seen, qint64 *bytes, int depth);
     QDomElement tableStyles();
     void fitRows(TableItem &t);
@@ -759,6 +772,10 @@ private:
     };
     QHash<QString, ChartDrawing> m_chartDrawings;
     QHash<QString, std::optional<QJsonObject>> m_chartParts;
+    qint64 m_diagramBytes = 0;                    // what the diagrams' kept parts come to, in all
+    int m_diagramsDrawn = 0;                      // the diagrams drawn so far, and what their drawings come to
+    qint64 m_diagramSvgBytes = 0;
+    bool m_diagramsRanOut = false;
     QHash<QString, QString> m_images;             // the pictures and movies kept, by part and link, for every shape that uses one
     std::vector<std::unique_ptr<MasterCtx>> m_masters;
     std::vector<std::unique_ptr<LayoutCtx>> m_layouts;
@@ -793,6 +810,8 @@ void Importer::sayWhatRanOut()
     if (m_budget.ranOut[B::Runs]) note(say("The file holds more than %1 runs of text in all; the rest are left out.").arg(kMaxRuns));
     if (m_budget.ranOut[B::Letters]) note(say("The file holds more than %1 letters of text in all; the rest are left out.").arg(kMaxLetters));
     if (m_budget.longBody) note(say("Some text is longer than a text box is read to, so the rest of it is left out."));
+    if (m_diagramsRanOut)
+        note(say("The file holds more than %1 diagrams, or diagrams that are drawn from more than %2 MB in all; the rest are kept as written, not shown.").arg(kMaxDiagrams).arg(kMaxDiagramSvgBytes >> 20));
     if (m_pageFull)
         note(say("A slide is read to %1 objects, %2 shapes with text, and %3 letters; some slides here hold more, and the rest of them is left out.")
                  .arg(kMaxPageObjects)
@@ -1128,7 +1147,7 @@ void Importer::readChild(const QDomElement &c, Scope &sc)
         readAlternate(c, sc);
     } else if (name == QLatin1String("graphicFrame") || name == QLatin1String("contentPart")) {
         if (!m_budget.take(office::DrawingBudget::Objects)) return;
-        if (!readFrameTable(c, sc) && !readFrameChart(c, sc) && !readFramePicture(c, sc)) keepUnread(c, c, sc);
+        if (!readFrameTable(c, sc) && !readFrameChart(c, sc) && !readFrameDiagram(c, sc) && !readFramePicture(c, sc)) keepUnread(c, c, sc);
     } else if (isOneOf(name, {"sp", "pic", "grpSp", "cxnSp"})) {
         if (ItemPtr it = readOne(c, sc)) sc.page->items.push_back(it);
     }
@@ -1139,6 +1158,7 @@ void Importer::readChild(const QDomElement &c, Scope &sc)
 void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
 {
     if (!m_budget.take(office::DrawingBudget::Objects)) return;
+    if (readEquation(alternate, sc)) return;
     QDomElement fallback, frame;
     bool read = false;
     for (QDomElement alt = alternate.firstChildElement(); !alt.isNull() && !read; alt = alt.nextSiblingElement()) {
@@ -1149,7 +1169,7 @@ void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
         if (!office::isElement(alt, kMc, QStringLiteral("Choice"))) continue;
         for (QDomElement e = alt.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
             if (isOneOf(e.localName(), {"graphicFrame", "contentPart"})) {
-                if (readFrameTable(e, sc) || readFrameChart(e, sc) || readFramePicture(e, sc)) read = true;
+                if (readFrameTable(e, sc) || readFrameChart(e, sc) || readFrameDiagram(e, sc) || readFramePicture(e, sc)) read = true;
                 else if (frame.isNull()) frame = e;
             } else if (isOneOf(e.localName(), {"sp", "pic", "grpSp", "cxnSp"})) {
                 read = true;
@@ -1251,6 +1271,18 @@ bool Importer::keepChartPart(const QString &part, QJsonObject *parts, QSet<QStri
     return true;
 }
 
+// What a drawing of a part looks like where it is drawn: the part and the size, the theme's colors and fonts, and how the slide maps the colors.
+QString Importer::drawingLook(const Scope &sc, const QString &part, const QRectF &rect) const
+{
+    QString look = part.toLower() + QLatin1Char('|') + QString::number(rect.width()) + QLatin1Char('x') + QString::number(rect.height());
+    for (const QColor &c : sc.ctx.theme.colors) look += QLatin1Char('|') + c.name(QColor::HexArgb);
+    look += QLatin1Char('|') + sc.ctx.theme.majorLatin + QLatin1Char('|') + sc.ctx.theme.minorLatin + QLatin1Char('|') + sc.ctx.themePart.toLower();
+    const office::ColorMap &map = sc.ctx.colors;
+    for (const auto slot : {map.bg1, map.tx1, map.bg2, map.tx2, map.accent[0], map.accent[1], map.accent[2], map.accent[3], map.accent[4], map.accent[5], map.hlink, map.folHlink})
+        look += QLatin1Char('|') + QString::number(int(slot));
+    return look;
+}
+
 // A frame that holds a chart: a picture of it (drawn from the numbers the chart part stores) in the frame's place. The parts of the chart, and the
 // frame as written, are kept in the page's "charts" with the picture's id, so saving writes the chart itself again.
 bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
@@ -1265,13 +1297,8 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     // A frame is no larger than a slide can be (a chart is drawn that large, not as large as a file says it is).
     const QRectF rect(points(off, "x"), points(off, "y"), std::clamp(points(ext, "cx"), 0.0, office::kChartMaxSide), std::clamp(points(ext, "cy"), 0.0, office::kChartMaxSide));
     if (rect.width() < 1 || rect.height() < 1) return false;
-    // A chart that many frames show is read and drawn once for each size and look: the theme's colors and fonts, and how the slide maps them.
-    QString look = rel.target.toLower() + QLatin1Char('|') + QString::number(rect.width()) + QLatin1Char('x') + QString::number(rect.height());
-    for (const QColor &c : sc.ctx.theme.colors) look += QLatin1Char('|') + c.name(QColor::HexArgb);
-    look += QLatin1Char('|') + sc.ctx.theme.majorLatin + QLatin1Char('|') + sc.ctx.theme.minorLatin;
-    const office::ColorMap &map = sc.ctx.colors;
-    for (const auto slot : {map.bg1, map.tx1, map.bg2, map.tx2, map.accent[0], map.accent[1], map.accent[2], map.accent[3], map.accent[4], map.accent[5], map.hlink, map.folHlink})
-        look += QLatin1Char('|') + QString::number(int(slot));
+    // A chart that many frames show is read and drawn once for each size and look.
+    const QString look = drawingLook(sc, rel.target, rect);
     auto drawn = m_chartDrawings.constFind(look);
     if (drawn == m_chartDrawings.cend()) {
         office::Chart chart;
@@ -1307,6 +1334,178 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     else
         note(say("The parts behind the chart \"%1\" are too many or too large to keep, so it is saved as a picture of the chart.").arg(pic->name));
     return true;
+}
+
+// A frame that holds a diagram (SmartArt): a picture of its drawing in the frame's place. The drawing is the shapes the presentation program drew the
+// diagram with, set as slide shapes are and kept as an SVG (a picture that is printed as vectors, and drawn on screen at three pixels to the point).
+// What the diagram is made of is kept in the page's "charts", with the picture's id: the frame as written, the slide's links to its four parts and
+// its drawing, and the parts down to the pictures in the drawing, so saving writes the diagram itself again. A frame with no drawing (an older
+// file's) is left to be kept as it is.
+bool Importer::readFrameDiagram(const QDomElement &frame, Scope &sc)
+{
+    if (!isDiagramFrame(frame)) return false;
+    const QDomElement cNvPr = pChild(pChild(frame, "nvGraphicFramePr"), "cNvPr");
+    if (office::parseBool(office::attr(cNvPr, QStringLiteral("hidden")))) return false;
+    const DiagramLinks ids = diagramFrameLinks(frame);
+    if (!ids.complete()) return false;
+    // The four parts the frame names, which the file has, and the drawing the data part names.
+    struct Named {
+        QString id;
+        const char *suffix;
+    };
+    QJsonArray links;
+    QStringList targets;
+    for (const Named &n : {Named{ids.data, "/diagramData"}, Named{ids.layout, "/diagramLayout"}, Named{ids.style, "/diagramQuickStyle"}, Named{ids.colors, "/diagramColors"}}) {
+        const office::Relationship r = m_pkg.relationship(sc.ctx.part, n.id);
+        if (r.id.isEmpty() || r.external || !m_pkg.hasPart(r.target) || !r.type.endsWith(QLatin1String(n.suffix))) return false;
+        links.append(QJsonObject{{"id", r.id}, {"type", r.type}, {"target", r.target}});
+        targets << r.target;
+    }
+    const QString drawingId = diagramDrawingLinkId(m_pkg.part(targets[0]));
+    const office::Relationship drawing = m_pkg.relationship(sc.ctx.part, drawingId);
+    if (drawingId.isEmpty() || drawing.id.isEmpty() || drawing.external || !m_pkg.hasPart(drawing.target) || !drawing.type.endsWith(QLatin1String("/diagramDrawing"))) return false;
+    links.append(QJsonObject{{"id", drawing.id}, {"type", drawing.type}, {"target", drawing.target}});
+    targets << drawing.target;
+
+    const QDomElement xfrm = pChild(frame, "xfrm"), off = aChild(xfrm, "off"), ext = aChild(xfrm, "ext");
+    auto points = [](const QDomElement &e, const char *name) { return office::emuToPoints(office::parseInt(office::attr(e, QLatin1String(name)))); };
+    // A frame is no larger than a slide can be (a diagram is drawn that large, not as large as a file says it is).
+    const QRectF rect(points(off, "x"), points(off, "y"), std::clamp(points(ext, "cx"), 0.0, office::kChartMaxSide), std::clamp(points(ext, "cy"), 0.0, office::kChartMaxSide));
+    if (rect.width() < 1 || rect.height() < 1) return false;
+    // A diagram that many frames show is read and drawn once for each size and look.
+    const QString look = drawingLook(sc, drawing.target, rect);
+    auto drawn = m_chartDrawings.constFind(look);
+    if (drawn == m_chartDrawings.cend() && m_diagramsDrawn >= kMaxDiagrams) {
+        m_diagramsRanOut = true;
+        return false;
+    }
+    if (drawn == m_chartDrawings.cend()) {
+        ++m_diagramsDrawn;
+        ChartDrawing d;
+        QDomDocument dom;
+        QDomElement root;
+        QString why;
+        if (parsePart(drawing.target, QStringLiteral("drawing"), "http://schemas.microsoft.com/office/drawing/2008/diagram", &dom, &root, &why)) {
+            const QDomElement tree = office::child(root, kDiagramDrawingNs, QStringLiteral("spTree"));
+            if (!tree.isNull()) {
+                office::DrawingContext ctx = sc.ctx;
+                ctx.part = drawing.target;
+                office::TextStyleStack styles;
+                if (!m_defaultStyle.isNull()) styles << m_defaultStyle;
+                int leftOut = 0;
+                const QByteArray svg = diagramSvg(tree, ctx, styles, rect.size(), m_doc, &leftOut);
+                m_doc.imagesLeftOut += leftOut;
+                if (m_diagramSvgBytes + svg.size() > kMaxDiagramSvgBytes) m_diagramsRanOut = true;
+                else if (!(d.imageId = addImage(svg, QStringLiteral("svg"))).isEmpty()) m_diagramSvgBytes += svg.size();
+            }
+        }
+        drawn = m_chartDrawings.insert(look, d);
+    }
+    if (drawn->imageId.isEmpty()) return false;
+
+    auto pic = std::make_shared<PictureItem>();
+    pic->name = office::attr(cNvPr, QStringLiteral("name"));
+    pic->altText = office::attr(cNvPr, QStringLiteral("descr"));
+    pic->rect = rect;
+    pic->imgRect = QRectF(QPointF(0, 0), rect.size());
+    pic->wrap.mode = Wrap::None;
+    pic->imageId = drawn->imageId;
+    PhRef ph;
+    if (placeholderOf(frame, &ph)) pic->role = roleOf(ph);
+    sc.page->items.push_back(pic);
+
+    // What it is made of, kept once for the frames that show it, and within what the file's diagrams may keep in all.
+    const QString key = targets.join(QLatin1Char('|')).toLower();
+    auto kept = m_chartParts.constFind(key);
+    if (kept == m_chartParts.cend()) {
+        QJsonObject parts;
+        QSet<QString> seen;
+        qint64 bytes = 0;
+        bool ok = true;
+        for (const QString &target : std::as_const(targets)) ok = ok && keepChartPart(target, &parts, &seen, &bytes, 0);
+        ok = ok && m_diagramBytes + bytes <= kMaxDiagramBytes;
+        if (ok) m_diagramBytes += bytes;
+        kept = m_chartParts.insert(key, ok ? std::optional<QJsonObject>(parts) : std::nullopt);
+    }
+    if (*kept)
+        sc.charts.append(QJsonObject{{"item", pic->id}, {"kind", "diagram"}, {"frameXml", standaloneXml(frame)}, {"links", links}, {"parts", **kept},
+                                     {"x", rect.x()}, {"y", rect.y()}, {"w", rect.width()}, {"h", rect.height()}, {"name", pic->name}, {"descr", pic->altText}});
+    else
+        note(say("The parts behind the diagram \"%1\" are too many or too large to keep, so it is saved as a picture of the diagram.").arg(pic->name));
+    return true;
+}
+
+// Whether a shape's text holds math: a14:m among the runs of a paragraph.
+bool holdsMath(const QDomElement &shape)
+{
+    for (QDomElement body = shape.firstChildElement(); !body.isNull(); body = body.nextSiblingElement()) {
+        if (body.localName() != QLatin1String("txBody")) continue;
+        for (QDomElement p = body.firstChildElement(); !p.isNull(); p = p.nextSiblingElement()) {
+            if (p.localName() != QLatin1String("p")) continue;
+            for (QDomElement r = p.firstChildElement(); !r.isNull(); r = r.nextSiblingElement())
+                if (r.localName() == QLatin1String("m") && r.namespaceURI() == kA14) return true;
+        }
+    }
+    return false;
+}
+
+// A picture in the place of a shape the picture fills, stretched over its frame; null for a shape with no picture fill.
+ItemPtr pictureFilling(const Item &shape)
+{
+    if (shape.type() == ItemType::Picture) return nullptr;
+    if (shape.fill.type != Fill::Picture || shape.fill.imageId.isEmpty()) return nullptr;
+    auto pic = std::make_shared<PictureItem>();
+    pic->name = shape.name;
+    pic->altText = shape.altText;
+    pic->rect = shape.rect;
+    pic->rotation = shape.rotation;
+    pic->flipH = shape.flipH;
+    pic->flipV = shape.flipV;
+    pic->sourceId = shape.sourceId;
+    pic->stroke = shape.stroke;
+    pic->fx = shape.fx;
+    pic->wrap.mode = Wrap::None;
+    pic->imageId = shape.fill.imageId;
+    pic->imgRect = QRectF(QPointF(0, 0), shape.rect.size());
+    return pic;
+}
+
+// An equation: a shape whose text holds math (a14:m), which a newer program writes as a pair of alternatives, the shape with its math for the programs
+// that know it, and for the others, in the fallback, a picture of the shape (a picture, or a shape filled with it). A text box with other text
+// around an equation is written so too, the picture of the whole box. The picture is what the equation looks like here; the whole pair is kept in
+// the page's "charts", with the picture's id, so saving writes the equation itself again. A pair with no picture to show is read as any other.
+bool Importer::readEquation(const QDomElement &alternate, Scope &sc)
+{
+    bool math = false;
+    QDomElement fallback;
+    for (QDomElement alt = alternate.firstChildElement(); !alt.isNull(); alt = alt.nextSiblingElement()) {
+        if (office::isElement(alt, kMc, QStringLiteral("Fallback"))) {
+            if (fallback.isNull()) fallback = alt;
+            continue;
+        }
+        if (!office::isElement(alt, kMc, QStringLiteral("Choice"))) continue;
+        for (QDomElement e = alt.firstChildElement(); !e.isNull() && !math; e = e.nextSiblingElement())
+            if (e.localName() == QLatin1String("sp") && holdsMath(e)) math = true;
+    }
+    if (!math || fallback.isNull()) return false;
+    for (QDomElement e = fallback.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
+        if (!isOneOf(e.localName(), {"pic", "sp"})) continue;
+        ItemPtr it = readOne(e, sc);
+        if (!it) continue;
+        ItemPtr pic = it->type() == ItemType::Picture ? it : pictureFilling(*it);
+        // A shape's story is of no use now it is a picture.
+        if (it != pic) {
+            if (it->type() == ItemType::Text) m_doc.removeStory(static_cast<const TextItem &>(*it).storyId);
+            if (it->type() == ItemType::Shape) m_doc.removeStory(static_cast<const ShapeItem &>(*it).storyId);
+        }
+        if (!pic || static_cast<const PictureItem &>(*pic).imageId.isEmpty()) continue;
+        sc.page->items.push_back(pic);
+        sc.charts.append(QJsonObject{{"item", pic->id}, {"kind", "equation"}, {"xml", standaloneXml(alternate)},
+                                     {"x", pic->rect.x()}, {"y", pic->rect.y()}, {"w", pic->rect.width()}, {"h", pic->rect.height()},
+                                     {"rotation", pic->rotation}, {"flipH", pic->flipH}, {"flipV", pic->flipV}});
+        return true;
+    }
+    return false;
 }
 
 // What a frame shows for itself, when it holds a picture of it.
