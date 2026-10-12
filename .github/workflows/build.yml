@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # By hand, to build and test a branch before it goes to main:
+  # gh workflow run build.yml --ref <branch>
+  workflow_dispatch:
 
 jobs:
   build:
