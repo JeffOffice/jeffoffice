@@ -205,9 +205,10 @@ private:
 
     // A presentation of two slides on one master, in the order First (persist
     // id 5, with notes) and Second (4, hidden by the newer of two edits); with
-    // `titleMaster`, a third slide on a title master. `cycle` makes the older
-    // edit point back at the newer.
-    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false)
+    // `titleMaster`, a slide on a title master; with `links`, a slide whose text
+    // has a field, a link, a language, and a ruler, and that fades in. `cycle`
+    // makes the older edit point back at the newer.
+    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false)
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
@@ -220,14 +221,24 @@ private:
         const QByteArray environment = pptBox(1010, fonts + pptRec(4003, bodyStyle, 1));
         const QByteArray document = pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
             + environment
+            + (links ? pptBox(1033, pptRec(1034, le(1, 4)) + pptBox(4055, pptRec(4051, le(7, 4)) + pptRec(4026, utf16(QStringLiteral("the site")), 0) + pptRec(4026, utf16(QStringLiteral("https://example.org/site")), 1)))
+                     : QByteArray())
             + pptBox(4080, slidePersist(3, 0, kMaster) + (titleMaster ? slidePersist(7, 0, kTitleMaster) : QByteArray()), 1)
             + pptBox(4080,
                      slidePersist(5, 2, 0x100) + pptText(0, QStringLiteral("Quarterly Results"), pfRun(18, 0, 0) + cfRun(18, 0), true)
-                         + pptText(1, QStringLiteral("First point\rSecond point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + cfRun(12, 0) + cfRun(6, 1, le(1, 2)) + cfRun(7, 0))
+                         + pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(12, 0) + cfRun(6, 1, le(1, 2)) + cfRun(19, 0))
                          + slidePersist(4, 2, 0x101) + pptText(0, QStringLiteral("Plan"), QByteArray(), true)
                          // The first paragraph turns its bullet off: the bullet flags name only hasBullet, and it is clear.
                          + pptText(1, QStringLiteral("Ship\vit"), pfRun(8, 0, 1, le(0, 2)) + cfRun(8, 0))
-                         + (titleMaster ? slidePersist(8, 2, 0x102) + pptText(6, QStringLiteral("Welcome"), QByteArray(), true) + pptText(5, QStringLiteral("To the talk")) : QByteArray()),
+                         + (titleMaster ? slidePersist(8, 2, 0x102) + pptText(6, QStringLiteral("Welcome"), QByteArray(), true) + pptText(5, QStringLiteral("To the talk")) : QByteArray())
+                         + (links ? slidePersist(9, 2, 0x103) + pptText(0, QStringLiteral("Links"), QByteArray(), true)
+                                + pptText(1, QStringLiteral("Go to the site. Slide *"), pfRun(24, 0, 0) + cfRun(24, 0))
+                                // The ruler sets the first level's margin and indent; the language is French for the first 15
+                                // characters; the slide number is the last; the link covers "the site".
+                                + pptRec(4006, le(0x108, 4) + le(720, 2) + le(288, 2)) + pptRec(4010, le(15, 4) + le(2, 4) + le(0x040C, 2) + le(9, 4) + le(0, 4))
+                                + pptRec(4056, le(22, 4)) + pptBox(4082, pptRec(4083, le(0, 4) + le(7, 4) + raw({4, 0, 0, 0, 8, 0, 0, 0})))
+                                + pptRec(4063, le(6, 4) + le(14, 4))
+                                  : QByteArray()),
                      0)
             + pptBox(4080, slidePersist(6, 0, 0x200), 2)
             + pptRec(1002, QByteArray()));
@@ -242,15 +253,17 @@ private:
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0, 4) + le(0x20000, 4) + le(30, 2), 5)
             + pptDrawing());
 
-        auto slide = [&](int geom, const QByteArray &placeholders, quint32 master, quint32 notes, bool hidden, const QByteArray &shapes) {
+        auto slide = [&](int geom, const QByteArray &placeholders, quint32 master, quint32 notes, bool hidden, const QByteArray &shapes, const QByteArray &transition = QByteArray()) {
             QByteArray info = le(0, 4) + le(0, 4) + raw({2, 0}) + le(hidden ? 0x4 : 0x400, 2) + raw({2, 0, 0, 0});
-            return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, info) + pptDrawing(shapes));
+            return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, transition.isEmpty() ? info : transition) + pptDrawing(shapes));
         };
         const QByteArray titleOnBody = pptShape(0x402, 0xD, outlineRef(0)) + pptShape(0x403, 0xE, outlineRef(1), 1000, 200, 5000, 3800);
         const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0x200, false, titleOnBody);
         const QByteArray secondOld = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody);
         const QByteArray second = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, true, titleOnBody);
         const QByteArray third = slide(0, QByteArray("\x0F\x10", 2), kTitleMaster, 0, false, pptShape(0x402, 0xF, outlineRef(0)) + pptShape(0x403, 0x10, outlineRef(1)));
+        // Three seconds, then the next slide; effect 6, direction 1, speed 2.
+        const QByteArray linksSlide = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody, le(3000, 4) + le(0, 4) + raw({1, 6}) + le(0x501, 2) + raw({2, 0, 0, 0}));
         const QByteArray notes = pptBox(1008, pptRec(1009, le(0x100, 4) + le(0, 4), 0, 1)
             + pptDrawing(pptShape(0x402, 0xC, pptRec(3999, le(2, 4)) + pptRec(4000, utf16(QStringLiteral("Remember the demo"))))));
 
@@ -269,8 +282,10 @@ private:
         place(4, secondOld);
         place(5, first);
         place(6, notes);
+        if (links) place(9, linksSlide);
         QVector<QPair<quint32, quint32>> older{{1, 0}, {3, at[3]}, {4, at[4]}, {5, at[5]}, {6, at[6]}};
         if (titleMaster) older << qMakePair(quint32(7), at[7]) << qMakePair(quint32(8), at[8]);
+        if (links) older << qMakePair(quint32(9), at[9]);
         std::sort(older.begin(), older.end());
         const quint32 olderDirectory = quint32(s.size());
         // Each entry names one id (a run of one), so the ids need not be next to each other.
@@ -397,9 +412,9 @@ private Q_SLOTS:
 
         QTextDocument *body = placeholderStory(*d, first, QStringLiteral("ph:body:1"));
         QVERIFY(body);
-        QCOMPARE(body->toPlainText(), QStringLiteral("First point\nSecond point"));
-        const QTextBlock one = body->begin(), two = one.next();
-        QVERIFY(one.isValid() && two.isValid() && !two.next().isValid());
+        QCOMPARE(body->toPlainText(), QStringLiteral("First point\nSecond point\nThird point"));
+        const QTextBlock one = body->begin(), two = one.next(), three = two.next();
+        QVERIFY(one.isValid() && two.isValid() && three.isValid() && !three.next().isValid());
         // The first level: a round bullet hanging 45 points, text of 28 points in the first font and the text color.
         QVERIFY(one.textList());
         QCOMPARE(one.textList()->format().style(), QTextListFormat::ListDisc);
@@ -423,6 +438,9 @@ private Q_SLOTS:
             runs << QStringLiteral("%1|%2|%3").arg(f.fragment().text(), cf.fontWeight() >= QFont::Bold ? QStringLiteral("bold") : QStringLiteral("plain")).arg(cf.fontPointSize());
         }
         QCOMPARE(runs, (QStringList{"Second|bold|24", " point|plain|24"}));
+        // Paragraphs of one level and mark go on in the one list; another level starts its own.
+        QVERIFY(three.textList() == two.textList());
+        QVERIFY(one.textList() != two.textList());
 
         // The second slide's body: a line break within a paragraph that has no bullet.
         QTextDocument *plan = placeholderStory(*d, *d->pages[1], QStringLiteral("ph:body:1"));
@@ -460,6 +478,38 @@ private Q_SLOTS:
         QVERIFY(ctr);
         QCOMPARE(ctr->begin().begin().fragment().charFormat().fontPointSize(), 54.0);
         QVERIFY((ctr->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask) == Qt::AlignHCenter);
+    }
+
+    // A text's fields, links, languages, and ruler come through, and so does how a
+    // slide moves on (kept as the file has it).
+    void binaryPresentationFieldsLinksRulerAndTransition()
+    {
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, true), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 3);
+        const Page &slide = *d->pages[2];
+        QTextDocument *body = placeholderStory(*d, slide, QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QCOMPARE(body->toPlainText(), QStringLiteral("Go to the site. Slide %1").arg(QChar(QChar::ObjectReplacementCharacter)));
+        QStringList runs;
+        for (auto f = body->begin().begin(); !f.atEnd(); ++f) {
+            const QTextCharFormat cf = f.fragment().charFormat();
+            runs << QStringLiteral("%1|%2|%3|%4").arg(f.fragment().text(), cf.isAnchor() ? cf.anchorHref() : QString(), cf.stringProperty(tp::Language), cf.stringProperty(tp::Field));
+        }
+        QCOMPARE(runs, (QStringList{QStringLiteral("Go to ||fr-FR|"), QStringLiteral("the site|https://example.org/site|fr-FR|"), QStringLiteral(".||fr-FR|"),
+                                    QStringLiteral(" Slide |||"), QString(QChar(QChar::ObjectReplacementCharacter)) + QStringLiteral("|||page")}));
+        // The ruler's first level: text at 90 points, its first line (and bullet) at 36.
+        QCOMPARE(body->begin().blockFormat().leftMargin(), 90.0);
+        QCOMPARE(body->begin().blockFormat().textIndent(), -54.0);
+
+        const QJsonObject t = slide.props.value(QStringLiteral("binaryTransition")).toObject();
+        QCOMPARE(t.value(QStringLiteral("effect")).toInt(), 6);
+        QCOMPARE(t.value(QStringLiteral("direction")).toInt(), 1);
+        QCOMPARE(t.value(QStringLiteral("speed")).toInt(), 2);
+        QVERIFY(t.value(QStringLiteral("advanceOnTime")).toBool());
+        QCOMPARE(t.value(QStringLiteral("advanceMs")).toInt(), 3000);
+        QVERIFY(!d->pages[0]->props.contains(QStringLiteral("binaryTransition")));
     }
 
     // Files that can't be read say why: protected with a password, cut short,

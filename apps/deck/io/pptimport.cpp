@@ -32,6 +32,9 @@ namespace {
 constexpr int kMaxSlides = 10000, kMaxMasters = 1000;
 constexpr qint64 kMaxRecords = 1000000;   // read from one stream
 constexpr int kMaxEdits = 100000;
+// What one text may hold, and all the texts together: more is left out.
+constexpr qint64 kMaxTextChars = 1 << 20, kMaxTotalChars = 20 << 20;
+constexpr int kMaxRuns = 200000;
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
 // The format's unit for places and sizes is 1/576 inch.
@@ -392,11 +395,13 @@ QString readChars(const QByteArray &d, const Rec &r, bool wide)
 {
     QString s;
     if (wide) {
-        s.reserve(int(std::min<qint64>(r.len / 2, INT_MAX / 2)));
-        for (qint64 i = 0; i + 2 <= r.len; i += 2) s += QChar(quint16(quint8(d.at(r.off + i)) | (quint8(d.at(r.off + i + 1)) << 8)));
+        const qint64 len = std::min<qint64>(r.len, 2 * kMaxTextChars);
+        s.reserve(int(len / 2));
+        for (qint64 i = 0; i + 2 <= len; i += 2) s += QChar(quint16(quint8(d.at(r.off + i)) | (quint8(d.at(r.off + i + 1)) << 8)));
     } else {
-        s.reserve(int(std::min<qint64>(r.len, INT_MAX / 2)));
-        for (qint64 i = 0; i < r.len; ++i) {
+        const qint64 len = std::min<qint64>(r.len, kMaxTextChars);
+        s.reserve(int(len));
+        for (qint64 i = 0; i < len; ++i) {
             const quint8 b = quint8(d.at(r.off + i));
             s += QChar(b >= 0x80 && b < 0xA0 ? kWin1252[b - 0x80] : b);
         }
@@ -410,7 +415,7 @@ void readStyleRuns(const QByteArray &d, const Rec &r, qint64 textLength, TextGro
     const qint64 need = textLength + 1;
     Cursor c(d, r.off, r.end());
     qint64 total = 0;
-    while (total < need && c.left() >= 10) {
+    while (total < need && c.left() >= 10 && g->pf.size() < kMaxRuns) {
         PfRun run;
         run.count = c.u32();
         run.level = std::min<int>(c.u16(), 8);
@@ -419,7 +424,7 @@ void readStyleRuns(const QByteArray &d, const Rec &r, qint64 textLength, TextGro
         total += run.count;
     }
     total = 0;
-    while (total < need && c.left() >= 8) {
+    while (total < need && c.left() >= 8 && g->cf.size() < kMaxRuns) {
         CfRun run;
         run.count = c.u32();
         if (!readCf(c, &run.cf) || run.count <= 0) break;
@@ -455,7 +460,7 @@ void readRuler(const QByteArray &d, const Rec &r, Ruler *ru)
 void readLanguages(const QByteArray &d, const Rec &r, TextGroup *g)
 {
     Cursor c(d, r.off, r.end());
-    while (c.left() >= 8 && g->lang.size() < 100000) {
+    while (c.left() >= 8 && g->lang.size() < kMaxRuns) {
         LangRun run;
         run.count = c.u32();
         const quint32 m = c.u32();
@@ -800,6 +805,8 @@ private:
     bool m_notesIndexed = false;
 
     PageState *m_state = nullptr;
+    qint64 m_chars = 0;
+    bool m_charLimitSaid = false;
     int m_layoutCount = 0;
     bool m_footers = false;
     QStringList m_notes;
@@ -1080,7 +1087,7 @@ TextGroup Importer::readTextGroup(Records &rs, const QVector<Rec> &recs)
         case RT_StyleTextPropAtom: style = &r; break;
         case RT_MasterTextPropAtom: {
             Cursor c(d, r.off, r.end());
-            while (c.left() >= 6 && g.levels.size() < 100000) {
+            while (c.left() >= 6 && g.levels.size() < kMaxRuns) {
                 const qint64 count = c.u32();
                 g.levels << LevelRun{count, std::min<int>(c.u16(), 4)};
             }
@@ -1140,8 +1147,11 @@ QString Importer::pictureId(int blipIndex)
 {
     if (m_pictureIds.contains(blipIndex)) return m_pictureIds.value(blipIndex);
     QString id;
+    // The pictures are numbered from 1 in a shape's property, and the store counts from its own first entry.
+    int first = INT_MAX;
+    for (const office::OdrawStoreEntry &e : std::as_const(m_store)) first = std::min(first, e.index);
     for (const office::OdrawStoreEntry &e : std::as_const(m_store)) {
-        if (e.index != blipIndex) continue;
+        if (e.index - first + 1 != blipIndex) continue;
         QByteArray blip = e.embedded;
         if (blip.isEmpty()) {
             // The picture itself is in the pictures stream, where the store says.
@@ -1205,8 +1215,11 @@ void Importer::readMasters()
                     break;
                 }
         }
-        // A title master has the centered title and the subtitle, and a main master the title and the body.
-        m->title = m->geom == 2 || m->geom == 3 || m->placeholders.contains(char(3));
+        // A title master has the centered title and the subtitle, and a main master the title and the body; a master
+        // that lists no placeholders is known by its layout.
+        const bool main = m->placeholders.contains(char(1)) || m->placeholders.contains(char(2));
+        const bool centered = m->placeholders.contains(char(3)) || m->placeholders.contains(char(4));
+        m->title = main ? false : centered || m->geom == 2 || m->geom == 3;
         m_masters.push_back(std::move(m));
     }
     // A title master belongs to the main master before it, else the first after it; with no main master at all it is one.
@@ -1443,7 +1456,11 @@ void Importer::finishItems(ItemList &items, PageState &st, bool slide)
         if (it->type() != ItemType::Text) continue;
         auto *t = static_cast<TextItem *>(it.get());
         t->hyphenate = false;
-        if (t->autofit == TextItem::NoAutofit && !isFooterType(type)) t->autofit = TextItem::ShrinkOnOverflow;
+        // Text that overflows its place is hidden by the text engine, not drawn past it: it shrinks to fit instead.
+        if (t->autofit == TextItem::NoAutofit) t->autofit = TextItem::ShrinkOnOverflow;
+        // A slide's placeholder sits in its text where its master's does, unless it says otherwise.
+        if (slide && t->valign == VAlign::Top)
+            if (const Item *tpl = masterPlaceholder(source, type); tpl && tpl->type() == ItemType::Text) t->valign = static_cast<const TextItem *>(tpl)->valign;
         if (t->storyId.isEmpty()) t->storyId = m_doc.createStory();
         const QTextDocument *story = m_doc.storyDoc(t->storyId);
         if (slide && story && story->isEmpty()) t->prompt = promptFor(type);
@@ -1728,7 +1745,14 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
     const QString id = m_doc.createStory();
     QTextDocument *doc = m_doc.storyDoc(id);
     if (!doc) return id;
-    const QString &text = g.text;
+    // All the text of a presentation is read up to a limit, so no file can be made to take forever.
+    QString text = g.text;
+    if (m_chars + text.size() > kMaxTotalChars) {
+        text.truncate(qsizetype(std::max<qint64>(0, kMaxTotalChars - m_chars)));
+        if (!m_charLimitSaid) note(say("The presentation holds more text than can be read; the rest is left out."));
+        m_charLimitSaid = true;
+    }
+    m_chars += text.size();
     const qint64 n = text.size();
     const RunIndex<PfRun> pfIndex(g.pf);
     const RunIndex<CfRun> cfIndex(g.cf);
@@ -1742,6 +1766,9 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
     }
     std::sort(fieldPositions.begin(), fieldPositions.end());
     QHash<int, StyleLevel> resolved;
+    QVector<LinkMark> links = g.links;
+    std::sort(links.begin(), links.end(), [](const LinkMark &a, const LinkMark &b) { return a.start < b.start; });
+    int nextLink = 0;
 
     QTextCursor cur(doc);
     bool firstBlock = true;
@@ -1801,11 +1828,13 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
                 next = std::min(next, *it);
             }
             const LinkMark *link = nullptr;
-            for (const LinkMark &l : g.links) {
-                if (l.start <= pos && pos < l.end) {
+            while (nextLink < links.size() && links[nextLink].end <= pos) ++nextLink;
+            if (nextLink < links.size()) {
+                const LinkMark &l = links[nextLink];
+                if (l.start <= pos) {
                     link = &l;
                     next = std::min(next, l.end);
-                } else if (l.start > pos) {
+                } else {
                     next = std::min(next, l.start);
                 }
             }
