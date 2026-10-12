@@ -3549,6 +3549,95 @@ private Q_SLOTS:
         pv.grab();
     }
 
+    // A step's frames are drawn from what lies beneath and above the shapes it
+    // moves, kept; they come out as drawing the whole slide does.
+    void showStepFramesAreTheWholeSlideDrawn()
+    {
+        auto d = showDeck(2);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId)->setPlainText(QStringLiteral("The body of the slide"));
+        auto under = std::make_shared<ShapeItem>();
+        under->rect = QRectF(40, 60, 500, 300);
+        under->fill = Fill::solid(ColorRef::rgb(QColor(220, 230, 250)));
+        under->sourceId = 20;
+        auto over = std::make_shared<ShapeItem>();
+        over->shape = QStringLiteral("ellipse");
+        over->rect = QRectF(300, 200, 400, 250);
+        over->fill = Fill::solid(ColorRef::rgb(QColor(250, 200, 80)), 0.4);
+        over->sourceId = 21;
+        slide.items.insert(slide.items.begin(), under);
+        slide.items.push_back(over);
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animFlyIn(20, 200), animFadeIn(3, 200), animWipe(21, "wipe(left)", true, 200)}));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        const QSize size(640, 360);
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry geometry = deck::geometryOf(*d, slide);
+        QCOMPARE(int(tl.steps.size()), 3);
+        for (int step = 0; step < 3; ++step)
+            for (const double ms : {0.0, 60.0, 150.0, 199.0}) {
+                const QImage frame = show.renderView(SlideShow::View{0, step}, ms, size, 1.0);
+                const deck::States states = deck::statesAt(tl, geometry, step, ms);
+                const QImage whole = renderSlideImage(d.get(), &cache, 0, size, 1.0, Qt::black, &states);
+                QCOMPARE(frame.size(), whole.size());
+                int worst = 0;
+                for (int y = 0; y < frame.height(); ++y)
+                    for (int x = 0; x < frame.width(); ++x) {
+                        const QRgb a = frame.pixel(x, y), b = whole.pixel(x, y);
+                        worst = std::max({worst, std::abs(qRed(a) - qRed(b)), std::abs(qGreen(a) - qGreen(b)), std::abs(qBlue(a) - qBlue(b))});
+                    }
+                QVERIFY2(worst <= 2, qPrintable(QStringLiteral("step %1 at %2 ms differs by %3").arg(step).arg(ms).arg(worst)));
+            }
+        // It moves: the frames are not all one picture.
+        QVERIFY(show.renderView(SlideShow::View{0, 0}, 0, size, 1.0) != show.renderView(SlideShow::View{0, 0}, 150, size, 1.0));
+    }
+
+    // Prints what a frame of an effect costs on a busy slide, against drawing the slide whole.
+    void showStepFrameTimes()
+    {
+        auto d = showDeck(2);
+        Page &slide = *d->pages[0];
+        QStringList lines;
+        for (int k = 0; k < 8; ++k) lines << QStringLiteral("Point %1 of the slide, with enough words to fill a line of the body text").arg(k + 1);
+        d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId)->setPlainText(lines.join('\n'));
+        for (int k = 0; k < 5; ++k) {
+            auto shape = std::make_shared<ShapeItem>();
+            shape->shape = k % 2 ? QStringLiteral("ellipse") : QStringLiteral("roundRect");
+            shape->rect = QRectF(40 + k * 170, 330, 160, 150);
+            shape->fill = Fill::gradient(ColorRef::rgb(QColor(40 + k * 50, 90, 180)), ColorRef::rgb(QColor(240, 200 - k * 30, 60)), 45 + k * 30);
+            shape->fx.shadow.on = k == 0;
+            shape->sourceId = 10 + k;
+            slide.items.push_back(shape);
+        }
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeIn(14, 500), animFlyIn(10, 500)}));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        const QSize size(1920, 1080);
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry geometry = deck::geometryOf(*d, slide);
+        auto millis = [](const std::function<void()> &f) {
+            QElapsedTimer t;
+            t.start();
+            f();
+            return t.nsecsElapsed() / 1e6;
+        };
+        QStringList line;
+        for (int step = 0; step < 2; ++step) {
+            const double first = millis([&] { show.renderView(SlideShow::View{0, step}, 0, size, 1.0); });
+            QVector<double> frames, wholes;
+            for (int i = 1; i <= 7; ++i) {
+                frames << millis([&] { show.renderView(SlideShow::View{0, step}, i * 60.0, size, 1.0); });
+                const deck::States states = deck::statesAt(tl, geometry, step, i * 60.0);
+                wholes << millis([&] { renderSlideImage(d.get(), &cache, 0, size, 1.0, Qt::black, &states); });
+            }
+            std::sort(frames.begin(), frames.end());
+            std::sort(wholes.begin(), wholes.end());
+            line << QStringLiteral("step %1: kept layers %2 ms, a frame %3 ms, the whole slide %4 ms").arg(step + 1).arg(first, 0, 'f', 1).arg(frames[3], 0, 'f', 1).arg(wholes[3], 0, 'f', 1);
+        }
+        qInfo().noquote() << QStringLiteral("SHOWTIMES 1920x1080 effects:") << line.join(QStringLiteral(", "));
+    }
+
     // The window: the ribbon builds from its file with nothing missing, and
     // the slide commands are steps that undo.
     void windowSlideCommands()

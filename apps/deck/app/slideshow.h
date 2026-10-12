@@ -37,12 +37,15 @@
 #include <QTimer>
 #include <QVariantAnimation>
 #include <QWidget>
+#include <memory>
+#include <vector>
 
 namespace jp {
 
 class Document;
 class LayoutCache;
 class PresenterView;
+class StepFrames;
 
 // A slide drawn to fill `size` device-independent pixels at `dpr`, centered
 // and as large as it goes, with `bars` around it. The image is opaque. With
@@ -144,6 +147,7 @@ private:
     int stepsOf(int slide) const { return int(playOf(slide).timeline.steps.size()); }
     QImage imageOf(int slide);
     QImage nowImage();
+    std::shared_ptr<StepFrames> framesOf(const View &view, const QSize &size, qreal dpr, const QColor &bars);
     void prefetch();
     void moveOn();
     void startTransition(int slide, const deck::Transition &t);
@@ -185,6 +189,7 @@ private:
     double m_stepMs = 0, m_stepLength = 0;
     QElapsedTimer m_stepClock;
     QTimer m_frame;
+    std::vector<std::shared_ptr<StepFrames>> m_frames;   // what draws the frames of a step, for each size asked
     QImage m_now;               // the slide on the screen when it is not at its start
     QSize m_nowSize;
     qreal m_nowRatio = 1;
