@@ -8,9 +8,9 @@ Your settings are in the **JeffDeck Options** window. Click **File > Options** t
 - **User name** and **Initials** are shown on the comments you write. See [Comments](comments).
 - **Theme** is **Use system setting**, **Light**, or **Dark**. The change shows at once.
 - **Display language** is the language of JeffDeck's own words. **Use system language** follows your computer. Other languages appear in this list when translations are available. A new language starts the next time you open JeffDeck.
-- **Send anonymous usage statistics**, **Check for updates when JeffDeck starts**, and **Get beta versions (early builds for testing)** are choices for all the JeffOffice apps. In this Preview, JeffDeck does not send statistics or look for updates itself. The choices are kept for the apps that do.
+- Usage statistics and update checks aren't here. In this Preview, JeffDeck doesn't send statistics or look for updates. Those choices are in JeffPub's Options, and they apply to all the JeffOffice apps.
 
-**User name**, **Initials**, **Theme**, and **Display language**, and the other choices on this tab, belong to all the JeffOffice apps: change one here and it changes in each of them.
+**User name**, **Initials**, **Theme**, and **Display language** belong to all the JeffOffice apps: change one here and it changes in each of them.
 
 ## Proofing
 
