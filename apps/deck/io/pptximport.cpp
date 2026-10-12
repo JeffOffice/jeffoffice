@@ -2,6 +2,7 @@
 
 #include "core/appinfo.h"
 #include "core/deck.h"
+#include "office/chart.h"
 #include "office/drawingml.h"
 #include "office/drawingml_table.h"
 #include "office/package.h"
@@ -14,6 +15,8 @@
 #include <QFile>
 #include <QHash>
 #include <QJsonArray>
+#include <QJsonObject>
+#include <QSet>
 #include <QTextDocument>
 #include <QTextStream>
 #include <climits>
@@ -32,6 +35,9 @@ constexpr int kMaxSlides = 10000, kMaxLayouts = 1000, kMaxMasters = 1000, kMaxSh
 constexpr int kMaxNotes = 20;
 // A slide may be 56 inches across at most (the standard's limit), and is a point at least.
 constexpr qint64 kMinSlideEmu = 12700, kMaxSlideEmu = 51206400;
+// A chart keeps the parts it relates to (its workbook, a drawing laid over it...), down to this depth, at most so many, of at most this much in all.
+constexpr int kMaxChartParts = 32, kMaxChartDepth = 4;
+constexpr qint64 kMaxChartBytes = 64 << 20;
 
 QString say(const char *text) { return QCoreApplication::translate("PptxImport", text); }
 
@@ -266,7 +272,7 @@ private:
         office::DrawingContext ctx;
         const MasterCtx *master = nullptr;
         const LayoutCtx *layout = nullptr;
-        QJsonArray unread;
+        QJsonArray unread, charts;
         int shapes = 0;
     };
 
@@ -294,6 +300,8 @@ private:
     ItemPtr readOne(const QDomElement &shape, Scope &sc);
     bool readFramePicture(const QDomElement &frame, Scope &sc);
     bool readFrameTable(const QDomElement &frame, Scope &sc);
+    bool readFrameChart(const QDomElement &frame, Scope &sc);
+    bool keepChartPart(const QString &part, QJsonObject *parts, QSet<QString> *seen, qint64 *bytes, int depth);
     QDomElement tableStyles();
     void fitRows(TableItem &t);
     void keepUnread(const QDomElement &whole, const QDomElement &frame, Scope &sc);
@@ -554,6 +562,7 @@ void Importer::readTree(const QDomElement &tree, Scope &sc)
         readChild(c, sc);
     }
     if (!sc.unread.isEmpty()) sc.page->props[QStringLiteral("unread")] = sc.unread;
+    if (!sc.charts.isEmpty()) sc.page->props[QStringLiteral("charts")] = sc.charts;
 }
 
 void Importer::readChild(const QDomElement &c, Scope &sc)
@@ -562,7 +571,7 @@ void Importer::readChild(const QDomElement &c, Scope &sc)
     if (office::isElement(c, kMc, QStringLiteral("AlternateContent"))) {
         readAlternate(c, sc);
     } else if (name == QLatin1String("graphicFrame") || name == QLatin1String("contentPart")) {
-        if (!readFrameTable(c, sc) && !readFramePicture(c, sc)) keepUnread(c, c, sc);
+        if (!readFrameTable(c, sc) && !readFrameChart(c, sc) && !readFramePicture(c, sc)) keepUnread(c, c, sc);
     } else if (isOneOf(name, {"sp", "pic", "grpSp", "cxnSp"})) {
         if (ItemPtr it = readOne(c, sc)) sc.page->items.push_back(it);
     }
@@ -582,7 +591,7 @@ void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
         if (!office::isElement(alt, kMc, QStringLiteral("Choice"))) continue;
         for (QDomElement e = alt.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
             if (isOneOf(e.localName(), {"graphicFrame", "contentPart"})) {
-                if (readFrameTable(e, sc) || readFramePicture(e, sc)) read = true;
+                if (readFrameTable(e, sc) || readFrameChart(e, sc) || readFramePicture(e, sc)) read = true;
                 else if (frame.isNull()) frame = e;
             } else if (isOneOf(e.localName(), {"sp", "pic", "grpSp", "cxnSp"})) {
                 read = true;
@@ -664,6 +673,63 @@ void Importer::fitRows(TableItem &t)
         }
     }
     if (grew) t.syncRect();
+}
+
+// A part and what it relates to, down the chain of relationships, for writing back: by part name, its content type, its bytes (base64), and its
+// links (id, type, and the part or address they go to). False if the chain is too long or big, or leads to a part the file doesn't have.
+bool Importer::keepChartPart(const QString &part, QJsonObject *parts, QSet<QString> *seen, qint64 *bytes, int depth)
+{
+    if (seen->contains(part.toLower())) return true;
+    if (depth > kMaxChartDepth || seen->size() >= kMaxChartParts || !m_pkg.hasPart(part)) return false;
+    seen->insert(part.toLower());
+    const QByteArray data = m_pkg.part(part);
+    *bytes += data.size();
+    if (*bytes > kMaxChartBytes) return false;
+    QJsonArray links;
+    for (const office::Relationship &r : m_pkg.relationships(part)) {
+        QJsonObject link{{"id", r.id}, {"type", r.type}, {"target", r.target}};
+        if (r.external) link.insert(QStringLiteral("external"), true);
+        else if (!keepChartPart(r.target, parts, seen, bytes, depth + 1)) return false;
+        links.append(link);
+    }
+    parts->insert(part, QJsonObject{{"type", m_pkg.contentType(part)}, {"data", QString::fromLatin1(data.toBase64())}, {"rels", links}});
+    return true;
+}
+
+// A frame that holds a chart: a picture of it (drawn from the numbers the chart part stores) in the frame's place. The parts of the chart, and the
+// frame as written, are kept in the page's "charts" with the picture's id, so saving writes the chart itself again.
+bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
+{
+    if (!office::isChartFrame(frame)) return false;
+    const office::Relationship rel = m_pkg.relationship(sc.ctx.part, office::chartFrameRelId(frame));
+    if (rel.id.isEmpty() || rel.external || !m_pkg.hasPart(rel.target)) return false;
+    office::Chart chart;
+    if (!office::readChart(m_pkg.part(rel.target), sc.ctx.theme, sc.ctx.colors, &chart)) return false;
+    const QDomElement cNvPr = pChild(pChild(frame, "nvGraphicFramePr"), "cNvPr");
+    const QDomElement xfrm = pChild(frame, "xfrm"), off = aChild(xfrm, "off"), ext = aChild(xfrm, "ext");
+    auto points = [](const QDomElement &e, const char *name) { return office::emuToPoints(office::parseInt(office::attr(e, QLatin1String(name)))); };
+    const QRectF rect(points(off, "x"), points(off, "y"), std::max(0.0, points(ext, "cx")), std::max(0.0, points(ext, "cy")));
+    if (rect.width() < 1 || rect.height() < 1) return false;
+
+    auto pic = std::make_shared<PictureItem>();
+    pic->name = office::attr(cNvPr, QStringLiteral("name"));
+    pic->altText = office::attr(cNvPr, QStringLiteral("descr"));
+    pic->rect = rect;
+    pic->imgRect = QRectF(QPointF(0, 0), rect.size());
+    pic->wrap.mode = Wrap::None;
+    pic->imageId = addImage(office::chartSvg(chart, rect.size()), QStringLiteral("svg"));
+    PhRef ph;
+    if (placeholderOf(frame, &ph)) pic->role = roleOf(ph);
+    sc.page->items.push_back(pic);
+
+    QJsonObject parts;
+    QSet<QString> seen;
+    qint64 bytes = 0;
+    if (keepChartPart(rel.target, &parts, &seen, &bytes, 0))
+        sc.charts.append(QJsonObject{{"item", pic->id}, {"main", rel.target}, {"frameXml", standaloneXml(frame)}, {"parts", parts}});
+    else
+        note(say("The parts behind the chart \"%1\" are too many or too large to keep, so it is saved as a picture of the chart.").arg(pic->name));
+    return true;
 }
 
 // What a frame shows for itself, when it holds a picture of it.
