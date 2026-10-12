@@ -967,37 +967,37 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../apps/deck/core/deck.cpp" line="+83"/>
         <source>%1 Placeholder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Espace réservé %1</translation>
     </message>
     <message>
         <location line="+267"/>
         <source>Click to add title</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cliquez pour ajouter un titre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Click to add subtitle</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cliquez pour ajouter un sous-titre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Click to add text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cliquez pour ajouter du texte</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Click to add a picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cliquez pour ajouter une image</translation>
     </message>
     <message>
         <location filename="../apps/deck/core/sections.cpp" line="+109"/>
         <source>Untitled Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Section sans titre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Default Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Section par défaut</translation>
     </message>
 </context>
 <context>
@@ -1005,12 +1005,12 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../apps/deck/app/deckdialogs.cpp" line="+22"/>
         <source>Apply</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Appliquer</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Apply to All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Appliquer partout</translation>
     </message>
 </context>
 <context>
@@ -1018,12 +1018,12 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../apps/deck/io/deckoutput.cpp" line="+501"/>
         <source>There are no slides to print.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il n&apos;y a aucune diapositive à imprimer.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>The PDF can&apos;t be started.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossible de démarrer le PDF.</translation>
     </message>
 </context>
 <context>
@@ -4431,17 +4431,17 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
     <message>
         <location filename="../apps/deck/main.cpp" line="-6"/>
         <source>JeffDeck presentations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentations JeffDeck</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Start in this view: normal, outline, or sorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Démarrer dans cet affichage : normal, plan ou trieuse.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Presentations to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentations à ouvrir.</translation>
     </message>
 </context>
 <context>
@@ -4531,42 +4531,42 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/deck/io/odpimport.cpp" line="+266"/>
         <source>Blank</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vide</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Title Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive de titre</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Title and Content</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Titre et contenu</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Title Only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Titre seul</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Two Content</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deux contenus</translation>
     </message>
     <message>
         <location filename="../apps/deck/io/odpimport_shape.cpp" line="+103"/>
         <source>Click to edit Master title style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cliquez pour modifier le style du titre du masque</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Click to edit Master subtitle style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cliquez pour modifier le style des sous-titres du masque</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Click to edit Master text styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cliquez pour modifier les styles du texte du masque</translation>
     </message>
 </context>
 <context>
@@ -4602,7 +4602,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/deck/io/pptimport.cpp" line="+2429"/>
         <source>The presentation is too big to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La présentation est trop volumineuse pour être ouverte.</translation>
     </message>
 </context>
 <context>
@@ -4610,7 +4610,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/deck/io/pptximport.cpp" line="+1402"/>
         <source>This file is in an older format, or is protected with a password, which %1 can&apos;t open yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ce fichier est dans un format plus ancien ou est protégé par un mot de passe, et %1 ne peut pas encore l&apos;ouvrir.</translation>
     </message>
 </context>
 <context>
@@ -4618,7 +4618,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/deck/io/presentationfile.cpp" line="+24"/>
         <source>The file can&apos;t be opened: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossible d&apos;ouvrir le fichier : %1</translation>
     </message>
 </context>
 <context>
@@ -6625,17 +6625,17 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-36"/>
         <source>Comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Commentaires</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Customize</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Personnaliser</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Design</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conception</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6645,67 +6645,67 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+1"/>
         <source>Duration:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Durée :</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Effect Options</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Options d&apos;effet</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Images</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Images</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Monitors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Moniteurs</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Presentation Views</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Affichages des présentations</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Preview</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aperçu</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Section</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Set Up</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Configurer</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Slide Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diaporama</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Slide Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Taille des diapositives</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Start Slide Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lancer le diaporama</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Symbols</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Symboles</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6715,22 +6715,22 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+1"/>
         <source>Timing</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Minutage</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Transition to This Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Transition vers cette diapositive</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Transitions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Transitions</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Variants</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Variantes</translation>
     </message>
 </context>
 <context>
@@ -8876,12 +8876,12 @@ Publication assistée par ordinateur</translation>
     <message>
         <location filename="../libs/office/office/theme.cpp" line="+53"/>
         <source>The part is not a theme.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La partie n&apos;est pas un thème.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The theme has no colors.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le thème ne contient aucune couleur.</translation>
     </message>
 </context>
 <context>
@@ -8972,12 +8972,12 @@ Publication assistée par ordinateur</translation>
     <message>
         <location filename="../libs/office/office/xml.cpp" line="+90"/>
         <source>The XML has a DOCTYPE, which is not allowed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le XML contient un DOCTYPE, ce qui n&apos;est pas autorisé.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The XML is nested too deeply.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le XML est imbriqué trop profondément.</translation>
     </message>
 </context>
 <context>
@@ -8985,17 +8985,17 @@ Publication assistée par ordinateur</translation>
     <message>
         <location filename="../apps/deck/app/deckdialogs.cpp" line="+60"/>
         <source>Format Background</source>
-        <translation type="unfinished">Mettre en forme l&apos;arrière-plan</translation>
+        <translation type="unfinished">Mise en forme de l&apos;arrière-plan</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Background Color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Couleur d&apos;arrière-plan</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Solid fill color:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Couleur de remplissage uni :</translation>
     </message>
 </context>
 <context>
@@ -10124,7 +10124,7 @@ Source : %3</translation>
         <location filename="../apps/deck/app/commentspane.cpp" line="+91"/>
         <location line="+9"/>
         <source>Comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Commentaires</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -10136,22 +10136,22 @@ Source : %3</translation>
         <location line="+5"/>
         <location line="+145"/>
         <source>New Comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nouveau commentaire</translation>
     </message>
     <message>
         <location line="-131"/>
         <source>Type a comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tapez un commentaire</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>New comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nouveau commentaire</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Post</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Publier</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -10162,81 +10162,81 @@ Source : %3</translation>
     <message>
         <location line="-291"/>
         <source>There are no comments on this slide.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il n&apos;y a aucun commentaire sur cette diapositive.</translation>
     </message>
     <message>
         <location line="+118"/>
         <source>Reply to Comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Répondre au commentaire</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Edit Comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modifier le commentaire</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Resolve Comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Résoudre le commentaire</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Reopen Comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rouvrir le commentaire</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Delete Comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer le commentaire</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+233"/>
         <source>Delete Reply</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer la réponse</translation>
     </message>
     <message>
         <location line="-223"/>
         <location line="+7"/>
         <source>Delete Comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer les commentaires</translation>
     </message>
     <message>
         <location line="+132"/>
         <source>Save</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enregistrer</translation>
     </message>
     <message>
         <location line="+38"/>
         <source>Resolved</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Résolu</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>Edit Reply</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modifier la réponse</translation>
     </message>
     <message>
         <location line="+18"/>
         <location line="+1"/>
         <location line="+2"/>
         <source>Reply</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Répondre</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Reopen</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rouvrir</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Resolve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Résoudre</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Edit</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modifier</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10249,7 +10249,7 @@ Source : %3</translation>
     <message>
         <location filename="../apps/deck/app/deckcanvas.cpp" line="+98"/>
         <source>Move Comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Déplacer le commentaire</translation>
     </message>
 </context>
 <context>
@@ -10257,12 +10257,12 @@ Source : %3</translation>
     <message>
         <location filename="../apps/deck/app/deckfilescreen.cpp" line="+116"/>
         <source>Back to presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Retour à la présentation</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Return to your presentation (Esc)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Revenir à votre présentation (Échap)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10283,12 +10283,12 @@ Source : %3</translation>
     <message>
         <location line="-69"/>
         <source>This presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cette présentation</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Save</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enregistrer</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -10327,12 +10327,12 @@ Source : %3</translation>
     <message>
         <location line="-348"/>
         <source>New Presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nouvelle présentation</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Blank Presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentation vierge</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -10342,7 +10342,7 @@ Source : %3</translation>
     <message>
         <location line="+0"/>
         <source>Open a presentation from your computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ouvrir une présentation à partir de votre ordinateur.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10352,12 +10352,12 @@ Source : %3</translation>
     <message>
         <location line="+1"/>
         <source>Open copies of unsaved work %1 kept when it closed unexpectedly.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ouvrir les copies du travail non enregistré que %1 a conservées lors de sa fermeture inattendue.</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>Presentations you open or save will appear here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les présentations que vous ouvrez ou enregistrez apparaîtront ici.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -10372,7 +10372,7 @@ Source : %3</translation>
     <message>
         <location line="+4"/>
         <source>Remove from list</source>
-        <translation type="unfinished">Retirer de la liste</translation>
+        <translation type="unfinished">Supprimer de la liste</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -10382,32 +10382,32 @@ Source : %3</translation>
     <message>
         <location line="+3"/>
         <source>Recent Presentations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentations récentes</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>Print what:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimer :</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Order:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ordre :</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Range:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Étendue :</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Print hidden slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimer les diapositives masquées</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Frame slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Encadrer les diapositives</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10417,52 +10417,52 @@ Source : %3</translation>
     <message>
         <location line="+16"/>
         <source>Preview of the printed page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aperçu de la page imprimée</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Previous page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Page précédente</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Next page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Page suivante</translation>
     </message>
     <message>
         <location line="+48"/>
         <source>Page %1 of %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Page %1 sur %2</translation>
     </message>
     <message>
         <location line="+87"/>
         <source>Export to PDF</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter au format PDF</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Slides, notes pages, handouts, or the outline, as a PDF that looks the same everywhere. Choose what to include first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives, pages de commentaires, documents ou plan, dans un PDF qui s&apos;affiche de la même façon partout. Choisissez d&apos;abord le contenu à inclure.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Export Slide as Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter la diapositive en tant qu&apos;image</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The slide you&apos;re on, as a PNG or JPEG picture 1920 pixels across.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La diapositive active, sous forme d&apos;image PNG ou JPEG de 1920 pixels de large.</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Version %1 · Built with Qt %2</source>
-        <translation type="unfinished">Version %1 · Compilée avec Qt %2</translation>
+        <translation type="unfinished">Version %1 · Compilé avec Qt %2</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Free, open-source presentations for Windows, macOS, and Linux.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentations libres et open source pour Windows, macOS et Linux.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -10487,7 +10487,7 @@ Source : %3</translation>
     <message>
         <location line="+5"/>
         <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href=&quot;%2&quot;&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href=&quot;%3&quot;&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 est un logiciel libre distribué sous la &lt;a href=&quot;%2&quot;&gt;licence publique générale GNU v3.0&lt;/a&gt;. Il est fourni SANS AUCUNE GARANTIE ; consultez la licence pour plus de détails. &lt;a href=&quot;%3&quot;&gt;Lire la licence sur gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 est un projet open source indépendant. Il n&apos;est affilié à aucun autre éditeur de logiciels, ni approuvé ou pris en charge par l&apos;un d&apos;eux. Les noms de produits sont des marques de leurs propriétaires respectifs.</translation>
     </message>
 </context>
 <context>
@@ -10496,134 +10496,134 @@ Source : %3</translation>
         <location line="-264"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+58"/>
         <source>Print what</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimer</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Notes Pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pages de commentaires</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+96"/>
         <source>Outline</source>
-        <translation type="unfinished">Contour</translation>
+        <translation type="unfinished">Plan</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Handouts: 1 Slide Per Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documents : 1 diapositive par page</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Handouts: 2 Slides Per Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documents : 2 diapositives par page</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Handouts: 3 Slides Per Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documents : 3 diapositives par page</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Handouts: 4 Slides Per Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documents : 4 diapositives par page</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Handouts: 6 Slides Per Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documents : 6 diapositives par page</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Handouts: 9 Slides Per Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documents : 9 diapositives par page</translation>
     </message>
     <message>
         <location line="+4"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+4"/>
         <source>Order of slides on a handout</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ordre des diapositives sur un document</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+106"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Horizontal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Horizontal</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Vertical</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vertical</translation>
     </message>
     <message>
         <location line="+4"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+4"/>
         <source>All slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Toutes les diapositives</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+2"/>
         <source>Current slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive active</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+2"/>
         <source>Slides:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives :</translation>
     </message>
     <message>
         <location line="+4"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+4"/>
         <source>Slides to print</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives à imprimer</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>1-3, 5</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1-3, 5</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Slide numbers and ranges, separated by commas.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numéros et plages de diapositives, séparés par des virgules.</translation>
     </message>
     <message>
         <location line="+88"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+92"/>
         <source>Enter slide numbers, such as 1-3, 5.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Entrez des numéros de diapositives, par exemple 1-3, 5.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+0"/>
         <source>There are no slides to print.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il n&apos;y a aucune diapositive à imprimer.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+59"/>
         <source>Presentation1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentation1</translation>
     </message>
     <message>
         <location line="+115"/>
@@ -10646,12 +10646,12 @@ Source : %3</translation>
     <message>
         <location line="+1"/>
         <source>Open Presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ouvrir une présentation</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -10702,30 +10702,30 @@ Source : %3</translation>
         <location line="+2"/>
         <location line="+188"/>
         <source>New Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nouvelle diapositive</translation>
     </message>
     <message>
         <location line="-187"/>
         <location line="+198"/>
         <source>Duplicate Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dupliquer la diapositive</translation>
     </message>
     <message>
         <location line="-197"/>
         <location line="+207"/>
         <source>Delete Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer la diapositive</translation>
     </message>
     <message>
         <location line="-206"/>
         <location line="+217"/>
         <source>Hide Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Masquer la diapositive</translation>
     </message>
     <message>
         <location line="-216"/>
         <source>Reset</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réinitialiser</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10755,7 +10755,7 @@ Source : %3</translation>
     <message>
         <location line="+1"/>
         <source>Center</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Centrer</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -10785,12 +10785,12 @@ Source : %3</translation>
     <message>
         <location line="+5"/>
         <source>From Beginning</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">À partir du début</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From Current Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">À partir de la diapositive actuelle</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10800,12 +10800,12 @@ Source : %3</translation>
     <message>
         <location line="+1"/>
         <source>Fit to Window</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ajuster à la fenêtre</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Slide %1 of %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive %1 sur %2</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -10820,7 +10820,7 @@ Source : %3</translation>
     <message>
         <location line="+173"/>
         <source>Show Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afficher la diapositive</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -10830,7 +10830,7 @@ Source : %3</translation>
     <message>
         <location line="+11"/>
         <source>Reset Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réinitialiser la diapositive</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -10840,7 +10840,7 @@ Source : %3</translation>
     <message>
         <location line="+3"/>
         <source>Don&apos;t Save</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ne pas enregistrer</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-252"/>
@@ -10860,12 +10860,12 @@ Source : %3</translation>
     <message>
         <location line="+2"/>
         <source>Increase Font Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Augmenter la taille de police</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Decrease Font Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réduire la taille de police</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -10890,7 +10890,7 @@ Source : %3</translation>
     <message>
         <location line="+0"/>
         <source>Capitalize Each Word</source>
-        <translation type="unfinished">1re Lettre Des Mots En Majuscule</translation>
+        <translation type="unfinished">Mettre En Majuscule La Première Lettre De Chaque Mot</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -10916,7 +10916,7 @@ Source : %3</translation>
     <message>
         <location line="+0"/>
         <source>Loose</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Large</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -10947,17 +10947,17 @@ Source : %3</translation>
     <message>
         <location line="+1"/>
         <source>Decrease List Level</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réduire le niveau de liste</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Increase List Level</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Augmenter le niveau de liste</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Rotate All Text 90°</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Faire pivoter tout le texte de 90°</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -11022,7 +11022,7 @@ Source : %3</translation>
     <message>
         <location line="+1"/>
         <source>Group</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grouper</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11057,45 +11057,45 @@ Source : %3</translation>
     <message>
         <location line="+15"/>
         <source>Header and Footer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">En-tête et pied de page</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Standard (4:3)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Standard (4:3)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Widescreen (16:9)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grand écran (16:9)</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+42"/>
         <location line="+11"/>
         <source>Slide Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Taille des diapositives</translation>
     </message>
     <message>
         <location line="-52"/>
         <location line="+68"/>
         <source>Format Background</source>
-        <translation type="unfinished">Mettre en forme l&apos;arrière-plan</translation>
+        <translation type="unfinished">Mise en forme de l&apos;arrière-plan</translation>
     </message>
     <message>
         <location line="-63"/>
         <source>Slide Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diaporama</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ruler</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Règle</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Gridlines</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quadrillage</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -11115,17 +11115,17 @@ Source : %3</translation>
     <message>
         <location line="+29"/>
         <source>Scale your content to fit the new slide size?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mettre votre contenu à l&apos;échelle de la nouvelle taille de diapositive ?</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ensure Fit shrinks your content when it has to, so all of it stays on the slide.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garantir l&apos;ajustement réduit votre contenu si nécessaire, afin qu&apos;il reste entièrement sur la diapositive.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ensure Fit</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garantir l&apos;ajustement</translation>
     </message>
     <message>
         <location line="+43"/>
@@ -11147,22 +11147,22 @@ Source : %3</translation>
     <message>
         <location line="+5"/>
         <source>%1 can&apos;t be read as a picture.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossible de lire %1 en tant qu&apos;image.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_comments.cpp" line="-1"/>
         <source>New Comment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nouveau commentaire</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Delete All Comments on This Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer tous les commentaires de cette diapositive</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Delete All Comments in This Presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer tous les commentaires de cette présentation</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11177,7 +11177,7 @@ Source : %3</translation>
     <message>
         <location line="+4"/>
         <source>Show Comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afficher les commentaires</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_dialogs.cpp" line="+56"/>
@@ -11193,7 +11193,7 @@ Source : %3</translation>
     <message>
         <location line="-19"/>
         <source>&lt;b&gt;Presentation&lt;/b&gt;&lt;br&gt;Slides: %1&lt;br&gt;Words: %2&lt;br&gt;Characters (no spaces): %3&lt;br&gt;Characters (with spaces): %4&lt;br&gt;Paragraphs: %5%6</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&lt;b&gt;Présentation&lt;/b&gt;&lt;br&gt;Diapositives : %1&lt;br&gt;Mots : %2&lt;br&gt;Caractères (espaces non compris) : %3&lt;br&gt;Caractères (espaces compris) : %4&lt;br&gt;Paragraphes : %5%6</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -11203,7 +11203,7 @@ Source : %3</translation>
     <message>
         <location line="+1"/>
         <source>More Spacing…</source>
-        <translation type="unfinished">Autres espacements…</translation>
+        <translation type="unfinished">Plus d&apos;espacement…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11254,74 +11254,77 @@ Source : %3</translation>
     <message>
         <location line="+3"/>
         <source>Show the ruler</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afficher la règle</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Snap objects to other objects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aligner les objets sur les autres objets</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="-19"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 ne peut pas ouvrir « %2 ».
+%3</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Some of &quot;%1&quot; couldn&apos;t be read and was left out.
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une partie de « %1 » n&apos;a pas pu être lue et a été omise.
+
+%2</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-125"/>
         <location line="+173"/>
         <location line="+8"/>
         <source>Export to PDF</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter au format PDF</translation>
     </message>
     <message>
         <location line="-167"/>
         <source>Print &amp;what:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Éléments à &amp;imprimer :</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>&amp;Order:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&amp;Ordre :</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Range:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Étendue :</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Print &amp;hidden slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimer les diapositives &amp;masquées</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>&amp;Frame slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&amp;Encadrer les diapositives</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>&amp;Grayscale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nuances de &amp;gris</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Export…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter…</translation>
     </message>
     <message numerus="yes">
         <location line="+64"/>
         <source>%n page(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n page</numerusform>
+            <numerusform>%n pages</numerusform>
         </translation>
     </message>
     <message>
@@ -11333,46 +11336,48 @@ Source : %3</translation>
         <location line="+11"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
 %3%4</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 n&apos;a pas pu exporter « %2 ».
+%3%4</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+30"/>
         <source>Exported %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 exporté</translation>
     </message>
     <message>
         <location line="-20"/>
         <source>PNG Picture (*.png)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Image PNG (*.png)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JPEG Picture (*.jpg *.jpeg)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Image JPEG (*.jpg *.jpeg)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1 - Slide %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 - Diapositive %2</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+12"/>
         <source>Export Slide as Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter la diapositive en tant qu&apos;image</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>The picture can&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossible de créer l&apos;image.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-72"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 n&apos;a pas pu enregistrer « %2 ».
+%3%4</translation>
     </message>
     <message>
         <location line="+56"/>
@@ -11382,37 +11387,37 @@ Source : %3</translation>
     <message>
         <location line="+5"/>
         <source>Sent %1 to the printer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 envoyé à l&apos;imprimante</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Export to PDF…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter au format PDF…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Export Slide as Picture…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter la diapositive en tant qu&apos;image…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Print…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimer…</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_reuse.cpp" line="+19"/>
         <source>Reuse Slides…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réutiliser des diapositives…</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Reuse Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réutiliser des diapositives</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Reuse Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réutiliser la diapositive</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="-14"/>
@@ -11547,7 +11552,7 @@ Source : %3</translation>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-62"/>
         <location line="+62"/>
         <source>Save</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enregistrer</translation>
     </message>
     <message>
         <location line="-61"/>
@@ -11558,17 +11563,17 @@ Source : %3</translation>
     <message>
         <location line="-6"/>
         <source>Presentation (*.pptx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentation (*.pptx)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Template (*.potx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modèle (*.potx)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Show (*.ppsx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diaporama (*.ppsx)</translation>
     </message>
     <message>
         <location line="+33"/>
@@ -11579,8 +11584,8 @@ Source : %3</translation>
         <location line="+1"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%1 enregistré, mais %n objet ne peut pas encore être enregistré dans ce type de fichier.</numerusform>
+            <numerusform>%1 enregistré, mais %n objets ne peuvent pas encore être enregistrés dans ce type de fichier.</numerusform>
         </translation>
     </message>
     <message>
@@ -11598,12 +11603,12 @@ Source : %3</translation>
     <message>
         <location line="+6"/>
         <source>%1 didn&apos;t close normally, and saved copies of your unsaved work. Choose which to open; you can save each one where you like.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 ne s&apos;est pas fermé normalement et a enregistré des copies de votre travail non enregistré. Choisissez celles à ouvrir ; vous pourrez enregistrer chacune à l&apos;emplacement de votre choix.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Recovered presentations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentations récupérées</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -11631,244 +11636,245 @@ Source : %3</translation>
         <location line="+16"/>
         <source>%1 can&apos;t open the copy of &quot;%2&quot;.
 %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 ne peut pas ouvrir la copie de « %2 ».
+%3</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_sections.cpp" line="+31"/>
         <location line="+27"/>
         <location line="+51"/>
         <source>Rename Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Renommer la section</translation>
     </message>
     <message>
         <location line="-76"/>
         <source>Section &amp;name:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&amp;Nom de la section :</translation>
     </message>
     <message>
         <location line="+24"/>
         <location line="+38"/>
         <source>Add Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ajouter une section</translation>
     </message>
     <message>
         <location line="-36"/>
         <location line="+61"/>
         <source>Remove Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer la section</translation>
     </message>
     <message>
         <location line="-60"/>
         <location line="+100"/>
         <source>Remove All Sections</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer toutes les sections</translation>
     </message>
     <message>
         <location line="-99"/>
         <source>Collapse All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réduire tout</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Expand All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Développer tout</translation>
     </message>
     <message>
         <location line="+73"/>
         <source>Remove Section and Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer la section et les diapositives</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Move Section Up</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Monter la section</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Move Section Down</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Descendre la section</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-28"/>
         <location line="+102"/>
         <source>Transition</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Transition</translation>
     </message>
     <message>
         <location line="-102"/>
         <source>Apply Transition To All Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Appliquer la transition à toutes les diapositives</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Presenter View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mode Présentateur</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Use Presenter View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Utiliser le mode Présentateur</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Fade</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fondu</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Push</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pousser</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Wipe</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Balayer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Split</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fractionner</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reveal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Révéler</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cover</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Couvrir</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Uncover</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Découvrir</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>From Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">À partir de la droite</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">À partir de la gauche</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Bottom</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">À partir du bas</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">À partir du haut</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sortant</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Entrant</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Preview</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aperçu</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Apply To All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Appliquer partout</translation>
     </message>
     <message>
         <location line="+53"/>
         <source>Transition to This Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Transition vers cette diapositive</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>No Effect Options</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aucune option d&apos;effet</translation>
     </message>
     <message>
         <location line="+13"/>
         <location line="+55"/>
         <source> s</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"> s</translation>
     </message>
     <message>
         <location line="-52"/>
         <source>Duration: how many seconds the transition takes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Durée : nombre de secondes que dure la transition.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Duration</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Durée</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>On Mouse Click</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Manuellement</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>On Mouse Click: the slide show moves on from this slide when the presenter clicks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Manuellement : le diaporama passe à la diapositive suivante lorsque le présentateur clique.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>After:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Après :</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>After: the slide show moves on from this slide by itself after this many seconds.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Après : le diaporama passe automatiquement à la diapositive suivante après ce nombre de secondes.</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>Seconds the slide stays before the slide show moves on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nombre de secondes d&apos;affichage de la diapositive avant que le diaporama ne passe à la suivante.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Seconds before moving on</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Secondes avant de passer à la suivante</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>Use Presenter View: with two screens, the slide show goes to one and the notes, timer, and next slide to the other.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Utiliser le mode Présentateur : avec deux écrans, le diaporama s&apos;affiche sur l&apos;un, et les notes, le minuteur et la diapositive suivante sur l&apos;autre.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_views.cpp" line="+1"/>
         <source>Outline View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mode Plan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Slide Sorter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trieuse de diapositives</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Notes Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Page de notes</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Reading View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mode Lecture</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1 is coming.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 arrive bientôt.</translation>
     </message>
 </context>
 <context>
@@ -12477,7 +12483,7 @@ Source : %3</translation>
     <message>
         <location line="+1"/>
         <source>Available</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Disponible</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -12763,17 +12769,17 @@ Résolution effective : %3 ppp</translation>
     <message>
         <location line="+3"/>
         <source>Include on slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inclure dans la diapositive</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Date and time</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Date et heure</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Slide number</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numéro de diapositive</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -12783,12 +12789,12 @@ Résolution effective : %3 ppp</translation>
     <message>
         <location line="+4"/>
         <source>Footer text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texte du pied de page</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Don&apos;t show on title slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ne pas afficher sur la diapositive de titre</translation>
     </message>
 </context>
 <context>
@@ -12902,12 +12908,12 @@ Il n&apos;existe aucune rubrique d&apos;aide nommée « %1 ».</translation>
     <message>
         <location filename="../apps/deck/app/deckwidgets.cpp" line="+83"/>
         <source>Slide layouts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dispositions des diapositives</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The arrow keys move between layouts, and Enter chooses one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les touches de direction permettent de passer d&apos;une disposition à l&apos;autre, et la touche Entrée en choisit une.</translation>
     </message>
 </context>
 <context>
@@ -16576,7 +16582,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="-38"/>
         <source>Click to add notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cliquez pour ajouter des notes</translation>
     </message>
 </context>
 <context>
@@ -16708,7 +16714,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <location line="+196"/>
         <location line="+191"/>
         <source>Outline</source>
-        <translation type="unfinished">Contour</translation>
+        <translation type="unfinished">Plan</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -16718,17 +16724,17 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="+29"/>
         <source>New Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nouvelle diapositive</translation>
     </message>
     <message>
         <location line="+49"/>
         <source>Demote</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Abaisser</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Promote</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hausser</translation>
     </message>
 </context>
 <context>
@@ -16765,51 +16771,51 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <location filename="../apps/deck/app/presenterview.cpp" line="+90"/>
         <location line="+1"/>
         <source>Presenter View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mode Présentateur</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Time since the slide show started</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Temps écoulé depuis le début du diaporama</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+186"/>
         <source>Pause</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pause</translation>
     </message>
     <message>
         <location line="-185"/>
         <source>Reset</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réinitialiser</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Time of day</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Heure</translation>
     </message>
     <message>
         <location line="+15"/>
         <location line="+13"/>
         <location line="+108"/>
         <source>End of slide show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fin du diaporama</translation>
     </message>
     <message>
         <location line="-119"/>
         <source>Current slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive actuelle</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+47"/>
         <source>Next</source>
-        <translation type="unfinished">Suivant</translation>
+        <translation type="unfinished">Suivante</translation>
     </message>
     <message>
         <location line="-39"/>
         <source>Next slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive suivante</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -16820,69 +16826,69 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="-12"/>
         <source>A-</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A-</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A+</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A+</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+2"/>
         <source>Smaller text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réduire le texte</translation>
     </message>
     <message>
         <location line="-1"/>
         <location line="+2"/>
         <source>Bigger text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Agrandir le texte</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>All slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Toutes les diapositives</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Previous</source>
-        <translation type="unfinished">Précédent</translation>
+        <translation type="unfinished">Précédente</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Black Screen</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Écran noir</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>See All Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Voir toutes les diapositives</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>End Slide Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arrêter le diaporama</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>Slide %1 of %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive %1 sur %2</translation>
     </message>
     <message>
         <location line="+46"/>
         <source>Resume</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Reprendre</translation>
     </message>
     <message>
         <location line="+39"/>
         <source>%1 (hidden)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 (masquée)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Slide %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive %1</translation>
     </message>
 </context>
 <context>
@@ -16919,27 +16925,27 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <location filename="../apps/deck/app/reusepane.cpp" line="+29"/>
         <location line="+49"/>
         <source>Reuse Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réutiliser les diapositives</translation>
     </message>
     <message>
         <location line="-46"/>
         <source>Browse…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Parcourir…</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Choose a presentation to take slides from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Choisissez une présentation d&apos;où reprendre des diapositives</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Browse for a presentation to take slides from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Recherchez une présentation d&apos;où reprendre des diapositives.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Slides of the presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives de la présentation</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -16949,12 +16955,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="+2"/>
         <source>Bring the slides&apos; layouts and slide masters along, as they look in their presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importer les dispositions et les masques des diapositives, tels qu&apos;ils apparaissent dans leur présentation</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Présentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -16964,22 +16970,22 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="+16"/>
         <source>The file can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossible de lire le fichier.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 can&apos;t be read: %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossible de lire %1 : %2</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Slide %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Slide %1, %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive %1, %2</translation>
     </message>
 </context>
 <context>
@@ -17008,37 +17014,37 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location filename="../apps/deck/app/sectionui.cpp" line="+58"/>
         <source>Rename Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Renommer la section</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Remove Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer la section</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Remove Section &amp;&amp; Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer la section et les diapositives</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Move Section Up</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Monter la section</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Move Section Down</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Descendre la section</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Collapse All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réduire tout</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Expand All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Développer tout</translation>
     </message>
 </context>
 <context>
@@ -17060,12 +17066,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <location filename="../apps/deck/app/slideshow.cpp" line="+378"/>
         <location line="+44"/>
         <source>Slide Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diaporama</translation>
     </message>
     <message>
         <location line="+346"/>
         <source>End of slide show, click to exit.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fin du diaporama, cliquez pour quitter.</translation>
     </message>
 </context>
 <context>
@@ -17073,75 +17079,75 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location filename="../apps/deck/app/slidesorter.cpp" line="+94"/>
         <source>Slide Sorter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trieuse de diapositives</translation>
     </message>
     <message>
         <location line="+585"/>
         <source>Slide %1 of %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive %1 sur %2</translation>
     </message>
     <message>
         <location line="+200"/>
         <source>New Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nouvelle diapositive</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+151"/>
         <source>Duplicate Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dupliquer la diapositive</translation>
     </message>
     <message>
         <location line="-150"/>
         <location line="+129"/>
         <source>Delete Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer la diapositive</translation>
     </message>
     <message>
         <location line="-127"/>
         <location line="+169"/>
         <source>Hide Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Masquer la diapositive</translation>
     </message>
     <message>
         <location line="-166"/>
         <source>Add Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ajouter une section</translation>
     </message>
     <message>
         <location line="+97"/>
         <source>Move Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Déplacer la diapositive</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Move Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Déplacer les diapositives</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>Delete Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer les diapositives</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>Duplicate Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dupliquer les diapositives</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>Show Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afficher la diapositive</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Show Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afficher les diapositives</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Hide Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Masquer les diapositives</translation>
     </message>
 </context>
 <context>
@@ -17149,62 +17155,62 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location filename="../apps/deck/app/slidespane.cpp" line="+83"/>
         <source>Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives</translation>
     </message>
     <message>
         <location line="+99"/>
         <source>Slide %1, hidden</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive %1, masquée</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Slide %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositive %1</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>Section %1, %2 slides, %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Section %1, %2 diapositives, %3</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>collapsed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">réduite</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>expanded</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">développée</translation>
     </message>
     <message>
         <location line="+71"/>
         <source>Move Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Déplacer la diapositive</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>New Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nouvelle diapositive</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Duplicate Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dupliquer la diapositive</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Delete Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer la diapositive</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Hide Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Masquer la diapositive</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Add Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ajouter une section</translation>
     </message>
 </context>
 <context>
@@ -17245,12 +17251,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="+9"/>
         <source>Number of &amp;columns:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nombre de &amp;colonnes :</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Number of &amp;rows:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nombre de &amp;lignes :</translation>
     </message>
 </context>
 <context>
@@ -17316,32 +17322,32 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location filename="../apps/deck/app/deckwidgets.cpp" line="+148"/>
         <source>Theme colors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Couleurs du thème</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The twelve colors of this presentation&apos;s theme.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les douze couleurs du thème de cette présentation.</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>Dark 1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foncé 1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Light 1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Clair 1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Dark 2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foncé 2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Light 2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Clair 2</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17371,7 +17377,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="+0"/>
         <source>Accent 6</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Accent 6</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -17389,7 +17395,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location filename="../apps/deck/app/slideshow.cpp" line="+183"/>
         <source>Transition Preview</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aperçu de la transition</translation>
     </message>
 </context>
 <context>
