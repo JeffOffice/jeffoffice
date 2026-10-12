@@ -277,6 +277,10 @@ public:
     // What an app keeps about the whole document besides its pages (a
     // presentation's theme and sections); saved and undone with it.
     QJsonObject appData;
+    // Text that doesn't fit its box runs out of it, shown (a presentation's
+    // slides), instead of waiting for the next box in the chain or hiding (a
+    // publication's). Set by the app that makes the document; not saved.
+    bool textRunsOver = false;
 
     // pages
     QSizeF pageSize() const { return setup.size; }

@@ -216,6 +216,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.valign = t.valign;
     s.hyphenate = t.hyphenate;
     s.hyphenZone = t.hyphenZone;
+    s.runsOver = doc.textRunsOver;
     // Baseline guides of the page's master (for "align text to baseline guides").
     const auto at = doc.find(t.id);
     const MasterPage *mp = at.page >= 0 ? doc.masterFor(*doc.pages[at.page]) : (!at.masterId.isEmpty() ? doc.master(at.masterId) : nullptr);
@@ -260,6 +261,7 @@ static QString specSig(const FrameSpec &s)
                     .arg(s.insets.right()).arg(s.insets.bottom()).arg(s.columns).arg(s.gap).arg(int(s.valign)).arg(s.ctx.key());
     k += QStringLiteral("h%1,%2|b%3,%4;").arg(int(s.hyphenate)).arg(s.hyphenZone).arg(s.baselineGrid).arg(s.baselineOrigin);
     if (s.fitToShape) k += QLatin1Char('s');
+    if (s.runsOver) k += QLatin1Char('r');
     for (const auto &o : s.obstacles) {
         const QRectF b = o.boundingRect();
         // The points' sum too, so moving a point inside the same bounds re-wraps.

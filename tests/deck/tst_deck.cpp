@@ -1576,6 +1576,59 @@ private Q_SLOTS:
 
     // Header & Footer puts the slide number, the date, and a line of text in
     // each slide's own placeholders for them, and takes them away again.
+    // A slide's text box shows text that doesn't fit, running out of it as
+    // the presentation program draws it: down from text at the top, both ways
+    // from centered text, up from text at the bottom. A publication's box
+    // keeps it for a next box instead. Text that fits is set as before.
+    void slideTextRunsOutOfItsBox()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontPointSize(20);
+        c.insertText(QStringLiteral("One"), cf);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Two"), cf);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Three"), cf);
+        FrameSpec fs;
+        fs.size = QSizeF(200, 30);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        StoryLayout held;
+        held.build(&doc, {fs}, LayoutEnv());
+        QVERIFY(held.overflow());
+        QVERIFY(held.lineInfo(0).size() < 3);
+        fs.runsOver = true;
+        for (const VAlign v : {VAlign::Top, VAlign::Middle, VAlign::Bottom}) {
+            fs.valign = v;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, LayoutEnv());
+            QVERIFY(!lay.overflow());
+            const auto lines = lay.lineInfo(0);
+            QCOMPARE(int(lines.size()), 3);
+            const double top = lines.first().rect.top(), bottom = lines.last().rect.bottom() - lines.last().below;
+            QVERIFY(bottom - top > 30);
+            if (v == VAlign::Top) QVERIFY2(std::abs(top) < 0.5, qPrintable(QString::number(top)));
+            if (v == VAlign::Middle) QVERIFY2(std::abs((top + bottom) / 2 - 15) < 0.5, qPrintable(QString::number((top + bottom) / 2)));
+            if (v == VAlign::Bottom) QVERIFY2(std::abs(bottom - 30) < 0.5, qPrintable(QString::number(bottom)));
+        }
+        fs.size = QSizeF(200, 300);
+        fs.valign = VAlign::Middle;
+        FrameSpec plain = fs;
+        plain.runsOver = false;
+        StoryLayout a, b;
+        a.build(&doc, {plain}, LayoutEnv());
+        b.build(&doc, {fs}, LayoutEnv());
+        QCOMPARE(int(a.lineInfo(0).size()), 3);
+        for (int i = 0; i < 3; ++i) QCOMPARE(b.lineInfo(0)[i].rect, a.lineInfo(0)[i].rect);
+        // Presentations' boxes run over, publications' don't.
+        QVERIFY(deck::newPresentation()->textRunsOver);
+        QVERIFY(!Document().textRunsOver);
+        QString err;
+        auto opened = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(opened && opened->textRunsOver, qPrintable(err));
+    }
+
     void headerAndFooterPlaceholders()
     {
         auto d = deck::newPresentation();   // a title slide
