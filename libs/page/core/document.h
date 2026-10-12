@@ -91,6 +91,12 @@ struct PageBase {
     ItemList items;
     Fill background;
     RulerGuides guides;
+    // Whether the objects of the master pages under this one show on it (a
+    // slide or a slide layout can hide the graphics beneath).
+    bool showMasterItems = true;
+    // What an app keeps about the page besides its objects (a slide's
+    // layout type, its transition); saved and undone with the page.
+    QJsonObject props;
 };
 
 struct MasterPage : PageBase {
@@ -98,11 +104,17 @@ struct MasterPage : PageBase {
     QString abbr = QStringLiteral("A");
     bool twoPage = false;
     GridGuides grid;
+    // The master page drawn under this one, if any: a slide layout's slide
+    // master. Objects whose role starts "ph:" are placeholder prompts: drawn
+    // on the master itself, never under a page.
+    QString baseId;
 };
 
 struct Page : PageBase {
     QString masterId = QStringLiteral("A"); // empty = no master
     QString title;
+    QString notesStoryId;   // a slide's speaker notes
+    bool hidden = false;    // a slide the slide show skips
 };
 
 struct PageSetup {
@@ -250,10 +262,17 @@ public:
     // were moved together.
     QString folder;
 
+    // What an app keeps about the whole document besides its pages (a
+    // presentation's theme and sections); saved and undone with it.
+    QJsonObject appData;
+
     // pages
     QSizeF pageSize() const { return setup.size; }
     MasterPage *master(const QString &id) const;
     MasterPage *masterFor(const Page &p) const;
+    // The master pages drawn for `m`, bottom first: its base's base, its
+    // base, then `m` (empty for none). A loop of bases ends at the first repeat.
+    QVector<MasterPage *> masterChain(const MasterPage *m) const;
     std::shared_ptr<Page> addPage(int at = -1, const QString &masterId = QStringLiteral("A"));
     int pageIndexOf(const QString &pageId) const;
     // After setup.size changed from `from`, as Publisher does it: nothing is

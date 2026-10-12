@@ -492,6 +492,14 @@ MasterPage *Document::master(const QString &id) const
 
 MasterPage *Document::masterFor(const Page &p) const { return p.masterId.isEmpty() ? nullptr : master(p.masterId); }
 
+QVector<MasterPage *> Document::masterChain(const MasterPage *m) const
+{
+    QVector<MasterPage *> chain;
+    for (MasterPage *at = m ? master(m->id) : nullptr; at && !chain.contains(at); at = at->baseId.isEmpty() ? nullptr : master(at->baseId))
+        chain.prepend(at);
+    return chain;
+}
+
 std::shared_ptr<Page> Document::addPage(int at, const QString &masterId)
 {
     auto p = std::make_shared<Page>();
@@ -627,6 +635,7 @@ QSet<QString> Document::storiesInUse() const
             }
     };
     forEachItem([&](Item *it, int, const QString &) { usedBy(it); });
+    for (const auto &p : pages) use(p->notesStoryId);
     walkItems(extra, [&](const ItemPtr &it) { usedBy(it.get()); });
     static const QRegularExpression storyKey(QStringLiteral("\"story2?\":\"([^\"]+)\""));
     while (!queue.isEmpty()) {
@@ -1054,6 +1063,8 @@ static QJsonObject pageBaseJ(const PageBase &p)
     if (p.background.type != Fill::NoFill) o["background"] = p.background.toJson();
     if (!p.guides.h.isEmpty()) o["guidesH"] = dblJ(p.guides.h);
     if (!p.guides.v.isEmpty()) o["guidesV"] = dblJ(p.guides.v);
+    if (!p.showMasterItems) o["masterItems"] = false;
+    if (!p.props.isEmpty()) o["props"] = p.props;
     return o;
 }
 static void pageBaseF(PageBase &p, const QJsonObject &o)
@@ -1063,6 +1074,8 @@ static void pageBaseF(PageBase &p, const QJsonObject &o)
     p.background = Fill::fromJson(o["background"].toObject());
     p.guides.h = dblF(o["guidesH"]);
     p.guides.v = dblF(o["guidesV"]);
+    p.showMasterItems = o["masterItems"].toBool(true);
+    p.props = o["props"].toObject();
 }
 
 QRectF CatalogArea::cell(int k) const
@@ -1106,12 +1119,15 @@ QJsonObject Document::toJson() const
         mo["abbr"] = m->abbr;
         mo["twoPage"] = m->twoPage;
         mo["grid"] = m->grid.toJson();
+        if (!m->baseId.isEmpty()) mo["base"] = m->baseId;
         ms.append(mo);
     }
     for (const auto &p : pages) {
         QJsonObject po = pageBaseJ(*p);
         po["master"] = p->masterId;
         if (!p->title.isEmpty()) po["title"] = p->title;
+        if (!p->notesStoryId.isEmpty()) po["notes"] = p->notesStoryId;
+        if (p->hidden) po["hidden"] = true;
         ps.append(po);
     }
     for (auto it = stories.cbegin(); it != stories.cend(); ++it) {
@@ -1154,6 +1170,7 @@ QJsonObject Document::toJson() const
     o["facing"] = facingPages;
     if (std::abs(defaultTabStop - 36) > 1e-9) o["defaultTab"] = defaultTabStop;
     if (!rulerZero.isNull()) o["rulerZero"] = QJsonArray{rulerZero.x(), rulerZero.y()};
+    if (!appData.isEmpty()) o["appData"] = appData;
     if (!pubFonts.isEmpty()) o["pubFonts"] = QJsonArray::fromStringList(pubFonts);
     QJsonArray spots;
     for (int i = 0; i < print.spotColors.size(); ++i)
@@ -1198,6 +1215,7 @@ void Document::fromJson(const QJsonObject &o)
         m->abbr = mo["abbr"].toString("A");
         m->twoPage = mo["twoPage"].toBool();
         m->grid = GridGuides::fromJson(mo["grid"].toObject());
+        m->baseId = mo["base"].toString();
         masters << m;
     }
     for (const auto &v : o["pages"].toArray()) {
@@ -1206,6 +1224,8 @@ void Document::fromJson(const QJsonObject &o)
         pageBaseF(*p, po);
         p->masterId = po["master"].toString();
         p->title = po["title"].toString();
+        p->notesStoryId = po["notes"].toString();
+        p->hidden = po["hidden"].toBool();
         pages << p;
     }
     scratch = itemsF(o["scratch"]);
@@ -1264,6 +1284,7 @@ void Document::fromJson(const QJsonObject &o)
     templateOptions = o["templateOptions"].toObject();
     facingPages = o["facing"].toBool();
     defaultTabStop = std::clamp(o["defaultTab"].toDouble(36), 1.0, 1584.0);
+    appData = o["appData"].toObject();
     const QJsonArray rz = o["rulerZero"].toArray();
     rulerZero = rz.size() == 2 ? QPointF(rz[0].toDouble(), rz[1].toDouble()) : QPointF();
     pubFonts.clear();
