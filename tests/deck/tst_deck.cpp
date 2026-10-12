@@ -3237,7 +3237,6 @@ private Q_SLOTS:
         QCOMPARE(u->format, id);
         for (int r = 0; r < 2; ++r)
             for (int c = 0; c < 2; ++c) QVERIFY(u->cell(r, c).fill == t->cell(r, c).fill);
-        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
         QCOMPARE(back->storyDoc(u->cell(0, 1).storyId)->toPlainText(), QStringLiteral("Revenue"));
     }
 
@@ -4283,22 +4282,22 @@ private Q_SLOTS:
         auto back = deck::importPresentation(bytes, &err);
         QVERIFY2(back, qPrintable(err));
         const Page &page = *back->pages[at];
-        QCOMPARE(page.items.size(), placeholders + 6);
-        // The table is one the reader keeps as it was written, not one of the items.
-        QCOMPARE(int(page.props.value(QStringLiteral("unread")).toArray().size()), 1);
-        QVERIFY(page.props.value(QStringLiteral("unread")).toArray()[0].toObject().value(QStringLiteral("xml")).toString().contains(QStringLiteral("<a:tbl>")));
-        const auto *text = static_cast<TextItem *>(page.items[placeholders].get());
+        QCOMPARE(page.items.size(), placeholders + 7);
+        // The table comes back as a table, first, as it was written.
+        QCOMPARE(page.items[placeholders]->type(), ItemType::Table);
+        QVERIFY(page.props.value(QStringLiteral("unread")).toArray().isEmpty());
+        const auto *text = static_cast<TextItem *>(page.items[placeholders + 1].get());
         QCOMPARE(text->storyId.isEmpty(), false);
         QCOMPARE(back->storyDoc(text->storyId)->toPlainText(), QStringLiteral("Hello\nWorld"));
         QCOMPARE(back->storyDoc(text->storyId)->begin().begin().fragment().charFormat().stringProperty(tp::ColorRefP), QStringLiteral("#123456"));
-        const auto *shape = static_cast<ShapeItem *>(page.items[placeholders + 1].get());
+        const auto *shape = static_cast<ShapeItem *>(page.items[placeholders + 2].get());
         QCOMPARE(shape->shape, QStringLiteral("rightArrow"));
         QCOMPARE(shape->fill.color.rgbValue(), QColor(0x12, 0x34, 0x56));
         QVERIFY(shape->stroke.isNone());
         QCOMPARE(shape->adj.size(), 2);
         QVERIFY(std::abs(shape->adj[0] - 0.4) < 1e-4 && std::abs(shape->adj[1] - 0.6) < 1e-4);
-        QCOMPARE(page.items[placeholders + 3]->type(), ItemType::Picture);
-        const auto *connector = static_cast<LineItem *>(page.items[placeholders + 4].get());
+        QCOMPARE(page.items[placeholders + 4]->type(), ItemType::Picture);
+        const auto *connector = static_cast<LineItem *>(page.items[placeholders + 5].get());
         QVERIFY(connector->stroke.endArrow == Arrow::Triangle);
         // The connector names the numbers of the two shapes it is attached to (the importer reads each shape alone, so what it joins is not read back).
         QDomDocument dom;
@@ -4317,10 +4316,10 @@ private Q_SLOTS:
         QCOMPARE(start.attribute(QStringLiteral("idx")), QStringLiteral("3"));
         QCOMPARE(end.attribute(QStringLiteral("id")), numbers[placeholders + 2]);
         QCOMPARE(end.attribute(QStringLiteral("idx")), QStringLiteral("4"));   // the bottom of an ellipse is its fifth point
-        const auto *grouped = static_cast<GroupItem *>(page.items[placeholders + 5].get());
+        const auto *grouped = static_cast<GroupItem *>(page.items[placeholders + 6].get());
         QCOMPARE(grouped->children.size(), size_t(2));
         QCOMPARE(static_cast<ShapeItem *>(grouped->children[0].get())->shape, QStringLiteral("star5"));
-        QCOMPARE(static_cast<PictureItem *>(grouped->children[1].get())->imageId, static_cast<PictureItem *>(page.items[placeholders + 3].get())->imageId);
+        QCOMPARE(static_cast<PictureItem *>(grouped->children[1].get())->imageId, static_cast<PictureItem *>(page.items[placeholders + 4].get())->imageId);
     }
 
     // Slide masters beyond the first keep their own themes, and every master and
