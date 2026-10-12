@@ -11,14 +11,11 @@
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
-#include "render/renderer.h"
-#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QDomDocument>
-#include <QElapsedTimer>
 #include <QHash>
 #include <QImage>
 #include <QJsonArray>
@@ -58,9 +55,6 @@ constexpr int kMaxNotes = 20;
 constexpr qint64 kMaxAdjustedPixels = 16'000'000;
 constexpr qsizetype kMaxWritersXml = 1 << 20;
 constexpr qint64 kMaxTotalWritersXml = 64 << 20;
-// What the frames made as tall as their text may cost: the time (milliseconds) all of them take together, and the size of a text.
-constexpr int kFitMilliseconds = 4000;
-constexpr int kFitMaxChars = 20000;
 // The format's unit for places and sizes is 1/576 inch.
 constexpr double kPoints = 72.0 / 576.0;
 // A slide may be 56 inches across at most (the standard's limit), and is a point at least.
@@ -898,7 +892,6 @@ private:
 
     std::shared_ptr<WritersTheme> readWritersTheme(const QByteArray &themePackage, const QByteArray &colorMapping) const;
     void takeLookFromWritersXml(Item &item, const QByteArray &package);
-    void fitFramesToText();
     void note(const QString &text);
 
     const QByteArray m_file;
@@ -1602,7 +1595,6 @@ std::shared_ptr<MasterPage> Importer::layoutFor(MasterInfo &main, const MasterIn
         } else {
             auto t = std::make_shared<TextItem>();
             t->insets = QMarginsF(7.2, 3.6, 7.2, 3.6);
-            t->autofit = TextItem::ShrinkOnOverflow;
             t->hyphenate = false;
             t->storyId = m_doc.createStory();
             it = t;
@@ -1723,8 +1715,6 @@ void Importer::finishItems(ItemList &items, PageState &st, bool slide)
         if (it->type() != ItemType::Text) continue;
         auto *t = static_cast<TextItem *>(it.get());
         t->hyphenate = false;
-        // Text that overflows its place is hidden by the text engine, not drawn past it: it shrinks to fit instead.
-        if (t->autofit == TextItem::NoAutofit) t->autofit = TextItem::ShrinkOnOverflow;
         // A slide's placeholder sits in its text where its master's does, unless it says otherwise.
         if (slide && t->valign == VAlign::Top)
             if (const Item *tpl = masterPlaceholder(source, type); tpl && tpl->type() == ItemType::Text) t->valign = static_cast<const TextItem *>(tpl)->valign;
@@ -1752,7 +1742,6 @@ void Importer::finishItems(ItemList &items, PageState &st, bool slide)
         t->rect = masterRect(source, type);
         t->insets = QMarginsF(7.2, 3.6, 7.2, 3.6);
         t->valign = isTitleType(type) ? VAlign::Middle : VAlign::Top;
-        t->autofit = TextItem::ShrinkOnOverflow;
         t->hyphenate = false;
         t->storyId = buildStory(g, g.type, st.text);
         st.types << type;
@@ -2173,21 +2162,11 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         bf.setTextIndent(indent - leftMargin);
         // Spacing is a share of a line (of the paragraph's text size) when positive, master units when negative.
         auto spacing = [&](int v) { return v > 0 ? v / 100.0 * size * 1.2 : v < 0 ? -v * kPoints : 0.0; };
-        // The first paragraph of a text sets no space before it: the program draws it at the top of the frame.
-        bf.setTopMargin(firstBlock ? 0 : spacing(pf.before));
+        bf.setTopMargin(spacing(pf.before));
         bf.setBottomMargin(spacing(pf.after));
-        if (pf.line > 0) {
-            // A line is a share (100 for a single line) of 1.2 times the text size, whatever the font; the engine's single line is the
-            // font's own, so the share is that much more or less of it.
-            QTextCharFormat lead = blockFormat;
-            for (const Piece &p : std::as_const(pieces))
-                if (p.format.fontPointSize() > lead.fontPointSize()) lead = p.format;
-            const QFont font = lead.font();
-            const double single = naturalLineEm(font, font.families().isEmpty() ? font.family() : font.families().first());
-            bf.setLineHeight(pf.line * 1.2 / std::clamp(single, 0.6, 3.0), QTextBlockFormat::ProportionalHeight);
-        } else if (pf.line < 0) {
-            bf.setLineHeight(-pf.line * kPoints, QTextBlockFormat::FixedHeight);
-        }
+        // A share of a single line (1.2 times the text size: the text engine's slide lines), or master units.
+        if (pf.line > 0 && pf.line != 100) bf.setLineHeight(pf.line, QTextBlockFormat::ProportionalHeight);
+        else if (pf.line < 0) bf.setLineHeight(-pf.line * kPoints, QTextBlockFormat::FixedHeight);
         if (!pf.tabs.isEmpty()) {
             QList<QTextOption::Tab> tabs;
             for (const Tab &t : std::as_const(pf.tabs)) {
@@ -2207,8 +2186,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         firstBlock = false;
 
         // A bullet: a list of its level, the mark and its own font, size, and color when it has them, the text coming at the left margin.
-        // A paragraph with no text shows none.
-        if ((pf.flags & BulletOn) && !pieces.isEmpty()) {
+        if (pf.flags & BulletOn) {
             const quint16 ch = pf.bulletChar ? pf.bulletChar : 0x2022;
             const QString font = (pf.flags & BulletOwnFont) && pf.bulletFont < m_fonts.size() ? m_fonts.at(pf.bulletFont) : QString();
             double markSize = 0;
@@ -2358,50 +2336,6 @@ void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArr
     else if (hasBox || !type.isEmpty()) story = m_doc.createStory();
 }
 
-// Text longer than its frame is drawn past it by the presentation program, where the text engine hides what overflows a frame (or shrinks
-// the text to fit it). A frame with no fill or line of its own, whose size nothing shows, is made as tall as its text instead, grown from
-// where the text is anchored: down from the top, both ways from the middle, up from the bottom.
-void Importer::fitFramesToText()
-{
-    LayoutEnv env;
-    env.colors = m_doc.colors;
-    env.fonts = m_doc.fonts;
-    env.defaultTab = m_doc.defaultTabStop;
-    const RenderOptions options;
-    QElapsedTimer timer;
-    timer.start();
-    int number = 0;
-    for (const auto &page : std::as_const(m_doc.pages)) {
-        ++number;
-        for (const auto &it : page->items) {
-            if (timer.elapsed() > kFitMilliseconds) return;
-            if (it->type() != ItemType::Text) continue;
-            auto *t = static_cast<TextItem *>(it.get());
-            if (!t->fill.isNone() || !t->stroke.isNone() || t->vertical || t->rotation != 0 || t->rect.isEmpty()) continue;
-            const QTextDocument *story = t->storyId.isEmpty() ? nullptr : m_doc.storyDoc(t->storyId);
-            if (!story || story->isEmpty() || story->characterCount() > kFitMaxChars) continue;
-            FrameSpec spec = Renderer::frameSpec(m_doc, *t, number, options);
-            spec.size.setHeight(1e5);
-            spec.valign = VAlign::Top;
-            StoryLayout layout;
-            layout.build(story, {spec}, env);
-            // The engine puts the spacing of a line below it, where the program puts it above, and doesn't count it under the last line: the
-            // text is that much higher at the top of a frame, half of it in the middle, and none at the bottom.
-            const auto lines = layout.lineInfo(0);
-            if (!lines.isEmpty() && lines.first().below > 0)
-                t->rect.translate(0, lines.first().below * (t->valign == VAlign::Top ? 1.0 : t->valign == VAlign::Middle ? 0.5 : 0.0));
-            const double extra = layout.usedHeight(0) - t->rect.height();
-            if (extra <= 0.5) continue;
-            QRectF r = t->rect;
-            if (t->valign == VAlign::Middle) r.adjust(0, -extra / 2, 0, extra / 2);
-            else if (t->valign == VAlign::Bottom) r.setTop(r.top() - extra);
-            else r.setBottom(r.bottom() + extra);
-            t->rect = r;
-            t->autofit = TextItem::NoAutofit;
-        }
-    }
-}
-
 // ---- The whole ----
 
 bool Importer::run(QString *error)
@@ -2477,7 +2411,6 @@ bool Importer::run(QString *error)
     const quint16 tab = resolve(TxBody, 0, ctx).pf.defaultTab;
     m_doc.defaultTabStop = tab >= 36 ? std::min(tab * kPoints, 288.0) : 72.0;
     m_doc.appData[QStringLiteral("footers")] = m_footers;
-    fitFramesToText();
     return true;
 }
 
@@ -2486,7 +2419,7 @@ bool Importer::run(QString *error)
 std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QString *error)
 {
     auto doc = std::make_unique<Document>();
-    doc->textRunsOver = true;
+    doc->slideText = true;
     Importer importer(bytes, *doc);
     QString why;
     bool ok = false;

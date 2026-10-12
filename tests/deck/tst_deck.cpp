@@ -1628,11 +1628,45 @@ private Q_SLOTS:
         QCOMPARE(int(a.lineInfo(0).size()), 3);
         for (int i = 0; i < 3; ++i) QCOMPARE(b.lineInfo(0)[i].rect, a.lineInfo(0)[i].rect);
         // Presentations' boxes run over, publications' don't.
-        QVERIFY(deck::newPresentation()->textRunsOver);
-        QVERIFY(!Document().textRunsOver);
+        QVERIFY(deck::newPresentation()->slideText);
+        QVERIFY(!Document().slideText);
         QString err;
         auto opened = deck::importPresentation(pack(samplePptx()), &err);
-        QVERIFY2(opened && opened->textRunsOver, qPrintable(err));
+        QVERIFY2(opened && opened->slideText, qPrintable(err));
+    }
+
+    // A slide's lines are the presentation program's: a single line is 1.2 times the text size whatever the font, a wider line's
+    // extra space is above it, and the paragraph at the top of the box takes no space before it.
+    void slideLinesAreTheProgramsLines()
+    {
+        for (const QString &family : {QStringLiteral("Liberation Serif"), QStringLiteral("DejaVu Sans")}) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLineHeight(150, QTextBlockFormat::ProportionalHeight);
+            bf.setTopMargin(12);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(20);
+            c.insertText(QStringLiteral("One"), cf);
+            c.insertText(QString(QChar::LineSeparator), cf);
+            c.insertText(QStringLiteral("Two"), cf);
+            FrameSpec fs;
+            fs.size = QSizeF(300, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            LayoutEnv env;
+            env.slideLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            const auto lines = lay.lineInfo(0);
+            QCOMPARE(int(lines.size()), 2);
+            QVERIFY2(std::abs(lines[0].rect.top()) < 0.01, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].rect.top())));
+            QVERIFY2(std::abs(lines[1].baseline - lines[0].baseline - 1.5 * 1.2 * 20) < 0.01, qPrintable(family + QLatin1Char(' ') + QString::number(lines[1].baseline - lines[0].baseline)));
+            // The extra space is above the text: the first baseline is a whole line down, less the text's descent.
+            QVERIFY2(lines[0].baseline > 1.5 * 1.2 * 20 * 0.7, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].baseline)));
+            QCOMPARE(lines[0].below, 0.0);
+        }
     }
 
     void headerAndFooterPlaceholders()
@@ -4321,9 +4355,9 @@ private Q_SLOTS:
         QVERIFY(bodyItem->stroke.isNone());
     }
 
-    // Text longer than its place is drawn past it, in the way it is anchored (down from the top, both ways from the middle, up from the
-    // bottom); the text engine hides what overflows a frame, so a frame with no fill or line of its own is made as tall as its text.
-    void importBinaryFramesGrowToTheirOverflowingText()
+    // A frame whose text is longer than it keeps its place and size from the file, and shows all of it as the program draws it,
+    // running out of the frame: down from the top, both ways from the middle, up from the bottom.
+    void importBinaryFramesShowTheirOverflowingText()
     {
         auto textBox = [&](quint32 id, int anchorText, int top, int height, const QString &text, const QVector<QPair<int, quint32>> &more = {}) {
             QByteArray props = le(0x0087, 2) + le(quint32(anchorText), 4);
@@ -4354,26 +4388,38 @@ private Q_SLOTS:
         }
         QVERIFY(body);
         QCOMPARE(int(boxes.size()), 5);
-        // The body placeholder: 350 points tall from 125, and 14 lines of 28 points and more.
+        QVERIFY(d->slideText);
+        LayoutCache cache;
+        const RenderOptions opt;
+        auto linesOf = [&](const TextItem &t) {
+            const auto fl = cache.textFrame(*d, t, 1, opt);
+            return fl.layout ? fl.layout->lineInfo(0) : QVector<StoryLayout::LineInfo>();
+        };
+        // The body placeholder: 350 points tall from 125 as the file has it, and all 14 lines of 28 points drawn.
         QCOMPARE(body->rect.top(), 125.0);
-        QVERIFY2(body->rect.height() > 400, qPrintable(QString::number(body->rect.height())));
+        QCOMPARE(body->rect.height(), 350.0);
         QCOMPARE(int(body->autofit), int(TextItem::NoAutofit));
+        QCOMPARE(int(linesOf(*body).size()), 14);
         // 25 points tall boxes of four lines: from the top, from the middle, from the bottom.
-        const double h0 = boxes[0]->rect.height();
-        QVERIFY2(h0 > 60, qPrintable(QString::number(h0)));
-        QCOMPARE(boxes[0]->rect.top(), 250.0);
-        QCOMPARE(boxes[1]->rect.center().y(), 300.0 + 12.5);
-        QVERIFY(boxes[1]->rect.height() > 60);
-        QCOMPARE(boxes[2]->rect.bottom(), 350.0 + 25.0);
-        QVERIFY(boxes[2]->rect.height() > 60);
-        for (int i : {0, 1, 2}) QCOMPARE(int(boxes[i]->autofit), int(TextItem::NoAutofit));
-        // A box that holds its text stays as it is, and so does one with a fill, which can't grow without showing.
+        for (int i : {0, 1, 2}) {
+            QCOMPARE(boxes[i]->rect.height(), 25.0);
+            const auto lines = linesOf(*boxes[i]);
+            QCOMPARE(int(lines.size()), 4);
+            const double top = lines.first().rect.top(), bottom = lines.last().rect.bottom() - lines.last().below;
+            const double inTop = boxes[i]->insets.top(), inBottom = 25 - boxes[i]->insets.bottom();
+            QVERIFY(bottom - top > inBottom - inTop);
+            if (i == 0) QVERIFY2(std::abs(top - inTop) < 0.5, qPrintable(QString::number(top)));
+            if (i == 1) QVERIFY2(std::abs((top + bottom) / 2 - (inTop + inBottom) / 2) < 0.5, qPrintable(QString::number((top + bottom) / 2)));
+            if (i == 2) QVERIFY2(std::abs(bottom - inBottom) < 0.5, qPrintable(QString::number(bottom)));
+        }
+        // One that holds its text, and one with a fill, as they are.
         QCOMPARE(boxes[3]->rect.height(), 50.0);
         QCOMPARE(boxes[4]->rect.height(), 25.0);
     }
 
-    // Spacing as the presentation program sets it: no space before the first paragraph of a text, and a line of a share (100 for a
-    // single line) of 1.2 times the text size, where the text engine's single line is the font's own.
+    // Spacing as the file has it, set as the presentation program sets it (the text engine's slide lines): a line of a share (100 for a
+    // single line) of 1.2 times the text size whatever the font, its extra spacing above it, and no space before the paragraph at the
+    // top of the box.
     void importBinarySpacingFollowsTheProgram()
     {
         // Three paragraphs of the body's 28 points: 100 percent with 20 before, 80 percent with 20 before, and 500 master units exactly.
@@ -4381,22 +4427,28 @@ private Q_SLOTS:
         QString err;
         auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\rTwo\rThree"), styles)), &err);
         QVERIFY2(d, qPrintable(err));
-        QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
-        QVERIFY(body && body->blockCount() == 3);
-        const QTextBlock one = body->begin(), two = one.next(), three = two.next();
-        // 20 percent of a line of 1.2 times 28 points, but not at the top.
-        QCOMPARE(one.blockFormat().topMargin(), 0.0);
+        QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story && story->blockCount() == 3);
+        const QTextBlock one = story->begin(), two = one.next(), three = two.next();
+        // 20 percent of a line of 1.2 times 28 points before each, the first too.
+        QVERIFY(qAbs(one.blockFormat().topMargin() - 0.2 * 28 * 1.2) < 1e-9);
         QVERIFY(qAbs(two.blockFormat().topMargin() - 0.2 * 28 * 1.2) < 1e-9);
-        // The font's own single line is the engine's, whatever it is: the share makes the line 1.2 times the size.
-        QFont font(QStringLiteral("Alpha Sans"));
-        const double single = naturalLineEm(font, QStringLiteral("Alpha Sans"));
-        QVERIFY(single > 0.6);
-        QVERIFY(one.blockFormat().lineHeightType() == QTextBlockFormat::ProportionalHeight);
-        QVERIFY2(qAbs(one.blockFormat().lineHeight() - 100 * 1.2 / single) < 1e-6, qPrintable(QString::number(one.blockFormat().lineHeight())));
-        QVERIFY2(qAbs(two.blockFormat().lineHeight() - 80 * 1.2 / single) < 1e-6, qPrintable(QString::number(two.blockFormat().lineHeight())));
+        QVERIFY(one.blockFormat().lineHeightType() != QTextBlockFormat::ProportionalHeight || one.blockFormat().lineHeight() == 100);
+        QVERIFY(two.blockFormat().lineHeightType() == QTextBlockFormat::ProportionalHeight);
+        QCOMPARE(two.blockFormat().lineHeight(), 80.0);
         // A line of so many master units is that many points.
         QVERIFY(three.blockFormat().lineHeightType() == QTextBlockFormat::FixedHeight);
         QCOMPARE(three.blockFormat().lineHeight(), 500.0 / 8);
+        // Drawn: the first line at the top of the box; the second's baseline 80 percent of a line and the space before below it.
+        const TextItem *body = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+        QVERIFY(body);
+        LayoutCache cache;
+        const auto lines = cache.textFrame(*d, *body, 1, RenderOptions()).layout->lineInfo(0);
+        QCOMPARE(int(lines.size()), 3);
+        QVERIFY2(qAbs(lines[0].rect.top() - body->insets.top()) < 0.01, qPrintable(QString::number(lines[0].rect.top())));
+        QVERIFY2(qAbs(lines[1].baseline - lines[0].baseline - (0.8 + 0.2) * 1.2 * 28) < 0.05, qPrintable(QString::number(lines[1].baseline - lines[0].baseline)));
     }
 
     // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.
@@ -4486,27 +4538,43 @@ private Q_SLOTS:
         QVERIFY(plain[1]->fill.type == Fill::Solid);
     }
 
-    // A paragraph with no text has no bullet, as the presentation program draws it: the blank lines between the points of a list.
-    void importBinaryBlankParagraphsHaveNoBullets()
+    // A blank paragraph keeps its bullet as the file has it (text typed in it shows one), and shows none, as in the program.
+    void importBinaryBlankParagraphsShowNoBullets()
     {
         QString err;
         auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\r\rTwo\r"))), &err);
         QVERIFY2(d, qPrintable(err));
-        QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
-        QVERIFY(body);
-        QCOMPARE(body->blockCount(), 4);
-        const QTextBlock one = body->begin(), blank = one.next(), two = blank.next(), last = two.next();
-        QVERIFY(one.textList() && two.textList());
-        QVERIFY(!blank.textList());
-        QVERIFY(!last.textList());
-        // The text of the blank paragraph keeps the place it has: its margins are the level's.
+        QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        QCOMPARE(story->blockCount(), 4);
+        const QTextBlock one = story->begin(), blank = one.next(), two = blank.next();
+        QVERIFY(one.textList() && blank.textList() && two.textList());
         QCOMPARE(blank.blockFormat().leftMargin(), one.blockFormat().leftMargin());
-        // A paragraph of nothing but a space has one.
-        d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\r \rTwo"))), &err);
-        QVERIFY2(d, qPrintable(err));
-        body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
-        QVERIFY(body && body->blockCount() == 3);
-        QVERIFY(body->begin().next().textList());
+        const TextItem *body = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+        QVERIFY(body);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *body, 1, RenderOptions());
+        const auto lines = fl.layout->lineInfo(0);
+        QVERIFY(lines.size() >= 3);
+        QImage img((body->rect.size() * 4).toSize(), QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(4, 4);
+        fl.layout->paint(&p, 0, PaintOptions());
+        p.end();
+        // Ink where the first line's bullet is, beside the first line and the blank one.
+        auto ink = [&](const QRectF &r) {
+            int n = 0;
+            for (int y = int(r.top() * 4); y < int(r.bottom() * 4) && y < img.height(); ++y)
+                for (int x = std::max(0, int(r.left() * 4)); x < int(r.right() * 4) && x < img.width(); ++x)
+                    n += qGray(img.pixel(x, y)) < 128;
+            return n;
+        };
+        const double bulletRight = lines[0].rect.left();
+        QVERIFY(ink(QRectF(0, lines[0].rect.top(), bulletRight, lines[0].rect.height())) > 0);
+        QCOMPARE(ink(QRectF(0, lines[1].rect.top(), bulletRight, lines[1].rect.height())), 0);
     }
 
     // A texture with a brightness and a contrast (a background's, washed out) has them in its pixels, where a fill has no other place
