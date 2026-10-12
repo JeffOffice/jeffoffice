@@ -329,6 +329,19 @@ private:
             .arg(pictureShape(id + 1, 1219200, 1219200));
     }
 
+    // An embedded object with a picture of itself, in a pair of alternatives for programs that
+    // know the other kind of drawing.
+    static QString objectWithPicture(int id)
+    {
+        return QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"%1\" name=\"Object %1\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                              "<p:xfrm><a:off x=\"7315200\" y=\"1219200\"/><a:ext cx=\"1828800\" cy=\"1828800\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/presentationml/2006/ole\">"
+                              "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:v=\"urn:test:drawing\" Requires=\"v\">"
+                              "<p:oleObj spid=\"_x0000_s1040\" name=\"Object\" r:id=\"rId7\"><p:embed/></p:oleObj></mc:Choice>"
+                              "<mc:Fallback><p:oleObj name=\"Object\" r:id=\"rId7\"><p:embed/>%2</p:oleObj></mc:Fallback></mc:AlternateContent></a:graphicData></a:graphic></p:graphicFrame>")
+            .arg(id)
+            .arg(pictureShape(id + 1, 7315200, 1219200));
+    }
+
     // The sample presentation: 16:9, one master over two layouts (Title
     // Slide, Title and Content), and two slides.
     static Parts samplePptx()
@@ -388,7 +401,7 @@ private:
                      QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>"),
                      placeholderShape(2, QStringLiteral("Title 1"), QStringLiteral("type=\"ctrTitle\""), QString(), para(QStringLiteral("Second")))
                          + placeholderShape(3, QStringLiteral("Subtitle 2"), QStringLiteral("type=\"subTitle\" idx=\"1\""), QString(), para(QString()))
-                         + chartWithPicture(4))
+                         + chartWithPicture(4) + objectWithPicture(6))
                 .toUtf8()};
         p.rels << Rel{"/ppt/slides/slide1.xml", "slideLayout", "/ppt/slideLayouts/slideLayout2.xml"}
                << Rel{"/ppt/slides/slide1.xml", "image", "/ppt/media/image1.png"}
@@ -586,11 +599,15 @@ private Q_SLOTS:
         QVERIFY(d->images.contains(id));
         QCOMPARE(d->images.value(id).format, QStringLiteral("png"));
         QCOMPARE(d->images.value(id).pixelSize, QSize(4, 4));
-        // The fallback picture of the chart on the second slide is the same file.
+        // The fallback picture of the chart on the second slide, and the preview of the object, are the same file.
         const Page &second = *d->pages[1];
-        QCOMPARE(int(second.items.size()), 3);
+        QCOMPARE(int(second.items.size()), 4);
         QCOMPARE(second.items[2]->type(), ItemType::Picture);
+        QCOMPARE(second.items[2]->rect, QRectF(96, 96, 72, 72));
         QCOMPARE(static_cast<const PictureItem *>(second.items[2].get())->imageId, id);
+        QCOMPARE(second.items[3]->type(), ItemType::Picture);
+        QCOMPARE(second.items[3]->rect, QRectF(576, 96, 72, 72));
+        QCOMPARE(static_cast<const PictureItem *>(second.items[3].get())->imageId, id);
         QCOMPARE(int(d->images.size()), 1);
     }
 
@@ -614,16 +631,20 @@ private Q_SLOTS:
         QVERIFY(office::isElement(dom.documentElement(), office::ns::P, QStringLiteral("graphicFrame")));
         QVERIFY(frame.value(QStringLiteral("xml")).toString().contains(QStringLiteral("Cell &amp; &lt;1&gt;")));
         QCOMPARE(dom.documentElement().elementsByTagNameNS(QString::fromLatin1(office::ns::A.data()), QStringLiteral("t")).at(0).toElement().text(), QStringLiteral("Cell & <1>"));
-        // The chart on the second slide has a picture of itself to read in its place; where the
-        // reader can't read pictures yet, it is kept like the table.
+        // The chart and the object on the second slide have pictures of themselves to read in their
+        // place; where the reader can't read pictures yet, they are kept like the table.
         const QJsonArray second = d->pages[1]->props.value(QStringLiteral("unread")).toArray();
-        QCOMPARE(int(second.size()), readerReadsPictures() ? 0 : 1);
+        QCOMPARE(int(second.size()), readerReadsPictures() ? 0 : 2);
         if (!second.isEmpty()) {
             const QString xml = second[0].toObject().value(QStringLiteral("xml")).toString();
             QVERIFY(xml.contains(QStringLiteral("AlternateContent")));
             QVERIFY(office::parseXml(xml.toUtf8(), &dom, &why));
             QCOMPARE(second[0].toObject().value(QStringLiteral("x")).toDouble(), 96.0);
             QCOMPARE(second[0].toObject().value(QStringLiteral("w")).toDouble(), 480.0);
+            const QString object = second[1].toObject().value(QStringLiteral("xml")).toString();
+            QVERIFY(object.contains(QStringLiteral("oleObj")));
+            QVERIFY(office::parseXml(object.toUtf8(), &dom, &why));
+            QCOMPARE(second[1].toObject().value(QStringLiteral("x")).toDouble(), 576.0);
         }
         // Nothing else is added for them.
         QCOMPARE(int(d->pages[0]->items.size()), readerReadsPictures() ? 6 : 5);
@@ -663,6 +684,43 @@ private Q_SLOTS:
         // The notes page size.
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("w")).toDouble(), 540.0);
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("h")).toDouble(), 720.0);
+    }
+
+    // A slide's placeholder takes its layout's by index, then by type; a layout's takes its master's by
+    // type, and any kind of content takes the master's text placeholder.
+    void importMatchesPlaceholdersByIndexThenType()
+    {
+        Parts p = samplePptx();
+        const QString layoutType = QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml");
+        p.data["/ppt/slideLayouts/slideLayout2.xml"] = {layoutType,
+            layoutXml(QStringLiteral("twoObj"), QStringLiteral("Two Content"), QString(),
+                      placeholderShape(2, QStringLiteral("Title 1"), QStringLiteral("type=\"title\""), QString(), para(QStringLiteral("t")))
+                          + placeholderShape(3, QStringLiteral("Left"), QStringLiteral("idx=\"1\""), xfrm(838200, 1825625, 5181600, 4351338), para(QStringLiteral("l")))
+                          + placeholderShape(4, QStringLiteral("Right"), QStringLiteral("idx=\"2\""), xfrm(6172200, 1825625, 5181600, 4351338), para(QStringLiteral("r")))
+                          + placeholderShape(5, QStringLiteral("Picture"), QStringLiteral("type=\"pic\" idx=\"13\""), QString(), para(QString())))
+                .toUtf8()};
+        p.data["/ppt/slides/slide1.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"),
+            slideXml(QString(), QString(),
+                     placeholderShape(2, QStringLiteral("Right"), QStringLiteral("type=\"body\" idx=\"2\""), QString(), para(QStringLiteral("right")))
+                         + placeholderShape(3, QStringLiteral("Left"), QStringLiteral("idx=\"1\""), QString(), para(QStringLiteral("left")))
+                         + placeholderShape(4, QStringLiteral("Centered title"), QStringLiteral("type=\"ctrTitle\""), QString(), para(QStringLiteral("title")))
+                         + placeholderShape(5, QStringLiteral("Picture"), QStringLiteral("type=\"pic\" idx=\"13\""), QString(), para(QString()))
+                         + placeholderShape(6, QStringLiteral("Own place"), QStringLiteral("idx=\"1\""), xfrm(0, 0, 1270000, 635000), para(QStringLiteral("own"))))
+                .toUtf8()};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Page &slide = *d->pages[0];
+        QCOMPARE(int(slide.items.size()), 5);
+        QCOMPARE(slide.items[0]->role, QStringLiteral("ph:body:2"));
+        QCOMPARE(slide.items[0]->rect, QRectF(486, 143.75, 408, 4351338 / 12700.0));    // the layout's second content place
+        QCOMPARE(slide.items[1]->rect, QRectF(66, 143.75, 408, 4351338 / 12700.0));     // the first
+        QCOMPARE(slide.items[2]->rect, d->masters[0]->items[0]->rect);                  // title, by kind, and the master's
+        QCOMPARE(slide.items[3]->rect, d->masters[0]->items[1]->rect);                  // a picture place: the master's text place
+        QCOMPARE(slide.items[4]->rect, QRectF(0, 0, 100, 50));                          // its own, whatever the layout says
+        QCOMPARE(d->masters[2]->items[3]->rect, d->masters[0]->items[1]->rect);
+        QCOMPARE(slide.items[3]->role, QStringLiteral("ph:pic:13"));
+        QCOMPARE(static_cast<const TextItem *>(slide.items[3].get())->prompt, deck::promptFor(QStringLiteral("pic")));
     }
 
     // The size a file names, in the names the presentation program gives them.

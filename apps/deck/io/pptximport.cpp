@@ -102,6 +102,18 @@ QString roleOf(const PhRef &ph)
 // The kinds of placeholder that hold text, and so are text boxes.
 bool holdsText(const QString &type) { return !isOneOf(type, {"sldImg", "tbl", "chart", "dgm", "media", "clipArt"}); }
 
+// The picture a graphic frame holds for programs that can't show what it
+// really is: an embedded object's preview.
+QDomElement previewPicture(const QDomElement &e, int depth = 0)
+{
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        if (office::isElement(c, office::ns::P, QStringLiteral("pic"))) return c;
+        if (depth < 8)
+            if (const QDomElement found = previewPicture(c, depth + 1); !found.isNull()) return found;
+    }
+    return QDomElement();
+}
+
 QDomElement listStyleOf(const QDomElement &shape) { return aChild(pChild(shape, "txBody"), "lstStyle"); }
 
 QString escaped(const QString &text, bool attribute)
@@ -253,6 +265,7 @@ private:
     void readChild(const QDomElement &c, Scope &sc);
     void readAlternate(const QDomElement &alternate, Scope &sc);
     ItemPtr readOne(const QDomElement &shape, Scope &sc);
+    bool readFramePicture(const QDomElement &frame, Scope &sc);
     void keepUnread(const QDomElement &whole, const QDomElement &frame, Scope &sc);
     QDomElement withEmptyText(const QDomElement &shape);
     QDomElement textStyleFor(const MasterCtx &m, const QString &type) const;
@@ -514,7 +527,7 @@ void Importer::readChild(const QDomElement &c, Scope &sc)
     if (office::isElement(c, kMc, QStringLiteral("AlternateContent"))) {
         readAlternate(c, sc);
     } else if (name == QLatin1String("graphicFrame") || name == QLatin1String("contentPart")) {
-        keepUnread(c, c, sc);
+        if (!readFramePicture(c, sc)) keepUnread(c, c, sc);
     } else if (isOneOf(name, {"sp", "pic", "grpSp", "cxnSp"})) {
         if (ItemPtr it = readOne(c, sc)) sc.page->items.push_back(it);
     }
@@ -534,7 +547,8 @@ void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
         if (!office::isElement(alt, kMc, QStringLiteral("Choice"))) continue;
         for (QDomElement e = alt.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
             if (isOneOf(e.localName(), {"graphicFrame", "contentPart"})) {
-                if (frame.isNull()) frame = e;
+                if (readFramePicture(e, sc)) read = true;
+                else if (frame.isNull()) frame = e;
             } else if (isOneOf(e.localName(), {"sp", "pic", "grpSp", "cxnSp"})) {
                 read = true;
                 if (ItemPtr it = readOne(e, sc)) sc.page->items.push_back(it);
@@ -550,6 +564,17 @@ void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
         }
     }
     if (!read) keepUnread(alternate, frame.isNull() ? alternate : frame, sc);
+}
+
+// What a frame shows for itself, when it holds a picture of it.
+bool Importer::readFramePicture(const QDomElement &frame, Scope &sc)
+{
+    const QDomElement pic = previewPicture(aChild(frame, "graphic"));
+    if (pic.isNull()) return false;
+    ItemPtr it = readOne(pic, sc);
+    if (!it) return false;
+    sc.page->items.push_back(it);
+    return true;
 }
 
 void Importer::keepUnread(const QDomElement &whole, const QDomElement &frame, Scope &sc)
@@ -780,7 +805,7 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
     auto doc = std::make_unique<Document>();
     Importer importer(pkg, *doc);
     if (!importer.run(pkg.mainPart(), error)) return nullptr;
-    doc->fromFile = true;
+    doc->fromFile = true;   // what the file names outside itself is read only from beside it
     return doc;
 }
 
