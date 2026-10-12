@@ -493,7 +493,9 @@ Fill Reader::fillOf(const Bag &bag, const StyleSheet &styles)
         f.type = Fill::Picture;
         f.imageId = id;
         f.transparency = transparency;
-        if (bag.get(Graphic, "style:repeat") == QLatin1String("repeat")) {
+        // A picture fill that doesn't say is tiled, as the producers' own are.
+        const QString repeat = bag.get(Graphic, "style:repeat", QStringLiteral("repeat"));
+        if (repeat != QLatin1String("stretch") && repeat != QLatin1String("no-repeat")) {
             f.type = Fill::Texture;
             f.tile = true;
             // A tile is its picture at the size the file gives it (pixels at 96 to the inch).
