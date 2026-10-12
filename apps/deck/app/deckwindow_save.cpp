@@ -41,6 +41,13 @@ bool isKnownEnding(const QString &path)
     return suffix == QLatin1String("pptx") || suffix == QLatin1String("potx") || suffix == QLatin1String("ppsx");
 }
 
+// An open document presentation is read, never written over: it is saved as a new .pptx.
+bool isOpenDocumentEnding(const QString &path)
+{
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    return suffix == QLatin1String("odp") || suffix == QLatin1String("otp");
+}
+
 } // namespace
 
 void DeckWindow::createSaveActions()
@@ -69,9 +76,10 @@ bool DeckWindow::save()
 {
     const QString path = m_ed->filePath();
     // A presentation opened from a template is saved as a new presentation:
-    // the template stays as it is, unless this window wrote it.
+    // the template stays as it is, unless this window wrote it. So is one
+    // opened from an open document file, which is never written over.
     const bool isTemplate = deck::kindOfFileName(path) == deck::PresentationKind::Template && path != m_templatePath;
-    if (path.isEmpty() || isTemplate) return saveAs();
+    if (path.isEmpty() || isTemplate || isOpenDocumentEnding(path)) return saveAs();
     return saveTo(path);
 }
 

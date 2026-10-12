@@ -87,7 +87,7 @@ public:
     void insertTable(int rows, int columns);
     // Starts the slide show at `slide` (0 is the first).
     void startShow(int slide);
-    // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot) in this window if it
+    // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
     bool openFile(const QString &path);
