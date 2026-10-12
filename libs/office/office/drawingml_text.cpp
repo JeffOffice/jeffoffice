@@ -12,6 +12,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextList>
 #include <QTextOption>
 
 #include <algorithm>
@@ -87,12 +88,25 @@ struct Spacing {
     double value = 0;   // points, or a fraction (1 is 100%)
 };
 
+// The bullet of a paragraph. Its mark, color, size, and font are each said
+// (or inherited) by themselves.
+struct Bullet {
+    enum Kind { Unset, None, Char, AutoNum, Blip } kind = Unset;
+    QString text;               // buChar's character, or buAutoNum's scheme
+    int startAt = 1;
+    enum Follow { NotSaid, Text, Own };
+    Follow color = NotSaid, size = NotSaid, font = NotSaid;
+    QColor colorValue;
+    Spacing sizeValue;
+    QString fontValue;
+};
 
 struct ParaProps {
     QString algn;
     std::optional<double> marL, marR, indent, defTab;
     std::optional<bool> rtl;
     Spacing lnSpc, spcBef, spcAft;
+    Bullet bullet;
     bool hasTabs = false;
     QList<QTextOption::Tab> tabs;
 };
@@ -143,6 +157,52 @@ void mergeParagraph(ParaProps &p, const QDomElement &pPr, const DrawingContext &
             if (const Spacing s = spacingOf(c); s.kind != Spacing::Unset) p.spcBef = s;
         } else if (name == QLatin1String("spcAft")) {
             if (const Spacing s = spacingOf(c); s.kind != Spacing::Unset) p.spcAft = s;
+        } else if (name == QLatin1String("buClrTx")) {
+            p.bullet.color = Bullet::Text;
+        } else if (name == QLatin1String("buClr")) {
+            const QColor color = readColor(c, ctx.theme, ctx.colors);
+            if (color.isValid()) {
+                p.bullet.color = Bullet::Own;
+                p.bullet.colorValue = color;
+            }
+        } else if (name == QLatin1String("buSzTx")) {
+            p.bullet.size = Bullet::Text;
+        } else if (name == QLatin1String("buSzPct")) {
+            bool ok = false;
+            const double pct = parsePercent(at(c, QLatin1String("val")), 0, &ok);
+            if (ok && std::isfinite(pct) && pct > 0) {
+                p.bullet.size = Bullet::Own;
+                p.bullet.sizeValue = {Spacing::Percent, pct};
+            }
+        } else if (name == QLatin1String("buSzPts")) {
+            qint64 pts = 0;
+            if (intOf(c, QLatin1String("val"), &pts) && pts > 0) {
+                p.bullet.size = Bullet::Own;
+                p.bullet.sizeValue = {Spacing::Points, std::min<qint64>(pts, 400000) / 100.0};
+            }
+        } else if (name == QLatin1String("buFontTx")) {
+            p.bullet.font = Bullet::Text;
+        } else if (name == QLatin1String("buFont")) {
+            QString face = at(c, QLatin1String("typeface"));
+            if (const QString theme = themeFontOf(face); !theme.isEmpty()) face = theme == QLatin1String("major") ? ctx.theme.majorLatin : ctx.theme.minorLatin;
+            if (!face.isEmpty()) {
+                p.bullet.font = Bullet::Own;
+                p.bullet.fontValue = face;
+            }
+        } else if (name == QLatin1String("buNone")) {
+            p.bullet.kind = Bullet::None;
+        } else if (name == QLatin1String("buAutoNum")) {
+            p.bullet.kind = Bullet::AutoNum;
+            p.bullet.text = at(c, QLatin1String("type"));
+            qint64 start = 1;
+            intOf(c, QLatin1String("startAt"), &start);
+            p.bullet.startAt = int(std::clamp<qint64>(start, 1, 32767));
+        } else if (name == QLatin1String("buChar")) {
+            p.bullet.kind = Bullet::Char;
+            p.bullet.text = at(c, QLatin1String("char"));
+        } else if (name == QLatin1String("buBlip")) {
+            p.bullet.kind = Bullet::Blip;
+            p.bullet.text.clear();
         } else if (name == QLatin1String("tabLst")) {
             p.hasTabs = true;
             p.tabs.clear();
@@ -295,6 +355,48 @@ QTextCharFormat charFormatOf(const RunProps &r)
     return cf;
 }
 
+// ---- numbering
+
+struct Scheme {
+    QTextListFormat::Style style = QTextListFormat::ListDecimal;
+    QString prefix, suffix;
+    int numberFormat = 0;   // tp::NumberFormat, 0 for none of its seven
+};
+
+// A numbering scheme's name (ST_TextAutonumberScheme). Qt counts in Latin
+// digits, letters, and Roman numerals; the schemes of other scripts count in
+// digits (or letters) with their own punctuation.
+Scheme schemeOf(const QString &type)
+{
+    Scheme s;
+    if (type.startsWith(QLatin1String("alphaLc")) || type.startsWith(QLatin1String("thaiAlpha")) || type.startsWith(QLatin1String("hindiAlpha")))
+        s.style = QTextListFormat::ListLowerAlpha;
+    else if (type.startsWith(QLatin1String("alphaUc"))) s.style = QTextListFormat::ListUpperAlpha;
+    else if (type.startsWith(QLatin1String("romanLc"))) s.style = QTextListFormat::ListLowerRoman;
+    else if (type.startsWith(QLatin1String("romanUc"))) s.style = QTextListFormat::ListUpperRoman;
+    if (type.endsWith(QLatin1String("ParenBoth"))) {
+        s.prefix = QStringLiteral("(");
+        s.suffix = QStringLiteral(")");
+    } else if (type.endsWith(QLatin1String("ParenR"))) {
+        s.suffix = QStringLiteral(")");
+    } else if (type.endsWith(QLatin1String("Period"))) {
+        s.suffix = QStringLiteral(".");
+    } else if (!type.endsWith(QLatin1String("Plain")) && !type.endsWith(QLatin1String("Minus"))) {
+        s = Scheme();   // one this reading doesn't know counts the usual way
+        s.suffix = QStringLiteral(".");
+    }
+    const bool dotted = s.prefix.isEmpty() && s.suffix == QLatin1String(".");
+    switch (s.style) {
+    case QTextListFormat::ListDecimal: s.numberFormat = dotted ? 1 : s.suffix == QLatin1String(")") && s.prefix.isEmpty() ? 6 : s.prefix == QLatin1String("(") && s.suffix == QLatin1String(")") ? 7 : 0; break;
+    case QTextListFormat::ListLowerAlpha: s.numberFormat = dotted ? 2 : 0; break;
+    case QTextListFormat::ListUpperAlpha: s.numberFormat = dotted ? 3 : 0; break;
+    case QTextListFormat::ListLowerRoman: s.numberFormat = dotted ? 4 : 0; break;
+    case QTextListFormat::ListUpperRoman: s.numberFormat = dotted ? 5 : 0; break;
+    default: break;
+    }
+    return s;
+}
+
 
 
 // ---- text
@@ -351,6 +453,7 @@ private:
     // What the list styles give a paragraph at `level` and a run in it: each
     // style's defaults, then its level, lowest priority first.
     void stack(int level);
+    void addToList(const ParaProps &para, int level, const QString &key, double firstSize);
 
     const DrawingContext &m_ctx;
     TextStyleStack m_styles;
@@ -361,6 +464,11 @@ private:
     bool m_have[kLevels] = {};
     ParaProps m_para[kLevels];   // what the styles give a paragraph of each level
     RunProps m_run[kLevels];     // and a run in it
+    struct ListRun {
+        QTextList *list = nullptr;
+        QString key;
+    };
+    ListRun m_lists[kLevels];    // the list each level goes on in
 };
 
 void Reader::stack(int level)
@@ -378,6 +486,37 @@ void Reader::stack(int level)
 }
 
 
+void Reader::addToList(const ParaProps &para, int level, const QString &key, double firstSize)
+{
+    ListRun &run = m_lists[level];
+    if (run.list && run.key == key) {
+        run.list->add(m_cursor.block());
+        return;
+    }
+    const Bullet &b = para.bullet;
+    QTextListFormat lf;
+    lf.setIndent(0);
+    if (level > 0) lf.setProperty(tp::ListLevel, level);
+    if (b.kind == Bullet::AutoNum) {
+        const Scheme s = schemeOf(b.text);
+        lf.setStyle(s.style);
+        lf.setNumberPrefix(s.prefix);
+        lf.setNumberSuffix(s.suffix);
+        if (b.startAt > 1) lf.setStart(b.startAt);
+        if (s.numberFormat) lf.setProperty(tp::NumberFormat, s.numberFormat);
+    } else {
+        lf.setStyle(QTextListFormat::ListDisc);
+        if (b.kind == Bullet::Char && !b.text.isEmpty()) lf.setProperty(tp::BulletChar, b.text);
+    }
+    if (b.color == Bullet::Own) lf.setProperty(tp::BulletColor, colorRefOf(b.colorValue));
+    if (b.font == Bullet::Own) lf.setProperty(tp::BulletFont, b.fontValue);
+    if (b.size == Bullet::Own) {
+        const double points = b.sizeValue.kind == Spacing::Percent ? b.sizeValue.value * firstSize : b.sizeValue.value;
+        lf.setProperty(tp::BulletSize, std::clamp(points, 1.0, 4000.0));
+    }
+    run.list = m_cursor.createList(lf);
+    run.key = key;
+}
 
 void Reader::paragraph(const QDomElement &p)
 {
@@ -484,6 +623,23 @@ void Reader::paragraph(const QDomElement &p)
     }
     for (const Piece &piece : std::as_const(pieces)) m_cursor.insertText(piece.text, piece.format);
 
+    // A bullet. Numbers go on while the paragraphs before are numbered the
+    // same way at the level, are interrupted by a paragraph of the level
+    // without one, and start over below a paragraph of a shallower level.
+    // An empty paragraph shows no bullet and takes no part.
+    if (pieces.isEmpty()) return;
+    for (int l = level + 1; l < kLevels; ++l) m_lists[l] = ListRun();
+    const Bullet &b = para.bullet;
+    if (b.kind != Bullet::Char && b.kind != Bullet::AutoNum && b.kind != Bullet::Blip) {
+        m_lists[level] = ListRun();
+        return;
+    }
+    const double points = b.size == Bullet::Own ? (b.sizeValue.kind == Spacing::Percent ? b.sizeValue.value * firstSize : b.sizeValue.value) : 0;
+    // Paragraphs whose bullets are the same in every way share a list.
+    const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6")
+                            .arg(int(b.kind)).arg(b.text).arg(b.kind == Bullet::AutoNum ? b.startAt : 0).arg(b.color == Bullet::Own ? colorRefOf(b.colorValue) : QString())
+                            .arg(b.font == Bullet::Own ? b.fontValue : QString()).arg(points);
+    addToList(para, level, key, firstSize);
 }
 
 } // namespace
