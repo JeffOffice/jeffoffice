@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QSet>
 #include <QUrl>
@@ -16,10 +17,11 @@ namespace jp::office {
 
 namespace {
 
-// A package of more than this many parts, or more than 2 GB inflated, is
-// refused: no real file is near either.
+// A package of more than this many parts is refused (and, unless the caller
+// says less, one of more than Package::kDefaultMaxInflated bytes inflated):
+// no real file is near either. The most parts of 47 decks is 247, and the
+// most inflated is 524 MB, which is pictures.
 const int kMaxParts = 10000;
-const qint64 kMaxInflated = qint64(1) << 31;
 
 const QString kContentTypesItem = QStringLiteral("[Content_Types].xml");
 const QString kTypesNs = ns::ContentTypes;
@@ -73,8 +75,17 @@ bool usableSegment(const QString &s)
     return true;
 }
 
-// The part name a ZIP entry's name stands for; empty if it is no good. Here
-// not even "." or ".." is let through to be followed.
+// A ZIP entry's name with the slashes that some tools write the other way
+// round, and a slash in front of it, made as the standard has them.
+QString plainItemName(QString item)
+{
+    item.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    if (item.startsWith(QLatin1Char('/'))) item.remove(0, 1);
+    return item;
+}
+
+// The part name a ZIP entry's name (made plain) stands for; empty if it is no
+// good. Here not even "." or ".." is let through to be followed.
 QString partNameOfItem(const QString &item)
 {
     QStringList segments;
@@ -135,9 +146,10 @@ bool forEachChild(const QByteArray &xml, const QString &namespaceUri, const QStr
 }
 
 // The links one relationship part holds, their targets resolved against the
-// part they start from. False if the part is no XML, or if an internal link
-// leads out of the package or to a name nothing could have.
-bool parseRelationships(const QByteArray &xml, const QString &source, QVector<Relationship> *out)
+// part they start from. False if the part is no XML. An internal link that
+// leads out of the package or to a name nothing could have is left out, as if
+// it were not there, and counted in `skipped`.
+bool parseRelationships(const QByteArray &xml, const QString &source, QVector<Relationship> *out, int *skipped)
 {
     static const QRegularExpression scheme(QStringLiteral("^[A-Za-z][A-Za-z0-9+.-]+:"));
     QSet<QString> ids;
@@ -151,14 +163,17 @@ bool parseRelationships(const QByteArray &xml, const QString &source, QVector<Re
         // A link with no Id or no Target says nothing; a repeated Id is
         // ignored (the first stands).
         if (rel.id.isEmpty() || rel.target.isEmpty() || ids.contains(rel.id)) return true;
-        ids.insert(rel.id);
         // An address with a scheme is outside whether or not it says so.
         rel.external = a.value(QLatin1String("TargetMode")).compare(QLatin1String("External"), Qt::CaseInsensitive) == 0
             || scheme.match(rel.target).hasMatch();
         if (!rel.external) {
             rel.target = resolvePartName(source, rel.target);
-            if (rel.target.isEmpty()) return false;
+            if (rel.target.isEmpty()) {
+                ++*skipped;
+                return true;
+            }
         }
+        ids.insert(rel.id);
         out->append(rel);
         return true;
     });
@@ -192,9 +207,10 @@ quint32 le32(const QByteArray &a, qsizetype at)
 }
 
 // What the ZIP directory says its entries come to when inflated (as stored,
-// for stored ones), before any of them is inflated. False if the directory
-// can't be read, which readZip then reports in its own way.
-bool declaredSize(const QByteArray &zip, qint64 *total)
+// for stored ones), before any of them is inflated, and the entries' names in
+// the order the directory lists them. False if the directory can't be read,
+// which readZip then reports in its own way.
+bool scanDirectory(const QByteArray &zip, qint64 *total, QStringList *names)
 {
     if (zip.size() < 22) return false;
     qsizetype eocd = -1;
@@ -209,7 +225,10 @@ bool declaredSize(const QByteArray &zip, qint64 *total)
     for (int i = 0, count = le16(zip, eocd + 10); i < count; ++i) {
         if (p + 46 > zip.size() || le32(zip, p) != 0x02014b50) return false;
         *total += std::max(le32(zip, p + 20), le32(zip, p + 24));
-        p += 46 + le16(zip, p + 28) + le16(zip, p + 30) + le16(zip, p + 32);
+        const int nameLength = le16(zip, p + 28);
+        if (p + 46 + nameLength > zip.size()) return false;
+        names->append(QString::fromUtf8(zip.constData() + p + 46, nameLength));
+        p += 46 + nameLength + le16(zip, p + 30) + le16(zip, p + 32);
     }
     return true;
 }
@@ -248,11 +267,13 @@ QString resolvePartName(const QString &sourcePart, const QString &target)
     return segments.isEmpty() ? QString() : QLatin1Char('/') + segments.join(QLatin1Char('/'));
 }
 
-bool Package::read(const QByteArray &zip, QString *error) { return load(zip, error, true); }
+bool Package::read(const QByteArray &zip, QString *error, qint64 maxInflated) { return load(zip, error, true, maxInflated); }
 
-bool Package::readOpenDocument(const QByteArray &zip, QString *error) { return load(zip, error, false); }
+bool Package::readOpenDocument(const QByteArray &zip, QString *error) { return load(zip, error, false, kDefaultMaxInflated); }
 
-bool Package::load(const QByteArray &zip, QString *error, bool opc)
+int Package::skippedCount() const { return m_skipped; }
+
+bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxInflated)
 {
     *this = Package();
     auto fail = [&](const QString &message) {
@@ -260,33 +281,61 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc)
         if (error) *error = message;
         return false;
     };
+    // Too much is refused from the sizes in the directory, before anything is
+    // inflated.
+    auto tooMuch = [&] {
+        return fail(translate("The file would take more than %1 of memory to open, which is too much.")
+                        .arg(QLocale().formattedDataSize(maxInflated, 0, QLocale::DataSizeTraditionalFormat)));
+    };
     qint64 declared = 0;
-    if (declaredSize(zip, &declared) && declared > kMaxInflated)
-        return fail(translate("The file would take more than 2 GB of memory to open, which is too much."));
+    QStringList order;
+    const bool haveOrder = scanDirectory(zip, &declared, &order);
+    if (haveOrder && declared > maxInflated) return tooMuch();
     QMap<QString, QByteArray> items;
     if (!readZip(zip, items)) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
+    // Each entry was inflated into a buffer of the size the directory gave,
+    // and refused if it did not fit exactly, so the total is no more than was
+    // checked; looking again at what is there keeps that true whatever the
+    // directory said.
+    qint64 inflated = 0;
+    for (const QByteArray &data : std::as_const(items)) inflated += data.size();
+    if (inflated > maxInflated) return tooMuch();
 
     QByteArray types;
     bool haveTypes = false;
     QMap<QString, QByteArray> relationshipParts;
-    QSet<QString> keys;
-    for (auto it = items.cbegin(); it != items.cend(); ++it) {
+    QSet<QString> keys, seen;
+    // In the order of the file, so that of two parts with one name the first
+    // is kept; by name if the directory could not be listed.
+    const QStringList entries = haveOrder ? order : items.keys();
+    for (const QString &entry : entries) {
+        if (!items.contains(entry) || seen.contains(entry)) continue;
+        seen.insert(entry);
         // A folder entry holds nothing.
-        if (it.key().endsWith(QLatin1Char('/'))) continue;
-        if (opc && it.key().compare(kContentTypesItem, Qt::CaseInsensitive) == 0) {
-            types = it.value();
+        if (entry.endsWith(QLatin1Char('/')) || entry.endsWith(QLatin1Char('\\'))) continue;
+        const QString item = plainItemName(entry);
+        if (opc && item.compare(kContentTypesItem, Qt::CaseInsensitive) == 0) {
+            if (haveTypes) {
+                ++m_skipped;
+                continue;
+            }
+            types = items.value(entry);
             haveTypes = true;
             continue;
         }
-        const QString name = partNameOfItem(it.key());
-        if (name.isEmpty()) return fail(translate("The file holds a part whose name is not allowed."));
-        // Two names that differ only in case would be one part.
-        if (keys.contains(name.toLower())) return fail(translate("The file holds two parts with the same name."));
+        // A part with a name nothing could have, or one that differs from an
+        // earlier part's only in case (and would be the same part), is left
+        // out; the rest of the file is still good.
+        const QString name = partNameOfItem(item);
+        if (name.isEmpty() || keys.contains(name.toLower())) {
+            ++m_skipped;
+            continue;
+        }
         keys.insert(name.toLower());
         if (isRelationshipPart(name)) {
-            relationshipParts.insert(name, it.value());
+            relationshipParts.insert(name, items.value(entry));
         } else {
-            m_parts.insert(name, it.value());
+            m_parts.insert(name, items.value(entry));
             m_names.insert(name.toLower(), name);
         }
     }
@@ -297,7 +346,7 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc)
     for (auto it = relationshipParts.cbegin(); it != relationshipParts.cend(); ++it) {
         const QString source = relationshipSource(it.key());
         QVector<Relationship> links;
-        if (!parseRelationships(it.value(), source.isEmpty() ? QStringLiteral("/") : source, &links))
+        if (!parseRelationships(it.value(), source.isEmpty() ? QStringLiteral("/") : source, &links, &m_skipped))
             return fail(translate("A part that holds the file's relationships, %1, is damaged.").arg(it.key()));
         if (!source.isEmpty()) m_rels.insert(source.toLower(), links);
     }

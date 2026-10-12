@@ -451,24 +451,7 @@ private Q_SLOTS:
     void packageRejectsHostile_data()
     {
         QTest::addColumn<QByteArray>("zip");
-        auto with = [](const QString &name) {
-            Entries e = miniEntries();
-            e.append({name, "x"});
-            return zipOf(e);
-        };
         const QByteArray mini = zipOf(miniEntries());
-
-        QTest::newRow("part named ..") << with(QStringLiteral("../evil.xml"));
-        QTest::newRow("part climbing out") << with(QStringLiteral("ppt/../../evil.xml"));
-        QTest::newRow("part with .. inside") << with(QStringLiteral("ppt/../evil.xml"));
-        QTest::newRow("part with an encoded ..") << with(QStringLiteral("ppt/%2e%2e/evil.xml"));
-        QTest::newRow("part with an encoded slash") << with(QStringLiteral("ppt/a%2fb.xml"));
-        QTest::newRow("part with a backslash") << with(QStringLiteral("ppt\\evil.xml"));
-        QTest::newRow("part with an empty segment") << with(QStringLiteral("ppt//evil.xml"));
-        QTest::newRow("part with a leading slash") << with(QStringLiteral("/ppt/evil.xml"));
-        QTest::newRow("part with a control character") << with(QStringLiteral("ppt/ev") + QChar(1) + QStringLiteral("il.xml"));
-        QTest::newRow("part with a delete character") << with(QStringLiteral("ppt/ev") + QChar(0x7f) + QStringLiteral("il.xml"));
-        QTest::newRow("two parts differing in case") << with(QStringLiteral("PPT/Presentation.xml"));
 
         QTest::newRow("no content types") << zipOf(without(miniEntries(), QStringLiteral("[Content_Types].xml")));
         QTest::newRow("content types not XML") << zipOf(replaced(miniEntries(), QStringLiteral("[Content_Types].xml"), "this is not xml"));
@@ -484,14 +467,6 @@ private Q_SLOTS:
             << zipOf(replaced(miniEntries(), QStringLiteral("ppt/_rels/presentation.xml.rels"), "PK not xml"));
         QTest::newRow("relationships with a DOCTYPE")
             << zipOf(replaced(miniEntries(), QStringLiteral("_rels/.rels"), withDoctype(relsXml(QString()), "Relationships")));
-        QTest::newRow("relationship climbing out")
-            << zipOf(replaced(miniEntries(), QStringLiteral("_rels/.rels"), relsXml(rel("rId1", kRelBase + "officeDocument", "../../evil.xml"))));
-        QTest::newRow("absolute relationship climbing out")
-            << zipOf(replaced(miniEntries(), QStringLiteral("_rels/.rels"), relsXml(rel("rId1", kRelBase + "officeDocument", "/ppt/../../evil.xml"))));
-        QTest::newRow("relationship with a backslash")
-            << zipOf(replaced(miniEntries(), QStringLiteral("_rels/.rels"), relsXml(rel("rId1", kRelBase + "officeDocument", "ppt\\presentation.xml"))));
-        QTest::newRow("relationship with an encoded ..")
-            << zipOf(replaced(miniEntries(), QStringLiteral("_rels/.rels"), relsXml(rel("rId1", kRelBase + "officeDocument", "%2e%2e/evil.xml"))));
 
         QTest::newRow("10,001 parts") << zipOf(withPartCount(10001), false);
         QTest::newRow("more than 2 GB inflated") << declaredHuge();
@@ -755,6 +730,167 @@ private Q_SLOTS:
         QCOMPARE(doc.documentElement().attribute(QStringLiteral("note")).size(), 5000);
     }
 
+    // Some zip tools write every name with backslashes, or with a leading slash; they are the same names.
+    void packageReadsNamesWrittenWithBackslashesOrALeadingSlash()
+    {
+        Package plain;
+        QVERIFY(plain.read(zipOf(miniEntries())));
+        for (const QString &style : {QStringLiteral("slash"), QStringLiteral("backslash"), QStringLiteral("leading backslash")}) {
+            Entries e = miniEntries();
+            for (auto &entry : e) {
+                if (style == QLatin1String("slash")) entry.first.prepend(QLatin1Char('/'));
+                else entry.first.replace(QLatin1Char('/'), QLatin1Char('\\'));
+                if (style == QLatin1String("leading backslash")) entry.first.prepend(QLatin1Char('\\'));
+            }
+            Package p;
+            QString err;
+            QVERIFY2(p.read(zipOf(e), &err), qPrintable(style + QLatin1Char(' ') + err));
+            QCOMPARE(p.partNames(), plain.partNames());
+            QCOMPARE(p.mainPart(), QStringLiteral("/ppt/presentation.xml"));
+            QCOMPARE(p.relationships(QStringLiteral("/ppt/slides/slide1.xml")).size(), 3);
+            QCOMPARE(p.contentType(QStringLiteral("/ppt/presentation.xml")), kPresentationType);
+            QCOMPARE(p.skippedCount(), 0);
+        }
+        Package odf;
+        QString err;
+        QVERIFY2(odf.readOpenDocument(zipOf({{QStringLiteral("\\mimetype"), "m"}, {QStringLiteral("/content.xml"), "c"}, {QStringLiteral("Pictures\\a.png"), "p"}}), &err), qPrintable(err));
+        QCOMPARE(odf.partNames(), QStringList({QStringLiteral("/Pictures/a.png"), QStringLiteral("/content.xml"), QStringLiteral("/mimetype")}));
+    }
+
+    // One part with a name nothing could have is left out; it doesn't refuse the whole file.
+    void packageSkipsPartsWithUnusableNames_data()
+    {
+        QTest::addColumn<QString>("name");
+        QTest::newRow("..") << QStringLiteral("../evil.xml");
+        QTest::newRow("climbing out") << QStringLiteral("ppt/../../evil.xml");
+        QTest::newRow(".. inside") << QStringLiteral("ppt/../evil.xml");
+        QTest::newRow("backslashes climbing out") << QStringLiteral("ppt\\..\\..\\evil.xml");
+        QTest::newRow("encoded ..") << QStringLiteral("ppt/%2e%2e/evil.xml");
+        QTest::newRow("encoded slash") << QStringLiteral("ppt/a%2fb.xml");
+        QTest::newRow("empty segment") << QStringLiteral("ppt//evil.xml");
+        QTest::newRow("two leading slashes") << QStringLiteral("//ppt/evil.xml");
+        QTest::newRow("dot segment") << QStringLiteral("./ppt/evil.xml");
+        QTest::newRow("control character") << QStringLiteral("ppt/ev") + QChar(1) + QStringLiteral("il.xml");
+        QTest::newRow("delete character") << QStringLiteral("ppt/ev") + QChar(0x7f) + QStringLiteral("il.xml");
+    }
+
+    void packageSkipsPartsWithUnusableNames()
+    {
+        QFETCH(QString, name);
+        Package p;
+        QString err;
+        Entries e = miniEntries();
+        e.insert(3, qMakePair(name, QByteArray("x")));
+        QVERIFY2(p.read(zipOf(e), &err), qPrintable(err));
+        QCOMPARE(p.partNames().size(), 5);
+        QCOMPARE(p.mainPart(), QStringLiteral("/ppt/presentation.xml"));
+        QCOMPARE(p.part(QStringLiteral("/ppt/slides/slide1.xml")), QByteArray("<p:sld/>"));
+        QCOMPARE(p.skippedCount(), 1);
+
+        const Entries odf = {{QStringLiteral("mimetype"), "m"}, {name, "x"}, {QStringLiteral("content.xml"), "<content/>"}, {QStringLiteral("Pictures/a.png"), "p"}};
+        QVERIFY2(p.readOpenDocument(zipOf(odf), &err), qPrintable(err));
+        QCOMPARE(p.partNames(), QStringList({QStringLiteral("/Pictures/a.png"), QStringLiteral("/content.xml"), QStringLiteral("/mimetype")}));
+        QCOMPARE(p.skippedCount(), 1);
+        // What a later read finds is that file's, with nothing left from this one.
+        QVERIFY(p.readOpenDocument(zipOf({{QStringLiteral("content.xml"), "c"}}), &err));
+        QCOMPARE(p.skippedCount(), 0);
+    }
+
+    // Two names that differ only in case would be one part; the first in the file is kept, the other left out.
+    void packageKeepsTheFirstOfTwoNamesDifferingInCase()
+    {
+        Package p;
+        QString err;
+        Entries e = miniEntries();
+        e.prepend({QStringLiteral("PPT/Presentation.xml"), "<upper/>"});
+        QVERIFY2(p.read(zipOf(e), &err), qPrintable(err));
+        QCOMPARE(p.part(QStringLiteral("/ppt/presentation.xml")), QByteArray("<upper/>"));
+        QCOMPARE(p.skippedCount(), 1);
+
+        e = miniEntries();
+        e.append({QStringLiteral("PPT/Presentation.xml"), "<upper/>"});
+        QVERIFY2(p.read(zipOf(e), &err), qPrintable(err));
+        QCOMPARE(p.part(QStringLiteral("/ppt/presentation.xml")), QByteArray("<p:presentation/>"));
+        QCOMPARE(p.skippedCount(), 1);
+
+        QVERIFY2(p.readOpenDocument(zipOf({{QStringLiteral("Pictures/b.png"), "kept"}, {QStringLiteral("content.xml"), "<c/>"}, {QStringLiteral("Pictures/B.PNG"), "left out"}}), &err), qPrintable(err));
+        QCOMPARE(p.part(QStringLiteral("/Pictures/b.png")), QByteArray("kept"));
+        QCOMPARE(p.partNames().size(), 2);
+        QCOMPARE(p.skippedCount(), 1);
+    }
+
+    // A link to nowhere is left out; the file's other links stay.
+    void packageDropsOnlyTheUnusableRelationships()
+    {
+        const QString good = rel("rId1", kRelBase + "officeDocument", "ppt/presentation.xml");
+        const QString links = good
+            + rel("rId2", kRelBase + "hyperlink", "C:\\Users\\x\\doc.docx")   // a path on someone's disk, no TargetMode
+            + rel("rId3", kRelBase + "image", "../../../../etc/passwd")
+            + rel("rId4", kRelBase + "image", "/ppt/../../evil.xml")
+            + rel("rId5", kRelBase + "image", "ppt\\presentation.xml")
+            + rel("rId6", kRelBase + "image", "%2e%2e/evil.xml")
+            + rel("rId7", kRelBase + "hyperlink", "https://example.com/", true)
+            + rel("rId8", kRelBase + "image", "ppt//presentation.xml");
+        Entries e = replaced(miniEntries(), QStringLiteral("_rels/.rels"), relsXml(links));
+        e = replaced(e, QStringLiteral("ppt/slides/_rels/slide1.xml.rels"), relsXml(rel("rIdA", kRelBase + "image", "../../../x.png") + rel("rIdB", kRelBase + "slideLayout", "../slideLayouts/slideLayout1.xml")));
+        Package p;
+        QString err;
+        QVERIFY2(p.read(zipOf(e), &err), qPrintable(err));
+        QCOMPARE(p.relationships(QStringLiteral("/")).size(), 2);
+        QCOMPARE(p.relationships(QStringLiteral("/")).value(0).id, QStringLiteral("rId1"));
+        QCOMPARE(p.relationships(QStringLiteral("/")).value(1).id, QStringLiteral("rId7"));
+        QCOMPARE(p.mainPart(), QStringLiteral("/ppt/presentation.xml"));
+        QCOMPARE(p.relationships(QStringLiteral("/ppt/slides/slide1.xml")).size(), 1);
+        QCOMPARE(p.relationship(QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("rIdB")).target, QStringLiteral("/ppt/slideLayouts/slideLayout1.xml"));
+        QCOMPARE(p.skippedCount(), 7);
+
+        // An Id the left-out link had is free for the next one.
+        e = replaced(miniEntries(), QStringLiteral("_rels/.rels"), relsXml(rel("rId1", kRelBase + "image", "../../x.png") + good));
+        QVERIFY2(p.read(zipOf(e), &err), qPrintable(err));
+        QCOMPARE(p.mainPart(), QStringLiteral("/ppt/presentation.xml"));
+    }
+
+    // The .ppt reader opens small packages that were inside its file, and gives a lower limit than a file on disk has.
+    void packageReadsUnderALowerInflatedLimit()
+    {
+        Entries e = miniEntries();
+        e.append({QStringLiteral("ppt/media/zeros.bin"), QByteArray(3 << 20, '\0')});
+        qint64 total = 0;
+        for (const auto &entry : e) total += entry.second.size();
+        const QByteArray zip = zipOf(e);
+        QVERIFY(zip.size() < 100000);
+
+        Package p;
+        QString err;
+        QVERIFY2(p.read(zip, &err), qPrintable(err));   // the usual limit
+        QCOMPARE(p.part(QStringLiteral("/ppt/media/zeros.bin")).size(), 3 << 20);
+        QVERIFY2(p.read(zip, &err, total), qPrintable(err));   // exactly what it holds
+        QVERIFY(!p.read(zip, &err, total - 1));
+        QVERIFY(!err.isEmpty());
+        QVERIFY(p.partNames().isEmpty());
+        QVERIFY(!p.read(zip, &err, 1 << 20));
+        const QString tooMuch = err;
+        QVERIFY(p.mainPart().isEmpty());
+        QVERIFY(p.read(zipOf(miniEntries()), &err, 4096));   // a small package under a small limit
+
+        // Refused from the sizes in the directory, before anything is inflated: an entry whose data is damaged
+        // (so inflating it would fail) is refused with the same message when the directory says it is too big.
+        QByteArray damaged = zipOf({{QStringLiteral("a.bin"), QByteArray(3 << 20, '\0')}});
+        damaged[35] = char(0xff);   // the first byte of the entry's data, after its 30-byte header and 5-byte name
+        QVERIFY(!p.read(damaged, &err));
+        QVERIFY(err != tooMuch);
+        QVERIFY(!p.read(damaged, &err, 1 << 20));
+        QCOMPARE(err, tooMuch);
+
+        // A directory that says less than the data holds is no way round: that is damage, whatever the limit.
+        QByteArray small = zipOf({{QStringLiteral("ppt/zeros.bin"), QByteArray(5 << 20, '\0')}}, true);
+        const qsizetype entry = small.indexOf(QByteArray("PK\x01\x02", 4));
+        qToLittleEndian<quint32>(1000u, small.data() + entry + 24);
+        QVERIFY(!p.read(small, &err, 1 << 20));
+        QVERIFY(!p.read(small, &err));
+        QVERIFY(p.partNames().isEmpty());
+    }
+
     void xmlAcceptsDeepButReasonableNesting()
     {
         QDomDocument doc;
@@ -1006,16 +1142,17 @@ private Q_SLOTS:
         // The usual read still wants the content types an open document lacks.
         QVERIFY(!p.read(zipOf(entries, false)));
         QVERIFY(p.partNames().isEmpty());
-        // Hostile names and damage are refused here too, and nothing of the file is kept.
-        for (const QString &name : {QStringLiteral("../evil.xml"), QStringLiteral("Pictures/../../evil.png"), QStringLiteral("a\\b.xml"),
+        // A part with a hostile name is left out, and the rest is read.
+        for (const QString &name : {QStringLiteral("../evil.xml"), QStringLiteral("Pictures/../../evil.png"),
                                     QStringLiteral("Pictures/%2e%2e/x.png"), QStringLiteral("CONTENT.xml")}) {
             Entries bad = entries;
             bad.append({name, "x"});
-            err.clear();
-            QVERIFY2(!p.readOpenDocument(zipOf(bad, false), &err), qPrintable(name));
-            QVERIFY(!err.isEmpty());
-            QVERIFY(p.partNames().isEmpty());
+            QVERIFY2(p.readOpenDocument(zipOf(bad, false), &err), qPrintable(name));
+            QCOMPARE(p.partNames().size(), 5);
+            QCOMPARE(p.part(QStringLiteral("/content.xml")), QByteArray("<content/>"));
+            QCOMPARE(p.skippedCount(), 1);
         }
+        // Damage is refused, and nothing of the file is kept.
         err.clear();
         QVERIFY(!p.readOpenDocument(zipOf(entries, false).left(60), &err));
         QVERIFY(!err.isEmpty());
