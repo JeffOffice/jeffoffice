@@ -27,21 +27,41 @@ struct Relationship {
 };
 
 // Reads a package into memory. These files come from strangers: a damaged or
-// hostile one (part names that climb out of the package or hold odd
-// characters, more than 10,000 parts, more than 2 GB inflated, a DOCTYPE or
-// bad XML in [Content_Types].xml or a relationship part, two parts whose
-// names differ only in case) is refused with a message, never partly read.
+// hostile one (more than 10,000 parts, more than 2 GB inflated, a DOCTYPE or
+// bad XML in [Content_Types].xml or a relationship part) is refused with a
+// message, never partly read. What is wrong with one part or one link only
+// leaves that out, and the rest is read: a part whose name climbs out of the
+// package or holds odd characters (an empty segment, a "." or "..", a control
+// character, or an encoded slash) is never readable as a part, a part whose
+// name differs only in case from an earlier one's is dropped (the first in
+// the file stands), and a relationship whose target leads out of the package
+// or is no name a part could have is dropped as if the file had not listed it.
+// Names a tool wrote with backslashes, or with a slash in front, are read as
+// the standard writes them. skippedCount() says how many were left out.
 class Package {
 public:
+    // What all the parts together may come to when inflated, unless the
+    // caller says less.
+    static constexpr qint64 kDefaultMaxInflated = qint64(1) << 31;
+
     // False, with a message in `error`, if the data isn't a usable package.
-    // A failed read leaves the package empty.
-    bool read(const QByteArray &zip, QString *error = nullptr);
+    // A failed read leaves the package empty. `maxInflated` is the most the
+    // parts may come to together, once inflated: a caller that opens small
+    // packages (one that was inside another file) gives less. A package that
+    // would pass it is refused from the sizes the ZIP directory gives, before
+    // anything is inflated, and an entry that inflates to other than the size
+    // the directory gives is damage, so the directory cannot understate it.
+    bool read(const QByteArray &zip, QString *error = nullptr, qint64 maxInflated = kDefaultMaxInflated);
     bool readFile(const QString &path, QString *error = nullptr);
     // The same for a package of the open document kind (.odp and its kin):
     // the ZIP of named parts ("mimetype", "content.xml", "Pictures/a.png")
     // with no [Content_Types].xml or relationships, so it has no content types,
-    // no relationships, and no main part. The refusals are the same.
+    // no relationships, and no main part. The refusals and what is left out
+    // are the same.
     bool readOpenDocument(const QByteArray &zip, QString *error = nullptr);
+
+    // How many parts and relationships the last read left out as unusable.
+    int skippedCount() const;
 
     // Every part, in order of name. [Content_Types].xml and the relationship
     // parts are not listed: they have their own accessors below.
@@ -66,13 +86,14 @@ public:
     QString mainPart() const;
 
 private:
-    bool load(const QByteArray &zip, QString *error, bool opc);
+    bool load(const QByteArray &zip, QString *error, bool opc, qint64 maxInflated);
 
     QMap<QString, QByteArray> m_parts;              // by part name, relationship parts too
     QHash<QString, QString> m_names;                // lower-cased part name -> name as stored
     QHash<QString, QString> m_defaults;             // lower-cased extension -> content type
     QHash<QString, QString> m_overrides;            // lower-cased part name -> content type
     QHash<QString, QVector<Relationship>> m_rels;   // lower-cased source ("/" or part name) -> its links
+    int m_skipped = 0;                              // parts and relationships left out as unusable
 };
 
 // Builds a package: add the parts and their relationships, then finish().

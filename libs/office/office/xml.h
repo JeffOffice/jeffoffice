@@ -31,11 +31,25 @@ inline constexpr QLatin1String ContentTypes("http://schemas.openxmlformats.org/p
 // True if the two URIs are one namespace, whichever form each is in.
 bool sameNamespace(const QString &a, const QString &b);
 
+// What one XML part may hold. The tree it is read into takes 400 to 650 bytes
+// a node, so a few bytes of XML repeated can fill the memory (5 million empty
+// elements, 30 MB, took 2.3 GB), and the time grows with the square of the
+// attributes on one element (20,000 took 10 seconds, and 100,000 minutes).
+// Real files stay far below each: of 47 decks (10 theme files, 19 .pptx, and
+// 18 .odp) the largest part is 1.4 MB, holds 54,000 nodes (elements,
+// attributes, and runs of text, comments, or processing instructions), has 39
+// attributes on its busiest element, and nests 23 deep. Each limit is at
+// least 10 times that.
+constexpr qint64 kMaxXmlBytes = qint64(64) << 20;
+constexpr qint64 kMaxXmlNodes = 2000000;
+constexpr int kMaxAttributesPerElement = 1000;
+constexpr int kMaxXmlDepth = 256;
+
 // Parses with namespaces on, keeping text that is only spaces (a run that is
 // one space counts). False, with a message, if the XML is not well formed,
 // has a DOCTYPE (so an entity is never defined, let alone loaded from
-// outside), or nests deeper than 1,000 elements (the parser is slow in
-// depth, and a stranger's file could stall it).
+// outside), or passes one of the limits above (the parser is slow in depth,
+// and a stranger's file could stall it or use up the memory).
 bool parseXml(const QByteArray &xml, QDomDocument *doc, QString *error = nullptr);
 
 // The first child element named `local` in namespace `ns`; null if none.
