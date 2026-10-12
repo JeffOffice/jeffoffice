@@ -14,6 +14,7 @@
 #include "app/outlineview.h"
 #include "app/presenterview.h"
 #include "app/recovery.h"
+#include "app/reusepane.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/slideshow.h"
@@ -21,6 +22,7 @@
 #include "app/slidespane.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/reuse.h"
 #include "core/sections.h"
 #include "core/transition.h"
 #include "io/cfb.h"
@@ -6265,6 +6267,327 @@ private Q_SLOTS:
         QVERIFY2(empty && !deck::hasSections(*empty), qPrintable(err));
         auto emptyList = edited(QStringLiteral(" "));
         QVERIFY2(emptyList && !deck::hasSections(*emptyList), qPrintable(err));
+    }
+
+private:
+    // A presentation to take slides from, built here: the chart sample (a chart with its workbook, a picture, notes,
+    // a slide's transition and animation, a frame kept as it was) with a movie on its first slide, under a master
+    // and layouts of its own whose theme has other fonts than a new presentation's.
+    static QByteArray reuseMovie() { return QByteArray("not really a movie, but kept byte for byte"); }
+    static std::unique_ptr<Document> reuseSource()
+    {
+        Parts p = chartPptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"),
+                    QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"20\" name=\"Movie\"><a:hlinkClick r:id=\"\" action=\"ppaction://media\"/></p:cNvPr><p:cNvPicPr/><p:nvPr><a:videoFile r:link=\"rId5\"/>"
+                                   "<p:extLst><p:ext uri=\"{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}\"><p14:media xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" r:embed=\"rId6\"/></p:ext></p:extLst>"
+                                   "</p:nvPr></p:nvPicPr><p:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>")
+                        + xfrm(0, 0, 1828800, 1371600) + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        p.data["/ppt/media/media1.mp4"] = {QStringLiteral("video/mp4"), reuseMovie()};
+        p.rels << Rel{"/ppt/slides/slide1.xml", "video", "/ppt/media/media1.mp4"} << Rel{"/ppt/slides/slide1.xml", "http://schemas.microsoft.com/office/2007/relationships/media", "/ppt/media/media1.mp4"};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        if (!d) return nullptr;
+        // The title in a size of its own, and a body with one bold word: what the layout gives and what the writer chose.
+        for (const auto &it : d->pages[0]->items) {
+            auto *text = it->type() == ItemType::Text ? static_cast<TextItem *>(it.get()) : nullptr;
+            if (!text) continue;
+            QTextDocument *story = d->storyDoc(text->storyId);
+            if (deck::placeholderType(*it) == QLatin1String("title")) {
+                QTextCursor c(story);
+                c.select(QTextCursor::Document);
+                QTextCharFormat f;
+                f.setFontPointSize(31);
+                c.mergeCharFormat(f);
+            } else if (deck::placeholderType(*it) == QLatin1String("obj")) {
+                QTextCursor c(story);
+                c.insertText(QStringLiteral("Plain and "));
+                QTextCharFormat bold;
+                bold.setFontWeight(QFont::Bold);
+                c.insertText(QStringLiteral("bold"), bold);
+            }
+        }
+        return d;
+    }
+    static const Item *namedItem(const PageBase &page, const QString &name)
+    {
+        const Item *found = nullptr;
+        walkItems(page.items, [&](const ItemPtr &it) {
+            if (it->name == name) found = it.get();
+        });
+        return found;
+    }
+    static const Item *placeholderOn(const PageBase &page, const QString &type)
+    {
+        for (const auto &it : page.items)
+            if (deck::placeholderType(*it) == type) return it.get();
+        return nullptr;
+    }
+    // Every object's id in the presentation, with how many there are.
+    static QSet<QString> allItemIds(const Document &d, int *count)
+    {
+        QSet<QString> ids;
+        *count = 0;
+        d.forEachItem([&](Item *it, int, const QString &) {
+            ids.insert(it->id);
+            ++*count;
+        });
+        return ids;
+    }
+
+private Q_SLOTS:
+    // A slide taken from another presentation without its formatting stands on this one's layout of
+    // its kind, its title and text in that layout's places and look (what the writer emphasized stays),
+    // and brings what is its own: pictures, movies, notes, a chart, an animation and a transition, all with new ids.
+    void reuseTakesTheDestinationsLayout()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        auto dest = deck::newPresentation();
+        deck::addSlide(*dest, *deck::layoutOfType(*dest, QStringLiteral("obj")));
+        const MasterPage *layout = deck::layoutOfType(*dest, QStringLiteral("obj"));
+        const int masters = int(dest->masters.size());
+        int destItemsBefore;
+        allItemIds(*dest, &destItemsBefore);
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, false), 1);
+        QCOMPARE(int(dest->pages.size()), 3);
+        QCOMPARE(int(dest->masters.size()), masters);   // no layout or master comes with it
+        const Page &page = *dest->pages[1];
+        const Page &was = *src->pages[0];
+        QCOMPARE(page.masterId, layout->id);
+        QCOMPARE(int(src->pages.size()), 2);
+        QCOMPARE(titleOfSlide(*src, 0), QStringLiteral("Quarterly results"));   // the source is as it was
+
+        // The title and the text: in the layout's places, in the layout's look.
+        const Item *title = placeholderOn(page, QStringLiteral("title"));
+        QVERIFY(title);
+        const Item *layoutTitle = nullptr;
+        for (const auto &it : layout->items)
+            if (deck::placeholderType(*it) == QLatin1String("title")) layoutTitle = it.get();
+        QVERIFY(layoutTitle);
+        QCOMPARE(title->rect, layoutTitle->rect);
+        QTextDocument *titleStory = dest->storyDoc(static_cast<const TextItem *>(title)->storyId);
+        QCOMPARE(titleStory->toPlainText(), QStringLiteral("Quarterly results"));
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontPointSize(), 44.0);
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontFamilies().toStringList().value(0), deck::themeOf(*dest).headingFont);
+        QTextDocument *body = bodyOfSlide(*dest, 1);
+        QVERIFY(body);
+        QCOMPARE(body->toPlainText(), QStringLiteral("Plain and bold"));
+        QTextBlock::iterator fragment = body->begin().begin();
+        QCOMPARE(fragment.fragment().charFormat().fontPointSize(), 28.0);
+        QVERIFY(fragment.fragment().charFormat().fontWeight() < QFont::DemiBold);
+        ++fragment;
+        QCOMPARE(fragment.fragment().text(), QStringLiteral("bold"));
+        QVERIFY(fragment.fragment().charFormat().fontWeight() >= QFont::Bold);
+        QCOMPARE(fragment.fragment().charFormat().fontPointSize(), 28.0);
+
+        // What the slide brought: the picture, the movie, the chart, the notes, the animation and the transition.
+        const auto *picture = static_cast<const PictureItem *>(namedItem(page, QStringLiteral("Picture 7")));
+        QVERIFY(picture && picture->type() == ItemType::Picture);
+        QVERIFY(dest->images.contains(picture->imageId));
+        QCOMPARE(dest->images.value(picture->imageId).bytes, tinyPng());
+        const auto *movie = static_cast<const PictureItem *>(namedItem(page, QStringLiteral("Movie")));
+        QVERIFY(movie && movie->type() == ItemType::Picture);
+        QCOMPARE(movie->mediaKind, QStringLiteral("video"));
+        QVERIFY(dest->media.contains(movie->mediaId));
+        QCOMPARE(dest->media.value(movie->mediaId).bytes, reuseMovie());
+        QCOMPARE(dest->media.value(movie->mediaId).contentType, QStringLiteral("video/mp4"));
+        const PictureItem *chart = chartPicture(*dest, page), *chartWas = chartPicture(*src, was);
+        QVERIFY(chart && chartWas);
+        QVERIFY(chart->id != chartWas->id);
+        QVERIFY(dest->images.contains(chart->imageId));
+        const QJsonArray charts = page.props.value(QStringLiteral("charts")).toArray();
+        QCOMPARE(int(charts.size()), 1);
+        QCOMPARE(charts[0].toObject().value(QStringLiteral("parts")), was.props.value(QStringLiteral("charts")).toArray()[0].toObject().value(QStringLiteral("parts")));
+        QCOMPARE(deck::notesText(*dest, page), QStringLiteral("Say hello first\nThen the numbers"));
+        QVERIFY(page.notesStoryId != was.notesStoryId);
+        QVERIFY(!src->stories.contains(page.notesStoryId));
+        QCOMPARE(page.props.value(QStringLiteral("timingXml")), was.props.value(QStringLiteral("timingXml")));
+        QVERIFY(!page.props.value(QStringLiteral("timingXml")).toString().isEmpty());
+        QCOMPARE(page.props.value(QStringLiteral("transitionXml")), was.props.value(QStringLiteral("transitionXml")));
+        QVERIFY(!page.props.value(QStringLiteral("transitionXml")).toString().isEmpty());
+        QCOMPARE(page.props.value(QStringLiteral("unread")), was.props.value(QStringLiteral("unread")));
+        QVERIFY(!page.props.value(QStringLiteral("unread")).toArray().isEmpty());
+        // The shapes keep their numbers in the file: what the animation aims at.
+        QCOMPARE(namedItem(page, QStringLiteral("Movie"))->sourceId, namedItem(was, QStringLiteral("Movie"))->sourceId);
+
+        // New ids all through: no object, story, or page shares one with the source, or with another in this presentation.
+        int count;
+        const QSet<QString> ids = allItemIds(*dest, &count);
+        QCOMPARE(int(ids.size()), count);
+        QCOMPARE(count, destItemsBefore + int(page.items.size()));
+        int sourceCount;
+        for (const QString &id : allItemIds(*src, &sourceCount)) QVERIFY2(!ids.contains(id), qPrintable(id));
+        QVERIFY(page.id != was.id);
+        for (const auto &it : page.items)
+            if (it->type() == ItemType::Text) {
+                const QString story = static_cast<const TextItem *>(it.get())->storyId;
+                QVERIFY(dest->stories.contains(story) && !src->stories.contains(story));
+            }
+        // A slide at the end goes at the end; one past it too.
+        QCOMPARE(deck::insertSlideFrom(*dest, 99, *src, 1, false), 3);
+        QCOMPARE(int(dest->pages.size()), 4);
+        QCOMPARE(titleOfSlide(*dest, 3), QStringLiteral("Second"));
+        QCOMPARE(deck::insertSlideFrom(*dest, 0, *src, 5, false), -1);   // no such slide
+        QCOMPARE(int(dest->pages.size()), 4);
+        // The slide that has a background of its own and is hidden: hidden stays, the background is the layout's.
+        QVERIFY(dest->pages[3]->hidden);
+        QVERIFY(dest->pages[3]->background.isNone());
+        QVERIFY(!src->pages[1]->background.isNone());
+        // A slide on a title layout lands on the title layout.
+        QCOMPARE(deck::layoutType(*dest->masterFor(*dest->pages[3])), QStringLiteral("title"));
+    }
+
+    // With its formatting kept, a slide brings its layout and slide master (named as they were, with their
+    // theme), once for each: a second slide from the same master finds them here.
+    void reuseKeepsTheSourceFormattingWithItsLayoutAndMaster()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        auto dest = deck::newPresentation();
+        const int masters = int(dest->masters.size());
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, true), 1);
+        QCOMPARE(int(dest->masters.size()), masters + 2);   // the master and the layout
+        const Page &page = *dest->pages[1];
+        const MasterPage *layout = dest->masterFor(page);
+        QVERIFY(layout && deck::isLayout(*layout));
+        QCOMPARE(layout->name, QStringLiteral("Title and Content"));
+        QCOMPARE(deck::layoutType(*layout), QStringLiteral("obj"));
+        const MasterPage *master = dest->master(layout->baseId);
+        QVERIFY(master && deck::isSlideMaster(*master));
+        QCOMPARE(master->name, QStringLiteral("Test Master"));
+        QVERIFY(master != dest->masters[0].get());
+        QCOMPARE(master->props.value(QStringLiteral("themeXml")).toString(), src->appData.value(QStringLiteral("themeXml")).toString());
+        QVERIFY(!master->props.value(QStringLiteral("themeXml")).toString().isEmpty());
+        // The master's own band stays, and the layout's places are the source's.
+        QVERIFY(namedItem(*master, QStringLiteral("Master Band")));
+        const Item *title = placeholderOn(page, QStringLiteral("title"));
+        const Item *sourceTitle = placeholderOn(*src->pages[0], QStringLiteral("title"));
+        QVERIFY(title && sourceTitle);
+        QCOMPARE(title->rect, sourceTitle->rect);
+        QTextDocument *titleStory = dest->storyDoc(static_cast<const TextItem *>(title)->storyId);
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontPointSize(), 31.0);
+        // The source's theme fonts are fonts of the source: Georgia, not what this presentation's headings are.
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Georgia"));
+        QVERIFY(deck::themeOf(*dest).headingFont != QStringLiteral("Georgia"));
+        // The master's pictures and the layout's objects came with new ids and stories of their own.
+        int count;
+        const QSet<QString> ids = allItemIds(*dest, &count);
+        QCOMPARE(int(ids.size()), count);
+        // A slide on another layout of that master: only that layout comes; the master was copied already.
+        QCOMPARE(deck::insertSlideFrom(*dest, 2, *src, 1, true), 2);
+        QCOMPARE(int(dest->masters.size()), masters + 3);
+        const MasterPage *titleLayout = dest->masterFor(*dest->pages[2]);
+        QVERIFY(titleLayout && deck::layoutType(*titleLayout) == QLatin1String("title"));
+        QCOMPARE(titleLayout->baseId, master->id);
+        // The same layout again finds the one that is here.
+        QCOMPARE(deck::insertSlideFrom(*dest, 3, *src, 0, true), 3);
+        QCOMPARE(deck::insertSlideFrom(*dest, 4, *src, 1, true), 4);
+        QCOMPARE(int(dest->masters.size()), masters + 3);
+        QCOMPARE(dest->pages[3]->masterId, page.masterId);
+        // A slide's own background and its hiding come along; with the formatting kept, the background stays.
+        QVERIFY(dest->pages[2]->hidden);
+        QVERIFY(dest->pages[2]->background == src->pages[1]->background);
+        QVERIFY(!dest->pages[2]->background.isNone());
+        // A master that looks the same as one here is the one here: reusing a slide of this presentation's own kind adds nothing.
+        auto same = deck::newPresentation();
+        const int sameMasters = int(dest->masters.size());
+        QCOMPARE(deck::insertSlideFrom(*dest, 5, *same, 0, true), 5);
+        QCOMPARE(int(dest->masters.size()), sameMasters);
+        QCOMPARE(dest->masterFor(*dest->pages[5])->id, deck::layoutOfType(*dest, QStringLiteral("title"), dest->masters[0]->id)->id);
+        // The sections follow: the copy is in the section of the slide before it.
+        deck::addSection(*dest, 3, QStringLiteral("Later"));
+        const int before = int(dest->pages.size());
+        deck::insertSlideFrom(*dest, 3, *src, 0, false);
+        QCOMPARE(int(dest->pages.size()), before + 1);
+        QCOMPARE(sectionCounts(*dest).value(0), 4);
+    }
+
+    // The Reuse Slides pane: Browse picks a presentation, its slides are listed as thumbnails with titles, and a
+    // click puts a copy after the slide being edited, as one step that undoes. "Keep source formatting" is off
+    // until it is turned on.
+    void reuseSlidesPaneInsertsACopyAfterTheCurrentSlide()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("source.pptx"));
+        {
+            QString err;
+            auto src = reuseSource();
+            QVERIFY(src);
+            QVERIFY2(deck::savePresentationFile(*src, path, &err), qPrintable(err));
+        }
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        ed->undoStack()->clear();
+        QVERIFY(w.act("slide.reuse"));
+        QCOMPARE(w.act("slide.reuse")->text(), QStringLiteral("Reuse Slides…"));
+        QVERIFY(!w.reusePane() || !w.reusePane()->isVisible());
+        // The New Slide menu offers it.
+        QMenu *menu = nullptr;
+        for (QObject *o : w.act("slide.new")->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        QVERIFY(menu->actions().contains(w.act("slide.reuse")));
+        w.act("slide.reuse")->trigger();
+        ReusePane *pane = w.reusePane();
+        QVERIFY(pane && pane->isVisible());
+        QVERIFY(w.centralWidget()->geometry().right() <= pane->mapTo(&w, QPoint(0, 0)).x() + 2);   // on the right of the slides
+        QVERIFY(!pane->keepFormatting());
+        QCOMPARE(pane->slideCount(), 0);
+        // A file that isn't a presentation says so and lists nothing.
+        const QString bad = dir.filePath(QStringLiteral("bad.pptx"));
+        QFile b(bad);
+        QVERIFY(b.open(QIODevice::WriteOnly));
+        b.write("not a presentation");
+        b.close();
+        QVERIFY(!pane->open(bad));
+        QCOMPARE(pane->slideCount(), 0);
+        QVERIFY(!pane->message().isEmpty());
+        QVERIFY(pane->open(path));
+        QCOMPARE(pane->slideCount(), 2);
+        QTRY_COMPARE(pane->renderedCount(), 2);
+        QCOMPARE(pane->list()->item(0)->text(), QStringLiteral("1  Quarterly results"));
+        QCOMPARE(pane->list()->item(1)->text(), QStringLiteral("2  Second"));
+        QVERIFY(!pane->list()->item(0)->icon().isNull());
+        QVERIFY(pane->message().isEmpty());
+        // A click inserts after the slide being edited.
+        QListWidget *list = pane->list();
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, list->visualItemRect(list->item(0)).center());
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QStringLiteral("Quarterly results"));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(int(ed->doc()->masters.size()), 10);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QString());
+        ed->redo();
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        // With the check box on, the slide brings its layout and master; undone, they go.
+        auto *keep = pane->findChild<QCheckBox *>();
+        QVERIFY(keep);
+        QCOMPARE(keep->text(), QStringLiteral("Keep source formatting"));
+        keep->click();
+        QVERIFY(pane->keepFormatting());
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, list->visualItemRect(list->item(1)).center());
+        QCOMPARE(int(ed->doc()->pages.size()), 4);
+        QCOMPARE(ed->currentPage(), 2);
+        QCOMPARE(titleOfSlide(*ed->doc(), 2), QStringLiteral("Second"));
+        QCOMPARE(int(ed->doc()->masters.size()), 12);
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        QCOMPARE(int(ed->doc()->masters.size()), 10);
+        // The source file is untouched by all this, and the pane can be put away.
+        QVERIFY(QFileInfo(path).size() > 0);
+        w.reusePane()->setKeepFormatting(false);
+        QVERIFY(!keep->isChecked());
     }
 
     // Saving a file replaces the old one only when the new one is whole: a

@@ -83,6 +83,7 @@ void DeckWindow::createSectionActions()
     connect(m_ed, &Editor::changed, this, update);
     connect(m_ed, &Editor::documentReplaced, this, update);
     update();
+    createReuseActions();
 }
 
 void DeckWindow::addSection(int before)

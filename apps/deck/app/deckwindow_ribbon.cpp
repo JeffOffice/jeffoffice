@@ -194,6 +194,10 @@ void DeckWindow::ribbonMenuParts(RibbonParts &parts)
         auto *wa = new QWidgetAction(menu);
         wa->setDefaultWidget(gallery);
         menu->addAction(wa);
+        if (!change) {
+            menu->addSeparator();
+            menu->addAction(act("slide.reuse"));
+        }
         connect(menu, &QMenu::aboutToShow, gallery, &LayoutGallery::reload);
         connect(gallery, &LayoutGallery::chosen, this, [this, menu, change](const QString &type) {
             menu->close();

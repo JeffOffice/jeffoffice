@@ -11,6 +11,7 @@
 #include <QTimer>
 #include <functional>
 
+class QDockWidget;
 class QLabel;
 class QSlider;
 class QSplitter;
@@ -26,6 +27,7 @@ class FontCombo;
 class NotesPane;
 class OutlineView;
 class Ribbon;
+class ReusePane;
 struct RibbonParts;
 class SizeCombo;
 class SlideSorter;
@@ -55,6 +57,12 @@ public:
     SlideShow *slideShow() const { return m_show; }
     SlideSorter *slideSorter() const { return m_sorter; }
     OutlineView *outlineView() const { return m_outline; }
+    // The Reuse Slides pane on the right, once it has been opened (Reuse
+    // Slides on the New Slide menu): a click on one of its slides puts a copy
+    // after the slide being edited, as one step that undoes.
+    ReusePane *reusePane() const { return m_reuse; }
+    void showReusePane();
+    void reuseSlide(int slide, bool keepFormatting);
     // The ways to see the slides: Normal (the thumbnails, the slide, and its
     // notes), Outline (the text in the thumbnails' place), and the Slide Sorter.
     enum class View { Normal, Outline, Sorter };
@@ -150,6 +158,7 @@ private:
     void createSaveActions();     // deckwindow_save.cpp
     void createDialogActions();   // deckwindow_dialogs.cpp
     void createSectionActions();  // deckwindow_sections.cpp
+    void createReuseActions();    // deckwindow_reuse.cpp, from createSectionActions()
     void createOutputActions();   // deckwindow_output.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();
@@ -178,6 +187,8 @@ private:
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr;
     QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
     SlideSorter *m_sorter = nullptr;
+    ReusePane *m_reuse = nullptr;
+    QDockWidget *m_reuseDock = nullptr;
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     View m_view = View::Normal;
     // Normal view's zoom while the Slide Sorter borrows the zoom controls: its Canvas::Fit and the zoom.
