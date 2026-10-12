@@ -191,6 +191,10 @@ struct Chart {
 // (no series) is still one.
 bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMap &colors, Chart *out, QString *error = nullptr);
 
+// The most of the text a chart keeps for a label, name, or title; real ones
+// are a few dozen characters, and a longer text can't be read as a label.
+constexpr int kChartMaxLabel = 256;
+
 // The chart as SVG, `size` points across and high: shapes, and the text as
 // text in the chart's fonts.
 QByteArray chartSvg(const Chart &chart, const QSizeF &size);

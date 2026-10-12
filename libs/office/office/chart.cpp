@@ -18,10 +18,17 @@ const QString kChartNs = QStringLiteral("http://schemas.openxmlformats.org/drawi
 const QString kStrictChartNs = QStringLiteral("http://purl.oclc.org/ooxml/drawingml/chart");
 const QString kMarkupNs = QStringLiteral("http://schemas.openxmlformats.org/markup-compatibility/2006");
 
-// What a chart part may hold: more is left out.
-constexpr int kMaxSeries = 256, kMaxPoints = 50000, kMaxPlots = 16, kMaxAxes = 16;
+// What a chart part may hold: more is left out. The real charts here (five, in the reference decks) have one series of 63 points; a dozen
+// series is a crowd, a few hundred points a big chart, and a long series of readings has a couple of thousand. These are many times the
+// series, plots, and axes that a real chart has, and five times its longest series; and the picture drawn from them is coarser still
+// (chart_svg.cpp).
+constexpr int kMaxSeries = 256, kMaxPoints = 10000, kMaxPlots = 16, kMaxAxes = 16;
 // The points all of a chart's series may have between them.
-constexpr int kMaxChartPoints = 400000;
+constexpr int kMaxChartPoints = 100000;
+// A number format code is at most 255 characters in a spreadsheet; a longer one is none, and the numbers show as they are.
+constexpr int kMaxFormatCode = 255;
+// A title and the like: a paragraph or two.
+constexpr int kMaxTitle = 1000;
 
 QString say(const char *text) { return QCoreApplication::translate("Chart", text); }
 
@@ -201,10 +208,10 @@ QString formatDate(double serial, const QString &section)
                         : n == 3 ? en.monthName(t.date().month(), QLocale::ShortFormat) : n == 4 ? en.monthName(t.date().month(), QLocale::LongFormat)
                         : en.monthName(t.date().month(), QLocale::LongFormat).left(1);
             i += n;
-        } else if (section.mid(i, 5).compare(QLatin1String("AM/PM"), Qt::CaseInsensitive) == 0) {
+        } else if (QStringView(section).mid(i, 5).compare(QLatin1String("AM/PM"), Qt::CaseInsensitive) == 0) {
             out += t.time().hour() < 12 ? QStringLiteral("AM") : QStringLiteral("PM");
             i += 5;
-        } else if (section.mid(i, 3).compare(QLatin1String("A/P"), Qt::CaseInsensitive) == 0) {
+        } else if (QStringView(section).mid(i, 3).compare(QLatin1String("A/P"), Qt::CaseInsensitive) == 0) {
             out += t.time().hour() < 12 ? QStringLiteral("A") : QStringLiteral("P");
             i += 3;
         } else {
@@ -215,28 +222,32 @@ QString formatDate(double serial, const QString &section)
     return out;
 }
 
-// A number as its format code shows it ("0.0%", "#,##0", "$#,##0.00;($#,##0.00)", "mmm-yy"...). "General" shows it as short as it can be.
-QString formatNumber(double v, const QString &format)
-{
-    if (!std::isfinite(v)) return QString();
-    if (format.isEmpty() || format.compare(QLatin1String("General"), Qt::CaseInsensitive) == 0) return general(v);
-    const QStringList sections = formatSections(format);
-    QString section = sections[0];
-    bool minus = false;
-    if (v < 0) {
-        if (sections.size() > 1 && !sections[1].isEmpty()) section = sections[1];
-        else minus = true;
-        v = -v;
-    } else if (v == 0 && sections.size() > 2 && !sections[2].isEmpty()) {
-        section = sections[2];
-    }
-    if (isDateFormat(section)) return formatDate(v, section);
-
+// What one section of a format code asks of a number, read once: a code is read for each of the numbers a chart shows with it (a category
+// for each of thousands of points), and what it says doesn't change from one to the next.
+struct NumberSection {
+    QString text;                   // as written
+    bool date = false;              // a date or a time: `text` is read for each number
     // What the section writes before the number's digits, how it wants the digits, and what it writes after.
     QString before, after;
-    QString *literal = &before;
     int integerZeros = 0, decimals = 0, optionalDecimals = 0, percents = 0, trailingCommas = 0, exponentDigits = 0;
-    bool thousands = false, seenDigits = false, afterPoint = false, scientific = false, plain = false;
+    bool thousands = false, seenDigits = false, scientific = false, plain = false;
+};
+
+struct NumberFormat {
+    bool general = true;            // no code, "General", or a code too long to be one
+    QVector<NumberSection> sections;
+};
+
+NumberSection readSection(const QString &section)
+{
+    NumberSection out;
+    out.text = section;
+    if (isDateFormat(section)) {
+        out.date = true;
+        return out;
+    }
+    QString *literal = &out.before;
+    bool seenDigits = false, afterPoint = false;
     auto isPlace = [](QChar c) { return c == QLatin1Char('0') || c == QLatin1Char('#') || c == QLatin1Char('?'); };
     for (int i = 0; i < section.size(); ++i) {
         const QChar c = section[i];
@@ -259,62 +270,94 @@ QString formatNumber(double v, const QString &format)
             i = end < 0 ? section.size() : end;
         } else if (isPlace(c) && !seenDigits) {
             seenDigits = true;
-            literal = &after;
-            if (c == QLatin1Char('0')) ++integerZeros;
+            literal = &out.after;
+            if (c == QLatin1Char('0')) ++out.integerZeros;
         } else if (isPlace(c) && seenDigits) {
-            if (scientific) ++exponentDigits;
-            else if (afterPoint) (c == QLatin1Char('0') ? decimals : optionalDecimals) += 1;
-            else if (c == QLatin1Char('0')) ++integerZeros;
-            trailingCommas = 0;
-        } else if (c == QLatin1Char('.') && !afterPoint && !scientific && (seenDigits || (i + 1 < section.size() && isPlace(section[i + 1])))) {
+            if (out.scientific) ++out.exponentDigits;
+            else if (afterPoint) (c == QLatin1Char('0') ? out.decimals : out.optionalDecimals) += 1;
+            else if (c == QLatin1Char('0')) ++out.integerZeros;
+            out.trailingCommas = 0;
+        } else if (c == QLatin1Char('.') && !afterPoint && !out.scientific && (seenDigits || (i + 1 < section.size() && isPlace(section[i + 1])))) {
             seenDigits = true;
-            literal = &after;
+            literal = &out.after;
             afterPoint = true;
-        } else if (c == QLatin1Char(',') && seenDigits && !scientific) {
+        } else if (c == QLatin1Char(',') && seenDigits && !out.scientific) {
             // Between places: a thousands separator; after the last of them: a division by 1,000.
-            if (!afterPoint && i + 1 < section.size() && isPlace(section[i + 1])) thousands = true;
-            else ++trailingCommas;
+            if (!afterPoint && i + 1 < section.size() && isPlace(section[i + 1])) out.thousands = true;
+            else ++out.trailingCommas;
         } else if (c == QLatin1Char('%')) {
-            ++percents;
+            ++out.percents;
             *literal += c;
-        } else if ((c == QLatin1Char('E') || c == QLatin1Char('e')) && seenDigits && !scientific && i + 1 < section.size() && (section[i + 1] == QLatin1Char('+') || section[i + 1] == QLatin1Char('-'))) {
-            scientific = true;
+        } else if ((c == QLatin1Char('E') || c == QLatin1Char('e')) && seenDigits && !out.scientific && i + 1 < section.size() && (section[i + 1] == QLatin1Char('+') || section[i + 1] == QLatin1Char('-'))) {
+            out.scientific = true;
             ++i;
-        } else if (section.mid(i, 7).compare(QLatin1String("General"), Qt::CaseInsensitive) == 0) {
-            plain = true;
+        } else if (QStringView(section).mid(i, 7).compare(QLatin1String("General"), Qt::CaseInsensitive) == 0) {
+            out.plain = true;
             seenDigits = true;
-            literal = &after;
+            literal = &out.after;
             i += 6;
         } else {
             *literal += c;
         }
     }
+    out.seenDigits = seenDigits;
+    return out;
+}
+
+NumberFormat readFormat(const QString &format)
+{
+    NumberFormat out;
+    if (format.isEmpty() || format.size() > kMaxFormatCode || format.compare(QLatin1String("General"), Qt::CaseInsensitive) == 0) return out;
+    out.general = false;
+    for (const QString &section : formatSections(format)) out.sections << readSection(section);
+    return out;
+}
+
+// A number as its format code shows it ("0.0%", "#,##0", "$#,##0.00;($#,##0.00)", "mmm-yy"...). "General" shows it as short as it can be.
+QString formatWith(const NumberFormat &format, double v)
+{
+    if (!std::isfinite(v)) return QString();
+    if (format.general) return general(v);
+    const NumberSection *use = &format.sections[0];
+    bool minus = false;
+    if (v < 0) {
+        if (format.sections.size() > 1 && !format.sections[1].text.isEmpty()) use = &format.sections[1];
+        else minus = true;
+        v = -v;
+    } else if (v == 0 && format.sections.size() > 2 && !format.sections[2].text.isEmpty()) {
+        use = &format.sections[2];
+    }
+    const NumberSection &section = *use;
+    if (section.date) return formatDate(v, section.text);
+
     double scaled = v;
-    for (int i = 0; i < percents; ++i) scaled *= 100;
-    for (int i = 0; i < trailingCommas; ++i) scaled /= 1000;
+    for (int i = 0; i < section.percents; ++i) scaled *= 100;
+    for (int i = 0; i < section.trailingCommas; ++i) scaled /= 1000;
     QString number;
-    if (plain || !seenDigits) {
-        number = plain ? general(scaled) : QString();
-    } else if (scientific) {
-        const QString mantissa = QString::number(scaled, 'E', decimals + optionalDecimals);
+    if (section.plain || !section.seenDigits) {
+        number = section.plain ? general(scaled) : QString();
+    } else if (section.scientific) {
+        const QString mantissa = QString::number(scaled, 'E', section.decimals + section.optionalDecimals);
         const int e = mantissa.indexOf(QLatin1Char('E'));
         const QString exponent = mantissa.mid(e + 1);
-        number = mantissa.left(e) + QLatin1Char('E') + exponent.left(1) + exponent.mid(1).rightJustified(std::max(exponentDigits, 2), QLatin1Char('0'));
+        number = mantissa.left(e) + QLatin1Char('E') + exponent.left(1) + exponent.mid(1).rightJustified(std::max(section.exponentDigits, 2), QLatin1Char('0'));
     } else {
-        number = QString::number(scaled, 'f', decimals + optionalDecimals);
+        number = QString::number(scaled, 'f', section.decimals + section.optionalDecimals);
         // Optional decimal places that come out zero are not written.
-        for (int drop = 0; drop < optionalDecimals && number.endsWith(QLatin1Char('0')); ++drop) number.chop(1);
+        for (int drop = 0; drop < section.optionalDecimals && number.endsWith(QLatin1Char('0')); ++drop) number.chop(1);
         if (number.endsWith(QLatin1Char('.'))) number.chop(1);
         QString whole = number.section(QLatin1Char('.'), 0, 0);
         const QString fraction = number.contains(QLatin1Char('.')) ? number.section(QLatin1Char('.'), 1) : QString();
-        if (whole == QLatin1String("0") && integerZeros == 0 && !fraction.isEmpty()) whole.clear();
-        while (whole.size() < integerZeros) whole.prepend(QLatin1Char('0'));
-        if (thousands)
+        if (whole == QLatin1String("0") && section.integerZeros == 0 && !fraction.isEmpty()) whole.clear();
+        while (whole.size() < section.integerZeros) whole.prepend(QLatin1Char('0'));
+        if (section.thousands)
             for (int i = int(whole.size()) - 3; i > 0; i -= 3) whole.insert(i, QLatin1Char(','));
         number = whole + (fraction.isEmpty() ? QString() : QLatin1Char('.') + fraction);
     }
-    return (minus ? QStringLiteral("-") : QString()) + before + number + after;
+    return (minus ? QStringLiteral("-") : QString()) + section.before + number + section.after;
 }
+
+QString formatNumber(double v, const QString &format) { return formatWith(readFormat(format), v); }
 
 // ---- reading
 
@@ -385,6 +428,7 @@ private:
     ColorMap m_map;
     Chart *m_chart;
     mutable int m_pointsLeft = kMaxChartPoints;
+    int m_seriesLeft = kMaxSeries;
 };
 
 void Reader::readFill(const QDomElement &spPr, QColor *color, bool *none) const
@@ -475,7 +519,7 @@ QString Reader::richText(const QDomElement &rich, ChartFont *font, bool *hasRota
         lines << line;
         first = false;
     }
-    return lines.join(QLatin1Char('\n'));
+    return lines.join(QLatin1Char('\n')).left(kMaxTitle);
 }
 
 ChartTitle Reader::readTitle(const QDomElement &e) const
@@ -487,7 +531,7 @@ ChartTitle Reader::readTitle(const QDomElement &e) const
     if (const QDomElement r = cChild(tx, "rich"); !r.isNull()) {
         t.text = richText(r, &t.font, &t.hasRotation, &t.rotation);
     } else if (const QDomElement ref = cChild(tx, "strRef"); !ref.isNull()) {
-        t.text = cChild(cChild(cChild(ref, "strCache"), "pt"), "v").text();
+        t.text = cChild(cChild(cChild(ref, "strCache"), "pt"), "v").text().left(kMaxTitle);
     }
     t.overlay = flagOf(cChild(e, "overlay"), false);
     const ChartFont fromProps = readTxPr(cChild(e, "txPr"), &t.hasRotation, &t.rotation);
@@ -537,7 +581,8 @@ Data Reader::readData(const QDomElement &parent) const
     m_pointsLeft -= int(count);
     if (data.numeric) data.numbers = QVector<double>(int(count), kNaN);
     else data.strings = QStringList(int(count));
-    for (const QDomElement &pt : pts) {
+    // A cache has no more points than it says it has (and each place only once): the rest of a longer list is not read.
+    for (const QDomElement &pt : pts.mid(0, int(count))) {
         const qint64 idx = parseInt(attr(pt, QStringLiteral("idx")), -1);
         if (idx < 0 || idx >= count) continue;
         const QString text = cChild(pt, "v").text();
@@ -546,7 +591,7 @@ Data Reader::readData(const QDomElement &parent) const
             const double v = text.trimmed().toDouble(&ok);
             if (ok && std::isfinite(v)) data.numbers[int(idx)] = v;
         } else {
-            data.strings[int(idx)] = text;
+            data.strings[int(idx)] = text.left(kChartMaxLabel);
         }
     }
     return data;
@@ -563,7 +608,7 @@ ChartDataLabels Reader::readLabels(const QDomElement &e) const
     l.position = valOf(cChild(e, "dLblPos"));
     if (const QDomElement fmt = cChild(e, "numFmt"); !fmt.isNull() && !parseBool(attr(fmt, QStringLiteral("sourceLinked")), false)) l.format = attr(fmt, QStringLiteral("formatCode"));
     l.font = readTxPr(cChild(e, "txPr"));
-    l.separator = cChild(e, "separator").text();
+    l.separator = cChild(e, "separator").text().left(kChartMaxLabel);
     return l;
 }
 
@@ -595,9 +640,9 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     const QDomElement tx = cChild(ser, "tx");
     if (const QDomElement ref = cChild(tx, "strRef"); !ref.isNull()) {
         const QDomElement pt = cChild(cChild(ref, "strCache"), "pt");
-        s.name = cChild(pt, "v").text();
+        s.name = cChild(pt, "v").text().left(kChartMaxLabel);
     } else if (!tx.isNull()) {
-        s.name = cChild(tx, "v").text();
+        s.name = cChild(tx, "v").text().left(kChartMaxLabel);
     }
     if (s.name.isEmpty()) s.name = say("Series%1").arg(idx + 1);
     // Its look.
@@ -638,7 +683,8 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
         }
         s.categories = categories.strings;
     } else if (categories.numeric) {
-        for (double v : categories.numbers) s.categories << (std::isnan(v) ? QString() : formatNumber(v, categories.format));
+        const NumberFormat format = readFormat(categories.format);
+        for (double v : categories.numbers) s.categories << (std::isnan(v) ? QString() : formatWith(format, v).left(kChartMaxLabel));
     } else {
         s.categories = categories.strings;
     }
@@ -686,11 +732,12 @@ bool Reader::readPlot(const QDomElement &e)
     };
     QVector<Found> found;
     for (const QDomElement &ser : cChildren(e, "ser")) {
-        if (found.size() >= kMaxSeries) break;
+        if (found.size() >= m_seriesLeft) break;
         Found f;
         f.series = readSeries(ser, plot, &f.order, &f.ownLabels);
         found << f;
     }
+    m_seriesLeft -= int(found.size());
     std::stable_sort(found.begin(), found.end(), [](const Found &a, const Found &b) { return a.order < b.order; });
     // A series with no labels of its own has the plot's.
     const bool plotHasLabels = !cChild(e, "dLbls").isNull();
