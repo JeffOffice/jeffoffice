@@ -33,11 +33,13 @@ int countObjects(const ItemList &items)
 
 int unreadFrames(const PageBase &page) { return int(page.props.value(QStringLiteral("unread")).toArray().size()); }
 
+// The placeholders of a page, each with its place: type[:index]@x,y,wxh in points.
 QString placeholders(const PageBase &page)
 {
     QStringList out;
     for (const auto &it : page.items)
-        if (it->role.startsWith(QLatin1String("ph:"))) out << it->role.mid(3);
+        if (it->role.startsWith(QLatin1String("ph:")))
+            out << QStringLiteral("%1@%2,%3,%4x%5").arg(it->role.mid(3)).arg(it->rect.x(), 0, 'f', 0).arg(it->rect.y(), 0, 'f', 0).arg(it->rect.width(), 0, 'f', 0).arg(it->rect.height(), 0, 'f', 0);
     return out.join(QLatin1Char(' '));
 }
 
@@ -86,12 +88,14 @@ int main(int argc, char **argv)
             const MasterPage *layout = doc->masterFor(p);
             out << "slide\t" << i + 1 << "\t" << (layout ? layout->name : QStringLiteral("(no layout)")) << "\t" << p.items.size() << " objects\t"
                 << placeholders(p) << (p.hidden ? "\thidden" : "") << (p.showMasterItems ? "" : "\tno master graphics") << (p.background.isNone() ? "" : "\tbackground")
-                << (unreadFrames(p) ? QStringLiteral("\t%1 unread").arg(unreadFrames(p)) : QString()) << "\n";
+                << (unreadFrames(p) ? QStringLiteral("\t%1 unread").arg(unreadFrames(p)) : QString())
+                << (deck::notesText(*doc, p).isEmpty() ? QString() : QStringLiteral("\tnotes")) << "\n";
         }
         return 0;
     }
 
-    const double width = args.size() > 4 ? std::max(16.0, args[4].toDouble()) : 1280;
+    // The width in pixels, as 1280 or width=1280.
+    const double width = args.size() > 4 ? std::max(16.0, QString(args[4]).remove(QStringLiteral("width=")).toDouble()) : 1280;
     QDir().mkpath(args[3]);
     LayoutCache cache;
     PaintContext ctx;
