@@ -1,0 +1,109 @@
+// Command-line helper for testing JeffDeck's reading of presentation files.
+//   jdecktool render <file.pptx> <outdir> [width=1280]   each slide to slide-001.png ...
+//   jdecktool info <file.pptx>                           the masters, layouts, and slides found
+
+#include "app/deckinfo.h"
+#include "core/appinfo.h"
+#include "core/deck.h"
+#include "core/fonts.h"
+#include "io/pptximport.h"
+#include "render/renderer.h"
+
+#include <QDir>
+#include <QElapsedTimer>
+#include <QGuiApplication>
+#include <QJsonArray>
+#include <QTextDocument>
+#include <QTextStream>
+
+using namespace jp;
+
+namespace {
+
+// The objects on a page, those inside groups counted too.
+int countObjects(const ItemList &items)
+{
+    int n = 0;
+    for (const auto &it : items) {
+        ++n;
+        if (it->type() == ItemType::Group) n += countObjects(static_cast<const GroupItem &>(*it).children);
+    }
+    return n;
+}
+
+int unreadFrames(const PageBase &page) { return int(page.props.value(QStringLiteral("unread")).toArray().size()); }
+
+QString placeholders(const PageBase &page)
+{
+    QStringList out;
+    for (const auto &it : page.items)
+        if (it->role.startsWith(QLatin1String("ph:"))) out << it->role.mid(3);
+    return out.join(QLatin1Char(' '));
+}
+
+} // namespace
+
+int main(int argc, char **argv)
+{
+    Q_INIT_RESOURCE(resources);   // the font measurements, in the shared libraries
+    // No window, and no typing: no input method either (Qt's IBus plugin can wait 15-20 seconds for a slow daemon).
+    if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
+    if (!qEnvironmentVariableIsSet("QT_IM_MODULE")) qputenv("QT_IM_MODULE", "none");
+    QGuiApplication app(argc, argv);
+    setAppInfo(deckAppInfo());
+    initCore();
+    const QStringList args = app.arguments();
+    QTextStream out(stdout);
+    if (args.size() < 3 || (args[1] == "render" && args.size() < 4) || (args[1] != "render" && args[1] != "info")) {
+        out << "usage: jdecktool render <file.pptx> <outdir> [width=1280] | info <file.pptx>\n";
+        return 2;
+    }
+    const QString cmd = args[1], in = args[2];
+    QElapsedTimer timer;
+    timer.start();
+    QString notes;
+    std::unique_ptr<Document> doc = deck::importPresentationFile(in, &notes);
+    if (!doc) {
+        out << "cannot open: " << notes << "\n";
+        return 1;
+    }
+    out << "opened\t" << doc->pages.size() << " slides\t" << deck::layouts(*doc).size() << " layouts\t" << timer.elapsed() << " ms\n";
+    if (!notes.isEmpty()) out << "notes:\n" << notes << "\n";
+
+    if (cmd == "info") {
+        out << "size\t" << doc->pageSize().width() << " x " << doc->pageSize().height() << " pt\t" << doc->setup.sizeName << "\n";
+        const deck::DeckTheme theme = deck::themeOf(*doc);
+        out << "theme\t" << theme.name << "\t" << theme.headingFont << " / " << theme.bodyFont << "\n";
+        for (const auto &m : doc->masters) {
+            if (deck::isSlideMaster(*m))
+                out << "master\t" << m->id << "\t" << m->name << "\t" << m->items.size() << " objects\t" << placeholders(*m) << "\n";
+            else
+                out << "layout\t" << m->id << "\t" << m->name << "\ttype " << deck::layoutType(*m) << "\ton " << m->baseId << "\t" << m->items.size() << " objects"
+                    << (m->showMasterItems ? "" : "\tno master graphics") << "\t" << placeholders(*m) << "\n";
+        }
+        for (int i = 0; i < doc->pages.size(); ++i) {
+            const Page &p = *doc->pages[i];
+            const MasterPage *layout = doc->masterFor(p);
+            out << "slide\t" << i + 1 << "\t" << (layout ? layout->name : QStringLiteral("(no layout)")) << "\t" << p.items.size() << " objects\t"
+                << placeholders(p) << (p.hidden ? "\thidden" : "") << (p.showMasterItems ? "" : "\tno master graphics") << (p.background.isNone() ? "" : "\tbackground")
+                << (unreadFrames(p) ? QStringLiteral("\t%1 unread").arg(unreadFrames(p)) : QString()) << "\n";
+        }
+        return 0;
+    }
+
+    const double width = args.size() > 4 ? std::max(16.0, args[4].toDouble()) : 1280;
+    QDir().mkpath(args[3]);
+    LayoutCache cache;
+    PaintContext ctx;
+    ctx.doc = doc.get();
+    ctx.cache = &cache;
+    ctx.opt.output = true;
+    for (int i = 0; i < doc->pages.size(); ++i) {
+        timer.restart();
+        const QImage img = Renderer::renderToImage(ctx, i, width / doc->pageSize().width());
+        const QString name = QStringLiteral("slide-%1.png").arg(i + 1, 3, 10, QLatin1Char('0'));
+        img.save(QDir(args[3]).filePath(name));
+        out << name << "\tobjects=" << countObjects(doc->pages[i]->items) << "\tunread=" << unreadFrames(*doc->pages[i]) << "\t" << timer.elapsed() << " ms\n";
+    }
+    return 0;
+}
