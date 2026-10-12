@@ -587,6 +587,34 @@ void clearMediaPlay(Page &slide, int shape)
     else slide.props[QStringLiteral("timingXml")] = treeXml(t.root);
 }
 
+// Every shape the timing plays or calls media of.
+void collectMediaShapes(const Node &n, QSet<int> &out, int depth = 0)
+{
+    const QString local = n.local();
+    if (local == QLatin1String("video") || local == QLatin1String("audio") || local == QLatin1String("cmd")) {
+        if (const int shape = targetOf(n); shape > 0) out.insert(shape);
+        return;
+    }
+    if (depth > kMaxTreeDepth) return;
+    for (const Node &k : n.kids) collectMediaShapes(k, out, depth + 1);
+}
+
+QString mediaTimingForShapes(const QString &timingXml, const QSet<qint64> &shapes)
+{
+    TimingTree t;
+    if (timingXml.isEmpty() || !readTree(timingXml, &t.root) || t.root.local() != QLatin1String("timing") || !t.locate()) return timingXml;
+    QSet<int> played;
+    collectMediaShapes(t.root, played);
+    bool changed = false;
+    for (const int shape : std::as_const(played))
+        if (!shapes.contains(shape)) {
+            removeMedia(t, shape);
+            changed = true;
+        }
+    if (!changed) return timingXml;
+    return timingIsEmpty(t) ? QString() : treeXml(t.root);
+}
+
 MediaPlan mediaPlanOf(const Page &slide)
 {
     MediaPlan plan;
@@ -600,18 +628,20 @@ MediaPlan mediaPlanOf(const Page &slide)
         MediaPlay p = playOf(*pic, nodes, starts);
         if (pic->sourceId > 0) plan.plays.insert(pic->sourceId, p);
     }
+    // Only calls to the slide's own media count, and a step or a click holds no more than a few of them.
+    constexpr int kMaxCues = 64;
     auto cuesOf = [&](const QVector<Effect> &effects) {
         QVector<MediaCue> cues;
         for (const Effect &e : effects) {
             if (e.cls != EffectClass::Media) continue;
             for (const Behavior &b : e.behaviors)
-                if (b.kind == Behavior::Kind::Command && b.target.shape > 0) cues.push_back(MediaCue{b.target.shape, b.command, b.timing.begin});
+                if (b.kind == Behavior::Kind::Command && plan.plays.contains(b.target.shape) && cues.size() < kMaxCues) cues.push_back(MediaCue{b.target.shape, b.command, b.timing.begin});
         }
         return cues;
     };
     for (const Step &s : tl.steps) plan.steps.push_back(MediaStep{s.automatic, s.visual(), cuesOf(s.effects)});
     for (const Trigger &t : tl.triggers)
-        if (t.shape > 0) plan.triggers[t.shape] += cuesOf(t.effects);
+        if (t.shape > 0 && plan.triggers.size() < 1000) plan.triggers[t.shape] += cuesOf(t.effects);
     return plan;
 }
 

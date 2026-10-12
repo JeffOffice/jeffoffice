@@ -63,6 +63,11 @@ void setMediaPlay(Page &slide, PictureItem &pic, const MediaPlay &play, qint64 l
 // Takes out of the slide's timing everything it does for that shape's media (its node and its calls); the timing goes if nothing else is in it.
 void clearMediaPlay(Page &slide, int shape);
 
+// The timing as it is, but for the media of shapes that are not among `shapes` (the shapes a slide is written with): a
+// picture that played a movie and was deleted takes its node and its calls with it, and the rest of the timing stays.
+// The same string when nothing goes; empty when nothing is left.
+QString mediaTimingForShapes(const QString &timingXml, const QSet<qint64> &shapes);
+
 // What the slide's timing says to do with a movie or sound, as the show plays
 // it. A cue is a call at a moment: ms after its step starts.
 struct MediaCue {
