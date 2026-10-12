@@ -95,7 +95,7 @@ const QString kNs = QStringLiteral(
     " xmlns:presentation=\"urn:oasis:names:tc:opendocument:xmlns:presentation:1.0\" xmlns:smil=\"urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0\""
     " xmlns:anim=\"urn:oasis:names:tc:opendocument:xmlns:animation:1.0\" xmlns:drawooo=\"http://openoffice.org/2010/draw\""
     " xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
-    " xmlns:meta=\"urn:oasis:names:tc:opendocument:xmlns:meta:1.0\" office:version=\"1.3\"");
+    " xmlns:meta=\"urn:oasis:names:tc:opendocument:xmlns:meta:1.0\" xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\" office:version=\"1.3\"");
 
 const QString kBullets = QStringLiteral(
     "<text:list-level-style-bullet text:level=\"1\" text:bullet-char=\"●\"><style:list-level-properties text:space-before=\"0.3cm\" text:min-label-width=\"0.9cm\"/>"
@@ -276,6 +276,8 @@ QString samplePages()
         + QStringLiteral("<draw:rect draw:style-name=\"gr2\" svg:width=\"4cm\" svg:height=\"2cm\" draw:transform=\"rotate (1.5707963267949) translate (10cm 5cm)\"/>")
         + QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"4cm\" svg:height=\"3cm\" svg:x=\"10cm\" svg:y=\"10cm\"><draw:object xlink:href=\"./Object 1\"/>"
                          "<draw:image xlink:href=\"./ObjectReplacements/Object 1\"/><svg:desc>A chart of sales</svg:desc></draw:frame>")
+        + QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"8cm\" svg:height=\"5cm\" svg:x=\"15cm\" svg:y=\"7cm\"><draw:object xlink:href=\"./Object 2\"/>"
+                         "<draw:image xlink:href=\"./ObjectReplacements/Object 2\"/></draw:frame>")
         + QStringLiteral("</draw:page>");
     // 4: a hidden slide on a background of its own.
     pages += QStringLiteral("<draw:page draw:name=\"page4\" draw:style-name=\"dp4\" draw:master-page-name=\"Default\"/>");
@@ -287,10 +289,30 @@ QString sampleContent()
     return odpContent(sampleAutomaticStyles(), samplePages(), QStringLiteral("<presentation:footer-decl presentation:name=\"ftr1\">Confidential</presentation:footer-decl>"));
 }
 
+// A chart object as the other office suite writes one: its numbers in a table of their own, and the picture it keeps of itself in its own metafile format.
+QByteArray sampleChart()
+{
+    return (QStringLiteral("<?xml version=\"1.0\"?><office:document-content") + kNs + QStringLiteral("><office:automatic-styles>"
+        "<style:style style:name=\"ch1\" style:family=\"chart\"><style:chart-properties chart:stacked=\"false\"/></style:style>"
+        "<style:style style:name=\"ch2\" style:family=\"chart\"><style:graphic-properties draw:fill-color=\"#4f81bd\"/></style:style></office:automatic-styles>"
+        "<office:body><office:chart><chart:chart chart:class=\"chart:bar\" svg:width=\"8cm\" svg:height=\"5cm\"><chart:title><text:p>Sales by quarter</text:p></chart:title>"
+        "<chart:legend chart:legend-position=\"end\"/><chart:plot-area chart:style-name=\"ch1\"><chart:axis chart:dimension=\"x\" chart:name=\"primary-x\">"
+        "<chart:categories table:cell-range-address=\"local-table.$A$2:.$A$4\"/></chart:axis><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"><chart:grid chart:class=\"major\"/></chart:axis>"
+        "<chart:series chart:values-cell-range-address=\"local-table.$B$2:.$B$4\" chart:label-cell-address=\"local-table.$B$1\" chart:style-name=\"ch2\" chart:class=\"chart:bar\"/></chart:plot-area>"
+        "<table:table table:name=\"local-table\"><table:table-header-columns><table:table-column/></table:table-header-columns><table:table-columns><table:table-column/></table:table-columns>"
+        "<table:table-header-rows><table:table-row><table:table-cell/><table:table-cell office:value-type=\"string\"><text:p>Revenue</text:p></table:table-cell></table:table-row></table:table-header-rows>"
+        "<table:table-rows><table:table-row><table:table-cell office:value-type=\"string\"><text:p>Q1</text:p></table:table-cell><table:table-cell office:value-type=\"float\" office:value=\"10\"/></table:table-row>"
+        "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>Q2</text:p></table:table-cell><table:table-cell office:value-type=\"float\" office:value=\"20\"/></table:table-row>"
+        "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>Q3</text:p></table:table-cell><table:table-cell office:value-type=\"float\" office:value=\"15\"/></table:table-row>"
+        "</table:table-rows></table:table></chart:chart></office:chart></office:body></office:document-content>")).toUtf8();
+}
+
 QByteArray sampleOdp()
 {
     return odpZip(sampleContent(), odpStyles(), {{QStringLiteral("Pictures/a.png"), png(200, 100, QColor(200, 30, 30))},
-                                                 {QStringLiteral("ObjectReplacements/Object 1"), png(40, 30, QColor(30, 30, 200))}});
+                                                 {QStringLiteral("ObjectReplacements/Object 1"), png(40, 30, QColor(30, 30, 200))},
+                                                 {QStringLiteral("Object 2/content.xml"), sampleChart()},
+                                                 {QStringLiteral("ObjectReplacements/Object 2"), QByteArray("VCLMTF\1\0 a metafile of the producer's own")}});
 }
 
 } // namespace odptest
@@ -1918,6 +1940,14 @@ private Q_SLOTS:
         QCOMPARE(items[7]->altText, QStringLiteral("A chart of sales"));
         QVERIFY(near(items[7]->rect.x(), 10 * cm) && near(items[7]->rect.width(), 4 * cm));
 
+        // A chart the file keeps only a picture of in its own metafile format is drawn from its numbers.
+        QCOMPARE(items[8]->type(), ItemType::Picture);
+        const QString chartId = static_cast<const PictureItem *>(items[8])->imageId;
+        QVERIFY(!chartId.isEmpty());
+        QCOMPARE(d->images.value(chartId).format, QStringLiteral("svg"));
+        const QString svg = QString::fromUtf8(d->images.value(chartId).bytes);
+        QVERIFY2(svg.contains(QStringLiteral("Revenue")) && svg.contains(QStringLiteral("Q2")) && svg.contains(QStringLiteral("Sales by quarter")), qPrintable(svg.left(300)));
+
         // How the slide changes to the next, and when it moves on.
         const deck::Transition t = deck::transitionOf(third);
         QCOMPARE(t.type, QStringLiteral("push"));
@@ -2141,7 +2171,7 @@ private Q_SLOTS:
                 shapes += it->type() == ItemType::Shape;
             });
         QCOMPARE(tables, 1);
-        QCOMPARE(pictures, 2);
+        QCOMPARE(pictures, 3);
         QVERIFY(shapes >= 4);
         QCOMPARE(w.editor()->filePath(), out);
         w.editor()->markSaved();

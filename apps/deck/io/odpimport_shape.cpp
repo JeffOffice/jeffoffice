@@ -347,13 +347,16 @@ ItemPtr Reader::readPicture(const QDomElement &frame, const QDomElement &imageEl
             if (!kind.isEmpty()) id = m_doc.addImage(bytes, kind);
         }
     }
+    // An embedded object that is a chart, drawn from its numbers, when its own picture can't be shown.
+    if (id.isEmpty())
+        if (const QDomElement object = kid(frame, "draw:object"); !object.isNull()) id = chartImage(object, size);
     const bool placeholder = a.get("presentation:placeholder") == QLatin1String("true");
     if (id.isEmpty() && !(placeholder && cls == QLatin1String("graphic"))) {
         // An embedded object (a chart) is shown by its picture; the file may keep none.
         const bool object = !kid(frame, "draw:object").isNull() || !kid(frame, "draw:object-ole").isNull();
         const QString key = object ? QStringLiteral("objectpicture") : QStringLiteral("picture");
         if (!m_said.contains(key))
-            note(object ? say("Charts and other embedded objects were left out: the file keeps no picture of them.")
+            note(object ? say("Embedded objects that are not charts were left out: the file keeps no picture of them that JeffDeck can show.")
                         : say("Pictures that are not in the file, or that JeffDeck can't read, were left out."));
         m_said.insert(key);
         return nullptr;

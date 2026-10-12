@@ -191,7 +191,7 @@ StyleDef StyleSheet::makeStyle(const QDomElement &e) const
         Kind kind = KindCount;
         if (t == QLatin1String("style:text-properties")) kind = Text;
         else if (t == QLatin1String("style:paragraph-properties")) kind = Para;
-        else if (t == QLatin1String("style:graphic-properties") || t == QLatin1String("style:drawing-page-properties")) kind = Graphic;
+        else if (t == QLatin1String("style:graphic-properties") || t == QLatin1String("style:drawing-page-properties") || t == QLatin1String("style:chart-properties")) kind = Graphic;
         else if (t == QLatin1String("style:table-cell-properties") || t == QLatin1String("loext:graphic-properties")) kind = Cell;
         else if (t == QLatin1String("style:table-row-properties")) kind = Row;
         else if (t == QLatin1String("style:table-column-properties")) kind = Column;

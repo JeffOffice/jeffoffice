@@ -241,6 +241,9 @@ private:
     TextEnv textEnvFor(const Scope &sc, const Attrs &frame, const Bag &shapeBag, const QString &cls);
     bool hasText(const QDomElement &body) const;
 
+    // odpimport_chart.cpp: the picture (an image id) of a chart object, drawn from its numbers; empty if it is no chart that can be drawn.
+    QString chartImage(const QDomElement &object, const QSizeF &size);
+
     // odpimport_shape.cpp
     void readShapes(const QDomElement &parent, Scope &sc, ItemList &out, const QTransform &parentTransform);
     ItemPtr readShape(const QDomElement &e, Scope &sc, const QTransform &parentTransform);
