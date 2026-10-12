@@ -162,6 +162,55 @@ private Q_SLOTS:
         setUiDark(false);
     }
 
+    // The slide thumbnails: a row for each slide, the current row following
+    // the editor and the editor following Up and Down; the current slide
+    // outlined in the accent without a fill over it; a hidden slide marked.
+    void thumbnailsFollowTheEditor()
+    {
+        setUiDark(false);
+        DeckWindow w;
+        Editor *ed = w.editor();
+        SlidesPane *pane = w.slidesPane();
+        QCOMPARE(pane->count(), 1);
+        QCOMPARE(pane->currentRow(), 0);
+        w.newSlide();
+        w.newSlide();
+        QTRY_COMPARE(pane->count(), 3);
+        QCOMPARE(pane->currentRow(), 2);
+        ed->setCurrentPage(0);
+        QCOMPARE(pane->currentRow(), 0);
+        QCOMPARE(pane->item(1)->text(), QStringLiteral("2"));   // the number, which the row draws at the thumbnail's left
+        QTest::keyClick(pane, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 1);
+        QTest::keyClick(pane, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 2);
+        QTest::keyClick(pane, Qt::Key_Down);   // the last stays
+        QCOMPARE(ed->currentPage(), 2);
+        QTest::keyClick(pane, Qt::Key_Up);
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(pane->accessibleName(), QStringLiteral("Slides"));
+        QCOMPARE(pane->item(1)->data(Qt::AccessibleTextRole).toString(), QStringLiteral("Slide 2"));
+        w.toggleHidden();
+        QTRY_VERIFY(pane->item(1)->data(SlidesPane::HiddenRole).toBool());
+        QCOMPARE(pane->item(1)->data(Qt::AccessibleTextRole).toString(), QStringLiteral("Slide 2, hidden"));
+        QVERIFY(!pane->item(0)->data(SlidesPane::HiddenRole).toBool());
+
+        // Drawn: the current thumbnail has the accent around it and its own white inside; the others a gray edge.
+        ed->setCurrentPage(2);
+        pane->resize(260, 420);
+        pane->show();
+        const QImage img = pane->viewport()->grab().toImage();
+        const QRect cur = pane->thumbnailRect(2), other = pane->thumbnailRect(0), hid = pane->thumbnailRect(1);
+        QCOMPARE(img.pixelColor(cur.left() - 2, cur.center().y()), deckAppInfo().accent);
+        QCOMPARE(img.pixelColor(cur.center().x(), cur.top() - 2), deckAppInfo().accent);
+        QCOMPARE(img.pixelColor(cur.left() + 4, cur.top() + 4), QColor(Qt::white));   // no fill over the slide
+        QVERIFY(img.pixelColor(other.left() - 2, other.center().y()) != deckAppInfo().accent);
+        QCOMPARE(img.pixelColor(other.left() + 4, other.top() + 4), QColor(Qt::white));
+        // Hidden: faded, so its white isn't white any more.
+        QVERIFY(img.pixelColor(hid.left() + 4, hid.top() + 4) != QColor(Qt::white));
+        pane->hide();
+    }
+
     void duplicateSlideCopiesNotes()
     {
         auto d = deck::newPresentation();
