@@ -30,6 +30,9 @@ class SlidesPane;
 namespace deck {
 struct FooterOptions;
 }
+namespace recovery {
+struct Recovered;
+}
 
 class DeckWindow : public AppWindow {
     Q_OBJECT
@@ -85,6 +88,15 @@ public:
     // Writes the file, and the presentation is saved and takes the file's name.
     // On failure, says why and leaves the presentation unsaved.
     bool saveTo(const QString &path);
+    // AutoRecover: writes a .pptx copy of unsaved work (the timer does, at the
+    // interval Options sets), and offers the copies a run that crashed left.
+    void autoRecover();
+    int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
+    QString recoveryCopy() const { return m_recoveryCopy; }
+    void offerRecovery(bool askIfNone = false);
+    // Opens a recovered copy as unsaved work, in this window while it holds
+    // nothing, else in a window of its own. Null, with the reason, if it can't be read.
+    DeckWindow *openRecovered(const recovery::Recovered &r, QString *error = nullptr);
 
 protected:
     void closeEvent(QCloseEvent *e) override;
@@ -111,6 +123,7 @@ private:
     void updateTitle();
     void showFileMenu();
     bool maybeSave();
+    void dropRecoveryCopy();      // deckwindow_save.cpp
 
     Editor *m_ed = nullptr;
     DeckCanvas *m_canvas = nullptr;
@@ -127,8 +140,11 @@ private:
     QPointer<SlideShow> m_show;
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
-    QTimer m_refreshTimer;
+    QTimer m_refreshTimer, m_recoverTimer;
+    QString m_recoveryCopy;      // this window's AutoRecover copy, if written
+    QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     QString m_templatePath;      // a template this window wrote: saving again writes over it
+    quint64 m_serial = 0;
 };
 
 } // namespace jp
