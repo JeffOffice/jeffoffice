@@ -1,12 +1,16 @@
 // Tests of libs/office: packages, the theme, and DrawingML colors. Every
 // package they read is built in memory (never a real-world file).
 #include "office/drawingml_color.h"
+#include "office/odraw.h"
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
 #include "io/zip.h"
+#include "render/metafile.h"
 
+#include <QBuffer>
 #include <QFile>
+#include <QImage>
 #include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QTemporaryDir>
@@ -1351,6 +1355,284 @@ private Q_SLOTS:
         QVERIFY(nearTo(scrgb("50000", "50000", "50000"), QStringLiteral("BCBCBC"), 1));
         QVERIFY(nearTo(scrgb("25000", "50000", "75000"), QStringLiteral("89BCE1"), 1));
         QVERIFY(!colorOf(QStringLiteral("<a:scrgbClr r=\"x\" g=\"0\" b=\"0\"/>")).isValid());
+    }
+
+private:
+    // ---- binary drawings ([MS-ODRAW]): every record is built by hand here
+
+    static QByteArray odU16(quint32 v)
+    {
+        QByteArray b(2, 0);
+        qToLittleEndian<quint16>(quint16(v), b.data());
+        return b;
+    }
+    static QByteArray odU32(quint32 v)
+    {
+        QByteArray b(4, 0);
+        qToLittleEndian<quint32>(v, b.data());
+        return b;
+    }
+    static QByteArray odRecord(quint16 version, quint16 instance, quint16 type, const QByteArray &data)
+    {
+        return odU16(quint32(instance << 4) | version) + odU16(type) + odU32(quint32(data.size())) + data;
+    }
+    static QByteArray odContainer(quint16 type, const QByteArray &children, quint16 instance = 0)
+    {
+        return odRecord(0xF, instance, type, children);
+    }
+    static QByteArray odUid(char fill) { return QByteArray(16, fill); }
+    // A bitmap picture record: its one or two uids, the tag byte, the file.
+    static QByteArray odBitmapBlip(quint16 type, quint16 instance, const QByteArray &file)
+    {
+        const int uids = (instance & 1) ? 2 : 1;
+        return odRecord(0, instance, type, odUid('u') + (uids == 2 ? odUid('v') : QByteArray()) + QByteArray(1, '\xFF') + file);
+    }
+    // A metafile picture record: uids, the 34-byte header (size, bounds, size in
+    // EMU, saved size, compression, filter), then the data deflated or stored.
+    static QByteArray odMetafileBlip(quint16 type, quint16 instance, const QByteArray &file, bool deflate, const QRect &bounds = QRect(0, 0, 200, 100),
+                                     const QSize &emu = QSize(2540000, 1270000))
+    {
+        const int uids = (instance & 1) ? 2 : 1;
+        const QByteArray saved = deflate ? qCompress(file, 9).mid(4) : file;
+        QByteArray head = odU32(quint32(file.size()));
+        for (int v : {bounds.left(), bounds.top(), bounds.left() + bounds.width(), bounds.top() + bounds.height(), emu.width(), emu.height()}) head += odU32(quint32(v));
+        head += odU32(quint32(saved.size())) + QByteArray(1, deflate ? '\x00' : '\xFE') + QByteArray(1, '\xFE');
+        return odRecord(0, instance, type, odUid('m') + (uids == 2 ? odUid('n') : QByteArray()) + head + saved);
+    }
+    static QByteArray odFakeEmf(int size = 120)
+    {
+        QByteArray e(size, '\0');
+        qToLittleEndian<quint32>(1, e.data());
+        qToLittleEndian<quint32>(88, e.data() + 4);
+        qToLittleEndian<quint32>(0x464D4520u, e.data() + 40);
+        for (int i = 88; i < size; ++i) e[i] = char(i * 7);
+        return e;
+    }
+    static QByteArray odFakeWmf()
+    {
+        QByteArray w;
+        w += odU16(1) + odU16(9) + odU16(0x300) + odU32(60) + odU16(1) + odU32(20) + odU16(0);
+        w += odU32(3) + odU16(0) + odU32(3) + odU16(0);
+        return w + QByteArray(40, '\x01');
+    }
+    // A DIB: the info header, a palette of `colors` entries, then rows.
+    static QByteArray odDib(int w, int h, int bits, int colors, const QByteArray &rows)
+    {
+        QByteArray d = odU32(40) + odU32(quint32(w)) + odU32(quint32(h)) + odU16(1) + odU16(bits) + odU32(0) + odU32(quint32(rows.size())) +
+                       odU32(2835) + odU32(2835) + odU32(quint32(colors)) + odU32(0);
+        for (int i = 0; i < colors; ++i) d += QByteArray("\x10\x20\x30\x00", 4);
+        return d + rows;
+    }
+    // A picture store entry: the file block record that holds or points to a picture.
+    static QByteArray odFbse(quint16 blipType, quint32 size, quint32 refs, quint32 delayOffset, const QByteArray &name = QByteArray(), const QByteArray &blip = QByteArray())
+    {
+        QByteArray d;
+        d += QByteArray(1, char(blipType)) + QByteArray(1, '\x00') + odUid('s') + odU16(0xFF) + odU32(size) + odU32(refs) + odU32(delayOffset);
+        d += QByteArray(1, '\0') + QByteArray(1, char(name.size())) + QByteArray(2, '\0') + name + blip;
+        return odRecord(2, blipType, 0xF007, d);
+    }
+
+private Q_SLOTS:
+    void odrawBlipReadsBitmapPictures()
+    {
+        const QByteArray png = QByteArray("\x89PNG\r\n\x1a\n", 8) + QByteArray(50, 'p');
+        QString format;
+        // One uid (0x6E0) or two (0x6E1) before the tag byte.
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF01E, 0x6E0, png), &format), png);
+        QCOMPARE(format, QStringLiteral("png"));
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF01E, 0x6E1, png), &format), png);
+        QCOMPARE(format, QStringLiteral("png"));
+        const QByteArray jpeg = QByteArray("\xFF\xD8\xFF\xE0", 4) + QByteArray(30, 'j');
+        for (quint16 inst : {0x46A, 0x46B, 0x6E2, 0x6E3}) {
+            QCOMPARE(odrawBlip(odBitmapBlip(0xF01D, inst, jpeg), &format), jpeg);
+            QCOMPARE(format, QStringLiteral("jpeg"));
+        }
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF02A, 0x6E2, jpeg), &format), jpeg);
+        QCOMPARE(format, QStringLiteral("jpeg"));
+        const QByteArray tiff = QByteArray("II*\0", 4) + QByteArray(30, 't');
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF029, 0x6E4, tiff), &format), tiff);
+        QCOMPARE(format, QStringLiteral("tiff"));
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF029, 0x6E5, tiff), &format), tiff);
+        // The format pointer is optional, and the record may be followed by more.
+        QCOMPARE(odrawBlip(odBitmapBlip(0xF01E, 0x6E0, png) + QByteArray(9, 'x'), nullptr), png);
+    }
+
+    void odrawBlipInflatesMetafiles()
+    {
+        const QByteArray emf = odFakeEmf();
+        QString format;
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01A, 0x3D4, emf, true), &format), emf);
+        QCOMPARE(format, QStringLiteral("emf"));
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01A, 0x3D5, emf, true), &format), emf);   // two uids
+        QCOMPARE(format, QStringLiteral("emf"));
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01A, 0x3D4, emf, false), &format), emf);  // stored, compression 0xFE
+        QCOMPARE(format, QStringLiteral("emf"));
+        // Inflating agrees with zlib at every level, for data of every kind.
+        QByteArray noise(70000, '\0');
+        QRandomGenerator g(7);
+        for (char &c : noise) c = char(g.generate());
+        QByteArray text;
+        for (int i = 0; i < 4000; ++i) text += QByteArray("line ") + QByteArray::number(i % 37) + " of a metafile\n";
+        const QByteArray runs = QByteArray(300000, 'a') + QByteArray(5, 'b') + QByteArray(100000, 'c');
+        for (const QByteArray &payload : {QByteArray(), QByteArray("x"), noise, text, runs}) {
+            QByteArray file = odFakeEmf() + payload;
+            for (int level : {0, 1, 6, 9}) {
+                const QByteArray saved = qCompress(file, level).mid(4);
+                QByteArray head = odU32(quint32(file.size())) + QByteArray(16, '\0') + QByteArray(8, '\0') + odU32(quint32(saved.size())) + QByteArray("\x00\xFE", 2);
+                const QByteArray rec = odRecord(0, 0x3D4, 0xF01A, odUid('m') + head + saved);
+                QCOMPARE(odrawBlip(rec, &format), file);
+            }
+        }
+    }
+
+    void odrawBlipRebuildsAPlaceableHeader()
+    {
+        // A WMF in a picture record has no placeable header; one is made from
+        // the bounds and the size in EMU (2 x 1 inch here, in 100 units per inch).
+        QString format;
+        const QByteArray wmf = odFakeWmf();
+        const QByteArray out = odrawBlip(odMetafileBlip(0xF01B, 0x216, wmf, true, QRect(0, 0, 200, 100), QSize(1828800, 914400)), &format);
+        QCOMPARE(format, QStringLiteral("wmf"));
+        QCOMPARE(out.size(), wmf.size() + 22);
+        QCOMPARE(out.mid(22), wmf);
+        QCOMPARE(qFromLittleEndian<quint32>(out.constData()), 0x9AC6CDD7u);
+        QCOMPARE(qFromLittleEndian<qint16>(out.constData() + 6), qint16(0));
+        QCOMPARE(qFromLittleEndian<qint16>(out.constData() + 10), qint16(200));
+        QCOMPARE(qFromLittleEndian<qint16>(out.constData() + 12), qint16(100));
+        QCOMPARE(qFromLittleEndian<quint16>(out.constData() + 14), quint16(100));
+        quint16 sum = 0;
+        for (int i = 0; i < 10; ++i) sum ^= qFromLittleEndian<quint16>(out.constData() + i * 2);
+        QCOMPARE(qFromLittleEndian<quint16>(out.constData() + 20), sum);
+        // The player reads it with that size: 2 x 1 inch, in points.
+        jp::Metafile mf;
+        QVERIFY(mf.load(out));
+        QVERIFY(!mf.isEmf());
+        QVERIFY(qAbs(mf.naturalSize().width() - 144) < 0.5 && qAbs(mf.naturalSize().height() - 72) < 0.5);
+        // A metafile that has its header already is left as it is.
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01B, 0x217, out, false), &format), out);
+        QCOMPARE(format, QStringLiteral("wmf"));
+        // Without bounds, the size in EMU gives them (hundredths of a millimeter).
+        const QByteArray noBounds = odrawBlip(odMetafileBlip(0xF01B, 0x216, wmf, true, QRect(), QSize(3600000, 1800000)), &format);
+        jp::Metafile mf2;
+        QVERIFY(mf2.load(noBounds));
+        QVERIFY(qAbs(mf2.naturalSize().width() - 283.46) < 1 && qAbs(mf2.naturalSize().height() - 141.73) < 1);
+    }
+
+    void odrawBlipMakesABitmapFileFromADib()
+    {
+        QString format;
+        // 2 x 2, 24 bits: rows of 6 bytes padded to 8, bottom row first.
+        const QByteArray rows = QByteArray("\x00\x00\xFF\x00\xFF\x00\x00\x00", 8) + QByteArray("\xFF\x00\x00\xFF\xFF\xFF\x00\x00", 8);
+        QByteArray bmp = odrawBlip(odBitmapBlip(0xF01F, 0x7A8, odDib(2, 2, 24, 0, rows)), &format);
+        QCOMPARE(format, QStringLiteral("bmp"));
+        QCOMPARE(bmp.left(2), QByteArray("BM"));
+        QCOMPARE(qFromLittleEndian<quint32>(bmp.constData() + 2), quint32(bmp.size()));
+        QCOMPARE(qFromLittleEndian<quint32>(bmp.constData() + 10), quint32(54));
+        QImage im = QImage::fromData(bmp);
+        QCOMPARE(im.size(), QSize(2, 2));
+        QCOMPARE(im.pixel(0, 1), qRgb(255, 0, 0));      // bottom-left, stored BGR 00 00 FF
+        QCOMPARE(im.pixel(1, 1), qRgb(0, 255, 0));
+        QCOMPARE(im.pixel(0, 0), qRgb(0, 0, 255));
+        QCOMPARE(im.pixel(1, 0), qRgb(255, 255, 255));
+        // With a palette (and two uids): the pixels start after its entries.
+        bmp = odrawBlip(odBitmapBlip(0xF01F, 0x7A9, odDib(8, 1, 1, 2, QByteArray("\xA5\0\0\0", 4))), &format);
+        QCOMPARE(qFromLittleEndian<quint32>(bmp.constData() + 10), quint32(14 + 40 + 8));
+        QCOMPARE(QImage::fromData(bmp).size(), QSize(8, 1));
+        // An 8-bit one without a color count has 256 entries.
+        bmp = odrawBlip(odBitmapBlip(0xF01F, 0x7A8, odDib(1, 1, 8, 0, QByteArray(4, '\0'))), &format);
+        QVERIFY(bmp.isEmpty());   // no room for the 256 entries
+        QVERIFY(format.isEmpty());
+    }
+
+    void odrawBlipRefusesDamagedRecords()
+    {
+        const QByteArray png = QByteArray(40, 'p');
+        QString format = QStringLiteral("x");
+        QVERIFY(odrawBlip(QByteArray(), &format).isEmpty());
+        QVERIFY(format.isEmpty());
+        const QByteArray good = odBitmapBlip(0xF01E, 0x6E0, png);
+        for (int cut : {0, 3, 7, 8, 20, 24, 25, 40, int(good.size()) - 1}) {
+            format = QStringLiteral("x");
+            QVERIFY2(odrawBlip(good.left(cut), &format).isEmpty(), qPrintable(QString::number(cut)));
+            QVERIFY(format.isEmpty());
+        }
+        // A length that runs past the data; an unknown record type; a picture with no data.
+        QByteArray past = good;
+        qToLittleEndian<quint32>(0x7FFFFFF0u, past.data() + 4);
+        QVERIFY(odrawBlip(past, &format).isEmpty());
+        QVERIFY(odrawBlip(odRecord(0, 0x6E0, 0xF020, odUid('u') + QByteArray(1, 'x') + png), &format).isEmpty());
+        QVERIFY(odrawBlip(odRecord(0, 0x6E0, 0xF01E, odUid('u') + QByteArray(1, '\xFF')), &format).isEmpty());
+        QVERIFY(odrawBlip(odRecord(0, 0x6E1, 0xF01E, odUid('u') + QByteArray(5, 'x')), &format).isEmpty());   // two uids need 32 bytes
+        // A Macintosh picture can't be shown.
+        QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, QByteArray(100, 'q'), true), &format).isEmpty());
+        QVERIFY(format.isEmpty());
+        // Deflated data that is not a deflate stream, cut short, or too big to keep.
+        const QByteArray emf = odFakeEmf();
+        QByteArray rec = odMetafileBlip(0xF01A, 0x3D4, emf, true);
+        QByteArray junk = rec;
+        for (int i = 8 + 16 + 34; i < junk.size(); ++i) junk[i] = char(0x5A + i);
+        junk[8 + 16 + 34] = '\x78';
+        QVERIFY(odrawBlip(junk, &format).isEmpty());
+        QVERIFY(odrawBlip(rec.left(rec.size() - 6), &format).isEmpty());
+        QByteArray huge = rec;
+        qToLittleEndian<quint32>(0x20000000u, huge.data() + 8 + 16);   // cbSize of 512 MB
+        QVERIFY(odrawBlip(huge, &format).isEmpty());
+        QVERIFY(format.isEmpty());
+        // A small stream that inflates to far more than the size it gives is damaged.
+        const QByteArray bomb = qCompress(QByteArray(60 * 1024 * 1024, '\0'), 9).mid(4);
+        const QByteArray head = odU32(100) + QByteArray(24, '\0') + odU32(quint32(bomb.size())) + QByteArray("\x00\xFE", 2);
+        QVERIFY(odrawBlip(odRecord(0, 0x3D4, 0xF01A, odUid('m') + head + bomb), &format).isEmpty());
+        // Bytes of every kind never crash it.
+        QRandomGenerator g(11);
+        for (int round = 0; round < 300; ++round) {
+            QByteArray b = round % 3 == 0 ? rec : round % 3 == 1 ? good : odBitmapBlip(0xF01F, 0x7A8, odDib(2, 2, 24, 0, QByteArray(16, 'r')));
+            for (int k = 0; k < 4; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
+            odrawBlip(b.left(int(g.bounded(quint32(b.size() + 1)))), &format);
+        }
+    }
+
+    void odrawStoreListsEmbeddedAndDelayedBlips()
+    {
+        const QByteArray png = QByteArray("\x89PNG", 4) + QByteArray(30, 'p');
+        const QByteArray blip1 = odBitmapBlip(0xF01E, 0x6E0, png);
+        const QByteArray emfBlip = odMetafileBlip(0xF01A, 0x3D4, odFakeEmf(), true);
+        QByteArray children;
+        children += odFbse(6, quint32(blip1.size()), 1, 0xFFFFFFFFu, QByteArray(), blip1);              // 1: inside the record
+        children += odFbse(2, 12345, 2, 0x4000);                                                         // 2: at 0x4000 in the other stream
+        children += odFbse(2, 999, 1, 0x80, QByteArray("n\0a\0", 4), emfBlip);                          // 3: with a name, and its picture
+        children += odFbse(0, 0, 0, 0xFFFFFFFFu);                                                        // 4: an empty slot
+        children += blip1;                                                                               // 5: a picture record by itself
+        const QByteArray store = odContainer(0xF001, children, 5);
+        const QVector<OdrawStoreEntry> e = odrawStore(store);
+        QCOMPARE(e.size(), 5);
+        for (int i = 0; i < 5; ++i) QCOMPARE(e[i].index, i + 1);
+        QCOMPARE(e[0].embedded, blip1);
+        QCOMPARE(e[1].embedded, QByteArray());
+        QCOMPARE(e[1].delayOffset, quint32(0x4000));
+        QCOMPARE(e[2].embedded, emfBlip);
+        QCOMPARE(e[2].delayOffset, quint32(0x80));
+        QVERIFY(e[3].embedded.isEmpty());
+        QCOMPARE(e[3].delayOffset, 0xFFFFFFFFu);
+        QCOMPARE(e[4].embedded, blip1);
+        QString format;
+        QCOMPARE(odrawBlip(e[0].embedded, &format), png);
+        QCOMPARE(format, QStringLiteral("png"));
+        QCOMPARE(odrawBlip(e[2].embedded, &format), odFakeEmf());
+        // The container's own header may be left off: the file blocks alone.
+        QCOMPARE(odrawStore(children).size(), 5);
+        QVERIFY(odrawStore(QByteArray()).isEmpty());
+        // Damage: cut anywhere, a name past the end, a lying count of entries, and bytes of every kind.
+        for (int cut = 0; cut < store.size(); cut += 3) odrawStore(store.left(cut));
+        QByteArray longName = odFbse(6, 10, 1, 0, QByteArray(), QByteArray());
+        longName[8 + 33] = char(250);
+        QVERIFY(odrawStore(odContainer(0xF001, longName)).size() == 1);
+        QVERIFY(odrawStore(odContainer(0xF001, longName))[0].embedded.isEmpty());
+        QRandomGenerator g(5);
+        for (int round = 0; round < 300; ++round) {
+            QByteArray b = store;
+            for (int k = 0; k < 5; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
+            odrawStore(b);
+        }
     }
 
     void themeReadsAnyColorInASlot()
