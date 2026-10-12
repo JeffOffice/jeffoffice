@@ -211,6 +211,7 @@ void DeckWindow::createActions()
     mk("view.fit", tr("Fit to Window"), "scan", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::WholePage); });
     createShowActions();
     createSaveActions();
+    createOutputActions();
 }
 
 void DeckWindow::refreshUi()
@@ -316,6 +317,9 @@ void DeckWindow::showFileMenu()
     menu.addAction(act("file.open"));
     menu.addAction(act("file.save"));
     menu.addAction(act("file.saveAs"));
+    menu.addAction(act("file.exportPdf"));
+    menu.addAction(act("file.exportPicture"));
+    menu.addAction(act("file.print"));
     menu.addSeparator();
     menu.addAction(act("file.close"));
     menu.exec(m_ribbon->mapToGlobal(QPoint(0, m_ribbon->height() / 3)));
