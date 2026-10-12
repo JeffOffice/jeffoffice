@@ -2148,6 +2148,51 @@ private Q_SLOTS:
         QVERIFY2(packageProblem(fresh).isEmpty(), qPrintable(packageProblem(fresh)));
     }
 
+    // A theme's picture fills (its textures) point at pictures the reader did not keep:
+    // written as they were, they would point nowhere, so they become plain fills.
+    void exportLeavesOutThePicturesOfATheme()
+    {
+        Parts p = samplePptx();
+        QByteArray theme = p.data["/ppt/theme/theme1.xml"].xml;
+        const QByteArray texture =
+            "<a:blipFill dpi=\"0\" rotWithShape=\"1\"><a:blip xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:embed=\"rId1\">"
+            "<a:duotone><a:schemeClr val=\"phClr\"/></a:duotone></a:blip><a:srcRect/><a:tile tx=\"0\" ty=\"0\" sx=\"100000\" sy=\"100000\" flip=\"none\" algn=\"tl\"/></a:blipFill>";
+        theme.replace("<a:bgFillStyleLst>", "<a:bgFillStyleLst>" + texture);
+        p.data["/ppt/theme/theme1.xml"].xml = theme;
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        // The rest of the part is as it was.
+        QCOMPARE(e.zip.value(QStringLiteral("ppt/theme/theme1.xml")), QByteArray(theme).replace(texture, "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>"));
+        office::Theme read;
+        QVERIFY2(office::readTheme(e.zip.value(QStringLiteral("ppt/theme/theme1.xml")), &read, &err), qPrintable(err));
+        QCOMPARE(read.colors[4], QColor(0xB6, 0x42, 0x0F));
+        // The same for the theme of a second slide master, which is kept in its master's properties.
+        auto second = std::make_shared<MasterPage>(*d->masters[0]);
+        second->id = QStringLiteral("SM2");
+        second->items.clear();
+        second->props[QStringLiteral("themeXml")] = QString::fromLatin1(theme.toBase64());
+        d->masters << second;
+        Exported two;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &two, &err), qPrintable(err));
+        QVERIFY2(packageProblem(two).isEmpty(), qPrintable(packageProblem(two)));
+        QVERIFY(!part(two, QStringLiteral("/ppt/theme/theme2.xml")).contains(QStringLiteral("embed")));
+        // A theme that points at something else that isn't kept is made again from its colors and fonts.
+        QByteArray odd = QByteArray(theme).replace("<a:objectDefaults/>", "");
+        odd.replace("</a:themeElements>", "</a:themeElements><a:objectDefaults><a:spDef><a:spPr/><a:bodyPr/><a:lstStyle/><a:style><a:lnRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:lnRef>"
+                                          "<a:fillRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:fillRef><a:effectRef idx=\"0\"><a:schemeClr val=\"accent1\"/></a:effectRef>"
+                                          "<a:fontRef idx=\"minor\"><a:hlinkClick xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"rId5\"/></a:fontRef></a:style></a:spDef></a:objectDefaults>");
+        second->props[QStringLiteral("themeXml")] = QString::fromLatin1(odd.toBase64());
+        Exported three;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &three, &err), qPrintable(err));
+        QVERIFY2(packageProblem(three).isEmpty(), qPrintable(packageProblem(three)));
+        QVERIFY2(office::readTheme(three.zip.value(QStringLiteral("ppt/theme/theme2.xml")), &read, &err), qPrintable(err));
+        QCOMPARE(read.colors[4], QColor(0xB6, 0x42, 0x0F));
+    }
+
     // The same presentation as a template or a show differs in one content type.
     void exportKindsDifferInTheMainPartsType()
     {
