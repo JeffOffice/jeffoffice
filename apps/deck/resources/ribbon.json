@@ -1,0 +1,252 @@
+{
+  "fileKeytip": "F",
+  "quickAccess": [
+    {
+      "cmd": "edit.undo",
+      "keytip": "1"
+    },
+    {
+      "cmd": "edit.redo",
+      "keytip": "2"
+    },
+    {
+      "cmd": "show.fromStart",
+      "keytip": "3"
+    }
+  ],
+  "tabs": [
+    {
+      "name": "Home",
+      "keytip": "H",
+      "groups": [
+        {
+          "name": "Clipboard",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": "edit.paste",
+              "keytip": "V"
+            },
+            {
+              "small": "edit.cut",
+              "keytip": "X"
+            },
+            {
+              "small": "edit.copy",
+              "keytip": "C"
+            }
+          ]
+        },
+        {
+          "name": "Slides",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": "slide.new",
+              "keytip": "I",
+              "split": true,
+              "menu": "@newSlideLayouts"
+            },
+            {
+              "small": {
+                "id": "ribbon.layout",
+                "text": "Layout",
+                "icon": "layout-template"
+              },
+              "keytip": "L",
+              "menu": "@changeLayout"
+            },
+            {
+              "small": "slide.reset",
+              "keytip": "A"
+            },
+            {
+              "small": "slide.delete",
+              "keytip": "D"
+            }
+          ]
+        },
+        {
+          "name": "Font",
+          "keytip": "ZF",
+          "items": [
+            {
+              "row": [
+                {
+                  "icon": "fmt.bold",
+                  "keytip": "1"
+                },
+                {
+                  "icon": "fmt.italic",
+                  "keytip": "2"
+                },
+                {
+                  "icon": "fmt.underline",
+                  "keytip": "3"
+                },
+                {
+                  "icon": "fmt.strike",
+                  "keytip": "4"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Paragraph",
+          "keytip": "ZP",
+          "items": [
+            {
+              "row": [
+                {
+                  "icon": "fmt.alignLeft",
+                  "keytip": "AL"
+                },
+                {
+                  "icon": "fmt.alignCenter",
+                  "keytip": "AC"
+                },
+                {
+                  "icon": "fmt.alignRight",
+                  "keytip": "AR"
+                },
+                {
+                  "icon": "fmt.justify",
+                  "keytip": "AJ"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Drawing",
+          "keytip": "ZD",
+          "items": [
+            {
+              "large": "insert.shape",
+              "keytip": "SH"
+            },
+            {
+              "small": "insert.textBox",
+              "keytip": "X"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Insert",
+      "keytip": "N",
+      "groups": [
+        {
+          "name": "Slides",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": "slide.new",
+              "keytip": "I",
+              "split": true,
+              "menu": "@newSlideLayouts"
+            }
+          ]
+        },
+        {
+          "name": "Tables",
+          "keytip": "ZT",
+          "items": [
+            {
+              "large": "insert.table",
+              "keytip": "T"
+            }
+          ]
+        },
+        {
+          "name": "Images",
+          "keytip": "ZI",
+          "items": [
+            {
+              "large": "insert.picture",
+              "keytip": "P"
+            }
+          ]
+        },
+        {
+          "name": "Illustrations",
+          "keytip": "ZL",
+          "items": [
+            {
+              "large": "insert.shape",
+              "keytip": "SH"
+            }
+          ]
+        },
+        {
+          "name": "Text",
+          "keytip": "ZX",
+          "items": [
+            {
+              "large": "insert.textBox",
+              "keytip": "X"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Slide Show",
+      "keytip": "S",
+      "groups": [
+        {
+          "name": "Start Slide Show",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": "show.fromStart",
+              "keytip": "B"
+            },
+            {
+              "large": "show.fromCurrent",
+              "keytip": "C"
+            }
+          ]
+        },
+        {
+          "name": "Set Up",
+          "keytip": "ZU",
+          "items": [
+            {
+              "large": "slide.hide",
+              "keytip": "H"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "View",
+      "keytip": "W",
+      "groups": [
+        {
+          "name": "Show",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": "view.notes",
+              "keytip": "N"
+            }
+          ]
+        },
+        {
+          "name": "Zoom",
+          "keytip": "ZZ",
+          "items": [
+            {
+              "large": "view.fit",
+              "keytip": "W"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
