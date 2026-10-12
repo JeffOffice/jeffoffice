@@ -3454,6 +3454,124 @@ private Q_SLOTS:
         }
     }
 
+    // A presentation with no comments has no comment parts; one with comments
+    // has the authors once and a part of comments for each slide that has some,
+    // in the older form that every version of the program opens.
+    void exportWritesCommentsAndReadsThemBack()
+    {
+        {
+            auto plain = deck::newPresentation();
+            const QByteArray bytes = deck::exportPresentation(*plain);
+            QVERIFY(!bytes.isEmpty());
+            Exported e;
+            QString why;
+            QVERIFY2(unpack(bytes, &e, &why), qPrintable(why));
+            for (const QString &n : e.pkg.partNames()) QVERIFY2(!n.contains(QStringLiteral("omment")), qPrintable(n));
+            QVERIFY(e.pkg.relationshipsOfType(QStringLiteral("/ppt/presentation.xml"), QStringLiteral("/commentAuthors")).isEmpty());
+            QVERIFY(!e.zip.value(QStringLiteral("[Content_Types].xml")).contains("omment"));
+        }
+
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        const deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Lee Roy"), QStringLiteral("LR")}, odd{QStringLiteral("A <B> & \"C\""), QStringLiteral("A&B")};
+        const QDateTime t(QDate(2026, 10, 12), QTime(14, 3, 5, 123), QTimeZone::UTC);
+        const QString c1 = deck::addComment(*d->pages[0], pat, QStringLiteral("Check the numbers\non this slide"), QPointF(100.5, 40.25), t);
+        deck::addReply(*d->pages[0], c1, lee, QStringLiteral("Done, thanks"), t.addSecs(300));
+        deck::addReply(*d->pages[0], c1, pat, QStringLiteral("Great"), t.addSecs(360));
+        const QString c2 = deck::addComment(*d->pages[0], lee, QStringLiteral("Second & <last>"), QPointF(700, 300), t.addDays(1));
+        deck::resolveComment(*d->pages[0], c2);
+        deck::addComment(*d->pages[2], odd, QStringLiteral("Third slide"), QPointF(10, 10), t.addDays(2));
+
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(bytes, &e, &why), qPrintable(why));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString pres = QStringLiteral("/ppt/presentation.xml");
+        QCOMPARE(relationshipTargets(e, pres, QStringLiteral("/commentAuthors")), QStringList{QStringLiteral("/ppt/commentAuthors.xml")});
+        QCOMPARE(e.pkg.contentType(QStringLiteral("/ppt/commentAuthors.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml"));
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/comments")), QStringList{QStringLiteral("/ppt/comments/comment1.xml")});
+        QVERIFY(relationshipTargets(e, QStringLiteral("/ppt/slides/slide2.xml"), QStringLiteral("/comments")).isEmpty());
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slides/slide3.xml"), QStringLiteral("/comments")), QStringList{QStringLiteral("/ppt/comments/comment2.xml")});
+        for (const char *n : {"/ppt/comments/comment1.xml", "/ppt/comments/comment2.xml"})
+            QCOMPARE(e.pkg.contentType(QLatin1String(n)), QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.comments+xml"));
+        QCOMPARE(int(e.pkg.partNames().filter(QRegularExpression(QStringLiteral("^/ppt/comments/"))).size()), 2);
+        // The relationship types are the standard's.
+        QCOMPARE(e.pkg.relationshipsOfType(pres, QStringLiteral("/commentAuthors")).at(0).type, QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/commentAuthors"));
+        QCOMPARE(e.pkg.relationshipsOfType(QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/comments")).at(0).type, QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"));
+
+        // The authors, once each, with the last index they used; a comment names its author and its index.
+        QDomDocument authors;
+        const QDomElement list = rootOf(e.zip.value(QStringLiteral("ppt/commentAuthors.xml")), &authors);
+        QCOMPARE(list.localName(), QStringLiteral("cmAuthorLst"));
+        const QVector<QDomElement> people = office::children(list, office::ns::P, QStringLiteral("cmAuthor"));
+        QCOMPARE(int(people.size()), 3);
+        QCOMPARE(people[0].attribute(QStringLiteral("name")), QStringLiteral("Pat Doe"));
+        QCOMPARE(people[0].attribute(QStringLiteral("initials")), QStringLiteral("PD"));
+        QCOMPARE(people[0].attribute(QStringLiteral("id")), QStringLiteral("0"));
+        QCOMPARE(people[0].attribute(QStringLiteral("lastIdx")), QStringLiteral("2"));   // the comment and its second reply
+        QCOMPARE(people[1].attribute(QStringLiteral("name")), QStringLiteral("Lee Roy"));
+        QCOMPARE(people[1].attribute(QStringLiteral("lastIdx")), QStringLiteral("2"));
+        QCOMPARE(people[2].attribute(QStringLiteral("name")), QStringLiteral("A <B> & \"C\""));
+        QVERIFY(people[2].hasAttribute(QStringLiteral("clrIdx")));
+        QDomDocument comments;
+        const QDomElement cmLst = rootOf(e.zip.value(QStringLiteral("ppt/comments/comment1.xml")), &comments);
+        QCOMPARE(cmLst.localName(), QStringLiteral("cmLst"));
+        const QVector<QDomElement> cms = office::children(cmLst, office::ns::P, QStringLiteral("cm"));
+        QCOMPARE(int(cms.size()), 4);   // two comments and the two replies to the first
+        QSet<QString> seen;
+        for (const QDomElement &cm : cms) {
+            QStringList names;
+            for (const QDomElement &c : office::children(cm)) names << c.localName();
+            QVERIFY2(names.size() >= 2 && names[0] == QLatin1String("pos") && names[1] == QLatin1String("text") && (names.size() == 2 || names[2] == QLatin1String("extLst")), qPrintable(names.join(QLatin1Char(','))));
+            const QString key = cm.attribute(QStringLiteral("authorId")) + QLatin1Char(':') + cm.attribute(QStringLiteral("idx"));
+            QVERIFY2(!seen.contains(key), qPrintable(key));
+            seen << key;
+            QVERIFY(cm.hasAttribute(QStringLiteral("dt")));
+        }
+        // Positions in 576ths of an inch (8 to the point).
+        const QDomElement pos = office::child(cms[0], office::ns::P, QStringLiteral("pos"));
+        QCOMPARE(pos.attribute(QStringLiteral("x")), QStringLiteral("804"));
+        QCOMPARE(pos.attribute(QStringLiteral("y")), QStringLiteral("322"));
+        // A reply says which comment it answers.
+        const QString xml = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/comments/comment1.xml")));
+        QCOMPARE(int(xml.count(QStringLiteral("<p15:parentCm authorId=\"0\" idx=\"1\"/>"))), 2);
+
+        // Read back, it is what was written: authors, dates to the millisecond, places, replies, and the done mark.
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        for (int i = 0; i < 3; ++i) {
+            const QVector<deck::Comment> want = deck::commentsOf(*d->pages[i]), got = deck::commentsOf(*back->pages[i]);
+            QCOMPARE(int(got.size()), int(want.size()));
+            for (int k = 0; k < want.size(); ++k) {
+                QCOMPARE(got[k].author, want[k].author);
+                QCOMPARE(got[k].initials, want[k].initials);
+                QCOMPARE(got[k].date, want[k].date);
+                QCOMPARE(got[k].text, want[k].text);
+                QCOMPARE(got[k].at, want[k].at);
+                QCOMPARE(got[k].done, want[k].done);
+                QCOMPARE(int(got[k].replies.size()), int(want[k].replies.size()));
+                for (int r = 0; r < want[k].replies.size(); ++r) {
+                    QCOMPARE(got[k].replies[r].author, want[k].replies[r].author);
+                    QCOMPARE(got[k].replies[r].initials, want[k].replies[r].initials);
+                    QCOMPARE(got[k].replies[r].date, want[k].replies[r].date);
+                    QCOMPARE(got[k].replies[r].text, want[k].replies[r].text);
+                }
+            }
+        }
+        QVERIFY(deck::commentsOf(*back->pages[0])[1].done);
+        QVERIFY(!deck::commentsOf(*back->pages[0])[0].done);
+        QVERIFY(deck::commentsOf(*back->pages[1]).isEmpty());
+        // Written again, the same file's comments come out the same.
+        QCOMPARE(deck::exportPresentation(*back).isEmpty(), false);
+    }
+
     // File > Options is the shared dialog: its General tab has the user name
     // and the app's own name in the update check, Proofing follows, and
     // JeffDeck's View page sets the ruler and snapping for every open window.
