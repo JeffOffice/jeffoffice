@@ -27,6 +27,11 @@ QVector<OdrawRecord> odrawRecords(const QByteArray &data, qsizetype offset = 0, 
 
 // What reading a drawing needs from the format around it.
 struct OdrawContext {
+    // The drawing group's default properties: the property records (0xF00B,
+    // 0xF121, 0xF122, header included) of its container (0xF000). A shape
+    // that leaves a property out has the value these give, before the one the
+    // format gives it when nothing does.
+    QByteArray defaults;
     // The shape's place on the page, in points, from its client anchor
     // record's data (OfficeArtClientAnchor, 0xF010), whose form each host
     // format defines (a .ppt slide's is a rectangle in master units).
@@ -36,6 +41,25 @@ struct OdrawContext {
     // The picture with this 1-based index in the picture store (the shape's
     // pib property), as an image id (PictureItem::imageId); "" if none.
     std::function<QString(int blipIndex)> picture;
+    // The picture of a fill that has a brightness and a contrast (as a
+    // PictureItem has them: percent, -100 to 100) in its pixels, a fill having
+    // none of its own; the same image id if it can't be done.
+    std::function<QString(const QString &imageId, double brightness, double contrast)> adjusted;
+    // The shape another takes after: from a shape's client data record's
+    // contents, the property records (0xF00B, 0xF121, 0xF122, header included)
+    // of the shape whose properties it has for those it leaves out (a slide's
+    // placeholder takes after its master's); empty for a shape that takes
+    // after none.
+    std::function<QByteArray(const QByteArray &clientData)> inherits;
+    // The XML the shape's writer kept beside its properties for the shape
+    // (property 0x03A9: a package whose shape part is a DrawingML shape, which
+    // holds what the properties can't), for the host to take the shape's look
+    // from. Called after the item is made, before its client records are read.
+    std::function<void(Item &item, const QByteArray &package)> richLook;
+    // The page's own background fill, which a shape filled the background
+    // way (fillType 9) shows where it is; none when the host can't say. Given
+    // the shape's frame, for a fill that keeps its place on the page (tiles).
+    std::function<Fill(const QRectF &shape)> background;
     // The shape's client text box (0xF00D) and client data (0xF011)
     // records' contents: text, a placeholder's identity. Called after the
     // item is made, so it may set its story, its role, or replace its type's
