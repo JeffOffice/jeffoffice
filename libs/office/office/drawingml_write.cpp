@@ -436,6 +436,18 @@ void writeMedia(QXmlStreamWriter &w, const PictureItem &p, const MediaRelations 
     begin(w, "p14:media");
     w.writeAttribute(QStringLiteral("xmlns:p14"), QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main"));
     attribute(w, "r:embed", media.copy);
+    if (p.mediaTrimStart > 0 || p.mediaTrimEnd > 0) {
+        begin(w, "p14:trim");
+        if (p.mediaTrimStart > 0) attribute(w, "st", p.mediaTrimStart);
+        if (p.mediaTrimEnd > 0) attribute(w, "end", p.mediaTrimEnd);
+        w.writeEndElement();
+    }
+    if (p.mediaFadeIn > 0 || p.mediaFadeOut > 0) {
+        begin(w, "p14:fade");
+        if (p.mediaFadeIn > 0) attribute(w, "in", p.mediaFadeIn);
+        if (p.mediaFadeOut > 0) attribute(w, "out", p.mediaFadeOut);
+        w.writeEndElement();
+    }
     w.writeEndElement();
     w.writeEndElement();
     w.writeEndElement();
