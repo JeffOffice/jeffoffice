@@ -7,10 +7,13 @@
 #include "office/drawingml_style.h"
 #include "office/drawingml_table.h"
 #include "office/drawingml_write.h"
+#include "office/eot.h"
 #include "office/odraw.h"
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
+#include "core/fontfiles.h"
+#include "core/sfnt.h"
 #include "io/zip.h"
 #include "render/metafile.h"
 #include "render/shapes.h"
@@ -46,6 +49,7 @@ using namespace jp::office;
 using jp::Arrow;
 using jp::ColorRef;
 using jp::Fill;
+using jp::FontFileInfo;
 using jp::GradientStop;
 using jp::GroupItem;
 using jp::ItemList;
@@ -68,6 +72,26 @@ const QString kSlideType = QStringLiteral("application/vnd.openxmlformats-office
 const QString kRelsType = QStringLiteral("application/vnd.openxmlformats-package.relationships+xml");
 
 using Entries = QVector<QPair<QString, QByteArray>>;
+
+// A bundled font's file, read whole.
+QByteArray bundledFontBytes(const QString &family, bool bold = false, bool italic = false)
+{
+    QFile f(jp::bundledFontFile(family, bold, italic).path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+// Where a table's record is in the font's directory (the 16 bytes of tag, checksum, offset, and length), -1 if it has none.
+int tableRecord(const QByteArray &font, const char *tag)
+{
+    for (int i = 0, n = qFromBigEndian<quint16>(font.constData() + 4); i < n; ++i)
+        if (font.mid(12 + 16 * i, 4) == tag) return 12 + 16 * i;
+    return -1;
+}
+
+quint32 beAt(const QByteArray &b, int at) { return qFromBigEndian<quint32>(b.constData() + at); }
+void setBe32(QByteArray &b, int at, quint32 v) { qToBigEndian<quint32>(v, b.data() + at); }
+void setBe16(QByteArray &b, int at, quint16 v) { qToBigEndian<quint16>(v, b.data() + at); }
+quint32 leAt(const QByteArray &b, int at) { return qFromLittleEndian<quint32>(b.constData() + at); }
 
 QByteArray zipOf(const Entries &entries, bool compress = true)
 {
@@ -912,6 +936,278 @@ private Q_SLOTS:
         QVERIFY(!p.read(small, &err, 1 << 20));
         QVERIFY(!p.read(small, &err));
         QVERIFY(p.partNames().isEmpty());
+    }
+
+    // ----- Fonts in a file: the font file's description, and the EOT around it -----
+
+    void fontInspectionReadsWhatAFontSays()
+    {
+        FontFileInfo info;
+        QString why;
+        QVERIFY2(jp::inspectFont(bundledFontBytes(QStringLiteral("Lato")), &info, &why), qPrintable(why));
+        QCOMPARE(info.family, QStringLiteral("Lato"));
+        QCOMPARE(info.subfamily, QStringLiteral("Regular"));
+        QCOMPARE(int(info.weight), 400);
+        QVERIFY(!info.bold && !info.italic && !info.outlinesAreCff);
+        QVERIFY(jp::fontAllowsEmbedding(info.fsType));
+        QCOMPARE(int(info.pitchFamily()), 0x22);   // sans serif, variable pitch: what the program writes for it
+        QVERIFY(info.glyphs > 100);
+        QVERIFY(info.unicodeRange[0] & 1);
+
+        QVERIFY2(jp::inspectFont(bundledFontBytes(QStringLiteral("Lato"), true, true), &info, &why), qPrintable(why));
+        QVERIFY(info.bold && info.italic);
+        QCOMPARE(info.subfamily, QStringLiteral("Bold Italic"));
+        QCOMPARE(int(info.weight), 700);
+
+        // OpenType with PostScript outlines, and a license that says "editable".
+        QVERIFY2(jp::inspectFont(bundledFontBytes(QStringLiteral("TeX Gyre Bonum")), &info, &why), qPrintable(why));
+        QVERIFY(info.outlinesAreCff);
+        QCOMPARE(int(info.fsType), 0x000c);
+        QVERIFY(jp::fontAllowsEmbedding(info.fsType));
+
+        // A family of a style of its own is the family under its full name; the typographic family only groups.
+        QVERIFY2(jp::inspectFont(bundledFontBytes(QStringLiteral("Selawik Light")), &info, &why), qPrintable(why));
+        QCOMPARE(info.family, QStringLiteral("Selawik Light"));
+        QVERIFY(info.typographicFamily.isEmpty());
+        QVERIFY2(jp::inspectFont(bundledFontBytes(QStringLiteral("TeX Gyre Schola")), &info, &why), qPrintable(why));
+        QCOMPARE(info.typographicFamily, QStringLiteral("TeX Gyre Schola"));
+
+        QVERIFY2(jp::inspectFont(bundledFontBytes(QStringLiteral("Cousine")), &info, &why), qPrintable(why));
+        QVERIFY(info.fixedPitch);
+        QCOMPARE(int(info.pitchFamily() & 3), 1);
+    }
+
+    void fontLicensesSayWhetherAFontMayTravel()
+    {
+        QVERIFY(jp::fontAllowsEmbedding(0));         // installable
+        QVERIFY(jp::fontAllowsEmbedding(0x0008));    // editable
+        QVERIFY(jp::fontAllowsEmbedding(0x000c));    // preview and print, and editable: the freest applies
+        QVERIFY(jp::fontAllowsEmbedding(0x000a));
+        QVERIFY(jp::fontAllowsEmbedding(0x0108));    // editable, and may not be subset (all of it is embedded)
+        QVERIFY(!jp::fontAllowsEmbedding(0x0002));   // restricted
+        QVERIFY(!jp::fontAllowsEmbedding(0x0004));   // preview and print
+        QVERIFY(!jp::fontAllowsEmbedding(0x0006));
+        QVERIFY(!jp::fontAllowsEmbedding(0x0200));   // bitmaps only
+        QVERIFY(!jp::fontAllowsEmbedding(0x0208));
+    }
+
+    void fontInspectionRefusesDamagedFonts()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        QVERIFY(lato.size() > 1000);
+        QString why;
+        QVERIFY(jp::inspectFont(lato, nullptr, &why));
+        auto refused = [&](const QByteArray &font, const char *what) {
+            why.clear();
+            QVERIFY2(!jp::inspectFont(font, nullptr, &why), what);
+            QVERIFY2(!why.isEmpty(), what);
+        };
+        refused(QByteArray(), "empty");
+        refused(QByteArray(100, 'x'), "not a font");
+        refused(lato.left(lato.size() / 2), "cut off: the tables run past the end");
+        refused(lato.left(200), "cut off in the first tables");
+        QByteArray collection = lato;
+        collection.replace(0, 4, "ttcf");
+        refused(collection, "a collection");
+        QByteArray woff = lato;
+        woff.replace(0, 4, "wOFF");
+        refused(woff, "a web font");
+
+        QByteArray bad = lato;
+        setBe16(bad, 4, 0xFFFF);
+        refused(bad, "65,535 tables");
+        bad = lato;
+        setBe16(bad, 4, 0);
+        refused(bad, "no tables");
+
+        bad = lato;
+        const int head = tableRecord(bad, "head");
+        QVERIFY(head > 0);
+        setBe32(bad, int(beAt(bad, head + 8)) + 12, 0x12345678);
+        refused(bad, "head magic");
+        bad = lato;
+        setBe32(bad, head + 12, 8);
+        refused(bad, "head table too short");
+
+        bad = lato;
+        setBe32(bad, tableRecord(bad, "glyf") + 12, 0x7FFFFFFF);
+        refused(bad, "a table longer than the file");
+        bad = lato;
+        setBe32(bad, tableRecord(bad, "glyf") + 8, 4);
+        refused(bad, "a table inside the directory");
+
+        bad = lato;
+        setBe32(bad, tableRecord(bad, "hmtx") + 12, 6);
+        refused(bad, "hmtx too short for the glyphs");
+        bad = lato;
+        setBe32(bad, tableRecord(bad, "loca") + 12, 10);
+        refused(bad, "loca too short for the glyphs");
+
+        // The last glyph starts past the end of the glyph data.
+        bad = lato;
+        const int loca = tableRecord(bad, "loca"), glyphs = int(qFromBigEndian<quint16>(bad.constData() + int(beAt(bad, tableRecord(bad, "maxp") + 8)) + 4));
+        const bool longLoca = qFromBigEndian<qint16>(bad.constData() + int(beAt(bad, head + 8)) + 50) == 1;
+        if (longLoca) setBe32(bad, int(beAt(bad, loca + 8)) + 4 * glyphs, 0x7FFFFFF0);
+        else setBe16(bad, int(beAt(bad, loca + 8)) + 2 * glyphs, 0xFFF0);
+        refused(bad, "a glyph outside the glyph data");
+
+        // Tables meant for a program to run over many values.
+        bad = lato;
+        bad.replace(tableRecord(bad, "gasp"), 4, "fvar");
+        refused(bad, "a font with variations");
+
+        // Two tables of one name.
+        bad = lato;
+        bad.replace(tableRecord(bad, "gasp"), 4, "head");
+        refused(bad, "a table twice");
+
+        // Letters that can't be in a table's name.
+        bad = lato;
+        bad[tableRecord(bad, "gasp")] = char(7);
+        refused(bad, "a control character in a table's name");
+
+        // More than a document may hold, refused before anything is looked at.
+        QByteArray huge = lato;
+        huge.append(QByteArray(jp::kMaxEmbeddedFontBytes, '\0'));
+        refused(huge, "larger than 32 MB");
+    }
+
+    void bundledFontsAreFoundByFamilyAndStyle()
+    {
+        const jp::BundledFontFile regular = jp::bundledFontFile(QStringLiteral("lato"), false, false);
+        QVERIFY(regular.path.endsWith(QLatin1String("Lato-Regular.ttf")));
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Lato"), true, true).path.endsWith(QLatin1String("Lato-BoldItalic.ttf")));
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Fraunces"), true, false).path.endsWith(QLatin1String("Fraunces-Bold.ttf")));
+        // A family without the style has none; a family of one style has that one.
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Oswald"), false, true).path.isEmpty());
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Oswald"), true, false).path.endsWith(QLatin1String("Oswald-Bold.ttf")));
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Pacifico"), false, false).path.endsWith(QLatin1String("Pacifico-Regular.ttf")));
+        // The names of the fonts people already have are not the bundled ones' (Carlito stands in for Calibri, but is not it).
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Calibri"), false, false).path.isEmpty());
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Arial"), false, false).path.isEmpty());
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Carlito"), false, false).path.endsWith(QLatin1String("Carlito-Regular.ttf")));
+        QVERIFY(jp::isBundledFontFamily(QStringLiteral("Source Serif 4")));
+        QVERIFY(!jp::isBundledFontFamily(QStringLiteral("Calibri")));
+        // A font that is a style of its own is found by its full name, and a typographic family by its own.
+        QVERIFY(jp::bundledFontFile(QStringLiteral("Selawik Light"), false, false).path.endsWith(QLatin1String("Selawik-Light.ttf")));
+        QVERIFY(jp::bundledFontFile(QStringLiteral("TeX Gyre Schola"), true, false).path.endsWith(QLatin1String("TeXGyreSchola-Bold.otf")));
+    }
+
+    void embeddedOpenTypeWrapsAFontInTheProgramsHeader()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const QByteArray eot = makeEot(lato);
+        QVERIFY(!eot.isEmpty());
+        QCOMPARE(int(leAt(eot, 0)), int(eot.size()));        // EOTSize
+        QCOMPARE(int(leAt(eot, 4)), int(lato.size()));       // FontDataSize
+        QCOMPARE(leAt(eot, 8), 0x00020002u);                 // the version the program writes
+        QCOMPARE(leAt(eot, 12), 0u);                         // not compressed, not scrambled, not a subset
+        QCOMPARE(eot.mid(16, 10).toHex(), QByteArray("020f0502020204030203"));   // PANOSE: Lato's, as the program has it
+        QCOMPARE(int(uchar(eot[27])), 0);                    // upright
+        QCOMPARE(int(leAt(eot, 28)), 400);                   // weight
+        QCOMPARE(int(qFromLittleEndian<quint16>(eot.constData() + 34)), 0x504C);   // the magic number
+        QCOMPARE(eot.right(lato.size()), lato);              // the font is the last thing in it
+        // The family name, in UTF-16, follows the 82-byte header and its size.
+        const int nameSize = qFromLittleEndian<quint16>(eot.constData() + 82);
+        QCOMPARE(nameSize, 8);
+        QCOMPARE(QString::fromUtf16(reinterpret_cast<const char16_t *>(eot.constData() + 84), nameSize / 2), QStringLiteral("Lato"));
+
+        const QByteArray italic = makeEot(bundledFontBytes(QStringLiteral("Lato"), true, true));
+        QCOMPARE(int(uchar(italic[27])), 1);
+        QCOMPARE(int(leAt(italic, 28)), 700);
+        QVERIFY(makeEot(QByteArray("not a font")).isEmpty());
+    }
+
+    void embeddedFontsAreReadFromEotAndFromPlainFontData()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        FontFileInfo info;
+        QString why;
+        QByteArray font;
+        QVERIFY2(readEmbeddedFont(makeEot(lato), &font, &info, &why), qPrintable(why));
+        QCOMPARE(font, lato);
+        QCOMPARE(info.family, QStringLiteral("Lato"));
+        // Plain font data in the part, as other programs write it.
+        font.clear();
+        QVERIFY2(readEmbeddedFont(lato, &font, &info, &why), qPrintable(why));
+        QCOMPARE(font, lato);
+        QVERIFY2(readEmbeddedFont(bundledFontBytes(QStringLiteral("TeX Gyre Bonum")), &font, nullptr, &why), qPrintable(why));
+
+        // Scrambled: every byte of the font XOR 0x50, flag 0x10000000.
+        QByteArray scrambled = makeEot(lato);
+        const int start = scrambled.size() - lato.size();
+        for (int i = start; i < scrambled.size(); ++i) scrambled[i] = char(scrambled[i] ^ 0x50);
+        qToLittleEndian<quint32>(leAt(scrambled, 12) | 0x10000000u, scrambled.data() + 12);
+        font.clear();
+        QVERIFY2(readEmbeddedFont(scrambled, &font, nullptr, &why), qPrintable(why));
+        QCOMPARE(font, lato);
+
+        // The flag for a subset says only that some characters were left out; bytes after the EOT's own size are not read.
+        QByteArray subset = makeEot(lato);
+        qToLittleEndian<quint32>(1u, subset.data() + 12);
+        subset.append("trailing bytes");
+        font.clear();
+        QVERIFY2(readEmbeddedFont(subset, &font, nullptr, &why), qPrintable(why));
+        QCOMPARE(font, lato);
+
+        // The older forms of the header (version 2.1) are read by where the font ends, as they all end.
+        QByteArray older = makeEot(lato);
+        qToLittleEndian<quint32>(0x00020001u, older.data() + 8);
+        font.clear();
+        QVERIFY2(readEmbeddedFont(older, &font, nullptr, &why), qPrintable(why));
+        QCOMPARE(font, lato);
+    }
+
+    void embeddedFontsThatAreDamagedOrHostileAreRefused()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const QByteArray eot = makeEot(lato);
+        QByteArray font;
+        QString why;
+        auto refused = [&](const QByteArray &data, const char *what) {
+            font = "left over";
+            why.clear();
+            QVERIFY2(!readEmbeddedFont(data, &font, nullptr, &why), what);
+            QVERIFY2(!why.isEmpty(), what);
+            QVERIFY2(font.isEmpty(), what);
+        };
+        refused(QByteArray(), "empty");
+        refused(QByteArray(40, '\0'), "a header that isn't");
+        refused(eot.left(eot.size() - 100), "cut off: the EOT says it is longer");
+        refused(eot.left(90), "cut off in the header");
+
+        QByteArray bad = eot;
+        qToLittleEndian<quint16>(0x1234, bad.data() + 34);
+        refused(bad, "wrong magic number");
+        bad = eot;
+        qToLittleEndian<quint32>(0x00030000u, bad.data() + 8);
+        refused(bad, "a version that doesn't exist");
+        bad = eot;
+        qToLittleEndian<quint32>(quint32(eot.size()) + 1, bad.data() + 4);
+        refused(bad, "the font larger than the EOT");
+        bad = eot;
+        qToLittleEndian<quint32>(60, bad.data() + 4);
+        refused(bad, "the font starting inside the header");
+        bad = eot;
+        qToLittleEndian<quint32>(0xFFFFFFF0u, bad.data() + 4);
+        qToLittleEndian<quint32>(0xFFFFFFFFu, bad.data());
+        refused(bad, "sizes that overflow");
+
+        // A font past the limit is refused whatever the file claims.
+        QByteArray big = eot.left(eot.size() - lato.size());
+        big.append(lato).append(QByteArray(jp::kMaxEmbeddedFontBytes, '\0'));
+        qToLittleEndian<quint32>(quint32(big.size()), big.data());
+        qToLittleEndian<quint32>(quint32(lato.size() + jp::kMaxEmbeddedFontBytes), big.data() + 4);
+        refused(big, "a font larger than 32 MB");
+
+        // The font in it is held to the same checks as any font.
+        QByteArray damaged = lato;
+        setBe32(damaged, tableRecord(damaged, "glyf") + 12, 0x7FFFFFFF);
+        refused(makeEot(lato.left(100)), "a font cut off");
+        QByteArray wrapped = eot.left(eot.size() - lato.size());
+        wrapped.append(damaged);
+        refused(wrapped, "a damaged font inside");
+        refused(damaged, "a damaged font on its own");
     }
 
     void xmlAcceptsDeepButReasonableNesting()
