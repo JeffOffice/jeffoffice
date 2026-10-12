@@ -384,9 +384,10 @@ private:
     int layoutOf(const Page &slide) const;
     void prepareThemes();
     office::DrawingWriteContext context(const QString &part);
-    QString tree(const PageBase &page, const QString &part, const QString &where, QSet<qint64> *frameIds);
+    QString tree(const PageBase &page, const QString &part, const QString &where, QSet<qint64> *frameIds, QSet<qint64> *mediaIds = nullptr);
     QString keptFrame(const QString &xml, const QString &where);
-    QString keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds);
+    QString keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds,
+                         const QSet<qint64> &mediaIds);
     QString background(const PageBase &page, const QString &part, bool required, const QString &where);
     QString textStyles(const MasterOut &master);
     QString titleOf(const Page &slide, int number) const;
@@ -541,6 +542,13 @@ office::DrawingWriteContext Exporter::context(const QString &part)
         return it->bytes;
     };
     ctx.storyDoc = [this](const QString &storyId) { return m_doc.storyDoc(storyId); };
+    ctx.mediaBytes = [this](const QString &mediaId, QString *contentType, QString *extension) {
+        const auto it = m_doc.media.constFind(mediaId);
+        if (it == m_doc.media.cend()) return QByteArray();
+        if (contentType) *contentType = it->contentType;
+        if (extension) *extension = it->extension;
+        return it->bytes;
+    };
     ctx.mediaParts = &m_media;
     ctx.colors = m_doc.colors;
     return ctx;
@@ -565,10 +573,25 @@ QString Exporter::keptFrame(const QString &xml, const QString &where)
     return alone;
 }
 
+// Whether every movie or sound the timing plays, pauses, or stops (p:video,
+// p:audio, p:cmd) is aimed at a shape that has one. The presentation program
+// refuses a file whose timing plays the media of a shape that has none.
+bool playsOnlyMedia(const QDomElement &e, const QSet<qint64> &mediaIds, bool aimsAtMedia = false)
+{
+    const QString name = e.localName();
+    aimsAtMedia = aimsAtMedia || name == QLatin1String("video") || name == QLatin1String("audio") || name == QLatin1String("cmd");
+    if (aimsAtMedia && name == QLatin1String("spTgt") && !mediaIds.contains(e.attribute(QStringLiteral("spid")).toLongLong())) return false;
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+        if (!playsOnlyMedia(c, mediaIds, aimsAtMedia)) return false;
+    return true;
+}
+
 // A slide's transition or timing as the reader kept it. Left out, with a note,
-// when it names parts that were not kept (a sound), or aims an animation at
-// shapes by numbers that no longer stand for the same shapes.
-QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds)
+// when it names parts that were not kept (a sound), aims an animation at
+// shapes by numbers that no longer stand for the same shapes, or plays a
+// movie or sound on a shape that no longer has one.
+QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds,
+                               const QSet<qint64> &mediaIds)
 {
     const QString xml = slide.props.value(QLatin1String(key)).toString();
     if (xml.isEmpty()) return QString();
@@ -589,10 +612,14 @@ QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString
             return QString();
         }
     }
+    if (!playsOnlyMedia(dom.documentElement(), mediaIds)) {
+        note(say("%1: the %2 plays a movie or sound that wasn't kept, and was left out.").arg(where, what));
+        return QString();
+    }
     return xml;
 }
 
-QString Exporter::tree(const PageBase &page, const QString &part, const QString &where, QSet<qint64> *frameIds)
+QString Exporter::tree(const PageBase &page, const QString &part, const QString &where, QSet<qint64> *frameIds, QSet<qint64> *mediaIds)
 {
     // The frames to write back first: their shape numbers are theirs, and the shapes are numbered above them.
     QStringList frames;
@@ -633,6 +660,14 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
     if (frameIds)
         walkItems(page.items, [&](const ItemPtr &it) {
             if (it->sourceId >= 2 && ctx.shapeIds.value(it->id) == it->sourceId) frameIds->insert(it->sourceId);
+        });
+    // The pictures written with the movie or sound they play.
+    if (mediaIds)
+        walkItems(page.items, [&](const ItemPtr &it) {
+            if (it->type() != ItemType::Picture || !ctx.shapeIds.contains(it->id)) return;
+            const auto &p = static_cast<const PictureItem &>(*it);
+            if (!p.imageId.isEmpty() && !p.mediaKind.isEmpty() && (m_doc.media.contains(p.mediaId) || !p.mediaLink.isEmpty()))
+                mediaIds->insert(ctx.shapeIds.value(it->id));
         });
     return QStringLiteral("<p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
                           "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>")
@@ -768,12 +803,12 @@ void Exporter::writeSlide(int i)
     if (!page.showMasterItems) xml += QStringLiteral(" showMasterSp=\"0\"");
     if (page.hidden) xml += QStringLiteral(" show=\"0\"");
     xml += QStringLiteral("><p:cSld>");
-    QSet<qint64> frameIds;
+    QSet<qint64> frameIds, mediaIds;
     const QString fill = background(page, part, false, where);
-    xml += fill + tree(page, part, where, &frameIds) + QStringLiteral("</p:cSld>");
+    xml += fill + tree(page, part, where, &frameIds, &mediaIds) + QStringLiteral("</p:cSld>");
     xml += QStringLiteral("<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>");
-    xml += keptSlideXml(page, "transitionXml", say("transition"), where, frameIds);
-    xml += keptSlideXml(page, "timingXml", say("animation"), where, frameIds);
+    xml += keptSlideXml(page, "transitionXml", say("transition"), where, frameIds, mediaIds);
+    xml += keptSlideXml(page, "timingXml", say("animation"), where, frameIds, mediaIds);
     xml += QStringLiteral("</p:sld>");
     add(part, kTypeBase + QStringLiteral("slide+xml"), xml);
 }

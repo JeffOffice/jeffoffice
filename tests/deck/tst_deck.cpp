@@ -2938,7 +2938,8 @@ private Q_SLOTS:
 
 private:
     struct Rel {
-        QString source, type, target;
+        QString source, type, target;   // type: the last word of one of the standard's, or a whole URI
+        bool external = false;
     };
     struct Part {
         QString type;
@@ -3167,7 +3168,7 @@ private:
         w.addDefault(QStringLiteral("png"), QStringLiteral("image/png"));
         for (auto it = p.data.cbegin(); it != p.data.cend(); ++it) w.addPart(it.key(), it.value().xml, it.value().type);
         w.addRelationship(QStringLiteral("/"), relBase() + QStringLiteral("officeDocument"), QStringLiteral("/ppt/presentation.xml"));
-        for (const Rel &r : p.rels) w.addRelationship(r.source, relBase() + r.type, r.target);
+        for (const Rel &r : p.rels) w.addRelationship(r.source, r.type.contains(QLatin1String("://")) ? r.type : relBase() + r.type, r.target, r.external);
         return w.finish();
     }
     // Whether the shared reader reads pictures yet (a picture is the one
@@ -3953,7 +3954,8 @@ private:
             QDomDocument dom;
             if (!office::parseXml(it.value(), &dom, &why)) return it.key() + QStringLiteral(" doesn't parse: ") + why;
             if (!it.value().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")) return it.key() + QStringLiteral(" has no XML declaration");
-            // Every r:id (and r:embed...) in a part is one of its relationships.
+            // Every r:id (and r:embed...) in a part is one of its relationships; an empty one
+            // points nowhere (a picture's click that plays its movie, as the presentation program writes it).
             if (it.key().endsWith(QLatin1String(".rels"))) continue;
             QVector<QDomElement> stack{dom.documentElement()};
             while (!stack.isEmpty()) {
@@ -3961,7 +3963,7 @@ private:
                 const QDomNamedNodeMap attrs = el.attributes();
                 for (int i = 0; i < attrs.length(); ++i) {
                     const QDomAttr a = attrs.item(i).toAttr();
-                    if (!office::sameNamespace(a.namespaceURI(), office::ns::R)) continue;
+                    if (!office::sameNamespace(a.namespaceURI(), office::ns::R) || a.value().isEmpty()) continue;
                     if (e.pkg.relationship(QLatin1Char('/') + it.key(), a.value()).id.isEmpty()) return it.key() + QStringLiteral(" uses ") + a.name() + QStringLiteral("=") + a.value() + QStringLiteral(", which isn't a relationship");
                 }
                 for (QDomElement c = el.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
@@ -4468,6 +4470,103 @@ private Q_SLOTS:
         QVERIFY(!part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:timing")));
         bool noted = false;
         for (const QString &s : std::as_const(skipped)) noted |= s.startsWith(QLatin1String("Slide 1")) && s.contains(QStringLiteral("animation"));
+        QVERIFY2(noted, qPrintable(skipped.join('\n')));
+    }
+
+    // A movie and a sound a slide plays are kept: the copy the file holds is
+    // written back byte for byte with its relationships, one outside stays a
+    // link, and the timing that plays them stays with them. Timing that plays
+    // a movie or sound on a shape that has none is left out with a note: the
+    // presentation program refuses such a file.
+    void exportKeepsMoviesAndSounds()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        auto media = [](int id, const QString &name, const QString &nvPr) {
+            return QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"%1\" name=\"%2\"><a:hlinkClick r:id=\"\" action=\"ppaction://media\"/></p:cNvPr><p:cNvPicPr/><p:nvPr>%3</p:nvPr></p:nvPicPr>"
+                                  "<p:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>").arg(id).arg(name, nvPr)
+                + xfrm(0, 0, 1828800, 1371600) + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic>");
+        };
+        xml.replace(QStringLiteral("</p:spTree>"),
+                    media(20, QStringLiteral("Movie"), QStringLiteral("<a:videoFile r:link=\"rId4\"/><p:extLst><p:ext uri=\"{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}\">"
+                                                                      "<p14:media xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" r:embed=\"rId5\"/></p:ext></p:extLst>"))
+                        + media(21, QStringLiteral("Sound"), QStringLiteral("<a:audioFile r:link=\"rId6\"/>")) + QStringLiteral("</p:spTree>"));
+        auto plays = [](const char *kind, int id, int spid) {
+            return QStringLiteral("<p:%1><p:cMediaNode vol=\"80000\"><p:cTn id=\"%2\" fill=\"hold\" display=\"0\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn>"
+                                  "<p:tgtEl><p:spTgt spid=\"%3\"/></p:tgtEl></p:cMediaNode></p:%1>").arg(QLatin1String(kind)).arg(id).arg(spid);
+        };
+        xml.replace(QRegularExpression(QStringLiteral("<p:timing>.*</p:timing>")),
+                    QStringLiteral("<p:timing><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>")
+                        + plays("video", 2, 20) + plays("audio", 3, 21) + QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        const QByteArray movie("not really a movie, but kept byte for byte");
+        p.data["/ppt/media/media1.mp4"] = {QStringLiteral("video/mp4"), movie};
+        p.rels << Rel{"/ppt/slides/slide1.xml", "video", "/ppt/media/media1.mp4"}
+               << Rel{"/ppt/slides/slide1.xml", "http://schemas.microsoft.com/office/2007/relationships/media", "/ppt/media/media1.mp4"}
+               << Rel{"/ppt/slides/slide1.xml", "audio", "file:///C:/Sounds/applause.wav", true};
+
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto named = [](const Document &doc, const QString &name) -> const PictureItem * {
+            for (const auto &it : doc.pages[0]->items)
+                if (it->name == name && it->type() == ItemType::Picture) return static_cast<const PictureItem *>(it.get());
+            return nullptr;
+        };
+        const PictureItem *mv = named(*d, QStringLiteral("Movie")), *snd = named(*d, QStringLiteral("Sound"));
+        QVERIFY(mv && snd);
+        QCOMPARE(mv->mediaKind, QStringLiteral("video"));
+        QVERIFY(d->media.contains(mv->mediaId));
+        QCOMPARE(d->media.value(mv->mediaId).bytes, movie);
+        QCOMPARE(d->media.value(mv->mediaId).contentType, QStringLiteral("video/mp4"));
+        QCOMPARE(d->media.value(mv->mediaId).extension, QStringLiteral("mp4"));
+        QCOMPARE(snd->mediaKind, QStringLiteral("audio"));
+        QVERIFY(snd->mediaId.isEmpty());
+        QCOMPARE(snd->mediaLink, QStringLiteral("file:///C:/Sounds/applause.wav"));
+
+        QStringList skipped;
+        QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("<a:videoFile r:link=")));
+        QVERIFY(slide.contains(QStringLiteral("<p14:media xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" r:embed=")));
+        QVERIFY(slide.contains(QStringLiteral("<a:audioFile r:link=")));
+        QCOMPARE(int(slide.count(QStringLiteral("action=\"ppaction://media\""))), 2);
+        QVERIFY(slide.contains(QStringLiteral("<p:video>")) && slide.contains(QStringLiteral("<p:spTgt spid=\"20\"/>")));
+        QVERIFY(slide.contains(QStringLiteral("<p:audio>")) && slide.contains(QStringLiteral("<p:spTgt spid=\"21\"/>")));
+        QString moviePart;
+        bool linked = false, copied = false;
+        for (const office::Relationship &r : e.pkg.relationships(QStringLiteral("/ppt/slides/slide1.xml"))) {
+            if (r.type.endsWith(QLatin1String("/relationships/video")) && !r.external) moviePart = r.target;
+            if (r.type == QLatin1String("http://schemas.microsoft.com/office/2007/relationships/media")) copied = !r.external;
+            if (r.type.endsWith(QLatin1String("/relationships/audio"))) linked = r.external && r.target == QLatin1String("file:///C:/Sounds/applause.wav");
+        }
+        QVERIFY(copied && linked);
+        QVERIFY(moviePart.endsWith(QLatin1String(".mp4")));
+        QCOMPARE(e.pkg.part(moviePart), movie);
+        QCOMPARE(e.pkg.contentType(moviePart), QStringLiteral("video/mp4"));
+
+        // Read again, it is the same movie.
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const PictureItem *again = named(*back, QStringLiteral("Movie"));
+        QVERIFY(again && back->media.contains(again->mediaId));
+        QCOMPARE(back->media.value(again->mediaId).bytes, movie);
+
+        // A movie's picture that plays nothing any more takes the timing that plays it with it.
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Movie")) static_cast<PictureItem &>(*it).mediaKind.clear();
+        skipped.clear();
+        QVERIFY2(!(bytes = deck::exportPresentation(*d, &err, &skipped)).isEmpty(), qPrintable(err));
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(!slide.contains(QStringLiteral("<p:timing")));
+        QVERIFY(!slide.contains(QStringLiteral("<a:videoFile")));
+        bool noted = false;
+        for (const QString &n : std::as_const(skipped)) noted |= n.startsWith(QLatin1String("Slide 1")) && n.contains(QStringLiteral("movie or sound"));
         QVERIFY2(noted, qPrintable(skipped.join('\n')));
     }
 

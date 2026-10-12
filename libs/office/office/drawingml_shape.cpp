@@ -290,6 +290,7 @@ private:
     void appendChildren(const QDomElement &parent, ItemList *out, int nesting);
     ItemPtr group(const QDomElement &e);
     ItemPtr pic(const QDomElement &e, const QVector<QDomElement> &inheritsFrom);
+    void media(const QDomElement &nvPr, PictureItem &p);
     // A p:sp or p:cxnSp; `nv` is its p:nvSpPr or p:nvCxnSpPr.
     ItemPtr drawn(const QDomElement &e, const QDomElement &nv, const QVector<QDomElement> &inheritsFrom, bool connector);
     ItemPtr line(const Frame &frame, const QString &prst, const QHash<QString, double> &adjust, const QDomElement &cNvPr, const QDomElement &nv,
@@ -633,6 +634,7 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     auto p = std::make_shared<PictureItem>();
     decorate(*p, cNvPr, frame, properties, style);
     p->imageId = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), styleContext());
+    media(childNamed(childNamed(e, "nvPicPr"), "nvPr"), *p);
 
     // The whole picture's place in the frame: it is cut by a:srcRect (a negative cut is
     // room around it), and what is left is stretched over the frame, or over part of it.
@@ -680,6 +682,47 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     }
     remember(cNvPr, p);
     return p;
+}
+
+// The movie or sound a picture plays: p:nvPr's a:videoFile, a:quickTimeFile,
+// a:audioFile, or a:wavAudioFile. The copy the file holds is kept (the
+// p14:media of the extension list names it, or the link itself when it is to
+// a part); else the address it links to outside.
+void Reader::media(const QDomElement &nvPr, PictureItem &p)
+{
+    if (!m_ctx.package || nvPr.isNull()) return;
+    QDomElement file;
+    QString kind;
+    for (QDomElement c = nvPr.firstChildElement(); !c.isNull() && kind.isEmpty(); c = c.nextSiblingElement()) {
+        const QString n = c.localName();
+        if (n == QLatin1String("videoFile") || n == QLatin1String("quickTimeFile")) kind = QStringLiteral("video");
+        else if (n == QLatin1String("audioFile") || n == QLatin1String("wavAudioFile")) kind = QStringLiteral("audio");
+        if (!kind.isEmpty()) file = c;
+    }
+    if (file.isNull()) return;
+    QStringList ids;
+    for (QDomElement ext = childNamed(childNamed(nvPr, "extLst"), "ext"); !ext.isNull(); ext = ext.nextSiblingElement()) {
+        const QDomElement copy = childNamed(ext, "media");
+        if (!copy.isNull()) ids << attrNs(copy, ns::R, QStringLiteral("embed"));
+    }
+    ids << attrNs(file, ns::R, QStringLiteral("link")) << attrNs(file, ns::R, QStringLiteral("embed"));
+    for (const QString &id : std::as_const(ids)) {
+        if (id.isEmpty()) continue;
+        const Relationship r = m_ctx.package->relationship(m_ctx.part, id);
+        if (r.id.isEmpty()) continue;
+        if (r.external) {
+            if (p.mediaLink.isEmpty()) p.mediaLink = r.target;
+            continue;
+        }
+        const QByteArray bytes = m_ctx.package->part(r.target);
+        if (bytes.isEmpty() || !m_ctx.addMedia) continue;
+        const qsizetype dot = r.target.lastIndexOf(QLatin1Char('.'));
+        const QString extension = dot > r.target.lastIndexOf(QLatin1Char('/')) ? r.target.mid(dot + 1).toLower() : QString();
+        p.mediaId = m_ctx.addMedia(bytes, m_ctx.package->contentType(r.target), extension);
+        p.mediaLink.clear();
+        break;
+    }
+    if (!p.mediaId.isEmpty() || !p.mediaLink.isEmpty()) p.mediaKind = kind;
 }
 
 } // namespace

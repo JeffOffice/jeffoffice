@@ -219,6 +219,14 @@ struct PrintInfo {
     OverprintSettings overprint;
 };
 
+// A movie or sound as its file held it (a slide's video), kept to be written
+// back.
+struct MediaData {
+    QByteArray bytes;
+    QString contentType;        // "video/mp4", "audio/wav", ...
+    QString extension;          // "mp4", "wav", ...
+};
+
 class Document : public FieldSource {
 public:
     Document();
@@ -235,6 +243,10 @@ public:
     ItemList extra;
     QMap<QString, std::shared_ptr<Story>> stories;
     QMap<QString, ImageData> images;
+    // The movies and sounds pictures play (PictureItem::mediaId). Like the
+    // pictures' bytes they are not in toJson, so undoing an edit leaves them
+    // be; nothing takes one away while the document is open.
+    QMap<QString, MediaData> media;
     ColorScheme colors;
     FontScheme fonts;
     QVector<TextStyle> styles;
@@ -306,6 +318,9 @@ public:
     // read it, saving the decoding.
     QString addImage(const QByteArray &bytes, const QString &format, const QString &sourcePath = QString(), const QImage &decoded = QImage());
     QImage image(const QString &id) const;
+    // Keeps a movie or sound and returns its id; the same bytes kept again
+    // get the same id.
+    QString addMedia(const QByteArray &bytes, const QString &contentType, const QString &extension);
     QSize imageSize(const QString &id) const;
     // A picture tied to its file at `path`; `bytes` are the file's (see
     // readPictureFile), kept in the publication when `keepCopy`, else only

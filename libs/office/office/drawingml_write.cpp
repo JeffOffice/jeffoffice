@@ -400,20 +400,43 @@ int takeId(DrawingWriteContext &ctx, const Item &it)
 }
 
 // p:cNvPr: the number, the name, the alternative text, and the link of the whole object.
-void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &fallbackName, DrawingWriteContext &ctx)
+// `playsMedia`: a click on it plays the movie or sound it has, unless it is a link.
+void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &fallbackName, DrawingWriteContext &ctx, bool playsMedia = false)
 {
     begin(w, "p:cNvPr");
     attribute(w, "id", id);
     attribute(w, "name", it.name.isEmpty() ? QStringLiteral("%1 %2").arg(fallbackName).arg(id - 1) : clean(it.name));
     if (!it.altText.isEmpty()) attribute(w, "descr", clean(it.altText));
-    if (!it.hyperlink.isEmpty()) {
-        const QString rId = relateAddress(ctx, it.hyperlink);
-        if (!rId.isEmpty()) {
-            begin(w, "a:hlinkClick");
-            attribute(w, "r:id", rId);
-            w.writeEndElement();
-        }
+    const QString rId = it.hyperlink.isEmpty() ? QString() : relateAddress(ctx, it.hyperlink);
+    if (!rId.isEmpty()) {
+        begin(w, "a:hlinkClick");
+        attribute(w, "r:id", rId);
+        w.writeEndElement();
+    } else if (playsMedia) {
+        begin(w, "a:hlinkClick");
+        attribute(w, "r:id", QString());
+        attribute(w, "action", QStringLiteral("ppaction://media"));
+        w.writeEndElement();
     }
+    w.writeEndElement();
+}
+
+// A picture's movie or sound, in its p:nvPr after any p:ph.
+void writeMedia(QXmlStreamWriter &w, const PictureItem &p, const MediaRelations &media)
+{
+    if (media.link.isEmpty()) return;
+    begin(w, p.mediaKind == QLatin1String("video") ? "a:videoFile" : "a:audioFile");
+    attribute(w, "r:link", media.link);
+    w.writeEndElement();
+    if (media.copy.isEmpty()) return;
+    begin(w, "p:extLst");
+    begin(w, "p:ext");
+    attribute(w, "uri", QStringLiteral("{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}"));
+    begin(w, "p14:media");
+    w.writeAttribute(QStringLiteral("xmlns:p14"), QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main"));
+    attribute(w, "r:embed", media.copy);
+    w.writeEndElement();
+    w.writeEndElement();
     w.writeEndElement();
 }
 
@@ -604,9 +627,10 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         return;
     }
     const int id = takeId(ctx, p);
+    const MediaRelations media = relateMedia(ctx, p);
     begin(w, "p:pic");
     begin(w, "p:nvPicPr");
-    writeIdentity(w, p, id, say("Picture"), ctx);
+    writeIdentity(w, p, id, say("Picture"), ctx, !media.link.isEmpty());
     begin(w, "p:cNvPicPr");
     begin(w, "a:picLocks");
     attribute(w, "noChangeAspect", QStringLiteral("1"));
@@ -614,6 +638,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     w.writeEndElement();
     begin(w, "p:nvPr");
     if (ph.is) writePlaceholder(w, ph);
+    writeMedia(w, p, media);
     w.writeEndElement();
     w.writeEndElement();
 

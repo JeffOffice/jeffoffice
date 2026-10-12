@@ -8,6 +8,7 @@
 #include <QBuffer>
 #include <QImage>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QSvgRenderer>
 #include <algorithm>
 #include <cmath>
@@ -136,7 +137,8 @@ QString relate(DrawingWriteContext &ctx, const QString &type, const QString &tar
     const QString key = type + (external ? QLatin1String(" external ") : QLatin1String(" internal ")) + target;
     const auto known = ctx.relations.constFind(key);
     if (known != ctx.relations.constEnd()) return *known;
-    const QString id = ctx.package->addRelationship(ctx.part, QString(ns::R) + QLatin1Char('/') + type, target, external);
+    const QString uri = type.contains(QLatin1String("://")) ? type : QString(ns::R) + QLatin1Char('/') + type;
+    const QString id = ctx.package->addRelationship(ctx.part, uri, target, external);
     ctx.relations.insert(key, id);
     return id;
 }
@@ -173,6 +175,43 @@ QString relatePicture(DrawingWriteContext &ctx, const QString &imageId)
 QString relateAddress(DrawingWriteContext &ctx, const QString &address)
 {
     return relate(ctx, QStringLiteral("hyperlink"), address, true);
+}
+
+MediaRelations relateMedia(DrawingWriteContext &ctx, const PictureItem &p)
+{
+    MediaRelations r;
+    const bool video = p.mediaKind == QLatin1String("video");
+    if (!video && p.mediaKind != QLatin1String("audio")) return r;
+    const QString type = video ? QStringLiteral("video") : QStringLiteral("audio");
+    if (!p.mediaId.isEmpty() && ctx.package && ctx.mediaParts && ctx.mediaBytes) {
+        // Stored once for each media id, beside the pictures, as the presentation program does.
+        const QString key = QStringLiteral("media:") + p.mediaId;
+        QString part = ctx.mediaParts->value(key);
+        if (part.isEmpty()) {
+            QString contentType, extension;
+            const QByteArray bytes = ctx.mediaBytes(p.mediaId, &contentType, &extension);
+            static const QRegularExpression plain(QStringLiteral("^[a-z0-9]{1,8}$"));
+            extension = extension.toLower();
+            if (!plain.match(extension).hasMatch()) extension = QStringLiteral("bin");
+            if (contentType.isEmpty()) contentType = video ? QStringLiteral("video/unknown") : QStringLiteral("audio/unknown");
+            if (!bytes.isEmpty()) {
+                const QStringList taken = ctx.mediaParts->values();
+                int n = 1;
+                do {
+                    part = QStringLiteral("/ppt/media/media%1.%2").arg(n++).arg(extension);
+                } while (taken.contains(part));
+                ctx.package->addPart(part, bytes, contentType);
+                ctx.mediaParts->insert(key, part);
+            }
+        }
+        if (!part.isEmpty()) {
+            r.link = relate(ctx, type, part);
+            r.copy = relate(ctx, QStringLiteral("http://schemas.microsoft.com/office/2007/relationships/media"), part);
+            return r;
+        }
+    }
+    if (!p.mediaLink.isEmpty()) r.link = relate(ctx, type, p.mediaLink, true);
+    return r;
 }
 
 } // namespace jp::office::dmlwrite

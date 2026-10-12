@@ -669,6 +669,15 @@ QString Document::addImage(const QByteArray &bytes, const QString &format, const
     return id;
 }
 
+QString Document::addMedia(const QByteArray &bytes, const QString &contentType, const QString &extension)
+{
+    for (auto it = media.cbegin(); it != media.cend(); ++it)
+        if (it->bytes == bytes) return it.key();
+    const QString id = newId("media");
+    media.insert(id, MediaData{bytes, contentType, extension.toLower()});
+    return id;
+}
+
 QString Document::addLinkedImage(const QByteArray &bytes, const QString &format, const QString &path, bool keepCopy, int pdfPage, const QImage &decoded,
                                  const QByteArray &fileHash)
 {

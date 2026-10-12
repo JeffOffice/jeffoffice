@@ -356,6 +356,9 @@ office::DrawingContext Importer::contextFor(const MasterCtx &master, const offic
     ctx.formats = master.formats;
     ctx.themePart = master.themePart;
     ctx.addImage = [this](const QByteArray &bytes, const QString &format) { return addImage(bytes, format); };
+    ctx.addMedia = [this](const QByteArray &bytes, const QString &contentType, const QString &extension) {
+        return m_doc.addMedia(bytes, contentType, extension);
+    };
     ctx.newStory = [this] { return m_doc.createStory(); };
     ctx.storyDoc = [this](const QString &id) { return m_doc.storyDoc(id); };
     return ctx;
