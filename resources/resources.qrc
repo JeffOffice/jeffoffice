@@ -1549,6 +1549,10 @@
     <file>fontwidths.txt</file>
     <file>fontkerning.txt</file>
   </qresource>
+  <qresource prefix="/brand">
+    <file alias="jeffoffice-lockup.png">brand/jeffoffice-lockup.png</file>
+    <file alias="jeffoffice-lockup-on-dark.png">brand/jeffoffice-lockup-on-dark.png</file>
+  </qresource>
   <qresource prefix="/help">
     <file alias="context.json">help/context.json</file>
     <file alias="de/accessibility.md">help/de/accessibility.md</file>

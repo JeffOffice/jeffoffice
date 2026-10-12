@@ -1487,6 +1487,55 @@ QWidget *Backstage::buildExport()
     return w;
 }
 
+// One app of the suite: a rounded tile in the app's color holding its two
+// letters, its name in bold, what it makes, and where it stands.
+// The columns are the widths given, so the rows line up.
+static QWidget *suiteRow(QWidget *parent, const QString &name, const QString &letters, const QColor &color, const QString &what, const QString &state,
+                         bool muted, const int (&widths)[3], const QString &accessible)
+{
+    auto *row = new QWidget(parent);
+    row->setAccessibleName(accessible);
+    auto *h = new QHBoxLayout(row);
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(12);
+    auto *tile = new QLabel(row);
+    const qreal dpr = parent->devicePixelRatioF();
+    QPixmap pm(QSize(28, 28) * dpr);
+    pm.setDevicePixelRatio(dpr);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setPen(Qt::NoPen);
+    p.setBrush(color);
+    p.drawRoundedRect(QRectF(0, 0, 28, 28), 28 * 0.24, 28 * 0.24);
+    QFont tf = parent->font();
+    tf.setWeight(QFont::Medium);
+    tf.setPixelSize(12);
+    p.setFont(tf);
+    p.setPen(Qt::white);
+    p.drawText(QRectF(0, 0, 28, 28), Qt::AlignCenter, letters);
+    p.end();
+    tile->setPixmap(pm);
+    h->addWidget(tile);
+    auto *nameLabel = new QLabel(name, row);
+    QFont nf = nameLabel->font();
+    nf.setBold(true);
+    nameLabel->setFont(nf);
+    nameLabel->setFixedWidth(widths[0]);
+    h->addWidget(nameLabel);
+    auto *whatLabel = new QLabel(what, row);
+    // A narrow window clips this column, not the state; the stretches give it
+    // all the room it can use before the spare goes to the end of the row.
+    whatLabel->setMaximumWidth(widths[1]);
+    whatLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    h->addWidget(whatLabel, 1000);
+    QLabel *stateLabel = muted ? mutedLabel(state, row) : new QLabel(state, row);
+    stateLabel->setFixedWidth(widths[2]);
+    h->addWidget(stateLabel);
+    h->addStretch(1);
+    return row;
+}
+
 QWidget *Backstage::buildAbout()
 {
     auto *w = new QWidget();
@@ -1494,6 +1543,56 @@ QWidget *Backstage::buildAbout()
     v->setContentsMargins(40, 30, 40, 30);
     v->setSpacing(14);
     v->addWidget(heading(tr("About"), w));
+
+    // The suite JeffPub belongs to: the JeffOffice logo, then each app.
+    auto *suite = cardFrame(w);
+    suite->setMaximumWidth(820);
+    auto *suv = new QVBoxLayout(suite);
+    suv->setContentsMargins(20, 16, 20, 16);
+    suv->setSpacing(10);
+    auto *logo = new QLabel(suite);
+    {
+        const qreal dpr = devicePixelRatioF();
+        const QImage lockup(uiDark() ? QStringLiteral(":/brand/jeffoffice-lockup-on-dark.png") : QStringLiteral(":/brand/jeffoffice-lockup.png"));
+        QPixmap pm = QPixmap::fromImage(lockup.scaledToHeight(qRound(40 * dpr), Qt::SmoothTransformation));
+        pm.setDevicePixelRatio(dpr);
+        logo->setPixmap(pm);
+        logo->setAccessibleName(QStringLiteral("JeffOffice"));
+    }
+    suv->addWidget(logo);
+    auto *suh = new QLabel(tr("JeffOffice apps"), suite);
+    QFont suf = suh->font();
+    suf.setWeight(QFont::DemiBold);
+    suh->setFont(suf);
+    suv->addWidget(suh);
+    struct App { const char *name, *letters, *color; QString what; bool here; };
+    const App apps[] = {
+        {"JeffPub", "JP", "#9E1F63", tr("Publications"), true},
+        {"JeffDeck", "JD", "#B6420F", tr("Presentations"), false},
+        {"JeffWrite", "JW", "#1D55C4", tr("Documents"), false},
+        {"JeffCrunch", "JC", "#13773A", tr("Spreadsheets"), false},
+        {"JeffMail", "JM", "#0A6C8C", tr("Email and calendar"), false},
+        {"JeffBase", "JB", "#5E2CA5", tr("Databases"), false},
+    };
+    const QString inUse = tr("You're using it"), soon = tr("Coming soon");
+    auto line = [](const QString &what) { return QStringLiteral("— %1").arg(what); };
+    QFont bold = font();
+    bold.setBold(true);
+    const QFontMetrics plain(font()), strong(bold);
+    int widths[3] = {0, 0, qMax(plain.horizontalAdvance(inUse), plain.horizontalAdvance(soon))};
+    for (const App &a : apps) {
+        widths[0] = qMax(widths[0], strong.horizontalAdvance(QLatin1String(a.name)));
+        widths[1] = qMax(widths[1], plain.horizontalAdvance(line(a.what)));
+    }
+    widths[0] += 4;
+    widths[1] += 16;   // and room before the state
+    widths[2] += 4;
+    for (const App &a : apps) {
+        const QString state = a.here ? inUse : soon;
+        suv->addWidget(suiteRow(suite, QLatin1String(a.name), QLatin1String(a.letters), QColor(QLatin1String(a.color)), line(a.what), state,
+                                !a.here, widths, tr("%1, %2, %3").arg(QLatin1String(a.name), a.what, state)));
+    }
+    v->addWidget(suite);
 
     // Identity card: badge, name, version and the one-line description.
     auto *id = cardFrame(w);
