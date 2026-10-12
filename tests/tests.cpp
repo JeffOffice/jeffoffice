@@ -8222,6 +8222,49 @@ private Q_SLOTS:
         QCOMPARE(jp::uiLanguageName(QStringLiteral("pt_PT")), QStringLiteral("Português (Portugal)"));
     }
 
+    // File > About lists the suite's apps under the JeffOffice logo, each row
+    // named for screen readers, and the five still to come say so.
+    void aboutListsTheSuiteApps()
+    {
+        QVERIFY(!QImage(QStringLiteral(":/brand/jeffoffice-lockup.png")).isNull());
+        QVERIFY(!QImage(QStringLiteral(":/brand/jeffoffice-lockup-on-dark.png")).isNull());
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        w.showBackstage(QStringLiteral("about"));
+        const QStringList rows = {QStringLiteral("JeffPub, Publications, You're using it"), QStringLiteral("JeffDeck, Presentations, Coming soon"),
+                                  QStringLiteral("JeffWrite, Documents, Coming soon"), QStringLiteral("JeffCrunch, Spreadsheets, Coming soon"),
+                                  QStringLiteral("JeffMail, Email and calendar, Coming soon"), QStringLiteral("JeffBase, Databases, Coming soon")};
+        QStringList named;
+        int comingSoon = 0;
+        QStringList appNames;
+        QLabel *version = nullptr;
+        for (QWidget *c : w.findChildren<QWidget *>()) {
+            if (!c->isVisibleTo(&w)) continue;
+            if (rows.contains(c->accessibleName())) named << c->accessibleName();
+            if (auto *l = qobject_cast<QLabel *>(c)) {
+                if (l->text() == QLatin1String("Coming soon")) ++comingSoon;
+                if (l->text().startsWith(QLatin1String("Version ")) && l->text().contains(QLatin1String("Qt"))) version = l;
+                for (const QString &r : rows)
+                    if (l->text() == r.section(QLatin1String(", "), 0, 0)) appNames << l->text();
+            }
+        }
+        named.sort();
+        QStringList want = rows;
+        want.sort();
+        QCOMPARE(named, want);
+        QCOMPARE(comingSoon, 5);
+        for (const QString &r : rows) QVERIFY2(appNames.contains(r.section(QLatin1String(", "), 0, 0)), qPrintable(r));
+        // The suite comes first on the page, above the version.
+        QVERIFY(version);
+        QLabel *logo = nullptr;
+        for (QLabel *l : w.findChildren<QLabel *>())
+            if (l->isVisibleTo(&w) && l->accessibleName() == QLatin1String("JeffOffice")) logo = l;
+        QVERIFY(logo);
+        QVERIFY(!logo->pixmap().isNull());
+        QTRY_VERIFY(logo->mapTo(&w, QPoint(0, 0)).y() < version->mapTo(&w, QPoint(0, 0)).y());
+    }
+
     // The ribbon's text, in resources/ribbon.json where lupdate can't see
     // it, is listed for translators in apps/pub/app/ribbon_strings.cpp; this
     // keeps that list current (run tools/ribbon_strings.py).
