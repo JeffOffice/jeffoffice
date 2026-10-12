@@ -51,6 +51,11 @@ struct OdrawContext {
     // placeholder takes after its master's); empty for a shape that takes
     // after none.
     std::function<QByteArray(const QByteArray &clientData)> inherits;
+    // The XML the shape's writer kept beside its properties for the shape
+    // (property 0x03A9: a package whose shape part is a DrawingML shape, which
+    // holds what the properties can't), for the host to take the shape's look
+    // from. Called after the item is made, before its client records are read.
+    std::function<void(Item &item, const QByteArray &package)> richLook;
     // The page's own background fill, which a shape filled the background
     // way (fillType 9) shows where it is; none when the host can't say. Given
     // the shape's frame, for a fill that keeps its place on the page (tiles).

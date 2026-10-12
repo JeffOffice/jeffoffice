@@ -5249,6 +5249,39 @@ private Q_SLOTS:
         QCOMPARE(int(preset.stops.size()), 2);
     }
 
+    // A shape that carries the XML its writer made for it (property 0x03A9) hands it to the host, which may take the shape's look from it.
+    // A shape that takes after another doesn't have that one's XML, or its name, or its link.
+    void odrawGivesTheWritersXmlToTheHost()
+    {
+        OdrawContext ctx = odContext();
+        QStringList got;
+        ctx.richLook = [&](Item &item, const QByteArray &xml) {
+            got << QString::fromLatin1(xml);
+            item.altText = QStringLiteral("seen");
+        };
+        ctx.inherits = [](const QByteArray &data) {
+            return data == "ph" ? odProps({{0x03A9, 0, QByteArray("master xml")}, {0x0380, 0, odUtf16z(QStringLiteral("Master name"))}, {0x0381, 0, odUtf16z(QStringLiteral("Master alt"))},
+                                           {0x0382, 0, odUrlHyperlink(QStringLiteral("https://example.org"), QString(), true)}, {0x0181, 0x0000FF}, {0x01BF, 0x00100010}})
+                                   : QByteArray();
+        };
+        auto shapeOf = [&](const QVector<OdProp> &props, const QByteArray &data) {
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10), data.isEmpty() ? QByteArray() : odRecord(0, 0, 0xF011, data))), ctx)[0];
+        };
+        ItemPtr it = shapeOf({{0x03A9, 0, QByteArray("<p:sp/>")}}, QByteArray());
+        QCOMPARE(got, QStringList({QStringLiteral("<p:sp/>")}));
+        QCOMPARE(it->altText, QStringLiteral("seen"));
+        got.clear();
+        it = shapeOf({}, "ph");
+        QVERIFY(got.isEmpty());
+        QVERIFY(it->name.isEmpty());
+        QVERIFY(it->altText.isEmpty());
+        QVERIFY(it->hyperlink.isEmpty());
+        QCOMPARE(odRgb(it->fill.color), QColor(255, 0, 0));   // what it looks like, it does have
+        // No host function, or no XML: nothing happens.
+        ctx.richLook = nullptr;
+        QVERIFY(shapeOf({{0x03A9, 0, QByteArray("<p:sp/>")}}, QByteArray())->altText.isEmpty());
+    }
+
     // A picture or texture fill has the brightness and contrast of its shape (a texture washed out for a background): the host makes
     // the picture the fill shows from them, as the picture items have them (a percent each way).
     void odrawFillsAdjustTheirPictures()
