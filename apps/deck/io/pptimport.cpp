@@ -54,6 +54,8 @@ constexpr qint64 kMaxTotalParagraphs = 200000, kMaxTotalPieces = 500000;
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
 // The XML a writer kept for a shape or a theme: the most of one that is read, and of all of them.
+// The most pixels of a picture that has its brightness or contrast applied to them, or its tiles moved.
+constexpr qint64 kMaxAdjustedPixels = 16'000'000;
 constexpr qsizetype kMaxWritersXml = 1 << 20;
 constexpr qint64 kMaxTotalWritersXml = 64 << 20;
 // What the frames made as tall as their text may cost: the time (milliseconds) all of them take together, and the size of a text.
@@ -1297,7 +1299,7 @@ QString Importer::adjustedPicture(const QString &id, double brightness, double c
     if (const auto it = m_adjusted.constFind(key); it != m_adjusted.constEnd()) return it.value();
     QString result = id;
     QImage img = m_doc.image(id);
-    if (!img.isNull() && m_adjusted.size() < 200) {
+    if (!img.isNull() && qint64(img.width()) * img.height() <= kMaxAdjustedPixels && m_adjusted.size() < 200) {
         img = img.convertToFormat(QImage::Format_ARGB32);
         const double bright = brightness / 100.0, factor = (100.0 + contrast) / 100.0;
         auto level = [&](int v) { return std::clamp(int(std::lround(((v / 255.0 - 0.5) * factor + 0.5 + bright * (1 + factor) / 2) * 255)), 0, 255); };
@@ -1328,7 +1330,7 @@ Fill Importer::backgroundAt(const Fill &background, const QRectF &shape)
         return f;
     }
     const QImage tile = m_doc.image(background.imageId);
-    if (tile.isNull() || m_adjusted.size() >= 200) return background;
+    if (tile.isNull() || qint64(tile.width()) * tile.height() > kMaxAdjustedPixels || m_adjusted.size() >= 200) return background;
     // The tile seen from a point further along, as the brush of the shape starts at its corner.
     QImage moved(tile.size(), QImage::Format_ARGB32);
     moved.fill(Qt::transparent);
