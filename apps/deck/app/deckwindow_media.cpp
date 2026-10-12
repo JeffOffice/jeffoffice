@@ -142,7 +142,7 @@ bool DeckWindow::insertMedia(const QString &path, const QString &kind)
 }
 
 // A change to how the selected movie or sound plays, as one step that undoes. The timing is rewritten only for what changed.
-void DeckWindow::editMedia(const QString &label, const std::function<void(deck::MediaPlay &)> &change)
+void DeckWindow::editMedia(const QString &label, const std::function<void(deck::MediaPlay &)> &change, qint64 fileLength)
 {
     PictureItem *pic = selectedMedia(m_ed);
     if (!pic) return;
@@ -158,7 +158,7 @@ void DeckWindow::editMedia(const QString &label, const std::function<void(deck::
     m_ed->endTextEdit();
     m_ed->beginChange(label);
     // The Playback tab's changes find the picture again: the change may have copied the document.
-    if (PictureItem *now = selectedMedia(m_ed)) deck::setMediaPlay(*d->pages[m_ed->currentPage()], *now, play);
+    if (PictureItem *now = selectedMedia(m_ed)) deck::setMediaPlay(*d->pages[m_ed->currentPage()], *now, play, fileLength);
     m_ed->endChange();
     m_canvas->media()->refresh(id);
 }
@@ -197,7 +197,7 @@ void DeckWindow::trimMedia()
     editMedia(tr("Trim"), [start, end](deck::MediaPlay &p) {
         p.trimStart = start;
         p.trimEnd = end;
-    });
+    }, length);
 }
 
 // The Playback tab's boxes: each reads the selected movie or sound again whenever the selection or the slide changes.

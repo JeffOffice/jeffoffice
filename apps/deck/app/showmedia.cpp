@@ -368,6 +368,7 @@ void ShowMedia::paint(QPainter *p)
             const deck::MediaPlay play = m_plan.plays.value(pic->sourceId);
             s.volume = std::clamp(play.volume / 100000.0, 0.0, 1.0);
             s.muted = play.mute;
+            s.length = play.lengthHint;
         }
         MediaBar::paint(p, barFor(*pic), s, m_hoverPart);
     }

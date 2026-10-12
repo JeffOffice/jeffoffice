@@ -43,6 +43,7 @@ struct MediaPlay {
     int acrossSlides = 1;                 // slides it plays across; more than 1 and it goes on when the slide changes
     int trimStart = 0, trimEnd = 0;       // ms into the file it plays from and to; 0 for the end: the whole file
     int fadeIn = 0, fadeOut = 0;          // ms its volume rises at the start and falls at the end
+    int lengthHint = 0;                   // ms it plays for, as the timing's call says (0 if it doesn't); for a bar to show before the file is played. Not compared
     bool operator==(const MediaPlay &o) const;
     bool operator!=(const MediaPlay &o) const { return !(*this == o); }
 };

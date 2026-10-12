@@ -118,7 +118,8 @@ public:
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
     bool insertMedia(const QString &path, const QString &kind = QString());
     // Changes how the selected movie or sound plays, as one step that undoes (the Playback tab's boxes).
-    void editMedia(const QString &label, const std::function<void(deck::MediaPlay &)> &change);
+    // `fileLength` is how long the whole file lasts, in milliseconds, when the change knows it (a trim does).
+    void editMedia(const QString &label, const std::function<void(deck::MediaPlay &)> &change, qint64 fileLength = 0);
     // Plays the selected movie or sound on the slide, or pauses it.
     void playMedia();
     // Starts the slide show at `slide` (0 is the first).

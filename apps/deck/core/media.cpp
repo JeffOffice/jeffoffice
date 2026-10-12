@@ -202,6 +202,7 @@ QHash<int, MediaNode> mediaNodesOf(const QString &timingXml)
 // by a click on a shape.
 struct Starts {
     QHash<int, MediaStart> byShape;
+    QHash<int, int> length;   // ms the call to the media says it lasts, where it says
 };
 
 Starts startsOf(const Timeline &tl)
@@ -211,14 +212,19 @@ Starts startsOf(const Timeline &tl)
         for (const Effect &e : step.effects) {
             if (e.cls != EffectClass::Media) continue;
             for (const Behavior &b : e.behaviors)
-                if (b.kind == Behavior::Kind::Command && b.target.shape > 0 && !s.byShape.contains(b.target.shape))
+                if (b.kind == Behavior::Kind::Command && b.target.shape > 0 && !s.byShape.contains(b.target.shape)) {
                     s.byShape.insert(b.target.shape, step.automatic || e.start != EffectStart::OnClick ? MediaStart::Automatically : MediaStart::ClickSequence);
+                    if (b.timing.duration > 1 && b.timing.duration < 86400000) s.length.insert(b.target.shape, int(b.timing.duration));
+                }
         }
     for (const Trigger &t : tl.triggers)
         for (const Effect &e : t.effects)
             if (e.cls == EffectClass::Media)
                 for (const Behavior &b : e.behaviors)
-                    if (b.kind == Behavior::Kind::Command && b.target.shape > 0 && !s.byShape.contains(b.target.shape)) s.byShape.insert(b.target.shape, MediaStart::WhenClickedOn);
+                    if (b.kind == Behavior::Kind::Command && b.target.shape > 0 && !s.byShape.contains(b.target.shape)) {
+                        s.byShape.insert(b.target.shape, MediaStart::WhenClickedOn);
+                        if (b.timing.duration > 1 && b.timing.duration < 86400000) s.length.insert(b.target.shape, int(b.timing.duration));
+                    }
     return s;
 }
 
@@ -243,6 +249,7 @@ MediaPlay playOf(const PictureItem &pic, const QHash<int, MediaNode> &nodes, con
             p.acrossSlides = node->across;
         }
         p.start = starts.byShape.value(pic.sourceId, MediaStart::ClickSequence);
+        p.lengthHint = starts.length.value(pic.sourceId, 0);
     }
     return p;
 }
@@ -449,7 +456,8 @@ Node mediaNode(TimingTree &t, const MediaPlay &p, int beginsWith)
 void addMedia(TimingTree &t, const MediaPlay &p, qint64 lengthMs)
 {
     if (!t.list) return;
-    const qint64 ms = lengthMs > 0 ? std::max<qint64>(1, (p.trimEnd > 0 && p.trimEnd < lengthMs ? p.trimEnd : lengthMs) - p.trimStart) : 1;
+    // How long the call lasts: what the file's length leaves after the trim, else what the settings it comes from say, else nothing known.
+    const qint64 ms = lengthMs > 0 ? std::max<qint64>(1, (p.trimEnd > 0 && p.trimEnd < lengthMs ? p.trimEnd : lengthMs) - p.trimStart) : std::max<qint64>(1, p.lengthHint);
     int effectId = 0;
     const QString start = QStringLiteral("playFrom(0.0)");
     if (p.start != MediaStart::WhenClickedOn) {
