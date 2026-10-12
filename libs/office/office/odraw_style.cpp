@@ -14,7 +14,7 @@ namespace {
 // Property numbers.
 enum : quint16 {
     kFillType = 0x0180, kFillColor = 0x0181, kFillOpacity = 0x0182, kFillBackColor = 0x0183, kFillBackOpacity = 0x0184,
-    kFillBlip = 0x0186, kFillAngle = 0x018B, kFillFocus = 0x018C, kFillShadeColors = 0x0196, kFillStyleFlags = 0x01BF,
+    kFillBlip = 0x0186, kFillAngle = 0x018B, kFillFocus = 0x018C, kFillShadeColors = 0x0197, kFillShadeType = 0x019C, kFillStyleFlags = 0x01BF,
     kLineColor = 0x01C0, kLineOpacity = 0x01C1, kLineBackColor = 0x01C2, kLineWidth = 0x01CB, kLineStyle = 0x01CD,
     kLineDashing = 0x01CE, kLineStartArrow = 0x01D0, kLineEndArrow = 0x01D1, kLineStartArrowWidth = 0x01D2,
     kLineStartArrowLength = 0x01D3, kLineEndArrowWidth = 0x01D4, kLineEndArrowLength = 0x01D5, kLineJoin = 0x01D6,
@@ -102,31 +102,71 @@ QColor resolveColor(quint32 raw, const Props &p, const OdrawContext &ctx, const 
 
 double opacityOf(const Props &p, quint16 id) { return std::clamp(p.fixed(id, 1.0), 0.0, 1.0); }
 
-// A gradient: the colors run from the fill color's end to the back color's.
+// A shaded fill's stops with each stretch between two colors made a curve: the position eased by the sigma shape (when the shade type has
+// its bit), and the colors blended in linear light (the gamma bit), as the program draws them.
+QVector<GradientStop> shaded(const QVector<GradientStop> &stops, quint32 shadeType)
+{
+    const bool gamma = shadeType & 1, sigma = shadeType & 2;
+    if ((!gamma && !sigma) || stops.size() < 2) return stops;
+    constexpr int kSteps = 8;
+    constexpr double kGamma = 2.2;
+    QVector<GradientStop> out;
+    for (int i = 0; i + 1 < stops.size(); ++i) {
+        const GradientStop &a = stops[i], &b = stops[i + 1];
+        out << a;
+        const QColor from = a.color.rgbValue(), to = b.color.rgbValue();
+        if (from == to || b.pos - a.pos < 1e-9) continue;
+        for (int k = 1; k < kSteps; ++k) {
+            const double u = double(k) / kSteps, e = sigma ? u * u * (3 - 2 * u) : u;
+            auto blend = [&](double x, double y) { return gamma ? std::pow((1 - e) * std::pow(x, kGamma) + e * std::pow(y, kGamma), 1 / kGamma) : x + (y - x) * e; };
+            out << GradientStop{a.pos + (b.pos - a.pos) * u, ColorRef::rgb(QColor::fromRgbF(float(blend(from.redF(), to.redF())), float(blend(from.greenF(), to.greenF())),
+                                                                                                float(blend(from.blueF(), to.blueF())))),
+                                a.transparency + (b.transparency - a.transparency) * u};
+        }
+    }
+    out << stops.last();
+    return out;
+}
+
+// A gradient: the colors run from the fill color's end to the back color's, or as the list of colors says, as the focus lays them out.
 Fill gradientFill(const Props &p, const OdrawContext &ctx, int type, const QColor &fillColor, const QColor &backColor, double opacity, double backOpacity)
 {
-    QVector<GradientStop> stops;
-    auto stop = [&](double pos, const QColor &c, double alpha) { stops << GradientStop{pos, ColorRef::rgb(c), 1 - alpha}; };
+    // The colors along the ramp, from 0 (the fill color's end) to 1 (the back color's), with their opacity.
+    struct Color { double at; QColor color; double alpha; };
+    QVector<Color> ramp;
     const QByteArray list = p.complex(kFillShadeColors);
     const ArrayView colors = arrayOf(list);
-    if (colors.count >= 2 && colors.size >= 8) {
+    const bool hasList = colors.count >= 2 && colors.size >= 8;
+    if (hasList) {
         for (int i = 0; i < colors.count; ++i) {
-            const double pos = std::clamp(i32(list, colors.offset(i) + 4) / 65536.0, 0.0, 1.0);
-            stop(pos, resolveColor(u32(list, colors.offset(i)), p, ctx, QColor(Qt::white), 0), opacity + (backOpacity - opacity) * pos);
+            const double at = std::clamp(i32(list, colors.offset(i) + 4) / 65536.0, 0.0, 1.0);
+            ramp << Color{at, resolveColor(u32(list, colors.offset(i)), p, ctx, QColor(Qt::white), 0), opacity + (backOpacity - opacity) * at};
         }
-        std::stable_sort(stops.begin(), stops.end(), [](const GradientStop &a, const GradientStop &b) { return a.pos < b.pos; });
+        std::stable_sort(ramp.begin(), ramp.end(), [](const Color &a, const Color &b) { return a.at < b.at; });
     } else {
-        // The focus: 0 runs the colors across; at 50 the first color is at both
-        // ends and the second in the middle; at 100 the colors run the other
-        // way; below zero the colors change places.
-        const int focus = std::clamp(p.integer(kFillFocus, 0), -100, 100);
-        const double a = std::abs(focus) / 100.0;
-        const QColor c0 = focus < 0 ? backColor : fillColor, c1 = focus < 0 ? fillColor : backColor;
-        const double o0 = focus < 0 ? backOpacity : opacity, o1 = focus < 0 ? opacity : backOpacity;
-        if (1 - a > 1e-9) stop(0, c0, o0);
-        stop(1 - a, c1, o1);
-        if (a > 1e-9) stop(1, c0, o0);
+        ramp << Color{0, fillColor, opacity} << Color{1, backColor, backOpacity};
     }
+    // The focus: 0 runs the colors across; at 50 they run out to the middle and back (the first color is at both ends and the last in
+    // the middle); at 100 they run the other way; below zero they start from the other end.
+    const int focus = std::clamp(p.integer(kFillFocus, 0), -100, 100);
+    const double a = std::abs(focus) / 100.0;
+    if (focus < 0) {
+        std::reverse(ramp.begin(), ramp.end());
+        for (Color &c : ramp) c.at = 1 - c.at;
+    }
+    QVector<GradientStop> stops;
+    QColor last;
+    auto stop = [&](double pos, const Color &c) {
+        if (!stops.isEmpty() && std::abs(stops.last().pos - pos) < 1e-9 && last == c.color && std::abs(stops.last().transparency - (1 - c.alpha)) < 1e-9) return;
+        stops << GradientStop{pos, ColorRef::rgb(c.color), 1 - c.alpha};
+        last = c.color;
+    };
+    if (1 - a > 1e-9)
+        for (const Color &c : std::as_const(ramp)) stop(c.at * (1 - a), c);
+    if (a > 1e-9)
+        for (int i = int(ramp.size()) - 1; i >= 0; --i) stop(1 - ramp[i].at * a, ramp[i]);
+    // The shading curve of two colors: gamma and sigma unless the shape says otherwise. A list of colors is drawn as it stands.
+    if (!hasList) stops = shaded(stops, p.value(kFillShadeType, 3) & 0xF);
     // From the center or along the outline, the first color is the outer one.
     const bool fromCenter = type == 5 || type == 6;
     if (fromCenter) {
@@ -164,7 +204,11 @@ Arrow arrowOf(quint32 end)
 
 QColor colorProperty(const Props &props, const OdrawContext &ctx, quint16 id) { return colorFor(props, ctx, id, 0); }
 
-Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault)
+double pictureBrightness(const Props &p) { return p.has(0x0109) ? std::clamp(p.integer(0x0109, 0) / 327.68, -100.0, 100.0) : 0; }
+
+double pictureContrast(const Props &p) { return p.has(0x0108) ? std::clamp((p.fixed(0x0108, 1.0) - 1.0) * 100, -100.0, 100.0) : 0; }
+
+Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault, const QRectF &shape)
 {
     if (!p.flag(kFillStyleFlags, 0x10, filledByDefault)) return Fill();
     const int type = int(p.value(kFillType, 0));
@@ -174,8 +218,12 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault)
     case 1: case 2: case 3: {
         // A pattern, a texture, or a picture: the picture the fill's blip names.
         const int index = int(p.value(kFillBlip, 0));
-        const QString image = index > 0 && ctx.picture ? ctx.picture(index) : QString();
+        QString image = index > 0 && ctx.picture ? ctx.picture(index) : QString();
         if (image.isEmpty()) break;
+        if (ctx.adjusted && (pictureBrightness(p) != 0 || pictureContrast(p) != 0)) {
+            const QString changed = ctx.adjusted(image, pictureBrightness(p), pictureContrast(p));
+            if (!changed.isEmpty()) image = changed;
+        }
         Fill f;
         f.type = type == 3 ? Fill::Picture : Fill::Texture;
         f.color = ColorRef::rgb(fillColor);
@@ -187,7 +235,7 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault)
     case 4: case 5: case 6: case 7: case 8:
         return gradientFill(p, ctx, type, fillColor, backColor, opacity, backOpacity);
     case 9:
-        return Fill();   // the page's own background shows through
+        return ctx.background ? ctx.background(shape) : Fill();   // the page's own background shows through
     default:
         break;
     }

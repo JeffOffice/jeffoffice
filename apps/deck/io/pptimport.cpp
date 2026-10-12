@@ -5,13 +5,27 @@
 #include "core/deck.h"
 #include "core/transition.h"
 #include "io/cfb.h"
+#include "office/drawingml.h"
+#include "office/drawingml_style.h"
 #include "office/odraw.h"
+#include "office/package.h"
+#include "office/theme.h"
+#include "office/xml.h"
+#include "render/renderer.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
+#include <QBuffer>
 #include <QCoreApplication>
+#include <QDomDocument>
+#include <QElapsedTimer>
 #include <QHash>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QMap>
+#include <QPainter>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -39,6 +53,14 @@ constexpr int kMaxRuns = 20000, kMaxParagraphs = 10000;
 constexpr qint64 kMaxTotalParagraphs = 200000, kMaxTotalPieces = 500000;
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
+// The XML a writer kept for a shape or a theme: the most of one that is read, and of all of them.
+// The most pixels of a picture that has its brightness or contrast applied to them, or its tiles moved.
+constexpr qint64 kMaxAdjustedPixels = 16'000'000;
+constexpr qsizetype kMaxWritersXml = 1 << 20;
+constexpr qint64 kMaxTotalWritersXml = 64 << 20;
+// What the frames made as tall as their text may cost: the time (milliseconds) all of them take together, and the size of a text.
+constexpr int kFitMilliseconds = 4000;
+constexpr int kFitMaxChars = 20000;
 // The format's unit for places and sizes is 1/576 inch.
 constexpr double kPoints = 72.0 / 576.0;
 // A slide may be 56 inches across at most (the standard's limit), and is a point at least.
@@ -152,6 +174,7 @@ const Rec *find(const QVector<Rec> &list, quint16 type, int inst = -1)
 enum : quint16 {
     RT_Document = 1000, RT_DocumentAtom = 1001, RT_Slide = 1006, RT_SlideAtom = 1007, RT_Notes = 1008, RT_NotesAtom = 1009, RT_Environment = 1010,
     RT_SlidePersistAtom = 1011, RT_MainMaster = 1016, RT_SlideShowSlideInfoAtom = 1017, RT_ExObjList = 1033, RT_DrawingGroup = 1035, RT_PPDrawing = 1036,
+    RT_RoundTripThemeAtom = 1038, RT_RoundTripColorMappingAtom = 1039,
     RT_FontCollection = 2005, RT_ColorSchemeAtom = 2032, RT_PlaceholderAtom = 3011, RT_OutlineTextRefAtom = 3998, RT_TextHeaderAtom = 3999,
     RT_TextCharsAtom = 4000, RT_StyleTextPropAtom = 4001, RT_MasterTextPropAtom = 4002, RT_TextMasterStyleAtom = 4003, RT_TextCFExceptionAtom = 4004,
     RT_TextPFExceptionAtom = 4005, RT_TextRulerAtom = 4006, RT_TextBytesAtom = 4008, RT_TextSpecialInfoAtom = 4010, RT_FontEntityAtom = 4023,
@@ -508,6 +531,15 @@ struct SlideEntry {
     QVector<TextGroup> groups;
 };
 
+// The theme a master's writer kept with it (the old format's round-trip records hold the 2007 program's), the shape XML names colors by,
+// with its list of styles and the master's color mapping.
+struct WritersTheme {
+    office::Theme theme = office::defaultTheme();
+    QDomDocument dom;         // the theme part's XML, which `formats` points into
+    QDomElement formats;
+    office::ColorMap colors;
+};
+
 // A slide master: a main master, or a title master, which the title slides of a main master stand on.
 struct MasterInfo {
     quint32 persist = 0, slideId = 0;
@@ -519,6 +551,8 @@ struct MasterInfo {
     StyleSet styles;
     QString name;
     QByteArray drawing;         // its drawing container (0xF002), header and all
+    QMap<QString, QByteArray> shapeProps;   // the property records of its placeholder shapes, by type: what slides' placeholders take after
+    std::shared_ptr<WritersTheme> theme;    // the theme its writer kept with it, if it did
     ItemList items;
     Fill background;
     std::shared_ptr<MasterPage> page;               // the slide master, of a main master
@@ -546,6 +580,7 @@ struct PageState {
     int contents = 0;                             // content placeholders met so far
     QStringList types;                            // the placeholders met, by type
     bool master = false;
+    Fill background;                              // what the page stands on, for shapes filled with the background
 };
 
 // The type a placeholder is called by ([MS-PPT] 2.13.21 PlaceholderEnum), as presentation files name it.
@@ -576,6 +611,50 @@ bool isTitleType(const QString &t) { return t == QLatin1String("title") || t == 
 bool isFooterType(const QString &t) { return t == QLatin1String("dt") || t == QLatin1String("ftr") || t == QLatin1String("sldNum") || t == QLatin1String("hdr"); }
 // A placeholder that takes the text and the objects of the slide: it is numbered by its place among them.
 bool isContentType(const QString &t) { return !t.isEmpty() && !isTitleType(t) && !isFooterType(t) && t != QLatin1String("sldImg"); }
+
+// The kind of shape a placeholder takes after on a master: a title, a footer of its own kind, or the body.
+QString placeholderKind(const QString &t) { return isTitleType(t) ? QStringLiteral("title") : isFooterType(t) ? t : QStringLiteral("body"); }
+
+// The type of the placeholder a shape is, from the records of its client data (the contents of its client data record); none when it is no
+// placeholder.
+QString placeholderOf(const QByteArray &clientData)
+{
+    QString type;
+    Records rs(clientData);
+    QVector<Rec> kids = rs.in(0, clientData.size());
+    if (kids.size() == 1 && kids.first().type == RT_ClientData) kids = rs.in(kids.first());
+    for (const Rec &r : kids) {
+        if (r.type != RT_PlaceholderAtom || r.len < 5) continue;
+        Cursor c(clientData, r.off, r.end());
+        c.u32();
+        type = placeholderName(c.u8());
+    }
+    return type;
+}
+
+// The property records of the placeholder shapes of a master's drawing (0xF002), by the placeholder's type, the first of each: what the
+// placeholders of the slides on the master take after.
+void readShapeProps(const QByteArray &drawing, QMap<QString, QByteArray> *out)
+{
+    std::function<void(const office::OdrawRecord &, int)> walk = [&](const office::OdrawRecord &box, int depth) {
+        if (depth > 8) return;
+        for (const office::OdrawRecord &r : office::odrawRecords(drawing, box.offset, box.offset + qsizetype(box.length))) {
+            if (r.type == RT_DgContainer || r.type == RT_SpgrContainer) {
+                walk(r, depth + 1);
+                continue;
+            }
+            if (r.type != RT_SpContainer) continue;
+            QByteArray props, clientData;
+            for (const office::OdrawRecord &c : office::odrawRecords(drawing, r.offset, r.offset + qsizetype(r.length))) {
+                if (c.type == 0xF00B || c.type == 0xF121 || c.type == 0xF122) props += drawing.mid(c.offset - 8, qsizetype(c.length) + 8);
+                else if (c.type == RT_ClientData) clientData = drawing.mid(c.offset, qsizetype(c.length));
+            }
+            const QString type = placeholderOf(clientData);
+            if (!type.isEmpty() && !out->contains(type)) out->insert(type, props);
+        }
+    };
+    for (const office::OdrawRecord &r : office::odrawRecords(drawing)) walk(r, 0);
+}
 
 // The text type a placeholder's text has, when its text names none.
 int textTypeOf(const QString &placeholder)
@@ -784,12 +863,16 @@ private:
     QVector<SlideEntry> readSlideList(const Rec &list);
     TextGroup readTextGroup(Records &rs, const QVector<Rec> &recs);
     QString pictureId(int blipIndex);
+    QString adjustedPicture(const QString &id, double brightness, double contrast);
 
     // The masters.
     void readMasters();
     void buildMaster(MasterInfo &m);
+    const Fill &backgroundOf(const MasterInfo &m) const;
+    Fill backgroundAt(const Fill &background, const QRectF &shape);
     void makeMasterPage(MasterInfo &m, int number);
     const Item *masterPlaceholder(const MasterInfo &m, const QString &type) const;
+    QByteArray masterShapeProps(const MasterInfo &m, const QString &type) const;
     QRectF masterRect(const MasterInfo &m, const QString &type) const;
     std::shared_ptr<MasterPage> layoutFor(MasterInfo &main, const MasterInfo &source, int geom);
     void assembleMasters();
@@ -813,6 +896,9 @@ private:
     void clientShape(Item &item, const QByteArray &textbox, const QByteArray &clientData);
     ItemList readShapes(const QByteArray &drawing, PageState &st);
 
+    std::shared_ptr<WritersTheme> readWritersTheme(const QByteArray &themePackage, const QByteArray &colorMapping) const;
+    void takeLookFromWritersXml(Item &item, const QByteArray &package);
+    void fitFramesToText();
     void note(const QString &text);
 
     const QByteArray m_file;
@@ -830,7 +916,10 @@ private:
     StyleSet m_styles;
     QHash<quint32, QString> m_links;
     QVector<office::OdrawStoreEntry> m_store;
+    QByteArray m_defaults;   // the drawing group's default property records
     QHash<int, QString> m_pictureIds;
+    qint64 m_writersXmlBytes = 0;   // the XML of shapes read so far
+    QHash<QString, QString> m_adjusted;   // pictures with brightness and contrast applied, by picture and the two
     QVector<SlideEntry> m_slides, m_masterList, m_notesList;
     std::vector<std::unique_ptr<MasterInfo>> m_masters;
     QHash<quint32, quint32> m_notesOfSlide;   // by slide id, the id of its notes
@@ -1037,6 +1126,8 @@ void Importer::readDrawingGroup(const Rec &r)
     for (const Rec &dgg : m_ppt.in(r)) {
         if (dgg.type != 0xF000) continue;
         for (const Rec &b : m_ppt.in(dgg)) {
+            // The properties a shape has when it names none: its default tables.
+            if (b.type == 0xF00B || b.type == 0xF121 || b.type == 0xF122) m_defaults += view(b);
             if (b.type != 0xF001) continue;
             m_store = office::odrawStore(view(b));
             // A store given as the records inside the container.
@@ -1199,6 +1290,121 @@ QString Importer::pictureId(int blipIndex)
     return id;
 }
 
+// A picture with a brightness and a contrast (a percent each way) in its pixels, as the presentation program draws it: each color is
+// scaled by the contrast about the middle, and moved by the brightness times the mean of one and that scale (fitted to what the program
+// makes of pictures and of washed-out textures). The picture itself when it can't be read.
+QString Importer::adjustedPicture(const QString &id, double brightness, double contrast)
+{
+    const QString key = QStringLiteral("%1|%2|%3").arg(id).arg(brightness).arg(contrast);
+    if (const auto it = m_adjusted.constFind(key); it != m_adjusted.constEnd()) return it.value();
+    QString result = id;
+    QImage img = m_doc.image(id);
+    if (!img.isNull() && qint64(img.width()) * img.height() <= kMaxAdjustedPixels && m_adjusted.size() < 200) {
+        img = img.convertToFormat(QImage::Format_ARGB32);
+        const double bright = brightness / 100.0, factor = (100.0 + contrast) / 100.0;
+        auto level = [&](int v) { return std::clamp(int(std::lround(((v / 255.0 - 0.5) * factor + 0.5 + bright * (1 + factor) / 2) * 255)), 0, 255); };
+        for (int y = 0; y < img.height(); ++y) {
+            QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
+            for (int x = 0; x < img.width(); ++x) line[x] = qRgba(level(qRed(line[x])), level(qGreen(line[x])), level(qBlue(line[x])), qAlpha(line[x]));
+        }
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        if (img.save(&buffer, "PNG")) result = m_doc.addImage(png, QStringLiteral("png"), QString(), img);
+    }
+    m_adjusted.insert(key, result);
+    return result;
+}
+
+// A page's background as a shape at `shape` shows it: tiles lie where the page's do, so the picture is moved by the shape's place (a
+// tile is a picture point at 96 per inch, scaled).
+Fill Importer::backgroundAt(const Fill &background, const QRectF &shape)
+{
+    if (background.type != Fill::Texture && !(background.type == Fill::Picture && background.tile)) return background;
+    if (shape.isNull() || (shape.left() == 0 && shape.top() == 0)) return background;
+    const double pointsPerPixel = 0.75 * background.tileScale;
+    const QString key = QStringLiteral("%1@%2,%3").arg(background.imageId).arg(shape.left() / pointsPerPixel, 0, 'f', 3).arg(shape.top() / pointsPerPixel, 0, 'f', 3);
+    Fill f = background;
+    if (const auto it = m_adjusted.constFind(key); it != m_adjusted.constEnd()) {
+        f.imageId = it.value();
+        return f;
+    }
+    const QImage tile = m_doc.image(background.imageId);
+    if (tile.isNull() || qint64(tile.width()) * tile.height() > kMaxAdjustedPixels || m_adjusted.size() >= 200) return background;
+    // The tile seen from a point further along, as the brush of the shape starts at its corner.
+    QImage moved(tile.size(), QImage::Format_ARGB32);
+    moved.fill(Qt::transparent);
+    {
+        QPainter p(&moved);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+        const double dx = std::fmod(shape.left() / pointsPerPixel, tile.width()), dy = std::fmod(shape.top() / pointsPerPixel, tile.height());
+        for (int i = -1; i <= 1; ++i)
+            for (int j = -1; j <= 1; ++j) p.drawImage(QPointF(-dx + i * tile.width(), -dy + j * tile.height()), tile);
+    }
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    QString id = background.imageId;
+    if (moved.save(&buffer, "PNG")) id = m_doc.addImage(png, QStringLiteral("png"), QString(), moved);
+    m_adjusted.insert(key, id);
+    f.imageId = id;
+    return f;
+}
+
+// The theme a master's round-trip records hold: a package with the theme part, and the XML of the color mapping. None if they can't be read.
+std::shared_ptr<WritersTheme> Importer::readWritersTheme(const QByteArray &themePackage, const QByteArray &colorMapping) const
+{
+    office::Package package;
+    if (themePackage.size() > kMaxWritersXml || !package.read(themePackage)) return nullptr;
+    QByteArray xml;
+    for (const QString &name : package.partNames())
+        if (QRegularExpression(QStringLiteral("/theme\\d*\\.xml$"), QRegularExpression::CaseInsensitiveOption).match(name).hasMatch()) {
+            xml = package.part(name);
+            break;
+        }
+    auto theme = std::make_shared<WritersTheme>();
+    if (xml.isEmpty() || !office::readTheme(xml, &theme->theme) || !office::parseXml(xml, &theme->dom)) return nullptr;
+    theme->formats = office::childNamed(office::childNamed(theme->dom.documentElement(), "themeElements"), "fmtScheme");
+    QDomDocument map;
+    if (!colorMapping.isEmpty() && office::parseXml(colorMapping, &map)) theme->colors = office::readColorMap(map.documentElement());
+    return theme;
+}
+
+// The look of a shape from the XML its writer kept for it: the fill, and the line, as far as it states them; what it doesn't state the
+// old properties have said.
+void Importer::takeLookFromWritersXml(Item &item, const QByteArray &packageBytes)
+{
+    office::Package package;
+    QDomDocument dom;
+    if (packageBytes.size() > kMaxWritersXml || (m_writersXmlBytes += packageBytes.size()) > kMaxTotalWritersXml) return;
+    if (!package.read(packageBytes) || !office::parseXml(package.part(QStringLiteral("/drs/shapexml.xml")), &dom)) return;
+    const QDomElement properties = office::childNamed(dom.documentElement(), "spPr"), style = office::childNamed(dom.documentElement(), "style");
+    if (properties.isNull()) return;
+    const MasterInfo *source = m_state ? m_state->source : nullptr;
+    const std::shared_ptr<WritersTheme> theme = source && source->theme ? source->theme : source && source->main ? source->main->theme : nullptr;
+    office::DrawingContext ctx;
+    ctx.package = &package;
+    ctx.part = QStringLiteral("/drs/shapexml.xml");
+    if (theme) {
+        ctx.theme = theme->theme;
+        ctx.colors = theme->colors;
+        ctx.formats = theme->formats;
+    } else {
+        ctx.theme = office::defaultTheme();
+    }
+    ctx.addImage = [this](const QByteArray &bytes, const QString &format) { return m_doc.addImage(bytes, format); };
+    ctx.newStory = [this] { return m_doc.createStory(); };
+    ctx.storyDoc = [this](const QString &id) { return m_doc.storyDoc(id); };
+    if (office::hasOwnFill(properties)) item.fill = office::readFill(properties, style, ctx);
+    // A line that says what it is drawn with (and not just how wide).
+    const QDomElement line = office::childNamed(properties, "ln");
+    for (const char *kind : {"noFill", "solidFill", "gradFill", "pattFill"})
+        if (!office::childNamed(line, kind).isNull()) {
+            item.stroke = office::readLine(properties, style, ctx);
+            break;
+        }
+}
+
 // ---- The masters ----
 
 void Importer::readMasters()
@@ -1247,6 +1453,10 @@ void Importer::readMasters()
                     break;
                 }
         }
+        if (const Rec *t = find(kids, RT_RoundTripThemeAtom)) {
+            const Rec *map = find(kids, RT_RoundTripColorMappingAtom);
+            m->theme = readWritersTheme(view(*t, 0), map ? view(*map, 0) : QByteArray());
+        }
         // A title master has the centered title and the subtitle, and a main master the title and the body; a master
         // that lists no placeholders is known by its layout.
         const bool main = m->placeholders.contains(char(1)) || m->placeholders.contains(char(2));
@@ -1274,6 +1484,15 @@ void Importer::readMasters()
         }
     for (auto &m : m_masters)
         if (m->title && !m->main->titleMaster) m->main->titleMaster = m.get();
+    // The backgrounds first: a shape of a master or of a slide may be filled with one.
+    for (auto &m : m_masters) {
+        PageState st;
+        st.scheme = m->scheme;
+        m_state = &st;
+        m->background = office::odrawBackground(m->drawing, drawingContext());
+        m_state = nullptr;
+        if (m->background.isNone()) m->background = Fill::solid(ColorRef::rgb(m->scheme[0]));
+    }
     for (auto &m : m_masters) buildMaster(*m);
     int number = 0;
     for (auto &m : m_masters)
@@ -1287,12 +1506,16 @@ void Importer::buildMaster(MasterInfo &m)
     st.text = TextCtx{m.main, m.title ? &m : nullptr, m.scheme};
     st.source = &m;
     st.master = true;
+    st.background = backgroundOf(m);
+    readShapeProps(m.drawing, &m.shapeProps);
     m.items = readShapes(m.drawing, st);
     finishItems(m.items, st, false);
-    m_state = &st;
-    m.background = office::odrawBackground(m.drawing, drawingContext());
-    m_state = nullptr;
-    if (m.background.isNone()) m.background = Fill::solid(ColorRef::rgb(m.scheme[0]));
+}
+
+// What a page on the master stands on: the master's background, or for a title master that follows the main master's, that.
+const Fill &Importer::backgroundOf(const MasterInfo &m) const
+{
+    return m.title && (m.flags & 4) && m.main ? m.main->background : m.background;
 }
 
 void Importer::makeMasterPage(MasterInfo &m, int number)
@@ -1311,7 +1534,6 @@ void Importer::makeMasterPage(MasterInfo &m, int number)
 // the same kind (a title for a centered title, the body for the rest).
 const Item *Importer::masterPlaceholder(const MasterInfo &m, const QString &type) const
 {
-    auto kind = [](const QString &t) { return isTitleType(t) ? QStringLiteral("title") : isFooterType(t) ? t : QStringLiteral("body"); };
     for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
         if (!x) continue;
         for (const auto &it : x->items)
@@ -1321,10 +1543,23 @@ const Item *Importer::masterPlaceholder(const MasterInfo &m, const QString &type
         if (!x) continue;
         for (const auto &it : x->items) {
             const QString t = placeholderType(*it);
-            if (!t.isEmpty() && kind(t) == kind(type)) return it.get();
+            if (!t.isEmpty() && placeholderKind(t) == placeholderKind(type)) return it.get();
         }
     }
     return nullptr;
+}
+
+// The property records of the master's placeholder shape that a slide's placeholder of this type takes after, like masterPlaceholder.
+QByteArray Importer::masterShapeProps(const MasterInfo &m, const QString &type) const
+{
+    for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main})
+        if (x && x->shapeProps.contains(type)) return x->shapeProps.value(type);
+    for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
+        if (!x) continue;
+        for (auto it = x->shapeProps.cbegin(); it != x->shapeProps.cend(); ++it)
+            if (placeholderKind(it.key()) == placeholderKind(type)) return it.value();
+    }
+    return QByteArray();
 }
 
 QRectF Importer::masterRect(const MasterInfo &m, const QString &type) const
@@ -1592,15 +1827,18 @@ void Importer::readSlide(int number, const SlideEntry &e)
                 break;
             }
     }
-    ItemList items = readShapes(drawing, st);
-    finishItems(items, st, true);
+    // The slide's own background, unless it follows its master's.
+    Fill bg;
     if (!(flags & 4)) {
         m_state = &st;
-        Fill bg = office::odrawBackground(drawing, drawingContext());
+        bg = office::odrawBackground(drawing, drawingContext());
         m_state = nullptr;
         if (bg.isNone() && ownColors) bg = Fill::solid(ColorRef::rgb(own[0]));
         page->background = bg;
     }
+    st.background = bg.isNone() ? backgroundOf(*source) : bg;
+    ItemList items = readShapes(drawing, st);
+    finishItems(items, st, true);
     page->items = std::move(items);
     for (const auto &it : page->items) {
         const QString type = placeholderType(*it);
@@ -1921,6 +2159,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
 
         // The paragraph.
         const double size = first.size ? first.size : 18;
+        const QTextCharFormat blockFormat = charFormat(first, ctx);
         QTextBlockFormat bf;
         switch (pf.align) {
         case 1: bf.setAlignment(Qt::AlignHCenter); break;
@@ -1934,10 +2173,21 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         bf.setTextIndent(indent - leftMargin);
         // Spacing is a share of a line (of the paragraph's text size) when positive, master units when negative.
         auto spacing = [&](int v) { return v > 0 ? v / 100.0 * size * 1.2 : v < 0 ? -v * kPoints : 0.0; };
-        bf.setTopMargin(spacing(pf.before));
+        // The first paragraph of a text sets no space before it: the program draws it at the top of the frame.
+        bf.setTopMargin(firstBlock ? 0 : spacing(pf.before));
         bf.setBottomMargin(spacing(pf.after));
-        if (pf.line > 0 && pf.line != 100) bf.setLineHeight(pf.line, QTextBlockFormat::ProportionalHeight);
-        else if (pf.line < 0) bf.setLineHeight(-pf.line * kPoints, QTextBlockFormat::FixedHeight);
+        if (pf.line > 0) {
+            // A line is a share (100 for a single line) of 1.2 times the text size, whatever the font; the engine's single line is the
+            // font's own, so the share is that much more or less of it.
+            QTextCharFormat lead = blockFormat;
+            for (const Piece &p : std::as_const(pieces))
+                if (p.format.fontPointSize() > lead.fontPointSize()) lead = p.format;
+            const QFont font = lead.font();
+            const double single = naturalLineEm(font, font.families().isEmpty() ? font.family() : font.families().first());
+            bf.setLineHeight(pf.line * 1.2 / std::clamp(single, 0.6, 3.0), QTextBlockFormat::ProportionalHeight);
+        } else if (pf.line < 0) {
+            bf.setLineHeight(-pf.line * kPoints, QTextBlockFormat::FixedHeight);
+        }
         if (!pf.tabs.isEmpty()) {
             QList<QTextOption::Tab> tabs;
             for (const Tab &t : std::as_const(pf.tabs)) {
@@ -1948,7 +2198,6 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             }
             bf.setTabPositions(tabs);
         }
-        const QTextCharFormat blockFormat = charFormat(first, ctx);
         if (firstBlock) {
             cur.setBlockFormat(bf);
             cur.setBlockCharFormat(blockFormat);
@@ -1958,7 +2207,8 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         firstBlock = false;
 
         // A bullet: a list of its level, the mark and its own font, size, and color when it has them, the text coming at the left margin.
-        if (pf.flags & BulletOn) {
+        // A paragraph with no text shows none.
+        if ((pf.flags & BulletOn) && !pieces.isEmpty()) {
             const quint16 ch = pf.bulletChar ? pf.bulletChar : 0x2022;
             const QString font = (pf.flags & BulletOwnFont) && pf.bulletFont < m_fonts.size() ? m_fonts.at(pf.bulletFont) : QString();
             double markSize = 0;
@@ -2002,14 +2252,37 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
 office::OdrawContext Importer::drawingContext()
 {
     office::OdrawContext ctx;
+    ctx.defaults = m_defaults;
+    ctx.richLook = [this](Item &item, const QByteArray &package) { takeLookFromWritersXml(item, package); };
+    ctx.background = [this](const QRectF &shape) { return m_state ? backgroundAt(m_state->background, shape) : Fill(); };
+    ctx.inherits = [this](const QByteArray &clientData) {
+        // A slide's placeholder takes after its master's shape of its kind.
+        if (!m_state || m_state->master || !m_state->source) return QByteArray();
+        const QString type = placeholderOf(clientData);
+        return type.isEmpty() ? QByteArray() : masterShapeProps(*m_state->source, type);
+    };
     ctx.clientAnchor = [](const QByteArray &anchor) { return anchorRect(anchor); };
     ctx.schemeColor = [this](int index) { return m_state && m_state->scheme && index >= 0 && index < 8 ? m_state->scheme[index] : QColor(); };
     ctx.picture = [this](int index) { return pictureId(index); };
+    ctx.adjusted = [this](const QString &id, double brightness, double contrast) { return adjustedPicture(id, brightness, contrast); };
     ctx.client = [this](Item &item, const QByteArray &textbox, const QByteArray &clientData) {
         if (m_state) clientShape(item, textbox, clientData);
     };
     return ctx;
 }
+
+namespace {
+
+// Slide objects don't push text aside: the presentation program lets text and objects overlap.
+void leaveTextAlone(const ItemList &items)
+{
+    for (const ItemPtr &it : items) {
+        it->wrap.mode = Wrap::None;
+        if (it->type() == ItemType::Group) leaveTextAlone(static_cast<const GroupItem &>(*it).children);
+    }
+}
+
+} // namespace
 
 ItemList Importer::readShapes(const QByteArray &drawing, PageState &st)
 {
@@ -2017,6 +2290,7 @@ ItemList Importer::readShapes(const QByteArray &drawing, PageState &st)
     m_state = &st;
     ItemList items = office::readOdrawShapes(drawing, drawingContext());
     m_state = nullptr;
+    leaveTextAlone(items);
     return items;
 }
 
@@ -2025,17 +2299,14 @@ ItemList Importer::readShapes(const QByteArray &drawing, PageState &st)
 void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArray &clientData)
 {
     PageState &st = *m_state;
-    QString type, link;
+    QString link;
+    const QString type = placeholderOf(clientData);
     if (!clientData.isEmpty()) {
         Records rs(clientData);
         QVector<Rec> kids = rs.in(0, clientData.size());
         if (kids.size() == 1 && kids.first().type == RT_ClientData) kids = rs.in(kids.first());
         for (const Rec &r : kids) {
-            if (r.type == RT_PlaceholderAtom && r.len >= 5) {
-                Cursor c(clientData, r.off, r.end());
-                c.u32();
-                type = placeholderName(c.u8());
-            } else if (r.type == RT_InteractiveInfo && r.inst == 0 && link.isEmpty()) {
+            if (r.type == RT_InteractiveInfo && r.inst == 0 && link.isEmpty()) {
                 for (const Rec &k : rs.in(r)) {
                     if (k.type != RT_InteractiveInfoAtom || k.len < 9) continue;
                     Cursor c(clientData, k.off, k.end());
@@ -2085,6 +2356,50 @@ void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArr
         story = buildStory(*use, textType, ctx);
     }
     else if (hasBox || !type.isEmpty()) story = m_doc.createStory();
+}
+
+// Text longer than its frame is drawn past it by the presentation program, where the text engine hides what overflows a frame (or shrinks
+// the text to fit it). A frame with no fill or line of its own, whose size nothing shows, is made as tall as its text instead, grown from
+// where the text is anchored: down from the top, both ways from the middle, up from the bottom.
+void Importer::fitFramesToText()
+{
+    LayoutEnv env;
+    env.colors = m_doc.colors;
+    env.fonts = m_doc.fonts;
+    env.defaultTab = m_doc.defaultTabStop;
+    const RenderOptions options;
+    QElapsedTimer timer;
+    timer.start();
+    int number = 0;
+    for (const auto &page : std::as_const(m_doc.pages)) {
+        ++number;
+        for (const auto &it : page->items) {
+            if (timer.elapsed() > kFitMilliseconds) return;
+            if (it->type() != ItemType::Text) continue;
+            auto *t = static_cast<TextItem *>(it.get());
+            if (!t->fill.isNone() || !t->stroke.isNone() || t->vertical || t->rotation != 0 || t->rect.isEmpty()) continue;
+            const QTextDocument *story = t->storyId.isEmpty() ? nullptr : m_doc.storyDoc(t->storyId);
+            if (!story || story->isEmpty() || story->characterCount() > kFitMaxChars) continue;
+            FrameSpec spec = Renderer::frameSpec(m_doc, *t, number, options);
+            spec.size.setHeight(1e5);
+            spec.valign = VAlign::Top;
+            StoryLayout layout;
+            layout.build(story, {spec}, env);
+            // The engine puts the spacing of a line below it, where the program puts it above, and doesn't count it under the last line: the
+            // text is that much higher at the top of a frame, half of it in the middle, and none at the bottom.
+            const auto lines = layout.lineInfo(0);
+            if (!lines.isEmpty() && lines.first().below > 0)
+                t->rect.translate(0, lines.first().below * (t->valign == VAlign::Top ? 1.0 : t->valign == VAlign::Middle ? 0.5 : 0.0));
+            const double extra = layout.usedHeight(0) - t->rect.height();
+            if (extra <= 0.5) continue;
+            QRectF r = t->rect;
+            if (t->valign == VAlign::Middle) r.adjust(0, -extra / 2, 0, extra / 2);
+            else if (t->valign == VAlign::Bottom) r.setTop(r.top() - extra);
+            else r.setBottom(r.bottom() + extra);
+            t->rect = r;
+            t->autofit = TextItem::NoAutofit;
+        }
+    }
 }
 
 // ---- The whole ----
@@ -2162,6 +2477,7 @@ bool Importer::run(QString *error)
     const quint16 tab = resolve(TxBody, 0, ctx).pf.defaultTab;
     m_doc.defaultTabStop = tab >= 36 ? std::min(tab * kPoints, 288.0) : 72.0;
     m_doc.appData[QStringLiteral("footers")] = m_footers;
+    fitFramesToText();
     return true;
 }
 
