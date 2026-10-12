@@ -44,11 +44,6 @@ void readTransform(const QDomElement &xfrm, Item &it)
 
 } // namespace
 
-QString shapeForPreset(const QString &prst)
-{
-    return prst == QLatin1String("rect") || prst == QLatin1String("ellipse") ? prst : QString();
-}
-
 Fill readFill(const QDomElement &spPr, const QDomElement &, const DrawingContext &ctx)
 {
     const QDomElement solid = firstChild(spPr, QStringLiteral("solidFill"));
