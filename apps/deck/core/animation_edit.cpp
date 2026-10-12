@@ -1095,6 +1095,23 @@ struct KeptEffects {
         return marker(list.size() - 1);
     }
 
+    // A node the file keeps beside the main sequence that begins with one of these effects (a sound's p:audio begins with its call, by the
+    // number of the call's time node) names it by its new number; the rest of the node stays as written.
+    QString follow(QString xml) const
+    {
+        QString out;
+        qsizetype from = 0;
+        static const QRegularExpression tn(QStringLiteral("<(?:\\w+:)?tn\\s+val\\s*=\\s*([\"'])(\\d+)\\1"));
+        for (auto m = tn.globalMatch(xml); m.hasNext();) {
+            const QRegularExpressionMatch hit = m.next();
+            const auto now = everywhere.constFind(hit.captured(2));
+            if (now == everywhere.constEnd() || now.value() == hit.captured(2)) continue;
+            out += xml.mid(from, hit.capturedStart(2) - from) + now.value();
+            from = hit.capturedEnd(2);
+        }
+        return from == 0 ? xml : out + xml.mid(from);
+    }
+
     // The XML with each marker replaced by its effect, written out.
     QString fill(QString xml) const
     {
@@ -1223,11 +1240,13 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
 
     const int before = std::clamp(seq.keptBeforeMain, 0, int(seq.kept.size()));
     QString xml = QStringLiteral("<p:timing%1><p:tnLst><p:par><p:cTn id=\"%2\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>").arg(declared, QString::number(rootId));
-    for (int i = 0; i < before; ++i) xml += seq.kept[i];
-    xml += QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"%1\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>").arg(mainId) + keptEffects.fill(mainXml) + QStringLiteral("</p:childTnLst></p:cTn>");
+    // (The main sequence is filled in first: that numbers the kept effects the kept nodes may name.)
+    const QString mainFilled = keptEffects.fill(mainXml);
+    for (int i = 0; i < before; ++i) xml += keptEffects.follow(seq.kept[i]);
+    xml += QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"%1\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>").arg(mainId) + mainFilled + QStringLiteral("</p:childTnLst></p:cTn>");
     xml += QStringLiteral("<p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
                           "<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
-    for (qsizetype i = before; i < seq.kept.size(); ++i) xml += seq.kept[i];
+    for (qsizetype i = before; i < seq.kept.size(); ++i) xml += keptEffects.follow(seq.kept[i]);
     xml += QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst>");
     if (!buildXml.isEmpty()) xml += QStringLiteral("<p:bldLst>") + buildXml + QStringLiteral("</p:bldLst>");
     xml += seq.extension + QStringLiteral("</p:timing>");
