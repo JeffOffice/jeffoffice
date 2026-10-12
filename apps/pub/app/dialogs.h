@@ -1,6 +1,7 @@
 #pragma once
 // Dialog boxes.
 
+#include "app/proofingdialogs.h"
 #include "app/textdialogs.h"
 #include "core/barcode.h"
 #include "core/document.h"
@@ -61,8 +62,6 @@ void pageNumberDialog(QWidget *p, Editor *ed);
 void pageNumberFormatDialog(QWidget *p, Editor *ed);
 void documentPropertiesDialog(QWidget *p, Editor *ed, int tab = 0);   // 1 = Commercial Print
 void measurementWindow(QWidget *p, Editor *ed);
-void spellingDialog(QWidget *p, Editor *ed);
-void thesaurusDialog(QWidget *p, Editor *ed);
 void hyphenationDialog(QWidget *p, Editor *ed);
 void pasteSpecialDialog(QWidget *p, Editor *ed);
 void insertFileDialog(QWidget *p, Editor *ed);
