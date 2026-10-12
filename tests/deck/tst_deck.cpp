@@ -2891,6 +2891,53 @@ private Q_SLOTS:
         QVERIFY(textsOf(svg).contains(QStringLiteral("a")));
     }
 
+    // A chart with more points than a picture can show is drawn from some of them, and the file's notes say so.
+    void pptxChartWithMorePointsThanAPictureCanShowSaysSo()
+    {
+        auto withPoints = [](int n) {
+            QString points;
+            for (int i = 0; i < n; ++i) points += QStringLiteral("<c:pt idx=\"%1\"><c:v>%2</c:v></c:pt>").arg(i).arg(i % 90);
+            Parts p = chartPptx();
+            p.data["/ppt/charts/chart1.xml"].xml = (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" "
+                "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><c:chart><c:autoTitleDeleted val=\"1\"/>"
+                "<c:plotArea><c:layout/><c:lineChart><c:grouping val=\"standard\"/><c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:val><c:numRef><c:f>Sheet1!$B$2</c:f><c:numCache><c:formatCode>General</c:formatCode>"
+                "<c:ptCount val=\"%1\"/>%2</c:numCache></c:numRef></c:val></c:ser><c:marker val=\"0\"/><c:axId val=\"1\"/><c:axId val=\"2\"/></c:lineChart>"
+                "<c:catAx><c:axId val=\"1\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/><c:crossAx val=\"2\"/></c:catAx>"
+                "<c:valAx><c:axId val=\"2\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:crossAx val=\"1\"/></c:valAx></c:plotArea></c:chart>"
+                "<c:externalData r:id=\"rId1\"><c:autoUpdate val=\"0\"/></c:externalData><c:userShapes r:id=\"rId2\"/></c:chartSpace>")
+                                                         .arg(n).arg(points)).toUtf8();
+            return pack(p);
+        };
+        QString err;
+        auto d = deck::importPresentation(withPoints(9000), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(chartPicture(*d, *d->pages[0]));
+        QVERIFY2(err.contains(QStringLiteral("Chart 8")) && err.contains(QStringLiteral("more points")), qPrintable(err));
+        err.clear();
+        d = deck::importPresentation(withPoints(90), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(!err.contains(QStringLiteral("more points")), qPrintable(err));
+    }
+
+    // A chart frame of a slide is drawn no larger than a slide can be.
+    void pptxChartFrameSizeIsClamped()
+    {
+        Parts p = chartPptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QVERIFY(xml.contains(QStringLiteral("<a:ext cx=\"3657600\" cy=\"2743200\"/>")));
+        xml.replace(QStringLiteral("<a:ext cx=\"3657600\" cy=\"2743200\"/>"), QStringLiteral("<a:ext cx=\"9000000000000\" cy=\"700000000000\"/>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const auto *pic = chartPicture(*d, *d->pages[0]);
+        QVERIFY(pic);
+        QCOMPARE(pic->rect.size(), QSizeF(4032, 4032));
+        QCOMPARE(pic->imgRect, QRectF(0, 0, 4032, 4032));
+        const QByteArray svg = d->images.value(pic->imageId).bytes;
+        QVERIFY2(svg.contains("viewBox=\"0 0 4032 4032\""), qPrintable(QString::fromUtf8(svg.left(400))));
+    }
+
     // A presentation saved with no slides (a template can be, and so can a
     // script's empty one) opens with one blank Title Slide, as a new one
     // starts, rather than as a window with nothing to show.
