@@ -24,6 +24,7 @@
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/deckoutput.h"
+#include "io/odpimport.h"
 #include "io/pptimport.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
@@ -81,6 +82,219 @@
 #include <QXmlStreamWriter>
 
 using namespace jp;
+
+// An open document presentation as the other office suite writes one: its ZIP starts with the stored mimetype, then
+// the manifest, the styles, and the content (with the masters' pictures and what a test adds).
+namespace odptest {
+
+const QString kNs = QStringLiteral(
+    " xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\""
+    " xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\""
+    " xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\""
+    " xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\""
+    " xmlns:presentation=\"urn:oasis:names:tc:opendocument:xmlns:presentation:1.0\" xmlns:smil=\"urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0\""
+    " xmlns:anim=\"urn:oasis:names:tc:opendocument:xmlns:animation:1.0\" xmlns:drawooo=\"http://openoffice.org/2010/draw\""
+    " xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
+    " xmlns:meta=\"urn:oasis:names:tc:opendocument:xmlns:meta:1.0\" office:version=\"1.3\"");
+
+const QString kBullets = QStringLiteral(
+    "<text:list-level-style-bullet text:level=\"1\" text:bullet-char=\"●\"><style:list-level-properties text:space-before=\"0.3cm\" text:min-label-width=\"0.9cm\"/>"
+    "<style:text-properties fo:font-family=\"OpenSymbol\" style:use-window-font-color=\"true\" fo:font-size=\"45%\"/></text:list-level-style-bullet>"
+    "<text:list-level-style-bullet text:level=\"2\" text:bullet-char=\"–\"><style:list-level-properties text:space-before=\"1.5cm\" text:min-label-width=\"0.9cm\"/>"
+    "<style:text-properties fo:font-family=\"OpenSymbol\" style:use-window-font-color=\"true\" fo:font-size=\"75%\"/></text:list-level-style-bullet>");
+
+QString odpStyles()
+{
+    return QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document-styles") + kNs + QStringLiteral(
+        "><office:font-face-decls><style:font-face style:name=\"Liberation Sans\" svg:font-family=\"'Liberation Sans'\"/>"
+        "<style:font-face style:name=\"Trebuchet MS1\" svg:font-family=\"'Trebuchet MS'\"/></office:font-face-decls>"
+        "<office:styles>"
+        "<style:default-style style:family=\"graphic\"><style:graphic-properties svg:stroke-color=\"#3465a4\" draw:fill-color=\"#729fcf\"/>"
+        "<style:text-properties style:font-name=\"Liberation Sans\" fo:font-size=\"24pt\"/></style:default-style>"
+        "<style:style style:name=\"standard\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"solid\" svg:stroke-width=\"0cm\" svg:stroke-color=\"#3465a4\""
+        " draw:fill=\"solid\" draw:fill-color=\"#729fcf\" fo:padding-top=\"0.125cm\" fo:padding-bottom=\"0.125cm\" fo:padding-left=\"0.25cm\" fo:padding-right=\"0.25cm\"/>"
+        "<style:text-properties fo:font-size=\"18pt\"/></style:style>"
+        "<style:style style:name=\"Default-title\" style:family=\"presentation\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:textarea-vertical-align=\"middle\"/>"
+        "<style:paragraph-properties fo:text-align=\"center\"/><style:text-properties style:font-name=\"Trebuchet MS1\" fo:font-size=\"44pt\" fo:font-weight=\"bold\" fo:color=\"#1f3864\"/></style:style>"
+        "<style:style style:name=\"Default-subtitle\" style:family=\"presentation\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:textarea-vertical-align=\"middle\"/>"
+        "<style:paragraph-properties fo:text-align=\"center\"/><style:text-properties fo:font-size=\"32pt\"/></style:style>"
+        "<style:style style:name=\"Default-outline1\" style:family=\"presentation\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" style:shrink-to-fit=\"true\">"
+        "<text:list-style style:name=\"Default-outline1\">") + kBullets + QStringLiteral("</text:list-style></style:graphic-properties>"
+        "<style:paragraph-properties fo:margin-top=\"0.5cm\" fo:margin-bottom=\"0cm\"/><style:text-properties fo:font-size=\"32pt\"/></style:style>"
+        "<style:style style:name=\"Default-outline2\" style:family=\"presentation\" style:parent-style-name=\"Default-outline1\"><style:paragraph-properties fo:margin-top=\"0.4cm\"/>"
+        "<style:text-properties fo:font-size=\"28pt\"/></style:style>"
+        "<style:style style:name=\"Default-notes\" style:family=\"presentation\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\"/><style:text-properties fo:font-size=\"20pt\"/></style:style>"
+        "<draw:marker draw:name=\"Arrow\" svg:viewBox=\"0 0 20 30\" svg:d=\"M10 0l-10 30h20z\"/>"
+        "</office:styles><office:automatic-styles>"
+        "<style:page-layout style:name=\"PM1\"><style:page-layout-properties fo:page-width=\"28cm\" fo:page-height=\"15.75cm\" style:print-orientation=\"landscape\"/></style:page-layout>"
+        "<style:page-layout style:name=\"PM0\"><style:page-layout-properties fo:page-width=\"21.59cm\" fo:page-height=\"27.94cm\" style:print-orientation=\"portrait\"/></style:page-layout>"
+        "<style:style style:name=\"Mdp1\" style:family=\"drawing-page\"><style:drawing-page-properties draw:background-size=\"border\" draw:fill=\"solid\" draw:fill-color=\"#fff2cc\"/></style:style>"
+        "<style:style style:name=\"Mgr1\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"solid\" draw:fill-color=\"#c55a11\"/></style:style>"
+        "<style:style style:name=\"Mpr1\" style:family=\"presentation\" style:parent-style-name=\"Default-title\"><style:graphic-properties fo:min-height=\"2.629cm\"/></style:style>"
+        "</office:automatic-styles><office:master-styles>"
+        "<style:master-page style:name=\"Default\" style:display-name=\"Warm\" style:page-layout-name=\"PM1\" draw:style-name=\"Mdp1\">"
+        "<draw:custom-shape draw:style-name=\"Mgr1\" draw:layer=\"backgroundobjects\" svg:width=\"28cm\" svg:height=\"0.5cm\" svg:x=\"0cm\" svg:y=\"15.25cm\"><text:p/>"
+        "<draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"rectangle\" draw:enhanced-path=\"M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N\"/></draw:custom-shape>"
+        "<draw:frame presentation:style-name=\"Default-title\" draw:layer=\"backgroundobjects\" svg:width=\"25.199cm\" svg:height=\"2.629cm\" svg:x=\"1.4cm\" svg:y=\"0.628cm\""
+        " presentation:class=\"title\" presentation:placeholder=\"true\"><draw:text-box/></draw:frame>"
+        "<draw:frame presentation:style-name=\"Default-outline1\" draw:layer=\"backgroundobjects\" svg:width=\"25.199cm\" svg:height=\"9.134cm\" svg:x=\"1.4cm\" svg:y=\"3.685cm\""
+        " presentation:class=\"outline\" presentation:placeholder=\"true\"><draw:text-box/></draw:frame>"
+        "<draw:frame presentation:style-name=\"Default-title\" draw:layer=\"backgroundobjects\" svg:width=\"6.5cm\" svg:height=\"1.085cm\" svg:x=\"1.4cm\" svg:y=\"14.348cm\""
+        " presentation:class=\"date-time\"><draw:text-box><text:p><presentation:date-time/></text:p></draw:text-box></draw:frame>"
+        "<draw:frame presentation:style-name=\"Default-title\" draw:layer=\"backgroundobjects\" svg:width=\"8.8cm\" svg:height=\"1.085cm\" svg:x=\"9.5cm\" svg:y=\"14.348cm\""
+        " presentation:class=\"footer\"><draw:text-box><text:p><presentation:footer/></text:p></draw:text-box></draw:frame>"
+        "<draw:frame presentation:style-name=\"Default-title\" draw:layer=\"backgroundobjects\" svg:width=\"6.5cm\" svg:height=\"1.085cm\" svg:x=\"20cm\" svg:y=\"14.348cm\""
+        " presentation:class=\"page-number\"><draw:text-box><text:p><text:page-number>&lt;number&gt;</text:page-number></text:p></draw:text-box></draw:frame>"
+        "<presentation:notes style:page-layout-name=\"PM0\"><draw:frame presentation:style-name=\"Default-notes\" svg:width=\"17.271cm\" svg:height=\"12.572cm\" svg:x=\"2.159cm\""
+        " svg:y=\"13.271cm\" presentation:class=\"notes\" presentation:placeholder=\"true\"><draw:text-box/></draw:frame></presentation:notes></style:master-page>"
+        "</office:master-styles></office:document-styles>");
+}
+
+QByteArray png(int w, int h, const QColor &color)
+{
+    QImage img(w, h, QImage::Format_RGB32);
+    img.fill(color);
+    img.setDotsPerMeterX(3780);   // 96 to the inch
+    img.setDotsPerMeterY(3780);
+    QByteArray bytes;
+    QBuffer b(&bytes);
+    b.open(QIODevice::WriteOnly);
+    img.save(&b, "PNG");
+    return bytes;
+}
+
+QByteArray odpZip(const QString &content, const QString &styles = odpStyles(), const QMap<QString, QByteArray> &extra = {},
+                  const QByteArray &mime = "application/vnd.oasis.opendocument.presentation", const QString &manifest = QString(), bool mimeFirst = true)
+{
+    ZipWriter z;
+    if (mimeFirst) z.add(QStringLiteral("mimetype"), mime, false);
+    z.add(QStringLiteral("META-INF/manifest.xml"),
+          (manifest.isEmpty() ? QStringLiteral("<?xml version=\"1.0\"?><manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\"><manifest:file-entry manifest:full-path=\"/\" manifest:media-type=\"") + QString::fromLatin1(mime) + QStringLiteral("\"/></manifest:manifest>") : manifest).toUtf8(), true);
+    z.add(QStringLiteral("meta.xml"), QStringLiteral("<?xml version=\"1.0\"?><office:document-meta") .toUtf8() + kNs.toUtf8() + QByteArray("><office:meta><dc:title>Quarterly</dc:title><meta:initial-creator>Pat</meta:initial-creator></office:meta></office:document-meta>"), true);
+    z.add(QStringLiteral("styles.xml"), styles.toUtf8(), true);
+    z.add(QStringLiteral("content.xml"), content.toUtf8(), true);
+    for (auto it = extra.cbegin(); it != extra.cend(); ++it) z.add(it.key(), it.value(), true);
+    if (!mimeFirst) z.add(QStringLiteral("mimetype"), mime, true);
+    return z.finish();
+}
+
+// The content of a presentation: its own automatic styles, and `pages` (the draw:page elements) with `decls` before them.
+QString odpContent(const QString &autoStyles, const QString &pages, const QString &decls = QString())
+{
+    return QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document-content") + kNs + QStringLiteral("><office:font-face-decls>"
+        "<style:font-face style:name=\"Liberation Sans\" svg:font-family=\"'Liberation Sans'\"/></office:font-face-decls><office:automatic-styles>")
+        + autoStyles + QStringLiteral("</office:automatic-styles><office:body><office:presentation>") + decls + pages
+        + QStringLiteral("</office:presentation></office:body></office:document-content>");
+}
+
+// The automatic styles of the sample presentation's content.
+QString sampleAutomaticStyles()
+{
+    return QStringLiteral(
+        "<style:style style:name=\"dp1\" style:family=\"drawing-page\"><style:drawing-page-properties presentation:background-visible=\"true\" presentation:background-objects-visible=\"true\""
+        " presentation:display-footer=\"false\" presentation:display-page-number=\"false\" presentation:display-date-time=\"false\"/></style:style>"
+        "<style:style style:name=\"dp2\" style:family=\"drawing-page\"><style:drawing-page-properties presentation:display-header=\"true\" presentation:display-footer=\"true\"/></style:style>"
+        "<style:style style:name=\"dp3\" style:family=\"drawing-page\"><style:drawing-page-properties presentation:transition-type=\"automatic\" presentation:duration=\"PT00H00M05S\""
+        " presentation:transition-speed=\"slow\" smil:type=\"pushWipe\" smil:subtype=\"fromLeft\" presentation:display-footer=\"true\" presentation:display-page-number=\"true\""
+        " presentation:display-date-time=\"false\"/></style:style>"
+        "<style:style style:name=\"dp4\" style:family=\"drawing-page\"><style:drawing-page-properties presentation:visibility=\"hidden\" presentation:background-objects-visible=\"false\""
+        " draw:fill=\"solid\" draw:fill-color=\"#112233\"/></style:style>"
+        "<style:style style:name=\"pr1\" style:family=\"presentation\" style:parent-style-name=\"Default-title\"><style:graphic-properties fo:min-height=\"2.629cm\"/></style:style>"
+        "<style:style style:name=\"pr2\" style:family=\"presentation\" style:parent-style-name=\"Default-subtitle\"/>"
+        "<style:style style:name=\"pr3\" style:family=\"presentation\" style:parent-style-name=\"Default-notes\"/>"
+        "<style:style style:name=\"pr4\" style:family=\"presentation\" style:parent-style-name=\"Default-outline1\"/>"
+        "<style:style style:name=\"T1\" style:family=\"text\"><style:text-properties fo:font-style=\"italic\" style:text-underline-style=\"solid\" style:text-underline-width=\"auto\" fo:color=\"#ff0000\"/></style:style>"
+        "<style:style style:name=\"T2\" style:family=\"text\"><style:text-properties fo:font-size=\"150%\" style:text-position=\"super 58%\"/></style:style>"
+        "<style:style style:name=\"P1\" style:family=\"paragraph\"><style:paragraph-properties fo:text-align=\"end\"/></style:style>"
+        "<text:list-style style:name=\"L1\">") + kBullets + QStringLiteral("</text:list-style>"
+        "<text:list-style style:name=\"L2\"><text:list-level-style-number text:level=\"1\" style:num-format=\"1\" style:num-suffix=\".\" text:start-value=\"3\">"
+        "<style:list-level-properties text:space-before=\"0cm\" text:min-label-width=\"0.8cm\"/></text:list-level-style-number></text:list-style>"
+        "<style:style style:name=\"gr1\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\""
+        " fo:clip=\"rect(7.5pt, 15pt, 3.75pt, 30pt)\" style:mirror=\"horizontal\"/></style:style>"
+        "<style:style style:name=\"gr2\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"solid\""
+        " draw:fill-color=\"#3366cc\" draw:opacity=\"50%\"/></style:style>"
+        "<style:style style:name=\"gr3\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"solid\" svg:stroke-width=\"0.1cm\""
+        " svg:stroke-color=\"#003300\" draw:marker-end=\"Arrow\" draw:marker-end-width=\"0.3cm\" draw:fill=\"none\"/></style:style>"
+        "<style:style style:name=\"gr4\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\""
+        " draw:auto-grow-height=\"true\" fo:min-height=\"1cm\"/></style:style>"
+        "<style:style style:name=\"gr5\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\"/></style:style>"
+        "<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"3cm\"/></style:style>"
+        "<style:style style:name=\"co2\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"4cm\"/></style:style>"
+        "<style:style style:name=\"ro1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"1cm\"/></style:style>"
+        "<style:style style:name=\"ce1\" style:family=\"table-cell\"><loext:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#f9f9f9\" draw:textarea-vertical-align=\"middle\""
+        " fo:padding=\"0.1cm\"/><style:paragraph-properties fo:border=\"0.5pt solid #ff0000\"/><style:text-properties fo:font-size=\"8pt\"/></style:style>");
+}
+
+QString samplePages()
+{
+    // The frame of a placeholder: class, style, and place.
+    auto frame = [](const char *cls, const char *style, const char *place, const QString &body) {
+        return QStringLiteral("<draw:frame presentation:style-name=\"%1\" draw:layer=\"layout\" %2 presentation:class=\"%3\"><draw:text-box>%4</draw:text-box></draw:frame>")
+            .arg(QLatin1String(style), QLatin1String(place), QLatin1String(cls), body);
+    };
+    const QString notes = QStringLiteral("<presentation:notes draw:style-name=\"dp2\"><draw:page-thumbnail draw:layer=\"layout\" svg:width=\"18.6cm\" svg:height=\"10.5cm\" svg:x=\"1.5cm\" svg:y=\"2cm\""
+                                         " draw:page-number=\"1\" presentation:class=\"page\"/><draw:frame presentation:style-name=\"pr3\" draw:layer=\"layout\" svg:width=\"17.2cm\" svg:height=\"12.5cm\""
+                                         " svg:x=\"2.1cm\" svg:y=\"13.2cm\" presentation:class=\"notes\"><draw:text-box><text:p>Say hello first</text:p><text:p>Then the numbers</text:p></draw:text-box></draw:frame></presentation:notes>");
+    QString pages;
+    // 1: a title and a subtitle, notes, and an animation (which is left out).
+    pages += QStringLiteral("<draw:page draw:name=\"page1\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\" presentation:presentation-page-layout-name=\"AL1T0\">")
+        + frame("title", "pr1", "svg:width=\"25.199cm\" svg:height=\"2.629cm\" svg:x=\"1.4cm\" svg:y=\"0.628cm\"", QStringLiteral("<text:p>Quarterly <text:span text:style-name=\"T1\">results</text:span></text:p>"))
+        + frame("subtitle", "pr2", "svg:width=\"25.199cm\" svg:height=\"9.134cm\" svg:x=\"1.4cm\" svg:y=\"3.685cm\"", QStringLiteral("<text:p>Prepared by the team</text:p>"))
+        + notes + QStringLiteral("<anim:par smil:begin=\"next\"/></draw:page>");
+    // 2: a title, an outline with two levels, a numbered text box, one with a link, and a picture.
+    pages += QStringLiteral("<draw:page draw:name=\"page2\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\" presentation:presentation-page-layout-name=\"AL2T1\">")
+        + frame("title", "pr1", "svg:width=\"25.199cm\" svg:height=\"2.629cm\" svg:x=\"1.4cm\" svg:y=\"0.628cm\"", QStringLiteral("<text:p>Agenda</text:p>"))
+        + frame("outline", "pr4", "svg:width=\"25.199cm\" svg:height=\"9.134cm\" svg:x=\"1.4cm\" svg:y=\"3.685cm\"",
+                QStringLiteral("<text:list text:style-name=\"L1\"><text:list-item><text:p>First point</text:p></text:list-item><text:list-item><text:list><text:list-item>"
+                               "<text:p text:style-name=\"P1\">Second <text:span text:style-name=\"T2\">point</text:span></text:p></text:list-item></text:list></text:list-item></text:list>"
+                               "<text:p>Plain third</text:p>"))
+        + QStringLiteral("<draw:frame draw:style-name=\"gr4\" draw:layer=\"layout\" svg:width=\"6cm\" svg:height=\"2cm\" svg:x=\"2cm\" svg:y=\"13cm\"><draw:text-box>"
+                         "<text:list text:style-name=\"L2\"><text:list-item><text:p>Three</text:p></text:list-item><text:list-item><text:p>Four</text:p></text:list-item></text:list></draw:text-box></draw:frame>")
+        + QStringLiteral("<draw:frame draw:style-name=\"gr4\" draw:layer=\"layout\" svg:width=\"8cm\" svg:height=\"1cm\" svg:x=\"12cm\" svg:y=\"13cm\"><draw:text-box>"
+                         "<text:p>  Visit   <text:a xlink:href=\"https://example.com/a?b=1&amp;c=2\" xlink:type=\"simple\">the site</text:a><text:s/>now <text:a xlink:href=\"file:///bin/sh\">run</text:a></text:p></draw:text-box></draw:frame>")
+        + QStringLiteral("<draw:frame draw:style-name=\"gr1\" draw:layer=\"layout\" svg:width=\"3.5278cm\" svg:height=\"1.7639cm\" svg:x=\"2cm\" svg:y=\"10cm\">"
+                         "<draw:image xlink:href=\"Pictures/a.png\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"><text:p/></draw:image></draw:frame>")
+        + QStringLiteral("</draw:page>");
+    // 3: shapes, a line, a group, a table, a turned rectangle; a transition; the footer and the number.
+    pages += QStringLiteral("<draw:page draw:name=\"page3\" draw:style-name=\"dp3\" draw:master-page-name=\"Default\" presentation:use-footer-name=\"ftr1\">")
+        + QStringLiteral("<draw:custom-shape draw:style-name=\"gr2\" draw:layer=\"layout\" svg:width=\"4cm\" svg:height=\"2cm\" svg:x=\"1cm\" svg:y=\"1cm\"><text:p/>"
+                         "<draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"right-arrow\"/></draw:custom-shape>")
+        + QStringLiteral("<draw:custom-shape draw:style-name=\"gr2\" draw:layer=\"layout\" svg:width=\"3cm\" svg:height=\"3cm\" svg:x=\"6cm\" svg:y=\"1cm\"><text:p>Round</text:p>"
+                         "<draw:enhanced-geometry svg:viewBox=\"0 0 0 0\" draw:type=\"ooxml-ellipse\"/></draw:custom-shape>")
+        + QStringLiteral("<draw:custom-shape draw:style-name=\"gr2\" draw:layer=\"layout\" svg:width=\"5cm\" svg:height=\"2.5cm\" svg:x=\"1cm\" svg:y=\"4cm\"><text:p/>"
+                         "<draw:enhanced-geometry svg:viewBox=\"0 0 0 0\" drawooo:sub-view-size=\"100 50\" draw:type=\"ooxml-non-primitive\""
+                         " draw:enhanced-path=\"M 0 0 L 100 0 50 50 0 50 Z N\"/></draw:custom-shape>")
+        + QStringLiteral("<draw:line draw:style-name=\"gr3\" draw:layer=\"layout\" svg:x1=\"1cm\" svg:y1=\"8cm\" svg:x2=\"9cm\" svg:y2=\"9cm\"><text:p/></draw:line>")
+        + QStringLiteral("<draw:g><draw:rect draw:style-name=\"gr2\" svg:width=\"2cm\" svg:height=\"1cm\" svg:x=\"2cm\" svg:y=\"5cm\"/>"
+                         "<draw:ellipse draw:style-name=\"gr2\" svg:width=\"2cm\" svg:height=\"2cm\" svg:x=\"5cm\" svg:y=\"6cm\"/></draw:g>")
+        + QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"7cm\" svg:height=\"2cm\" svg:x=\"14cm\" svg:y=\"2cm\"><table:table>"
+                         "<table:table-column table:style-name=\"co1\"/><table:table-column table:style-name=\"co2\"/>"
+                         "<table:table-row table:style-name=\"ro1\" table:default-cell-style-name=\"ce1\"><table:table-cell table:number-columns-spanned=\"2\"><text:p>Header</text:p></table:table-cell>"
+                         "<table:covered-table-cell/></table:table-row>"
+                         "<table:table-row table:style-name=\"ro1\" table:default-cell-style-name=\"ce1\"><table:table-cell><text:p>a</text:p></table:table-cell>"
+                         "<table:table-cell><text:p>b</text:p></table:table-cell></table:table-row></table:table></draw:frame>")
+        + QStringLiteral("<draw:rect draw:style-name=\"gr2\" svg:width=\"4cm\" svg:height=\"2cm\" draw:transform=\"rotate (1.5707963267949) translate (10cm 5cm)\"/>")
+        + QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"4cm\" svg:height=\"3cm\" svg:x=\"10cm\" svg:y=\"10cm\"><draw:object xlink:href=\"./Object 1\"/>"
+                         "<draw:image xlink:href=\"./ObjectReplacements/Object 1\"/><svg:desc>A chart of sales</svg:desc></draw:frame>")
+        + QStringLiteral("</draw:page>");
+    // 4: a hidden slide on a background of its own.
+    pages += QStringLiteral("<draw:page draw:name=\"page4\" draw:style-name=\"dp4\" draw:master-page-name=\"Default\"/>");
+    return pages;
+}
+
+QString sampleContent()
+{
+    return odpContent(sampleAutomaticStyles(), samplePages(), QStringLiteral("<presentation:footer-decl presentation:name=\"ftr1\">Confidential</presentation:footer-decl>"));
+}
+
+QByteArray sampleOdp()
+{
+    return odpZip(sampleContent(), odpStyles(), {{QStringLiteral("Pictures/a.png"), png(200, 100, QColor(200, 30, 30))},
+                                                 {QStringLiteral("ObjectReplacements/Object 1"), png(40, 30, QColor(30, 30, 200))}});
+}
+
+} // namespace odptest
+
 
 // Takes the addresses the slide show opens in place of a browser.
 class LinkCatcher : public QObject {
@@ -1418,6 +1632,459 @@ private Q_SLOTS:
         err.clear();
         QVERIFY(!deck::importAnyPresentationFile(dir.filePath(QStringLiteral("missing.ppt")), &err));
         QVERIFY(!err.isEmpty());
+    }
+
+    // Open document presentations open by what they are, not what they are called: the type the ZIP starts
+    // with says so, a template is a presentation too, and another kind of open document says what it is.
+    void openDocumentPresentationsOpenByTheirType()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto write = [&](const QString &name, const QByteArray &bytes) {
+            QFile f(dir.filePath(name));
+            if (!f.open(QIODevice::WriteOnly)) return QString();
+            f.write(bytes);
+            return f.fileName();
+        };
+        const QByteArray odp = odptest::sampleOdp();
+        QString err;
+        auto d = deck::importAnyPresentationFile(write(QStringLiteral("talk.odp"), odp), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 4);
+        QVERIFY(d->fromFile);
+        // The name doesn't decide it, and a template is opened as a new presentation.
+        d = deck::importAnyPresentationFile(write(QStringLiteral("talk.pptx"), odp), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 4);
+        const QByteArray template_ = odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {}, "application/vnd.oasis.opendocument.presentation-template");
+        d = deck::importAnyPresentationFile(write(QStringLiteral("design.otp"), template_), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 4);
+        // One whose type is not the first entry of its ZIP (or is deflated) is found by its parts.
+        const QByteArray late = odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {{QStringLiteral("Pictures/a.png"), odptest::png(8, 8, Qt::red)}},
+                                                 "application/vnd.oasis.opendocument.presentation", QString(), false);
+        QVERIFY(!deck::looksLikeOpenDocument(late.left(128)));
+        d = deck::importAnyPresentationFile(write(QStringLiteral("late.odp"), late), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 4);
+        // What was left out is said, one note a line.
+        QVERIFY2(err.contains(QStringLiteral("animations")), qPrintable(err));
+        // Other kinds of open document, and the other formats' files, go where they go.
+        const QByteArray text = odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {}, "application/vnd.oasis.opendocument.text");
+        err.clear();
+        QVERIFY(!deck::importAnyPresentationFile(write(QStringLiteral("letter.odt"), text), &err));
+        QVERIFY2(err.contains(QStringLiteral("text document")), qPrintable(err));
+        QVERIFY(deck::looksLikeOpenDocument(odp.left(128)));
+        QVERIFY(!deck::looksLikeOpenDocument(buildPpt().left(128)));
+        QVERIFY(!deck::looksLikeOpenDocument(pack(samplePptx()).left(128)));
+    }
+
+    // The page size is the slide size; the master page is a slide master with its drawing, background,
+    // and placeholders; its layouts are the ones the slides use and the four every presentation has.
+    void odpReadsSizeMastersAndLayouts()
+    {
+        QString err;
+        QStringList skipped;
+        auto d = deck::importOdp(odptest::sampleOdp(), &err, &skipped);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(d->slideText);
+        QVERIFY(std::abs(d->pageSize().width() - 28 / 2.54 * 72) < 0.01);
+        QVERIFY(std::abs(d->pageSize().height() - 15.75 / 2.54 * 72) < 0.01);
+        QCOMPARE(d->setup.sheet, d->pageSize());
+        QCOMPARE(d->setup.sizeName, QStringLiteral("Custom"));
+        QCOMPARE(d->props.title, QStringLiteral("Quarterly"));
+        QCOMPARE(d->props.author, QStringLiteral("Pat"));
+
+        QCOMPARE(int(d->masters.size()), 5);
+        const MasterPage &master = *d->masters[0];
+        QVERIFY(deck::isSlideMaster(master));
+        QCOMPARE(master.name, QStringLiteral("Warm"));
+        QCOMPARE(master.background.type, Fill::Solid);
+        QCOMPARE(master.background.color.rgbValue(), QColor(0xFF, 0xF2, 0xCC));
+        // Its band, then its prompts: the title and the outline (the slide master's body), the date, footer, and number.
+        QStringList roles;
+        for (const auto &it : master.items) roles << it->role;
+        QCOMPARE(roles, (QStringList{QString(), "ph:title", "ph:body:1", "ph:dt", "ph:ftr", "ph:sldNum"}));
+        QCOMPARE(master.items[0]->type(), ItemType::Shape);
+        QCOMPARE(master.items[0]->fill.color.rgbValue(), QColor(0xC5, 0x5A, 0x11));
+        QVERIFY(std::abs(master.items[0]->rect.y() - 15.25 / 2.54 * 72) < 0.01);
+        QVERIFY(std::abs(master.items[1]->rect.x() - 1.4 / 2.54 * 72) < 0.01);
+        QVERIFY(std::abs(master.items[1]->rect.width() - 25.199 / 2.54 * 72) < 0.01);
+        QCOMPARE(textOf(*d, *master.items[1]), QStringLiteral("Click to edit Master title style"));
+        QCOMPARE(static_cast<const TextItem *>(master.items[1].get())->valign, VAlign::Middle);
+
+        QStringList types;
+        for (MasterPage *l : deck::layouts(*d)) {
+            QCOMPARE(l->baseId, master.id);
+            types << deck::layoutType(*l);
+        }
+        QCOMPARE(types, (QStringList{"title", "obj", "titleOnly", "blank"}));
+        // The slides stand on the layouts their placeholders make.
+        QCOMPARE(deck::layoutType(*d->masterFor(*d->pages[0])), QStringLiteral("title"));
+        QCOMPARE(deck::layoutType(*d->masterFor(*d->pages[1])), QStringLiteral("obj"));
+        QCOMPARE(deck::layoutType(*d->masterFor(*d->pages[2])), QStringLiteral("blank"));
+        QCOMPARE(deck::slideMasterOf(*d, 1), master.id);
+        QCOMPARE(deck::layoutOfType(*d, QStringLiteral("obj"))->items[0]->role, QStringLiteral("ph:title"));
+        QCOMPARE(deck::layoutOfType(*d, QStringLiteral("title"))->items[0]->role, QStringLiteral("ph:ctrTitle"));
+        // A new slide on a layout has its placeholders, with the formatting of the master's.
+        const int added = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        QStringList made;
+        for (const auto &it : d->pages[added]->items) made << deck::placeholderType(*it);
+        QVERIFY(made.contains(QStringLiteral("title")) && made.contains(QStringLiteral("obj")));
+        // The notes pages' size, and the notes.
+        QVERIFY(std::abs(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("w")).toDouble() - 21.59 / 2.54 * 72) < 0.01);
+        QCOMPARE(deck::notesText(*d, *d->pages[0]), QStringLiteral("Say hello first\nThen the numbers"));
+        // The theme's fonts are the title's and the outline's.
+        QCOMPARE(deck::themeOf(*d).headingFont, QStringLiteral("Trebuchet MS"));
+        // A slide of its own look: hidden, on a background of its own, without the master's drawing.
+        QVERIFY(d->pages[3]->hidden);
+        QVERIFY(!d->pages[3]->showMasterItems);
+        QCOMPARE(d->pages[3]->background.color.rgbValue(), QColor(0x11, 0x22, 0x33));
+        QVERIFY(!d->pages[1]->hidden && d->pages[1]->showMasterItems && d->pages[1]->background.isNone());
+        QRegularExpressionMatch lost = QRegularExpression(QStringLiteral("animations of (\\d+) slides")).match(skipped.join(QLatin1Char('\n')));
+        QVERIFY2(lost.hasMatch() && lost.captured(1) == QStringLiteral("1"), qPrintable(skipped.join(QLatin1Char('\n'))));
+    }
+
+    // Text takes what its styles give it: the placeholder's presentation style, the automatic styles of
+    // paragraphs and spans, the sizes in percent, and the bullets and numbers of the list styles.
+    void odpReadsTextAndLists()
+    {
+        QString err;
+        auto d = deck::importOdp(odptest::sampleOdp(), &err);
+        QVERIFY2(d, qPrintable(err));
+        // The title slide: a title with a subtitle beside it is the centered one.
+        const Page &first = *d->pages[0];
+        QCOMPARE(int(first.items.size()), 2);
+        QCOMPARE(first.items[0]->role, QStringLiteral("ph:ctrTitle"));
+        QCOMPARE(first.items[1]->role, QStringLiteral("ph:subTitle:1"));
+        QCOMPARE(first.title, QStringLiteral("Quarterly results"));
+        QCOMPARE(textOf(*d, *first.items[0]), QStringLiteral("Quarterly results"));
+        const QTextDocument *title = d->storyDoc(static_cast<const TextItem *>(first.items[0].get())->storyId);
+        QTextBlock block = title->begin();
+        QCOMPARE(block.blockFormat().alignment(), Qt::AlignHCenter);
+        QVector<QTextFragment> fragments;
+        for (auto it = block.begin(); !it.atEnd(); ++it) fragments << it.fragment();
+        QCOMPARE(int(fragments.size()), 2);
+        const QTextCharFormat a = fragments[0].charFormat(), b = fragments[1].charFormat();
+        QCOMPARE(a.fontPointSize(), 44.0);
+        QCOMPARE(a.fontWeight(), int(QFont::Bold));
+        QCOMPARE(a.fontFamilies().toStringList(), QStringList{"Trebuchet MS"});
+        QCOMPARE(a.foreground().color(), QColor(0x1F, 0x38, 0x64));
+        QVERIFY(!a.fontItalic());
+        QVERIFY(b.fontItalic());
+        QCOMPARE(b.underlineStyle(), QTextCharFormat::SingleUnderline);
+        QCOMPARE(b.foreground().color(), QColor(Qt::red));
+        QCOMPARE(b.fontPointSize(), 44.0);
+        QCOMPARE(static_cast<const TextItem *>(first.items[0].get())->valign, VAlign::Middle);
+        // Text with no color of its own is black on a light page.
+        const QTextDocument *sub = d->storyDoc(static_cast<const TextItem *>(first.items[1].get())->storyId);
+        QCOMPARE(sub->begin().begin().fragment().charFormat().foreground().color(), QColor(Qt::black));
+        QCOMPARE(sub->begin().begin().fragment().charFormat().fontPointSize(), 32.0);
+
+        // The second slide: the outline's bullets, in levels, and what follows the list.
+        const Page &second = *d->pages[1];
+        QCOMPARE(second.items[1]->role, QStringLiteral("ph:obj:1"));
+        const QTextDocument *outline = d->storyDoc(static_cast<const TextItem *>(second.items[1].get())->storyId);
+        QCOMPARE(outline->blockCount(), 3);
+        QTextBlock one = outline->begin(), two = one.next(), three = two.next();
+        QCOMPARE(one.text(), QStringLiteral("First point"));
+        QCOMPARE(two.text(), QStringLiteral("Second point"));
+        QCOMPARE(three.text(), QStringLiteral("Plain third"));
+        QVERIFY(one.textList());
+        QVERIFY(two.textList());
+        QVERIFY(!three.textList());
+        // The big round bullet of the symbol font, drawn at 45%, is the usual bullet at full size.
+        QCOMPARE(one.textList()->format().property(tp::BulletChar).toString(), QStringLiteral("•"));
+        QCOMPARE(two.textList()->format().property(tp::BulletChar).toString(), QStringLiteral("–"));
+        QCOMPARE(two.blockFormat().property(tp::ListLevel).toInt(), 1);
+        // The label is at the space before; the text starts a label's width on.
+        QVERIFY(std::abs(one.blockFormat().leftMargin() - 1.2 / 2.54 * 72) < 0.05);
+        QVERIFY(std::abs(one.blockFormat().textIndent() + 0.9 / 2.54 * 72) < 0.05);
+        QVERIFY(std::abs(two.blockFormat().leftMargin() - 2.4 / 2.54 * 72) < 0.05);
+        // The outline's levels have their own sizes (32 and 28 points), the spans theirs (150%, a superscript), the paragraph's style its alignment.
+        QCOMPARE(one.begin().fragment().charFormat().fontPointSize(), 32.0);
+        QCOMPARE(two.begin().fragment().charFormat().fontPointSize(), 28.0);
+        QCOMPARE(two.blockFormat().alignment(), Qt::AlignRight);
+        QCOMPARE(two.begin().fragment().text(), QStringLiteral("Second "));
+        auto lastFragment = [](const QTextBlock &blk) { QTextFragment f; for (auto it = blk.begin(); !it.atEnd(); ++it) f = it.fragment(); return f; };
+        QCOMPARE(lastFragment(two).charFormat().fontPointSize(), 42.0);
+        QCOMPARE(lastFragment(two).charFormat().verticalAlignment(), QTextCharFormat::AlignSuperScript);
+        // Space above the paragraphs, from the outline's styles.
+        QVERIFY(std::abs(one.blockFormat().topMargin() - 0.5 / 2.54 * 72) < 0.05);
+        QVERIFY(std::abs(two.blockFormat().topMargin() - 0.4 / 2.54 * 72) < 0.05);
+
+        // A text box of its own: numbers from the list style (starting at 3), and a link.
+        const TextItem *box = nullptr, *link = nullptr;
+        for (const auto &it : second.items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) (box ? link : box) = static_cast<const TextItem *>(it.get());
+        QVERIFY(box && link);
+        const QTextDocument *numbers = d->storyDoc(box->storyId);
+        QVERIFY(numbers->begin().textList());
+        QCOMPARE(numbers->begin().textList()->format().style(), QTextListFormat::ListDecimal);
+        QCOMPARE(numbers->begin().textList()->format().start(), 3);
+        QCOMPARE(numbers->begin().textList()->format().property(tp::NumberFormat).toInt(), 1);
+        QCOMPARE(numbers->blockCount(), 2);
+        const QTextDocument *linked = d->storyDoc(link->storyId);
+        // A link to a program or a file is not followed: its text stays text.
+        QCOMPARE(linked->toPlainText(), QStringLiteral("Visit the site now run"));
+        QStringList hrefs;
+        for (auto it = linked->begin().begin(); !it.atEnd(); ++it) hrefs << it.fragment().charFormat().anchorHref();
+        QCOMPARE(hrefs, (QStringList{QString(), "https://example.com/a?b=1&c=2", QString()}));
+    }
+
+    // Pictures with their crop, shapes by their type or their path, lines with arrows, groups, tables with
+    // spans, turns, transitions, and the footers a slide shows.
+    void odpReadsObjects()
+    {
+        QString err;
+        auto d = deck::importOdp(odptest::sampleOdp(), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto near = [](double a, double b) { return std::abs(a - b) < 0.05; };
+        const double cm = 72 / 2.54;
+        // The picture: a frame with a crop (7.5, 15, 3.75, and 30 points of a 150 by 75 point picture).
+        const Page &second = *d->pages[1];
+        const PictureItem *pic = nullptr;
+        for (const auto &it : second.items)
+            if (it->type() == ItemType::Picture) pic = static_cast<const PictureItem *>(it.get());
+        QVERIFY(pic);
+        QVERIFY(!pic->imageId.isEmpty());
+        QCOMPARE(d->imageSize(pic->imageId), QSize(200, 100));
+        QVERIFY(near(pic->rect.x(), 2 * cm) && near(pic->rect.y(), 10 * cm) && near(pic->rect.width(), 100) && near(pic->rect.height(), 50));
+        QVERIFY2(near(pic->imgRect.x(), -0.2 * 100 / 0.7) && near(pic->imgRect.width(), 100 / 0.7), qPrintable(QString::number(pic->imgRect.x())));
+        QVERIFY(near(pic->imgRect.y(), -0.1 * 50 / 0.85) && near(pic->imgRect.height(), 50 / 0.85));
+        QVERIFY(pic->flipH);
+        QVERIFY(pic->stroke.isNone());
+
+        const Page &third = *d->pages[2];
+        QVector<const Item *> items;
+        for (const auto &it : third.items) items << it.get();
+        // A custom shape by the type the standard names, with the fill and its opacity.
+        QCOMPARE(items[0]->type(), ItemType::Shape);
+        const auto *arrow = static_cast<const ShapeItem *>(items[0]);
+        QCOMPARE(arrow->shape, QStringLiteral("rightArrow"));
+        QCOMPARE(arrow->fill.color.rgbValue(), QColor(0x33, 0x66, 0xCC));
+        QVERIFY(near(arrow->fill.transparency, 0.5));
+        QVERIFY(arrow->stroke.isNone());
+        QVERIFY(near(arrow->rect.x(), 1 * cm) && near(arrow->rect.width(), 4 * cm));
+        QCOMPARE(static_cast<const ShapeItem *>(items[1])->shape, QStringLiteral("ellipse"));
+        // Its text, which a shape keeps in a story of its own.
+        QVERIFY(!static_cast<const ShapeItem *>(items[1])->storyId.isEmpty());
+        QCOMPARE(d->storyDoc(static_cast<const ShapeItem *>(items[1])->storyId)->toPlainText(), QStringLiteral("Round"));
+        // One whose type is no preset is drawn from its path.
+        const auto *freeform = static_cast<const ShapeItem *>(items[2]);
+        QVERIFY(!freeform->customPath.isEmpty());
+        QVERIFY(near(freeform->customPath.boundingRect().width(), freeform->rect.width()) && near(freeform->customPath.boundingRect().height(), freeform->rect.height()));
+        QVERIFY(near(freeform->rect.width(), 5 * cm) && near(freeform->rect.height(), 2.5 * cm));
+        // A line with its width, color, and an arrow at its end.
+        QCOMPARE(items[3]->type(), ItemType::Line);
+        const auto *line = static_cast<const LineItem *>(items[3]);
+        QVERIFY(near(line->p1.x(), 1 * cm) && near(line->p1.y(), 8 * cm) && near(line->p2.x(), 9 * cm) && near(line->p2.y(), 9 * cm));
+        QVERIFY(near(line->stroke.width, 0.1 * cm));
+        QCOMPARE(line->stroke.color.rgbValue(), QColor(0x00, 0x33, 0x00));
+        QCOMPARE(line->stroke.endArrow, Arrow::Triangle);
+        QCOMPARE(line->stroke.startArrow, Arrow::None);
+        // A group has its objects, placed on the page.
+        QCOMPARE(items[4]->type(), ItemType::Group);
+        const auto *group = static_cast<const GroupItem *>(items[4]);
+        QCOMPARE(int(group->children.size()), 2);
+        QVERIFY(near(group->children[0]->rect.x(), 2 * cm) && near(group->children[1]->rect.x(), 5 * cm));
+        QVERIFY(near(group->rect.width(), 5 * cm) && near(group->rect.height(), 3 * cm));
+        // A table: its columns and rows, a merged cell, the cells' fills, borders, and margins.
+        QCOMPARE(items[5]->type(), ItemType::Table);
+        const auto *table = static_cast<const TableItem *>(items[5]);
+        QCOMPARE(table->rows, 2);
+        QCOMPARE(table->cols, 2);
+        QVERIFY(near(table->colW[0], 3 * cm) && near(table->colW[1], 4 * cm) && near(table->rowH[0], 1 * cm));
+        QVERIFY(near(table->rect.x(), 14 * cm) && near(table->rect.y(), 2 * cm));
+        QCOMPARE(table->cell(0, 0).colSpan, 2);
+        QVERIFY(table->cell(0, 1).covered);
+        QVERIFY(!table->cell(1, 0).covered);
+        QCOMPARE(d->storyDoc(table->cell(0, 0).storyId)->toPlainText(), QStringLiteral("Header"));
+        QCOMPARE(d->storyDoc(table->cell(1, 1).storyId)->toPlainText(), QStringLiteral("b"));
+        QCOMPARE(table->cell(1, 0).fill.color.rgbValue(), QColor(0xF9, 0xF9, 0xF9));
+        QCOMPARE(table->cell(1, 0).border.left.color.rgbValue(), QColor(0xFF, 0x00, 0x00));
+        QVERIFY(near(table->cell(1, 0).border.top.width, 0.5));
+        QCOMPARE(table->cell(1, 0).valign, VAlign::Middle);
+        QVERIFY(near(table->cell(1, 0).margins.left(), 0.1 * cm));
+        // A rectangle turned a quarter counter-clockwise about its corner, then moved.
+        QCOMPARE(items[6]->type(), ItemType::Shape);
+        QVERIFY(near(items[6]->rotation, 270));
+        QVERIFY(near(items[6]->rect.center().x(), 11 * cm) && near(items[6]->rect.center().y(), 3 * cm));
+        QVERIFY(near(items[6]->rect.width(), 4 * cm) && near(items[6]->rect.height(), 2 * cm));
+
+        // An embedded object is the picture the file keeps of it, with its description.
+        QCOMPARE(items[7]->type(), ItemType::Picture);
+        QVERIFY(!static_cast<const PictureItem *>(items[7])->imageId.isEmpty());
+        QCOMPARE(items[7]->altText, QStringLiteral("A chart of sales"));
+        QVERIFY(near(items[7]->rect.x(), 10 * cm) && near(items[7]->rect.width(), 4 * cm));
+
+        // How the slide changes to the next, and when it moves on.
+        const deck::Transition t = deck::transitionOf(third);
+        QCOMPARE(t.type, QStringLiteral("push"));
+        QCOMPARE(t.dir, QStringLiteral("r"));
+        QVERIFY(near(t.duration, 1.0));
+        QVERIFY(t.advanceAfter && near(*t.advanceAfter, 5));
+        QVERIFY(!t.advanceOnClick);
+        QCOMPARE(deck::transitionOf(*d->pages[1]), deck::Transition());
+        // The footer and number the slide shows are in the places its layout has for them.
+        QStringList placeholders;
+        for (const auto &it : third.items) placeholders << deck::placeholderType(*it);
+        QVERIFY(placeholders.contains(QStringLiteral("ftr")) && placeholders.contains(QStringLiteral("sldNum")) && !placeholders.contains(QStringLiteral("dt")));
+        for (const auto &it : third.items)
+            if (deck::placeholderType(*it) == QLatin1String("ftr")) QCOMPARE(textOf(*d, *it), QStringLiteral("Confidential"));
+        QVERIFY(d->appData.value(QStringLiteral("footers")).toBool());
+    }
+
+    // Damaged and hostile files are refused, or read as far as they go, and say why.
+    void odpSurvivesHostileFiles()
+    {
+        QString err;
+        QStringList skipped;
+        QVERIFY(!deck::importOdp(QByteArray("this is not a package"), &err));
+        QVERIFY(!err.isEmpty());
+        err.clear();
+        QVERIFY(!deck::importOdp(QByteArray(), &err));
+        QVERIFY(!err.isEmpty());
+        // A package with no presentation in it, with parts that aren't XML, and with the wrong root.
+        err.clear();
+        QVERIFY(!deck::importOdp(odptest::odpZip(odptest::sampleContent(), QString::fromLatin1("<<< not xml")), &err));
+        QVERIFY(!err.isEmpty());
+        err.clear();
+        QVERIFY(!deck::importOdp(odptest::odpZip(QString::fromLatin1("<<< not xml")), &err));
+        QVERIFY(!err.isEmpty());
+        err.clear();
+        QVERIFY(!deck::importOdp(odptest::odpZip(QStringLiteral("<a/>")), &err));
+        QVERIFY(!err.isEmpty());
+        err.clear();
+        QVERIFY(!deck::importOdp(odptest::odpZip(odptest::odpContent(QString(), QString())), &err));   // no slides
+        QVERIFY(!err.isEmpty());
+        err.clear();
+        QVERIFY(!deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles().replace(QStringLiteral("<style:master-page"), QStringLiteral("<style:no-page"))
+                                                                       .replace(QStringLiteral("</style:master-page>"), QStringLiteral("</style:no-page>"))), &err));
+        QVERIFY(!err.isEmpty());
+        // A DOCTYPE (an entity it could define) is refused.
+        err.clear();
+        QString doctype = odptest::sampleContent();
+        doctype.insert(doctype.indexOf(QLatin1String("<office:document-content")), QStringLiteral("<!DOCTYPE x [<!ENTITY e \"boom\">]>"));
+        QVERIFY(!deck::importOdp(odptest::odpZip(doctype), &err));
+        QVERIFY(!err.isEmpty());
+        // A presentation protected with a password is told apart from damage.
+        err.clear();
+        const QString encrypted = QStringLiteral("<?xml version=\"1.0\"?><manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\">"
+                                                 "<manifest:file-entry manifest:full-path=\"content.xml\"><manifest:encryption-data manifest:checksum-type=\"x\"/></manifest:file-entry></manifest:manifest>");
+        QVERIFY(!deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {}, "application/vnd.oasis.opendocument.presentation", encrypted), &err));
+        QVERIFY2(err.contains(QStringLiteral("password")), qPrintable(err));
+        // A part named to climb out of the package.
+        err.clear();
+        QVERIFY(!deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {{QStringLiteral("../evil.xml"), "x"}}), &err));
+        QVERIFY(!err.isEmpty());
+        // A slide whose master page isn't there stands on the first one.
+        {
+            QString content = odptest::sampleContent();
+            content.replace(QStringLiteral("draw:name=\"page1\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\""), QStringLiteral("draw:name=\"page1\" draw:style-name=\"dp1\" draw:master-page-name=\"Gone\""));
+            err.clear();
+            auto d = deck::importOdp(odptest::odpZip(content), &err, &skipped);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(d->pages.size()), 4);
+        }
+        // Pictures that aren't in the package, or aren't pictures, leave their frames out, with a note.
+        {
+            err.clear();
+            auto d = deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {}), &err, &skipped);
+            QVERIFY(d);
+            QVERIFY(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("Pictures")));
+            auto garbage = deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {{QStringLiteral("Pictures/a.png"), "not a picture at all"}}), &err, &skipped);
+            QVERIFY(garbage);
+            QVERIFY(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("Pictures")));
+        }
+        // Huge counts: a table of a billion repeated columns and rows is cut to what a table is kept to, and so are the slides.
+        {
+            QString pages = QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\"><draw:frame svg:width=\"10cm\" svg:height=\"5cm\" svg:x=\"1cm\" svg:y=\"1cm\">"
+                                           "<table:table><table:table-column table:number-columns-repeated=\"1000000000\"/><table:table-row table:number-rows-repeated=\"1000000000\">"
+                                           "<table:table-cell table:number-columns-repeated=\"1000000000\"><text:p>x</text:p></table:table-cell></table:table-row></table:table></draw:frame></draw:page>");
+            err.clear();
+            auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), pages)), &err, &skipped);
+            // 256 columns and 256 rows are more than a table holds of cells here: it is left out, with the note.
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(d->pages.size()), 1);
+            QVERIFY(d->pages[0]->items.empty());
+            QVERIFY(!skipped.isEmpty());
+            QString many;
+            for (int i = 0; i < 10001; ++i) many += QStringLiteral("<draw:page draw:name=\"p%1\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\"/>").arg(i);
+            err.clear();
+            d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), many)), &err, &skipped);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(d->pages.size()), 10000);
+            QVERIFY(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("10,000")));
+        }
+        // Deep nesting: groups inside groups, and lists inside lists, are cut at a depth, and XML nested too deeply is refused.
+        {
+            QString groups, lists;
+            for (int i = 0; i < 400; ++i) groups += QStringLiteral("<draw:g>");
+            groups += QStringLiteral("<draw:rect svg:width=\"1cm\" svg:height=\"1cm\" svg:x=\"0cm\" svg:y=\"0cm\"/>");
+            for (int i = 0; i < 400; ++i) groups += QStringLiteral("</draw:g>");
+            for (int i = 0; i < 400; ++i) lists += QStringLiteral("<text:list><text:list-item>");
+            lists += QStringLiteral("<text:p>deep</text:p>");
+            for (int i = 0; i < 400; ++i) lists += QStringLiteral("</text:list-item></text:list>");
+            const QString page = QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">%1<draw:frame svg:width=\"10cm\" svg:height=\"5cm\" svg:x=\"1cm\" svg:y=\"1cm\">"
+                                                "<draw:text-box>%2</draw:text-box></draw:frame></draw:page>");
+            err.clear();
+            QElapsedTimer timer;
+            timer.start();
+            auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), page.arg(groups, lists))), &err, &skipped);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(d->pages.size()), 1);
+            QVERIFY(timer.elapsed() < 20000);
+            QString deeper;
+            for (int i = 0; i < 2000; ++i) deeper += QStringLiteral("<draw:g>");
+            for (int i = 0; i < 2000; ++i) deeper += QStringLiteral("</draw:g>");
+            err.clear();
+            QVERIFY(!deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), page.arg(deeper, QString()))), &err));
+            QVERIFY(!err.isEmpty());
+        }
+        // Equations that refer to themselves, huge numbers, and a transform that isn't one are harmless.
+        {
+            const QString shape = QStringLiteral("<draw:custom-shape draw:style-name=\"gr2\" svg:width=\"1e30cm\" svg:height=\"5cm\" svg:x=\"-1e30cm\" svg:y=\"1cm\" draw:transform=\"rotate (nan) translate (inf 1cm) matrix (1)\">"
+                                                 "<draw:enhanced-geometry draw:type=\"nothing\" svg:viewBox=\"0 0 21600 21600\" draw:enhanced-path=\"M ?f0 ?f1 L 1e300 ?f0 ?f1 ?f1 Z N\">"
+                                                 "<draw:equation draw:name=\"f0\" draw:formula=\"?f1+1\"/><draw:equation draw:name=\"f1\" draw:formula=\"?f0*?f0/0\"/></draw:enhanced-geometry></draw:custom-shape>");
+            const QString page = QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">") + shape + QStringLiteral("</draw:page>");
+            err.clear();
+            auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), page)), &err, &skipped);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(d->pages.size()), 1);
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = d.get();
+            ctx.cache = &cache;
+            QVERIFY(!Renderer::renderToImage(ctx, 0, 0.1).isNull());
+        }
+        // Styles whose parents run in a circle, and a master page that names itself.
+        {
+            QString styles = odptest::odpStyles();
+            styles.replace(QStringLiteral("<style:style style:name=\"Default-outline2\" style:family=\"presentation\" style:parent-style-name=\"Default-outline1\">"),
+                           QStringLiteral("<style:style style:name=\"Default-outline2\" style:family=\"presentation\" style:parent-style-name=\"Default-outline2\">"));
+            err.clear();
+            auto d = deck::importOdp(odptest::odpZip(odptest::sampleContent(), styles), &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(d->pages.size()), 4);
+        }
+        // Damage anywhere in the package: refused, or read as far as it goes, with the reason; never a crash.
+        {
+            const QByteArray good = odptest::sampleOdp();
+            quint32 seed = 12345;
+            auto next = [&seed] { seed = seed * 1664525u + 1013904223u; return seed; };
+            int opened = 0;
+            for (int round = 0; round < 150; ++round) {
+                QByteArray bad = good;
+                const int hits = 1 + int(next() % 5);
+                for (int i = 0; i < hits; ++i) bad[int((next() >> 8) % quint32(bad.size()))] = char(next() >> 16);
+                if (round % 9 == 0) bad.truncate(int((next() >> 8) % quint32(bad.size())));
+                err.clear();
+                if (auto d = deck::importOdp(bad, &err)) ++opened;
+                else QVERIFY(!err.isEmpty());
+            }
+            QVERIFY(opened > 0);
+        }
     }
 
     // A new layout moves the placeholders to its places, by kind, and keeps
