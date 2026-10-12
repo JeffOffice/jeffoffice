@@ -141,13 +141,48 @@ set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscre
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 
 # JeffDeck, the presentation app: like JeffPub, everything except main() is a
-# library its tests link. Built and tested everywhere; not packaged yet.
+# library its tests link. Packaged beside JeffPub (a Preview in 0.7.0).
 file(GLOB_RECURSE JD_SOURCES CONFIGURE_DEPENDS apps/deck/*.cpp apps/deck/*.h)
 list(REMOVE_ITEM JD_SOURCES ${CMAKE_SOURCE_DIR}/apps/deck/main.cpp)
 add_library(jdcore STATIC ${JD_SOURCES} apps/deck/resources/deck.qrc)
 target_include_directories(jdcore PUBLIC apps/deck)
 target_link_libraries(jdcore PUBLIC jo_page)
 qt_add_executable(jeffdeck WIN32 MACOSX_BUNDLE apps/deck/main.cpp)
+if(APPLE)
+  # As JeffPub's: an icon from its 256-pixel picture, document types (the
+  # presentation formats it opens, never as their default), and the fonts and
+  # dictionaries in Contents/Resources.
+  set(JD_ICONSET ${CMAKE_BINARY_DIR}/JeffDeck.iconset)
+  set(JD_ICNS ${CMAKE_BINARY_DIR}/JeffDeck.icns)
+  set(JD_PNG ${CMAKE_SOURCE_DIR}/apps/deck/resources/app.png)
+  add_custom_command(OUTPUT ${JD_ICNS}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${JD_ICONSET}
+    COMMAND sips -z 16 16 ${JD_PNG} --out ${JD_ICONSET}/icon_16x16.png
+    COMMAND sips -z 32 32 ${JD_PNG} --out ${JD_ICONSET}/icon_16x16@2x.png
+    COMMAND sips -z 32 32 ${JD_PNG} --out ${JD_ICONSET}/icon_32x32.png
+    COMMAND sips -z 64 64 ${JD_PNG} --out ${JD_ICONSET}/icon_32x32@2x.png
+    COMMAND sips -z 128 128 ${JD_PNG} --out ${JD_ICONSET}/icon_128x128.png
+    COMMAND sips -z 256 256 ${JD_PNG} --out ${JD_ICONSET}/icon_128x128@2x.png
+    COMMAND sips -z 256 256 ${JD_PNG} --out ${JD_ICONSET}/icon_256x256.png
+    COMMAND iconutil -c icns ${JD_ICONSET} -o ${JD_ICNS}
+    DEPENDS ${JD_PNG}
+    VERBATIM)
+  set_source_files_properties(${JD_ICNS} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  target_sources(jeffdeck PRIVATE ${JD_ICNS})
+  set_target_properties(jeffdeck PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/packaging/macos/JeffDeck-Info.plist.in
+    MACOSX_BUNDLE_GUI_IDENTIFIER com.jeffoffice.jeffdeck
+    MACOSX_BUNDLE_ICON_FILE JeffDeck.icns
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+  add_custom_command(TARGET jeffdeck POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffdeck>/Resources/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffdeck>/Resources/dict
+    VERBATIM)
+endif()
+if(WIN32)
+  target_sources(jeffdeck PRIVATE apps/deck/resources/app.rc)
+endif()
 target_link_libraries(jeffdeck PRIVATE jdcore)
 set_target_properties(jeffdeck PROPERTIES OUTPUT_NAME JeffDeck)
 qt_add_executable(jdtests tests/deck/tst_deck.cpp)

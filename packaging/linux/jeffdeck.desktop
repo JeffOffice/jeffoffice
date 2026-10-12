@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=JeffDeck
+GenericName=Presentations
+Comment=Create, edit, and show presentations (Preview)
+Exec=jeffdeck %F
+Icon=jeffdeck
+Terminal=false
+Categories=Office;Presentation;
+MimeType=application/vnd.openxmlformats-officedocument.presentationml.presentation;application/vnd.openxmlformats-officedocument.presentationml.template;application/vnd.openxmlformats-officedocument.presentationml.slideshow;application/vnd.ms-powerpoint;application/vnd.oasis.opendocument.presentation;application/vnd.oasis.opendocument.presentation-template;
+Keywords=presentation;slides;slide show;pptx;ppt;odp;
+StartupWMClass=JeffDeck

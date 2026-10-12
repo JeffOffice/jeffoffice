@@ -1,12 +1,13 @@
-; JeffOffice Windows installer (NSIS). Built by CI from dist\JeffPub.
-; Installs the suite's apps that are ready (JeffPub, for now) into one folder,
-; per user: no administrator rights needed. The apps still being built are
-; listed as coming soon and can't be chosen yet.
+; JeffOffice Windows installer (NSIS). Built by CI from dist\JeffOffice.
+; Installs the suite's apps that are ready (JeffPub, and JeffDeck as a
+; preview) into one folder, per user: no administrator rights needed. The
+; apps still being built are listed as coming soon and can't be chosen yet.
 Unicode true
 ManifestDPIAware true
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
 !include "Sections.nsh"
+!include "LogicLib.nsh"
 
 !ifndef VERSION
   !define VERSION "0.1.0"
@@ -14,6 +15,8 @@ ManifestDPIAware true
 !define SUITE "JeffOffice"
 !define APP "JeffPub"
 !define EXE "JeffPub.exe"
+!define DECK "JeffDeck"
+!define DECKEXE "JeffDeck.exe"
 !define UNKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\JeffOffice"
 ; Through 0.6.10, setup installed JeffPub on its own; this setup moves it in.
 !define PUBKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\JeffPub"
@@ -23,6 +26,7 @@ ManifestDPIAware true
 ; suite's own, which holds the statistics choice, and JeffPub's.
 !define SUITEKEY "Software\JeffOffice\JeffOffice"
 !define PUBSETKEY "Software\JeffOffice\JeffPub"
+!define DECKSETKEY "Software\JeffOffice\JeffDeck"
 ; Taskbar pins are shortcuts kept here.
 !define PINS "$APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 
@@ -52,7 +56,7 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !define MUI_HEADERIMAGE_BITMAP "header.bmp"
 !define MUI_HEADERIMAGE_UNBITMAP "header.bmp"
 !define MUI_WELCOMEPAGE_TITLE "Welcome to ${SUITE}"
-!define MUI_WELCOMEPAGE_TEXT "This will install ${SUITE} ${VERSION}, a free, open-source office suite.$\r$\n$\r$\n${APP}, for desktop publishing, is ready now. JeffDeck, JeffWrite, JeffCrunch, JeffMail, and JeffBase are coming soon. If ${APP} is already installed, setup moves it into ${SUITE}, with your settings.$\r$\n$\r$\n${SUITE} is an independent open-source project.$\r$\n$\r$\nNo administrator rights are needed."
+!define MUI_WELCOMEPAGE_TEXT "This will install ${SUITE} ${VERSION}, a free, open-source office suite.$\r$\n$\r$\n${APP}, for desktop publishing, is ready now, and ${DECK}, for presentations, comes as a preview. JeffWrite, JeffCrunch, JeffMail, and JeffBase are coming soon. If ${APP} is already installed, setup moves it into ${SUITE}, with your settings.$\r$\n$\r$\n${SUITE} is an independent open-source project.$\r$\n$\r$\nNo administrator rights are needed."
 !insertmacro MUI_PAGE_WELCOME
 ; The GNU GPL v3.0: Next stays disabled until the box is checked.
 !define MUI_LICENSEPAGE_TEXT_TOP "${SUITE} is free software under the GNU General Public License v3.0."
@@ -65,7 +69,7 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_TITLE "${SUITE} is ready"
-!define MUI_FINISHPAGE_TEXT "${SUITE} ${VERSION} is installed. You'll find ${APP} in the Start menu."
+!define MUI_FINISHPAGE_TEXT "${SUITE} ${VERSION} is installed. You'll find its apps in the Start menu."
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${EXE}"
 !define MUI_FINISHPAGE_RUN_TEXT "Start ${APP}"
 !insertmacro MUI_PAGE_FINISH
@@ -74,9 +78,9 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 
-; Files in use can't be replaced, so JeffPub must be closed first. Since
-; 0.1.6 it holds a named mutex while it runs; any version keeps its .exe
-; locked, which catches older ones too.
+; Files in use can't be replaced, so the apps must be closed first. JeffPub
+; (since 0.1.6) and JeffDeck hold a named mutex while they run; any version
+; keeps its .exe locked, which catches older ones too.
 !macro WaitForAppToClose
   check_running:
     StrCpy $R9 0
@@ -90,13 +94,18 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
       System::Call 'kernel32::CloseHandle(p r1)'
       StrCpy $R9 1
   no_old_mutex:
+    System::Call 'kernel32::OpenMutexW(i 0x00100000, i 0, w "JeffDeckRunning") p .r1'
+    IntCmp $1 0 no_deck_mutex
+      System::Call 'kernel32::CloseHandle(p r1)'
+      StrCpy $R9 1
+  no_deck_mutex:
     ; A virus scanner can hold the program for a moment after it closes,
     ; so a locked file is checked again for up to 5 seconds (unless a mutex
     ; already said it's running).
     IntCmp $R9 1 decide
     StrCpy $R8 0
   check_file:
-    IfFileExists "$INSTDIR\${EXE}" 0 decide
+    IfFileExists "$INSTDIR\${EXE}" 0 check_deck
       ClearErrors
       FileOpen $2 "$INSTDIR\${EXE}" a
       IfErrors 0 unlocked
@@ -106,14 +115,35 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
         Goto check_file
     unlocked:
       FileClose $2
+  check_deck:
+    IfFileExists "$INSTDIR\${DECKEXE}" 0 decide
+      ClearErrors
+      FileOpen $2 "$INSTDIR\${DECKEXE}" a
+      IfErrors 0 deck_unlocked
+        IntOp $R8 $R8 + 1
+        IntCmp $R8 10 locked
+        Sleep 500
+        Goto check_deck
+    deck_unlocked:
+      FileClose $2
       Goto decide
     locked:
       StrCpy $R9 1
   decide:
     IntCmp $R9 0 not_running
-      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "${APP} is running.$\r$\n$\r$\nSave your work and close ${APP}, then click OK to continue. Click Cancel to stop." IDOK check_running
+      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "${APP} or ${DECK} is running.$\r$\n$\r$\nSave your work and close it, then click OK to continue. Click Cancel to stop." IDOK check_running
       Abort
   not_running:
+!macroend
+
+; A presentation type lists JeffDeck under "Open with" (and JeffDeck lists the
+; type), never as its default; uninstalling takes both away again.
+!macro DeckOpensWith ext
+  WriteRegStr HKCU "Software\Classes\${ext}\OpenWithProgids" "JeffDeck.Presentation" ""
+  WriteRegStr HKCU "Software\Classes\Applications\${DECKEXE}\SupportedTypes" "${ext}" ""
+!macroend
+!macro un.DeckOpensWith ext
+  DeleteRegValue HKCU "Software\Classes\${ext}\OpenWithProgids" "JeffDeck.Presentation"
 !macroend
 
 Function .onInit
@@ -133,7 +163,7 @@ Section "${APP}: publications" SecMain
   Call MoveFromJeffPub
   Call RemoveJeffPub79
   SetOutPath "$INSTDIR"
-  File /r "..\..\dist\JeffPub\*.*"
+  File /r /x "${DECKEXE}" "..\..\dist\JeffOffice\*.*"
   File "jeffoffice.ico"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateShortcut "$SMPROGRAMS\${APP}.lnk" "$INSTDIR\${EXE}"
@@ -174,9 +204,30 @@ Section "${APP}: publications" SecMain
     WriteRegStr HKCU "Software\Classes\JeffPub.Publication\shell\open\command" "" '"$INSTDIR\${EXE}" "%1"'
 SectionEnd
 
-; Coming soon: listed so people see what's ahead (ComingSoon makes them read-only).
-Section /o "JeffDeck: presentations (coming soon)" SecDeck
+; A preview: installed unless unticked, beside JeffPub (the files they share
+; come with JeffPub's section).
+Section "${DECK}: presentations (preview)" SecDeck
+  SetOutPath "$INSTDIR"
+  File "..\..\dist\JeffOffice\${DECKEXE}"
+  CreateShortcut "$SMPROGRAMS\${DECK}.lnk" "$INSTDIR\${DECKEXE}"
+  IfFileExists "${PINS}\${DECK}.lnk" 0 +2
+    CreateShortcut "${PINS}\${DECK}.lnk" "$INSTDIR\${DECKEXE}"
+  ; Presentations list JeffDeck under "Open with" without it becoming their default.
+  WriteRegStr HKCU "Software\Classes\JeffDeck.Presentation" "" "Presentation"
+  WriteRegStr HKCU "Software\Classes\JeffDeck.Presentation\DefaultIcon" "" "$INSTDIR\${DECKEXE},0"
+  WriteRegStr HKCU "Software\Classes\JeffDeck.Presentation\shell\open\command" "" '"$INSTDIR\${DECKEXE}" "%1"'
+  !insertmacro DeckOpensWith ".pptx"
+  !insertmacro DeckOpensWith ".potx"
+  !insertmacro DeckOpensWith ".ppsx"
+  !insertmacro DeckOpensWith ".ppt"
+  !insertmacro DeckOpensWith ".pot"
+  !insertmacro DeckOpensWith ".pps"
+  !insertmacro DeckOpensWith ".odp"
+  !insertmacro DeckOpensWith ".otp"
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
+
+; Coming soon: listed so people see what's ahead (ComingSoon makes them read-only).
 Section /o "JeffWrite: documents (coming soon)" SecWrite
 SectionEnd
 Section /o "JeffCrunch: spreadsheets (coming soon)" SecCrunch
@@ -190,8 +241,11 @@ SectionGroupEnd
 
 SectionGroup /e "Options" SecOptions
 
-Section "Desktop shortcut" SecDesktop
+Section "Desktop shortcuts" SecDesktop
   CreateShortcut "$DESKTOP\${APP}.lnk" "$INSTDIR\${EXE}"
+  ${If} ${SectionIsSelected} ${SecDeck}
+    CreateShortcut "$DESKTOP\${DECK}.lnk" "$INSTDIR\${DECKEXE}"
+  ${EndIf}
 SectionEnd
 
 Section "Open JeffPub publications (.jpub) with ${APP}" SecJpub
@@ -217,7 +271,6 @@ SectionGroupEnd
 ; The apps not ready yet are listed, unticked, and can't be ticked.
 ; (After the sections: their ids are defined there.)
 Function ComingSoon
-  SectionSetFlags ${SecDeck} ${SF_RO}
   SectionSetFlags ${SecWrite} ${SF_RO}
   SectionSetFlags ${SecCrunch} ${SF_RO}
   SectionSetFlags ${SecMail} ${SF_RO}
@@ -304,16 +357,16 @@ Function RemoveJeffPub79
 FunctionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} is ready now; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} is ready now and ${DECK} is a preview; the others are coming soon."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, cards, and more. Opens .pub files. Comes with its fonts and spelling dictionaries."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. Coming soon: it can't be installed yet."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. A preview: it opens .pptx, .ppt, and .odp files, plays slide shows with their transitions and animations, and saves .pptx files. Some features are still being built."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMail} "Email and calendars. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecBase} "Databases. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecOptions} "Shortcuts, file types, and usage statistics."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecStats} "Once a day (and when updated), the apps send their version, your operating system and language, and how often each of their commands is used; after a crash, also where in the program it happened. Never your files, their names, or anything in them. You can change this later in File > Options."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Adds a shortcut to your desktop."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Adds shortcuts to the apps to your desktop."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecJpub} "Double-clicking a .jpub file opens it in ${APP}."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecPub} "Double-clicking a .pub file opens it in ${APP} instead of the program that opens it now. Leave this off to keep that program as the default; ${APP} is always available under Open with."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
@@ -321,6 +374,19 @@ FunctionEnd
 Section "Uninstall"
   Delete "$SMPROGRAMS\${APP}.lnk"
   Delete "$DESKTOP\${APP}.lnk"
+  Delete "$SMPROGRAMS\${DECK}.lnk"
+  Delete "$DESKTOP\${DECK}.lnk"
+  !insertmacro un.DeckOpensWith ".pptx"
+  !insertmacro un.DeckOpensWith ".potx"
+  !insertmacro un.DeckOpensWith ".ppsx"
+  !insertmacro un.DeckOpensWith ".ppt"
+  !insertmacro un.DeckOpensWith ".pot"
+  !insertmacro un.DeckOpensWith ".pps"
+  !insertmacro un.DeckOpensWith ".odp"
+  !insertmacro un.DeckOpensWith ".otp"
+  DeleteRegKey HKCU "Software\Classes\JeffDeck.Presentation"
+  DeleteRegKey HKCU "Software\Classes\Applications\${DECKEXE}"
+  DeleteRegKey HKCU "${DECKSETKEY}"
   RMDir /r "$INSTDIR"
   ReadRegStr $0 HKCU "Software\Classes\.pub" ""
   StrCmp $0 "JeffPub.PubFile" 0 +2

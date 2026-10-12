@@ -177,18 +177,20 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force dist/JeffPub | Out-Null
-          Copy-Item build/JeffPub.exe dist/JeffPub/
-          # Also copies the GCC runtime DLLs beside the program.
-          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffPub/JeffPub.exe
-          Get-ChildItem dist/JeffPub/*.dll | Select-Object -ExpandProperty Name
-          Copy-Item LICENSE, README.md dist/JeffPub/
-          Copy-Item -Recurse resources/fonts dist/JeffPub/fonts
-          Copy-Item -Recurse resources/dict dist/JeffPub/dict
+          # The suite's folder: both apps beside the Qt they share.
+          New-Item -ItemType Directory -Force dist/JeffOffice | Out-Null
+          Copy-Item build/JeffPub.exe, build/JeffDeck.exe dist/JeffOffice/
+          # Also copies the GCC runtime DLLs beside the programs.
+          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffPub.exe
+          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffDeck.exe
+          Get-ChildItem dist/JeffOffice/*.dll | Select-Object -ExpandProperty Name
+          Copy-Item LICENSE, README.md dist/JeffOffice/
+          Copy-Item -Recurse resources/fonts dist/JeffOffice/fonts
+          Copy-Item -Recurse resources/dict dist/JeffOffice/dict
           # PDFium, and its license texts and those of the libraries in it.
-          Copy-Item build/pdfium.dll dist/JeffPub/
-          New-Item -ItemType Directory -Force dist/JeffPub/licenses | Out-Null
-          Copy-Item -Recurse third_party/pdfium/licenses dist/JeffPub/licenses/pdfium
+          Copy-Item build/pdfium.dll dist/JeffOffice/
+          New-Item -ItemType Directory -Force dist/JeffOffice/licenses | Out-Null
+          Copy-Item -Recurse third_party/pdfium/licenses dist/JeffOffice/licenses/pdfium
 
       - name: Installer (Windows)
         if: runner.os == 'Windows'
@@ -212,21 +214,21 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dev-tools | Out-Null
-          Copy-Item build/jpubtool.exe dev-tools/
+          Copy-Item build/jpubtool.exe, build/jdecktool.exe dev-tools/
           Copy-Item build/pdfium.dll dev-tools/
 
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
-          name: JeffPub-windows-tools
+          name: JeffOffice-windows-tools
           path: dev-tools
 
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
-          mkdir -p dist/JeffPub
-          cp build/JeffPub LICENSE README.md dist/JeffPub/
-          cp -r resources/fonts resources/dict dist/JeffPub/
+          mkdir -p dist/JeffOffice
+          cp build/JeffPub build/JeffDeck LICENSE README.md dist/JeffOffice/
+          cp -r resources/fonts resources/dict dist/JeffOffice/
 
       - name: Linux packages (.deb and AppImage)
         if: runner.os == 'Linux'
@@ -237,18 +239,21 @@ jobs:
           chmod +x tools-bin/*
           export PATH="$PWD/tools-bin:$PATH" QMAKE="$QT_ROOT_DIR/bin/qmake" APPIMAGE_EXTRACT_AND_RUN=1
           packaging/linux/build-packages.sh build linux-packages
-          # The packaged program must start on its own bundled Qt.
+          # The packaged programs must start on their own bundled Qt.
           mkdir deb-check && dpkg-deb -x linux-packages/*.deb deb-check
-          env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen deb-check/opt/jeffpub/bin/JeffPub --template flyer-announce --export-pdf deb-check/check.pdf
+          env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen deb-check/opt/jeffoffice/bin/JeffPub --template flyer-announce --export-pdf deb-check/check.pdf
           test -s deb-check/check.pdf
+          env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 deb-check/opt/jeffoffice/bin/JeffDeck --screenshot deb-check/deck.png --size 800x600
+          test -s deb-check/deck.png
           # PDFium is in the package, with the license texts.
-          test -f deb-check/opt/jeffpub/lib/libpdfium.so
-          test -f deb-check/usr/share/doc/jeffpub/pdfium/pdfium.txt
+          test -f deb-check/opt/jeffoffice/lib/libpdfium.so
+          test -f deb-check/usr/share/doc/jeffoffice/pdfium/pdfium.txt
+          ls -la linux-packages
 
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:
-          name: JeffPub-linux-packages
+          name: JeffOffice-linux-packages
           path: linux-packages
 
       - name: Package (macOS)
@@ -256,30 +261,34 @@ jobs:
         run: |
           ver=$(sed -n 's/^project(JeffPub VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           mkdir -p dist macos-dmg
-          cp -R build/JeffPub.app dist/
-          "$QT_ROOT_DIR/bin/macdeployqt" dist/JeffPub.app
-          # PDFium beside the Qt frameworks, where the program finds it,
-          # and its license texts and those of the libraries in it.
-          fw=dist/JeffPub.app/Contents/Frameworks
-          test -f "$fw/libpdfium.dylib" || cp build/_deps/pdfium/lib/libpdfium.dylib "$fw/"
-          # The build's own path to it isn't for shipping (and would hide a
-          # missing copy from the check below).
-          install_name_tool -delete_rpath "$PWD/build/_deps/pdfium/lib" dist/JeffPub.app/Contents/MacOS/JeffPub || true
-          otool -l dist/JeffPub.app/Contents/MacOS/JeffPub | grep -A2 LC_RPATH | grep path || true
-          mkdir -p dist/JeffPub.app/Contents/Resources/licenses
-          cp -R third_party/pdfium/licenses dist/JeffPub.app/Contents/Resources/licenses/pdfium
-          # Not yet signed with a developer certificate: an ad-hoc signature
-          # lets it run on Apple silicon.
-          codesign --force --deep --sign - dist/JeffPub.app
-          lipo -archs dist/JeffPub.app/Contents/MacOS/JeffPub
-          # The packaged program must start on its own bundled Qt (and PDFium).
+          for app in JeffPub JeffDeck; do
+            cp -R build/$app.app dist/
+            "$QT_ROOT_DIR/bin/macdeployqt" dist/$app.app
+            # PDFium beside the Qt frameworks, where the program finds it,
+            # and its license texts and those of the libraries in it.
+            fw=dist/$app.app/Contents/Frameworks
+            test -f "$fw/libpdfium.dylib" || cp build/_deps/pdfium/lib/libpdfium.dylib "$fw/"
+            # The build's own path to it isn't for shipping (and would hide a
+            # missing copy from the check below).
+            install_name_tool -delete_rpath "$PWD/build/_deps/pdfium/lib" dist/$app.app/Contents/MacOS/$app || true
+            otool -l dist/$app.app/Contents/MacOS/$app | grep -A2 LC_RPATH | grep path || true
+            mkdir -p dist/$app.app/Contents/Resources/licenses
+            cp -R third_party/pdfium/licenses dist/$app.app/Contents/Resources/licenses/pdfium
+            # Not yet signed with a developer certificate: an ad-hoc signature
+            # lets it run on Apple silicon.
+            codesign --force --deep --sign - dist/$app.app
+            lipo -archs dist/$app.app/Contents/MacOS/$app
+          done
+          # The packaged programs must start on their own bundled Qt (and PDFium).
           QT_QPA_PLATFORM=offscreen dist/JeffPub.app/Contents/MacOS/JeffPub --template flyer-announce --export-pdf dist/check.pdf
           test -s dist/check.pdf && rm dist/check.pdf
-          mkdir dmg-root && cp -R dist/JeffPub.app LICENSE README.md dmg-root/ && ln -s /Applications dmg-root/Applications
+          QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 dist/JeffDeck.app/Contents/MacOS/JeffDeck --screenshot dist/deck.png --size 800x600
+          test -s dist/deck.png && rm dist/deck.png
+          mkdir dmg-root && cp -R dist/JeffPub.app dist/JeffDeck.app LICENSE README.md dmg-root/ && ln -s /Applications dmg-root/Applications
           # hdiutil now and then fails with "Resource busy" on the hosted
           # runners; a few tries a little apart get past it.
           for try in 1 2 3 4 5; do
-            hdiutil create -volname "JeffPub" -srcfolder dmg-root -ov -format UDZO macos-dmg/JeffPub-$ver.dmg && break
+            hdiutil create -volname "JeffOffice" -srcfolder dmg-root -ov -format UDZO macos-dmg/JeffOffice-$ver.dmg && break
             if [ "$try" = 5 ]; then exit 1; fi
             sleep 10
           done
@@ -288,13 +297,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: runner.os == 'macOS'
         with:
-          name: JeffPub-macos-dmg
+          name: JeffOffice-macos-dmg
           path: macos-dmg
 
       - uses: actions/upload-artifact@v4
         with:
-          name: JeffPub-${{ matrix.name }}
-          path: dist/JeffPub
+          name: JeffOffice-${{ matrix.name }}
+          path: dist/JeffOffice
 
   # After a push to main, replaces the project wiki's pages with Help's (the
   # ones the Linux build above exported); nothing is committed when they are

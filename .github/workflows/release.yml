@@ -43,9 +43,9 @@ jobs:
           set -euo pipefail
           mkdir out
           cp art/JeffOffice-Setup/JeffOffice-Setup.exe out/
-          (cd art/JeffPub-windows && zip -r -q -X ../../out/JeffPub-windows.zip .)
-          cp art/JeffPub-linux-packages/*.deb art/JeffPub-linux-packages/*.AppImage out/
-          cp art/JeffPub-macos-dmg/*.dmg out/
+          (cd art/JeffOffice-windows && zip -r -q -X ../../out/JeffOffice-windows.zip .)
+          cp art/JeffOffice-linux-packages/*.deb art/JeffOffice-linux-packages/*.AppImage out/
+          cp art/JeffOffice-macos-dmg/*.dmg out/
           ls -la out
       - name: Publish
         env:
