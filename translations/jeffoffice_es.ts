@@ -837,7 +837,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">%1 (sombreado %2%)</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+293"/>
+        <location filename="../libs/page/core/document.cpp" line="+484"/>
         <source>Organization Name</source>
         <translation type="unfinished">Nombre de la organización</translation>
     </message>
@@ -3259,7 +3259,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Idioma de presentación:</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+5"/>
         <source>Send anonymous usage statistics</source>
         <translation type="unfinished">Enviar estadísticas de uso anónimas</translation>
     </message>
@@ -3284,7 +3284,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Las versiones beta llegan antes que las normales y pueden tener algunos fallos. Deje esta opción desactivada para obtener solo las versiones normales.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>General</source>
         <translation type="unfinished">General</translation>
     </message>
@@ -4053,7 +4053,7 @@ O bien, guarde en una carpeta que no esté protegida.</translation>
 <context>
     <name>Help</name>
     <message>
-        <location filename="../libs/shell/app/help.cpp" line="+241"/>
+        <location filename="../libs/shell/app/help.cpp" line="+257"/>
         <source>Quick Access Toolbar</source>
         <translation type="unfinished">Barra de herramientas de acceso rápido</translation>
     </message>
@@ -4372,7 +4372,7 @@ Open them with your email program to send.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/deck/main.cpp" line="+44"/>
+        <location filename="../apps/deck/main.cpp" line="+79"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Guardar una captura de pantalla de la ventana y salir.</translation>
     </message>
@@ -4529,7 +4529,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+266"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+267"/>
         <source>Blank</source>
         <translation type="unfinished">En blanco</translation>
     </message>
@@ -4554,7 +4554,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Dos objetos</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpimport_shape.cpp" line="+103"/>
+        <location filename="../apps/deck/io/odpimport_shape.cpp" line="+109"/>
         <source>Click to edit Master title style</source>
         <translation type="unfinished">Haga clic para modificar el estilo de título del patrón</translation>
     </message>
@@ -4600,7 +4600,12 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+2429"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+2560"/>
+        <source>The presentation has no slides.</source>
+        <translation type="unfinished">La presentación no tiene diapositivas.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>The presentation is too big to open.</source>
         <translation type="unfinished">La presentación es demasiado grande para abrirla.</translation>
     </message>
@@ -4608,7 +4613,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+1402"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+1600"/>
         <source>This file is in an older format, or is protected with a password, which %1 can&apos;t open yet.</source>
         <translation type="unfinished">Este archivo tiene un formato antiguo o está protegido con contraseña, y %1 aún no puede abrirlo.</translation>
     </message>
@@ -4616,7 +4621,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PresentationFile</name>
     <message>
-        <location filename="../apps/deck/io/presentationfile.cpp" line="+24"/>
+        <location filename="../apps/deck/io/presentationfile.cpp" line="+35"/>
         <source>The file can&apos;t be opened: %1</source>
         <translation type="unfinished">No se puede abrir el archivo: %1</translation>
     </message>
@@ -8970,12 +8975,23 @@ Autoedición</translation>
 <context>
     <name>Xml</name>
     <message>
-        <location filename="../libs/office/office/xml.cpp" line="+90"/>
+        <location filename="../libs/office/office/xml.cpp" line="+143"/>
+        <location line="+19"/>
+        <source>The XML is too large to open.</source>
+        <translation type="unfinished">El XML es demasiado grande para abrirlo.</translation>
+    </message>
+    <message>
+        <location line="-18"/>
+        <source>The XML has an element with too many attributes.</source>
+        <translation type="unfinished">El XML tiene un elemento con demasiados atributos.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>The XML has a DOCTYPE, which is not allowed.</source>
         <translation type="unfinished">El XML tiene un DOCTYPE, lo cual no está permitido.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>The XML is nested too deeply.</source>
         <translation type="unfinished">El XML tiene demasiados niveles de anidamiento.</translation>
     </message>
@@ -10224,7 +10240,7 @@ Origen: %3</translation>
         <translation type="unfinished">Responder</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Reopen</source>
         <translation type="unfinished">Volver a abrir</translation>
     </message>
@@ -10234,12 +10250,12 @@ Origen: %3</translation>
         <translation type="unfinished">Resolver</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+11"/>
         <source>Edit</source>
         <translation type="unfinished">Modificar</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Delete</source>
         <translation type="unfinished">Eliminar</translation>
     </message>
@@ -10561,7 +10577,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+106"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+107"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Horizontal</source>
         <translation type="unfinished">Horizontal</translation>
@@ -10639,7 +10655,7 @@ Origen: %3</translation>
         <location line="+5"/>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+28"/>
         <location line="+19"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+181"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+177"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
@@ -10655,7 +10671,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+202"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+203"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los archivos (*)</translation>
     </message>
@@ -10700,30 +10716,30 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+188"/>
+        <location line="+189"/>
         <source>New Slide</source>
         <translation type="unfinished">Nueva diapositiva</translation>
     </message>
     <message>
-        <location line="-187"/>
-        <location line="+198"/>
+        <location line="-188"/>
+        <location line="+199"/>
         <source>Duplicate Slide</source>
         <translation type="unfinished">Duplicar diapositiva</translation>
     </message>
     <message>
-        <location line="-197"/>
-        <location line="+207"/>
+        <location line="-198"/>
+        <location line="+208"/>
         <source>Delete Slide</source>
         <translation type="unfinished">Eliminar diapositiva</translation>
     </message>
     <message>
-        <location line="-206"/>
-        <location line="+217"/>
+        <location line="-207"/>
+        <location line="+218"/>
         <source>Hide Slide</source>
         <translation type="unfinished">Ocultar diapositiva</translation>
     </message>
     <message>
-        <location line="-216"/>
+        <location line="-217"/>
         <source>Reset</source>
         <translation type="unfinished">Restablecer</translation>
     </message>
@@ -10803,7 +10819,7 @@ Origen: %3</translation>
         <translation type="unfinished">Ajustar a la ventana</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Diapositiva %1 de %2</translation>
     </message>
@@ -10843,7 +10859,7 @@ Origen: %3</translation>
         <translation type="unfinished">No guardar</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-252"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-253"/>
         <source>Format Painter</source>
         <translation type="unfinished">Copiar formato</translation>
     </message>
@@ -11071,19 +11087,19 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+42"/>
+        <location line="+43"/>
         <location line="+11"/>
         <source>Slide Size</source>
         <translation type="unfinished">Tamaño de diapositiva</translation>
     </message>
     <message>
-        <location line="-52"/>
-        <location line="+68"/>
+        <location line="-53"/>
+        <location line="+69"/>
         <source>Format Background</source>
         <translation type="unfinished">Dar formato al fondo</translation>
     </message>
     <message>
-        <location line="-63"/>
+        <location line="-64"/>
         <source>Slide Show</source>
         <translation type="unfinished">Presentación con diapositivas</translation>
     </message>
@@ -11109,6 +11125,11 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>Collapse the Ribbon</source>
+        <translation type="unfinished">Contraer la cinta de opciones</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Zoom Out</source>
         <translation type="unfinished">Alejar</translation>
     </message>
@@ -11876,6 +11897,12 @@ Origen: %3</translation>
         <source>%1 is coming.</source>
         <translation type="unfinished">%1 llegará pronto.</translation>
     </message>
+    <message>
+        <location filename="../apps/deck/app/deckwindow_help.cpp" line="+25"/>
+        <location line="+13"/>
+        <source>Help</source>
+        <translation type="unfinished">Ayuda</translation>
+    </message>
 </context>
 <context>
     <name>jp::DesignChecker</name>
@@ -12441,7 +12468,7 @@ Origen: %3</translation>
         <translation type="unfinished">Aplicaciones de JeffOffice</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Publications</source>
         <translation type="unfinished">Publicaciones</translation>
     </message>
@@ -12484,6 +12511,11 @@ Origen: %3</translation>
         <location line="+1"/>
         <source>Available</source>
         <translation type="unfinished">Disponible</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Preview</source>
+        <translation type="unfinished">Vista previa</translation>
     </message>
     <message>
         <location line="+19"/>

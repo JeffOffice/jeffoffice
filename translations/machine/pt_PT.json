@@ -20,6 +20,114 @@
 "en": "c65c1b6425be5e10",
 "out": "edb0afed21dc9cd0"
 },
+"deck/animations": {
+"en": "ffe2bde4d52840d6",
+"out": "ade2b56983700fcd"
+},
+"deck/comments": {
+"en": "d293c804c1a3453a",
+"out": "3854412e8a098bff"
+},
+"deck/design": {
+"en": "eabc8b92f613ecf3",
+"out": "05c21c7d03b22ed7"
+},
+"deck/file-screen": {
+"en": "73aa18ca7df1c3e6",
+"out": "057b1e4447e7748d"
+},
+"deck/index": {
+"en": "2c4e8115f69d6564",
+"out": "8785a07bde4a38b3"
+},
+"deck/keyboard": {
+"en": "0152dc108e7c1e9c",
+"out": "8d902a960971d547"
+},
+"deck/notes": {
+"en": "66a05dc2206ed237",
+"out": "13c42d1b0d483ed9"
+},
+"deck/objects": {
+"en": "ca4fa22098e7a4be",
+"out": "1579f683e8e94f95"
+},
+"deck/open-save": {
+"en": "231f2c5fb1dba15c",
+"out": "4dc2d7cefcaffc14"
+},
+"deck/options": {
+"en": "b00e8f4770dad275",
+"out": "672be38641c6a968"
+},
+"deck/printing": {
+"en": "26df794af39f97ec",
+"out": "32ad598b246df69d"
+},
+"deck/recover": {
+"en": "e7b208482d87d7c4",
+"out": "10511abd59aa8665"
+},
+"deck/reuse": {
+"en": "7fed0c9bd14f4b5f",
+"out": "4f3f0745d18d64cd"
+},
+"deck/show": {
+"en": "7765b3f9a32dc9a9",
+"out": "42349bf0e57819ee"
+},
+"deck/slides": {
+"en": "5bca48008cff90ef",
+"out": "b20686662fcd5765"
+},
+"deck/start": {
+"en": "516b6d94061909c6",
+"out": "3a5d92913ec91bc6"
+},
+"deck/tab-design": {
+"en": "fcb1e3bc4ece68c7",
+"out": "311120b7d9b1b071"
+},
+"deck/tab-home": {
+"en": "27520d7c4b8817e7",
+"out": "a24b686079a50771"
+},
+"deck/tab-insert": {
+"en": "7536bd994c4aecb0",
+"out": "a2289d147804577c"
+},
+"deck/tab-review": {
+"en": "aab7b5d4d5dee582",
+"out": "d2826f4558025ef4"
+},
+"deck/tab-slide-show": {
+"en": "e94c6d7ae9354962",
+"out": "4d027817b9c58e53"
+},
+"deck/tab-transitions": {
+"en": "3222c3a29ea87347",
+"out": "6f7fcdd93cd8f92a"
+},
+"deck/tab-view": {
+"en": "a775921d99883ef4",
+"out": "8ecdf0785c6209ab"
+},
+"deck/text": {
+"en": "0a2aeba83b166dc4",
+"out": "3fa84ce7ea4eea81"
+},
+"deck/transitions": {
+"en": "22490f261aa86ffc",
+"out": "a158ea76389340d8"
+},
+"deck/views": {
+"en": "c1929bc8e8c88fc3",
+"out": "8ae2c49ed3779dee"
+},
+"deck/window": {
+"en": "f13481cfaf2c356c",
+"out": "c8cf6f8e256e17b8"
+},
 "design-checker": {
 "en": "a6f2fb1b11fb22a7",
 "out": "fbe16488f6b5abbf"
@@ -339,6 +447,7 @@
 "08791d535a9d7710": "e92e84ace13f463b",
 "088df0ee79048fb2": "d2b655fc10f43268",
 "0892672ab49b4af3": "c6896e95add6a27e",
+"08af73cded287f8a": "232ca5f421dc4b10",
 "08ba7115a812b635": "724e6e4750e7dcc7",
 "08bbaf880ee434b5": "a4edcf1e1770b11d",
 "08bc99ba27541a48": "6ab322edb930a58b",
@@ -2263,6 +2372,7 @@
 "9ceb8deacd03bb2d": "0c53d62f2698a8bc",
 "9cf76486fcea44ef": "523ec1bc820d4e5d",
 "9d0fe6e25ba08dfd": "f30c5df628afd0b5",
+"9d22d9931689fa5b": "b1161520626c9921",
 "9d2657f6ea46a196": "aa33016ae201938a",
 "9d2d53394a092ff1": "5bbcf8c445b11f9a",
 "9d36969104aa1c79": "037ee6507ae4a3ad",
@@ -2573,6 +2683,7 @@
 "b4d0d08fadd2b207": "5ed43871598e14cf",
 "b4d744852558ed6d": "aa4df60bb4cb8375",
 "b514536e67ddcb30": "afc9e144ffbdcaed",
+"b544743c62c891fe": "3b50fd679a29c9ad",
 "b5663774c7baa2b7": "5412b84f0b6ae815",
 "b58fa88741ac7639": "30bf23b271c8bdbc",
 "b5a30aa747721c41": "844dc34c767d59bf",
@@ -3138,6 +3249,7 @@
 "e0d7c0214de8a956": "0bbefac1d11498b1",
 "e1116f4765f93cb4": "d4476584c8efb01c",
 "e11d3e5ca2489c92": "3f5a9583557a431d",
+"e136c6c99e2113de": "31e5082f038b497f",
 "e13acb06c9105b62": "0c18fb9cc6e8a7ef",
 "e16448e1c9b8d9f4": "1c0ae3b68657337f",
 "e1ace81cd374f7fc": "a0e9b583e085dd29",
@@ -3258,6 +3370,7 @@
 "ebe3c9dc28116076": "f8f1c56fb24a88b0",
 "ebef3c419f379425": "70b4c30dc7c91411",
 "ebf4f47776d1f57d": "2acd2d031206cb73",
+"ec470d3d431b2fdb": "ffe5053a26c1ebd6",
 "ec60fc0598970dc3": "0b0be80d8a089c32",
 "ec6ad40da263669e": "ec7880b8df031df1",
 "ec8e055dc22796ae": "2edd9c7a9cd71e9b",
@@ -3322,6 +3435,7 @@
 "f095ba72ec658c15": "4ec082afdf73e0c5",
 "f0ba3796e6f99b6c": "c27530913ceaacf2",
 "f0bd3b7bbddb60bf": "9e73b2ff3c59914e",
+"f0c6222186176c4e": "3478afbb14324ac5",
 "f0de7f5a197d882d": "f755f4c38a7e79e7",
 "f0f46b1d48e94b9e": "fdb85c176fc83cbd",
 "f101c742aea89176": "f0a3989bd59c26c3",

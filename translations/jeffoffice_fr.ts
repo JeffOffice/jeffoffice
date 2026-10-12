@@ -837,7 +837,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">%1 (ombre %2 %)</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+293"/>
+        <location filename="../libs/page/core/document.cpp" line="+484"/>
         <source>Organization Name</source>
         <translation type="unfinished">Nom de l&apos;organisation</translation>
     </message>
@@ -3259,7 +3259,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Langue d&apos;affichage :</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+5"/>
         <source>Send anonymous usage statistics</source>
         <translation type="unfinished">Envoyer des statistiques d&apos;utilisation anonymes</translation>
     </message>
@@ -3284,7 +3284,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Les versions bêta sont disponibles avant les versions normales et peuvent comporter des imperfections. Laissez cette option désactivée pour n&apos;obtenir que les versions normales.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>General</source>
         <translation type="unfinished">Général</translation>
     </message>
@@ -4053,7 +4053,7 @@ Ou enregistrez dans un dossier non protégé.</translation>
 <context>
     <name>Help</name>
     <message>
-        <location filename="../libs/shell/app/help.cpp" line="+241"/>
+        <location filename="../libs/shell/app/help.cpp" line="+257"/>
         <source>Quick Access Toolbar</source>
         <translation type="unfinished">Barre d&apos;outils Accès rapide</translation>
     </message>
@@ -4372,7 +4372,7 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/deck/main.cpp" line="+44"/>
+        <location filename="../apps/deck/main.cpp" line="+79"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Enregistrer une capture d&apos;écran de la fenêtre et quitter.</translation>
     </message>
@@ -4529,7 +4529,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+266"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+267"/>
         <source>Blank</source>
         <translation type="unfinished">Vide</translation>
     </message>
@@ -4554,7 +4554,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Deux contenus</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpimport_shape.cpp" line="+103"/>
+        <location filename="../apps/deck/io/odpimport_shape.cpp" line="+109"/>
         <source>Click to edit Master title style</source>
         <translation type="unfinished">Cliquez pour modifier le style du titre du masque</translation>
     </message>
@@ -4600,7 +4600,12 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+2429"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+2560"/>
+        <source>The presentation has no slides.</source>
+        <translation type="unfinished">La présentation ne contient aucune diapositive.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>The presentation is too big to open.</source>
         <translation type="unfinished">La présentation est trop volumineuse pour être ouverte.</translation>
     </message>
@@ -4608,7 +4613,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+1402"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+1600"/>
         <source>This file is in an older format, or is protected with a password, which %1 can&apos;t open yet.</source>
         <translation type="unfinished">Ce fichier est dans un format plus ancien ou est protégé par un mot de passe, et %1 ne peut pas encore l&apos;ouvrir.</translation>
     </message>
@@ -4616,7 +4621,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PresentationFile</name>
     <message>
-        <location filename="../apps/deck/io/presentationfile.cpp" line="+24"/>
+        <location filename="../apps/deck/io/presentationfile.cpp" line="+35"/>
         <source>The file can&apos;t be opened: %1</source>
         <translation type="unfinished">Impossible d&apos;ouvrir le fichier : %1</translation>
     </message>
@@ -8970,12 +8975,23 @@ Publication assistée par ordinateur</translation>
 <context>
     <name>Xml</name>
     <message>
-        <location filename="../libs/office/office/xml.cpp" line="+90"/>
+        <location filename="../libs/office/office/xml.cpp" line="+143"/>
+        <location line="+19"/>
+        <source>The XML is too large to open.</source>
+        <translation type="unfinished">Le fichier XML est trop volumineux pour être ouvert.</translation>
+    </message>
+    <message>
+        <location line="-18"/>
+        <source>The XML has an element with too many attributes.</source>
+        <translation type="unfinished">Le fichier XML contient un élément comportant trop d&apos;attributs.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>The XML has a DOCTYPE, which is not allowed.</source>
         <translation type="unfinished">Le XML contient un DOCTYPE, ce qui n&apos;est pas autorisé.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>The XML is nested too deeply.</source>
         <translation type="unfinished">Le XML est imbriqué trop profondément.</translation>
     </message>
@@ -10224,7 +10240,7 @@ Source : %3</translation>
         <translation type="unfinished">Répondre</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Reopen</source>
         <translation type="unfinished">Rouvrir</translation>
     </message>
@@ -10234,12 +10250,12 @@ Source : %3</translation>
         <translation type="unfinished">Résoudre</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+11"/>
         <source>Edit</source>
         <translation type="unfinished">Modifier</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Delete</source>
         <translation type="unfinished">Supprimer</translation>
     </message>
@@ -10561,7 +10577,7 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+106"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+107"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Horizontal</source>
         <translation type="unfinished">Horizontal</translation>
@@ -10639,7 +10655,7 @@ Source : %3</translation>
         <location line="+5"/>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+28"/>
         <location line="+19"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+181"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+177"/>
         <source>Open</source>
         <translation type="unfinished">Ouvrir</translation>
     </message>
@@ -10655,7 +10671,7 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+202"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+203"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Tous les fichiers (*)</translation>
     </message>
@@ -10700,30 +10716,30 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+188"/>
+        <location line="+189"/>
         <source>New Slide</source>
         <translation type="unfinished">Nouvelle diapositive</translation>
     </message>
     <message>
-        <location line="-187"/>
-        <location line="+198"/>
+        <location line="-188"/>
+        <location line="+199"/>
         <source>Duplicate Slide</source>
         <translation type="unfinished">Dupliquer la diapositive</translation>
     </message>
     <message>
-        <location line="-197"/>
-        <location line="+207"/>
+        <location line="-198"/>
+        <location line="+208"/>
         <source>Delete Slide</source>
         <translation type="unfinished">Supprimer la diapositive</translation>
     </message>
     <message>
-        <location line="-206"/>
-        <location line="+217"/>
+        <location line="-207"/>
+        <location line="+218"/>
         <source>Hide Slide</source>
         <translation type="unfinished">Masquer la diapositive</translation>
     </message>
     <message>
-        <location line="-216"/>
+        <location line="-217"/>
         <source>Reset</source>
         <translation type="unfinished">Réinitialiser</translation>
     </message>
@@ -10803,7 +10819,7 @@ Source : %3</translation>
         <translation type="unfinished">Ajuster à la fenêtre</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Diapositive %1 sur %2</translation>
     </message>
@@ -10843,7 +10859,7 @@ Source : %3</translation>
         <translation type="unfinished">Ne pas enregistrer</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-252"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-253"/>
         <source>Format Painter</source>
         <translation type="unfinished">Reproduire la mise en forme</translation>
     </message>
@@ -11071,19 +11087,19 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+42"/>
+        <location line="+43"/>
         <location line="+11"/>
         <source>Slide Size</source>
         <translation type="unfinished">Taille des diapositives</translation>
     </message>
     <message>
-        <location line="-52"/>
-        <location line="+68"/>
+        <location line="-53"/>
+        <location line="+69"/>
         <source>Format Background</source>
         <translation type="unfinished">Mise en forme de l&apos;arrière-plan</translation>
     </message>
     <message>
-        <location line="-63"/>
+        <location line="-64"/>
         <source>Slide Show</source>
         <translation type="unfinished">Diaporama</translation>
     </message>
@@ -11109,6 +11125,11 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>Collapse the Ribbon</source>
+        <translation type="unfinished">Réduire le ruban</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Zoom Out</source>
         <translation type="unfinished">Zoom arrière</translation>
     </message>
@@ -11876,6 +11897,12 @@ Source : %3</translation>
         <source>%1 is coming.</source>
         <translation type="unfinished">%1 arrive bientôt.</translation>
     </message>
+    <message>
+        <location filename="../apps/deck/app/deckwindow_help.cpp" line="+25"/>
+        <location line="+13"/>
+        <source>Help</source>
+        <translation type="unfinished">Aide</translation>
+    </message>
 </context>
 <context>
     <name>jp::DesignChecker</name>
@@ -12441,7 +12468,7 @@ Source : %3</translation>
         <translation type="unfinished">Applications JeffOffice</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Publications</source>
         <translation type="unfinished">Compositions</translation>
     </message>
@@ -12484,6 +12511,11 @@ Source : %3</translation>
         <location line="+1"/>
         <source>Available</source>
         <translation type="unfinished">Disponible</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Preview</source>
+        <translation type="unfinished">Aperçu</translation>
     </message>
     <message>
         <location line="+19"/>

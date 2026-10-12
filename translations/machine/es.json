@@ -20,6 +20,114 @@
 "en": "c65c1b6425be5e10",
 "out": "d4ad543e8028b229"
 },
+"deck/animations": {
+"en": "ffe2bde4d52840d6",
+"out": "214dd9acd10e4a84"
+},
+"deck/comments": {
+"en": "d293c804c1a3453a",
+"out": "73b0902cc8baa222"
+},
+"deck/design": {
+"en": "eabc8b92f613ecf3",
+"out": "f39b89a03dc72c7a"
+},
+"deck/file-screen": {
+"en": "73aa18ca7df1c3e6",
+"out": "d2ef36b0ab5c9e4b"
+},
+"deck/index": {
+"en": "2c4e8115f69d6564",
+"out": "f439179963f04793"
+},
+"deck/keyboard": {
+"en": "0152dc108e7c1e9c",
+"out": "e93626317724049e"
+},
+"deck/notes": {
+"en": "66a05dc2206ed237",
+"out": "aa86db500f2ded98"
+},
+"deck/objects": {
+"en": "ca4fa22098e7a4be",
+"out": "4d8a892769581e41"
+},
+"deck/open-save": {
+"en": "231f2c5fb1dba15c",
+"out": "e5889a153a48a54c"
+},
+"deck/options": {
+"en": "b00e8f4770dad275",
+"out": "57dc4c81be25dc12"
+},
+"deck/printing": {
+"en": "26df794af39f97ec",
+"out": "b818de8c57fb7500"
+},
+"deck/recover": {
+"en": "e7b208482d87d7c4",
+"out": "ae3bd2db0a2891b8"
+},
+"deck/reuse": {
+"en": "7fed0c9bd14f4b5f",
+"out": "8c415884db97caf9"
+},
+"deck/show": {
+"en": "7765b3f9a32dc9a9",
+"out": "8eb0686ac086611d"
+},
+"deck/slides": {
+"en": "5bca48008cff90ef",
+"out": "6877d356a02f7a48"
+},
+"deck/start": {
+"en": "516b6d94061909c6",
+"out": "28bc34921b07712b"
+},
+"deck/tab-design": {
+"en": "fcb1e3bc4ece68c7",
+"out": "c75d4127b0e84061"
+},
+"deck/tab-home": {
+"en": "27520d7c4b8817e7",
+"out": "b0b269e4e5fc6432"
+},
+"deck/tab-insert": {
+"en": "7536bd994c4aecb0",
+"out": "6ac580e5543739ff"
+},
+"deck/tab-review": {
+"en": "aab7b5d4d5dee582",
+"out": "786f09071130bddf"
+},
+"deck/tab-slide-show": {
+"en": "e94c6d7ae9354962",
+"out": "dc3f29e2f5837629"
+},
+"deck/tab-transitions": {
+"en": "3222c3a29ea87347",
+"out": "16fa7317700690b4"
+},
+"deck/tab-view": {
+"en": "a775921d99883ef4",
+"out": "8f20dd31ddd7b53c"
+},
+"deck/text": {
+"en": "0a2aeba83b166dc4",
+"out": "7e820e27f614e005"
+},
+"deck/transitions": {
+"en": "22490f261aa86ffc",
+"out": "e24cd3d3ac2b75de"
+},
+"deck/views": {
+"en": "c1929bc8e8c88fc3",
+"out": "f26207c1cdea58b1"
+},
+"deck/window": {
+"en": "f13481cfaf2c356c",
+"out": "f4c2ae009cb0aef3"
+},
 "design-checker": {
 "en": "a6f2fb1b11fb22a7",
 "out": "79a6337db6c130a1"
@@ -339,6 +447,7 @@
 "08791d535a9d7710": "e77cd457d5f90a68",
 "088df0ee79048fb2": "e004600329e5eb26",
 "0892672ab49b4af3": "c6896e95add6a27e",
+"08af73cded287f8a": "04c579778b547bf1",
 "08ba7115a812b635": "38bf668dd449f7cb",
 "08bbaf880ee434b5": "656c1fe4cb7fefef",
 "08bc99ba27541a48": "6ab322edb930a58b",
@@ -2263,6 +2372,7 @@
 "9ceb8deacd03bb2d": "0c53d62f2698a8bc",
 "9cf76486fcea44ef": "5f6c0bfa69ade84f",
 "9d0fe6e25ba08dfd": "43df6383f684406a",
+"9d22d9931689fa5b": "9961af7527fbb44a",
 "9d2657f6ea46a196": "f19ad5b2c158cb43",
 "9d2d53394a092ff1": "4fbfea127f99cabd",
 "9d36969104aa1c79": "037ee6507ae4a3ad",
@@ -2573,6 +2683,7 @@
 "b4d0d08fadd2b207": "4bfd2cbe87dbb3f9",
 "b4d744852558ed6d": "e42ca345bec63571",
 "b514536e67ddcb30": "29ae44232f9bed15",
+"b544743c62c891fe": "8b49bf63adf0f8bd",
 "b5663774c7baa2b7": "6307788317489a95",
 "b58fa88741ac7639": "85b05f335d062ba2",
 "b5a30aa747721c41": "e156554273a15603",
@@ -3138,6 +3249,7 @@
 "e0d7c0214de8a956": "f700cdcc264a0618",
 "e1116f4765f93cb4": "a3110ce6affd9d9c",
 "e11d3e5ca2489c92": "bc6df763f97b2a6f",
+"e136c6c99e2113de": "d65d70d32c590a6f",
 "e13acb06c9105b62": "1692512f5f25d87c",
 "e16448e1c9b8d9f4": "9fdfac4d29747318",
 "e1ace81cd374f7fc": "a0e9b583e085dd29",
@@ -3258,6 +3370,7 @@
 "ebe3c9dc28116076": "f8f1c56fb24a88b0",
 "ebef3c419f379425": "70b4c30dc7c91411",
 "ebf4f47776d1f57d": "2acd2d031206cb73",
+"ec470d3d431b2fdb": "936567a80ac8fdf8",
 "ec60fc0598970dc3": "d635b1315797edff",
 "ec6ad40da263669e": "60fff513e210d6f5",
 "ec8e055dc22796ae": "52c5435a9c7e7644",
@@ -3322,6 +3435,7 @@
 "f095ba72ec658c15": "7bba344ee1afc72c",
 "f0ba3796e6f99b6c": "c27530913ceaacf2",
 "f0bd3b7bbddb60bf": "23f361c5ec5673d9",
+"f0c6222186176c4e": "15480d5f7f93fd88",
 "f0de7f5a197d882d": "0dc3d9565b284b02",
 "f0f46b1d48e94b9e": "07697d507b2e64aa",
 "f101c742aea89176": "a61bda6c76106a70",
