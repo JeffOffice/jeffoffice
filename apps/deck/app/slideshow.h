@@ -13,12 +13,16 @@
 // show moves forward onto the slide; going back, or jumping, shows the slide
 // at once. After a slide's seconds, when it has any, the show moves on by
 // itself, counting from the end of the transition.
+//
+// With two screens, and Use Presenter View on, a show that starts goes to the
+// screen the window isn't on, and Presenter View opens on the window's screen.
 
 #include "core/transition.h"
 
 #include <QColor>
 #include <QHash>
 #include <QImage>
+#include <QPointer>
 #include <QTimer>
 #include <QVariantAnimation>
 #include <QWidget>
@@ -27,6 +31,7 @@ namespace jp {
 
 class Document;
 class LayoutCache;
+class PresenterView;
 
 // A slide drawn to fill `size` device-independent pixels at `dpr`, centered
 // and as large as it goes, with `bars` around it. The image is opaque.
@@ -60,6 +65,7 @@ public:
     bool autoAdvanceActive() const { return m_auto.isActive(); }
     const Document *document() const { return m_doc; }
     LayoutCache *cache() const { return m_cache; }
+    PresenterView *presenterView() const;
 
     void next();
     void previous();
@@ -68,6 +74,16 @@ public:
     void finishTransition();
     // Black or white screen; the same color again brings the slide back.
     void toggleBlank(const QColor &color);
+    // Shows in a window with Presenter View beside it, on the one screen,
+    // for rehearsing; call before the show is shown.
+    void setRehearsal(bool on);
+
+    // Whether a show on a computer with two screens opens Presenter View.
+    static bool usePresenterView();
+    static void setUsePresenterView(bool on);
+
+    void setVisible(bool visible) override;
+
 Q_SIGNALS:
     // The show was ended; `lastSlide` is the slide it was on.
     void ended(int lastSlide);
@@ -92,6 +108,8 @@ private:
     void settle();
     void startAutoAdvance();
     void showSlide(int slide);
+    void place();
+    void openPresenterView(QScreen *on);
     // The link under a point of the window, if the slide on it has one.
     QString linkAt(const QPointF &pos) const;
     QRectF slideRect() const;
@@ -102,6 +120,8 @@ private:
     bool m_atEnd = false;
     bool m_animating = false;
     bool m_started = false;    // shown once, so the slides' clocks run
+    bool m_placed = false;
+    bool m_rehearsal = false;
     QColor m_blank;            // a blanked screen's color; invalid when showing
     QString m_typed;           // digits typed before Enter
     QHash<int, QImage> m_images;   // slides drawn at m_imageSize and m_imageRatio
@@ -111,6 +131,7 @@ private:
     deck::Transition m_trans;
     double m_painted = -1;     // the progress last asked to be painted; -1 before the first frame
     QTimer m_auto;
+    QPointer<PresenterView> m_presenter;
 };
 
 // Plays the transition into a slide over a widget, from the slide before it,
