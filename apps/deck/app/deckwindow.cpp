@@ -413,7 +413,9 @@ bool DeckWindow::maybeSave()
     box.button(QMessageBox::Discard)->setText(tr("Don't Save"));
     box.exec();
     if (box.clickedButton() == box.button(QMessageBox::Save)) return save();
-    return box.clickedButton() == box.button(QMessageBox::Discard);
+    if (box.clickedButton() != box.button(QMessageBox::Discard)) return false;
+    dropRecoveryCopy();
+    return true;
 }
 
 void DeckWindow::closeEvent(QCloseEvent *e)

@@ -10,7 +10,9 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/recovery.h"
 #include "app/ribbon.h"
+#include "app/settings.h"
 #include "app/slideshow.h"
 #include "app/slidespane.h"
 #include "core/deck.h"
@@ -2366,6 +2368,66 @@ private Q_SLOTS:
         DeckWindow u;
         u.show();
         QVERIFY(u.close());
+    }
+
+    // AutoRecover: a changed presentation keeps a .pptx copy at the interval Options sets,
+    // the copy goes when the work is saved, and a copy a crash left opens as unsaved work.
+    void windowKeepsAutoRecoverCopies()
+    {
+        QTemporaryDir root, dir;
+        QVERIFY(root.isValid() && dir.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        {
+            DeckWindow w;
+            QCOMPARE(w.autoRecoverInterval(), std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000);
+            w.autoRecover();   // nothing changed: nothing to keep
+            QVERIFY(w.recoveryCopy().isEmpty());
+            w.newSlide();
+            w.autoRecover();
+            const QString copy = w.recoveryCopy();
+            QVERIFY(copy.endsWith(QLatin1String(".pptx")));
+            QVERIFY(QFileInfo::exists(copy));
+            QVERIFY(copy.startsWith(root.path()));
+            QString err;
+            auto kept = deck::importPresentationFile(copy, &err);
+            QVERIFY2(kept, qPrintable(err));
+            QCOMPARE(int(kept->pages.size()), 2);
+            // Saved, the work needs no copy.
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.pptx"))));
+            QVERIFY(!QFileInfo::exists(copy));
+            QVERIFY(w.recoveryCopy().isEmpty());
+
+            // A copy of work never saved comes back as work never saved.
+            DeckWindow lost;
+            lost.newSlide();
+            lost.newSlide();
+            lost.autoRecover();
+            const QString lostCopy = lost.recoveryCopy();
+            QVERIFY(QFileInfo::exists(lostCopy));
+            recovery::Recovered r;
+            r.file = lostCopy;
+            r.title = QStringLiteral("Lost talk");
+            r.saved = QDateTime::currentDateTime();
+            DeckWindow host;   // untouched, so it takes the copy itself
+            DeckWindow *opened = host.openRecovered(r, &err);
+            QVERIFY2(opened, qPrintable(err));
+            QCOMPARE(opened, &host);
+            QCOMPARE(int(host.editor()->doc()->pages.size()), 3);
+            QVERIFY(host.editor()->isModified());
+            QVERIFY(host.editor()->filePath().isEmpty());
+            QCOMPARE(host.editor()->displayName(), QStringLiteral("Lost talk"));
+            QVERIFY(!QFileInfo::exists(lostCopy));   // the old copy is replaced by this window's own
+            QVERIFY(!host.recoveryCopy().isEmpty());
+            host.editor()->markSaved();
+            lost.editor()->markSaved();
+            w.editor()->markSaved();
+            // With no copies left, asking says so.
+            answerDialogs({QMessageBox::Ok});
+            DeckWindow asker;
+            asker.offerRecovery(true);
+        }
+        recovery::setRoot(QString());
     }
 };
 
