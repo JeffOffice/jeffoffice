@@ -9,7 +9,10 @@
 #include "io/zip.h"
 #include "render/shapes.h"
 
+#include <QBuffer>
 #include <QFile>
+#include <QImage>
+#include <QTextDocument>
 #include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QTemporaryDir>
@@ -1392,6 +1395,23 @@ private Q_SLOTS:
 private:
     // ---- DrawingML shapes: what the tests below build their drawings from
 
+    using Arrow = jp::Arrow;
+    using ColorRef = jp::ColorRef;
+    using Effects = jp::Effects;
+    using Fill = jp::Fill;
+    using GroupItem = jp::GroupItem;
+    using Item = jp::Item;
+    using ItemList = jp::ItemList;
+    using ItemPtr = jp::ItemPtr;
+    using ItemType = jp::ItemType;
+    using LineItem = jp::LineItem;
+    using PictureItem = jp::PictureItem;
+    using ShapeItem = jp::ShapeItem;
+    using Stroke = jp::Stroke;
+    using TextItem = jp::TextItem;
+    using VAlign = jp::VAlign;
+    using Wrap = jp::Wrap;
+
     static QString dmlNamespaces()
     {
         return QStringLiteral("xmlns:a=\"%1\" xmlns:p=\"%2\" xmlns:r=\"%3\"").arg(QString(ns::A), QString(ns::P), QString(ns::R));
@@ -1408,6 +1428,94 @@ private:
     }
 
     static bool near(double a, double b, double tolerance = 1e-6) { return qAbs(a - b) <= tolerance * qMax(1.0, qAbs(b)); }
+
+    // A small format scheme, as a theme holds: each list has the three styles the references 1 to 3 (and 1001 to 1003) pick.
+    static QString dmlFormats()
+    {
+        return QStringLiteral(
+            "<a:fmtScheme name=\"T\"><a:fillStyleLst>"
+            "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>"
+            "<a:gradFill rotWithShape=\"1\"><a:gsLst><a:gs pos=\"0\"><a:schemeClr val=\"phClr\"><a:tint val=\"50000\"/></a:schemeClr></a:gs>"
+            "<a:gs pos=\"100000\"><a:schemeClr val=\"phClr\"/></a:gs></a:gsLst><a:lin ang=\"5400000\" scaled=\"0\"/></a:gradFill>"
+            "<a:solidFill><a:schemeClr val=\"phClr\"><a:lumMod val=\"50000\"/></a:schemeClr></a:solidFill></a:fillStyleLst>"
+            "<a:lnStyleLst>"
+            "<a:ln w=\"6350\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"solid\"/><a:miter lim=\"800000\"/></a:ln>"
+            "<a:ln w=\"12700\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"dash\"/><a:round/></a:ln>"
+            "<a:ln w=\"19050\" cap=\"rnd\" cmpd=\"dbl\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"solid\"/><a:bevel/></a:ln>"
+            "</a:lnStyleLst><a:effectStyleLst>"
+            "<a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle>"
+            "<a:effectStyle><a:effectLst><a:outerShdw blurRad=\"57150\" dist=\"19050\" dir=\"5400000\" algn=\"ctr\" rotWithShape=\"0\">"
+            "<a:srgbClr val=\"000000\"><a:alpha val=\"63000\"/></a:srgbClr></a:outerShdw></a:effectLst></a:effectStyle></a:effectStyleLst>"
+            "<a:bgFillStyleLst><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>"
+            "<a:solidFill><a:schemeClr val=\"phClr\"><a:tint val=\"95000\"/></a:schemeClr></a:solidFill>"
+            "<a:gradFill><a:gsLst><a:gs pos=\"0\"><a:schemeClr val=\"phClr\"/></a:gs><a:gs pos=\"100000\"><a:schemeClr val=\"phClr\"><a:shade val=\"80000\"/></a:schemeClr></a:gs></a:gsLst>"
+            "<a:path path=\"circle\"><a:fillToRect l=\"50000\" t=\"50000\" r=\"50000\" b=\"50000\"/></a:path></a:gradFill></a:bgFillStyleLst></a:fmtScheme>");
+    }
+
+    // A 4 by 4 picture of one color, as PNG bytes.
+    static QByteArray dmlPicture(const QColor &color = Qt::red)
+    {
+        QImage img(4, 4, QImage::Format_RGB32);
+        img.fill(color);
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        img.save(&buffer, "PNG");
+        return bytes;
+    }
+
+    // What reading a drawing is given, with a record of what it asks for: the pictures it keeps and the stories it starts.
+    struct DmlEnv {
+        struct Image { QByteArray bytes; QString format; };
+        DrawingContext ctx;
+        Package package;
+        QVector<Image> images;
+        QVector<std::shared_ptr<QTextDocument>> stories;
+        QVector<std::shared_ptr<QDomDocument>> documents;
+
+        DmlEnv()
+        {
+            ctx.theme = colorTestTheme();
+            ctx.addImage = [this](const QByteArray &bytes, const QString &format) {
+                images.append({bytes, format});
+                return QStringLiteral("img%1").arg(images.size());
+            };
+            ctx.newStory = [this]() {
+                stories.append(std::make_shared<QTextDocument>());
+                return QStringLiteral("story%1").arg(stories.size());
+            };
+            ctx.storyDoc = [this](const QString &id) -> QTextDocument * {
+                const int n = id.mid(5).toInt();
+                return n >= 1 && n <= stories.size() ? stories[n - 1].get() : nullptr;
+            };
+        }
+        DmlEnv(const DmlEnv &) = delete;
+        DmlEnv &operator=(const DmlEnv &) = delete;
+
+        // The first element in `xml`, with a, p, and r declared; it stays valid as long as this does.
+        QDomElement element(const QString &xml)
+        {
+            auto doc = std::make_shared<QDomDocument>();
+            documents.append(doc);
+            const QByteArray text = QStringLiteral("<root %1>%2</root>").arg(dmlNamespaces(), xml).toUtf8();
+            if (!parseXml(text, doc.get())) return QDomElement();
+            return doc->documentElement().firstChildElement();
+        }
+        void useFormats() { ctx.formats = element(dmlFormats()); }
+        // A package whose slide part has a picture (rId1) and an outside link (rId2, to `link`).
+        void usePackage(const QByteArray &picture = dmlPicture(), const QString &link = QStringLiteral("https://example.com/x"))
+        {
+            PackageWriter w;
+            w.addDefault(QStringLiteral("png"), QStringLiteral("image/png"));
+            w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<p:sld/>", kSlideType);
+            w.addPart(QStringLiteral("/ppt/media/image1.png"), picture, QStringLiteral("image/png"));
+            w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), kRelBase + "image", QStringLiteral("/ppt/media/image1.png"));
+            w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), kRelBase + "hyperlink", link, true);
+            package.read(w.finish());
+            ctx.package = &package;
+            ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
+        }
+    };
 
     static Geometry customGeometryOf(const QString &inner, const QSizeF &size)
     {
@@ -1683,6 +1791,7 @@ private Q_SLOTS:
 
     // ---- DrawingML shapes: preset geometry
 
+private:
     static QStringList dmlAllPresets()
     {
         return QStringLiteral(
@@ -1715,6 +1824,7 @@ private Q_SLOTS:
                               "leftRightRibbon gear6 gear9 funnel cornerTabs squareTabs plaqueTabs chartX chartStar chartPlus").split(QLatin1Char(' '));
     }
 
+private Q_SLOTS:
     void dmlPresetNamesMapToTheShapeLibrary_data()
     {
         QTest::addColumn<QString>("preset");
@@ -1796,6 +1906,7 @@ private Q_SLOTS:
         QVERIFY(shapeForPreset(QStringLiteral("Rect")).isEmpty());   // names are case sensitive
     }
 
+private:
     static QHash<QString, double> dmlAdjust(const QString &list)
     {
         QHash<QString, double> out;
@@ -1803,6 +1914,7 @@ private Q_SLOTS:
         return out;
     }
 
+private Q_SLOTS:
     void dmlLibraryAdjustments_data()
     {
         QTest::addColumn<QString>("preset");
@@ -2066,6 +2178,363 @@ private Q_SLOTS:
             QVERIFY(near(g.paths[0].path.elementAt(0).x, 0) && near(g.paths[0].path.elementAt(0).y, 0));
             QVERIFY2(near(g.paths[0].path.currentPosition().x(), 100) && near(g.paths[0].path.currentPosition().y(), 60), name);
         }
+    }
+
+    // ---- DrawingML shapes: fills, lines, and styles
+
+private:
+    static Fill dmlFillOf(DmlEnv &env, const QString &properties, const QString &style = QString())
+    {
+        return readFill(env.element(QStringLiteral("<p:spPr>%1</p:spPr>").arg(properties)), style.isEmpty() ? QDomElement() : env.element(style), env.ctx);
+    }
+
+    static Stroke dmlLineOf(DmlEnv &env, const QString &properties, const QString &style = QString())
+    {
+        return readLine(env.element(QStringLiteral("<p:spPr>%1</p:spPr>").arg(properties)), style.isEmpty() ? QDomElement() : env.element(style), env.ctx);
+    }
+
+    // <p:style> with the references given.
+    static QString dmlStyle(const QString &lnIdx, const QString &fillIdx, const QString &effectIdx = QStringLiteral("0"), const QString &color = QStringLiteral("accent1"))
+    {
+        return QStringLiteral("<p:style><a:lnRef idx=\"%1\"><a:schemeClr val=\"%4\"/></a:lnRef><a:fillRef idx=\"%2\"><a:schemeClr val=\"%4\"/></a:fillRef>"
+                              "<a:effectRef idx=\"%3\"><a:schemeClr val=\"%4\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"lt1\"/></a:fontRef></p:style>")
+            .arg(lnIdx, fillIdx, effectIdx, color);
+    }
+
+    static QString dmlHex(const ColorRef &c) { return hexOf(c.rgbValue()); }
+
+private Q_SLOTS:
+    void dmlFillReadsSolidColors()
+    {
+        DmlEnv env;
+        Fill f = dmlFillOf(env, QStringLiteral("<a:solidFill><a:srgbClr val=\"FF8000\"/></a:solidFill>"));
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FF8000"));
+        QCOMPARE(f.transparency, 0.0);
+        f = dmlFillOf(env, QStringLiteral("<a:solidFill><a:schemeClr val=\"accent1\"><a:alpha val=\"25000\"/></a:schemeClr></a:solidFill>"));
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("4472C4"));
+        QVERIFY(near(f.transparency, 0.75, 1e-2));
+        // No fill, or none of the kinds, is none.
+        QVERIFY(dmlFillOf(env, QString()).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:noFill/>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:solidFill/>")).isNone());
+        QVERIFY(readFill(QDomElement(), QDomElement(), env.ctx).isNone());
+        // A strict file's elements are the same.
+        QDomDocument doc;
+        const QByteArray strict = QStringLiteral("<p:spPr xmlns:p=\"%2\" xmlns:a=\"%1\"><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></p:spPr>").arg(QString(ns::AStrict), QString(ns::PStrict)).toUtf8();
+        QVERIFY(parseXml(strict, &doc));
+        QCOMPARE(dmlHex(readFill(doc.documentElement(), QDomElement(), env.ctx).color), QStringLiteral("00FF00"));
+    }
+
+    void dmlFillReadsGradients()
+    {
+        DmlEnv env;
+        const QString stops = QStringLiteral("<a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"60000\"><a:srgbClr val=\"00FF00\"><a:alpha val=\"50000\"/></a:srgbClr></a:gs>"
+                                             "<a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs></a:gsLst>");
+        Fill f = dmlFillOf(env, QStringLiteral("<a:gradFill rotWithShape=\"1\">%1<a:lin ang=\"2700000\" scaled=\"0\"/></a:gradFill>").arg(stops));
+        QVERIFY(f.type == Fill::Gradient);
+        QVERIFY(f.gradType == Fill::Linear);
+        QVERIFY(near(f.angle, 45));
+        QCOMPARE(f.stops.size(), 3);
+        QVERIFY(near(f.stops[0].pos, 0) && near(f.stops[1].pos, 0.6) && near(f.stops[2].pos, 1));
+        QCOMPARE(dmlHex(f.stops[0].color), QStringLiteral("FF0000"));
+        QCOMPARE(dmlHex(f.stops[1].color), QStringLiteral("00FF00"));
+        QVERIFY(near(f.stops[1].transparency, 0.5, 1e-2));
+        QCOMPARE(f.stops[0].transparency, 0.0);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FF0000"));
+        QCOMPARE(dmlHex(f.color2), QStringLiteral("0000FF"));
+        // Angles: 0 is left to right, a quarter turn is top to bottom, and any turn is read modulo a full one.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:lin ang=\"0\"/></a:gradFill>").arg(stops));
+        QVERIFY(near(f.angle, 0));
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:lin ang=\"5400000\"/></a:gradFill>").arg(stops));
+        QVERIFY(near(f.angle, 90));
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:lin ang=\"-5400000\"/></a:gradFill>").arg(stops));
+        QVERIFY(near(f.angle, 270));
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:lin ang=\"27000000\"/></a:gradFill>").arg(stops));
+        QVERIFY(near(f.angle, 90));
+        // Without a direction it runs left to right.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1</a:gradFill>").arg(stops));
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Linear && near(f.angle, 0));
+        // Path gradients.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:path path=\"circle\"><a:fillToRect l=\"50000\" t=\"50000\" r=\"50000\" b=\"50000\"/></a:path></a:gradFill>").arg(stops));
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Radial);
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:path path=\"rect\"/></a:gradFill>").arg(stops));
+        QVERIFY(f.gradType == Fill::Rectangular);
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill>%1<a:path path=\"shape\"/></a:gradFill>").arg(stops));
+        QVERIFY(f.gradType == Fill::PathGrad);
+        // Stops come in order of position, whatever order they are written in; positions stay within the gradient.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill><a:gsLst><a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs><a:gs pos=\"-5\"><a:srgbClr val=\"FF0000\"/></a:gs>"
+                                          "<a:gs pos=\"900000\"><a:srgbClr val=\"00FF00\"/></a:gs></a:gsLst></a:gradFill>"));
+        QCOMPARE(f.stops.size(), 3);
+        QVERIFY(f.stops[0].pos == 0 && f.stops[1].pos <= f.stops[2].pos && f.stops[2].pos <= 1);
+        QCOMPARE(dmlHex(f.stops[0].color), QStringLiteral("FF0000"));
+        // One stop is a plain color; none is no fill.
+        f = dmlFillOf(env, QStringLiteral("<a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"123456\"/></a:gs></a:gsLst></a:gradFill>"));
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("123456"));
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:gradFill><a:gsLst/></a:gradFill>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:gradFill/>")).isNone());
+    }
+
+    void dmlFillReadsPatterns()
+    {
+        DmlEnv env;
+        const auto pattern = [&](const char *name) {
+            return dmlFillOf(env, QStringLiteral("<a:pattFill prst=\"%1\"><a:fgClr><a:srgbClr val=\"FF0000\"/></a:fgClr><a:bgClr><a:srgbClr val=\"FFFFFF\"/></a:bgClr></a:pattFill>")
+                                      .arg(QString::fromLatin1(name)));
+        };
+        Fill f = pattern("ltHorz");
+        QVERIFY(f.type == Fill::Pattern);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FF0000"));
+        QCOMPARE(dmlHex(f.color2), QStringLiteral("FFFFFF"));
+        const QVector<Qt::BrushStyle> brushes = jp::patternBrushes();
+        QCOMPARE(brushes[pattern("horz").pattern], Qt::HorPattern);
+        QCOMPARE(brushes[pattern("dkHorz").pattern], Qt::HorPattern);
+        QCOMPARE(brushes[pattern("vert").pattern], Qt::VerPattern);
+        QCOMPARE(brushes[pattern("cross").pattern], Qt::CrossPattern);
+        QCOMPARE(brushes[pattern("smGrid").pattern], Qt::CrossPattern);
+        QCOMPARE(brushes[pattern("dnDiag").pattern], Qt::FDiagPattern);
+        QCOMPARE(brushes[pattern("upDiag").pattern], Qt::BDiagPattern);
+        QCOMPARE(brushes[pattern("diagCross").pattern], Qt::DiagCrossPattern);
+        QCOMPARE(brushes[pattern("pct5").pattern], Qt::Dense7Pattern);
+        QCOMPARE(brushes[pattern("pct50").pattern], Qt::Dense4Pattern);
+        QCOMPARE(brushes[pattern("pct90").pattern], Qt::Dense1Pattern);
+        // Every pattern the standard names draws as something; one it doesn't is the foreground color alone.
+        for (const char *name : {"pct10", "pct20", "pct25", "pct30", "pct40", "pct60", "pct70", "pct75", "pct80", "ltVert", "dkVert", "narHorz", "narVert",
+                                 "dashHorz", "dashVert", "ltDnDiag", "ltUpDiag", "dkDnDiag", "dkUpDiag", "wdDnDiag", "wdUpDiag", "dashDnDiag", "dashUpDiag", "smCheck",
+                                 "lgCheck", "lgGrid", "dotGrid", "smConfetti", "lgConfetti", "horzBrick", "diagBrick", "solidDmnd", "openDmnd", "dotDmnd", "plaid",
+                                 "sphere", "weave", "divot", "shingle", "wave", "trellis", "zigZag"})
+            QVERIFY2(pattern(name).type == Fill::Pattern && pattern(name).pattern >= 0 && pattern(name).pattern < brushes.size(), name);
+        f = pattern("noSuchPattern");
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FF0000"));
+        // No colors given: black on white, as the standard says.
+        f = dmlFillOf(env, QStringLiteral("<a:pattFill prst=\"horz\"/>"));
+        QVERIFY(f.type == Fill::Pattern);
+    }
+
+    void dmlFillReadsPictures()
+    {
+        DmlEnv env;
+        env.usePackage();
+        Fill f = dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill>"));
+        QVERIFY(f.type == Fill::Picture);
+        QCOMPARE(f.imageId, QStringLiteral("img1"));
+        QVERIFY(!f.tile);
+        QCOMPARE(env.images.size(), 1);
+        QCOMPARE(env.images[0].format, QStringLiteral("png"));
+        QCOMPARE(env.images[0].bytes, dmlPicture());
+        // A tiled one, at half its size, and with some transparency.
+        f = dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"><a:alphaModFix amt=\"40000\"/></a:blip><a:tile tx=\"0\" ty=\"0\" sx=\"50000\" sy=\"50000\" flip=\"none\" algn=\"tl\"/></a:blipFill>"));
+        QVERIFY(f.type == Fill::Picture && f.tile);
+        QVERIFY(near(f.tileScale, 0.5, 1e-6));
+        QVERIFY(near(f.transparency, 0.6, 1e-6));
+        // A picture that isn't there, or isn't a picture, is no fill and no crash.
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId9\"/></a:blipFill>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip/></a:blipFill>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill/>")).isNone());
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId2\"/></a:blipFill>")).isNone());   // an outside link
+        DmlEnv bare;
+        QVERIFY(dmlFillOf(bare, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/></a:blipFill>")).isNone());
+        // The format comes from what the bytes are, whatever the part is called.
+        DmlEnv other;
+        QImage img(2, 2, QImage::Format_RGB32);
+        img.fill(Qt::blue);
+        QByteArray jpeg;
+        QBuffer buffer(&jpeg);
+        buffer.open(QIODevice::WriteOnly);
+        img.save(&buffer, "JPEG");
+        other.usePackage(jpeg);
+        f = dmlFillOf(other, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/></a:blipFill>"));
+        QVERIFY(f.type == Fill::Picture);
+        QCOMPARE(other.images[0].format, QStringLiteral("jpeg"));
+    }
+
+    void dmlFillTakesTheStyleWhenThePropertiesSayNothing()
+    {
+        DmlEnv env;
+        env.useFormats();
+        // Reference 1: a plain fill of the reference's color.
+        Fill f = dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("1"), QStringLiteral("0"), QStringLiteral("accent2")));
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("ED7D31"));
+        // 2: a gradient made of it, from lighter to the color itself.
+        f = dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("2")));
+        QVERIFY(f.type == Fill::Gradient);
+        QCOMPARE(f.stops.size(), 2);
+        QCOMPARE(dmlHex(f.stops[1].color), QStringLiteral("4472C4"));
+        QVERIFY(f.stops[0].color.rgbValue().lightness() > f.stops[1].color.rgbValue().lightness());
+        QVERIFY(near(f.angle, 90));
+        // 3: the darkened color.
+        f = dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("3")));
+        QCOMPARE(dmlHex(f.color), hexOf(colorOf(schemeClr(QStringLiteral("accent1"), {"lumMod 50000"}))));
+        // 0, and one that is past the list, are none; 1001 and on are the background fills.
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("0"))).isNone());
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("4"))).isNone());
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("-3"))).isNone());
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("junk"))).isNone());
+        QVERIFY(dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("99999999999999"))).isNone());
+        f = dmlFillOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("1003"), QStringLiteral("0"), QStringLiteral("accent3")));
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Radial);
+        QCOMPARE(dmlHex(f.stops[0].color), QStringLiteral("A5A5A5"));
+        // The properties' own fill wins, and so does their saying no fill.
+        f = dmlFillOf(env, QStringLiteral("<a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill>"), dmlStyle(QStringLiteral("1"), QStringLiteral("1")));
+        QCOMPARE(dmlHex(f.color), QStringLiteral("112233"));
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:noFill/>"), dmlStyle(QStringLiteral("1"), QStringLiteral("1"))).isNone());
+        // Other properties (a line) leave the fill to the style.
+        f = dmlFillOf(env, QStringLiteral("<a:ln w=\"12700\"/>"), dmlStyle(QStringLiteral("1"), QStringLiteral("1")));
+        QVERIFY(f.type == Fill::Solid);
+        // Without a format scheme the style gives nothing.
+        DmlEnv bare;
+        QVERIFY(dmlFillOf(bare, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("1"))).isNone());
+    }
+
+    void dmlLineReadsWidthAndColor()
+    {
+        DmlEnv env;
+        Stroke s = dmlLineOf(env, QStringLiteral("<a:ln w=\"25400\"><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></a:ln>"));
+        QVERIFY(!s.isNone());
+        QVERIFY(near(s.width, 2));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("00FF00"));
+        QCOMPARE(s.transparency, 0.0);
+        QVERIFY(s.dash == Stroke::SolidLine && s.compound == Stroke::Single && s.cap == Qt::FlatCap);
+        // No width: the line's usual, a quarter point shy of a point.
+        s = dmlLineOf(env, QStringLiteral("<a:ln><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></a:ln>"));
+        QVERIFY(near(s.width, 0.75));
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"00FF00\"><a:alpha val=\"20000\"/></a:srgbClr></a:solidFill></a:ln>"));
+        QVERIFY(near(s.transparency, 0.8, 1e-2));
+        // No line, no fill in it, or a fill that isn't one gives none.
+        QVERIFY(dmlLineOf(env, QString()).isNone());
+        QVERIFY(dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"/>")).isNone());
+        QVERIFY(dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:noFill/></a:ln>")).isNone());
+        QVERIFY(readLine(QDomElement(), QDomElement(), env.ctx).isNone());
+        // A line of no width is the thinnest there is; a huge one is cut down.
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"0\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>"));
+        QVERIFY(!s.isNone() && s.width > 0 && s.width <= 0.5);
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"999999999999\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>"));
+        QVERIFY(s.width <= 1584);
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"-5\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>"));
+        QVERIFY(!s.isNone() && s.width > 0 && s.width <= 1);
+        // A gradient line is the color of its first stop; a pattern line is its foreground.
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs></a:gsLst></a:gradFill></a:ln>"));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("FF0000"));
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:pattFill prst=\"horz\"><a:fgClr><a:srgbClr val=\"123456\"/></a:fgClr><a:bgClr><a:srgbClr val=\"FFFFFF\"/></a:bgClr></a:pattFill></a:ln>"));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("123456"));
+    }
+
+    void dmlLineReadsDashesCapsAndJoins()
+    {
+        DmlEnv env;
+        const auto line = [&](const QString &inner, const QString &attrs = QString()) {
+            return dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\" %2><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill>%1</a:ln>").arg(inner, attrs));
+        };
+        const struct { const char *name; Stroke::Dash dash; } dashes[] = {
+            {"solid", Stroke::SolidLine}, {"dot", Stroke::RoundDot}, {"sysDot", Stroke::SquareDot}, {"dash", Stroke::DashLine}, {"sysDash", Stroke::DashLine},
+            {"dashDot", Stroke::DashDot}, {"sysDashDot", Stroke::DashDot}, {"lgDash", Stroke::LongDash}, {"lgDashDot", Stroke::LongDashDot},
+            {"lgDashDotDot", Stroke::LongDashDotDot}, {"sysDashDotDot", Stroke::LongDashDotDot}};
+        for (const auto &d : dashes) QVERIFY2(line(QStringLiteral("<a:prstDash val=\"%1\"/>").arg(QString::fromLatin1(d.name))).dash == d.dash, d.name);
+        QVERIFY(line(QStringLiteral("<a:custDash><a:ds d=\"100000\" sp=\"50000\"/></a:custDash>")).dash == Stroke::DashLine);
+        QVERIFY(line(QStringLiteral("<a:prstDash val=\"nonsense\"/>")).dash == Stroke::SolidLine);
+        QVERIFY(line(QString(), QStringLiteral("cap=\"rnd\"")).cap == Qt::RoundCap);
+        QVERIFY(line(QString(), QStringLiteral("cap=\"sq\"")).cap == Qt::SquareCap);
+        QVERIFY(line(QString(), QStringLiteral("cap=\"flat\"")).cap == Qt::FlatCap);
+        QVERIFY(line(QStringLiteral("<a:round/>")).join == Qt::RoundJoin);
+        QVERIFY(line(QStringLiteral("<a:bevel/>")).join == Qt::BevelJoin);
+        QVERIFY(line(QStringLiteral("<a:miter lim=\"800000\"/>")).join == Qt::MiterJoin);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"dbl\"")).compound == Stroke::Double);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"thickThin\"")).compound == Stroke::ThickThin);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"thinThick\"")).compound == Stroke::ThinThick);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"tri\"")).compound == Stroke::Triple);
+        QVERIFY(line(QString(), QStringLiteral("cmpd=\"sng\"")).compound == Stroke::Single);
+        QVERIFY(!line(QString()).inset);
+        QVERIFY(line(QString(), QStringLiteral("algn=\"in\"")).inset);
+    }
+
+    void dmlLineReadsArrowheads()
+    {
+        DmlEnv env;
+        const auto line = [&](const QString &ends) {
+            return dmlLineOf(env, QStringLiteral("<a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill>%1</a:ln>").arg(ends));
+        };
+        Stroke s = line(QStringLiteral("<a:headEnd type=\"triangle\" w=\"lg\" len=\"lg\"/><a:tailEnd type=\"stealth\" w=\"sm\" len=\"sm\"/>"));
+        QVERIFY(s.startArrow == Arrow::Triangle && s.endArrow == Arrow::Stealth);
+        QCOMPARE(s.startSize, 2);
+        QCOMPARE(s.endSize, 0);
+        s = line(QStringLiteral("<a:tailEnd type=\"arrow\"/>"));
+        QVERIFY(s.startArrow == Arrow::None && s.endArrow == Arrow::Open);
+        QCOMPARE(s.endSize, 1);
+        s = line(QStringLiteral("<a:headEnd type=\"diamond\"/><a:tailEnd type=\"oval\" w=\"med\" len=\"lg\"/>"));
+        QVERIFY(s.startArrow == Arrow::Diamond && s.endArrow == Arrow::Oval);
+        QVERIFY(s.endSize >= 1 && s.endSize <= 2);
+        s = line(QStringLiteral("<a:headEnd type=\"none\"/><a:tailEnd type=\"bogus\"/>"));
+        QVERIFY(s.startArrow == Arrow::None && s.endArrow == Arrow::None);
+        s = line(QString());
+        QVERIFY(s.startArrow == Arrow::None && s.endArrow == Arrow::None);
+    }
+
+    void dmlLineTakesTheStyleAndLetsPropertiesChangeIt()
+    {
+        DmlEnv env;
+        env.useFormats();
+        // Reference 1: a half point, the reference's color.
+        Stroke s = dmlLineOf(env, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("0"), QStringLiteral("0"), QStringLiteral("accent2")));
+        QVERIFY(!s.isNone());
+        QVERIFY(near(s.width, 0.5));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("ED7D31"));
+        // 2: a point, dashed, round joined; 3: one and a half, round capped, double, beveled.
+        s = dmlLineOf(env, QString(), dmlStyle(QStringLiteral("2"), QStringLiteral("0")));
+        QVERIFY(near(s.width, 1) && s.dash == Stroke::DashLine && s.join == Qt::RoundJoin);
+        s = dmlLineOf(env, QString(), dmlStyle(QStringLiteral("3"), QStringLiteral("0")));
+        QVERIFY(near(s.width, 1.5) && s.cap == Qt::RoundCap && s.compound == Stroke::Double && s.join == Qt::BevelJoin);
+        // 0 and a reference past the list give no line.
+        QVERIFY(dmlLineOf(env, QString(), dmlStyle(QStringLiteral("0"), QStringLiteral("0"))).isNone());
+        QVERIFY(dmlLineOf(env, QString(), dmlStyle(QStringLiteral("4"), QStringLiteral("0"))).isNone());
+        // The properties' width alone changes the width and keeps the style's color and dashes.
+        s = dmlLineOf(env, QStringLiteral("<a:ln w=\"38100\"/>"), dmlStyle(QStringLiteral("2"), QStringLiteral("0")));
+        QVERIFY(near(s.width, 3));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("4472C4"));
+        QVERIFY(s.dash == Stroke::DashLine);
+        // Their color keeps the style's width.
+        s = dmlLineOf(env, QStringLiteral("<a:ln><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln>"), dmlStyle(QStringLiteral("3"), QStringLiteral("0")));
+        QVERIFY(near(s.width, 1.5));
+        QCOMPARE(dmlHex(s.color), QStringLiteral("FF0000"));
+        // Their saying no fill is no line, and their dash replaces the style's.
+        QVERIFY(dmlLineOf(env, QStringLiteral("<a:ln><a:noFill/></a:ln>"), dmlStyle(QStringLiteral("2"), QStringLiteral("0"))).isNone());
+        s = dmlLineOf(env, QStringLiteral("<a:ln><a:prstDash val=\"solid\"/></a:ln>"), dmlStyle(QStringLiteral("2"), QStringLiteral("0")));
+        QVERIFY(s.dash == Stroke::SolidLine && !s.isNone());
+        // Without a format scheme, the style gives none.
+        DmlEnv bare;
+        QVERIFY(dmlLineOf(bare, QString(), dmlStyle(QStringLiteral("1"), QStringLiteral("0"))).isNone());
+    }
+
+    void dmlBackgroundReadsItsFill()
+    {
+        DmlEnv env;
+        env.useFormats();
+        Fill f = readBackground(env.element(QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"102030\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("102030"));
+        f = readBackground(env.element(QStringLiteral("<p:bg><p:bgPr><a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs></a:gsLst>"
+                                                      "<a:lin ang=\"5400000\"/></a:gradFill></p:bgPr></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Gradient);
+        QVERIFY(readBackground(env.element(QStringLiteral("<p:bg><p:bgPr><a:noFill/></p:bgPr></p:bg>")), env.ctx).isNone());
+        // A reference into the theme's background fills, with the color it gives.
+        f = readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(dmlHex(f.color), QStringLiteral("FEFEFE"));
+        f = readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"1003\"><a:srgbClr val=\"336699\"/></p:bgRef></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Radial);
+        QCOMPARE(dmlHex(f.stops[0].color), QStringLiteral("336699"));
+        // A reference of 1 to 3 is into the fill styles.
+        f = readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"2\"><a:schemeClr val=\"accent1\"/></p:bgRef></p:bg>")), env.ctx);
+        QVERIFY(f.type == Fill::Gradient);
+        // Nothing, no scheme to refer to, or a reference past the list is no fill.
+        QVERIFY(readBackground(QDomElement(), env.ctx).isNone());
+        QVERIFY(readBackground(env.element(QStringLiteral("<p:bg/>")), env.ctx).isNone());
+        QVERIFY(readBackground(env.element(QStringLiteral("<p:bg><p:bgRef idx=\"1009\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg>")), env.ctx).isNone());
+        DmlEnv bare;
+        QVERIFY(readBackground(bare.element(QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg>")), bare.ctx).isNone());
     }
 
     void dmlPresetGeometryUsesTheLibraryWhereItIsAsGood()

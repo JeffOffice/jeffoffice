@@ -1,0 +1,48 @@
+#pragma once
+// What the fills, outlines, and effects of DrawingML shapes have in common:
+// their elements (a:solidFill, a:ln, a:effectLst ...), and the style a shape
+// refers to in the theme (p:style's fillRef, lnRef, and effectRef) for what
+// its own properties leave out. drawingml_shape.cpp reads the shapes
+// themselves; readFill, readLine, and readBackground (drawingml.h) are here.
+
+#include "office/drawingml.h"
+
+#include <QHash>
+#include <QSizeF>
+
+namespace jp::office {
+
+struct StyleContext {
+    const DrawingContext *ctx = nullptr;
+    // What the color phClr stands for: the color of the style's reference.
+    QColor placeholder;
+    // What a:grpFill is: the fill of the group the shape is in.
+    const Fill *groupFill = nullptr;
+    // The shape's size, if it is known: a gradient written as scaled follows it.
+    QSizeF frame;
+    // The pictures added so far, by relationship, so that one used again isn't kept twice.
+    QHash<QString, QString> *images = nullptr;
+};
+
+QDomElement childNamed(const QDomElement &e, const char *local);
+
+// The picture that relationship `rId` of the drawing's part links to, kept
+// with ctx.addImage; empty if the link isn't to a picture this can read.
+QString loadImage(const QString &rId, const StyleContext &sc);
+// "png", "jpeg", "gif", "bmp", "tiff", "emf", "wmf", or "svg" for what the
+// bytes are (else by the content type, else by the part's name); empty if it is none.
+QString imageFormat(const QByteArray &bytes, const QString &contentType, const QString &partName);
+
+// Whether `properties` (an a:spPr or a:grpSpPr) has a fill of its own, which
+// includes saying there is none.
+bool hasOwnFill(const QDomElement &properties);
+
+// The fill, line, and effects of a shape: from the first of `properties` (the
+// shape's a:spPr, then those of what it inherits from) that says, else from
+// the style's reference. An outline is made from the style's, changed by
+// each of the properties' a:ln from the last to the first.
+Fill resolveFill(const QVector<QDomElement> &properties, const QDomElement &style, const StyleContext &sc);
+Stroke resolveLine(const QVector<QDomElement> &properties, const QDomElement &style, const StyleContext &sc);
+Effects resolveEffects(const QVector<QDomElement> &properties, const QDomElement &style, const StyleContext &sc);
+
+} // namespace jp::office
