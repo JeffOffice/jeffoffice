@@ -2120,6 +2120,108 @@ private Q_SLOTS:
         QVERIFY(!b.charAt(0, 2).hasProperty(QTextFormat::FontFamilies));
     }
 
+    void textSlideNumberIsThePageField()
+    {
+        Body b(QStringLiteral("<a:p><a:r><a:t>Slide </a:t></a:r><a:fld id=\"{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}\" type=\"slidenum\"><a:rPr sz=\"1200\" b=\"1\"/>"
+                              "<a:t>&#8249;#&#8250;</a:t></a:fld></a:p>"));
+        QCOMPARE(b.text(), QStringLiteral("Slide ") + QString(QChar::ObjectReplacementCharacter));
+        QCOMPARE(b.charAt(0, 6).stringProperty(jp::tp::Field), QStringLiteral("page"));
+        QCOMPARE(b.charAt(0, 6).fontPointSize(), 12.0);
+        QCOMPARE(b.charAt(0, 6).fontWeight(), int(QFont::Bold));
+        QVERIFY(b.charAt(0, 0).stringProperty(jp::tp::Field).isEmpty());
+        // Laid out on slide 7, it reads 7.
+        jp::FrameSpec fs;
+        fs.size = QSizeF(400, 100);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.ctx.pageNumber = 7;
+        jp::StoryLayout lay;
+        lay.build(&b.doc, {fs}, jp::LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        QCOMPARE(lines[0].text, QStringLiteral("Slide 7"));
+    }
+
+    void textDateFieldsHaveTheirFormats()
+    {
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        struct Row { const char *type; const char *shown; };
+        const Row rows[] = {
+            {"datetime", "10/11/2026"},                     {"datetime1", "10/11/2026"},
+            {"datetime2", "Sunday, October 11, 2026"},      {"datetime3", "11 October 2026"},
+            {"datetime4", "October 11, 2026"},              {"datetime5", "11-Oct-26"},
+            {"datetime6", "October 26"},                    {"datetime7", "Oct-26"},
+            {"datetime8", "10/11/2026 4:07 PM"},            {"datetime9", "10/11/2026 4:07:09 PM"},
+            {"datetime10", "16:07"},                        {"datetime11", "16:07:09"},
+            {"datetime12", "4:07 PM"},                      {"datetime13", "4:07:09 PM"},
+        };
+        jp::FieldContext now;
+        now.now = QDateTime(QDate(2026, 10, 11), QTime(16, 7, 9));
+        for (const Row &r : rows) {
+            Body b(QStringLiteral("<a:p><a:fld id=\"{00000000-0000-0000-0000-000000000000}\" type=\"%1\"><a:rPr/><a:t>whatever it said</a:t></a:fld></a:p>").arg(QLatin1String(r.type)));
+            const QString code = b.charAt().stringProperty(jp::tp::Field);
+            QVERIFY2(!code.isEmpty(), r.type);
+            QVERIFY2(now.resolve(code) == QLatin1String(r.shown), qPrintable(QStringLiteral("%1: %2 (%3)").arg(QLatin1String(r.type), now.resolve(code), code)));
+            QCOMPARE(b.text(), QString(QChar::ObjectReplacementCharacter));
+        }
+    }
+
+    void textOtherFieldsShowWhatTheyHeld()
+    {
+        Body b(QStringLiteral("<a:p><a:r><a:t>[</a:t></a:r><a:fld id=\"{1}\" type=\"datetimeFigureOut\"><a:rPr/><a:t>Tuesday</a:t></a:fld>"
+                              "<a:fld id=\"{2}\" type=\"somethingNew\"><a:t>cached</a:t></a:fld><a:fld id=\"{3}\"/><a:r><a:t>]</a:t></a:r></a:p>"));
+        QCOMPARE(b.text(), QStringLiteral("[Tuesdaycached]"));
+        for (int i = 0; i < b.doc.characterCount() - 1; ++i) QVERIFY(b.charAt(0, i).stringProperty(jp::tp::Field).isEmpty());
+    }
+
+    void textHyperlinksAreAnchorsToTheirExternalTargets()
+    {
+        PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<p:sld/>", kSlideType);
+        w.addPart(QStringLiteral("/ppt/slides/slide2.xml"), "<p:sld/>", kSlideType);
+        const QString slide = QStringLiteral("/ppt/slides/slide1.xml");
+        QCOMPARE(w.addRelationship(slide, kRelBase + "hyperlink", QStringLiteral("https://example.com/a?b=1&c=2"), true), QStringLiteral("rId1"));
+        QCOMPARE(w.addRelationship(slide, kRelBase + "slide", QStringLiteral("/ppt/slides/slide2.xml")), QStringLiteral("rId2"));
+        Package p;
+        QVERIFY(p.read(w.finish()));
+        auto link = [](const QString &id, const QString &extra = QString()) {
+            return QStringLiteral("<a:hlinkClick r:id=\"%1\" %2/>").arg(id, extra);
+        };
+        Body b(para(run(QStringLiteral("a"), QString(), solid(QStringLiteral("FF0000")) + link(QStringLiteral("rId1")))
+                    + run(QStringLiteral("b"), QString(), solid(QStringLiteral("FF0000")) + link(QStringLiteral("rId2")))
+                    + run(QStringLiteral("c"), QString(), link(QStringLiteral("rId9")))
+                    + run(QStringLiteral("d"), QString(), link(QString()))
+                    + run(QStringLiteral("e"))),
+               {}, QString(), &p);
+        const QTextCharFormat a = b.charAt(0, 0);
+        QVERIFY(a.isAnchor());
+        QCOMPARE(a.anchorHref(), QStringLiteral("https://example.com/a?b=1&c=2"));
+        // The presentation program shows a link in the theme's link color, underlined.
+        QCOMPARE(a.foreground().color(), QColor(0x05, 0x63, 0xC1));
+        QCOMPARE(a.stringProperty(jp::tp::ColorRefP), QStringLiteral("#0563C1"));
+        QCOMPARE(a.underlineStyle(), QTextCharFormat::SingleUnderline);
+        // A jump to a slide has no address; a link that names nothing is no link.
+        for (int i = 1; i <= 3; ++i) QVERIFY(!b.charAt(0, i).isAnchor());
+        QVERIFY(!b.charAt(0, 4).isAnchor());
+        QCOMPARE(b.charAt(0, 1).foreground().color(), QColor(0xFF, 0, 0));
+        // Without a package there is nothing to look the id up in.
+        Body none(para(run(QStringLiteral("a"), QString(), link(QStringLiteral("rId1")))));
+        QVERIFY(!none.charAt().isAnchor());
+    }
+
+    void textHyperlinkMayKeepTheTextColor()
+    {
+        PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<p:sld/>", kSlideType);
+        w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), kRelBase + "hyperlink", QStringLiteral("mailto:a@example.com"), true);
+        Package p;
+        QVERIFY(p.read(w.finish()));
+        const QString keep = QStringLiteral("<a:hlinkClick r:id=\"rId1\"><a:extLst><a:ext uri=\"{A12FA001-AC4F-418D-AE19-62706E023703}\">"
+                                            "<ahyp:hlinkClr xmlns:ahyp=\"urn:example:hyperlink-color\" val=\"tx\"/></a:ext></a:extLst></a:hlinkClick>");
+        Body b(para(run(QStringLiteral("a"), QString(), solid(QStringLiteral("FF0000")) + keep)), {}, QString(), &p);
+        QVERIFY(b.charAt().isAnchor());
+        QCOMPARE(b.charAt().foreground().color(), QColor(0xFF, 0, 0));
+    }
+
     void textEmptyParagraphKeepsItsEndSize()
     {
         Body b(QStringLiteral("<a:p><a:endParaRPr sz=\"4400\"/></a:p><a:p><a:endParaRPr sz=\"1200\"/></a:p><a:p><a:r><a:t>x</a:t></a:r></a:p>"));

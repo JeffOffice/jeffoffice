@@ -398,6 +398,35 @@ Scheme schemeOf(const QString &type)
 }
 
 
+// ---- fields
+
+// The engine's field code for a field's type; empty for the ones that are
+// only the text they last showed. The formats are the usual US ones for the
+// standard's thirteen date and time layouts.
+QString fieldCodeOf(const QString &type)
+{
+    if (type == QLatin1String("slidenum")) return QStringLiteral("page");
+    static const struct { QLatin1String type, code; } dates[] = {
+        {QLatin1String("datetime"), QLatin1String("date:M/d/yyyy")},
+        {QLatin1String("datetime1"), QLatin1String("date:M/d/yyyy")},
+        {QLatin1String("datetime2"), QLatin1String("date:dddd, MMMM d, yyyy")},
+        {QLatin1String("datetime3"), QLatin1String("date:d MMMM yyyy")},
+        {QLatin1String("datetime4"), QLatin1String("date:MMMM d, yyyy")},
+        {QLatin1String("datetime5"), QLatin1String("date:d-MMM-yy")},
+        {QLatin1String("datetime6"), QLatin1String("date:MMMM yy")},
+        {QLatin1String("datetime7"), QLatin1String("date:MMM-yy")},
+        {QLatin1String("datetime8"), QLatin1String("datetime:M/d/yyyy h:mm AP")},
+        {QLatin1String("datetime9"), QLatin1String("datetime:M/d/yyyy h:mm:ss AP")},
+        {QLatin1String("datetime10"), QLatin1String("time:HH:mm")},
+        {QLatin1String("datetime11"), QLatin1String("time:HH:mm:ss")},
+        {QLatin1String("datetime12"), QLatin1String("time:h:mm AP")},
+        {QLatin1String("datetime13"), QLatin1String("time:h:mm:ss AP")},
+    };
+    for (const auto &d : dates)
+        if (type == d.type) return QString(d.code);
+    return QString();
+}
+
 
 // ---- text
 
@@ -453,6 +482,7 @@ private:
     // What the list styles give a paragraph at `level` and a run in it: each
     // style's defaults, then its level, lowest priority first.
     void stack(int level);
+    QTextCharFormat linkFormat(QTextCharFormat cf, const QDomElement &rPr) const;
     void addToList(const ParaProps &para, int level, const QString &key, double firstSize);
 
     const DrawingContext &m_ctx;
@@ -485,6 +515,34 @@ void Reader::stack(int level)
     }
 }
 
+// A run with a link looks like one, as the presentation program draws it:
+// in the theme's link color and underlined, unless the link says the text's
+// own color stays. Only a link to an address is read (a jump to a slide has
+// none); the slide-jump and action links stay text.
+QTextCharFormat Reader::linkFormat(QTextCharFormat cf, const QDomElement &rPr) const
+{
+    const QDomElement click = firstChild(rPr, QLatin1String("hlinkClick"));
+    if (click.isNull() || !m_ctx.package) return cf;
+    const QString id = attrNs(click, ns::R, QStringLiteral("id"));
+    if (id.isEmpty()) return cf;
+    const Relationship rel = m_ctx.package->relationship(m_ctx.part, id);
+    if (rel.id.isEmpty() || !rel.external || rel.target.isEmpty()) return cf;
+    cf.setAnchor(true);
+    cf.setAnchorHref(rel.target);
+    bool keepsColor = false;
+    for (QDomElement ext = firstChild(click, QLatin1String("extLst")).firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
+        for (QDomElement e = ext.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+            if (e.localName() == QLatin1String("hlinkClr") && at(e, QLatin1String("val")) == QLatin1String("tx")) keepsColor = true;
+    if (!keepsColor) {
+        const QColor c = m_ctx.theme.colors[m_ctx.colors.hlink];
+        if (c.isValid()) {
+            cf.setForeground(QBrush(c));
+            cf.setProperty(tp::ColorRefP, colorRefOf(c));
+        }
+    }
+    if (cf.underlineStyle() == QTextCharFormat::NoUnderline) cf.setUnderlineStyle(QTextCharFormat::SingleUnderline);
+    return cf;
+}
 
 void Reader::addToList(const ParaProps &para, int level, const QString &key, double firstSize)
 {
@@ -553,14 +611,20 @@ void Reader::paragraph(const QDomElement &p)
         if (!rPr.isNull()) {
             RunProps run = base;
             mergeRun(run, rPr, m_ctx);
-            format = charFormatOf(run);
+            format = linkFormat(charFormatOf(run), rPr);
         }
         if (isBreak) {
             add(QString(QChar(QChar::LineSeparator)), format);
             continue;
         }
         const QString text = firstChild(c, QLatin1String("t")).text();
-        add(cleanText(text), format);
+        const QString code = isField ? fieldCodeOf(at(c, QLatin1String("type"))) : QString();
+        if (code.isEmpty()) {
+            add(cleanText(text), format);
+        } else {
+            format.setProperty(tp::Field, code);
+            add(QString(QChar::ObjectReplacementCharacter), format);
+        }
     }
 
     // The mark after the last letter: what an empty paragraph is as tall as.
