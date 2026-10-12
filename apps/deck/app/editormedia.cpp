@@ -204,6 +204,7 @@ void EditorMedia::paint(QPainter *p)
             const deck::MediaPlay play = deck::mediaPlayOf(*d->pages[page], *pic);
             s.volume = std::clamp(play.volume / 100000.0, 0.0, 1.0);
             s.muted = play.mute;
+            s.length = play.lengthHint;
         }
         MediaBar::paint(p, barFor(*pic), s, id == m_hover ? m_hoverPart : MediaBar::Part::None);
     }

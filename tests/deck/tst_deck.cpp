@@ -6016,6 +6016,9 @@ private Q_SLOTS:
         QCOMPARE(p.volume, deck::kVolumeLow);
         QVERIFY(p.mute && p.loop && p.rewind && p.fullScreen && p.hideWhenStopped);
         QCOMPARE(p.acrossSlides, 3);
+        // The call says how long it plays, which the bar shows before the file is played.
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animNode("mediacall", 1, 0, "clickEffect", 0, {animXml("<p:cmd type='call' cmd='playFrom(0.0)'><p:cBhvr><p:cTn id='%1' dur='5000' fill='hold'/>%2</p:cBhvr></p:cmd>").arg(animId()).arg(animTarget(4))})}));
+        QCOMPARE(deck::mediaPlayOf(slide, *movie).lengthHint, 5000);
         // A call that goes after the one before it, or a step that begins by itself, is automatic.
         slide.props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {mediaCall(4, "playFrom(0.0)", "afterEffect")})}, true));
         QVERIFY(deck::mediaPlayOf(slide, *movie).start == deck::MediaStart::Automatically);
@@ -6377,6 +6380,7 @@ private Q_SLOTS:
             QCOMPARE(back->media.value(pic->mediaId).bytes, isVideo ? movie : sound);
             const deck::MediaPlay play = deck::mediaPlayOf(*back->pages[0], *pic);
             QVERIFY(play.start == deck::MediaStart::ClickSequence);
+            QCOMPARE(play.lengthHint, isVideo ? 12345 : 5000);
             QCOMPARE(play.volume, deck::kVolumeHigh);
             QCOMPARE(play.video, isVideo);
         }
@@ -7148,6 +7152,32 @@ private Q_SLOTS:
         // It rewinds or holds when it ends, but a hidden one goes again when it stops.
         QPointer<MediaPlayback> keep = pb;
         QVERIFY(keep);
+    }
+
+    // What the call to a sound says it lasts is what the bar shows before it plays: it follows the trim when the file's
+    // length is known (the Trim box knows it), and the other settings keep it.
+    void mediaLengthFollowsTheTrimAndSurvivesOtherEdits()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        auto sound = deck::newMediaPicture(*d, *d->pages[0], testWav(3000), QStringLiteral("t.wav"), QImage(), 3000);
+        QVERIFY(sound);
+        w.editor()->beginChange(QStringLiteral("Insert"));
+        d->pages[0]->items.push_back(sound);
+        w.editor()->endChange();
+        w.editor()->select(sound->id);
+        auto play = [&] { return deck::mediaPlayOf(*d->pages[0], *lastMedia(*d)); };
+        QCOMPARE(play().lengthHint, 3000);
+        w.editMedia(QStringLiteral("Trim"), [](deck::MediaPlay &p) { p.trimStart = 1000; }, 3000);
+        QCOMPARE(play().lengthHint, 2000);
+        w.editMedia(QStringLiteral("Volume"), [](deck::MediaPlay &p) { p.volume = deck::kVolumeLow; });
+        QCOMPARE(play().lengthHint, 2000);
+        QCOMPARE(play().volume, deck::kVolumeLow);
+        w.editMedia(QStringLiteral("Trim"), [](deck::MediaPlay &p) { p.trimStart = 0; p.trimEnd = 2500; }, 3000);
+        QCOMPARE(play().lengthHint, 2500);
+        // A movie that waits for a click has no length in the file (its call lasts a millisecond).
+        w.editMedia(QStringLiteral("Start"), [](deck::MediaPlay &p) { p.start = deck::MediaStart::WhenClickedOn; });
+        QCOMPARE(play().lengthHint, 2500);   // a sound's call still says
     }
 
     // A file that can't be played says so in the show, and the show goes on.
