@@ -200,6 +200,11 @@ set_target_properties(jdtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME jdtests COMMAND jdtests)
 set_tests_properties(jdtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# Developer tool for reading and rendering presentation files from the command line.
+qt_add_executable(jdecktool tools/jdecktool.cpp)
+target_link_libraries(jdecktool PRIVATE jdcore)
+set_target_properties(jdecktool PROPERTIES WIN32_EXECUTABLE OFF)
+
 # Developer tool for rendering and converting publications from the command line.
 qt_add_executable(jpubtool tools/jpubtool.cpp)
 target_link_libraries(jpubtool PRIVATE jpcore)
