@@ -2,6 +2,7 @@
 // its window.
 
 #include "../../apps/pub/app/pubinfo.h"   // only its inline pubAppInfo(): the other app's colors, to compare
+#include "app/commentspane.h"
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
 #include "app/deckinfo.h"
@@ -61,6 +62,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QPrinter>
 #include <QPushButton>
@@ -3571,6 +3573,426 @@ private Q_SLOTS:
         // Written again, the same file's comments come out the same.
         QCOMPARE(deck::exportPresentation(*back).isEmpty(), false);
     }
+
+    // The Review tab has a Comments group: New Comment, Delete (with its menu),
+    // Previous, Next, and Show Comments.
+    void reviewTabHasTheCommentsGroup()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        for (const char *id : {"comment.new", "comment.delete", "comment.deleteSlide", "comment.deleteAll", "comment.prev", "comment.next", "comment.show"})
+            QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QVERIFY(w.act(QStringLiteral("comment.show"))->isCheckable());
+        QVERIFY(!w.act(QStringLiteral("comment.show"))->isChecked());
+        QVERIFY(w.commentsPane());
+        QVERIFY(w.commentsPane()->isHidden());
+        auto button = [&](const QString &id) -> QToolButton * {
+            for (QToolButton *b : w.ribbon()->tab(QStringLiteral("Review"))->findChildren<QToolButton *>())
+                if (b->defaultAction() == w.act(id)) return b;
+            return nullptr;
+        };
+        for (const char *id : {"comment.new", "comment.delete", "comment.prev", "comment.next", "comment.show"})
+            QVERIFY2(button(QString::fromLatin1(id)), id);
+        // Delete has a menu with the other two.
+        QToolButton *del = button(QStringLiteral("comment.delete"));
+        QVERIFY(del->menu());
+        QVERIFY(del->menu()->actions().contains(w.act(QStringLiteral("comment.deleteSlide"))));
+        QVERIFY(del->menu()->actions().contains(w.act(QStringLiteral("comment.deleteAll"))));
+        // With no comments there is nothing to delete or visit; New Comment and Show Comments are always there.
+        QVERIFY(w.act(QStringLiteral("comment.new"))->isEnabled());
+        QVERIFY(w.act(QStringLiteral("comment.show"))->isEnabled());
+        for (const char *id : {"comment.delete", "comment.deleteSlide", "comment.deleteAll", "comment.prev", "comment.next"})
+            QVERIFY2(!w.act(QString::fromLatin1(id))->isEnabled(), id);
+        // The KeyTips of the tab stay their own.
+        QStringList seen;
+        for (const QWidget *c : w.ribbon()->tab(QStringLiteral("Review"))->findChildren<QWidget *>()) {
+            const QString k = keytip(c);
+            if (k.isEmpty()) continue;
+            QVERIFY2(!seen.contains(k), qPrintable("two controls have the KeyTip " + k));
+            seen << k;
+        }
+        // Show Comments opens and closes the pane.
+        w.resize(1280, 800);
+        w.show();
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(!w.commentsPane()->isHidden());
+        QVERIFY(w.canvas()->commentsShown());
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(w.commentsPane()->isHidden());
+        QVERIFY(!w.canvas()->commentsShown());
+    }
+
+    // The Comments pane: New Comment opens a box to type in, Post makes the
+    // comment as one undo step, and each card replies, resolves, edits, and deletes.
+    void commentsPaneAddsRepliesResolvesEditsAndDeletes()
+    {
+        Settings &st = Settings::get();
+        st.setValue(QStringLiteral("user/name"), QStringLiteral("Pat Doe"));
+        st.setValue(QStringLiteral("user/initials"), QStringLiteral("PD"));
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        CommentsPane *pane = w.commentsPane();
+        QVERIFY(pane->isHidden());
+        auto slide = [&]() -> Page & { return *ed->doc()->pages[ed->currentPage()]; };
+        auto card = [&](int i = 0) { return pane->findChildren<QFrame *>(QStringLiteral("commentCard")).value(i); };
+
+        w.act(QStringLiteral("comment.new"))->trigger();
+        QVERIFY(!pane->isHidden());
+        QVERIFY(w.act(QStringLiteral("comment.show"))->isChecked());
+        auto *draft = pane->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"));
+        QVERIFY(draft && draft->isVisible());
+        QCOMPARE(w.focusWidget(), draft);
+        QCOMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 0);
+        auto *post = pane->findChild<QPushButton *>(QStringLiteral("commentPost"));
+        QVERIFY(post);
+        QVERIFY(!post->isEnabled());   // nothing typed
+        draft->setPlainText(QStringLiteral("Check the title"));
+        QVERIFY(post->isEnabled());
+        QCOMPARE(deck::commentCount(slide()), 0);   // not until Post
+        post->click();
+        QCOMPARE(deck::commentCount(slide()), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("New Comment"));
+        deck::Comment c = deck::commentsOf(slide())[0];
+        QCOMPARE(c.author, QStringLiteral("Pat Doe"));
+        QCOMPARE(c.initials, QStringLiteral("PD"));
+        QCOMPARE(c.text, QStringLiteral("Check the title"));
+        QVERIFY(c.date.isValid() && qAbs(c.date.secsTo(QDateTime::currentDateTimeUtc())) < 60);
+        QVERIFY(c.at.x() >= 0 && c.at.x() < 960 && c.at.y() >= 0 && c.at.y() < 540);
+        QVERIFY(!draft->isVisible());
+        QCOMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 1);
+        QCOMPARE(pane->currentComment(), c.id);   // the new comment is the one open
+        QVERIFY(w.act(QStringLiteral("comment.delete"))->isEnabled());
+        QVERIFY(card()->findChild<QLabel *>(QStringLiteral("commentText"))->text().contains(QStringLiteral("Check the title")));
+        QVERIFY(card()->findChild<QLabel *>(QStringLiteral("commentAuthor"))->text().contains(QStringLiteral("Pat Doe")));
+
+        // A reply.
+        auto *reply = card()->findChild<QLineEdit *>(QStringLiteral("commentReplyEdit"));
+        auto *replyPost = card()->findChild<QAbstractButton *>(QStringLiteral("commentReplyPost"));
+        QVERIFY(reply && replyPost);
+        QVERIFY(!replyPost->isEnabled());
+        reply->setText(QStringLiteral("Agreed"));
+        QVERIFY(replyPost->isEnabled());
+        replyPost->click();
+        QCOMPARE(int(deck::commentsOf(slide())[0].replies.size()), 1);
+        QCOMPARE(deck::commentsOf(slide())[0].replies[0].text, QStringLiteral("Agreed"));
+        QCOMPARE(deck::commentsOf(slide())[0].replies[0].author, QStringLiteral("Pat Doe"));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        QCOMPARE(int(card()->findChildren<QLabel *>(QStringLiteral("commentReplyText")).size()), 1);
+        // Enter in the box replies too.
+        card()->findChild<QLineEdit *>(QStringLiteral("commentReplyEdit"))->setText(QStringLiteral("Second answer"));
+        QTest::keyClick(card()->findChild<QLineEdit *>(QStringLiteral("commentReplyEdit")), Qt::Key_Return);
+        QCOMPARE(int(deck::commentsOf(slide())[0].replies.size()), 2);
+
+        // Resolve and reopen.
+        auto *resolve = card()->findChild<QAbstractButton *>(QStringLiteral("commentResolve"));
+        QVERIFY(resolve);
+        resolve->click();
+        QVERIFY(deck::commentsOf(slide())[0].done);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Resolve Comment"));
+        resolve = card()->findChild<QAbstractButton *>(QStringLiteral("commentResolve"));
+        QVERIFY(resolve->text().contains(QStringLiteral("Reopen")));
+        resolve->click();
+        QVERIFY(!deck::commentsOf(slide())[0].done);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Reopen Comment"));
+
+        // Edit the text.
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentEdit"))->click();
+        auto *editor = card()->findChild<QPlainTextEdit *>(QStringLiteral("commentEditor"));
+        QVERIFY(editor);
+        QCOMPARE(editor->toPlainText(), QStringLiteral("Check the title"));
+        editor->setPlainText(QStringLiteral("Check the heading"));
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentSave"))->click();
+        QCOMPARE(deck::commentsOf(slide())[0].text, QStringLiteral("Check the heading"));
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Edit Comment"));
+        QVERIFY(!card()->findChild<QPlainTextEdit *>(QStringLiteral("commentEditor")));
+        // Cancel leaves it be.
+        const int steps = ed->undoStack()->count();
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentEdit"))->click();
+        card()->findChild<QPlainTextEdit *>(QStringLiteral("commentEditor"))->setPlainText(QStringLiteral("Never mind"));
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentCancel"))->click();
+        QCOMPARE(ed->undoStack()->count(), steps);
+        QCOMPARE(deck::commentsOf(slide())[0].text, QStringLiteral("Check the heading"));
+
+        // A reply goes by itself.
+        auto replyDeletes = card()->findChildren<QAbstractButton *>(QStringLiteral("commentReplyDelete"));
+        QCOMPARE(int(replyDeletes.size()), 2);
+        replyDeletes[0]->click();
+        QCOMPARE(int(deck::commentsOf(slide())[0].replies.size()), 1);
+        QCOMPARE(deck::commentsOf(slide())[0].replies[0].text, QStringLiteral("Second answer"));
+
+        // Delete takes the comment and its replies; one undo brings it all back, and redo takes it again.
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentDelete"))->click();
+        QCOMPARE(deck::commentCount(slide()), 0);
+        QCOMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 0);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Delete Comment"));
+        QVERIFY(!w.act(QStringLiteral("comment.delete"))->isEnabled());
+        ed->undo();
+        QCOMPARE(deck::commentCount(slide()), 1);
+        QCOMPARE(int(deck::commentsOf(slide())[0].replies.size()), 1);
+        QTRY_COMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 1);
+        ed->redo();
+        QCOMPARE(deck::commentCount(slide()), 0);
+        QTRY_COMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 0);
+        // Undoing all the way takes the first comment away again.
+        while (ed->undoStack()->canUndo()) ed->undo();
+        QCOMPARE(deck::commentCount(slide()), 0);
+
+        // Cancel in the new comment's box makes nothing.
+        w.act(QStringLiteral("comment.new"))->trigger();
+        pane->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->setPlainText(QStringLiteral("Never mind"));
+        pane->findChild<QPushButton *>(QStringLiteral("commentDraftCancel"))->click();
+        QVERIFY(!pane->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->isVisible());
+        QCOMPARE(deck::commentCount(slide()), 0);
+        QVERIFY(!ed->undoStack()->canUndo());
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+    }
+
+    // The pane asks who is writing the first time, when File > Options has no
+    // name, and keeps the answer; saying no makes no comment.
+    void commentsPaneAsksWhoIsWritingOnce()
+    {
+        Settings &st = Settings::get();
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        // Declined: nothing opens, nothing is kept.
+        bool asked = false;
+        QTimer::singleShot(0, [&] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            asked = dlg->findChild<QLineEdit *>(QStringLiteral("commentAuthorName")) && dlg->findChild<QLineEdit *>(QStringLiteral("commentAuthorInitials"));
+            dlg->reject();
+        });
+        w.act(QStringLiteral("comment.new"))->trigger();
+        QVERIFY(asked);
+        QVERIFY(!deck::commentAuthor().known());
+        QVERIFY(!w.commentsPane()->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft")) || !w.commentsPane()->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->isVisible());
+        // Answered: kept in the settings, and the box to type in opens.
+        asked = false;
+        QTimer::singleShot(0, [&] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            asked = true;
+            dlg->findChild<QLineEdit *>(QStringLiteral("commentAuthorName"))->setText(QStringLiteral("Pat Doe"));
+            dlg->accept();
+        });
+        w.act(QStringLiteral("comment.new"))->trigger();
+        QVERIFY(asked);
+        QCOMPARE(st.value(QStringLiteral("user/name")).toString(), QStringLiteral("Pat Doe"));
+        QCOMPARE(st.value(QStringLiteral("user/initials")).toString(), QStringLiteral("PD"));
+        auto *draft = w.commentsPane()->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"));
+        QVERIFY(draft && draft->isVisible());
+        draft->setPlainText(QStringLiteral("Hello"));
+        w.commentsPane()->findChild<QPushButton *>(QStringLiteral("commentPost"))->click();
+        QCOMPARE(deck::commentsOf(*w.editor()->doc()->pages[0])[0].initials, QStringLiteral("PD"));
+        // Not again.
+        bool askedAgain = false;
+        QTimer watch;   // lets go of a dialog that would otherwise hold the test
+        watch.setSingleShot(true);
+        connect(&watch, &QTimer::timeout, [&] {
+            if (auto *dlg = QApplication::activeModalWidget()) {
+                askedAgain = true;
+                dlg->close();
+            }
+        });
+        watch.start(0);
+        w.act(QStringLiteral("comment.new"))->trigger();
+        QVERIFY(!askedAgain);
+        QVERIFY(w.commentsPane()->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->isVisible());
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+    }
+
+    // Each comment has a marker on the slide, where its place is: it shows only
+    // while comments are shown, a click opens the comment in the pane, and
+    // dragging it moves the comment as one step that undoes.
+    void commentMarkersShowOnTheSlideAndMove()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        DeckCanvas *cv = w.canvas();
+        const deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")};
+        ed->beginChange(QStringLiteral("Comments"));
+        const QString first = deck::addComment(*ed->doc()->pages[0], pat, QStringLiteral("One"), QPointF(600, 100));
+        const QString second = deck::addComment(*ed->doc()->pages[0], pat, QStringLiteral("Two"), QPointF(300, 400));
+        ed->endChange();
+        ed->undoStack()->clear();
+        QVERIFY(!cv->commentsShown());
+        auto markerPoint = [&](const QPointF &page) { return (cv->pageToView(page) + QPointF(6, 6)).toPoint(); };
+        QTRY_VERIFY(cv->viewport()->isVisible());
+        QVERIFY(cv->commentAt(markerPoint(QPointF(600, 100))).isEmpty());   // hidden
+        const QImage hidden = cv->viewport()->grab().toImage();
+
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(cv->commentsShown());
+        QCOMPARE(cv->commentAt(markerPoint(QPointF(600, 100))), first);
+        QCOMPARE(cv->commentAt(markerPoint(QPointF(300, 400))), second);
+        QVERIFY(cv->commentAt((cv->pageToView(QPointF(600, 100)) - QPointF(8, 8)).toPoint()).isEmpty());
+        QVERIFY(cv->commentAt(markerPoint(QPointF(450, 250))).isEmpty());
+        // The markers are drawn: the pixels under them differ from the slide without them.
+        const QImage shown = cv->viewport()->grab().toImage();
+        for (const QPointF &page : {QPointF(600, 100), QPointF(300, 400)}) {
+            int changed = 0;
+            const QPoint at = cv->pageToView(page).toPoint();
+            for (int dy = 2; dy < 14; ++dy)
+                for (int dx = 2; dx < 18; ++dx) changed += shown.pixelColor(at.x() + dx, at.y() + dy) != hidden.pixelColor(at.x() + dx, at.y() + dy);
+            QVERIFY2(changed > 60, qPrintable(QString::number(changed)));
+        }
+        // Another slide has none of these.
+        deck::addSlide(*ed->doc(), *deck::layoutOfType(*ed->doc(), QStringLiteral("obj")));
+        ed->setCurrentPage(1);
+        QVERIFY(cv->commentAt(markerPoint(QPointF(600, 100))).isEmpty());
+        ed->setCurrentPage(0);
+        ed->undoStack()->clear();
+
+        // A click opens the pane on the comment.
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(w.commentsPane()->isHidden());
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(w.commentsPane()->currentComment().isEmpty());
+        QTest::mouseClick(cv->viewport(), Qt::LeftButton, Qt::NoModifier, markerPoint(QPointF(300, 400)));
+        QVERIFY(!w.commentsPane()->isHidden());
+        QCOMPARE(w.commentsPane()->currentComment(), second);
+        QCOMPARE(cv->activeComment(), second);
+        QVERIFY(w.act(QStringLiteral("comment.delete"))->isEnabled());
+        QCOMPARE(ed->undoStack()->count(), 0);   // a click moves nothing
+        QCOMPARE(deck::commentsOf(*ed->doc()->pages[0])[1].at, QPointF(300, 400));
+
+        // A drag moves it, in one step.
+        const QPoint from = markerPoint(QPointF(300, 400)), to = from + QPoint(90, -60);
+        QTest::mousePress(cv->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(cv->viewport(), from + QPoint(20, -10));
+        QTest::mouseMove(cv->viewport(), from + QPoint(60, -40));
+        QTest::mouseMove(cv->viewport(), to);
+        QCOMPARE(ed->undoStack()->count(), 0);   // not until it lets go
+        QTest::mouseRelease(cv->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Move Comment"));
+        const QPointF moved = deck::commentsOf(*ed->doc()->pages[0])[1].at;
+        QVERIFY2(qAbs(moved.x() - (300 + 90 / cv->ppp())) < 1.5 && qAbs(moved.y() - (400 - 60 / cv->ppp())) < 1.5, qPrintable(QString::number(moved.x()) + "," + QString::number(moved.y())));
+        QCOMPARE(deck::commentsOf(*ed->doc()->pages[0])[0].at, QPointF(600, 100));   // the other stayed
+        QCOMPARE(cv->commentAt(markerPoint(moved)), second);
+        QCOMPARE(w.commentsPane()->currentComment(), second);
+        ed->undo();
+        QCOMPARE(deck::commentsOf(*ed->doc()->pages[0])[1].at, QPointF(300, 400));
+        // The markers don't take the slide's own clicks away where they aren't.
+        ed->clearSelection();
+        const QPointF titleAt = ed->doc()->pages[0]->items[0]->rect.center();
+        QTest::mouseClick(cv->viewport(), Qt::LeftButton, Qt::NoModifier, cv->pageToView(titleAt).toPoint());
+        QCOMPARE(ed->selection(), QStringList{ed->doc()->pages[0]->items[0]->id});
+        (void)first;
+    }
+
+    // Previous and Next go from comment to comment through the presentation, in
+    // slide order, opening each one in the pane on its slide; the Delete menu
+    // clears the slide's comments or all of them as one step.
+    void commentCommandsVisitAndDelete()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        for (int i = 0; i < 2; ++i) deck::addSlide(*ed->doc(), *deck::layoutOfType(*ed->doc(), QStringLiteral("obj")));
+        const deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")};
+        ed->beginChange(QStringLiteral("Comments"));
+        const QString a = deck::addComment(*ed->doc()->pages[0], pat, QStringLiteral("A"), QPointF(10, 10));
+        const QString b = deck::addComment(*ed->doc()->pages[0], pat, QStringLiteral("B"), QPointF(40, 10));
+        const QString c = deck::addComment(*ed->doc()->pages[2], pat, QStringLiteral("C"), QPointF(10, 10));
+        ed->endChange();
+        ed->undoStack()->clear();
+        ed->setCurrentPage(0);
+        QVERIFY(w.act(QStringLiteral("comment.next"))->isEnabled() && w.act(QStringLiteral("comment.prev"))->isEnabled());
+        QVERIFY(w.act(QStringLiteral("comment.deleteAll"))->isEnabled() && w.act(QStringLiteral("comment.deleteSlide"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("comment.delete"))->isEnabled());   // none is open yet
+        auto open = [&] { return w.commentsPane()->currentComment(); };
+
+        w.act(QStringLiteral("comment.next"))->trigger();   // none was open: the first
+        QVERIFY(!w.commentsPane()->isHidden());
+        QVERIFY(w.canvas()->commentsShown());
+        QCOMPARE(open(), a);
+        w.act(QStringLiteral("comment.next"))->trigger();
+        QCOMPARE(open(), b);
+        w.act(QStringLiteral("comment.next"))->trigger();   // over to the third slide
+        QCOMPARE(open(), c);
+        QCOMPARE(ed->currentPage(), 2);
+        w.act(QStringLiteral("comment.next"))->trigger();   // and round to the first
+        QCOMPARE(open(), a);
+        QCOMPARE(ed->currentPage(), 0);
+        w.act(QStringLiteral("comment.prev"))->trigger();   // and back
+        QCOMPARE(open(), c);
+        QCOMPARE(ed->currentPage(), 2);
+        w.act(QStringLiteral("comment.prev"))->trigger();
+        QCOMPARE(open(), b);
+        QCOMPARE(ed->currentPage(), 0);
+
+        // Delete takes the open comment.
+        QVERIFY(w.act(QStringLiteral("comment.delete"))->isEnabled());
+        w.act(QStringLiteral("comment.delete"))->trigger();
+        QCOMPARE(int(deck::commentsOf(*ed->doc()->pages[0]).size()), 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Delete Comment"));
+        QVERIFY(open().isEmpty());
+        QVERIFY(!w.act(QStringLiteral("comment.delete"))->isEnabled());
+        ed->undo();
+        QCOMPARE(int(deck::commentsOf(*ed->doc()->pages[0]).size()), 2);
+        // All of the slide's.
+        ed->undoStack()->clear();
+        w.act(QStringLiteral("comment.deleteSlide"))->trigger();
+        QVERIFY(deck::commentsOf(*ed->doc()->pages[0]).isEmpty());
+        QCOMPARE(int(deck::commentsOf(*ed->doc()->pages[2]).size()), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Delete Comments"));
+        ed->undo();
+        QCOMPARE(int(deck::commentsOf(*ed->doc()->pages[0]).size()), 2);
+        // All of the presentation's, in one step.
+        ed->undoStack()->clear();
+        w.act(QStringLiteral("comment.deleteAll"))->trigger();
+        QVERIFY(deck::allComments(*ed->doc()).isEmpty());
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QVERIFY(!w.act(QStringLiteral("comment.deleteAll"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("comment.next"))->isEnabled());
+        ed->undo();
+        QCOMPARE(int(deck::allComments(*ed->doc()).size()), 3);
+        QVERIFY(w.act(QStringLiteral("comment.next"))->isEnabled());
+    }
+
+    // A presentation opened with comments in it shows them, and the comments
+    // go into the file the window saves.
+    void commentsOpenAndSaveWithThePresentation()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(pack(withLegacyComments()));
+        f.close();
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        QVERIFY(w.openFile(path));
+        QVERIFY(!w.commentsPane()->isHidden());   // the file has comments: they show
+        QVERIFY(w.canvas()->commentsShown());
+        QTRY_COMPARE(int(w.commentsPane()->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 2);
+        w.editor()->setCurrentPage(1);
+        QTRY_COMPARE(int(w.commentsPane()->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 0);
+        const QString out = dir.filePath(QStringLiteral("again.pptx"));
+        QVERIFY(w.saveTo(out));
+        QString err;
+        auto back = deck::importPresentationFile(out, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(deck::commentsOf(*back->pages[0]).size()), 2);
+        QCOMPARE(int(deck::commentsOf(*back->pages[0])[0].replies.size()), 1);
+        w.editor()->markSaved();
+    }
+
 
     // File > Options is the shared dialog: its General tab has the user name
     // and the app's own name in the update check, Proofing follows, and
