@@ -6,6 +6,7 @@
 #include "office/drawingml.h"
 
 #include "core/color.h"
+#include "office/drawingml_props.h"
 #include "office/xml.h"
 #include "text/textprops.h"
 
@@ -707,6 +708,8 @@ void Reader::paragraph(const QDomElement &p)
     if (para.lnSpc.kind == Spacing::Percent && para.lnSpc.value > 0) bf.setLineHeight(std::clamp(para.lnSpc.value * 100, 1.0, 1000.0), QTextBlockFormat::ProportionalHeight);
     else if (para.lnSpc.kind == Spacing::Points && para.lnSpc.value > 0) bf.setLineHeight(std::max(para.lnSpc.value, 0.1), QTextBlockFormat::FixedHeight);
     if (level > 0) bf.setProperty(tp::ListLevel, level);
+    // An empty paragraph shows no bullet and is left out of the lists; one the file says has none keeps that.
+    if (pieces.isEmpty() && !pPr.isNull() && !firstChild(pPr, QLatin1String("buNone")).isNull()) bf.setProperty(kNoBulletParagraph, true);
     // Stops of its own, then (where the paragraph has a tab) the default ones
     // as far on as they are likely to be needed.
     QList<QTextOption::Tab> tabs = para.tabs;

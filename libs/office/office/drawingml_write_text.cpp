@@ -2,6 +2,7 @@
 // properties, bullets and numbering, runs with their formatting, line breaks,
 // and fields; the counterpart of drawingml_text.cpp.
 
+#include "office/drawingml_props.h"
 #include "office/drawingml_write.h"
 
 #include "office/drawingml_write_util.h"
@@ -321,10 +322,16 @@ double firstSizeOf(const QTextBlock &b)
 
 void writeBullet(QXmlStreamWriter &w, const QTextBlock &b, QTextList *list, DrawingWriteContext &ctx)
 {
-    if (ctx.emptyParagraphsInherit && ctx.placeholderText && b.text().isEmpty()) return;
+    // An empty paragraph the file said has no bullet says so again, wherever it is.
+    const bool marked = !list && b.text().isEmpty() && b.blockFormat().boolProperty(kNoBulletParagraph);
+    if (ctx.emptyParagraphsInherit && ctx.placeholderText && b.text().isEmpty()) {
+        // The paragraph takes the layout's bullet, unless the file said it has none.
+        if (marked) leaf(w, "a:buNone");
+        return;
+    }
     if (!list) {
         // Where the layout and master give a bullet, a paragraph that has none says so.
-        if (ctx.placeholderText) leaf(w, "a:buNone");
+        if (ctx.placeholderText || marked) leaf(w, "a:buNone");
         return;
     }
     const QTextBlockFormat bf = b.blockFormat();

@@ -17867,6 +17867,98 @@ private Q_SLOTS:
         QCOMPARE(listSaid(typedInto), listSaid(layoutParagraph(*w.editor()->doc(), 0)));
     }
 
+    // A package of an exported file, with the parts named in `changes` (by entry name, no leading slash) replaced.
+    static QByteArray repack(const Exported &e, const QMap<QString, QByteArray> &changes)
+    {
+        office::PackageWriter w;
+        for (const QString &name : e.pkg.partNames()) w.addPart(name, changes.contains(name.mid(1)) ? changes.value(name.mid(1)) : e.zip.value(name.mid(1)), e.pkg.contentType(name));
+        QStringList sources = e.pkg.partNames();
+        sources << QStringLiteral("/");
+        for (const QString &source : std::as_const(sources)) {
+            QVector<office::Relationship> links = e.pkg.relationships(source);
+            std::sort(links.begin(), links.end(), [](const office::Relationship &a, const office::Relationship &b) { return a.id.mid(3).toInt() < b.id.mid(3).toInt(); });
+            for (const office::Relationship &r : std::as_const(links)) w.addRelationship(source, r.type, r.target, r.external);
+        }
+        return w.finish();
+    }
+
+    // The names of the bullet settings (a:bu...) in the properties of each paragraph of a slide's XML, in order.
+    static QVector<QStringList> bulletNamesOf(const QByteArray &xml)
+    {
+        QDomDocument dom;
+        QVector<QStringList> out;
+        std::function<void(const QDomElement &)> visit = [&](const QDomElement &el) {
+            if (office::isElement(el, office::ns::A, QStringLiteral("p"))) {
+                QStringList names;
+                for (const QDomElement &k : office::children(office::child(el, office::ns::A, QStringLiteral("pPr")))) names << k.localName();
+                out << names.filter(QRegularExpression(QStringLiteral("^bu")));
+                return;
+            }
+            for (const QDomElement &k : office::children(el)) visit(k);
+        };
+        visit(rootOf(xml, &dom));
+        return out;
+    }
+
+    // A paragraph the file marks as having no bullet (a:buNone) keeps that when it is empty: it is not given the layout's list when the
+    // presentation opens (typing in it gives plain text), and it is saved with a:buNone again; an empty paragraph that says nothing still takes
+    // the layout's list, and is saved saying nothing.
+    void emptyParagraphsMarkedNoBulletStayWithoutBullets()
+    {
+        auto d = bulletedDeck();
+        for (int i = 0; i < 3; ++i) deck::addSlide(*d, layoutOf(*d, QStringLiteral("obj")));
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        auto body = [](QByteArray xml, const QString &paragraphs) {
+            QString text = QString::fromUtf8(xml);
+            const QRegularExpression place(QStringLiteral("(<p:ph [^>]*idx=\"1\"[^>]*/>.*?<a:lstStyle/>)(.*?)(</p:txBody>)"), QRegularExpression::DotMatchesEverythingOption);
+            text.replace(place, QStringLiteral("\\1") + paragraphs + QStringLiteral("\\3"));
+            return text.toUtf8();
+        };
+        const QString none = QStringLiteral("<a:p><a:pPr marL=\"0\" indent=\"0\"><a:buNone/></a:pPr><a:endParaRPr lang=\"en-US\"/></a:p>");
+        const QString said = QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\"/><a:t>First</a:t></a:r></a:p>");
+        const QString quiet = QStringLiteral("<a:p><a:endParaRPr lang=\"en-US\"/></a:p>");
+        // Slide 2: words, an empty paragraph with no bullet, an empty one that says nothing. Slide 3: one empty paragraph with no bullet.
+        // Slide 4: one that says nothing.
+        QMap<QString, QByteArray> changes;
+        changes[QStringLiteral("ppt/slides/slide2.xml")] = body(e.zip.value(QStringLiteral("ppt/slides/slide2.xml")), said + none + quiet);
+        changes[QStringLiteral("ppt/slides/slide3.xml")] = body(e.zip.value(QStringLiteral("ppt/slides/slide3.xml")), none);
+        changes[QStringLiteral("ppt/slides/slide4.xml")] = body(e.zip.value(QStringLiteral("ppt/slides/slide4.xml")), quiet);
+        auto back = deck::importPresentation(repack(e, changes), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 4);
+        deck::inheritLayoutLists(*back);
+        const QTextDocument *two = back->storyDoc(bodyOf(*back->pages[1])->storyId);
+        QCOMPARE(two->blockCount(), 3);
+        QVERIFY(two->findBlockByNumber(0).textList());
+        QVERIFY(!two->findBlockByNumber(1).textList());
+        QVERIFY(!two->findBlockByNumber(2).textList());
+        QVERIFY(!back->storyDoc(bodyOf(*back->pages[2])->storyId)->begin().textList());   // marked: no list
+        QVERIFY(back->storyDoc(bodyOf(*back->pages[3])->storyId)->begin().textList());    // said nothing: the layout's
+        // Saved again: a:buNone stays on the paragraphs that had it, and the ones that said nothing say nothing.
+        Exported saved;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &saved, &err), qPrintable(err));
+        QVERIFY2(packageProblem(saved).isEmpty(), qPrintable(packageProblem(saved)));
+        const QVector<QStringList> second = bulletNamesOf(saved.zip.value(QStringLiteral("ppt/slides/slide2.xml")));
+        QCOMPARE(second.size(), 4);   // the title's, then the body's three
+        QVERIFY(second[1].contains(QStringLiteral("buChar")));
+        QCOMPARE(second[2], QStringList{QStringLiteral("buNone")});
+        QCOMPARE(second[3], QStringList());
+        QCOMPARE(bulletNamesOf(saved.zip.value(QStringLiteral("ppt/slides/slide3.xml"))), (QVector<QStringList>{QStringList(), QStringList{QStringLiteral("buNone")}}));
+        QCOMPARE(bulletNamesOf(saved.zip.value(QStringLiteral("ppt/slides/slide4.xml"))), (QVector<QStringList>{QStringList(), QStringList()}));
+        // In a window, as the presentation opens, and once more through a save: the same.
+        DeckWindow w;
+        auto again = deck::importPresentation(repack(e, changes), &err);
+        QVERIFY2(again, qPrintable(err));
+        w.editor()->setDocument(std::move(again));
+        QVERIFY(!w.editor()->doc()->storyDoc(bodyOf(*w.editor()->doc()->pages[2])->storyId)->begin().textList());
+        QVERIFY(w.editor()->doc()->storyDoc(bodyOf(*w.editor()->doc()->pages[3])->storyId)->begin().textList());
+        // Typing into the marked one gives plain text, not a bullet.
+        QTextCursor(w.editor()->doc()->storyDoc(bodyOf(*w.editor()->doc()->pages[2])->storyId)).insertText(QStringLiteral("typed"));
+        QVERIFY(!w.editor()->doc()->storyDoc(bodyOf(*w.editor()->doc()->pages[2])->storyId)->begin().textList());
+    }
+
     // The built-in themes bullet the text of their body places as the presentation program's do: a paragraph for each of five levels in a list of
     // its own, the bullet in the first accent color, each level smaller and further in than the one before. The first theme, a new presentation's
     // own, has no bullets, as it always had none; no theme bullets a subtitle, a section's text, a heading of a comparison, or a caption.
