@@ -66,10 +66,18 @@ void MediaPlayback::setPlay(const deck::MediaPlay &play)
 
 void MediaPlayback::setUnavailable(const QString &message) { fail(message); }
 
+// A trim that cuts all of the file away is none: the presentation program ignores it too.
+qint64 MediaPlayback::trimStart() const
+{
+    if (m_fileDuration > 0 && qint64(m_play.trimStart) + m_play.trimEnd >= m_fileDuration) return 0;
+    return std::max(0, m_play.trimStart);
+}
+
 qint64 MediaPlayback::trimEnd() const
 {
-    if (m_play.trimEnd > 0 && (m_fileDuration <= 0 || m_play.trimEnd < m_fileDuration)) return m_play.trimEnd;
-    return m_fileDuration;
+    if (m_fileDuration <= 0) return 0;
+    if (qint64(m_play.trimStart) + m_play.trimEnd >= m_fileDuration) return m_fileDuration;
+    return m_fileDuration - std::max(0, m_play.trimEnd);
 }
 
 qint64 MediaPlayback::length() const { return std::max<qint64>(0, trimEnd() - trimStart()); }
@@ -130,7 +138,7 @@ bool MediaPlayback::ensurePlayer()
     });
     connect(m_player, &QMediaPlayer::positionChanged, this, [this](qint64 position) {
         const qint64 end = trimEnd();
-        if (m_state == State::Playing && !m_ending && end > 0 && m_play.trimEnd > 0 && position >= end) reachedEnd();
+        if (m_state == State::Playing && !m_ending && m_play.trimEnd > 0 && end > 0 && end < m_fileDuration && position >= end) reachedEnd();
         else if (m_play.fadeIn > 0 || m_play.fadeOut > 0) applyVolume();
         Q_EMIT changed();
     });

@@ -184,12 +184,11 @@ void DeckWindow::playMedia()
 }
 
 // How long the whole file lasts, in milliseconds, for the Trim box, without reading the file: the player knows when it has been asked to play
-// it; else the timing says how long the part that plays lasts (the whole, when nothing is trimmed off its end). 0 when neither does.
+// it; else the timing says how long what is left after the trim lasts. 0 when neither does.
 static qint64 knownMediaLength(const deck::MediaPlay &play, const MediaPlayback *pb)
 {
     if (pb && pb->fileLength() > 0) return pb->fileLength();
-    if (play.trimEnd == 0 && play.lengthHint > 0) return qint64(play.trimStart) + play.lengthHint;
-    return 0;
+    return deck::knownFileLength(play);
 }
 
 void DeckWindow::trimMedia()
@@ -200,7 +199,7 @@ void DeckWindow::trimMedia()
     const qint64 length = knownMediaLength(play, m_canvas->media()->playbackOf(pic->id));
     MediaTrimDialog dlg(pic->mediaKind == QLatin1String("audio") ? tr("Trim Audio") : tr("Trim Video"), length, play.trimStart, play.trimEnd, this);
     if (dlg.exec() != QDialog::Accepted) return;
-    const int start = dlg.startMs(), end = dlg.endMs();
+    const int start = dlg.cutStartMs(), end = dlg.cutEndMs();
     editMedia(tr("Trim"), [start, end](deck::MediaPlay &p) {
         p.trimStart = start;
         p.trimEnd = end;

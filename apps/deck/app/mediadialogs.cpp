@@ -13,7 +13,7 @@
 
 namespace jp {
 
-MediaTrimDialog::MediaTrimDialog(const QString &title, qint64 length, int startMs, int endMs, QWidget *parent) : QDialog(parent), m_length(length)
+MediaTrimDialog::MediaTrimDialog(const QString &title, qint64 length, int cutStartMs, int cutEndMs, QWidget *parent) : QDialog(parent), m_length(length), m_cutEnd(cutEndMs)
 {
     setObjectName(QStringLiteral("mediaTrimDialog"));
     setWindowTitle(title);
@@ -33,8 +33,11 @@ MediaTrimDialog::MediaTrimDialog(const QString &title, qint64 length, int startM
     };
     m_start = spin("trimStart", tr("Start Time"));
     m_end = spin("trimEnd", tr("End Time"));
-    m_start->setValue(startMs / 1000.0);
-    m_end->setValue(endMs > 0 ? endMs / 1000.0 : (length > 0 ? length / 1000.0 : 0));
+    m_start->setValue(cutStartMs / 1000.0);
+    // The end is where it plays to: the length less what is cut off.
+    m_end->setValue(length > 0 ? std::max<qint64>(0, length - cutEndMs) / 1000.0 : 0);
+    m_end->setEnabled(length > 0);
+    if (length <= 0) m_end->setToolTip(tr("How long it is isn't known until it has been played, so the end can't be set yet."));
     form->addRow(tr("&Start Time:"), m_start);
     form->addRow(tr("&End Time:"), m_end);
     column->addLayout(form);
@@ -54,20 +57,21 @@ MediaTrimDialog::MediaTrimDialog(const QString &title, qint64 length, int startM
 void MediaTrimDialog::check()
 {
     const double start = m_start->value(), end = m_end->value();
-    const bool toEnd = end <= 0 || (m_length > 0 && end * 1000 >= m_length - 5);
-    const bool sound = !toEnd && end <= start;
-    m_ok->setEnabled(!sound);
-    if (sound) m_note->setText(tr("The end has to be after the start."));
-    else m_note->setText(tr("It plays for %1.").arg(MediaBar::timeText(qint64(std::round(((toEnd ? (m_length > 0 ? m_length / 1000.0 : 0) : end) - start) * 1000)))));
+    const bool known = m_length > 0;
+    const bool bad = known && end <= start;
+    m_ok->setEnabled(!bad);
+    if (bad) m_note->setText(tr("The end has to be after the start."));
+    else if (known) m_note->setText(tr("It plays for %1.").arg(MediaBar::timeText(qint64(std::round((end - start) * 1000)))));
+    else m_note->setText(QString());
 }
 
-int MediaTrimDialog::startMs() const { return int(std::lround(m_start->value() * 1000)); }
+int MediaTrimDialog::cutStartMs() const { return int(std::lround(m_start->value() * 1000)); }
 
-int MediaTrimDialog::endMs() const
+int MediaTrimDialog::cutEndMs() const
 {
-    const double end = m_end->value();
-    if (end <= 0 || (m_length > 0 && end * 1000 >= m_length - 5)) return 0;
-    return int(std::lround(end * 1000));
+    if (m_length <= 0) return m_cutEnd;
+    const qint64 cut = m_length - std::lround(m_end->value() * 1000);
+    return cut <= 5 ? 0 : int(cut);
 }
 
 } // namespace jp

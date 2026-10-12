@@ -8548,7 +8548,7 @@ private Q_SLOTS:
                                       "<p:endCondLst><p:cond evt=\"onStopAudio\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:endCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cMediaNode></p:audio>")
                      + tail);
         QVERIFY(deck::mediaPlayOf(slide, *sound) == [&] { deck::MediaPlay p; p.shape = 2; return p; }());
-        // A movie that waits for a click on it: the click pauses it and plays it again.
+        // A movie that waits for a click on it: the click pauses it and plays it again. Its sequence comes first, and its node after it.
         Page other;
         auto movie = mediaPicture(0, "video");
         other.items.push_back(movie);
@@ -8556,15 +8556,15 @@ private Q_SLOTS:
         deck::setMediaPlay(other, *movie, play);
         QCOMPARE(other.props.value(QStringLiteral("timingXml")).toString(),
                  head
-                     + QStringLiteral("<p:video><p:cMediaNode vol=\"80000\"><p:cTn id=\"2\" fill=\"hold\" display=\"0\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cMediaNode></p:video>"
-                                      "<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"3\" restart=\"whenNotActive\" fill=\"hold\" evtFilter=\"cancelBubble\" nodeType=\"interactiveSeq\"><p:stCondLst><p:cond evt=\"onClick\" delay=\"0\"><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cond></p:stCondLst>"
+                     + QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" restart=\"whenNotActive\" fill=\"hold\" evtFilter=\"cancelBubble\" nodeType=\"interactiveSeq\"><p:stCondLst><p:cond evt=\"onClick\" delay=\"0\"><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cond></p:stCondLst>"
                                       "<p:endSync evt=\"end\" delay=\"0\"><p:rtn val=\"all\"/></p:endSync><p:childTnLst>"
+                                      "<p:par><p:cTn id=\"3\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>"
                                       "<p:par><p:cTn id=\"4\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>"
-                                      "<p:par><p:cTn id=\"5\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>"
-                                      "<p:par><p:cTn id=\"6\" presetID=\"2\" presetClass=\"mediacall\" presetSubtype=\"0\" fill=\"hold\" nodeType=\"clickEffect\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>"
-                                      "<p:cmd type=\"call\" cmd=\"togglePause\"><p:cBhvr><p:cTn id=\"7\" dur=\"1\" fill=\"hold\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr></p:cmd>"
+                                      "<p:par><p:cTn id=\"5\" presetID=\"2\" presetClass=\"mediacall\" presetSubtype=\"0\" fill=\"hold\" nodeType=\"clickEffect\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>"
+                                      "<p:cmd type=\"call\" cmd=\"togglePause\"><p:cBhvr><p:cTn id=\"6\" dur=\"1\" fill=\"hold\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr></p:cmd>"
                                       "</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn>"
-                                      "<p:nextCondLst><p:cond evt=\"onClick\" delay=\"0\"><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cond></p:nextCondLst></p:seq>")
+                                      "<p:nextCondLst><p:cond evt=\"onClick\" delay=\"0\"><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cond></p:nextCondLst></p:seq>"
+                                      "<p:video><p:cMediaNode vol=\"80000\"><p:cTn id=\"7\" fill=\"hold\" display=\"0\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cMediaNode></p:video>")
                      + tail);
         // Every option comes back as it was set, for each way to start.
         for (const bool video : {false, true})
@@ -8602,8 +8602,8 @@ private Q_SLOTS:
         QVERIFY(autoXml.contains(QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"2\"/></p:cond>")));
         QVERIFY(autoXml.contains(QStringLiteral("nodeType=\"afterEffect\"")));
         QVERIFY(deck::readTimeline(autoXml).steps[0].automatic);
-        // The node begins with the call: the effect's number.
-        QVERIFY(autoXml.contains(QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"5\"/></p:cond></p:stCondLst><p:endCondLst>")));
+        // The step begins with the sequence, and the node of the sound says nothing of it.
+        QVERIFY(!autoXml.contains(QStringLiteral("<p:tn val=\"5\"/>")));   // the sound's own node doesn't name the call (the program writes none)
     }
 
     // Changing how a movie plays changes only what the timing says of it: the other animations and the other media stay, and
@@ -9289,24 +9289,30 @@ private Q_SLOTS:
         read.shape = set.shape;
         QVERIFY(read == set);
         Settings::get().removeRecentFile(saved);
-        // Trim: the box takes a start and an end, and 0 for the end means the end of the file.
+        // Trim: the box shows a start and an end (where it plays to), and gives back what is cut off each.
         MediaTrimDialog trim(QStringLiteral("Trim Video"), 5000, 1000, 0);
         auto *from = trim.findChild<QDoubleSpinBox *>(QStringLiteral("trimStart"));
         auto *to = trim.findChild<QDoubleSpinBox *>(QStringLiteral("trimEnd"));
         QVERIFY(from && to);
         QCOMPARE(from->value(), 1.0);
-        QCOMPARE(to->value(), 5.0);
-        QCOMPARE(trim.startMs(), 1000);
-        QCOMPARE(trim.endMs(), 0);
+        QCOMPARE(to->value(), 5.0);   // nothing cut off the end: it plays to the 5 seconds there are
+        QCOMPARE(trim.cutStartMs(), 1000);
+        QCOMPARE(trim.cutEndMs(), 0);
         to->setValue(3.5);
-        QCOMPARE(trim.endMs(), 3500);
+        QCOMPARE(trim.cutEndMs(), 1500);   // 1.5 seconds cut off
+        MediaTrimDialog reopened(QStringLiteral("Trim Video"), 5000, 1000, 1500);
+        QCOMPARE(reopened.findChild<QDoubleSpinBox *>(QStringLiteral("trimEnd"))->value(), 3.5);
+        // With the length not known, the end is left as it was.
+        MediaTrimDialog unknown(QStringLiteral("Trim Video"), 0, 1000, 1500);
+        QVERIFY(!unknown.findChild<QDoubleSpinBox *>(QStringLiteral("trimEnd"))->isEnabled());
+        QCOMPARE(unknown.cutEndMs(), 1500);
         w.editMedia(QStringLiteral("Trim"), [&](deck::MediaPlay &p) {
-            p.trimStart = trim.startMs();
-            p.trimEnd = trim.endMs();
+            p.trimStart = trim.cutStartMs();
+            p.trimEnd = trim.cutEndMs();
         });
         QCOMPARE(play().trimStart, 1000);
-        QCOMPARE(play().trimEnd, 3500);
-        QCOMPARE(static_cast<const PictureItem *>(lastMedia(*ed->doc()))->mediaTrimEnd, 3500);
+        QCOMPARE(play().trimEnd, 1500);
+        QCOMPARE(static_cast<const PictureItem *>(lastMedia(*ed->doc()))->mediaTrimEnd, 1500);
     }
 
     // A movie or sound selected on the slide has a control bar under it (and one the mouse is over); it plays in place on the
@@ -9623,7 +9629,7 @@ private Q_SLOTS:
         w.editMedia(QStringLiteral("Volume"), [](deck::MediaPlay &p) { p.volume = deck::kVolumeLow; });
         QCOMPARE(play().lengthHint, 2000);
         QCOMPARE(play().volume, deck::kVolumeLow);
-        w.editMedia(QStringLiteral("Trim"), [](deck::MediaPlay &p) { p.trimStart = 0; p.trimEnd = 2500; }, 3000);
+        w.editMedia(QStringLiteral("Trim"), [](deck::MediaPlay &p) { p.trimStart = 0; p.trimEnd = 500; }, 3000);
         QCOMPARE(play().lengthHint, 2500);
         // A movie that waits for a click has no length in the file (its call lasts a millisecond).
         w.editMedia(QStringLiteral("Start"), [](deck::MediaPlay &p) { p.start = deck::MediaStart::WhenClickedOn; });
@@ -9844,7 +9850,7 @@ private Q_SLOTS:
         MediaPlayback pb;
         deck::MediaPlay play;
         play.trimStart = 300;
-        play.trimEnd = 800;
+        play.trimEnd = 2200;   // 3,000 ms less 2,200: it plays from 300 to 800
         pb.setFile(testWav(3000), QStringLiteral("wav"));
         pb.setPlay(play);
         pb.play();
@@ -9954,6 +9960,114 @@ private Q_SLOTS:
         QVERIFY(w.canvas()->media()->activeId().isEmpty());
     }
 
+    // ---- what the presentation program showed ----
+
+    // The end of a trim, in a file, is how much is cut off the end (p14:trim's end), not where it ends: a movie 3 seconds long cut 500 ms
+    // at each end plays 2 seconds, the call that plays it lasts 2 seconds, and it is written and read so.
+    void mediaTrimEndIsWhatIsCutOffTheEnd()
+    {
+        Page slide;
+        auto movie = mediaPicture(0, "video");
+        slide.items.push_back(movie);
+        deck::MediaPlay play;
+        play.trimStart = 500;
+        play.trimEnd = 500;
+        deck::setMediaPlay(slide, *movie, play, 3000);
+        const deck::MediaPlay read = deck::mediaPlayOf(slide, *movie);
+        QCOMPARE(read.lengthHint, 2000);   // what the call says it lasts
+        QCOMPARE(deck::knownFileLength(read), qint64(3000));
+        QCOMPARE(deck::knownFileLength(deck::MediaPlay()), qint64(0));
+        // The player: a sound of 3 seconds with 2.2 seconds cut off its end plays from 0.3 to 0.8 and stops.
+        MediaPlayback pb;
+        deck::MediaPlay cut;
+        cut.trimStart = 300;
+        cut.trimEnd = 2200;
+        pb.setFile(testWav(3000), QStringLiteral("wav"));
+        pb.setPlay(cut);
+        pb.play();
+        QSignalSpy ended(&pb, &MediaPlayback::ended);
+        QTRY_VERIFY_WITH_TIMEOUT(pb.failed() || pb.length() > 0, 8000);
+        if (pb.failed()) return;
+        QVERIFY2(std::abs(pb.length() - 500) < 60, qPrintable(QString::number(pb.length())));
+        QCOMPARE(pb.fileLength() > 2900, true);
+        QTest::qWait(100);
+        QTRY_VERIFY_WITH_TIMEOUT(pb.failed() || ended.count() > 0, 8000);
+        if (ended.count() == 0) QSKIP("this computer's player doesn't run a sound out here");
+        // A trim that leaves nothing is none (the presentation program ignores it too).
+        MediaPlayback whole;
+        deck::MediaPlay nothing;
+        nothing.trimStart = 1500;
+        nothing.trimEnd = 1500;
+        whole.setFile(testWav(3000), QStringLiteral("wav"));
+        whole.setPlay(nothing);
+        whole.play();
+        QTRY_VERIFY_WITH_TIMEOUT(whole.failed() || whole.length() > 0, 8000);
+        if (!whole.failed()) QVERIFY(std::abs(whole.length() - 3000) < 60);
+    }
+
+    // The presentation program refuses a main sequence with nothing in it, and writes none when a slide has only what waits for a click:
+    // taking the last step out of the main sequence takes the sequence out, and the node of a movie that waits for a click follows
+    // its sequence as the program writes them.
+    void timingHasNoEmptyMainSequence()
+    {
+        for (const bool video : {true, false}) {
+            Page slide;
+            auto pic = mediaPicture(0, video ? "video" : "audio");
+            slide.items.push_back(pic);
+            deck::MediaPlay play;
+            deck::setMediaPlay(slide, *pic, play, 3000);   // in the click sequence: a step in the main sequence
+            QVERIFY(slide.props.value(QStringLiteral("timingXml")).toString().contains(QStringLiteral("nodeType=\"mainSeq\"")));
+            play.start = deck::MediaStart::WhenClickedOn;
+            deck::setMediaPlay(slide, *pic, play, 3000);
+            const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+            QVERIFY2(!xml.contains(QStringLiteral("mainSeq")), qPrintable(xml));
+            QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(xml));
+            QVERIFY(xml.indexOf(QStringLiteral("interactiveSeq")) < xml.indexOf(video ? QStringLiteral("<p:video>") : QStringLiteral("<p:audio>")));
+            // And back.
+            play.start = deck::MediaStart::ClickSequence;
+            deck::setMediaPlay(slide, *pic, play, 3000);
+            QVERIFY(slide.props.value(QStringLiteral("timingXml")).toString().contains(QStringLiteral("nodeType=\"mainSeq\"")));
+            deck::clearMediaPlay(slide, pic->sourceId);
+            QVERIFY(!slide.props.contains(QStringLiteral("timingXml")));
+        }
+        // A movie by itself keeps nothing of the click sequence: no node in the timing begins with a call.
+        Page auto1;
+        auto m = mediaPicture(0, "audio");
+        auto1.items.push_back(m);
+        deck::MediaPlay a;
+        a.start = deck::MediaStart::Automatically;
+        deck::setMediaPlay(auto1, *m, a, 3000);
+        const QString xml = auto1.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"2\"/></p:cond>")));   // the step begins with the sequence
+        QCOMPARE(mediaBeginsWith(xml, "audio"), 0);   // and the sound's own node says nothing of it
+    }
+
+    // The animation editor writes no main sequence when the slide has no effects but a movie that waits for a click: the program
+    // refuses the file otherwise.
+    void animationEditsWriteNoEmptyMainSequence()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        auto movie = deck::newMediaPicture(*d, slide, testAvi(), QStringLiteral("clip.avi"), QImage(160, 120, QImage::Format_RGB32), 500);
+        slide.items.push_back(movie);
+        deck::MediaPlay click;
+        click.start = deck::MediaStart::WhenClickedOn;
+        deck::setMediaPlay(slide, *movie, click, 500);
+        deck::AnimSequence seq = deck::readAnimations(slide, d.get());
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        deck::setAnimations(*d, slide, seq);
+        QVERIFY(slide.props.value(QStringLiteral("timingXml")).toString().contains(QStringLiteral("nodeType=\"mainSeq\"")));
+        // The effect is taken away again.
+        seq = deck::readAnimations(slide, d.get());
+        seq.remove(0);
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(!xml.isEmpty());
+        QVERIFY2(!xml.contains(QStringLiteral("mainSeq")), qPrintable(xml));
+        QVERIFY(xml.contains(QStringLiteral("<p:video>")) && xml.contains(QStringLiteral("interactiveSeq")));
+        QVERIFY(deck::mediaPlayOf(slide, *movie).start == deck::MediaStart::WhenClickedOn);
+    }
+
     // The cTn id the effect that calls the shape's media has, in a timing; 0 if none.
     static int mediaCallNode(const QString &timing, int shape)
     {
@@ -10018,6 +10132,13 @@ private Q_SLOTS:
         QVERIFY2(animIdProblem(timing).isEmpty(), qPrintable(animIdProblem(timing)));
         const int called = mediaCallNode(timing, sound->sourceId);
         QVERIFY(called > 0);
+        // This program's sound node says nothing of its call; another writer's can name it by its number, and an edit must follow it.
+        const qsizetype audioAt = timing.indexOf(QStringLiteral("<p:audio>"));
+        const QString plainCond = QStringLiteral("<p:cond delay=\"indefinite\"/></p:stCondLst>");
+        const qsizetype condAt = timing.indexOf(plainCond, audioAt);
+        QVERIFY(audioAt > 0 && condAt > audioAt);
+        timing.insert(condAt + plainCond.size() - QStringLiteral("</p:stCondLst>").size(), QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"%1\"/></p:cond>").arg(called));
+        slide.props[QStringLiteral("timingXml")] = timing;
         QCOMPARE(mediaBeginsWith(timing, "audio"), called);
         // An effect is put in front of everything: the sound's call is numbered afresh.
         deck::AnimSequence seq = deck::readAnimations(slide, d.get());
@@ -10189,7 +10310,7 @@ private Q_SLOTS:
         const QByteArray movie = testAvi(30, QSize(320, 180), 10), tune = testWav(3000, 523);
         deck::MediaPlay a;   // in the click sequence, trimmed and faded
         a.trimStart = 500;
-        a.trimEnd = 2500;
+        a.trimEnd = 500;
         a.fadeIn = 300;
         a.fadeOut = 400;
         a.volume = deck::kVolumeMedium;
@@ -10260,6 +10381,70 @@ private Q_SLOTS:
         Exported y;
         QVERIFY2(unpack(basic, &y, &err), qPrintable(err));
         QVERIFY2(packageProblem(y).isEmpty(), qPrintable(packageProblem(y)));
+        // One deck for each way of setting a movie or sound, for finding what the presentation program refuses (JD_MEDIA_MATRIX names the folder).
+        if (const QString matrix = qEnvironmentVariable("JD_MEDIA_MATRIX"); !matrix.isEmpty()) {
+            struct Variant {
+                const char *name;
+                bool video;
+                std::function<void(deck::MediaPlay &)> set;
+            };
+            const std::vector<Variant> variants = {
+                {"plain-video", true, [](deck::MediaPlay &) {}},
+                {"plain-audio", false, [](deck::MediaPlay &) {}},
+                {"trim", true, [](deck::MediaPlay &p) { p.trimStart = 500; p.trimEnd = 500; }},
+                {"trim-start", true, [](deck::MediaPlay &p) { p.trimStart = 500; }},
+                {"trim-end", true, [](deck::MediaPlay &p) { p.trimEnd = 500; }},
+                {"fade", false, [](deck::MediaPlay &p) { p.fadeIn = 300; p.fadeOut = 400; }},
+                {"loop", true, [](deck::MediaPlay &p) { p.loop = true; }},
+                {"rewind", true, [](deck::MediaPlay &p) { p.rewind = true; }},
+                {"fullscreen", true, [](deck::MediaPlay &p) { p.fullScreen = true; }},
+                {"hide", true, [](deck::MediaPlay &p) { p.hideWhenStopped = true; }},
+                {"mute", false, [](deck::MediaPlay &p) { p.mute = true; }},
+                {"volume-low", false, [](deck::MediaPlay &p) { p.volume = deck::kVolumeLow; }},
+                {"across", false, [](deck::MediaPlay &p) { p.acrossSlides = 999; p.start = deck::MediaStart::Automatically; }},
+                {"auto-video", true, [](deck::MediaPlay &p) { p.start = deck::MediaStart::Automatically; }},
+                {"auto-audio", false, [](deck::MediaPlay &p) { p.start = deck::MediaStart::Automatically; }},
+                {"clicked-video", true, [](deck::MediaPlay &p) { p.start = deck::MediaStart::WhenClickedOn; }},
+                {"clicked-audio", false, [](deck::MediaPlay &p) { p.start = deck::MediaStart::WhenClickedOn; }},
+            };
+            for (const Variant &v : variants) {
+                auto one = deck::newPresentation();
+                auto pic = deck::newMediaPicture(*one, *one->pages[0], v.video ? movie : tune, v.video ? QStringLiteral("Clip.avi") : QStringLiteral("Tune.wav"), v.video ? poster : QImage(), 3000, QPointF(80, 150));
+                one->pages[0]->items.push_back(pic);
+                deck::MediaPlay play = deck::mediaPlayOf(*one->pages[0], *pic);
+                v.set(play);
+                deck::setMediaPlay(*one->pages[0], *pic, play, 3000);
+                QFile out(matrix + QLatin1Char('/') + QLatin1String(v.name) + QStringLiteral(".pptx"));
+                QVERIFY(out.open(QIODevice::WriteOnly));
+                out.write(deck::exportPresentation(*one, &err));
+            }
+        }
+        if (const QString matrix = qEnvironmentVariable("JD_MEDIA_MATRIX"); !matrix.isEmpty()) {
+            // With the animation editor's effects: before the media, and after an edit of them.
+            auto write = [&](Document &doc, const char *name) {
+                QFile out(matrix + QLatin1Char('/') + QLatin1String(name) + QStringLiteral(".pptx"));
+                QVERIFY(out.open(QIODevice::WriteOnly));
+                out.write(deck::exportPresentation(doc, &err));
+            };
+            for (const deck::MediaStart start : {deck::MediaStart::ClickSequence, deck::MediaStart::Automatically, deck::MediaStart::WhenClickedOn}) {
+                auto fx = deck::newPresentation();
+                Page &pg = *fx->pages[0];
+                deck::AnimSequence q;
+                q.add(deck::makeAnim(QStringLiteral("entr.fade"), deck::shapeNumber(pg, pg.items[0]->id)));
+                deck::setAnimations(*fx, pg, q);
+                auto clip = deck::newMediaPicture(*fx, pg, movie, QStringLiteral("Clip.avi"), poster, 3000, QPointF(80, 150));
+                pg.items.push_back(clip);
+                deck::MediaPlay play;
+                play.start = start;
+                deck::setMediaPlay(pg, *clip, play, 3000);
+                write(*fx, start == deck::MediaStart::ClickSequence ? "after-fade-click" : start == deck::MediaStart::Automatically ? "after-fade-auto" : "after-fade-clicked");
+                // The effect edited away and another put in.
+                deck::AnimSequence again = deck::readAnimations(pg, fx.get());
+                again.remove(0);
+                deck::setAnimations(*fx, pg, again);
+                write(*fx, start == deck::MediaStart::ClickSequence ? "edited-click" : start == deck::MediaStart::Automatically ? "edited-auto" : "edited-clicked");
+            }
+        }
         const QString sample = qEnvironmentVariable("JD_MEDIA_SAMPLE");
         if (!sample.isEmpty()) {
             QFile out(sample);
