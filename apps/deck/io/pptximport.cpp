@@ -2,6 +2,7 @@
 
 #include "core/appinfo.h"
 #include "core/deck.h"
+#include "core/sections.h"
 #include "office/chart.h"
 #include "office/drawingml.h"
 #include "office/drawingml_table.h"
@@ -28,6 +29,9 @@ namespace jp::deck {
 namespace {
 
 const QLatin1String kMc("http://schemas.openxmlformats.org/markup-compatibility/2006");
+// The extension that lists the sections, and the namespace its elements are in.
+const QLatin1String kSectionExt("{521415D9-36F7-43E2-AB2F-B90AF26B5E84}");
+const QLatin1String kSectionNs("http://schemas.microsoft.com/office/powerpoint/2010/main");
 
 // What a file may hold: more is left unread, with a note.
 constexpr int kMaxSlides = 10000, kMaxLayouts = 1000, kMaxMasters = 1000, kMaxShapes = 100000;
@@ -288,6 +292,7 @@ private:
     QString addImage(const QByteArray &bytes, const QString &format);
 
     void readSize(const QDomElement &presentation);
+    void readSections(const QDomElement &presentation, const QHash<qint64, int> &pageOfSlideId);
     MasterCtx *readMaster(const QString &part);
     LayoutCtx *readLayout(const QString &part, MasterCtx &master);
     bool readSlide(int number, const QString &part);
@@ -399,6 +404,35 @@ void Importer::readSize(const QDomElement &presentation)
     const qint64 nx = office::parseInt(office::attr(notesSz, QStringLiteral("cx"))), ny = office::parseInt(office::attr(notesSz, QStringLiteral("cy")));
     if (nx > 0 && ny > 0)
         m_doc.appData[QStringLiteral("notesSize")] = QJsonObject{{"w", office::emuToPoints(nx)}, {"h", office::emuToPoints(ny)}};
+}
+
+// The sections the presentation lists in its extensions, each with the slides it names: kept as how many slides each holds, in slide order. A slide
+// that none names joins the section before it, the first slide's the first section; a section can't come before an earlier one's slides.
+void Importer::readSections(const QDomElement &presentation, const QHash<qint64, int> &pageOfSlideId)
+{
+    QDomElement list;
+    for (const QDomElement &ext : office::children(pChild(presentation, "extLst"), office::ns::P, QStringLiteral("ext")))
+        if (office::attr(ext, QStringLiteral("uri")).compare(kSectionExt, Qt::CaseInsensitive) == 0) {
+            list = office::child(ext, kSectionNs, QStringLiteral("sectionLst"));
+            break;
+        }
+    QVector<Section> sections;
+    QVector<int> sectionOfPage(int(m_doc.pages.size()), -1);
+    for (const QDomElement &s : office::children(list, kSectionNs, QStringLiteral("section"))) {
+        QString id = office::attr(s, QStringLiteral("id")), name = office::attr(s, QStringLiteral("name"));
+        sections << Section{id.isEmpty() ? newSectionId() : id, name.isEmpty() ? untitledSectionName() : name, 0};
+        for (const QDomElement &slide : office::children(office::child(s, kSectionNs, QStringLiteral("sldIdLst")), kSectionNs, QStringLiteral("sldId"))) {
+            const int page = pageOfSlideId.value(office::parseInt(office::attr(slide, QStringLiteral("id")), -1), -1);
+            if (page >= 0 && sectionOfPage[page] < 0) sectionOfPage[page] = int(sections.size()) - 1;
+        }
+    }
+    if (sections.isEmpty()) return;
+    int current = 0;
+    for (int section : std::as_const(sectionOfPage)) {
+        current = std::max(current, section);
+        sections[current].count++;
+    }
+    setSections(m_doc, sections);
 }
 
 QVector<PhRef> Importer::placeholdersIn(const QDomElement &tree)
@@ -949,6 +983,7 @@ bool Importer::run(const QString &mainPart, QString *error)
     }
     if (m_masters.empty()) return fail(say("The presentation has no slide master that can be read.") + QLatin1Char('\n') + m_notes.join(QLatin1Char('\n')));
 
+    QHash<qint64, int> pageOfSlideId;
     int number = 0;
     for (const QDomElement &id : office::children(pChild(root, "sldIdLst"), office::ns::P, QStringLiteral("sldId"))) {
         if (++number > kMaxSlides) {
@@ -960,8 +995,9 @@ bool Importer::run(const QString &mainPart, QString *error)
             note(say("Slide %1 was left out: the file names no part for it.").arg(number));
             continue;
         }
-        readSlide(number, rel.target);
+        if (readSlide(number, rel.target)) pageOfSlideId.insert(office::parseInt(office::attr(id, QStringLiteral("id")), -1), int(m_doc.pages.size()) - 1);
     }
+    readSections(root, pageOfSlideId);
     m_doc.appData[QStringLiteral("footers")] = m_footers;
     if (error) {
         QStringList lines = m_notes;
