@@ -16,6 +16,7 @@
 #include "app/widgets.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
+#include "core/sections.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
 
@@ -243,6 +244,7 @@ void DeckWindow::createActions()
     createSaveActions();
     createDialogActions();
     createCommentActions();
+    createSectionActions();
     createOutputActions();
 }
 
@@ -419,7 +421,10 @@ void DeckWindow::deleteSlide()
 {
     if (m_ed->doc()->pages.size() < 2) return;
     m_ed->endTextEdit();
+    m_ed->beginChange(tr("Delete Slide"));
+    deck::slideRemoved(*m_ed->doc(), m_ed->currentPage());
     m_ed->deletePage(m_ed->currentPage());
+    m_ed->endChange();
 }
 
 void DeckWindow::toggleHidden()

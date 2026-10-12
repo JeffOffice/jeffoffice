@@ -1,6 +1,7 @@
 #include "core/deck.h"
 
 #include "core/color.h"
+#include "core/sections.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -434,6 +435,7 @@ int addSlide(Document &d, const MasterPage &layout, int at)
     slide->notesStoryId = d.createStory();
     const int index = at < 0 || at > d.pages.size() ? int(d.pages.size()) : at;
     d.pages.insert(index, slide);
+    slideInserted(d, index);
     return index;
 }
 
@@ -472,6 +474,7 @@ int duplicateSlide(Document &d, int index)
     }
     slide->notesStoryId = from.notesStoryId.isEmpty() ? d.createStory() : d.copyStory(from.notesStoryId);
     d.pages.insert(index + 1, slide);
+    slideInserted(d, index + 1);
     return index + 1;
 }
 
@@ -554,6 +557,17 @@ void setSlideSize(Document &d, const QSizeF &size)
     }
     d.setup.size = d.setup.sheet = size;
     d.setup.sizeName = slideSizeName(size);
+}
+
+void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide)
+{
+    if (from.isEmpty() || to.isEmpty() || from == to) return;
+    const double sx = to.width() / from.width(), sy = to.height() / from.height(), k = std::min(sx, sy);
+    const QRectF was(QPointF(0, 0), from), whole(QPointF(0, 0), to);
+    const QRectF fitted((to.width() - from.width() * k) / 2, (to.height() - from.height() * k) / 2, from.width() * k, from.height() * k);
+    QSet<QString> stories;
+    scaleItems(d, page.items, was, whole, fitted, k, slide, stories);
+    scaleGuides(page.guides, sx, sy);
 }
 
 bool FooterOptions::shows(const QString &placeholderType, const QString &layoutType) const

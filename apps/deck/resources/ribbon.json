@@ -65,6 +65,23 @@
               "keytip": "R"
             },
             {
+              "small": {
+                "id": "ribbon.section",
+                "text": "Section",
+                "icon": "rows-3"
+              },
+              "keytip": "SE",
+              "menu": [
+                "section.add",
+                "section.rename",
+                "section.remove",
+                "section.removeAll",
+                "-",
+                "section.collapseAll",
+                "section.expandAll"
+              ]
+            },
+            {
               "small": "slide.delete",
               "keytip": "D"
             }
