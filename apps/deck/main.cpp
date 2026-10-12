@@ -4,6 +4,7 @@
 //   JeffDeck --screenshot <png> [--size WxH]
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
+//   JeffDeck --view normal|outline|sorter  start in that view
 
 #include "app/crash.h"
 #include "app/deckinfo.h"
@@ -39,7 +40,8 @@ int main(int argc, char **argv)
     cli.addVersionOption();
     QCommandLineOption shotOpt(QStringLiteral("screenshot"), QCoreApplication::translate("Main", "Save a screenshot of the window and quit."), QStringLiteral("png"));
     QCommandLineOption sizeOpt(QStringLiteral("size"), QCoreApplication::translate("Main", "Window size for --screenshot."), QStringLiteral("WxH"), QStringLiteral("1440x900"));
-    cli.addOptions({shotOpt, sizeOpt});
+    QCommandLineOption viewOpt(QStringLiteral("view"), QCoreApplication::translate("Main", "Start in this view: normal, outline, or sorter."), QStringLiteral("view"));
+    cli.addOptions({shotOpt, sizeOpt, viewOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Presentations to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
@@ -61,6 +63,10 @@ int main(int argc, char **argv)
             other->openFile(files[i]);
             other->show();
         }
+    }
+    if (cli.isSet(viewOpt)) {
+        const QString view = cli.value(viewOpt);
+        QTimer::singleShot(0, w, [w, view] { w->setView(view == QLatin1String("sorter") ? jp::DeckWindow::View::Sorter : view == QLatin1String("outline") ? jp::DeckWindow::View::Outline : jp::DeckWindow::View::Normal); });
     }
     if (cli.isSet(shotOpt)) {
         const QStringList wh = cli.value(sizeOpt).split('x');

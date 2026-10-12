@@ -14,6 +14,7 @@
 class QLabel;
 class QSlider;
 class QSplitter;
+class QStackedWidget;
 
 namespace jp {
 
@@ -22,9 +23,11 @@ class DeckCanvas;
 class Editor;
 class FontCombo;
 class NotesPane;
+class OutlineView;
 class Ribbon;
 struct RibbonParts;
 class SizeCombo;
+class SlideSorter;
 class SlidesPane;
 
 namespace deck {
@@ -48,6 +51,13 @@ public:
     SlidesPane *slidesPane() const { return m_slides; }
     NotesPane *notesPane() const { return m_notes; }
     SlideShow *slideShow() const { return m_show; }
+    SlideSorter *slideSorter() const { return m_sorter; }
+    OutlineView *outlineView() const { return m_outline; }
+    // The ways to see the slides: Normal (the thumbnails, the slide, and its
+    // notes), Outline (the text in the thumbnails' place), and the Slide Sorter.
+    enum class View { Normal, Outline, Sorter };
+    View view() const { return m_view; }
+    void setView(View view);
     // What the ribbon file named that the window doesn't have (empty when
     // the ribbon built cleanly).
     QString ribbonErrors() const { return m_ribbonErrors; }
@@ -109,6 +119,7 @@ private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
     void createShowActions();
+    void createViewModeActions();   // deckwindow_views.cpp
     void addShowParts(struct RibbonParts &parts);
     void createActions();
     void createSaveActions();     // deckwindow_save.cpp
@@ -138,6 +149,13 @@ private:
     SlidesPane *m_slides = nullptr;
     NotesPane *m_notes = nullptr;
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr;
+    QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
+    SlideSorter *m_sorter = nullptr;
+    OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
+    View m_view = View::Normal;
+    // Normal view's zoom while the Slide Sorter borrows the zoom controls: its Canvas::Fit and the zoom.
+    int m_normalFit = 0;
+    double m_normalZoom = 1;
     QLabel *m_slideLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
     QList<FontCombo *> m_fontCombos;
