@@ -200,6 +200,8 @@ jobs:
           Copy-Item build/pdfium.dll dist/JeffOffice/
           New-Item -ItemType Directory -Force dist/JeffOffice/licenses | Out-Null
           Copy-Item -Recurse third_party/pdfium/licenses dist/JeffOffice/licenses/pdfium
+          # FFmpeg's notice and license, for the libraries JeffDeck carries.
+          Copy-Item -Recurse third_party/ffmpeg/licenses dist/JeffOffice/licenses/ffmpeg
 
       - name: Installer (Windows)
         if: runner.os == 'Windows'
@@ -259,7 +261,11 @@ jobs:
           # JeffDeck plays movies and sounds: Qt Multimedia's FFmpeg plugin and FFmpeg's libraries are in the package.
           test -f deb-check/opt/jeffoffice/plugins/multimedia/libffmpegmediaplugin.so
           ls deb-check/opt/jeffoffice/lib/libavcodec.so.*
+          # Everything the plugin links is in the package or on the system.
+          if LD_LIBRARY_PATH=deb-check/opt/jeffoffice/lib ldd deb-check/opt/jeffoffice/plugins/multimedia/libffmpegmediaplugin.so | grep 'not found'; then exit 1; fi
           test -f deb-check/usr/share/doc/jeffoffice/pdfium/pdfium.txt
+          test -f deb-check/usr/share/doc/jeffoffice/ffmpeg/ffmpeg.txt
+          test -f deb-check/usr/share/doc/jeffoffice/ffmpeg/LGPL-2.1.txt
           ls -la linux-packages
 
       - uses: actions/upload-artifact@v4
@@ -286,6 +292,8 @@ jobs:
             otool -l dist/$app.app/Contents/MacOS/$app | grep -A2 LC_RPATH | grep path || true
             mkdir -p dist/$app.app/Contents/Resources/licenses
             cp -R third_party/pdfium/licenses dist/$app.app/Contents/Resources/licenses/pdfium
+            # FFmpeg's notice and license go with JeffDeck, the only app that carries FFmpeg.
+            if [ "$app" = JeffDeck ]; then cp -R third_party/ffmpeg/licenses dist/$app.app/Contents/Resources/licenses/ffmpeg; fi
             # Not yet signed with a developer certificate: an ad-hoc signature
             # lets it run on Apple silicon.
             codesign --force --deep --sign - dist/$app.app
@@ -296,6 +304,7 @@ jobs:
           test -f dist/JeffDeck.app/Contents/PlugIns/multimedia/libffmpegmediaplugin.dylib
           ls dist/JeffDeck.app/Contents/Frameworks | grep -q '^libavcodec'
           test ! -d dist/JeffPub.app/Contents/Frameworks/QtMultimedia.framework
+          test -f dist/JeffDeck.app/Contents/Resources/licenses/ffmpeg/ffmpeg.txt
           # The packaged programs must start on their own bundled Qt (and PDFium).
           QT_QPA_PLATFORM=offscreen dist/JeffPub.app/Contents/MacOS/JeffPub --template flyer-announce --export-pdf dist/check.pdf
           test -s dist/check.pdf && rm dist/check.pdf

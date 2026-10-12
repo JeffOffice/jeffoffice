@@ -5,9 +5,14 @@
 | `libmspub/` | [libmspub](https://wiki.documentfoundation.org/DLP/Libraries/libmspub), the `.pub` file parser | MPL-2.0 | see `libmspub/VERSION` |
 | `librevenge/` | [librevenge](https://sourceforge.net/p/libwpd/librevenge/), document interfaces and OLE2 streams | MPL-2.0 or LGPL-2.1+ | 0.0.5 |
 | `compat/` | JeffPub's minimal stand-ins for the Boost headers these libraries use | GPL-3.0 (this project) | — |
+| `ffmpeg/licenses/` | The notice and license text of the [FFmpeg](https://ffmpeg.org/) libraries that come with JeffDeck (for its movies and sounds, through Qt Multimedia), shipped with JeffDeck's packages | LGPL-2.1+ | 7.1 (the build Qt 6.8 ships) |
 | `pdfium/licenses/` | The license texts of [PDFium](https://pdfium.googlesource.com/pdfium/) and of the libraries built into it, shipped with every package | see below | chromium/8086 (157.0.8086.0) |
 
 zlib is downloaded at build time when the system has none.
+
+## FFmpeg
+
+JeffDeck links Qt Multimedia, whose FFmpeg backend decodes the movies and sounds it plays. FFmpeg's libraries are the ones Qt ships (FFmpeg 7.1, built under the LGPL 2.1 or later), deployed beside the program by `windeployqt`, `linuxdeploy`, and `macdeployqt`; they are not built here and not changed. `ffmpeg/licenses/ffmpeg.txt` says what they are and where the source is; `LGPL-2.1.txt` is the license. Only JeffDeck's packages carry them.
 
 ## PDFium
 
