@@ -554,26 +554,34 @@ QFrame *CommentsPane::buildCard(const deck::Comment &c)
     connect(edit, &QLineEdit::returnPressed, this, [this, id, edit] { postReply(id, edit->text()); });
     connect(send, &QPushButton::clicked, this, [this, id, edit] { postReply(id, edit->text()); });
 
+    // Resolve (or Reopen) in words; Edit and Delete as the replies have them, so the row has room in any language.
     auto *actions = new QHBoxLayout;
     auto *resolve = new QPushButton(c.done ? tr("Reopen") : tr("Resolve"), card);
     resolve->setObjectName(QStringLiteral("commentResolve"));
-    auto *editButton = new QPushButton(tr("Edit"), card);
-    editButton->setObjectName(QStringLiteral("commentEdit"));
-    auto *del = new QPushButton(tr("Delete"), card);
-    del->setObjectName(QStringLiteral("commentDelete"));
+    auto iconButton = [&](const char *name, const char *iconName, const QString &tip) {
+        auto *b = new QToolButton(card);
+        b->setObjectName(QLatin1String(name));
+        b->setIcon(icon(QLatin1String(iconName)));
+        b->setAutoRaise(true);
+        b->setToolTip(tip);
+        b->setAccessibleName(tip);
+        return b;
+    };
+    QToolButton *editButton = iconButton("commentEdit", "pencil", tr("Edit"));
+    QToolButton *del = iconButton("commentDelete", "trash-2", tr("Delete"));
     actions->addWidget(resolve);
-    actions->addWidget(editButton);
     actions->addStretch(1);
+    actions->addWidget(editButton);
     actions->addWidget(del);
     col->addLayout(actions);
     const bool done = c.done;
     connect(resolve, &QPushButton::clicked, this, [this, id, done] { setResolved(id, !done); });
-    connect(editButton, &QPushButton::clicked, this, [this, id] {
+    connect(editButton, &QToolButton::clicked, this, [this, id] {
         m_current = id;
         m_editing = id;
         reload();
     });
-    connect(del, &QPushButton::clicked, this, [this, id] { deleteOne(id); });
+    connect(del, &QToolButton::clicked, this, [this, id] { deleteOne(id); });
     return card;
 }
 
