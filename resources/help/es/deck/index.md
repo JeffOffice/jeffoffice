@@ -46,3 +46,4 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 ## Las pestañas de la cinta de opciones
 
 - [Inicio](tab-home), [Insertar](tab-insert), [Diseño](tab-design), [Transiciones](tab-transitions), [Presentación con diapositivas](tab-slide-show), [Revisar](tab-review) y [Vista](tab-view)
+- [Reproducción](tab-playback) aparece cuando hay una película o un sonido seleccionado

@@ -12,6 +12,8 @@
 #include "app/filescreen.h"
 #include "app/help.h"
 #include "app/i18n.h"
+#include "app/editormedia.h"
+#include "app/mediadialogs.h"
 #include "app/mediaplayer.h"
 #include "app/icons.h"
 #include "app/notespane.h"
@@ -22,6 +24,7 @@
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/slideshow.h"
+#include "app/showmedia.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
 #include "core/animation.h"
@@ -6403,8 +6406,8 @@ private Q_SLOTS:
         return "RIFF" + le32(4 + 8 + fmt.size() + 8 + pcm.size()) + "WAVE" + "fmt " + le32(fmt.size()) + fmt + "data" + le32(pcm.size()) + pcm;
     }
 
-    // A short movie: motion JPEG frames of one color each, in an AVI file.
-    static QByteArray testAvi(int frames = 5, const QSize &size = QSize(64, 48), int fps = 10)
+    // A short movie: motion JPEG frames of one color each (the same red in all of them when `still`), in an AVI file.
+    static QByteArray testAvi(int frames = 5, const QSize &size = QSize(64, 48), int fps = 10, bool still = false)
     {
         auto le32 = [](quint32 v) { return QByteArray(reinterpret_cast<const char *>(&v), 4); };
         auto le16 = [](quint16 v) { return QByteArray(reinterpret_cast<const char *>(&v), 2); };
@@ -6414,7 +6417,7 @@ private Q_SLOTS:
         quint32 biggest = 0;
         for (int i = 0; i < frames; ++i) {
             QImage img(size, QImage::Format_RGB32);
-            img.fill(QColor::fromHsv((i * 60) % 360, 255, 230));
+            img.fill(QColor::fromHsv(still ? 0 : (i * 60) % 360, 255, 230));
             QByteArray jpeg;
             QBuffer buffer(&jpeg);
             buffer.open(QIODevice::WriteOnly);
@@ -6440,6 +6443,13 @@ private Q_SLOTS:
 
     // What a test of playing waits for: a player that plays (or has a picture), or one that says why not. The backend not being
     // there at all is not the program's failure: the test is skipped.
+    // Whether this Qt can read the test movie and sound at all (a runner without the backend can't), for the tests that put them on a slide.
+    static bool backendReads(const QByteArray &bytes, const char *extension, bool movie)
+    {
+        const MediaProbe probe = probeMedia(bytes, QLatin1String(extension), movie, 15000);
+        return probe.error.isEmpty() && probe.duration > 0 && (!movie || !probe.frame.isNull());
+    }
+
     static bool playerSettled(const MediaPlayback &pb, bool wantFrame)
     {
         return pb.failed() || (wantFrame ? !pb.frame().isNull() : pb.state() == MediaPlayback::State::Playing);
@@ -6484,6 +6494,8 @@ private Q_SLOTS:
         w.slidesPane()->grab();
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("again.pptx"))));
         QCOMPARE(MediaPlayback::decoders(), before);
+        Settings::get().removeRecentFile(path);   // the files go with the folder; the list of recent ones doesn't keep them
+        Settings::get().removeRecentFile(dir.filePath(QStringLiteral("again.pptx")));
         // A player with its file set decodes nothing either.
         MediaPlayback pb;
         pb.setFile(testWav(), QStringLiteral("wav"));
@@ -6638,6 +6650,700 @@ private Q_SLOTS:
         }
         p.end();
         QVERIFY(img.pixelColor(20, 20) != QColor(Qt::white));
+    }
+
+    // ---- movies and sounds in the window ----
+
+    static bool tabShown(const Ribbon *r, const QString &name)
+    {
+        for (int i = 0; i < r->tabCount(); ++i)
+            if (r->tabName(i) == name) return r->tabVisible(i);
+        return false;
+    }
+
+    static QString writeTestFile(const QTemporaryDir &dir, const QString &name, const QByteArray &bytes)
+    {
+        const QString path = dir.filePath(name);
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly)) f.write(bytes);
+        return path;
+    }
+
+    static const PictureItem *lastMedia(const Document &d)
+    {
+        const QVector<const PictureItem *> all = deck::mediaPicturesOf(*d.pages[0]);
+        return all.isEmpty() ? nullptr : all.last();
+    }
+
+    // Insert > Video and Audio put the file on the slide as a picture that plays it, in one step that undoes; the Playback tab
+    // shows while it is selected.
+    void insertingVideoAndAudioPutsThemOnTheSlide()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        QVERIFY(!tabShown(w.ribbon(), QStringLiteral("Playback")));
+        const QString described = w.ribbon()->describe();
+        QVERIFY2(described.contains(QStringLiteral("ribbon.video")) && described.contains(QStringLiteral("menu=[insert.video]")) && described.contains(QStringLiteral("menu=[insert.audio]")), qPrintable(described));
+        QCOMPARE(w.act(QStringLiteral("insert.video"))->text(), QStringLiteral("Video on This Device…"));
+        QCOMPARE(w.act(QStringLiteral("insert.audio"))->text(), QStringLiteral("Audio on This Device…"));
+        const int before = int(ed->doc()->pages[0]->items.size());
+        if (!backendReads(testAvi(5, QSize(64, 48), 10), "avi", true) || !backendReads(testWav(800), "wav", false)) QSKIP("this Qt can't read the test movie and sound here");
+        const QString avi = writeTestFile(dir, QStringLiteral("clip.avi"), testAvi(5, QSize(64, 48), 10));
+        QVERIFY(w.insertMedia(avi, QStringLiteral("video")));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        const PictureItem *movie = lastMedia(*ed->doc());
+        QVERIFY(movie);
+        QCOMPARE(movie->mediaKind, QStringLiteral("video"));
+        QCOMPARE(movie->name, QStringLiteral("clip.avi"));
+        QCOMPARE(ed->selection(), QStringList{movie->id});
+        QVERIFY(movie->sourceId >= 2);
+        QCOMPARE(ed->doc()->image(movie->imageId).size(), QSize(64, 48));   // the first picture of the movie
+        const deck::MediaPlay play = deck::mediaPlayOf(*ed->doc()->pages[0], *movie);
+        QVERIFY(play.video && play.start == deck::MediaStart::ClickSequence);
+        QVERIFY(ed->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString().contains(QStringLiteral("<p:video>")));
+        QTRY_VERIFY(tabShown(w.ribbon(), QStringLiteral("Playback")));
+        // One step undoes all of it.
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        QVERIFY(!ed->doc()->pages[0]->props.contains(QStringLiteral("timingXml")));
+        QTRY_VERIFY(!tabShown(w.ribbon(), QStringLiteral("Playback")));
+        ed->redo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        // A sound shows a speaker.
+        const QString wav = writeTestFile(dir, QStringLiteral("tune.wav"), testWav(800));
+        QVERIFY(w.insertMedia(wav, QStringLiteral("audio")));
+        const PictureItem *sound = lastMedia(*ed->doc());
+        QVERIFY(sound && sound->mediaKind == QLatin1String("audio"));
+        QCOMPARE(sound->rect.size(), QSizeF(48, 48));
+        // The kind is checked, and so is the file.
+        QString shown;
+        QTimer closer;   // the message boxes, closed as they come (the file is read in a loop of its own first)
+        closer.setInterval(10);
+        connect(&closer, &QTimer::timeout, &closer, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                shown = box->text();
+                box->close();
+            }
+        });
+        closer.start();
+        QVERIFY(!w.insertMedia(wav, QStringLiteral("video")));
+        QVERIFY2(shown.contains(QStringLiteral("tune.wav")), qPrintable(shown));
+        shown.clear();
+        QByteArray junk(3000, '\0');
+        for (int i = 0; i < junk.size(); ++i) junk[i] = char((i * 37 + 11) & 0xFF);
+        QVERIFY(!w.insertMedia(writeTestFile(dir, QStringLiteral("broken.mp4"), junk), QStringLiteral("video")));
+        QVERIFY2(shown.contains(QStringLiteral("broken.mp4")), qPrintable(shown));
+        closer.stop();
+        // Saved and opened again, they are as they were.
+        const QString saved = dir.filePath(QStringLiteral("deck.pptx"));
+        QVERIFY(w.saveTo(saved));
+        DeckWindow other;
+        QVERIFY(other.openFile(saved));
+        const QVector<const PictureItem *> read = deck::mediaPicturesOf(*other.editor()->doc()->pages[0]);
+        QCOMPARE(int(read.size()), 2);
+        for (const PictureItem *pic : read) {
+            QVERIFY(other.editor()->doc()->media.contains(pic->mediaId));
+            QCOMPARE(deck::mediaPlayOf(*other.editor()->doc()->pages[0], *pic).volume, deck::kVolumeHigh);
+        }
+        Settings::get().removeRecentFile(saved);
+    }
+
+    // The Playback tab changes how the selected one plays: Start, Volume, and the four boxes, each one step that undoes, kept
+    // when the file is saved and opened again.
+    void playbackTabChangesHowAMoviePlays()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        const QByteArray avi = testAvi(30, QSize(320, 180), 10, true);
+        if (!backendReads(avi, "avi", true)) QSKIP("this Qt can't read the test movie here");
+        QVERIFY(w.insertMedia(writeTestFile(dir, QStringLiteral("clip.avi"), avi), QStringLiteral("video")));
+        QTRY_VERIFY(tabShown(w.ribbon(), QStringLiteral("Playback")));
+        const QString id = lastMedia(*ed->doc())->id;
+        if (qEnvironmentVariableIsSet("JD_MEDIA_SHOTS")) {
+            w.resize(1440, 900);
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Playback")));
+            QCoreApplication::processEvents();
+            w.grab().save(qEnvironmentVariable("JD_MEDIA_SHOTS") + QStringLiteral("/playback-tab.png"));
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Insert")));
+            QCoreApplication::processEvents();
+            w.grab().save(qEnvironmentVariable("JD_MEDIA_SHOTS") + QStringLiteral("/insert-tab.png"));
+        }
+        auto play = [&] { return deck::mediaPlayOf(*ed->doc()->pages[0], *lastMedia(*ed->doc())); };
+        auto *start = w.ribbon()->findChild<QComboBox *>(QStringLiteral("mediaStart"));
+        auto *volume = w.ribbon()->findChild<QComboBox *>(QStringLiteral("mediaVolume"));
+        auto *full = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("mediaFullScreen"));
+        auto *hide = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("mediaHide"));
+        auto *loop = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("mediaLoop"));
+        auto *rewind = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("mediaRewind"));
+        QVERIFY(start && volume && full && hide && loop && rewind);
+        QCOMPARE(start->currentIndex(), 0);
+        QCOMPARE(volume->currentText(), QStringLiteral("High"));
+        QVERIFY(!loop->isChecked() && !rewind->isChecked() && !full->isChecked() && !hide->isChecked());
+        QVERIFY(full->isEnabled());
+        // Each box changes one thing.
+        start->setCurrentIndex(1);
+        Q_EMIT start->activated(1);
+        QVERIFY(play().start == deck::MediaStart::Automatically);
+        start->setCurrentIndex(2);
+        Q_EMIT start->activated(2);
+        QVERIFY(play().start == deck::MediaStart::WhenClickedOn);
+        volume->setCurrentIndex(0);
+        Q_EMIT volume->activated(0);
+        QCOMPARE(play().volume, deck::kVolumeLow);
+        volume->setCurrentIndex(3);
+        Q_EMIT volume->activated(3);
+        QVERIFY(play().mute);
+        loop->setChecked(true);
+        rewind->setChecked(true);
+        full->setChecked(true);
+        hide->setChecked(true);
+        const deck::MediaPlay set = play();
+        QVERIFY(set.loop && set.rewind && set.fullScreen && set.hideWhenStopped && set.mute && set.start == deck::MediaStart::WhenClickedOn);
+        // Undo takes them one at a time.
+        ed->undo();
+        QVERIFY(!play().hideWhenStopped && play().fullScreen);
+        QTRY_VERIFY(!hide->isChecked() && full->isChecked());
+        ed->undo();
+        ed->undo();
+        ed->undo();
+        QVERIFY(!play().loop && !play().fullScreen);
+        ed->redo();
+        ed->redo();
+        ed->redo();
+        ed->redo();
+        QVERIFY(play() == set);
+        // The tab follows the selection: another picture, or none.
+        ed->clearSelection();
+        QTRY_VERIFY(!tabShown(w.ribbon(), QStringLiteral("Playback")));
+        ed->select(id);
+        QTRY_VERIFY(tabShown(w.ribbon(), QStringLiteral("Playback")));
+        QTRY_VERIFY(loop->isChecked() && start->currentIndex() == 2 && volume->currentText() == QStringLiteral("Mute"));
+        // Saved and opened again.
+        const QString saved = dir.filePath(QStringLiteral("deck.pptx"));
+        QVERIFY(w.saveTo(saved));
+        DeckWindow other;
+        QVERIFY(other.openFile(saved));
+        const PictureItem *again = lastMedia(*other.editor()->doc());
+        QVERIFY(again);
+        deck::MediaPlay read = deck::mediaPlayOf(*other.editor()->doc()->pages[0], *again);
+        read.shape = set.shape;
+        QVERIFY(read == set);
+        Settings::get().removeRecentFile(saved);
+        // Trim: the box takes a start and an end, and 0 for the end means the end of the file.
+        MediaTrimDialog trim(QStringLiteral("Trim Video"), 5000, 1000, 0);
+        auto *from = trim.findChild<QDoubleSpinBox *>(QStringLiteral("trimStart"));
+        auto *to = trim.findChild<QDoubleSpinBox *>(QStringLiteral("trimEnd"));
+        QVERIFY(from && to);
+        QCOMPARE(from->value(), 1.0);
+        QCOMPARE(to->value(), 5.0);
+        QCOMPARE(trim.startMs(), 1000);
+        QCOMPARE(trim.endMs(), 0);
+        to->setValue(3.5);
+        QCOMPARE(trim.endMs(), 3500);
+        w.editMedia(QStringLiteral("Trim"), [&](deck::MediaPlay &p) {
+            p.trimStart = trim.startMs();
+            p.trimEnd = trim.endMs();
+        });
+        QCOMPARE(play().trimStart, 1000);
+        QCOMPARE(play().trimEnd, 3500);
+        QCOMPARE(static_cast<const PictureItem *>(lastMedia(*ed->doc()))->mediaTrimEnd, 3500);
+    }
+
+    // A movie or sound selected on the slide has a control bar under it (and one the mouse is over); it plays in place on the
+    // slide, over the canvas, scaled with the zoom, and stops when the slide changes.
+    void editorShowsAControlBarAndPlaysInPlace()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        DeckCanvas *canvas = w.canvas();
+        // A movie that is red all the way through.
+        const QByteArray avi = testAvi(40, QSize(320, 180), 10, true);
+        if (!backendReads(avi, "avi", true)) QSKIP("this Qt can't read the test movie here");
+        QVERIFY(w.insertMedia(writeTestFile(dir, QStringLiteral("clip.avi"), avi), QStringLiteral("video")));
+        const QString id = lastMedia(*ed->doc())->id;
+        QVERIFY(canvas->media()->barItem() == id);
+        QVERIFY(canvas->media()->activeId().isEmpty());
+        QVERIFY(!canvas->media()->playbackOf(id));   // selecting reads nothing
+        const int decoders = MediaPlayback::decoders();
+        const QRectF bar = canvas->media()->barRect();
+        QVERIFY(!bar.isEmpty() && QRectF(canvas->viewport()->rect()).contains(bar));
+        const QRectF picture = canvas->pageToView(lastMedia(*ed->doc())->rect.topLeft()).isNull() ? QRectF() : QRectF(canvas->pageToView(lastMedia(*ed->doc())->rect.topLeft()), canvas->pageToView(lastMedia(*ed->doc())->rect.bottomRight()));
+        QVERIFY(bar.top() >= picture.bottom() - 0.5 || bar.bottom() <= picture.bottom());   // under the picture, or over its bottom when there is no room
+        QCOMPARE(MediaPlayback::decoders(), decoders);
+        // Hovering a movie that is not selected shows its bar.
+        ed->clearSelection();
+        QTRY_VERIFY(canvas->media()->barItem().isEmpty());
+        QTest::mouseMove(canvas->viewport(), picture.center().toPoint());
+        QTRY_COMPARE(canvas->media()->barItem(), id);
+        QTest::mouseMove(canvas->viewport(), QPoint(3, 3));
+        QTRY_VERIFY(canvas->media()->barItem().isEmpty());
+        ed->select(id);
+        // Play on the bar.
+        const QRectF barNow = canvas->media()->barRect();
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(int(barNow.left() + 15), int(barNow.center().y())));
+        MediaPlayback *pb = canvas->media()->playbackOf(id);
+        QVERIFY(pb);
+        QCOMPARE(MediaPlayback::decoders(), decoders + 1);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*pb, true), 15000);
+        if (pb->failed()) QSKIP(qPrintable(QStringLiteral("this Qt has no movie backend here: ") + pb->error()));
+        QCOMPARE(canvas->media()->activeId(), id);
+        // The frames are painted in the picture's place, and again, larger, when the zoom is.
+        auto centerOfMovie = [&] {
+            const QPointF c = canvas->pageToView(lastMedia(*ed->doc())->rect.center());
+            return canvas->viewport()->grab().toImage().pixelColor(c.toPoint());
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(centerOfMovie().red() > 180 && centerOfMovie().green() < 90 && centerOfMovie().blue() < 90, 5000);
+        if (qEnvironmentVariableIsSet("JD_MEDIA_SHOTS")) canvas->viewport()->grab().save(qEnvironmentVariable("JD_MEDIA_SHOTS") + QStringLiteral("/editor-bar.png"));
+        const double ppp = canvas->ppp();
+        canvas->setZoom(canvas->zoom() * 1.5);
+        QVERIFY(canvas->ppp() > ppp);
+        QTRY_VERIFY_WITH_TIMEOUT(centerOfMovie().red() > 180 && centerOfMovie().green() < 90 && centerOfMovie().blue() < 90, 5000);   // larger, still red
+        const QRectF zoomed = canvas->media()->barRect();
+        QVERIFY(zoomed != barNow);
+        // Pause on the bar, then the slide changes: it stops.
+        const QRectF b2 = canvas->media()->barRect();
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(int(b2.left() + 15), int(b2.center().y())));
+        QTRY_COMPARE_WITH_TIMEOUT(int(pb->state()), int(MediaPlayback::State::Paused), 5000);
+        w.newSlide();
+        QTRY_VERIFY(canvas->media()->activeId().isEmpty());
+        ed->setCurrentPage(0);
+        QVERIFY(canvas->media()->activeId().isEmpty());
+    }
+
+    // A file that can't be played shows a message where the movie is, and the program goes on.
+    void editorShowsAMessageForAMovieThatCantPlay()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QByteArray junk(4000, '\0');
+        for (int i = 0; i < junk.size(); ++i) junk[i] = char((i * 53 + 3) & 0xFF);
+        QImage poster(320, 180, QImage::Format_RGB32);
+        poster.fill(QColor(240, 240, 240));
+        auto pic = deck::newMediaPicture(*d, *d->pages[0], junk, QStringLiteral("bad.mp4"), poster, 1000);
+        QVERIFY(pic);
+        ed->beginChange(QStringLiteral("Insert"));
+        d->pages[0]->items.push_back(pic);
+        ed->endChange();
+        ed->select(pic->id);
+        const QRectF bar = w.canvas()->media()->barRect();
+        QTest::mouseClick(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(int(bar.left() + 15), int(bar.center().y())));
+        MediaPlayback *pb = w.canvas()->media()->playbackOf(pic->id);
+        QVERIFY(pb);
+        QTRY_VERIFY_WITH_TIMEOUT(pb->failed(), 15000);
+        // The message is drawn over the poster.
+        const QPointF c = w.canvas()->pageToView(pic->rect.center());
+        QTRY_VERIFY(w.canvas()->viewport()->grab().toImage().pixelColor(c.toPoint() + QPoint(0, -int(pic->rect.height() * w.canvas()->ppp() * 0.4))).lightness() < 90);
+        // Moving to another slide puts the poster back.
+        w.newSlide();
+        ed->setCurrentPage(0);
+        QTRY_VERIFY(w.canvas()->media()->activeId().isEmpty());
+        QVERIFY(!w.canvas()->media()->playbackOf(pic->id) || !w.canvas()->media()->playbackOf(pic->id)->failed());
+        // A movie linked from outside the presentation says so.
+        auto linked = std::make_shared<PictureItem>();
+        linked->rect = QRectF(60, 60, 200, 120);
+        linked->imgRect = QRectF(0, 0, 200, 120);
+        linked->imageId = pic->imageId;
+        linked->mediaKind = QStringLiteral("video");
+        linked->mediaLink = QStringLiteral("https://example.com/watch?v=abc");
+        ed->beginChange(QStringLiteral("Insert"));
+        d->pages[0]->items.push_back(linked);
+        ed->endChange();
+        ed->select(linked->id);
+        w.canvas()->media()->play(linked->id);
+        MediaPlayback *lp = w.canvas()->media()->playbackOf(linked->id);
+        QVERIFY(lp && lp->failed());
+        QVERIFY2(lp->error().contains(QStringLiteral("linked")), qPrintable(lp->error()));
+    }
+
+    // ---- movies and sounds in the slide show ----
+
+    // A movie or sound on slide `slide`, playing as `play` says (its timing written for it).
+    static std::shared_ptr<PictureItem> showMedia(Document &d, int slide, const QByteArray &bytes, const QString &name, const QPointF &at, const deck::MediaPlay &play, const QSizeF &size = QSizeF())
+    {
+        QImage poster(160, 120, QImage::Format_RGB32);
+        poster.fill(QColor(30, 90, 160));
+        auto pic = deck::newMediaPicture(d, *d.pages[slide], bytes, name, poster, 2000, at);
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+        if (!size.isEmpty()) {
+            pic->rect.setSize(size);
+            pic->imgRect = QRectF(QPointF(0, 0), size);
+        }
+        d.pages[slide]->items.push_back(pic);
+        deck::setMediaPlay(*d.pages[slide], *pic, play, 2000);
+        return pic;
+    }
+
+    // A show on a window of the slide's own size, shown (as it is in use), with its media looked at through the show.
+    static QPoint showCenter(const PictureItem &pic) { return pic.rect.center().toPoint(); }
+
+    // What the file says plays: a step of only a call to a movie is a click of its own, a sound set to start by itself starts
+    // when the slide appears, nothing is decoded before, and everything stops when the slide changes.
+    void showPlaysMediaWhenTheFileSays()
+    {
+        auto d = showDeck(2);
+        const QByteArray avi = testAvi(30, QSize(64, 48), 10, true), wav = testWav(3000);
+        deck::MediaPlay click, automatic;
+        automatic.start = deck::MediaStart::Automatically;
+        automatic.loop = true;
+        automatic.volume = deck::kVolumeLow;
+        auto sound = showMedia(*d, 0, wav, QStringLiteral("tune.wav"), QPointF(700, 400), automatic);   // the slide's first, so it begins with the slide
+        auto movie = showMedia(*d, 0, avi, QStringLiteral("clip.avi"), QPointF(100, 100), click, QSizeF(320, 240));
+        LayoutCache cache;
+        const int before = MediaPlayback::decoders();
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        QCOMPARE(MediaPlayback::decoders(), before);   // nothing decoded for a show that has not begun
+        show.show();
+        QVERIFY(show.media());
+        // The sound starts with the slide, looping, at its volume; the movie waits for its click.
+        QPointer<MediaPlayback> tune = show.media()->playbackOf(sound->id);
+        QVERIFY(tune);
+        QCOMPARE(MediaPlayback::decoders(), before + 1);
+        QVERIFY(tune->settings().loop);
+        QCOMPARE(tune->settings().volume, deck::kVolumeLow);
+        QVERIFY(!show.media()->playbackOf(movie->id));
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*tune, false), 15000);
+        // The click is the movie's: the show stays on the slide.
+        show.next();
+        QCOMPARE(show.currentSlide(), 0);
+        QPointer<MediaPlayback> clip = show.media()->playbackOf(movie->id);
+        QVERIFY(clip);
+        QCOMPARE(MediaPlayback::decoders(), before + 2);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*clip, true), 15000);
+        // The next click moves on; both stop, and their players go.
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+        QTRY_VERIFY(tune.isNull() && clip.isNull());
+        QVERIFY(!show.media()->playbackOf(sound->id));
+        // Back on the slide, with all its steps played, the sound starts again when the slide has none to play first.
+        show.previous();
+        QCOMPARE(show.currentSlide(), 0);
+    }
+
+    // A sound set to play across slides goes on over as many as the file says, then stops.
+    void showMediaPlaysAcrossSlides()
+    {
+        auto d = showDeck(4);
+        deck::MediaPlay across;
+        across.start = deck::MediaStart::Automatically;
+        across.acrossSlides = 2;
+        auto sound = showMedia(*d, 0, testWav(5000), QStringLiteral("song.wav"), QPointF(40, 40), across);
+        // Without it, a sound stops at the first.
+        deck::MediaPlay alone;
+        alone.start = deck::MediaStart::Automatically;
+        auto other = showMedia(*d, 2, testWav(5000), QStringLiteral("other.wav"), QPointF(40, 40), alone);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QPointer<MediaPlayback> song = show.media()->playbackOf(sound->id);
+        QVERIFY(song);
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+        QVERIFY(!song.isNull());   // over the first slide's end
+        show.next();
+        QCOMPARE(show.currentSlide(), 2);
+        QTRY_VERIFY(song.isNull());   // the second slide it plays across has gone too
+        QPointer<MediaPlayback> once = show.media()->playbackOf(other->id);
+        QVERIFY(once);
+        show.next();
+        QTRY_VERIFY(once.isNull());
+    }
+
+    // A movie that waits for a click on it: the click plays it, another pauses it, a third plays it again; the mouse over it
+    // shows the control bar, and a click on the bar's play button does the same.
+    void showClickOnAMoviePlaysAndPausesIt()
+    {
+        auto d = showDeck(2);
+        deck::MediaPlay onClick;
+        onClick.start = deck::MediaStart::WhenClickedOn;
+        auto movie = showMedia(*d, 0, testAvi(60, QSize(64, 48), 10, true), QStringLiteral("clip.avi"), QPointF(300, 150), onClick, QSizeF(320, 240));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        ShowMedia *media = show.media();
+        QVERIFY(!media->playbackOf(movie->id));
+        QTest::mouseMove(&show, QPoint(10, 10));
+        QVERIFY(media->hovered().isEmpty());
+        QTest::mouseMove(&show, showCenter(*movie));
+        QCOMPARE(media->hovered(), movie->id);   // its bar shows
+        const QRectF bar = media->barRect(movie->id);
+        QVERIFY(!bar.isEmpty() && QRectF(show.rect()).contains(bar));
+        // The bar stays while the mouse goes down to it.
+        QTest::mouseMove(&show, bar.center().toPoint());
+        QCOMPARE(media->hovered(), movie->id);
+        // A click on the movie starts it, and the show stays where it is.
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, showCenter(*movie));
+        QCOMPARE(show.currentSlide(), 0);
+        MediaPlayback *pb = media->playbackOf(movie->id);
+        QVERIFY(pb);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*pb, true), 15000);
+        if (pb->failed()) QSKIP(qPrintable(QStringLiteral("this Qt has no movie backend here: ") + pb->error()));
+        QTRY_COMPARE_WITH_TIMEOUT(int(pb->state()), int(MediaPlayback::State::Playing), 5000);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, showCenter(*movie));
+        QTRY_COMPARE_WITH_TIMEOUT(int(pb->state()), int(MediaPlayback::State::Paused), 5000);
+        QCOMPARE(show.currentSlide(), 0);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(int(bar.left() + 15), int(bar.center().y())));   // the bar's play button
+        QTRY_COMPARE_WITH_TIMEOUT(int(pb->state()), int(MediaPlayback::State::Playing), 5000);
+        // The movie is painted where its picture is.
+        QTRY_VERIFY_WITH_TIMEOUT(show.grab().toImage().pixelColor(showCenter(*movie)).red() > 180, 5000);
+        if (qEnvironmentVariableIsSet("JD_MEDIA_SHOTS")) show.grab().save(qEnvironmentVariable("JD_MEDIA_SHOTS") + QStringLiteral("/show-movie.png"));
+        // A click elsewhere moves on, and the movie stops.
+        QPointer<MediaPlayback> gone = pb;
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(2, 538));
+        QCOMPARE(show.currentSlide(), 1);
+        QTRY_VERIFY(gone.isNull());
+    }
+
+    // A movie that hides while it isn't playing is not on the slide until it plays, and not after; one that plays full screen
+    // fills the window.
+    void showHidesAndFillsAsTheFileSays()
+    {
+        auto d = showDeck(1);
+        deck::MediaPlay hidden;
+        hidden.hideWhenStopped = true;
+        hidden.start = deck::MediaStart::WhenClickedOn;
+        deck::MediaPlay full;
+        full.fullScreen = true;
+        full.start = deck::MediaStart::WhenClickedOn;
+        auto veiled = showMedia(*d, 0, testAvi(30, QSize(64, 48), 10, true), QStringLiteral("a.avi"), QPointF(40, 300), hidden, QSizeF(240, 180));
+        auto filling = showMedia(*d, 0, testAvi(30, QSize(64, 48), 10, true), QStringLiteral("b.avi"), QPointF(600, 300), full, QSizeF(240, 180));
+        LayoutCache cache;
+        // As the show draws the slide: the poster of the hidden one is not there; the other's is.
+        const QImage img = renderSlideImage(d.get(), &cache, 0, QSize(960, 540), 1);
+        QVERIFY(img.pixelColor(showCenter(*veiled)) != QColor(30, 90, 160));
+        QVERIFY(img.pixelColor(showCenter(*veiled)).lightness() > 200);
+        QVERIFY(img.pixelColor(showCenter(*filling)) == QColor(30, 90, 160));
+        // The editor and the thumbnails still show it: only the show hides it.
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QVERIFY(Renderer::renderToImage(ctx, 0, 1.0).pixelColor(showCenter(*veiled)) == QColor(30, 90, 160));
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, showCenter(*filling));
+        MediaPlayback *pb = show.media()->playbackOf(filling->id);
+        QVERIFY(pb);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*pb, true), 15000);
+        if (pb->failed()) QSKIP(qPrintable(QStringLiteral("this Qt has no movie backend here: ") + pb->error()));
+        // Full screen: the window is black around a picture of the movie's own shape (4 by 3, in 16 by 9), red in its middle.
+        QTRY_VERIFY_WITH_TIMEOUT(show.grab().toImage().pixelColor(5, 270) == QColor(Qt::black), 5000);
+        const QImage grabbed = show.grab().toImage();
+        QVERIFY(grabbed.pixelColor(480, 270).red() > 180 && grabbed.pixelColor(480, 270).green() < 90);
+        // It rewinds or holds when it ends, but a hidden one goes again when it stops.
+        QPointer<MediaPlayback> keep = pb;
+        QVERIFY(keep);
+    }
+
+    // A file that can't be played says so in the show, and the show goes on.
+    void showMessageForAMovieThatCantPlay()
+    {
+        auto d = showDeck(2);
+        QByteArray junk(4000, '\0');
+        for (int i = 0; i < junk.size(); ++i) junk[i] = char((i * 71 + 5) & 0xFF);
+        deck::MediaPlay onClick;
+        onClick.start = deck::MediaStart::WhenClickedOn;
+        auto movie = showMedia(*d, 0, junk, QStringLiteral("bad.mp4"), QPointF(300, 150), onClick, QSizeF(320, 240));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, showCenter(*movie));
+        MediaPlayback *pb = show.media()->playbackOf(movie->id);
+        QVERIFY(pb);
+        QTRY_VERIFY_WITH_TIMEOUT(pb->failed(), 15000);
+        QTRY_VERIFY(show.grab().toImage().pixelColor(showCenter(*movie) + QPoint(0, -100)).lightness() < 90);
+        QCOMPARE(show.currentSlide(), 0);
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+    }
+
+    // A movie's picture that is deleted takes the movie's part of the timing with it; the slide's other animations are saved, with
+    // no note. A picture that is still there but plays nothing any more is still what the presentation program would refuse.
+    void deletedMediaTakesItsTimingAndNoMore()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        QImage poster(160, 120, QImage::Format_RGB32);
+        poster.fill(QColor(30, 90, 160));
+        auto movie = deck::newMediaPicture(*d, slide, testAvi(), QStringLiteral("clip.avi"), poster, 500);
+        QVERIFY(movie);
+        slide.items.push_back(movie);
+        auto sound = deck::newMediaPicture(*d, slide, testWav(), QStringLiteral("tune.wav"), QImage(), 1000);
+        QVERIFY(sound);
+        slide.items.push_back(sound);
+        QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("<p:video>")) && xml.contains(QStringLiteral("<p:audio>")));
+        // Delete the movie's picture.
+        const int deleted = movie->sourceId;
+        slide.items.erase(std::find(slide.items.begin(), slide.items.end(), movie));
+        QString err;
+        QStringList skipped;
+        QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join('\n')));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString saved = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(!saved.contains(QStringLiteral("<p:video>")));
+        QVERIFY(saved.contains(QStringLiteral("<p:audio>")));
+        QVERIFY(!saved.contains(QStringLiteral("spid=\"%1\"").arg(deleted)));
+        QVERIFY(saved.contains(QStringLiteral("cmd=\"playFrom(0.0)\"")));
+        // The last one deleted, the timing is not written at all.
+        slide.items.erase(std::find(slide.items.begin(), slide.items.end(), sound));
+        bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(!part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:timing")));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join('\n')));
+        // The editor's own deletion does the same.
+        DeckWindow w;
+        {
+            Document *wd = w.editor()->doc();
+            auto kept = deck::newMediaPicture(*wd, *wd->pages[0], testWav(), QStringLiteral("tune.wav"), QImage(), 1000);
+            QVERIFY(kept);
+            w.editor()->beginChange(QStringLiteral("Insert"));
+            wd->pages[0]->items.push_back(kept);
+            w.editor()->endChange();
+            w.editor()->select(kept->id);
+        }
+        w.editor()->deleteSelection();
+        QVERIFY(deck::mediaPicturesOf(*w.editor()->doc()->pages[0]).isEmpty());
+        skipped.clear();
+        bytes = deck::exportPresentation(*w.editor()->doc(), &err, &skipped);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(!part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:timing")));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join('\n')));
+    }
+
+    // A file that holds more calls to media than a slide has, or a damaged timing, makes no more than a few cues and no harm.
+    void mediaPlanHoldsNoMoreThanASlideCanUse()
+    {
+        Page slide;
+        auto movie = mediaPicture(4, "video");
+        slide.items.push_back(movie);
+        QStringList calls;
+        for (int i = 0; i < 3000; ++i) calls << mediaCall(i % 2 ? 4 : 99, "playFrom(0.0)", "withEffect");
+        slide.props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, calls)}));
+        const deck::MediaPlan plan = deck::mediaPlanOf(slide);
+        QCOMPARE(int(plan.steps.size()), 1);
+        QVERIFY(plan.steps[0].cues.size() <= 64);
+        for (const deck::MediaCue &c : plan.steps[0].cues) QCOMPARE(c.shape, 4);   // only the slide's own media
+        // Not timing at all.
+        slide.props[QStringLiteral("timingXml")] = QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst><p:par>");
+        QVERIFY(deck::mediaPlanOf(slide).steps.isEmpty());
+        QVERIFY(deck::mediaPlayOf(slide, *movie).start == deck::MediaStart::ClickSequence);
+        // Setting how it plays on damaged timing starts the timing over, with the movie in it.
+        deck::setMediaPlay(slide, *movie, deck::MediaPlay());
+        QVERIFY(deck::mediaPlanOf(slide).steps.size() == 1);
+        // Deeply nested timing is read to a limit and no further.
+        QString deep = QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">");
+        for (int i = 0; i < 5000; ++i) deep += QStringLiteral("<p:par>");
+        for (int i = 0; i < 5000; ++i) deep += QStringLiteral("</p:par>");
+        deep += QStringLiteral("</p:timing>");
+        slide.props[QStringLiteral("timingXml")] = deep;
+        QVERIFY(deck::mediaPlanOf(slide).steps.isEmpty());
+        deck::clearMediaPlay(slide, 4);
+        QVERIFY(deck::mediaTimingForShapes(deep, QSet<qint64>{4}) == deep);
+    }
+
+    // A deck with a movie and a sound set every way the Playback tab sets them, for the presentation program to open (the
+    // gate): it is saved, read again as it was, and written to JD_MEDIA_SAMPLE when that names a file.
+    void mediaSampleDeckSavesAndReadsBack()
+    {
+        auto d = deck::newPresentation();
+        const QVector<MasterPage *> lays = deck::layouts(*d);
+        QVERIFY(lays.size() > 5);
+        deck::addSlide(*d, *lays[5]);
+        deck::addSlide(*d, *lays[5]);
+        QImage poster(320, 180, QImage::Format_RGB32);
+        poster.fill(QColor(30, 90, 160));
+        auto put = [&](int slide, const QByteArray &bytes, const QString &name, const QImage &image, const QPointF &at, const deck::MediaPlay &want) {
+            Page &page = *d->pages[slide];
+            auto pic = deck::newMediaPicture(*d, page, bytes, name, image, 3000, at);
+            Q_ASSERT(pic);
+            page.items.push_back(pic);
+            deck::MediaPlay play = want;
+            deck::setMediaPlay(page, *pic, play, 3000);
+            return pic;
+        };
+        const QByteArray movie = testAvi(30, QSize(320, 180), 10), tune = testWav(3000, 523);
+        deck::MediaPlay a;   // in the click sequence, trimmed and faded
+        a.trimStart = 500;
+        a.trimEnd = 2500;
+        a.fadeIn = 300;
+        a.fadeOut = 400;
+        a.volume = deck::kVolumeMedium;
+        deck::MediaPlay b;   // by itself, looping, hidden until it plays
+        b.start = deck::MediaStart::Automatically;
+        b.loop = true;
+        b.hideWhenStopped = true;
+        b.volume = deck::kVolumeLow;
+        deck::MediaPlay c;   // on a click, full screen, rewinding
+        c.start = deck::MediaStart::WhenClickedOn;
+        c.fullScreen = true;
+        c.rewind = true;
+        deck::MediaPlay e;   // across slides, muted
+        e.start = deck::MediaStart::Automatically;
+        e.acrossSlides = 999;
+        e.loop = true;
+        e.mute = true;
+        QVector<std::pair<int, std::shared_ptr<PictureItem>>> placed;
+        placed << std::make_pair(0, put(0, movie, QStringLiteral("Clip.avi"), poster, QPointF(60, 60), a));
+        placed << std::make_pair(0, put(0, tune, QStringLiteral("Tune.wav"), QImage(), QPointF(700, 400), b));
+        placed << std::make_pair(1, put(1, movie, QStringLiteral("Clip.avi"), poster, QPointF(300, 150), c));
+        placed << std::make_pair(2, put(2, tune, QStringLiteral("Tune.wav"), QImage(), QPointF(40, 40), e));
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join('\n')));
+        Exported x;
+        QVERIFY2(unpack(bytes, &x, &err), qPrintable(err));
+        QVERIFY2(packageProblem(x).isEmpty(), qPrintable(packageProblem(x)));
+        // The same movie on two slides is one part.
+        int mediaParts = 0;
+        for (const QString &name : x.pkg.partNames())
+            if (name.startsWith(QLatin1String("/ppt/media/media"))) ++mediaParts;
+        QCOMPARE(mediaParts, 2);
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        const deck::MediaPlay wants[] = {a, b, c, e};
+        int k = 0;
+        for (const auto &[slide, pic] : placed) {
+            const QVector<const PictureItem *> read = deck::mediaPicturesOf(*back->pages[slide]);
+            const PictureItem *match = nullptr;
+            for (const PictureItem *r : read)
+                if (r->name == pic->name && deck::mediaPlayOf(*back->pages[slide], *r).start == wants[k].start) match = r;
+            QVERIFY2(match, qPrintable(QStringLiteral("picture %1").arg(k)));
+            deck::MediaPlay got = deck::mediaPlayOf(*back->pages[slide], *match), want = wants[k];
+            want.shape = got.shape = 0;
+            want.video = pic->mediaKind == QLatin1String("video");
+            QVERIFY2(got == want, qPrintable(QStringLiteral("picture %1").arg(k)));
+            ++k;
+        }
+        const QString sample = qEnvironmentVariable("JD_MEDIA_SAMPLE");
+        if (!sample.isEmpty()) {
+            QFile out(sample);
+            QVERIFY(out.open(QIODevice::WriteOnly));
+            out.write(bytes);
+        }
     }
 
     // What can't be read is left out and the rest plays: a behavior that aims

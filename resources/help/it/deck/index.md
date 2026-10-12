@@ -46,3 +46,4 @@ Digitare nella casella di ricerca qui sopra per trovare un argomento o un comand
 ## Le schede della barra multifunzione
 
 - [Home](tab-home), [Inserisci](tab-insert), [Struttura](tab-design), [Transizioni](tab-transitions), [Presentazione](tab-slide-show), [Revisione](tab-review) e [Visualizza](tab-view)
+- [Riproduzione](tab-playback) compare quando è selezionato un filmato o un suono

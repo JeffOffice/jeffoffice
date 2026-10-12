@@ -1,6 +1,7 @@
 #include "app/deckcanvas.h"
 
 #include "app/commentspane.h"
+#include "app/editormedia.h"
 #include "core/comments.h"
 #include "core/deck.h"
 
@@ -10,6 +11,14 @@
 #include <algorithm>
 
 namespace jp {
+
+DeckCanvas::DeckCanvas(Editor *ed, QWidget *parent) : Canvas(ed, parent) { m_media = new EditorMedia(this); }
+
+bool DeckCanvas::viewportEvent(QEvent *e)
+{
+    if (e->type() == QEvent::Leave) m_media->leave();
+    return Canvas::viewportEvent(e);
+}
 
 void DeckCanvas::setGuides(bool on)
 {
@@ -52,6 +61,7 @@ QString DeckCanvas::commentAt(const QPointF &view) const
 
 void DeckCanvas::mousePressEvent(QMouseEvent *e)
 {
+    if (m_media->press(e)) return;
     const QString id = e->button() == Qt::LeftButton ? commentAt(e->position()) : QString();
     if (id.isEmpty()) {
         Canvas::mousePressEvent(e);
@@ -70,6 +80,7 @@ void DeckCanvas::mousePressEvent(QMouseEvent *e)
 
 void DeckCanvas::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_media->move(e)) return;
     if (m_dragId.isEmpty()) {
         Canvas::mouseMoveEvent(e);
         return;
@@ -86,6 +97,7 @@ void DeckCanvas::mouseMoveEvent(QMouseEvent *e)
 
 void DeckCanvas::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (m_media->release(e)) return;
     if (m_dragId.isEmpty()) {
         Canvas::mouseReleaseEvent(e);
         return;
@@ -154,6 +166,7 @@ void DeckCanvas::paintEvent(QPaintEvent *e)
         for (const QPointF &pt : t->outline()) poly << pageToView(pt);
         p.drawPolygon(poly);
     }
+    m_media->paint(&p);
     if (!m_comments) return;
     QFont initials = p.font();
     initials.setPixelSize(8);

@@ -10,10 +10,14 @@
 
 namespace jp {
 
+class EditorMedia;
+
 class DeckCanvas : public Canvas {
     Q_OBJECT
 public:
-    using Canvas::Canvas;
+    explicit DeckCanvas(Editor *ed, QWidget *parent = nullptr);
+    // The movies and sounds on the slide: their control bars, and playing them in place.
+    EditorMedia *media() const { return m_media; }
     bool guides() const { return m_guides; }
     void setGuides(bool on);
     bool gridlines() const { return m_grid; }
@@ -35,6 +39,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
+    bool viewportEvent(QEvent *e) override;
 
 private:
     QRectF commentMarker(const QPointF &page) const;
@@ -43,6 +48,7 @@ private:
     QString m_dragId;                  // the comment whose marker is being dragged
     QPointF m_dragFrom, m_dragOffset, m_dragAt;
     bool m_dragMoved = false;
+    EditorMedia *m_media = nullptr;
 };
 
 } // namespace jp
