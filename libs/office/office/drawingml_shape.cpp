@@ -4,6 +4,8 @@
 
 #include "office/drawingml.h"
 
+#include "core/shapetypes.h"
+
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_style.h"
 #include "office/xml.h"
@@ -163,6 +165,7 @@ struct BodyProperties {
     VAlign valign = VAlign::Top;
     TextItem::Autofit autofit = TextItem::NoAutofit;
     double fitScale = 1.0;
+    double fitLineCut = 0;      // a:normAutofit's lnSpcReduction, in percent
     int columns = 1;
     double columnGap = 0;
     bool vertical = false;
@@ -194,6 +197,7 @@ BodyProperties readBodyProperties(const QVector<QDomElement> &bodyPrs)
         if (!norm.isNull()) {
             b.autofit = TextItem::ShrinkOnOverflow;
             b.fitScale = std::clamp(parsePercent(attr(norm, QStringLiteral("fontScale")), 1.0), 0.01, 1.0);
+            b.fitLineCut = std::clamp(parsePercent(attr(norm, QStringLiteral("lnSpcReduction")), 0.0) * 100, 0.0, 99.0);
         } else if (!grow.isNull()) {
             b.autofit = TextItem::GrowBox;
         } else if (none.isNull()) {
@@ -323,7 +327,10 @@ ItemPtr Reader::shape(const QDomElement &e, const QVector<QDomElement> &inherits
     if (isPicture) return pic(e, inheritsFrom);
     if (isConnector) return drawn(e, childNamed(e, "nvCxnSpPr"), inheritsFrom, true);
     const QDomElement nv = childNamed(e, "nvSpPr");
-    return drawn(e, nv.isNull() ? e : nv, inheritsFrom, false);
+    ItemPtr it = drawn(e, nv.isNull() ? e : nv, inheritsFrom, false);
+    // A shape filled with the page's background (a design's panel the color of the slide behind it).
+    if (it && parseBool(attr(e, QStringLiteral("useBgFill")))) it->fill = m_ctx.background;
+    return it;
 }
 
 ItemList Reader::tree(const QDomElement &parent)
@@ -479,6 +486,58 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     for (const QDomElement &from : inheritsFrom) bodyPrs.append(childNamed(childNamed(from, "txBody"), "bodyPr"));
     const BodyProperties props = readBodyProperties(bodyPrs);
 
+    // The older text art, as the presentation program keeps it: text warped
+    // into its box and stretched to fill it (fromWordArt), the art's look that
+    // of its first letters.
+    const QDomElement warp = childNamed(bodyPrs.value(0), "prstTxWarp");
+    if (!connector && ph.isNull() && parseBool(attr(bodyPrs.value(0), QStringLiteral("fromWordArt"))) && !warp.isNull()
+        && attr(warp, QStringLiteral("prst")) != QLatin1String("textNoShape") && hasText(body)) {
+        static const QStringList warps = {
+            "textPlain", "textStop", "textTriangle", "textTriangleInverted", "textChevron", "textChevronInverted", "textRingInside",
+            "textRingOutside", "textArchUp", "textArchDown", "textCircle", "textButton", "textArchUpPour", "textArchDownPour",
+            "textCirclePour", "textButtonPour", "textCurveUp", "textCurveDown", "textCascadeUp", "textCascadeDown", "textWave1",
+            "textWave2", "textDoubleWave1", "textWave4", "textInflate", "textDeflate", "textInflateBottom", "textDeflateBottom",
+            "textInflateTop", "textDeflateTop", "textDeflateInflate", "textDeflateInflateDeflate", "textFadeRight", "textFadeLeft",
+            "textFadeUp", "textFadeDown", "textSlantUp", "textSlantDown", "textCanUp", "textCanDown"};
+        auto a = std::make_shared<TextArtItem>();
+        decorate(*a, cNvPr, frame, properties, style);
+        const int index = int(warps.indexOf(attr(warp, QStringLiteral("prst"))));
+        const QString transform = index >= 0 ? textArtForShapeType(136 + index) : QString();
+        a->transform_ = transform.isEmpty() ? QStringLiteral("plain") : transform;
+        a->vertical = attr(bodyPrs.value(0), QStringLiteral("vert")).startsWith(QLatin1String("wordArtVert"));
+        QStringList lines;
+        QDomElement firstRun, firstPara;
+        for (QDomElement para = childNamed(body, "p"); !para.isNull(); para = para.nextSiblingElement()) {
+            if (para.localName() != QLatin1String("p")) continue;
+            if (firstPara.isNull()) firstPara = para;
+            QString text;
+            for (QDomElement r = para.firstChildElement(); !r.isNull(); r = r.nextSiblingElement()) {
+                if (r.localName() == QLatin1String("br")) text += QLatin1Char('\n');
+                if (r.localName() != QLatin1String("r") && r.localName() != QLatin1String("fld")) continue;
+                if (firstRun.isNull()) firstRun = r;
+                text += childNamed(r, "t").text();
+            }
+            lines << text;
+        }
+        a->text = lines.join(QLatin1Char('\n'));
+        const QString algn = attr(childNamed(firstPara, "pPr"), QStringLiteral("algn"));
+        a->align = algn == QLatin1String("l") ? 0 : algn == QLatin1String("r") ? 2 : algn == QLatin1String("just") ? 3 : algn == QLatin1String("dist") ? 4 : 1;
+        const QDomElement rPr = childNamed(firstRun, "rPr");
+        const double size = parseInt(attr(rPr, QStringLiteral("sz")), 3600) / 100.0;
+        a->size = std::clamp(size, 1.0, 4000.0);
+        a->bold = parseBool(attr(rPr, QStringLiteral("b")));
+        a->italic = parseBool(attr(rPr, QStringLiteral("i")));
+        if (const QString spc = attr(rPr, QStringLiteral("spc")); !spc.isEmpty()) a->spacing = std::clamp(1.0 + parseInt(spc, 0) / 100.0 / a->size, 0.5, 2.0);
+        const QString typeface = attr(childNamed(rPr, "latin"), QStringLiteral("typeface"));
+        const QString font = typeface.startsWith(QLatin1String("+mj")) ? m_ctx.theme.majorLatin : typeface.startsWith(QLatin1String("+mn")) ? m_ctx.theme.minorLatin : typeface;
+        if (!font.isEmpty()) a->font = font;
+        // The letters' fill and outline (a:rPr holds them as a shape's properties do).
+        a->fill = readFill(rPr, QDomElement(), m_ctx);
+        a->stroke = readLine(rPr, QDomElement(), m_ctx);
+        remember(cNvPr, a);
+        return a;
+    }
+
     if (!connector && plainRect && (textBox || !ph.isNull() || hasText(body))) {
         auto t = std::make_shared<TextItem>();
         decorate(*t, cNvPr, frame, properties, style);
@@ -487,6 +546,9 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         t->valign = props.valign;
         t->autofit = props.autofit;
         t->fitScale = props.fitScale;
+        t->fitLineCut = props.fitLineCut;
+        // Text the program shrank keeps the size it was given (a:normAutofit's fontScale) until it is edited.
+        t->fitAsStored = t->autofit == TextItem::ShrinkOnOverflow;
         t->columns = props.columns;
         t->columnGap = props.columnGap;
         t->vertical = props.vertical;

@@ -36,11 +36,12 @@ public:
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         setAttribute(Qt::WA_OpaquePaintEvent);
     }
-    int slide() const { return m_slide; }
-    void setSlide(int slide)
+    // The slide and its steps played, and `ms` into the next step (-1: at rest).
+    void setView(const SlideShow::View &view, double ms)
     {
-        if (slide == m_slide) return;
-        m_slide = slide;
+        if (view == m_view && ms == m_ms) return;
+        m_view = view;
+        m_ms = ms;
         m_image = QImage();
         update();
     }
@@ -52,8 +53,8 @@ public:
         if (m_image.isNull() || m_size != wanted || m_ratio != dpr) {
             m_size = wanted;
             m_ratio = dpr;
-            m_image = renderSlideImage(m_show->document(), m_show->cache(), m_slide, wanted, dpr, kBars);
-            if (m_slide < 0) {
+            m_image = m_show->renderView(m_view, m_ms, wanted, dpr, kBars);
+            if (m_view.slide < 0) {
                 QPainter p(&m_image);
                 p.setPen(Qt::white);
                 QFont f = font();
@@ -76,7 +77,8 @@ protected:
 private:
     QPointer<SlideShow> m_show;
     QString m_endText;
-    int m_slide = -2;   // -1 is the end, -2 nothing drawn yet
+    SlideShow::View m_view{-2, 0};   // slide -1 is the end, -2 nothing drawn yet
+    double m_ms = -1;
     QImage m_image;
     QSize m_size;
     qreal m_ratio = 1;
@@ -219,6 +221,7 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     connect(m_grid, &QListWidget::itemClicked, this, [this](QListWidgetItem *it) { jumpTo(m_grid->row(it)); });
 
     connect(show, &SlideShow::changed, this, &PresenterView::refresh);
+    connect(show, &SlideShow::frameChanged, this, &PresenterView::frame);
     connect(show, &SlideShow::ended, this, [this] {
         hide();
         deleteLater();
@@ -248,14 +251,21 @@ void PresenterView::refresh()
     if (!m_show) return;
     const Document *doc = m_show->document();
     const int slide = m_show->targetSlide();
-    m_next = slide >= 0 ? m_show->slideAfter(slide) : -1;
-    m_current->setSlide(slide);
-    m_nextView->setSlide(m_next);
+    const SlideShow::View next = m_show->nextView();
+    m_next = next.slide;
+    m_nextSteps = next.steps;
+    m_current->setView(m_show->currentView(), m_show->currentMs());
+    m_nextView->setView(next, -1);
     m_counter->setText(slide >= 0 ? tr("Slide %1 of %2").arg(slide + 1).arg(doc->pages.size()) : tr("End of slide show"));
     const QString notes = slide >= 0 ? deck::notesText(*doc, *doc->pages[slide]) : QString();
     if (notes != m_notes->toPlainText()) m_notes->setPlainText(notes);
     m_black->setChecked(m_show->blankColor() == QColor(Qt::black));
     if (isShowingAllSlides() && slide >= 0 && slide < m_grid->count()) m_grid->setCurrentRow(slide);
+}
+
+void PresenterView::frame()
+{
+    if (m_show) m_current->setView(m_show->currentView(), m_show->currentMs());
 }
 
 QString PresenterView::counterText() const { return m_counter->text(); }

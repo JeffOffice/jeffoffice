@@ -65,6 +65,23 @@
               "keytip": "R"
             },
             {
+              "small": {
+                "id": "ribbon.section",
+                "text": "Section",
+                "icon": "rows-3"
+              },
+              "keytip": "SE",
+              "menu": [
+                "section.add",
+                "section.rename",
+                "section.remove",
+                "section.removeAll",
+                "-",
+                "section.collapseAll",
+                "section.expandAll"
+              ]
+            },
+            {
               "small": "slide.delete",
               "keytip": "D"
             }
@@ -604,6 +621,38 @@
             {
               "large": "review.wordCount",
               "keytip": "WC"
+            }
+          ]
+        },
+        {
+          "name": "Comments",
+          "keytip": "ZO",
+          "items": [
+            {
+              "large": "comment.new",
+              "keytip": "NC"
+            },
+            {
+              "large": "comment.delete",
+              "keytip": "DC",
+              "split": true,
+              "menu": [
+                "comment.delete",
+                "comment.deleteSlide",
+                "comment.deleteAll"
+              ]
+            },
+            {
+              "large": "comment.prev",
+              "keytip": "PV"
+            },
+            {
+              "large": "comment.next",
+              "keytip": "NX"
+            },
+            {
+              "large": "comment.show",
+              "keytip": "SC"
             }
           ]
         }

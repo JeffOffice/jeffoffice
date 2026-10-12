@@ -277,6 +277,12 @@ public:
     // What an app keeps about the whole document besides its pages (a
     // presentation's theme and sections); saved and undone with it.
     QJsonObject appData;
+    // Text is set as the presentation program sets a slide's (LayoutEnv::
+    // slideLines), and what doesn't fit its box runs out of it, shown
+    // (FrameSpec::runsOver), instead of waiting for the next box in the chain
+    // or hiding as a publication's does. Set by the app that makes the
+    // document; not saved.
+    bool slideText = false;
 
     // pages
     QSizeF pageSize() const { return setup.size; }

@@ -2,6 +2,7 @@
 // its window.
 
 #include "../../apps/pub/app/pubinfo.h"   // only its inline pubAppInfo(): the other app's colors, to compare
+#include "app/commentspane.h"
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
 #include "app/deckinfo.h"
@@ -14,13 +15,18 @@
 #include "app/outlineview.h"
 #include "app/presenterview.h"
 #include "app/recovery.h"
+#include "app/reusepane.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/slideshow.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
+#include "core/animation.h"
+#include "core/comments.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/reuse.h"
+#include "core/sections.h"
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/deckoutput.h"
@@ -44,6 +50,7 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QDialogButtonBox>
 #include <QRadioButton>
 #include <QDeadlineTimer>
@@ -61,6 +68,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QPrinter>
 #include <QPushButton>
@@ -76,10 +84,13 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
+#include <QTimeZone>
 #include <QTimer>
 #include <QToolButton>
 #include <QUrl>
 #include <QXmlStreamWriter>
+#include <cmath>
+#include <functional>
 
 using namespace jp;
 
@@ -770,6 +781,706 @@ private Q_SLOTS:
         QVERIFY(w.canvas()->fitMode() == Canvas::Fit::WholePage);
     }
 
+private:
+    // The sections' names and slide counts, in order.
+    static QStringList sectionNames(const Document &d)
+    {
+        QStringList out;
+        for (const deck::Section &s : deck::sectionsOf(d)) out << s.name;
+        return out;
+    }
+    static QList<int> sectionCounts(const Document &d)
+    {
+        QList<int> out;
+        for (const deck::Section &s : deck::sectionsOf(d)) out << s.count;
+        return out;
+    }
+    // A presentation of `n` Title and Content slides whose page titles are the letters A, B, C...
+    static std::unique_ptr<Document> lettered(int n)
+    {
+        auto d = deck::newPresentation();
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        while (d->pages.size() < n) deck::addSlide(*d, *layout);
+        for (int i = 0; i < n; ++i) d->pages[i]->title = QString(QChar('A' + i));
+        return d;
+    }
+    static QString letters(const Document &d)
+    {
+        QString out;
+        for (const auto &p : d.pages) out += p->title;
+        return out;
+    }
+
+private Q_SLOTS:
+    // Sections are named runs of slides kept as counts: the first one made in
+    // the middle of a deck puts the slides before it in a Default Section,
+    // removing a section gives its slides to the one before (the next, for the
+    // first), and a section moves with its slides.
+    void sectionsAreAddedRenamedMovedAndRemoved()
+    {
+        auto d = lettered(6);
+        QVERIFY(!deck::hasSections(*d));
+        QVERIFY(deck::sectionsOf(*d).isEmpty());
+        QCOMPARE(deck::sectionOfSlide(*d, 2), -1);
+        QCOMPARE(deck::addSection(*d, 2), 1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        const QRegularExpression guid(QStringLiteral("^\\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\\}$"));
+        const QVector<deck::Section> two = deck::sectionsOf(*d);
+        QVERIFY(guid.match(two[0].id).hasMatch() && guid.match(two[1].id).hasMatch());
+        QVERIFY(two[0].id != two[1].id);
+        QCOMPARE(deck::sectionOfSlide(*d, 1), 0);
+        QCOMPARE(deck::sectionOfSlide(*d, 2), 1);
+        QCOMPARE(deck::sectionOfSlide(*d, 6), -1);
+        QCOMPARE(deck::firstSlideOf(*d, 1), 2);
+        QCOMPARE(deck::slideCountOf(*d, 1), 4);
+        // A section made inside another takes the rest of it.
+        QCOMPARE(deck::addSection(*d, 4, QStringLiteral("Budget")), 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        // At a section's first slide it takes that section's slides and leaves it empty.
+        QCOMPARE(deck::addSection(*d, 2, QStringLiteral("Plan")), 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section", "Plan", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 0, 2, 2}));
+        QCOMPARE(deck::sectionOfSlide(*d, 2), 2);
+        QCOMPARE(deck::firstSlideOf(*d, 1), 2);
+        QCOMPARE(deck::slideCountOf(*d, 1), 0);
+        deck::renameSection(*d, 1, QStringLiteral("Intro"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Intro", "Plan", "Budget"}));
+        deck::renameSection(*d, 9, QStringLiteral("Nowhere"));
+        QCOMPARE(sectionNames(*d).size(), 4);
+
+        // Removing: the slides go up to the section before.
+        deck::removeSection(*d, 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Intro", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        deck::removeSection(*d, 0);   // the first gives its slides to the next
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2}));
+
+        // Moving a section takes its slides along.
+        QCOMPARE(letters(*d), QStringLiteral("ABCDEF"));
+        QCOMPARE(deck::moveSection(*d, 0, 1), 1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget", "Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        QCOMPARE(letters(*d), QStringLiteral("EFABCD"));
+        QCOMPARE(deck::moveSection(*d, 0, -1), -1);   // nothing above the first
+        QCOMPARE(deck::moveSection(*d, 1, 1), -1);    // nor below the last
+        QCOMPARE(letters(*d), QStringLiteral("EFABCD"));
+        QCOMPARE(deck::moveSection(*d, 1, -1), 0);
+        QCOMPARE(letters(*d), QStringLiteral("ABCDEF"));
+
+        // A section and its slides go together, but never all the slides.
+        QVERIFY(deck::removeSectionAndSlides(*d, 1));
+        QCOMPARE(letters(*d), QStringLiteral("ABCD"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+        QVERIFY(!deck::removeSectionAndSlides(*d, 0));
+        QCOMPARE(letters(*d), QStringLiteral("ABCD"));
+        // The only section's removal leaves none, and so does Remove All.
+        deck::removeSection(*d, 0);
+        QVERIFY(!deck::hasSections(*d));
+        QVERIFY(!d->appData.contains(QStringLiteral("sections")));
+        QCOMPARE(deck::addSection(*d, 0), 0);   // at the first slide there is nothing for a Default Section
+        QCOMPARE(sectionNames(*d), (QStringList{"Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+        deck::addSection(*d, 2);
+        deck::removeAllSections(*d);
+        QVERIFY(!deck::hasSections(*d));
+    }
+
+    // The counts follow the slide list: a new slide joins the section of the
+    // slide before it, a slide taken away leaves its section, and slides put
+    // in another order join the section where they land. What a caller misses
+    // is made good on reading.
+    void sectionCountsFollowTheSlideList()
+    {
+        auto d = lettered(6);
+        deck::addSection(*d, 2, QStringLiteral("Plan"));    // Default Section 2, Plan 4
+        deck::addSection(*d, 4, QStringLiteral("Budget"));  // 2, 2, 2
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        // After the last slide of a section it joins that section; at the very start, the first.
+        deck::addSlide(*d, *layout, 2);
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 2, 2}));
+        deck::addSlide(*d, *layout, 0);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2, 2}));
+        deck::addSlide(*d, *layout);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2, 3}));
+        QCOMPARE(int(d->pages.size()), 9);
+        // A copy stands right after its slide, in its section.
+        deck::duplicateSlide(*d, 3);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 2, 3}));
+        deck::duplicateSlide(*d, 5);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 3, 3}));
+        // Slides taken away.
+        d->pages.removeAt(9);
+        deck::slideRemoved(*d, 9);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 3, 2}));
+        d->pages.removeAt(0);
+        deck::slideRemoved(*d, 0);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 3, 2}));
+
+        // Moves: a slide dropped between two sections' slides takes the one before it, or the section it is dropped into.
+        auto fresh = lettered(6);
+        deck::addSection(*fresh, 2, QStringLiteral("Plan"));    // AB | CDEF
+        deck::addSection(*fresh, 4, QStringLiteral("Budget"));  // AB | CD | EF
+        auto move = [&](const QList<int> &slides, int before, int into = -1) {
+            const QList<int> order = deck::orderAfterMoving(int(fresh->pages.size()), slides, before);
+            const QVector<std::shared_ptr<Page>> old = fresh->pages;
+            for (int k = 0; k < order.size(); ++k) fresh->pages[k] = old[order[k]];
+            deck::slidesReordered(*fresh, order, slides, into);
+        };
+        move({0}, 3);   // A between C and D: Plan
+        QCOMPARE(letters(*fresh), QStringLiteral("BCADEF"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{1, 3, 2}));
+        move({2}, 4, 2);   // A to the start of Budget (before E), by the section it is dropped into
+        QCOMPARE(letters(*fresh), QStringLiteral("BCDAEF"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{1, 2, 3}));
+        move({5}, 0);   // F to the very start: the first section
+        QCOMPARE(letters(*fresh), QStringLiteral("FBCDAE"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{2, 2, 2}));
+        move({0, 1}, 6, 0);   // two to the end, asked into the first section: only where they could be, after the last slide's
+        QCOMPARE(letters(*fresh), QStringLiteral("CDAEFB"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{0, 2, 4}));
+        QCOMPARE(deck::orderAfterMoving(5, {3, 1, 3, 9}, 0), (QList<int>{1, 3, 0, 2, 4}));
+
+        // A list made again out of the slides it had (the outline does): those that keep their order keep their
+        // sections, a moved one and a new one join the section of the slide before them, and a slide left out is gone.
+        auto again = lettered(6);
+        deck::addSection(*again, 2, QStringLiteral("Plan"));
+        deck::addSection(*again, 4, QStringLiteral("Budget"));   // AB | CD | EF
+        const deck::SectionMemory memory = deck::rememberSections(*again);
+        QVERIFY(!memory.isEmpty());
+        auto added = std::make_shared<Page>();
+        added->title = QStringLiteral("N");
+        const QVector<std::shared_ptr<Page>> was = again->pages;
+        again->pages = QVector<std::shared_ptr<Page>>{was[2], was[0], was[1], was[3], added, was[5]};
+        deck::restoreSections(*again, memory);
+        QCOMPARE(letters(*again), QStringLiteral("CABDNF"));
+        QCOMPARE(sectionCounts(*again), (QList<int>{3, 2, 1}));
+        QVERIFY(deck::rememberSections(*lettered(3)).isEmpty());   // none to keep without sections
+        QCOMPARE(deck::orderAfterMoving(5, {0}, 5), (QList<int>{1, 2, 3, 4, 0}));
+
+        // Counts that don't add up are made to: slides they miss join the last section, counts past the end are cut.
+        auto odd = lettered(5);
+        odd->appData[QStringLiteral("sections")] = QJsonArray{QJsonObject{{"id", "{A}"}, {"name", "One"}, {"count", 2}}, QJsonObject{{"id", "{B}"}, {"name", "Two"}, {"count", 1}}};
+        QCOMPARE(sectionCounts(*odd), (QList<int>{2, 3}));
+        odd->appData[QStringLiteral("sections")] = QJsonArray{QJsonObject{{"id", "{A}"}, {"name", "One"}, {"count", 4}}, QJsonObject{{"id", "{B}"}, {"name", "Two"}, {"count", 4}}};
+        QCOMPARE(sectionCounts(*odd), (QList<int>{4, 1}));
+        deck::setSections(*odd, {});
+        QVERIFY(!deck::hasSections(*odd));
+    }
+
+private:
+    // The names of the actions a menu offers, in order (separators left out).
+    static QStringList menuTexts(const QMenu *menu)
+    {
+        QStringList out;
+        for (const QAction *a : menu->actions())
+            if (!a->isSeparator()) out << a->text();
+        return out;
+    }
+    // Calls `poll` until it says it is done (the popup or box it waits for is up), or it has tried for a few seconds.
+    static void untilDone(const std::function<bool()> &poll, int tries = 300)
+    {
+        if (poll() || tries <= 0) return;
+        QTimer::singleShot(10, [poll, tries] { untilDone(poll, tries - 1); });
+    }
+    // Opens the right-click menu of a widget at `pos` and, while it is open, tells `inspect` about it; it closes after.
+    static void rightClick(QWidget *viewport, const QPoint &pos, const std::function<void(QMenu *)> &inspect)
+    {
+        QTimer::singleShot(0, [inspect] {
+            untilDone([inspect] {
+                auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!menu) return false;
+                inspect(menu);
+                menu->close();
+                return true;
+            });
+        });
+        QContextMenuEvent e(QContextMenuEvent::Mouse, pos, viewport->mapToGlobal(pos));
+        QApplication::sendEvent(viewport, &e);
+    }
+    // Answers the Rename Section box: what the name shows when it opens, then the name to give (cancel when empty).
+    static void answerRename(QString *shown, QString *selected, const QString &name)
+    {
+        QTimer::singleShot(0, [shown, selected, name] {
+            untilDone([shown, selected, name] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return false;
+                auto *edit = dlg->findChild<QLineEdit *>();
+                *shown = edit->text();
+                *selected = edit->selectedText();
+                if (name.isEmpty()) {
+                    dlg->reject();
+                } else {
+                    edit->setText(name);
+                    dlg->accept();
+                }
+                return true;
+            });
+        });
+    }
+
+private Q_SLOTS:
+    // Every section command is one undo step; Rename asks for the name with it selected; Add Section is at
+    // the slide being edited, and the others are on its section.
+    void sectionCommandsAreOneUndoStepEach()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D", "E", "F"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        for (const char *id : {"section.rename", "section.remove", "section.removeAll", "section.collapseAll", "section.expandAll"}) QVERIFY(!w.act(id)->isEnabled());
+        QVERIFY(w.act("section.add")->isEnabled());
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->currentPage(), 2);
+        for (const char *id : {"section.rename", "section.remove", "section.removeAll", "section.collapseAll", "section.expandAll"}) QTRY_VERIFY(w.act(id)->isEnabled());
+        ed->undo();
+        QVERIFY(!deck::hasSections(*d));
+        ed->redo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+
+        // Rename: the box opens with the name selected; Cancel changes nothing.
+        QString shown, selected;
+        answerRename(&shown, &selected, QString());
+        w.act("section.rename")->trigger();
+        QCOMPARE(shown, QStringLiteral("Untitled Section"));
+        QCOMPARE(selected, shown);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        answerRename(&shown, &selected, QStringLiteral("Budget"));
+        w.act("section.rename")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Budget"}));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->setCurrentPage(0);
+        answerRename(&shown, &selected, QStringLiteral("Intro"));
+        w.act("section.rename")->trigger();
+        QCOMPARE(shown, QStringLiteral("Default Section"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Budget"}));
+        ed->redo();
+
+        // Moving a section takes its slides; the current slide stays the one being edited.
+        ed->setCurrentPage(3);
+        w.moveSection(1, -1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget", "Intro"}));
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F", "A", "B"}));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        QCOMPARE(ed->currentPage(), 3);
+        w.moveSection(0, 1);
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F", "A", "B"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2}));
+        w.moveSection(0, -1);   // the first can't go up: no step
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        ed->undoStack()->clear();
+
+        // Remove Section is on the section of the slide being edited; its slides join the one before.
+        ed->setCurrentPage(4);
+        w.act("section.remove")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{6}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        // Remove Section & Slides takes the slides too, and the editor lands on a slide that is there.
+        ed->setCurrentPage(5);
+        w.removeSectionAndSlides(1);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B"}));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        // The last section holding every slide can't take them all with it.
+        ed->undoStack()->clear();
+        w.removeSectionAndSlides(0);
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F"}));
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget"}));
+        w.removeSectionAndSlides(0);
+        QCOMPARE(int(d->pages.size()), 4);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        w.act("section.removeAll")->trigger();
+        QVERIFY(!deck::hasSections(*d));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+    }
+
+    // New, duplicated, deleted, and moved slides keep the sections' counts right, whichever view
+    // does it, each as the one step it was.
+    void sectionCountsFollowSlidesChangedInTheWindow()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D", "E", "F"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // AB | CDEF
+        ed->setCurrentPage(4);
+        w.act("section.add")->trigger();   // AB | CD | EF
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        ed->undoStack()->clear();
+        // A new slide after the last slide of a section is in that section.
+        ed->setCurrentPage(3);
+        w.newSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 2}));
+        QCOMPARE(ed->currentPage(), 4);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        ed->redo();
+        w.duplicateSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4, 2}));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        w.deleteSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 2}));
+        QCOMPARE(ed->undoStack()->count(), 3);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4, 2}));
+        ed->undo();
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        ed->undoStack()->clear();
+
+        // The slide sorter: deleting, duplicating, and moving (the last slide dropped under a header joins its section).
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        s->select({3, 4}, 4);
+        s->deleteSelected();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "F"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 1, 1}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        s->select({0}, 0);
+        s->duplicateSelected();
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 1, 1}));
+        s->moveSlides({4}, 1);   // F to between A and its copy: the first section
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "F", "A", "B", "C"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 1, 0}));
+        s->moveSlides({0}, 5, 2);   // A to the end, asked into the last section
+        QCOMPARE(titlesOf(*d), (QStringList{"F", "A", "B", "C", "A"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 1, 1}));
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 1, 0}));
+        w.act("view.normal")->trigger();
+    }
+
+    // Enter on a title makes a slide in its section, and a slide folded into
+    // the one before leaves its section.
+    void sectionCountsFollowTheOutline()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // AB | CD
+        ed->undoStack()->clear();
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        auto lineAt = [&](int block) {
+            QTextCursor c(o->document()->findBlockByNumber(block));
+            c.movePosition(QTextCursor::EndOfBlock);
+            o->setTextCursor(c);
+        };
+        lineAt(1);
+        QTest::keyClick(o, Qt::Key_Return);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "", "C", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 2}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2}));
+        lineAt(2);   // "C", the first of its section
+        QTest::keyClick(o, Qt::Key_Tab);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 1}));
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2}));
+        lineAt(3);
+        QTest::keyClick(o, Qt::Key_Return);
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3}));
+    }
+
+    // The slides pane puts a heading row before each section's slides; a click on it folds the section
+    // away, and its menu has the section's commands.
+    void slidesPaneGroupsSlidesUnderSectionHeaders()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four", "Five"});
+        Editor *ed = w.editor();
+        SlidesPane *pane = w.slidesPane();
+        QCOMPARE(pane->count(), 5);   // no sections: one row a slide
+        QVERIFY(!pane->isHeaderRow(0));
+        QCOMPARE(pane->rowOfSlide(3), 3);
+        QCOMPARE(pane->slideOfRow(3), 3);
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // One Two | Three Four Five
+        QString shown, selected;
+        answerRename(&shown, &selected, QStringLiteral("Budget"));
+        w.act("section.rename")->trigger();
+        QTRY_COMPARE(pane->count(), 7);
+        QVERIFY(pane->isHeaderRow(0) && pane->isHeaderRow(3));
+        QCOMPARE(pane->headerRow(0), 0);
+        QCOMPARE(pane->headerRow(1), 3);
+        QCOMPARE(pane->item(0)->text(), QStringLiteral("Default Section"));
+        QCOMPARE(pane->item(3)->text(), QStringLiteral("Budget"));
+        QCOMPARE(pane->item(0)->data(SlidesPane::CountRole).toInt(), 2);
+        QCOMPARE(pane->item(3)->data(SlidesPane::CountRole).toInt(), 3);
+        QCOMPARE(pane->rowOfSlide(0), 1);
+        QCOMPARE(pane->rowOfSlide(1), 2);
+        QCOMPARE(pane->rowOfSlide(2), 4);
+        QCOMPARE(pane->slideOfRow(4), 2);
+        QCOMPARE(pane->slideOfRow(3), -1);
+        QCOMPARE(pane->item(pane->rowOfSlide(2))->text(), QStringLiteral("3"));   // numbers run on through the sections
+        QCOMPARE(pane->currentRow(), 4);
+        // Clicking a thumbnail goes to its slide; the editor's slide is the one marked.
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->thumbnailRect(1).center());
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(pane->currentRow(), pane->rowOfSlide(1));
+        ed->setCurrentPage(3);
+        QCOMPARE(pane->currentRow(), pane->rowOfSlide(3));
+        // Clicking a heading folds its section away, and again brings it back; the slide being edited stays.
+        QVERIFY(!pane->isCollapsed(0));
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->headerRect(0).center());
+        QVERIFY(pane->isCollapsed(0));
+        QVERIFY(pane->isRowHidden(pane->rowOfSlide(0)) && pane->isRowHidden(pane->rowOfSlide(1)));
+        QVERIFY(pane->thumbnailRect(0).isNull());
+        QVERIFY(!pane->thumbnailRect(2).isNull());
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(ed->undoStack()->count(), 2);   // folding is not a change to the presentation
+        QVERIFY(w.slideSorter()->isCollapsed(0));   // the Slide Sorter folds the same way
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->headerRect(0).center());
+        QVERIFY(!pane->isCollapsed(0) && !pane->isRowHidden(pane->rowOfSlide(0)));
+        QVERIFY(!w.slideSorter()->isCollapsed(0));
+        w.act("section.collapseAll")->trigger();
+        QVERIFY(pane->isCollapsed(0) && pane->isCollapsed(1));
+        QVERIFY(w.slideSorter()->isCollapsed(0) && w.slideSorter()->isCollapsed(1));
+        // A slide chosen from elsewhere opens its section.
+        ed->setCurrentPage(0);
+        QVERIFY(!pane->isCollapsed(0) && pane->isCollapsed(1));
+        QVERIFY(!pane->thumbnailRect(0).isNull());
+        w.act("section.expandAll")->trigger();
+        QVERIFY(!pane->isCollapsed(0) && !pane->isCollapsed(1));
+        QCOMPARE(ed->undoStack()->count(), 2);
+
+        // The menu of a heading, and of a slide.
+        QStringList texts;
+        QList<bool> enabled;
+        rightClick(pane->viewport(), pane->headerRect(1).center(), [&](QMenu *m) {
+            texts = menuTexts(m);
+            for (const QAction *a : m->actions())
+                if (!a->isSeparator()) enabled << a->isEnabled();
+        });
+        QCOMPARE(texts, (QStringList{"Rename Section", "Remove Section", "Remove Section && Slides", "Move Section Up", "Move Section Down", "Collapse All", "Expand All"}));
+        QCOMPARE(enabled, (QList<bool>{true, true, true, true, false, true, true}));   // the last section can't go down
+        rightClick(pane->viewport(), pane->headerRect(0).center(), [&](QMenu *m) {
+            enabled.clear();
+            for (const QAction *a : m->actions())
+                if (!a->isSeparator()) enabled << a->isEnabled();
+        });
+        QCOMPARE(enabled, (QList<bool>{true, true, true, false, true, true, true}));
+        rightClick(pane->viewport(), pane->thumbnailRect(1).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QVERIFY(texts.contains(QStringLiteral("Add Section")) && texts.contains(QStringLiteral("Duplicate Slide")));
+        // Move Section Up, from the menu, takes the section's slides along.
+        rightClick(pane->viewport(), pane->headerRect(1).center(), [&](QMenu *m) {
+            for (QAction *a : m->actions())
+                if (a->text() == QLatin1String("Move Section Up")) a->trigger();
+        });
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionNames(*ed->doc()), (QStringList{"Budget", "Default Section"}));
+        QCOMPARE(ed->undoStack()->count(), 3);
+        QTRY_COMPARE(pane->item(0)->text(), QStringLiteral("Budget"));
+        // Remove Section from the menu, and Remove Section & Slides.
+        rightClick(pane->viewport(), pane->headerRect(0).center(), [&](QMenu *m) {
+            for (QAction *a : m->actions())
+                if (a->text() == QLatin1String("Remove Section && Slides")) a->trigger();
+        });
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"One", "Two"}));
+        QCOMPARE(sectionNames(*ed->doc()), (QStringList{"Default Section"}));
+        QTRY_COMPARE(pane->count(), 3);
+        ed->undo();
+        QTRY_COMPARE(pane->count(), 7);
+        // Dragging a thumbnail to another section's place (what a drop does): it joins the section it lands in.
+        pane->moveSlide(0, 3, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Four", "Five", "One", "Three", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{2, 3}));
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{3, 2}));
+        // Put under the next heading without changing places (the last of a section to the first of the next), it changes section.
+        pane->moveSlide(2, 3, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "One", "Five", "Two"}));
+        ed->undo();
+        pane->moveSlide(2, 2, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{2, 3}));
+        pane->moveSlide(2, 2, 1);   // where it is: nothing
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        // Up and Down in the pane go from slide to slide, past the slides of a section folded away.
+        pane->setFocus();
+        ed->setCurrentPage(2);   // the last of the first section
+        pane->setCollapsed(1, true);
+        QTest::keyClick(pane, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 2);
+        pane->setCollapsed(1, false);
+        QTest::keyClick(pane, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 3);
+        QTest::keyClick(pane, Qt::Key_Home);
+        QCOMPARE(ed->currentPage(), 0);
+        QTest::keyClick(pane, Qt::Key_End);
+        QCOMPARE(ed->currentPage(), 4);
+    }
+
+    // The slide sorter starts each section on a row of its own under its heading; a heading folds
+    // its section, and a slide dropped among a section's slides is in the section.
+    void slideSorterGroupsThumbnailsUnderSectionHeaders()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four", "Five", "Six"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();
+        ed->setCurrentPage(5);
+        w.act("section.add")->trigger();   // One Two | Three Four Five | Six
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 1}));
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        QTRY_COMPARE(s->renderedCount(), 6);
+        auto row = [&](int slide) { return s->thumbnailRect(slide).top(); };
+        // A heading above each section's first row; a section's slides in rows from there.
+        for (int section = 0; section < 3; ++section) {
+            QVERIFY(!s->sectionHeaderRect(section).isNull());
+            QCOMPARE(s->headerAt(s->sectionHeaderRect(section).center()), section);
+            QCOMPARE(s->slideAt(s->sectionHeaderRect(section).center()), -1);
+        }
+        QVERIFY(s->sectionHeaderRect(0).bottom() < row(0));
+        QCOMPARE(row(1), row(0));
+        QVERIFY(row(2) > row(1) + s->thumbnailRect(1).height());
+        QVERIFY(s->sectionHeaderRect(1).top() >= s->thumbnailRect(1).bottom());
+        QVERIFY(s->sectionHeaderRect(1).bottom() < row(2));
+        QCOMPARE(row(3), row(2));
+        QCOMPARE(row(4), row(2));
+        QVERIFY(row(5) > row(4) + s->thumbnailRect(4).height());
+        QVERIFY(s->sectionHeaderRect(2).bottom() < row(5));
+        QCOMPARE(s->slideAt(centerOf(s, 4)), 4);
+        // Folding: the slides go and the rest comes up.
+        const int before = row(5);
+        QTest::mouseClick(s->viewport(), Qt::LeftButton, Qt::NoModifier, s->sectionHeaderRect(1).center());
+        QVERIFY(s->isCollapsed(1));
+        QVERIFY(s->thumbnailRect(3).isNull());
+        QCOMPARE(s->slideAt(QPoint(5, 5)), -1);
+        QVERIFY(row(5) < before);
+        QVERIFY(w.slidesPane()->isCollapsed(1));
+        s->setCollapsed(1, false);
+        QCOMPARE(row(5), before);
+        QVERIFY(!w.slidesPane()->isCollapsed(1));
+        // Dragging "Six" to the left of the first slide puts it first in the first section.
+        QTRY_COMPARE(s->renderedCount(), 6);
+        QWidget *vp = s->viewport();
+        const QPoint from = centerOf(s, 5), to(s->thumbnailRect(0).left() + 3, s->thumbnailRect(0).center().y());
+        ed->undoStack()->clear();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(vp, from + QPoint(-12, 0));
+        QTest::mouseMove(vp, from + QPoint(-40, 0));
+        QTest::mouseMove(vp, to);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(titlesOf(*d), (QStringList{"Six", "One", "Two", "Three", "Four", "Five"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 3, 0}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 1}));
+        // Dropped at the right of a section's last slide, it is that section's (not the next one's first).
+        QTRY_COMPARE(s->renderedCount(), 6);
+        const QRect last = s->thumbnailRect(4);
+        const QPoint far(last.right() + 8, last.center().y());
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, centerOf(s, 0));
+        QTest::mouseMove(vp, centerOf(s, 0) + QPoint(14, 14));
+        QTest::mouseMove(vp, centerOf(s, 0) + QPoint(60, 40));
+        QTest::mouseMove(vp, far);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, far);
+        QCOMPARE(titlesOf(*d), (QStringList{"Two", "Three", "Four", "Five", "One", "Six"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{1, 4, 1}));
+        ed->undo();
+        // A heading's menu is the section's, as in the slides pane.
+        QStringList texts;
+        rightClick(vp, s->sectionHeaderRect(2).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QCOMPARE(texts, (QStringList{"Rename Section", "Remove Section", "Remove Section && Slides", "Move Section Up", "Move Section Down", "Collapse All", "Expand All"}));
+        rightClick(vp, s->thumbnailRect(2).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QVERIFY(texts.contains(QStringLiteral("Add Section")));
+        // Left and Right go from slide to slide across the sections; Down to the row below.
+        ed->setCurrentPage(1);
+        QTest::keyClick(s, Qt::Key_Right);
+        QCOMPARE(ed->currentPage(), 2);
+        QTest::keyClick(s, Qt::Key_Left);
+        QCOMPARE(ed->currentPage(), 1);
+        QTest::keyClick(s, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 3);   // the nearest slide of the section below
+        QTest::keyClick(s, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 5);
+        QTest::keyClick(s, Qt::Key_Up);
+        QCOMPARE(ed->currentPage(), 2);   // the one across from "Six", at the left
+    }
+
+    // The Home tab's Section button: Add, Rename, Remove, Remove All, Collapse All, and Expand All.
+    void ribbonSectionMenu()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QAction *command = w.findChild<QAction *>(QStringLiteral("ribbon.section"));
+        QVERIFY(command);
+        QMenu *menu = nullptr;
+        for (QObject *o : command->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        QCOMPARE(menu->actions(), (QList<QAction *>{w.act("section.add"), w.act("section.rename"), w.act("section.remove"), w.act("section.removeAll"), menu->actions().at(4),
+                                                    w.act("section.collapseAll"), w.act("section.expandAll")}));
+        QVERIFY(menu->actions().at(4)->isSeparator());
+        QCOMPARE(w.act("section.add")->text(), QStringLiteral("Add Section"));
+        QCOMPARE(w.act("section.rename")->text(), QStringLiteral("Rename Section"));
+        QCOMPARE(w.act("section.remove")->text(), QStringLiteral("Remove Section"));
+        QCOMPARE(w.act("section.removeAll")->text(), QStringLiteral("Remove All Sections"));
+        QCOMPARE(w.act("section.collapseAll")->text(), QStringLiteral("Collapse All"));
+        QCOMPARE(w.act("section.expandAll")->text(), QStringLiteral("Expand All"));
+        // In the Slides group, after Reset.
+        RibbonGroup *slides = nullptr;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Home"))->groups())
+            if (g->title() == QLatin1String("Slides")) slides = g;
+        QVERIFY(slides);
+        QList<QToolButton *> buttons = slides->findChildren<QToolButton *>();
+        int reset = -1, section = -1;
+        for (int i = 0; i < buttons.size(); ++i) {
+            if (buttons[i]->defaultAction() == w.act("slide.reset")) reset = i;
+            if (buttons[i]->defaultAction() == command) section = i;
+        }
+        QVERIFY(reset >= 0 && section > reset);
+    }
+
     // Outline view: the presentation's text, each slide a numbered heading
     // with its title in bold and its body lines under it, by level.
     void outlineShowsTitlesAndBodyLines()
@@ -1179,12 +1890,12 @@ private:
         const QByteArray group = pptBox(0xF004, pptRec(0xF009, QByteArray(16, '\0'), 0, 1) + pptRec(0xF00A, le(0x400, 4) + le(5, 4), 0, 2));
         return pptBox(1036, pptBox(0xF002, pptRec(0xF008, le(2, 4) + le(0x402, 4)) + pptBox(0xF003, group + shapes)));
     }
-    // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds.
-    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900)
+    // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds (and its property record).
+    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray())
     {
         const QByteArray anchor = le(top, 2) + le(left, 2) + le(right, 2) + le(bottom, 2);
         const QByteArray data = pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({placeholder, 0, 0, 0})));
-        return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
+        return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
     }
     static QByteArray outlineRef(int index) { return pptRec(3998, le(index, 4)); }
 
@@ -1208,8 +1919,12 @@ private:
     // has a field, a link, a language, and a ruler, and that fades in. `cycle`
     // makes the older edit point back at the newer. `notesByAtom` leaves the
     // first slide without the id of its notes, which then name the slide.
-    // `bodyGroup` stands for the first slide's body text.
-    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray())
+    // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
+    // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
+    // a shape for its drawing, and `masterExtra` more records for the main master.
+    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
+                               const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
+                               const QByteArray &masterExtra = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
@@ -1222,6 +1937,7 @@ private:
         const QByteArray environment = pptBox(1010, fonts + pptRec(4003, bodyStyle, 1));
         const QByteArray document = pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
             + environment
+            + drawingGroup
             + (links ? pptBox(1033, pptRec(1034, le(1, 4)) + pptBox(4055, pptRec(4051, le(7, 4)) + pptRec(4026, utf16(QStringLiteral("the site")), 0) + pptRec(4026, utf16(QStringLiteral("https://example.org/site")), 1)))
                      : QByteArray())
             + pptBox(4080, slidePersist(3, 0, kMaster) + (titleMaster ? slidePersist(7, 0, kTitleMaster) : QByteArray()), 1)
@@ -1247,7 +1963,8 @@ private:
         const QByteArray mainMaster = pptBox(1016, slideAtom(1, QByteArray("\x01\x02\x07\x08\x09", 5), 0, 0, 3) + colorScheme(1)
             // The title text: centered, the second font, 44 points, the title text color.
             + pptRec(4003, le(1, 2) + le(0x800, 4) + le(1, 2) + le(0x70000, 4) + le(1, 2) + le(44, 2) + pptColor(0, 0, 0, 3), 0)
-            + pptDrawing(pptShape(0x402, 1, QByteArray()) + pptShape(0x403, 2, QByteArray())));
+            + masterExtra
+            + pptDrawing(pptShape(0x402, 1, QByteArray(), 100, 200, 5000, 900, masterTitleProps) + pptShape(0x403, 2, QByteArray()) + masterBackground));
         const QByteArray titleMasterRec = pptBox(1016, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
             // The centered title and the subtitle, with only their sizes (the levels of these two start with their number).
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0x800, 4) + le(1, 2) + le(0x20000, 4) + le(54, 2), 6)
@@ -1259,7 +1976,7 @@ private:
             return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, transition.isEmpty() ? info : transition) + pptDrawing(shapes));
         };
         const QByteArray titleOnBody = pptShape(0x402, 0xD, outlineRef(0)) + pptShape(0x403, 0xE, outlineRef(1), 1000, 200, 5000, 3800);
-        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody);
+        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody + firstSlideShapes);
         const QByteArray secondOld = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody);
         const QByteArray second = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, true, titleOnBody);
         const QByteArray third = slide(0, QByteArray("\x0F\x10", 2), kTitleMaster, 0, false, pptShape(0x402, 0xF, outlineRef(0)) + pptShape(0x403, 0x10, outlineRef(1)));
@@ -2336,6 +3053,286 @@ private Q_SLOTS:
 
     // Header & Footer puts the slide number, the date, and a line of text in
     // each slide's own placeholders for them, and takes them away again.
+    // A slide's text box shows text that doesn't fit, running out of it as
+    // the presentation program draws it: down from text at the top, both ways
+    // from centered text, up from text at the bottom. A publication's box
+    // keeps it for a next box instead. Text that fits is set as before.
+    void slideTextRunsOutOfItsBox()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontPointSize(20);
+        c.insertText(QStringLiteral("One"), cf);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Two"), cf);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Three"), cf);
+        FrameSpec fs;
+        fs.size = QSizeF(200, 30);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        StoryLayout held;
+        held.build(&doc, {fs}, LayoutEnv());
+        QVERIFY(held.overflow());
+        QVERIFY(held.lineInfo(0).size() < 3);
+        fs.runsOver = true;
+        for (const VAlign v : {VAlign::Top, VAlign::Middle, VAlign::Bottom}) {
+            fs.valign = v;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, LayoutEnv());
+            QVERIFY(!lay.overflow());
+            const auto lines = lay.lineInfo(0);
+            QCOMPARE(int(lines.size()), 3);
+            const double top = lines.first().rect.top(), bottom = lines.last().rect.bottom() - lines.last().below;
+            QVERIFY(bottom - top > 30);
+            if (v == VAlign::Top) QVERIFY2(std::abs(top) < 0.5, qPrintable(QString::number(top)));
+            if (v == VAlign::Middle) QVERIFY2(std::abs((top + bottom) / 2 - 15) < 0.5, qPrintable(QString::number((top + bottom) / 2)));
+            if (v == VAlign::Bottom) QVERIFY2(std::abs(bottom - 30) < 0.5, qPrintable(QString::number(bottom)));
+        }
+        fs.size = QSizeF(200, 300);
+        fs.valign = VAlign::Middle;
+        FrameSpec plain = fs;
+        plain.runsOver = false;
+        StoryLayout a, b;
+        a.build(&doc, {plain}, LayoutEnv());
+        b.build(&doc, {fs}, LayoutEnv());
+        QCOMPARE(int(a.lineInfo(0).size()), 3);
+        for (int i = 0; i < 3; ++i) QCOMPARE(b.lineInfo(0)[i].rect, a.lineInfo(0)[i].rect);
+        // Presentations' boxes run over, publications' don't.
+        QVERIFY(deck::newPresentation()->slideText);
+        QVERIFY(!Document().slideText);
+        QString err;
+        auto opened = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(opened && opened->slideText, qPrintable(err));
+    }
+
+    // A slide's lines are the presentation program's: a single line is 1.2 times the text size whatever the font, a wider line's
+    // extra space is above it, and the paragraph at the top of the box takes no space before it.
+    void slideLinesAreTheProgramsLines()
+    {
+        for (const QString &family : {QStringLiteral("Liberation Serif"), QStringLiteral("DejaVu Sans")}) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLineHeight(150, QTextBlockFormat::ProportionalHeight);
+            bf.setTopMargin(12);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(20);
+            c.insertText(QStringLiteral("One"), cf);
+            c.insertText(QString(QChar::LineSeparator), cf);
+            c.insertText(QStringLiteral("Two"), cf);
+            FrameSpec fs;
+            fs.size = QSizeF(300, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            LayoutEnv env;
+            env.slideLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            const auto lines = lay.lineInfo(0);
+            QCOMPARE(int(lines.size()), 2);
+            QVERIFY2(std::abs(lines[0].rect.top()) < 0.01, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].rect.top())));
+            QVERIFY2(std::abs(lines[1].baseline - lines[0].baseline - 1.5 * 1.2 * 20) < 0.01, qPrintable(family + QLatin1Char(' ') + QString::number(lines[1].baseline - lines[0].baseline)));
+            // The extra space is above the text: the first baseline is a whole line down, less the text's descent.
+            QVERIFY2(lines[0].baseline > 1.5 * 1.2 * 20 * 0.7, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].baseline)));
+            QCOMPARE(lines[0].below, 0.0);
+        }
+        // A bullet drawn bigger than its text (150 percent) leaves its line the text's.
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        lf.setProperty(tp::BulletSize, 30.0);
+        QTextCharFormat cf;
+        cf.setFontPointSize(20);
+        c.insertText(QStringLiteral("One"), cf);
+        c.createList(lf);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Two"), cf);
+        FrameSpec fs;
+        fs.size = QSizeF(300, 300);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        LayoutEnv env;
+        env.slideLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {fs}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(int(lines.size()), 2);
+        QVERIFY2(std::abs(lines[0].rect.height() - 1.2 * 20) < 0.01, qPrintable(QString::number(lines[0].rect.height())));
+    }
+
+    // Text the presentation program shrank to fit keeps the size and line spacing it was given (a:normAutofit's fontScale and
+    // lnSpcReduction), read and written back, until it is edited here: then JeffDeck fits it.
+    void shrunkTextKeepsTheProgramsFit()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QString lines;
+        for (int i = 0; i < 12; ++i) lines += para(QStringLiteral("Line %1 of a long list").arg(i + 1));
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Shrunk\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 914400)
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr><a:normAutofit fontScale=\"62500\" lnSpcReduction=\"20000\"/></a:bodyPr><a:lstStyle/>")
+                                                       + lines + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        TextItem *t = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Shrunk")) t = static_cast<TextItem *>(it.get());
+        QVERIFY(t);
+        QCOMPARE(int(t->autofit), int(TextItem::ShrinkOnOverflow));
+        QVERIFY(t->fitAsStored);
+        QCOMPARE(t->fitScale, 0.625);
+        QCOMPARE(t->fitLineCut, 20.0);
+        // Drawn at that size, though it doesn't fit (the program's metrics are its own), the lines 20 points closer.
+        LayoutCache cache;
+        auto fl = cache.textFrame(*d, *t, 1, RenderOptions());
+        QCOMPARE(fl.fitScale, 0.625);
+        const auto stored = fl.layout->lineInfo(0);
+        QCOMPARE(int(stored.size()), 12);
+        QVERIFY2(std::abs(stored[1].baseline - stored[0].baseline - 0.8 * 1.2 * 18 * 0.625) < 0.05, qPrintable(QString::number(stored[1].baseline - stored[0].baseline)));
+        // Written back so.
+        Exported e;
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:normAutofit fontScale=\"62500\" lnSpcReduction=\"20000\"/>")));
+        // Edited here, it is fitted here: smaller, to hold all twelve lines.
+        t->fitAsStored = false;
+        fl = cache.textFrame(*d, *t, 1, RenderOptions());
+        QVERIFY2(fl.fitScale < 0.625, qPrintable(QString::number(fl.fitScale)));
+        // The window does that as the text is typed.
+        DeckWindow w;
+        w.editor()->replaceDocument(deck::importPresentation(pack(p), &err), QString());
+        Editor *ed = w.editor();
+        TextItem *box = nullptr;
+        for (const auto &it : ed->doc()->pages[0]->items)
+            if (it->name == QLatin1String("Shrunk")) box = static_cast<TextItem *>(it.get());
+        QVERIFY(box && box->fitAsStored);
+        ed->select(box->id);
+        ed->beginTextEdit(box->id, 0);
+        QVERIFY(box->fitAsStored);   // clicking into it changes nothing
+        ed->insertText(QStringLiteral("x"));
+        QVERIFY(!box->fitAsStored);
+    }
+
+    // A slide's empty placeholder shows the fill its layout gives it (a design's sample picture), whose picture is named by the
+    // layout's relationships, not the slide's.
+    void emptyPlaceholderShowsItsLayoutsPictureFill()
+    {
+        Parts p = samplePptx();
+        QImage green(4, 4, QImage::Format_RGB32);
+        green.fill(QColor(0x10, 0xC0, 0x30));
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        green.save(&buf, "PNG");
+        p.data["/ppt/media/image2.png"] = {QStringLiteral("image/png"), png};
+        // The layout's rId2 is the green picture; the slide's rId2 is the orange one.
+        p.rels << Rel{"/ppt/slideLayouts/slideLayout2.xml", "image", "/ppt/media/image2.png"};
+        QString layout = QString::fromUtf8(p.data["/ppt/slideLayouts/slideLayout2.xml"].xml);
+        layout.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"9\" name=\"Picture Placeholder 8\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph type=\"pic\" idx=\"13\"/></p:nvPr></p:nvSpPr><p:spPr>")
+                                                          + xfrm(6400800, 1825625, 4572000, 3429000)
+                                                          + QStringLiteral("<a:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill></p:spPr></p:sp></p:spTree>"));
+        p.data["/ppt/slideLayouts/slideLayout2.xml"].xml = layout.toUtf8();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"31\" name=\"Picture Placeholder 30\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph type=\"pic\" idx=\"13\"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const PictureItem *slot = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Picture Placeholder 30")) slot = static_cast<const PictureItem *>(it.get());
+        QVERIFY(slot && slot->imageId.isEmpty());
+        QCOMPARE(int(slot->fill.type), int(Fill::Picture));
+        const QImage shown = d->image(slot->fill.imageId);
+        QVERIFY(!shown.isNull());
+        QCOMPARE(QColor(shown.pixel(1, 1)), QColor(0x10, 0xC0, 0x30));
+    }
+
+    // A shape filled with the slide's background (p:sp useBgFill) has the background's fill: the slide's own, else the one its
+    // layout or master shows.
+    void shapesFilledWithTheBackground()
+    {
+        const QString panel = QStringLiteral("<p:sp useBgFill=\"1\"><p:nvSpPr><p:cNvPr id=\"40\" name=\"Panel\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>")
+                              + xfrm(0, 0, 6096000, 6858000)
+                              + QStringLiteral("<a:ln><a:noFill/></a:ln></p:spPr><p:style><a:lnRef idx=\"2\"><a:schemeClr val=\"accent1\"/></a:lnRef><a:fillRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:fillRef>"
+                                               "<a:effectRef idx=\"0\"><a:schemeClr val=\"accent1\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"lt1\"/></a:fontRef></p:style></p:sp>");
+        auto panelOf = [](const Document &d, int slide) -> const Item * {
+            for (const auto &it : d.pages[slide]->items)
+                if (it->name == QLatin1String("Panel")) return it.get();
+            return nullptr;
+        };
+        Parts p = samplePptx();
+        // Slide 2 has a background of its own (112233); slide 1 shows its master's.
+        for (const char *slide : {"/ppt/slides/slide1.xml", "/ppt/slides/slide2.xml"}) {
+            QString xml = QString::fromUtf8(p.data[QString::fromLatin1(slide)].xml);
+            xml.replace(QStringLiteral("</p:spTree>"), panel + QStringLiteral("</p:spTree>"));
+            p.data[QString::fromLatin1(slide)].xml = xml.toUtf8();
+        }
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Item *own = panelOf(*d, 1), *inherited = panelOf(*d, 0);
+        QVERIFY(own && inherited);
+        QCOMPARE(int(own->fill.type), int(Fill::Solid));
+        QCOMPARE(own->fill.color.resolve(d->colors), QColor(0x11, 0x22, 0x33));
+        const MasterPage *layout = d->masterFor(*d->pages[0]);
+        Fill shown = layout ? layout->background : Fill();
+        for (const MasterPage *m : d->masterChain(layout))
+            if (!m->background.isNone()) shown = m->background;
+        if (layout && !layout->background.isNone()) shown = layout->background;
+        QCOMPARE(int(inherited->fill.type), int(shown.type));
+        QVERIFY(!(inherited->fill.type == Fill::Solid && inherited->fill.color.resolve(d->colors) == d->colors.c[Accent1]));
+    }
+
+    // Text art (an old file's) is saved as the presentation program keeps the older kind: text warped into its box and stretched
+    // to fill it, with the art's letters' look; read again, it is the same art.
+    void textArtIsSavedAndReadBack()
+    {
+        auto d = deck::newPresentation();
+        auto art = std::make_shared<TextArtItem>();
+        art->name = QStringLiteral("Art");
+        art->rect = QRectF(100, 100, 400, 150);
+        art->text = QStringLiteral("Hello\nWorld");
+        art->font = QStringLiteral("Arial");
+        art->bold = true;
+        art->size = 40;
+        art->transform_ = QStringLiteral("archUp");
+        art->align = 0;
+        art->fill = Fill::solid(ColorRef::rgb(QColor(0xCC, 0x11, 0x22)));
+        art->stroke = Stroke::line(ColorRef::rgb(QColor(0x11, 0x22, 0xCC)), 1.5);
+        d->pages[0]->items.push_back(art);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.filter(QStringLiteral("text art")).isEmpty(), qPrintable(skipped.join('\n')));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("<a:prstTxWarp prst=\"textArchUp\">")));
+        QVERIFY(slide.contains(QStringLiteral("fromWordArt=\"1\"")));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const TextArtItem *read = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->name == QLatin1String("Art") && it->type() == ItemType::TextArt) read = static_cast<const TextArtItem *>(it.get());
+        QVERIFY(read);
+        QCOMPARE(read->text, art->text);
+        QCOMPARE(read->transform_, QStringLiteral("archUp"));
+        QCOMPARE(read->font, QStringLiteral("Arial"));
+        QVERIFY(read->bold);
+        QCOMPARE(read->size, 40.0);
+        QCOMPARE(read->align, 0);
+        QCOMPARE(read->fill.color.resolve(back->colors), QColor(0xCC, 0x11, 0x22));
+        QCOMPARE(read->stroke.color.resolve(back->colors), QColor(0x11, 0x22, 0xCC));
+        QVERIFY(std::abs(read->rect.width() - 400) < 0.5 && std::abs(read->rect.height() - 150) < 0.5);
+    }
+
     void headerAndFooterPlaceholders()
     {
         auto d = deck::newPresentation();   // a title slide
@@ -3356,6 +4353,1114 @@ private Q_SLOTS:
         }
     }
 
+    // A slide's page props "timingXml" and the shapes it animates need a
+    // number each (the file's): the slide's title is 2 and its body 3.
+    static void numberShowShapes(Page &slide)
+    {
+        slide.items[0]->sourceId = 2;
+        slide.items[1]->sourceId = 3;
+    }
+
+    // A slide painted with the page's hooks, or without: a picture the size of the slide.
+    static QImage paintedSlide(Document *d, LayoutCache *cache, int slide, const std::function<void(PaintContext &)> &hook = nullptr)
+    {
+        QImage img(QSize(960, 540), QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::TextAntialiasing);
+        PaintContext ctx;
+        ctx.doc = d;
+        ctx.cache = cache;
+        if (hook) hook(ctx);
+        Renderer::paintPage(&p, ctx, slide);
+        p.end();
+        return img;
+    }
+
+    // The hooks on painting a page (the show's animations) change nothing
+    // while they are unset or only pass the drawing on; set, they are called
+    // for the page's own objects (not the master's, and not a group's
+    // children) and for the text of each object that has some.
+    void rendererHooksChangeNothingUnset()
+    {
+        auto d = showDeck(2);
+        Page &slide = *d->pages[0];
+        auto inner = std::make_shared<ShapeItem>();
+        inner->rect = QRectF(300, 380, 120, 80);
+        inner->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+        auto group = std::make_shared<GroupItem>();
+        group->children.push_back(inner);
+        group->syncRect();
+        slide.items.push_back(group);
+        LayoutCache cache;
+        const QImage plain = paintedSlide(d.get(), &cache, 0);
+        QVERIFY(plain != paintedSlide(d.get(), &cache, 1));
+        // Passed on, the page is the same picture.
+        int arounds = 0, texts = 0;
+        const QImage passed = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) {
+            ctx.around = [&](QPainter *p, const Item &, const std::function<void(QPainter *)> &draw) {
+                ++arounds;
+                draw(p);
+            };
+            ctx.aroundText = [&](QPainter *p, const Item &, const StoryLayout &, int, const std::function<void(QPainter *)> &paintText) {
+                ++texts;
+                paintText(p);
+            };
+        });
+        QCOMPARE(passed, plain);
+        QCOMPARE(arounds, int(slide.items.size()));
+        QVERIFY(texts >= 2);   // the title and the body; the group's shape has no text
+        // Not passed on, the object is not drawn.
+        const QImage without = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) {
+            ctx.around = [&](QPainter *p, const Item &it, const std::function<void(QPainter *)> &draw) {
+                if (&it != group.get()) draw(p);
+            };
+        });
+        QVERIFY(without != plain);
+        slide.items.pop_back();
+        QCOMPARE(without, paintedSlide(d.get(), &cache, 0));
+    }
+
+    // ---- animations: slide timings as the presentation program writes them ----
+
+    // XML written with ' where an attribute's quotes go, so that it reads without escapes.
+    static QString animXml(const char *xml) { return QString::fromLatin1(xml).replace(QLatin1Char('\''), QLatin1Char('"')); }
+
+    static int animId() { static int n = 10; return ++n; }
+
+    static QString animTarget(int spid, int paragraph = -1)
+    {
+        if (paragraph < 0) return animXml("<p:tgtEl><p:spTgt spid='%1'/></p:tgtEl>").arg(spid);
+        return animXml("<p:tgtEl><p:spTgt spid='%1'><p:txEl><p:pRg st='%2' end='%2'/></p:txEl></p:spTgt></p:tgtEl>").arg(spid).arg(paragraph);
+    }
+
+    // What an entrance starts with and an exit ends with: the shape is shown or hidden at `delay` ms.
+    static QString animShow(int spid, bool visible, int delay = 0, int paragraph = -1)
+    {
+        return animXml("<p:set><p:cBhvr><p:cTn id='%1' dur='1' fill='hold'><p:stCondLst><p:cond delay='%2'/></p:stCondLst></p:cTn>%3<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='%4'/></p:to></p:set>")
+            .arg(animId()).arg(delay).arg(animTarget(spid, paragraph), visible ? QStringLiteral("visible") : QStringLiteral("hidden"));
+    }
+
+    static QString animFilter(int spid, const char *filter, bool entering, int ms, int paragraph = -1)
+    {
+        return animXml("<p:animEffect transition='%1' filter='%2'><p:cBhvr><p:cTn id='%3' dur='%4'/>%5</p:cBhvr></p:animEffect>")
+            .arg(entering ? QStringLiteral("in") : QStringLiteral("out"), QString::fromLatin1(filter)).arg(animId()).arg(ms).arg(animTarget(spid, paragraph));
+    }
+
+    // One attribute animated from a value or formula to another.
+    static QString animValues(int spid, const char *attribute, const char *from, const char *to, int ms)
+    {
+        return animXml("<p:anim calcmode='lin' valueType='num'><p:cBhvr additive='base'><p:cTn id='%1' dur='%2' fill='hold'/>%3<p:attrNameLst><p:attrName>%4</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst><p:tav tm='0'><p:val><p:strVal val='%5'/></p:val></p:tav><p:tav tm='100000'><p:val><p:strVal val='%6'/></p:val></p:tav></p:tavLst></p:anim>")
+            .arg(animId()).arg(ms).arg(animTarget(spid), QString::fromLatin1(attribute), QString::fromLatin1(from), QString::fromLatin1(to));
+    }
+
+    // An effect: a node of the step's tree with a preset and its behaviors.
+    static QString animNode(const char *cls, int preset, int subtype, const char *nodeType, int delay, const QStringList &behaviors)
+    {
+        return animXml("<p:par><p:cTn id='%1' presetID='%2' presetClass='%3' presetSubtype='%4' fill='hold' nodeType='%5'><p:stCondLst><p:cond delay='%6'/></p:stCondLst><p:childTnLst>%7</p:childTnLst></p:cTn></p:par>")
+            .arg(animId()).arg(preset).arg(QString::fromLatin1(cls)).arg(subtype).arg(QString::fromLatin1(nodeType)).arg(delay).arg(behaviors.join(QString()));
+    }
+
+    static QString animFadeIn(int spid, int ms, const char *nodeType = "clickEffect", int delay = 0, int paragraph = -1)
+    {
+        return animNode("entr", 10, 0, nodeType, delay, {animShow(spid, true, 0, paragraph), animFilter(spid, "fade", true, ms, paragraph)});
+    }
+
+    static QString animAppear(int spid, const char *nodeType = "clickEffect", int delay = 0)
+    {
+        return animNode("entr", 1, 0, nodeType, delay, {animShow(spid, true)});
+    }
+
+    // Fly in from the left: x runs from half the shape's width off the slide's edge to where it is.
+    static QString animFlyIn(int spid, int ms)
+    {
+        return animNode("entr", 2, 8, "clickEffect", 0,
+                        {animShow(spid, true), animValues(spid, "ppt_x", "0-#ppt_w/2", "#ppt_x", ms), animValues(spid, "ppt_y", "#ppt_y", "#ppt_y", ms)});
+    }
+
+    static QString animFadeOut(int spid, int ms, const char *nodeType = "clickEffect", int delay = 0)
+    {
+        return animNode("exit", 10, 0, nodeType, delay, {animFilter(spid, "fade", false, ms), animShow(spid, false, ms - 1)});
+    }
+
+    static QString animWipe(int spid, const char *direction, bool entering, int ms)
+    {
+        return animNode(entering ? "entr" : "exit", 22, 8, "clickEffect", 0,
+                        entering ? QStringList{animShow(spid, true), animFilter(spid, direction, true, ms)}
+                                 : QStringList{animFilter(spid, direction, false, ms), animShow(spid, false, ms - 1)});
+    }
+
+    static QString animSpin(int spid, int ms, int degrees)
+    {
+        return animNode("emph", 8, 0, "clickEffect", 0,
+                        {animXml("<p:animRot by='%1'><p:cBhvr><p:cTn id='%2' dur='%3' fill='hold'/>%4<p:attrNameLst><p:attrName>r</p:attrName></p:attrNameLst></p:cBhvr></p:animRot>")
+                             .arg(degrees * 60000).arg(animId()).arg(ms).arg(animTarget(spid))});
+    }
+
+    static QString animGrow(int spid, int ms, int percent)
+    {
+        return animNode("emph", 6, 0, "clickEffect", 0,
+                        {animXml("<p:animScale><p:cBhvr><p:cTn id='%1' dur='%2' fill='hold'/>%3</p:cBhvr><p:by x='%4' y='%4'/></p:animScale>")
+                             .arg(animId()).arg(ms).arg(animTarget(spid)).arg(percent * 1000)});
+    }
+
+    static QString animPath(int spid, int ms, const char *path)
+    {
+        return animNode("path", 0, 0, "clickEffect", 0,
+                        {animXml("<p:animMotion origin='layout' path='%1' pathEditMode='relative' rAng='0' ptsTypes='AA'><p:cBhvr><p:cTn id='%2' dur='%3' fill='hold'/>%4<p:attrNameLst><p:attrName>ppt_x</p:attrName><p:attrName>ppt_y</p:attrName></p:attrNameLst></p:cBhvr></p:animMotion>")
+                             .arg(QString::fromLatin1(path)).arg(animId()).arg(ms).arg(animTarget(spid))});
+    }
+
+    // Play a movie: a step that shows nothing.
+    static QString animMediaCall(int spid)
+    {
+        return animNode("mediacall", 1, 0, "clickEffect", 0,
+                        {animXml("<p:cmd type='call' cmd='playFrom(0.0)'><p:cBhvr><p:cTn id='%1' dur='1' fill='hold'/>%2</p:cBhvr></p:cmd>").arg(animId()).arg(animTarget(spid))});
+    }
+
+    static QString animGroup(int delay, const QStringList &effects)
+    {
+        return animXml("<p:par><p:cTn id='%1' fill='hold'><p:stCondLst><p:cond delay='%2'/></p:stCondLst><p:childTnLst>%3</p:childTnLst></p:cTn></p:par>")
+            .arg(animId()).arg(delay).arg(effects.join(QString()));
+    }
+
+    // A click step; one that starts by itself when the slide is shown has the main sequence's start as a second condition.
+    static QString animStep(const QStringList &groups, bool automatic = false)
+    {
+        return animXml("<p:par><p:cTn id='%1' fill='hold'><p:stCondLst><p:cond delay='indefinite'/>%2</p:stCondLst><p:childTnLst>%3</p:childTnLst></p:cTn></p:par>")
+            .arg(animId())
+            .arg(automatic ? animXml("<p:cond evt='onBegin' delay='0'><p:tn val='2'/></p:cond>") : QString(), groups.join(QString()));
+    }
+
+    // Each effect in a step of its own.
+    static QString animSteps(const QStringList &effects)
+    {
+        QString out;
+        for (const QString &e : effects) out += animStep({animGroup(0, {e})});
+        return out;
+    }
+
+    static QString animTiming(const QString &steps, const QString &after = QString())
+    {
+        return animXml("<p:timing xmlns:p='http://schemas.openxmlformats.org/presentationml/2006/main'><p:tnLst><p:par><p:cTn id='1' dur='indefinite' restart='never' nodeType='tmRoot'><p:childTnLst><p:seq concurrent='1' nextAc='seek'><p:cTn id='2' dur='indefinite' nodeType='mainSeq'><p:childTnLst>")
+            + steps
+            + animXml("</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt='onPrev' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt='onNext' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>")
+            + after + QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
+    }
+
+    // Where the shapes the samples aim at are, on a 16:9 slide.
+    static deck::Geometry animGeometry()
+    {
+        deck::Geometry g;
+        g.slide = QSizeF(960, 540);
+        g.shapes.insert(4, QRectF(100, 200, 200, 100));   // its middle is at 200, 250
+        g.shapes.insert(5, QRectF(500, 100, 100, 100));
+        g.shapes.insert(6, QRectF(700, 300, 100, 100));
+        return g;
+    }
+
+    static bool animNear(double a, double b) { return std::abs(a - b) < 1e-6; }
+
+    // The steps of a slide's timing, their effects, and the behaviors of each,
+    // with their times: a click starts a step, an effect that goes with the
+    // one before starts with it (its delay on top), and one after starts when
+    // the group before ends.
+    void animationReadsClickSteps()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(
+            animStep({animGroup(0, {animFadeIn(4, 500)})}) +
+            animStep({animGroup(0, {animFlyIn(4, 400), animFadeIn(5, 300, "withEffect", 200)}), animGroup(700, {animFadeOut(6, 500, "afterEffect", 100)})})));
+        QCOMPARE(int(tl.steps.size()), 2);
+        QVERIFY(!tl.steps[0].automatic);
+        QCOMPARE(int(tl.steps[0].effects.size()), 1);
+        const deck::Effect &fade = tl.steps[0].effects[0];
+        QVERIFY(fade.cls == deck::EffectClass::Entrance);
+        QVERIFY(fade.start == deck::EffectStart::OnClick);
+        QCOMPARE(fade.presetId, 10);
+        QCOMPARE(fade.begin, 0.0);
+        QCOMPARE(int(fade.behaviors.size()), 2);
+        QVERIFY(fade.behaviors[0].kind == deck::Behavior::Kind::Set);
+        QCOMPARE(fade.behaviors[0].attribute, QStringLiteral("style.visibility"));
+        QCOMPARE(fade.behaviors[0].to, QStringLiteral("visible"));
+        QCOMPARE(fade.behaviors[0].target.shape, 4);
+        QVERIFY(fade.behaviors[0].timing.hold);
+        QVERIFY(fade.behaviors[1].kind == deck::Behavior::Kind::Effect);
+        QCOMPARE(fade.behaviors[1].filter, QStringLiteral("fade"));
+        QVERIFY(fade.behaviors[1].entering);
+        QCOMPARE(fade.behaviors[1].timing.duration, 500.0);
+        QCOMPARE(fade.end(), 500.0);
+        QCOMPARE(tl.steps[0].duration(), 500.0);
+        QVERIFY(tl.steps[0].visual());
+        // The second click: a fly in, a fade with it 200 ms later, and an exit after both, 100 ms after the group's start.
+        const deck::Step &second = tl.steps[1];
+        QCOMPARE(int(second.effects.size()), 3);
+        QVERIFY(second.effects[0].start == deck::EffectStart::OnClick);
+        QVERIFY(second.effects[1].start == deck::EffectStart::WithPrevious);
+        QCOMPARE(second.effects[1].begin, 200.0);
+        QVERIFY(second.effects[2].start == deck::EffectStart::AfterPrevious);
+        QVERIFY(second.effects[2].cls == deck::EffectClass::Exit);
+        QCOMPARE(second.effects[2].begin, 800.0);
+        QCOMPARE(second.effects[2].end(), 1300.0);
+        QCOMPARE(second.duration(), 1300.0);
+        // The fly in is a set and a p:anim for x and for y; x runs from a formula to a formula.
+        QCOMPARE(int(second.effects[0].behaviors.size()), 3);
+        const deck::Behavior &x = second.effects[0].behaviors[1];
+        QVERIFY(x.kind == deck::Behavior::Kind::Animate);
+        QCOMPARE(x.attribute, QStringLiteral("ppt_x"));
+        QCOMPARE(int(x.keys.size()), 2);
+        QCOMPARE(x.keys[0].at, 0.0);
+        QCOMPARE(x.keys[0].value, QStringLiteral("0-#ppt_w/2"));
+        QCOMPARE(x.keys[1].at, 1.0);
+        QCOMPARE(x.keys[1].value, QStringLiteral("#ppt_x"));
+        QVERIFY(x.timing.hold);
+        // A step that starts when the slide is shown says so; a slide without timing, or with a broken one, has no steps.
+        QVERIFY(deck::readTimeline(animTiming(animStep({animGroup(0, {animAppear(4, "afterEffect")})}, true))).steps[0].automatic);
+        // Even when the file leaves out the main sequence's start, if the first effect goes with or after one before it.
+        QVERIFY(deck::readTimeline(animTiming(animStep({animGroup(0, {animAppear(4, "withEffect")})}))).steps[0].automatic);
+        QVERIFY(!deck::readTimeline(animTiming(animStep({animGroup(0, {animAppear(4)})}))).steps[0].automatic);
+        QVERIFY(!deck::readTimeline(animTiming(animSteps({animAppear(4), animAppear(5, "withEffect")}))).steps[1].automatic);
+        QVERIFY(deck::readTimeline(QString()).isEmpty());
+        QVERIFY(deck::readTimeline(QStringLiteral("<p:timing")).isEmpty());
+        Page none;
+        QVERIFY(deck::timelineOf(none).isEmpty());
+        none.props[QStringLiteral("timingXml")] = animTiming(animSteps({animAppear(4)}));
+        QCOMPARE(int(deck::timelineOf(none).steps.size()), 1);
+    }
+
+    // An entrance starts hidden; at its click it is shown and fades in with
+    // the time, and played it stays.
+    void animationFadeStates()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animFadeIn(4, 500)})));
+        const deck::Geometry g = animGeometry();
+        QVERIFY(!deck::statesAt(tl, g, 0).value(deck::Target{4}).visible);
+        auto at = [&](double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{4}); };
+        QVERIFY(at(0).visible);
+        QCOMPARE(at(0).opacity, 0.0);
+        QVERIFY(animNear(at(125).opacity, 0.25));
+        QVERIFY(animNear(at(250).opacity, 0.5));
+        QCOMPARE(at(500).opacity, 1.0);
+        QCOMPARE(at(90000).opacity, 1.0);
+        const deck::TargetState done = deck::statesAt(tl, g, 1).value(deck::Target{4});
+        QVERIFY(done.visible);
+        QCOMPARE(done.opacity, 1.0);
+        QCOMPARE(done.offset, QPointF());
+        QCOMPARE(done.scaleX, 1.0);
+        QVERIFY(done.clip.isNull());
+        QVERIFY(!deck::statesAt(tl, g, 0).contains(deck::Target{5}));
+    }
+
+    // Fly in from the left: x runs from -#ppt_w/2 (all of it off the slide) to
+    // #ppt_x, so the shape is moved by the difference.
+    void animationFlyInMoves()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animFlyIn(4, 500)})));
+        const deck::Geometry g = animGeometry();
+        auto at = [&](double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{4}); };
+        // The middle starts at -100 points (half the width off the edge), 300 left of where it is.
+        QVERIFY(animNear(at(0).offset.x(), -300));
+        QVERIFY(animNear(at(250).offset.x(), -150));
+        QVERIFY(animNear(at(500).offset.x(), 0));
+        QCOMPARE(at(0).offset.y(), 0.0);
+        QVERIFY(animNear(at(250).offset.y(), 0));
+        QVERIFY(at(0).visible);
+        QVERIFY(animNear(deck::statesAt(tl, g, 1).value(deck::Target{4}).offset.x(), 0));
+    }
+
+    // Effects with the one before and after it keep their own times, an exit
+    // starts shown and ends hidden.
+    void animationWithAndAfterPreviousAndExit()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animStep(
+            {animGroup(0, {animFlyIn(4, 400), animFadeIn(5, 300, "withEffect", 200)}), animGroup(700, {animFadeOut(6, 500, "afterEffect", 100)})})));
+        const deck::Geometry g = animGeometry();
+        auto at = [&](int shape, double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{shape}); };
+        QVERIFY(deck::statesAt(tl, g, 0).value(deck::Target{6}).visible);   // an exit's target is there at first
+        QVERIFY(!deck::statesAt(tl, g, 0).value(deck::Target{5}).visible);
+        QVERIFY(at(4, 100).visible);
+        QVERIFY(!at(5, 100).visible);                    // it waits 200 ms
+        QVERIFY(at(5, 200).visible);
+        QCOMPARE(at(5, 200).opacity, 0.0);
+        QVERIFY(animNear(at(5, 350).opacity, 0.5));
+        QVERIFY(at(6, 799).visible);
+        QCOMPARE(at(6, 799).opacity, 1.0);               // the group at 700 and the effect's 100 ms: it starts at 800
+        QVERIFY(animNear(at(6, 1050).opacity, 0.5));
+        QVERIFY(at(6, 1298).visible);
+        QVERIFY(!at(6, 1299).visible);                   // hidden when the fade is done
+        const deck::States end = deck::statesAt(tl, g, 1);
+        QVERIFY(end.value(deck::Target{4}).visible);
+        QVERIFY(end.value(deck::Target{5}).visible);
+        QCOMPARE(end.value(deck::Target{5}).opacity, 1.0);
+        QVERIFY(!end.value(deck::Target{6}).visible);
+        // An exit that comes after an entrance of the same shape: hidden, shown, then hidden.
+        const deck::Timeline both = deck::readTimeline(animTiming(animSteps({animFadeIn(4, 100), animFadeOut(4, 100)})));
+        QVERIFY(!deck::statesAt(both, g, 0).value(deck::Target{4}).visible);
+        QVERIFY(deck::statesAt(both, g, 1).value(deck::Target{4}).visible);
+        QVERIFY(!deck::statesAt(both, g, 2).value(deck::Target{4}).visible);
+    }
+
+    // A spin turns the shape about its middle, by the angle the file gives in
+    // 60,000ths of a degree, and keeps the turn; a scale grows it about the middle.
+    void animationSpinRotatesAndGrowScales()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animSpin(4, 2000, 360)})));
+        const deck::Geometry g = animGeometry();
+        QVERIFY(deck::statesAt(tl, g, 0).value(deck::Target{4}).visible);   // an emphasis starts in place
+        QVERIFY(animNear(deck::statesAt(tl, g, 0, 0).value(deck::Target{4}).rotation, 0));
+        QVERIFY(animNear(deck::statesAt(tl, g, 0, 500).value(deck::Target{4}).rotation, 90));
+        QVERIFY(animNear(deck::statesAt(tl, g, 0, 1500).value(deck::Target{4}).rotation, 270));
+        QVERIFY(animNear(deck::statesAt(tl, g, 1).value(deck::Target{4}).rotation, 360));
+        const deck::Timeline grow = deck::readTimeline(animTiming(animSteps({animGrow(4, 1000, 150)})));
+        QVERIFY(animNear(deck::statesAt(grow, g, 0, 500).value(deck::Target{4}).scaleX, 1.25));
+        QVERIFY(animNear(deck::statesAt(grow, g, 0, 500).value(deck::Target{4}).scaleY, 1.25));
+        QVERIFY(animNear(deck::statesAt(grow, g, 1).value(deck::Target{4}).scaleX, 1.5));
+    }
+
+    // A motion path is in fractions of the slide from where the shape is, and
+    // the shape moves along it at an even speed.
+    void animationMotionPath()
+    {
+        const deck::Geometry g = animGeometry();
+        const deck::Timeline line = deck::readTimeline(animTiming(animSteps({animPath(4, 2000, "M 0 0 L 0.25 0.1 E")})));
+        auto at = [&](const deck::Timeline &tl, double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{4}).offset; };
+        QVERIFY(animNear(at(line, 1000).x(), 120));   // 0.125 of 960
+        QVERIFY(animNear(at(line, 1000).y(), 27));    // 0.05 of 540
+        QVERIFY(animNear(deck::statesAt(line, g, 1).value(deck::Target{4}).offset.x(), 240));
+        QVERIFY(animNear(deck::statesAt(line, g, 1).value(deck::Target{4}).offset.y(), 54));
+        QVERIFY(deck::statesAt(line, g, 0).value(deck::Target{4}).visible);
+        const deck::Behavior &motion = line.steps[0].effects[0].behaviors[0];
+        QVERIFY(motion.kind == deck::Behavior::Kind::Motion);
+        QCOMPARE(motion.origin, QStringLiteral("layout"));
+        QCOMPARE(motion.pathEditMode, QStringLiteral("relative"));
+        QCOMPARE(motion.path.elementCount(), 2);
+        // Along two lines, 96 and 108 points long: halfway is 6 points into the second.
+        const deck::Timeline bend = deck::readTimeline(animTiming(animSteps({animPath(4, 2000, "M 0 0 L 0.1 0 L 0.1 0.2 E")})));
+        QVERIFY(animNear(at(bend, 1000).x(), 96));
+        QVERIFY(animNear(at(bend, 1000).y(), 6));
+        // A curve: the path ends where it is told to.
+        const deck::Timeline curve = deck::readTimeline(animTiming(animSteps({animPath(4, 2000, "M 0 0 C 0.1 0 0.2 0.1 0.25 0.1 E")})));
+        QVERIFY(animNear(deck::statesAt(curve, g, 1).value(deck::Target{4}).offset.x(), 240));
+        QVERIFY(at(curve, 1000).x() > 0 && at(curve, 1000).x() < 240);
+    }
+
+    // A build by paragraph aims each effect at a range of the text box's
+    // paragraphs: they start hidden and come one click at a time, and the box
+    // itself, which no effect aims at, is not in the states.
+    void animationBuildsByParagraph()
+    {
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animFadeIn(3, 300, "clickEffect", 0, 0), animFadeIn(3, 300, "clickEffect", 0, 1), animAppear(5)})));
+        QCOMPARE(int(tl.steps.size()), 3);
+        const deck::Target first{3, 0, 0}, second{3, 1, 1}, whole{3, -1, -1};
+        QVERIFY(tl.steps[1].effects[0].behaviors[0].target == second);
+        QVERIFY(second.paragraphs() && !whole.paragraphs());
+        const deck::Geometry g = animGeometry();
+        const deck::States start = deck::statesAt(tl, g, 0);
+        QVERIFY(!start.value(first).visible);
+        QVERIFY(!start.value(second).visible);
+        QVERIFY(!start.contains(whole));
+        const deck::States one = deck::statesAt(tl, g, 1);
+        QVERIFY(one.value(first).visible);
+        QVERIFY(!one.value(second).visible);
+        const deck::States halfway = deck::statesAt(tl, g, 1, 150);
+        QVERIFY(halfway.value(second).visible);
+        QVERIFY(animNear(halfway.value(second).opacity, 0.5));
+        QCOMPARE(halfway.value(first).opacity, 1.0);
+        QVERIFY(deck::statesAt(tl, g, 3).value(deck::Target{5}).visible);
+    }
+
+    // A wipe is a clip of the shape: the part shown, as shares of its size.
+    void animationWipeClips()
+    {
+        const deck::Geometry g = animGeometry();
+        auto clipOf = [&](const char *direction, bool entering) {
+            const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animWipe(4, direction, entering, 1000)})));
+            return deck::statesAt(tl, g, 0, 500).value(deck::Target{4}).clip;
+        };
+        QCOMPARE(clipOf("wipe(left)", true), QRectF(0, 0, 0.5, 1));      // from the left edge
+        QCOMPARE(clipOf("wipe(right)", true), QRectF(0.5, 0, 0.5, 1));
+        QCOMPARE(clipOf("wipe(up)", true), QRectF(0, 0, 1, 0.5));        // from the top
+        QCOMPARE(clipOf("wipe(down)", true), QRectF(0, 0.5, 1, 0.5));    // from the bottom
+        // Going out, the part left is the part the wipe has not reached.
+        QCOMPARE(clipOf("wipe(left)", false), QRectF(0.5, 0, 0.5, 1));
+        QCOMPARE(clipOf("wipe(down)", false), QRectF(0, 0, 1, 0.5));
+        // At the start nothing is shown, but the clip is there; at the end there is none.
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animWipe(4, "wipe(left)", true, 1000)})));
+        QVERIFY(!deck::statesAt(tl, g, 0, 0).value(deck::Target{4}).clip.isNull());
+        QVERIFY(deck::statesAt(tl, g, 1).value(deck::Target{4}).clip.isNull());
+        // Another filter is drawn as a fade.
+        const deck::Timeline wheel = deck::readTimeline(animTiming(animSteps({animNode("entr", 21, 1, "clickEffect", 0, {animShow(4, true), animFilter(4, "wheel(1)", true, 1000)})})));
+        const deck::TargetState w = deck::statesAt(wheel, g, 0, 250).value(deck::Target{4});
+        QVERIFY(animNear(w.opacity, 0.25));
+        QVERIFY(w.clip.isNull());
+    }
+
+    // A value a formula can't give leaves the shape where it is; the
+    // formulas read numbers, #names, + - * /, and parentheses.
+    void animationFormulasAndFallbacks()
+    {
+        const QHash<QString, double> v{{"ppt_x", 0.25}, {"ppt_y", 0.5}, {"ppt_w", 0.2}, {"ppt_h", 0.1}};
+        bool ok = false;
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("0-#ppt_w/2"), v, &ok), -0.1) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("1+#ppt_h/2"), v, &ok), 1.05) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("#ppt_x"), v, &ok), 0.25) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("(#ppt_x+#ppt_y)*2"), v, &ok), 1.5) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral(" 1 + 2 * 3 "), v, &ok), 7) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("2*(3+4)/7"), v, &ok), 2) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("-#ppt_x"), v, &ok), -0.25) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("0.5"), v, &ok), 0.5) && ok);
+        QVERIFY(animNear(deck::evaluateFormula(QStringLiteral("1-1-1"), v, &ok), -1) && ok);   // left to right
+        for (const char *bad : {"", "#nope", "1 +", "(1", "abc", "1 2", "1/0", "#ppt_x)"}) {
+            ok = true;
+            QVERIFY2(std::isnan(deck::evaluateFormula(QString::fromLatin1(bad), v, &ok)), bad);
+            QVERIFY2(!ok, bad);
+        }
+        // An animation whose start value can't be read starts from where the shape is.
+        const deck::Geometry g = animGeometry();
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({animNode("emph", 0, 0, "clickEffect", 0, {animValues(4, "ppt_x", "bogus(1)", "#ppt_x", 400)})})));
+        QCOMPARE(deck::statesAt(tl, g, 0, 100).value(deck::Target{4}).offset, QPointF());
+        QCOMPARE(deck::statesAt(tl, g, 1).value(deck::Target{4}).offset, QPointF());
+    }
+
+    // A behavior's time: its delay, how long a run is, speeding up and
+    // slowing down, going back, repeating, and the end.
+    void animationTimingEasesRepeatsAndReverses()
+    {
+        using Phase = deck::Timing::Phase;
+        deck::Timing t;
+        t.begin = 100;
+        t.duration = 1000;
+        double p = -1;
+        QVERIFY(t.phaseAt(99, &p) == Phase::Before);
+        QVERIFY(t.phaseAt(100, &p) == Phase::Running);
+        QCOMPARE(p, 0.0);
+        QVERIFY(t.phaseAt(600, &p) == Phase::Running);
+        QVERIFY(animNear(p, 0.5));
+        QVERIFY(t.phaseAt(1100, &p) == Phase::After);
+        QCOMPARE(p, 1.0);
+        QCOMPARE(t.end(), 1100.0);
+        // Half a run speeding up and half slowing down: a quarter in, an eighth of the way.
+        t.accel = 0.5;
+        t.decel = 0.5;
+        t.phaseAt(350, &p);
+        QVERIFY(animNear(p, 0.125));
+        t.phaseAt(850, &p);
+        QVERIFY(animNear(p, 0.875));
+        t.phaseAt(600, &p);
+        QVERIFY(animNear(p, 0.5));
+        // Going back after going: twice as long, and it ends where it began.
+        t = deck::Timing();
+        t.duration = 1000;
+        t.autoReverse = true;
+        QCOMPARE(t.activeDuration(), 2000.0);
+        QVERIFY(t.phaseAt(1500, &p) == Phase::Running);
+        QVERIFY(animNear(p, 0.5));
+        QVERIFY(t.phaseAt(2000, &p) == Phase::After);
+        QCOMPARE(p, 0.0);
+        // Twice: the second run starts over, and it ends at the end.
+        t = deck::Timing();
+        t.duration = 1000;
+        t.repeat = 2;
+        QCOMPARE(t.activeDuration(), 2000.0);
+        t.phaseAt(1500, &p);
+        QVERIFY(animNear(p, 0.5));
+        QVERIFY(t.phaseAt(2000, &p) == Phase::After);
+        QCOMPARE(p, 1.0);
+        // "Until the end" is played once; a cap on all the runs cuts them off.
+        t.repeat = -1;
+        QCOMPARE(t.activeDuration(), 1000.0);
+        t.repeat = 10;
+        t.repeatDuration = 2500;
+        QCOMPARE(t.activeDuration(), 2500.0);
+        QVERIFY(t.phaseAt(2500, &p) == Phase::After);
+        QVERIFY(animNear(p, 0.5));
+        // A duration that is indefinite counts as done where it begins.
+        t = deck::Timing();
+        t.begin = 40;
+        QVERIFY(t.phaseAt(39, &p) == Phase::Before);
+        QVERIFY(t.phaseAt(40, &p) == Phase::After);
+        QCOMPARE(p, 1.0);
+        QCOMPARE(t.activeDuration(), 0.0);
+        // And all of it from a file: the cTn's accel, decel, autoRev, repeatCount and fill.
+        const QString xml = animTiming(animSteps({animNode("emph", 0, 0, "clickEffect", 0, {
+            animXml("<p:animRot by='3600000'><p:cBhvr><p:cTn id='9' dur='1000' accel='50000' decel='50000' autoRev='1' repeatCount='2000' fill='hold'><p:stCondLst><p:cond delay='250'/></p:stCondLst></p:cTn>") + animTarget(4) +
+            QStringLiteral("</p:cBhvr></p:animRot>")})}));
+        const deck::Timing read = deck::readTimeline(xml).steps[0].effects[0].behaviors[0].timing;
+        QCOMPARE(read.begin, 250.0);
+        QCOMPARE(read.duration, 1000.0);
+        QCOMPARE(read.accel, 0.5);
+        QCOMPARE(read.decel, 0.5);
+        QVERIFY(read.autoReverse && read.hold);
+        QCOMPARE(read.repeat, 2.0);
+        QCOMPARE(read.activeDuration(), 4000.0);
+    }
+
+    // Media calls and interactive sequences are read, not played: a step with
+    // only a media call shows nothing and takes no click.
+    void animationReadsMediaAndTriggersWithoutPlayingThem()
+    {
+        const QString trigger = animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn id='40' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='6'/></p:tgtEl></p:cond></p:stCondLst><p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst>")
+            + animGroup(0, {animFadeIn(5, 500)}) + animXml("</p:childTnLst></p:cTn><p:nextCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='6'/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
+        const QString xml = animTiming(animSteps({animMediaCall(4)}), animXml("<p:video><p:cMediaNode vol='80000'><p:cTn id='30' fill='hold' display='0'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='4'/></p:tgtEl></p:cMediaNode></p:video>") + trigger);
+        const deck::Timeline tl = deck::readTimeline(xml);
+        QCOMPARE(int(tl.steps.size()), 1);
+        QVERIFY(tl.steps[0].effects[0].cls == deck::EffectClass::Media);
+        QVERIFY(tl.steps[0].effects[0].behaviors[0].kind == deck::Behavior::Kind::Command);
+        QCOMPARE(tl.steps[0].effects[0].behaviors[0].command, QStringLiteral("playFrom(0.0)"));
+        QVERIFY(!tl.steps[0].visual());
+        QCOMPARE(int(tl.triggers.size()), 1);
+        QCOMPARE(tl.triggers[0].shape, 6);
+        QCOMPARE(int(tl.triggers[0].effects.size()), 1);
+        // The interactive sequence's shape is not in the states of the main sequence.
+        QVERIFY(deck::statesAt(tl, animGeometry(), 0).isEmpty());
+        Page slide;
+        slide.props[QStringLiteral("timingXml")] = xml;
+        QVERIFY(deck::playableTimeline(slide).steps.isEmpty());
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animMediaCall(4), animAppear(5)}));
+        QCOMPARE(int(deck::playableTimeline(slide).steps.size()), 1);
+        QCOMPARE(int(deck::timelineOf(slide).steps.size()), 2);
+    }
+
+    // What can't be read is left out and the rest plays: a behavior that aims
+    // at nothing, an animation with no values, a set of something that is not
+    // played, a time that makes no sense, and a file that is not timing at all.
+    void animationReadsDamagedTimingWithoutHarm()
+    {
+        const deck::Geometry g = animGeometry();
+        QVERIFY(deck::readTimeline(QStringLiteral("<p:transition xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>")).isEmpty());
+        QVERIFY(deck::readTimeline(animTiming(QString())).isEmpty());
+        // Aimed at no shape: a step is read, and plays nothing.
+        const deck::Timeline nowhere = deck::readTimeline(animTiming(animSteps({animNode("entr", 10, 0, "clickEffect", 0, {animShow(0, true)})})));
+        QCOMPARE(int(nowhere.steps.size()), 1);
+        QVERIFY(!nowhere.steps[0].visual());
+        QVERIFY(deck::statesAt(nowhere, g, 1).isEmpty());
+        // No values, a set of a color, a duration below nothing, and a keyframe past the end.
+        const QString noValues = QStringLiteral("<p:anim calcmode=\"lin\" valueType=\"num\"><p:cBhvr><p:cTn id=\"90\" dur=\"400\" fill=\"hold\"/>") + animTarget(4) +
+                                 QStringLiteral("<p:attrNameLst><p:attrName>ppt_x</p:attrName></p:attrNameLst></p:cBhvr></p:anim>");
+        const QString color = QStringLiteral("<p:set><p:cBhvr><p:cTn id=\"91\" dur=\"1\" fill=\"hold\"/>") + animTarget(4) +
+                              QStringLiteral("<p:attrNameLst><p:attrName>fill.color</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:clrVal><a:srgbClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" val=\"FF0000\"/></p:clrVal></p:to></p:set>");
+        const QString negative = QStringLiteral("<p:animEffect transition=\"in\" filter=\"fade\"><p:cBhvr><p:cTn id=\"92\" dur=\"-5\"/>") + animTarget(4) + QStringLiteral("</p:cBhvr></p:animEffect>");
+        const QString late = QStringLiteral("<p:anim calcmode=\"lin\"><p:cBhvr><p:cTn id=\"93\" dur=\"400\" fill=\"hold\"/>") + animTarget(4) +
+                             QStringLiteral("<p:attrNameLst><p:attrName>ppt_y</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst><p:tav tm=\"250000\"><p:val><p:fltVal val=\"0.9\"/></p:val></p:tav><p:tav tm=\"-5\"><p:val><p:fltVal val=\"0.1\"/></p:val></p:tav></p:tavLst></p:anim>");
+        const deck::Timeline odd = deck::readTimeline(animTiming(animSteps({animNode("emph", 0, 0, "clickEffect", 0, {noValues, color, negative, late})})));
+        QCOMPARE(int(odd.steps.size()), 1);
+        for (const double ms : {0.0, 100.0, 399.0, 5000.0}) {
+            const deck::TargetState s = deck::statesAt(odd, g, 0, ms).value(deck::Target{4});
+            QVERIFY(s.visible);
+            QCOMPARE(s.offset.x(), 0.0);   // no values: where it is
+            QVERIFY(std::isfinite(s.offset.y()) && std::isfinite(s.opacity));
+        }
+        // A target that is a number that is not one, and a paragraph range backwards.
+        const deck::Timeline backwards = deck::readTimeline(animTiming(animStep({animGroup(0, {animNode("entr", 1, 0, "clickEffect", 0, {QStringLiteral(
+            "<p:set><p:cBhvr><p:cTn id=\"94\" dur=\"1\" fill=\"hold\"/><p:tgtEl><p:spTgt spid=\"4\"><p:txEl><p:pRg st=\"3\" end=\"1\"/></p:txEl></p:spTgt></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val=\"visible\"/></p:to></p:set>")})})})));
+        const deck::Target range = backwards.steps[0].effects[0].behaviors[0].target;
+        QCOMPARE(range.firstParagraph, 1);
+        QCOMPARE(range.lastParagraph, 3);
+        const deck::Timeline junk = deck::readTimeline(animTiming(animSteps({animNode("entr", 1, 0, "clickEffect", 0, {QStringLiteral(
+            "<p:set><p:cBhvr><p:cTn id=\"95\" dur=\"1\"/><p:tgtEl><p:spTgt spid=\"x\"/></p:tgtEl></p:cBhvr><p:to><p:strVal val=\"visible\"/></p:to></p:set>")})})));
+        QVERIFY(!junk.steps[0].visual());
+    }
+
+    // The shapes' places are found by the number the file gave, in groups too.
+    void animationGeometryFindsShapesByNumber()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto inner = std::make_shared<ShapeItem>();
+        inner->rect = QRectF(300, 380, 120, 80);
+        inner->sourceId = 9;
+        auto group = std::make_shared<GroupItem>();
+        group->children.push_back(inner);
+        group->syncRect();
+        group->sourceId = 8;
+        slide.items.push_back(group);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        QCOMPARE(g.slide, QSizeF(960, 540));
+        QCOMPARE(g.shapes.value(2), slide.items[0]->rect);
+        QCOMPARE(g.shapes.value(3), slide.items[1]->rect);
+        QCOMPARE(g.shapes.value(9), QRectF(300, 380, 120, 80));
+        QCOMPARE(g.shapes.value(8), QRectF(300, 380, 120, 80));
+        QVERIFY(!g.shapes.contains(0));
+    }
+
+    // The slide painted with the states: hidden, moved, turned, scaled, faded,
+    // and wiped shapes come out as drawing them so would.
+    void animationPaintsTheStates()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(600, 380, 120, 80);   // its middle is at 660, 420
+        box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+        box->sourceId = 7;
+        slide.items.push_back(box);
+        LayoutCache cache;
+        auto paint = [&](const deck::States &states) {
+            return paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        };
+        const QImage plain = paintedSlide(d.get(), &cache, 0);
+        QCOMPARE(paint({}), plain);   // nothing to change
+        const QColor fill(200, 60, 40);
+        QCOMPARE(plain.pixelColor(660, 420), fill);
+        // Hidden: as if it were not there.
+        deck::States hidden;
+        hidden[deck::Target{7}].visible = false;
+        const QImage hid = paint(hidden);
+        QVERIFY(hid != plain);
+        QCOMPARE(hid.pixelColor(660, 420), QColor(Qt::white));
+        slide.items.pop_back();
+        QCOMPARE(hid, paintedSlide(d.get(), &cache, 0));
+        slide.items.push_back(box);
+        // Moved 40 points: as if it were put there.
+        deck::States moved;
+        moved[deck::Target{7}].offset = QPointF(40, -20);
+        const QImage mv = paint(moved);
+        box->rect.translate(40, -20);
+        QCOMPARE(mv, paintedSlide(d.get(), &cache, 0));
+        box->rect.translate(-40, 20);
+        // Turned a quarter about its middle: 80 wide and 120 high.
+        deck::States turned;
+        turned[deck::Target{7}].rotation = 90;
+        const QImage tn = paint(turned);
+        QCOMPARE(tn.pixelColor(660, 365), fill);                        // above the old top, inside the new
+        QCOMPARE(tn.pixelColor(660 - 55, 420), QColor(Qt::white));      // inside the old left, outside the new
+        // Scaled to twice its size about its middle.
+        deck::States scaled;
+        scaled[deck::Target{7}].scaleX = 2;
+        scaled[deck::Target{7}].scaleY = 2;
+        const QImage sc = paint(scaled);
+        QCOMPARE(sc.pixelColor(660 + 110, 420 + 70), fill);
+        // Half see-through: the fill half way to white.
+        deck::States faded;
+        faded[deck::Target{7}].opacity = 0.5;
+        const QImage fd = paint(faded);
+        const QColor mid = fd.pixelColor(660, 420);
+        QVERIFY(std::abs(mid.red() - 227) <= 2 && std::abs(mid.green() - 157) <= 2 && std::abs(mid.blue() - 147) <= 2);
+        QCOMPARE(fd.pixelColor(300, 300), plain.pixelColor(300, 300));
+        // Wiped: the left half.
+        deck::States wiped;
+        wiped[deck::Target{7}].clip = QRectF(0, 0, 0.5, 1);
+        const QImage wp = paint(wiped);
+        QCOMPARE(wp.pixelColor(630, 420), fill);
+        QCOMPARE(wp.pixelColor(690, 420), QColor(Qt::white));
+        // Turned, wiped, and faded at once: the top half of the shape, which turned is its right half, half see-through.
+        deck::States all;
+        all[deck::Target{7}].rotation = 90;
+        all[deck::Target{7}].clip = QRectF(0, 0, 1, 0.5);
+        all[deck::Target{7}].opacity = 0.5;
+        const QImage al = paint(all);
+        QVERIFY(al.pixelColor(680, 420) != QColor(Qt::white));
+        QCOMPARE(al.pixelColor(640, 420), QColor(Qt::white));
+    }
+
+    // A paragraph that is a target is drawn on its own: hidden, it is gone and
+    // the lines around it stay where they are; moved, only its lines move.
+    void animationPaintsParagraphs()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto *body = static_cast<TextItem *>(slide.items[1].get());
+        d->storyDoc(body->storyId)->setPlainText(QStringLiteral("First paragraph\nSecond paragraph\nThird paragraph"));
+        LayoutCache cache;
+        auto paint = [&](const deck::States &states) {
+            return paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        };
+        const QImage plain = paintedSlide(d.get(), &cache, 0);
+        // The lines of paragraph 1, in the page's coordinates.
+        const LayoutCache::FrameLayout fl = cache.textFrame(*d, *body, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        const QTextBlock second = d->storyDoc(body->storyId)->findBlockByNumber(1);
+        QRectF band;
+        for (const QRectF &r : fl.layout->rangeRects(fl.frame, second.position(), second.position() + second.length())) band = band.united(r);
+        band.translate(body->rect.topLeft());
+        QVERIFY(band.isValid());
+        auto changedRows = [&](const QImage &a, const QImage &b) {
+            int top = -1, bottom = -1;
+            for (int y = 0; y < a.height(); ++y)
+                for (int x = 0; x < a.width(); ++x)
+                    if (a.pixel(x, y) != b.pixel(x, y)) {
+                        if (top < 0) top = y;
+                        bottom = y;
+                        break;
+                    }
+            return QPair<int, int>(top, bottom);
+        };
+        deck::States hidden;
+        hidden[deck::Target{3, 1, 1}].visible = false;
+        const QPair<int, int> rows = changedRows(plain, paint(hidden));
+        QVERIFY(rows.first >= 0);                       // something went
+        QVERIFY(rows.first >= band.top() - 2 && rows.second <= band.bottom() + 2);   // only its lines
+        // Shown, nothing differs.
+        deck::States shown;
+        shown[deck::Target{3, 1, 1}];
+        QCOMPARE(paint(shown), plain);
+        // Moved right: its lines are where they were, 300 points over.
+        deck::States moved;
+        moved[deck::Target{3, 1, 1}].offset = QPointF(300, 0);
+        const QImage mv = paint(moved);
+        const QPair<int, int> movedRows = changedRows(plain, mv);
+        QVERIFY(movedRows.first >= band.top() - 2 && movedRows.second <= band.bottom() + 2);
+        auto inkLeft = [&](const QImage &img) {
+            for (int x = 0; x < img.width(); ++x)
+                for (int y = int(band.top()); y < int(band.bottom()); ++y)
+                    if (img.pixel(x, y) != QColor(Qt::white).rgba()) return x;
+            return -1;
+        };
+        QVERIFY(inkLeft(plain) >= 0);
+        QCOMPARE(inkLeft(mv), inkLeft(plain) + 300);
+    }
+
+    // ---- the show plays them ----
+
+    // Slide 1: the title fades in at the first click, the body appears at the second.
+    static std::unique_ptr<Document> animatedDeck(int fadeMs)
+    {
+        auto d = showDeck(3);
+        numberShowShapes(*d->pages[0]);
+        d->storyDoc(static_cast<TextItem *>(d->pages[0]->items[1].get())->storyId)->setPlainText(QStringLiteral("The body of the slide"));
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeIn(2, fadeMs), animAppear(3)}));
+        return d;
+    }
+
+    // A click plays the slide's next step; the slide changes only when the
+    // steps are played. Going back goes back a step, to its end state.
+    void showPlaysClickStepsBeforeMovingOn()
+    {
+        auto d = animatedDeck(100);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QCOMPARE(show.stepCount(), 2);
+        QCOMPARE(show.step(), 0);
+        const QImage start = show.grab().toImage();
+        show.next();
+        QCOMPARE(show.currentSlide(), 0);
+        QVERIFY(show.isPlayingStep());
+        QTRY_VERIFY(!show.isPlayingStep());
+        QCOMPARE(show.step(), 1);
+        QCOMPARE(show.currentSlide(), 0);
+        const QImage first = show.grab().toImage();
+        QVERIFY(first != start);
+        show.next();                       // the body appears at once
+        QCOMPARE(show.step(), 2);
+        QVERIFY(!show.isPlayingStep());
+        const QImage second = show.grab().toImage();
+        QVERIFY(second != first);
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.stepCount(), 0);
+        // Back: to the slide as it was left, then a step at a time.
+        show.previous();
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.step(), 2);
+        QCOMPARE(show.grab().toImage(), second);
+        show.previous();
+        QCOMPARE(show.step(), 1);
+        QCOMPARE(show.grab().toImage(), first);
+        show.previous();
+        QCOMPARE(show.step(), 0);
+        QCOMPARE(show.grab().toImage(), start);
+        show.previous();                   // nothing before the first slide's start
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.step(), 0);
+        // A jump shows the slide at its start.
+        show.next();
+        QTRY_COMPARE(show.step(), 1);
+        show.goTo(2);
+        show.goTo(0);
+        QCOMPARE(show.step(), 0);
+        QCOMPARE(show.grab().toImage(), start);
+        // Home does too.
+        show.next();
+        QTRY_COMPARE(show.step(), 1);
+        QTest::keyClick(&show, Qt::Key_Home);
+        QCOMPARE(show.step(), 0);
+    }
+
+    // A click while an effect plays finishes it at once, and nothing more; a
+    // step undone by Back can be played again.
+    void showClickDuringAnEffectFinishesIt()
+    {
+        auto d = animatedDeck(60000);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        show.next();
+        QVERIFY(show.isPlayingStep());
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QVERIFY(!show.isPlayingStep());
+        QCOMPARE(show.step(), 1);
+        QCOMPARE(show.currentSlide(), 0);
+        // Back in the middle of an effect stops it and takes the step back.
+        show.previous();
+        QCOMPARE(show.step(), 0);
+        show.next();
+        QVERIFY(show.isPlayingStep());
+        show.previous();
+        QVERIFY(!show.isPlayingStep());
+        QCOMPARE(show.step(), 0);
+        QCOMPARE(show.currentSlide(), 0);
+        show.next();
+        QVERIFY(show.isPlayingStep());
+        // The key does what the click does.
+        QTest::keyClick(&show, Qt::Key_Space);
+        QVERIFY(!show.isPlayingStep());
+        QCOMPARE(show.step(), 1);
+    }
+
+    // A slide that does not move on at a click still plays its steps at one.
+    void showClickPlaysStepsOnASlideThatIgnoresClicks()
+    {
+        auto d = animatedDeck(30);
+        deck::Transition t;
+        t.advanceOnClick = false;
+        deck::setTransition(*d->pages[0], t);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QTRY_COMPARE(show.step(), 1);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QCOMPARE(show.step(), 2);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));   // all played: the slide ignores it
+        QCOMPARE(show.currentSlide(), 0);
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 1);
+    }
+
+    // A step that starts after or with the previous one with nothing before it
+    // starts by itself once the slide, and its transition, is shown.
+    void showStartsAutomaticStepsWhenTheSlideIsShown()
+    {
+        auto d = showDeck(3);
+        numberShowShapes(*d->pages[0]);
+        numberShowShapes(*d->pages[1]);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {animFadeIn(2, 60, "afterEffect")})}, true) + animStep({animGroup(0, {animAppear(3)})}));
+        d->pages[1]->props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {animFadeIn(2, 60, "withEffect")})}, true));
+        deck::setTransition(*d->pages[1], showTransition("fade", 0.25));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QCOMPARE(show.stepCount(), 2);
+        QCOMPARE(show.step(), 0);
+        QVERIFY(!show.isPlayingStep());       // not before the show is shown
+        show.show();
+        QTRY_COMPARE(show.step(), 1);
+        QVERIFY(!show.isPlayingStep());
+        show.next();                          // the click step, not the automatic one
+        QCOMPARE(show.step(), 2);
+        // The next slide's steps wait for its transition.
+        show.next();
+        QVERIFY(show.isAnimating());
+        QCOMPARE(show.targetSlide(), 1);
+        QVERIFY(!show.isPlayingStep());
+        QTRY_VERIFY(!show.isAnimating());
+        QTRY_COMPARE(show.step(), 1);
+        QCOMPARE(show.currentSlide(), 1);
+        // A jump starts them too; going back to a slide shows it with its steps played.
+        show.goTo(0);
+        QTRY_COMPARE(show.step(), 1);
+        show.goTo(1);
+        QTRY_COMPARE(show.step(), 1);
+        show.goTo(0);
+        show.next();
+        show.next();
+        QCOMPARE(show.step(), 2);
+        show.next();
+        QTRY_COMPARE(show.currentSlide(), 1);
+        QTRY_COMPARE(show.step(), 1);
+        show.previous();                      // back a step on the slide, then to the one before
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.step(), 0);
+        show.previous();
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.step(), 2);
+        QVERIFY(!show.isPlayingStep());
+    }
+
+    // A slide's seconds count from the end of its automatic steps; clicks left
+    // unplayed when they are up are skipped.
+    void showAdvanceAfterCountsFromTheLastEffect()
+    {
+        auto d = showDeck(3);
+        numberShowShapes(*d->pages[0]);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {animFadeIn(2, 400, "afterEffect")})}, true) + animStep({animGroup(0, {animAppear(3)})}));
+        deck::Transition t = showTransition("none", 0.7);
+        t.advanceAfter = 0.05;
+        deck::setTransition(*d->pages[0], t);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QElapsedTimer sinceShown;
+        sinceShown.start();
+        show.show();
+        QVERIFY(show.isPlayingStep());
+        QVERIFY(!show.autoAdvanceActive());    // the effect is playing
+        QTRY_VERIFY(show.autoAdvanceActive() || show.currentSlide() == 1);
+        QTRY_COMPARE(show.currentSlide(), 1);
+        QVERIFY(sinceShown.elapsed() >= 400);
+        QCOMPARE(show.step(), 0);              // the second step was skipped
+    }
+
+    // A step with only a media call takes no click.
+    void showSkipsStepsThatShowNothing()
+    {
+        auto d = showDeck(2);
+        numberShowShapes(*d->pages[0]);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animSteps({animMediaCall(2)}));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        QCOMPARE(show.stepCount(), 0);
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+    }
+
+    // Presenter View's Next shows what the next click gives: the slide with its
+    // next step played, then the next slide.
+    void presenterViewNextShowsTheNextStep()
+    {
+        auto d = animatedDeck(30);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        PresenterView pv(&show);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 1 of 3"));
+        QCOMPARE(pv.nextSlide(), 0);            // the same slide, a click on
+        const QImage afterFirst = pv.nextImage();
+        QVERIFY(!afterFirst.isNull());
+        show.next();
+        QTRY_VERIFY(!show.isPlayingStep());
+        QCOMPARE(pv.nextSlide(), 0);
+        const QImage afterSecond = pv.nextImage();
+        QVERIFY(afterSecond != afterFirst);
+        show.next();
+        QCOMPARE(pv.nextSlide(), 1);            // all played: the next slide
+        QVERIFY(pv.nextImage() != afterSecond);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 1 of 3"));
+        show.previous();
+        QCOMPARE(show.step(), 1);
+        QCOMPARE(pv.nextSlide(), 0);
+        QCOMPARE(pv.nextImage(), afterSecond);
+        show.previous();
+        QCOMPARE(show.step(), 0);
+        QCOMPARE(pv.nextImage(), afterFirst);
+        // The buttons play steps too.
+        pv.findChild<QAbstractButton *>("nextButton")->click();
+        QTRY_COMPARE(show.step(), 1);
+        pv.grab();
+    }
+
+    // The ribbon's preview leaves the slide before as the show leaves it, with
+    // its steps played (here the title exits).
+    void transitionPreviewLeavesTheSlideBeforeWithItsStepsPlayed()
+    {
+        auto grabOf = [&](bool animated) {
+            auto d = showDeck(2);
+            numberShowShapes(*d->pages[0]);
+            if (animated) d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeOut(2, 200)}));
+            else d->pages[0]->items.erase(d->pages[0]->items.begin());   // the title is gone
+            deck::setTransition(*d->pages[1], showTransition("fade", 600));
+            QWidget parent;
+            parent.resize(480, 300);
+            LayoutCache cache;
+            TransitionPreview preview(d.get(), &cache, &parent);
+            preview.play(1);
+            return preview.grab().toImage();
+        };
+        QCOMPARE(grabOf(true), grabOf(false));
+    }
+
+    // A step's frames are drawn from what lies beneath and above the shapes it
+    // moves, kept; they come out as drawing the whole slide does.
+    void showStepFramesAreTheWholeSlideDrawn()
+    {
+        auto d = showDeck(2);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId)->setPlainText(QStringLiteral("The body of the slide"));
+        auto under = std::make_shared<ShapeItem>();
+        under->rect = QRectF(40, 60, 500, 300);
+        under->fill = Fill::solid(ColorRef::rgb(QColor(220, 230, 250)));
+        under->sourceId = 20;
+        auto over = std::make_shared<ShapeItem>();
+        over->shape = QStringLiteral("ellipse");
+        over->rect = QRectF(300, 200, 400, 250);
+        over->fill = Fill::solid(ColorRef::rgb(QColor(250, 200, 80)), 0.4);
+        over->sourceId = 21;
+        slide.items.insert(slide.items.begin(), under);
+        slide.items.push_back(over);
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animFlyIn(20, 200), animFadeIn(3, 200), animWipe(21, "wipe(left)", true, 200)}));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        const QSize size(640, 360);
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry geometry = deck::geometryOf(*d, slide);
+        QCOMPARE(int(tl.steps.size()), 3);
+        for (int step = 0; step < 3; ++step)
+            for (const double ms : {0.0, 60.0, 150.0, 199.0}) {
+                const QImage frame = show.renderView(SlideShow::View{0, step}, ms, size, 1.0);
+                const deck::States states = deck::statesAt(tl, geometry, step, ms);
+                const QImage whole = renderSlideImage(d.get(), &cache, 0, size, 1.0, Qt::black, &states);
+                QCOMPARE(frame.size(), whole.size());
+                int worst = 0;
+                for (int y = 0; y < frame.height(); ++y)
+                    for (int x = 0; x < frame.width(); ++x) {
+                        const QRgb a = frame.pixel(x, y), b = whole.pixel(x, y);
+                        worst = std::max({worst, std::abs(qRed(a) - qRed(b)), std::abs(qGreen(a) - qGreen(b)), std::abs(qBlue(a) - qBlue(b))});
+                    }
+                QVERIFY2(worst <= 2, qPrintable(QStringLiteral("step %1 at %2 ms differs by %3").arg(step).arg(ms).arg(worst)));
+            }
+        // It moves: the frames are not all one picture.
+        QVERIFY(show.renderView(SlideShow::View{0, 0}, 0, size, 1.0) != show.renderView(SlideShow::View{0, 0}, 150, size, 1.0));
+    }
+
+    // Prints what a frame of an effect costs on a busy slide, against drawing the slide whole.
+    void showStepFrameTimes()
+    {
+        auto d = showDeck(2);
+        Page &slide = *d->pages[0];
+        QStringList lines;
+        for (int k = 0; k < 8; ++k) lines << QStringLiteral("Point %1 of the slide, with enough words to fill a line of the body text").arg(k + 1);
+        d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId)->setPlainText(lines.join('\n'));
+        for (int k = 0; k < 5; ++k) {
+            auto shape = std::make_shared<ShapeItem>();
+            shape->shape = k % 2 ? QStringLiteral("ellipse") : QStringLiteral("roundRect");
+            shape->rect = QRectF(40 + k * 170, 330, 160, 150);
+            shape->fill = Fill::gradient(ColorRef::rgb(QColor(40 + k * 50, 90, 180)), ColorRef::rgb(QColor(240, 200 - k * 30, 60)), 45 + k * 30);
+            shape->fx.shadow.on = k == 0;
+            shape->sourceId = 10 + k;
+            slide.items.push_back(shape);
+        }
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeIn(14, 500), animFlyIn(10, 500)}));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        const QSize size(1920, 1080);
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry geometry = deck::geometryOf(*d, slide);
+        auto millis = [](const std::function<void()> &f) {
+            QElapsedTimer t;
+            t.start();
+            f();
+            return t.nsecsElapsed() / 1e6;
+        };
+        QStringList line;
+        for (int step = 0; step < 2; ++step) {
+            const double first = millis([&] { show.renderView(SlideShow::View{0, step}, 0, size, 1.0); });
+            QVector<double> frames, wholes;
+            for (int i = 1; i <= 7; ++i) {
+                frames << millis([&] { show.renderView(SlideShow::View{0, step}, i * 60.0, size, 1.0); });
+                const deck::States states = deck::statesAt(tl, geometry, step, i * 60.0);
+                wholes << millis([&] { renderSlideImage(d.get(), &cache, 0, size, 1.0, Qt::black, &states); });
+            }
+            std::sort(frames.begin(), frames.end());
+            std::sort(wholes.begin(), wholes.end());
+            line << QStringLiteral("step %1: kept layers %2 ms, a frame %3 ms, the whole slide %4 ms").arg(step + 1).arg(first, 0, 'f', 1).arg(frames[3], 0, 'f', 1).arg(wholes[3], 0, 'f', 1);
+        }
+        qInfo().noquote() << QStringLiteral("SHOWTIMES 1920x1080 effects:") << line.join(QStringLiteral(", "));
+    }
+
     // The window: the ribbon builds from its file with nothing missing, and
     // the slide commands are steps that undo.
     void windowSlideCommands()
@@ -3887,6 +5992,869 @@ private Q_SLOTS:
         QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.dateTime")));
     }
 
+    // A slide's comments live in its page props, so undo covers them: add,
+    // reply, edit, resolve, move, and delete; the author comes from File > Options.
+    void commentModelKeepsCommentsInThePageProps()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        Page &slide = *d->pages[0];
+        QVERIFY(deck::commentsOf(slide).isEmpty());
+        QVERIFY(!slide.props.contains(QStringLiteral("comments")));
+        const deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Lee Roy"), QString()};
+        const QDateTime noon(QDate(2026, 10, 12), QTime(12, 0, 5, 125), QTimeZone::UTC);
+        const QString first = deck::addComment(slide, pat, QStringLiteral("Check\r\nthe numbers"), QPointF(100.5, 40.25), noon);
+        QVERIFY(!first.isEmpty());
+        // As the props hold it.
+        const QJsonObject o = slide.props.value(QStringLiteral("comments")).toArray().at(0).toObject();
+        QCOMPARE(o.value(QStringLiteral("id")).toString(), first);
+        QCOMPARE(o.value(QStringLiteral("author")).toString(), QStringLiteral("Pat Doe"));
+        QCOMPARE(o.value(QStringLiteral("initials")).toString(), QStringLiteral("PD"));
+        QCOMPARE(o.value(QStringLiteral("date")).toString(), QStringLiteral("2026-10-12T12:00:05.125Z"));
+        QCOMPARE(o.value(QStringLiteral("text")).toString(), QStringLiteral("Check\nthe numbers"));
+        QCOMPARE(o.value(QStringLiteral("x")).toDouble(), 100.5);
+        QCOMPARE(o.value(QStringLiteral("y")).toDouble(), 40.25);
+        QVERIFY(o.value(QStringLiteral("replies")).isArray() && o.value(QStringLiteral("replies")).toArray().isEmpty());
+        QCOMPARE(o.value(QStringLiteral("done")).toBool(true), false);
+
+        // Replies belong to a comment; initials left out are made from the name.
+        QVERIFY(deck::addReply(slide, QStringLiteral("nope"), pat, QStringLiteral("x")).isEmpty());
+        const QString answer = deck::addReply(slide, first, lee, QStringLiteral("Agreed"), noon.addSecs(90));
+        QVERIFY(!answer.isEmpty() && answer != first);
+        const QString second = deck::addComment(slide, lee, QStringLiteral("Second"), QPointF(300, 200), noon.addSecs(120));
+        QVector<deck::Comment> list = deck::commentsOf(slide);
+        QCOMPARE(int(list.size()), 2);
+        QCOMPARE(list[0].id, first);
+        QCOMPARE(list[1].id, second);
+        QCOMPARE(int(list[0].replies.size()), 1);
+        QCOMPARE(list[0].replies[0].author, QStringLiteral("Lee Roy"));
+        QCOMPARE(list[0].replies[0].initials, QStringLiteral("LR"));
+        QCOMPARE(list[0].replies[0].date, noon.addSecs(90));
+        QCOMPARE(list[0].replies[0].text, QStringLiteral("Agreed"));
+        QCOMPARE(list[0].date, noon);
+        QCOMPARE(list[0].at, QPointF(100.5, 40.25));
+        QCOMPARE(deck::commentCount(slide), 2);
+        QVERIFY(deck::findComment(slide, second));
+        QVERIFY(!deck::findComment(slide, answer));   // a reply is not a comment
+        QVERIFY(!deck::findComment(slide, QStringLiteral("nope")));
+
+        // Edit (a comment or a reply), resolve and reopen, and move.
+        QVERIFY(deck::editComment(slide, first, QStringLiteral("Check again")));
+        QVERIFY(deck::editComment(slide, answer, QStringLiteral("Agreed, doing it")));
+        QVERIFY(!deck::editComment(slide, QStringLiteral("nope"), QStringLiteral("x")));
+        QVERIFY(deck::resolveComment(slide, first));
+        QVERIFY(!deck::resolveComment(slide, QStringLiteral("nope")));
+        QVERIFY(deck::moveComment(slide, second, QPointF(12, 34)));
+        list = deck::commentsOf(slide);
+        QCOMPARE(list[0].text, QStringLiteral("Check again"));
+        QCOMPARE(list[0].replies[0].text, QStringLiteral("Agreed, doing it"));
+        QVERIFY(list[0].done && !list[1].done);
+        QCOMPARE(list[1].at, QPointF(12, 34));
+        QVERIFY(deck::resolveComment(slide, first, false));
+        QVERIFY(!deck::commentsOf(slide)[0].done);
+
+        // Delete a reply, then a comment with its replies.
+        QVERIFY(deck::deleteComment(slide, answer));
+        QVERIFY(deck::commentsOf(slide)[0].replies.isEmpty());
+        QVERIFY(!deck::deleteComment(slide, answer));
+        deck::addReply(slide, first, lee, QStringLiteral("Again"));
+        QVERIFY(deck::deleteComment(slide, first));
+        QCOMPARE(int(deck::commentsOf(slide).size()), 1);
+        QCOMPARE(deck::commentsOf(slide)[0].id, second);
+
+        // All of a slide's, and all of the presentation's; with none the key is gone.
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        deck::addComment(*d->pages[1], pat, QStringLiteral("On the second slide"), QPointF(10, 10));
+        deck::addComment(*d->pages[1], pat, QStringLiteral("Another"), QPointF(30, 10));
+        const QVector<deck::CommentRef> all = deck::allComments(*d);
+        QCOMPARE(int(all.size()), 3);
+        QCOMPARE(all[0].slide, 0);
+        QCOMPARE(all[0].id, second);
+        QCOMPARE(all[1].slide, 1);
+        QCOMPARE(all[2].slide, 1);
+        QCOMPARE(deck::deleteComments(*d->pages[1]), 2);
+        QVERIFY(!d->pages[1]->props.contains(QStringLiteral("comments")));
+        deck::addComment(*d->pages[1], pat, QStringLiteral("Again"), QPointF(10, 10));
+        QCOMPARE(deck::deleteAllComments(*d), 2);
+        QVERIFY(deck::allComments(*d).isEmpty());
+        QVERIFY(!d->pages[0]->props.contains(QStringLiteral("comments")));
+
+        // A comment can't hold more than a page of text.
+        deck::addComment(slide, pat, QString(deck::kMaxCommentText + 500, QLatin1Char('x')), QPointF(1, 1));
+        QCOMPARE(int(deck::commentsOf(slide)[0].text.size()), int(deck::kMaxCommentText));
+
+        QCOMPARE(deck::initialsFor(QStringLiteral("Pat Doe")), QStringLiteral("PD"));
+        QCOMPARE(deck::initialsFor(QStringLiteral("  mary jane watson parker ")), QStringLiteral("MJW"));
+        QCOMPARE(deck::initialsFor(QString()), QString());
+
+        // The author is the user of File > Options; initials left empty come from the name.
+        Settings &st = Settings::get();
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+        QVERIFY(!deck::commentAuthor().known());
+        deck::setCommentAuthor({QStringLiteral(" Pat Doe "), QString()});
+        QCOMPARE(st.value(QStringLiteral("user/name")).toString(), QStringLiteral("Pat Doe"));
+        QCOMPARE(st.value(QStringLiteral("user/initials")).toString(), QStringLiteral("PD"));
+        QVERIFY(deck::commentAuthor().known());
+        QCOMPARE(deck::commentAuthor().initials, QStringLiteral("PD"));
+        deck::setCommentAuthor({QStringLiteral("Lee Roy"), QStringLiteral("LRY")});
+        QCOMPARE(deck::commentAuthor().name, QStringLiteral("Lee Roy"));
+        QCOMPARE(deck::commentAuthor().initials, QStringLiteral("LRY"));
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+    }
+
+    // The older form: the authors in one part of the presentation, each slide's
+    // comments in a part of its own, a reply naming the comment it answers in
+    // an extension. Times are the author's own, with their offset from UTC.
+    void importReadsLegacyComments()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(withLegacyComments()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 2);
+        QVERIFY(deck::commentsOf(*d->pages[1]).isEmpty());
+        const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+        QCOMPARE(int(list.size()), 2);   // the file has three, one of them an answer
+        const deck::Comment &c = list[0];
+        QCOMPARE(c.author, QStringLiteral("Pat Doe"));
+        QCOMPARE(c.initials, QStringLiteral("PD"));
+        QCOMPARE(c.text, QStringLiteral("Check the numbers\non this slide"));
+        // 10:15:30.250 where UTC minus local is 420 minutes.
+        QCOMPARE(c.date, QDateTime(QDate(2026, 10, 12), QTime(17, 15, 30, 250), QTimeZone::UTC));
+        // Positions are 576ths of an inch: 5760 is 10 inches, 720 points.
+        QCOMPARE(c.at, QPointF(720, 144));
+        QVERIFY(!c.done);
+        QCOMPARE(int(c.replies.size()), 1);
+        QCOMPARE(c.replies[0].author, QStringLiteral("Lee Roy"));
+        QCOMPARE(c.replies[0].initials, QStringLiteral("LR"));
+        QCOMPARE(c.replies[0].text, QStringLiteral("Done, thanks"));
+        QCOMPARE(c.replies[0].date, QDateTime(QDate(2026, 10, 12), QTime(17, 20, 0, 0), QTimeZone::UTC));
+        QVERIFY(!c.replies[0].id.isEmpty() && c.replies[0].id != c.id);
+        // A time that says its zone is used as it is; one with no offset known is taken as UTC.
+        QCOMPARE(list[1].author, QStringLiteral("Lee Roy"));
+        QCOMPARE(list[1].text, QStringLiteral("Second thread"));
+        QCOMPARE(list[1].date, QDateTime(QDate(2026, 10, 12), QTime(11, 0, 0, 0), QTimeZone::UTC));
+        QCOMPARE(list[1].at, QPointF(100, 50));
+        QVERIFY(list[1].replies.isEmpty());
+        QVERIFY(list[1].id != c.id);
+        // The extension that says a comment is done.
+        Parts p = withLegacyComments();
+        QString xml = QString::fromUtf8(p.data["/ppt/comments/comment1.xml"].xml);
+        xml.replace(QStringLiteral("<p:text>Second thread</p:text>"),
+                    QStringLiteral("<p:text>Second thread</p:text><p:extLst><p:ext uri=\"{7C0E3E5B-5A0B-4B52-9D6E-2F1A8E4C9B21}\">"
+                                   "<jo:done xmlns:jo=\"http://jeffoffice.com/ns/deck/comments\" val=\"1\"/></p:ext></p:extLst>"));
+        p.data["/ppt/comments/comment1.xml"].xml = xml.toUtf8();
+        d = deck::importPresentation(pack(p), &err);
+        QVERIFY(d);
+        QVERIFY(deck::commentsOf(*d->pages[0])[1].done);
+        QVERIFY(!deck::commentsOf(*d->pages[0])[0].done);
+
+        // The strict form of the standard names the same parts.
+        Parts s = withLegacyComments();
+        for (auto it = s.data.begin(); it != s.data.end(); ++it) {
+            if (!it.key().endsWith(QLatin1String(".xml"))) continue;
+            QString text = QString::fromUtf8(it.value().xml);
+            text.replace(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main"), QStringLiteral("http://purl.oclc.org/ooxml/drawingml/main"));
+            text.replace(QStringLiteral("http://schemas.openxmlformats.org/presentationml/2006/main"), QStringLiteral("http://purl.oclc.org/ooxml/presentationml/main"));
+            text.replace(QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QStringLiteral("http://purl.oclc.org/ooxml/officeDocument/relationships"));
+            it.value().xml = text.toUtf8();
+        }
+        d = deck::importPresentation(pack(s), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(deck::commentsOf(*d->pages[0]).size()), 2);
+        QCOMPARE(int(deck::commentsOf(*d->pages[0])[0].replies.size()), 1);
+    }
+
+    // The newer form: authors by GUID, comments that are threads with replies
+    // inside, a status, and a place on the slide or the shape they stand on.
+    void importReadsModernComments()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(withModernComments()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QVERIFY(deck::commentsOf(*d->pages[0]).isEmpty());
+        const QVector<deck::Comment> list = deck::commentsOf(*d->pages[1]);
+        QCOMPARE(int(list.size()), 3);
+        const deck::Comment &c = list[0];
+        QCOMPARE(c.author, QStringLiteral("Pat Doe"));
+        QCOMPARE(c.initials, QStringLiteral("PD"));
+        QCOMPARE(c.text, QStringLiteral("Line one\nLine two"));
+        QCOMPARE(c.date, QDateTime(QDate(2026, 10, 12), QTime(17, 15, 30, 250), QTimeZone::UTC));
+        QVERIFY(c.done);   // status "resolved"
+        // The place is in EMU: 9144000 is 720 points.
+        QCOMPARE(c.at, QPointF(720, 108));
+        QCOMPARE(int(c.replies.size()), 1);
+        QCOMPARE(c.replies[0].author, QStringLiteral("Lee Roy"));
+        QCOMPARE(c.replies[0].initials, QStringLiteral("LR"));
+        QCOMPARE(c.replies[0].text, QStringLiteral("On it"));
+        QCOMPARE(c.replies[0].date, QDateTime(QDate(2026, 10, 12), QTime(17, 20, 0, 0), QTimeZone::UTC));
+        // One with no status is open; one on a shape stands at the shape's top right (the title, shape 2).
+        QCOMPARE(list[1].text, QStringLiteral("Anchored"));
+        QVERIFY(!list[1].done);
+        const Item *title = d->pages[1]->items[0].get();
+        QCOMPARE(title->sourceId, 2);
+        QCOMPARE(list[1].at, QPointF(title->rect.right(), title->rect.top()));
+        // One that says nowhere stands at the corner, clear of the others.
+        QCOMPARE(list[2].text, QStringLiteral("Nowhere"));
+        QVERIFY(list[2].at.x() >= 0 && list[2].at.x() < 100 && list[2].at.y() >= 0 && list[2].at.y() < 100);
+        QVERIFY(list[2].at != list[1].at && list[2].at != c.at);
+    }
+
+    // A comment file is a stranger's: what doesn't make sense is left out or
+    // mended, never fatal, and the slides are read all the same.
+    void importSurvivesHostileComments()
+    {
+        QString err;
+        // A comments part that isn't XML, or isn't comments at all.
+        for (const char *junk : {"<<< not xml", "<p:sld xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>"}) {
+            Parts p = withLegacyComments();
+            p.data["/ppt/comments/comment1.xml"].xml = junk;
+            err.clear();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(d->pages.size()), 2);
+            QVERIFY(deck::commentsOf(*d->pages[0]).isEmpty());
+            QVERIFY2(err.contains(QStringLiteral("comments")), qPrintable(err));
+        }
+        // No authors part, or an author the comments don't name: the comments stay.
+        {
+            Parts p = withLegacyComments();
+            p.data.remove(QStringLiteral("/ppt/commentAuthors.xml"));
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+            QCOMPARE(int(list.size()), 2);
+            QVERIFY(!list[0].author.isEmpty());
+            QCOMPARE(list[0].text, QStringLiteral("Check the numbers\non this slide"));
+        }
+        // A reply to itself, to a comment that isn't there, and two that answer each other: all stay, none loops.
+        {
+            Parts p = withLegacyComments();
+            QString body;
+            body += legacyComment(0, 1, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("Self"), 0, QStringLiteral("0:1"));
+            body += legacyComment(0, 2, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("Orphan"), 0, QStringLiteral("5:9"));
+            body += legacyComment(1, 1, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("Ping"), 0, QStringLiteral("1:2"));
+            body += legacyComment(1, 2, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("Pong"), 0, QStringLiteral("1:1"));
+            p.data["/ppt/comments/comment1.xml"].xml = legacyCommentList(body).toUtf8();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+            int comments = 0, replies = 0;
+            for (const deck::Comment &c : list) {
+                ++comments;
+                replies += int(c.replies.size());
+            }
+            QCOMPARE(comments + replies, 4);
+            QVERIFY(comments >= 3);
+        }
+        // Dates and places that aren't numbers, and text of any length.
+        {
+            Parts p = withLegacyComments();
+            QString body = legacyComment(0, 1, QStringLiteral("last Tuesday"), 0, 0, QStringLiteral("No date"));
+            body.replace(QStringLiteral("<p:pos x=\"0\" y=\"0\"/>"), QStringLiteral("<p:pos x=\"many\" y=\"-4000000000\"/>"));
+            body += legacyComment(0, 2, QStringLiteral("2026-10-12T10:00:00"), 0, 0, QString(deck::kMaxCommentText + 1000, QLatin1Char('y')));
+            body += QStringLiteral("<p:cm authorId=\"0\" idx=\"3\"><p:text>No place</p:text></p:cm><p:cm><p:text>No author</p:text></p:cm>");
+            p.data["/ppt/comments/comment1.xml"].xml = legacyCommentList(body).toUtf8();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+            QCOMPARE(int(list.size()), 4);
+            QVERIFY(!list[0].date.isValid());
+            QCOMPARE(list[0].text, QStringLiteral("No date"));
+            QVERIFY(list[0].at.x() >= 0 && list[0].at.x() <= 960 && list[0].at.y() >= 0 && list[0].at.y() <= 540);
+            QCOMPARE(int(list[1].text.size()), int(deck::kMaxCommentText));
+            QCOMPARE(list[2].text, QStringLiteral("No place"));
+        }
+        // More than a slide can hold are counted, not read.
+        {
+            Parts p = withLegacyComments();
+            QString body;
+            for (int i = 0; i < 1100; ++i) body += legacyComment(0, i + 1, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("C%1").arg(i));
+            p.data["/ppt/comments/comment1.xml"].xml = legacyCommentList(body).toUtf8();
+            err.clear();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(deck::commentsOf(*d->pages[0]).size()), 1000);
+            QVERIFY2(err.contains(QStringLiteral("1000")), qPrintable(err));
+        }
+        // Authors by the thousand are not all read either; the first ones are.
+        {
+            Parts p = withLegacyComments();
+            QString authors;
+            for (int i = 0; i < 12000; ++i) authors += QStringLiteral("<p:cmAuthor id=\"%1\" name=\"A%1\" initials=\"A\" lastIdx=\"1\" clrIdx=\"0\"/>").arg(i);
+            p.data["/ppt/commentAuthors.xml"].xml = (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:cmAuthorLst ") + nsDecl() + QStringLiteral(">") + authors + QStringLiteral("</p:cmAuthorLst>")).toUtf8();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(deck::commentsOf(*d->pages[0])[0].author, QStringLiteral("A0"));
+        }
+        // The newer form: a part that isn't XML, replies without end, text in odd places.
+        {
+            Parts p = withModernComments();
+            p.data["/ppt/comments/modernComment_101_5.xml"].xml = "<<< not xml";
+            err.clear();
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(d->pages.size()), 2);
+            QVERIFY(deck::commentsOf(*d->pages[1]).isEmpty());
+            QVERIFY2(err.contains(QStringLiteral("comments")), qPrintable(err));
+            Parts q = withModernComments();
+            QString xml = QString::fromUtf8(q.data["/ppt/comments/modernComment_101_5.xml"].xml);
+            QString replies;
+            for (int i = 0; i < 1100; ++i)
+                replies += QStringLiteral("<p188:reply id=\"{%1}\" authorId=\"{22222222-2222-4222-8222-222222222222}\" created=\"bad\"><p188:txBody><a:p><a:r><a:t>r%1</a:t></a:r></a:p></p188:txBody></p188:reply>").arg(i);
+            xml.replace(QStringLiteral("<p188:replyLst>"), QStringLiteral("<p188:replyLst>") + replies);
+            q.data["/ppt/comments/modernComment_101_5.xml"].xml = xml.toUtf8();
+            err.clear();
+            d = deck::importPresentation(pack(q), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[1]);
+            QCOMPARE(int(list.size()), 3);
+            QCOMPARE(int(list[0].replies.size()), 1000);
+            QVERIFY2(err.contains(QStringLiteral("1000")), qPrintable(err));
+        }
+    }
+
+    // A presentation with no comments has no comment parts; one with comments
+    // has the authors once and a part of comments for each slide that has some,
+    // in the older form that every version of the program opens.
+    void exportWritesCommentsAndReadsThemBack()
+    {
+        {
+            auto plain = deck::newPresentation();
+            const QByteArray bytes = deck::exportPresentation(*plain);
+            QVERIFY(!bytes.isEmpty());
+            Exported e;
+            QString why;
+            QVERIFY2(unpack(bytes, &e, &why), qPrintable(why));
+            for (const QString &n : e.pkg.partNames()) QVERIFY2(!n.contains(QStringLiteral("omment")), qPrintable(n));
+            QVERIFY(e.pkg.relationshipsOfType(QStringLiteral("/ppt/presentation.xml"), QStringLiteral("/commentAuthors")).isEmpty());
+            QVERIFY(!e.zip.value(QStringLiteral("[Content_Types].xml")).contains("omment"));
+        }
+
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        const deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Lee Roy"), QStringLiteral("LR")}, odd{QStringLiteral("A <B> & \"C\""), QStringLiteral("A&B")};
+        const QDateTime t(QDate(2026, 10, 12), QTime(14, 3, 5, 123), QTimeZone::UTC);
+        const QString c1 = deck::addComment(*d->pages[0], pat, QStringLiteral("Check the numbers\non this slide"), QPointF(100.5, 40.25), t);
+        deck::addReply(*d->pages[0], c1, lee, QStringLiteral("Done, thanks"), t.addSecs(300));
+        deck::addReply(*d->pages[0], c1, pat, QStringLiteral("Great"), t.addSecs(360));
+        const QString c2 = deck::addComment(*d->pages[0], lee, QStringLiteral("Second & <last>"), QPointF(700, 300), t.addDays(1));
+        deck::resolveComment(*d->pages[0], c2);
+        deck::addComment(*d->pages[2], odd, QStringLiteral("Third slide"), QPointF(10, 10), t.addDays(2));
+
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(bytes, &e, &why), qPrintable(why));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString pres = QStringLiteral("/ppt/presentation.xml");
+        QCOMPARE(relationshipTargets(e, pres, QStringLiteral("/commentAuthors")), QStringList{QStringLiteral("/ppt/commentAuthors.xml")});
+        QCOMPARE(e.pkg.contentType(QStringLiteral("/ppt/commentAuthors.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml"));
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/comments")), QStringList{QStringLiteral("/ppt/comments/comment1.xml")});
+        QVERIFY(relationshipTargets(e, QStringLiteral("/ppt/slides/slide2.xml"), QStringLiteral("/comments")).isEmpty());
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slides/slide3.xml"), QStringLiteral("/comments")), QStringList{QStringLiteral("/ppt/comments/comment2.xml")});
+        for (const char *n : {"/ppt/comments/comment1.xml", "/ppt/comments/comment2.xml"})
+            QCOMPARE(e.pkg.contentType(QLatin1String(n)), QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.comments+xml"));
+        QCOMPARE(int(e.pkg.partNames().filter(QRegularExpression(QStringLiteral("^/ppt/comments/"))).size()), 2);
+        // The relationship types are the standard's.
+        QCOMPARE(e.pkg.relationshipsOfType(pres, QStringLiteral("/commentAuthors")).at(0).type, QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/commentAuthors"));
+        QCOMPARE(e.pkg.relationshipsOfType(QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/comments")).at(0).type, QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"));
+
+        // The authors, once each, with the last index they used; a comment names its author and its index.
+        QDomDocument authors;
+        const QDomElement list = rootOf(e.zip.value(QStringLiteral("ppt/commentAuthors.xml")), &authors);
+        QCOMPARE(list.localName(), QStringLiteral("cmAuthorLst"));
+        const QVector<QDomElement> people = office::children(list, office::ns::P, QStringLiteral("cmAuthor"));
+        QCOMPARE(int(people.size()), 3);
+        QCOMPARE(people[0].attribute(QStringLiteral("name")), QStringLiteral("Pat Doe"));
+        QCOMPARE(people[0].attribute(QStringLiteral("initials")), QStringLiteral("PD"));
+        QCOMPARE(people[0].attribute(QStringLiteral("id")), QStringLiteral("0"));
+        QCOMPARE(people[0].attribute(QStringLiteral("lastIdx")), QStringLiteral("2"));   // the comment and its second reply
+        QCOMPARE(people[1].attribute(QStringLiteral("name")), QStringLiteral("Lee Roy"));
+        QCOMPARE(people[1].attribute(QStringLiteral("lastIdx")), QStringLiteral("2"));
+        QCOMPARE(people[2].attribute(QStringLiteral("name")), QStringLiteral("A <B> & \"C\""));
+        QVERIFY(people[2].hasAttribute(QStringLiteral("clrIdx")));
+        QDomDocument comments;
+        const QDomElement cmLst = rootOf(e.zip.value(QStringLiteral("ppt/comments/comment1.xml")), &comments);
+        QCOMPARE(cmLst.localName(), QStringLiteral("cmLst"));
+        const QVector<QDomElement> cms = office::children(cmLst, office::ns::P, QStringLiteral("cm"));
+        QCOMPARE(int(cms.size()), 4);   // two comments and the two replies to the first
+        QSet<QString> seen;
+        for (const QDomElement &cm : cms) {
+            QStringList names;
+            for (const QDomElement &c : office::children(cm)) names << c.localName();
+            QVERIFY2(names.size() >= 2 && names[0] == QLatin1String("pos") && names[1] == QLatin1String("text") && (names.size() == 2 || names[2] == QLatin1String("extLst")), qPrintable(names.join(QLatin1Char(','))));
+            const QString key = cm.attribute(QStringLiteral("authorId")) + QLatin1Char(':') + cm.attribute(QStringLiteral("idx"));
+            QVERIFY2(!seen.contains(key), qPrintable(key));
+            seen << key;
+            QVERIFY(cm.hasAttribute(QStringLiteral("dt")));
+        }
+        // Positions in 576ths of an inch (8 to the point).
+        const QDomElement pos = office::child(cms[0], office::ns::P, QStringLiteral("pos"));
+        QCOMPARE(pos.attribute(QStringLiteral("x")), QStringLiteral("804"));
+        QCOMPARE(pos.attribute(QStringLiteral("y")), QStringLiteral("322"));
+        // A reply says which comment it answers.
+        const QString xml = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/comments/comment1.xml")));
+        QCOMPARE(int(xml.count(QStringLiteral("<p15:parentCm authorId=\"0\" idx=\"1\"/>"))), 2);
+
+        // Read back, it is what was written: authors, dates to the millisecond, places, replies, and the done mark.
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        for (int i = 0; i < 3; ++i) {
+            const QVector<deck::Comment> want = deck::commentsOf(*d->pages[i]), got = deck::commentsOf(*back->pages[i]);
+            QCOMPARE(int(got.size()), int(want.size()));
+            for (int k = 0; k < want.size(); ++k) {
+                QCOMPARE(got[k].author, want[k].author);
+                QCOMPARE(got[k].initials, want[k].initials);
+                QCOMPARE(got[k].date, want[k].date);
+                QCOMPARE(got[k].text, want[k].text);
+                QCOMPARE(got[k].at, want[k].at);
+                QCOMPARE(got[k].done, want[k].done);
+                QCOMPARE(int(got[k].replies.size()), int(want[k].replies.size()));
+                for (int r = 0; r < want[k].replies.size(); ++r) {
+                    QCOMPARE(got[k].replies[r].author, want[k].replies[r].author);
+                    QCOMPARE(got[k].replies[r].initials, want[k].replies[r].initials);
+                    QCOMPARE(got[k].replies[r].date, want[k].replies[r].date);
+                    QCOMPARE(got[k].replies[r].text, want[k].replies[r].text);
+                }
+            }
+        }
+        QVERIFY(deck::commentsOf(*back->pages[0])[1].done);
+        QVERIFY(!deck::commentsOf(*back->pages[0])[0].done);
+        QVERIFY(deck::commentsOf(*back->pages[1]).isEmpty());
+        // Written again, the same file's comments come out the same.
+        QCOMPARE(deck::exportPresentation(*back).isEmpty(), false);
+    }
+
+    // The Review tab has a Comments group: New Comment, Delete (with its menu),
+    // Previous, Next, and Show Comments.
+    void reviewTabHasTheCommentsGroup()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        for (const char *id : {"comment.new", "comment.delete", "comment.deleteSlide", "comment.deleteAll", "comment.prev", "comment.next", "comment.show"})
+            QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QVERIFY(w.act(QStringLiteral("comment.show"))->isCheckable());
+        QVERIFY(!w.act(QStringLiteral("comment.show"))->isChecked());
+        QVERIFY(w.commentsPane());
+        QVERIFY(w.commentsPane()->isHidden());
+        auto button = [&](const QString &id) -> QToolButton * {
+            for (QToolButton *b : w.ribbon()->tab(QStringLiteral("Review"))->findChildren<QToolButton *>())
+                if (b->defaultAction() == w.act(id)) return b;
+            return nullptr;
+        };
+        for (const char *id : {"comment.new", "comment.delete", "comment.prev", "comment.next", "comment.show"})
+            QVERIFY2(button(QString::fromLatin1(id)), id);
+        // Delete has a menu with the other two.
+        QToolButton *del = button(QStringLiteral("comment.delete"));
+        QVERIFY(del->menu());
+        QVERIFY(del->menu()->actions().contains(w.act(QStringLiteral("comment.deleteSlide"))));
+        QVERIFY(del->menu()->actions().contains(w.act(QStringLiteral("comment.deleteAll"))));
+        // With no comments there is nothing to delete or visit; New Comment and Show Comments are always there.
+        QVERIFY(w.act(QStringLiteral("comment.new"))->isEnabled());
+        QVERIFY(w.act(QStringLiteral("comment.show"))->isEnabled());
+        for (const char *id : {"comment.delete", "comment.deleteSlide", "comment.deleteAll", "comment.prev", "comment.next"})
+            QVERIFY2(!w.act(QString::fromLatin1(id))->isEnabled(), id);
+        // The KeyTips of the tab stay their own.
+        QStringList seen;
+        for (const QWidget *c : w.ribbon()->tab(QStringLiteral("Review"))->findChildren<QWidget *>()) {
+            const QString k = keytip(c);
+            if (k.isEmpty()) continue;
+            QVERIFY2(!seen.contains(k), qPrintable("two controls have the KeyTip " + k));
+            seen << k;
+        }
+        // Show Comments opens and closes the pane.
+        w.resize(1280, 800);
+        w.show();
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(!w.commentsPane()->isHidden());
+        QVERIFY(w.canvas()->commentsShown());
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(w.commentsPane()->isHidden());
+        QVERIFY(!w.canvas()->commentsShown());
+    }
+
+    // The Comments pane: New Comment opens a box to type in, Post makes the
+    // comment as one undo step, and each card replies, resolves, edits, and deletes.
+    void commentsPaneAddsRepliesResolvesEditsAndDeletes()
+    {
+        Settings &st = Settings::get();
+        st.setValue(QStringLiteral("user/name"), QStringLiteral("Pat Doe"));
+        st.setValue(QStringLiteral("user/initials"), QStringLiteral("PD"));
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        CommentsPane *pane = w.commentsPane();
+        QVERIFY(pane->isHidden());
+        auto slide = [&]() -> Page & { return *ed->doc()->pages[ed->currentPage()]; };
+        auto card = [&](int i = 0) { return pane->findChildren<QFrame *>(QStringLiteral("commentCard")).value(i); };
+
+        w.act(QStringLiteral("comment.new"))->trigger();
+        QVERIFY(!pane->isHidden());
+        QVERIFY(w.act(QStringLiteral("comment.show"))->isChecked());
+        auto *draft = pane->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"));
+        QVERIFY(draft && draft->isVisible());
+        QCOMPARE(w.focusWidget(), draft);
+        QCOMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 0);
+        auto *post = pane->findChild<QPushButton *>(QStringLiteral("commentPost"));
+        QVERIFY(post);
+        QVERIFY(!post->isEnabled());   // nothing typed
+        draft->setPlainText(QStringLiteral("Check the title"));
+        QVERIFY(post->isEnabled());
+        QCOMPARE(deck::commentCount(slide()), 0);   // not until Post
+        post->click();
+        QCOMPARE(deck::commentCount(slide()), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("New Comment"));
+        deck::Comment c = deck::commentsOf(slide())[0];
+        QCOMPARE(c.author, QStringLiteral("Pat Doe"));
+        QCOMPARE(c.initials, QStringLiteral("PD"));
+        QCOMPARE(c.text, QStringLiteral("Check the title"));
+        QVERIFY(c.date.isValid() && qAbs(c.date.secsTo(QDateTime::currentDateTimeUtc())) < 60);
+        QVERIFY(c.at.x() >= 0 && c.at.x() < 960 && c.at.y() >= 0 && c.at.y() < 540);
+        QVERIFY(!draft->isVisible());
+        QCOMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 1);
+        QCOMPARE(pane->currentComment(), c.id);   // the new comment is the one open
+        QVERIFY(w.act(QStringLiteral("comment.delete"))->isEnabled());
+        QVERIFY(card()->findChild<QLabel *>(QStringLiteral("commentText"))->text().contains(QStringLiteral("Check the title")));
+        QVERIFY(card()->findChild<QLabel *>(QStringLiteral("commentAuthor"))->text().contains(QStringLiteral("Pat Doe")));
+
+        // A reply.
+        auto *reply = card()->findChild<QLineEdit *>(QStringLiteral("commentReplyEdit"));
+        auto *replyPost = card()->findChild<QAbstractButton *>(QStringLiteral("commentReplyPost"));
+        QVERIFY(reply && replyPost);
+        QVERIFY(!replyPost->isEnabled());
+        reply->setText(QStringLiteral("Agreed"));
+        QVERIFY(replyPost->isEnabled());
+        replyPost->click();
+        QCOMPARE(int(deck::commentsOf(slide())[0].replies.size()), 1);
+        QCOMPARE(deck::commentsOf(slide())[0].replies[0].text, QStringLiteral("Agreed"));
+        QCOMPARE(deck::commentsOf(slide())[0].replies[0].author, QStringLiteral("Pat Doe"));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        QCOMPARE(int(card()->findChildren<QLabel *>(QStringLiteral("commentReplyText")).size()), 1);
+        // Enter in the box replies too.
+        card()->findChild<QLineEdit *>(QStringLiteral("commentReplyEdit"))->setText(QStringLiteral("Second answer"));
+        QTest::keyClick(card()->findChild<QLineEdit *>(QStringLiteral("commentReplyEdit")), Qt::Key_Return);
+        QCOMPARE(int(deck::commentsOf(slide())[0].replies.size()), 2);
+
+        // Resolve and reopen.
+        auto *resolve = card()->findChild<QAbstractButton *>(QStringLiteral("commentResolve"));
+        QVERIFY(resolve);
+        resolve->click();
+        QVERIFY(deck::commentsOf(slide())[0].done);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Resolve Comment"));
+        resolve = card()->findChild<QAbstractButton *>(QStringLiteral("commentResolve"));
+        QVERIFY(resolve->text().contains(QStringLiteral("Reopen")));
+        resolve->click();
+        QVERIFY(!deck::commentsOf(slide())[0].done);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Reopen Comment"));
+
+        // Edit the text.
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentEdit"))->click();
+        auto *editor = card()->findChild<QPlainTextEdit *>(QStringLiteral("commentEditor"));
+        QVERIFY(editor);
+        QCOMPARE(editor->toPlainText(), QStringLiteral("Check the title"));
+        editor->setPlainText(QStringLiteral("Check the heading"));
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentSave"))->click();
+        QCOMPARE(deck::commentsOf(slide())[0].text, QStringLiteral("Check the heading"));
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Edit Comment"));
+        QVERIFY(!card()->findChild<QPlainTextEdit *>(QStringLiteral("commentEditor")));
+        // Cancel leaves it be.
+        const int steps = ed->undoStack()->count();
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentEdit"))->click();
+        card()->findChild<QPlainTextEdit *>(QStringLiteral("commentEditor"))->setPlainText(QStringLiteral("Never mind"));
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentCancel"))->click();
+        QCOMPARE(ed->undoStack()->count(), steps);
+        QCOMPARE(deck::commentsOf(slide())[0].text, QStringLiteral("Check the heading"));
+
+        // A reply goes by itself.
+        auto replyDeletes = card()->findChildren<QAbstractButton *>(QStringLiteral("commentReplyDelete"));
+        QCOMPARE(int(replyDeletes.size()), 2);
+        replyDeletes[0]->click();
+        QCOMPARE(int(deck::commentsOf(slide())[0].replies.size()), 1);
+        QCOMPARE(deck::commentsOf(slide())[0].replies[0].text, QStringLiteral("Second answer"));
+
+        // Delete takes the comment and its replies; one undo brings it all back, and redo takes it again.
+        card()->findChild<QAbstractButton *>(QStringLiteral("commentDelete"))->click();
+        QCOMPARE(deck::commentCount(slide()), 0);
+        QCOMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 0);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Delete Comment"));
+        QVERIFY(!w.act(QStringLiteral("comment.delete"))->isEnabled());
+        ed->undo();
+        QCOMPARE(deck::commentCount(slide()), 1);
+        QCOMPARE(int(deck::commentsOf(slide())[0].replies.size()), 1);
+        QTRY_COMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 1);
+        ed->redo();
+        QCOMPARE(deck::commentCount(slide()), 0);
+        QTRY_COMPARE(int(pane->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 0);
+        // Undoing all the way takes the first comment away again.
+        while (ed->undoStack()->canUndo()) ed->undo();
+        QCOMPARE(deck::commentCount(slide()), 0);
+
+        // Cancel in the new comment's box makes nothing.
+        w.act(QStringLiteral("comment.new"))->trigger();
+        pane->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->setPlainText(QStringLiteral("Never mind"));
+        pane->findChild<QPushButton *>(QStringLiteral("commentDraftCancel"))->click();
+        QVERIFY(!pane->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->isVisible());
+        QCOMPARE(deck::commentCount(slide()), 0);
+        QVERIFY(!ed->undoStack()->canUndo());
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+    }
+
+    // The pane asks who is writing the first time, when File > Options has no
+    // name, and keeps the answer; saying no makes no comment.
+    void commentsPaneAsksWhoIsWritingOnce()
+    {
+        Settings &st = Settings::get();
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        // Declined: nothing opens, nothing is kept.
+        bool asked = false;
+        QTimer::singleShot(0, [&] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            asked = dlg->findChild<QLineEdit *>(QStringLiteral("commentAuthorName")) && dlg->findChild<QLineEdit *>(QStringLiteral("commentAuthorInitials"));
+            dlg->reject();
+        });
+        w.act(QStringLiteral("comment.new"))->trigger();
+        QVERIFY(asked);
+        QVERIFY(!deck::commentAuthor().known());
+        QVERIFY(!w.commentsPane()->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft")) || !w.commentsPane()->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->isVisible());
+        // Answered: kept in the settings, and the box to type in opens.
+        asked = false;
+        QTimer::singleShot(0, [&] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            asked = true;
+            dlg->findChild<QLineEdit *>(QStringLiteral("commentAuthorName"))->setText(QStringLiteral("Pat Doe"));
+            dlg->accept();
+        });
+        w.act(QStringLiteral("comment.new"))->trigger();
+        QVERIFY(asked);
+        QCOMPARE(st.value(QStringLiteral("user/name")).toString(), QStringLiteral("Pat Doe"));
+        QCOMPARE(st.value(QStringLiteral("user/initials")).toString(), QStringLiteral("PD"));
+        auto *draft = w.commentsPane()->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"));
+        QVERIFY(draft && draft->isVisible());
+        draft->setPlainText(QStringLiteral("Hello"));
+        w.commentsPane()->findChild<QPushButton *>(QStringLiteral("commentPost"))->click();
+        QCOMPARE(deck::commentsOf(*w.editor()->doc()->pages[0])[0].initials, QStringLiteral("PD"));
+        // Not again.
+        bool askedAgain = false;
+        QTimer watch;   // lets go of a dialog that would otherwise hold the test
+        watch.setSingleShot(true);
+        connect(&watch, &QTimer::timeout, [&] {
+            if (auto *dlg = QApplication::activeModalWidget()) {
+                askedAgain = true;
+                dlg->close();
+            }
+        });
+        watch.start(0);
+        w.act(QStringLiteral("comment.new"))->trigger();
+        QVERIFY(!askedAgain);
+        QVERIFY(w.commentsPane()->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->isVisible());
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+    }
+
+    // Each comment has a marker on the slide, where its place is: it shows only
+    // while comments are shown, a click opens the comment in the pane, and
+    // dragging it moves the comment as one step that undoes.
+    void commentMarkersShowOnTheSlideAndMove()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        DeckCanvas *cv = w.canvas();
+        const deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")};
+        ed->beginChange(QStringLiteral("Comments"));
+        const QString first = deck::addComment(*ed->doc()->pages[0], pat, QStringLiteral("One"), QPointF(600, 100));
+        const QString second = deck::addComment(*ed->doc()->pages[0], pat, QStringLiteral("Two"), QPointF(300, 400));
+        ed->endChange();
+        ed->undoStack()->clear();
+        QVERIFY(!cv->commentsShown());
+        auto markerPoint = [&](const QPointF &page) { return (cv->pageToView(page) + QPointF(6, 6)).toPoint(); };
+        QTRY_VERIFY(cv->viewport()->isVisible());
+        QVERIFY(cv->commentAt(markerPoint(QPointF(600, 100))).isEmpty());   // hidden
+        const QImage hidden = cv->viewport()->grab().toImage();
+
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(cv->commentsShown());
+        QCOMPARE(cv->commentAt(markerPoint(QPointF(600, 100))), first);
+        QCOMPARE(cv->commentAt(markerPoint(QPointF(300, 400))), second);
+        QVERIFY(cv->commentAt((cv->pageToView(QPointF(600, 100)) - QPointF(8, 8)).toPoint()).isEmpty());
+        QVERIFY(cv->commentAt(markerPoint(QPointF(450, 250))).isEmpty());
+        // The markers are drawn: the pixels under them differ from the slide without them.
+        const QImage shown = cv->viewport()->grab().toImage();
+        for (const QPointF &page : {QPointF(600, 100), QPointF(300, 400)}) {
+            int changed = 0;
+            const QPoint at = cv->pageToView(page).toPoint();
+            for (int dy = 2; dy < 14; ++dy)
+                for (int dx = 2; dx < 18; ++dx) changed += shown.pixelColor(at.x() + dx, at.y() + dy) != hidden.pixelColor(at.x() + dx, at.y() + dy);
+            QVERIFY2(changed > 60, qPrintable(QString::number(changed)));
+        }
+        // Another slide has none of these.
+        deck::addSlide(*ed->doc(), *deck::layoutOfType(*ed->doc(), QStringLiteral("obj")));
+        ed->setCurrentPage(1);
+        QVERIFY(cv->commentAt(markerPoint(QPointF(600, 100))).isEmpty());
+        ed->setCurrentPage(0);
+        ed->undoStack()->clear();
+
+        // A click opens the pane on the comment.
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(w.commentsPane()->isHidden());
+        w.act(QStringLiteral("comment.show"))->trigger();
+        QVERIFY(w.commentsPane()->currentComment().isEmpty());
+        QTest::mouseClick(cv->viewport(), Qt::LeftButton, Qt::NoModifier, markerPoint(QPointF(300, 400)));
+        QVERIFY(!w.commentsPane()->isHidden());
+        QCOMPARE(w.commentsPane()->currentComment(), second);
+        QCOMPARE(cv->activeComment(), second);
+        QVERIFY(w.act(QStringLiteral("comment.delete"))->isEnabled());
+        QCOMPARE(ed->undoStack()->count(), 0);   // a click moves nothing
+        QCOMPARE(deck::commentsOf(*ed->doc()->pages[0])[1].at, QPointF(300, 400));
+
+        // A drag moves it, in one step.
+        const QPoint from = markerPoint(QPointF(300, 400)), to = from + QPoint(90, -60);
+        QTest::mousePress(cv->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(cv->viewport(), from + QPoint(20, -10));
+        QTest::mouseMove(cv->viewport(), from + QPoint(60, -40));
+        QTest::mouseMove(cv->viewport(), to);
+        QCOMPARE(ed->undoStack()->count(), 0);   // not until it lets go
+        QTest::mouseRelease(cv->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Move Comment"));
+        const QPointF moved = deck::commentsOf(*ed->doc()->pages[0])[1].at;
+        QVERIFY2(qAbs(moved.x() - (300 + 90 / cv->ppp())) < 1.5 && qAbs(moved.y() - (400 - 60 / cv->ppp())) < 1.5, qPrintable(QString::number(moved.x()) + "," + QString::number(moved.y())));
+        QCOMPARE(deck::commentsOf(*ed->doc()->pages[0])[0].at, QPointF(600, 100));   // the other stayed
+        QCOMPARE(cv->commentAt(markerPoint(moved)), second);
+        QCOMPARE(w.commentsPane()->currentComment(), second);
+        ed->undo();
+        QCOMPARE(deck::commentsOf(*ed->doc()->pages[0])[1].at, QPointF(300, 400));
+        // The markers don't take the slide's own clicks away where they aren't.
+        ed->clearSelection();
+        const QPointF titleAt = ed->doc()->pages[0]->items[0]->rect.center();
+        QTest::mouseClick(cv->viewport(), Qt::LeftButton, Qt::NoModifier, cv->pageToView(titleAt).toPoint());
+        QCOMPARE(ed->selection(), QStringList{ed->doc()->pages[0]->items[0]->id});
+        (void)first;
+    }
+
+    // Previous and Next go from comment to comment through the presentation, in
+    // slide order, opening each one in the pane on its slide; the Delete menu
+    // clears the slide's comments or all of them as one step.
+    void commentCommandsVisitAndDelete()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        for (int i = 0; i < 2; ++i) deck::addSlide(*ed->doc(), *deck::layoutOfType(*ed->doc(), QStringLiteral("obj")));
+        const deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")};
+        ed->beginChange(QStringLiteral("Comments"));
+        const QString a = deck::addComment(*ed->doc()->pages[0], pat, QStringLiteral("A"), QPointF(10, 10));
+        const QString b = deck::addComment(*ed->doc()->pages[0], pat, QStringLiteral("B"), QPointF(40, 10));
+        const QString c = deck::addComment(*ed->doc()->pages[2], pat, QStringLiteral("C"), QPointF(10, 10));
+        ed->endChange();
+        ed->undoStack()->clear();
+        ed->setCurrentPage(0);
+        QVERIFY(w.act(QStringLiteral("comment.next"))->isEnabled() && w.act(QStringLiteral("comment.prev"))->isEnabled());
+        QVERIFY(w.act(QStringLiteral("comment.deleteAll"))->isEnabled() && w.act(QStringLiteral("comment.deleteSlide"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("comment.delete"))->isEnabled());   // none is open yet
+        auto open = [&] { return w.commentsPane()->currentComment(); };
+
+        w.act(QStringLiteral("comment.next"))->trigger();   // none was open: the first
+        QVERIFY(!w.commentsPane()->isHidden());
+        QVERIFY(w.canvas()->commentsShown());
+        QCOMPARE(open(), a);
+        w.act(QStringLiteral("comment.next"))->trigger();
+        QCOMPARE(open(), b);
+        w.act(QStringLiteral("comment.next"))->trigger();   // over to the third slide
+        QCOMPARE(open(), c);
+        QCOMPARE(ed->currentPage(), 2);
+        w.act(QStringLiteral("comment.next"))->trigger();   // and round to the first
+        QCOMPARE(open(), a);
+        QCOMPARE(ed->currentPage(), 0);
+        w.act(QStringLiteral("comment.prev"))->trigger();   // and back
+        QCOMPARE(open(), c);
+        QCOMPARE(ed->currentPage(), 2);
+        w.act(QStringLiteral("comment.prev"))->trigger();
+        QCOMPARE(open(), b);
+        QCOMPARE(ed->currentPage(), 0);
+
+        // Delete takes the open comment.
+        QVERIFY(w.act(QStringLiteral("comment.delete"))->isEnabled());
+        w.act(QStringLiteral("comment.delete"))->trigger();
+        QCOMPARE(int(deck::commentsOf(*ed->doc()->pages[0]).size()), 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Delete Comment"));
+        QVERIFY(open().isEmpty());
+        QVERIFY(!w.act(QStringLiteral("comment.delete"))->isEnabled());
+        ed->undo();
+        QCOMPARE(int(deck::commentsOf(*ed->doc()->pages[0]).size()), 2);
+        // All of the slide's.
+        ed->undoStack()->clear();
+        w.act(QStringLiteral("comment.deleteSlide"))->trigger();
+        QVERIFY(deck::commentsOf(*ed->doc()->pages[0]).isEmpty());
+        QCOMPARE(int(deck::commentsOf(*ed->doc()->pages[2]).size()), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Delete Comments"));
+        ed->undo();
+        QCOMPARE(int(deck::commentsOf(*ed->doc()->pages[0]).size()), 2);
+        // All of the presentation's, in one step.
+        ed->undoStack()->clear();
+        w.act(QStringLiteral("comment.deleteAll"))->trigger();
+        QVERIFY(deck::allComments(*ed->doc()).isEmpty());
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QVERIFY(!w.act(QStringLiteral("comment.deleteAll"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("comment.next"))->isEnabled());
+        ed->undo();
+        QCOMPARE(int(deck::allComments(*ed->doc()).size()), 3);
+        QVERIFY(w.act(QStringLiteral("comment.next"))->isEnabled());
+    }
+
+    // A presentation opened with comments in it shows them, and the comments
+    // go into the file the window saves.
+    void commentsOpenAndSaveWithThePresentation()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(pack(withLegacyComments()));
+        f.close();
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        QVERIFY(w.openFile(path));
+        QVERIFY(!w.commentsPane()->isHidden());   // the file has comments: they show
+        QVERIFY(w.canvas()->commentsShown());
+        QTRY_COMPARE(int(w.commentsPane()->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 2);
+        w.editor()->setCurrentPage(1);
+        QTRY_COMPARE(int(w.commentsPane()->findChildren<QFrame *>(QStringLiteral("commentCard")).size()), 0);
+        const QString out = dir.filePath(QStringLiteral("again.pptx"));
+        QVERIFY(w.saveTo(out));
+        QString err;
+        auto back = deck::importPresentationFile(out, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(deck::commentsOf(*back->pages[0]).size()), 2);
+        QCOMPARE(int(deck::commentsOf(*back->pages[0])[0].replies.size()), 1);
+        w.editor()->markSaved();
+    }
+
+
     // File > Options is the shared dialog: its General tab has the user name
     // and the app's own name in the update check, Proofing follows, and
     // JeffDeck's View page sets the ruler and snapping for every open window.
@@ -4190,6 +7158,75 @@ private:
         w.addRelationship(QStringLiteral("/"), relBase() + QStringLiteral("officeDocument"), QStringLiteral("/ppt/presentation.xml"));
         for (const Rel &r : p.rels) w.addRelationship(r.source, r.type.contains(QLatin1String("://")) ? r.type : relBase() + r.type, r.target, r.external);
         return w.finish();
+    }
+    // A comment of the older form (p:cm). `bias`: the author's offset from UTC in minutes
+    // (INT_MIN: none given); `parent`: "author:idx" of the comment it answers.
+    static QString legacyComment(int author, int idx, const QString &when, qint64 x, qint64 y, const QString &text, int bias = INT_MIN, const QString &parent = QString())
+    {
+        QString ext;
+        if (bias != INT_MIN || !parent.isEmpty()) {
+            ext = QStringLiteral("<p:extLst><p:ext uri=\"{C676402C-5697-4E1C-873F-D02D1690AC5C}\"><p15:threadingInfo xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2012/main\"");
+            if (bias != INT_MIN) ext += QStringLiteral(" timeZoneBias=\"%1\"").arg(bias);
+            if (parent.isEmpty()) ext += QStringLiteral("/>");
+            else ext += QStringLiteral("><p15:parentCm authorId=\"%1\" idx=\"%2\"/></p15:threadingInfo>").arg(parent.section(QLatin1Char(':'), 0, 0), parent.section(QLatin1Char(':'), 1, 1));
+            ext += QStringLiteral("</p:ext></p:extLst>");
+        }
+        return QStringLiteral("<p:cm authorId=\"%1\" dt=\"%2\" idx=\"%3\"><p:pos x=\"%4\" y=\"%5\"/><p:text>%6</p:text>%7</p:cm>")
+            .arg(author).arg(when).arg(idx).arg(x).arg(y).arg(text.toHtmlEscaped(), ext);
+    }
+    static QString legacyCommentList(const QString &body)
+    {
+        return QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:cmLst ") + nsDecl() + QStringLiteral(">") + body + QStringLiteral("</p:cmLst>");
+    }
+    // The sample presentation with comments in the older form on its first slide: a comment
+    // by Pat and Lee's answer to it, then Lee's own, in the offset-free and the UTC form.
+    static Parts withLegacyComments()
+    {
+        Parts p = samplePptx();
+        p.data["/ppt/commentAuthors.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml"),
+            (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:cmAuthorLst ") + nsDecl() + QStringLiteral(">"
+             "<p:cmAuthor id=\"0\" name=\"Pat Doe\" initials=\"PD\" lastIdx=\"1\" clrIdx=\"0\"/>"
+             "<p:cmAuthor id=\"1\" name=\"Lee Roy\" initials=\"LR\" lastIdx=\"2\" clrIdx=\"1\"/></p:cmAuthorLst>")).toUtf8()};
+        p.rels << Rel{"/ppt/presentation.xml", "commentAuthors", "/ppt/commentAuthors.xml"};
+        QString body = legacyComment(0, 1, QStringLiteral("2026-10-12T10:15:30.250"), 5760, 1152, QStringLiteral("Check the numbers\non this slide"), 420);
+        body += legacyComment(1, 1, QStringLiteral("2026-10-12T10:20:00.000"), 5760, 1152, QStringLiteral("Done, thanks"), 420, QStringLiteral("0:1"));
+        body += legacyComment(1, 2, QStringLiteral("2026-10-12T11:00:00.000Z"), 800, 400, QStringLiteral("Second thread"));
+        p.data["/ppt/comments/comment1.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.comments+xml"), legacyCommentList(body).toUtf8()};
+        p.rels << Rel{"/ppt/slides/slide1.xml", "comments", "/ppt/comments/comment1.xml"};
+        return p;
+    }
+    // The sample presentation with comments in the newer form on its second slide.
+    static Parts withModernComments()
+    {
+        Parts p = samplePptx();
+        const QString head = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+        const QString modern = nsDecl() + QStringLiteral(" xmlns:p188=\"http://schemas.microsoft.com/office/powerpoint/2018/8/main\"");
+        const QString pat = QStringLiteral("{11111111-1111-4111-8111-111111111111}"), lee = QStringLiteral("{22222222-2222-4222-8222-222222222222}");
+        p.data["/ppt/authors.xml"] = {QStringLiteral("application/vnd.ms-powerpoint.authors+xml"),
+            (head + QStringLiteral("<p188:authorLst ") + modern + QStringLiteral(">"
+             "<p188:author id=\"%1\" name=\"Pat Doe\" initials=\"PD\" userId=\"S::pat@example.com::1\" providerId=\"AD\"/>"
+             "<p188:author id=\"%2\" name=\"Lee Roy\" initials=\"LR\" userId=\"lee\" providerId=\"None\"/></p188:authorLst>").arg(pat, lee)).toUtf8()};
+        p.rels << Rel{"/ppt/presentation.xml", "http://schemas.microsoft.com/office/2018/10/relationships/authors", "/ppt/authors.xml"};
+        auto body = [](const QString &text) {
+            return QStringLiteral("<p188:txBody><a:bodyPr/><a:lstStyle/>%1</p188:txBody>").arg(text);
+        };
+        auto line = [](const QString &text) { return QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:r></a:p>").arg(text); };
+        const QString slideMark = QStringLiteral("<pc:docMk/><pc:sldMk cId=\"123456\" sldId=\"257\"/>");
+        const QString pc = QStringLiteral("xmlns:pc=\"http://schemas.microsoft.com/office/powerpoint/2013/main/command\"");
+        QString xml = head + QStringLiteral("<p188:cmLst ") + modern + QStringLiteral(">");
+        xml += QStringLiteral("<p188:cm id=\"{AAAAAAAA-0000-4000-8000-000000000001}\" authorId=\"%1\" created=\"2026-10-12T17:15:30.250\" status=\"resolved\">"
+                              "<pc:sldMkLst %2>%3</pc:sldMkLst><p188:pos x=\"9144000\" y=\"1371600\"/>"
+                              "<p188:replyLst><p188:reply id=\"{BBBBBBBB-0000-4000-8000-000000000001}\" authorId=\"%4\" created=\"2026-10-12T17:20:00.000\">%5</p188:reply></p188:replyLst>%6</p188:cm>")
+                   .arg(pat, pc, slideMark, lee, body(line(QStringLiteral("On it"))), body(line(QStringLiteral("Line one")) + line(QStringLiteral("Line two"))));
+        xml += QStringLiteral("<p188:cm id=\"{AAAAAAAA-0000-4000-8000-000000000002}\" authorId=\"%1\" created=\"2026-10-12T18:00:00.000\">"
+                              "<ac:deMkLst xmlns:ac=\"http://schemas.microsoft.com/office/drawing/2013/main/command\" %2>%3<ac:spMk id=\"2\" creationId=\"{CCCCCCCC-0000-4000-8000-000000000001}\"/></ac:deMkLst>%4</p188:cm>")
+                   .arg(lee, pc, slideMark, body(line(QStringLiteral("Anchored"))));
+        xml += QStringLiteral("<p188:cm id=\"{AAAAAAAA-0000-4000-8000-000000000003}\" authorId=\"%1\" created=\"2026-10-12T18:30:00.000\"><pc:sldMkLst %2>%3</pc:sldMkLst>%4</p188:cm>")
+                   .arg(pat, pc, slideMark, body(line(QStringLiteral("Nowhere"))));
+        xml += QStringLiteral("</p188:cmLst>");
+        p.data["/ppt/comments/modernComment_101_5.xml"] = {QStringLiteral("application/vnd.ms-powerpoint.comments+xml"), xml.toUtf8()};
+        p.rels << Rel{"/ppt/slides/slide2.xml", "http://schemas.microsoft.com/office/2018/10/relationships/comments", "/ppt/comments/modernComment_101_5.xml"};
+        return p;
     }
     // Whether the shared reader reads pictures yet (a picture is the one
     // shape these tests need that its first version leaves out).
@@ -4951,6 +7988,429 @@ private Q_SLOTS:
         // The notes page size.
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("w")).toDouble(), 540.0);
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("h")).toDouble(), 720.0);
+    }
+
+    // The presentation's drawing group keeps the properties a shape starts from: a shape of a slide that names no colors has the
+    // fills color and the text color of the scheme (the master's), not white and black.
+    void importBinaryShapesTakeTheDrawingGroupsDefaults()
+    {
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        // Filled in scheme color 4 (the fills color), a line in scheme color 1 (the text color).
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
+        // A rectangle that says nothing of its look, and one that has its own fill.
+        auto rectangle = [&](quint32 id, int top, const QByteArray &props) {
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2)));
+        };
+        const QByteArray shapes = rectangle(0x500, 100, QByteArray()) + rectangle(0x501, 800, table({{0x0181, 0x0000FF}}));
+        auto look = [&](const QByteArray &file) {
+            QString err;
+            auto d = deck::importBinaryPresentation(file, &err);
+            QList<QPair<QColor, QColor>> out;   // the fill and the line color of the page's plain shapes
+            if (!d) qWarning("%s", qPrintable(err));
+            if (!d) return out;
+            for (const auto &it : d->pages[0]->items)
+                if (it->role.isEmpty() && it->type() == ItemType::Shape)
+                    out << qMakePair(it->fill.color.kind() == ColorRef::Rgb ? it->fill.color.rgbValue() : QColor(), it->stroke.color.kind() == ColorRef::Rgb ? it->stroke.color.rgbValue() : QColor());
+            return out;
+        };
+        const auto withGroup = look(buildPpt(false, false, false, false, QByteArray(), group, shapes));
+        QCOMPARE(int(withGroup.size()), 2);
+        QCOMPARE(withGroup[0].first, QColor(0x77, 0x88, 0x99));
+        QCOMPARE(withGroup[0].second, QColor(0x11, 0x22, 0x33));
+        QCOMPARE(withGroup[1].first, QColor(255, 0, 0));
+        // With no drawing group, the format's own: white, and black.
+        const auto without = look(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes));
+        QCOMPARE(int(without.size()), 2);
+        QCOMPARE(without[0].first, QColor(Qt::white));
+        QCOMPARE(without[0].second, QColor(Qt::black));
+    }
+
+    // A slide's placeholder takes what it leaves out of its look from the master's shape of its kind, and then from the drawing group's
+    // defaults: the master's title says what the slides' titles look like.
+    void importBinaryPlaceholdersTakeAfterTheirMastersShapes()
+    {
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        // The defaults: filled in the fills color, with a line in the text color.
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
+        // The master's title: a green fill and no line. Its body says nothing.
+        const QByteArray title = table({{0x0181, 0x00FF00}, {0x01BF, 0x00100010}, {0x01FF, 0x00080000}});
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, QByteArray(), title), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Item *titleItem = nullptr, *bodyItem = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->role == QLatin1String("ph:title")) titleItem = it.get();
+            if (it->role.startsWith(QLatin1String("ph:body"))) bodyItem = it.get();
+        }
+        QVERIFY(titleItem && bodyItem);
+        QVERIFY(titleItem->fill.type == Fill::Solid);
+        QCOMPARE(titleItem->fill.color.rgbValue(), QColor(0, 255, 0));
+        QVERIFY(titleItem->stroke.isNone());
+        // The master's body says nothing: a text frame is neither filled nor lined of itself, whatever the defaults are.
+        QVERIFY(bodyItem->fill.isNone());
+        QVERIFY(bodyItem->stroke.isNone());
+    }
+
+    // A frame whose text is longer than it keeps its place and size from the file, and shows all of it as the program draws it,
+    // running out of the frame: down from the top, both ways from the middle, up from the bottom.
+    void importBinaryFramesShowTheirOverflowingText()
+    {
+        auto textBox = [&](quint32 id, int anchorText, int top, int height, const QString &text, const QVector<QPair<int, quint32>> &more = {}) {
+            QByteArray props = le(0x0087, 2) + le(quint32(anchorText), 4);
+            int count = 1;
+            for (const auto &p : more) {
+                props += le(quint16(p.first), 2) + le(p.second, 4);
+                ++count;
+            }
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, quint16(count), 3) + pptRec(0xF010, le(top, 2) + le(200, 2) + le(2600, 2) + le(top + height, 2))
+                                      + pptBox(0xF00D, pptText(4, text)));
+        };
+        const QString four = QStringLiteral("One\rTwo\rThree\rFour"), one = QStringLiteral("One");
+        // No fill and no line: unfilled (0x01BF, 0x01FF with their use bits).
+        const QVector<QPair<int, quint32>> plain = {{0x01BF, 0x00100000}, {0x01FF, 0x00080000}};
+        const QByteArray shapes = textBox(0x500, 0, 2000, 200, four, plain) + textBox(0x501, 1, 2400, 200, four, plain) + textBox(0x502, 2, 2800, 200, four, plain)
+                                  + textBox(0x503, 1, 3200, 400, one, plain) + textBox(0x504, 1, 3800, 200, four, {{0x0181, 0x0000FF}, {0x01BF, 0x00100010}});
+        QByteArray manyPoints;
+        for (int i = 0; i < 14; ++i) manyPoints += QByteArray(i ? "\r" : "") + "Point " + QByteArray::number(i);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QString::fromLatin1(manyPoints)), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const TextItem *> boxes;
+        const TextItem *body = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text) continue;
+            if (it->role.startsWith(QLatin1String("ph:body"))) body = static_cast<const TextItem *>(it.get());
+            else if (it->role.isEmpty()) boxes << static_cast<const TextItem *>(it.get());
+        }
+        QVERIFY(body);
+        QCOMPARE(int(boxes.size()), 5);
+        QVERIFY(d->slideText);
+        LayoutCache cache;
+        const RenderOptions opt;
+        auto linesOf = [&](const TextItem &t) {
+            const auto fl = cache.textFrame(*d, t, 1, opt);
+            return fl.layout ? fl.layout->lineInfo(0) : QVector<StoryLayout::LineInfo>();
+        };
+        // The body placeholder: 350 points tall from 125 as the file has it, and all 14 lines of 28 points drawn.
+        QCOMPARE(body->rect.top(), 125.0);
+        QCOMPARE(body->rect.height(), 350.0);
+        QCOMPARE(int(body->autofit), int(TextItem::NoAutofit));
+        QCOMPARE(int(linesOf(*body).size()), 14);
+        // 25 points tall boxes of four lines: from the top, from the middle, from the bottom.
+        for (int i : {0, 1, 2}) {
+            QCOMPARE(boxes[i]->rect.height(), 25.0);
+            const auto lines = linesOf(*boxes[i]);
+            QCOMPARE(int(lines.size()), 4);
+            const double top = lines.first().rect.top(), bottom = lines.last().rect.bottom() - lines.last().below;
+            const double inTop = boxes[i]->insets.top(), inBottom = 25 - boxes[i]->insets.bottom();
+            QVERIFY(bottom - top > inBottom - inTop);
+            if (i == 0) QVERIFY2(std::abs(top - inTop) < 0.5, qPrintable(QString::number(top)));
+            if (i == 1) QVERIFY2(std::abs((top + bottom) / 2 - (inTop + inBottom) / 2) < 0.5, qPrintable(QString::number((top + bottom) / 2)));
+            if (i == 2) QVERIFY2(std::abs(bottom - inBottom) < 0.5, qPrintable(QString::number(bottom)));
+        }
+        // One that holds its text, and one with a fill, as they are.
+        QCOMPARE(boxes[3]->rect.height(), 50.0);
+        QCOMPARE(boxes[4]->rect.height(), 25.0);
+    }
+
+    // Spacing as the file has it, set as the presentation program sets it (the text engine's slide lines): a line of a share (100 for a
+    // single line) of 1.2 times the text size whatever the font, its extra spacing above it, and no space before the paragraph at the
+    // top of the box.
+    void importBinarySpacingFollowsTheProgram()
+    {
+        // Three paragraphs of the body's 28 points: 100 percent with 20 before, 80 percent with 20 before, and 500 master units exactly.
+        const QByteArray styles = pfRun(4, 0, 0x3000, le(100, 2) + le(20, 2)) + pfRun(4, 0, 0x3000, le(80, 2) + le(20, 2)) + pfRun(6, 0, 0x3000, le(quint16(-500), 2) + le(20, 2));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\rTwo\rThree"), styles)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story && story->blockCount() == 3);
+        const QTextBlock one = story->begin(), two = one.next(), three = two.next();
+        // 20 percent of a line of 1.2 times 28 points before each, the first too.
+        QVERIFY(qAbs(one.blockFormat().topMargin() - 0.2 * 28 * 1.2) < 1e-9);
+        QVERIFY(qAbs(two.blockFormat().topMargin() - 0.2 * 28 * 1.2) < 1e-9);
+        QVERIFY(one.blockFormat().lineHeightType() != QTextBlockFormat::ProportionalHeight || one.blockFormat().lineHeight() == 100);
+        QVERIFY(two.blockFormat().lineHeightType() == QTextBlockFormat::ProportionalHeight);
+        QCOMPARE(two.blockFormat().lineHeight(), 80.0);
+        // A line of so many master units is that many points.
+        QVERIFY(three.blockFormat().lineHeightType() == QTextBlockFormat::FixedHeight);
+        QCOMPARE(three.blockFormat().lineHeight(), 500.0 / 8);
+        // Drawn: the first line at the top of the box; the second's baseline 80 percent of a line and the space before below it.
+        const TextItem *body = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+        QVERIFY(body);
+        LayoutCache cache;
+        const auto lines = cache.textFrame(*d, *body, 1, RenderOptions()).layout->lineInfo(0);
+        QCOMPARE(int(lines.size()), 3);
+        QVERIFY2(qAbs(lines[0].rect.top() - body->insets.top()) < 0.01, qPrintable(QString::number(lines[0].rect.top())));
+        QVERIFY2(qAbs(lines[1].baseline - lines[0].baseline - (0.8 + 0.2) * 1.2 * 28) < 0.05, qPrintable(QString::number(lines[1].baseline - lines[0].baseline)));
+    }
+
+    // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.
+    void importBinaryObjectsDoNotWrapText()
+    {
+        const QByteArray shape = pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF010, le(100, 2) + le(200, 2) + le(2000, 2) + le(600, 2)));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shape, QByteArray(), shape), &err);
+        QVERIFY2(d, qPrintable(err));
+        int seen = 0;
+        for (const auto &it : d->pages[0]->items) {
+            QVERIFY2(it->wrap.mode == Wrap::None, qPrintable(it->role));
+            ++seen;
+        }
+        QVERIFY(seen >= 3);
+        for (const auto &m : d->masters)
+            for (const auto &it : m->items) QVERIFY2(it->wrap.mode == Wrap::None, qPrintable(it->role));
+    }
+
+    // The XML a presentation's writer kept for a shape beside its old properties says what the shape looks like where they can't: its
+    // fill and line, and colors by the theme's names (the theme the writer kept with the master). What it doesn't say stays.
+    void importBinaryShapesTakeTheirLookFromTheWritersXml()
+    {
+        auto xmlPackage = [&](const QString &properties) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/drs/shapexml.xml"),
+                      QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:sp xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" "
+                                     "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><p:nvSpPr><p:cNvPr id=\"2\" name=\"R\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>"
+                                     "<p:spPr>%1</p:spPr></p:sp>").arg(properties).toUtf8(),
+                      QStringLiteral("application/xml"));
+            return w.finish();
+        };
+        // An old shape: filled blue, with a red line, and the writer's XML as property 0x03A9, whose data follows the table.
+        auto rectangle = [&](quint32 id, int top, const QByteArray &package) {
+            QByteArray table = le(0x0181, 2) + le(0xFF0000, 4) + le(0x01BF, 2) + le(0x00100010, 4) + le(0x01C0, 2) + le(0x0000FF, 4) + le(0x01FF, 2) + le(0x00080008, 4)
+                               + le(0x03A9 | 0x8000, 2) + le(quint32(package.size()), 4);
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, table + package, 5, 3) + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2)));
+        };
+        const QByteArray shapes = rectangle(0x500, 100, xmlPackage(QStringLiteral("<a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill><a:ln w=\"12700\"><a:noFill/></a:ln>")))
+                                  + rectangle(0x501, 800, xmlPackage(QStringLiteral("<a:solidFill><a:schemeClr val=\"accent1\"><a:alpha val=\"50000\"/></a:schemeClr></a:solidFill>")))
+                                  + rectangle(0x502, 1500, xmlPackage(QStringLiteral("<a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"10\" cy=\"10\"/></a:xfrm>")))
+                                  + rectangle(0x503, 2200, QByteArray("not a package"));
+        // The master's theme (as a package) and color mapping, as the writer kept them: accent 1 is magenta.
+        office::PackageWriter t;
+        t.addPart(QStringLiteral("/theme/theme/theme1.xml"),
+                  QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"T\"><a:themeElements>"
+                             "<a:clrScheme name=\"C\"><a:dk1><a:srgbClr val=\"000000\"/></a:dk1><a:lt1><a:srgbClr val=\"FFFFFF\"/></a:lt1><a:dk2><a:srgbClr val=\"111111\"/></a:dk2>"
+                             "<a:lt2><a:srgbClr val=\"EEEEEE\"/></a:lt2><a:accent1><a:srgbClr val=\"FF00FF\"/></a:accent1><a:accent2><a:srgbClr val=\"00FFFF\"/></a:accent2>"
+                             "<a:accent3><a:srgbClr val=\"333333\"/></a:accent3><a:accent4><a:srgbClr val=\"444444\"/></a:accent4><a:accent5><a:srgbClr val=\"555555\"/></a:accent5>"
+                             "<a:accent6><a:srgbClr val=\"666666\"/></a:accent6><a:hlink><a:srgbClr val=\"0000FF\"/></a:hlink><a:folHlink><a:srgbClr val=\"800080\"/></a:folHlink></a:clrScheme>"
+                             "<a:fontScheme name=\"F\"><a:majorFont><a:latin typeface=\"Alpha Sans\"/></a:majorFont><a:minorFont><a:latin typeface=\"Alpha Sans\"/></a:minorFont></a:fontScheme>"
+                             "<a:fmtScheme name=\"M\"/></a:themeElements></a:theme>"),
+                  QStringLiteral("application/xml"));
+        const QByteArray masterExtra = pptRec(1038, t.finish())
+                                       + pptRec(1039, QByteArray("<?xml version=\"1.0\"?><p:clrMap xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" "
+                                                                 "accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" "
+                                                                 "hlink=\"hlink\" folHlink=\"folHlink\"/>"));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes, QByteArray(), QByteArray(), masterExtra), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const Item *> plain;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role.isEmpty() && it->type() == ItemType::Shape) plain << it.get();
+        QCOMPARE(int(plain.size()), 4);
+        // Its own color and no line, where the old properties say blue and red.
+        QVERIFY(plain[0]->fill.type == Fill::Solid);
+        QCOMPARE(plain[0]->fill.color.rgbValue(), QColor(0, 255, 0));
+        QVERIFY(plain[0]->stroke.isNone());
+        // A color by name is the master's theme's, with its transparency; the line it says nothing of stays.
+        QVERIFY(plain[1]->fill.type == Fill::Solid);
+        QCOMPARE(plain[1]->fill.color.rgbValue(), QColor(255, 0, 255));
+        QVERIFY(qAbs(plain[1]->fill.transparency - 0.5) < 0.01);
+        QCOMPARE(plain[1]->stroke.color.rgbValue(), QColor(255, 0, 0));
+        // A shape the XML says nothing of the look of, and one whose XML can't be read, stay as the old properties have them.
+        QCOMPARE(plain[2]->fill.color.rgbValue(), QColor(0, 0, 255));
+        QCOMPARE(plain[2]->stroke.color.rgbValue(), QColor(255, 0, 0));
+        QCOMPARE(plain[3]->fill.color.rgbValue(), QColor(0, 0, 255));
+        // A theme and a color mapping that can't be read: the colors the XML spells out still show, and the named ones are the defaults'.
+        d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes, QByteArray(), QByteArray(),
+                                                    pptRec(1038, QByteArray("not a package")) + pptRec(1039, QByteArray("<not xml"))), &err);
+        QVERIFY2(d, qPrintable(err));
+        plain.clear();
+        for (const auto &it : d->pages[0]->items)
+            if (it->role.isEmpty() && it->type() == ItemType::Shape) plain << it.get();
+        QCOMPARE(int(plain.size()), 4);
+        QCOMPARE(plain[0]->fill.color.rgbValue(), QColor(0, 255, 0));
+        QVERIFY(plain[1]->fill.type == Fill::Solid);
+    }
+
+    // A blank paragraph keeps its bullet as the file has it (text typed in it shows one), and shows none, as in the program.
+    void importBinaryBlankParagraphsShowNoBullets()
+    {
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\r\rTwo\r"))), &err);
+        QVERIFY2(d, qPrintable(err));
+        QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        QCOMPARE(story->blockCount(), 4);
+        const QTextBlock one = story->begin(), blank = one.next(), two = blank.next();
+        QVERIFY(one.textList() && blank.textList() && two.textList());
+        QCOMPARE(blank.blockFormat().leftMargin(), one.blockFormat().leftMargin());
+        const TextItem *body = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+        QVERIFY(body);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *body, 1, RenderOptions());
+        const auto lines = fl.layout->lineInfo(0);
+        QVERIFY(lines.size() >= 3);
+        QImage img((body->rect.size() * 4).toSize(), QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(4, 4);
+        fl.layout->paint(&p, 0, PaintOptions());
+        p.end();
+        // Ink where the first line's bullet is, beside the first line and the blank one.
+        auto ink = [&](const QRectF &r) {
+            int n = 0;
+            for (int y = int(r.top() * 4); y < int(r.bottom() * 4) && y < img.height(); ++y)
+                for (int x = std::max(0, int(r.left() * 4)); x < int(r.right() * 4) && x < img.width(); ++x)
+                    n += qGray(img.pixel(x, y)) < 128;
+            return n;
+        };
+        const double bulletRight = lines[0].rect.left();
+        QVERIFY(ink(QRectF(0, lines[0].rect.top(), bulletRight, lines[0].rect.height())) > 0);
+        QCOMPARE(ink(QRectF(0, lines[1].rect.top(), bulletRight, lines[1].rect.height())), 0);
+    }
+
+    // A texture with a brightness and a contrast (a background's, washed out) has them in its pixels, where a fill has no other place
+    // for them.
+    void importBinaryTexturesTakeTheirBrightnessAndContrast()
+    {
+        QImage tile(2, 1, QImage::Format_ARGB32);
+        tile.setPixelColor(0, 0, QColor(255, 0, 0));
+        tile.setPixelColor(1, 0, QColor(0, 0, 128));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        tile.save(&buffer, "PNG");
+        // The drawing group's picture store: one picture, kept in its own record.
+        const QByteArray blip = pptRec(0xF01E, QByteArray(16, 'u') + QByteArray(1, '\xFF') + png, 0x6E0);
+        const QByteArray entry = pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, 's') + le(0xFF, 2) + le(quint32(blip.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + blip, 6, 2);
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry, 1)));
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        auto pixels = [&](const QVector<QPair<int, quint32>> &more) {
+            QVector<QPair<int, quint32>> props = {{0x0180, 2}, {0x4186, 1}, {0x01BF, 0x00100010}};
+            props += more;
+            const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x1000, 4) + le(0xC00, 4), 1, 2) + table(props));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, QByteArray(), QByteArray(), background), &err);
+            QList<QColor> out;
+            if (!d) qWarning("%s", qPrintable(err));
+            if (!d || d->masters.isEmpty() || d->masters.first()->background.type != Fill::Texture) return out;
+            const QImage im = d->image(d->masters.first()->background.imageId);
+            for (int x = 0; x < im.width(); ++x) out << im.pixelColor(x, 0);
+            return out;
+        };
+        // As it is, with none set.
+        QList<QColor> plain = pixels({});
+        QCOMPARE(int(plain.size()), 2);
+        QCOMPARE(plain[0], QColor(255, 0, 0));
+        QCOMPARE(plain[1], QColor(0, 0, 128));
+        // Half brighter (0x4000 of 0x8000): half of the range more in each color, and no more than the most.
+        QList<QColor> bright = pixels({{0x0109, 0x4000}});
+        QCOMPARE(int(bright.size()), 2);
+        QCOMPARE(bright[0], QColor(255, 128, 128));
+        QCOMPARE(bright[1], QColor(128, 128, 255));
+        // A contrast of 0.5 (0x8000 of 0x10000) halves the distance of each color from the middle.
+        QList<QColor> flat = pixels({{0x0108, 0x8000}});
+        QCOMPARE(int(flat.size()), 2);
+        QCOMPARE(flat[0], QColor(191, 64, 64));
+        QCOMPARE(flat[1], QColor(64, 64, 128));
+        // Both, as the washed-out look is stored (0x5C29 and 0xD70A): the colors come to the top of the range, from about three quarters.
+        QList<QColor> washed = pixels({{0x0109, 0x5C29}, {0x0108, 0xD70A}});
+        QCOMPARE(int(washed.size()), 2);
+        QVERIFY2(washed[0].green() > 185 && washed[0].green() < 195, qPrintable(washed[0].name()));
+        QCOMPARE(washed[0].red(), 255);
+    }
+
+    // A shape that shows a tiled background has the tiles where the page has them, not from the shape's own corner: the picture is moved
+    // by the shape's place.
+    void importBinaryShapesKeepTheBackgroundsTilesInPlace()
+    {
+        QImage tile(4, 1, QImage::Format_ARGB32);
+        const QColor colors[4] = {QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255), QColor(255, 255, 0)};
+        for (int i = 0; i < 4; ++i) tile.setPixelColor(i, 0, colors[i]);
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        tile.save(&buffer, "PNG");
+        const QByteArray blip = pptRec(0xF01E, QByteArray(16, 'u') + QByteArray(1, '\xFF') + png, 0x6E0);
+        const QByteArray entry = pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, 's') + le(0xFF, 2) + le(quint32(blip.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + blip, 6, 2);
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry, 1)));
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x1000, 4) + le(0xC00, 4), 1, 2) + table({{0x0180, 2}, {0x4186, 1}, {0x01BF, 0x00100010}}));
+        // Rectangles that show the background, at 6 master units (0.75 points, one pixel of a picture) from the left, and at the page's edge.
+        auto window = [&](quint32 id, int left) {
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + table({{0x0180, 9}, {0x01BF, 0x00100010}}) + pptRec(0xF010, le(100, 2) + le(left, 2) + le(2000, 2) + le(600, 2)));
+        };
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, window(0x500, 6) + window(0x501, 0), QByteArray(), background), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const Item *> windows;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role.isEmpty() && it->type() == ItemType::Shape) windows << it.get();
+        QCOMPARE(int(windows.size()), 2);
+        auto pixels = [&](const Item *it) {
+            QList<QColor> out;
+            if (it->fill.type != Fill::Texture) return out;
+            const QImage im = d->image(it->fill.imageId);
+            for (int x = 0; x < im.width(); ++x) out << im.pixelColor(x, 0);
+            return out;
+        };
+        // Moved by a pixel: what the page has a pixel along is at the shape's corner.
+        const QList<QColor> moved = pixels(windows[0]);
+        QCOMPARE(int(moved.size()), 4);
+        for (int i = 0; i < 4; ++i) QCOMPARE(moved[i], colors[(i + 1) % 4]);
+        // At the edge, as it is, and the same picture the page shows.
+        QCOMPARE(windows[1]->fill.imageId, d->masters.first()->background.imageId);
+    }
+
+    // A fill of the background kind (the master's title as a window onto the background) shows what the page has behind it:
+    // the master's own background, which the slides on it show too.
+    void importBinaryShapesCanFillWithTheBackground()
+    {
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        // The master's background shape is solid (a color of its own), and its title's fill is the background's.
+        const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x1000, 4) + le(0xC00, 4), 1, 2) + table({{0x0181, 0xCCBBAA}, {0x01BF, 0x00100010}}));
+        const QByteArray title = table({{0x0180, 9}, {0x01BF, 0x00100010}, {0x01FF, 0x00080000}});
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), title, background), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Item *titleItem = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role == QLatin1String("ph:title")) titleItem = it.get();
+        QVERIFY(titleItem);
+        QVERIFY(titleItem->fill.type == Fill::Solid);
+        QCOMPARE(titleItem->fill.color.rgbValue(), QColor(0xAA, 0xBB, 0xCC));
+        // Without a background shape the master has the scheme's background color, and that is what the title shows.
+        d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), title), &err);
+        QVERIFY2(d, qPrintable(err));
+        titleItem = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role == QLatin1String("ph:title")) titleItem = it.get();
+        QVERIFY(titleItem);
+        QCOMPARE(titleItem->fill.color.rgbValue(), QColor(0xFA, 0xFA, 0xFA));
     }
 
     // A slide's placeholder takes its layout's by index, then by type; a layout's takes its master's by
@@ -6261,6 +9721,474 @@ private Q_SLOTS:
         QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a.POTX")), deck::PresentationKind::Template);
         QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a.ppsx")), deck::PresentationKind::Show);
         QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a")), deck::PresentationKind::Presentation);
+    }
+
+    // Sections are written as the extension that lists each section's slides
+    // by the numbers the slide list gives them, and read back the same (an
+    // empty section too); a presentation without sections writes no list. A
+    // file's slides that no section lists join the section before them, and
+    // those before the first section's are in a Default Section.
+    void sectionsAreWrittenAndReadBack()
+    {
+        const QString ext = QStringLiteral("{521415D9-36F7-43E2-AB2F-B90AF26B5E84}");
+        const QString p14 = QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main");
+        auto d = lettered(5);
+        deck::addSection(*d, 2, QStringLiteral("Plan & Goals"));
+        deck::addSection(*d, 4, QStringLiteral("Budget"));
+        deck::addSection(*d, 4, QStringLiteral("Last"));   // leaves Budget with no slides
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 0, 1}));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presentation.xml")), &dom);
+        QStringList slideIds;
+        for (const QDomElement &s : office::children(office::child(root, office::ns::P, QStringLiteral("sldIdLst")), office::ns::P, QStringLiteral("sldId"))) slideIds << office::attr(s, QStringLiteral("id"));
+        QCOMPARE(int(slideIds.size()), 5);
+        // After the default text style, as the schema has it: the extension list is the last child.
+        QCOMPARE(root.lastChildElement().localName(), QStringLiteral("extLst"));
+        const QDomElement extension = office::child(office::child(root, office::ns::P, QStringLiteral("extLst")), office::ns::P, QStringLiteral("ext"));
+        QCOMPARE(extension.attribute(QStringLiteral("uri")), ext);
+        const QVector<QDomElement> written = office::children(office::child(extension, p14, QStringLiteral("sectionLst")), p14, QStringLiteral("section"));
+        QCOMPARE(int(written.size()), 4);
+        const QVector<deck::Section> sections = deck::sectionsOf(*d);
+        int next = 0;
+        for (int i = 0; i < written.size(); ++i) {
+            QCOMPARE(office::attr(written[i], QStringLiteral("name")), sections[i].name);
+            QCOMPARE(office::attr(written[i], QStringLiteral("id")), sections[i].id);
+            QStringList listed;
+            for (const QDomElement &s : office::children(office::child(written[i], p14, QStringLiteral("sldIdLst")), p14, QStringLiteral("sldId"))) listed << office::attr(s, QStringLiteral("id"));
+            QCOMPARE(listed, slideIds.mid(next, sections[i].count));
+            next += sections[i].count;
+        }
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 5);
+        QCOMPARE(sectionNames(*back), (QStringList{"Default Section", "Plan & Goals", "Budget", "Last"}));
+        QCOMPARE(sectionCounts(*back), (QList<int>{2, 2, 0, 1}));
+        for (int i = 0; i < 4; ++i) QCOMPARE(deck::sectionsOf(*back)[i].id, sections[i].id);
+        // Saved again, they are the same.
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QCOMPARE(again.zip.value(QStringLiteral("ppt/presentation.xml")), e.zip.value(QStringLiteral("ppt/presentation.xml")));
+
+        // Without sections nothing is written.
+        auto plain = lettered(3);
+        Exported none;
+        QVERIFY2(unpack(deck::exportPresentation(*plain, &err), &none, &err), qPrintable(err));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("sectionLst")));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("extLst")));
+        auto plainBack = deck::importPresentation(deck::exportPresentation(*plain, &err), &err);
+        QVERIFY2(plainBack, qPrintable(err));
+        QVERIFY(!deck::hasSections(*plainBack));
+
+        // A file's own lists: ids the file doesn't have are passed over, a slide in none joins the section before it.
+        auto edited = [&](const QString &sections) {
+            QMap<QString, QByteArray> zip = e.zip;
+            QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+            const qsizetype from = xml.indexOf(QStringLiteral("<p:extLst>")), to = xml.indexOf(QStringLiteral("</p:extLst>")) + 11;
+            xml.replace(from, to - from, sections.isEmpty() ? QString() : QStringLiteral("<p:extLst><p:ext uri=\"%1\"><p14:sectionLst xmlns:p14=\"%2\">%3</p14:sectionLst></p:ext></p:extLst>").arg(ext, p14, sections));
+            zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+            ZipWriter z;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+            return deck::importPresentation(z.finish(), &err);
+        };
+        auto section = [&](const QString &name, const QStringList &ids) {
+            QString list;
+            for (const QString &id : ids) list += QStringLiteral("<p14:sldId id=\"%1\"/>").arg(id);
+            return QStringLiteral("<p14:section name=\"%1\" id=\"{00000000-0000-4000-8000-00000000000%2}\"><p14:sldIdLst>%3</p14:sldIdLst></p14:section>").arg(name).arg(name.size()).arg(list);
+        };
+        auto odd = edited(section(QStringLiteral("Opening"), {slideIds[0], QStringLiteral("999")}) + section(QStringLiteral("Middle"), {slideIds[2], slideIds[3]})
+                          + section(QStringLiteral("Closing"), {slideIds[4]}) + section(QStringLiteral("Epilogue"), {}));
+        QVERIFY2(odd, qPrintable(err));
+        QCOMPARE(sectionNames(*odd), (QStringList{"Opening", "Middle", "Closing", "Epilogue"}));
+        QCOMPARE(sectionCounts(*odd), (QList<int>{2, 2, 1, 0}));   // the second slide is in none: it joins Opening
+        QCOMPARE(deck::sectionsOf(*odd)[1].id, QStringLiteral("{00000000-0000-4000-8000-000000000006}"));
+        // Slides in none before the first section's get a Default Section of their own.
+        auto late = edited(section(QStringLiteral("Only"), {slideIds[1], slideIds[2], slideIds[3], slideIds[4]}));
+        QVERIFY2(late, qPrintable(err));
+        QCOMPARE(sectionNames(*late), (QStringList{"Default Section", "Only"}));
+        QCOMPARE(sectionCounts(*late), (QList<int>{1, 4}));
+        // A list with no sections, or no list, is no sections.
+        auto empty = edited(QString());
+        QVERIFY2(empty && !deck::hasSections(*empty), qPrintable(err));
+        auto emptyList = edited(QStringLiteral(" "));
+        QVERIFY2(emptyList && !deck::hasSections(*emptyList), qPrintable(err));
+    }
+
+private:
+    // A presentation to take slides from, built here: the chart sample (a chart with its workbook, a picture, notes,
+    // a slide's transition and animation, a frame kept as it was) with a movie on its first slide, under a master
+    // and layouts of its own whose theme has other fonts than a new presentation's.
+    static QByteArray reuseMovie() { return QByteArray("not really a movie, but kept byte for byte"); }
+    static std::unique_ptr<Document> reuseSource()
+    {
+        Parts p = chartPptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"),
+                    QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"20\" name=\"Movie\"><a:hlinkClick r:id=\"\" action=\"ppaction://media\"/></p:cNvPr><p:cNvPicPr/><p:nvPr><a:videoFile r:link=\"rId5\"/>"
+                                   "<p:extLst><p:ext uri=\"{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}\"><p14:media xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" r:embed=\"rId6\"/></p:ext></p:extLst>"
+                                   "</p:nvPr></p:nvPicPr><p:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>")
+                        + xfrm(0, 0, 1828800, 1371600) + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        p.data["/ppt/media/media1.mp4"] = {QStringLiteral("video/mp4"), reuseMovie()};
+        p.rels << Rel{"/ppt/slides/slide1.xml", "video", "/ppt/media/media1.mp4"} << Rel{"/ppt/slides/slide1.xml", "http://schemas.microsoft.com/office/2007/relationships/media", "/ppt/media/media1.mp4"};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        if (!d) return nullptr;
+        // The title in a size of its own, and a body with one bold word: what the layout gives and what the writer chose.
+        for (const auto &it : d->pages[0]->items) {
+            auto *text = it->type() == ItemType::Text ? static_cast<TextItem *>(it.get()) : nullptr;
+            if (!text) continue;
+            QTextDocument *story = d->storyDoc(text->storyId);
+            if (deck::placeholderType(*it) == QLatin1String("title")) {
+                QTextCursor c(story);
+                c.select(QTextCursor::Document);
+                QTextCharFormat f;
+                f.setFontPointSize(31);
+                c.mergeCharFormat(f);
+            } else if (deck::placeholderType(*it) == QLatin1String("obj")) {
+                QTextCursor c(story);
+                c.insertText(QStringLiteral("Plain and "));
+                QTextCharFormat bold;
+                bold.setFontWeight(QFont::Bold);
+                c.insertText(QStringLiteral("bold"), bold);
+            }
+        }
+        return d;
+    }
+    static const Item *namedItem(const PageBase &page, const QString &name)
+    {
+        const Item *found = nullptr;
+        walkItems(page.items, [&](const ItemPtr &it) {
+            if (it->name == name) found = it.get();
+        });
+        return found;
+    }
+    static const Item *placeholderOn(const PageBase &page, const QString &type)
+    {
+        for (const auto &it : page.items)
+            if (deck::placeholderType(*it) == type) return it.get();
+        return nullptr;
+    }
+    // Every object's id in the presentation, with how many there are.
+    static QSet<QString> allItemIds(const Document &d, int *count)
+    {
+        QSet<QString> ids;
+        *count = 0;
+        d.forEachItem([&](Item *it, int, const QString &) {
+            ids.insert(it->id);
+            ++*count;
+        });
+        return ids;
+    }
+
+private Q_SLOTS:
+    // A slide taken from another presentation without its formatting stands on this one's layout of
+    // its kind, its title and text in that layout's places and look (what the writer emphasized stays),
+    // and brings what is its own: pictures, movies, notes, a chart, an animation and a transition, all with new ids.
+    void reuseTakesTheDestinationsLayout()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        auto dest = deck::newPresentation();
+        deck::addSlide(*dest, *deck::layoutOfType(*dest, QStringLiteral("obj")));
+        const MasterPage *layout = deck::layoutOfType(*dest, QStringLiteral("obj"));
+        const int masters = int(dest->masters.size());
+        int destItemsBefore;
+        allItemIds(*dest, &destItemsBefore);
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, false), 1);
+        QCOMPARE(int(dest->pages.size()), 3);
+        QCOMPARE(int(dest->masters.size()), masters);   // no layout or master comes with it
+        const Page &page = *dest->pages[1];
+        const Page &was = *src->pages[0];
+        QCOMPARE(page.masterId, layout->id);
+        QCOMPARE(int(src->pages.size()), 2);
+        QCOMPARE(titleOfSlide(*src, 0), QStringLiteral("Quarterly results"));   // the source is as it was
+
+        // The title and the text: in the layout's places, in the layout's look.
+        const Item *title = placeholderOn(page, QStringLiteral("title"));
+        QVERIFY(title);
+        const Item *layoutTitle = nullptr;
+        for (const auto &it : layout->items)
+            if (deck::placeholderType(*it) == QLatin1String("title")) layoutTitle = it.get();
+        QVERIFY(layoutTitle);
+        QCOMPARE(title->rect, layoutTitle->rect);
+        QTextDocument *titleStory = dest->storyDoc(static_cast<const TextItem *>(title)->storyId);
+        QCOMPARE(titleStory->toPlainText(), QStringLiteral("Quarterly results"));
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontPointSize(), 44.0);
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontFamilies().toStringList().value(0), deck::themeOf(*dest).headingFont);
+        QTextDocument *body = bodyOfSlide(*dest, 1);
+        QVERIFY(body);
+        QCOMPARE(body->toPlainText(), QStringLiteral("Plain and bold"));
+        QTextBlock::iterator fragment = body->begin().begin();
+        QCOMPARE(fragment.fragment().charFormat().fontPointSize(), 28.0);
+        QVERIFY(fragment.fragment().charFormat().fontWeight() < QFont::DemiBold);
+        ++fragment;
+        QCOMPARE(fragment.fragment().text(), QStringLiteral("bold"));
+        QVERIFY(fragment.fragment().charFormat().fontWeight() >= QFont::Bold);
+        QCOMPARE(fragment.fragment().charFormat().fontPointSize(), 28.0);
+
+        // What the slide brought: the picture, the movie, the chart, the notes, the animation and the transition.
+        const auto *picture = static_cast<const PictureItem *>(namedItem(page, QStringLiteral("Picture 7")));
+        QVERIFY(picture && picture->type() == ItemType::Picture);
+        QVERIFY(dest->images.contains(picture->imageId));
+        QCOMPARE(dest->images.value(picture->imageId).bytes, tinyPng());
+        const auto *movie = static_cast<const PictureItem *>(namedItem(page, QStringLiteral("Movie")));
+        QVERIFY(movie && movie->type() == ItemType::Picture);
+        QCOMPARE(movie->mediaKind, QStringLiteral("video"));
+        QVERIFY(dest->media.contains(movie->mediaId));
+        QCOMPARE(dest->media.value(movie->mediaId).bytes, reuseMovie());
+        QCOMPARE(dest->media.value(movie->mediaId).contentType, QStringLiteral("video/mp4"));
+        const PictureItem *chart = chartPicture(*dest, page), *chartWas = chartPicture(*src, was);
+        QVERIFY(chart && chartWas);
+        QVERIFY(chart->id != chartWas->id);
+        QVERIFY(dest->images.contains(chart->imageId));
+        const QJsonArray charts = page.props.value(QStringLiteral("charts")).toArray();
+        QCOMPARE(int(charts.size()), 1);
+        QCOMPARE(charts[0].toObject().value(QStringLiteral("parts")), was.props.value(QStringLiteral("charts")).toArray()[0].toObject().value(QStringLiteral("parts")));
+        QCOMPARE(deck::notesText(*dest, page), QStringLiteral("Say hello first\nThen the numbers"));
+        QVERIFY(page.notesStoryId != was.notesStoryId);
+        QVERIFY(!src->stories.contains(page.notesStoryId));
+        QCOMPARE(page.props.value(QStringLiteral("timingXml")), was.props.value(QStringLiteral("timingXml")));
+        QVERIFY(!page.props.value(QStringLiteral("timingXml")).toString().isEmpty());
+        QCOMPARE(page.props.value(QStringLiteral("transitionXml")), was.props.value(QStringLiteral("transitionXml")));
+        QVERIFY(!page.props.value(QStringLiteral("transitionXml")).toString().isEmpty());
+        QCOMPARE(page.props.value(QStringLiteral("unread")), was.props.value(QStringLiteral("unread")));
+        QVERIFY(!page.props.value(QStringLiteral("unread")).toArray().isEmpty());
+        // The shapes keep their numbers in the file: what the animation aims at.
+        QCOMPARE(namedItem(page, QStringLiteral("Movie"))->sourceId, namedItem(was, QStringLiteral("Movie"))->sourceId);
+
+        // New ids all through: no object, story, or page shares one with the source, or with another in this presentation.
+        int count;
+        const QSet<QString> ids = allItemIds(*dest, &count);
+        QCOMPARE(int(ids.size()), count);
+        QCOMPARE(count, destItemsBefore + int(page.items.size()));
+        int sourceCount;
+        for (const QString &id : allItemIds(*src, &sourceCount)) QVERIFY2(!ids.contains(id), qPrintable(id));
+        QVERIFY(page.id != was.id);
+        for (const auto &it : page.items)
+            if (it->type() == ItemType::Text) {
+                const QString story = static_cast<const TextItem *>(it.get())->storyId;
+                QVERIFY(dest->stories.contains(story) && !src->stories.contains(story));
+            }
+        // A slide at the end goes at the end; one past it too.
+        QCOMPARE(deck::insertSlideFrom(*dest, 99, *src, 1, false), 3);
+        QCOMPARE(int(dest->pages.size()), 4);
+        QCOMPARE(titleOfSlide(*dest, 3), QStringLiteral("Second"));
+        QCOMPARE(deck::insertSlideFrom(*dest, 0, *src, 5, false), -1);   // no such slide
+        QCOMPARE(int(dest->pages.size()), 4);
+        // The slide that has a background of its own and is hidden: hidden stays, the background is the layout's.
+        QVERIFY(dest->pages[3]->hidden);
+        QVERIFY(dest->pages[3]->background.isNone());
+        QVERIFY(!src->pages[1]->background.isNone());
+        // A slide on a title layout lands on the title layout.
+        QCOMPARE(deck::layoutType(*dest->masterFor(*dest->pages[3])), QStringLiteral("title"));
+    }
+
+    // With its formatting kept, a slide brings its layout and slide master (named as they were, with their
+    // theme), once for each: a second slide from the same master finds them here.
+    void reuseKeepsTheSourceFormattingWithItsLayoutAndMaster()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        auto dest = deck::newPresentation();
+        const int masters = int(dest->masters.size());
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, true), 1);
+        QCOMPARE(int(dest->masters.size()), masters + 2);   // the master and the layout
+        const Page &page = *dest->pages[1];
+        const MasterPage *layout = dest->masterFor(page);
+        QVERIFY(layout && deck::isLayout(*layout));
+        QCOMPARE(layout->name, QStringLiteral("Title and Content"));
+        QCOMPARE(deck::layoutType(*layout), QStringLiteral("obj"));
+        const MasterPage *master = dest->master(layout->baseId);
+        QVERIFY(master && deck::isSlideMaster(*master));
+        QCOMPARE(master->name, QStringLiteral("Test Master"));
+        QVERIFY(master != dest->masters[0].get());
+        QCOMPARE(master->props.value(QStringLiteral("themeXml")).toString(), src->appData.value(QStringLiteral("themeXml")).toString());
+        QVERIFY(!master->props.value(QStringLiteral("themeXml")).toString().isEmpty());
+        // The master's own band stays, and the layout's places are the source's.
+        QVERIFY(namedItem(*master, QStringLiteral("Master Band")));
+        const Item *title = placeholderOn(page, QStringLiteral("title"));
+        const Item *sourceTitle = placeholderOn(*src->pages[0], QStringLiteral("title"));
+        QVERIFY(title && sourceTitle);
+        QCOMPARE(title->rect, sourceTitle->rect);
+        QTextDocument *titleStory = dest->storyDoc(static_cast<const TextItem *>(title)->storyId);
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontPointSize(), 31.0);
+        // The source's theme fonts are fonts of the source: Georgia, not what this presentation's headings are.
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Georgia"));
+        QVERIFY(deck::themeOf(*dest).headingFont != QStringLiteral("Georgia"));
+        // The master's pictures and the layout's objects came with new ids and stories of their own.
+        int count;
+        const QSet<QString> ids = allItemIds(*dest, &count);
+        QCOMPARE(int(ids.size()), count);
+        // A slide on another layout of that master: only that layout comes; the master was copied already.
+        QCOMPARE(deck::insertSlideFrom(*dest, 2, *src, 1, true), 2);
+        QCOMPARE(int(dest->masters.size()), masters + 3);
+        const MasterPage *titleLayout = dest->masterFor(*dest->pages[2]);
+        QVERIFY(titleLayout && deck::layoutType(*titleLayout) == QLatin1String("title"));
+        QCOMPARE(titleLayout->baseId, master->id);
+        // The same layout again finds the one that is here.
+        QCOMPARE(deck::insertSlideFrom(*dest, 3, *src, 0, true), 3);
+        QCOMPARE(deck::insertSlideFrom(*dest, 4, *src, 1, true), 4);
+        QCOMPARE(int(dest->masters.size()), masters + 3);
+        QCOMPARE(dest->pages[3]->masterId, page.masterId);
+        // A slide's own background and its hiding come along; with the formatting kept, the background stays.
+        QVERIFY(dest->pages[2]->hidden);
+        QVERIFY(dest->pages[2]->background == src->pages[1]->background);
+        QVERIFY(!dest->pages[2]->background.isNone());
+        // A master that looks the same as one here is the one here: reusing a slide of this presentation's own kind adds nothing.
+        auto same = deck::newPresentation();
+        const int sameMasters = int(dest->masters.size());
+        QCOMPARE(deck::insertSlideFrom(*dest, 5, *same, 0, true), 5);
+        QCOMPARE(int(dest->masters.size()), sameMasters);
+        QCOMPARE(dest->masterFor(*dest->pages[5])->id, deck::layoutOfType(*dest, QStringLiteral("title"), dest->masters[0]->id)->id);
+        // What came with the slides is a sound file when saved: the charts' parts, the movie, the extra masters and their themes.
+        {
+            QString err;
+            Exported e;
+            const QByteArray bytes = deck::exportPresentation(*dest, &err);
+            QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+            auto back = deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            QCOMPARE(int(back->pages.size()), int(dest->pages.size()));
+            QCOMPARE(titleOfSlide(*back, 1), QStringLiteral("Quarterly results"));
+            QCOMPARE(back->masterFor(*back->pages[1])->name, QStringLiteral("Title and Content"));
+            QCOMPARE(back->master(back->masterFor(*back->pages[1])->baseId)->name, QStringLiteral("Test Master"));
+            QVERIFY(chartPicture(*back, *back->pages[1]));
+            QVERIFY(namedItem(*back->pages[1], QStringLiteral("Movie")));
+        }
+        // The sections follow: the copy is in the section of the slide before it.
+        deck::addSection(*dest, 3, QStringLiteral("Later"));
+        const int before = int(dest->pages.size());
+        deck::insertSlideFrom(*dest, 3, *src, 0, false);
+        QCOMPARE(int(dest->pages.size()), before + 1);
+        QCOMPARE(sectionCounts(*dest).value(0), 4);
+    }
+
+    // A slide from a presentation of another slide size is fitted to this one's, as Slide Size
+    // does it: what it holds keeps its shape, scaled and centered, its layout and master stretch.
+    void reuseFitsASlideToThisPresentationsSlideSize()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        QCOMPARE(src->pageSize(), QSizeF(960, 540));
+        auto dest = deck::newPresentation();
+        deck::setSlideSize(*dest, QSizeF(720, 540));
+        const QRectF was = namedItem(*src->pages[0], QStringLiteral("Picture 7"))->rect;
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, false), 1);
+        const QRectF page(QPointF(0, 0), dest->pageSize());
+        const QRectF fitted = namedItem(*dest->pages[1], QStringLiteral("Picture 7"))->rect;
+        QVERIFY2(page.contains(fitted), qPrintable(QStringLiteral("%1,%2 %3x%4").arg(fitted.x()).arg(fitted.y()).arg(fitted.width()).arg(fitted.height())));
+        QVERIFY(std::abs(fitted.width() - was.width() * 0.75) < 0.01 && std::abs(fitted.height() - was.height() * 0.75) < 0.01);
+        QVERIFY(std::abs(fitted.x() - (was.x() * 0.75)) < 0.01);   // 720/960 across, and the height ratio is 1: scaled by 0.75, centered
+        for (const auto &it : dest->pages[1]->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(it->name + " " + it->role));
+        // With the formatting kept, the layout and the master come stretched to this slide size too.
+        QCOMPARE(deck::insertSlideFrom(*dest, 2, *src, 0, true), 2);
+        const MasterPage *layout = dest->masterFor(*dest->pages[2]);
+        QVERIFY(layout);
+        for (const MasterPage *m : QList<const MasterPage *>{layout, dest->master(layout->baseId)}) {
+            QVERIFY(m);
+            for (const auto &it : m->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(m->name + " " + it->name + " " + it->role));
+        }
+        const Item *band = namedItem(*dest->master(layout->baseId), QStringLiteral("Master Band"));
+        QVERIFY(band);
+        QVERIFY(std::abs(band->rect.width() - 720) < 0.01);
+        for (const auto &it : dest->pages[2]->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(it->name + " " + it->role));
+        // The same size changes nothing.
+        auto same = deck::newPresentation();
+        deck::insertSlideFrom(*same, 1, *src, 0, false);
+        QCOMPARE(namedItem(*same->pages[1], QStringLiteral("Picture 7"))->rect, was);
+    }
+
+    // The Reuse Slides pane: Browse picks a presentation, its slides are listed as thumbnails with titles, and a
+    // click puts a copy after the slide being edited, as one step that undoes. "Keep source formatting" is off
+    // until it is turned on.
+    void reuseSlidesPaneInsertsACopyAfterTheCurrentSlide()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("source.pptx"));
+        {
+            QString err;
+            auto src = reuseSource();
+            QVERIFY(src);
+            QVERIFY2(deck::savePresentationFile(*src, path, &err), qPrintable(err));
+        }
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        ed->undoStack()->clear();
+        QVERIFY(w.act("slide.reuse"));
+        QCOMPARE(w.act("slide.reuse")->text(), QStringLiteral("Reuse Slides…"));
+        QVERIFY(!w.reusePane() || !w.reusePane()->isVisible());
+        // The New Slide menu offers it.
+        QMenu *menu = nullptr;
+        for (QObject *o : w.act("slide.new")->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        QVERIFY(menu->actions().contains(w.act("slide.reuse")));
+        w.act("slide.reuse")->trigger();
+        ReusePane *pane = w.reusePane();
+        QVERIFY(pane && pane->isVisible());
+        QVERIFY(w.centralWidget()->geometry().right() <= pane->mapTo(&w, QPoint(0, 0)).x() + 2);   // on the right of the slides
+        QVERIFY(!pane->keepFormatting());
+        QCOMPARE(pane->slideCount(), 0);
+        // A file that isn't a presentation says so and lists nothing.
+        const QString bad = dir.filePath(QStringLiteral("bad.pptx"));
+        QFile b(bad);
+        QVERIFY(b.open(QIODevice::WriteOnly));
+        b.write("not a presentation");
+        b.close();
+        QVERIFY(!pane->open(bad));
+        QCOMPARE(pane->slideCount(), 0);
+        QVERIFY(!pane->message().isEmpty());
+        QVERIFY(pane->open(path));
+        QCOMPARE(pane->slideCount(), 2);
+        QTRY_COMPARE(pane->renderedCount(), 2);
+        QCOMPARE(pane->list()->item(0)->text(), QStringLiteral("1  Quarterly results"));
+        QCOMPARE(pane->list()->item(1)->text(), QStringLiteral("2  Second"));
+        QVERIFY(!pane->list()->item(0)->icon().isNull());
+        QVERIFY(pane->message().isEmpty());
+        // A click inserts after the slide being edited.
+        QListWidget *list = pane->list();
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, list->visualItemRect(list->item(0)).center());
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QStringLiteral("Quarterly results"));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(int(ed->doc()->masters.size()), 10);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QString());
+        ed->redo();
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        // With the check box on, the slide brings its layout and master; undone, they go.
+        auto *keep = pane->findChild<QCheckBox *>();
+        QVERIFY(keep);
+        QCOMPARE(keep->text(), QStringLiteral("Keep source formatting"));
+        keep->click();
+        QVERIFY(pane->keepFormatting());
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, list->visualItemRect(list->item(1)).center());
+        QCOMPARE(int(ed->doc()->pages.size()), 4);
+        QCOMPARE(ed->currentPage(), 2);
+        QCOMPARE(titleOfSlide(*ed->doc(), 2), QStringLiteral("Second"));
+        QCOMPARE(int(ed->doc()->masters.size()), 12);
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        QCOMPARE(int(ed->doc()->masters.size()), 10);
+        // The source file is untouched by all this, and the pane can be put away.
+        QVERIFY(QFileInfo(path).size() > 0);
+        w.reusePane()->setKeepFormatting(false);
+        QVERIFY(!keep->isChecked());
     }
 
     // Saving a file replaces the old one only when the new one is whole: a

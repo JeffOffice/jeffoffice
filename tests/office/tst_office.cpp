@@ -1604,8 +1604,10 @@ private Q_SLOTS:
             }
             if (pos == QLatin1String("b")) QVERIFY2(key.y() > img.height() * 0.85, qPrintable(QString::number(key.y())));
             if (pos == QLatin1String("t")) QVERIFY2(key.y() < img.height() * 0.15, qPrintable(QString::number(key.y())));
-            if (pos == QLatin1String("r")) QVERIFY2(key.x() > img.width() * 0.7, qPrintable(QString::number(key.x())));
-            if (pos == QLatin1String("l")) QVERIFY2(key.x() < img.width() * 0.3, qPrintable(QString::number(key.x())));
+            // At a side, the key is one name's width in from the edge, and names are wider with some systems' fonts
+            // (Windows: 68% across); a legend at the top or bottom has it left of the middle.
+            if (pos == QLatin1String("r")) QVERIFY2(key.x() > img.width() * 0.6, qPrintable(QString::number(key.x())));
+            if (pos == QLatin1String("l")) QVERIFY2(key.x() < img.width() * 0.4, qPrintable(QString::number(key.x())));
             QVERIFY(QString::fromUtf8(chartSvg(c, QSizeF(400, 300))).contains(QStringLiteral(">Only series<")));
         }
     }
@@ -3070,7 +3072,7 @@ private Q_SLOTS:
     void odrawReadsGradientAndPictureFills()
     {
         auto fillOf = [&](const QVector<OdProp> &more, OdrawContext *c = nullptr) {
-            QVector<OdProp> props = {{0x01BF, 0x00100010}};
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x019C, 0}};   // no shading curve: the colors run straight
             props += more;
             const OdrawContext ctx = c ? *c : odContext();
             return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill;
@@ -3113,7 +3115,7 @@ private Q_SLOTS:
         list += odU32(0x00FF0000) + odU32(65536);       // blue at the end
         list += odU32(0x0000FF00) + odU32(0x4000);      // green a quarter along
         list += odU32(0x000000FF) + odU32(0);           // red at the start
-        f = fillOf({{0x0180, 7}, red, blue, {0x0196, 0, odArray(3, 8, list)}});
+        f = fillOf({{0x0180, 7}, red, blue, {0x0197, 0, odArray(3, 8, list)}});
         QCOMPARE(int(f.stops.size()), 3);
         QVERIFY(f.stops[0].pos == 0 && f.stops[1].pos == 0.25 && f.stops[2].pos == 1);
         QCOMPARE(odRgb(f.stops[1].color), QColor(0, 255, 0));
@@ -3335,7 +3337,7 @@ private Q_SLOTS:
             odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {10800, 0}, {21600, 10800}, {21600, 21600}, {0, 21600}})}, {0x0146, 0, odSegments({0x4000, 0xB300, 0x2001, 0x0001, 0x6001, 0x8000})}}, at) +
             odShape(202, 0xA00, {{0x0081, 127000}, {0x0087, 2}}, at, text) +
             odShape(75, 0xA00, {{0x0104, 2, {}, true}, {0x0100, 0x2000}, {0x0102, 0x2000}}, at) +
-            odShape(3, 0xA00, {{0x0180, 7}, {0x0196, 0, odArray(2, 8, list)}, {0x01D0, 1}}, at) +
+            odShape(3, 0xA00, {{0x0180, 7}, {0x0197, 0, odArray(2, 8, list)}, {0x01D0, 1}}, at) +
             odShape(20, 0xA40, {}, at) + odShape(34, 0xA00, {{0x0147, 5400}}, at) +
             odGroup(QRect(0, 0, 1000, 1000), 0x40, odClientAnchor(0, 0, 100, 100), odShape(1, 0xA02, {}, odChildAnchor(0, 0, 500, 500)) + inner, {{0x0004, 90u << 16}});
         const QByteArray drawing = odDrawing(shapes, odShape(1, 0xC00, {{0x0181, 0x00FF8000}}));
@@ -3398,7 +3400,7 @@ private Q_SLOTS:
         QByteArray segs;
         for (int i = 0; i < 20000; ++i) segs += odU16(0x1FFF);                                   // 20000 runs of 8191 lines, over three vertices
         QVERIFY(tryShape(odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {1, 1}, {2, 2}})}, {0x0146, 0, odArray(20000, 2, segs)}}, at)).size() == 1);
-        QVERIFY(tryShape(odShape(3, 0xA00, {{0x0180, 7}, {0x0196, 0, odArray(65535, 8, QByteArray(24, '\x03'))}}, at)).size() == 1);
+        QVERIFY(tryShape(odShape(3, 0xA00, {{0x0180, 7}, {0x0197, 0, odArray(65535, 8, QByteArray(24, '\x03'))}}, at)).size() == 1);
         for (quint32 length : {0xFFFFFFFFu, 0x80000000u, 0x7FFFFFFFu}) {
             QByteArray d = odDrawing(shape);
             for (int at = 0; at + 4 <= d.size(); at += 2) {
@@ -6060,17 +6062,21 @@ private Q_SLOTS:
         QCOMPARE(r.ctx.nextShapeId, 104);
     }
 
-    void dmlWriteLeavesTextArtAndTablesWithNoCellsOutWithANote()
+    // A table with no cells is left out with a note; text art is written as
+    // a box whose text is warped into it.
+    void dmlWriteLeavesTablesWithNoCellsOutWithANote()
     {
         WriteRound r;
         auto table = std::make_shared<jp::TableItem>();
         table->name = QStringLiteral("Prices");
         auto art = std::make_shared<TextArtItem>();
+        art->text = QStringLiteral("Sale");
         QVERIFY2(r.run({table, art}), qPrintable(r.error));
-        QCOMPARE(int(r.items.size()), 0);
-        QCOMPARE(int(r.skipped.size()), 2);
+        QCOMPARE(int(r.skipped.size()), 1);
         QVERIFY(r.skipped[0].contains(QStringLiteral("Prices")));
-        QVERIFY(r.spTree.firstChildElement().isNull());
+        const QVector<QDomElement> warps = elementsNamed(r.spTree, "prstTxWarp");
+        QCOMPARE(int(warps.size()), 1);
+        QCOMPARE(warps[0].attribute(QStringLiteral("prst")), QStringLiteral("textPlain"));
     }
 
     // A table is a frame of the cells' own fills, lines, and text; the cells
@@ -8254,6 +8260,343 @@ private Q_SLOTS:
         QVERIFY(p.read(w.finish()));
         QCOMPARE(p.contentType(QStringLiteral("/a.xml")), QStringLiteral("text/xml"));
         QCOMPARE(p.contentType(QStringLiteral("/b.xml")), QStringLiteral("application/xml"));
+    }
+
+    // What a shape leaves out, the drawing's table of default properties says (its colors, whether the fill and the line are drawn);
+    // what the shape says wins, and so does a flag it uses, however the table has it.
+    void odrawFallsBackOnTheDrawingsDefaultProperties()
+    {
+        OdrawContext ctx = odContext();
+        // Filled in the fills color (scheme 4), a line in the text color (1), a shadow in the shadow color (2), a line 2 points wide.
+        ctx.defaults = odProps({{0x0181, 0x08000004}, {0x0183, 0x08000000}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01CB, 25400}, {0x01FF, 0x00080008}, {0x0201, 0x08000002}});
+        auto shapeOf = [&](const QVector<OdProp> &props, int type = 1) {
+            return readOdrawShapes(odDrawing(odShape(type, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0];
+        };
+        ItemPtr it = shapeOf({});
+        QVERIFY(it->fill.type == Fill::Solid);
+        QCOMPARE(odRgb(it->fill.color), QColor(40, 24, 38));
+        QCOMPARE(odRgb(it->stroke.color), QColor(10, 21, 32));
+        QVERIFY(qAbs(it->stroke.width - 2.0) < 1e-9);
+        // The shape's own colors and width win.
+        it = shapeOf({{0x0181, 0x0000FF}, {0x01CB, 12700}});
+        QCOMPARE(odRgb(it->fill.color), QColor(255, 0, 0));
+        QVERIFY(qAbs(it->stroke.width - 1.0) < 1e-9);
+        // The colors a gradient has are the table's too.
+        it = shapeOf({{0x0180, 4}});
+        QVERIFY(it->fill.type == Fill::Gradient);
+        QCOMPARE(odRgb(it->fill.stops.first().color), QColor(40, 24, 38));
+        QCOMPARE(odRgb(it->fill.stops.last().color), QColor(0, 20, 30));
+        // A system color that stands for the shape's fill color means the table's when the shape has none of its own.
+        QCOMPARE(odRgb(shapeOf({{0x01C0, 0x100000F0}})->stroke.color), QColor(40, 24, 38));
+        // The shape turns the fill off (its use bit set, its value clear); a flag it doesn't use, the table's stays.
+        QVERIFY(shapeOf({{0x01BF, 0x00100000}})->fill.isNone());
+        QVERIFY(shapeOf({{0x01FF, 0x00080000}})->stroke.isNone());
+        QVERIFY(!shapeOf({{0x01BF, 0x00020000}})->fill.isNone());
+        QVERIFY(!shapeOf({{0x01BF, 0x00200020}})->fill.isNone());
+        // A table that leaves the shapes unfilled: a rectangle is, unless it says it isn't.
+        ctx.defaults = odProps({{0x01BF, 0x00100000}, {0x01FF, 0x00080000}});
+        QVERIFY(shapeOf({})->fill.isNone());
+        QVERIFY(shapeOf({})->stroke.isNone());
+        QVERIFY(!shapeOf({{0x01BF, 0x00100010}})->fill.isNone());
+        // A table with no say about it leaves the format's own: a white fill and a thin black line.
+        ctx.defaults = odProps({{0x0183, 0x0000FF}});
+        it = shapeOf({});
+        QCOMPARE(odRgb(it->fill.color), QColor(Qt::white));
+        QCOMPARE(odRgb(it->stroke.color), QColor(Qt::black));
+        QVERIFY(qAbs(it->stroke.width - 0.75) < 1e-9);
+        // No table, or one that can't be read: the same.
+        for (const QByteArray &none : {QByteArray(), QByteArray("junk"), odRecord(3, 40, 0xF00B, QByteArray(10, '\x01'))}) {
+            ctx.defaults = none;
+            QCOMPARE(odRgb(shapeOf({})->fill.color), QColor(Qt::white));
+        }
+        // The table's other records (the tertiary one, a second primary) read as well, a later one replacing an earlier.
+        ctx.defaults = odProps({{0x0181, 0x0000FF}}) + odProps({{0x0181, 0x00FF00}}, 0xF122) + odRecord(0, 0, 0xF006, QByteArray(16, '\0'));
+        QCOMPARE(odRgb(shapeOf({})->fill.color), QColor(0, 255, 0));
+        // The background shape's fill falls back on it too.
+        ctx.defaults = odProps({{0x0181, 0x08000004}, {0x01BF, 0x00100010}});
+        const Fill bg = odrawBackground(odDrawing(QByteArray(), odShape(1, 0x400, {})), ctx);
+        QVERIFY(bg.type == Fill::Solid);
+        QCOMPARE(odRgb(bg.color), QColor(40, 24, 38));
+    }
+
+    // The flags of a boolean property (the fill's, the line's) sit in one property that the shape's tables may each hold a part of:
+    // each table's flags that it uses are the shape's.
+    void odrawMergesTheFlagsOfAPropertyAcrossTables()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        // Primary: the line is used, and off; tertiary: another flag of the same property (the pen is inset). The line stays off.
+        QByteArray tables = odProps({{0x01BF, 0x00100010}, {0x01FF, 0x00080000}}) + odProps({{0x01FF, 0x00400040}}, 0xF122);
+        ItemList items = readOdrawShapes(odDrawing(odContainer(0xF004, odFsp(1, 0xA00) + tables + at)), odContext());
+        QVERIFY(items[0]->stroke.isNone());
+        QVERIFY(!items[0]->fill.isNone());
+        // The later table has the say over a flag both use.
+        tables = odProps({{0x01FF, 0x00080008}}) + odProps({{0x01FF, 0x00480000}}, 0xF122);
+        items = readOdrawShapes(odDrawing(odContainer(0xF004, odFsp(1, 0xA00) + tables + at)), odContext());
+        QVERIFY(items[0]->stroke.isNone());
+        // A flag the later table doesn't use stays as it was; one neither uses is the default's.
+        tables = odProps({{0x01FF, 0x00080008}}) + odProps({{0x01FF, 0x00400000}}, 0xF122);
+        items = readOdrawShapes(odDrawing(odContainer(0xF004, odFsp(1, 0xA00) + tables + at)), odContext());
+        QVERIFY(!items[0]->stroke.isNone());
+        // Properties that are not flags are replaced, as they were.
+        tables = odProps({{0x01CB, 25400}}) + odProps({{0x01CB, 12700}}, 0xF121);
+        items = readOdrawShapes(odDrawing(odContainer(0xF004, odFsp(1, 0xA00) + tables + at)), odContext());
+        QVERIFY(qAbs(items[0]->stroke.width - 1.0) < 1e-9);
+    }
+
+    // A shape that takes after another (a slide's placeholder after its master's) has what that shape's table says for what it leaves out,
+    // and the drawing's defaults for what neither says.
+    void odrawTakesWhatItLeavesOutFromTheShapeItTakesAfter()
+    {
+        OdrawContext ctx = odContext();
+        // Defaults: filled in scheme color 4, and a line.
+        ctx.defaults = odProps({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}});
+        QStringList asked;
+        ctx.inherits = [&](const QByteArray &data) {
+            asked << QString::fromLatin1(data);
+            // One shape's table: not filled and no line, a green line color, 3 points wide.
+            return data == "title" ? odProps({{0x01BF, 0x00100000}, {0x01FF, 0x00080000}, {0x01C0, 0x00FF00}, {0x01CB, 38100}}) : QByteArray();
+        };
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        auto shapeOf = [&](const QByteArray &data, const QVector<OdProp> &props) {
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, at, odRecord(0, 0, 0xF011, data))), ctx)[0];
+        };
+        ItemPtr it = shapeOf("title", {});
+        QCOMPARE(asked, QStringList({QStringLiteral("title")}));   // the client data's contents
+        QVERIFY(it->fill.isNone());
+        QVERIFY(it->stroke.isNone());
+        // What the shape says wins, and the colors it leaves out are the other shape's, then the defaults'.
+        it = shapeOf("title", {{0x01BF, 0x00100010}, {0x01FF, 0x00080008}});
+        QCOMPARE(odRgb(it->fill.color), QColor(40, 24, 38));
+        QCOMPARE(odRgb(it->stroke.color), QColor(0, 255, 0));
+        QVERIFY(qAbs(it->stroke.width - 3.0) < 1e-9);
+        QCOMPARE(odRgb(shapeOf("title", {{0x01BF, 0x00100010}, {0x0181, 0x0000FF}})->fill.color), QColor(255, 0, 0));
+        // A shape that takes after none, or one with no client data, has the defaults.
+        it = shapeOf("body", {});
+        QCOMPARE(odRgb(it->fill.color), QColor(40, 24, 38));
+        asked.clear();
+        it = readOdrawShapes(odDrawing(odShape(1, 0xA00, {}, at)), ctx)[0];
+        QVERIFY(asked.isEmpty());
+        QCOMPARE(odRgb(it->fill.color), QColor(40, 24, 38));
+    }
+
+    // The colors of a gradient (fillShadeColors, property 0x0197; the one before it is the preset's number) run along it as the focus
+    // says, like the two colors do: at 100 they run the other way, at 50 there and back, and below zero from the other end.
+    void odrawShadeColorsFollowTheFocus()
+    {
+        auto stopsOf = [&](int focus, const QByteArray &list, const QVector<OdProp> &more = {}) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x019C, 0}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x018C, quint32(focus)}, {0x0197, 0, odArray(list.size() / 8, 8, list)}};
+            props += more;
+            const Fill f = readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), odContext())[0]->fill;
+            QStringList out;
+            for (const GradientStop &st : f.stops)
+                out << QStringLiteral("%1%2").arg(odRgb(st.color) == QColor(255, 0, 0) ? 'r' : odRgb(st.color) == QColor(0, 0, 255) ? 'b' : 'g').arg(st.pos, 0, 'f', 2);
+            return out.join(QLatin1Char(' '));
+        };
+        // Red, then red up to 65 percent, then blue: how a dark band over a fade is stored.
+        QByteArray band;
+        band += odU32(0x000000FF) + odU32(0);
+        band += odU32(0x000000FF) + odU32(0xA666);
+        band += odU32(0x00FF0000) + odU32(65536);
+        QCOMPARE(stopsOf(0, band), QStringLiteral("r0.00 r0.65 b1.00"));
+        QCOMPARE(stopsOf(100, band), QStringLiteral("b0.00 r0.35 r1.00"));
+        QCOMPARE(stopsOf(-100, band), QStringLiteral("r0.00 r0.65 b1.00"));   // from the other end and the other way: as at 0
+        QCOMPARE(stopsOf(50, band), QStringLiteral("r0.00 r0.32 b0.50 r0.68 r1.00"));
+        // Two colors in a list are the same as two colors without one.
+        QByteArray two;
+        two += odU32(0x000000FF) + odU32(0);
+        two += odU32(0x00FF0000) + odU32(65536);
+        for (int focus : {0, 50, 100, -100, -50}) {
+            const Fill plain = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100010}, {0x019C, 0}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x018C, quint32(focus)}}, odClientAnchor(0, 0, 10, 10))),
+                                              odContext())[0]->fill;
+            QStringList expected;
+            for (const GradientStop &st : plain.stops) expected << QStringLiteral("%1%2").arg(odRgb(st.color) == QColor(255, 0, 0) ? 'r' : 'b').arg(st.pos, 0, 'f', 2);
+            QCOMPARE(stopsOf(focus, two), expected.join(QLatin1Char(' ')));
+        }
+        // The property before it (the preset) isn't the list: a gradient with that one alone has its two colors.
+        const Fill preset = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100010}, {0x019C, 0}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x0196, 0, odArray(3, 8, band)}},
+                                                              odClientAnchor(0, 0, 10, 10))), odContext())[0]->fill;
+        QCOMPARE(int(preset.stops.size()), 2);
+    }
+
+    // A shaded fill of two colors runs along a curve unless the shape turns it off (fillShadeType 0x019C: gamma 1, sigma 2): the position is
+    // eased by the sigma curve (3u^2 - 2u^3) and the colors blend in linear light (a power of 2.2), as the program draws them; a gradient
+    // that says nothing of it is drawn that way (gamma and sigma). A list of colors is not.
+    void odrawShadesFollowTheirCurve()
+    {
+        auto stopsOf = [&](const QVector<OdProp> &more, const QByteArray &list = QByteArray()) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}};
+            if (!list.isEmpty()) props << OdProp{0x0197, 0, odArray(list.size() / 8, 8, list)};
+            props += more;
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), odContext())[0]->fill.stops;
+        };
+        // Red to blue, eight steps: the middle one, a quarter of the way eased by the sigma curve to the red or the blue.
+        auto expectedRed = [&](double u, int type) {
+            const double e = (type & 2) ? u * u * (3 - 2 * u) : u;
+            return (type & 1) ? 255 * std::pow((1 - e) * 1.0, 1 / 2.2) : 255 * (1 - e);
+        };
+        for (const QVector<OdProp> &more : {QVector<OdProp>(), QVector<OdProp>{{0x019C, 3}}, QVector<OdProp>{{0x019C, 0x40000003}}}) {
+            const QVector<GradientStop> st = stopsOf(more);
+            QCOMPARE(int(st.size()), 9);
+            QCOMPARE(odRgb(st.first().color), QColor(255, 0, 0));
+            QCOMPARE(odRgb(st.last().color), QColor(0, 0, 255));
+            for (int k = 1; k < 8; ++k) {
+                QVERIFY(qAbs(st[k].pos - k / 8.0) < 1e-9);
+                const QColor c = odRgb(st[k].color);
+                QVERIFY2(qAbs(c.red() - expectedRed(k / 8.0, 3)) <= 1.5 && qAbs(c.blue() - expectedRed(1 - k / 8.0, 3)) <= 1.5 && c.green() == 0, qPrintable(QString::number(k)));
+            }
+        }
+        // The middle of it: 186, not 128.
+        QVERIFY(qAbs(odRgb(stopsOf({})[4].color).red() - 186) <= 1);
+        // Sigma alone eases the position; gamma alone blends in linear light; neither is two colors.
+        QVector<GradientStop> st = stopsOf({{0x019C, 2}});
+        QCOMPARE(int(st.size()), 9);
+        QVERIFY(qAbs(odRgb(st[1].color).red() - expectedRed(1 / 8.0, 2)) <= 1.5);
+        QVERIFY(qAbs(odRgb(st[4].color).red() - 128) <= 1);
+        st = stopsOf({{0x019C, 1}});
+        QVERIFY(qAbs(odRgb(st[1].color).red() - expectedRed(1 / 8.0, 1)) <= 1.5);
+        QCOMPARE(int(stopsOf({{0x019C, 0}}).size()), 2);
+        QCOMPARE(int(stopsOf({{0x019C, 0x40000000}}).size()), 2);
+        // A list of colors is drawn as it stands: the colors at their places, and nothing between.
+        QByteArray list;
+        list += odU32(0x000000FF) + odU32(0);
+        list += odU32(0x000000FF) + odU32(0x8000);
+        list += odU32(0x00FF0000) + odU32(65536);
+        QCOMPARE(int(stopsOf({}, list).size()), 3);
+        QCOMPARE(int(stopsOf({{0x019C, 3}}, list).size()), 3);
+        // The opacity runs along it evenly.
+        st = stopsOf({{0x0182, 0x10000}, {0x0184, 0x8000}});
+        QVERIFY(qAbs(st[4].transparency - 0.25) < 1e-6);
+    }
+
+    // A shape that carries the XML its writer made for it (property 0x03A9) hands it to the host, which may take the shape's look from it.
+    // A shape that takes after another doesn't have that one's XML, or its name, or its link.
+    void odrawGivesTheWritersXmlToTheHost()
+    {
+        OdrawContext ctx = odContext();
+        QStringList got;
+        ctx.richLook = [&](Item &item, const QByteArray &xml) {
+            got << QString::fromLatin1(xml);
+            item.altText = QStringLiteral("seen");
+        };
+        ctx.inherits = [](const QByteArray &data) {
+            return data == "ph" ? odProps({{0x03A9, 0, QByteArray("master xml")}, {0x0380, 0, odUtf16z(QStringLiteral("Master name"))}, {0x0381, 0, odUtf16z(QStringLiteral("Master alt"))},
+                                           {0x0382, 0, odUrlHyperlink(QStringLiteral("https://example.org"), QString(), true)}, {0x0181, 0x0000FF}, {0x01BF, 0x00100010}})
+                                   : QByteArray();
+        };
+        auto shapeOf = [&](const QVector<OdProp> &props, const QByteArray &data) {
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10), data.isEmpty() ? QByteArray() : odRecord(0, 0, 0xF011, data))), ctx)[0];
+        };
+        ItemPtr it = shapeOf({{0x03A9, 0, QByteArray("<p:sp/>")}}, QByteArray());
+        QCOMPARE(got, QStringList({QStringLiteral("<p:sp/>")}));
+        QCOMPARE(it->altText, QStringLiteral("seen"));
+        got.clear();
+        it = shapeOf({}, "ph");
+        QVERIFY(got.isEmpty());
+        QVERIFY(it->name.isEmpty());
+        QVERIFY(it->altText.isEmpty());
+        QVERIFY(it->hyperlink.isEmpty());
+        QCOMPARE(odRgb(it->fill.color), QColor(255, 0, 0));   // what it looks like, it does have
+        // No host function, or no XML: nothing happens.
+        ctx.richLook = nullptr;
+        QVERIFY(shapeOf({{0x03A9, 0, QByteArray("<p:sp/>")}}, QByteArray())->altText.isEmpty());
+    }
+
+    // A picture or texture fill has the brightness and contrast of its shape (a texture washed out for a background): the host makes
+    // the picture the fill shows from them, as the picture items have them (a percent each way).
+    void odrawFillsAdjustTheirPictures()
+    {
+        OdrawContext ctx = odContext();
+        QStringList asked;
+        ctx.adjusted = [&](const QString &id, double brightness, double contrast) {
+            asked << QStringLiteral("%1 %2 %3").arg(id).arg(brightness, 0, 'f', 1).arg(contrast, 0, 'f', 1);
+            return id + QLatin1Char('+');
+        };
+        auto fillOf = [&](int type, const QVector<OdProp> &more) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x0180, quint32(type)}, {0x0186, 2, {}, true}};
+            props += more;
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill;
+        };
+        // Brightness 0x5C29 of 0x8000 (72 percent), and contrast 0xD70A of 0x10000 (16 percent less than none).
+        Fill f = fillOf(2, {{0x0109, 0x5C29}, {0x0108, 0xD70A}});
+        QVERIFY(f.type == Fill::Texture);
+        QCOMPARE(f.imageId, QStringLiteral("pic2+"));
+        QCOMPARE(asked, QStringList({QStringLiteral("pic2 72.0 -16.0")}));
+        asked.clear();
+        QCOMPARE(fillOf(3, {{0x0109, 0xFFFFC000}}).imageId, QStringLiteral("pic2+"));
+        QCOMPARE(asked, QStringList({QStringLiteral("pic2 -50.0 0.0")}));
+        asked.clear();
+        QCOMPARE(fillOf(1, {{0x0108, 0x20000}}).imageId, QStringLiteral("pic2+"));
+        QCOMPARE(asked, QStringList({QStringLiteral("pic2 0.0 100.0")}));
+        // Neither set: the picture as it is, and the host isn't asked.
+        asked.clear();
+        QCOMPARE(fillOf(2, {}).imageId, QStringLiteral("pic2"));
+        QVERIFY(asked.isEmpty());
+        // A picture the host has none for stays solid.
+        ctx.picture = nullptr;
+        QVERIFY(fillOf(2, {{0x0109, 0x5C29}}).type == Fill::Solid);
+        QVERIFY(asked.isEmpty());
+    }
+
+    // A picture takes its brightness and contrast the same way when the host can make the picture as adjusted: the picture is the
+    // adjusted one, and the item has none of its own; where it can't, the item has them.
+    void odrawPicturesTakeAdjustedImagesFromTheHost()
+    {
+        OdrawContext ctx = odContext();
+        QStringList asked;
+        bool works = true;
+        ctx.adjusted = [&](const QString &id, double brightness, double contrast) {
+            asked << QStringLiteral("%1 %2 %3").arg(id).arg(brightness, 0, 'f', 1).arg(contrast, 0, 'f', 1);
+            return works ? id + QLatin1Char('+') : id;
+        };
+        // The list read is kept until the next: the picture is one of its items.
+        ItemList read;
+        auto pictureOf = [&](const QVector<OdProp> &props) {
+            read = readOdrawShapes(odDrawing(odShape(75, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx);
+            return static_cast<PictureItem *>(read[0].get());
+        };
+        PictureItem *pic = pictureOf({{0x0104, 3, {}, true}, {0x0109, 0x5C29}, {0x0108, 0xD70A}});
+        QCOMPARE(pic->imageId, QStringLiteral("pic3+"));
+        QCOMPARE(pic->brightness, 0.0);
+        QCOMPARE(pic->contrast, 0.0);
+        QCOMPARE(asked, QStringList({QStringLiteral("pic3 72.0 -16.0")}));
+        // Nothing to adjust: the host isn't asked.
+        asked.clear();
+        pic = pictureOf({{0x0104, 3, {}, true}});
+        QCOMPARE(pic->imageId, QStringLiteral("pic3"));
+        QVERIFY(asked.isEmpty());
+        // The host can't: the item has them, as when there is no host.
+        works = false;
+        pic = pictureOf({{0x0104, 3, {}, true}, {0x0109, 0x5C29}});
+        QCOMPARE(pic->imageId, QStringLiteral("pic3"));
+        QVERIFY(qAbs(pic->brightness - 72.0) < 0.01);
+        ctx.adjusted = nullptr;
+        pic = pictureOf({{0x0104, 3, {}, true}, {0x0108, 0x20000}});
+        QVERIFY(qAbs(pic->contrast - 100.0) < 0.01);
+    }
+
+    // A fill of the background kind shows the page's own background where the shape is: the host says what that is, given the place.
+    void odrawFillsWithThePagesBackground()
+    {
+        OdrawContext ctx = odContext();
+        auto fillOf = [&]() {
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0180, 9}, {0x01BF, 0x00100010}, {0x0181, 0x0000FF}}, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill;
+        };
+        QVERIFY(fillOf().isNone());   // no page to say
+        Fill background = Fill::gradient(ColorRef::rgb(Qt::red), ColorRef::rgb(Qt::blue));
+        QRectF seen;
+        ctx.background = [&](const QRectF &shape) {
+            seen = shape;
+            return background;
+        };
+        Fill f = fillOf();
+        QCOMPARE(seen, QRectF(0, 0, 10, 10));   // where the shape is, for a fill that keeps its place on the page
+        QVERIFY(f.type == Fill::Gradient);
+        QCOMPARE(odRgb(f.color), QColor(Qt::red));
+        QCOMPARE(odRgb(f.color2), QColor(Qt::blue));
+        background = Fill::solid(ColorRef::rgb(Qt::green));
+        QVERIFY(fillOf().type == Fill::Solid);
+        // Not filled at all: nothing, whatever the page has.
+        QVERIFY(readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0180, 9}, {0x01BF, 0x00100000}}, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill.isNone());
     }
 
     // ---- text bodies (DrawingML text read into stories)
