@@ -85,7 +85,9 @@ bool DeckWindow::saveAs()
     const deck::PresentationKind was = deck::kindOfFileName(from);
     QString selected = was == deck::PresentationKind::Show ? ppsxFilter : was == deck::PresentationKind::Template && from == m_templatePath ? potxFilter : pptxFilter;
     const QString ending = selected == ppsxFilter ? QStringLiteral(".ppsx") : selected == potxFilter ? QStringLiteral(".potx") : QStringLiteral(".pptx");
-    QString path = askSavePath(this, tr("Save As"), dir + QLatin1Char('/') + name + ending, pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter, &selected);
+    const QString suggested = dir + QLatin1Char('/') + name + ending;
+    QString path = m_pathChooser ? m_pathChooser(suggested, selected)
+                                 : askSavePath(this, tr("Save As"), suggested, pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter, &selected);
     if (path.isEmpty()) return false;
     if (!isKnownEnding(path)) path += selected == ppsxFilter ? QStringLiteral(".ppsx") : selected == potxFilter ? QStringLiteral(".potx") : QStringLiteral(".pptx");
     return saveTo(path);

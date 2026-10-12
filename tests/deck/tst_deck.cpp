@@ -1626,8 +1626,7 @@ private:
     }
 
     // Answers the modal dialogs that open next, one for each answer: a button of a
-    // message box, or (NoButton) closing the dialog, which is how a file dialog is
-    // cancelled. The first label clicked is kept in `label`.
+    // message box, or (NoButton) closing the dialog. The first label clicked is kept in `label`.
     static void answerDialogs(QList<QMessageBox::StandardButton> answers, QString *label = nullptr, QDeadlineTimer until = QDeadlineTimer(10000))
     {
         if (answers.isEmpty() || until.hasExpired()) return;
@@ -2305,9 +2304,14 @@ private Q_SLOTS:
         DeckWindow w;
         QVERIFY(w.openFile(templatePath));
         w.newSlide();
-        // Save asks where, since the template is not to be written over; cancelled, nothing is written.
-        answerDialogs({QMessageBox::NoButton});
+        // Save asks where, since the template is not to be written over, and suggests a new name; cancelled, nothing is written.
+        QStringList asked;
+        w.setSavePathChooser([&](const QString &suggested, const QString &) {
+            asked << suggested;
+            return QString();
+        });
         QVERIFY(!w.save());
+        QCOMPARE(asked, QStringList{dir.filePath(QStringLiteral("look.pptx"))});
         QCOMPARE(fileBytes(templatePath), before);
         QVERIFY(w.editor()->isModified());
         // Saved to a name, that is the presentation's file from then on.
@@ -2341,19 +2345,19 @@ private Q_SLOTS:
         QVERIFY(w.isVisible());
         QVERIFY(w.editor()->isModified());
         // Save, with nowhere to save to yet, asks where; a window left from there stays open.
-        answerDialogs({QMessageBox::Save, QMessageBox::NoButton});
+        w.setSavePathChooser([](const QString &, const QString &) { return QString(); });
+        answerDialogs({QMessageBox::Save});
         QVERIFY(!w.close());
         QVERIFY(w.isVisible());
-        // Save with a name writes the file and closes.
+        // Save, with a name given, writes the file and closes.
         const QString path = dir.filePath(QStringLiteral("talk.pptx"));
-        QVERIFY(w.saveTo(path));
-        w.newSlide();
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
         answerDialogs({QMessageBox::Save});
         QVERIFY(w.close());
         QVERIFY(!w.isVisible());
         auto back = deck::importPresentationFile(path);
         QVERIFY(back);
-        QCOMPARE(int(back->pages.size()), 3);
+        QCOMPARE(int(back->pages.size()), 2);
         // Don't Save closes and leaves the file alone.
         DeckWindow v;
         v.show();
