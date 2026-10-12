@@ -52,7 +52,7 @@ jobs:
         if: steps.key.outputs.have == 'yes'
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --target jeffpub_lupdate
+          cmake --build build --target jeffoffice_lupdate
 
       - name: Translate
         if: steps.key.outputs.have == 'yes'
@@ -69,7 +69,7 @@ jobs:
         run: |
           # The lists of English text are the developers' to commit (lupdate
           # before a release); only the translations go in here.
-          git checkout -- translations/jeffpub.ts translations/jeffpub_en.ts
+          git checkout -- translations/jeffoffice.ts translations/jeffoffice_en.ts
           git add translations resources/help resources/resources.qrc
           if git diff --cached --quiet; then echo "Nothing new to translate."; exit 0; fi
           git -c user.name="JeffOffice LLC" -c user.email="info@jeffoffice.com" commit -q -m "Translations of new and changed text"

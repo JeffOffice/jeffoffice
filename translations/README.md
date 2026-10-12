@@ -1,6 +1,7 @@
 # Translations
 
-JeffPub's own text is written in American English. It is translated
+JeffOffice's own text (JeffPub's, JeffDeck's, and the parts they share) is
+written in American English; the apps share one set of translation files. It is translated
 automatically into German, Spanish, French, Italian, Dutch, and Portuguese
 (Brazil and Portugal) by `tools/translate/translate.py`, which sends only
 new or changed text to Claude through the Anthropic API:
@@ -24,26 +25,28 @@ new or changed text to Claude through the Anthropic API:
   not yet reviewed; the program uses them all the same.
 
 A translation is a
-`jeffpub_<language>.ts` file here (for example `jeffpub_de.ts` or
-`jeffpub_pt_BR.ts`), made and edited with Qt Linguist; the build turns each
-into a `.qm` file inside the program, and JeffPub uses the one for the
+`jeffoffice_<language>.ts` file here (for example `jeffoffice_de.ts` or
+`jeffoffice_pt_BR.ts`), made and edited with Qt Linguist; the build turns each
+into a `.qm` file inside the programs, and each app uses the one for the
 system's language, or the one chosen in File > Options > General > Display
 language.
 
-- `jeffpub.ts` lists every string marked for translation, with no language.
+- `jeffoffice.ts` lists every string marked for translation, with no language.
   Update it after changing the program's text:
-  `cmake --build build --target jeffpub_lupdate`.
-- To start a language, copy `jeffpub.ts` to `jeffpub_<language>.ts`, set its
+  `cmake --build build --target jeffoffice_lupdate`.
+- To start a language, copy `jeffoffice.ts` to `jeffoffice_<language>.ts`, set its
   language in Qt Linguist (Edit > Translation File Settings), translate,
   and rebuild.
-- To see a translation in JeffPub before it's built in, release it with
-  `lrelease jeffpub_<language>.ts` and start JeffPub with
-  `JEFFPUB_TRANSLATION=/path/to/jeffpub_<language>.qm`.
-- English has `jeffpub_en.ts` for plurals only ("%n page(s)"): lupdate adds
+- To see a translation in an app before it's built in, release it with
+  `lrelease jeffoffice_<language>.ts` and start the app with
+  `JEFFPUB_TRANSLATION=/path/to/jeffoffice_<language>.qm` (JeffDeck:
+  `JEFFDECK_TRANSLATION`).
+- English has `jeffoffice_en.ts` for plurals only ("%n page(s)"): lupdate adds
   each new plural there empty; give it its singular and plural forms.
-- The ribbon's labels come from `resources/ribbon.json`; they are listed for
-  translators in `apps/pub/app/ribbon_strings.cpp`, which a test keeps in step
-  with the file.
+- The ribbons' labels come from `resources/ribbon.json` (JeffPub's) and
+  `apps/deck/resources/ribbon.json` (JeffDeck's); `tools/ribbon_strings.py`
+  lists them for translators in `apps/pub/app/ribbon_strings.cpp` and
+  `apps/deck/app/ribbon_strings.cpp`, which tests keep in step with the files.
 - Help's topics are Markdown files in `resources/help/en/`, one per topic.
   To translate them, copy the folder to `resources/help/<language>/` (the
   same name as the `.ts` file's, such as `de` or `pt_BR`) and translate

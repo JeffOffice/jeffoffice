@@ -114,50 +114,6 @@ endif()
 target_link_libraries(jeffpub PRIVATE jpcore)
 set_target_properties(jeffpub PROPERTIES OUTPUT_NAME "JeffPub")
 
-# Translations of JeffPub's own text. `cmake --build build --target
-# jeffpub_lupdate` gathers every string marked for translation (tr(),
-# QCoreApplication::translate()) into translations/jeffpub.ts, the list a
-# translator starts from; each translations/jeffpub_<language>.ts is built
-# into the program under :/i18n/. Without Qt's Linguist tools the program
-# builds the same, in English.
-# English needs one too, for plurals only: jeffpub_en.ts gives "%n page(s)"
-# its singular and plural forms (lupdate adds new ones; fill in their forms).
-find_package(Qt6 QUIET COMPONENTS LinguistTools)
-if(Qt6LinguistTools_FOUND)
-  file(GLOB JP_TRANSLATIONS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/translations/jeffpub_*.ts)
-  list(REMOVE_ITEM JP_TRANSLATIONS ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts)
-  qt_add_lupdate(TS_FILES ${CMAKE_SOURCE_DIR}/translations/jeffpub.ts ${JP_TRANSLATIONS}
-                 PLURALS_TS_FILE ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts
-                 SOURCE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jpcore jeffpub
-                 LUPDATE_TARGET jeffpub_lupdate
-                 OPTIONS -no-obsolete -locations relative)
-  qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)
-  qt_add_resources(jpcore "translations" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR} FILES ${JP_QM_FILES})
-  # Qt's own text in each of those languages (standard buttons such as
-  # Cancel, file dialogs), built in too, so no package needs a translations
-  # folder. Qt has Brazil's Portuguese only; Portugal's uses it.
-  set(JP_QT_QM_FILES)
-  foreach(ts ${JP_TRANSLATIONS})
-    get_filename_component(lang ${ts} NAME_WE)
-    string(REPLACE "jeffpub_" "" lang ${lang})
-    set(qtqm ${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_${lang}.qm)
-    if(NOT EXISTS ${qtqm} AND lang MATCHES "^pt")
-      set(qtqm ${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_pt_BR.qm)
-    endif()
-    if(NOT EXISTS ${qtqm})
-      string(REGEX REPLACE "_.*" "" base ${lang})
-      set(qtqm ${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_${base}.qm)
-    endif()
-    if(EXISTS ${qtqm})
-      configure_file(${qtqm} ${CMAKE_CURRENT_BINARY_DIR}/qtqm/qtbase_${lang}.qm COPYONLY)
-      list(APPEND JP_QT_QM_FILES ${CMAKE_CURRENT_BINARY_DIR}/qtqm/qtbase_${lang}.qm)
-    endif()
-  endforeach()
-  if(JP_QT_QM_FILES)
-    qt_add_resources(jpcore "qt_translations" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR}/qtqm FILES ${JP_QT_QM_FILES})
-  endif()
-endif()
-
 enable_testing()
 qt_add_executable(jptests tests/tests.cpp)
 target_link_libraries(jptests PRIVATE jpcore jp_libmspub Qt6::Test)
@@ -196,9 +152,55 @@ target_link_libraries(jeffdeck PRIVATE jdcore)
 set_target_properties(jeffdeck PROPERTIES OUTPUT_NAME JeffDeck)
 qt_add_executable(jdtests tests/deck/tst_deck.cpp)
 target_link_libraries(jdtests PRIVATE jdcore Qt6::Test)
+target_compile_definitions(jdtests PRIVATE JD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(jdtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME jdtests COMMAND jdtests)
 set_tests_properties(jdtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# Translations of the apps' own text, one set for the suite. `cmake --build
+# build --target jeffoffice_lupdate` gathers every string marked for
+# translation (tr(), QCoreApplication::translate()) in the shared libraries,
+# JeffPub, and JeffDeck into translations/jeffoffice.ts, the list a
+# translator starts from; each translations/jeffoffice_<language>.ts is built
+# in under :/i18n/ (in jo_shell, so every app has them). Without Qt's
+# Linguist tools the programs build the same, in English.
+# English needs one too, for plurals only: jeffoffice_en.ts gives "%n page(s)"
+# its singular and plural forms (lupdate adds new ones; fill in their forms).
+find_package(Qt6 QUIET COMPONENTS LinguistTools)
+if(Qt6LinguistTools_FOUND)
+  file(GLOB JP_TRANSLATIONS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_*.ts)
+  list(REMOVE_ITEM JP_TRANSLATIONS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts)
+  qt_add_lupdate(TS_FILES ${CMAKE_SOURCE_DIR}/translations/jeffoffice.ts ${JP_TRANSLATIONS}
+                 PLURALS_TS_FILE ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts
+                 SOURCE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jpcore jeffpub jdcore jeffdeck
+                 LUPDATE_TARGET jeffoffice_lupdate
+                 OPTIONS -no-obsolete -locations relative)
+  qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)
+  qt_add_resources(jo_shell "translations" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR} FILES ${JP_QM_FILES})
+  # Qt's own text in each of those languages (standard buttons such as
+  # Cancel, file dialogs), built in too, so no package needs a translations
+  # folder. Qt has Brazil's Portuguese only; Portugal's uses it.
+  set(JP_QT_QM_FILES)
+  foreach(ts ${JP_TRANSLATIONS})
+    get_filename_component(lang ${ts} NAME_WE)
+    string(REPLACE "jeffoffice_" "" lang ${lang})
+    set(qtqm ${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_${lang}.qm)
+    if(NOT EXISTS ${qtqm} AND lang MATCHES "^pt")
+      set(qtqm ${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_pt_BR.qm)
+    endif()
+    if(NOT EXISTS ${qtqm})
+      string(REGEX REPLACE "_.*" "" base ${lang})
+      set(qtqm ${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_${base}.qm)
+    endif()
+    if(EXISTS ${qtqm})
+      configure_file(${qtqm} ${CMAKE_CURRENT_BINARY_DIR}/qtqm/qtbase_${lang}.qm COPYONLY)
+      list(APPEND JP_QT_QM_FILES ${CMAKE_CURRENT_BINARY_DIR}/qtqm/qtbase_${lang}.qm)
+    endif()
+  endforeach()
+  if(JP_QT_QM_FILES)
+    qt_add_resources(jo_shell "qt_translations" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR}/qtqm FILES ${JP_QT_QM_FILES})
+  endif()
+endif()
 
 # Developer tool for reading and rendering presentation files from the command line.
 qt_add_executable(jdecktool tools/jdecktool.cpp)

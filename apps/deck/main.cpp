@@ -11,6 +11,7 @@
 #include "app/deckinfo.h"
 #include "app/deckwindow.h"
 #include "app/focusring.h"
+#include "app/i18n.h"
 #include "app/icons.h"
 #include "app/recovery.h"
 #include "app/settings.h"
@@ -34,6 +35,7 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     jp::crash::install(jp::crash::reportPath());
     jp::recovery::setCopySuffix(QStringLiteral(".pptx"));   // AutoRecover keeps presentations
+    jp::installTranslations();   // before the command line and any window build their text
 
     QCommandLineParser cli;
     cli.setApplicationDescription(QCoreApplication::translate("Main", "JeffDeck presentations"));

@@ -2,7 +2,7 @@
 """Translates JeffPub's text with Claude, through the Anthropic API.
 
 Two parts:
-  ui    the program's strings, translations/jeffpub_<language>.ts
+  ui    the program's strings, translations/jeffoffice_<language>.ts
   help  Help's topics, resources/help/<language>/<topic>.md
 
 Only what is new or changed is sent. Every translation then goes through
@@ -21,7 +21,7 @@ may correct it, and a corrected term is never asked for again).
                                          [--dry-run] [--report FILE]
 
 Without --lang it keeps up the languages already started (each has its
-translations/jeffpub_<language>.ts); name a language to start it.
+translations/jeffoffice_<language>.ts); name a language to start it.
 
 Needs ANTHROPIC_API_KEY (except with --dry-run), the anthropic package
 (pip install -r tools/translate/requirements.txt), and Qt's lconvert
@@ -166,7 +166,7 @@ def lconvert(*args):
 
 
 def ts_path(lang):
-    return os.path.join(TS_DIR, f"jeffpub_{lang}.ts")
+    return os.path.join(TS_DIR, f"jeffoffice_{lang}.ts")
 
 
 class Message:
@@ -209,9 +209,9 @@ def load_ts(lang, dry=False):
     path = ts_path(lang)
     if not os.path.exists(path):
         if dry:   # nothing written: count from the list of every string
-            path = os.path.join(TS_DIR, "jeffpub.ts")
+            path = os.path.join(TS_DIR, "jeffoffice.ts")
         else:
-            lconvert("-target-language", lang, "-i", os.path.join(TS_DIR, "jeffpub.ts"), "-o", path)
+            lconvert("-target-language", lang, "-i", os.path.join(TS_DIR, "jeffoffice.ts"), "-o", path)
     tree = ET.parse(path)
     messages = []
     for ctx in tree.getroot().findall("context"):
@@ -706,7 +706,7 @@ class Report:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--lang", help="languages, comma-separated, or \"all\" (default: the languages already "
-                    "started, each with its translations/jeffpub_<language>.ts; start a new one by naming it)")
+                    "started, each with its translations/jeffoffice_<language>.ts; start a new one by naming it)")
     ap.add_argument("--part", choices=["ui", "help", "all"], default="all")
     ap.add_argument("--dry-run", action="store_true", help="count what would be sent; call nothing")
     ap.add_argument("--effort", default="low", choices=["low", "medium", "high"])
