@@ -2506,6 +2506,51 @@ private Q_SLOTS:
         QVERIFY(!(inherited->fill.type == Fill::Solid && inherited->fill.color.resolve(d->colors) == d->colors.c[Accent1]));
     }
 
+    // Text art (an old file's) is saved as the presentation program keeps the older kind: text warped into its box and stretched
+    // to fill it, with the art's letters' look; read again, it is the same art.
+    void textArtIsSavedAndReadBack()
+    {
+        auto d = deck::newPresentation();
+        auto art = std::make_shared<TextArtItem>();
+        art->name = QStringLiteral("Art");
+        art->rect = QRectF(100, 100, 400, 150);
+        art->text = QStringLiteral("Hello\nWorld");
+        art->font = QStringLiteral("Arial");
+        art->bold = true;
+        art->size = 40;
+        art->transform_ = QStringLiteral("archUp");
+        art->align = 0;
+        art->fill = Fill::solid(ColorRef::rgb(QColor(0xCC, 0x11, 0x22)));
+        art->stroke = Stroke::line(ColorRef::rgb(QColor(0x11, 0x22, 0xCC)), 1.5);
+        d->pages[0]->items.push_back(art);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.filter(QStringLiteral("text art")).isEmpty(), qPrintable(skipped.join('\n')));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("<a:prstTxWarp prst=\"textArchUp\">")));
+        QVERIFY(slide.contains(QStringLiteral("fromWordArt=\"1\"")));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const TextArtItem *read = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->name == QLatin1String("Art") && it->type() == ItemType::TextArt) read = static_cast<const TextArtItem *>(it.get());
+        QVERIFY(read);
+        QCOMPARE(read->text, art->text);
+        QCOMPARE(read->transform_, QStringLiteral("archUp"));
+        QCOMPARE(read->font, QStringLiteral("Arial"));
+        QVERIFY(read->bold);
+        QCOMPARE(read->size, 40.0);
+        QCOMPARE(read->align, 0);
+        QCOMPARE(read->fill.color.resolve(back->colors), QColor(0xCC, 0x11, 0x22));
+        QCOMPARE(read->stroke.color.resolve(back->colors), QColor(0x11, 0x22, 0xCC));
+        QVERIFY(std::abs(read->rect.width() - 400) < 0.5 && std::abs(read->rect.height() - 150) < 0.5);
+    }
+
     void headerAndFooterPlaceholders()
     {
         auto d = deck::newPresentation();   // a title slide

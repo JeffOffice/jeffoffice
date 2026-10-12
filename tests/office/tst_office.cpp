@@ -6018,17 +6018,21 @@ private Q_SLOTS:
         QCOMPARE(r.ctx.nextShapeId, 104);
     }
 
-    void dmlWriteLeavesTextArtAndTablesWithNoCellsOutWithANote()
+    // A table with no cells is left out with a note; text art is written as
+    // a box whose text is warped into it.
+    void dmlWriteLeavesTablesWithNoCellsOutWithANote()
     {
         WriteRound r;
         auto table = std::make_shared<jp::TableItem>();
         table->name = QStringLiteral("Prices");
         auto art = std::make_shared<TextArtItem>();
+        art->text = QStringLiteral("Sale");
         QVERIFY2(r.run({table, art}), qPrintable(r.error));
-        QCOMPARE(int(r.items.size()), 0);
-        QCOMPARE(int(r.skipped.size()), 2);
+        QCOMPARE(int(r.skipped.size()), 1);
         QVERIFY(r.skipped[0].contains(QStringLiteral("Prices")));
-        QVERIFY(r.spTree.firstChildElement().isNull());
+        const QVector<QDomElement> warps = elementsNamed(r.spTree, "prstTxWarp");
+        QCOMPARE(int(warps.size()), 1);
+        QCOMPARE(warps[0].attribute(QStringLiteral("prst")), QStringLiteral("textPlain"));
     }
 
     // A table is a frame of the cells' own fills, lines, and text; the cells
