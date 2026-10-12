@@ -5147,7 +5147,7 @@ private Q_SLOTS:
         QCOMPARE(r.ctx.nextShapeId, 104);
     }
 
-    void dmlWriteLeavesTablesAndTextArtOutWithANote()
+    void dmlWriteLeavesTextArtAndTablesWithNoCellsOutWithANote()
     {
         WriteRound r;
         auto table = std::make_shared<jp::TableItem>();
@@ -5158,6 +5158,95 @@ private Q_SLOTS:
         QCOMPARE(int(r.skipped.size()), 2);
         QVERIFY(r.skipped[0].contains(QStringLiteral("Prices")));
         QVERIFY(r.spTree.firstChildElement().isNull());
+    }
+
+    // A table is a frame of the cells' own fills, lines, and text; the cells
+    // that are hidden under a merged one say how.
+    void dmlWriteTablesKeepTheirCellsAndMerges()
+    {
+        WriteRound r;
+        auto t = std::make_shared<jp::TableItem>();
+        t->name = QStringLiteral("Table <1>");
+        t->rect = QRectF(20, 30, 1, 1);
+        t->rows = 3;
+        t->cols = 3;
+        t->colW = {100, 80, 60};
+        t->rowH = {30, 30, 40};
+        t->cells.resize(9);
+        for (int row = 0; row < 3; ++row)
+            for (int col = 0; col < 3; ++col) {
+                jp::TableCell &c = t->cell(row, col);
+                c.storyId = r.addStory(QStringLiteral("r%1c%2").arg(row).arg(col));
+                c.margins = QMarginsF(5, 3, 5, 3);
+            }
+        t->cell(0, 0).colSpan = 2;
+        t->cell(0, 0).rowSpan = 2;
+        for (const auto &at : {QPair<int, int>{0, 1}, {1, 0}, {1, 1}}) t->cell(at.first, at.second).covered = true;
+        t->cell(0, 0).fill = Fill::solid(ColorRef::rgb(QColor(0xFF, 0, 0)));
+        t->cell(0, 0).border.top = Stroke::line(ColorRef::rgb(QColor(0, 0, 0xFF)), 2);
+        t->cell(1, 2).border.left = Stroke::line(ColorRef::rgb(QColor(0, 0x80, 0)), 1);   // and the cell on its left, which has none, shares it
+        jp::TableCell &last = t->cell(2, 2);
+        last.margins = QMarginsF(1, 2, 3, 4);
+        last.valign = jp::VAlign::Bottom;
+        last.vertical = true;
+        last.diagonal = 1;
+        last.diagonalLine = Stroke::line(ColorRef::rgb(Qt::black), 0.5);
+        t->fill = Fill::solid(ColorRef::rgb(QColor(0xEE, 0xEE, 0xEE)));
+        t->stroke = Stroke::line(ColorRef::rgb(QColor(0x10, 0x20, 0x30)), 3);
+        QVERIFY2(r.run({t}), qPrintable(r.error));
+        QVERIFY2(r.skipped.isEmpty(), qPrintable(r.skipped.join('\n')));
+        // The frame's place and the table's size, from its columns and rows.
+        const QDomElement frame = elementsNamed(r.spTree, "graphicFrame").value(0);
+        QVERIFY(!frame.isNull());
+        const QDomElement xfrm = child(frame, QString(ns::P), QStringLiteral("xfrm"));
+        QCOMPARE(child(xfrm, QString(ns::A), QStringLiteral("off")).attribute(QStringLiteral("x")), QStringLiteral("254000"));
+        QCOMPARE(child(xfrm, QString(ns::A), QStringLiteral("ext")).attribute(QStringLiteral("cx")), QStringLiteral("3048000"));
+        QCOMPARE(child(xfrm, QString(ns::A), QStringLiteral("ext")).attribute(QStringLiteral("cy")), QStringLiteral("1270000"));
+        QCOMPARE(child(child(frame, QString(ns::P), QStringLiteral("nvGraphicFramePr")), QString(ns::P), QStringLiteral("cNvPr")).attribute(QStringLiteral("name")), QStringLiteral("Table <1>"));
+        QStringList widths, heights;
+        for (const QDomElement &g : elementsNamed(frame, "gridCol")) widths << g.attribute(QStringLiteral("w"));
+        for (const QDomElement &row : elementsNamed(frame, "tr")) heights << row.attribute(QStringLiteral("h"));
+        QCOMPARE(widths, (QStringList{"1270000", "1016000", "762000"}));
+        QCOMPARE(heights, (QStringList{"381000", "381000", "508000"}));
+        const QVector<QDomElement> cells = elementsNamed(frame, "tc");
+        QCOMPARE(int(cells.size()), 9);
+        // A merged cell says how far it reaches; those under it say that they are, across or down or both.
+        QCOMPARE(cells[0].attribute(QStringLiteral("gridSpan")), QStringLiteral("2"));
+        QCOMPARE(cells[0].attribute(QStringLiteral("rowSpan")), QStringLiteral("2"));
+        QVERIFY(cells[1].attribute(QStringLiteral("hMerge")) == QLatin1String("1") && !cells[1].hasAttribute(QStringLiteral("vMerge")));
+        QVERIFY(cells[3].attribute(QStringLiteral("vMerge")) == QLatin1String("1") && !cells[3].hasAttribute(QStringLiteral("hMerge")));
+        QVERIFY(cells[4].attribute(QStringLiteral("hMerge")) == QLatin1String("1") && cells[4].attribute(QStringLiteral("vMerge")) == QLatin1String("1"));
+        QVERIFY(!cells[2].hasAttribute(QStringLiteral("gridSpan")) && !cells[2].hasAttribute(QStringLiteral("hMerge")));
+        auto textOf = [&](int i) {
+            QString out;
+            for (const QDomElement &tt : elementsNamed(cells[i], "t")) out += tt.text();
+            return out;
+        };
+        QCOMPARE(textOf(0), QStringLiteral("r0c0"));
+        QCOMPARE(textOf(5), QStringLiteral("r1c2"));
+        QCOMPARE(textOf(1), QString());   // hidden: no text
+        auto props = [&](int i) { return child(cells[i], QString(ns::A), QStringLiteral("tcPr")); };
+        auto line = [&](int i, const char *side) { return child(props(i), QString(ns::A), QString::fromLatin1(side)); };
+        auto fillColor = [&](int i) { return child(child(props(i), QString(ns::A), QStringLiteral("solidFill")), QString(ns::A), QStringLiteral("srgbClr")).attribute(QStringLiteral("val")); };
+        // Fills: its own, and the table's where it has none.
+        QCOMPARE(fillColor(0), QStringLiteral("FF0000"));
+        QCOMPARE(fillColor(2), QStringLiteral("EEEEEE"));
+        // Lines: the cell's own, the table's round its edge, and one shared with the cell next to it.
+        QCOMPARE(line(0, "lnT").attribute(QStringLiteral("w")), QStringLiteral("38100"));   // the table's own line is on its edge, over the cell's
+        QCOMPARE(child(child(line(5, "lnL"), QString(ns::A), QStringLiteral("solidFill")), QString(ns::A), QStringLiteral("srgbClr")).attribute(QStringLiteral("val")), QStringLiteral("008000"));
+        QVERIFY(!child(line(5, "lnT"), QString(ns::A), QStringLiteral("noFill")).isNull());
+        QCOMPARE(line(2, "lnR").attribute(QStringLiteral("w")), QStringLiteral("38100"));
+        // The text's place in the cell.
+        QCOMPARE(props(8).attribute(QStringLiteral("marL")), QStringLiteral("12700"));
+        QCOMPARE(props(8).attribute(QStringLiteral("marT")), QStringLiteral("25400"));
+        QCOMPARE(props(8).attribute(QStringLiteral("marR")), QStringLiteral("38100"));
+        QCOMPARE(props(8).attribute(QStringLiteral("marB")), QStringLiteral("50800"));
+        QCOMPARE(props(8).attribute(QStringLiteral("anchor")), QStringLiteral("b"));
+        QCOMPARE(props(8).attribute(QStringLiteral("vert")), QStringLiteral("vert"));
+        QVERIFY(!line(8, "lnTlToBr").isNull() && line(8, "lnBlToTr").isNull());
+        QCOMPARE(props(0).attribute(QStringLiteral("anchor")), QStringLiteral("t"));
+        // The table is no shape that is read back as one.
+        QCOMPARE(int(r.items.size()), 0);
     }
 
     void dmlWriteElementsComeInTheSchemasOrder()
@@ -5229,7 +5318,20 @@ private Q_SLOTS:
         picFill.type = Fill::Picture;
         picFill.imageId = p->imageId;
         free->fill = picFill;
-        QVERIFY2(r.run({t, s, p, l, g, free}), qPrintable(r.error));
+        auto table = std::make_shared<jp::TableItem>();
+        table->rows = 2;
+        table->cols = 2;
+        table->colW = {50, 50};
+        table->rowH = {20, 20};
+        table->cells.resize(4);
+        for (jp::TableCell &cell : table->cells) {
+            cell.storyId = r.addStory(QStringLiteral("cell"));
+            cell.fill = Fill::gradient(ColorRef::rgb(Qt::red), ColorRef::rgb(Qt::blue));
+            cell.border.left = cell.border.right = cell.border.top = cell.border.bottom = Stroke::line(ColorRef::rgb(Qt::black), 1);
+        }
+        table->cell(0, 0).diagonal = 2;
+        table->cell(0, 0).diagonalLine = Stroke::line(ColorRef::rgb(Qt::black), 1);
+        QVERIFY2(r.run({t, s, p, l, g, free, table}), qPrintable(r.error));
         const QMap<QString, QStringList> orders = {
             {"sp", {"nvSpPr", "spPr", "style", "txBody"}},
             {"pic", {"nvPicPr", "blipFill", "spPr", "style"}},
@@ -5254,6 +5356,12 @@ private Q_SLOTS:
             {"pPr", {"lnSpc", "spcBef", "spcAft", "buClrTx|buClr", "buSzTx|buSzPct|buSzPts", "buFontTx|buFont", "buNone|buAutoNum|buChar|buBlip", "tabLst", "defRPr"}},
             {"rPr", {"ln", "noFill|solidFill|gradFill|blipFill|pattFill|grpFill", "effectLst", "highlight", "uLnTx|uLn", "uFillTx|uFill", "latin", "ea", "cs", "sym", "hlinkClick|hlinkMouseOver", "rtl"}},
             {"r", {"rPr", "t"}},
+            {"graphicFrame", {"nvGraphicFramePr", "xfrm", "graphic"}},
+            {"nvGraphicFramePr", {"cNvPr", "cNvGraphicFramePr", "nvPr"}},
+            {"tbl", {"tblPr", "tblGrid", "tr"}},
+            {"tc", {"txBody", "tcPr"}},
+            {"tcPr", {"lnL", "lnR", "lnT", "lnB", "lnTlToBr", "lnBlToTr", "noFill|solidFill|gradFill|blipFill|pattFill|grpFill"}},
+            {"lnL", {"noFill|solidFill|gradFill|pattFill", "prstDash|custDash", "round|bevel|miter", "headEnd", "tailEnd"}},
         };
         QVector<QDomElement> stack{r.spTree};
         int checked = 0;

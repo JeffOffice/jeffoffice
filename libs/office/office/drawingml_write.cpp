@@ -186,6 +186,42 @@ void writeEffects(QXmlStreamWriter &w, const Effects &fx, const DrawingWriteCont
     w.writeEndElement();
 }
 
+// An outline as the element `tag` (a:ln, or a table cell's a:lnL and its kin).
+void writeOutline(QXmlStreamWriter &w, const char *tag, const Stroke &stroke, DrawingWriteContext &ctx)
+{
+    begin(w, tag);
+    const QColor color = resolve(stroke.color, ctx);
+    if (stroke.isNone() || !color.isValid()) {
+        // No line, of the width it had.
+        if (stroke.width > 0) attribute(w, "w", std::clamp<qint64>(extent(std::clamp(stroke.width, 0.0, 1584.0)), 0, 20116800));
+        leaf(w, "a:noFill");
+        w.writeEndElement();
+        return;
+    }
+    attribute(w, "w", std::clamp<qint64>(extent(std::clamp(stroke.width, 0.0, 1584.0)), 0, 20116800));
+    attribute(w, "cap", stroke.cap == Qt::RoundCap ? QStringLiteral("rnd") : stroke.cap == Qt::SquareCap ? QStringLiteral("sq") : QStringLiteral("flat"));
+    static const char *const compounds[] = {"sng", "dbl", "thickThin", "thinThick", "tri"};
+    attribute(w, "cmpd", QLatin1String(compounds[std::clamp(int(stroke.compound), 0, 4)]));
+    attribute(w, "algn", stroke.inset ? QStringLiteral("in") : QStringLiteral("ctr"));
+    writeSolid(w, stroke.color, stroke.transparency, ctx);
+    static const char *const dashes[] = {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash", "lgDashDot", "lgDashDotDot"};
+    begin(w, "a:prstDash");
+    attribute(w, "val", QLatin1String(dashes[std::clamp(int(stroke.dash), 0, 7)]));
+    w.writeEndElement();
+    switch (stroke.join) {
+    case Qt::RoundJoin: leaf(w, "a:round"); break;
+    case Qt::BevelJoin: leaf(w, "a:bevel"); break;
+    default:
+        begin(w, "a:miter");
+        attribute(w, "lim", QStringLiteral("800000"));
+        w.writeEndElement();
+        break;
+    }
+    writeArrowEnd(w, "a:headEnd", stroke.startArrow, stroke.startSize);
+    writeArrowEnd(w, "a:tailEnd", stroke.endArrow, stroke.endSize);
+    w.writeEndElement();
+}
+
 // ---- places
 
 // Where an object is: its frame, turned and flipped about its center.
@@ -389,6 +425,12 @@ void writeLook(QXmlStreamWriter &w, const Item &it, DrawingWriteContext &ctx)
     writeEffects(w, it.fx, ctx);
 }
 
+// A margin round text in EMU, held to what a 32-bit number counts.
+qint64 inset(double points)
+{
+    return position(std::clamp(points, -4000.0, 4000.0));
+}
+
 // What a text body says of its frame.
 struct Body {
     QMarginsF insets;
@@ -406,10 +448,10 @@ void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, boo
     begin(w, "a:bodyPr");
     if (b.vertical) attribute(w, "vert", QStringLiteral("vert"));
     attribute(w, "wrap", QStringLiteral("square"));
-    attribute(w, "lIns", position(b.insets.left()));
-    attribute(w, "tIns", position(b.insets.top()));
-    attribute(w, "rIns", position(b.insets.right()));
-    attribute(w, "bIns", position(b.insets.bottom()));
+    attribute(w, "lIns", inset(b.insets.left()));
+    attribute(w, "tIns", inset(b.insets.top()));
+    attribute(w, "rIns", inset(b.insets.right()));
+    attribute(w, "bIns", inset(b.insets.bottom()));
     if (b.columns > 1) {
         attribute(w, "numCol", std::clamp(b.columns, 1, 16));
         attribute(w, "spcCol", extent(std::clamp(b.columnGap, 0.0, 1000.0)));
@@ -758,12 +800,173 @@ void writeGroup(QXmlStreamWriter &w, const GroupItem &g, DrawingWriteContext &ct
     w.writeEndElement();
 }
 
+// ---- tables
+
+// The cell that a hidden cell of a merged one is under, for the way it is hidden.
+struct Hidden {
+    bool across = false, down = false;
+};
+
+Hidden hiddenUnder(const TableItem &t, int row, int col)
+{
+    Hidden h;
+    for (int r0 = row; r0 >= 0; --r0)
+        for (int c0 = col; c0 >= 0; --c0) {
+            const TableCell &c = t.cell(r0, c0);
+            if (c.covered || r0 + c.rowSpan <= row || c0 + c.colSpan <= col) continue;
+            h.across = col > c0;
+            h.down = row > r0;
+            return h;
+        }
+    h.across = true;
+    return h;
+}
+
+// The line on one side of a cell: the cell's own, else the neighbor's on that same edge (what a person sees is one line, whichever cell holds it).
+Stroke edgeOf(const TableItem &t, int row, int col, int side)
+{
+    const TableCell &c = t.cell(row, col);
+    const Stroke own = side == 0 ? c.border.top : side == 1 ? c.border.bottom : side == 2 ? c.border.left : c.border.right;
+    // A line round the whole table is on the cells at its edges.
+    const bool outer = (side == 0 && row == 0) || (side == 1 && row + c.rowSpan >= t.rows) || (side == 2 && col == 0) || (side == 3 && col + c.colSpan >= t.cols);
+    if (outer && !t.stroke.isNone()) return t.stroke;
+    // The cell after (below or to the right) is painted later, and has the last word.
+    if (side == 0 && row > 0) {
+        const Stroke other = t.cell(row - 1, col).border.bottom;
+        return own.isNone() ? other : own;
+    }
+    if (side == 2 && col > 0) {
+        const Stroke other = t.cell(row, col - 1).border.right;
+        return own.isNone() ? other : own;
+    }
+    if (side == 1 && row + c.rowSpan < t.rows) {
+        const Stroke later = t.cell(row + c.rowSpan, col).border.top;
+        return later.isNone() ? own : later;
+    }
+    if (side == 3 && col + c.colSpan < t.cols) {
+        const Stroke later = t.cell(row, col + c.colSpan).border.left;
+        return later.isNone() ? own : later;
+    }
+    return own;
+}
+
+void writeCell(QXmlStreamWriter &w, const TableItem &t, int row, int col, DrawingWriteContext &ctx)
+{
+    const TableCell &c = t.cell(row, col);
+    begin(w, "a:tc");
+    if (c.covered) {
+        const Hidden h = hiddenUnder(t, row, col);
+        if (h.across) attribute(w, "hMerge", QStringLiteral("1"));
+        if (h.down) attribute(w, "vMerge", QStringLiteral("1"));
+    } else {
+        if (c.colSpan > 1) attribute(w, "gridSpan", std::min(c.colSpan, t.cols - col));
+        if (c.rowSpan > 1) attribute(w, "rowSpan", std::min(c.rowSpan, t.rows - row));
+    }
+    begin(w, "a:txBody");
+    leaf(w, "a:bodyPr");
+    leaf(w, "a:lstStyle");
+    const QTextDocument *first = c.covered ? nullptr : storyOf(c.storyId, ctx);
+    const QTextDocument *second = c.covered || !c.divided() ? nullptr : storyOf(c.storyId2, ctx);
+    writeParagraphs(w, first, ctx);
+    // A cell divided by a diagonal has the text of its second half after the first.
+    if (second && !second->isEmpty()) writeParagraphs(w, second, ctx);
+    if (!first) {
+        begin(w, "a:p");
+        leaf(w, "a:endParaRPr");
+        w.writeEndElement();
+    }
+    w.writeEndElement();
+
+    begin(w, "a:tcPr");
+    attribute(w, "marL", inset(c.margins.left()));
+    attribute(w, "marR", inset(c.margins.right()));
+    attribute(w, "marT", inset(c.margins.top()));
+    attribute(w, "marB", inset(c.margins.bottom()));
+    if (c.vertical) attribute(w, "vert", QStringLiteral("vert"));
+    attribute(w, "anchor", c.valign == VAlign::Middle ? QStringLiteral("ctr") : c.valign == VAlign::Bottom ? QStringLiteral("b") : QStringLiteral("t"));
+    if (!c.covered) {
+        writeOutline(w, "a:lnL", edgeOf(t, row, col, 2), ctx);
+        writeOutline(w, "a:lnR", edgeOf(t, row, col, 3), ctx);
+        writeOutline(w, "a:lnT", edgeOf(t, row, col, 0), ctx);
+        writeOutline(w, "a:lnB", edgeOf(t, row, col, 1), ctx);
+        if (c.diagonal == 1) writeOutline(w, "a:lnTlToBr", c.diagonalLine, ctx);
+        if (c.diagonal == 2) writeOutline(w, "a:lnBlToTr", c.diagonalLine, ctx);
+        // The table's own fill shows through a cell that has none.
+        writeFill(w, c.fill.isNone() ? t.fill : c.fill, ctx);
+    }
+    w.writeEndElement();
+    w.writeEndElement();
+}
+
+// Whether a table has the cells, columns, and rows to be written.
+bool hasCells(const TableItem &t)
+{
+    return t.rows > 0 && t.cols > 0 && t.cells.size() == t.rows * t.cols && t.colW.size() >= t.cols && t.rowH.size() >= t.rows;
+}
+
+void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ctx, QStringList *skipped)
+{
+    if (!hasCells(t)) {
+        if (skipped) skipped->append(say("\"%1\": a table with no cells was left out.").arg(t.name.isEmpty() ? t.id : t.name));
+        return;
+    }
+    const int id = takeId(ctx, t);
+    double width = 0, height = 0;
+    for (int c = 0; c < t.cols; ++c) width += std::max(0.0, t.colW[c]);
+    for (int r = 0; r < t.rows; ++r) height += std::max(0.0, t.rowH[r]);
+    begin(w, "p:graphicFrame");
+    begin(w, "p:nvGraphicFramePr");
+    writeIdentity(w, t, id, say("Table"), ctx);
+    begin(w, "p:cNvGraphicFramePr");
+    begin(w, "a:graphicFrameLocks");
+    attribute(w, "noGrp", QStringLiteral("1"));
+    w.writeEndElement();
+    w.writeEndElement();
+    leaf(w, "p:nvPr");
+    w.writeEndElement();
+    // A table is as wide and tall as its columns and rows; it is not turned.
+    begin(w, "p:xfrm");
+    begin(w, "a:off");
+    attribute(w, "x", position(t.rect.x()));
+    attribute(w, "y", position(t.rect.y()));
+    w.writeEndElement();
+    begin(w, "a:ext");
+    attribute(w, "cx", extent(width));
+    attribute(w, "cy", extent(height));
+    w.writeEndElement();
+    w.writeEndElement();
+    begin(w, "a:graphic");
+    begin(w, "a:graphicData");
+    attribute(w, "uri", QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/table"));
+    begin(w, "a:tbl");
+    // Every cell says how it looks, so no table style is asked for.
+    leaf(w, "a:tblPr");
+    begin(w, "a:tblGrid");
+    for (int c = 0; c < t.cols; ++c) {
+        begin(w, "a:gridCol");
+        attribute(w, "w", extent(t.colW[c]));
+        w.writeEndElement();
+    }
+    w.writeEndElement();
+    for (int r = 0; r < t.rows; ++r) {
+        begin(w, "a:tr");
+        attribute(w, "h", extent(t.rowH[r]));
+        for (int c = 0; c < t.cols; ++c) writeCell(w, t, r, c, ctx);
+        w.writeEndElement();
+    }
+    w.writeEndElement();
+    w.writeEndElement();
+    w.writeEndElement();
+    w.writeEndElement();
+}
+
 } // namespace
 
 void assignShapeIds(const ItemList &items, DrawingWriteContext &ctx)
 {
     walkItems(items, [&](const ItemPtr &it) {
-        if (it->type() == ItemType::Table || it->type() == ItemType::TextArt) return;
+        if (it->type() == ItemType::TextArt) return;
+        if (it->type() == ItemType::Table && !hasCells(static_cast<const TableItem &>(*it))) return;
         if (it->type() == ItemType::Group && static_cast<const GroupItem &>(*it).children.empty()) return;
         if (it->type() == ItemType::Picture) {
             const QString image = static_cast<const PictureItem &>(*it).imageId;
@@ -800,10 +1003,10 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
         writeGroup(w, static_cast<const GroupItem &>(item), ctx, skipped);
         break;
     case ItemType::Table:
+        writeTable(w, static_cast<const TableItem &>(item), ctx, skipped);
+        break;
     case ItemType::TextArt:
-        if (skipped)
-            skipped->append(item.type() == ItemType::Table ? say("\"%1\": a table can't be saved yet and was left out.").arg(item.name.isEmpty() ? item.id : item.name)
-                                                           : say("\"%1\": text art can't be saved and was left out.").arg(item.name.isEmpty() ? item.id : item.name));
+        if (skipped) skipped->append(say("\"%1\": text art can't be saved and was left out.").arg(item.name.isEmpty() ? item.id : item.name));
         break;
     }
 }
@@ -843,37 +1046,7 @@ void writeFill(QXmlStreamWriter &w, const Fill &fill, DrawingWriteContext &ctx)
 
 void writeLine(QXmlStreamWriter &w, const Stroke &stroke, DrawingWriteContext &ctx)
 {
-    begin(w, "a:ln");
-    const QColor color = resolve(stroke.color, ctx);
-    if (stroke.isNone() || !color.isValid()) {
-        // No line, of the width it had.
-        if (stroke.width > 0) attribute(w, "w", std::clamp<qint64>(extent(std::clamp(stroke.width, 0.0, 1584.0)), 0, 20116800));
-        leaf(w, "a:noFill");
-        w.writeEndElement();
-        return;
-    }
-    attribute(w, "w", std::clamp<qint64>(extent(std::clamp(stroke.width, 0.0, 1584.0)), 0, 20116800));
-    attribute(w, "cap", stroke.cap == Qt::RoundCap ? QStringLiteral("rnd") : stroke.cap == Qt::SquareCap ? QStringLiteral("sq") : QStringLiteral("flat"));
-    static const char *const compounds[] = {"sng", "dbl", "thickThin", "thinThick", "tri"};
-    attribute(w, "cmpd", QLatin1String(compounds[std::clamp(int(stroke.compound), 0, 4)]));
-    attribute(w, "algn", stroke.inset ? QStringLiteral("in") : QStringLiteral("ctr"));
-    writeSolid(w, stroke.color, stroke.transparency, ctx);
-    static const char *const dashes[] = {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash", "lgDashDot", "lgDashDotDot"};
-    begin(w, "a:prstDash");
-    attribute(w, "val", QLatin1String(dashes[std::clamp(int(stroke.dash), 0, 7)]));
-    w.writeEndElement();
-    switch (stroke.join) {
-    case Qt::RoundJoin: leaf(w, "a:round"); break;
-    case Qt::BevelJoin: leaf(w, "a:bevel"); break;
-    default:
-        begin(w, "a:miter");
-        attribute(w, "lim", QStringLiteral("800000"));
-        w.writeEndElement();
-        break;
-    }
-    writeArrowEnd(w, "a:headEnd", stroke.startArrow, stroke.startSize);
-    writeArrowEnd(w, "a:tailEnd", stroke.endArrow, stroke.endSize);
-    w.writeEndElement();
+    writeOutline(w, "a:ln", stroke, ctx);
 }
 
 } // namespace jp::office

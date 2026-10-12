@@ -2855,6 +2855,19 @@ private Q_SLOTS:
         auto group = std::make_shared<GroupItem>();
         group->children = {star, first};
         group->syncRect();
+        auto table = std::make_shared<jp::TableItem>();
+        table->rect = QRectF(50, 400, 200, 60);
+        table->rows = 2;
+        table->cols = 2;
+        table->colW = {100, 100};
+        table->rowH = {30, 30};
+        table->cells.resize(4);
+        for (jp::TableCell &cell : table->cells) {
+            cell.storyId = d->createStory(QStringLiteral("cell"));
+            cell.fill = Fill::solid(ColorRef::scheme(jp::Accent1, 60));
+            cell.border.top = cell.border.bottom = cell.border.left = cell.border.right = Stroke::line(ColorRef::scheme(jp::Main), 1);
+        }
+        slide.items.push_back(table);
         slide.items.push_back(box);
         slide.items.push_back(arrow);
         slide.items.push_back(circle);
@@ -2878,6 +2891,9 @@ private Q_SLOTS:
         QVERIFY2(back, qPrintable(err));
         const Page &page = *back->pages[at];
         QCOMPARE(page.items.size(), placeholders + 6);
+        // The table is one the reader keeps as it was written, not one of the items.
+        QCOMPARE(int(page.props.value(QStringLiteral("unread")).toArray().size()), 1);
+        QVERIFY(page.props.value(QStringLiteral("unread")).toArray()[0].toObject().value(QStringLiteral("xml")).toString().contains(QStringLiteral("<a:tbl>")));
         const auto *text = static_cast<TextItem *>(page.items[placeholders].get());
         QCOMPARE(text->storyId.isEmpty(), false);
         QCOMPARE(back->storyDoc(text->storyId)->toPlainText(), QStringLiteral("Hello\nWorld"));

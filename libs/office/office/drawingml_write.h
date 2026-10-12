@@ -34,8 +34,9 @@ struct DrawingWriteContext {
     QHash<QString, QString> *mediaParts = nullptr;
     // What the scheme colors of a fill, line, or text stand for.
     ColorScheme colors;
-    // Set while the text of a placeholder is written: a paragraph with no
-    // list then says so (a:buNone), as the layout and master may give theirs.
+    // Set while the text of a placeholder is written: the layout and master
+    // may give a paragraph a bullet, spacing, and a marker of their own, so
+    // each paragraph says what it has (a:buNone when it has no list).
     bool placeholderText = false;
     // The shape ids written in the part, so none is given twice. A shape that
     // came from a file keeps its number (Item::sourceId) when it is free;
@@ -56,13 +57,15 @@ struct DrawingWriteContext {
 // Gives each object of a shape tree its number before any is written, in the
 // order they will be (a group's own, then those inside it), so that a
 // connector can be attached to a shape that comes after it. What can't be
-// written (a table, a picture that has no bytes) gets none.
+// written (a table with no cells, a picture that has no bytes) gets none.
 void assignShapeIds(const ItemList &items, DrawingWriteContext &ctx);
 // One placed object: p:sp (shapes and text boxes), p:pic, p:cxnSp, or
 // p:grpSp, with its transform, geometry (a:prstGeom for presets, a:custGeom
 // for freeforms), fill, line, effects, hyperlink, text body, and, for an item
 // whose role is "ph:<type>[:<idx>]", its p:nvPr/p:ph. Nothing for an item it
-// can't write yet (it says so in `skipped`).
+// can't write (a table with no cells, text art, a group with nothing in it, a
+// picture with no bytes): it says so in `skipped`. A table is written as a
+// p:graphicFrame with its cells' own fills, lines, and text; no table style.
 void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx, QStringList *skipped = nullptr);
 // A story as a:p paragraphs with their a:pPr and runs with their a:rPr
 // (inside a p:txBody or a:txBody the caller starts, after its a:bodyPr).
