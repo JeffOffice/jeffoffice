@@ -41,7 +41,6 @@ void saveForPhotoPrinter(QWidget *parent, MainWindow *win);
 void saveAsTemplate(QWidget *parent, MainWindow *win);
 QStringList thesaurusLookup(const QString &word);
 Stroke currentBorderStroke();
-QImage proceduralTexture(const QString &name, int size);   // built-in texture fills
 int hyphenateStory(QTextDocument *doc);                   // returns hyphens inserted
 QStringList pressProblems(const Document &d);              // what a printer would object to (before PDF/X)
 

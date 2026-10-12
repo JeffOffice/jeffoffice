@@ -1,6 +1,7 @@
 #pragma once
 // Dialog boxes.
 
+#include "app/textdialogs.h"
 #include "core/barcode.h"
 #include "core/document.h"
 #include "core/style.h"
@@ -19,10 +20,6 @@ class Editor;
 class MainWindow;
 
 void pageSetupDialog(QWidget *p, Editor *ed);
-// Symbols: insert one (in a font, or the text's own when empty) at the text
-// cursor, remembering it; the recently used ones, newest first ("char\tfont").
-bool insertSymbol(QWidget *p, Editor *ed, const QString &ch, const QString &font);
-QStringList recentSymbols();
 // Layout Guides: Margin Guides (tab 0), Grid Guides (1), Baseline Guides (2).
 void gridGuidesDialog(QWidget *p, Editor *ed, int startTab = 1);
 // Ruler Guides: the page's horizontal and vertical guides by position;
@@ -42,18 +39,10 @@ void customPageSizesDialog(QWidget *p, Editor *ed);
 void applyPageSetup(Editor *ed, const PageSetup &setup, const QString &sizeName, const QString &undoName);
 // The Size gallery's standard sizes: the page keeps its orientation.
 void applyPageSize(Editor *ed, const QSizeF &size, const QString &sizeName);
-void fontDialog(QWidget *p, Editor *ed);
-void paragraphDialog(QWidget *p, Editor *ed, int tab = 0);
-void bulletsDialog(QWidget *p, Editor *ed, bool numbering);
 void dropCapDialog(QWidget *p, Editor *ed);
-void characterSpacingDialog(QWidget *p, Editor *ed);
 void textGradientDialog(QWidget *p, Editor *ed);   // Text Fill > Gradient
 void formatObjectDialog(QWidget *p, Editor *ed, int tab = 0);
-void insertTableDialog(QWidget *p, Editor *ed);
 void insertPageDialog(QWidget *p, Editor *ed);
-void symbolDialog(QWidget *p, Editor *ed);
-void dateTimeDialog(QWidget *p, Editor *ed);
-void hyperlinkDialog(QWidget *p, Editor *ed);
 void bookmarkDialog(QWidget *p, Editor *ed);
 void businessInfoDialog(QWidget *p, Editor *ed);
 // Change Template, after a design is chosen: 1 to apply it to the current
@@ -62,19 +51,16 @@ void businessInfoDialog(QWidget *p, Editor *ed);
 int changeTemplateDialog(QWidget *p);
 void colorSchemeDialog(QWidget *p, Editor *ed);
 void fontSchemeDialog(QWidget *p, Editor *ed);
-bool fillEffectsDialog(QWidget *p, Editor *ed, Fill &fill, const QString &title = QString());
 void shadowDialog(QWidget *p, Editor *ed);
 void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId);
 void calendarDialog(QWidget *p, Editor *ed);
 void styleDialog(QWidget *p, Editor *ed, const QString &styleName = QString());
-void wordCountDialog(QWidget *p, Editor *ed);
 void optionsDialog(QWidget *p, Editor *ed);
 void pageNumberDialog(QWidget *p, Editor *ed);
 // Format Page Numbers: the numbers' style and the first page's number.
 void pageNumberFormatDialog(QWidget *p, Editor *ed);
 void documentPropertiesDialog(QWidget *p, Editor *ed, int tab = 0);   // 1 = Commercial Print
 void measurementWindow(QWidget *p, Editor *ed);
-void tintsDialog(QWidget *p, Editor *ed, const std::function<void(const ColorRef &)> &apply);
 void spellingDialog(QWidget *p, Editor *ed);
 void thesaurusDialog(QWidget *p, Editor *ed);
 void hyphenationDialog(QWidget *p, Editor *ed);
