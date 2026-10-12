@@ -11,6 +11,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Clipboard"),
     QT_TRANSLATE_NOOP("Ribbon", "Columns"),
     QT_TRANSLATE_NOOP("Ribbon", "Comments"),
+    QT_TRANSLATE_NOOP("Ribbon", "Custom Slide Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Customize"),
     QT_TRANSLATE_NOOP("Ribbon", "Design"),
     QT_TRANSLATE_NOOP("Ribbon", "Drawing"),

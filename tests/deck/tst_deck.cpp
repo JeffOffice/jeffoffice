@@ -21,6 +21,7 @@
 #include "app/reusepane.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/showdialogs.h"
 #include "app/slideshow.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
@@ -6347,6 +6348,648 @@ private Q_SLOTS:
         now += 4000;
         show.next();
         QCOMPARE(show.recordedSeconds().value(1), 4.0);
+    }
+
+    // The Slide Show tab: Custom Slide Show lists the custom shows by name above Custom Shows..., and plays one; Set Up has Set Up Slide
+    // Show, Rehearse Timings, and the Use Timings check box.
+    void windowSlideShowTabHasSetUpAndCustomShows()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        for (const char *id : {"show.setUp", "show.rehearse", "show.customShows", "show.useTimings"}) QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QVERIFY(w.act("show.useTimings")->isCheckable());
+        QVERIFY(w.act("show.useTimings")->isChecked());
+        auto *box = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("useTimings"));
+        QVERIFY(box);
+        QVERIFY(box->isChecked());
+        QStringList groups;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Slide Show"))->groups()) groups << g->title();
+        QCOMPARE(groups, (QStringList{"Start Slide Show", "Set Up", "Monitors"}));
+        QAction *command = w.findChild<QAction *>(QStringLiteral("ribbon.customShow"));
+        QVERIFY(command);
+        QMenu *menu = nullptr;
+        for (QObject *o : command->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        auto listed = [&] {
+            Q_EMIT menu->aboutToShow();
+            QStringList names;
+            for (QAction *a : menu->actions())
+                if (!a->isSeparator()) names << a->text();
+            return names;
+        };
+        QCOMPARE(listed(), (QStringList{w.act("show.customShows")->text()}));   // none yet: only the way to make some
+        deck::CustomShow a, b;
+        a.id = 1;
+        a.name = QStringLiteral("Overview");
+        a.slides = {ed->doc()->pages[2]->id, ed->doc()->pages[0]->id};
+        b.id = 2;
+        b.name = QStringLiteral("Details");
+        b.slides = {ed->doc()->pages[1]->id};
+        ed->beginChange(QStringLiteral("test"));
+        deck::setCustomShows(*ed->doc(), {a, b});
+        ed->endChange();
+        QCOMPARE(listed(), (QStringList{"Overview", "Details", w.act("show.customShows")->text()}));
+        // Choosing one plays it, from its first slide, in its order.
+        for (QAction *action : menu->actions())
+            if (action->text() == QLatin1String("Overview")) action->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        QCOMPARE(show->playedSlides(), (QList<int>{2, 0}));
+        QCOMPARE(show->currentSlide(), 2);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        // A show set to play it, and the slide taken out of the presentation leaves it.
+        ed->setCurrentPage(2);
+        w.deleteSlide();
+        QCOMPARE(deck::customShowsOf(*ed->doc()).size(), 2);
+        QCOMPARE(int(deck::customShowsOf(*ed->doc())[0].slides.size()), 1);
+        QCOMPARE(listed().first(), QStringLiteral("Overview"));
+    }
+
+    // The Use Timings check box is the setting: one step that undoes, and the box and the command follow.
+    void windowUseTimingsCheckBox()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto *box = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("useTimings"));
+        QVERIFY(box);
+        QVERIFY(!ed->isModified());
+        box->click();
+        QVERIFY(!deck::showSettingsOf(*ed->doc()).useTimings);
+        QVERIFY(!w.act("show.useTimings")->isChecked());
+        QVERIFY(ed->isModified());
+        ed->undo();
+        QVERIFY(deck::showSettingsOf(*ed->doc()).useTimings);
+        QVERIFY(box->isChecked());
+        QVERIFY(w.act("show.useTimings")->isChecked());
+        ed->redo();
+        QVERIFY(!box->isChecked());
+        QVERIFY(!deck::showSettingsOf(*ed->doc()).useTimings);
+        // A show started now does not move on by the slides' times.
+        deck::Transition t;
+        t.advanceAfter = 30;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setTransition(*ed->doc()->pages[0], t);
+        ed->endChange();
+        w.startShow(0);
+        QVERIFY(w.slideShow());
+        QVERIFY(!w.slideShow()->autoAdvanceActive());
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // Set Up Slide Show: the dialog shows what the presentation has, and OK is one step that undoes; a kiosk loops and moves on by the
+    // times; the show follows what was set.
+    void windowSetUpSlideShowDialog()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        w.newSlide();
+        deck::CustomShow c;
+        c.id = 3;
+        c.name = QStringLiteral("Two and four");
+        c.slides = {ed->doc()->pages[1]->id, ed->doc()->pages[3]->id};
+        ed->beginChange(QStringLiteral("test"));
+        deck::setCustomShows(*ed->doc(), {c});
+        ed->endChange();
+        QVERIFY(w.act("show.setUp")->shortcut().isEmpty());
+        // Shown with the defaults.
+        bool opened = false;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            opened = true;
+            QCOMPARE(d->objectName(), QStringLiteral("setUpShowDialog"));
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("typeSpeaker"))->isChecked());
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("slidesAll"))->isChecked());
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("advanceTimings"))->isChecked());
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("loop"))->isChecked());
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("noAnimation"))->isChecked());
+            QVERIFY(d->findChild<QSpinBox *>(QStringLiteral("rangeFrom")));
+            QVERIFY(!d->findChild<QSpinBox *>(QStringLiteral("rangeFrom"))->isEnabled());   // only for From...To
+            QVERIFY(!d->findChild<QComboBox *>(QStringLiteral("customShow"))->isEnabled());   // only for a custom show
+            d->findChild<QRadioButton *>(QStringLiteral("slidesRange"))->setChecked(true);
+            QVERIFY(d->findChild<QSpinBox *>(QStringLiteral("rangeFrom"))->isEnabled());
+            QVERIFY(d->findChild<QSpinBox *>(QStringLiteral("rangeTo"))->isEnabled());
+            d->findChild<QRadioButton *>(QStringLiteral("slidesAll"))->setChecked(true);
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("rangeTo"))->maximum(), 4);
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("customShow"))->count(), 1);
+            d->reject();
+        });
+        w.act("show.setUp")->trigger();
+        QVERIFY(opened);
+        QVERIFY(!ed->doc()->appData.contains(QStringLiteral("showSettings")));   // Cancel changed nothing
+        // A kiosk with slides 2 to 3 and no animation.
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            d->findChild<QRadioButton *>(QStringLiteral("typeKiosk"))->setChecked(true);
+            QCheckBox *loop = d->findChild<QCheckBox *>(QStringLiteral("loop"));
+            QVERIFY(loop->isChecked());     // a kiosk loops
+            QVERIFY(!loop->isEnabled());
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("advanceTimings"))->isChecked());
+            QVERIFY(!d->findChild<QRadioButton *>(QStringLiteral("advanceManual"))->isEnabled());
+            d->findChild<QCheckBox *>(QStringLiteral("noAnimation"))->setChecked(true);
+            d->findChild<QRadioButton *>(QStringLiteral("slidesRange"))->setChecked(true);
+            d->findChild<QSpinBox *>(QStringLiteral("rangeFrom"))->setValue(2);
+            d->findChild<QSpinBox *>(QStringLiteral("rangeTo"))->setValue(3);
+            d->findChild<QComboBox *>(QStringLiteral("laserColor"))->setCurrentIndex(1);   // green
+            d->accept();
+        });
+        w.act("show.setUp")->trigger();
+        deck::ShowSettings s = deck::showSettingsOf(*ed->doc());
+        QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Kiosk));
+        QCOMPARE(int(s.slides), int(deck::ShowSettings::Slides::Range));
+        QCOMPARE(s.from, 2);
+        QCOMPARE(s.to, 3);
+        QVERIFY(!s.animation);
+        QVERIFY(s.loop);
+        QVERIFY(s.useTimings);
+        QCOMPARE(s.laserColor.green(), 255);
+        QCOMPARE(s.laserColor.red(), 0);
+        QVERIFY(ed->isModified());
+        ed->undo();
+        QVERIFY(!ed->doc()->appData.contains(QStringLiteral("showSettings")));
+        ed->redo();
+        QCOMPARE(int(deck::showSettingsOf(*ed->doc()).type), int(deck::ShowSettings::Type::Kiosk));
+        // The dialog opens on what is set; a custom show and the pen's color.
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("typeKiosk"))->isChecked());
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("slidesRange"))->isChecked());
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("rangeFrom"))->value(), 2);
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("rangeTo"))->value(), 3);
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("noAnimation"))->isChecked());
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("laserColor"))->currentIndex(), 1);
+            d->findChild<QRadioButton *>(QStringLiteral("typeSpeaker"))->setChecked(true);
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("loop"))->isEnabled());
+            d->findChild<QRadioButton *>(QStringLiteral("slidesCustom"))->setChecked(true);
+            d->findChild<QRadioButton *>(QStringLiteral("advanceManual"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("loop"))->setChecked(true);
+            d->accept();
+        });
+        w.act("show.setUp")->trigger();
+        s = deck::showSettingsOf(*ed->doc());
+        QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Speaker));
+        QCOMPARE(int(s.slides), int(deck::ShowSettings::Slides::Custom));
+        QCOMPARE(s.customShow, qint64(3));
+        QVERIFY(!s.useTimings);
+        QVERIFY(s.loop);
+        QVERIFY(w.act("show.useTimings")->isChecked() == false);
+        // From Beginning follows the set up (the custom show, looping); From Current Slide plays every slide from there.
+        w.act("show.fromStart")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        QCOMPARE(show->playedSlides(), (QList<int>{1, 3}));
+        QCOMPARE(show->currentSlide(), 1);
+        QVERIFY(show->settings().looping());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        ed->setCurrentPage(2);
+        w.act("show.fromCurrent")->trigger();
+        show = w.slideShow();
+        QVERIFY(show);
+        QCOMPARE(show->currentSlide(), 2);
+        QCOMPARE(show->playedSlides(), (QList<int>{0, 1, 2, 3}));
+        QVERIFY(show->settings().looping());   // the rest of the set up still applies
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A show by an individual is a window; the others are full screen.
+    void windowShowTypesAreWindowOrFullScreen()
+    {
+        DeckWindow w;
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Individual;
+        w.editor()->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*w.editor()->doc(), s);
+        w.editor()->endChange();
+        w.startShow(0);
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        QVERIFY(show->isWindowed());
+        QVERIFY(!show->isFullScreen());
+        QVERIFY(!(show->windowFlags() & Qt::FramelessWindowHint));
+        QVERIFY(!show->presenterView());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        s.type = deck::ShowSettings::Type::Kiosk;
+        w.editor()->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*w.editor()->doc(), s);
+        w.editor()->endChange();
+        w.startShow(0);
+        show = w.slideShow();
+        QVERIFY(show);
+        QVERIFY(show->isKiosk());
+        QVERIFY(show->isFullScreen());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        s.type = deck::ShowSettings::Type::Speaker;
+        w.editor()->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*w.editor()->doc(), s);
+        w.editor()->endChange();
+        w.startShow(0);
+        show = w.slideShow();
+        QVERIFY(show && show->isFullScreen() && !show->isWindowed());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // Custom Shows: the dialog lists the shows, and New, Edit, Copy, and Remove change them; Show plays one. Making one asks for a name
+    // and picks slides from the presentation in any order.
+    void customShowsDialogMakesEditsCopiesAndDeletes()
+    {
+        auto d = lettered(4);
+        deck::CustomShow existing;
+        existing.id = 0;
+        existing.name = QStringLiteral("First");
+        existing.slides = {d->pages[0]->id, d->pages[1]->id};
+        // The editor of one show.
+        {
+            CustomShowEditDialog edit(*d, QVector<deck::CustomShow>{existing}, nullptr);
+            QCOMPARE(edit.findChild<QLineEdit *>(QStringLiteral("showName"))->text(), QStringLiteral("Custom Show 1"));
+            QListWidget *all = edit.findChild<QListWidget *>(QStringLiteral("slidesInPresentation"));
+            QListWidget *mine = edit.findChild<QListWidget *>(QStringLiteral("slidesInShow"));
+            QVERIFY(all && mine);
+            QCOMPARE(all->count(), 4);
+            QCOMPARE(mine->count(), 0);
+            QAbstractButton *ok = edit.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+            QVERIFY(!ok->isEnabled());   // no slide yet
+            QAbstractButton *add = edit.findChild<QAbstractButton *>(QStringLiteral("addSlide"));
+            QAbstractButton *remove = edit.findChild<QAbstractButton *>(QStringLiteral("removeSlide"));
+            QAbstractButton *up = edit.findChild<QAbstractButton *>(QStringLiteral("moveUp"));
+            QAbstractButton *down = edit.findChild<QAbstractButton *>(QStringLiteral("moveDown"));
+            QVERIFY(add && remove && up && down);
+            QVERIFY(!remove->isEnabled());
+            all->item(3)->setSelected(true);
+            all->item(0)->setSelected(true);
+            add->click();   // the selected ones, in the order the presentation has them
+            QCOMPARE(mine->count(), 2);
+            all->clearSelection();
+            all->item(0)->setSelected(true);
+            add->click();   // a slide twice
+            QCOMPARE(mine->count(), 3);
+            QVERIFY(ok->isEnabled());
+            auto order = [&] {
+                QStringList out;
+                for (int i = 0; i < mine->count(); ++i) out << mine->item(i)->data(Qt::UserRole).toString();
+                return out;
+            };
+            QCOMPARE(order(), (QStringList{d->pages[0]->id, d->pages[3]->id, d->pages[0]->id}));
+            mine->setCurrentRow(2);
+            up->click();
+            QCOMPARE(order(), (QStringList{d->pages[0]->id, d->pages[0]->id, d->pages[3]->id}));
+            mine->setCurrentRow(0);
+            down->click();
+            down->click();
+            QCOMPARE(order(), (QStringList{d->pages[0]->id, d->pages[3]->id, d->pages[0]->id}));
+            mine->setCurrentRow(1);
+            remove->click();
+            QCOMPARE(order(), (QStringList{d->pages[0]->id, d->pages[0]->id}));
+            // The name must be there and not another show's.
+            QLineEdit *name = edit.findChild<QLineEdit *>(QStringLiteral("showName"));
+            name->setText(QStringLiteral("  "));
+            QVERIFY(!ok->isEnabled());
+            name->setText(QStringLiteral("FIRST"));
+            QVERIFY(!ok->isEnabled());   // the same as another's, in other letters
+            name->setText(QStringLiteral("Mine"));
+            QVERIFY(ok->isEnabled());
+            ok->click();
+            QCOMPARE(edit.result(), int(QDialog::Accepted));
+            const deck::CustomShow made = edit.show();
+            QCOMPARE(made.name, QStringLiteral("Mine"));
+            QCOMPARE(made.slides, (QStringList{d->pages[0]->id, d->pages[0]->id}));
+        }
+        // Editing one starts from it, and the name it has is its own to keep.
+        {
+            CustomShowEditDialog edit(*d, QVector<deck::CustomShow>{existing}, &existing);
+            QCOMPARE(edit.findChild<QLineEdit *>(QStringLiteral("showName"))->text(), QStringLiteral("First"));
+            QCOMPARE(edit.findChild<QListWidget *>(QStringLiteral("slidesInShow"))->count(), 2);
+            QVERIFY(edit.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->isEnabled());
+            QCOMPARE(edit.show().id, existing.id);
+        }
+        // The list.
+        CustomShowsDialog dlg(*d, QVector<deck::CustomShow>{existing});
+        QListWidget *list = dlg.findChild<QListWidget *>(QStringLiteral("customShowList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 1);
+        QAbstractButton *edit = dlg.findChild<QAbstractButton *>(QStringLiteral("editShow"));
+        QAbstractButton *copy = dlg.findChild<QAbstractButton *>(QStringLiteral("copyShow"));
+        QAbstractButton *remove = dlg.findChild<QAbstractButton *>(QStringLiteral("removeShow"));
+        QAbstractButton *play = dlg.findChild<QAbstractButton *>(QStringLiteral("playShow"));
+        QAbstractButton *create = dlg.findChild<QAbstractButton *>(QStringLiteral("newShow"));
+        QVERIFY(edit && copy && remove && play && create);
+        list->setCurrentRow(0);
+        // Copy: the same slides under a new name and id.
+        copy->click();
+        QCOMPARE(list->count(), 2);
+        QCOMPARE(dlg.shows().size(), 2);
+        QCOMPARE(dlg.shows()[1].slides, existing.slides);
+        QVERIFY(dlg.shows()[1].id != existing.id);
+        QVERIFY(dlg.shows()[1].name != existing.name);
+        QVERIFY2(dlg.shows()[1].name.contains(QStringLiteral("First")), qPrintable(dlg.shows()[1].name));
+        // New: the editor opens, and what it makes is added.
+        QTimer::singleShot(0, [&] {
+            auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!e) return;
+            QCOMPARE(e->objectName(), QStringLiteral("customShowEditDialog"));
+            e->findChild<QLineEdit *>(QStringLiteral("showName"))->setText(QStringLiteral("Fresh"));
+            e->findChild<QListWidget *>(QStringLiteral("slidesInPresentation"))->item(2)->setSelected(true);
+            e->findChild<QAbstractButton *>(QStringLiteral("addSlide"))->click();
+            e->accept();
+        });
+        create->click();
+        QCOMPARE(dlg.shows().size(), 3);
+        QCOMPARE(dlg.shows()[2].name, QStringLiteral("Fresh"));
+        QCOMPARE(dlg.shows()[2].slides, (QStringList{d->pages[2]->id}));
+        // Edit: changes the one selected.
+        list->setCurrentRow(2);
+        QTimer::singleShot(0, [&] {
+            auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!e) return;
+            QCOMPARE(e->findChild<QLineEdit *>(QStringLiteral("showName"))->text(), QStringLiteral("Fresh"));
+            e->findChild<QLineEdit *>(QStringLiteral("showName"))->setText(QStringLiteral("Fresher"));
+            e->accept();
+        });
+        const qint64 freshId = dlg.shows()[2].id;
+        edit->click();
+        QCOMPARE(dlg.shows()[2].name, QStringLiteral("Fresher"));
+        QCOMPARE(dlg.shows()[2].id, freshId);
+        // Cancelling the editor changes nothing.
+        QTimer::singleShot(0, [&] {
+            if (auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget())) e->reject();
+        });
+        create->click();
+        QCOMPARE(dlg.shows().size(), 3);
+        // Remove.
+        list->setCurrentRow(1);
+        remove->click();
+        QCOMPARE(dlg.shows().size(), 2);
+        QCOMPARE(dlg.shows()[1].name, QStringLiteral("Fresher"));
+        // Show: plays the selected one.
+        QCOMPARE(dlg.playId(), qint64(-1));
+        list->setCurrentRow(1);
+        play->click();
+        QCOMPARE(dlg.result(), int(QDialog::Accepted));
+        QCOMPARE(dlg.playId(), dlg.shows()[1].id);
+    }
+
+    // The window applies the dialog: one step that undoes, and what is made is saved and read back.
+    void windowCustomShowsDialogIsOneStep()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            QCOMPARE(d->objectName(), QStringLiteral("customShowsDialog"));
+            QTimer::singleShot(0, [&] {
+                auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!e) return;
+                e->findChild<QLineEdit *>(QStringLiteral("showName"))->setText(QStringLiteral("Tour"));
+                QListWidget *all = e->findChild<QListWidget *>(QStringLiteral("slidesInPresentation"));
+                all->item(2)->setSelected(true);
+                all->item(1)->setSelected(true);
+                e->findChild<QAbstractButton *>(QStringLiteral("addSlide"))->click();
+                e->accept();
+            });
+            d->findChild<QAbstractButton *>(QStringLiteral("newShow"))->click();
+            d->accept();   // Close
+        });
+        w.act("show.customShows")->trigger();
+        QVector<deck::CustomShow> shows = deck::customShowsOf(*ed->doc());
+        QCOMPARE(shows.size(), 1);
+        QCOMPARE(shows[0].name, QStringLiteral("Tour"));
+        QCOMPARE(deck::customShowSlides(*ed->doc(), shows[0]), (QList<int>{1, 2}));
+        QVERIFY(ed->isModified());
+        ed->undo();
+        QVERIFY(deck::customShowsOf(*ed->doc()).isEmpty());
+        ed->redo();
+        QCOMPARE(deck::customShowsOf(*ed->doc()).size(), 1);
+        // Close with nothing changed is no step.
+        ed->flushTyping();
+        ed->undo();   // the step made is gone, and Close with nothing changed makes none
+        QVERIFY(deck::customShowsOf(*ed->doc()).isEmpty());
+        QTimer::singleShot(0, [&] {
+            if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) d->accept();
+        });
+        w.act("show.customShows")->trigger();
+        QVERIFY(deck::customShowsOf(*ed->doc()).isEmpty());
+        ed->redo();
+        QCOMPARE(deck::customShowsOf(*ed->doc()).size(), 1);
+        // Show plays the one selected, and the dialog closes.
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            d->findChild<QListWidget *>(QStringLiteral("customShowList"))->setCurrentRow(0);
+            d->findChild<QAbstractButton *>(QStringLiteral("playShow"))->click();
+        });
+        w.act("show.customShows")->trigger();
+        QVERIFY(w.slideShow());
+        QCOMPARE(w.slideShow()->playedSlides(), (QList<int>{1, 2}));
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // When a show ends with ink drawn, the window asks whether to keep it. Keep puts one freeform line on its slide for each stroke, as one
+    // step that undoes; Discard leaves the slides as they were.
+    void windowAsksWhetherToKeepInk()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        QStringList asked;
+        bool keep = true;
+        w.setShowQuestion([&](const QString &q) {
+            asked << q;
+            return keep;
+        });
+        const int before0 = int(ed->doc()->pages[0]->items.size()), before1 = int(ed->doc()->pages[1]->items.size());
+        auto draw = [&](int slide, QPointF from, QPointF to, bool highlight) {
+            SlideShow *show = w.slideShow();
+            show->goTo(slide);
+            show->setPointer(highlight ? SlideShow::Pointer::Highlighter : SlideShow::Pointer::Pen);
+            show->pressAt(from);
+            show->moveTo((from + to) / 2 + QPointF(0, 10));
+            show->moveTo(to);
+            show->releasePointer();
+        };
+        // A show with no ink asks nothing.
+        w.startShow(0);
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+        QVERIFY(asked.isEmpty());
+        // Kept.
+        w.startShow(0);
+        draw(0, QPointF(100, 100), QPointF(300, 150), false);
+        draw(0, QPointF(100, 300), QPointF(400, 300), true);
+        draw(1, QPointF(50, 50), QPointF(200, 80), false);
+        QCOMPARE(w.slideShow()->inkCount(), 3);
+        w.slideShow()->close();
+        QTRY_COMPARE(asked.size(), 1);
+        QVERIFY2(asked[0].contains(QStringLiteral("ink annotations")), qPrintable(asked[0]));
+        QTRY_COMPARE(int(ed->doc()->pages[0]->items.size()), before0 + 2);
+        QCOMPARE(int(ed->doc()->pages[1]->items.size()), before1 + 1);
+        const ShapeItem *pen = static_cast<const ShapeItem *>(ed->doc()->pages[0]->items[before0].get());
+        const ShapeItem *marker = static_cast<const ShapeItem *>(ed->doc()->pages[0]->items[before0 + 1].get());
+        QVERIFY(pen->type() == ItemType::Shape && !pen->customPath.isEmpty());
+        QCOMPARE(pen->stroke.transparency, 0.0);
+        QCOMPARE(marker->stroke.transparency, 0.5);
+        QVERIFY(marker->stroke.width > pen->stroke.width * 5);
+        QVERIFY(ed->isModified());
+        // One step takes all of it away.
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before0);
+        QCOMPARE(int(ed->doc()->pages[1]->items.size()), before1);
+        ed->redo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before0 + 2);
+        ed->undo();
+        // Discarded.
+        keep = false;
+        asked.clear();
+        w.startShow(0);
+        draw(0, QPointF(100, 100), QPointF(300, 150), false);
+        w.slideShow()->close();
+        QTRY_COMPARE(asked.size(), 1);
+        QCoreApplication::processEvents();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before0);
+        // The slides can be saved with the kept ink and the file reads back with it.
+        keep = true;
+        w.startShow(0);
+        draw(0, QPointF(100, 100), QPointF(300, 150), false);
+        w.slideShow()->close();
+        QTRY_COMPARE(int(ed->doc()->pages[0]->items.size()), before0 + 1);
+        QString err;
+        auto back = deck::importPresentation(deck::exportPresentation(*ed->doc(), &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages[0]->items.size()), before0 + 1);
+    }
+
+    // Rehearse Timings plays the show from the first slide with the toolbar; at the end it asks whether to keep the times. Kept, each
+    // slide's After is its time, Use Timings turns on, and it is one step that undoes.
+    void windowRehearseTimingsKeepsTheTimes()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        QVERIFY(w.act("show.rehearse"));
+        // The show's own setting is off, and a slide already has a time.
+        deck::ShowSettings s;
+        s.useTimings = false;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        deck::Transition t;
+        t.advanceAfter = 99;
+        deck::setTransition(*ed->doc()->pages[0], t);
+        ed->endChange();
+        QStringList asked;
+        bool keep = true;
+        w.setShowQuestion([&](const QString &q) {
+            asked << q;
+            return keep;
+        });
+        ed->setCurrentPage(2);   // it starts at the first slide anyway
+        w.act("show.rehearse")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        QVERIFY(show->isRecording());
+        QCOMPARE(show->currentSlide(), 0);
+        QVERIFY(show->rehearseBar());
+        qint64 now = 0;
+        show->setClock([&now] { return now; });
+        now += 2500;
+        show->next();
+        now += 4000;
+        show->next();
+        now += 1040;
+        show->next();
+        QCOMPARE(show->currentSlide(), -1);
+        show->next();   // the end screen is clicked away
+        QTRY_COMPARE(asked.size(), 1);
+        QVERIFY2(asked[0].contains(QStringLiteral("0:00:07")), qPrintable(asked[0]));
+        QTRY_VERIFY(deck::showSettingsOf(*ed->doc()).useTimings);
+        auto after = [&](int i) { return deck::transitionOf(*ed->doc()->pages[i]).advanceAfter; };
+        QVERIFY(after(0) && after(1) && after(2));
+        QCOMPARE(*after(0), 2.5);
+        QCOMPARE(*after(1), 4.0);
+        QCOMPARE(*after(2), 1.0);
+        QVERIFY(ed->isModified());
+        QTRY_VERIFY(!w.slideShow());
+        // The Transitions tab's After box shows the time.
+        ed->setCurrentPage(1);
+        auto *box = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("advanceAfter"));
+        auto *seconds = w.ribbon()->findChild<QDoubleSpinBox *>(QStringLiteral("advanceAfterSeconds"));
+        QTRY_VERIFY(box->isChecked());
+        QCOMPARE(seconds->value(), 4.0);
+        // One step undoes the times and the setting.
+        ed->undo();
+        QVERIFY(!deck::showSettingsOf(*ed->doc()).useTimings);
+        QCOMPARE(*after(0), 99.0);
+        QVERIFY(!after(1));
+        // Not kept: nothing changes.
+        keep = false;
+        asked.clear();
+        w.act("show.rehearse")->trigger();
+        show = w.slideShow();
+        QVERIFY(show);
+        show->setClock([&now] { return now; });
+        now += 3000;
+        show->close();   // Esc part way: asks too
+        QTRY_COMPARE(asked.size(), 1);
+        QCoreApplication::processEvents();
+        QVERIFY(!after(1));
+        QVERIFY(!deck::showSettingsOf(*ed->doc()).useTimings);
+        QCOMPARE(*after(0), 99.0);
+        // A time under a tenth of a second is a tenth, and the slides not reached keep theirs.
+        keep = true;
+        asked.clear();
+        w.act("show.rehearse")->trigger();
+        show = w.slideShow();
+        show->setClock([&now] { return now; });
+        now += 20;
+        show->next();
+        show->close();
+        QTRY_COMPARE(asked.size(), 1);
+        QTRY_VERIFY(deck::showSettingsOf(*ed->doc()).useTimings);
+        QCOMPARE(*after(0), 0.1);
+        QVERIFY(!after(2));
+    }
+
+    // F1 in each of the show's dialogs opens the Help topic of the show, in a window over the dialog; the Help finds them by their titles.
+    void showDialogsOpenHelpOnF1()
+    {
+        DeckWindow w;
+        auto d = lettered(2);
+        SetUpShowDialog setUp(deck::ShowSettings(), QVector<deck::CustomShow>(), 2, w.editor()->doc()->colors, &w);
+        CustomShowsDialog shows(*d, QVector<deck::CustomShow>(), &w);
+        CustomShowEditDialog edit(*d, QVector<deck::CustomShow>(), nullptr, &w);
+        for (QDialog *dlg : {static_cast<QDialog *>(&setUp), static_cast<QDialog *>(&shows), static_cast<QDialog *>(&edit)}) {
+            QCOMPARE(help::contextTopic(QStringLiteral("dialog:") + dlg->windowTitle()), QStringLiteral("show"));
+            dlg->show();
+            QTest::keyClick(dlg, Qt::Key_F1);
+            auto *hw = dlg->findChild<HelpWindow *>(QString(), Qt::FindDirectChildrenOnly);
+            QVERIFY2(hw, qPrintable(dlg->windowTitle()));
+            QCOMPARE(hw->view()->currentTopic(), QStringLiteral("show"));
+            hw->close();
+            QTRY_VERIFY(!dlg->findChild<HelpWindow *>());
+        }
+        // Esc in the list closes it, keeping what it holds.
+        shows.show();
+        QTest::keyClick(&shows, Qt::Key_Escape);
+        QCOMPARE(shows.result(), int(QDialog::Accepted));
     }
 
     // Slides that have a transition are marked in the thumbnails.

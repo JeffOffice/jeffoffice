@@ -573,6 +573,15 @@
             {
               "large": "show.fromCurrent",
               "keytip": "C"
+            },
+            {
+              "large": {
+                "id": "ribbon.customShow",
+                "text": "Custom Slide Show",
+                "icon": "list-video"
+              },
+              "keytip": "W",
+              "menu": "@customShows"
             }
           ]
         },
@@ -581,8 +590,20 @@
           "keytip": "ZU",
           "items": [
             {
+              "large": "show.setUp",
+              "keytip": "S"
+            },
+            {
               "large": "slide.hide",
               "keytip": "H"
+            },
+            {
+              "large": "show.rehearse",
+              "keytip": "R"
+            },
+            {
+              "widget": "useTimings",
+              "keytip": "T"
             }
           ]
         },
