@@ -140,32 +140,6 @@ QString solidFill(const QColor &c, const office::Theme &theme)
                             : QStringLiteral("<a:solidFill><a:schemeClr val=\"%1\"/></a:solidFill>").arg(scheme);
 }
 
-// The presentation's theme part: the one kept from the file, while the
-// presentation's colors and fonts still say what it does, else one made from them.
-QByteArray presentationTheme(const Document &doc, office::Theme *out)
-{
-    const DeckTheme deckTheme = themeOf(doc);
-    const QByteArray kept = QByteArray::fromBase64(doc.appData.value(QStringLiteral("themeXml")).toString().toLatin1());
-    office::Theme theme;
-    const bool have = !kept.isEmpty() && office::readTheme(kept, &theme);
-    if (have) {
-        bool same = (theme.majorLatin.isEmpty() || theme.majorLatin == deckTheme.headingFont) && (theme.minorLatin.isEmpty() || theme.minorLatin == deckTheme.bodyFont);
-        for (int i = 0; i < office::Theme::ColorCount && same; ++i) same = theme.colors[i] == deckTheme.colors[i];
-        if (same) {
-            *out = theme;
-            return kept;
-        }
-    } else {
-        theme.name = theme.colorSchemeName = theme.fontSchemeName = deckTheme.name;
-    }
-    theme.xml.clear();
-    for (int i = 0; i < office::Theme::ColorCount; ++i) theme.colors[i] = deckTheme.colors[i];
-    theme.majorLatin = deckTheme.headingFont;
-    theme.minorLatin = deckTheme.bodyFont;
-    *out = theme;
-    return office::writeTheme(theme);
-}
-
 // What the text of a level looks like in a master's text style.
 struct Level {
     double size = 0;               // points; 0 for none said
@@ -318,6 +292,67 @@ QString withoutLinks(const QString &xml)
     QString out = xml;
     out.remove(links);
     return out;
+}
+
+// A theme part as it can be written here. A theme's picture fills (its
+// textures) point at pictures kept beside it in the file, which are not kept,
+// so each becomes a plain fill in the color the style is used with. Empty if
+// the part still refers to anything else after that.
+QByteArray withoutThemePictures(const QByteArray &xml)
+{
+    QDomDocument dom;
+    if (!office::parseXml(xml, &dom)) return QByteArray();
+    if (!refersToParts(dom.documentElement())) return xml;
+    static const QRegularExpression pictures(QStringLiteral("<a:blipFill\\b[^>]*>.*?</a:blipFill>"), QRegularExpression::DotMatchesEverythingOption);
+    QString text = QString::fromUtf8(xml);
+    QString out;
+    qsizetype from = 0;
+    for (auto it = pictures.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        out += text.mid(from, m.capturedStart() - from);
+        out += QStringLiteral("<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>");
+        from = m.capturedEnd();
+    }
+    out += text.mid(from);
+    const QByteArray fixed = out.toUtf8();
+    if (!office::parseXml(fixed, &dom) || refersToParts(dom.documentElement())) return QByteArray();
+    return fixed;
+}
+
+// A theme part kept from a file, as written: with its pictures taken out, or,
+// when that isn't enough, made from the colors and fonts it holds.
+QByteArray keptThemePart(const QByteArray &kept, office::Theme *theme)
+{
+    const QByteArray fixed = withoutThemePictures(kept);
+    theme->xml = fixed;
+    return fixed.isEmpty() ? office::writeTheme(*theme) : fixed;
+}
+
+// The presentation's theme part: the one kept from the file, while the
+// presentation's colors and fonts still say what it does, else one made from them.
+QByteArray presentationTheme(const Document &doc, office::Theme *out)
+{
+    const DeckTheme deckTheme = themeOf(doc);
+    const QByteArray kept = QByteArray::fromBase64(doc.appData.value(QStringLiteral("themeXml")).toString().toLatin1());
+    office::Theme theme;
+    const bool have = !kept.isEmpty() && office::readTheme(kept, &theme);
+    if (have) {
+        bool same = (theme.majorLatin.isEmpty() || theme.majorLatin == deckTheme.headingFont) && (theme.minorLatin.isEmpty() || theme.minorLatin == deckTheme.bodyFont);
+        for (int i = 0; i < office::Theme::ColorCount && same; ++i) same = theme.colors[i] == deckTheme.colors[i];
+        if (same) {
+            const QByteArray part = keptThemePart(kept, &theme);
+            *out = theme;
+            return part;
+        }
+    } else {
+        theme.name = theme.colorSchemeName = theme.fontSchemeName = deckTheme.name;
+    }
+    theme.xml.clear();
+    for (int i = 0; i < office::Theme::ColorCount; ++i) theme.colors[i] = deckTheme.colors[i];
+    theme.majorLatin = deckTheme.headingFont;
+    theme.minorLatin = deckTheme.bodyFont;
+    *out = theme;
+    return office::writeTheme(theme);
 }
 
 class Exporter {
@@ -485,7 +520,7 @@ void Exporter::prepareThemes()
         const QByteArray kept = QByteArray::fromBase64(master.page->props.value(QStringLiteral("themeXml")).toString().toLatin1());
         office::Theme theme;
         if (!kept.isEmpty() && office::readTheme(kept, &theme)) {
-            master.themeXml = kept;
+            master.themeXml = keptThemePart(kept, &theme);
             master.theme = theme;
         }
     }
