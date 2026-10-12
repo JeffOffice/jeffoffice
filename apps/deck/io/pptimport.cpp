@@ -6,6 +6,7 @@
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "office/odraw.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QBuffer>
@@ -2068,6 +2069,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
 
         // The paragraph.
         const double size = first.size ? first.size : 18;
+        const QTextCharFormat blockFormat = charFormat(first, ctx);
         QTextBlockFormat bf;
         switch (pf.align) {
         case 1: bf.setAlignment(Qt::AlignHCenter); break;
@@ -2081,10 +2083,21 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         bf.setTextIndent(indent - leftMargin);
         // Spacing is a share of a line (of the paragraph's text size) when positive, master units when negative.
         auto spacing = [&](int v) { return v > 0 ? v / 100.0 * size * 1.2 : v < 0 ? -v * kPoints : 0.0; };
-        bf.setTopMargin(spacing(pf.before));
+        // The first paragraph of a text sets no space before it: the program draws it at the top of the frame.
+        bf.setTopMargin(firstBlock ? 0 : spacing(pf.before));
         bf.setBottomMargin(spacing(pf.after));
-        if (pf.line > 0 && pf.line != 100) bf.setLineHeight(pf.line, QTextBlockFormat::ProportionalHeight);
-        else if (pf.line < 0) bf.setLineHeight(-pf.line * kPoints, QTextBlockFormat::FixedHeight);
+        if (pf.line > 0) {
+            // A line is a share (100 for a single line) of 1.2 times the text size, whatever the font; the engine's single line is the
+            // font's own, so the share is that much more or less of it.
+            QTextCharFormat lead = blockFormat;
+            for (const Piece &p : std::as_const(pieces))
+                if (p.format.fontPointSize() > lead.fontPointSize()) lead = p.format;
+            const QFont font = lead.font();
+            const double single = naturalLineEm(font, font.families().isEmpty() ? font.family() : font.families().first());
+            bf.setLineHeight(pf.line * 1.2 / std::clamp(single, 0.6, 3.0), QTextBlockFormat::ProportionalHeight);
+        } else if (pf.line < 0) {
+            bf.setLineHeight(-pf.line * kPoints, QTextBlockFormat::FixedHeight);
+        }
         if (!pf.tabs.isEmpty()) {
             QList<QTextOption::Tab> tabs;
             for (const Tab &t : std::as_const(pf.tabs)) {
@@ -2095,7 +2108,6 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             }
             bf.setTabPositions(tabs);
         }
-        const QTextCharFormat blockFormat = charFormat(first, ctx);
         if (firstBlock) {
             cur.setBlockFormat(bf);
             cur.setBlockCharFormat(blockFormat);
@@ -2105,7 +2117,8 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         firstBlock = false;
 
         // A bullet: a list of its level, the mark and its own font, size, and color when it has them, the text coming at the left margin.
-        if (pf.flags & BulletOn) {
+        // A paragraph with no text shows none.
+        if ((pf.flags & BulletOn) && !pieces.isEmpty()) {
             const quint16 ch = pf.bulletChar ? pf.bulletChar : 0x2022;
             const QString font = (pf.flags & BulletOwnFont) && pf.bulletFont < m_fonts.size() ? m_fonts.at(pf.bulletFont) : QString();
             double markSize = 0;
