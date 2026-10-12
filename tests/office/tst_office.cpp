@@ -8,7 +8,6 @@
 #include "io/zip.h"
 #include "render/metafile.h"
 
-#include <QBuffer>
 #include <QFile>
 #include <QImage>
 #include <QRandomGenerator>
@@ -18,6 +17,20 @@
 #include <QtTest>
 
 using namespace jp::office;
+using jp::Arrow;
+using jp::ColorRef;
+using jp::Fill;
+using jp::GradientStop;
+using jp::GroupItem;
+using jp::ItemList;
+using jp::ItemPtr;
+using jp::ItemType;
+using jp::LineItem;
+using jp::PictureItem;
+using jp::ShapeItem;
+using jp::Stroke;
+using jp::TextArtItem;
+using jp::TextItem;
 
 namespace {
 
@@ -1633,6 +1646,876 @@ private Q_SLOTS:
             for (int k = 0; k < 5; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
             odrawStore(b);
         }
+    }
+
+private:
+    // A property of a shape: its number, its value, the complex data after the
+    // table (then the value is its length), and whether it is a picture index.
+    struct OdProp {
+        quint16 id;
+        quint32 value = 0;
+        QByteArray complex = QByteArray();
+        bool blip = false;
+        int lessBy = 0;   // the length is that much short of the data's (an array whose header isn't counted)
+    };
+    static QByteArray odProps(const QVector<OdProp> &props, quint16 type = 0xF00B)
+    {
+        QByteArray table, tail;
+        for (const OdProp &p : props) {
+            quint16 id = p.id;
+            quint32 value = p.value;
+            if (p.blip) id |= 0x4000;
+            if (!p.complex.isEmpty()) {
+                id |= 0x8000;
+                value = quint32(p.complex.size() - p.lessBy);
+                tail += p.complex;
+            }
+            table += odU16(id) + odU32(value);
+        }
+        return odRecord(3, quint16(props.size()), type, table + tail);
+    }
+    static QByteArray odFsp(int shapeType, quint32 flags, quint32 spid = 1025) { return odRecord(2, quint16(shapeType), 0xF00A, odU32(spid) + odU32(flags)); }
+    // The host's anchor in these tests: left, top, right, bottom in points, 16 bits each.
+    static QByteArray odClientAnchor(int l, int t, int r, int b) { return odRecord(0, 0, 0xF010, odU16(quint32(l)) + odU16(quint32(t)) + odU16(quint32(r)) + odU16(quint32(b))); }
+    static QByteArray odChildAnchor(int l, int t, int r, int b)
+    {
+        return odRecord(0, 0, 0xF00F, odU32(quint32(l)) + odU32(quint32(t)) + odU32(quint32(r)) + odU32(quint32(b)));
+    }
+    // A shape container: its shape record, properties, anchor, and any client records.
+    static QByteArray odShape(int type, quint32 flags, const QVector<OdProp> &props, const QByteArray &anchor = QByteArray(), const QByteArray &client = QByteArray())
+    {
+        return odContainer(0xF004, odFsp(type, flags) + (props.isEmpty() ? QByteArray() : odProps(props)) + anchor + client);
+    }
+    // A group: the shape that describes it (its child rectangle, flags, anchor), then its shapes.
+    static QByteArray odGroup(const QRect &children, quint32 flags, const QByteArray &anchor, const QByteArray &shapes, const QVector<OdProp> &props = {})
+    {
+        const QByteArray rect = odU32(quint32(children.left())) + odU32(quint32(children.top())) + odU32(quint32(children.left() + children.width())) + odU32(quint32(children.top() + children.height()));
+        return odContainer(0xF003, odContainer(0xF004, odRecord(1, 0, 0xF009, rect) + odFsp(0, 0x1 | flags) + (props.isEmpty() ? QByteArray() : odProps(props)) + anchor) + shapes);
+    }
+    // A drawing: the top group (its first shape is the patriarch), and maybe a background shape.
+    static QByteArray odDrawing(const QByteArray &shapes, const QByteArray &background = QByteArray())
+    {
+        const QByteArray patriarch = odContainer(0xF004, odRecord(1, 0, 0xF009, QByteArray(16, '\0')) + odFsp(0, 0x5, 1024));
+        return odContainer(0xF002, odRecord(0, 1, 0xF008, odU32(5) + odU32(1025)) + odContainer(0xF003, patriarch + shapes) + background);
+    }
+    static QByteArray odUtf16z(const QString &text)
+    {
+        QByteArray b;
+        for (const QChar c : text) b += odU16(c.unicode());
+        return b + odU16(0);
+    }
+    // An array property's data: the count twice, the element size, and the elements.
+    static QByteArray odArray(int count, int elementSize, const QByteArray &elements)
+    {
+        return odU16(quint32(count)) + odU16(quint32(count)) + odU16(quint32(elementSize)) + elements;
+    }
+    static QByteArray odVertices(const QVector<QPoint> &points, int elementSize = 8)
+    {
+        QByteArray e;
+        for (const QPoint &pt : points) e += elementSize == 8 ? odU32(quint32(pt.x())) + odU32(quint32(pt.y())) : odU16(quint32(pt.x())) + odU16(quint32(pt.y()));
+        return odArray(int(points.size()), elementSize == 8 ? 8 : 0xFFF0, e);
+    }
+    static QByteArray odSegments(const QVector<quint16> &segments)
+    {
+        QByteArray e;
+        for (quint16 seg : segments) e += odU16(seg);
+        return odArray(int(segments.size()), 2, e);
+    }
+    static QString odPathText(const QPainterPath &path)
+    {
+        QStringList parts;
+        auto pt = [](const QPainterPath::Element &e) { return QStringLiteral("%1,%2").arg(e.x, 0, 'g', 6).arg(e.y, 0, 'g', 6); };
+        for (int i = 0; i < path.elementCount(); ++i) {
+            const QPainterPath::Element e = path.elementAt(i);
+            if (e.type == QPainterPath::MoveToElement) parts << QStringLiteral("M") + pt(e);
+            else if (e.type == QPainterPath::LineToElement) parts << QStringLiteral("L") + pt(e);
+            else if (e.type == QPainterPath::CurveToElement && i + 2 < path.elementCount()) {
+                parts << QStringLiteral("C") + pt(e) + QLatin1Char(' ') + pt(path.elementAt(i + 1)) + QLatin1Char(' ') + pt(path.elementAt(i + 2));
+                i += 2;
+            }
+        }
+        return parts.join(QLatin1Char(' '));
+    }
+    // The hyperlink a shape holds (an IHlink), with an address, a place, and the text shown.
+    static QByteArray odHyperlinkString(const QString &text) { return odU32(quint32(text.size() + 1)) + odUtf16z(text); }
+    static QByteArray odUrlHyperlink(const QString &url, const QString &place, bool asString)
+    {
+        const quint32 flags = 0x1 | 0x10 | (place.isEmpty() ? 0 : 0x8) | (asString ? 0x100 : 0);
+        QByteArray h = odU32(2) + odU32(flags) + odHyperlinkString(QStringLiteral("shown"));
+        if (asString) {
+            h += odHyperlinkString(url);
+        } else {
+            const QByteArray guid("\xE0\xC9\xEA\x79\xF9\xBA\xCE\x11\x8C\x82\x00\xAA\x00\x4B\xA9\x0B", 16);
+            h += guid + odU32(quint32(odUtf16z(url).size() + 24)) + odUtf16z(url) + QByteArray(24, 's');
+        }
+        if (!place.isEmpty()) h += odHyperlinkString(place);
+        return h;
+    }
+    static QByteArray odFileHyperlink(const QString &ansi, const QString &wide)
+    {
+        const QByteArray guid("\x03\x03\x00\x00\x00\x00\x00\x00\xC0\x00\x00\x00\x00\x00\x00\x46", 16);
+        QByteArray h = odU32(2) + odU32(0x1) + guid + odU16(0) + odU32(quint32(ansi.size() + 1)) + ansi.toLatin1() + QByteArray(1, '\0');
+        h += odU16(0) + odU16(0) + QByteArray(20, '\0');
+        const QByteArray unicode = odU32(quint32(wide.size() * 2)) + odU16(3) + odUtf16z(wide).left(wide.size() * 2);
+        return h + odU32(quint32(unicode.size())) + unicode;
+    }
+
+    static OdrawContext odContext()
+    {
+        OdrawContext ctx;
+        ctx.clientAnchor = [](const QByteArray &a) {
+            if (a.size() < 8) return QRectF();
+            const double l = qFromLittleEndian<qint16>(a.constData()), t = qFromLittleEndian<qint16>(a.constData() + 2);
+            return QRectF(QPointF(l, t), QPointF(qFromLittleEndian<qint16>(a.constData() + 4), qFromLittleEndian<qint16>(a.constData() + 6)));
+        };
+        ctx.schemeColor = [](int index) { return index >= 0 && index < 8 ? QColor(10 * index, 20 + index, 30 + 2 * index) : QColor(); };
+        ctx.picture = [](int index) { return index > 0 ? QStringLiteral("pic%1").arg(index) : QString(); };
+        return ctx;
+    }
+    static ShapeItem *odShapeOf(const ItemList &items, int i)
+    {
+        return i < int(items.size()) && items[i]->type() == ItemType::Shape ? static_cast<ShapeItem *>(items[i].get()) : nullptr;
+    }
+    static QColor odRgb(const ColorRef &c) { return c.kind() == ColorRef::Rgb ? c.rgbValue() : QColor(); }
+
+private Q_SLOTS:
+    void odrawReadsAFilledRectangle()
+    {
+        const QByteArray sp = odShape(1, 0xA00, {{0x0181, 0x00C07030}, {0x0182, 0x8000}, {0x01BF, 0x00100010}, {0x01C0, 0x00402010}, {0x01CB, 25400}, {0x01FF, 0x00080008},
+                                                  {0x0380, 0, QByteArray("R\0e\0c\0t\0\0\0", 10)}, {0x0381, 0, QByteArray("a\0l\0t\0\0\0", 8)}},
+                                     odClientAnchor(100, 50, 300, 150));
+        const ItemList items = readOdrawShapes(odDrawing(sp), odContext());
+        QCOMPARE(int(items.size()), 1);
+        ShapeItem *s = odShapeOf(items, 0);
+        QVERIFY(s);
+        QCOMPARE(s->shape, QStringLiteral("rect"));
+        QCOMPARE(s->rect, QRectF(100, 50, 200, 100));
+        QVERIFY(s->fill.type == Fill::Solid);
+        QCOMPARE(odRgb(s->fill.color), QColor(0x30, 0x70, 0xC0));
+        QVERIFY(qAbs(s->fill.transparency - 0.5) < 0.001);
+        QVERIFY(!s->stroke.isNone());
+        QCOMPARE(odRgb(s->stroke.color), QColor(0x10, 0x20, 0x40));
+        QVERIFY(qAbs(s->stroke.width - 2.0) < 1e-9);
+        QCOMPARE(s->name, QStringLiteral("Rect"));
+        QCOMPARE(s->altText, QStringLiteral("alt"));
+        QVERIFY(s->rotation == 0 && !s->flipH && !s->flipV);
+        // The same shape, as the format has it when nothing is said: a white fill and a thin black line.
+        const ItemList plain = readOdrawShapes(odDrawing(odShape(1, 0xA00, {}, odClientAnchor(0, 0, 10, 10))), odContext());
+        s = odShapeOf(plain, 0);
+        QVERIFY(s);
+        QCOMPARE(odRgb(s->fill.color), QColor(Qt::white));
+        QCOMPARE(odRgb(s->stroke.color), QColor(Qt::black));
+        QVERIFY(qAbs(s->stroke.width - 0.75) < 1e-9);
+        // Not filled and without a line.
+        const ItemList bare = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100000}, {0x01FF, 0x00080000}}, odClientAnchor(0, 0, 10, 10))), odContext());
+        s = odShapeOf(bare, 0);
+        QVERIFY(s);
+        QVERIFY(s->fill.isNone());
+        QVERIFY(s->stroke.isNone());
+        // A shape with no anchor has no place; the host's client records may give it one.
+        const ItemList unplaced = readOdrawShapes(odDrawing(odShape(1, 0xA00, {})), odContext());
+        QCOMPARE(int(unplaced.size()), 1);
+        QVERIFY(unplaced[0]->rect.isNull());
+        // The drawing's top group alone reads the same, and so does one shape by itself.
+        const QByteArray top = odContainer(0xF003, odContainer(0xF004, odRecord(1, 0, 0xF009, QByteArray(16, '\0')) + odFsp(0, 0x5)) + sp);
+        QCOMPARE(int(readOdrawShapes(top, odContext()).size()), 1);
+        QCOMPARE(readOdrawShapes(top, odContext())[0]->rect, QRectF(100, 50, 200, 100));
+        QCOMPARE(int(readOdrawShapes(sp, odContext()).size()), 1);
+        QVERIFY(readOdrawShapes(odRecord(0, 0, 0xF00B, QByteArray()), odContext()).empty());
+    }
+
+    void odrawReadsPresetShapesLinesAndAdjustments()
+    {
+        const QByteArray anchor = odClientAnchor(0, 0, 100, 50);
+        auto shape = [&](int type, const QVector<OdProp> &props) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, props, anchor)), odContext());
+            return items.empty() ? ItemPtr() : items[0];
+        };
+        // Numbers the format gives presets; the ones JeffOffice has no shape for are rectangles.
+        auto presetOf = [&](int type) { return static_cast<ShapeItem *>(shape(type, {}).get())->shape; };
+        QCOMPARE(presetOf(3), QStringLiteral("ellipse"));
+        QCOMPARE(presetOf(4), QStringLiteral("diamond"));
+        QCOMPARE(presetOf(96), QStringLiteral("smiley"));
+        QCOMPARE(presetOf(4000), QStringLiteral("rect"));
+        QCOMPARE(presetOf(41), QStringLiteral("rect"));
+        QCOMPARE(presetOf(0), QStringLiteral("rect"));
+        // A rounded corner is a share of the shorter side, in 21600ths; a triangle's peak a share of the width.
+        const ItemPtr roundRect = shape(2, {{0x0147, 5400}});
+        auto *rr = static_cast<ShapeItem *>(roundRect.get());
+        QCOMPARE(rr->shape, QStringLiteral("roundRect"));
+        QCOMPARE(int(rr->adj.size()), 1);
+        QVERIFY(qAbs(rr->adj[0] - 0.25) < 1e-9);
+        const ItemPtr triangle = shape(5, {{0x0147, 21600}});
+        auto *tri = static_cast<ShapeItem *>(triangle.get());
+        QVERIFY(tri->adj.size() == 1 && qAbs(tri->adj[0] - 1.0) < 1e-9);
+        QVERIFY(static_cast<ShapeItem *>(shape(2, {}).get())->adj.isEmpty());   // the preset's own
+        // Block arrows: the shaft as a share of the width of the arrow, the head as a share of the shorter side, from where the format puts the head's rear.
+        auto arrow = [&](int type, const QVector<OdProp> &props) {
+            const ItemPtr it = shape(type, props);
+            return static_cast<ShapeItem *>(it.get())->adj;
+        };
+        auto same = [](const QVector<double> &a, const QVector<double> &b) {
+            if (a.size() != b.size()) return false;
+            for (int i = 0; i < a.size(); ++i) if (qAbs(a[i] - b[i]) > 1e-9) return false;
+            return true;
+        };
+        QVERIFY(same(arrow(13, {}), {0.5, 0.5}));                                              // the defaults, 100 wide and 50 high
+        QVERIFY(same(arrow(13, {{0x0147, 12000}, {0x0148, 3000}}), {1 - 2 * 3000 / 21600.0, (1 - 12000 / 21600.0) * 2}));
+        QVERIFY(same(arrow(66, {{0x0147, 9000}}), {0.5, 9000 / 21600.0 * 2}));
+        QVERIFY(same(arrow(68, {{0x0147, 4000}, {0x0148, 3000}}), {1 - 2 * 3000 / 21600.0, 4000 / 21600.0}));
+        QVERIFY(same(arrow(67, {{0x0147, 14000}}), {0.5, 1 - 14000 / 21600.0}));
+        // A head longer than the arrow is the arrow.
+        QVERIFY(same(arrow(13, {{0x0147, 0}}), {0.5, 1.0}));
+        // The dashes of a line: the format's numbers in JeffOffice's order.
+        const struct { int dashing; Stroke::Dash dash; } dashes[] = {{0, Stroke::SolidLine}, {1, Stroke::DashLine}, {2, Stroke::SquareDot}, {3, Stroke::DashDot},
+                                                                       {4, Stroke::LongDashDotDot}, {5, Stroke::RoundDot}, {6, Stroke::DashLine}, {7, Stroke::LongDash},
+                                                                       {8, Stroke::DashDot}, {9, Stroke::LongDashDot}, {10, Stroke::LongDashDotDot}};
+        for (const auto &d : dashes) {
+            const ItemPtr it = shape(3, {{0x01CE, quint32(d.dashing)}});
+            QVERIFY2(it->stroke.dash == d.dash, qPrintable(QString::number(d.dashing)));
+        }
+        // Width, compound line, join, cap, and opacity.
+        const ItemPtr styled = shape(3, {{0x01C0, 0x0000FF}, {0x01C1, 0x4000}, {0x01CB, 19050}, {0x01CD, 2}, {0x01D6, 1}, {0x01D7, 0}, {0x01FF, 0x00080008}});
+        QVERIFY(qAbs(styled->stroke.width - 1.5) < 1e-9);
+        QVERIFY(styled->stroke.compound == Stroke::ThickThin);
+        QVERIFY(styled->stroke.join == Qt::RoundJoin);
+        QVERIFY(styled->stroke.cap == Qt::RoundCap);
+        QVERIFY(qAbs(styled->stroke.transparency - 0.75) < 1e-3);
+        QCOMPARE(odRgb(styled->stroke.color), QColor(255, 0, 0));
+        const ItemPtr mitered = shape(3, {{0x01D6, 2}, {0x01D7, 1}, {0x01CD, 4}});
+        QVERIFY(mitered->stroke.join == Qt::MiterJoin && mitered->stroke.cap == Qt::SquareCap && mitered->stroke.compound == Stroke::Triple);
+        QVERIFY(shape(3, {{0x01D6, 0}})->stroke.join == Qt::BevelJoin);
+        QVERIFY(shape(3, {{0x01D7, 2}})->stroke.cap == Qt::FlatCap);
+    }
+
+    void odrawReadsRotationAndFlips()
+    {
+        const QByteArray anchor = odClientAnchor(10, 20, 110, 70);
+        auto one = [&](quint32 flags, const QVector<OdProp> &props, int type = 1) {
+            return readOdrawShapes(odDrawing(odShape(type, 0xA00 | flags, props, anchor)), odContext())[0];
+        };
+        ItemPtr it = one(0, {{0x0004, 30u << 16}});
+        QVERIFY(qAbs(it->rotation - 30) < 1e-9);
+        QCOMPARE(it->rect, QRectF(10, 20, 100, 50));   // the frame is the unturned one
+        // The format turns a shape and then flips it, so one flip shows the turn the other way round.
+        it = one(0x40, {{0x0004, quint32(-30 * 65536)}});   // negative: counterclockwise, as 330
+        QVERIFY(qAbs(it->rotation - 30) < 1e-9);
+        QVERIFY(it->flipH && !it->flipV);
+        it = one(0x80, {{0x0004, 0x00008000}});             // half a degree
+        QVERIFY(qAbs(it->rotation - 359.5) < 1e-9);
+        QVERIFY(!it->flipH && it->flipV);
+        it = one(0xC0, {{0x0004, 400u << 16}});             // both flips: a half turn, which turns the same way
+        QVERIFY(qAbs(it->rotation - 40) < 1e-9);
+        QVERIFY(it->flipH && it->flipV);
+        it = one(0x40, {});
+        QVERIFY(it->rotation == 0 && it->flipH);
+        // Turned about a quarter, the frame the file gives has its width and height exchanged, about its center.
+        for (double deg : {45.0, 90.0, 134.0, 225.0, 270.0, 314.0}) {
+            it = one(0, {{0x0004, quint32(deg * 65536)}});
+            QVERIFY2(qAbs(it->rect.width() - 50) < 1e-9 && qAbs(it->rect.height() - 100) < 1e-9 && qAbs(it->rect.center().x() - 60) < 1e-9 && qAbs(it->rect.center().y() - 45) < 1e-9,
+                     qPrintable(QString::number(deg)));
+        }
+        for (double deg : {0.0, 44.0, 135.0, 180.0, 224.0, 315.0, 359.0}) {
+            it = one(0, {{0x0004, quint32(deg * 65536)}});
+            QVERIFY2(it->rect == QRectF(10, 20, 100, 50), qPrintable(QString::number(deg)));
+        }
+        // The numbered trapezoid is wide at the top and JeffOffice's at the bottom: it is flipped to match, and its turn goes with the flip.
+        it = one(0, {}, 8);
+        QVERIFY(it->flipV && !it->flipH && it->rotation == 0);
+        it = one(0x80, {}, 8);   // as the format has one flipped to be wide at the bottom
+        QVERIFY(!it->flipV && !it->flipH);
+        it = one(0, {{0x0004, 30u << 16}}, 8);
+        QVERIFY(it->flipV && qAbs(it->rotation - 30) < 1e-9);
+        it = one(0x80, {{0x0004, 30u << 16}}, 8);
+        QVERIFY(!it->flipV && qAbs(it->rotation - 330) < 1e-9);
+    }
+
+    void odrawMapsGroupChildrenIntoTheGroupFrame()
+    {
+        // A group at (100,100)-(300,200) whose children are placed in 1000 x 1000 units.
+        const QByteArray inner = odGroup(QRect(0, 0, 100, 100), 0x2, odChildAnchor(0, 0, 500, 1000),
+                                         odShape(1, 0xA02, {}, odChildAnchor(0, 0, 50, 50)));
+        const QByteArray group = odGroup(QRect(0, 0, 1000, 1000), 0, odClientAnchor(100, 100, 300, 200),
+                                         odShape(1, 0xA02, {{0x0380, 0, QByteArray("A\0\0\0", 4)}}, odChildAnchor(0, 0, 500, 500)) +
+                                         odShape(3, 0xA02, {}, odChildAnchor(500, 500, 1000, 1000)) + inner);
+        const ItemList items = readOdrawShapes(odDrawing(group + odShape(1, 0xA00, {}, odClientAnchor(0, 0, 5, 5))), odContext());
+        QCOMPARE(int(items.size()), 2);
+        QVERIFY(items[0]->type() == ItemType::Group);
+        auto *g = static_cast<GroupItem *>(items[0].get());
+        QCOMPARE(int(g->children.size()), 3);
+        QCOMPARE(g->children[0]->rect, QRectF(100, 100, 100, 50));
+        QCOMPARE(g->children[0]->name, QStringLiteral("A"));
+        QCOMPARE(g->children[1]->rect, QRectF(200, 150, 100, 50));
+        QVERIFY(static_cast<ShapeItem *>(g->children[1].get())->shape == QLatin1String("ellipse"));
+        QVERIFY(g->children[2]->type() == ItemType::Group);
+        auto *g2 = static_cast<GroupItem *>(g->children[2].get());
+        QCOMPARE(int(g2->children.size()), 1);
+        QCOMPARE(g2->children[0]->rect, QRectF(100, 100, 50, 50));   // the inner group is 100 wide, for 100 units
+        QCOMPARE(g->rect, QRectF(100, 100, 200, 100));
+        QCOMPARE(g2->rect, QRectF(100, 100, 50, 50));
+        QVERIFY(items[1]->type() == ItemType::Shape);
+        QCOMPARE(items[1]->rect, QRectF(0, 0, 5, 5));
+        // A group whose first shape isn't made for describing one has no frame: its shapes are its own.
+        const ItemList plain = readOdrawShapes(odDrawing(odContainer(0xF003, odShape(1, 0xA00, {}, odClientAnchor(0, 0, 10, 10)) + odShape(3, 0xA00, {}, odClientAnchor(20, 0, 30, 10)))), odContext());
+        QCOMPARE(int(plain.size()), 1);
+        QVERIFY(plain[0]->type() == ItemType::Group);
+        QCOMPARE(int(static_cast<GroupItem *>(plain[0].get())->children.size()), 2);
+        QCOMPARE(plain[0]->rect, QRectF(0, 0, 30, 10));
+    }
+
+    void odrawTurnsAndFlipsAGroupAboutItsFrame()
+    {
+        auto groupOf = [&](quint32 flags, const QVector<OdProp> &props) {
+            const QByteArray g = odGroup(QRect(0, 0, 100, 100), flags, odClientAnchor(0, 0, 100, 100), odShape(1, 0xA02, {}, odChildAnchor(10, 10, 30, 20)), props);
+            return readOdrawShapes(odDrawing(g), odContext());
+        };
+        ItemList items = groupOf(0x40, {});   // flipped across
+        auto *g = static_cast<GroupItem *>(items[0].get());
+        QCOMPARE(g->children[0]->rect, QRectF(70, 10, 20, 10));
+        QVERIFY(g->children[0]->flipH && !g->children[0]->flipV);
+        items = groupOf(0x80, {});            // flipped upside down
+        g = static_cast<GroupItem *>(items[0].get());
+        QCOMPARE(g->children[0]->rect, QRectF(10, 80, 20, 10));
+        QVERIFY(!g->children[0]->flipH && g->children[0]->flipV);
+        items = groupOf(0, {{0x0004, 90u << 16}});   // a quarter turn about the middle
+        g = static_cast<GroupItem *>(items[0].get());
+        QVERIFY(qAbs(g->children[0]->rotation - 90) < 1e-9);
+        QVERIFY(qAbs(g->children[0]->rect.center().x() - 85) < 1e-9 && qAbs(g->children[0]->rect.center().y() - 20) < 1e-9);
+        QVERIFY(qAbs(g->children[0]->rect.width() - 20) < 1e-9);
+        // Turned, then flipped, as a shape is: the child (at 85,20 after the quarter turn) across the middle.
+        items = groupOf(0x40, {{0x0004, 90u << 16}});
+        g = static_cast<GroupItem *>(items[0].get());
+        QVERIFY(g->children[0]->flipH && !g->children[0]->flipV);
+        QVERIFY(qAbs(g->children[0]->rotation - 270) < 1e-9);
+        QVERIFY(qAbs(g->children[0]->rect.center().x() - 15) < 1e-9 && qAbs(g->children[0]->rect.center().y() - 20) < 1e-9);
+    }
+
+    void odrawSkipsDeletedHiddenAndBackgroundShapes()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        const QByteArray shapes = odShape(1, 0xA08, {}, at) +                          // deleted
+                                  odShape(1, 0xA00, {{0x03BF, 0x00020002}}, at) +      // hidden
+                                  odShape(1, 0xC00, {}, at) +                          // the background
+                                  odShape(3, 0xA00, {}, at) +                          // kept
+                                  odShape(1, 0xA01, {}, at) +                          // a group's own shape alone
+                                  odContainer(0xF004, odRecord(0, 0, 0xF00B, QByteArray()) + at) +   // no shape record
+                                  odGroup(QRect(0, 0, 10, 10), 0x8, at, odShape(1, 0xA02, {}, odChildAnchor(0, 0, 5, 5))) +   // a deleted group
+                                  odGroup(QRect(0, 0, 10, 10), 0, at, odShape(1, 0xA0A, {}, odChildAnchor(0, 0, 5, 5)));      // a group of nothing
+        const ItemList items = readOdrawShapes(odDrawing(shapes), odContext());
+        QCOMPARE(int(items.size()), 1);
+        QVERIFY(odShapeOf(items, 0) && odShapeOf(items, 0)->shape == QLatin1String("ellipse"));
+    }
+
+    void odrawResolvesEveryKindOfColor()
+    {
+        auto fillOf = [&](quint32 color, const QVector<OdProp> &more = {}, const OdrawContext *c = nullptr) {
+            QVector<OdProp> props = {{0x0181, color}, {0x01BF, 0x00100010}};
+            props += more;
+            const OdrawContext ctx = c ? *c : odContext();
+            const ItemList items = readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx);
+            return odRgb(items[0]->fill.color);
+        };
+        QCOMPARE(fillOf(0x00C07030), QColor(0x30, 0x70, 0xC0));
+        QCOMPARE(fillOf(0x02C07030), QColor(0x30, 0x70, 0xC0));   // from the palette: the color it gave
+        QCOMPARE(fillOf(0x04C07030), QColor(0x30, 0x70, 0xC0));   // a system RGB
+        // A scheme color is the host's; with none, or one it can't give, the fill is white.
+        QCOMPARE(fillOf(0x08000003), QColor(30, 23, 36));
+        OdrawContext none = odContext();
+        none.schemeColor = nullptr;
+        QCOMPARE(fillOf(0x08000003, {}, &none), QColor(Qt::white));
+        QCOMPARE(fillOf(0x08000009), QColor(Qt::white));
+        // System colors: a Windows one, and the references to the shape's own colors.
+        QCOMPARE(fillOf(0x10000005), QColor(Qt::white));          // window
+        QCOMPARE(fillOf(0x10000008), QColor(Qt::black));          // window text
+        QCOMPARE(fillOf(0x100000F2, {{0x01C0, 0x00102030}}), QColor(0x30, 0x20, 0x10));      // the line color
+        QCOMPARE(fillOf(0x100000F5, {{0x0183, 0x00010203}}), QColor(3, 2, 1));              // the back color
+        QCOMPARE(fillOf(0x100000F3, {{0x0201, 0x00FF8000}}), QColor(0, 0x80, 0xFF));        // the shadow color
+        // With a darkening or lightening function (1 and 2), by an amount of 255.
+        QCOMPARE(fillOf(0x10800100 | 0xF2, {{0x01C0, 0x00C8C8C8}}), QColor(100, 100, 100));
+        QCOMPARE(fillOf(0x10800200 | 0xF2, {{0x01C0, 0x00000000}}), QColor(126, 126, 126));
+        // A color that refers to itself ends at black.
+        QCOMPARE(fillOf(0x100000F0), QColor(Qt::black));
+        QCOMPARE(fillOf(0x100000F2, {{0x01C0, 0x100000F0}}), QColor(Qt::black));
+    }
+
+    void odrawBackgroundIsTheBackgroundShapesFill()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        const QByteArray bg = odShape(1, 0xC00, {{0x0181, 0x00FF8000}, {0x01BF, 0x00120012}});
+        const QByteArray drawing = odDrawing(odShape(1, 0xA00, {}, at), bg);
+        Fill f = odrawBackground(drawing, odContext());
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(odRgb(f.color), QColor(0, 0x80, 0xFF));
+        QCOMPARE(int(readOdrawShapes(drawing, odContext()).size()), 1);   // not among the shapes
+        // A scheme color is the host's.
+        f = odrawBackground(odDrawing(QByteArray(), odShape(1, 0xC00, {{0x0181, 0x08000002}})), odContext());
+        QCOMPARE(odRgb(f.color), QColor(20, 22, 34));
+        // No background shape, or one that isn't filled, has no fill.
+        QVERIFY(odrawBackground(odDrawing(odShape(1, 0xA00, {}, at)), odContext()).isNone());
+        QVERIFY(odrawBackground(odDrawing(QByteArray(), odShape(1, 0xC00, {{0x0181, 0x00FF8000}, {0x01BF, 0x00120002}})), odContext()).isNone());
+        QVERIFY(odrawBackground(QByteArray(), odContext()).isNone());
+    }
+
+    void odrawReadsTextBoxesThroughTheClientRecords()
+    {
+        QVector<QByteArray> boxes, datas;
+        OdrawContext ctx = odContext();
+        ctx.client = [&](jp::Item &item, const QByteArray &box, const QByteArray &data) {
+            boxes << box;
+            datas << data;
+            if (item.type() == ItemType::Text) static_cast<TextItem &>(item).storyId = QStringLiteral("story:") + QString::fromLatin1(box);
+            if (item.type() == ItemType::Shape) static_cast<ShapeItem &>(item).storyId = QStringLiteral("story:") + QString::fromLatin1(box);
+            item.role = QString::fromLatin1(data);
+        };
+        const QByteArray at = odClientAnchor(0, 0, 100, 50);
+        const QByteArray text = odRecord(0, 0, 0xF00D, QByteArray("hello")) + odRecord(0, 0, 0xF011, QByteArray("cd"));
+        // A text box: not filled, no line, the text's margins, where it sits, which way it runs.
+        ItemList items = readOdrawShapes(odDrawing(odShape(202, 0xA00, {{0x0081, 127000}, {0x0082, 63500}, {0x0083, 0}, {0x0084, 25400}, {0x0087, 2}, {0x0088, 1}, {0x00BF, 0x00010001}}, at, text)), ctx);
+        QCOMPARE(int(items.size()), 1);
+        QVERIFY(items[0]->type() == ItemType::Text);
+        auto *t = static_cast<TextItem *>(items[0].get());
+        QCOMPARE(t->storyId, QStringLiteral("story:hello"));
+        QCOMPARE(t->role, QStringLiteral("cd"));
+        QVERIFY(t->fill.isNone() && t->stroke.isNone());
+        QCOMPARE(t->insets, QMarginsF(10, 5, 0, 2));
+        QVERIFY(t->valign == jp::VAlign::Bottom);
+        QVERIFY(t->vertical);
+        QVERIFY(t->autofit == TextItem::GrowBox);
+        // Its own fill and line when it has them; the format's margins when it says none.
+        items = readOdrawShapes(odDrawing(odShape(202, 0xA00, {{0x0181, 0x0000FF}, {0x01BF, 0x00100010}, {0x01FF, 0x00080008}, {0x0087, 1}}, at, text)), ctx);
+        t = static_cast<TextItem *>(items[0].get());
+        QCOMPARE(odRgb(t->fill.color), QColor(255, 0, 0));
+        QVERIFY(!t->stroke.isNone());
+        QCOMPARE(t->insets, QMarginsF(7.2, 3.6, 7.2, 3.6));
+        QVERIFY(t->valign == jp::VAlign::Middle && !t->vertical && t->autofit == TextItem::NoAutofit);
+        // A rectangle with text is a text box; with a text id and no client records too (and the host isn't asked).
+        items = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0181, 0x0000FF}, {0x01BF, 0x00100010}}, at, text)), ctx);
+        QVERIFY(items[0]->type() == ItemType::Text);
+        QCOMPARE(odRgb(items[0]->fill.color), QColor(255, 0, 0));
+        const int calls = int(boxes.size());
+        items = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0080, 5}}, at)), ctx);
+        QVERIFY(items[0]->type() == ItemType::Text);
+        QCOMPARE(int(boxes.size()), calls);
+        // Another shape with text stays that shape, and its story is set by the host.
+        items = readOdrawShapes(odDrawing(odShape(3, 0xA00, {{0x0087, 4}}, at, text)), ctx);
+        QVERIFY(items[0]->type() == ItemType::Shape);
+        auto *s = static_cast<ShapeItem *>(items[0].get());
+        QCOMPARE(s->shape, QStringLiteral("ellipse"));
+        QCOMPARE(s->storyId, QStringLiteral("story:hello"));
+        QVERIFY(s->valign == jp::VAlign::Middle);
+        QVERIFY(!s->fill.isNone());
+        // Client data alone (a placeholder): the host gets an empty text box, and the shape's place is its to give.
+        boxes.clear();
+        datas.clear();
+        items = readOdrawShapes(odDrawing(odShape(1, 0xA00, {}, QByteArray(), odRecord(0, 0, 0xF011, QByteArray("ph")))), ctx);
+        QCOMPARE(int(boxes.size()), 1);
+        QVERIFY(boxes[0].isEmpty());
+        QCOMPARE(datas[0], QByteArray("ph"));
+        QCOMPARE(items[0]->role, QStringLiteral("ph"));
+        QVERIFY(items[0]->rect.isNull());
+        // The host's functions are all optional.
+        QCOMPARE(int(readOdrawShapes(odDrawing(odShape(202, 0xA00, {}, at, text)), OdrawContext()).size()), 1);
+    }
+
+    void odrawReadsPicturesWithTheirCrop()
+    {
+        QVector<int> asked;
+        OdrawContext ctx = odContext();
+        ctx.picture = [&](int index) {
+            asked << index;
+            return index == 9 ? QString() : QStringLiteral("pic%1").arg(index);
+        };
+        const QByteArray at = odClientAnchor(10, 20, 110, 70);
+        auto picture = [&](int type, quint32 flags, const QVector<OdProp> &props) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, flags, props, at)), ctx);
+            return items.empty() || items[0]->type() != ItemType::Picture ? std::shared_ptr<PictureItem>() : std::static_pointer_cast<PictureItem>(items[0]);
+        };
+        // A picture frame: the picture in the store at that number, in the frame, uncropped.
+        std::shared_ptr<PictureItem> pic = picture(75, 0xA00, {{0x0104, 3, {}, true}});
+        QVERIFY(pic);
+        QCOMPARE(pic->imageId, QStringLiteral("pic3"));
+        QCOMPARE(asked, QVector<int>({3}));
+        QCOMPARE(pic->rect, QRectF(10, 20, 100, 50));
+        QCOMPARE(pic->imgRect, QRectF(0, 0, 100, 50));
+        QVERIFY(pic->stroke.isNone() && pic->fill.isNone());
+        // Cropped: an eighth off the left and top, a quarter off the right and bottom, so the frame holds 5/8 of each side.
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x0100, 0x2000}, {0x0101, 0x4000}, {0x0102, 0x2000}, {0x0103, 0x4000}});
+        QCOMPARE(pic->imgRect, QRectF(-20, -10, 160, 80));
+        // Negative: the picture is smaller than the frame, with room around it.
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x0102, quint32(-0x4000)}, {0x0103, quint32(-0x4000)}});
+        QCOMPARE(pic->imgRect, QRectF(50.0 / 3, 0, 200.0 / 3, 50));
+        // Brightness and contrast, grayscale and black and white, a color made clear.
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x0109, 16384}, {0x0108, 0x18000}, {0x013F, 0x00040004}, {0x0107, 0x00FFFFFF}});
+        QVERIFY(qAbs(pic->brightness - 50) < 1e-9 && qAbs(pic->contrast - 50) < 1e-9);
+        QVERIFY(pic->recolor == PictureItem::Grayscale);
+        QVERIFY(pic->hasTransparentColor);
+        QCOMPARE(pic->transparentColor, QColor(Qt::white));
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x013F, 0x00020002}});
+        QVERIFY(pic->recolor == PictureItem::BlackWhite && pic->brightness == 0 && pic->contrast == 0 && !pic->hasTransparentColor);
+        // A frame around it, when the shape has a line.
+        pic = picture(75, 0xA00, {{0x0104, 3, {}, true}, {0x01FF, 0x00080008}, {0x01CB, 12700}});
+        QVERIFY(!pic->stroke.isNone() && qAbs(pic->stroke.width - 1) < 1e-9);
+        // A picture the host can't give, a frame with none, a rectangle that names one, and an object with its picture.
+        pic = picture(75, 0xA00, {{0x0104, 9, {}, true}});
+        QVERIFY(pic && pic->imageId.isEmpty());
+        pic = picture(75, 0xA00, {});
+        QVERIFY(pic && pic->imageId.isEmpty());
+        pic = picture(1, 0xA00, {{0x0104, 4, {}, true}});
+        QVERIFY(pic && pic->imageId == QLatin1String("pic4"));
+        pic = picture(1, 0xA10, {{0x0104, 5, {}, true}});   // an OLE object
+        QVERIFY(pic && pic->imageId == QLatin1String("pic5"));
+        // The format's number in a picture's name: not asked for a missing one.
+        asked.clear();
+        picture(75, 0xA00, {{0x0104, 0, {}, true}});
+        QVERIFY(asked.isEmpty());
+    }
+
+    void odrawReadsGradientAndPictureFills()
+    {
+        auto fillOf = [&](const QVector<OdProp> &more, OdrawContext *c = nullptr) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}};
+            props += more;
+            const OdrawContext ctx = c ? *c : odContext();
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill;
+        };
+        const OdProp red{0x0181, 0x0000FF}, blue{0x0183, 0xFF0000};
+        // Linear: the first color runs toward 270 - a degrees for a stored angle a of 0 or more, 90 - a for a negative one.
+        const struct { double stored; double toward; } angles[] = {{0, 270}, {45, 225}, {90, 180}, {135, 135}, {180, 90}, {225, 45}, {270, 0}, {315, 315}, {-45, 135}, {-90, 180}, {-135, 225}};
+        for (const auto &a : angles) {
+            const Fill f = fillOf({{0x0180, 7}, red, blue, {0x018B, quint32(qint32(a.stored * 65536))}});
+            QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Linear);
+            QVERIFY2(qAbs(f.angle - a.toward) < 1e-6, qPrintable(QString::number(a.stored)));
+        }
+        Fill f = fillOf({{0x0180, 4}, red, blue});
+        QVERIFY(f.type == Fill::Gradient && f.gradType == Fill::Linear);
+        QCOMPARE(int(f.stops.size()), 2);
+        QCOMPARE(f.stops[0].pos, 0.0);
+        QCOMPARE(odRgb(f.stops[0].color), QColor(255, 0, 0));
+        QCOMPARE(f.stops[1].pos, 1.0);
+        QCOMPARE(odRgb(f.stops[1].color), QColor(0, 0, 255));
+        QCOMPARE(odRgb(f.color), QColor(255, 0, 0));
+        QCOMPARE(odRgb(f.color2), QColor(0, 0, 255));
+        QVERIFY(fillOf({{0x0180, 8}, red, blue}).gradType == Fill::Linear);
+        // The focus: both ends the first color at 50, the colors the other way round at 100, swapped below zero.
+        auto stopsOf = [&](int focus) {
+            const Fill g = fillOf({{0x0180, 7}, red, blue, {0x018C, quint32(focus)}});
+            QStringList out;
+            for (const GradientStop &st : g.stops) out << QStringLiteral("%1%2").arg(odRgb(st.color) == QColor(255, 0, 0) ? 'r' : 'b').arg(st.pos);
+            return out.join(QLatin1Char(' '));
+        };
+        QCOMPARE(stopsOf(0), QStringLiteral("r0 b1"));
+        QCOMPARE(stopsOf(50), QStringLiteral("r0 b0.5 r1"));
+        QCOMPARE(stopsOf(100), QStringLiteral("b0 r1"));
+        QCOMPARE(stopsOf(-100), QStringLiteral("r0 b1"));
+        QCOMPARE(stopsOf(-50), QStringLiteral("b0 r0.5 b1"));
+        // Opacity of each color.
+        f = fillOf({{0x0180, 7}, red, blue, {0x0182, 0x8000}, {0x0184, 0x4000}});
+        QVERIFY(qAbs(f.stops[0].transparency - 0.5) < 1e-6 && qAbs(f.stops[1].transparency - 0.75) < 1e-6);
+        // A list of colors with their places, which may come in any order.
+        QByteArray list;
+        list += odU32(0x00FF0000) + odU32(65536);       // blue at the end
+        list += odU32(0x0000FF00) + odU32(0x4000);      // green a quarter along
+        list += odU32(0x000000FF) + odU32(0);           // red at the start
+        f = fillOf({{0x0180, 7}, red, blue, {0x0196, 0, odArray(3, 8, list)}});
+        QCOMPARE(int(f.stops.size()), 3);
+        QVERIFY(f.stops[0].pos == 0 && f.stops[1].pos == 0.25 && f.stops[2].pos == 1);
+        QCOMPARE(odRgb(f.stops[1].color), QColor(0, 255, 0));
+        QCOMPARE(odRgb(f.stops[2].color), QColor(0, 0, 255));
+        // From the center or along the outline, the first color is the outer one: JeffOffice puts the center first.
+        f = fillOf({{0x0180, 6}, red, blue});
+        QVERIFY(f.gradType == Fill::PathGrad);
+        QCOMPARE(odRgb(f.stops[0].color), QColor(0, 0, 255));
+        QCOMPARE(f.stops[0].pos, 0.0);
+        QCOMPARE(odRgb(f.stops[1].color), QColor(255, 0, 0));
+        QCOMPARE(f.stops[1].pos, 1.0);
+        f = fillOf({{0x0180, 5}, red, blue, {0x018C, 100}});
+        QVERIFY(f.gradType == Fill::Rectangular);
+        QCOMPARE(odRgb(f.stops[0].color), QColor(255, 0, 0));
+        // A picture: stretched, or tiled for a texture or a pattern; solid when there's none to be had.
+        f = fillOf({{0x0180, 3}, red, {0x0186, 2, {}, true}, {0x0182, 0x8000}});
+        QVERIFY(f.type == Fill::Picture && f.imageId == QLatin1String("pic2") && !f.tile && qAbs(f.transparency - 0.5) < 1e-6);
+        f = fillOf({{0x0180, 2}, {0x0186, 2, {}, true}});
+        QVERIFY(f.type == Fill::Texture && f.imageId == QLatin1String("pic2") && f.tile);
+        f = fillOf({{0x0180, 1}, {0x0186, 7, {}, true}});
+        QVERIFY(f.type == Fill::Texture && f.imageId == QLatin1String("pic7"));
+        f = fillOf({{0x0180, 3}, red, {0x0186, 0, {}, true}});
+        QVERIFY(f.type == Fill::Solid);
+        QCOMPARE(odRgb(f.color), QColor(255, 0, 0));
+        OdrawContext none = odContext();
+        none.picture = nullptr;
+        QVERIFY(fillOf({{0x0180, 3}, red, {0x0186, 2, {}, true}}, &none).type == Fill::Solid);
+        // The page's background: nothing of its own.
+        QVERIFY(fillOf({{0x0180, 9}, red}).isNone());
+        // Not filled: no gradient either.
+        QVERIFY(readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0180, 7}, red, blue, {0x01BF, 0x00100000}}, odClientAnchor(0, 0, 1, 1))), odContext())[0]->fill.isNone());
+    }
+
+    void odrawReadsArrowheadsShadowsAndHyperlinks()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 100, 50);
+        auto one = [&](int type, const QVector<OdProp> &props) { return readOdrawShapes(odDrawing(odShape(type, 0xA00, props, at)), odContext())[0]; };
+        // Heads: the kind, and a size from the width and length (0 small to 2 large).
+        ItemPtr it = one(20, {{0x01D0, 1}, {0x01D2, 2}, {0x01D3, 2}, {0x01D1, 5}, {0x01D4, 0}, {0x01D5, 1}});
+        QVERIFY(it->type() == ItemType::Line);
+        QVERIFY(it->stroke.startArrow == Arrow::Triangle && it->stroke.startSize == 2);
+        QVERIFY(it->stroke.endArrow == Arrow::Open && it->stroke.endSize == 1);
+        const struct { quint32 kind; Arrow arrow; } heads[] = {{0, Arrow::None}, {1, Arrow::Triangle}, {2, Arrow::Stealth}, {3, Arrow::Diamond}, {4, Arrow::Oval}, {5, Arrow::Open}, {6, Arrow::Open}, {99, Arrow::None}};
+        for (const auto &h : heads) QVERIFY(one(20, {{0x01D1, h.kind}})->stroke.endArrow == h.arrow);
+        it = one(20, {{0x01D0, 4}});
+        QVERIFY(it->stroke.startSize == 1 && it->stroke.endArrow == Arrow::None);   // medium without a say
+        // A shadow: its color, how clear, and where it falls (3 points across and down).
+        it = one(1, {{0x023F, 0x00020002}, {0x0201, 0x00000080}, {0x0204, 0x8000}, {0x0205, 38100}, {0x0206, 38100}});
+        QVERIFY(it->fx.shadow.on && !it->fx.shadow.inner);
+        QCOMPARE(odRgb(it->fx.shadow.color), QColor(0x80, 0, 0));
+        QVERIFY(qAbs(it->fx.shadow.transparency - 0.5) < 1e-6);
+        QVERIFY(qAbs(it->fx.shadow.distance - 3 * std::sqrt(2.0)) < 1e-6 && qAbs(it->fx.shadow.angle - 45) < 1e-6 && it->fx.shadow.blur == 0);
+        it = one(1, {{0x023F, 0x00020002}, {0x0205, 0}, {0x0206, 50800}});
+        QVERIFY(qAbs(it->fx.shadow.distance - 4) < 1e-6 && qAbs(it->fx.shadow.angle - 90) < 1e-6);
+        QVERIFY(!one(1, {{0x023F, 0x00020000}})->fx.shadow.on);
+        QVERIFY(!one(1, {})->fx.shadow.on);
+        // Hyperlinks: an address (a moniker, or a string), a place in it, a file.
+        auto linkOf = [&](const QByteArray &h) { return one(1, {{0x0382, 0, h}})->hyperlink; };
+        QCOMPARE(linkOf(odUrlHyperlink(QStringLiteral("http://example.com/a"), QString(), false)), QStringLiteral("http://example.com/a"));
+        QCOMPARE(linkOf(odUrlHyperlink(QStringLiteral("http://example.com/a"), QStringLiteral("top"), false)), QStringLiteral("http://example.com/a#top"));
+        QCOMPARE(linkOf(odUrlHyperlink(QStringLiteral("https://example.org/"), QString(), true)), QStringLiteral("https://example.org/"));
+        QCOMPARE(linkOf(odUrlHyperlink(QStringLiteral("https://example.org/"), QStringLiteral("p"), true)), QStringLiteral("https://example.org/#p"));
+        QCOMPARE(linkOf(odFileHyperlink(QStringLiteral("C:\\docs\\a.ppt"), QString())), QStringLiteral("C:\\docs\\a.ppt"));
+        QCOMPARE(linkOf(odFileHyperlink(QStringLiteral("C:\\docs\\a.ppt"), QStringLiteral("C:\\docs\\b.ppt"))), QStringLiteral("C:\\docs\\b.ppt"));
+        QVERIFY(linkOf(QByteArray()).isEmpty());
+        QVERIFY(linkOf(odU32(2) + odU32(0)).isEmpty());
+        const QByteArray whole = odUrlHyperlink(QStringLiteral("http://example.com/a"), QStringLiteral("top"), false);
+        for (int cut = 0; cut < whole.size(); ++cut) linkOf(whole.left(cut));   // none of them is a crash
+        QByteArray bad = whole;
+        qToLittleEndian<quint32>(0xFFFFFFF0u, bad.data() + 8);   // a length of the text shown that's past the end
+        QVERIFY(linkOf(bad).isEmpty());
+        // The name and the description, as the shape's.
+        it = one(1, {{0x0380, 0, odUtf16z(QStringLiteral("N\u00E9m"))}, {0x0381, 0, odUtf16z(QStringLiteral("d"))}});
+        QCOMPARE(it->name, QStringLiteral("N\u00E9m"));
+        QCOMPARE(it->altText, QStringLiteral("d"));
+    }
+
+    void odrawReadsLinesAndConnectors()
+    {
+        const QByteArray at = odClientAnchor(10, 20, 110, 70);
+        auto lineOf = [&](int type, quint32 flags, const QVector<OdProp> &props = {}) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00 | flags, props, at)), odContext());
+            return items.empty() || items[0]->type() != ItemType::Line ? std::shared_ptr<LineItem>() : std::static_pointer_cast<LineItem>(items[0]);
+        };
+        auto near = [](QPointF a, QPointF b) { return qAbs(a.x() - b.x()) < 1e-6 && qAbs(a.y() - b.y()) < 1e-6; };
+        // A line runs from the frame's top left to its bottom right, over and down for a flip.
+        std::shared_ptr<LineItem> l = lineOf(20, 0);
+        QVERIFY(l);
+        QVERIFY(near(l->p1, QPointF(10, 20)) && near(l->p2, QPointF(110, 70)));
+        QVERIFY(qAbs(l->stroke.width - 0.75) < 1e-9 && odRgb(l->stroke.color) == QColor(Qt::black));
+        QCOMPARE(l->rect, QRectF(10, 20, 100, 50));
+        QVERIFY(l->rotation == 0 && !l->flipH && !l->flipV);
+        l = lineOf(20, 0x40);
+        QVERIFY(near(l->p1, QPointF(110, 20)) && near(l->p2, QPointF(10, 70)));
+        l = lineOf(20, 0x80);
+        QVERIFY(near(l->p1, QPointF(10, 70)) && near(l->p2, QPointF(110, 20)));
+        l = lineOf(32, 0xC0);   // a straight connector, both ways
+        QVERIFY(near(l->p1, QPointF(110, 70)) && near(l->p2, QPointF(10, 20)));
+        // Turned about the middle of the frame (60,45), a quarter turn: the frame has its sides exchanged first.
+        l = lineOf(20, 0, {{0x0004, 90u << 16}});
+        QVERIFY(near(l->p1, QPointF(110, 20)) && near(l->p2, QPointF(10, 70)));
+        QVERIFY(l->rotation == 0);
+        l = lineOf(20, 0, {{0x0004, 30u << 16}});
+        QVERIFY(near(l->p1, QPointF(60, 45) + QTransform().rotate(30).map(QPointF(-50, -25))) && near(l->p2, QPointF(60, 45) + QTransform().rotate(30).map(QPointF(50, 25))));
+        // Without a line there is nothing to draw.
+        QVERIFY(lineOf(20, 0, {{0x01FF, 0x00080000}})->stroke.isNone());
+        // Bent and curved connectors are shapes with a path, in a frame of 100 x 50.
+        auto path = [&](int type, const QVector<OdProp> &props = {}) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, props, odClientAnchor(0, 0, 100, 50))), odContext());
+            return odShapeOf(items, 0) ? odPathText(odShapeOf(items, 0)->customPath) : QStringLiteral("not a shape");
+        };
+        QCOMPARE(path(33), QStringLiteral("M0,0 L100,0 L100,50"));
+        QCOMPARE(path(34), QStringLiteral("M0,0 L50,0 L50,50 L100,50"));
+        QCOMPARE(path(34, {{0x0147, 5400}}), QStringLiteral("M0,0 L25,0 L25,50 L100,50"));
+        QCOMPARE(path(35, {{0x0147, 5400}, {0x0148, 5400}}), QStringLiteral("M0,0 L25,0 L25,12.5 L100,12.5 L100,50"));
+        QCOMPARE(path(36, {{0x0147, 5400}, {0x0148, 16200}, {0x0149, 10800}}), QStringLiteral("M0,0 L25,0 L25,37.5 L50,37.5 L50,50 L100,50"));
+        QCOMPARE(path(37), QStringLiteral("M0,0 C50,0 100,25 100,50"));
+        QCOMPARE(path(38), QStringLiteral("M0,0 C25,0 50,12.5 50,25 C50,37.5 75,50 100,50"));
+        for (int type : {39, 40}) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, {}, odClientAnchor(0, 0, 100, 50))), odContext());
+            const QPainterPath &cp = odShapeOf(items, 0)->customPath;
+            QVERIFY(cp.elementCount() > 3);
+            QVERIFY(cp.elementAt(0).x == 0 && cp.elementAt(0).y == 0);
+            QVERIFY(cp.elementAt(cp.elementCount() - 1).x == 100 && cp.elementAt(cp.elementCount() - 1).y == 50);
+        }
+        const ItemList conn = readOdrawShapes(odDrawing(odShape(34, 0xA00, {}, odClientAnchor(0, 0, 100, 50))), odContext());
+        QVERIFY(odShapeOf(conn, 0)->fill.isNone() && !odShapeOf(conn, 0)->stroke.isNone());
+    }
+
+    void odrawReadsFreeforms()
+    {
+        auto path = [&](const QVector<OdProp> &props, int type = 0) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, props, odClientAnchor(0, 0, 100, 50))), odContext());
+            return odShapeOf(items, 0) ? odPathText(odShapeOf(items, 0)->customPath) : QStringLiteral("not a shape");
+        };
+        const QVector<QPoint> triangle = {{0, 0}, {21600, 0}, {10800, 21600}};
+        // Vertices alone: a closed polygon, scaled from the 21600 square to the frame.
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}}), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}, {0x0144, 0}}), QStringLiteral("M0,0 L100,0 L50,50"));       // an open one
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}, {0x0144, 1}}), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        // Another geometry rectangle.
+        QCOMPARE(path({{0x0145, 0, odVertices({{1000, 2000}, {3000, 2000}, {2000, 4000}})}, {0x0140, 1000}, {0x0141, 2000}, {0x0142, 3000}, {0x0143, 4000}}),
+                 QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        // Vertices of 16 bits.
+        QCOMPARE(path({{0x0145, 0, odVertices({{0, 0}, {21600, 0}, {10800, 21600}}, 4)}}), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        QCOMPARE(path({{0x0145, 0, odVertices({{-100, 0}, {100, 100}}, 4)}, {0x0140, quint32(-100)}, {0x0142, 100}, {0x0143, 100}}), QStringLiteral("M0,0 L100,50 L0,0"));
+        // Curves in threes.
+        QCOMPARE(path({{0x0145, 0, odVertices({{0, 0}, {10800, 0}, {21600, 10800}, {21600, 21600}})}, {0x0144, 2}}), QStringLiteral("M0,0 C50,0 100,25 100,50"));
+        // Segments: move, two lines, a curve, close, end.
+        const QVector<QPoint> six = {{0, 0}, {10800, 0}, {10800, 10800}, {21600, 10800}, {21600, 21600}, {10800, 21600}};
+        QCOMPARE(path({{0x0145, 0, odVertices(six)}, {0x0146, 0, odSegments({0x4000, 0x0002, 0x2001, 0x6001, 0x8000})}, {0x0144, 4}}),
+                 QStringLiteral("M0,0 L50,0 L50,25 C100,25 100,50 50,50 L0,0"));
+        // Several subpaths, and the marks for no fill or no line.
+        QCOMPARE(path({{0x0145, 0, odVertices({{0, 0}, {21600, 0}, {0, 10800}, {21600, 10800}})}, {0x0146, 0, odSegments({0x4000, 0xAB00, 0x0001, 0x8000, 0x4000, 0x0001, 0x8000})}}),
+                 QStringLiteral("M0,0 L100,0 M0,25 L100,25"));
+        // The marks for the kind of point (here auto, smooth, and symmetric curves) between segments take no vertices.
+        QCOMPARE(path({{0x0145, 0, odVertices({{0, 0}, {10800, 0}, {21600, 10800}, {21600, 21600}, {0, 21600}})}, {0x0146, 0, odSegments({0x4000, 0xB300, 0x2001, 0xAD00, 0xB100, 0x0001, 0x8000})}}),
+                 QStringLiteral("M0,0 C50,0 100,25 100,50 L0,50"));
+        // A length that leaves the array's header out of its count.
+        const QVector<OdProp> trimmed = {{0x0145, 0, odVertices(triangle), false, 6}, {0x0380, 0, odUtf16z(QStringLiteral("after"))}};
+        const ItemList items = readOdrawShapes(odDrawing(odShape(0, 0xA00, trimmed, odClientAnchor(0, 0, 100, 50))), odContext());
+        QCOMPARE(odPathText(odShapeOf(items, 0)->customPath), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+        QCOMPARE(odShapeOf(items, 0)->name, QStringLiteral("after"));
+        // Quarters of an ellipse, starting along the width and along the height.
+        const QVector<QPoint> two = {{0, 0}, {21600, 21600}};
+        QCOMPARE(path({{0x0145, 0, odVertices(two)}, {0x0146, 0, odSegments({0x4000, 0xA701, 0x8000})}}), QStringLiteral("M0,0 C55.2285,0 100,22.3858 100,50"));
+        QCOMPARE(path({{0x0145, 0, odVertices(two)}, {0x0146, 0, odSegments({0x4000, 0xA801, 0x8000})}}), QStringLiteral("M0,0 C0,27.6142 44.7715,50 100,50"));
+        // Not enough vertices for the segments: what there is, and no more. One vertex is no path.
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}, {0x0146, 0, odSegments({0x4000, 0x0009, 0x6001})}}), QStringLiteral("M0,0 L100,0 L50,50"));
+        QVERIFY(odShapeOf(readOdrawShapes(odDrawing(odShape(0, 0xA00, {{0x0145, 0, odVertices({{5, 5}})}}, odClientAnchor(0, 0, 100, 50))), odContext()), 0)->customPath.isEmpty());
+        // A preset keeps its form when there are no vertices; one with them takes theirs.
+        QVERIFY(odShapeOf(readOdrawShapes(odDrawing(odShape(3, 0xA00, {}, odClientAnchor(0, 0, 100, 50))), odContext()), 0)->customPath.isEmpty());
+        QCOMPARE(path({{0x0145, 0, odVertices(triangle)}}, 3), QStringLiteral("M0,0 L100,0 L50,50 L0,0"));
+    }
+
+    void odrawReadsTextShapesAsTextArt()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 200, 50);
+        auto art = [&](int type, const QVector<OdProp> &props) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(type, 0xA00, props, at)), odContext());
+            return items.empty() || items[0]->type() != ItemType::TextArt ? std::shared_ptr<TextArtItem>() : std::static_pointer_cast<TextArtItem>(items[0]);
+        };
+        const OdProp words{0x00C0, 0, odUtf16z(QStringLiteral("Big\rNews"))};
+        std::shared_ptr<TextArtItem> t = art(136, {words});
+        QVERIFY(t);
+        QCOMPARE(t->text, QStringLiteral("Big\nNews"));
+        QCOMPARE(t->transform_, QStringLiteral("plain"));
+        QCOMPARE(t->size, 36.0);
+        QCOMPARE(t->align, 1);
+        QVERIFY(!t->bold && !t->italic && !t->vertical && !t->evenHeight);
+        QCOMPARE(odRgb(t->fill.color), QColor(Qt::white));   // the format's fill with nothing said
+        t = art(144, {words, {0x00C5, 0, odUtf16z(QStringLiteral("Arial"))}, {0x00C3, 24u << 16}, {0x00C4, 0x18000}, {0x00C2, 2}, {0x00FF, 0x00300030u}, {0x0181, 0x0000FF}});
+        QCOMPARE(t->transform_, QStringLiteral("archUp"));
+        QCOMPARE(t->font, QStringLiteral("Arial"));
+        QCOMPARE(t->size, 24.0);
+        QCOMPARE(t->spacing, 1.5);
+        QCOMPARE(t->align, 0);
+        QVERIFY(t->bold && t->italic && !t->evenHeight && !t->vertical);
+        QCOMPARE(odRgb(t->fill.color), QColor(255, 0, 0));
+        t = art(175, {words, {0x00FF, 0x20802080u}});
+        QVERIFY(t->vertical && t->evenHeight && !t->bold);
+        // Without words it is the shape it names.
+        const ItemList items = readOdrawShapes(odDrawing(odShape(136, 0xA00, {}, at)), odContext());
+        QVERIFY(items[0]->type() == ItemType::Shape);
+    }
+
+    void odrawSurvivesDamagedDrawings()
+    {
+        // A drawing with a bit of everything, cut anywhere and mangled in many ways.
+        OdrawContext ctx = odContext();
+        ctx.client = [](jp::Item &item, const QByteArray &box, const QByteArray &data) { item.role = QString::number(box.size() + data.size()); };
+        const QByteArray at = odClientAnchor(0, 0, 100, 50);
+        const QByteArray text = odRecord(0, 0xF, 0xF00D, QByteArray("hello")) + odRecord(0, 0, 0xF011, QByteArray("cd"));
+        QByteArray list;
+        list += odU32(0x00FF0000) + odU32(65536) + odU32(0x000000FF) + odU32(0);
+        const QByteArray inner = odGroup(QRect(0, 0, 100, 100), 0x2, odChildAnchor(0, 0, 500, 500), odShape(5, 0xA02, {{0x0147, 5400}}, odChildAnchor(0, 0, 50, 50)));
+        const QByteArray shapes =
+            odShape(1, 0xA00, {{0x0181, 0x08000003}, {0x0382, 0, odUrlHyperlink(QStringLiteral("http://example.com/a"), QStringLiteral("p"), false)}, {0x0380, 0, odUtf16z(QStringLiteral("n"))}, {0x0004, 30u << 16}}, at) +
+            odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {10800, 0}, {21600, 10800}, {21600, 21600}, {0, 21600}})}, {0x0146, 0, odSegments({0x4000, 0xB300, 0x2001, 0x0001, 0x6001, 0x8000})}}, at) +
+            odShape(202, 0xA00, {{0x0081, 127000}, {0x0087, 2}}, at, text) +
+            odShape(75, 0xA00, {{0x0104, 2, {}, true}, {0x0100, 0x2000}, {0x0102, 0x2000}}, at) +
+            odShape(3, 0xA00, {{0x0180, 7}, {0x0196, 0, odArray(2, 8, list)}, {0x01D0, 1}}, at) +
+            odShape(20, 0xA40, {}, at) + odShape(34, 0xA00, {{0x0147, 5400}}, at) +
+            odGroup(QRect(0, 0, 1000, 1000), 0x40, odClientAnchor(0, 0, 100, 100), odShape(1, 0xA02, {}, odChildAnchor(0, 0, 500, 500)) + inner, {{0x0004, 90u << 16}});
+        const QByteArray drawing = odDrawing(shapes, odShape(1, 0xC00, {{0x0181, 0x00FF8000}}));
+        QVERIFY(readOdrawShapes(drawing, ctx).size() >= 7);
+        for (int cut = 0; cut <= drawing.size(); ++cut) {
+            readOdrawShapes(drawing.left(cut), ctx);
+            odrawBackground(drawing.left(cut), ctx);
+        }
+        QRandomGenerator g(3);
+        const quint32 extremes[] = {0xFFFFFFFFu, 0x80000000u, 0x7FFFFFFFu, 0, 1, 0x00010000u};
+        for (int round = 0; round < 4000; ++round) {
+            QByteArray b = drawing;
+            const int n = 1 + int(g.bounded(8u));
+            for (int k = 0; k < n; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
+            if (round % 3 == 0) qToLittleEndian<quint32>(extremes[g.bounded(6u)], b.data() + int(g.bounded(quint32(b.size() - 4))));
+            readOdrawShapes(b, ctx);
+            odrawBackground(b, ctx);
+        }
+        // Not drawings at all.
+        for (int round = 0; round < 200; ++round) {
+            QByteArray b(int(g.bounded(400u)), '\0');
+            for (char &c : b) c = char(g.generate());
+            readOdrawShapes(b, ctx);
+            odrawBackground(b, ctx);
+            odrawRecords(b);
+        }
+    }
+
+    void odrawBoundsDepthCountsAndSizes()
+    {
+        const OdrawContext ctx = odContext();
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        // Groups inside groups: as deep as 64 are read, and nothing deeper (or its stack) is trusted.
+        auto nested = [&](int levels) {
+            QByteArray g = odShape(1, 0xA02, {}, odChildAnchor(0, 0, 10, 10));
+            for (int i = 0; i < levels; ++i) g = odGroup(QRect(0, 0, 10, 10), 0x2, odChildAnchor(0, 0, 10, 10), g);
+            return readOdrawShapes(odDrawing(g), ctx);
+        };
+        int depth = 0;
+        ItemList items = nested(60);
+        QCOMPARE(int(items.size()), 1);
+        for (const jp::Item *it = items[0].get(); it->type() == ItemType::Group; it = static_cast<const GroupItem *>(it)->children[0].get()) ++depth;
+        QCOMPARE(depth, 60);
+        QVERIFY(nested(100).empty());
+        QVERIFY(nested(3000).empty());
+        // More shapes than anyone has: the first 100,000.
+        QByteArray many;
+        const QByteArray one = odShape(1, 0xA00, {}, at);
+        for (int i = 0; i < 100100; ++i) many += one;
+        QCOMPARE(int(readOdrawShapes(odDrawing(many), ctx).size()), 100000);
+        // Lengths and counts that promise more than the data holds.
+        QByteArray shape = odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {5, 5}})}, {0x0146, 0, odSegments({0x0001})}}, at);
+        auto tryShape = [&](const QByteArray &sp) { return readOdrawShapes(odDrawing(sp), ctx); };
+        QByteArray big = odRecord(3, 0xFFF, 0xF00B, QByteArray(20, '\x11'));              // 4095 properties in 20 bytes
+        QCOMPARE(int(tryShape(odContainer(0xF004, odFsp(1, 0xA00) + big + at)).size()), 1);
+        big = odRecord(3, 1, 0xF00B, odU16(0x8000 | 0x0145) + odU32(0xFFFFFFF0u) + QByteArray(4, '\0'));   // complex data of 4 GB
+        QCOMPARE(int(tryShape(odContainer(0xF004, odFsp(0, 0xA00) + big + at)).size()), 1);
+        const QByteArray manyVertices = odArray(65535, 8, QByteArray(16, '\x07'));              // 65535 vertices of which two are there
+        QVERIFY(tryShape(odShape(0, 0xA00, {{0x0145, 0, manyVertices}}, at)).size() == 1);
+        QByteArray segs;
+        for (int i = 0; i < 20000; ++i) segs += odU16(0x1FFF);                                   // 20000 runs of 8191 lines, over three vertices
+        QVERIFY(tryShape(odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {1, 1}, {2, 2}})}, {0x0146, 0, odArray(20000, 2, segs)}}, at)).size() == 1);
+        QVERIFY(tryShape(odShape(3, 0xA00, {{0x0180, 7}, {0x0196, 0, odArray(65535, 8, QByteArray(24, '\x03'))}}, at)).size() == 1);
+        for (quint32 length : {0xFFFFFFFFu, 0x80000000u, 0x7FFFFFFFu}) {
+            QByteArray d = odDrawing(shape);
+            for (int at = 0; at + 4 <= d.size(); at += 2) {
+                QByteArray b = d;
+                qToLittleEndian<quint32>(length, b.data() + at);
+                readOdrawShapes(b, ctx);
+            }
+        }
+        // A picture promising a metafile of 4 GB, and a store of ten million empty blocks (kept to what fits).
+        QVERIFY(odrawBlip(odRecord(0, 0x3D4, 0xF01A, odUid('m') + odU32(0xFFFFFFFFu) + QByteArray(24, '\0') + odU32(0xFFFFFFFFu) + QByteArray("\x00\xFE", 2) + QByteArray(10, 'x')), nullptr).isEmpty());
+        QByteArray store;
+        for (int i = 0; i < 120000; ++i) store += odRecord(0, 0, 0xF007, QByteArray());
+        QVERIFY(odrawStore(odContainer(0xF001, store)).size() <= 100000);
+        QCOMPARE(int(odrawRecords(QByteArray(9, '\xFF')).size()), 0);
     }
 
     void themeReadsAnyColorInASlot()
