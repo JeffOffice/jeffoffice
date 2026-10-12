@@ -6,6 +6,7 @@
 #include <QSet>
 #include <QUuid>
 #include <algorithm>
+#include <vector>
 
 namespace jp::deck {
 
@@ -62,19 +63,19 @@ int containing(const QVector<Section> &list, int slide)
 }
 
 // Which of `seq` (places; -1 for none) are in a longest run that goes up.
-QVector<bool> longestRun(const QVector<int> &seq)
+std::vector<bool> longestRun(const std::vector<int> &seq)
 {
-    QVector<int> tails;   // for each length, the index of the smallest last entry of a run that long
-    QVector<int> before(seq.size(), -1);
-    for (int i = 0; i < seq.size(); ++i) {
+    std::vector<int> tails;   // for each length, the index of the smallest last entry of a run that long
+    std::vector<int> before(seq.size(), -1);
+    for (size_t i = 0; i < seq.size(); ++i) {
         if (seq[i] < 0) continue;
         auto at = std::lower_bound(tails.begin(), tails.end(), seq[i], [&](int t, int v) { return seq[t] < v; });
         before[i] = at == tails.begin() ? -1 : *(at - 1);
-        if (at == tails.end()) tails.push_back(i);
-        else *at = i;
+        if (at == tails.end()) tails.push_back(int(i));
+        else *at = int(i);
     }
-    QVector<bool> in(seq.size(), false);
-    for (int i = tails.isEmpty() ? -1 : tails.last(); i >= 0; i = before[i]) in[i] = true;
+    std::vector<bool> in(seq.size(), false);
+    for (int i = tails.empty() ? -1 : tails.back(); i >= 0; i = before[i]) in[i] = true;
     return in;
 }
 
@@ -281,9 +282,9 @@ void restoreSections(Document &d, const SectionMemory &was)
     QVector<Section> list = stored(d);
     if (list.isEmpty()) return;
     const int n = int(d.pages.size());
-    QVector<int> place(n);
+    std::vector<int> place(n);
     for (int k = 0; k < n; ++k) place[k] = was.index.value(d.pages[k]->id, -1);
-    const QVector<bool> stays = longestRun(place);
+    const std::vector<bool> stays = longestRun(place);
     for (Section &s : list) s.count = 0;
     int section = 0;
     for (int k = 0; k < n; ++k) {
