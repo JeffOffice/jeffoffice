@@ -52,6 +52,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
         p->drawText(r, Qt::AlignCenter, appInfo().badge);
     }));
     m_ed = new Editor(this);
+    m_ed->setNewDocumentName(tr("Presentation1"));
     m_ed->setDocument(deck::newPresentation());
     // A presentation's view: no rulers, guides, or boundaries until they are asked for (the canvas outlines empty placeholders itself).
     m_ed->view.guides = false;
@@ -322,12 +323,15 @@ void DeckWindow::newSlide(const QString &layoutType)
     m_notes->commit();
     Document *d = m_ed->doc();
     const int at = m_ed->currentPage();
-    const MasterPage *layout = layoutType.isEmpty() ? nullptr : deck::layoutOfType(*d, layoutType);
+    // The current slide's slide master's layouts, when the file has several.
+    const QString master = deck::slideMasterOf(*d, at);
+    const MasterPage *layout = layoutType.isEmpty() ? nullptr : deck::layoutOfType(*d, layoutType, master);
     if (!layout && at >= 0 && at < d->pages.size()) {
         layout = d->masterFor(*d->pages[at]);
         // After a title slide comes a slide with content, as people expect.
-        if (layout && deck::layoutType(*layout) == QLatin1String("title")) layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        if (layout && deck::layoutType(*layout) == QLatin1String("title")) layout = deck::layoutOfType(*d, QStringLiteral("obj"), master);
     }
+    if (!layout) layout = deck::layoutOfType(*d, QStringLiteral("obj"), master);
     if (!layout) layout = deck::layoutOfType(*d, QStringLiteral("obj"));
     if (!layout) return;
     m_ed->endTextEdit();
@@ -368,7 +372,8 @@ void DeckWindow::setLayout(const QString &layoutType)
 {
     Document *d = m_ed->doc();
     const int i = m_ed->currentPage();
-    const MasterPage *layout = deck::layoutOfType(*d, layoutType);
+    const MasterPage *layout = deck::layoutOfType(*d, layoutType, deck::slideMasterOf(*d, i));
+    if (!layout) layout = deck::layoutOfType(*d, layoutType);
     if (!layout || i < 0 || i >= d->pages.size()) return;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Layout"));
@@ -396,6 +401,10 @@ void DeckWindow::startShow(int slide)
     // On the window's screen, the whole screen.
     if (QScreen *s = screen()) m_show->setGeometry(s->geometry());
     connect(m_show, &SlideShow::destroyed, this, [this] { activateWindow(); });
+    // Back in the window, on the last slide the show showed.
+    connect(m_show, &SlideShow::ended, this, [this](int last) {
+        if (last >= 0) m_ed->setCurrentPage(last);
+    });
     m_show->showFullScreen();
     m_show->activateWindow();
     m_show->setFocus();

@@ -165,10 +165,12 @@ QString family(const QString &type)
     return type;
 }
 
-int placeholderIndex(const Item &it)
+// The placeholder's index as written ("0" without one): files use numbers
+// past what an int holds (4294967295), so it's compared as text.
+QString placeholderIndex(const Item &it)
 {
     const QStringList parts = it.role.split(QLatin1Char(':'));
-    return parts.size() > 2 ? parts[2].toInt() : 0;
+    return parts.size() > 2 && !parts[2].isEmpty() ? parts[2] : QStringLiteral("0");
 }
 
 bool isFooterType(const QString &type)
@@ -181,7 +183,7 @@ bool isFooterType(const QString &type)
 Item *matchIn(const MasterPage &layout, const Item &it, QSet<const Item *> &taken)
 {
     const QString type = placeholderType(it), fam = family(type);
-    const int index = placeholderIndex(it);
+    const QString index = placeholderIndex(it);
     for (const auto &l : layout.items)
         if (!taken.contains(l.get()) && placeholderType(*l) == type && placeholderIndex(*l) == index) { taken.insert(l.get()); return l.get(); }
     for (const auto &l : layout.items)
@@ -354,17 +356,24 @@ bool isSlideMaster(const MasterPage &m) { return m.props.value(QStringLiteral("k
 bool isLayout(const MasterPage &m) { return m.props.value(QStringLiteral("kind")).toString() == QLatin1String("layout"); }
 QString layoutType(const MasterPage &m) { return m.props.value(QStringLiteral("type")).toString(); }
 
-QVector<MasterPage *> layouts(const Document &d)
+QVector<MasterPage *> layouts(const Document &d, const QString &masterId)
 {
     QVector<MasterPage *> out;
     for (const auto &m : d.masters)
-        if (isLayout(*m)) out << m.get();
+        if (isLayout(*m) && (masterId.isEmpty() || m->baseId == masterId)) out << m.get();
     return out;
 }
 
-MasterPage *layoutOfType(const Document &d, const QString &type)
+QString slideMasterOf(const Document &d, int slide)
 {
-    for (MasterPage *m : layouts(d))
+    if (slide < 0 || slide >= d.pages.size()) return QString();
+    const MasterPage *layout = d.masterFor(*d.pages[slide]);
+    return layout ? (isSlideMaster(*layout) ? layout->id : layout->baseId) : QString();
+}
+
+MasterPage *layoutOfType(const Document &d, const QString &type, const QString &masterId)
+{
+    for (MasterPage *m : layouts(d, masterId))
         if (layoutType(*m) == type) return m;
     return nullptr;
 }

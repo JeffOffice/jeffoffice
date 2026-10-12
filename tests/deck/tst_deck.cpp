@@ -115,6 +115,43 @@ private Q_SLOTS:
             for (int x = 0; x < img.width(); x += 7) QCOMPARE(img.pixelColor(x, y), QColor(Qt::white));
     }
 
+    // A file with two slide masters offers the current slide's master's
+    // layouts; placeholder numbers past an int still match; a new
+    // presentation is "Presentation1".
+    void layoutsPerMasterAndLargePlaceholderNumbers()
+    {
+        auto d = deck::newPresentation();
+        auto second = std::make_shared<MasterPage>(*d->masters[0]);
+        second->id = QStringLiteral("SM2");
+        second->items.clear();
+        d->masters.push_back(second);
+        auto layout2 = std::make_shared<MasterPage>();
+        layout2->id = QStringLiteral("L2-1");
+        layout2->baseId = second->id;
+        layout2->props[QStringLiteral("kind")] = QStringLiteral("layout");
+        layout2->props[QStringLiteral("type")] = QStringLiteral("obj");
+        auto body = std::make_shared<TextItem>();
+        body->role = deck::placeholderRole(QStringLiteral("body"), 0) + QStringLiteral(":4294967295");
+        body->rect = QRectF(10, 20, 300, 200);
+        body->storyId = d->createStory();
+        layout2->items.push_back(body);
+        d->masters.push_back(layout2);
+        QCOMPARE(deck::layouts(*d).size(), 10);
+        QCOMPARE(deck::layouts(*d, QStringLiteral("SM2")).size(), 1);
+        QCOMPARE(deck::slideMasterOf(*d, 0), QStringLiteral("SM1"));
+        QCOMPARE(deck::layoutOfType(*d, QStringLiteral("obj"), QStringLiteral("SM2")), layout2.get());
+        // A slide's placeholder with the same big number takes the layout's place.
+        const int i = deck::addSlide(*d, *layout2);
+        Page &slide = *d->pages[i];
+        QCOMPARE(slide.items.size(), size_t(1));
+        slide.items[0]->rect = QRectF(0, 0, 1, 1);
+        deck::resetSlide(*d, slide);
+        QCOMPARE(slide.items[0]->rect, QRectF(10, 20, 300, 200));
+
+        DeckWindow w;
+        QCOMPARE(w.editor()->displayName(), QStringLiteral("Presentation1"));
+    }
+
     // Slides copy their layout's placeholders; the date, footer, and slide
     // number only when the presentation shows them.
     void addSlideCopiesPlaceholders()

@@ -94,7 +94,7 @@ void LayoutGallery::reload()
     const int page = m_ed->currentPage();
     const MasterPage *current = page >= 0 && page < d->pages.size() ? d->masterFor(*d->pages[page]) : nullptr;
     m_current = current ? deck::layoutType(*current) : QString();
-    for (MasterPage *l : deck::layouts(*d)) {
+    for (MasterPage *l : deck::layouts(*d, deck::slideMasterOf(*d, page))) {
         QImage pic = layoutPicture(*d, *l, int(std::lround(kPictureWidth * dpr)));
         pic.setDevicePixelRatio(dpr);
         m_tiles << Tile{deck::layoutType(*l), QCoreApplication::translate("Ribbon", l->name.toUtf8().constData()), pic};
