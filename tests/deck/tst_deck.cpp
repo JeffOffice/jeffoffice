@@ -3095,11 +3095,14 @@ private Q_SLOTS:
                                            "<table:table-cell table:number-columns-repeated=\"1000000000\"><text:p>x</text:p></table:table-cell></table:table-row></table:table></draw:frame></draw:page>");
             err.clear();
             auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), pages)), &err, &skipped);
-            // 256 columns and 256 rows are more than a table holds of cells here: it is left out, with the note.
+            // 256 columns and 256 rows are more than a table holds of cells here: its first 39 rows (of 9,984 cells) are kept, with the notes.
             QVERIFY2(d, qPrintable(err));
             QCOMPARE(int(d->pages.size()), 1);
-            QVERIFY(d->pages[0]->items.empty());
-            QVERIFY(!skipped.isEmpty());
+            QCOMPARE(int(d->pages[0]->items.size()), 1);
+            QCOMPARE(d->pages[0]->items[0]->type(), ItemType::Table);
+            QCOMPARE(static_cast<const TableItem *>(d->pages[0]->items[0].get())->rows, 39);
+            QCOMPARE(static_cast<const TableItem *>(d->pages[0]->items[0].get())->cols, 256);
+            QVERIFY(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("256 rows and columns")) && skipped.join(QLatin1Char('\n')).contains(QStringLiteral("10,000 cells")));
             QString many;
             for (int i = 0; i < 10001; ++i) many += QStringLiteral("<draw:page draw:name=\"p%1\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\"/>").arg(i);
             err.clear();
@@ -3176,6 +3179,151 @@ private Q_SLOTS:
             }
             QVERIFY(opened > 0);
         }
+    }
+
+private:
+    // The first table of the first slide of an open document presentation, in `d`.
+    static const TableItem *odpFirstTable(const Document &d)
+    {
+        if (d.pages.isEmpty()) return nullptr;
+        for (const auto &it : d.pages[0]->items)
+            if (it->type() == ItemType::Table) return static_cast<const TableItem *>(it.get());
+        return nullptr;
+    }
+    // A slide with a table: its columns and rows (as the table's XML), in a frame 20 by 10 centimeters.
+    static QString odpTablePage(const QString &table)
+    {
+        return QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\"><draw:frame svg:width=\"20cm\" svg:height=\"10cm\" svg:x=\"1cm\" svg:y=\"1cm\">"
+                              "<table:table>%1</table:table></draw:frame></draw:page>").arg(table);
+    }
+
+private Q_SLOTS:
+    // A table that repeats one cell down and across (a file of 1.6 KB: a hundred rows of a hundred cells of two thousand characters, in cells
+    // a fifth of a centimeter wide) is made of one copy of the cell: it took seven minutes, parsing and laying out each of its 10,000
+    // cells. Its text is kept to a budget, and the rows are fitted only to as much of it as can be laid out in seconds.
+    void odpReadsATableOfRepeatedCellsToABudget()
+    {
+        const QString word(2000, QLatin1Char('a'));
+        const QString table = QStringLiteral("<table:table-column table:number-columns-repeated=\"100\"/><table:table-row table:number-rows-repeated=\"100\">"
+                                             "<table:table-cell table:number-columns-repeated=\"100\"><text:p>%1</text:p></table:table-cell></table:table-row>").arg(word);
+        QString err;
+        QStringList skipped;
+        QElapsedTimer timer;
+        timer.start();
+        auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), odpTablePage(table))), &err, &skipped);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        const TableItem *t = odpFirstTable(*d);
+        QVERIFY(t);
+        QCOMPARE(t->rows, 100);
+        QCOMPARE(t->cols, 100);
+        // A million characters of text: the first 500 cells have theirs, each its own, and the rest have none.
+        int withText = 0;
+        QSet<QString> stories;
+        for (int i = 0; i < t->cells.size(); ++i) {
+            stories.insert(t->cells[i].storyId);
+            withText += d->storyDoc(t->cells[i].storyId)->toPlainText() == word;
+        }
+        QCOMPARE(withText, 500);
+        QCOMPARE(int(stories.size()), 10000);
+        QVERIFY(d->storyDoc(t->cell(4, 99).storyId)->toPlainText() == word);
+        QVERIFY(d->storyDoc(t->cell(5, 0).storyId)->toPlainText().isEmpty());
+        // A copy is independent of the cell it copies.
+        QTextCursor cursor(d->storyDoc(t->cell(0, 1).storyId));
+        cursor.insertText(QStringLiteral("z"));
+        QCOMPARE(d->storyDoc(t->cell(0, 2).storyId)->toPlainText(), word);
+        QVERIFY2(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("more text")), qPrintable(skipped.join(QLatin1Char('\n'))));
+        QVERIFY2(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("great deal of text")), qPrintable(skipped.join(QLatin1Char('\n'))));
+    }
+
+    // A cell that a table repeats comes out as it would if each repeat were written out: its style (which a column may give), its
+    // borders, its spans, and its text, across and down, and the picture of the whole is the same.
+    void odpTableCellsThatRepeatAreTheCellsWrittenOut()
+    {
+        const QString cellStyles = QStringLiteral(
+            "<style:style style:name=\"ce1\" style:family=\"table-cell\"><style:table-cell-properties fo:background-color=\"#ffcc00\" fo:padding=\"0.2cm\" fo:border=\"0.05pt solid #cc0000\""
+            " style:vertical-align=\"middle\"/></style:style>"
+            "<style:style style:name=\"ce2\" style:family=\"table-cell\"><style:table-cell-properties fo:background-color=\"#00ccff\" fo:padding=\"0.1cm\"/>"
+            "<style:text-properties fo:font-weight=\"bold\" fo:font-size=\"20pt\"/></style:style>"
+            "<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"4cm\"/></style:style>");
+        const QString styles = odptest::sampleAutomaticStyles() + cellStyles;
+        auto cell = [](const QString &text, const QString &attributes = QString()) { return QStringLiteral("<table:table-cell %1><text:p>%2</text:p></table:table-cell>").arg(attributes, text); };
+        const QString columns = QStringLiteral("<table:table-column table:style-name=\"co1\" table:default-cell-style-name=\"ce1\" table:number-columns-repeated=\"2\"/>"
+                                               "<table:table-column table:style-name=\"co1\" table:default-cell-style-name=\"ce2\"/>");
+        // Three rows of a cell repeated three times, the third column in the other style; and a row whose first cell spans two columns and repeats.
+        const QString repeated = columns + QStringLiteral("<table:table-row table:number-rows-repeated=\"3\">")
+            + cell(QStringLiteral("x"), QStringLiteral("table:number-columns-repeated=\"3\"")) + QStringLiteral("</table:table-row>")
+            + QStringLiteral("<table:table-row>") + cell(QStringLiteral("wide"), QStringLiteral("table:number-columns-spanned=\"2\" table:number-columns-repeated=\"2\""))
+            + QStringLiteral("</table:table-row>");
+        const QString oneRow = cell(QStringLiteral("x")) + cell(QStringLiteral("x")) + cell(QStringLiteral("x"));
+        const QString written = columns + QStringLiteral("<table:table-row>") + oneRow + QStringLiteral("</table:table-row><table:table-row>") + oneRow
+            + QStringLiteral("</table:table-row><table:table-row>") + oneRow + QStringLiteral("</table:table-row><table:table-row>")
+            + cell(QStringLiteral("wide"), QStringLiteral("table:number-columns-spanned=\"2\"")) + cell(QStringLiteral("wide"), QStringLiteral("table:number-columns-spanned=\"2\""))
+            + QStringLiteral("</table:table-row>");
+        QString err;
+        auto a = deck::importOdp(odptest::odpZip(odptest::odpContent(styles, odpTablePage(repeated))), &err);
+        QVERIFY2(a, qPrintable(err));
+        auto b = deck::importOdp(odptest::odpZip(odptest::odpContent(styles, odpTablePage(written))), &err);
+        QVERIFY2(b, qPrintable(err));
+        const TableItem *ta = odpFirstTable(*a), *tb = odpFirstTable(*b);
+        QVERIFY(ta && tb);
+        QCOMPARE(ta->rows, 4);
+        QCOMPARE(ta->rows, tb->rows);
+        QCOMPARE(ta->cols, tb->cols);
+        QCOMPARE(ta->colW, tb->colW);
+        QCOMPARE(ta->rowH, tb->rowH);
+        for (int r = 0; r < ta->rows; ++r)
+            for (int c = 0; c < ta->cols; ++c) {
+                const TableCell &x = ta->cell(r, c), &y = tb->cell(r, c);
+                const QString where = QStringLiteral("cell %1, %2").arg(r).arg(c);
+                QVERIFY2(x.covered == y.covered && x.colSpan == y.colSpan && x.rowSpan == y.rowSpan, qPrintable(where));
+                QVERIFY2(x.fill.type == y.fill.type && x.fill.color.rgbValue() == y.fill.color.rgbValue() && x.valign == y.valign && x.margins == y.margins, qPrintable(where));
+                QVERIFY2(x.border.left.width == y.border.left.width && x.border.left.color.toString() == y.border.left.color.toString() && x.hyphenate == y.hyphenate, qPrintable(where));
+                // (A place the row has no cell for has no story.)
+                const QTextDocument *sa = a->storyDoc(x.storyId), *sb = b->storyDoc(y.storyId);
+                QVERIFY2(bool(sa) == bool(sb), qPrintable(where));
+                if (sa) {
+                    QCOMPARE(sa->toPlainText(), sb->toPlainText());
+                    QCOMPARE(sa->toHtml(), sb->toHtml());
+                }
+            }
+        QCOMPARE(ta->cell(0, 0).fill.color.rgbValue(), QColor(0xFF, 0xCC, 0x00));
+        QCOMPARE(ta->cell(2, 2).fill.color.rgbValue(), QColor(0x00, 0xCC, 0xFF));
+        QVERIFY(ta->cell(3, 1).covered);
+        QCOMPARE(ta->cell(3, 0).colSpan, 2);
+        QCOMPARE(a->storyDoc(ta->cell(1, 1).storyId)->toPlainText(), QStringLiteral("x"));
+        QVERIFY(ta->cell(0, 0).storyId != ta->cell(0, 1).storyId && ta->cell(0, 1).storyId != ta->cell(1, 1).storyId);
+        // The same picture.
+        LayoutCache cacheA, cacheB;
+        PaintContext ca, cb;
+        ca.doc = a.get();
+        ca.cache = &cacheA;
+        cb.doc = b.get();
+        cb.cache = &cacheB;
+        QVERIFY(Renderer::renderToImage(ca, 0, 0.5) == Renderer::renderToImage(cb, 0, 0.5));
+    }
+
+    // A table of more cells than 10,000 keeps its first rows (the ones that make up that many), with a note, where it was left out whole.
+    void odpKeepsTheFirstRowsOfATableOfTooManyCells()
+    {
+        const QString table = QStringLiteral("<table:table-column table:number-columns-repeated=\"100\"/><table:table-row table:number-rows-repeated=\"101\">"
+                                             "<table:table-cell table:number-columns-repeated=\"100\"><text:p>x</text:p></table:table-cell></table:table-row>");
+        QString err;
+        QStringList skipped;
+        auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), odpTablePage(table))), &err, &skipped);
+        QVERIFY2(d, qPrintable(err));
+        const TableItem *t = odpFirstTable(*d);
+        QVERIFY(t);
+        QCOMPARE(t->rows, 100);
+        QCOMPARE(t->cols, 100);
+        QCOMPARE(d->storyDoc(t->cell(99, 99).storyId)->toPlainText(), QStringLiteral("x"));
+        QVERIFY2(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("10,000 cells")), qPrintable(skipped.join(QLatin1Char('\n'))));
+        // A table with no cells at all is still left out.
+        skipped.clear();
+        d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), odpTablePage(QStringLiteral("<table:table-column/>")))), &err, &skipped);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!odpFirstTable(*d));
+        QVERIFY(!skipped.isEmpty());
     }
 
     // An open document presentation opens in a window, and saves as a new .pptx, never over the file it came from; what
