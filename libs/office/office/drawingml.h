@@ -11,12 +11,52 @@
 
 #include <QDomDocument>
 #include <QDomElement>
+#include <QHash>
 #include <QVector>
+#include <algorithm>
 #include <functional>
 
 class QTextDocument;
 
 namespace jp::office {
+
+// What a whole import may keep of each kind of thing, shared by every read of
+// it (DrawingContext::budget), however the file spreads them over parts it
+// lists, or lists again: a read takes what it keeps, and leaves out what is
+// past it. `ranOut` says which kinds that happened to, for the importer's note.
+struct DrawingBudget {
+    enum Kind {
+        Objects,      // shapes, pictures, connectors, groups, tables, and frames kept as written
+        Stories,      // text bodies kept in a story of their own (a shape's or a text box's)
+        Cells,        // table cells, each with a story of its own
+        Paragraphs,   // paragraphs of all the text bodies
+        Runs,         // runs, fields, and line breaks of all the text bodies
+        Letters,      // letters of all the text bodies
+        KindCount
+    };
+    qint64 left[KindCount] = {};
+    bool ranOut[KindCount] = {};
+    bool longBody = false;   // a text body was longer than one may be, however much is left, and was cut
+
+    // `n` of a kind, if that much is left; else nothing is taken, and the kind is marked as run out.
+    bool take(Kind kind, qint64 n = 1)
+    {
+        if (n > left[kind]) {
+            ranOut[kind] = true;
+            return false;
+        }
+        left[kind] -= n;
+        return true;
+    }
+    // As much of `n` as is left, taken: below `n` when the kind runs out.
+    qint64 takeUpTo(Kind kind, qint64 n)
+    {
+        const qint64 got = std::max<qint64>(0, std::min(n, left[kind]));
+        if (got < n) ranOut[kind] = true;
+        left[kind] -= got;
+        return got;
+    }
+};
 
 // What reading a drawing needs from around it.
 struct DrawingContext {
@@ -40,6 +80,13 @@ struct DrawingContext {
     // Keeps a picture's bytes ("png", "jpeg", "gif", "bmp", "tiff", "emf",
     // "wmf", "svg"); returns its id for PictureItem::imageId or a picture fill.
     std::function<QString(const QByteArray &bytes, const QString &format)> addImage;
+    // The pictures kept so far, by part and relationship (and recoloring), and
+    // the movies and sounds by the part they are in. Kept by the caller across
+    // every read of one file, so that a picture its shapes use again, on the
+    // page or the next, is handed to addImage once. Unset, each read keeps its own.
+    QHash<QString, QString> *images = nullptr;
+    // What the whole import may keep (above); unset, each read has only its own limits.
+    DrawingBudget *budget = nullptr;
     // Keeps the movie or sound a picture plays, with its content type and
     // file extension; returns its id for PictureItem::mediaId. Unset, a
     // picture that plays one keeps only an address it links to outside.

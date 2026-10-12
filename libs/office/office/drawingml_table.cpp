@@ -24,6 +24,7 @@ namespace {
 // A table is kept to what TableItem::fromJson reads back, and to a size whose cells are not too many stories.
 constexpr int kMaxRowsOrColumns = 256;
 constexpr int kMaxCells = 10000;
+constexpr int kTableCells = 2;       // what a table costs a budget of cells besides its own: measured, a table of one cell is as heavy as three
 constexpr double kMaxPoint = 1e6;   // points: the farthest a position or a size is taken to be
 
 const QLatin1String kTableUri("http://schemas.openxmlformats.org/drawingml/2006/table");
@@ -250,6 +251,9 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
     if (tbl.isNull() || cols == 0 || rows == 0 || cols > kMaxRowsOrColumns || rows > kMaxRowsOrColumns || cols * rows > kMaxCells) return nullptr;
     const QDomElement cNvPr = childNamed(childNamed(frame, "nvGraphicFramePr"), "cNvPr");
     if (parseBool(attr(cNvPr, QStringLiteral("hidden")))) return nullptr;
+    // Each cell is a story of the import's budget, and a table is as heavy as two more cells (as much to read and to keep); one that would pass the
+    // budget is left to the caller, as one that can't be read.
+    if (ctx.newStory && ctx.budget && !ctx.budget->take(DrawingBudget::Cells, qint64(rows) * cols + kTableCells)) return nullptr;
 
     auto t = std::make_shared<TableItem>();
     t->rows = rows;

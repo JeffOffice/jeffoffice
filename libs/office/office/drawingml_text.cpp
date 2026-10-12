@@ -23,10 +23,15 @@ namespace jp::office {
 
 namespace {
 
-// A stranger's file: no more than this many paragraphs, runs, or letters.
-constexpr int kMaxParagraphs = 100000, kMaxRuns = 100000;
-constexpr qsizetype kMaxText = 20000000;
+// A stranger's file: no more than this many paragraphs, runs, or letters in a body. The most of any body in the sample decks are 26 paragraphs, 78 runs,
+// and 1,258 letters; these are 385, 256, and 1,590 times that. (All the bodies of an import together are held to its DrawingBudget as well.)
+constexpr int kMaxParagraphs = 10000, kMaxRuns = 20000;
+constexpr qsizetype kMaxText = 2000000;
 constexpr int kLevels = 9;
+// Qt adds a block to a list in time proportional to the list's length (every block of the list is marked changed), so a run of one bullet or
+// numbering longer than this goes on in another list of the same kind, numbered on from where the one before ended. The longest list in the
+// sample decks is 26 paragraphs; with this many, 10,000 bulleted paragraphs are read in a fifth of a second.
+constexpr int kMaxListRun = 500;
 
 QDomElement firstChild(const QDomElement &e, QLatin1String local)
 {
@@ -470,12 +475,13 @@ struct Piece {
 class Reader {
 public:
     Reader(QTextDocument *doc, const DrawingContext &ctx, TextStyleStack styles)
-        : m_ctx(ctx), m_styles(std::move(styles)), m_cursor(doc)
+        : m_ctx(ctx), m_budget(ctx.budget), m_styles(std::move(styles)), m_cursor(doc)
     {
     }
 
     void paragraph(const QDomElement &p);
-    bool full() const { return m_paragraphs >= kMaxParagraphs; }
+    // Whether the body has room for another paragraph (and the import's budget); says so in the budget when it hasn't.
+    bool room();
     int paragraphs() const { return m_paragraphs; }
 
 private:
@@ -486,6 +492,7 @@ private:
     void addToList(const ParaProps &para, int level, const QString &key, double firstSize);
 
     const DrawingContext &m_ctx;
+    DrawingBudget *m_budget = nullptr;
     TextStyleStack m_styles;
     QTextCursor m_cursor;
     bool m_first = true;
@@ -497,6 +504,8 @@ private:
     struct ListRun {
         QTextList *list = nullptr;
         QString key;
+        int count = 0;           // the blocks in the list
+        int start = 1;           // the number the list starts at, for numbering
     };
     ListRun m_lists[kLevels];    // the list each level goes on in
 };
@@ -544,14 +553,33 @@ QTextCharFormat Reader::linkFormat(QTextCharFormat cf, const QDomElement &rPr) c
     return cf;
 }
 
+bool Reader::room()
+{
+    if (m_paragraphs >= kMaxParagraphs) {
+        if (m_budget) m_budget->longBody = true;
+        return false;
+    }
+    if (!m_budget) return true;
+    // Out of runs or letters, what follows has no text to read.
+    for (DrawingBudget::Kind kind : {DrawingBudget::Runs, DrawingBudget::Letters})
+        if (m_budget->left[kind] <= 0) {
+            m_budget->ranOut[kind] = true;
+            return false;
+        }
+    return m_budget->take(DrawingBudget::Paragraphs);
+}
+
 void Reader::addToList(const ParaProps &para, int level, const QString &key, double firstSize)
 {
     ListRun &run = m_lists[level];
-    if (run.list && run.key == key) {
+    if (run.list && run.key == key && run.count < kMaxListRun) {
         run.list->add(m_cursor.block());
+        ++run.count;
         return;
     }
     const Bullet &b = para.bullet;
+    // A run of one numbering past the length of a list goes on in another, from the number after the last.
+    const int start = run.list && run.key == key ? std::min(run.start + run.count, 1000000) : b.startAt;
     QTextListFormat lf;
     lf.setIndent(0);
     if (level > 0) lf.setProperty(tp::ListLevel, level);
@@ -560,7 +588,7 @@ void Reader::addToList(const ParaProps &para, int level, const QString &key, dou
         lf.setStyle(s.style);
         lf.setNumberPrefix(s.prefix);
         lf.setNumberSuffix(s.suffix);
-        if (b.startAt > 1) lf.setStart(b.startAt);
+        if (start > 1) lf.setStart(start);
         if (s.numberFormat) lf.setProperty(tp::NumberFormat, s.numberFormat);
     } else {
         lf.setStyle(QTextListFormat::ListDisc);
@@ -574,6 +602,8 @@ void Reader::addToList(const ParaProps &para, int level, const QString &key, dou
     }
     run.list = m_cursor.createList(lf);
     run.key = key;
+    run.count = 1;
+    run.start = start;
 }
 
 void Reader::paragraph(const QDomElement &p)
@@ -593,18 +623,29 @@ void Reader::paragraph(const QDomElement &p)
     QVector<Piece> pieces;
     double firstSize = 0, largest = 0;
     bool tabbed = false;
-    auto add = [&](const QString &text, const QTextCharFormat &format) {
+    auto add = [&](QString text, const QTextCharFormat &format) {
         if (text.isEmpty()) return;
+        // The body, and the import, keep only so many letters: the rest of a run past them is cut off.
+        qint64 room = kMaxText - m_letters;
+        if (m_budget) room = std::min(room, m_budget->left[DrawingBudget::Letters]);
+        if (text.size() > room) {
+            if (m_budget) (room == kMaxText - m_letters ? m_budget->longBody : m_budget->ranOut[DrawingBudget::Letters]) = true;
+            text.truncate(qsizetype(std::max<qint64>(room, 0)));
+            if (text.isEmpty()) return;
+        }
+        if (m_budget) m_budget->left[DrawingBudget::Letters] -= text.size();
         m_letters += text.size();
         if (firstSize == 0) firstSize = format.fontPointSize();
         largest = std::max(largest, format.fontPointSize());
         tabbed |= text.contains(QLatin1Char('\t'));
         pieces.append({text, format});
     };
-    for (QDomElement c = p.firstChildElement(); !c.isNull() && m_runs < kMaxRuns && m_letters < kMaxText; c = c.nextSiblingElement()) {
+    QDomElement c = p.firstChildElement();
+    for (; !c.isNull() && m_runs < kMaxRuns && m_letters < kMaxText; c = c.nextSiblingElement()) {
         const QString name = c.localName();
         const bool isRun = name == QLatin1String("r"), isField = name == QLatin1String("fld"), isBreak = name == QLatin1String("br");
         if (!isRun && !isField && !isBreak) continue;
+        if (m_budget && !m_budget->take(DrawingBudget::Runs)) break;
         ++m_runs;
         const QDomElement rPr = firstChild(c, QLatin1String("rPr"));
         QTextCharFormat format = baseFormat;
@@ -626,6 +667,8 @@ void Reader::paragraph(const QDomElement &p)
             add(QString(QChar::ObjectReplacementCharacter), format);
         }
     }
+    // What the body's own limits leave out is said in the budget too.
+    if (m_budget && !c.isNull() && (m_runs >= kMaxRuns || m_letters >= kMaxText)) m_budget->longBody = true;
 
     // The mark after the last letter: what an empty paragraph is as tall as.
     RunProps endRun = base;
@@ -724,8 +767,11 @@ void readTextBody(const QDomElement &txBody, QTextDocument *doc, const DrawingCo
     Reader reader(doc, ctx, stack);
     QTextCursor edit(doc);
     edit.beginEditBlock();
-    for (QDomElement p = txBody.firstChildElement(); !p.isNull() && !reader.full(); p = p.nextSiblingElement())
-        if (p.localName() == QLatin1String("p")) reader.paragraph(p);
+    for (QDomElement p = txBody.firstChildElement(); !p.isNull(); p = p.nextSiblingElement()) {
+        if (p.localName() != QLatin1String("p")) continue;
+        if (!reader.room()) break;
+        reader.paragraph(p);
+    }
     // A body with no paragraph is one empty paragraph, in the styles' size.
     if (reader.paragraphs() == 0) reader.paragraph(QDomElement());
     edit.endEditBlock();
