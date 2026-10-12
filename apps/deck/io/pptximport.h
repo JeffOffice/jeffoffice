@@ -10,9 +10,10 @@
 // What the model has no place for is kept to be written back: the theme part
 // (appData "themeXml", base64), a slide's transition and timing (page props
 // "transitionXml" and "timingXml", the XML as written), and the frames that
-// can't be read yet, such as tables, charts, and diagrams (page props
-// "unread", an array of {"xml", "x", "y", "w", "h"} with the frame's place in
-// points); the XML kept holds the namespace declarations it needs.
+// can't be read yet, such as charts and diagrams (page props "unread", an
+// array of {"xml", "x", "y", "w", "h"} with the frame's place in points); the
+// XML kept holds the namespace declarations it needs. A frame that holds a
+// table becomes a table (TableItem).
 
 #include "core/document.h"
 
