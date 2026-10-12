@@ -25,6 +25,8 @@ class DeckCanvas;
 class DeckFileScreen;
 class Editor;
 class FontCombo;
+class HelpView;
+class HelpWindow;
 class NotesPane;
 class OutlineView;
 class Ribbon;
@@ -149,6 +151,12 @@ public:
     bool exportPdf();
     bool exportPicture();
 
+    // JeffDeck's Help (F1 and the ribbon's "?"): the Help pane on the right,
+    // on `topic` ("" for the topic of what is being done, else the contents);
+    // over the File screen, a window of its own.
+    void showHelp(const QString &topic = QString());
+    HelpView *helpView() const { return m_help; }
+
 protected:
     void closeEvent(QCloseEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
@@ -184,6 +192,9 @@ private:
     void updateTitle();
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
+    void createHelpActions();     // deckwindow_help.cpp
+    QString helpContext() const;
+    HelpWindow *showHelpOver(const QString &topic);
 
     Editor *m_ed = nullptr;
     DeckCanvas *m_canvas = nullptr;
@@ -197,6 +208,8 @@ private:
     SlideSorter *m_sorter = nullptr;
     ReusePane *m_reuse = nullptr;
     QDockWidget *m_reuseDock = nullptr;
+    HelpView *m_help = nullptr;
+    QDockWidget *m_helpDock = nullptr;
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     View m_view = View::Normal;
     // Normal view's zoom while the Slide Sorter borrows the zoom controls: its Canvas::Fit and the zoom.
