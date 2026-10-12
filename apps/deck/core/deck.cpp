@@ -558,6 +558,17 @@ void setSlideSize(Document &d, const QSizeF &size)
     d.setup.sizeName = slideSizeName(size);
 }
 
+void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide)
+{
+    if (from.isEmpty() || to.isEmpty() || from == to) return;
+    const double sx = to.width() / from.width(), sy = to.height() / from.height(), k = std::min(sx, sy);
+    const QRectF was(QPointF(0, 0), from), whole(QPointF(0, 0), to);
+    const QRectF fitted((to.width() - from.width() * k) / 2, (to.height() - from.height() * k) / 2, from.width() * k, from.height() * k);
+    QSet<QString> stories;
+    scaleItems(d, page.items, was, whole, fitted, k, slide, stories);
+    scaleGuides(page.guides, sx, sy);
+}
+
 bool FooterOptions::shows(const QString &placeholderType, const QString &layoutType) const
 {
     if (skipTitleSlide && layoutType == QLatin1String("title")) return false;
