@@ -687,7 +687,8 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
             p->translate(r.width(), 0);
             p->rotate(90);
         }
-        fl.layout->paint(p, fl.frame, po);
+        if (ctx.aroundText) ctx.aroundText(p, t, *fl.layout, fl.frame, [&](QPainter *pp) { fl.layout->paint(pp, fl.frame, po); });
+        else fl.layout->paint(p, fl.frame, po);
         paintInlineObjects(p, ctx, *fl.layout, fl.frame);
         p->restore();
         // Continued notices.
@@ -834,7 +835,8 @@ static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
             if (ctx.opt.editStory == s.storyId) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
             p->save();
             p->translate(origin);
-            lay->paint(p, 0, po);
+            if (ctx.aroundText) ctx.aroundText(p, s, *lay, 0, [&](QPainter *pp) { lay->paint(pp, 0, po); });
+            else lay->paint(p, 0, po);
             paintInlineObjects(p, ctx, *lay, 0);
             p->restore();
         }
@@ -1244,7 +1246,11 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
         paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
     }
     if (!ctx.opt.flattenTransparency) {
-        paintItems(p, c, pg.items);
+        if (ctx.around) {
+            for (const auto &it : pg.items) ctx.around(p, *it, [&](QPainter *pp) { paintItem(pp, c, *it); });
+        } else {
+            paintItems(p, c, pg.items);
+        }
         paintCatalogCells(p, c, pg);
         return;
     }

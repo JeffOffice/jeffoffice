@@ -3,8 +3,11 @@
 //   jdecktool info <file.pptx|.ppt>                           the masters, layouts, and slides found
 //   jdecktool save <file> <out.pptx>                          read it and save it again, listing what was left out
 //   jdecktool pdf <file> <out.pdf> [slides|notes|handout6]   print it to a PDF (also handout1|2|3|4|9, outline; "hidden", "frame", "gray", "down" add options; "samplenotes" gives slides without notes
+//   jdecktool steps <file> <slide> <outdir> [width=1280]       a slide's click steps listed, and the slide as the show has it at the start (step-00-start.png), halfway through each step (step-01-mid.png), and after it (step-01-end.png)
 
 #include "app/deckinfo.h"
+#include "app/slideshow.h"
+#include "core/animation.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/fonts.h"
@@ -38,6 +41,31 @@ int countObjects(const ItemList &items)
 
 int unreadFrames(const PageBase &page) { return int(page.props.value(QStringLiteral("unread")).toArray().size()); }
 
+// One behavior of an effect, in a line.
+QString describe(const deck::Behavior &b)
+{
+    using Kind = deck::Behavior::Kind;
+    QString what;
+    switch (b.kind) {
+    case Kind::Set: what = QStringLiteral("set %1=%2").arg(b.attribute, b.to); break;
+    case Kind::Effect: what = QStringLiteral("%1 %2").arg(b.filter, b.entering ? QStringLiteral("in") : QStringLiteral("out")); break;
+    case Kind::Animate: {
+        QStringList keys;
+        for (const deck::Keyframe &k : b.keys) keys << QStringLiteral("%1:%2").arg(k.at).arg(k.value);
+        what = QStringLiteral("animate %1 %2").arg(b.attribute, keys.isEmpty() ? QStringLiteral("%1>%2+%3").arg(b.from, b.to, b.by) : keys.join(QLatin1Char(' ')));
+        break;
+    }
+    case Kind::Motion: what = QStringLiteral("path %1 points").arg(b.path.elementCount()); break;
+    case Kind::Scale: what = QStringLiteral("scale %1,%2 to %3,%4").arg(b.scaleFrom.x()).arg(b.scaleFrom.y()).arg(b.scaleTo.x()).arg(b.scaleTo.y()); break;
+    case Kind::Rotate: what = QStringLiteral("rotate %1 to %2").arg(b.rotateFrom).arg(b.rotateTo); break;
+    case Kind::Color: what = QStringLiteral("color %1 (not played)").arg(b.attribute); break;
+    case Kind::Command: what = QStringLiteral("command %1 (not played)").arg(b.command); break;
+    }
+    QString target = QString::number(b.target.shape);
+    if (b.target.paragraphs()) target += QStringLiteral(" p%1-%2").arg(b.target.firstParagraph).arg(b.target.lastParagraph);
+    return QStringLiteral("shape %1: %2, %3 for %4 ms%5").arg(target, what).arg(b.timing.begin).arg(b.timing.duration).arg(b.timing.hold ? QStringLiteral(", held") : QString());
+}
+
 // The placeholders of a page, each with its place: type[:index]@x,y,wxh in points.
 QString placeholders(const PageBase &page)
 {
@@ -61,9 +89,9 @@ int main(int argc, char **argv)
     initCore();
     const QStringList args = app.arguments();
     QTextStream out(stdout);
-    if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) ||
-        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf")) {
-        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...]\n";
+    if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) || (args[1] == "steps" && args.size() < 5) ||
+        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps")) {
+        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280]\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -140,6 +168,45 @@ int main(int argc, char **argv)
                 << placeholders(p) << (p.hidden ? "\thidden" : "") << (p.showMasterItems ? "" : "\tno master graphics") << (p.background.isNone() ? "" : "\tbackground")
                 << (unreadFrames(p) ? QStringLiteral("\t%1 unread").arg(unreadFrames(p)) : QString())
                 << (deck::notesText(*doc, p).isEmpty() ? QString() : QStringLiteral("\tnotes")) << "\n";
+        }
+        return 0;
+    }
+
+    if (cmd == "steps") {
+        static const char *classes[] = {"entrance", "exit", "emphasis", "motion path", "media", "verb", "other"};
+        static const char *starts[] = {"on click", "with previous", "after previous"};
+        const int slide = args[3].toInt() - 1;
+        if (slide < 0 || slide >= doc->pages.size()) {
+            out << "no such slide: " << args[3] << " (the file has " << doc->pages.size() << ")\n";
+            return 2;
+        }
+        const Page &page = *doc->pages[slide];
+        const deck::Timeline tl = deck::playableTimeline(page);
+        out << "steps\tslide " << slide + 1 << "\t" << tl.steps.size() << " click steps\t" << deck::timelineOf(page).steps.size() << " read\t" << tl.triggers.size() << " triggers\n";
+        if (tl.isEmpty()) {
+            out << (page.props.contains(QStringLiteral("timingXml")) ? "the slide's timing has no steps that show anything\n" : "the slide has no animations\n");
+            return 0;
+        }
+        const double width = args.size() > 5 ? std::max(16.0, QString(args[5]).remove(QStringLiteral("width=")).toDouble()) : 1280;
+        const QSize size(qRound(width), qRound(width * doc->pageSize().height() / doc->pageSize().width()));
+        const deck::Geometry geometry = deck::geometryOf(*doc, page);
+        LayoutCache cache;
+        QDir().mkpath(args[4]);
+        auto save = [&](const QString &name, int done, double ms) {
+            const deck::States states = deck::statesAt(tl, geometry, done, ms);
+            renderSlideImage(doc.get(), &cache, slide, size, 1.0, Qt::black, &states).save(QDir(args[4]).filePath(name));
+            out << name << "\n";
+        };
+        save(QStringLiteral("step-00-start.png"), 0, -1);
+        for (int k = 0; k < tl.steps.size(); ++k) {
+            const deck::Step &step = tl.steps[k];
+            out << "step " << k + 1 << (step.automatic ? "\tstarts by itself" : "\ton click") << "\t" << step.duration() << " ms\n";
+            for (const deck::Effect &e : step.effects) {
+                out << "  " << classes[int(e.cls)] << " preset " << e.presetId << "/" << e.presetSubtype << ", " << starts[int(e.start)] << ", at " << e.begin << " to " << e.end() << " ms\n";
+                for (const deck::Behavior &b : e.behaviors) out << "    " << describe(b) << "\n";
+            }
+            save(QStringLiteral("step-%1-mid.png").arg(k + 1, 2, 10, QLatin1Char('0')), k, step.duration() / 2);
+            save(QStringLiteral("step-%1-end.png").arg(k + 1, 2, 10, QLatin1Char('0')), k + 1, -1);
         }
         return 0;
     }
