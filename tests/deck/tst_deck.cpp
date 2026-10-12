@@ -17445,6 +17445,80 @@ private Q_SLOTS:
         }
     }
 
+    // ---- the color map of a dark master ----
+
+    // A presentation with a slide of each kind of layout, its words said.
+    static void addEveryLayout(Document &d)
+    {
+        const QVector<MasterPage *> all = deck::layouts(d);
+        for (const MasterPage *l : all) {
+            if (deck::layoutType(*l) == QLatin1String("title")) continue;
+            deck::addSlide(d, *l);
+            for (const auto &it : d.pages.last()->items)
+                if (it->type() == ItemType::Text && !deck::placeholderType(*it).isEmpty() && deck::placeholderType(*it) != QLatin1String("sldNum") && deck::placeholderType(*it) != QLatin1String("pic"))
+                    sayIn(d, *it, QStringLiteral("Words on %1").arg(l->name));
+        }
+    }
+
+    // A slide master with a dark background is saved with the color map of a dark design, as the presentation program's own dark themes
+    // have it (the background is dark 1, the text light 1), so that a text box typed on its slides is light; a light master has the usual
+    // map. Read back, the same colors show.
+    void darkMastersAreSavedWithTheDarkColorMap()
+    {
+        const QString dark = QStringLiteral("<p:clrMap bg1=\"dk1\" tx1=\"lt1\" bg2=\"dk2\" tx2=\"lt2\" ");
+        const QString light = QStringLiteral("<p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" ");
+        int darkSeen = 0, lightSeen = 0;
+        for (int theme = 0; theme < deck::builtinThemeCount(); ++theme)
+            for (int variant = 0; variant < 4; ++variant) {
+                const QString what = QStringLiteral("%1 variant %2").arg(deck::builtinThemeName(theme)).arg(variant + 1);
+                auto d = deck::themePresentation(theme, variant);
+                addEveryLayout(*d);
+                const bool isDark = deck::isDarkBackground(firstMasterOf(*d).background);
+                QString err;
+                const QByteArray bytes = deck::exportPresentation(*d, &err);
+                QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+                Exported e;
+                QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+                QVERIFY2(packageProblem(e).isEmpty(), qPrintable(what + ": " + packageProblem(e)));
+                const QString master = part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml"));
+                QVERIFY2(master.contains(isDark ? dark : light), qPrintable(what + (isDark ? " is dark" : " is light") + ": " + master.mid(master.indexOf(QStringLiteral("<p:clrMap")), 200)));
+                QVERIFY2(!master.contains(isDark ? light : dark), qPrintable(what));
+                (isDark ? darkSeen : lightSeen)++;
+                // The layouts and slides follow their master's map.
+                QVERIFY2(part(e, QStringLiteral("/ppt/slideLayouts/slideLayout1.xml")).contains(QStringLiteral("<a:masterClrMapping/>")), qPrintable(what));
+                // Read back: the same color in every run, and a dark master is still dark.
+                auto back = deck::importPresentation(bytes, &err);
+                QVERIFY2(back, qPrintable(err));
+                QCOMPARE(deck::isDarkBackground(firstMasterOf(*back).background), isDark);
+                QCOMPARE(back->pages.size(), d->pages.size());
+                for (int i = 0; i < d->pages.size(); ++i) {
+                    QVector<QColor> was, now;
+                    // (Of the words said: a place that is empty is not kept as a shape of the slide.)
+                    auto say = [](const Document &doc, const Page &page, QVector<QColor> *into) {
+                        walkItems(page.items, [&](const ItemPtr &it) {
+                            if (it->type() != ItemType::Text) return;
+                            const QString story = static_cast<const TextItem &>(*it).storyId;
+                            if (doc.storyDoc(story) && !doc.storyDoc(story)->isEmpty()) *into << runColorsOf(doc, story);
+                        });
+                    };
+                    say(*d, *d->pages[i], &was);
+                    say(*back, *back->pages[i], &now);
+                    QVERIFY2(was == now, qPrintable(QStringLiteral("%1, slide %2").arg(what).arg(i + 1)));
+                }
+            }
+        QVERIFY(darkSeen >= 8 && lightSeen >= 8);
+        // Any dark background style makes the map dark, and a light one turns it back.
+        auto d = deck::newPresentation();
+        deck::applyBackgroundStyle(*d, 10);
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml")).contains(dark));
+        deck::applyBackgroundStyle(*d, 1);
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml")).contains(light));
+    }
+
     // A presentation that isn't in a built-in theme has variants too: its own colors on four backgrounds.
     void variantsOfAnotherThemeAreItsColorsOnFourBackgrounds()
     {
