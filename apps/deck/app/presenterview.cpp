@@ -37,6 +37,12 @@ public:
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         setAttribute(Qt::WA_OpaquePaintEvent);
     }
+    // The slide is drawn again (the deck was edited).
+    void invalidate()
+    {
+        m_image = QImage();
+        update();
+    }
     // The ink and the laser pointer's dot go over the slide this shows (the large one).
     void setOverlay(bool on) { m_overlay = on; }
     // A point of this widget as a point of the slide, in the slide's own units.
@@ -247,6 +253,17 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
 
     connect(show, &SlideShow::changed, this, &PresenterView::refresh);
     connect(show, &SlideShow::frameChanged, this, &PresenterView::frame);
+    // The deck was edited: the slides are drawn again, and the grid is made again if it is showing.
+    connect(show, &SlideShow::slidesChanged, this, [this] {
+        m_current->invalidate();
+        m_nextView->invalidate();
+        m_grid->clear();
+        if (isShowingAllSlides()) {
+            buildGrid();
+            if (m_show) m_grid->setCurrentRow(std::max(0, m_show->targetSlide()));
+        }
+        refresh();
+    });
     connect(show, &SlideShow::overlayChanged, this, [this] {
         m_current->update();
         if (m_show) m_pointerButton->setChecked(m_show->pointer() != SlideShow::Pointer::Arrow);
@@ -286,7 +303,7 @@ void PresenterView::refresh()
     m_current->setView(m_show->currentView(), m_show->currentMs());
     m_nextView->setView(next, -1);
     m_counter->setText(slide >= 0 ? tr("Slide %1 of %2").arg(slide + 1).arg(doc->pages.size()) : tr("End of slide show"));
-    const QString notes = slide >= 0 ? deck::notesText(*doc, *doc->pages[slide]) : QString();
+    const QString notes = slide >= 0 && slide < doc->pages.size() ? deck::notesText(*doc, *doc->pages[slide]) : QString();
     if (notes != m_notes->toPlainText()) m_notes->setPlainText(notes);
     m_black->setChecked(m_show->blankColor() == QColor(Qt::black));
     if (isShowingAllSlides() && slide >= 0 && slide < m_grid->count()) m_grid->setCurrentRow(slide);

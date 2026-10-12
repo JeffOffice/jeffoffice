@@ -69,6 +69,7 @@ class QPainter;
 namespace jp {
 
 class Document;
+struct Page;
 class LayoutCache;
 class PresenterView;
 class StepFrames;
@@ -134,7 +135,10 @@ public:
 
     void next();
     void previous();
+    // To a slide by its number: the next place after the one the show is at that has the slide, going round (a custom show may list a slide
+    // twice); nothing for a slide the show does not play. goToPosition() goes to a place in the order (0 is the first).
     void goTo(int slide);
+    void goToPosition(int pos);
     // Ends the transition that is playing, showing its slide.
     void finishTransition();
     // Black or white screen; the same color again brings the slide back.
@@ -164,6 +168,12 @@ public:
     QMap<int, double> recordedSeconds() const;
     double recordedTotal() const;
     RehearseBar *rehearseBar() const { return m_bar; }
+    // The deck was edited (a show in a window leaves it open to editing): the show follows its slides by their pages, so that it stays on
+    // the slide it is on, or the one that took its place, with its order, its ink, and its times, and draws the slides again. The window
+    // calls this when the editor says it changed.
+    void documentChanged();
+    // The presentation was replaced by another: nothing of the old one is kept, and the show has nothing to show.
+    void rebind(const Document *doc);
     // The recording's clock, in milliseconds (the time of day unless a test gives another).
     void setClock(const std::function<qint64()> &clock)
     {
@@ -187,7 +197,8 @@ public:
     QColor laserColor() const { return m_settings.laserColor; }
     // The ink on a slide, and on all of them (by slide); a stroke being drawn is in it.
     const QVector<deck::InkStroke> &ink(int slide) const;
-    QHash<int, QVector<deck::InkStroke>> allInk() const { return m_ink; }
+    // Ink belongs to the page it was drawn on, by its id, whatever happens to the slides' places.
+    QHash<QString, QVector<deck::InkStroke>> allInk() const { return m_ink; }
     int inkCount() const;
     // Takes the ink off a slide (-1: the one on the screen).
     void eraseInk(int slide = -1);
@@ -216,6 +227,8 @@ Q_SIGNALS:
     void ended(int lastSlide);
     // The ink or the laser pointer changed, or the pointer did.
     void overlayChanged();
+    // The deck changed under the show: its slides are to be drawn again.
+    void slidesChanged();
     // The slide it is on or moving to, the step of it, the blank screen, or the end changed.
     void changed();
     // A frame of an effect that plays.
@@ -242,6 +255,11 @@ private:
     int slideAt(int pos) const { return m_order.isEmpty() ? pos : m_order[pos]; }
     int nextShown(int from, int step) const;
     int positionOf(int slide) const;
+    int placeOf(int slide) const;
+    // The page of a slide (null when there is none), and its id.
+    const Page *pageOf(int slide) const;
+    QString idOf(int slide) const;
+    bool showsCursor() const { return isWindowed() || m_recording; }
     const Play &playOf(int slide) const;
     int stepsOf(int slide) const { return int(playOf(slide).timeline.steps.size()); }
     QImage imageOf(int slide);
@@ -285,6 +303,9 @@ private:
     int m_targetPos = 0;       // where a transition is going
     int m_slide = 0;           // the slide at m_pos
     int m_startSlide = 0;      // the slide the show was asked to start at
+    QStringList m_ids;         // the ids of the pages, as the show last saw them, for following them when they change
+    QStringList m_orderIds;    // the ids of the pages in m_order
+    bool m_rebound = false;    // the presentation it showed was replaced: it shows nothing, and is to close
     int m_target = 0;          // the slide at m_targetPos
     bool m_atEnd = false;
     bool m_animating = false;
@@ -315,7 +336,16 @@ private:
     // The pointer, and the ink the pen and highlighter left, by slide.
     Pointer m_pointer = Pointer::Arrow;
     QColor m_penColor, m_highlighterColor;
-    QHash<int, QVector<deck::InkStroke>> m_ink;
+    QHash<QString, QVector<deck::InkStroke>> m_ink;   // by page id
+    quint64 m_inkRevision = 0;   // changes when ink is taken away
+    // The finished strokes of a slide with a good deal of ink, drawn once to a picture of the size they are shown at.
+    struct InkLayer {
+        QImage image;
+        int drawn = 0;
+        quint64 revision = 0;
+    };
+    mutable QHash<QString, InkLayer> m_inkLayers;
+    mutable QStringList m_inkLayerOrder;   // oldest first
     bool m_drawing = false;     // a stroke is being drawn (the last one of the slide's ink)
     bool m_erasing = false;
     bool m_tempLaser = false;   // Ctrl and the left button: the laser pointer while they are down
@@ -324,9 +354,9 @@ private:
     QImage m_fromOverlay, m_toOverlay;   // the slides a transition plays between, with their ink
     // Rehearsing.
     bool m_recording = false, m_recPaused = false;
-    int m_recSlide = -1;               // the slide being timed
+    QString m_recId;                   // the page of the slide being timed
     qint64 m_recBase = 0, m_recSince = 0;   // what its clock counted, and when it last started
-    QMap<int, qint64> m_recorded;      // by slide, milliseconds
+    QMap<QString, qint64> m_recorded;  // by page id, milliseconds
     std::function<qint64()> m_clock;
     QPointer<RehearseBar> m_bar;
 };

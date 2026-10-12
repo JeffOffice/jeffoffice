@@ -127,8 +127,9 @@ public:
     void setUpShow();
     void editCustomShows();
     void rehearseTimings();
-    // What those questions are asked with: the message box, unless this stands
-    // in for it (tests). Given the question, it says whether to keep.
+    // What those questions are asked with, and the notices the show gives (a range
+    // of slides past the end): the message box, unless this stands in for it
+    // (tests). Given the question, it says whether to keep; a notice's answer is ignored.
     void setShowQuestion(const std::function<bool(const QString &)> &ask) { m_showQuestion = ask; }
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
@@ -182,10 +183,11 @@ private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
     void createShowActions();
-    void playShow(int slide, const deck::ShowPlan &plan, bool recording);
+    void playShow(int slide, const deck::ShowPlan &plan, bool recording, bool rehearsal = false);
     void watchShow(SlideShow *show, bool recording);
-    void afterShow(const QHash<int, QVector<deck::InkStroke>> &ink, const QMap<int, double> &seconds, double total, bool recording);
+    void afterShow(const QHash<QString, QVector<deck::InkStroke>> &ink, const QMap<int, double> &seconds, double total, bool recording);
     bool askAboutShow(const QString &question, const QString &keep, const QString &discard);
+    void tellAboutShow(const QString &text);
     void createViewModeActions();   // deckwindow_views.cpp
     void addShowParts(struct RibbonParts &parts);
     void createActions();

@@ -394,6 +394,7 @@ SlideShow::SlideShow(const Document *doc, LayoutCache *cache, int startSlide, QW
     setFocusPolicy(Qt::StrongFocus);
     setCursor(Qt::BlankCursor);
     setMouseTracking(true);
+    for (const auto &page : doc->pages) m_ids << page->id;
     m_startSlide = std::clamp(startSlide, 0, std::max(0, int(doc->pages.size()) - 1));
     m_pos = nextShown(m_startSlide, 1);
     m_atEnd = m_pos < 0;   // every slide hidden: the end, on no slide
@@ -425,10 +426,21 @@ SlideShow::SlideShow(const Document *doc, LayoutCache *cache, int startSlide, QW
     connect(&m_frame, &QTimer::timeout, this, &SlideShow::stepFrame);
 }
 
+const Page *SlideShow::pageOf(int slide) const { return slide >= 0 && slide < m_doc->pages.size() ? m_doc->pages[slide].get() : nullptr; }
+
+QString SlideShow::idOf(int slide) const
+{
+    const Page *page = pageOf(slide);
+    return page ? page->id : QString();
+}
+
 int SlideShow::nextShown(int from, int step) const
 {
-    for (int i = from; i >= 0 && i < count(); i += step)
-        if (m_hiddenToo || !m_doc->pages[slideAt(i)]->hidden) return i;
+    for (int i = from; i >= 0 && i < count(); i += step) {
+        // A slide that is not there (the deck was edited) is not shown.
+        const Page *page = pageOf(slideAt(i));
+        if (page && (m_hiddenToo || !page->hidden)) return i;
+    }
     return -1;
 }
 
@@ -439,10 +451,22 @@ int SlideShow::positionOf(int slide) const
     return int(m_order.indexOf(slide));
 }
 
+// The next place after the one the show is at that has the slide, going round to the first.
+int SlideShow::placeOf(int slide) const
+{
+    if (m_order.isEmpty()) return positionOf(slide);
+    const int at = m_atEnd ? -1 : m_animating ? m_targetPos : m_pos, n = int(m_order.size());
+    for (int k = 1; k <= n; ++k)
+        if (const int pos = (at + k) % n; m_order[pos] == slide) return pos;
+    return -1;
+}
+
+// What a click goes to: the next slide, and in a looping show the first after the last.
 int SlideShow::slideAfter() const
 {
     const int pos = m_animating ? m_targetPos : m_pos;
-    const int n = nextShown(pos + 1, 1);
+    int n = nextShown(pos + 1, 1);
+    if (n < 0 && m_settings.looping()) n = nextShown(0, 1);
     return n < 0 ? -1 : slideAt(n);
 }
 
@@ -450,7 +474,7 @@ QList<int> SlideShow::playedSlides() const
 {
     QList<int> out;
     for (int i = 0; i < count(); ++i)
-        if (m_hiddenToo || !m_doc->pages[slideAt(i)]->hidden) out << slideAt(i);
+        if (const Page *page = pageOf(slideAt(i)); page && (m_hiddenToo || !page->hidden)) out << slideAt(i);
     return out;
 }
 
@@ -463,9 +487,9 @@ void SlideShow::setSettings(const deck::ShowSettings &settings)
         setWindowFlag(Qt::FramelessWindowHint, false);
         unsetCursor();
         setWindowTitle(tr("Slide Show"));
-    } else if (!m_rehearsal) {
-        setWindowFlag(Qt::FramelessWindowHint, true);
-        setCursor(Qt::BlankCursor);
+    } else {
+        if (!m_rehearsal) setWindowFlag(Qt::FramelessWindowHint, true);
+        updateCursor();
     }
     m_plays.clear();
 }
@@ -474,8 +498,12 @@ void SlideShow::setSettings(const deck::ShowSettings &settings)
 void SlideShow::setSlides(const QList<int> &slides, bool includeHidden)
 {
     m_order.clear();
+    m_orderIds.clear();
     for (const int slide : slides)
-        if (slide >= 0 && slide < m_doc->pages.size()) m_order << slide;
+        if (slide >= 0 && slide < m_doc->pages.size()) {
+            m_order << slide;
+            m_orderIds << m_doc->pages[slide]->id;
+        }
     m_hiddenToo = includeHidden && !m_order.isEmpty();
     m_pos = nextShown(m_order.isEmpty() ? m_startSlide : 0, 1);
     m_atEnd = m_pos < 0;
@@ -483,6 +511,103 @@ void SlideShow::setSlides(const QList<int> &slides, bool includeHidden)
     m_pos = m_targetPos = std::max(0, m_pos);
     m_images.clear();
     m_nowValid = false;
+}
+
+// ---- following the deck when it is edited ----
+
+void SlideShow::documentChanged()
+{
+    if (m_rebound) return;
+    QStringList ids;
+    ids.reserve(m_doc->pages.size());
+    for (const auto &page : m_doc->pages) ids << page->id;
+    // What was drawn is drawn again: the slides may have changed inside.
+    m_images.clear();
+    m_frames.clear();
+    m_nowValid = false;
+    if (ids == m_ids) {
+        update();
+        Q_EMIT slidesChanged();
+        return;
+    }
+    // The pages are not as they were: the show stays on its page, or on the place of the one that went.
+    const int oldPos = m_animating ? m_targetPos : m_pos;
+    const QString nowId = m_ids.value(m_animating ? m_target : m_slide);
+    m_anim.stop();
+    m_animating = false;
+    m_fromOverlay = m_toOverlay = QImage();
+    m_frame.stop();
+    m_auto.stop();
+    m_playing = -1;
+    m_done = 0;
+    m_drawing = m_erasing = false;
+    m_plays.clear();
+    QHash<QString, int> index;
+    for (int i = 0; i < ids.size(); ++i) index.insert(ids[i], i);
+    bool gone = ids.isEmpty();
+    if (!m_order.isEmpty()) {
+        QList<int> order;
+        QStringList orderIds;
+        int exact = -1, before = 0;
+        for (int i = 0; i < m_orderIds.size(); ++i) {
+            const auto it = index.constFind(m_orderIds[i]);
+            if (it == index.constEnd()) continue;
+            if (i < oldPos) ++before;
+            if (i == oldPos) exact = int(order.size());
+            order << it.value();
+            orderIds << m_orderIds[i];
+        }
+        m_order = order;
+        m_orderIds = orderIds;
+        gone = order.isEmpty();
+        if (!gone) m_pos = exact >= 0 ? exact : std::min(before, int(order.size()) - 1);
+    } else if (!gone) {
+        const auto it = index.constFind(nowId);
+        m_pos = it != index.constEnd() ? it.value() : std::clamp(oldPos, 0, int(ids.size()) - 1);
+    }
+    m_ids = ids;
+    // The times of slides that are gone are gone.
+    for (auto it = m_recorded.begin(); it != m_recorded.end();) it = index.contains(it.key()) ? std::next(it) : m_recorded.erase(it);
+    if (gone) {
+        m_atEnd = true;
+        m_slide = m_target = -1;
+        m_pos = m_targetPos = 0;
+        update();
+    } else {
+        m_targetPos = m_pos;
+        m_slide = m_target = slideAt(m_pos);
+        settle();
+    }
+    Q_EMIT changed();
+    Q_EMIT slidesChanged();
+}
+
+void SlideShow::rebind(const Document *doc)
+{
+    m_doc = doc;
+    m_rebound = true;
+    m_anim.stop();
+    m_animating = false;
+    m_fromOverlay = m_toOverlay = QImage();
+    m_frame.stop();
+    m_auto.stop();
+    m_playing = -1;
+    m_done = 0;
+    m_drawing = m_erasing = false;
+    m_plays.clear();
+    m_images.clear();
+    m_frames.clear();
+    m_nowValid = false;
+    m_inkLayers.clear();
+    m_inkLayerOrder.clear();
+    m_ids.clear();
+    m_order.clear();
+    m_orderIds.clear();
+    m_hiddenToo = false;
+    m_atEnd = true;
+    m_slide = m_target = -1;
+    m_pos = m_targetPos = 0;
+    update();
 }
 
 PresenterView *SlideShow::presenterView() const { return m_presenter; }
@@ -544,7 +669,7 @@ void SlideShow::moveOn()
         Q_EMIT changed();
         return;
     }
-    const deck::Transition t = deck::transitionOf(*m_doc->pages[slideAt(n)]);
+    const deck::Transition t = deck::transitionOf(*pageOf(slideAt(n)));
     if (t.type != QLatin1String("none") && !wasBlank) startTransition(n, t);
     else showSlide(n);
 }
@@ -573,11 +698,15 @@ void SlideShow::previous()
     }
 }
 
-// To the slide with that number, the first time it plays; nothing for a slide the show doesn't play.
 void SlideShow::goTo(int slide)
 {
-    const int pos = positionOf(slide);
-    if (slide < 0 || slide >= m_doc->pages.size() || pos < 0) return;
+    if (slide < 0 || slide >= m_doc->pages.size()) return;
+    goToPosition(placeOf(slide));
+}
+
+void SlideShow::goToPosition(int pos)
+{
+    if (pos < 0 || pos >= count() || !pageOf(slideAt(pos))) return;
     finishTransition();
     m_auto.stop();
     m_blank = QColor();
@@ -589,6 +718,8 @@ void SlideShow::goTo(int slide)
 void SlideShow::showSlide(int pos, int steps)
 {
     m_frame.stop();
+    // A stroke being drawn stays on the slide it began on.
+    m_drawing = m_erasing = false;
     m_pos = m_targetPos = pos;
     m_slide = m_target = slideAt(pos);
     m_done = std::min(steps, stepsOf(m_slide));
@@ -613,6 +744,7 @@ void SlideShow::startTransition(int pos, const deck::Transition &t)
     const int slide = slideAt(pos);
     m_fromOverlay = withOverlay(nowImage(), m_slide);
     m_toOverlay = withOverlay(imageOf(slide), slide);
+    m_drawing = m_erasing = false;
     m_targetPos = pos;
     m_target = slide;
     timeSlide(slide);
@@ -637,6 +769,7 @@ void SlideShow::endTransition()
     m_animating = false;
     m_anim.stop();
     m_fromOverlay = m_toOverlay = QImage();
+    m_drawing = m_erasing = false;
     m_slide = m_target;
     m_pos = m_targetPos;
     m_done = 0;
@@ -659,7 +792,9 @@ void SlideShow::startAutoAdvance()
     m_auto.stop();
     // The slides' times move the show on, unless the presenter did not ask for them, or they are being made.
     if (!m_started || m_atEnd || m_animating || m_playing >= 0 || m_recording || !m_settings.usesTimings()) return;
-    if (const auto after = deck::transitionOf(*m_doc->pages[m_slide]).advanceAfter) m_auto.start(std::max(0, qRound(*after * 1000)));
+    const Page *page = pageOf(m_slide);
+    if (!page) return;
+    if (const auto after = deck::transitionOf(*page).advanceAfter) m_auto.start(std::max(0, qRound(*after * 1000)));
 }
 
 // ---- the slide's animations ----
@@ -929,10 +1064,10 @@ void SlideShow::keyPressEvent(QKeyEvent *e)
         previous();
         break;
     case Qt::Key_Home:
-        if (const int first = nextShown(0, 1); first >= 0) goTo(slideAt(first));
+        goToPosition(nextShown(0, 1));
         break;
     case Qt::Key_End:
-        if (const int last = nextShown(count() - 1, -1); last >= 0) goTo(slideAt(last));
+        goToPosition(nextShown(count() - 1, -1));
         break;
     case Qt::Key_B: case Qt::Key_Period:
         toggleBlank(Qt::black);
@@ -1007,7 +1142,8 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
         // A slide that doesn't move on at a click leaves that to the keys (its steps still play at one); the end screen always does.
         const int shown = m_animating ? m_target : m_slide;
         const bool stepsLeft = !m_animating && (m_playing >= 0 || m_done < stepCount());
-        if (m_atEnd || stepsLeft || deck::transitionOf(*m_doc->pages[shown]).advanceOnClick) next();
+        const Page *shownPage = pageOf(shown);
+        if (m_atEnd || stepsLeft || !shownPage || deck::transitionOf(*shownPage).advanceOnClick) next();
     } else if (e->button() == Qt::RightButton) {
         if (isKiosk()) return;
         // The menu; a rehearsal has none, and goes back.
@@ -1027,14 +1163,11 @@ void SlideShow::mouseMoveEvent(QMouseEvent *e)
         moveTo(pageAt(e->position()));
         return;
     }
-    if (m_rehearsal || m_pointer != Pointer::Arrow) return;
+    if (m_pointer != Pointer::Arrow) return;
     const bool link = !linkAt(e->position()).isEmpty();
-    if (isWindowed()) {
-        if (link) setCursor(Qt::PointingHandCursor);
-        else unsetCursor();
-    } else {
-        setCursor(link ? Qt::PointingHandCursor : Qt::BlankCursor);
-    }
+    if (link) setCursor(Qt::PointingHandCursor);
+    else if (showsCursor()) unsetCursor();
+    else setCursor(Qt::BlankCursor);
 }
 
 void SlideShow::mouseReleaseEvent(QMouseEvent *e)
@@ -1075,7 +1208,7 @@ void SlideShow::setInkColor(const QColor &color)
 const QVector<deck::InkStroke> &SlideShow::ink(int slide) const
 {
     static const QVector<deck::InkStroke> none;
-    const auto it = m_ink.constFind(slide);
+    const auto it = m_ink.constFind(idOf(slide));
     return it == m_ink.constEnd() ? none : it.value();
 }
 
@@ -1089,14 +1222,15 @@ int SlideShow::inkCount() const
 void SlideShow::eraseInk(int slide)
 {
     if (slide < 0) slide = m_slide;
-    if (m_recording || isKiosk() || !m_ink.remove(slide)) return;
+    if (m_recording || isKiosk() || !m_ink.remove(idOf(slide))) return;
+    ++m_inkRevision;
     m_drawing = m_erasing = false;
     changeOverlay();
 }
 
 void SlideShow::pressAt(const QPointF &page)
 {
-    if (m_atEnd || m_animating || m_slide < 0 || isKiosk() || m_recording) return;
+    if (m_atEnd || m_animating || !pageOf(m_slide) || isKiosk() || m_recording) return;
     const Pointer pointer = m_tempLaser ? Pointer::Laser : m_pointer;
     const double width = m_doc->pageSize().width();
     if (pointer == Pointer::Pen || pointer == Pointer::Highlighter) {
@@ -1105,7 +1239,7 @@ void SlideShow::pressAt(const QPointF &page)
         stroke.highlighter = pointer == Pointer::Highlighter;
         stroke.color = stroke.highlighter ? m_highlighterColor : m_penColor;
         stroke.width = stroke.highlighter ? deck::highlighterWeightFor(width) : deck::penWeightFor(width);
-        m_ink[m_slide].append(stroke);
+        m_ink[idOf(m_slide)].append(stroke);
         m_drawing = true;
         const double r = stroke.width;
         changeOverlay(QRectF(page, page).adjusted(-r, -r, r, r));
@@ -1122,7 +1256,7 @@ void SlideShow::moveTo(const QPointF &page)
     if (m_atEnd || m_animating) return;
     const double width = m_doc->pageSize().width();
     if (m_drawing) {
-        auto it = m_ink.find(m_slide);
+        auto it = m_ink.find(idOf(m_slide));
         if (it == m_ink.end() || it->isEmpty() || it->last().points.isEmpty()) return;
         deck::InkStroke &stroke = it->last();
         const QPointF last = stroke.points.last();
@@ -1146,7 +1280,7 @@ void SlideShow::moveTo(const QPointF &page)
 
 void SlideShow::erasePoint(const QPointF &page)
 {
-    auto it = m_ink.find(m_slide);
+    auto it = m_ink.find(idOf(m_slide));
     if (it == m_ink.end()) return;
     const double reach = deck::eraserReachFor(m_doc->pageSize().width());
     bool any = false;
@@ -1156,7 +1290,10 @@ void SlideShow::erasePoint(const QPointF &page)
             any = true;
         }
     if (it->isEmpty()) m_ink.erase(it);
-    if (any) changeOverlay();
+    if (any) {
+        ++m_inkRevision;
+        changeOverlay();
+    }
 }
 
 void SlideShow::releasePointer()
@@ -1196,12 +1333,9 @@ void SlideShow::updateCursor()
 {
     const Pointer pointer = m_tempLaser ? Pointer::Laser : m_pointer;
     if (pointer == Pointer::Arrow || pointer == Pointer::Laser) {
-        if (m_rehearsal || isWindowed()) {
-            if (pointer == Pointer::Laser) setCursor(Qt::BlankCursor);
-            else unsetCursor();
-        } else {
-            setCursor(Qt::BlankCursor);
-        }
+        // The arrow shows in a window and while the times are recorded (the bar is clicked with it); the laser pointer is drawn instead.
+        if (showsCursor() && pointer == Pointer::Arrow) unsetCursor();
+        else setCursor(Qt::BlankCursor);
         return;
     }
     const qreal dpr = devicePixelRatioF();
@@ -1237,9 +1371,29 @@ void SlideShow::updateCursor()
 // Ink, and the laser pointer's dot, over a slide drawn to fill `at` (a window of the show's, or Presenter View's).
 void SlideShow::paintOverlay(QPainter *p, int slide, const QRectF &at) const { paintInk(p, slide, at, true); }
 
+namespace {
+// A slide with at least this many points in its finished strokes (a pen stroke has some hundreds) is drawn from a picture of them.
+constexpr qint64 kInkPictureAt = 5000;
+// The pictures kept: each is as large as the slide's place on a screen.
+constexpr int kInkPictures = 4;
+
+void drawStrokes(QPainter *p, const QVector<deck::InkStroke> &strokes, int from, int to)
+{
+    p->setBrush(Qt::NoBrush);
+    for (int i = from; i < to; ++i) {
+        const deck::InkStroke &stroke = strokes[i];
+        QColor c = stroke.color;
+        if (stroke.highlighter) c.setAlphaF(1 - deck::kHighlighterClearness);
+        p->setPen(QPen(c, stroke.width, Qt::SolidLine, stroke.highlighter ? Qt::SquareCap : Qt::RoundCap, Qt::RoundJoin));
+        p->drawPath(deck::inkPath(stroke));
+    }
+}
+} // namespace
+
 void SlideShow::paintInk(QPainter *p, int slide, const QRectF &at, bool laser) const
 {
-    const auto it = m_ink.constFind(slide);
+    const QString id = idOf(slide);
+    const auto it = m_ink.constFind(id);
     const bool ink = it != m_ink.constEnd() && !it->isEmpty();
     const bool dot = laser && m_laserShown && slide == m_slide && !m_animating && !m_atEnd && !m_blank.isValid() && (m_pointer == Pointer::Laser || m_tempLaser);
     const double width = m_doc->pageSize().width();
@@ -1247,18 +1401,47 @@ void SlideShow::paintInk(QPainter *p, int slide, const QRectF &at, bool laser) c
     p->save();
     p->setRenderHint(QPainter::Antialiasing);
     p->setClipRect(at);
+    // The strokes that are finished come from a picture, made once and added to as strokes finish (and made again when ink is taken
+    // away); the one being drawn, and a slide with little ink, are drawn straight.
+    int straight = 0;
+    if (ink) {
+        const QVector<deck::InkStroke> &strokes = *it;
+        const int finished = int(strokes.size()) - (m_drawing && slide == m_slide ? 1 : 0);
+        qint64 points = 0;
+        for (int i = 0; i < finished && points < kInkPictureAt; ++i) points += strokes[i].points.size();
+        if (points >= kInkPictureAt) {
+            const qreal dpr = p->device()->devicePixelRatioF();
+            const QSize px(std::max(1, qRound(at.width() * dpr)), std::max(1, qRound(at.height() * dpr)));
+            const QString key = id + QLatin1Char('|') + QString::number(px.width()) + QLatin1Char('x') + QString::number(px.height());
+            m_inkLayerOrder.removeAll(key);
+            m_inkLayerOrder << key;
+            while (m_inkLayerOrder.size() > kInkPictures) m_inkLayers.remove(m_inkLayerOrder.takeFirst());
+            InkLayer &layer = m_inkLayers[key];
+            if (layer.image.size() != px || layer.revision != m_inkRevision || layer.drawn > finished) {
+                if (layer.image.size() != px) {
+                    layer.image = QImage(px, QImage::Format_ARGB32_Premultiplied);
+                    layer.image.setDevicePixelRatio(dpr);
+                }
+                layer.image.fill(Qt::transparent);
+                layer.drawn = 0;
+                layer.revision = m_inkRevision;
+            }
+            if (layer.drawn < finished) {
+                QPainter lp(&layer.image);
+                lp.setRenderHint(QPainter::Antialiasing);
+                const double scale = (px.width() / dpr) / width;
+                lp.scale(scale, scale);
+                drawStrokes(&lp, strokes, layer.drawn, finished);
+                layer.drawn = finished;
+            }
+            p->drawImage(QRectF(at.topLeft(), QSizeF(px) / dpr), layer.image);
+            straight = finished;
+        }
+    }
     p->translate(at.topLeft());
     const double scale = at.width() / width;
     p->scale(scale, scale);
-    if (ink) {
-        p->setBrush(Qt::NoBrush);
-        for (const deck::InkStroke &stroke : *it) {
-            QColor c = stroke.color;
-            if (stroke.highlighter) c.setAlphaF(1 - deck::kHighlighterClearness);
-            p->setPen(QPen(c, stroke.width, Qt::SolidLine, stroke.highlighter ? Qt::SquareCap : Qt::RoundCap, Qt::RoundJoin));
-            p->drawPath(deck::inkPath(stroke));
-        }
-    }
+    if (ink) drawStrokes(p, *it, straight, int(it->size()));
     if (dot) {
         const double r = 7 * width / deck::kInkSlideWidth;
         QColor core = m_settings.laserColor, glow = core;
@@ -1280,7 +1463,7 @@ void SlideShow::paintInk(QPainter *p, int slide, const QRectF &at, bool laser) c
 // An image of a slide with its ink on it, as a transition plays it; the image itself when the slide has none.
 QImage SlideShow::withOverlay(const QImage &image, int slide) const
 {
-    const auto it = m_ink.constFind(slide);
+    const auto it = m_ink.constFind(idOf(slide));
     if (image.isNull() || it == m_ink.constEnd() || it->isEmpty()) return image;
     QImage copy = image;
     QPainter p(&copy);
@@ -1330,13 +1513,8 @@ QMenu *SlideShow::pointerMenu(QWidget *parent)
     menu->addSeparator();
     QMenu *colors = menu->addMenu(tr("Ink Color"));
     colors->setObjectName(QStringLiteral("inkColorMenu"));
-    const struct { QString name; QColor color; } palette[] = {
-        {tr("Red"), QColor(255, 0, 0)},       {tr("Orange"), QColor(255, 140, 0)},  {tr("Yellow"), QColor(255, 255, 0)},
-        {tr("Green"), QColor(0, 176, 80)},    {tr("Light Blue"), QColor(0, 176, 240)}, {tr("Blue"), QColor(0, 112, 192)},
-        {tr("Purple"), QColor(112, 48, 160)}, {tr("Black"), QColor(0, 0, 0)},       {tr("White"), QColor(255, 255, 255)},
-    };
     auto *colorGroup = new QActionGroup(colors);
-    for (const auto &c : palette) {
+    for (const deck::InkColor &c : deck::inkColors()) {
         QAction *a = colors->addAction(swatch(c.color), c.name);
         a->setCheckable(true);
         a->setActionGroup(colorGroup);
@@ -1364,12 +1542,16 @@ QMenu *SlideShow::buildMenu(QWidget *parent)
     connect(previousAction, &QAction::triggered, this, [this] { previous(); });
     QMenu *go = menu->addMenu(tr("Go to Slide"));
     go->setObjectName(QStringLiteral("goToSlideMenu"));
-    for (const int slide : playedSlides()) {
-        const QString title = deck::slideTitle(*m_doc, slide);
-        QAction *a = go->addAction(QStringLiteral("%1  %2").arg(slide + 1).arg(title));
+    // One for each place the show has (a custom show may list a slide twice), the one it is at checked; an ampersand in a title is not a key.
+    const int here = m_animating ? m_targetPos : m_pos;
+    for (int pos = 0; pos < count(); ++pos) {
+        const Page *page = pageOf(slideAt(pos));
+        if (!page || (!m_hiddenToo && page->hidden)) continue;
+        const int slide = slideAt(pos);
+        QAction *a = go->addAction(QStringLiteral("%1  %2").arg(slide + 1).arg(deck::slideTitle(*m_doc, slide).replace(QLatin1Char('&'), QStringLiteral("&&"))));
         a->setCheckable(true);
-        a->setChecked(slide == m_slide);
-        connect(a, &QAction::triggered, this, [this, slide] { goTo(slide); });
+        a->setChecked(!m_atEnd && pos == here);
+        connect(a, &QAction::triggered, this, [this, pos] { goToPosition(pos); });
     }
     menu->addSeparator();
     menu->addMenu(pointerMenu(menu));
@@ -1396,11 +1578,12 @@ void SlideShow::setRecording(bool on)
 {
     m_recording = on;
     m_pointer = on ? Pointer::Arrow : m_pointer;
+    updateCursor();   // the arrow shows while the bar is used
     delete m_bar;
     m_bar = nullptr;
     m_recorded.clear();
     m_recPaused = false;
-    m_recSlide = on && !m_atEnd ? m_slide : -1;
+    m_recId = on && !m_atEnd ? idOf(m_slide) : QString();
     m_recBase = 0;
     m_recSince = clockNow();
     if (on) {
@@ -1413,22 +1596,26 @@ void SlideShow::setRecording(bool on)
 
 qint64 SlideShow::slideClock() const
 {
-    return m_recSlide < 0 ? 0 : m_recBase + (m_recPaused ? 0 : std::max<qint64>(0, clockNow() - m_recSince));
+    return m_recId.isEmpty() ? 0 : m_recBase + (m_recPaused ? 0 : std::max<qint64>(0, clockNow() - m_recSince));
 }
 
 qint64 SlideShow::totalClock() const
 {
     qint64 total = slideClock();
     for (auto it = m_recorded.cbegin(); it != m_recorded.cend(); ++it)
-        if (it.key() != m_recSlide) total += it.value();
+        if (it.key() != m_recId) total += it.value();
     return total;
 }
 
+// The seconds of each slide the show is on or was, by the slide's number now; a slide that is gone from the presentation has none.
 QMap<int, double> SlideShow::recordedSeconds() const
 {
+    const QHash<QString, int> pages = deck::pageIndexById(*m_doc);
     QMap<int, double> out;
-    for (auto it = m_recorded.cbegin(); it != m_recorded.cend(); ++it) out.insert(it.key(), it.value() / 1000.0);
-    if (m_recSlide >= 0 && slideClock() > 0) out.insert(m_recSlide, slideClock() / 1000.0);
+    for (auto it = m_recorded.cbegin(); it != m_recorded.cend(); ++it)
+        if (const auto at = pages.constFind(it.key()); at != pages.constEnd()) out.insert(at.value(), it.value() / 1000.0);
+    if (!m_recId.isEmpty() && slideClock() > 0)
+        if (const auto at = pages.constFind(m_recId); at != pages.constEnd()) out.insert(at.value(), slideClock() / 1000.0);
     return out;
 }
 
@@ -1437,10 +1624,11 @@ double SlideShow::recordedTotal() const { return totalClock() / 1000.0; }
 // The slide on the screen is the one being timed: the one before keeps its time.
 void SlideShow::timeSlide(int slide)
 {
-    if (!m_recording || slide == m_recSlide) return;
+    const QString id = idOf(slide);
+    if (!m_recording || id == m_recId) return;
     // A slide left at once has no time to record, and keeps the one it had.
-    if (m_recSlide >= 0 && slideClock() > 0) m_recorded[m_recSlide] = slideClock();
-    m_recSlide = slide;
+    if (!m_recId.isEmpty() && slideClock() > 0) m_recorded[m_recId] = slideClock();
+    m_recId = id;
     m_recBase = 0;
     m_recSince = clockNow();
 }
@@ -1455,7 +1643,7 @@ void SlideShow::pauseRecording(bool paused)
 
 void SlideShow::repeatSlide()
 {
-    if (!m_recording || m_recSlide < 0) return;
+    if (!m_recording || m_recId.isEmpty()) return;
     m_recBase = 0;
     m_recSince = clockNow();
 }
@@ -1466,7 +1654,7 @@ void SlideShow::showEvent(QShowEvent *e)
     if (m_started) return;
     m_started = true;
     // The time on the first slide counts from when it is on the screen.
-    if (m_recording && m_recSlide >= 0) {
+    if (m_recording && !m_recId.isEmpty()) {
         m_recBase = 0;
         m_recSince = clockNow();
     }

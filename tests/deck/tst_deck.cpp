@@ -7002,6 +7002,216 @@ private Q_SLOTS:
         QCOMPARE(shows.result(), int(QDialog::Accepted));
     }
 
+    // A show in a window leaves the deck editable, so the show follows the slides by their pages: a slide taken away, one before it
+    // gone, and slides moved or put back leave it on the slide it was on (or the next, when that one is gone), and nothing reads a
+    // slide that isn't there.
+    void windowedShowFollowsTheDecksPages()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        w.newSlide();   // four slides
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Individual;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        w.setShowQuestion([](const QString &) { return true; });
+        // The slide the show is on is taken away: it lands on the one that took its place, and moves on from there.
+        w.startShow(3);
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->isWindowed());
+        QCOMPARE(show->currentSlide(), 3);
+        ed->deletePage(3);
+        QCOMPARE(show->currentSlide(), 2);
+        QCOMPARE(show->playedSlides(), (QList<int>{0, 1, 2}));
+        show->resize(960, 540);
+        QTest::mouseClick(show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 530));
+        QCOMPARE(show->currentSlide(), -1);   // the end: nothing past the last slide was read
+        QTest::keyClick(show, Qt::Key_Left);
+        QCOMPARE(show->currentSlide(), 2);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        // A slide before it goes, one is moved, and the change is undone: it stays on its own slide.
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 4);
+        const QString third = ed->doc()->pages[2]->id;
+        w.startShow(2);
+        show = w.slideShow();
+        QVERIFY(show);
+        show->setPointer(SlideShow::Pointer::Pen);
+        show->pressAt(QPointF(100, 100));
+        show->moveTo(QPointF(200, 120));
+        show->releasePointer();
+        ed->deletePage(0);
+        QCOMPARE(ed->doc()->pages[1]->id, third);
+        QCOMPARE(show->currentSlide(), 1);
+        QCOMPARE(int(show->ink(1).size()), 1);   // the ink went with its slide
+        QCOMPARE(int(show->ink(2).size()), 0);
+        ed->movePage(1, 2);
+        QCOMPARE(ed->doc()->pages[2]->id, third);
+        QCOMPARE(show->currentSlide(), 2);
+        QCOMPARE(int(show->ink(2).size()), 1);
+        ed->undo();   // moved back
+        QCOMPARE(show->currentSlide(), 1);
+        ed->undo();   // the deleted slide is back before it
+        QCOMPARE(int(ed->doc()->pages.size()), 4);
+        QCOMPARE(show->currentSlide(), 2);
+        QCOMPARE(show->playedSlides(), (QList<int>{0, 1, 2, 3}));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        // A custom show: the slides it lists are followed too, and a place that goes is passed to the next.
+        deck::CustomShow c;
+        c.id = 5;
+        c.name = QStringLiteral("Around");
+        c.slides = {ed->doc()->pages[3]->id, ed->doc()->pages[0]->id, ed->doc()->pages[3]->id};
+        ed->beginChange(QStringLiteral("test"));
+        deck::setCustomShows(*ed->doc(), {c});
+        ed->endChange();
+        const QString first = ed->doc()->pages[0]->id;
+        w.startCustomShow(5);
+        show = w.slideShow();
+        QVERIFY(show);
+        show->next();
+        QCOMPARE(show->currentSlide(), 0);   // the middle place: slide 1
+        ed->deletePage(2);                  // a slide the show does not list
+        QCOMPARE(show->currentSlide(), 0);
+        QCOMPARE(show->playedSlides(), (QList<int>{2, 0, 2}));
+        ed->deletePage(0);                  // the slide it is on: the next place, which is the last slide again
+        QCOMPARE(show->playedSlides(), (QList<int>{1, 1}));
+        QCOMPARE(show->currentSlide(), 1);
+        show->next();
+        QCOMPARE(show->currentSlide(), -1);
+        QVERIFY(ed->doc()->pages[0]->id != first);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // The rehearsal window (Alt+F5) and Presenter View beside it follow the deck's pages too.
+    void rehearsalWindowFollowsTheDecksPages()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        ed->setCurrentPage(2);
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        QCOMPARE(show->currentSlide(), 2);
+        ed->deletePage(2);
+        QCOMPARE(show->currentSlide(), 1);
+        QCOMPARE(show->presenterView()->counterText(), QStringLiteral("Slide 2 of 2"));
+        show->resize(640, 360);
+        QTest::mouseClick(show, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QCOMPARE(show->currentSlide(), -1);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A new presentation put in the window while a show is open ends the show, with nothing read from the old one.
+    void windowedShowEndsWhenTheDocumentIsReplaced()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Individual;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        QStringList asked;
+        w.setShowQuestion([&](const QString &q) {
+            asked << q;
+            return true;
+        });
+        w.startShow(1);
+        QPointer<SlideShow> show = w.slideShow();
+        QVERIFY(show);
+        show->setPointer(SlideShow::Pointer::Pen);
+        show->pressAt(QPointF(100, 100));
+        show->moveTo(QPointF(200, 120));
+        show->releasePointer();
+        ed->setDocument(deck::newPresentation());
+        QTRY_VERIFY(show.isNull() || !show->isVisible());
+        QTRY_VERIFY(!w.slideShow());
+        QCOMPARE(ed->currentPage(), 0);
+        QCoreApplication::processEvents();
+        QVERIFY(asked.isEmpty());   // the ink was on slides this presentation does not have
+    }
+
+    // Ink is kept on the slide it was drawn on, whatever happened to the slides' places, and not asked about when its slide is gone.
+    void keptInkLandsOnItsOwnSlide()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Individual;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        QStringList asked;
+        w.setShowQuestion([&](const QString &q) {
+            asked << q;
+            return true;
+        });
+        auto draw = [&](SlideShow *show) {
+            show->setPointer(SlideShow::Pointer::Pen);
+            show->pressAt(QPointF(100, 100));
+            show->moveTo(QPointF(200, 120));
+            show->releasePointer();
+        };
+        // Ink on the third slide, and the first goes: it lands on the page it was drawn on.
+        const QString third = ed->doc()->pages[2]->id;
+        const int before = int(ed->doc()->pages[2]->items.size());
+        w.startShow(2);
+        draw(w.slideShow());
+        ed->deletePage(0);
+        w.slideShow()->close();
+        QTRY_COMPARE(asked.size(), 1);
+        QTRY_COMPARE(int(ed->doc()->pages[1]->items.size()), before + 1);
+        QCOMPARE(ed->doc()->pages[1]->id, third);
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        // Ink on a slide that is then deleted is nothing to keep, and nothing is asked.
+        asked.clear();
+        w.startShow(1);
+        draw(w.slideShow());
+        ed->deletePage(1);
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+        QVERIFY(asked.isEmpty());
+        QCOMPARE(int(ed->doc()->pages.size()), 1);
+    }
+
+    // The mouse pointer shows while the times are recorded: the bar's buttons are clicked with it.
+    void rehearsalShowsTheArrow()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        show.setSettings(s);
+        QCOMPARE(int(show.cursor().shape()), int(Qt::BlankCursor));
+        show.setRecording(true);
+        QVERIFY(show.cursor().shape() != Qt::BlankCursor);
+        QVERIFY(show.rehearseBar()->cursor().shape() != Qt::BlankCursor);
+        QVERIFY(show.rehearseBar()->findChild<QAbstractButton *>(QStringLiteral("rehearseNext"))->cursor().shape() != Qt::BlankCursor);
+        show.resize(960, 540);
+        QMouseEvent move(QEvent::MouseMove, QPointF(300, 300), QPointF(show.mapToGlobal(QPoint(300, 300))), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(&show, &move);
+        QVERIFY(show.cursor().shape() != Qt::BlankCursor);
+        show.setSettings(s);   // however the settings came
+        QVERIFY(show.cursor().shape() != Qt::BlankCursor);
+        show.setRecording(false);
+        QCOMPARE(int(show.cursor().shape()), int(Qt::BlankCursor));
+    }
+
     // A file's unnamed custom shows are named in one pass: a thousand take a moment, not half a minute.
     void unnamedCustomShowsAreNamedQuickly()
     {
@@ -7035,6 +7245,110 @@ private Q_SLOTS:
         QCOMPARE(int(names.size()), 1000);   // each its own
         QCOMPARE(got[0].name, QStringLiteral("Custom Show 1"));
         QCOMPARE(got[999].name, QStringLiteral("Custom Show 1000"));
+    }
+
+    // A stroke being drawn stays on the slide it began on when the show moves on with the button held; so does an erasing.
+    void strokeStaysOnItsSlideWhenTheShowMovesOn()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 1);
+        show.setPointer(SlideShow::Pointer::Pen);
+        show.pressAt(QPointF(100, 100));
+        show.moveTo(QPointF(200, 100));
+        show.releasePointer();   // a stroke on slide 2
+        QCOMPARE(int(show.ink(1)[0].points.size()), 2);
+        show.goTo(0);
+        show.pressAt(QPointF(100, 300));
+        show.moveTo(QPointF(150, 300));
+        QTest::keyClick(&show, Qt::Key_Right);   // on with the button held
+        QCOMPARE(show.currentSlide(), 1);
+        QVERIFY(!show.isDrawing());
+        show.moveTo(QPointF(300, 300));
+        show.moveTo(QPointF(400, 300));
+        show.releasePointer();
+        QCOMPARE(int(show.ink(1).size()), 1);
+        QCOMPARE(int(show.ink(1)[0].points.size()), 2);   // the other slide's stroke did not grow
+        QCOMPARE(int(show.ink(0).size()), 1);
+        QCOMPARE(int(show.ink(0)[0].points.size()), 2);
+        // The same for the eraser, held down over a slide change.
+        show.setPointer(SlideShow::Pointer::Eraser);
+        show.pressAt(QPointF(5, 5));
+        show.goTo(2);
+        show.next();
+        QVERIFY(show.currentSlide() == -1 || show.currentSlide() == 2);
+        show.goTo(1);
+        show.moveTo(QPointF(150, 100));   // over the stroke on slide 2
+        show.releasePointer();
+        QCOMPARE(int(show.ink(1).size()), 1);
+        // And with a transition playing into a slide that has a stroke of its own.
+        deck::setTransition(*d->pages[2], showTransition("fade", 30));
+        show.setPointer(SlideShow::Pointer::Pen);
+        show.goTo(2);
+        show.pressAt(QPointF(100, 400));
+        show.moveTo(QPointF(200, 400));
+        show.releasePointer();
+        show.goTo(1);
+        show.pressAt(QPointF(100, 300));
+        show.next();   // onto slide 3, with its transition
+        QVERIFY(show.isAnimating());
+        QVERIFY(!show.isDrawing());
+        show.finishTransition();
+        QCOMPARE(show.currentSlide(), 2);
+        show.moveTo(QPointF(250, 250));
+        show.moveTo(QPointF(300, 250));
+        show.releasePointer();
+        QCOMPARE(int(show.ink(2).size()), 1);
+        QCOMPARE(int(show.ink(2)[0].points.size()), 2);
+    }
+
+    // A custom show that lists a slide twice: End, a number typed, and Go to Slide go to a place of it, not the first one.
+    void customShowPlacesAreNotTheirSlides()
+    {
+        auto d = showDeck(5);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.setSlides({3, 0, 3}, true);
+        QCOMPARE(show.currentSlide(), 3);
+        // End is the last place: back from it is the place before.
+        QTest::keyClick(&show, Qt::Key_End);
+        QCOMPARE(show.currentSlide(), 3);
+        QTest::keyClick(&show, Qt::Key_Left);
+        QCOMPARE(show.currentSlide(), 0);
+        // Home is the first place: forward from it is the second.
+        QTest::keyClick(&show, Qt::Key_Home);
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 0);
+        // Go to Slide lists the places, and each goes to its own.
+        QMenu *menu = show.buildMenu(&show);
+        QMenu *go = menu->findChild<QMenu *>(QStringLiteral("goToSlideMenu"));
+        QVERIFY(go);
+        QCOMPARE(int(go->actions().size()), 3);
+        QVERIFY(go->actions()[1]->isChecked());   // the place the show is at
+        QVERIFY(!go->actions()[0]->isChecked() && !go->actions()[2]->isChecked());
+        go->actions()[2]->trigger();
+        QCOMPARE(show.currentSlide(), 3);
+        QTest::keyClick(&show, Qt::Key_Left);
+        QCOMPARE(show.currentSlide(), 0);   // that was the last place
+        go->actions()[0]->trigger();
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 0);   // that was the first
+        delete menu;
+        // A number goes to the next place that slide has, going round: typing it again goes to the other.
+        QTest::keyClick(&show, Qt::Key_Home);
+        QTest::keyClick(&show, Qt::Key_Right);   // the middle place, slide 1
+        QTest::keyClicks(&show, "4");
+        QTest::keyClick(&show, Qt::Key_Return);
+        QCOMPARE(show.currentSlide(), 3);
+        QTest::keyClick(&show, Qt::Key_Left);
+        QCOMPARE(show.currentSlide(), 0);   // it was the last place
+        QTest::keyClick(&show, Qt::Key_Right);   // the last place
+        QTest::keyClicks(&show, "4");
+        QTest::keyClick(&show, Qt::Key_Return);
+        QCOMPARE(show.currentSlide(), 3);        // round to the first place
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 0);        // so the second is next
     }
 
     // A custom show's id is never used again: a show taken out and one made after it are two, and what was set to play the first plays
@@ -7089,6 +7403,265 @@ private Q_SLOTS:
         QVERIFY(deck::newCustomShowId(*back, deck::customShowsOf(*back)) > b.id);
     }
 
+    // The window gives a new show an id no show had, and the setting that named a removed show is reset.
+    void windowCustomShowRemovedAndMadeAgainIsAnotherShow()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        deck::CustomShow a, b;
+        a.id = 0;
+        a.name = QStringLiteral("A");
+        a.slides = {ed->doc()->pages[0]->id};
+        b.id = 1;
+        b.name = QStringLiteral("B");
+        b.slides = {ed->doc()->pages[1]->id};
+        deck::ShowSettings s;
+        s.slides = deck::ShowSettings::Slides::Custom;
+        s.customShow = 1;
+        ed->beginChange(QStringLiteral("test"));
+        deck::setCustomShows(*ed->doc(), {a, b});
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            QListWidget *list = d->findChild<QListWidget *>(QStringLiteral("customShowList"));
+            list->setCurrentRow(1);
+            d->findChild<QAbstractButton *>(QStringLiteral("removeShow"))->click();
+            QTimer::singleShot(0, [&] {
+                auto *e = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!e) return;
+                e->findChild<QLineEdit *>(QStringLiteral("showName"))->setText(QStringLiteral("B again"));
+                e->findChild<QListWidget *>(QStringLiteral("slidesInPresentation"))->item(2)->setSelected(true);
+                e->findChild<QAbstractButton *>(QStringLiteral("addSlide"))->click();
+                e->accept();
+            });
+            d->findChild<QAbstractButton *>(QStringLiteral("newShow"))->click();
+            d->accept();
+        });
+        w.act("show.customShows")->trigger();
+        const QVector<deck::CustomShow> shows = deck::customShowsOf(*ed->doc());
+        QCOMPARE(int(shows.size()), 2);
+        QCOMPARE(shows[1].name, QStringLiteral("B again"));
+        QVERIFY(shows[1].id != 1);
+        QCOMPARE(int(deck::showSettingsOf(*ed->doc()).slides), int(deck::ShowSettings::Slides::All));
+        QVERIFY(!ed->doc()->appData.value(QStringLiteral("showSettings")).toObject().value(QStringLiteral("slides")).toString().contains(QStringLiteral("custom")));
+    }
+
+    // Ink is drawn again from a picture of the strokes that are finished: a stroke of a hundred thousand points does not make every
+    // repaint take over a second, and the stroke being drawn is added on top.
+    void inkRepaintsFromAPictureOfFinishedStrokes()
+    {
+        auto d = showDeck(1);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.setPointer(SlideShow::Pointer::Pen);
+        show.pressAt(QPointF(480, 270));
+        for (int i = 1; i < 100000; ++i) {
+            const double r = 20 + i * 0.0025, a = i * 0.012;
+            show.moveTo(QPointF(480 + r * std::cos(a), 270 + r * 0.8 * std::sin(a)));
+        }
+        show.releasePointer();
+        QVERIFY(show.ink(0)[0].points.size() > 50000);
+        auto alike = [](const QImage &a, const QImage &b) {
+            if (a.size() != b.size()) return false;
+            int worst = 0;
+            for (int y = 0; y < a.height(); ++y)
+                for (int x = 0; x < a.width(); ++x) {
+                    const QColor p = a.pixelColor(x, y), q = b.pixelColor(x, y);
+                    worst = std::max({worst, std::abs(p.red() - q.red()), std::abs(p.green() - q.green()), std::abs(p.blue() - q.blue())});
+                }
+            return worst <= 4;
+        };
+        QElapsedTimer clock;
+        const QImage first = show.grab().toImage();   // the picture is made
+        clock.start();
+        const QImage again = show.grab().toImage();
+        QVERIFY2(clock.elapsed() < 500, qPrintable(QString::number(clock.elapsed())));
+        QCOMPARE(again, first);
+        // A stroke being drawn over it: each repaint is the picture and that stroke.
+        show.pressAt(QPointF(50, 50));
+        for (int i = 1; i < 200; ++i) show.moveTo(QPointF(50 + i, 50 + (i % 7)));
+        clock.restart();
+        const QImage live = show.grab().toImage();
+        QVERIFY2(clock.elapsed() < 500, qPrintable(QString::number(clock.elapsed())));
+        QVERIFY(live != first);
+        show.releasePointer();
+        // The same picture as drawing every stroke: once finished, the stroke is in the picture as it was on top of it.
+        QVERIFY(alike(show.grab().toImage(), live));
+        // An erased stroke is gone from it.
+        show.setPointer(SlideShow::Pointer::Eraser);
+        show.pressAt(QPointF(100, 50 + 3));
+        show.releasePointer();
+        QCOMPARE(int(show.ink(0).size()), 1);
+        QVERIFY(alike(show.grab().toImage(), first));
+    }
+
+    // At the last slide of a looping show the slide Next shows is the first, as a click goes there.
+    void presenterViewNextWrapsInALoopingShow()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.loop = true;
+        show.setSettings(s);
+        PresenterView pv(&show);
+        show.goTo(2);
+        QCOMPARE(show.slideAfter(), 0);
+        QCOMPARE(pv.nextSlide(), 0);
+        show.next();
+        QCOMPARE(show.currentSlide(), 0);
+        SlideShow plain(d.get(), &cache, 0);
+        plain.goTo(2);
+        QCOMPARE(plain.slideAfter(), -1);
+    }
+
+    // A slide title with an ampersand is not read as a menu key.
+    void goToSlideMenuKeepsAmpersands()
+    {
+        auto d = showDeck(2);
+        d->storyDoc(static_cast<TextItem *>(d->pages[1]->items[0].get())->storyId)->setPlainText(QStringLiteral("Q&A"));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        QMenu *menu = show.buildMenu(&show);
+        QMenu *go = menu->findChild<QMenu *>(QStringLiteral("goToSlideMenu"));
+        QVERIFY(go);
+        QCOMPARE(int(go->actions().size()), 2);
+        QVERIFY2(go->actions()[1]->text().contains(QStringLiteral("Q&&A")), qPrintable(go->actions()[1]->text()));
+        delete menu;
+    }
+
+    // A range past the end of the deck is clamped to it; wholly past, it plays nothing, and the window says so; it does not play every slide.
+    void rangePastTheDeckPlaysNothing()
+    {
+        auto d = lettered(5);
+        deck::ShowSettings s;
+        s.slides = deck::ShowSettings::Slides::Range;
+        s.from = 4;
+        s.to = 9;
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{3, 4}));
+        QVERIFY(!deck::planOf(*d, s).none);
+        s.from = 7;
+        s.to = 9;
+        const deck::ShowPlan none = deck::planOf(*d, s);
+        QVERIFY(none.none);
+        QVERIFY(none.slides.isEmpty());
+        // The window plays nothing and says so.
+        DeckWindow w;
+        w.newSlide();
+        QStringList told;
+        w.setShowQuestion([&](const QString &text) {
+            told << text;
+            return true;
+        });
+        w.editor()->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*w.editor()->doc(), s);
+        w.editor()->endChange();
+        w.act("show.fromStart")->trigger();
+        QVERIFY(!w.slideShow());
+        QCOMPARE(told.size(), 1);
+        QVERIFY2(told[0].contains(QStringLiteral("7")), qPrintable(told[0]));
+        // From Current Slide plays every slide as it always does.
+        w.act("show.fromCurrent")->trigger();
+        QVERIFY(w.slideShow());
+        w.slideShow()->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // Set Up opens on "All" when the show it names is not there; the pen and the laser pointer's colors are shown by name, and a color
+    // the lists lack by its code.
+    void setUpDialogShowsMissingShowsAndColorsByName()
+    {
+        DeckWindow w;
+        deck::CustomShow c;
+        c.id = 3;
+        c.name = QStringLiteral("Only");
+        c.slides = {w.editor()->doc()->pages[0]->id};
+        deck::ShowSettings s;
+        s.slides = deck::ShowSettings::Slides::Custom;
+        s.customShow = 99;
+        SetUpShowDialog dlg(s, QVector<deck::CustomShow>{c}, 1, w.editor()->doc()->colors, &w);
+        QVERIFY(dlg.findChild<QRadioButton *>(QStringLiteral("slidesAll"))->isChecked());
+        QVERIFY(!dlg.findChild<QRadioButton *>(QStringLiteral("slidesCustom"))->isChecked());
+        QCOMPARE(int(dlg.settings().slides), int(deck::ShowSettings::Slides::All));
+        QCOMPARE(dlg.settings().customShow, qint64(-1));
+        // Colors by name.
+        auto *pen = dlg.findChild<QComboBox *>(QStringLiteral("penColor"));
+        auto *laser = dlg.findChild<QComboBox *>(QStringLiteral("laserColor"));
+        QVERIFY(pen && laser);
+        QCOMPARE(pen->currentText(), QStringLiteral("Red"));
+        QCOMPARE(laser->currentText(), QStringLiteral("Red"));
+        int blue = -1;
+        for (int i = 0; i < pen->count(); ++i)
+            if (pen->itemText(i) == QLatin1String("Blue")) blue = i;
+        QVERIFY(blue >= 0);
+        pen->setCurrentIndex(blue);
+        QCOMPARE(dlg.settings().penColor, QColor(0, 112, 192));
+        // A color the lists lack is shown by its code, and kept.
+        deck::ShowSettings odd;
+        odd.penColor = QColor(0x12, 0x34, 0x56);
+        odd.laserColor = QColor(0xAB, 0xCD, 0xEF);
+        SetUpShowDialog other(odd, QVector<deck::CustomShow>(), 1, w.editor()->doc()->colors, &w);
+        QCOMPARE(other.findChild<QComboBox *>(QStringLiteral("penColor"))->currentText(), QStringLiteral("#123456"));
+        QCOMPARE(other.findChild<QComboBox *>(QStringLiteral("laserColor"))->currentText(), QStringLiteral("#ABCDEF"));
+        QCOMPARE(other.settings().penColor, QColor(0x12, 0x34, 0x56));
+        QCOMPARE(other.settings().laserColor, QColor(0xAB, 0xCD, 0xEF));
+        // A pen color the program names (a theme's blue as an RGB) is the name, and what a name stands for.
+        deck::ShowSettings blueSettings;
+        blueSettings.penColor = QColor(0, 112, 192);
+        SetUpShowDialog named(blueSettings, QVector<deck::CustomShow>(), 1, w.editor()->doc()->colors, &w);
+        QCOMPARE(named.findChild<QComboBox *>(QStringLiteral("penColor"))->currentText(), QStringLiteral("Blue"));
+    }
+
+    // The questions that end a show are answered by Esc with the safe answer, since Esc has just ended the show: ink is discarded and
+    // the new times are not kept.
+    void escapeAnswersTheShowsQuestionsWithTheSafeOne()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        const int before = int(ed->doc()->pages[0]->items.size());
+        QString escape;
+        QTimer poll;
+        poll.setInterval(10);
+        QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
+            auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            if (!box || !box->escapeButton()) return;
+            escape = box->escapeButton()->text();
+            poll.stop();
+            QTest::keyClick(box, Qt::Key_Escape);
+        });
+        // Ink.
+        w.startShow(0);
+        w.slideShow()->setPointer(SlideShow::Pointer::Pen);
+        w.slideShow()->pressAt(QPointF(100, 100));
+        w.slideShow()->moveTo(QPointF(200, 120));
+        w.slideShow()->releasePointer();
+        poll.start();
+        w.slideShow()->close();
+        QTRY_VERIFY(!escape.isEmpty());
+        QCOMPARE(escape, QStringLiteral("Discard"));
+        QTRY_VERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        // Times.
+        escape.clear();
+        w.act("show.rehearse")->trigger();
+        SlideShow *show = w.slideShow();
+        qint64 now = 0;
+        show->setClock([&now] { return now; });
+        now += 3000;
+        poll.start();
+        show->close();
+        QTRY_VERIFY(!escape.isEmpty());
+        QCOMPARE(escape, QStringLiteral("No"));
+        QTRY_VERIFY(!QApplication::activeModalWidget());
+        QVERIFY(!deck::transitionOf(*ed->doc()->pages[0]).advanceAfter);
+    }
+
     // A stroke of a hundred thousand points is thinned in a moment, however it winds.
     void inkThinningIsQuickOnSpirals()
     {
@@ -7110,6 +7683,35 @@ private Q_SLOTS:
         // It is still the line: the ends stay, and the points stay within the thinning's reach of the stroke.
         QCOMPARE(line->customPath.elementAt(0).x + line->rect.left(), spiral.points.first().x());
         QCOMPARE(line->customPath.elementAt(line->customPath.elementCount() - 1).y + line->rect.top(), spiral.points.last().y());
+    }
+
+    // The old "Rehearse with Presenter View" window plays as the presentation is set up: without animation, with its looping, and its colors.
+    void rehearsalWindowFollowsTheSetUp()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        deck::ShowSettings s;
+        s.animation = false;
+        s.loop = true;
+        s.type = deck::ShowSettings::Type::Kiosk;   // a window for rehearsing is never a kiosk
+        s.laserColor = QColor(0, 255, 0);
+        s.penColor = QColor(0, 112, 192);
+        ed->beginChange(QStringLiteral("test"));
+        deck::setShowSettings(*ed->doc(), s);
+        ed->endChange();
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        QVERIFY(!show->settings().animation);
+        QVERIFY(show->settings().loop);
+        QCOMPARE(show->laserColor(), QColor(0, 255, 0));
+        QVERIFY(!show->isKiosk());
+        QVERIFY(show->isWindowed());
+        QTest::keyClick(show, Qt::Key_P, Qt::ControlModifier);   // a rehearsal window has a pen
+        QCOMPARE(show->inkColor(), QColor(0, 112, 192));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
     }
 
     // Slides that have a transition are marked in the thumbnails.
