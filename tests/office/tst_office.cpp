@@ -3417,6 +3417,56 @@ private Q_SLOTS:
         QCOMPARE(int(odrawRecords(QByteArray(9, '\xFF')).size()), 0);
     }
 
+    // A host that reads many drawings gives them one budget: the shapes are read until it is spent (and the records looked at to find a
+    // background count too), and it says when a drawing had more, so one drawing that a file has read again and again, or many large
+    // ones, are read to a bound whatever their number.
+    void odrawKeepsOneBudgetForManyDrawings()
+    {
+        OdrawContext ctx = odContext();
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        QByteArray shapes;
+        for (int i = 0; i < 100; ++i) shapes += odShape(1, 0xA00, {}, at);
+        const QByteArray drawing = odDrawing(shapes);
+        OdrawBudget budget;
+        budget.left = 250;
+        ctx.budget = &budget;
+        QCOMPARE(int(readOdrawShapes(drawing, ctx).size()), 100);
+        QCOMPARE(int(readOdrawShapes(drawing, ctx).size()), 100);
+        QCOMPARE(budget.left, qint64(50));
+        QVERIFY(!budget.refused);
+        QCOMPARE(int(readOdrawShapes(drawing, ctx).size()), 50);
+        QVERIFY(budget.refused);
+        QCOMPARE(int(readOdrawShapes(drawing, ctx).size()), 0);
+        // Groups cost one each, and what is in them.
+        budget = OdrawBudget();
+        budget.left = 10;
+        QByteArray inner;
+        for (int i = 0; i < 20; ++i) inner += odShape(1, 0xA02, {}, odChildAnchor(0, 0, 5, 5));
+        const ItemList grouped = readOdrawShapes(odDrawing(odGroup(QRect(0, 0, 10, 10), 0x2, odChildAnchor(0, 0, 10, 10), inner)), ctx);
+        QCOMPARE(int(grouped.size()), 1);
+        QCOMPARE(int(static_cast<const GroupItem *>(grouped[0].get())->children.size()), 9);
+        QVERIFY(budget.refused);
+        // A drawing that fits the budget exactly is not a refusal.
+        budget = OdrawBudget();
+        budget.left = 100;
+        QCOMPARE(int(readOdrawShapes(drawing, ctx).size()), 100);
+        QVERIFY(!budget.refused);
+        // A background is looked for as far as the budget goes: the 100 shapes before it (in their group) use it up, and it is not found;
+        // with the budget it needs, it is; and with none given, the same.
+        const QByteArray withBackground = odDrawing(shapes, odShape(1, 0xC00, {{0x0181, 0x00FF8000}}));
+        budget = OdrawBudget();
+        budget.left = 50;
+        QVERIFY(odrawBackground(withBackground, ctx).isNone());
+        QVERIFY(budget.refused);
+        budget = OdrawBudget();
+        budget.left = 1000;
+        QVERIFY(!odrawBackground(withBackground, ctx).isNone());
+        QVERIFY(!budget.refused);
+        ctx.budget = nullptr;
+        QVERIFY(!odrawBackground(withBackground, ctx).isNone());
+        QCOMPARE(int(readOdrawShapes(drawing, ctx).size()), 100);
+    }
+
     void themeReadsAnyColorInASlot()
     {
         QByteArray xml = handWrittenTheme();
