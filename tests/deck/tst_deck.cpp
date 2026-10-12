@@ -29,6 +29,7 @@
 #include "core/fonts.h"
 #include "core/reuse.h"
 #include "core/sections.h"
+#include "core/themes.h"
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/deckoutput.h"
@@ -45,6 +46,7 @@
 #include "office/package.h"
 #include "office/xml.h"
 #include "render/renderer.h"
+#include "render/shapes.h"
 #include "text/textprops.h"
 
 #include <QAbstractButton>
@@ -63,6 +65,7 @@
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFontDatabase>
 #include <QFrame>
 #include <QFileInfo>
 #include <QImageWriter>
@@ -11425,6 +11428,817 @@ private Q_SLOTS:
         QCOMPARE(theme.majorLatin, QStringLiteral("Georgia"));
         QVERIFY2(packageProblem(fresh).isEmpty(), qPrintable(packageProblem(fresh)));
     }
+
+    // ---- themes ----
+
+    // The fill of a shape or background as the colors it runs through: both ends of a gradient.
+    static QVector<QColor> fillColors(const Fill &f, const ColorScheme &scheme)
+    {
+        QVector<QColor> out;
+        if (f.type == Fill::Gradient) {
+            if (f.stops.isEmpty()) out << f.color.resolve(scheme) << f.color2.resolve(scheme);
+            for (const GradientStop &s : f.stops) out << s.color.resolve(scheme);
+        } else if (f.type == Fill::Solid) {
+            out << f.color.resolve(scheme);
+        }
+        return out;
+    }
+
+    // The colors a point of a layout can show: its background (every stop of a gradient), then the filled shapes of its slide
+    // master (unless the layout hides them) and of its own drawn over each.
+    static QVector<QColor> colorsUnder(const Document &d, const MasterPage &layout, const QPointF &p)
+    {
+        const QVector<MasterPage *> chain = d.masterChain(&layout);
+        Fill background;
+        for (int i = int(chain.size()) - 1; i >= 0 && background.type == Fill::NoFill; --i) background = chain[i]->background;
+        QVector<QColor> shown = fillColors(background, d.colors);
+        if (shown.isEmpty()) shown << QColor(Qt::white);
+        for (const MasterPage *m : chain) {
+            if (m != &layout && !layout.showMasterItems) continue;
+            for (const auto &it : m->items) {
+                if (!it->role.isEmpty() || it->type() != ItemType::Shape || it->fill.type != Fill::Solid) continue;
+                const auto &s = static_cast<const ShapeItem &>(*it);
+                if (!shapePath(s.shape, s.rect.size(), s.adj).contains(it->transform().inverted().map(p))) continue;
+                const QColor over = it->fill.color.resolve(d.colors);
+                for (QColor &c : shown) c = mix(c, over, 1 - it->fill.transparency);
+            }
+        }
+        return shown;
+    }
+
+    // Where the text of a placeholder is set: its first run's color.
+    static QColor textColorOf(const Document &d, const TextItem &t)
+    {
+        const QTextDocument *sd = d.storyDoc(t.storyId);
+        const QTextBlock b = sd->begin();
+        const QTextCharFormat cf = b.begin().atEnd() ? b.charFormat() : b.begin().fragment().charFormat();
+        const QString ref = cf.stringProperty(tp::ColorRefP);
+        return ref.isEmpty() ? cf.foreground().color() : ColorRef::fromString(ref).resolve(d.colors);
+    }
+
+    // Every placeholder of the slide master and the layouts, and the hyperlink colors, readable (WCAG AA, 4.5 to 1) over all they can sit on.
+    static QStringList unreadableText(const Document &d, const QString &what)
+    {
+        QStringList problems;
+        for (const auto &m : d.masters) {
+            if (!deck::isLayout(*m) && !deck::isSlideMaster(*m)) continue;
+            for (const auto &it : m->items) {
+                const QString type = deck::placeholderType(*it);
+                if (type.isEmpty() || type == QLatin1String("pic") || it->type() != ItemType::Text) continue;
+                const QColor fg = textColorOf(d, static_cast<const TextItem &>(*it));
+                const QRectF r = it->rect;
+                for (double fx : {0.1, 0.5, 0.9})
+                    for (double fy : {0.1, 0.5, 0.9})
+                        for (const QColor &bg : colorsUnder(d, *m, QPointF(r.left() + r.width() * fx, r.top() + r.height() * fy))) {
+                            const double c = deck::contrastRatio(fg, bg);
+                            if (c < 4.5) problems << QStringLiteral("%1, %2, %3: %4 on %5 is %6").arg(what, m->name, it->role, fg.name(), bg.name()).arg(c, 0, 'f', 1);
+                        }
+            }
+        }
+        const deck::DeckTheme theme = deck::themeOf(d);
+        const MasterPage *master = deck::layoutOfType(d, QStringLiteral("obj"));
+        for (const QColor &bg : colorsUnder(d, *master, QPointF(480, 300)))
+            for (int slot : {10, 11})
+                if (deck::contrastRatio(theme.colors[slot], bg) < 4.5) problems << QStringLiteral("%1: hyperlink color %2 on %3").arg(what, theme.colors[slot].name(), bg.name());
+        problems.removeDuplicates();
+        return problems;
+    }
+
+    // The words of a story, set in its first run's look.
+    static void sayIn(Document &d, const Item &it, const QString &text)
+    {
+        QTextCursor c(d.storyDoc(static_cast<const TextItem &>(it).storyId));
+        c.insertText(text);
+    }
+
+    static void bulletIn(Document &d, const Item &it, const QStringList &lines)
+    {
+        QTextDocument *sd = d.storyDoc(static_cast<const TextItem &>(it).storyId);
+        QTextCursor c(sd);
+        c.insertText(lines.join(QLatin1Char('\n')));
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        c.select(QTextCursor::Document);
+        QTextList *list = nullptr;
+        for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
+            QTextCursor bc(b);
+            QTextBlockFormat bf = b.blockFormat();
+            bf.setLeftMargin(18);
+            bf.setTextIndent(-18);
+            bc.setBlockFormat(bf);
+            if (!list) list = bc.createList(lf);
+            else list->add(b);
+        }
+    }
+
+    static const TextItem *placeholderOn(const Page &slide, const QString &type)
+    {
+        for (const auto &it : slide.items)
+            if (deck::placeholderType(*it) == type && it->type() == ItemType::Text) return static_cast<const TextItem *>(it.get());
+        return nullptr;
+    }
+
+    // The format of the first run of a story (a block with no run: the block's).
+    static QTextCharFormat firstRunOf(const Document &d, const Item &it)
+    {
+        const QTextDocument *sd = d.storyDoc(static_cast<const TextItem &>(it).storyId);
+        for (QTextBlock b = sd->begin(); b.isValid(); b = b.next())
+            if (!b.begin().atEnd()) return b.begin().fragment().charFormat();
+        return sd->begin().charFormat();
+    }
+
+    static QString familyOf(const QTextCharFormat &cf) { return cf.fontFamilies().toStringList().value(0); }
+
+    static QColor colorOfRun(const Document &d, const QTextCharFormat &cf)
+    {
+        const QString ref = cf.stringProperty(tp::ColorRefP);
+        return ref.isEmpty() ? cf.foreground().color() : ColorRef::fromString(ref).resolve(d.colors);
+    }
+
+    // A presentation with a slide of each kind a theme must take over: its text bulleted, a hand-set red word and a bold one, a
+    // text box and a shape in the theme's accent color, a text box in a font of its own.
+    static std::unique_ptr<Document> deckToRestyle()
+    {
+        auto d = deck::newPresentation();
+        const deck::DeckTheme theme = deck::themeOf(*d);
+        sayIn(*d, *placeholderOn(*d->pages[0], QStringLiteral("ctrTitle")), QStringLiteral("Annual review"));
+        sayIn(*d, *placeholderOn(*d->pages[0], QStringLiteral("subTitle")), QStringLiteral("Finance team"));
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        sayIn(*d, *placeholderOn(*d->pages[1], QStringLiteral("title")), QStringLiteral("Results"));
+        bulletIn(*d, *placeholderOn(*d->pages[1], QStringLiteral("obj")), {QStringLiteral("Sales rose"), QStringLiteral("Costs fell"), QStringLiteral("Hand-colored")});
+        {
+            QTextDocument *sd = d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId);
+            QTextCursor c(sd->findBlockByNumber(2));
+            c.select(QTextCursor::BlockUnderCursor);
+            c.movePosition(QTextCursor::StartOfBlock);
+            c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            QTextCharFormat red;
+            red.setForeground(QColor(0xC0, 0x00, 0x00));
+            red.setProperty(tp::ColorRefP, ColorRef::rgb(QColor(0xC0, 0x00, 0x00)).toString());
+            red.setFontWeight(QFont::Bold);
+            c.mergeCharFormat(red);
+        }
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("twoObj")));
+        sayIn(*d, *placeholderOn(*d->pages[2], QStringLiteral("title")), QStringLiteral("Compare"));
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("titleOnly")));
+        sayIn(*d, *placeholderOn(*d->pages[3], QStringLiteral("title")), QStringLiteral("Notes"));
+        auto box = std::make_shared<TextItem>();
+        box->name = QStringLiteral("accent text");
+        box->rect = QRectF(100, 200, 300, 60);
+        box->storyId = d->createStory(QStringLiteral("Accent words"));
+        {
+            QTextCursor c(d->storyDoc(box->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies({theme.bodyFont});
+            f.setFontPointSize(20);
+            f.setForeground(theme.colors[4]);
+            f.setProperty(tp::ColorRefP, ColorRef::rgb(theme.colors[4]).toString());
+            c.mergeCharFormat(f);
+        }
+        d->pages[3]->items.push_back(box);
+        auto own = std::make_shared<TextItem>();
+        own->name = QStringLiteral("own font");
+        own->rect = QRectF(100, 300, 300, 60);
+        own->storyId = d->createStory(QStringLiteral("Typewriter words"));
+        {
+            QTextCursor c(d->storyDoc(own->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies({QStringLiteral("Courier Prime")});
+            f.setFontPointSize(20);
+            c.mergeCharFormat(f);
+        }
+        d->pages[3]->items.push_back(own);
+        auto shape = std::make_shared<ShapeItem>();
+        shape->name = QStringLiteral("accent shape");
+        shape->rect = QRectF(500, 200, 200, 100);
+        shape->fill = Fill::solid(ColorRef::rgb(theme.colors[5]));
+        shape->stroke = Stroke::line(ColorRef::rgb(theme.colors[4]), 2);
+        d->pages[3]->items.push_back(shape);
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        return d;
+    }
+
+    static const Item *itemNamed(const Page &p, const QString &name)
+    {
+        for (const auto &it : p.items)
+            if (it->name == name) return it.get();
+        return nullptr;
+    }
+
+    static QStringList layoutTypes(const Document &d)
+    {
+        QStringList out;
+        for (const auto &p : d.pages) out << deck::layoutType(*d.masterFor(*p));
+        return out;
+    }
+
+    // JeffDeck ships nine themes of its own: the first is the one a new presentation has, the others are named and drawn by
+    // JeffOffice (no other program's names), with four variants each, in fonts it bundles.
+    void builtinThemesAreNineOriginalOnes()
+    {
+        QCOMPARE(deck::builtinThemeCount(), 9);
+        QCOMPARE(deck::builtinThemeName(0), deck::defaultTheme().name);
+        QCOMPARE(deck::builtinThemeIndex(QStringLiteral("JeffOffice")), 0);
+        QCOMPARE(deck::builtinThemeIndex(QStringLiteral("No Such Theme")), -1);
+        const QStringList others = {QStringLiteral("facet"), QStringLiteral("ion"), QStringLiteral("retrospect"), QStringLiteral("wisp"), QStringLiteral("integral"),
+                                    QStringLiteral("organic"), QStringLiteral("slice"), QStringLiteral("gallery"), QStringLiteral("office theme"), QStringLiteral("berlin"),
+                                    QStringLiteral("circuit"), QStringLiteral("badge"), QStringLiteral("banded"), QStringLiteral("basis"), QStringLiteral("celestial"),
+                                    QStringLiteral("crop"), QStringLiteral("damask"), QStringLiteral("depth"), QStringLiteral("dividend"), QStringLiteral("droplet"),
+                                    QStringLiteral("frame"), QStringLiteral("main event"), QStringLiteral("mesh"), QStringLiteral("metropolitan"), QStringLiteral("parallax"),
+                                    QStringLiteral("parcel"), QStringLiteral("quotable"), QStringLiteral("savon"), QStringLiteral("slate"), QStringLiteral("view"),
+                                    QStringLiteral("vapor trail"), QStringLiteral("wood type")};
+        const QStringList families = bundledFamilies();
+        QSet<QString> names, fontPairs;
+        for (int i = 0; i < deck::builtinThemeCount(); ++i) {
+            const QString name = deck::builtinThemeName(i);
+            QVERIFY2(!name.isEmpty() && !names.contains(name), qPrintable(name));
+            names.insert(name);
+            QVERIFY2(!others.contains(name.toLower()), qPrintable(name));
+            const deck::FontSet fonts = deck::builtinThemeFonts(i);
+            QVERIFY2(families.contains(fonts.heading), qPrintable(name + ": " + fonts.heading + " is not a font that ships"));
+            QVERIFY2(families.contains(fonts.body), qPrintable(name + ": " + fonts.body + " is not a font that ships"));
+            const QString pair = fonts.heading + QLatin1Char('|') + fonts.body;
+            QVERIFY2(!fontPairs.contains(pair), qPrintable(name + " repeats another theme's fonts"));
+            fontPairs.insert(pair);
+            const QVector<deck::Variant> variants = deck::builtinThemeVariants(i);
+            QCOMPARE(variants.size(), 4);
+            QSet<QString> looks;
+            for (const deck::Variant &v : variants) {
+                QVERIFY(v.background >= 0 && v.background < deck::kBackgroundStyles);
+                QString look = QString::number(v.background);
+                for (const QColor &c : v.colors.colors) {
+                    QVERIFY(c.isValid());
+                    look += c.name();
+                }
+                QVERIFY2(!looks.contains(look), qPrintable(name + " has two variants that are alike"));
+                looks.insert(look);
+            }
+        }
+        // The first is the presentation a new one starts from.
+        QCOMPARE(deck::builtinThemeVariants(0).value(0).colors.name, deck::defaultTheme().name);
+        for (int c = 0; c < 12; ++c) QCOMPARE(deck::builtinThemeVariants(0).value(0).colors.colors[c], deck::defaultTheme().colors[c]);
+        QCOMPARE(deck::builtinThemeFonts(0).heading, deck::defaultTheme().headingFont);
+        QCOMPARE(deck::builtinThemeFonts(0).body, deck::defaultTheme().bodyFont);
+    }
+
+    // A theme's presentation has one slide master and the nine standard layouts a new presentation has, in its colors and fonts;
+    // the themes beyond the first draw something on the master, and every placeholder is on the slide.
+    void themePresentationHasTheStandardLayouts()
+    {
+        auto standard = deck::newPresentation();
+        QStringList types, names;
+        for (const MasterPage *l : deck::layouts(*standard)) types << deck::layoutType(*l), names << l->name;
+        for (int i = 0; i < deck::builtinThemeCount(); ++i) {
+            for (int v = 0; v < 4; ++v) {
+                auto d = deck::themePresentation(i, v);
+                QVERIFY(d);
+                const QString what = QStringLiteral("%1, variant %2").arg(deck::builtinThemeName(i)).arg(v + 1);
+                QCOMPARE(d->pageSize(), QSizeF(deck::kSlideWidth, deck::kSlideHeight));
+                const deck::DeckTheme theme = deck::themeOf(*d);
+                QCOMPARE(theme.name, deck::builtinThemeName(i));
+                QCOMPARE(theme.headingFont, deck::builtinThemeFonts(i).heading);
+                QCOMPARE(theme.bodyFont, deck::builtinThemeFonts(i).body);
+                const deck::Variant variant = deck::builtinThemeVariants(i).value(v);
+                for (int c = 0; c < 10; ++c) QCOMPARE(theme.colors[c], variant.colors.colors[c]);   // (a hyperlink color may be made readable)
+                QCOMPARE(d->fonts.heading, theme.headingFont);
+                QCOMPARE(d->fonts.body, theme.bodyFont);
+                int masters = 0;
+                for (const auto &m : d->masters) masters += deck::isSlideMaster(*m);
+                QCOMPARE(masters, 1);
+                QStringList got, gotNames;
+                for (const MasterPage *l : deck::layouts(*d)) got << deck::layoutType(*l), gotNames << l->name;
+                QCOMPARE(got, types);
+                QCOMPARE(gotNames, names);
+                QCOMPARE(int(d->pages.size()), 1);
+                QCOMPARE(deck::layoutType(*d->masterFor(*d->pages[0])), QStringLiteral("title"));
+                QCOMPARE(deck::slideTitle(*d, 0), deck::builtinThemeName(i));
+                const QRectF page(QPointF(0, 0), d->pageSize());
+                bool drawn = false;
+                for (const auto &m : d->masters) {
+                    for (const auto &it : m->items) {
+                        if (it->role.isEmpty()) drawn = drawn || deck::isSlideMaster(*m);
+                        else QVERIFY2(page.contains(it->rect), qPrintable(what + ": " + m->name + " " + it->role));
+                    }
+                    // A background in the variant's style.
+                    if (deck::isSlideMaster(*m)) QCOMPARE(deck::backgroundStyleOf(m->background, theme), variant.background);
+                }
+                QVERIFY2(drawn == (i > 0), qPrintable(what + (i > 0 ? " draws nothing on its master" : " draws on its master")));
+            }
+        }
+        // The first theme is a new presentation's own master and layouts, as they are.
+        auto first = deck::themePresentation(0);
+        QCOMPARE(first->masters.size(), standard->masters.size());
+        for (int m = 0; m < standard->masters.size(); ++m) {
+            QCOMPARE(first->masters[m]->items.size(), standard->masters[m]->items.size());
+            for (size_t k = 0; k < standard->masters[m]->items.size(); ++k) QCOMPARE(first->masters[m]->items[k]->rect, standard->masters[m]->items[k]->rect);
+        }
+    }
+
+    // The text of every placeholder reads against what is under it (WCAG AA, 4.5 to 1), in every theme and variant and on each of the
+    // twelve background styles: the text turns light on a dark background and dark on a light one, and so do hyperlinks.
+    void themesAreReadable()
+    {
+        for (int i = 1; i < deck::builtinThemeCount(); ++i) {
+            for (int v = 0; v < 4; ++v) {
+                auto d = deck::themePresentation(i, v);
+                const QStringList bad = unreadableText(*d, QStringLiteral("%1, variant %2").arg(deck::builtinThemeName(i)).arg(v + 1));
+                QVERIFY2(bad.isEmpty(), qPrintable(bad.mid(0, 6).join('\n')));
+            }
+            for (int style = 0; style < deck::kBackgroundStyles; ++style) {
+                auto d = deck::themePresentation(i);
+                deck::applyBackgroundStyle(*d, style);
+                const QStringList bad = unreadableText(*d, QStringLiteral("%1, background style %2").arg(deck::builtinThemeName(i)).arg(style + 1));
+                QVERIFY2(bad.isEmpty(), qPrintable(bad.mid(0, 6).join('\n')));
+            }
+        }
+        // The same of the first theme's own backgrounds (its footers and the text of its Section Header are the grays they always were: not
+        // looked at).
+        for (int style = 0; style < deck::kBackgroundStyles; ++style) {
+            auto d = deck::themePresentation(0);
+            deck::applyBackgroundStyle(*d, style);
+            for (const QString &problem : unreadableText(*d, QStringLiteral("style %1").arg(style + 1)))
+                QVERIFY2(problem.contains(QStringLiteral("ph:dt")) || problem.contains(QStringLiteral("ph:ftr")) || problem.contains(QStringLiteral("ph:sldNum"))
+                             || (problem.contains(QStringLiteral("Section Header")) && problem.contains(QStringLiteral("ph:body"))),
+                         qPrintable(problem));
+        }
+    }
+
+    // Nine themes that look like nine: the title slides differ from each other, and a theme's variants differ from it.
+    void themesLookDistinct()
+    {
+        auto picture = [](int theme, int variant) {
+            auto d = deck::themePresentation(theme, variant);
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = d.get();
+            ctx.cache = &cache;
+            return Renderer::renderToImage(ctx, 0, 160.0 / d->pageSize().width()).convertToFormat(QImage::Format_RGB32);
+        };
+        auto difference = [](const QImage &a, const QImage &b) {
+            if (a.size() != b.size()) return 255.0;
+            double sum = 0;
+            for (int y = 0; y < a.height(); ++y)
+                for (int x = 0; x < a.width(); ++x) {
+                    const QColor p = a.pixelColor(x, y), q = b.pixelColor(x, y);
+                    sum += std::abs(p.red() - q.red()) + std::abs(p.green() - q.green()) + std::abs(p.blue() - q.blue());
+                }
+            return sum / (3.0 * a.width() * a.height());
+        };
+        QVector<QImage> first;
+        for (int i = 0; i < deck::builtinThemeCount(); ++i) first << picture(i, 0);
+        for (int i = 0; i < first.size(); ++i)
+            for (int j = i + 1; j < first.size(); ++j)
+                QVERIFY2(difference(first[i], first[j]) > 8, qPrintable(QStringLiteral("%1 and %2 look alike").arg(deck::builtinThemeName(i), deck::builtinThemeName(j))));
+        // A variant on another background looks it; one in other colors looks different at least (its text colors differ, and the Variants gallery marks the accents).
+        for (int i = 0; i < deck::builtinThemeCount(); ++i)
+            for (int v = 1; v < 4; ++v) {
+                const double d = difference(first[i], picture(i, v));
+                if (deck::builtinThemeVariants(i)[v].background != deck::builtinThemeVariants(i)[0].background)
+                    QVERIFY2(d > 4, qPrintable(QStringLiteral("%1 variant %2 looks like variant 1").arg(deck::builtinThemeName(i)).arg(v + 1)));
+                else
+                    QVERIFY2(d > 0, qPrintable(QStringLiteral("%1 variant %2 is variant 1").arg(deck::builtinThemeName(i)).arg(v + 1)));
+            }
+    }
+
+    // The twelve background styles: the four colors flat, softly graded, and strongly graded; a background says which it is.
+    void backgroundStylesAreTwelve()
+    {
+        QCOMPARE(deck::kBackgroundStyles, 12);
+        for (int i = 0; i < deck::builtinThemeCount(); ++i) {
+            const deck::DeckTheme theme = deck::themeOf(*deck::themePresentation(i));
+            QSet<QString> seen;
+            for (int s = 0; s < deck::kBackgroundStyles; ++s) {
+                const Fill f = deck::backgroundStyle(theme, s);
+                QVERIFY(f.type == Fill::Solid || f.type == Fill::Gradient);
+                QCOMPARE(f.type == Fill::Gradient, s % 3 != 0);
+                QCOMPARE(deck::backgroundStyleOf(f, theme), s);
+                QCOMPARE(deck::isDarkBackground(f), deck::backgroundStyleIsDark(s));
+                QCOMPARE(deck::backgroundStyleIsDark(s), s >= 6);
+                QVERIFY(!deck::backgroundStyleName(s).isEmpty());
+                const QString key = QString::fromUtf8(QJsonDocument(f.toJson()).toJson());
+                QVERIFY2(!seen.contains(key), qPrintable(QStringLiteral("%1 style %2 repeats").arg(i).arg(s)));
+                seen.insert(key);
+            }
+        }
+        QCOMPARE(deck::backgroundStyleOf(Fill::solid(ColorRef::rgb(QColor(0x12, 0x34, 0x56))), deck::defaultTheme()), -1);
+        QCOMPARE(deck::backgroundStyleOf(Fill(), deck::defaultTheme()), -1);
+    }
+
+    // Applying a theme to every slide: each slide goes to the layout of its own kind on the new slide master, its text and
+    // hand-set looks stay, and what used the old theme's fonts and colors takes the new theme's.
+    void applyingAThemeKeepsTheSlides()
+    {
+        auto d = deckToRestyle();
+        const QStringList kinds = layoutTypes(*d);
+        const QString was = d->pages[1]->items[0]->id;
+        auto src = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Harbor")));
+        const deck::DeckTheme harbor = deck::themeOf(*src);
+        QVERIFY(deck::applyThemeToAll(*d, *src));
+        QCOMPARE(layoutTypes(*d), kinds);
+        QCOMPARE(d->pages[1]->items[0]->id, was);   // the same objects, moved
+        // One slide master and its nine layouts: the old ones are gone.
+        int masters = 0, layoutCount = 0;
+        for (const auto &m : d->masters) {
+            masters += deck::isSlideMaster(*m);
+            layoutCount += deck::isLayout(*m);
+            if (deck::isLayout(*m)) QVERIFY(d->master(m->baseId) && deck::isSlideMaster(*d->master(m->baseId)));
+        }
+        QCOMPARE(masters, 1);
+        QCOMPARE(layoutCount, 9);
+        for (const auto &p : d->pages) QVERIFY(d->masterFor(*p));
+        // The presentation's theme is the new one's, in every place it is kept.
+        const deck::DeckTheme now = deck::themeOf(*d);
+        QCOMPARE(now.name, QStringLiteral("Harbor"));
+        for (int c = 0; c < 12; ++c) QCOMPARE(now.colors[c], harbor.colors[c]);
+        QCOMPARE(d->fonts.heading, harbor.headingFont);
+        QCOMPARE(d->fonts.body, harbor.bodyFont);
+        office::Theme part;
+        QVERIFY(office::readTheme(QByteArray::fromBase64(d->appData.value(QStringLiteral("themeXml")).toString().toLatin1()), &part));
+        QCOMPARE(part.name, QStringLiteral("Harbor"));
+        QCOMPARE(part.colors[4], harbor.colors[4]);
+        // The words stay.
+        QCOMPARE(deck::slideTitle(*d, 0), QStringLiteral("Annual review"));
+        QCOMPARE(d->storyDoc(placeholderOn(*d->pages[0], QStringLiteral("subTitle"))->storyId)->toPlainText(), QStringLiteral("Finance team"));
+        QCOMPARE(d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId)->toPlainText(), QStringLiteral("Sales rose\nCosts fell\nHand-colored"));
+        QVERIFY(d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId)->begin().textList());
+        // Placeholders stand where the new layouts put them.
+        for (int i = 0; i < d->pages.size(); ++i) {
+            const MasterPage &layout = *d->masterFor(*d->pages[i]);
+            for (const auto &it : d->pages[i]->items) {
+                if (it->role.isEmpty()) continue;
+                bool found = false;
+                for (const auto &l : layout.items)
+                    if (l->role == it->role) {
+                        found = true;
+                        QCOMPARE(it->rect, l->rect);
+                    }
+                QVERIFY2(found, qPrintable(QStringLiteral("slide %1 %2").arg(i + 1).arg(it->role)));
+            }
+        }
+        // Text that followed the old theme follows the new: the fonts and the colors of the layouts.
+        const TextItem *title = placeholderOn(*d->pages[1], QStringLiteral("title"));
+        const QTextCharFormat titleRun = firstRunOf(*d, *title);
+        QCOMPARE(familyOf(titleRun), harbor.headingFont);
+        const MasterPage &objLayout = *d->masterFor(*d->pages[1]);
+        const Item *layoutTitle = nullptr;
+        for (const auto &l : objLayout.items)
+            if (l->role == title->role) layoutTitle = l.get();
+        QVERIFY(layoutTitle);
+        QCOMPARE(titleRun.fontPointSize(), firstRunOf(*d, *layoutTitle).fontPointSize());
+        QCOMPARE(colorOfRun(*d, titleRun), colorOfRun(*d, firstRunOf(*d, *layoutTitle)));
+        const QTextDocument *bodyDoc = d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId);
+        QCOMPARE(familyOf(bodyDoc->begin().begin().fragment().charFormat()), harbor.bodyFont);
+        // What was set by hand stays: the red bold line keeps its color and weight (and takes the body font).
+        const QTextCharFormat hand = bodyDoc->findBlockByNumber(2).begin().fragment().charFormat();
+        QCOMPARE(colorOfRun(*d, hand), QColor(0xC0, 0x00, 0x00));
+        QCOMPARE(hand.fontWeight(), int(QFont::Bold));
+        QCOMPARE(familyOf(hand), harbor.bodyFont);
+        // Objects that used the old theme's colors take the new ones; a font of its own stays.
+        const auto *accent = static_cast<const TextItem *>(itemNamed(*d->pages[3], QStringLiteral("accent text")));
+        QCOMPARE(colorOfRun(*d, firstRunOf(*d, *accent)), harbor.colors[4]);
+        QCOMPARE(familyOf(firstRunOf(*d, *accent)), harbor.bodyFont);
+        const auto *own = static_cast<const TextItem *>(itemNamed(*d->pages[3], QStringLiteral("own font")));
+        QCOMPARE(familyOf(firstRunOf(*d, *own)), QStringLiteral("Courier Prime"));
+        const Item *shape = itemNamed(*d->pages[3], QStringLiteral("accent shape"));
+        QCOMPARE(shape->fill.color.rgbValue(), harbor.colors[5]);
+        QCOMPARE(shape->stroke.color.rgbValue(), harbor.colors[4]);
+    }
+
+    // A slide whose background was set by hand keeps it; a slide on a layout the theme has no kind for goes to the layout its
+    // placeholders ask for.
+    void applyingAThemeKeepsHandSetBackgrounds()
+    {
+        auto d = deckToRestyle();
+        d->pages[2]->background = Fill::solid(ColorRef::rgb(QColor(0x33, 0x66, 0x99)));
+        auto custom = std::make_shared<MasterPage>(*deck::layoutOfType(*d, QStringLiteral("obj")));
+        custom->id = QStringLiteral("LX");
+        custom->name = QStringLiteral("Only mine");
+        custom->props[QStringLiteral("type")] = QStringLiteral("cust");
+        d->masters << custom;
+        d->pages[3]->masterId = custom->id;   // a title and nothing else asked of it
+        QVERIFY(deck::applyThemeToAll(*d, *deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Ember")))));
+        QCOMPARE(d->pages[2]->background, Fill::solid(ColorRef::rgb(QColor(0x33, 0x66, 0x99))));
+        QCOMPARE(deck::layoutType(*d->masterFor(*d->pages[3])), QStringLiteral("obj"));
+        QVERIFY(!d->master(QStringLiteral("LX")));
+        // Nothing to take: a presentation with no slide master is left as it is.
+        Document empty;
+        empty.masters.clear();
+        auto before = deckToRestyle();
+        QVERIFY(!deck::applyThemeToAll(*before, empty));
+        QCOMPARE(deck::themeOf(*before).name, deck::defaultTheme().name);
+    }
+
+    // Applying a theme to some slides gives those slides a slide master of their own (a copy of the theme's), and leaves the others
+    // and the presentation's theme alone; all slides is the same as every slide.
+    void applyingAThemeToSelectedSlidesGivesThemANewMaster()
+    {
+        auto d = deckToRestyle();
+        const QStringList kinds = layoutTypes(*d);
+        const QString firstMaster = deck::slideMasterOf(*d, 0);
+        auto src = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Tideline")));
+        QVERIFY(deck::applyThemeToSlides(*d, *src, {1, 2}));
+        QCOMPARE(layoutTypes(*d), kinds);
+        int masters = 0;
+        for (const auto &m : d->masters) masters += deck::isSlideMaster(*m);
+        QCOMPARE(masters, 2);
+        QCOMPARE(deck::slideMasterOf(*d, 0), firstMaster);
+        QCOMPARE(deck::slideMasterOf(*d, 3), firstMaster);
+        QVERIFY(deck::slideMasterOf(*d, 1) != firstMaster);
+        QCOMPARE(deck::slideMasterOf(*d, 1), deck::slideMasterOf(*d, 2));
+        QCOMPARE(deck::themeOf(*d).name, deck::defaultTheme().name);
+        QCOMPARE(d->masters[0]->id, firstMaster);   // the presentation's theme is still the first master's
+        const MasterPage *second = d->master(deck::slideMasterOf(*d, 1));
+        office::Theme part;
+        QVERIFY(office::readTheme(QByteArray::fromBase64(second->props.value(QStringLiteral("themeXml")).toString().toLatin1()), &part));
+        QCOMPARE(part.name, QStringLiteral("Tideline"));
+        QCOMPARE(part.majorLatin, deck::builtinThemeFonts(deck::builtinThemeIndex(QStringLiteral("Tideline"))).heading);
+        // The slides on it are set in its fonts, the others in the old ones.
+        QCOMPARE(familyOf(firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("title")))), part.majorLatin);
+        QCOMPARE(familyOf(firstRunOf(*d, *placeholderOn(*d->pages[0], QStringLiteral("ctrTitle")))), deck::defaultTheme().headingFont);
+        // Every slide chosen is every slide.
+        auto all = deckToRestyle();
+        QVERIFY(deck::applyThemeToSlides(*all, *src, {0, 1, 2, 3, 4}));
+        masters = 0;
+        for (const auto &m : all->masters) masters += deck::isSlideMaster(*m);
+        QCOMPARE(masters, 1);
+        QCOMPARE(deck::themeOf(*all).name, QStringLiteral("Tideline"));
+    }
+
+    // A theme can be taken from a file: a presentation saved with the theme gives it to another.
+    void applyingAThemeFromAFile()
+    {
+        QString err;
+        auto src = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Almanac")), 1);
+        const QByteArray bytes = deck::exportPresentation(*src, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto fromFile = deck::importPresentation(bytes, &err);
+        QVERIFY2(fromFile, qPrintable(err));
+        auto d = deckToRestyle();
+        QVERIFY(deck::applyThemeToAll(*d, *fromFile));
+        const deck::DeckTheme theme = deck::themeOf(*d), wanted = deck::themeOf(*src);
+        QCOMPARE(theme.name, QStringLiteral("Almanac"));
+        for (int c = 0; c < 12; ++c) QCOMPARE(theme.colors[c], wanted.colors[c]);
+        QCOMPARE(theme.headingFont, wanted.headingFont);
+        QCOMPARE(layoutTypes(*d), layoutTypes(*deckToRestyle()));
+        const MasterPage *master = d->master(deck::slideMasterOf(*d, 0));
+        const MasterPage *was = src->master(deck::slideMasterOf(*src, 0));
+        int drawn = 0, drawnWas = 0;
+        for (const auto &it : master->items) drawn += it->role.isEmpty();
+        for (const auto &it : was->items) drawnWas += it->role.isEmpty();
+        QVERIFY(drawn > 0);
+        QCOMPARE(drawn, drawnWas);
+        QCOMPARE(deck::backgroundStyleOf(master->background, theme), deck::builtinThemeVariants(deck::builtinThemeIndex(QStringLiteral("Almanac"))).value(1).background);
+    }
+
+    // The colors, fonts, and background of a presentation change as the Variants menu says.
+    void variantsChangeColorsFontsAndBackgrounds()
+    {
+        auto d = deckToRestyle();
+        const deck::DeckTheme was = deck::themeOf(*d);
+        // Colors: the old scheme's colors become the new scheme's wherever they are used; what was set by hand stays.
+        deck::ColorSet set = deck::colorSets().value(5);
+        QVERIFY(!set.name.isEmpty());
+        deck::applyColors(*d, set);
+        const deck::DeckTheme now = deck::themeOf(*d);
+        for (int c = 0; c < 10; ++c) QCOMPARE(now.colors[c], set.colors[c]);   // (hyperlink colors are made readable on the background)
+        QCOMPARE(now.name, was.name);
+        QCOMPARE(now.headingFont, was.headingFont);
+        const auto *accent = static_cast<const TextItem *>(itemNamed(*d->pages[3], QStringLiteral("accent text")));
+        QCOMPARE(colorOfRun(*d, firstRunOf(*d, *accent)), set.colors[4]);
+        QCOMPARE(itemNamed(*d->pages[3], QStringLiteral("accent shape"))->fill.color.rgbValue(), set.colors[5]);
+        QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("title")))), set.colors[0]);
+        const QTextDocument *bodyDoc = d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId);
+        QCOMPARE(colorOfRun(*d, bodyDoc->findBlockByNumber(2).begin().fragment().charFormat()), QColor(0xC0, 0x00, 0x00));
+        QCOMPARE(deck::colorSetOf(*d).colors[4], set.colors[4]);
+        // The layouts and the slide master follow, so a new slide does.
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages.last(), QStringLiteral("title")))), set.colors[0]);
+
+        // Fonts.
+        deck::FontSet fonts{QStringLiteral("Test"), QStringLiteral("Poppins"), QStringLiteral("Lora")};
+        deck::applyFonts(*d, fonts);
+        QCOMPARE(deck::themeOf(*d).headingFont, QStringLiteral("Poppins"));
+        QCOMPARE(deck::themeOf(*d).bodyFont, QStringLiteral("Lora"));
+        QCOMPARE(d->fonts.heading, QStringLiteral("Poppins"));
+        QCOMPARE(familyOf(firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("title")))), QStringLiteral("Poppins"));
+        QCOMPARE(familyOf(firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("obj")))), QStringLiteral("Lora"));
+        QCOMPARE(familyOf(firstRunOf(*d, *accent)), QStringLiteral("Lora"));
+        QCOMPARE(familyOf(firstRunOf(*d, *static_cast<const TextItem *>(itemNamed(*d->pages[3], QStringLiteral("own font"))))), QStringLiteral("Courier Prime"));
+        QCOMPARE(deck::fontSetOf(*d).heading, QStringLiteral("Poppins"));
+
+        // A dark background: the master's, with the slides' and layouts' own cleared; text turns light, the hand-set red stays.
+        d->pages[2]->background = Fill::solid(ColorRef::rgb(QColor(0x33, 0x66, 0x99)));
+        deck::applyBackgroundStyle(*d, 11);
+        const deck::DeckTheme dark = deck::themeOf(*d);
+        QCOMPARE(deck::backgroundStyleOf(d->master(deck::slideMasterOf(*d, 0))->background, dark), 11);
+        QVERIFY(d->pages[2]->background.type == Fill::NoFill);
+        QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("title")))), dark.colors[1]);
+        QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("obj")))), dark.colors[1]);
+        QCOMPARE(colorOfRun(*d, d->storyDoc(placeholderOn(*d->pages[1], QStringLiteral("obj"))->storyId)->findBlockByNumber(2).begin().fragment().charFormat()), QColor(0xC0, 0x00, 0x00));
+        QStringList bad = unreadableText(*d, QStringLiteral("dark"));
+        bad.erase(std::remove_if(bad.begin(), bad.end(),
+                                 [](const QString &s) {
+                                     return s.contains(QStringLiteral("ph:dt")) || s.contains(QStringLiteral("ph:ftr")) || s.contains(QStringLiteral("ph:sldNum"))
+                                         || (s.contains(QStringLiteral("Section Header")) && s.contains(QStringLiteral("ph:body")));
+                                 }),
+                  bad.end());
+        QVERIFY2(bad.isEmpty(), qPrintable(bad.join('\n')));
+        // And back to a light one.
+        deck::applyBackgroundStyle(*d, 0);
+        QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("obj")))), deck::themeOf(*d).colors[0]);
+        // A variant is colors and a background at once; the presentation says which it shows.
+        auto harbor = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Harbor")));
+        const QVector<deck::Variant> variants = deck::variantsOf(*harbor);
+        QCOMPARE(variants.size(), 4);
+        QCOMPARE(deck::currentVariant(*harbor), 0);
+        for (int v = 0; v < 4; ++v) {
+            auto copy = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Harbor")));
+            deck::applyVariant(*copy, variants[v]);
+            QCOMPARE(deck::currentVariant(*copy), v);
+            auto direct = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Harbor")), v);
+            QCOMPARE(deck::themeOf(*copy).colors[4], deck::themeOf(*direct).colors[4]);
+            QCOMPARE(copy->masters[0]->background.toJson(), direct->masters[0]->background.toJson());
+        }
+        // A theme that isn't a built-in one has its own colors on four backgrounds.
+        auto plain = deck::newPresentation();
+        deck::DeckTheme mine = deck::themeOf(*plain);
+        mine.name = QStringLiteral("Mine");
+        deck::setTheme(*plain, mine);
+        const QVector<deck::Variant> others = deck::variantsOf(*plain);
+        QCOMPARE(others.size(), 4);
+        for (const deck::Variant &v : others) QCOMPARE(v.colors.colors[4], mine.colors[4]);
+        QCOMPARE(deck::currentVariant(*plain), 0);
+    }
+
+    // The colors of hyperlinks are kept readable when a background turns dark or light.
+    void hyperlinkColorsStayReadable()
+    {
+        auto d = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Ember")));
+        deck::applyBackgroundStyle(*d, 0);   // Ember is dark; its hyperlink color is a light one
+        const deck::DeckTheme theme = deck::themeOf(*d);
+        const Fill bg = d->masters[0]->background;
+        for (const QColor &c : fillColors(bg, d->colors)) {
+            QVERIFY(deck::contrastRatio(theme.colors[10], c) >= 4.5);
+            QVERIFY(deck::contrastRatio(theme.colors[11], c) >= 4.5);
+        }
+        QCOMPARE(deck::contrastRatio(QColor(Qt::black), QColor(Qt::white)), 21.0);
+    }
+
+    // A theme is saved as slide master, layout, and theme parts, and read back unchanged: its colors, fonts, background, what
+    // the master draws, and the look of every placeholder; a second save of what was read is the same.
+    void appliedThemesAreSavedAndReadBack()
+    {
+        for (int i = 1; i < deck::builtinThemeCount(); ++i) {
+            const QString name = deck::builtinThemeName(i);
+            auto d = deckToRestyle();
+            QVERIFY(deck::applyThemeToAll(*d, *deck::themePresentation(i, i % 4)));
+            QString err;
+            const QByteArray bytes = deck::exportPresentation(*d, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            Exported e;
+            QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(name + ": " + packageProblem(e)));
+            auto back = deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            // The theme part.
+            office::Theme part;
+            QVERIFY2(office::readTheme(e.zip.value(QStringLiteral("ppt/theme/theme1.xml")), &part, &err), qPrintable(err));
+            const deck::DeckTheme theme = deck::themeOf(*d), got = deck::themeOf(*back);
+            QCOMPARE(part.name, name);
+            QCOMPARE(got.name, name);
+            for (int c = 0; c < 12; ++c) QCOMPARE(got.colors[c], theme.colors[c]);
+            QCOMPARE(got.headingFont, theme.headingFont);
+            QCOMPARE(got.bodyFont, theme.bodyFont);
+            // The masters and layouts.
+            QCOMPARE(back->masters.size(), d->masters.size());
+            QCOMPARE(layoutTypes(*back), layoutTypes(*d));
+            for (int m = 0; m < d->masters.size(); ++m) {
+                const MasterPage &a = *d->masters[m], &b = *back->masters[m];
+                const QString where = QStringLiteral("%1: %2").arg(name, a.name);
+                QCOMPARE(deck::isSlideMaster(b), deck::isSlideMaster(a));
+                QCOMPARE(deck::layoutType(b), deck::layoutType(a));
+                QCOMPARE(b.showMasterItems, a.showMasterItems);
+                if (deck::isSlideMaster(a)) {
+                    QCOMPARE(deck::backgroundStyleOf(b.background, got), deck::backgroundStyleOf(a.background, theme));
+                    QVERIFY2(deck::backgroundStyleOf(b.background, got) >= 0, qPrintable(where));
+                }
+                // What it draws: the same shapes in the same places and colors.
+                QVector<const Item *> drawnA, drawnB;
+                for (const auto &it : a.items) if (it->role.isEmpty()) drawnA << it.get();
+                for (const auto &it : b.items) if (it->role.isEmpty()) drawnB << it.get();
+                QCOMPARE(drawnB.size(), drawnA.size());
+                for (int k = 0; k < drawnA.size(); ++k) {
+                    QVERIFY2(qAbs(drawnA[k]->rect.x() - drawnB[k]->rect.x()) < 0.6 && qAbs(drawnA[k]->rect.y() - drawnB[k]->rect.y()) < 0.6
+                                 && qAbs(drawnA[k]->rect.width() - drawnB[k]->rect.width()) < 0.6 && qAbs(drawnA[k]->rect.height() - drawnB[k]->rect.height()) < 0.6,
+                             qPrintable(where + QStringLiteral(" shape %1").arg(k)));
+                    QCOMPARE(drawnB[k]->fill.type, drawnA[k]->fill.type);
+                    if (drawnA[k]->fill.type == Fill::Solid) {
+                        QCOMPARE(drawnB[k]->fill.color.resolve(back->colors), drawnA[k]->fill.color.resolve(d->colors));
+                        QVERIFY(qAbs(drawnB[k]->fill.transparency - drawnA[k]->fill.transparency) < 0.01);
+                    }
+                    QCOMPARE(drawnB[k]->stroke.isNone(), drawnA[k]->stroke.isNone());
+                    if (!drawnA[k]->stroke.isNone()) QCOMPARE(drawnB[k]->stroke.color.resolve(back->colors), drawnA[k]->stroke.color.resolve(d->colors));
+                    QCOMPARE(drawnB[k]->flipH, drawnA[k]->flipH);
+                    QCOMPARE(drawnB[k]->flipV, drawnA[k]->flipV);
+                }
+                // Each placeholder: where it is and how its text looks.
+                for (const auto &it : a.items) {
+                    if (it->role.isEmpty() || it->type() != ItemType::Text || deck::placeholderType(*it) == QLatin1String("pic")) continue;
+                    const Item *other = nullptr;
+                    for (const auto &o : b.items)
+                        if (o->role == it->role) other = o.get();
+                    QVERIFY2(other, qPrintable(where + " " + it->role));
+                    QVERIFY2(qAbs(it->rect.x() - other->rect.x()) < 0.6 && qAbs(it->rect.y() - other->rect.y()) < 0.6 && qAbs(it->rect.width() - other->rect.width()) < 0.6,
+                             qPrintable(where + " " + it->role));
+                    const QTextCharFormat fa = firstRunOf(*d, *it), fb = firstRunOf(*back, *other);
+                    QCOMPARE(fb.fontPointSize(), fa.fontPointSize());
+                    QCOMPARE(colorOfRun(*back, fb), colorOfRun(*d, fa));
+                    QVERIFY2(familyOf(fb).isEmpty() || familyOf(fb) == familyOf(fa), qPrintable(where + " " + it->role + ": " + familyOf(fb) + " for " + familyOf(fa)));
+                    QCOMPARE(fb.fontWeight() >= QFont::DemiBold, fa.fontWeight() >= QFont::DemiBold);
+                    QCOMPARE(fb.fontCapitalization(), fa.fontCapitalization());
+                }
+            }
+            // The slides stay on the layouts of their kinds, with their words.
+            QCOMPARE(int(back->pages.size()), int(d->pages.size()));
+            QCOMPARE(deck::slideTitle(*back, 1), QStringLiteral("Results"));
+            // Saving what was read, and reading that, and saving again gives the same masters, layouts, and theme (a read adds the language and
+            // kerning a file says of its text, so the first save of a file read differs from the first save).
+            Exported again, third;
+            QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+            auto backAgain = deck::importPresentation(deck::exportPresentation(*back, &err), &err);
+            QVERIFY2(backAgain, qPrintable(err));
+            QVERIFY2(unpack(deck::exportPresentation(*backAgain, &err), &third, &err), qPrintable(err));
+            for (const QString &partName : again.zip.keys())
+                if (partName.contains(QLatin1String("slideMasters/slideMaster")) || partName.contains(QLatin1String("slideLayouts/slideLayout")) || partName.contains(QLatin1String("theme/theme1")))
+                {
+                    const QByteArray was = again.zip.value(partName), now = third.zip.value(partName);
+                    int at = 0;
+                    while (at < was.size() && at < now.size() && was[at] == now[at]) ++at;
+                    QVERIFY2(was == now, qPrintable(name + ": " + partName + " changed on a third save, at " + QString::number(at) + ": " + QString::fromUtf8(was.mid(std::max(0, at - 80), 200)) + " <<>> "
+                                                    + QString::fromUtf8(now.mid(std::max(0, at - 80), 200))));
+                }
+        }
+    }
+
+    // Slides with a master of their own are saved with its theme part and come back on it.
+    void aThemeOnSomeSlidesIsSavedAsAMasterOfItsOwn()
+    {
+        auto d = deckToRestyle();
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Orchard"))), {1}));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QCOMPARE(e.pkg.relationshipsOfType(QStringLiteral("/ppt/presentation.xml"), QStringLiteral("/slideMaster")).size(), 2);
+        office::Theme second;
+        QVERIFY(office::readTheme(e.zip.value(QStringLiteral("ppt/theme/theme2.xml")), &second, &err));
+        QCOMPARE(second.name, QStringLiteral("Orchard"));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(deck::themeOf(*back).name, deck::defaultTheme().name);
+        QCOMPARE(layoutTypes(*back), layoutTypes(*d));
+        QVERIFY(deck::slideMasterOf(*back, 1) != deck::slideMasterOf(*back, 0));
+        QCOMPARE(deck::slideMasterOf(*back, 2), deck::slideMasterOf(*back, 0));
+        QVERIFY(deck::applyThemeToAll(*back, *deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Marquee")))));
+        QCOMPARE(deck::themeOf(*back).name, QStringLiteral("Marquee"));
+    }
+
+    // A file can't make a change of theme slow: slides and a theme whose layout have hundreds of placeholders each are not matched one
+    // against the other (the slides go to the layout as they are).
+    void applyingAThemeToASlideFullOfPlaceholdersIsQuick()
+    {
+        auto d = deck::newPresentation();
+        auto many = [](Document &doc, int count) {
+            ItemList items;
+            for (int i = 0; i < count; ++i) {
+                auto box = std::make_shared<TextItem>();
+                box->role = deck::placeholderRole(QStringLiteral("obj"), i + 1);
+                box->rect = QRectF(10 + i % 40 * 20, 10 + i / 40 * 10, 18, 8);
+                box->storyId = doc.createStory(QStringLiteral("x"));
+                items.push_back(box);
+            }
+            return items;
+        };
+        for (int s = 0; s < 4; ++s) {
+            deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+            Page &slide = *d->pages.last();
+            const ItemList more = many(*d, 2000);
+            slide.items.insert(slide.items.end(), more.begin(), more.end());
+        }
+        auto source = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Granite")));
+        MasterPage *obj = deck::layoutOfType(*source, QStringLiteral("obj"));
+        obj->items = many(*source, 2000);
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(deck::applyThemeToAll(*d, *source));
+        QVERIFY2(timer.elapsed() < 1500, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
+        QCOMPARE(deck::themeOf(*d).name, QStringLiteral("Granite"));
+        QCOMPARE(layoutTypes(*d), (QStringList{QStringLiteral("title"), QStringLiteral("obj"), QStringLiteral("obj"), QStringLiteral("obj"), QStringLiteral("obj")}));
+    }
+
 
     // A theme's picture fills (its textures) point at pictures the reader did not keep:
     // written as they were, they would point nowhere, so they become plain fills.
