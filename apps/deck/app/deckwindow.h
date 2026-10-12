@@ -12,15 +12,25 @@
 #include <functional>
 
 class QLabel;
+class QSlider;
 class QSplitter;
+class QToolButton;
 
 namespace jp {
 
-class Canvas;
+class ColorButton;
+class DeckCanvas;
 class Editor;
+class FontCombo;
 class NotesPane;
 class Ribbon;
+struct RibbonParts;
+class SizeCombo;
 class SlidesPane;
+
+namespace deck {
+struct FooterOptions;
+}
 
 class DeckWindow : public AppWindow {
     Q_OBJECT
@@ -32,6 +42,7 @@ public:
     QStringList actionIds() const override;
     Ribbon *ribbon() const override { return m_ribbon; }
     Editor *editor() const { return m_ed; }
+    DeckCanvas *canvas() const { return m_canvas; }
     SlidesPane *slidesPane() const { return m_slides; }
     NotesPane *notesPane() const { return m_notes; }
     SlideShow *slideShow() const { return m_show; }
@@ -47,6 +58,19 @@ public:
     void toggleHidden();
     void setLayout(const QString &layoutType);
     void resetSlide();
+    // Gives the slides another size, everything on them scaled to fit (as
+    // one step that undoes).
+    void setSlideSize(const QSizeF &size);
+    // A solid background for the slide being edited, or for all of them.
+    void setBackground(const QColor &color, bool all);
+    // Header & Footer for the slide being edited, or for all of them.
+    void applyFooters(const deck::FooterOptions &options, bool all);
+    // A picture from a file, centered on the slide (or with its corner at `at`
+    // when that isn't negative) and selected. False when the file can't be
+    // read as a picture.
+    bool insertPicture(const QString &path, const QPointF &at = QPointF(-1, -1));
+    // A table of that size, centered on the slide, with its first cell ready to type in.
+    void insertTable(int rows, int columns);
     // Starts the slide show at `slide` (0 is the first).
     void startShow(int slide);
 
@@ -57,20 +81,36 @@ private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
     void createActions();
-    void buildRibbon();
+    void createFormatActions();   // deckwindow_actions.cpp
+    void createInsertActions();
+    void createDesignActions();
+    void createViewActions();
+    void buildRibbon();           // deckwindow_ribbon.cpp
+    void ribbonControlParts(RibbonParts &parts);
+    void ribbonGalleryParts(RibbonParts &parts);
+    void ribbonMenuParts(RibbonParts &parts);
     void buildStatusBar();
     void refreshUi();
+    void showHeaderFooter();
+    void showFormatBackground();
+    void askSlideSize(const QSizeF &size);
+    void insertPictureFromFile();
     void updateTitle();
     void showFileMenu();
     bool maybeSave();
 
     Editor *m_ed = nullptr;
-    Canvas *m_canvas = nullptr;
+    DeckCanvas *m_canvas = nullptr;
     Ribbon *m_ribbon = nullptr;
     SlidesPane *m_slides = nullptr;
     NotesPane *m_notes = nullptr;
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr;
-    QLabel *m_slideLabel = nullptr;
+    QLabel *m_slideLabel = nullptr, *m_zoomLabel = nullptr;
+    QSlider *m_zoomSlider = nullptr;
+    QList<FontCombo *> m_fontCombos;
+    QList<SizeCombo *> m_sizeCombos;
+    QList<ColorButton *> m_colorButtons;
+    QSizeF m_shownSize;   // the slide size the view was last fitted to
     QPointer<SlideShow> m_show;
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
