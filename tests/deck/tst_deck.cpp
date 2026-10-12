@@ -2087,6 +2087,69 @@ private Q_SLOTS:
         }
     }
 
+    // An open document presentation opens in a window, and saves as a new .pptx, never over the file it came from; what
+    // it holds is written as a presentation file and read back.
+    void windowSavesAnOpenDocumentPresentationAsANewOne()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.odp"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(odptest::sampleOdp());
+        f.close();
+        const QByteArray before = fileBytes(path);
+        DeckWindow w;
+        // What was left out (the slide's animation) is said when it opens.
+        QString shown;
+        QTimer::singleShot(0, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                shown = box->text() + box->informativeText();
+                box->close();
+            }
+        });
+        QVERIFY(w.openFile(path));
+        QVERIFY2(shown.contains(QStringLiteral("animations")), qPrintable(shown));
+        QCOMPARE(int(w.editor()->doc()->pages.size()), 4);
+        QCOMPARE(w.editor()->filePath(), path);
+        QVERIFY(!w.editor()->isModified());
+        w.newSlide();
+        // Save asks where, and suggests a .pptx beside the original; cancelled, nothing is written.
+        QStringList asked;
+        w.setSavePathChooser([&](const QString &suggested, const QString &) {
+            asked << suggested;
+            return QString();
+        });
+        QVERIFY(!w.save());
+        QCOMPARE(asked, QStringList{dir.filePath(QStringLiteral("talk.pptx"))});
+        QCOMPARE(fileBytes(path), before);
+        const QString out = dir.filePath(QStringLiteral("talk.pptx"));
+        QVERIFY(w.saveTo(out));
+        QCOMPARE(fileBytes(path), before);
+        QString err;
+        auto back = deck::importAnyPresentationFile(out, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 5);
+        QCOMPARE(textOf(*back, *back->pages[0]->items[0]), QStringLiteral("Quarterly results"));
+        QCOMPARE(deck::notesText(*back, *back->pages[0]), QStringLiteral("Say hello first\nThen the numbers"));
+        // The shapes, the table, and the picture are in what was written.
+        int tables = 0, pictures = 0, shapes = 0;
+        for (const auto &page : back->pages)
+            walkItems(page->items, [&](const ItemPtr &it) {
+                tables += it->type() == ItemType::Table;
+                pictures += it->type() == ItemType::Picture;
+                shapes += it->type() == ItemType::Shape;
+            });
+        QCOMPARE(tables, 1);
+        QCOMPARE(pictures, 2);
+        QVERIFY(shapes >= 4);
+        QCOMPARE(w.editor()->filePath(), out);
+        w.editor()->markSaved();
+        // The files are gone with the folder; the list of recent ones doesn't keep them for the tests after this.
+        Settings::get().removeRecentFile(path);
+        Settings::get().removeRecentFile(out);
+    }
+
     // A new layout moves the placeholders to its places, by kind, and keeps
     // their text; its places that nothing filled get empty placeholders.
     void applyLayoutKeepsText()
