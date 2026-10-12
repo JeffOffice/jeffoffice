@@ -1509,7 +1509,7 @@ static QWidget *suiteRow(QWidget *parent, const QString &name, const QString &le
     p.setBrush(color);
     p.drawRoundedRect(QRectF(0, 0, 28, 28), 28 * 0.24, 28 * 0.24);
     QFont tf = parent->font();
-    tf.setWeight(QFont::Medium);
+    tf.setWeight(QFont::DemiBold);
     tf.setPixelSize(12);
     p.setFont(tf);
     p.setPen(Qt::white);

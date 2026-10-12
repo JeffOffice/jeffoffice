@@ -10,6 +10,8 @@ Your settings are in the **JeffPub Options** window. Click **File > Options** to
 - **Display language** is the language of JeffPub's own words. **Use system language** follows your computer. Other languages appear in this list when translations are available. A new language starts the next time you open JeffPub.
 - **Send anonymous usage statistics** and **Check for updates when JeffPub starts** are the same choices as on the **About** page (below).
 
+**User name**, **Initials**, **Theme**, and **Display language**, and the update and statistics choices, belong to all the JeffOffice apps: change one here and it changes in each of them.
+
 ## Proofing
 
 These check boxes control spelling and typing help. See [Check spelling and hyphenation](proofing).
@@ -37,12 +39,12 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 
 ## Updates, statistics, and your name
 
-Click **File > About** to find these. The two check boxes are also on the **General** tab of **File > Options**.
+Click **File > About** to find these. The two check boxes are also on the **General** tab of **File > Options**, with a third, **Get beta versions**.
 
 - **Check for Updates** looks for a newer version now. If one is out, an **Update Available** window shows what is new. Choose **Update Now**, **Later**, or **Skip This Version**.
-- **Get beta versions (early builds for testing)**, found only on the **General** tab of **File > Options**, makes JeffPub also offer beta versions, which come out before the regular ones and may have rough edges.
+- **Get beta versions (early builds for testing)** makes JeffPub also offer beta versions, which come out before the regular ones and may have rough edges.
 - **Check for updates automatically** makes JeffPub look each time it starts.
-- **Send anonymous usage statistics** is your choice about sharing facts about how JeffPub is used. When it is on, JeffPub sends these once a day, and on the day you update: its version, your operating system and language, and how often each command is used. It never sends your files, their names, or anything in them. Click **What's sent** to read more. JeffPub asks about this the first time it starts, in a window called **Help improve JeffPub**. On Windows, setup may ask first.
+- **Send anonymous usage statistics** is your choice about sharing facts about how JeffPub is used. When it is on, JeffPub sends these once a day, and on the day you update: its version, your operating system and language, and how often each command is used. If JeffPub ever closes unexpectedly, it also sends a crash report the next time it starts. The report says where in the program it stopped, so the problem can be found and fixed. It never sends your files, their names, or anything in them, and nothing you typed. Click **What's sent** to read more. JeffPub asks about this the first time it starts, in a window called **Help improve JeffPub**. On Windows, setup may ask first.
 - **Your name** is the same name as **User name** above.
 
 ## Related
