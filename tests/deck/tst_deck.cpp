@@ -8611,6 +8611,51 @@ private Q_SLOTS:
         QVERIFY(plain[1]->fill.type == Fill::Solid);
     }
 
+    // The writer's XML for a shape is a few kilobytes. One that inflates past
+    // a megabyte (a hostile file's, a few bytes packed) is not read, and the
+    // shape keeps the look its old properties give; nor is more than 64 MB of
+    // it read in all.
+    void importBinaryWritersXmlIsReadOnlySoLarge()
+    {
+        auto xmlPackage = [&](qsizetype padding) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/drs/shapexml.xml"),
+                      QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:sp xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" "
+                                 "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><!--") + QByteArray(padding, ' ')
+                          + QByteArray("--><p:nvSpPr><p:cNvPr id=\"2\" name=\"R\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>"
+                                       "<p:spPr><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></p:spPr></p:sp>"),
+                      QStringLiteral("application/xml"));
+            return w.finish();
+        };
+        auto rectangle = [&](quint32 id, int top, const QByteArray &package) {
+            QByteArray table = le(0x0181, 2) + le(0xFF0000, 4) + le(0x01BF, 2) + le(0x00100010, 4) + le(0x03A9 | 0x8000, 2) + le(quint32(package.size()), 4);
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, table + package, 3, 3) + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 50, 2)));
+        };
+        auto greens = [](const Document &d) {
+            int n = 0;
+            for (const auto &it : d.pages[0]->items)
+                if (it->role.isEmpty() && it->type() == ItemType::Shape && it->fill.color.rgbValue() == QColor(0, 255, 0).rgb()) ++n;
+            return n;
+        };
+        QString err;
+        // One that inflates to 2 MB stays blue; a small one beside it takes its green.
+        QByteArray shapes = rectangle(0x500, 100, xmlPackage(2 << 20)) + rectangle(0x501, 300, xmlPackage(10));
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(greens(*d), 1);
+        // 120 of 600 KB each: the first 64 MB are read, the rest are not.
+        shapes.clear();
+        const QByteArray big = xmlPackage(600 << 10);
+        for (int i = 0; i < 120; ++i) shapes += rectangle(0x600 + i, 100 + i * 20, big);
+        QElapsedTimer t;
+        t.start();
+        d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const int read = greens(*d);
+        QVERIFY2(read > 90 && read < 120, qPrintable(QString::number(read)));
+        QVERIFY(t.elapsed() < 30000);
+    }
+
     // A blank paragraph keeps its bullet as the file has it (text typed in it shows one), and shows none, as in the program.
     void importBinaryBlankParagraphsShowNoBullets()
     {
