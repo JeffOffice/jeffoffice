@@ -208,7 +208,7 @@ QRegion transitionChange(const deck::Transition &t, const QSizeF &size, double b
     return all;
 }
 
-QImage renderSlideImage(const Document *doc, LayoutCache *cache, int slide, const QSize &size, qreal dpr, const QColor &bars)
+QImage renderSlideImage(const Document *doc, LayoutCache *cache, int slide, const QSize &size, qreal dpr, const QColor &bars, const deck::States *states)
 {
     const QSize px(std::max(1, qRound(size.width() * dpr)), std::max(1, qRound(size.height() * dpr)));
     // Drawn with gray text smoothing; a screen image has no use for the
@@ -231,6 +231,7 @@ QImage renderSlideImage(const Document *doc, LayoutCache *cache, int slide, cons
         PaintContext ctx;
         ctx.doc = doc;
         ctx.cache = cache;
+        if (states) deck::animate(ctx, *doc, *states);
         Renderer::paintPage(&p, ctx, slide);
     }
     // Opaque, so that painting it on the screen is a copy.
@@ -279,7 +280,9 @@ SlideShow::SlideShow(const Document *doc, LayoutCache *cache, int startSlide, QW
     });
     connect(&m_anim, &QVariantAnimation::finished, this, &SlideShow::endTransition);
     m_auto.setSingleShot(true);
-    connect(&m_auto, &QTimer::timeout, this, [this] { next(); });
+    connect(&m_auto, &QTimer::timeout, this, [this] { moveOn(); });
+    m_frame.setTimerType(Qt::PreciseTimer);
+    connect(&m_frame, &QTimer::timeout, this, &SlideShow::stepFrame);
 }
 
 int SlideShow::nextShown(int from, int step) const
@@ -306,7 +309,29 @@ void SlideShow::setRehearsal(bool on)
 
 // ---- moving ----
 
+// A click: it finishes the effect that plays, else plays the slide's next step, else moves on.
 void SlideShow::next()
+{
+    const bool inTransition = m_animating;
+    finishTransition();
+    if (inTransition) finishStep();   // the effects that began when the transition ended
+    if (m_playing >= 0) {
+        m_blank = QColor();
+        finishStep();
+        update();
+        return;
+    }
+    if (!m_atEnd && m_done < stepCount()) {
+        m_auto.stop();
+        m_blank = QColor();
+        startStep(m_done);
+        return;
+    }
+    moveOn();
+}
+
+// To the next slide, past the steps left.
+void SlideShow::moveOn()
 {
     finishTransition();
     m_auto.stop();
@@ -335,9 +360,18 @@ void SlideShow::previous()
     m_blank = QColor();
     if (m_atEnd) {
         m_atEnd = false;
-        showSlide(m_slide);
+        showSlide(m_slide, stepCount());
+    } else if (m_playing >= 0) {
+        // The effect stops, and its step is not played.
+        m_frame.stop();
+        m_done = m_playing;
+        m_playing = -1;
+        stepChanged();
+    } else if (m_done > 0) {
+        --m_done;
+        stepChanged();
     } else if (const int p = nextShown(m_slide - 1, -1); p >= 0) {
-        showSlide(p);
+        showSlide(p, stepsOf(p));
     } else {
         showSlide(m_slide);
     }
@@ -353,9 +387,14 @@ void SlideShow::goTo(int slide)
     showSlide(slide);
 }
 
-void SlideShow::showSlide(int slide)
+// A slide on the screen with `steps` of its steps played.
+void SlideShow::showSlide(int slide, int steps)
 {
+    m_frame.stop();
     m_slide = m_target = slide;
+    m_done = std::min(steps, stepsOf(slide));
+    m_playing = -1;
+    m_nowValid = false;
     settle();
     Q_EMIT changed();
 }
@@ -371,7 +410,7 @@ void SlideShow::toggleBlank(const QColor &color)
 void SlideShow::startTransition(int slide, const deck::Transition &t)
 {
     // Both images are ready before the first frame.
-    imageOf(m_slide);
+    nowImage();
     imageOf(slide);
     m_target = slide;
     m_trans = t;
@@ -395,6 +434,9 @@ void SlideShow::endTransition()
     m_animating = false;
     m_anim.stop();
     m_slide = m_target;
+    m_done = 0;
+    m_playing = -1;
+    m_nowValid = false;
     settle();
 }
 
@@ -402,6 +444,7 @@ void SlideShow::endTransition()
 void SlideShow::settle()
 {
     update();
+    startAutomaticSteps();
     startAutoAdvance();
     QTimer::singleShot(0, this, &SlideShow::prefetch);
 }
@@ -409,8 +452,122 @@ void SlideShow::settle()
 void SlideShow::startAutoAdvance()
 {
     m_auto.stop();
-    if (!m_started || m_atEnd || m_animating) return;
+    if (!m_started || m_atEnd || m_animating || m_playing >= 0) return;
     if (const auto after = deck::transitionOf(*m_doc->pages[m_slide]).advanceAfter) m_auto.start(std::max(0, qRound(*after * 1000)));
+}
+
+// ---- the slide's animations ----
+
+const SlideShow::Play &SlideShow::playOf(int slide) const
+{
+    static const Play none;
+    if (slide < 0 || slide >= m_doc->pages.size()) return none;
+    auto it = m_plays.find(slide);
+    if (it == m_plays.end()) {
+        Play play;
+        play.timeline = deck::playableTimeline(*m_doc->pages[slide]);
+        if (!play.timeline.isEmpty()) play.geometry = deck::geometryOf(*m_doc, *m_doc->pages[slide]);
+        it = m_plays.insert(slide, play);
+    }
+    return it.value();
+}
+
+int SlideShow::stepCount() const
+{
+    return m_atEnd ? 0 : stepsOf(m_slide);
+}
+
+SlideShow::View SlideShow::currentView() const
+{
+    if (m_atEnd) return View();
+    if (m_animating) return View{m_target, 0};
+    return View{m_slide, m_playing >= 0 ? m_playing : m_done};
+}
+
+double SlideShow::currentMs() const { return m_playing >= 0 && !m_animating && !m_atEnd ? m_stepMs : -1; }
+
+SlideShow::View SlideShow::nextView() const
+{
+    const View now = currentView();
+    if (now.slide < 0) return View();
+    // The click after the one that finishes the effect that plays.
+    const int played = m_playing >= 0 && !m_animating ? m_playing + 1 : now.steps;
+    if (played < stepsOf(now.slide)) return View{now.slide, played + 1};
+    return View{slideAfter(now.slide), 0};
+}
+
+QImage SlideShow::renderView(const View &view, double ms, const QSize &size, qreal dpr, const QColor &bars)
+{
+    const Play &play = playOf(view.slide);
+    if (play.timeline.isEmpty()) return renderSlideImage(m_doc, m_cache, view.slide, size, dpr, bars);
+    const deck::States states = deck::statesAt(play.timeline, play.geometry, view.steps, ms);
+    return renderSlideImage(m_doc, m_cache, view.slide, size, dpr, bars, &states);
+}
+
+// The step plays from its click, one frame after another, and ends at its last effect's end.
+void SlideShow::startStep(int step)
+{
+    m_playing = step;
+    m_stepLength = playOf(m_slide).timeline.steps[step].duration();
+    m_stepMs = 0;
+    m_nowValid = false;
+    if (m_stepLength < 2) {   // an appearing shape: a set that takes a millisecond
+        finishStep();
+        return;
+    }
+    m_stepClock.start();
+    const qreal rate = screen() ? screen()->refreshRate() : 60;
+    m_frame.start(std::clamp(qRound(1000 / (rate > 1 ? rate : 60)), 4, 33));
+    update();
+    Q_EMIT changed();
+}
+
+void SlideShow::stepFrame()
+{
+    if (m_playing < 0) {
+        m_frame.stop();
+        return;
+    }
+    const double ms = m_stepClock.nsecsElapsed() / 1e6;
+    if (ms >= m_stepLength) {
+        finishStep();
+        return;
+    }
+    m_stepMs = ms;
+    m_nowValid = false;
+    update();
+    Q_EMIT frameChanged();
+}
+
+void SlideShow::finishStep()
+{
+    if (m_playing < 0) return;
+    m_frame.stop();
+    m_done = m_playing + 1;
+    m_playing = -1;
+    m_nowValid = false;
+    update();
+    Q_EMIT changed();
+    // The step after it may begin by itself; if none does, the slide's seconds count from here.
+    startAutomaticSteps();
+    startAutoAdvance();
+}
+
+// The steps played changed: draw the slide again, count the seconds from here, and tell Presenter View.
+void SlideShow::stepChanged()
+{
+    m_nowValid = false;
+    update();
+    startAutoAdvance();
+    Q_EMIT changed();
+}
+
+// A slide shown at its start, or a step after one that has played, that begins by itself.
+void SlideShow::startAutomaticSteps()
+{
+    if (!m_started || m_atEnd || m_animating || m_playing >= 0) return;
+    const deck::Timeline &tl = playOf(m_slide).timeline;
+    if (m_done < tl.steps.size() && tl.steps[m_done].automatic) startStep(m_done);
 }
 
 // ---- drawing ----
@@ -425,9 +582,23 @@ QImage SlideShow::imageOf(int slide)
     }
     auto it = m_images.constFind(slide);
     if (it != m_images.constEnd()) return *it;
-    const QImage img = renderSlideImage(m_doc, m_cache, slide, m_imageSize, m_imageRatio);
+    const QImage img = renderView(View{slide, 0}, -1, m_imageSize, m_imageRatio);
     m_images.insert(slide, img);
     return img;
+}
+
+// The slide on the screen: at its start, the image kept for it, else drawn as its steps have it.
+QImage SlideShow::nowImage()
+{
+    if (m_playing < 0 && m_done == 0) return imageOf(m_slide);
+    const qreal dpr = devicePixelRatioF();
+    if (!m_nowValid || size() != m_nowSize || dpr != m_nowRatio) {
+        m_now = renderView(View{m_slide, m_playing >= 0 ? m_playing : m_done}, m_playing >= 0 ? m_stepMs : -1, size(), dpr);
+        m_nowSize = size();
+        m_nowRatio = dpr;
+        m_nowValid = true;
+    }
+    return m_now;
 }
 
 // The slides the presenter can move to next are drawn while this one is talked
@@ -463,7 +634,7 @@ void SlideShow::paintEvent(QPaintEvent *)
         p.drawText(rect().adjusted(0, 24, 0, 0), Qt::AlignHCenter | Qt::AlignTop, tr("End of slide show, click to exit."));
         return;
     }
-    const QImage now = imageOf(m_slide);
+    const QImage now = nowImage();
     if (now.deviceIndependentSize().toSize() != size()) p.fillRect(rect(), Qt::black);
     if (m_animating) paintTransition(&p, m_trans, now, imageOf(m_target), m_anim.currentValue().toDouble());
     else p.drawImage(0, 0, now);
@@ -472,6 +643,7 @@ void SlideShow::paintEvent(QPaintEvent *)
 void SlideShow::resizeEvent(QResizeEvent *e)
 {
     finishTransition();
+    m_nowValid = false;
     QWidget::resizeEvent(e);
 }
 
@@ -527,10 +699,14 @@ QString SlideShow::linkAt(const QPointF &pos) const
     const QRectF at = slideRect();
     if (!at.contains(pos)) return QString();
     const QPointF page = (pos - at.topLeft()) * (m_doc->pageSize().width() / at.width());
+    // A shape the animations have not shown yet, or have hidden, has no link to click.
+    const Play &play = playOf(m_slide);
+    const deck::States states = play.timeline.isEmpty() ? deck::States() : deck::statesAt(play.timeline, play.geometry, m_playing >= 0 ? m_playing : m_done, m_playing >= 0 ? m_stepMs : -1);
     const auto find = [&](const auto &self, const ItemList &items) -> QString {
         for (auto it = items.rbegin(); it != items.rend(); ++it) {
             const Item &item = **it;
             if (!item.bounds().contains(page)) continue;
+            if (const auto state = states.constFind(deck::Target{item.sourceId, -1, -1}); item.sourceId > 0 && state != states.constEnd() && (!state->visible || state->opacity <= 0)) continue;
             if (item.type() == ItemType::Group)
                 if (const QString inside = self(self, static_cast<const GroupItem &>(item).children); !inside.isEmpty()) return inside;
             if (!item.hyperlink.isEmpty()) return item.hyperlink;
@@ -550,9 +726,10 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
                 QDesktopServices::openUrl(url);
             return;
         }
-        // A slide that doesn't move on at a click leaves that to the keys; the end screen always does.
+        // A slide that doesn't move on at a click leaves that to the keys (its steps still play at one); the end screen always does.
         const int shown = m_animating ? m_target : m_slide;
-        if (m_atEnd || deck::transitionOf(*m_doc->pages[shown]).advanceOnClick) next();
+        const bool stepsLeft = !m_animating && (m_playing >= 0 || m_done < stepCount());
+        if (m_atEnd || stepsLeft || deck::transitionOf(*m_doc->pages[shown]).advanceOnClick) next();
     } else if (e->button() == Qt::RightButton) {
         previous();
     }
@@ -569,12 +746,14 @@ void SlideShow::showEvent(QShowEvent *e)
     QWidget::showEvent(e);
     if (m_started) return;
     m_started = true;
+    startAutomaticSteps();
     startAutoAdvance();
 }
 
 void SlideShow::closeEvent(QCloseEvent *e)
 {
     m_anim.stop();
+    m_frame.stop();
     m_auto.stop();
     Q_EMIT ended(m_atEnd ? m_slide : targetSlide());
     QWidget::closeEvent(e);
