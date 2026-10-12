@@ -54,10 +54,7 @@ QString bulletLetter(const QString &text, const QString &font, bool *dropFont)
     const QString f = font.toLower();
     // The letters of the symbol fonts that bullets use, as the letters of ours that look like them.
     if (isSymbolFont(font)) {
-        QString mapped = symbolToUnicode(font, c.unicode());
-        // The pointing triangles of the third set of pictures.
-        const ushort code = c.unicode() >= 0xF000 ? c.unicode() - 0xF000 : c.unicode();
-        if (mapped.isEmpty() && f == QLatin1String("wingdings 3") && (code == 0x7D || code == 0x75)) mapped = QStringLiteral("\u25B6");
+        const QString mapped = symbolToUnicode(font, c.unicode());
         if (!mapped.isEmpty()) {
             if (dropFont) *dropFont = true;
             return mapped;
