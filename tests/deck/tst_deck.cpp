@@ -2320,6 +2320,308 @@ private Q_SLOTS:
         QVERIFY(body->begin().textList());
     }
 
+private:
+    // ---- Old binary presentations built to make a reader repeat its work (small in bytes)
+
+    // The compound file around a presentation stream whose newest edit starts at `lastEdit`.
+    static QByteArray pptFileOf(const QByteArray &stream, quint32 lastEdit, const QByteArray &pictures = QByteArray())
+    {
+        cfb::File f;
+        cfb::Entry root;
+        root.type = cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries << root;
+        auto add = [&](const QString &name, const QByteArray &data) {
+            cfb::Entry e;
+            e.type = cfb::Entry::Stream;
+            e.name = name;
+            e.data = data;
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+        };
+        const QByteArray user("Tester");
+        add(QStringLiteral("Current User"), pptRec(4086, le(20, 4) + le(0xE391C05F, 4) + le(lastEdit, 4) + le(user.size(), 2) + le(0x3F4, 2) + raw({3, 0, 0, 0}) + user + le(8, 4)));
+        add(pptDocumentStream(), stream);
+        add(QStringLiteral("Pictures"), pictures);
+        return cfb::write(f);
+    }
+    // A document with the slide master list `masters` and the slide list `slides` (and a drawing group, if given).
+    static QByteArray pptDocumentOf(const QByteArray &slides, const QByteArray &masters = slidePersist(3, 0, 0x80000001), const QByteArray &drawingGroup = QByteArray())
+    {
+        return pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
+                                + drawingGroup + pptBox(4080, masters, 1) + pptBox(4080, slides, 0));
+    }
+    static QByteArray pptMasterOf() { return pptBox(1016, slideAtom(1, QByteArray("\x01\x02", 2), 0, 0, 3) + colorScheme(1) + pptDrawing()); }
+    static QByteArray pptSlideOf(const QByteArray &shapes) { return pptBox(1006, slideAtom(1, QByteArray(), 0x80000001, 0, 7) + pptDrawing(shapes)); }
+    // A rectangle that is only a place: 40 bytes.
+    static QByteArray pptTinyShape() { return pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF010, le(100, 2) + le(200, 2) + le(300, 2) + le(400, 2))); }
+    // A picture frame showing picture `index` of the store.
+    static QByteArray pptPictureShape(int index)
+    {
+        return pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xA00, 4), 75, 2) + pptRec(0xF00B, le(0x4104, 2) + le(quint32(index), 4), 1, 3)
+                                  + pptRec(0xF010, le(100, 2) + le(200, 2) + le(300, 2) + le(400, 2)));
+    }
+    // A presentation of the slide list `slides`, the records (persist id and record) after the master, and one edit.
+    static QByteArray pptOf(const QByteArray &slides, const QVector<QPair<quint32, QByteArray>> &records, const QByteArray &drawingGroup = QByteArray(),
+                            const QByteArray &pictures = QByteArray(), const QByteArray &masters = slidePersist(3, 0, 0x80000001))
+    {
+        QByteArray s = pptDocumentOf(slides, masters, drawingGroup);
+        QVector<QPair<quint32, quint32>> at{{1, 0}, {3, quint32(s.size())}};
+        s += pptMasterOf();
+        for (const auto &r : records) {
+            at << qMakePair(r.first, quint32(s.size()));
+            s += r.second;
+        }
+        const quint32 directory = quint32(s.size());
+        s += persistDirectory(at);
+        const quint32 edit = quint32(s.size());
+        s += userEdit(0, directory, 1);
+        return pptFileOf(s, edit, pictures);
+    }
+    // A persist directory of `count` ids from `first` on, all at offset 0, in runs of 4095 (the most a run holds).
+    static QByteArray pptDirectoryOf(quint32 first, quint32 count)
+    {
+        QByteArray d;
+        for (quint32 done = 0; done < count; done += 4095) {
+            const quint32 n = std::min<quint32>(4095, count - done);
+            d += le((first + done) | (n << 20), 4) + QByteArray(int(n) * 4, '\0');
+        }
+        return pptRec(6002, d);
+    }
+
+private Q_SLOTS:
+    // One slide that many entries of the slide list name is read once: the drawing of 20,000 shapes is not made again for each
+    // of them, as the entries each had their own slide (a file of 1 MB then took half a minute and gigabytes).
+    void binaryPresentationReadsASlideNamedManyTimesOnce()
+    {
+        QByteArray entries;
+        for (int i = 0; i < 12; ++i) entries += slidePersist(5, 0, 0x100 + i);
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importBinaryPresentation(pptOf(entries, {{5, pptSlideOf(pptTinyShape().repeated(20000))}}), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 1);
+        QCOMPARE(int(d->pages[0]->items.size()), 20000);
+        QVERIFY2(err.contains(QStringLiteral("Slide 2 was left out")) && err.contains(QStringLiteral("Slide 12 was left out")), qPrintable(err));
+        QVERIFY(timer.elapsed() < 20000);
+        // Slides that are each their own are all read, with no note.
+        entries.clear();
+        for (int i = 0; i < 3; ++i) entries += slidePersist(5 + i, 0, 0x100 + i);
+        err.clear();
+        d = deck::importBinaryPresentation(pptOf(entries, {{5, pptSlideOf(pptTinyShape())}, {6, pptSlideOf(pptTinyShape().repeated(2))}, {7, pptSlideOf(pptTinyShape().repeated(3))}}), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 3);
+        QCOMPARE(int(d->pages[2]->items.size()), 3);
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        // A slide master that two entries name is one master.
+        auto masters = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(QByteArray())}}), &err);
+        QVERIFY(masters);
+        err.clear();
+        auto twice = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(QByteArray())}}, QByteArray(), QByteArray(),
+                                                          slidePersist(3, 0, 0x80000001) + slidePersist(3, 0, 0x80000002)), &err);
+        QVERIFY2(twice, qPrintable(err));
+        QCOMPARE(twice->masters.size(), masters->masters.size());
+        QVERIFY2(err.contains(QStringLiteral("master")), qPrintable(err));
+    }
+
+    // All the slides and masters together keep to one budget of shapes: a file of slides that each hold a drawing as big as is read
+    // (and a slide master or a slide for each) can't make memory grow with the count of slides. The budget is 300,000 shapes.
+    void binaryPresentationKeepsOneShapeBudgetForAllSlides()
+    {
+        QByteArray entries;
+        QVector<QPair<quint32, QByteArray>> slides;
+        const QByteArray shapes = pptSlideOf(pptTinyShape().repeated(90000));
+        for (int i = 0; i < 4; ++i) {
+            entries += slidePersist(5 + i, 0, 0x100 + i);
+            slides << qMakePair(quint32(5 + i), shapes);
+        }
+        QString err;
+        auto d = deck::importBinaryPresentation(pptOf(entries, slides), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 4);
+        int items = 0;
+        for (const auto &p : d->pages) items += int(p->items.size());
+        // (The budget pays for the records looked at to find the master's background too, a few.)
+        QVERIFY2(items <= 300000 && items > 299900, qPrintable(QString::number(items)));
+        QVERIFY(d->pages[3]->items.size() < 90000);
+        QVERIFY2(err.contains(QStringLiteral("more shapes")), qPrintable(err));
+    }
+
+    // A chain of edits that each name the one persist directory (of a million ids) reads it once: each edit re-reading it took
+    // a tenth of a second, and two thousand edits (a file of 4 MB) took minutes.
+    void binaryPresentationReadsEachPersistDirectoryOnce()
+    {
+        QByteArray s = pptDocumentOf(slidePersist(5, 0, 0x100));
+        const quint32 master = quint32(s.size());
+        s += pptMasterOf();
+        const quint32 slide = quint32(s.size());
+        s += pptSlideOf(pptTinyShape());
+        const quint32 big = quint32(s.size());
+        s += pptDirectoryOf(8, 1000000);
+        quint32 previous = 0;
+        for (int i = 0; i < 300; ++i) {
+            const quint32 at = quint32(s.size());
+            s += userEdit(previous, big, 1);
+            previous = at;
+        }
+        const quint32 directory = quint32(s.size());
+        s += persistDirectory({{1, 0}, {3, master}, {5, slide}});
+        const quint32 newest = quint32(s.size());
+        s += userEdit(previous, directory, 1);
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importBinaryPresentation(pptFileOf(s, newest), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 1);
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QVERIFY2(timer.elapsed() < 8000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // Directories that lie inside one another (each edit's begins in the last one's ids) are read only up to as many ids as the
+    // stream has bytes, which no file that doesn't overlap them comes near: the older edits left are left out, with a note, and the
+    // newest edit's slides still open.
+    void binaryPresentationCapsThePersistEntriesItReads()
+    {
+        // 700 runs of 375 ids, each run's first word a record header (a persist directory) that runs to the end of the whole.
+        constexpr int kRuns = 700, kRunBytes = 4 + 375 * 4;
+        QByteArray data;
+        for (int i = 0; i < kRuns; ++i) data += le(6002u << 16, 4) + le(quint32((kRuns - i) * kRunBytes - 8), 4) + QByteArray(374 * 4, '\0');
+        QByteArray s = pptDocumentOf(slidePersist(5, 0, 0x100));
+        const quint32 master = quint32(s.size());
+        s += pptMasterOf();
+        const quint32 slide = quint32(s.size());
+        s += pptSlideOf(pptTinyShape());
+        const quint32 big = quint32(s.size());
+        s += pptRec(6002, data);
+        quint32 previous = 0;
+        for (int i = 0; i < kRuns; ++i) {
+            const quint32 at = quint32(s.size());
+            s += userEdit(previous, big + 8 + quint32(i) * kRunBytes, 1);
+            previous = at;
+        }
+        const quint32 directory = quint32(s.size());
+        s += persistDirectory({{1, 0}, {3, master}, {5, slide}});
+        const quint32 newest = quint32(s.size());
+        s += userEdit(previous, directory, 1);
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importBinaryPresentation(pptFileOf(s, newest), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 1);
+        QVERIFY2(err.contains(QStringLiteral("older edits")), qPrintable(err));
+        QVERIFY(timer.elapsed() < 8000);
+    }
+
+    // A picture is found in the store by its number in one step: a store of 100,000 pictures and a slide of 100,000 frames, each
+    // for another picture, took each frame a pass over the whole store (a file of 3 MB then took ten seconds and more).
+    void binaryPresentationFindsPicturesWithoutScanningTheStore()
+    {
+        constexpr int kPictures = 100000;
+        // Entries that name no picture anywhere: the lookup is the work.
+        const QByteArray entry = pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, 's') + le(0xFF, 2) + le(0, 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4), 6, 2);
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry.repeated(kPictures), 0xFFF)));
+        QByteArray frames;
+        for (int i = 1; i <= kPictures; ++i) frames += pptPictureShape(i);
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(frames)}}, group), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 1);
+        QCOMPARE(int(d->pages[0]->items.size()), kPictures);
+        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // The notes pages that slides name are found by their slide id in one step: 8,000 slides naming pages in a list of 500,000 each had
+    // the list gone through for it (a file of 15 MB took fifteen seconds).
+    void binaryPresentationFindsNotesWithoutScanningTheList()
+    {
+        constexpr int kSlides = 8000;
+        QByteArray entries, notes;
+        QVector<QPair<quint32, quint32>> at{{1, 0}};
+        for (int i = 0; i < kSlides; ++i) entries += slidePersist(100 + i, 0, 0x100 + i);
+        // Fifty lists of notes pages, which are not there.
+        for (int list = 0; list < 50; ++list) {
+            QByteArray page;
+            for (int i = 0; i < 10000; ++i) page += slidePersist(2000000 + list * 10000 + i, 0, 0x50000 + list * 10000 + i);
+            notes += pptBox(4080, page, 2);
+        }
+        QByteArray s = pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
+                                        + pptBox(4080, slidePersist(3, 0, 0x80000001), 1) + pptBox(4080, entries, 0) + notes);
+        at << qMakePair(quint32(3), quint32(s.size()));
+        s += pptMasterOf();
+        // Slides that each name notes (0x1234) that aren't in the list.
+        const QByteArray slide = pptBox(1006, slideAtom(1, QByteArray(), 0x80000001, 0x1234, 7) + pptDrawing());
+        for (int i = 0; i < kSlides; ++i) {
+            at << qMakePair(quint32(100 + i), quint32(s.size()));
+            s += slide;
+        }
+        const quint32 directory = quint32(s.size());
+        s += persistDirectory(at);
+        const quint32 edit = quint32(s.size());
+        s += userEdit(0, directory, 1);
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importBinaryPresentation(pptFileOf(s, edit), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), kSlides);
+        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // The placeholders of a slide find their master's by type in one step: 10,000 of them on a master of 40,000 shapes each had the
+    // master's shapes gone through for it (ten seconds), and take the master's place as before.
+    void binaryPresentationFindsMasterPlaceholdersWithoutScanningTheShapes()
+    {
+        QByteArray s = pptDocumentOf(slidePersist(5, 0, 0x100));
+        const quint32 master = quint32(s.size());
+        s += pptBox(1016, slideAtom(1, QByteArray("\x01\x02", 2), 0, 0, 3) + colorScheme(1)
+                              + pptDrawing(pptTinyShape().repeated(40000) + pptShape(0x402, 1, QByteArray(), 100, 200, 5000, 900)));
+        // Placeholders with no place of their own.
+        const QByteArray holder = pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xA00, 4), 1, 2) + pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({1, 0, 0, 0}))));
+        const quint32 slide = quint32(s.size());
+        s += pptSlideOf(holder.repeated(10000));
+        const quint32 directory = quint32(s.size());
+        s += persistDirectory({{1, 0}, {3, master}, {5, slide}});
+        const quint32 edit = quint32(s.size());
+        s += userEdit(0, directory, 1);
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importBinaryPresentation(pptFileOf(s, edit), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages[0]->items.size()), 10000);
+        for (const auto &it : d->pages[0]->items) QCOMPARE(it->rect, QRectF(25, 12.5, 600, 100));
+        QVERIFY2(timer.elapsed() < 4000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // The copies of a title master's own shapes that each layout on it has are among the budget of shapes: twelve layouts of a master of
+    // 60,000 shapes were 720,000 more.
+    void binaryPresentationCountsTheLayoutsCopiesInTheShapeBudget()
+    {
+        const QByteArray masters = slidePersist(3, 0, 0x80000001) + slidePersist(4, 0, 0x80000002);
+        const QByteArray titleMaster = pptBox(1016, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1) + pptDrawing(pptTinyShape().repeated(60000)));
+        QVector<QPair<quint32, QByteArray>> records{{4, titleMaster}};
+        QByteArray entries;
+        int n = 0;
+        for (int geom : {0, 1, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}) {
+            entries += slidePersist(5 + n, 0, 0x100 + n);
+            records << qMakePair(quint32(5 + n), pptBox(1006, slideAtom(geom, QByteArray(), 0x80000002, 0, 7) + pptDrawing()));
+            ++n;
+        }
+        QString err;
+        auto d = deck::importBinaryPresentation(pptOf(entries, records, QByteArray(), QByteArray(), masters), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 12);
+        int items = 0;
+        for (const auto &m : d->masters) items += int(m->items.size());
+        QVERIFY2(items > 100000 && items <= 300000, qPrintable(QString::number(items)));
+        QVERIFY2(err.contains(QStringLiteral("more shapes")), qPrintable(err));
+    }
+
     // Damage to the bytes of the streams never crashes or hangs the reader: a
     // file is a presentation, or says it isn't.
     void binaryPresentationSurvivesRandomDamage()
