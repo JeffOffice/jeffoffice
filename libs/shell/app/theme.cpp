@@ -2,6 +2,7 @@
 
 #include "app/icons.h"
 #include "app/settings.h"
+#include "core/appinfo.h"
 
 #include <QApplication>
 #include <QPalette>
@@ -36,9 +37,13 @@ QPalette darkPalette()
     p.setColor(QPalette::Button, window);
     p.setColor(QPalette::ButtonText, text);
     p.setColor(QPalette::BrightText, Qt::white);
-    p.setColor(QPalette::Highlight, QColor(0xC2, 0x4A, 0x8A));
+    // The app's selection and link colors, else shades of its accent.
+    const AppInfo &info = appInfo();
+    const QColor highlight = info.highlight.isValid() ? info.highlight : info.accentDark.isValid() ? info.accentDark.darker(140) : QColor(0x2F, 0x6B, 0xC8);
+    const QColor link = info.link.isValid() ? info.link : info.accentDark.isValid() ? info.accentDark.lighter(115) : QColor(0x7F, 0xB2, 0xFF);
+    p.setColor(QPalette::Highlight, highlight);
     p.setColor(QPalette::HighlightedText, Qt::white);
-    p.setColor(QPalette::Link, QColor(0xE0, 0x7A, 0xB0));
+    p.setColor(QPalette::Link, link);
     p.setColor(QPalette::PlaceholderText, QColor(0x9a, 0x9a, 0x9a));
     p.setColor(QPalette::Disabled, QPalette::Text, QColor(0x80, 0x80, 0x80));
     p.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(0x80, 0x80, 0x80));
