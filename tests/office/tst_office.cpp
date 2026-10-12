@@ -1681,6 +1681,221 @@ private Q_SLOTS:
         QCOMPARE(again.charAt().fontPointSize(), 36.0);
     }
 
+    void textReadsAStackShapedLikeAPresentations()
+    {
+        // The presentation's default text style, a master's body style, and a
+        // layout placeholder's list style, lowest first.
+        const QStringList layers = {
+            QStringLiteral("<a:defPPr><a:defRPr lang=\"en-US\"/></a:defPPr><a:lvl1pPr marL=\"0\" algn=\"l\" defTabSz=\"914400\" rtl=\"0\">"
+                           "<a:defRPr sz=\"1800\" kern=\"1200\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/>"
+                           "<a:ea typeface=\"+mn-ea\"/><a:cs typeface=\"+mn-cs\"/></a:defRPr></a:lvl1pPr>"),
+            QStringLiteral("<a:lvl1pPr marL=\"228600\" indent=\"-228600\"><a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc><a:spcBef><a:spcPts val=\"1000\"/></a:spcBef>"
+                           "<a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/><a:defRPr sz=\"2800\"/></a:lvl1pPr>"
+                           "<a:lvl2pPr marL=\"685800\" indent=\"-228600\"><a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc><a:spcBef><a:spcPts val=\"500\"/></a:spcBef>"
+                           "<a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/><a:defRPr sz=\"2400\"/></a:lvl2pPr>"),
+            QStringLiteral("<a:lvl1pPr><a:defRPr b=\"1\"/></a:lvl1pPr>")};
+        Body b(para(run(QStringLiteral("Heading"), QString(), QStringLiteral("<a:latin typeface=\"+mj-lt\"/>"))) + para(run(QStringLiteral("Detail")), QStringLiteral("<a:pPr lvl=\"1\"/>")), layers);
+        QCOMPARE(b.charAt(0).fontPointSize(), 28.0);
+        QCOMPARE(b.charAt(0).fontWeight(), int(QFont::Bold));
+        QCOMPARE(b.charAt(0).stringProperty(jp::tp::ThemeFont), QStringLiteral("major"));
+        QCOMPARE(b.charAt(0).property(jp::tp::KernAbove).toDouble(), 12.0);
+        QCOMPARE(b.charAt(0).stringProperty(jp::tp::Language), QStringLiteral("en-US"));
+        QCOMPARE(b.charAt(0).stringProperty(jp::tp::ColorRefP), QStringLiteral("#101010"));
+        QCOMPARE(b.blockFormat(0).leftMargin(), 18.0);
+        QCOMPARE(b.blockFormat(0).textIndent(), -18.0);
+        QCOMPARE(b.blockFormat(0).topMargin(), 10.0);
+        QCOMPARE(b.blockFormat(0).lineHeight(), 90.0);
+        QVERIFY(b.block(0).textList());
+        // The level below has its own size and margins, and nothing of the first layer's bold.
+        QCOMPARE(b.charAt(1).fontPointSize(), 24.0);
+        QVERIFY(b.charAt(1).fontWeight() != QFont::Bold);
+        QCOMPARE(b.charAt(1).stringProperty(jp::tp::ThemeFont), QString());
+        QCOMPARE(b.blockFormat(1).leftMargin(), 54.0);
+        QCOMPARE(b.blockFormat(1).topMargin(), 5.0);
+        QCOMPARE(b.block(1).textList()->format().intProperty(jp::tp::ListLevel), 1);
+    }
+
+    void textLevelsHaveTheirOwnIndentsAndBullets()
+    {
+        const QStringList layers = {QStringLiteral(
+            "<a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"3200\"/></a:lvl1pPr>"
+            "<a:lvl2pPr marL=\"457200\" indent=\"-285750\"><a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/><a:defRPr sz=\"2800\"/></a:lvl2pPr>"
+            "<a:lvl3pPr marL=\"914400\" indent=\"-228600\"><a:buFont typeface=\"Wingdings\"/><a:buChar char=\"&#167;\"/></a:lvl3pPr>")};
+        Body b(para(run(QStringLiteral("one"))) + para(run(QStringLiteral("two")), QStringLiteral("<a:pPr lvl=\"1\"/>"))
+                   + para(run(QStringLiteral("three")), QStringLiteral("<a:pPr lvl=\"2\"/>")),
+               layers);
+        QCOMPARE(b.doc.blockCount(), 3);
+        // Level 1: no bullet; a block at level 0.
+        QVERIFY(!b.block(0).textList());
+        QCOMPARE(b.blockFormat(0).leftMargin(), 0.0);
+        QCOMPARE(b.blockFormat(0).textIndent(), 0.0);
+        QCOMPARE(b.blockFormat(0).intProperty(jp::tp::ListLevel), 0);
+        QCOMPARE(b.charAt(0).fontPointSize(), 32.0);
+        // Level 2: a bullet in Arial, the text 36 pt in, the bullet 22.5 pt before it.
+        QTextList *two = b.block(1).textList();
+        QVERIFY(two);
+        QCOMPARE(two->format().style(), QTextListFormat::ListDisc);
+        QCOMPARE(two->format().stringProperty(jp::tp::BulletChar), QString(QChar(0x2022)));
+        QCOMPARE(two->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Arial"));
+        QCOMPARE(two->format().intProperty(jp::tp::ListLevel), 1);
+        QCOMPARE(b.blockFormat(1).intProperty(jp::tp::ListLevel), 1);
+        QCOMPARE(b.blockFormat(1).leftMargin(), 36.0);
+        QCOMPARE(b.blockFormat(1).textIndent(), -22.5);
+        QCOMPARE(b.charAt(1).fontPointSize(), 28.0);
+        // Level 3: another mark in another font, indented further; its size is the list's (none) so the default.
+        QTextList *three = b.block(2).textList();
+        QVERIFY(three);
+        QCOMPARE(three->format().stringProperty(jp::tp::BulletChar), QString(QChar(0xA7)));
+        QCOMPARE(three->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Wingdings"));
+        QCOMPARE(three->format().intProperty(jp::tp::ListLevel), 2);
+        QCOMPARE(b.blockFormat(2).leftMargin(), 72.0);
+        QCOMPARE(b.blockFormat(2).textIndent(), -18.0);
+        QCOMPARE(b.charAt(2).fontPointSize(), 18.0);
+    }
+
+    void textBulletsInheritTheirPartsSeparately()
+    {
+        // The layer gives the color and the size; the paragraph the mark and
+        // the font; the next paragraph turns the bullet off, then follows the
+        // text's color and size again.
+        const QStringList layers = {QStringLiteral("<a:lvl1pPr><a:buClr><a:srgbClr val=\"00FF00\"/></a:buClr><a:buSzPct val=\"50000\"/></a:lvl1pPr>")};
+        Body b(para(run(QStringLiteral("a"), QStringLiteral("sz=\"2000\"")), QStringLiteral("<a:pPr><a:buFont typeface=\"Courier New\"/><a:buChar char=\"-\"/></a:pPr>"))
+                   + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr><a:buNone/></a:pPr>"))
+                   + para(run(QStringLiteral("c"), QStringLiteral("sz=\"2000\"")),
+                          QStringLiteral("<a:pPr><a:buClrTx/><a:buSzPts val=\"1500\"/><a:buFontTx/><a:buChar char=\"*\"/></a:pPr>"))
+                   + para(run(QStringLiteral("d"), QStringLiteral("sz=\"2000\"")), QStringLiteral("<a:pPr><a:buClrTx/><a:buSzTx/><a:buBlip/></a:pPr>")),
+               layers);
+        const QTextListFormat a = b.block(0).textList()->format();
+        QCOMPARE(a.stringProperty(jp::tp::BulletChar), QStringLiteral("-"));
+        QCOMPARE(a.stringProperty(jp::tp::BulletFont), QStringLiteral("Courier New"));
+        QCOMPARE(jp::ColorRef::fromString(a.stringProperty(jp::tp::BulletColor)).rgbValue(), QColor(0, 255, 0));
+        QCOMPARE(a.property(jp::tp::BulletSize).toDouble(), 10.0);   // half of the first run's 20 pt
+        QVERIFY(!b.block(1).textList());
+        const QTextListFormat c = b.block(2).textList()->format();
+        QCOMPARE(c.stringProperty(jp::tp::BulletChar), QStringLiteral("*"));
+        QVERIFY(!c.hasProperty(jp::tp::BulletColor));
+        QVERIFY(!c.hasProperty(jp::tp::BulletFont));
+        QCOMPARE(c.property(jp::tp::BulletSize).toDouble(), 15.0);
+        // A picture bullet is a plain one.
+        const QTextListFormat d = b.block(3).textList()->format();
+        QCOMPARE(d.style(), QTextListFormat::ListDisc);
+        QVERIFY(!d.hasProperty(jp::tp::BulletChar));
+        QVERIFY(!d.hasProperty(jp::tp::BulletColor));
+        QVERIFY(!d.hasProperty(jp::tp::BulletSize));
+    }
+
+    void textBulletFontsMayNameTheThemeFonts()
+    {
+        Theme theme;
+        QVERIFY(readTheme(handWrittenTheme(), &theme));
+        Body b(para(run(QStringLiteral("a")), QStringLiteral("<a:pPr><a:buFont typeface=\"+mj-lt\"/><a:buChar char=\"o\"/></a:pPr>"))
+                   + para(run(QStringLiteral("b")), QStringLiteral("<a:pPr><a:buFont typeface=\"+mn-lt\"/><a:buChar char=\"o\"/></a:pPr>")),
+               {}, QString(), nullptr, theme);
+        QCOMPARE(b.block(0).textList()->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Georgia"));
+        QCOMPARE(b.block(1).textList()->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Verdana"));
+    }
+
+    void textBulletsDrawnAtTheirIndents()
+    {
+        // The hanging bullet of a one-level list, laid out: the text starts
+        // at marL, the bullet an indent before it.
+        Body b(para(run(QStringLiteral("alpha beta"), QStringLiteral("sz=\"2000\"")), QStringLiteral("<a:pPr marL=\"457200\" indent=\"-228600\"><a:buChar char=\"&#8226;\"/></a:pPr>")));
+        jp::FrameSpec fs;
+        fs.size = QSizeF(400, 200);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        jp::StoryLayout lay;
+        lay.build(&b.doc, {fs}, jp::LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        QVERIFY2(qAbs(lines[0].rect.x() - 36) < 0.01, qPrintable(QString::number(lines[0].rect.x())));
+    }
+
+    void textAutonumbersContinueUntilInterrupted()
+    {
+        auto num = [](const QString &text, int lvl, const QString &bu) {
+            return para(run(text), QStringLiteral("<a:pPr lvl=\"%1\">%2</a:pPr>").arg(lvl).arg(bu));
+        };
+        const QString arabic = QStringLiteral("<a:buAutoNum type=\"arabicPeriod\"/>");
+        const QString arabicFrom5 = QStringLiteral("<a:buAutoNum type=\"arabicPeriod\" startAt=\"5\"/>");
+        const QString alpha = QStringLiteral("<a:buAutoNum type=\"alphaLcParenR\"/>");
+        Body b(num(QStringLiteral("a"), 0, arabic) + num(QStringLiteral("b"), 0, arabic)
+                   + num(QStringLiteral("c"), 1, alpha) + num(QStringLiteral("d"), 1, alpha)   // nested, with their own count
+                   + num(QStringLiteral("e"), 0, arabic)                                        // goes on at 3
+                   + num(QStringLiteral("f"), 0, QStringLiteral("<a:buNone/>"))                 // interrupts
+                   + num(QStringLiteral("g"), 0, arabic)                                        // starts again at 1
+                   + num(QStringLiteral("h"), 0, arabicFrom5)                                   // another start, another count
+                   + num(QStringLiteral("i"), 1, alpha)                                         // the outer item before it restarts the inner
+                   + num(QStringLiteral("j"), 0, arabicFrom5),
+               {});
+        const QStringList want = {QStringLiteral("1."), QStringLiteral("2."), QStringLiteral("a)"), QStringLiteral("b)"), QStringLiteral("3."), QString(),
+                                  QStringLiteral("1."), QStringLiteral("5."), QStringLiteral("a)"), QStringLiteral("6.")};
+        QCOMPARE(b.doc.blockCount(), int(want.size()));
+        for (int i = 0; i < want.size(); ++i) {
+            QTextList *l = b.block(i).textList();
+            QCOMPARE(l ? l->itemText(b.block(i)) : QString(), want[i]);
+        }
+    }
+
+    void textEmptyParagraphsHaveNoBulletAndKeepTheNumbering()
+    {
+        const QString pPr = QStringLiteral("<a:pPr><a:buAutoNum type=\"arabicPeriod\"/></a:pPr>");
+        Body b(para(run(QStringLiteral("a")), pPr) + QStringLiteral("<a:p>") + pPr + QStringLiteral("<a:endParaRPr sz=\"1800\"/></a:p>") + para(run(QStringLiteral("b")), pPr));
+        QVERIFY(b.block(0).textList());
+        QVERIFY(!b.block(1).textList());
+        QCOMPARE(b.block(2).textList()->itemText(b.block(2)), QStringLiteral("2."));
+    }
+
+    void textAutonumberSchemesBecomeListStyles()
+    {
+        using S = QTextListFormat;
+        struct Row { const char *type; S::Style style; const char *prefix; const char *suffix; int numberFormat; };
+        const Row rows[] = {
+            {"arabicPeriod", S::ListDecimal, "", ".", 1},      {"arabicParenR", S::ListDecimal, "", ")", 6},
+            {"arabicParenBoth", S::ListDecimal, "(", ")", 7},  {"arabicPlain", S::ListDecimal, "", "", 0},
+            {"alphaLcPeriod", S::ListLowerAlpha, "", ".", 2},  {"alphaLcParenR", S::ListLowerAlpha, "", ")", 0},
+            {"alphaLcParenBoth", S::ListLowerAlpha, "(", ")", 0}, {"alphaUcPeriod", S::ListUpperAlpha, "", ".", 3},
+            {"alphaUcParenR", S::ListUpperAlpha, "", ")", 0},  {"alphaUcParenBoth", S::ListUpperAlpha, "(", ")", 0},
+            {"romanLcPeriod", S::ListLowerRoman, "", ".", 4},  {"romanLcParenR", S::ListLowerRoman, "", ")", 0},
+            {"romanLcParenBoth", S::ListLowerRoman, "(", ")", 0}, {"romanUcPeriod", S::ListUpperRoman, "", ".", 5},
+            {"romanUcParenR", S::ListUpperRoman, "", ")", 0},  {"romanUcParenBoth", S::ListUpperRoman, "(", ")", 0},
+            // The ones of other scripts count in digits, with the same marks.
+            {"circleNumDbPlain", S::ListDecimal, "", "", 0},   {"circleNumWdBlackPlain", S::ListDecimal, "", "", 0},
+            {"circleNumWdWhitePlain", S::ListDecimal, "", "", 0}, {"arabicDbPeriod", S::ListDecimal, "", ".", 1},
+            {"arabicDbPlain", S::ListDecimal, "", "", 0},      {"ea1ChsPeriod", S::ListDecimal, "", ".", 1},
+            {"ea1ChsPlain", S::ListDecimal, "", "", 0},        {"ea1ChtPeriod", S::ListDecimal, "", ".", 1},
+            {"ea1ChtPlain", S::ListDecimal, "", "", 0},        {"ea1JpnChsDbPeriod", S::ListDecimal, "", ".", 1},
+            {"ea1JpnKorPlain", S::ListDecimal, "", "", 0},     {"ea1JpnKorPeriod", S::ListDecimal, "", ".", 1},
+            {"arabic1Minus", S::ListDecimal, "", "", 0},       {"arabic2Minus", S::ListDecimal, "", "", 0},
+            {"hebrew2Minus", S::ListDecimal, "", "", 0},       {"thaiAlphaPeriod", S::ListLowerAlpha, "", ".", 2},
+            {"thaiAlphaParenR", S::ListLowerAlpha, "", ")", 0}, {"thaiAlphaParenBoth", S::ListLowerAlpha, "(", ")", 0},
+            {"thaiNumPeriod", S::ListDecimal, "", ".", 1},     {"thaiNumParenR", S::ListDecimal, "", ")", 6},
+            {"thaiNumParenBoth", S::ListDecimal, "(", ")", 7}, {"hindiAlphaPeriod", S::ListLowerAlpha, "", ".", 2},
+            {"hindiAlpha1Period", S::ListLowerAlpha, "", ".", 2}, {"hindiNumPeriod", S::ListDecimal, "", ".", 1},
+            {"hindiNumParenR", S::ListDecimal, "", ")", 6},
+            // A scheme this edition doesn't know counts as the usual one.
+            {"fromTheFuture", S::ListDecimal, "", ".", 1},
+        };
+        for (const Row &r : rows) {
+            Body b(para(run(QStringLiteral("x")), QStringLiteral("<a:pPr><a:buAutoNum type=\"%1\"/></a:pPr>").arg(QLatin1String(r.type))));
+            QTextList *l = b.block(0).textList();
+            QVERIFY2(l, r.type);
+            const QTextListFormat f = l->format();
+            QVERIFY2(f.style() == r.style, r.type);
+            QVERIFY2(f.numberPrefix() == QLatin1String(r.prefix), r.type);
+            QVERIFY2(f.numberSuffix() == QLatin1String(r.suffix), r.type);
+            QVERIFY2(f.intProperty(jp::tp::NumberFormat) == r.numberFormat, r.type);
+            QVERIFY2(!jp::isBulletList(f.style()), r.type);
+        }
+    }
+
+    void textAutonumberStartsAtItsNumber()
+    {
+        Body b(para(run(QStringLiteral("x")), QStringLiteral("<a:pPr><a:buAutoNum type=\"romanUcPeriod\" startAt=\"4\"/></a:pPr>"))
+               + para(run(QStringLiteral("y")), QStringLiteral("<a:pPr><a:buAutoNum type=\"romanUcPeriod\" startAt=\"4\"/></a:pPr>")));
+        QCOMPARE(b.block(0).textList()->itemText(b.block(0)), QStringLiteral("IV."));
+        QCOMPARE(b.block(1).textList()->itemText(b.block(1)), QStringLiteral("V."));
+    }
+
     void textParagraphsTakeAlignmentIndentsAndSpacing()
     {
         const QStringList layers = {QStringLiteral("<a:lvl1pPr marL=\"114300\" indent=\"-57150\" algn=\"just\"><a:spcBef><a:spcPts val=\"600\"/></a:spcBef></a:lvl1pPr>")};
