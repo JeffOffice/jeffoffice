@@ -88,6 +88,10 @@ public:
     // Writes the file, and the presentation is saved and takes the file's name.
     // On failure, says why and leaves the presentation unsaved.
     bool saveTo(const QString &path);
+    // What Save As asks for a name with: the file dialog, unless this stands
+    // in for it (tests). Given the name to suggest and the filter to start on;
+    // returns the path chosen, empty for none.
+    void setSavePathChooser(const std::function<QString(const QString &suggested, const QString &filter)> &chooser) { m_pathChooser = chooser; }
     // AutoRecover: writes a .pptx copy of unsaved work (the timer does, at the
     // interval Options sets), and offers the copies a run that crashed left.
     void autoRecover();
@@ -144,6 +148,7 @@ private:
     QString m_recoveryCopy;      // this window's AutoRecover copy, if written
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     QString m_templatePath;      // a template this window wrote: saving again writes over it
+    std::function<QString(const QString &, const QString &)> m_pathChooser;
     quint64 m_serial = 0;
 };
 
