@@ -44,16 +44,24 @@ QString readText(const QString &path)
     return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
 }
 
+// The app's topics under each language: the language's own folder, or its
+// subfolder when the app has one (AppInfo::helpFolder).
+QString appFolder()
+{
+    const QString folder = appInfo().helpFolder;
+    return folder.isEmpty() ? QString() : QLatin1Char('/') + folder;
+}
+
 // The folders to look in, the display language's first ("pt_BR", then "pt").
 QStringList languageDirs()
 {
     QStringList dirs;
     const QString lang = currentUiLanguage();
     if (!lang.isEmpty() && lang != QLatin1String("en")) {
-        dirs << QStringLiteral(":/help/") + lang;
-        if (lang.contains(QLatin1Char('_'))) dirs << QStringLiteral(":/help/") + lang.section(QLatin1Char('_'), 0, 0);
+        dirs << QStringLiteral(":/help/") + lang + appFolder();
+        if (lang.contains(QLatin1Char('_'))) dirs << QStringLiteral(":/help/") + lang.section(QLatin1Char('_'), 0, 0) + appFolder();
     }
-    dirs << QStringLiteral(":/help/en");
+    dirs << QStringLiteral(":/help/en") + appFolder();
     return dirs;
 }
 
@@ -110,7 +118,7 @@ struct Indexed {
 };
 
 struct Cache {
-    QString lang;
+    QString lang;   // the display language and the app's folder
     QHash<QString, Topic> topics;
     QList<Indexed> index;
 };
@@ -118,7 +126,8 @@ struct Cache {
 Cache &cache()
 {
     static Cache c;
-    if (c.lang != currentUiLanguage()) c = Cache{currentUiLanguage(), {}, {}};
+    const QString lang = currentUiLanguage() + appFolder();
+    if (c.lang != lang) c = Cache{lang, {}, {}};
     return c;
 }
 
@@ -127,7 +136,7 @@ Cache &cache()
 QStringList topicIds()
 {
     QStringList ids;
-    for (const QString &f : QDir(QStringLiteral(":/help/en")).entryList({QStringLiteral("*.md")}, QDir::Files, QDir::Name)) ids << f.chopped(3);
+    for (const QString &f : QDir(QStringLiteral(":/help/en") + appFolder()).entryList({QStringLiteral("*.md")}, QDir::Files, QDir::Name)) ids << f.chopped(3);
     return ids;
 }
 
@@ -150,8 +159,15 @@ Topic topic(const QString &id)
 
 QString contextTopic(const QString &key)
 {
-    static const QJsonObject map = QJsonDocument::fromJson(readText(QStringLiteral(":/help/context.json")).toUtf8()).object();
-    return map.value(key).toString();
+    // The map of the app's own folder when it has one (resources/help/en/deck/context.json, the same in every language).
+    static QHash<QString, QJsonObject> maps;
+    const QString folder = appInfo().helpFolder;
+    auto it = maps.find(folder);
+    if (it == maps.end()) {
+        const QString path = folder.isEmpty() ? QStringLiteral(":/help/context.json") : QStringLiteral(":/help/en") + appFolder() + QStringLiteral("/context.json");
+        it = maps.insert(folder, QJsonDocument::fromJson(readText(path).toUtf8()).object());
+    }
+    return it->value(key).toString();
 }
 
 QStringList searchTopics(const QString &query)

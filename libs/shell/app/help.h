@@ -3,6 +3,10 @@
 // in the Help pane or, over a dialog, in a small window of their own. F1 picks
 // the topic for what the person is doing (resources/help/context.json), and
 // the search box finds topics and the program's commands, which it can run.
+// An app with Help of its own (AppInfo::helpFolder, "deck") has its topics in
+// that folder under each language (resources/help/<language>/deck/<id>.md) and
+// its F1 contexts in resources/help/en/deck/context.json; the topics of the
+// language folder itself are JeffPub's.
 //
 // A topic file starts with "# Title", then "<!-- keywords: a, b, c -->" (words
 // people may search for instead of the title's), then the text. Links to other
