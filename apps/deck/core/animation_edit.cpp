@@ -487,14 +487,18 @@ struct ShapeInfo {
     bool sp = false;           // a shape or text box: the program builds it (a p:bldP entry)
     bool placeholder = false;
     bool background = false;   // it has a fill or an outline
+    int order = 0;             // where it is among the slide's shapes, bottom first
 };
 
 QHash<int, ShapeInfo> shapeInfos(const Page &slide)
 {
     QHash<int, ShapeInfo> out;
+    int order = 0;
     walkItems(slide.items, [&](const ItemPtr &it) {
+        ++order;
         if (it->sourceId <= 0 || out.contains(it->sourceId)) return;
         ShapeInfo s;
+        s.order = order;
         s.found = true;
         s.sp = it->type() == ItemType::Text || it->type() == ItemType::Shape;
         s.placeholder = !placeholderType(*it).isEmpty();
@@ -960,7 +964,12 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
     // Written in document order, so the ids come out in it: each click step, each part of it, each effect.
     const QVector<Placed> placed = layoutOf(effects);
     int next = 3;
-    QString builds, mainXml, parts, inside;
+    QString mainXml, parts, inside;
+    struct Build {
+        int order, group;
+        QString xml;
+    };
+    QVector<Build> builds;   // the program lists them by where the shape is on the slide
     QSet<QPair<int, int>> built;
     QSet<int> aimedAt;
     int step = -1, part = -1, clickId = 0, partId = 0, partDelay = 0;
@@ -1004,7 +1013,7 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
         aimedAt.insert(a.shape);
         if (si.sp && !built.contains({a.shape, grp[i]})) {
             built.insert({a.shape, grp[i]});
-            builds += QStringLiteral("<p:bldP spid=\"%1\" grpId=\"%2\"%3%4/>").arg(a.shape).arg(grp[i]).arg(a.paragraphs() ? QStringLiteral(" build=\"p\"") : QString(), si.background ? QStringLiteral(" animBg=\"1\"") : QString());
+            builds.push_back({si.order, grp[i], QStringLiteral("<p:bldP spid=\"%1\" grpId=\"%2\"%3%4/>").arg(a.shape).arg(grp[i]).arg(a.paragraphs() ? QStringLiteral(" build=\"p\"") : QString(), si.background ? QStringLiteral(" animBg=\"1\"") : QString())});
         }
     }
     closeStep();
@@ -1017,14 +1026,17 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
         const int shape = m.hasMatch() ? int(m.captured(1).toLongLong()) : -1;
         const int group = g.hasMatch() ? int(g.captured(1).toLongLong()) : -1;
         if (shape > 0 && (built.contains({shape, group}) || !aimedAt.contains(shape))) continue;
-        builds += b;
+        builds.push_back({shapes.contains(shape) ? shapes.value(shape).order : 1 << 30, group, b});
     }
+    std::stable_sort(builds.begin(), builds.end(), [](const Build &x, const Build &y) { return x.order != y.order ? x.order < y.order : x.group < y.group; });
+    QString buildXml;
+    for (const Build &b : std::as_const(builds)) buildXml += b.xml;
     QString xml = QStringLiteral("<p:timing xmlns:p=\"%1\"><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>").arg(office::ns::P);
     xml += QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>") + mainXml + QStringLiteral("</p:childTnLst></p:cTn>");
     xml += QStringLiteral("<p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
                           "<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
     xml += kept + QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst>");
-    if (!builds.isEmpty()) xml += QStringLiteral("<p:bldLst>") + builds + QStringLiteral("</p:bldLst>");
+    if (!buildXml.isEmpty()) xml += QStringLiteral("<p:bldLst>") + buildXml + QStringLiteral("</p:bldLst>");
     xml += seq.extension + QStringLiteral("</p:timing>");
     return xml;
 }
