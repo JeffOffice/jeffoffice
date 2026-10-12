@@ -5,6 +5,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/outlineview.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
@@ -105,8 +106,9 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     connect(m_ed, &Editor::toolChanged, this, queue);
     connect(m_ed, &Editor::pageChanged, this, [this, queue] {
         m_notes->commit();
+        if (m_outline) m_outline->commit();
         m_notes->reload();
-        m_slides->refresh();
+        m_slides->followCurrent();   // drawn again only when something changed (Editor::changed)
         queue();
     });
     connect(m_ed, &Editor::documentReplaced, this, [this] { m_slides->refresh(); m_notes->reload(); updateTitle(); refreshUi(); });
@@ -328,6 +330,7 @@ void DeckWindow::showFileMenu()
 void DeckWindow::newSlide(const QString &layoutType)
 {
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     Document *d = m_ed->doc();
     const int at = m_ed->currentPage();
     // The current slide's slide master's layouts, when the file has several.
@@ -351,6 +354,7 @@ void DeckWindow::newSlide(const QString &layoutType)
 void DeckWindow::duplicateSlide()
 {
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Duplicate Slide"));
     const int index = deck::duplicateSlide(*m_ed->doc(), m_ed->currentPage());
@@ -402,6 +406,7 @@ void DeckWindow::resetSlide()
 void DeckWindow::startShow(int slide)
 {
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     if (m_show) m_show->close();
     m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), slide);
@@ -435,6 +440,7 @@ bool DeckWindow::maybeSave()
 void DeckWindow::closeEvent(QCloseEvent *e)
 {
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     if (!maybeSave()) {
         e->ignore();
         return;

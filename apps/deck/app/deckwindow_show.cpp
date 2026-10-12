@@ -8,6 +8,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/outlineview.h"
 #include "app/presenterview.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
@@ -146,6 +147,7 @@ void DeckWindow::createShowActions()
     // Presenter View: Alt+F5 rehearses in windows, on any number of screens.
     mk("show.presenterView", tr("Presenter View"), "monitor-up", QKeySequence(Qt::ALT | Qt::Key_F5), [this] {
         m_notes->commit();
+        if (m_outline) m_outline->commit();
         m_ed->endTextEdit();
         if (m_show) m_show->close();
         m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), m_ed->currentPage());

@@ -5,6 +5,7 @@
 
 #include "app/editor.h"
 #include "app/notespane.h"
+#include "app/outlineview.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
 #include "io/presentationfile.h"
@@ -28,6 +29,7 @@ bool DeckWindow::openFile(const QString &path)
     }
     // A new presentation nobody has touched gives way; any other stays.
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     DeckWindow *target = this;
     if (m_ed->isModified() || !m_ed->filePath().isEmpty()) {
         target = new DeckWindow();

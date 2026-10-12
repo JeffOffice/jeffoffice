@@ -8,6 +8,7 @@
 #include "app/filedialogs.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/outlineview.h"
 #include "app/recovery.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
@@ -97,6 +98,7 @@ bool DeckWindow::saveTo(const QString &path)
 {
     // What was typed in the notes or a slide's text goes into the file.
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     Document *doc = m_ed->doc();
     doc->props.modified = QDateTime::currentDateTime();
@@ -124,6 +126,7 @@ void DeckWindow::autoRecover()
     const int ms = std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000;
     if (m_recoverTimer.interval() != ms) m_recoverTimer.start(ms);
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     m_ed->flushTyping();
     if (!m_ed->isModified()) return;
     // Named for the presentation as it is now (Save As moves it).
