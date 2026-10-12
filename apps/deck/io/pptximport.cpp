@@ -1,6 +1,7 @@
 #include "io/pptximport.h"
 
 #include "core/appinfo.h"
+#include "core/comments.h"
 #include "core/deck.h"
 #include "office/chart.h"
 #include "office/drawingml.h"
@@ -17,18 +18,26 @@
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextDocument>
 #include <QTextStream>
+#include <QTimeZone>
 #include <climits>
 #include <deque>
+#include <functional>
 #include <memory>
+#include <optional>
 
 namespace jp::deck {
 
 namespace {
 
 const QLatin1String kMc("http://schemas.openxmlformats.org/markup-compatibility/2006");
+// The threading extension of the older comments, the newer comments, and the extension that marks a comment done.
+const QLatin1String kP15("http://schemas.microsoft.com/office/powerpoint/2012/main");
+const QLatin1String kP188("http://schemas.microsoft.com/office/powerpoint/2018/8/main");
+const QLatin1String kJoComments("http://jeffoffice.com/ns/deck/comments");
 
 // What a file may hold: more is left unread, with a note.
 constexpr int kMaxSlides = 10000, kMaxLayouts = 1000, kMaxMasters = 1000, kMaxShapes = 100000;
@@ -243,6 +252,347 @@ QString sizeNameOf(const QString &type, qint64 cx, qint64 cy)
     return type.isEmpty() && cx == 12192000 && cy == 6858000 ? QStringLiteral("Widescreen") : QStringLiteral("Custom");
 }
 
+// What a file may hold of comments: more is left unread, with a note.
+constexpr int kMaxComments = 1000, kMaxReplies = 1000, kMaxAllComments = 20000, kMaxCommentAuthors = 10000;
+
+// Reads the comments of a slide into its props (core/comments.h). The file has
+// them in one of two forms, both read:
+//  - The older form, ECMA-376 Part 1 (19.4). The presentation relates to a part of
+//    comment authors (relationship type ".../commentAuthors"; p:cmAuthorLst holds
+//    p:cmAuthor with id, name, initials), and each slide to a part of its comments
+//    (".../comments"; p:cmLst holds p:cm with authorId, dt, and idx, then p:pos with x
+//    and y in 576ths of an inch, then p:text). A reply is a p:cm too; the threading
+//    extension of [MS-PPTX] (p:ext uri {C676402C-5697-4E1C-873F-D02D1690AC5C}) has
+//    p15:threadingInfo, whose p15:parentCm gives the authorId and idx of the comment it
+//    answers and whose timeZoneBias is the author's offset from UTC in minutes (UTC is
+//    the time plus the bias), which the dt needs when it names no zone. The standard has
+//    no mark for a comment that is done; the extension JeffDeck writes for it is read.
+//  - The newer form, [MS-PPTX] (namespace .../powerpoint/2018/8/main). The presentation
+//    relates to a part of authors (".../2018/10/relationships/authors"; p188:authorLst
+//    holds p188:author with a GUID id, name, initials), and each slide to a part of
+//    comments (".../2018/10/relationships/comments", also ending "/comments"; p188:cmLst
+//    holds p188:cm with id, authorId, created, and status, then what the comment is
+//    anchored to, p188:pos in EMU for a place on the slide, p188:replyLst of p188:reply,
+//    and p188:txBody, a DrawingML text body). A comment anchored to a shape names it in
+//    an spMk element with the shape's number.
+class CommentReader {
+public:
+    CommentReader(const office::Package &pkg, const QString &mainPart, std::function<void(const QString &)> note)
+        : m_pkg(pkg), m_main(mainPart), m_note(std::move(note)) {}
+    void read(const QString &slidePart, int number, Page &page, const QSizeF &slide);
+
+private:
+    struct Person {
+        QString name, initials;
+    };
+    struct Raw {
+        qint64 author = -1, idx = -1;
+        QString text;
+        QDateTime date;
+        QPointF at;
+        bool placed = false, done = false, hasParent = false;
+        qint64 parentAuthor = -1, parentIdx = -1;
+    };
+    void loadAuthors();
+    bool parse(const QString &part, int number, QDomDocument *dom, QDomElement *root);
+    void readOlder(const QDomElement &root, QVector<deck::Comment> *out, const QSizeF &slide);
+    void readNewer(const QDomElement &root, QVector<deck::Comment> *out, const Page &page, const QSizeF &slide);
+    QPointF unplaced(const QSizeF &slide);
+    bool room();
+    Person olderAuthor(qint64 id) const;
+    Person newerAuthor(const QString &id) const;
+    static QPointF clamped(QPointF at, const QSizeF &slide);
+
+    const office::Package &m_pkg;
+    QString m_main;
+    std::function<void(const QString &)> m_note;
+    bool m_authorsRead = false;
+    QHash<qint64, Person> m_older;
+    QHash<QString, Person> m_newer;   // by lower-cased id
+    int m_total = 0, m_slide = 0, m_unplaced = 0;
+    bool m_totalSaid = false;
+};
+
+// 2013-05-10T10:21:50.343 (the author's own time, with the offset from UTC in
+// `bias` when the file gave it), or with a zone: Z, +02:00. UTC; invalid for text that isn't a time.
+QDateTime commentDate(QString text, std::optional<qint64> bias)
+{
+    text = text.trimmed();
+    static const QRegularExpression fraction(QStringLiteral("(\\.\\d{3})\\d+"));
+    static const QRegularExpression zone(QStringLiteral("T.*(Z|[+-]\\d\\d(:?\\d\\d)?)$"));
+    text.replace(fraction, QStringLiteral("\\1"));
+    const QDateTime t = QDateTime::fromString(text, Qt::ISODateWithMs);
+    if (!t.isValid()) return QDateTime();
+    if (zone.match(text).hasMatch()) return t.toUTC();
+    const QDateTime own(t.date(), t.time(), QTimeZone::UTC);
+    return bias ? own.addSecs(*bias * 60) : own;
+}
+
+// The text of a DrawingML text body: a line for each paragraph.
+QString commentBody(const QDomElement &body)
+{
+    QStringList lines;
+    for (const QDomElement &p : office::children(body, office::ns::A, QStringLiteral("p"))) {
+        QString line;
+        for (const QDomElement &r : office::children(p)) {
+            if (office::isElement(r, office::ns::A, QStringLiteral("br"))) line += QLatin1Char('\n');
+            else if (office::isElement(r, office::ns::A, QStringLiteral("r")) || office::isElement(r, office::ns::A, QStringLiteral("fld"))) line += aChild(r, "t").text();
+        }
+        lines << line;
+    }
+    return lines.join(QLatin1Char('\n'));
+}
+
+// The first element called `local` below `e` (any namespace), down to a depth.
+QDomElement findNamed(const QDomElement &e, const QString &local, int depth = 0)
+{
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        if (c.localName() == local) return c;
+        if (depth < 6)
+            if (const QDomElement found = findNamed(c, local, depth + 1); !found.isNull()) return found;
+    }
+    return QDomElement();
+}
+
+QPointF CommentReader::clamped(QPointF at, const QSizeF &slide)
+{
+    return QPointF(std::clamp(at.x(), 0.0, std::max(0.0, slide.width())), std::clamp(at.y(), 0.0, std::max(0.0, slide.height())));
+}
+
+// A comment with no place of its own stands at the corner, clear of the others.
+QPointF CommentReader::unplaced(const QSizeF &slide)
+{
+    const int k = m_unplaced++;
+    return clamped(QPointF(10 + 22 * (k % 30), 10 + 22 * (k / 30)), slide);
+}
+
+// Whether the file may have another comment or reply read (it holds only so many in all); says so once when not.
+bool CommentReader::room()
+{
+    if (m_total < kMaxAllComments) {
+        ++m_total;
+        return true;
+    }
+    if (!m_totalSaid) m_note(say("Only the first %1 comments and replies of the file are read.").arg(kMaxAllComments));
+    m_totalSaid = true;
+    return false;
+}
+
+CommentReader::Person CommentReader::olderAuthor(qint64 id) const
+{
+    return m_older.contains(id) ? m_older.value(id) : Person{say("Unknown author"), QString()};
+}
+
+CommentReader::Person CommentReader::newerAuthor(const QString &id) const
+{
+    return m_newer.contains(id.toLower()) ? m_newer.value(id.toLower()) : Person{say("Unknown author"), QString()};
+}
+
+void CommentReader::loadAuthors()
+{
+    if (m_authorsRead) return;
+    m_authorsRead = true;
+    auto people = [&](const QString &suffix, const char *rootName, const QString &rootNs, const char *personName, auto add) {
+        for (const office::Relationship &rel : m_pkg.relationshipsOfType(m_main, suffix)) {
+            if (rel.external) continue;
+            QDomDocument dom;
+            QDomElement root;
+            if (!parse(rel.target, 0, &dom, &root) || !office::isElement(root, rootNs, QLatin1String(rootName))) continue;
+            int n = 0;
+            for (const QDomElement &a : office::children(root, rootNs, QLatin1String(personName))) {
+                if (++n > kMaxCommentAuthors) {
+                    m_note(say("Only the first %1 comment authors are read.").arg(kMaxCommentAuthors));
+                    break;
+                }
+                add(a, Person{office::attr(a, QStringLiteral("name")).left(256), office::attr(a, QStringLiteral("initials")).left(16)});
+            }
+        }
+    };
+    people(QStringLiteral("/commentAuthors"), "cmAuthorLst", office::ns::P, "cmAuthor", [&](const QDomElement &a, const Person &p) {
+        bool ok = false;
+        const qint64 id = office::parseInt(office::attr(a, QStringLiteral("id")), -1, &ok);
+        if (ok && !m_older.contains(id)) m_older.insert(id, p);
+    });
+    people(QStringLiteral("/authors"), "authorLst", kP188, "author", [&](const QDomElement &a, const Person &p) {
+        const QString id = office::attr(a, QStringLiteral("id")).toLower();
+        if (!id.isEmpty() && !m_newer.contains(id)) m_newer.insert(id, p);
+    });
+}
+
+bool CommentReader::parse(const QString &part, int number, QDomDocument *dom, QDomElement *root)
+{
+    QString why;
+    const QByteArray xml = m_pkg.part(part);
+    if (xml.isEmpty()) why = say("the part is missing from the file");
+    else if (office::parseXml(xml, dom, &why)) {
+        *root = dom->documentElement();
+        return true;
+    }
+    m_note(number ? say("The comments of slide %1 can't be read: %2").arg(number).arg(why) : say("The comment authors can't be read: %1").arg(why));
+    return false;
+}
+
+void CommentReader::read(const QString &slidePart, int number, Page &page, const QSizeF &slide)
+{
+    const QVector<office::Relationship> rels = m_pkg.relationshipsOfType(slidePart, QStringLiteral("/comments"));
+    if (rels.isEmpty()) return;
+    loadAuthors();
+    m_slide = number;
+    m_unplaced = 0;
+    QVector<deck::Comment> out;
+    for (const office::Relationship &rel : rels) {
+        if (rel.external) continue;
+        QDomDocument dom;
+        QDomElement root;
+        if (!parse(rel.target, number, &dom, &root)) continue;
+        if (office::isElement(root, office::ns::P, QStringLiteral("cmLst"))) readOlder(root, &out, slide);
+        else if (office::isElement(root, kP188, QStringLiteral("cmLst"))) readNewer(root, &out, page, slide);
+        else m_note(say("The comments of slide %1 can't be read: %2").arg(number).arg(say("the part is not what the file says it is")));
+    }
+    deck::setComments(page, out);
+}
+
+void CommentReader::readOlder(const QDomElement &root, QVector<deck::Comment> *out, const QSizeF &slide)
+{
+    QVector<Raw> raws;
+    for (const QDomElement &cm : office::children(root, office::ns::P, QStringLiteral("cm"))) {
+        if (raws.size() >= kMaxComments) {
+            m_note(say("Only the first %1 comments of slide %2 are read.").arg(kMaxComments).arg(m_slide));
+            break;
+        }
+        if (!room()) break;
+        Raw r;
+        r.author = office::parseInt(office::attr(cm, QStringLiteral("authorId")), -1);
+        r.idx = office::parseInt(office::attr(cm, QStringLiteral("idx")), -1);
+        r.text = deck::commentText(pChild(cm, "text").text());
+        std::optional<qint64> bias;
+        for (const QDomElement &ext : office::children(pChild(cm, "extLst"), office::ns::P, QStringLiteral("ext")))
+            for (const QDomElement &e : office::children(ext)) {
+                if (office::isElement(e, kP15, QStringLiteral("threadingInfo"))) {
+                    bool ok = false;
+                    const qint64 b = office::parseInt(office::attr(e, QStringLiteral("timeZoneBias")), 0, &ok);
+                    if (ok) bias = b;
+                    const QDomElement parent = office::child(e, kP15, QStringLiteral("parentCm"));
+                    if (!parent.isNull()) {
+                        r.hasParent = true;
+                        r.parentAuthor = office::parseInt(office::attr(parent, QStringLiteral("authorId")), -1);
+                        r.parentIdx = office::parseInt(office::attr(parent, QStringLiteral("idx")), -1);
+                    }
+                } else if (office::isElement(e, kJoComments, QStringLiteral("done"))) {
+                    r.done = office::parseBool(office::attr(e, QStringLiteral("val")), true);
+                }
+            }
+        r.date = commentDate(office::attr(cm, QStringLiteral("dt")), bias);
+        const QDomElement pos = pChild(cm, "pos");
+        bool okX = false, okY = false;
+        const qint64 x = office::parseInt(office::attr(pos, QStringLiteral("x")), 0, &okX), y = office::parseInt(office::attr(pos, QStringLiteral("y")), 0, &okY);
+        r.placed = okX && okY;
+        r.at = r.placed ? clamped(QPointF(x / 8.0, y / 8.0), slide) : QPointF();   // 576ths of an inch, 8 to the point
+        raws << r;
+    }
+
+    // Each reply names its comment by author and index; one whose comment is missing, or
+    // that would answer itself or go round in a circle, is a comment of its own.
+    const int n = int(raws.size());
+    QHash<QPair<qint64, qint64>, int> byKey;
+    for (int i = 0; i < n; ++i)
+        if (!byKey.contains({raws[i].author, raws[i].idx})) byKey.insert({raws[i].author, raws[i].idx}, i);
+    QVector<int> parent(n, -1);
+    for (int i = 0; i < n; ++i)
+        if (raws[i].hasParent) {
+            const int p = byKey.value({raws[i].parentAuthor, raws[i].parentIdx}, -1);
+            parent[i] = p == i ? -1 : p;
+        }
+    for (int i = 0; i < n; ++i) {
+        int j = parent[i], steps = 0;
+        while (j >= 0 && j != i && steps++ < n) j = parent[j];
+        if (j == i) parent[i] = -1;
+    }
+    auto rootOf = [&](int i) {
+        for (int steps = 0; parent[i] >= 0 && steps < n; ++steps) i = parent[i];
+        return i;
+    };
+    const qsizetype first = out->size();
+    QHash<int, qsizetype> place;   // raw -> its comment in `out`
+    for (int i = 0; i < n; ++i) {
+        if (parent[i] >= 0) continue;
+        const Person who = olderAuthor(raws[i].author);
+        deck::Comment c;
+        c.id = newId("c");
+        c.author = who.name;
+        c.initials = who.initials;
+        c.date = raws[i].date;
+        c.text = raws[i].text;
+        c.at = raws[i].placed ? raws[i].at : unplaced(slide);
+        c.done = raws[i].done;
+        place.insert(i, out->size());
+        out->append(c);
+    }
+    bool saidReplies = false;
+    for (int i = 0; i < n; ++i) {
+        if (parent[i] < 0) continue;
+        deck::Comment &c = (*out)[place.value(rootOf(i), first)];
+        if (c.replies.size() >= kMaxReplies) {
+            if (!saidReplies) m_note(say("Only the first %1 replies to a comment on slide %2 are read.").arg(kMaxReplies).arg(m_slide));
+            saidReplies = true;
+            continue;
+        }
+        const Person who = olderAuthor(raws[i].author);
+        c.replies.append(deck::CommentReply{newId("r"), who.name, who.initials, raws[i].date, raws[i].text});
+    }
+}
+
+void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *out, const Page &page, const QSizeF &slide)
+{
+    int count = 0;
+    for (const QDomElement &cm : office::children(root, kP188, QStringLiteral("cm"))) {
+        if (++count > kMaxComments) {
+            m_note(say("Only the first %1 comments of slide %2 are read.").arg(kMaxComments).arg(m_slide));
+            break;
+        }
+        if (!room()) break;
+        const Person who = newerAuthor(office::attr(cm, QStringLiteral("authorId")));
+        deck::Comment c;
+        c.id = newId("c");
+        c.author = who.name;
+        c.initials = who.initials;
+        c.date = commentDate(office::attr(cm, QStringLiteral("created")), std::nullopt);
+        c.text = deck::commentText(commentBody(office::child(cm, kP188, QStringLiteral("txBody"))));
+        const QString status = office::attr(cm, QStringLiteral("status"));
+        c.done = status == QLatin1String("resolved") || status == QLatin1String("closed");
+        // A place on the slide (EMU), else the top right of the shape it is anchored to, else the corner.
+        const QDomElement pos = office::child(cm, kP188, QStringLiteral("pos"));
+        bool okX = false, okY = false;
+        const qint64 x = office::parseInt(office::attr(pos, QStringLiteral("x")), 0, &okX), y = office::parseInt(office::attr(pos, QStringLiteral("y")), 0, &okY);
+        bool placed = okX && okY;
+        if (placed) {
+            c.at = clamped(QPointF(office::emuToPoints(x), office::emuToPoints(y)), slide);
+        } else if (const QDomElement shape = findNamed(cm, QStringLiteral("spMk")); !shape.isNull()) {
+            const qint64 id = office::parseInt(office::attr(shape, QStringLiteral("id")), -1);
+            walkItems(page.items, [&](const ItemPtr &it) {
+                if (!placed && it->sourceId == id) {
+                    c.at = clamped(QPointF(it->rect.right(), it->rect.top()), slide);
+                    placed = true;
+                }
+            });
+        }
+        if (!placed) c.at = unplaced(slide);
+        bool saidReplies = false;
+        for (const QDomElement &reply : office::children(office::child(cm, kP188, QStringLiteral("replyLst")), kP188, QStringLiteral("reply"))) {
+            if (c.replies.size() >= kMaxReplies) {
+                if (!saidReplies) m_note(say("Only the first %1 replies to a comment on slide %2 are read.").arg(kMaxReplies).arg(m_slide));
+                saidReplies = true;
+                break;
+            }
+            if (!room()) break;
+            const Person by = newerAuthor(office::attr(reply, QStringLiteral("authorId")));
+            c.replies.append(deck::CommentReply{newId("r"), by.name, by.initials, commentDate(office::attr(reply, QStringLiteral("created")), std::nullopt),
+                                                deck::commentText(commentBody(office::child(reply, kP188, QStringLiteral("txBody"))))});
+        }
+        out->append(c);
+    }
+}
+
 class Importer {
 public:
     Importer(const office::Package &pkg, Document &doc) : m_pkg(pkg), m_doc(doc) {}
@@ -294,6 +644,7 @@ private:
     LayoutCtx *readLayout(const QString &part, MasterCtx &master);
     bool readSlide(int number, const QString &part);
     void readNotes(const QString &slidePart, Page &page, const MasterCtx &master);
+    void readComments(const QString &slidePart, int number, Page &page);
 
     QVector<PhRef> placeholdersIn(const QDomElement &tree);
     void readTree(const QDomElement &tree, Scope &sc);
@@ -324,6 +675,7 @@ private:
     int m_layoutCount = 0;
     bool m_footers = false;
     QString m_mainPart;
+    std::unique_ptr<CommentReader> m_comments;
     bool m_tableStylesRead = false;
     QDomElement m_tableStyles;                    // the root of the table styles part, once read; null if there is none
 };
@@ -881,6 +1233,7 @@ bool Importer::readSlide(int number, const QString &part)
         }
     }
     readNotes(part, *page, master);
+    readComments(part, number, *page);
     m_doc.pages << page;
     return true;
 }
@@ -924,6 +1277,12 @@ void Importer::readNotes(const QString &slidePart, Page &page, const MasterCtx &
         office::readTextBody(body, story, contextFor(master, master.colors, part), styles);
         break;
     }
+}
+
+void Importer::readComments(const QString &slidePart, int number, Page &page)
+{
+    if (!m_comments) m_comments = std::make_unique<CommentReader>(m_pkg, m_mainPart, [this](const QString &text) { note(text); });
+    m_comments->read(slidePart, number, page, m_doc.pageSize());
 }
 
 bool Importer::run(const QString &mainPart, QString *error)
