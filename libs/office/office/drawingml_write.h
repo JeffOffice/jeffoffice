@@ -5,10 +5,13 @@
 // same thing. Elements are written with the "p:", "a:", and "r:" prefixes; the
 // part being written declares those namespaces on its root element.
 
+#include "core/color.h"
 #include "core/items.h"
 #include "office/package.h"
 #include "office/theme.h"
 
+#include <QHash>
+#include <QSet>
 #include <QXmlStreamWriter>
 #include <functional>
 
@@ -29,13 +32,43 @@ struct DrawingWriteContext {
     // Pictures already written into the package, by image id, so each is
     // stored once (the part name, "/ppt/media/image3.png").
     QHash<QString, QString> *mediaParts = nullptr;
+    // What the scheme colors of a fill, line, or text stand for.
+    ColorScheme colors;
+    // Set while the text of a placeholder is written: the layout and master
+    // may give a paragraph a bullet, spacing, and a marker of their own, so
+    // each paragraph says what it has (a:buNone when it has no list).
+    bool placeholderText = false;
+    // The shape ids written in the part, so none is given twice. A shape that
+    // came from a file keeps its number (Item::sourceId) when it is free;
+    // `reservedIds` are those the part's items will ask for, which a new
+    // shape's number leaves alone.
+    QSet<int> usedIds, reservedIds;
+    // The id each item (Item::id) was written with, for the connectors that
+    // are attached to it.
+    QHash<QString, int> shapeIds;
+    // How many connection points the standard gives the shape of each item
+    // written (4 or 8), for the ones that have them: where a connector joins.
+    QHash<QString, int> connectionSites;
+    // The relationships made from the part so far, by type and target, so
+    // that a picture or an address used twice has one.
+    QHash<QString, QString> relations;
 };
 
+// Gives each object of a shape tree its number before any is written, in the
+// order they will be (a group's own, then those inside it), so that a
+// connector can be attached to a shape that comes after it. What can't be
+// written (a table with no cells, a picture that has no bytes) gets none.
+void assignShapeIds(const ItemList &items, DrawingWriteContext &ctx);
+// The number an object is written with (p:cNvPr id): the one assignShapeIds
+// gave it, else the one its file gave it if free, else the next free one.
+int shapeNumber(DrawingWriteContext &ctx, const Item &item);
 // One placed object: p:sp (shapes and text boxes), p:pic, p:cxnSp, or
 // p:grpSp, with its transform, geometry (a:prstGeom for presets, a:custGeom
 // for freeforms), fill, line, effects, hyperlink, text body, and, for an item
 // whose role is "ph:<type>[:<idx>]", its p:nvPr/p:ph. Nothing for an item it
-// can't write yet (it says so in `skipped`).
+// can't write (a table with no cells, text art, a group with nothing in it, a
+// picture with no bytes): it says so in `skipped`. A table is written as a
+// p:graphicFrame with its cells' own fills, lines, and text; no table style.
 void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx, QStringList *skipped = nullptr);
 // A story as a:p paragraphs with their a:pPr and runs with their a:rPr
 // (inside a p:txBody or a:txBody the caller starts, after its a:bodyPr).

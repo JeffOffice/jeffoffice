@@ -12,6 +12,7 @@
 #include <QTextDocument>
 #include <QtMath>
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <vector>
 
@@ -372,6 +373,7 @@ void Reader::remember(const QDomElement &cNvPr, const ItemPtr &it)
     bool ok = false;
     const qint64 id = parseInt(attr(cNvPr, QStringLiteral("id")), -1, &ok);
     if (ok && it) m_byId.insert(id, it);
+    if (ok && it && id > 0 && id <= INT_MAX) it->sourceId = int(id);
 }
 
 void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, const QVector<QDomElement> &properties, const QDomElement &style)
