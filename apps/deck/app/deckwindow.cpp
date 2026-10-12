@@ -246,6 +246,7 @@ void DeckWindow::createActions()
     createCommentActions();
     createSectionActions();
     createOutputActions();
+    createHelpActions();
 }
 
 void DeckWindow::refreshUi()

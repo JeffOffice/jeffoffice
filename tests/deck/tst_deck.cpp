@@ -10,6 +10,7 @@
 #include "app/deckwindow.h"
 #include "app/editor.h"
 #include "app/filescreen.h"
+#include "app/help.h"
 #include "app/i18n.h"
 #include "app/icons.h"
 #include "app/notespane.h"
@@ -58,6 +59,7 @@
 #include <QDeadlineTimer>
 #include <QDesktopServices>
 #include <QDir>
+#include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QFile>
@@ -84,6 +86,7 @@
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTextBrowser>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
@@ -3038,6 +3041,150 @@ private Q_SLOTS:
         QVERIFY(de.load(QStringLiteral(":/i18n/jeffoffice_de.qm")));
         // A string of the shared libraries, translated.
         QVERIFY(!de.translate("Ribbon", "File").isEmpty());
+    }
+
+    // JeffDeck's Help lists its own topics (resources/help/en/deck) and none of
+    // JeffPub's: a topic only JeffPub has isn't found, and one both have (the
+    // contents, the keyboard) is JeffDeck's.
+    void helpListsDeckTopicsOnly()
+    {
+        QCOMPARE(appInfo().helpFolder, QStringLiteral("deck"));
+        const QStringList ids = help::topicIds();
+        QVERIFY2(ids.size() >= 20, qPrintable(ids.join(QLatin1Char(' '))));
+        for (const char *id : {"index", "start", "window", "slides", "show", "printing", "keyboard", "tab-home", "tab-slide-show"})
+            QVERIFY2(ids.contains(QLatin1String(id)), id);
+        QCOMPARE(help::topic(QStringLiteral("index")).title, QStringLiteral("JeffDeck Help"));
+        for (const QString &file : QDir(QStringLiteral(":/help/en")).entryList({QStringLiteral("*.md")}, QDir::Files)) {
+            const QString id = file.chopped(3);
+            QFile pub(QStringLiteral(":/help/en/") + file);
+            QVERIFY(pub.open(QIODevice::ReadOnly));
+            if (ids.contains(id)) QVERIFY2(help::topic(id).markdown.toUtf8() != pub.readAll(), qPrintable(id));
+            else QVERIFY2(help::topic(id).isNull(), qPrintable(id));
+        }
+        // The search finds them.
+        QVERIFY(help::searchTopics(QStringLiteral("how do I add a transition")).contains(QStringLiteral("transitions")));
+        QVERIFY(help::searchTopics(QStringLiteral("zzqxv")).isEmpty());
+    }
+
+    // Every topic has a title and search words, every link and F1 context leads
+    // to a topic, the contents lists them all, the keyboard topic's table comes
+    // from JeffDeck's commands, and none names another company's products.
+    void helpTopicsAreComplete()
+    {
+        const QStringList ids = help::topicIds();
+        static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));
+        static const QRegularExpression banned(QStringLiteral("\\b(Microsoft|Publisher|Office|PowerPoint|Excel|WordArt)\\b|(?<!Each )\\bWord\\b(?! Count)"));
+        const help::Topic contents = help::topic(QStringLiteral("index"));
+        QStringList problems;
+        for (const QString &id : ids) {
+            const help::Topic t = help::topic(id);
+            if (t.title.isEmpty()) problems << id + QStringLiteral(": no title");
+            if (t.keywords.isEmpty()) problems << id + QStringLiteral(": no keywords");
+            if (const auto m = banned.match(t.markdown); m.hasMatch()) problems << id + QStringLiteral(": says ") + m.captured(0);
+            for (auto m = link.globalMatch(t.markdown); m.hasNext();) {
+                const QString target = m.next().captured(1);
+                if (!target.startsWith(QLatin1String("https://")) && !ids.contains(target)) problems << id + QStringLiteral(": link to ") + target;
+            }
+            if (id != QLatin1String("index") && !contents.markdown.contains(QStringLiteral("](%1)").arg(id))) problems << id + QStringLiteral(": not in the contents");
+            QTextDocument doc;
+            doc.setMarkdown(help::displayMarkdown(t, nullptr), QTextDocument::MarkdownDialectGitHub);
+            if (doc.toPlainText().trimmed().size() < 100) problems << id + QStringLiteral(": nearly empty");
+        }
+        QFile cf(QStringLiteral(":/help/en/deck/context.json"));
+        QVERIFY(cf.open(QIODevice::ReadOnly));
+        const QJsonObject context = QJsonDocument::fromJson(cf.readAll()).object();
+        QVERIFY(!context.isEmpty());
+        for (auto it = context.begin(); it != context.end(); ++it)
+            if (!ids.contains(it.value().toString())) problems << QStringLiteral("context %1: no topic %2").arg(it.key(), it.value().toString());
+        DeckWindow w;
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+            if (help::contextTopic(QStringLiteral("tab:") + w.ribbon()->tabName(i)).isEmpty()) problems << QStringLiteral("no topic for the tab ") + w.ribbon()->tabName(i);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
+        const QString keys = help::displayMarkdown(help::topic(QStringLiteral("keyboard")), &w);
+        QVERIFY(!keys.contains(QLatin1String("<!--")));
+        QVERIFY2(keys.contains(QStringLiteral("| New Slide | %1 |").arg(QKeySequence(Qt::CTRL | Qt::Key_M).toString(QKeySequence::NativeText))), qPrintable(keys.right(3000)));
+        QVERIFY(keys.contains(QStringLiteral("| From Beginning | %1 |").arg(QKeySequence(Qt::Key_F5).toString(QKeySequence::NativeText))));
+        QVERIFY(keys.contains(QStringLiteral("| Help | %1 |").arg(QKeySequence(QKeySequence::HelpContents).toString(QKeySequence::NativeText))));
+    }
+
+    // F1 and the "?" beside the ribbon's collapse arrow open JeffDeck's Help: the
+    // contents from the slide, a tab's topic from the ribbon, and a window of its
+    // own over the File screen.
+    void helpOpensFromF1AndTheHelpButton()
+    {
+        DeckWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QVERIFY(!w.helpView());
+        w.canvas()->setFocus();
+        QTest::keyClick(w.canvas(), Qt::Key_F1);
+        HelpView *v = w.helpView();
+        QVERIFY(v && v->isVisible());
+        QCOMPARE(v->currentTopic(), QStringLiteral("index"));
+        QVERIFY(v->browser()->toPlainText().contains(QLatin1String("JeffDeck")));
+        QVERIFY(!v->browser()->toPlainText().contains(QLatin1String("publication")));
+        // From the ribbon: the tab's topic.
+        Ribbon *r = w.ribbon();
+        r->showTab(r->tab(QStringLiteral("Transitions")));
+        r->focusCurrentTab();
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_F1);
+        QCOMPARE(v->currentTopic(), QStringLiteral("tab-transitions"));
+        // The "?" opens it again once it is put away.
+        auto *dock = w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
+        QVERIFY(dock && dock->isVisible());
+        dock->hide();
+        auto *qmark = r->findChild<QAbstractButton *>(QStringLiteral("jpRibbonHelp"));
+        QVERIFY(qmark && qmark->isVisible());
+        qmark->click();
+        QVERIFY(dock->isVisible());
+        QCOMPARE(w.helpView(), v);
+        // Over the File screen, which covers the pane: a window, on that page's topic.
+        w.showFileScreen(QStringLiteral("print"));
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_F1);
+        auto *hw = w.findChild<HelpWindow *>(QString(), Qt::FindDirectChildrenOnly);
+        QVERIFY(hw && hw->isVisible());
+        QCOMPARE(hw->view()->currentTopic(), QStringLiteral("printing"));
+        hw->close();
+        QTRY_VERIFY(!w.findChild<HelpWindow *>());   // closing deletes it
+    }
+
+    // A translated topic of JeffDeck's Help is one of the English ones, with a
+    // title and search words, the same links as the English, and no other
+    // company's product names.
+    void translatedDeckHelpIsComplete()
+    {
+        const QDir help(QStringLiteral(JD_SOURCE_DIR "/resources/help"));
+        static const QRegularExpression link(QStringLiteral("\\]\\(([^)\\s]+)\\)"));
+        static const QRegularExpression banned(QStringLiteral("\\b(Microsoft|Publisher|Office|PowerPoint|Excel|WordArt)\\b|(?<!Each )\\bWord\\b(?! Count)"));
+        auto read = [](const QString &path) {
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+        };
+        auto links = [](const QString &md) {
+            QStringList out;
+            for (auto m = link.globalMatch(md); m.hasNext();) out << m.next().captured(1);
+            out.sort();
+            return out;
+        };
+        QStringList problems;
+        for (const QString &lang : help.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (lang == QLatin1String("en")) continue;
+            const QDir folder(help.filePath(lang + QStringLiteral("/deck")));
+            for (const QString &file : folder.entryList({QStringLiteral("*.md")}, QDir::Files)) {
+                const QString en = read(help.filePath(QStringLiteral("en/deck/") + file)), md = read(folder.filePath(file));
+                const QString where = lang + QStringLiteral("/deck/") + file;
+                if (en.isEmpty()) {
+                    problems << where + QStringLiteral(": no English topic");
+                    continue;
+                }
+                if (!md.startsWith(QStringLiteral("# "))) problems << where + QStringLiteral(": no title");
+                if (en.contains(QStringLiteral("<!-- keywords:")) && !md.contains(QStringLiteral("<!-- keywords:"))) problems << where + QStringLiteral(": no keywords");
+                if (links(md) != links(en)) problems << where + QStringLiteral(": links differ from the English");
+                if (const auto m = banned.match(md); m.hasMatch()) problems << where + QStringLiteral(": says ") + m.captured(0);
+            }
+        }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
     }
 
     void thumbnailsFollowTheEditor()

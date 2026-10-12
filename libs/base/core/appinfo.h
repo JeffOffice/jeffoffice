@@ -19,6 +19,7 @@ struct AppInfo {
     QString badge;          // two letters in the circle on the File button: "JP"
     QColor highlight;       // the dark interface's selection color, under white text (invalid: accentDark darkened)
     QColor link;            // the dark interface's link color (invalid: accentDark lightened)
+    QString helpFolder;     // where its Help topics are under each language ("deck": resources/help/en/deck/); empty: the language's own folder
 };
 
 const AppInfo &appInfo();
