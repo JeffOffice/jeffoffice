@@ -248,7 +248,11 @@ QString resolvePartName(const QString &sourcePart, const QString &target)
     return segments.isEmpty() ? QString() : QLatin1Char('/') + segments.join(QLatin1Char('/'));
 }
 
-bool Package::read(const QByteArray &zip, QString *error)
+bool Package::read(const QByteArray &zip, QString *error) { return load(zip, error, true); }
+
+bool Package::readOpenDocument(const QByteArray &zip, QString *error) { return load(zip, error, false); }
+
+bool Package::load(const QByteArray &zip, QString *error, bool opc)
 {
     *this = Package();
     auto fail = [&](const QString &message) {
@@ -269,7 +273,7 @@ bool Package::read(const QByteArray &zip, QString *error)
     for (auto it = items.cbegin(); it != items.cend(); ++it) {
         // A folder entry holds nothing.
         if (it.key().endsWith(QLatin1Char('/'))) continue;
-        if (it.key().compare(kContentTypesItem, Qt::CaseInsensitive) == 0) {
+        if (opc && it.key().compare(kContentTypesItem, Qt::CaseInsensitive) == 0) {
             types = it.value();
             haveTypes = true;
             continue;
@@ -287,6 +291,7 @@ bool Package::read(const QByteArray &zip, QString *error)
         }
     }
     if (m_parts.size() > kMaxParts) return fail(translate("The file holds more parts than a document can, which is 10,000."));
+    if (!opc) return true;
     if (!haveTypes) return fail(translate("The file has no [Content_Types].xml, so it is not a package."));
     if (!parseContentTypes(types, &m_defaults, &m_overrides)) return fail(translate("The file's [Content_Types].xml is damaged."));
     for (auto it = relationshipParts.cbegin(); it != relationshipParts.cend(); ++it) {
