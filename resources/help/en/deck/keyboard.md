@@ -55,7 +55,8 @@ Click the pane, then:
 - **Left**, **Up**, **Backspace**, **Page Up**, or **P** go back.
 - **Home** and **End** go to the first and last slide. A slide's number followed by **Enter** goes to that slide.
 - **B** or the period key blacks out the screen. **W** or the comma key whites it out. Press the same key again to bring the slide back.
-- **Esc** ends the show.
+- **Ctrl+P** is the pen, **Ctrl+I** the highlighter, **Ctrl+L** the laser pointer, and **Ctrl+E** the eraser. **E** erases the ink on the slide. **Ctrl+A** brings the arrow back.
+- **Esc** brings the arrow back when the pen, highlighter, laser pointer, or eraser is chosen. Otherwise it ends the show.
 
 Press **F1** for Help about what you are doing.
 

@@ -234,12 +234,13 @@ void DeckWindow::createActions()
         if (dlg.exec() == QDialog::Accepted) insertTable(dlg.rows(), dlg.columns());
     });
 
-    mk("show.fromStart", tr("From Beginning"), "presentation", QKeySequence(Qt::Key_F5), [this] { startShow(0); });
+    mk("show.fromStart", tr("From Beginning"), "presentation", QKeySequence(Qt::Key_F5), [this] { startShowFromBeginning(); });
     mk("show.fromCurrent", tr("From Current Slide"), "monitor-play", QKeySequence(Qt::SHIFT | Qt::Key_F5), [this] { startShow(m_ed->currentPage()); });
 
     mk("view.notes", tr("Notes"), "notebook-pen", QKeySequence(), [this] { m_notes->setVisible(m_notes->isHidden()); refreshUi(); }, true);
     mk("view.fit", tr("Fit to Window"), "scan", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::WholePage); });
     createShowActions();
+    createAnimationActions();
     createViewModeActions();
     createSaveActions();
     createDialogActions();
@@ -462,24 +463,7 @@ void DeckWindow::resetSlide()
     m_ed->endChange();
 }
 
-void DeckWindow::startShow(int slide)
-{
-    m_notes->commit();
-    if (m_outline) m_outline->commit();
-    m_ed->endTextEdit();
-    if (m_show) m_show->close();
-    m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), slide);
-    // On the window's screen, the whole screen.
-    if (QScreen *s = screen()) m_show->setGeometry(s->geometry());
-    connect(m_show, &SlideShow::destroyed, this, [this] { activateWindow(); });
-    // Back in the window, on the last slide the show showed.
-    connect(m_show, &SlideShow::ended, this, [this](int last) {
-        if (last >= 0) m_ed->setCurrentPage(last);
-    });
-    m_show->showFullScreen();
-    m_show->activateWindow();
-    m_show->setFocus();
-}
+void DeckWindow::startShow(int slide) { playShow(slide, deck::ShowPlan(), false); }
 
 bool DeckWindow::maybeSave()
 {

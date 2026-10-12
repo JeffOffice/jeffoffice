@@ -570,6 +570,116 @@
       ]
     },
     {
+      "name": "Animations",
+      "keytip": "A",
+      "groups": [
+        {
+          "name": "Preview",
+          "keytip": "ZP",
+          "items": [
+            {
+              "large": "anim.preview",
+              "keytip": "P"
+            }
+          ]
+        },
+        {
+          "name": "Animation",
+          "keytip": "ZA",
+          "items": [
+            {
+              "widget": "animationGallery",
+              "keytip": "G"
+            },
+            {
+              "large": {
+                "id": "ribbon.animEffectOptions",
+                "text": "Effect Options",
+                "icon": "sliders-horizontal"
+              },
+              "keytip": "E",
+              "menu": "@animEffectOptions"
+            }
+          ]
+        },
+        {
+          "name": "Advanced Animation",
+          "keytip": "ZD",
+          "items": [
+            {
+              "widget": "addAnimation",
+              "keytip": "AA"
+            },
+            {
+              "large": "anim.pane",
+              "keytip": "AP"
+            },
+            {
+              "large": "anim.painter",
+              "keytip": "AY"
+            }
+          ]
+        },
+        {
+          "name": "Timing",
+          "keytip": "ZM",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Start:"
+                },
+                {
+                  "widget": "animStart",
+                  "keytip": "S"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Duration:"
+                },
+                {
+                  "widget": "animDuration",
+                  "keytip": "D"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Delay:"
+                },
+                {
+                  "widget": "animDelay",
+                  "keytip": "Y"
+                }
+              ]
+            },
+            {
+              "column": true
+            },
+            {
+              "row": [
+                {
+                  "label": "Reorder Animation"
+                }
+              ]
+            },
+            {
+              "small": "anim.earlier",
+              "keytip": "ME"
+            },
+            {
+              "small": "anim.later",
+              "keytip": "ML"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Slide Show",
       "keytip": "S",
       "groups": [
@@ -584,6 +694,15 @@
             {
               "large": "show.fromCurrent",
               "keytip": "C"
+            },
+            {
+              "large": {
+                "id": "ribbon.customShow",
+                "text": "Custom Slide Show",
+                "icon": "list-video"
+              },
+              "keytip": "W",
+              "menu": "@customShows"
             }
           ]
         },
@@ -592,8 +711,20 @@
           "keytip": "ZU",
           "items": [
             {
+              "large": "show.setUp",
+              "keytip": "S"
+            },
+            {
               "large": "slide.hide",
               "keytip": "H"
+            },
+            {
+              "large": "show.rehearse",
+              "keytip": "R"
+            },
+            {
+              "widget": "useTimings",
+              "keytip": "T"
             }
           ]
         },

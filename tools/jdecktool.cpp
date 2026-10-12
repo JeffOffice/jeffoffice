@@ -3,6 +3,9 @@
 //   jdecktool info <file.pptx|.ppt>                           the masters, layouts, and slides found
 //   jdecktool save <file> <out.pptx>                          read it and save it again, listing what was left out
 //   jdecktool pdf <file> <out.pdf> [slides|notes|handout6]   print it to a PDF (also handout1|2|3|4|9, outline; "hidden", "frame", "gray", "down" add options; "samplenotes" gives slides without notes
+//   jdecktool animate-demo <out.pptx> <out.tsv>               a presentation with every effect JeffDeck offers (each way of each kind, started on a click, with, and after the one before, and by paragraph), and a table of what is where
+//   jdecktool animations <file>                               each slide's effects as the animation pane lists them (the table animate-demo writes; "(custom)" for what JeffDeck keeps as it was)
+//   jdecktool animate-edit <file> <out.pptx>                  adds a Fade on the first shape of each slide that has animations, as the animation pane does, and saves it (to see that what the file had survives an edit)
 //   jdecktool steps <file> <slide> <outdir> [width=1280]       a slide's click steps listed, and the slide as the show has it at the start (step-00-start.png), halfway through each step (step-01-mid.png), and after it (step-01-end.png)
 
 #include "app/deckinfo.h"
@@ -18,6 +21,7 @@
 
 #include <QDir>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QGuiApplication>
 #include <QHash>
 #include <QJsonArray>
@@ -76,6 +80,97 @@ QString placeholders(const PageBase &page)
     return out.join(QLatin1Char(' '));
 }
 
+// A presentation with a slide for each kind of effect: shapes A, B, and C start on a click, with the one before, and after it; a
+// list animated by paragraph; D with a delay and its own length; and one shape for each other way. The table says, for each
+// effect in order, the slide, its kind, its way, the shape's name, how it starts, its length, its delay, and its paragraph.
+int animateDemo(const QString &path, const QString &tablePath)
+{
+    std::unique_ptr<Document> doc = deck::newPresentation();
+    const MasterPage &layout = *deck::layoutOfType(*doc, QStringLiteral("obj"));
+    QString table;
+    QTextStream t(&table);
+    t << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\tafter\n";
+    int slideNumber = 0;
+    for (const deck::EffectKind &kind : deck::effectKinds()) {
+        const int at = deck::addSlide(*doc, layout);
+        Page &page = *doc->pages[at];
+        ++slideNumber;
+        doc->storyDoc(static_cast<TextItem *>(page.items[0].get())->storyId)->setPlainText(kind.id);
+        doc->storyDoc(static_cast<TextItem *>(page.items[1].get())->storyId)->setPlainText(QStringLiteral("one\ntwo\nthree"));
+        page.items[0]->rect = QRectF(40, 10, 880, 50);
+        page.items[1]->rect = QRectF(40, 380, 300, 140);
+        int shapes = 0;
+        auto shape = [&](const QString &name) {
+            auto s = std::make_shared<ShapeItem>();
+            s->name = name;
+            s->rect = QRectF(40 + 76 * (shapes % 12), 80 + 54 * (shapes / 12), 66, 44);
+            s->fill = Fill::solid(ColorRef::rgb(QColor(0x3A, 0x6E, 0xA5)));
+            page.items.push_back(s);
+            ++shapes;
+            return s;
+        };
+        deck::AnimSequence seq;
+        auto add = [&](const ItemPtr &item, const QString &variant, deck::EffectStart start, int duration = -1, int delay = 0, double amount = -1) {
+            deck::Anim a = deck::makeAnim(kind, deck::shapeNumber(page, item->id));
+            a.variant = variant;
+            a.start = start;
+            if (duration >= 0 && kind.duration > 0) a.duration = duration;
+            a.delay = delay;
+            if (amount >= 0) a.amount = amount;
+            return seq.add(a);
+        };
+        const QString first = kind.firstVariant().key;
+        add(shape(QStringLiteral("A")), first, deck::EffectStart::OnClick);
+        // What happens to the shape when the effect is over (an exit has hidden it already).
+        if (kind.cls != deck::EffectClass::Exit) {
+            const int hideAfter = add(shape(QStringLiteral("H1")), first, deck::EffectStart::OnClick);
+            seq.effects[hideAfter].after = deck::AfterEffect::Hide;
+            const int hideNext = add(shape(QStringLiteral("H2")), first, deck::EffectStart::OnClick);
+            seq.effects[hideNext].after = deck::AfterEffect::HideOnNextClick;
+        }
+        add(shape(QStringLiteral("B")), first, deck::EffectStart::WithPrevious);
+        add(shape(QStringLiteral("C")), first, deck::EffectStart::AfterPrevious);
+        add(shape(QStringLiteral("D")), first, deck::EffectStart::OnClick, 1500, 250);
+        if (kind.duration > 0) {
+            // Smooth start and end the other way round from the kind's, and repeats with a rewind.
+            const int smooth = add(shape(QStringLiteral("S")), first, deck::EffectStart::OnClick);
+            seq.effects[smooth].smoothStart = seq.effects[smooth].smoothEnd = !kind.smooth;
+            const int again = add(shape(QStringLiteral("R")), first, deck::EffectStart::WithPrevious);
+            seq.effects[again].repeat = 3;
+            seq.effects[again].rewind = true;
+        }
+        // The list, by paragraph.
+        const int body = add(page.items[1], first, deck::EffectStart::OnClick);
+        deck::setByParagraph(seq, body, true, *doc, page);
+        for (int i = 1; i < kind.variants.size(); ++i) add(shape(QStringLiteral("V%1").arg(i)), kind.variants[i].key, deck::EffectStart::OnClick);
+        if (kind.amount != deck::EffectKind::Amount::None)
+            for (double amount : kind.amount == deck::EffectKind::Amount::Size ? QVector<double>{25, 50, 400} : QVector<double>{90, 180, 720})
+                add(shape(QStringLiteral("N%1").arg(amount)), first, deck::EffectStart::OnClick, -1, 0, amount);
+        deck::setAnimations(*doc, page, seq);
+        for (int i = 0; i < seq.effects.size(); ++i) {
+            const deck::Anim &a = seq.effects[i];
+            QString name;
+            walkItems(page.items, [&](const ItemPtr &it) {
+                if (it->sourceId == a.shape && name.isEmpty()) name = it->name;
+            });
+            t << slideNumber + 1 << '\t' << i + 1 << '\t' << a.kind << '\t' << a.variant << '\t' << name << '\t' << int(a.start) << '\t' << a.duration << '\t' << a.delay << '\t' << a.firstParagraph << '\t' << a.amount << '\t' << int(a.after) << '\n';
+        }
+    }
+    // The first slide stays the title slide the presentation began with.
+    QString error;
+    QStringList skipped;
+    if (!deck::savePresentationFile(*doc, path, &error, &skipped)) {
+        QTextStream(stdout) << "cannot save: " << error << "\n";
+        return 1;
+    }
+    for (const QString &s : skipped) QTextStream(stdout) << "left out\t" << s << "\n";
+    QFile f(tablePath);
+    if (!f.open(QIODevice::WriteOnly)) return 1;
+    f.write(table.toUtf8());
+    QTextStream(stdout) << "saved\t" << path << "\t" << slideNumber << " slides\n";
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -89,9 +184,11 @@ int main(int argc, char **argv)
     initCore();
     const QStringList args = app.arguments();
     QTextStream out(stdout);
+    if (args.size() >= 4 && args[1] == "animate-demo") return animateDemo(args[2], args[3]);
     if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) || (args[1] == "steps" && args.size() < 5) || (args[1] == "lines" && args.size() < 4) ||
-        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines")) {
-        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide>\n";
+        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines" && args[1] != "animations" && args[1] != "animate-edit") ||
+        (args[1] == "animate-edit" && args.size() < 4)) {
+        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-edit <file> <out.pptx> | animate-demo <out.pptx> <out.tsv>\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -194,6 +291,50 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    if (cmd == "animations") {
+        out << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\tafter\n";
+        for (int i = 0; i < doc->pages.size(); ++i) {
+            const Page &page = *doc->pages[i];
+            const deck::AnimSequence seq = deck::readAnimations(page, doc.get());
+            for (int k = 0; k < seq.effects.size(); ++k) {
+                const deck::Anim &a = seq.effects[k];
+                QString name;
+                walkItems(page.items, [&](const ItemPtr &it) {
+                    if (it->sourceId == a.shape && name.isEmpty()) name = it->name;
+                });
+                out << i + 1 << '\t' << k + 1 << '\t' << (a.custom() ? QStringLiteral("(custom)") : a.kind) << '\t' << a.variant << '\t' << name << '\t' << int(a.start) << '\t' << a.duration << '\t'
+                    << a.delay << '\t' << a.firstParagraph << '\t' << a.amount << '\t' << int(a.after) << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (cmd == "animate-edit") {
+        for (int i = 0; i < doc->pages.size(); ++i) {
+            Page &page = *doc->pages[i];
+            if (page.props.value(QStringLiteral("timingXml")).toString().isEmpty()) continue;
+            deck::AnimSequence seq = deck::readAnimations(page, doc.get());
+            if (!seq.editable) {
+                out << "slide " << i + 1 << "\tnot editable\n";
+                continue;
+            }
+            const qsizetype before = seq.effects.size();
+            QString target;
+            for (const ItemPtr &it : page.items)
+                if (target.isEmpty() && (it->type() == ItemType::Shape || it->type() == ItemType::Text)) target = it->id;
+            if (target.isEmpty()) continue;
+            seq.add(deck::makeAnim(QStringLiteral("entr.fade"), deck::shapeNumber(page, target)));
+            deck::setAnimations(*doc, page, seq);
+            out << "slide " << i + 1 << "\t" << before << " effects, " << seq.kept.size() << " other nodes kept, now " << deck::readAnimations(page, doc.get()).effects.size() << " effects\n";
+        }
+        QString error;
+        QStringList skipped;
+        const bool ok = deck::savePresentationFile(*doc, args[3], &error, &skipped);
+        for (const QString &s : skipped) out << "left out\t" << s << "\n";
+        out << (ok ? "saved\t" + args[3] : "cannot save: " + error) << "\n";
+        return ok ? 0 : 1;
+    }
+
     if (cmd == "steps") {
         static const char *classes[] = {"entrance", "exit", "emphasis", "motion path", "media", "verb", "other"};
         static const char *starts[] = {"on click", "with previous", "after previous"};
@@ -203,7 +344,7 @@ int main(int argc, char **argv)
             return 2;
         }
         const Page &page = *doc->pages[slide];
-        const deck::Timeline tl = deck::playableTimeline(page);
+        const deck::Timeline tl = deck::playableTimeline(*doc, page);
         out << "steps\tslide " << slide + 1 << "\t" << tl.steps.size() << " click steps\t" << deck::timelineOf(page).steps.size() << " read\t" << tl.triggers.size() << " triggers\n";
         if (tl.isEmpty()) {
             out << (page.props.contains(QStringLiteral("timingXml")) ? "the slide's timing has no steps that show anything\n" : "the slide has no animations\n");

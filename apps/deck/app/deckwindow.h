@@ -10,6 +10,7 @@
 #include <QPointer>
 #include <QTimer>
 #include <functional>
+#include <memory>
 
 class QDockWidget;
 class QLabel;
@@ -19,6 +20,7 @@ class QStackedWidget;
 
 namespace jp {
 
+class AnimationPane;
 class ColorButton;
 class Document;
 class CommentsPane;
@@ -75,6 +77,10 @@ public:
     enum class View { Normal, Outline, Sorter };
     View view() const { return m_view; }
     void setView(View view);
+    // The Animation Pane on the right (Animations tab > Animation Pane), with the effects of the slide being edited; the
+    // numbers by the shapes show while it, or the tab, does (deckwindow_animations.cpp).
+    AnimationPane *animationPane() const { return m_animPane; }
+    void showAnimationPane(bool on = true);
     // What the ribbon file named that the window doesn't have (empty when
     // the ribbon built cleanly).
     QString ribbonErrors() const { return m_ribbonErrors; }
@@ -126,8 +132,25 @@ public:
     bool insertPicture(const QString &path, const QPointF &at = QPointF(-1, -1));
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
-    // Starts the slide show at `slide` (0 is the first).
+    // Starts the slide show at `slide` (0 is the first), with every slide in
+    // play from there; the rest of how it goes is what the presentation is set
+    // up for (Set Up Slide Show).
     void startShow(int slide);
+    // The Slide Show tab (deckwindow_show.cpp). From Beginning plays the slides
+    // the show is set up for. Set Up Slide Show and Custom Shows ask in dialogs
+    // and are each one step that undoes; a custom show plays by its id.
+    // Rehearse Timings plays the show with the timing bar. What a show leaves
+    // behind is asked about when it ends: ink (kept as freeform lines on the
+    // slides) and the new times (kept as each slide's After, with Use Timings on).
+    void startShowFromBeginning();
+    void startCustomShow(qint64 id);
+    void setUpShow();
+    void editCustomShows();
+    void rehearseTimings();
+    // What those questions are asked with, and the notices the show gives (a range
+    // of slides past the end): the message box, unless this stands in for it
+    // (tests). Given the question, it says whether to keep; a notice's answer is ignored.
+    void setShowQuestion(const std::function<bool(const QString &)> &ask) { m_showQuestion = ask; }
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
@@ -180,6 +203,11 @@ private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
     void createShowActions();
+    void playShow(int slide, const deck::ShowPlan &plan, bool recording, bool rehearsal = false);
+    void watchShow(SlideShow *show, bool recording);
+    void afterShow(const QHash<QString, QVector<deck::InkStroke>> &ink, const QMap<int, double> &seconds, double total, bool recording);
+    bool askAboutShow(const QString &question, const QString &keep, const QString &discard);
+    void tellAboutShow(const QString &text);
     void createViewModeActions();   // deckwindow_views.cpp
     void addShowParts(struct RibbonParts &parts);
     void addDesignParts(struct RibbonParts &parts);   // deckwindow_design.cpp
@@ -191,6 +219,8 @@ private:
     void createCommentActions();  // deckwindow_comments.cpp
     void createSectionActions();  // deckwindow_sections.cpp
     void createReuseActions();    // deckwindow_reuse.cpp, from createSectionActions()
+    void createAnimationActions();   // deckwindow_animations.cpp
+    void addAnimationParts(struct RibbonParts &parts);
     void createOutputActions();   // deckwindow_output.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();
@@ -227,6 +257,9 @@ private:
     QDockWidget *m_reuseDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    AnimationPane *m_animPane = nullptr;
+    QDockWidget *m_animDock = nullptr;
+    std::shared_ptr<void> m_animations;   // what the animation controls do (deckwindow_animations.cpp)
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     View m_view = View::Normal;
     // Normal view's zoom while the Slide Sorter borrows the zoom controls: its Canvas::Fit and the zoom.
@@ -247,6 +280,7 @@ private:
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
+    std::function<bool(const QString &)> m_showQuestion;
     quint64 m_serial = 0;
 };
 
