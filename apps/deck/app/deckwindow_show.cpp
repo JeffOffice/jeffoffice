@@ -1,12 +1,13 @@
 // The slide show's side of JeffDeck's window: the Transitions tab (the
-// transition of the slide being edited, its timing, and a preview) and the
-// star that marks slides with a transition.
+// transition of the slide being edited, its timing, and a preview), Presenter
+// View's commands, and the star that marks slides with a transition.
 
 #include "app/deckwindow.h"
 
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/presenterview.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/slideshow.h"
@@ -23,6 +24,7 @@
 #include <QPainter>
 #include <QPolygonF>
 #include <QtMath>
+#include <QScreen>
 #include <QSignalBlocker>
 #include <QStyledItemDelegate>
 #include <memory>
@@ -139,6 +141,24 @@ void DeckWindow::createShowActions()
 {
     Editor *ed = m_ed;
     const QString label = tr("Transition"), applyLabel = tr("Apply Transition To All Slides");
+
+    // Presenter View: Alt+F5 rehearses in windows, on any number of screens.
+    mk("show.presenterView", tr("Presenter View"), "monitor-up", QKeySequence(Qt::ALT | Qt::Key_F5), [this] {
+        m_notes->commit();
+        m_ed->endTextEdit();
+        if (m_show) m_show->close();
+        m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), m_ed->currentPage());
+        m_show->setRehearsal(true);
+        if (QScreen *s = screen()) m_show->setGeometry(s->availableGeometry());
+        connect(m_show, &SlideShow::destroyed, this, [this] { activateWindow(); });
+        m_show->show();
+        m_show->activateWindow();
+        m_show->setFocus();
+    });
+    QAction *use = mk("show.usePresenterView", tr("Use Presenter View"), QString(), QKeySequence(), [this] {
+        SlideShow::setUsePresenterView(act("show.usePresenterView")->isChecked());
+    }, true);
+    use->setChecked(SlideShow::usePresenterView());
 
     // The transitions, and the ways each goes.
     const struct { const char *type; QString text; } kinds[] = {
@@ -329,6 +349,21 @@ void DeckWindow::addShowParts(RibbonParts &parts)
         });
         syncs->last()();
         return spin;
+    };
+
+    // Slide Show > Monitors.
+    parts.widgets[QStringLiteral("usePresenterView")] = [this] {
+        QAction *a = act(QStringLiteral("show.usePresenterView"));
+        auto *box = new QCheckBox(a->text());
+        box->setObjectName(QStringLiteral("usePresenterView"));
+        box->setToolTip(tr("Use Presenter View: with two screens, the slide show goes to one and the notes, timer, and next slide to the other."));
+        box->setChecked(a->isChecked());
+        connect(box, &QCheckBox::clicked, a, [a] { a->trigger(); });
+        connect(a, &QAction::toggled, box, [box](bool on) {
+            const QSignalBlocker block(box);
+            box->setChecked(on);
+        });
+        return box;
     };
 }
 

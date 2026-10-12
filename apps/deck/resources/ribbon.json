@@ -295,6 +295,20 @@
               "keytip": "H"
             }
           ]
+        },
+        {
+          "name": "Monitors",
+          "keytip": "ZM",
+          "items": [
+            {
+              "widget": "usePresenterView",
+              "keytip": "V"
+            },
+            {
+              "large": "show.presenterView",
+              "keytip": "P"
+            }
+          ]
         }
       ]
     },
