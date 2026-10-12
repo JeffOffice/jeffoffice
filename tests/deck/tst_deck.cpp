@@ -3549,6 +3549,26 @@ private Q_SLOTS:
         pv.grab();
     }
 
+    // The ribbon's preview leaves the slide before as the show leaves it, with
+    // its steps played (here the title exits).
+    void transitionPreviewLeavesTheSlideBeforeWithItsStepsPlayed()
+    {
+        auto grabOf = [&](bool animated) {
+            auto d = showDeck(2);
+            numberShowShapes(*d->pages[0]);
+            if (animated) d->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeOut(2, 200)}));
+            else d->pages[0]->items.erase(d->pages[0]->items.begin());   // the title is gone
+            deck::setTransition(*d->pages[1], showTransition("fade", 600));
+            QWidget parent;
+            parent.resize(480, 300);
+            LayoutCache cache;
+            TransitionPreview preview(d.get(), &cache, &parent);
+            preview.play(1);
+            return preview.grab().toImage();
+        };
+        QCOMPARE(grabOf(true), grabOf(false));
+    }
+
     // A step's frames are drawn from what lies beneath and above the shapes it
     // moves, kept; they come out as drawing the whole slide does.
     void showStepFramesAreTheWholeSlideDrawn()

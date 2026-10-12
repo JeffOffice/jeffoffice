@@ -968,8 +968,15 @@ void TransitionPreview::play(int slide)
     const QRectF at = fitSlide(m_doc->pageSize(), QSizeF(size()) * 0.94);
     m_area = QRectF(at.translated(QPointF(size().width() * 0.03, size().height() * 0.03))).toAlignedRect();
     const qreal dpr = devicePixelRatioF();
-    m_to = renderSlideImage(m_doc, m_cache, slide, m_area.size(), dpr);
-    m_from = slide > 0 ? renderSlideImage(m_doc, m_cache, slide - 1, m_area.size(), dpr) : renderSlideImage(m_doc, m_cache, -1, m_area.size(), dpr);
+    // As the show has them: the slide at its start, and the one before with its steps played.
+    auto drawn = [&](int index, bool played) {
+        const deck::Timeline tl = index >= 0 ? deck::playableTimeline(*m_doc->pages[index]) : deck::Timeline();
+        if (tl.isEmpty()) return renderSlideImage(m_doc, m_cache, index, m_area.size(), dpr);
+        const deck::States states = deck::statesAt(tl, deck::geometryOf(*m_doc, *m_doc->pages[index]), played ? int(tl.steps.size()) : 0);
+        return renderSlideImage(m_doc, m_cache, index, m_area.size(), dpr, Qt::black, &states);
+    };
+    m_to = drawn(slide, false);
+    m_from = drawn(slide - 1, true);
     m_anim.stop();
     m_anim.setDuration(std::max(1, qRound(m_trans.duration * 1000)));
     show();
