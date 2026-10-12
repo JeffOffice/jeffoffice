@@ -2,6 +2,7 @@
 
 #include "office/xml.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace jp::office {
