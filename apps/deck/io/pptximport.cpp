@@ -44,8 +44,17 @@ const QLatin1String kJoComments("http://jeffoffice.com/ns/deck/comments");
 const QLatin1String kSectionExt("{521415D9-36F7-43E2-AB2F-B90AF26B5E84}");
 const QLatin1String kSectionNs("http://schemas.microsoft.com/office/powerpoint/2010/main");
 
-// What a file may hold: more is left unread, with a note.
-constexpr int kMaxSlides = 10000, kMaxLayouts = 1000, kMaxMasters = 1000, kMaxShapes = 100000;
+// What a file may hold: more is left unread, with a note. The sample decks have at most 43 slides, 24 layouts, and 2 slide masters (a presentation
+// converted from another format, 11), so these are 232, 41, and 18 times as many.
+constexpr int kMaxSlides = 10000, kMaxLayouts = 1000, kMaxMasters = 200;
+// A theme part is a few kilobytes: the largest in the sample decks is 8,723 bytes, and this is 30 times that.
+constexpr qint64 kMaxThemeBytes = 256 << 10;
+// What the whole file may keep, however it spreads that over slides, layouts, and masters, or lists the same part again: every read of it draws from one
+// DrawingBudget. The sample decks' largest hold 507 objects, 397 text boxes and shapes with text, 156 table cells, 790 paragraphs, 666 runs, and 18,542
+// letters, so these are 394, 76, 320, 380, 750, and 1,080 times as many. A file that uses up any one of them (measured with files that do, the time of
+// reading their XML included) takes at most 10 seconds and 0.6 GB, and one that uses up several at once 14 seconds and 1.3 GB.
+constexpr qint64 kMaxObjects = 200000, kMaxStories = 30000, kMaxCells = 50000, kMaxParagraphs = 300000, kMaxRuns = 500000, kMaxLetters = 20000000;
+
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
 // A slide may be 56 inches across at most (the standard's limit), and is a point at least.
@@ -100,22 +109,45 @@ QString family(const QString &type, bool wide)
     return type;
 }
 
-// The placeholder in `list` that `want` stands on: on the same index and of
-// the same kind, else of the same type, else of the same kind. A slide's
+// The placeholders of a layout or master, and the one that `want` stands on:
+// on the same index and of the same kind, else of the same type, else of the
+// same kind (the first of each, in the order they are in). A slide's
 // placeholder goes by index to its layout's (`byIdx`); a layout's has only a
-// type to go by to its master's.
-const PhRef *findPlaceholder(const QVector<PhRef> &list, const PhRef &want, bool byIdx, bool wide)
-{
-    const QString kind = family(want.type, wide);
-    if (byIdx)
-        for (const PhRef &p : list)
-            if (p.idx == want.idx && family(p.type, wide) == kind) return &p;
-    for (const PhRef &p : list)
-        if (p.type == want.type) return &p;
-    for (const PhRef &p : list)
-        if (family(p.type, wide) == kind) return &p;
-    return nullptr;
-}
+// type to go by to its master's. Each is found by lookup, so that slides of
+// thousands of placeholders over a layout of thousands don't compare each
+// with each.
+class PhList {
+public:
+    PhList() = default;
+    explicit PhList(QVector<PhRef> list) : m_list(std::move(list))
+    {
+        for (int i = 0; i < int(m_list.size()); ++i) {
+            const PhRef &p = m_list[i];
+            if (!m_byType.contains(p.type)) m_byType.insert(p.type, i);
+            for (int w = 0; w < 2; ++w) {
+                const QString kind = family(p.type, w != 0);
+                if (!m_byKind[w].contains(kind)) m_byKind[w].insert(kind, i);
+                if (!m_byIdx[w].contains({p.idx, kind})) m_byIdx[w].insert({p.idx, kind}, i);
+            }
+        }
+    }
+    const PhRef *find(const PhRef &want, bool byIdx, bool wide) const
+    {
+        const int w = wide ? 1 : 0;
+        const QString kind = family(want.type, wide);
+        if (byIdx)
+            if (const auto it = m_byIdx[w].constFind({want.idx, kind}); it != m_byIdx[w].cend()) return &m_list[it.value()];
+        if (const auto it = m_byType.constFind(want.type); it != m_byType.cend()) return &m_list[it.value()];
+        if (const auto it = m_byKind[w].constFind(kind); it != m_byKind[w].cend()) return &m_list[it.value()];
+        return nullptr;
+    }
+
+private:
+    QVector<PhRef> m_list;
+    QHash<QPair<qint64, QString>, int> m_byIdx[2];   // by index and kind, for a placeholder asking without `wide` and with
+    QHash<QString, int> m_byType;
+    QHash<QString, int> m_byKind[2];
+};
 
 QString roleOf(const PhRef &ph)
 {
@@ -312,11 +344,15 @@ private:
     QString m_main;
     std::function<void(const QString &)> m_note;
     bool m_authorsRead = false;
+    QSet<QString> m_readParts;   // the comment parts read so far, by lower-cased name: one named again is read once
     QHash<qint64, Person> m_older;
     QHash<QString, Person> m_newer;   // by lower-cased id
     int m_total = 0, m_slide = 0, m_unplaced = 0;
     bool m_totalSaid = false;
 };
+
+// The farthest a time zone is from UTC, in minutes.
+constexpr qint64 kMaxZoneBias = 24 * 60;
 
 // 2013-05-10T10:21:50.343 (the author's own time, with the offset from UTC in
 // `bias` when the file gave it), or with a zone: Z, +02:00. UTC; invalid for text that isn't a time.
@@ -330,7 +366,8 @@ QDateTime commentDate(QString text, std::optional<qint64> bias)
     if (!t.isValid()) return QDateTime();
     if (zone.match(text).hasMatch()) return t.toUTC();
     const QDateTime own(t.date(), t.time(), QTimeZone::UTC);
-    return bias ? own.addSecs(*bias * 60) : own;
+    // A zone is within a day of UTC; the file's number may be any, and times it by 60.
+    return bias ? own.addSecs(std::clamp<qint64>(*bias, -kMaxZoneBias, kMaxZoneBias) * 60) : own;
 }
 
 // The text of a DrawingML text body: a line for each paragraph.
@@ -397,9 +434,11 @@ void CommentReader::loadAuthors()
 {
     if (m_authorsRead) return;
     m_authorsRead = true;
+    QSet<QString> seen;   // a part of authors the presentation names twice is read once
     auto people = [&](const QString &suffix, const char *rootName, const QString &rootNs, const char *personName, auto add) {
         for (const office::Relationship &rel : m_pkg.relationshipsOfType(m_main, suffix)) {
-            if (rel.external) continue;
+            if (rel.external || seen.contains(rel.target.toLower())) continue;
+            seen.insert(rel.target.toLower());
             QDomDocument dom;
             QDomElement root;
             if (!parse(rel.target, 0, &dom, &root) || !office::isElement(root, rootNs, QLatin1String(rootName))) continue;
@@ -447,6 +486,12 @@ void CommentReader::read(const QString &slidePart, int number, Page &page, const
     QVector<deck::Comment> out;
     for (const office::Relationship &rel : rels) {
         if (rel.external) continue;
+        // The comments of one slide are the part of that slide: another that names it has none of its own.
+        if (m_readParts.contains(rel.target.toLower())) {
+            m_note(say("The comments of slide %1 were left out: the part %2 is read once.").arg(number).arg(shortName(rel.target)));
+            continue;
+        }
+        m_readParts.insert(rel.target.toLower());
         QDomDocument dom;
         QDomElement root;
         if (!parse(rel.target, number, &dom, &root)) continue;
@@ -549,6 +594,7 @@ void CommentReader::readOlder(const QDomElement &root, QVector<deck::Comment> *o
 
 void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *out, const Page &page, const QSizeF &slide)
 {
+    std::optional<QHash<int, QPointF>> cornerOf;
     int count = 0;
     for (const QDomElement &cm : office::children(root, kP188, QStringLiteral("cm"))) {
         if (++count > kMaxComments) {
@@ -573,13 +619,18 @@ void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *o
         if (placed) {
             c.at = clamped(QPointF(office::emuToPoints(x), office::emuToPoints(y)), slide);
         } else if (const QDomElement shape = findNamed(cm, QStringLiteral("spMk")); !shape.isNull()) {
+            // The first shape of each number, found once for all the comments of the part.
+            if (!cornerOf) {
+                cornerOf.emplace();
+                walkItems(page.items, [&](const ItemPtr &it) {
+                    if (!cornerOf->contains(it->sourceId)) cornerOf->insert(it->sourceId, QPointF(it->rect.right(), it->rect.top()));
+                });
+            }
             const qint64 id = office::parseInt(office::attr(shape, QStringLiteral("id")), -1);
-            walkItems(page.items, [&](const ItemPtr &it) {
-                if (!placed && it->sourceId == id) {
-                    c.at = clamped(QPointF(it->rect.right(), it->rect.top()), slide);
-                    placed = true;
-                }
-            });
+            if (id >= INT_MIN && id <= INT_MAX && cornerOf->contains(int(id))) {
+                c.at = clamped(cornerOf->value(int(id)), slide);
+                placed = true;
+            }
         }
         if (!placed) c.at = unplaced(slide);
         bool saidReplies = false;
@@ -600,11 +651,28 @@ void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *o
 
 class Importer {
 public:
-    Importer(const office::Package &pkg, Document &doc) : m_pkg(pkg), m_doc(doc) {}
+    Importer(const office::Package &pkg, Document &doc) : m_pkg(pkg), m_doc(doc)
+    {
+        using B = office::DrawingBudget;
+        m_budget.left[B::Objects] = kMaxObjects;
+        m_budget.left[B::Stories] = kMaxStories;
+        m_budget.left[B::Cells] = kMaxCells;
+        m_budget.left[B::Paragraphs] = kMaxParagraphs;
+        m_budget.left[B::Runs] = kMaxRuns;
+        m_budget.left[B::Letters] = kMaxLetters;
+    }
     bool run(const QString &mainPart, QString *error);
 
 private:
     enum class Kind { Master, Layout, Slide };
+    // A theme part as read, once however many slide masters name it.
+    struct ThemeCtx {
+        office::Theme theme;
+        QDomElement formats;
+        QString base64;       // the part, as a master keeps it
+        QString why;          // what is wrong with it, if it can't be used
+        bool ok = false;
+    };
     struct MasterCtx {
         std::shared_ptr<MasterPage> page;
         QString part;
@@ -613,14 +681,14 @@ private:
         QDomElement formats;
         office::ColorMap colors;
         QDomElement titleStyle, bodyStyle, otherStyle;
-        QVector<PhRef> placeholders;
+        PhList placeholders;
     };
     struct LayoutCtx {
         std::shared_ptr<MasterPage> page;
         QString part;
         MasterCtx *master = nullptr;
         office::ColorMap colors;
-        QVector<PhRef> placeholders;
+        PhList placeholders;
     };
     // The page being read: where its items go and what it stands on.
     struct Scope {
@@ -630,7 +698,6 @@ private:
         const MasterCtx *master = nullptr;
         const LayoutCtx *layout = nullptr;
         QJsonArray unread, charts;
-        int shapes = 0;
     };
 
     QDomDocument &newDom()
@@ -641,6 +708,8 @@ private:
     void note(const QString &text);
     bool parsePart(const QString &part, const QString &root, const char *rootNs, QDomDocument *dom, QDomElement *rootElement, QString *why);
     office::DrawingContext contextFor(const MasterCtx &master, const office::ColorMap &colors, const QString &part);
+    std::shared_ptr<const ThemeCtx> themeOf(const QString &part);
+    void sayWhatRanOut();
     office::ColorMap colorsOf(const QDomElement &clrMapOvr, const office::ColorMap &inherited);
     QString addImage(const QByteArray &bytes, const QString &format);
 
@@ -652,7 +721,7 @@ private:
     void readNotes(const QString &slidePart, Page &page, const MasterCtx &master);
     void readComments(const QString &slidePart, int number, Page &page);
 
-    QVector<PhRef> placeholdersIn(const QDomElement &tree);
+    PhList placeholdersIn(const QDomElement &tree);
     void readTree(const QDomElement &tree, Scope &sc);
     void readChild(const QDomElement &c, Scope &sc);
     void readAlternate(const QDomElement &alternate, Scope &sc);
@@ -674,9 +743,15 @@ private:
     int m_extraNotes = 0;
     bool m_layoutLimitSaid = false;
     QDomElement m_defaultStyle;
+    office::DrawingBudget m_budget;               // what the whole file may keep (kMaxObjects...), drawn from by every read of it
+    QHash<QString, QString> m_images;             // the pictures and movies kept, by part and link, for every shape that uses one
     std::vector<std::unique_ptr<MasterCtx>> m_masters;
     std::vector<std::unique_ptr<LayoutCtx>> m_layouts;
+    QHash<QString, MasterCtx *> m_masterByPart;   // by lower-cased part name; null for one that couldn't be read
     QHash<QString, LayoutCtx *> m_layoutByPart;   // by lower-cased part name; null for one that couldn't be read
+    QHash<QString, std::shared_ptr<const ThemeCtx>> m_themes;   // by lower-cased part name
+    QHash<QString, int> m_slideByPart;            // by lower-cased part name: the number of the slide that has it
+    QSet<QString> m_notesParts;                   // the notes parts read, by lower-cased name
     QHash<QString, QDomElement> m_notesStyles;    // by notes master part
     int m_layoutCount = 0;
     bool m_footers = false;
@@ -690,6 +765,19 @@ void Importer::note(const QString &text)
 {
     if (m_notes.size() < kMaxNotes) m_notes << text;
     else ++m_extraNotes;
+}
+
+// A note for each kind of thing the file held more of than it may.
+void Importer::sayWhatRanOut()
+{
+    using B = office::DrawingBudget;
+    if (m_budget.ranOut[B::Objects]) note(say("The file holds more than %1 objects in all; the rest are left out.").arg(kMaxObjects));
+    if (m_budget.ranOut[B::Stories]) note(say("The file holds more than %1 shapes with text in all; the text of the rest is left out.").arg(kMaxStories));
+    if (m_budget.ranOut[B::Cells]) note(say("The file holds more than %1 table cells in all; the tables past them are kept as written, not shown.").arg(kMaxCells));
+    if (m_budget.ranOut[B::Paragraphs]) note(say("The file holds more than %1 paragraphs of text in all; the rest are left out.").arg(kMaxParagraphs));
+    if (m_budget.ranOut[B::Runs]) note(say("The file holds more than %1 runs of text in all; the rest are left out.").arg(kMaxRuns));
+    if (m_budget.ranOut[B::Letters]) note(say("The file holds more than %1 letters of text in all; the rest are left out.").arg(kMaxLetters));
+    if (m_budget.longBody) note(say("Some text is longer than a text box is read to, so the rest of it is left out."));
 }
 
 bool Importer::parsePart(const QString &part, const QString &root, const char *rootNs, QDomDocument *dom, QDomElement *rootElement, QString *why)
@@ -723,6 +811,8 @@ office::DrawingContext Importer::contextFor(const MasterCtx &master, const offic
     ctx.colors = colors;
     ctx.formats = master.formats;
     ctx.themePart = master.themePart;
+    ctx.images = &m_images;
+    ctx.budget = &m_budget;
     ctx.addImage = [this](const QByteArray &bytes, const QString &format) { return addImage(bytes, format); };
     ctx.addMedia = [this](const QByteArray &bytes, const QString &contentType, const QString &extension) {
         return m_doc.addMedia(bytes, contentType, extension);
@@ -796,14 +886,14 @@ void Importer::readSections(const QDomElement &presentation, const QHash<qint64,
     setSections(m_doc, sections);
 }
 
-QVector<PhRef> Importer::placeholdersIn(const QDomElement &tree)
+PhList Importer::placeholdersIn(const QDomElement &tree)
 {
     QVector<PhRef> out;
     for (QDomElement c = tree.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
         PhRef ph;
         if (isOneOf(c.localName(), {"sp", "pic", "graphicFrame"}) && placeholderOf(c, &ph)) out << ph;
     }
-    return out;
+    return PhList(std::move(out));
 }
 
 QDomElement Importer::textStyleFor(const MasterCtx &m, const QString &type) const
@@ -811,6 +901,30 @@ QDomElement Importer::textStyleFor(const MasterCtx &m, const QString &type) cons
     if (type == QLatin1String("title") || type == QLatin1String("ctrTitle")) return m.titleStyle;
     if (family(type, true) == QLatin1String("body")) return m.bodyStyle;
     return m.otherStyle;
+}
+
+// A theme part, read the first time a master names it and shared by every master that does.
+std::shared_ptr<const Importer::ThemeCtx> Importer::themeOf(const QString &part)
+{
+    const QString key = part.toLower();
+    if (const std::shared_ptr<const ThemeCtx> known = m_themes.value(key)) return known;
+    auto t = std::make_shared<ThemeCtx>();
+    t->theme = office::defaultTheme();
+    const QByteArray bytes = m_pkg.part(part);
+    if (bytes.size() > kMaxThemeBytes) {
+        t->why = say("it is larger than %1 KB").arg(kMaxThemeBytes >> 10);
+    } else {
+        QDomDocument &dom = newDom();
+        office::Theme theme;
+        if (office::readTheme(bytes, &theme, &t->why) && office::parseXml(bytes, &dom, &t->why)) {
+            t->theme = theme;
+            t->formats = aChild(aChild(dom.documentElement(), "themeElements"), "fmtScheme");
+            t->base64 = QString::fromLatin1(bytes.toBase64());
+            t->ok = true;
+        }
+    }
+    m_themes.insert(key, t);
+    return t;
 }
 
 Importer::MasterCtx *Importer::readMaster(const QString &part)
@@ -826,21 +940,16 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     m->part = part;
     m->theme = office::defaultTheme();
     const QVector<office::Relationship> themes = m_pkg.relationshipsOfType(part, QStringLiteral("/theme"));
-    QByteArray themeBytes;
+    QString themeBase64;   // the theme part, as the master keeps it; empty if it has none that can be read
     if (themes.isEmpty() || themes[0].external) {
         note(say("The slide master %1 has no theme, so JeffDeck's colors and fonts stand in.").arg(shortName(part)));
+    } else if (const std::shared_ptr<const ThemeCtx> theme = themeOf(themes[0].target); !theme->ok) {
+        note(say("The theme of slide master %1 can't be read (%2), so JeffDeck's colors and fonts stand in.").arg(shortName(part), theme->why));
     } else {
-        themeBytes = m_pkg.part(themes[0].target);
-        QString themeWhy;
-        QDomDocument &themeDom = newDom();
-        if (!office::readTheme(themeBytes, &m->theme, &themeWhy) || !office::parseXml(themeBytes, &themeDom, &themeWhy)) {
-            note(say("The theme of slide master %1 can't be read (%2), so JeffDeck's colors and fonts stand in.").arg(shortName(part), themeWhy));
-            m->theme = office::defaultTheme();
-            themeBytes.clear();
-        } else {
-            m->formats = aChild(aChild(themeDom.documentElement(), "themeElements"), "fmtScheme");
-            m->themePart = themes[0].target;
-        }
+        m->theme = theme->theme;
+        m->formats = theme->formats;
+        m->themePart = themes[0].target;
+        themeBase64 = theme->base64;
     }
     m->colors = office::readColorMap(pChild(root, "clrMap"));
     const QDomElement styles = pChild(root, "txStyles");
@@ -856,7 +965,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     if (page->name.isEmpty()) page->name = m->theme.name.isEmpty() ? say("Slide Master") : say("%1 Slide Master").arg(m->theme.name);
     page->abbr = n == 1 ? QStringLiteral("SM") : QStringLiteral("SM%1").arg(n);
     page->props[QStringLiteral("kind")] = QStringLiteral("master");
-    if (n > 1 && !themeBytes.isEmpty()) page->props[QStringLiteral("themeXml")] = QString::fromLatin1(themeBytes.toBase64());
+    if (n > 1 && !themeBase64.isEmpty()) page->props[QStringLiteral("themeXml")] = themeBase64;
     m->page = page;
 
     Scope sc;
@@ -882,7 +991,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
         if (!raw->theme.minorLatin.isEmpty()) t.bodyFont = raw->theme.minorLatin;
         setTheme(m_doc, t);
         m_doc.fonts = {t.name, t.headingFont, t.bodyFont};
-        if (!themeBytes.isEmpty()) m_doc.appData[QStringLiteral("themeXml")] = QString::fromLatin1(themeBytes.toBase64());
+        if (!themeBase64.isEmpty()) m_doc.appData[QStringLiteral("themeXml")] = themeBase64;
     }
 
     // Its layouts, in the order it lists them, right after it.
@@ -956,8 +1065,9 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
 void Importer::readTree(const QDomElement &tree, Scope &sc)
 {
     for (QDomElement c = tree.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
-        if (++sc.shapes > kMaxShapes) {
-            note(say("A page holds more than %1 objects; the rest are left out.").arg(kMaxShapes));
+        // Past the file's objects, what is left of the tree has nothing to read.
+        if (m_budget.left[office::DrawingBudget::Objects] <= 0 && isOneOf(c.localName(), {"sp", "pic", "grpSp", "cxnSp", "graphicFrame", "contentPart", "AlternateContent"})) {
+            m_budget.ranOut[office::DrawingBudget::Objects] = true;
             break;
         }
         readChild(c, sc);
@@ -972,6 +1082,7 @@ void Importer::readChild(const QDomElement &c, Scope &sc)
     if (office::isElement(c, kMc, QStringLiteral("AlternateContent"))) {
         readAlternate(c, sc);
     } else if (name == QLatin1String("graphicFrame") || name == QLatin1String("contentPart")) {
+        if (!m_budget.take(office::DrawingBudget::Objects)) return;
         if (!readFrameTable(c, sc) && !readFrameChart(c, sc) && !readFramePicture(c, sc)) keepUnread(c, c, sc);
     } else if (isOneOf(name, {"sp", "pic", "grpSp", "cxnSp"})) {
         if (ItemPtr it = readOne(c, sc)) sc.page->items.push_back(it);
@@ -982,6 +1093,7 @@ void Importer::readChild(const QDomElement &c, Scope &sc)
 // fallback, else the whole is kept as written.
 void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
 {
+    if (!m_budget.take(office::DrawingBudget::Objects)) return;
     QDomElement fallback, frame;
     bool read = false;
     for (QDomElement alt = alternate.firstChildElement(); !alt.isNull() && !read; alt = alt.nextSiblingElement()) {
@@ -1181,8 +1293,8 @@ ItemPtr Importer::readOne(const QDomElement &shape, Scope &sc)
     // Where it gets its place and its text formatting from: its layout's
     // placeholder, and that one's (else its own) on the master.
     const PhRef *layoutPh = nullptr, *masterPh = nullptr;
-    if (sc.kind == Kind::Slide && sc.layout) layoutPh = findPlaceholder(sc.layout->placeholders, ph, true, false);
-    if (sc.kind != Kind::Master && sc.master) masterPh = findPlaceholder(sc.master->placeholders, layoutPh ? *layoutPh : ph, false, true);
+    if (sc.kind == Kind::Slide && sc.layout) layoutPh = sc.layout->placeholders.find(ph, true, false);
+    if (sc.kind != Kind::Master && sc.master) masterPh = sc.master->placeholders.find(layoutPh ? *layoutPh : ph, false, true);
     QVector<QDomElement> inherits;
     if (layoutPh) inherits << layoutPh->shape;
     if (masterPh) inherits << masterPh->shape;
@@ -1292,6 +1404,12 @@ void Importer::readNotes(const QString &slidePart, Page &page, const MasterCtx &
     const QVector<office::Relationship> rels = m_pkg.relationshipsOfType(slidePart, QStringLiteral("/notesSlide"));
     if (rels.isEmpty() || rels[0].external) return;
     const QString part = rels[0].target;
+    // A notes part belongs to one slide: another that names it has no notes of its own.
+    if (m_notesParts.contains(part.toLower())) {
+        note(say("The notes of %1 were left out: the part %2 is read once.").arg(shortName(slidePart), shortName(part)));
+        return;
+    }
+    m_notesParts.insert(part.toLower());
     QDomDocument dom;
     QDomElement root;
     QString why;
@@ -1350,13 +1468,18 @@ bool Importer::run(const QString &mainPart, QString *error)
     m_defaultStyle = pChild(root, "defaultTextStyle");
 
     for (const QDomElement &id : office::children(pChild(root, "sldMasterIdLst"), office::ns::P, QStringLiteral("sldMasterId"))) {
+        const office::Relationship rel = m_pkg.relationship(mainPart, office::attrNs(id, office::ns::R, QStringLiteral("id")));
+        if (rel.id.isEmpty() || rel.external) continue;
+        // A master the presentation lists again is read once.
+        if (m_masterByPart.contains(rel.target.toLower())) {
+            note(say("The slide master %1 is listed more than once; it is read once.").arg(shortName(rel.target)));
+            continue;
+        }
         if (m_masters.size() >= kMaxMasters) {
             note(say("Only the first %1 slide masters are read.").arg(kMaxMasters));
             break;
         }
-        const office::Relationship rel = m_pkg.relationship(mainPart, office::attrNs(id, office::ns::R, QStringLiteral("id")));
-        if (rel.id.isEmpty() || rel.external) continue;
-        readMaster(rel.target);
+        m_masterByPart.insert(rel.target.toLower(), readMaster(rel.target));
     }
     if (m_masters.empty()) return fail(say("The presentation has no slide master that can be read.") + QLatin1Char('\n') + m_notes.join(QLatin1Char('\n')));
 
@@ -1372,11 +1495,18 @@ bool Importer::run(const QString &mainPart, QString *error)
             note(say("Slide %1 was left out: the file names no part for it.").arg(number));
             continue;
         }
+        // A slide the presentation lists again is read once.
+        if (const int first = m_slideByPart.value(rel.target.toLower(), 0)) {
+            note(say("Slide %1 was left out: it is slide %2 listed again.").arg(number).arg(first));
+            continue;
+        }
+        m_slideByPart.insert(rel.target.toLower(), number);
         if (readSlide(number, rel.target)) pageOfSlideId.insert(office::parseInt(office::attr(id, QStringLiteral("id")), -1), int(m_doc.pages.size()) - 1);
     }
     if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
     readSections(root, pageOfSlideId);
     m_doc.appData[QStringLiteral("footers")] = m_footers;
+    sayWhatRanOut();
     if (error) {
         QStringList lines = m_notes;
         if (m_extraNotes) lines << say("And %1 more.").arg(m_extraNotes);

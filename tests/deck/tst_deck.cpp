@@ -8900,7 +8900,8 @@ private Q_SLOTS:
         }
     }
 
-    // At most 10,000 slides and 1,000 layouts are read, however many a file lists.
+    // At most 1,000 layouts are read, however many a file lists; and a slide it lists again and again is read once (a package holds too few
+    // parts for 10,000 slides of their own, which is the most that are read).
     void importLimitsSlidesAndLayouts()
     {
         {
@@ -8918,8 +8919,8 @@ private Q_SLOTS:
             QString err;
             auto d = deck::importPresentation(pack(p), &err);
             QVERIFY(d);
-            QCOMPARE(int(d->pages.size()), 10000);
-            QVERIFY(!err.isEmpty());
+            QCOMPARE(int(d->pages.size()), 1);
+            QVERIFY2(err.contains(QStringLiteral("Slide 2")), qPrintable(err));
         }
         {
             Parts p = samplePptx();
@@ -8952,6 +8953,254 @@ private Q_SLOTS:
             QCOMPARE(int(d->pages.size()), 2);
             QCOMPARE(d->pages[0]->masterId, QStringLiteral("L2"));   // the slides' layouts are among the first
         }
+    }
+
+    // A part the file lists again is read once: a slide listed twice is one slide, and so is a master, however often it is named.
+    void importReadsEachPartOnce()
+    {
+        const QString shape = QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"Box %1\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>%2<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill></p:spPr></p:sp>");
+        auto replaceList = [](Parts &p, const QString &list, const QString &ids) {
+            QString xml = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+            xml.replace(QRegularExpression(QStringLiteral("<p:%1>.*</p:%1>").arg(list)), QStringLiteral("<p:%1>%2</p:%1>").arg(list, ids));
+            p.data["/ppt/presentation.xml"].xml = xml.toUtf8();
+        };
+        // The same two slides, named five times.
+        {
+            Parts p = samplePptx();
+            replaceList(p, QStringLiteral("sldIdLst"), QStringLiteral("<p:sldId id=\"256\" r:id=\"rId2\"/><p:sldId id=\"257\" r:id=\"rId3\"/><p:sldId id=\"258\" r:id=\"rId2\"/>"
+                                                                      "<p:sldId id=\"259\" r:id=\"rId3\"/><p:sldId id=\"260\" r:id=\"rId2\"/>"));
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(d->pages.size()), 2);
+            QVERIFY2(err.contains(QStringLiteral("Slide 3")), qPrintable(err));
+            QCOMPARE(textOf(*d, *d->pages[0]->items[0]), QStringLiteral("Quarterly results"));
+        }
+        // A slide of two thousand shapes named a hundred times is read once, not two hundred thousand.
+        {
+            Parts p = samplePptx();
+            QString shapes;
+            for (int i = 0; i < 2000; ++i) shapes += shape.arg(i + 2).arg(xfrm(i * 1000, 0, 5000, 5000));
+            QString ids;
+            for (int i = 0; i < 100; ++i) ids += QStringLiteral("<p:sldId id=\"%1\" r:id=\"rId5\"/>").arg(256 + i);
+            replaceList(p, QStringLiteral("sldIdLst"), ids);
+            p.data["/ppt/slides/big.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"), slideXml(QString(), QString(), shapes).toUtf8()};
+            p.rels << Rel{"/ppt/presentation.xml", "slide", "/ppt/slides/big.xml"}
+                   << Rel{"/ppt/slides/big.xml", "slideLayout", "/ppt/slideLayouts/slideLayout2.xml"};
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(d->pages.size()), 1);
+            QCOMPARE(int(d->pages[0]->items.size()), 2000);
+            QVERIFY2(err.contains(QStringLiteral("Slide 2")), qPrintable(err));
+            QVERIFY2(err.contains(QStringLiteral("And 79 more")), qPrintable(err));   // 99 listings: 19 told, the rest counted
+        }
+        // A layout named three times by its master is one layout.
+        {
+            Parts p = samplePptx();
+            QString xml = QString::fromUtf8(p.data["/ppt/slideMasters/slideMaster1.xml"].xml);
+            const QString once = QStringLiteral("<p:sldLayoutId id=\"2147483649\" r:id=\"rId1\"/>");
+            QVERIFY(xml.contains(once));
+            xml.replace(once, once + once + once);
+            p.data["/ppt/slideMasters/slideMaster1.xml"].xml = xml.toUtf8();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(deck::layouts(*d).size()), 2);
+            QCOMPARE(int(d->pages.size()), 2);
+        }
+        // A slide master named four times is one master, with its two layouts once.
+        {
+            Parts p = samplePptx();
+            QString xml = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+            const QString once = QStringLiteral("<p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/>");
+            QVERIFY(xml.contains(once));
+            xml.replace(once, once + once + once + once);
+            p.data["/ppt/presentation.xml"].xml = xml.toUtf8();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(d->masters.size()), 3);   // the master, and its two layouts
+            QCOMPARE(int(deck::layouts(*d).size()), 2);
+            QVERIFY2(err.contains(QStringLiteral("Test Master")) || err.contains(QStringLiteral("slideMaster1")), qPrintable(err));
+            QCOMPARE(int(d->pages.size()), 2);
+        }
+    }
+
+    // A theme part is read once however many masters name it, and one too large to be a theme is not read at all.
+    void importReadsEachThemeOnceAndHoldsItsSize()
+    {
+        auto masterWithoutLayouts = [] {
+            QString xml = masterXml();
+            xml.replace(QRegularExpression(QStringLiteral("<p:sldLayoutIdLst>.*</p:sldLayoutIdLst>")), QString());
+            return xml;
+        };
+        const QString masterType = QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml");
+        // Three masters of their own, over one theme part: each keeps the theme, and the one theme is the presentation's.
+        {
+            Parts p = samplePptx();
+            QString xml = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+            QString ids = QStringLiteral("<p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/>");
+            for (int i = 2; i <= 3; ++i) {
+                const QString name = QStringLiteral("/ppt/slideMasters/slideMaster%1.xml").arg(i);
+                p.data[name] = {masterType, masterWithoutLayouts().toUtf8()};
+                p.rels << Rel{"/ppt/presentation.xml", "slideMaster", name} << Rel{name, "theme", "/ppt/theme/theme1.xml"};
+                ids += QStringLiteral("<p:sldMasterId id=\"%1\" r:id=\"rId%2\"/>").arg(2147483700LL + i).arg(3 + i);   // the presentation's links so far are four
+            }
+            xml.replace(QRegularExpression(QStringLiteral("<p:sldMasterIdLst>.*</p:sldMasterIdLst>")), QStringLiteral("<p:sldMasterIdLst>") + ids + QStringLiteral("</p:sldMasterIdLst>"));
+            p.data["/ppt/presentation.xml"].xml = xml.toUtf8();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QVERIFY2(err.isEmpty() || !err.contains(QStringLiteral("theme")), qPrintable(err));
+            QVector<const MasterPage *> masters;
+            for (const auto &m : d->masters)
+                if (m->props.value(QStringLiteral("kind")).toString() == QLatin1String("master")) masters << m.get();
+            QCOMPARE(int(masters.size()), 3);
+            QVERIFY(!masters[1]->props.value(QStringLiteral("themeXml")).toString().isEmpty());
+            QCOMPARE(masters[2]->props.value(QStringLiteral("themeXml")), masters[1]->props.value(QStringLiteral("themeXml")));
+            QCOMPARE(QByteArray::fromBase64(masters[1]->props.value(QStringLiteral("themeXml")).toString().toLatin1()), themeXml());
+        }
+        // A theme of a megabyte (real ones are under ten kilobytes): the master takes the stand-in colors and fonts, and the rest of the file is read.
+        {
+            Parts p = samplePptx();
+            QByteArray theme = themeXml();
+            theme.replace("</a:themeElements>", "</a:themeElements><a:extLst><a:ext uri=\"{padding}\">" + QByteArray(1 << 20, 'x') + "</a:ext></a:extLst>");
+            p.data["/ppt/theme/theme1.xml"].xml = theme;
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(d->pages.size()), 2);
+            QVERIFY2(err.contains(QStringLiteral("theme")), qPrintable(err));
+            QVERIFY(d->appData.value(QStringLiteral("themeXml")).toString().isEmpty());
+        }
+    }
+
+    // At most 200 slide masters are read (real files have a few), with a note, and the slides and layouts of the first are all there.
+    void importLimitsMasters()
+    {
+        auto masterWithoutLayouts = [] {
+            QString xml = masterXml();
+            xml.replace(QRegularExpression(QStringLiteral("<p:sldLayoutIdLst>.*</p:sldLayoutIdLst>")), QString());
+            return xml;
+        };
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+        QString ids = QStringLiteral("<p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/>");
+        for (int i = 2; i <= 230; ++i) {
+            const QString name = QStringLiteral("/ppt/slideMasters/slideMaster%1.xml").arg(i);
+            p.data[name] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"), masterWithoutLayouts().toUtf8()};
+            p.rels << Rel{"/ppt/presentation.xml", "slideMaster", name} << Rel{name, "theme", "/ppt/theme/theme1.xml"};
+            ids += QStringLiteral("<p:sldMasterId id=\"%1\" r:id=\"rId%2\"/>").arg(2147483700LL + i).arg(3 + i);   // the presentation's links so far are four
+        }
+        xml.replace(QRegularExpression(QStringLiteral("<p:sldMasterIdLst>.*</p:sldMasterIdLst>")), QStringLiteral("<p:sldMasterIdLst>") + ids + QStringLiteral("</p:sldMasterIdLst>"));
+        p.data["/ppt/presentation.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY(d);
+        int masters = 0;
+        for (const auto &m : d->masters)
+            if (m->props.value(QStringLiteral("kind")).toString() == QLatin1String("master")) ++masters;
+        QCOMPARE(masters, 200);
+        QVERIFY2(err.contains(QStringLiteral("200")), qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 2);
+        QCOMPARE(d->pages[0]->masterId, QStringLiteral("L2"));
+    }
+
+    // Every page of an import draws from one budget of objects: three slides of 70,000 shapes keep 200,000 between them.
+    void importHoldsAllPagesToOneObjectBudget()
+    {
+        Parts p = samplePptx();
+        QString shapes;
+        const QString shape = QStringLiteral("<p:sp/>");
+        for (int i = 0; i < 70000; ++i) shapes += shape;
+        QString ids;
+        for (int s = 1; s <= 3; ++s) {
+            const QString name = QStringLiteral("/ppt/slides/many%1.xml").arg(s);
+            p.data[name] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"), slideXml(QString(), QString(), shapes).toUtf8()};
+            p.rels << Rel{"/ppt/presentation.xml", "slide", name} << Rel{name, "slideLayout", "/ppt/slideLayouts/slideLayout2.xml"};
+            ids += QStringLiteral("<p:sldId id=\"%1\" r:id=\"rId%2\"/>").arg(300 + s).arg(4 + s);   // the presentation's links so far are four
+        }
+        QString xml = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+        xml.replace(QRegularExpression(QStringLiteral("<p:sldIdLst>.*</p:sldIdLst>")), QStringLiteral("<p:sldIdLst>") + ids + QStringLiteral("</p:sldIdLst>"));
+        p.data["/ppt/presentation.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY(d);
+        QCOMPARE(int(d->pages.size()), 3);
+        // The layouts' and the master's objects are the file's too.
+        qsizetype items = 0;
+        for (const auto &page : d->pages) items += page->items.size();
+        for (const auto &master : d->masters) items += master->items.size();
+        QCOMPARE(int(items), 200000);
+        QVERIFY2(err.contains(QStringLiteral("200000")), qPrintable(err));
+    }
+
+    // A comment's time zone is held to a day either side of UTC, and a huge one doesn't overflow the seconds it is added as.
+    void importHoldsACommentsTimeZoneBiasToADay()
+    {
+        for (const char *bias : {"9223372036854775807", "-9223372036854775808"}) {
+            Parts p = withLegacyComments();
+            QString body = legacyComment(0, 1, QStringLiteral("2013-05-10T10:21:50.343"), 5760, 1152, QStringLiteral("Far away"), 0);
+            body.replace(QStringLiteral("timeZoneBias=\"0\""), QStringLiteral("timeZoneBias=\"%1\"").arg(QLatin1String(bias)));
+            p.data["/ppt/comments/comment1.xml"].xml = legacyCommentList(body).toUtf8();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+            QCOMPARE(int(list.size()), 1);
+            const bool east = bias[0] != '-';
+            const QDateTime expected(QDate(2013, 5, east ? 11 : 9), QTime(10, 21, 50, 343), QTimeZone::UTC);
+            QCOMPARE(list[0].date, expected);
+        }
+    }
+
+    // A notes part or a comments part is read for one slide: a second slide that names it has none of its own, and a slide that names it twice reads it once.
+    void importReadsNotesAndCommentsOnce()
+    {
+        {
+            Parts p = samplePptx();
+            p.rels << Rel{"/ppt/slides/slide2.xml", "notesSlide", "/ppt/notesSlides/notesSlide1.xml"};
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(deck::notesText(*d, *d->pages[0]), QStringLiteral("Say hello first\nThen the numbers"));
+            QVERIFY(deck::notesText(*d, *d->pages[1]).isEmpty());
+            QVERIFY2(err.contains(QStringLiteral("slide2")), qPrintable(err));
+        }
+        {
+            Parts p = withLegacyComments();
+            p.rels << Rel{"/ppt/slides/slide1.xml", "comments", "/ppt/comments/comment1.xml"}
+                   << Rel{"/ppt/slides/slide2.xml", "comments", "/ppt/comments/comment1.xml"}
+                   << Rel{"/ppt/presentation.xml", "commentAuthors", "/ppt/commentAuthors.xml"};
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY(d);
+            QCOMPARE(int(deck::commentsOf(*d->pages[0]).size()), 2);   // not four
+            QVERIFY(deck::commentsOf(*d->pages[1]).isEmpty());
+            QVERIFY2(err.contains(QStringLiteral("comments")), qPrintable(err));
+        }
+    }
+
+    // A slide's placeholders find their layout's by lookup, not by going over all of the layout's for each of the slide's.
+    void importMatchesPlaceholdersByLookup()
+    {
+        Parts p = samplePptx();
+        QString layoutShapes, slideShapes;
+        for (int i = 0; i < 20000; ++i)
+            layoutShapes += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"P\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"pic\" idx=\"%1\"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>").arg(i + 10);
+        for (int i = 0; i < 5000; ++i)
+            slideShapes += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"Q\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"x%1\" idx=\"%2\"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>").arg(i + 2).arg(500000 + i);
+        p.data["/ppt/slideLayouts/slideLayout2.xml"].xml = layoutXml(QStringLiteral("obj"), QStringLiteral("Wide"), QString(), layoutShapes).toUtf8();
+        p.data["/ppt/slides/slide1.xml"].xml = slideXml(QString(), QString(), slideShapes).toUtf8();
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        const qint64 ms = timer.elapsed();
+        QVERIFY(d);
+        QVERIFY2(!d->pages.empty() && d->pages[0]->items.size() == 5000, qPrintable(err));
+        QVERIFY2(ms < 6000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
     }
 
     // File > Open: the window takes the presentation in place of an untouched new one.
