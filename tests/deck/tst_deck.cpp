@@ -21,6 +21,7 @@
 #include "app/slidespane.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/sections.h"
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/deckoutput.h"
@@ -532,6 +533,180 @@ private Q_SLOTS:
         w.act("view.normal")->trigger();
         QCOMPARE(w.canvas()->zoom(), canvasZoom);
         QVERIFY(w.canvas()->fitMode() == Canvas::Fit::WholePage);
+    }
+
+private:
+    // The sections' names and slide counts, in order.
+    static QStringList sectionNames(const Document &d)
+    {
+        QStringList out;
+        for (const deck::Section &s : deck::sectionsOf(d)) out << s.name;
+        return out;
+    }
+    static QList<int> sectionCounts(const Document &d)
+    {
+        QList<int> out;
+        for (const deck::Section &s : deck::sectionsOf(d)) out << s.count;
+        return out;
+    }
+    // A presentation of `n` Title and Content slides whose page titles are the letters A, B, C...
+    static std::unique_ptr<Document> lettered(int n)
+    {
+        auto d = deck::newPresentation();
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        while (d->pages.size() < n) deck::addSlide(*d, *layout);
+        for (int i = 0; i < n; ++i) d->pages[i]->title = QString(QChar('A' + i));
+        return d;
+    }
+    static QString letters(const Document &d)
+    {
+        QString out;
+        for (const auto &p : d.pages) out += p->title;
+        return out;
+    }
+
+private Q_SLOTS:
+    // Sections are named runs of slides kept as counts: the first one made in
+    // the middle of a deck puts the slides before it in a Default Section,
+    // removing a section gives its slides to the one before (the next, for the
+    // first), and a section moves with its slides.
+    void sectionsAreAddedRenamedMovedAndRemoved()
+    {
+        auto d = lettered(6);
+        QVERIFY(!deck::hasSections(*d));
+        QVERIFY(deck::sectionsOf(*d).isEmpty());
+        QCOMPARE(deck::sectionOfSlide(*d, 2), -1);
+        QCOMPARE(deck::addSection(*d, 2), 1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        const QRegularExpression guid(QStringLiteral("^\\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\\}$"));
+        const QVector<deck::Section> two = deck::sectionsOf(*d);
+        QVERIFY(guid.match(two[0].id).hasMatch() && guid.match(two[1].id).hasMatch());
+        QVERIFY(two[0].id != two[1].id);
+        QCOMPARE(deck::sectionOfSlide(*d, 1), 0);
+        QCOMPARE(deck::sectionOfSlide(*d, 2), 1);
+        QCOMPARE(deck::sectionOfSlide(*d, 6), -1);
+        QCOMPARE(deck::firstSlideOf(*d, 1), 2);
+        QCOMPARE(deck::slideCountOf(*d, 1), 4);
+        // A section made inside another takes the rest of it.
+        QCOMPARE(deck::addSection(*d, 4, QStringLiteral("Budget")), 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        // At a section's first slide it takes that section's slides and leaves it empty.
+        QCOMPARE(deck::addSection(*d, 2, QStringLiteral("Plan")), 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section", "Plan", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 0, 2, 2}));
+        QCOMPARE(deck::sectionOfSlide(*d, 2), 2);
+        QCOMPARE(deck::firstSlideOf(*d, 1), 2);
+        QCOMPARE(deck::slideCountOf(*d, 1), 0);
+        deck::renameSection(*d, 1, QStringLiteral("Intro"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Intro", "Plan", "Budget"}));
+        deck::renameSection(*d, 9, QStringLiteral("Nowhere"));
+        QCOMPARE(sectionNames(*d).size(), 4);
+
+        // Removing: the slides go up to the section before.
+        deck::removeSection(*d, 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Intro", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        deck::removeSection(*d, 0);   // the first gives its slides to the next
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2}));
+
+        // Moving a section takes its slides along.
+        QCOMPARE(letters(*d), QStringLiteral("ABCDEF"));
+        QCOMPARE(deck::moveSection(*d, 0, 1), 1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget", "Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        QCOMPARE(letters(*d), QStringLiteral("EFABCD"));
+        QCOMPARE(deck::moveSection(*d, 0, -1), -1);   // nothing above the first
+        QCOMPARE(deck::moveSection(*d, 1, 1), -1);    // nor below the last
+        QCOMPARE(letters(*d), QStringLiteral("EFABCD"));
+        QCOMPARE(deck::moveSection(*d, 1, -1), 0);
+        QCOMPARE(letters(*d), QStringLiteral("ABCDEF"));
+
+        // A section and its slides go together, but never all the slides.
+        QVERIFY(deck::removeSectionAndSlides(*d, 1));
+        QCOMPARE(letters(*d), QStringLiteral("ABCD"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+        QVERIFY(!deck::removeSectionAndSlides(*d, 0));
+        QCOMPARE(letters(*d), QStringLiteral("ABCD"));
+        // The only section's removal leaves none, and so does Remove All.
+        deck::removeSection(*d, 0);
+        QVERIFY(!deck::hasSections(*d));
+        QVERIFY(!d->appData.contains(QStringLiteral("sections")));
+        QCOMPARE(deck::addSection(*d, 0), 0);   // at the first slide there is nothing for a Default Section
+        QCOMPARE(sectionNames(*d), (QStringList{"Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+        deck::addSection(*d, 2);
+        deck::removeAllSections(*d);
+        QVERIFY(!deck::hasSections(*d));
+    }
+
+    // The counts follow the slide list: a new slide joins the section of the
+    // slide before it, a slide taken away leaves its section, and slides put
+    // in another order join the section where they land. What a caller misses
+    // is made good on reading.
+    void sectionCountsFollowTheSlideList()
+    {
+        auto d = lettered(6);
+        deck::addSection(*d, 2, QStringLiteral("Plan"));    // Default Section 2, Plan 4
+        deck::addSection(*d, 4, QStringLiteral("Budget"));  // 2, 2, 2
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        // After the last slide of a section it joins that section; at the very start, the first.
+        deck::addSlide(*d, *layout, 2);
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 2, 2}));
+        deck::addSlide(*d, *layout, 0);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2, 2}));
+        deck::addSlide(*d, *layout);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2, 3}));
+        QCOMPARE(int(d->pages.size()), 9);
+        // A copy stands right after its slide, in its section.
+        deck::duplicateSlide(*d, 3);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 2, 3}));
+        deck::duplicateSlide(*d, 5);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 3, 3}));
+        // Slides taken away.
+        d->pages.removeAt(9);
+        deck::slideRemoved(*d, 9);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 3, 2}));
+        d->pages.removeAt(0);
+        deck::slideRemoved(*d, 0);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 3, 2}));
+
+        // Moves: a slide dropped between two sections' slides takes the one before it, or the section it is dropped into.
+        auto fresh = lettered(6);
+        deck::addSection(*fresh, 2, QStringLiteral("Plan"));    // AB | CDEF
+        deck::addSection(*fresh, 4, QStringLiteral("Budget"));  // AB | CD | EF
+        auto move = [&](const QList<int> &slides, int before, int into = -1) {
+            const QList<int> order = deck::orderAfterMoving(int(fresh->pages.size()), slides, before);
+            const QVector<std::shared_ptr<Page>> old = fresh->pages;
+            for (int k = 0; k < order.size(); ++k) fresh->pages[k] = old[order[k]];
+            deck::slidesReordered(*fresh, order, slides, into);
+        };
+        move({0}, 3);   // A between C and D: Plan
+        QCOMPARE(letters(*fresh), QStringLiteral("BCADEF"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{1, 3, 2}));
+        move({2}, 4, 2);   // A to the start of Budget (before E), by the section it is dropped into
+        QCOMPARE(letters(*fresh), QStringLiteral("BCDAEF"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{1, 2, 3}));
+        move({5}, 0);   // F to the very start: the first section
+        QCOMPARE(letters(*fresh), QStringLiteral("FBCDAE"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{2, 2, 2}));
+        move({0, 1}, 6, 0);   // two to the end, asked into the first section: only where they could be, after the last slide's
+        QCOMPARE(letters(*fresh), QStringLiteral("CDAEFB"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{0, 2, 4}));
+        QCOMPARE(deck::orderAfterMoving(5, {3, 1, 3, 9}, 0), (QList<int>{1, 3, 0, 2, 4}));
+        QCOMPARE(deck::orderAfterMoving(5, {0}, 5), (QList<int>{1, 2, 3, 4, 0}));
+
+        // Counts that don't add up are made to: slides they miss join the last section, counts past the end are cut.
+        auto odd = lettered(5);
+        odd->appData[QStringLiteral("sections")] = QJsonArray{QJsonObject{{"id", "{A}"}, {"name", "One"}, {"count", 2}}, QJsonObject{{"id", "{B}"}, {"name", "Two"}, {"count", 1}}};
+        QCOMPARE(sectionCounts(*odd), (QList<int>{2, 3}));
+        odd->appData[QStringLiteral("sections")] = QJsonArray{QJsonObject{{"id", "{A}"}, {"name", "One"}, {"count", 4}}, QJsonObject{{"id", "{B}"}, {"name", "Two"}, {"count", 4}}};
+        QCOMPARE(sectionCounts(*odd), (QList<int>{4, 1}));
+        deck::setSections(*odd, {});
+        QVERIFY(!deck::hasSections(*odd));
     }
 
     // Outline view: the presentation's text, each slide a numbered heading

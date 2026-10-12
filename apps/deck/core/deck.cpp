@@ -1,6 +1,7 @@
 #include "core/deck.h"
 
 #include "core/color.h"
+#include "core/sections.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -433,6 +434,7 @@ int addSlide(Document &d, const MasterPage &layout, int at)
     slide->notesStoryId = d.createStory();
     const int index = at < 0 || at > d.pages.size() ? int(d.pages.size()) : at;
     d.pages.insert(index, slide);
+    slideInserted(d, index);
     return index;
 }
 
@@ -471,6 +473,7 @@ int duplicateSlide(Document &d, int index)
     }
     slide->notesStoryId = from.notesStoryId.isEmpty() ? d.createStory() : d.copyStory(from.notesStoryId);
     d.pages.insert(index + 1, slide);
+    slideInserted(d, index + 1);
     return index + 1;
 }
 
