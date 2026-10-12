@@ -1560,8 +1560,10 @@ private Q_SLOTS:
             }
             if (pos == QLatin1String("b")) QVERIFY2(key.y() > img.height() * 0.85, qPrintable(QString::number(key.y())));
             if (pos == QLatin1String("t")) QVERIFY2(key.y() < img.height() * 0.15, qPrintable(QString::number(key.y())));
-            if (pos == QLatin1String("r")) QVERIFY2(key.x() > img.width() * 0.7, qPrintable(QString::number(key.x())));
-            if (pos == QLatin1String("l")) QVERIFY2(key.x() < img.width() * 0.3, qPrintable(QString::number(key.x())));
+            // At a side, the key is one name's width in from the edge, and names are wider with some systems' fonts
+            // (Windows: 68% across); a legend at the top or bottom has it left of the middle.
+            if (pos == QLatin1String("r")) QVERIFY2(key.x() > img.width() * 0.6, qPrintable(QString::number(key.x())));
+            if (pos == QLatin1String("l")) QVERIFY2(key.x() < img.width() * 0.4, qPrintable(QString::number(key.x())));
             QVERIFY(QString::fromUtf8(chartSvg(c, QSizeF(400, 300))).contains(QStringLiteral(">Only series<")));
         }
     }
