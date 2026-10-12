@@ -24,16 +24,21 @@ namespace jp {
 namespace {
 
 std::atomic<int> g_decoders{0};
+std::atomic<bool> g_checkBytes{true};
 
-QUrl fileUrl(const QString &extension)
-{
-    static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9]{1,8}$"));
-    return QUrl::fromLocalFile(QStringLiteral("/media.") + (plain.match(extension).hasMatch() ? extension.toLower() : QStringLiteral("bin")));
-}
+// The name the decoder is given for the bytes: its end is one a movie or sound's file may have, never what the presentation's part was called.
+QUrl fileUrl(const QString &extension) { return QUrl::fromLocalFile(QStringLiteral("/media.") + deck::mediaExtensionFor(extension)); }
+
+// What the decoder may open besides the bytes it is given: nothing that reaches an address or a file. A movie or sound that names
+// another place to read (a playlist, a movie's reference to a file) has it refused by the decoder itself. Qt's FFmpeg backend reads this
+// when it opens a source, so it is set before the first player is made.
+void restrictProtocols() { qputenv("QT_FFMPEG_PROTOCOL_WHITELIST", "data"); }
 
 } // namespace
 
 int MediaPlayback::decoders() { return g_decoders; }
+
+void MediaPlayback::checkBytes(bool on) { g_checkBytes = on; }
 
 MediaPlayback::MediaPlayback(QObject *parent) : QObject(parent) {}
 
@@ -91,6 +96,12 @@ bool MediaPlayback::ensurePlayer()
         fail(m_play.video ? tr("There is no movie here to play.") : tr("There is no sound here to play."));
         return false;
     }
+    // A text is a list of places to fetch, not a movie or sound; it never reaches the decoder.
+    if (g_checkBytes && !deck::looksLikeMediaFile(m_bytes)) {
+        fail(m_play.video ? tr("This movie can't be played.") : tr("This sound can't be played."));
+        return false;
+    }
+    restrictProtocols();
     m_player = new QMediaPlayer(this);
     ++g_decoders;
     m_sink = new QVideoSink(this);
@@ -272,6 +283,11 @@ void MediaPlayback::setMuted(bool muted)
 MediaProbe probeMedia(const QByteArray &bytes, const QString &extension, bool wantFrame, int timeoutMs)
 {
     MediaProbe out;
+    if (g_checkBytes && !deck::looksLikeMediaFile(bytes)) {
+        out.error = QCoreApplication::translate("jp::MediaPlayback", "This file can't be read as a movie or sound.");
+        return out;
+    }
+    restrictProtocols();
     QBuffer buffer;
     buffer.setData(bytes);
     buffer.open(QIODevice::ReadOnly);

@@ -62,6 +62,9 @@ public:
 
     // How many times a decoder has been started in this program; stays 0 while nothing has been played.
     static int decoders();
+    // Whether the first bytes of a file are looked at before the decoder gets it (they are: a text, which a decoder follows to
+    // other places, is refused). Off only for the tests of what stands behind that.
+    static void checkBytes(bool on);
 
 public Q_SLOTS:
     // From where it is; from the start when it is stopped.

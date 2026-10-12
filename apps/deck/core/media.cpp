@@ -14,6 +14,7 @@
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
 #include <algorithm>
+#include <cstring>
 #include <vector>
 
 namespace jp::deck {
@@ -695,6 +696,34 @@ QString mediaTypeOfFile(const QString &fileName, const QString &kind)
     for (const FileKind &f : kFiles)
         if (ext == QLatin1String(f.extension)) return QLatin1String(f.type);
     return kind == QLatin1String("audio") ? QStringLiteral("audio/unknown") : QStringLiteral("video/unknown");
+}
+
+QString mediaExtensionFor(const QString &extension)
+{
+    const QString lower = extension.toLower();
+    for (const FileKind &f : kFiles)
+        if (lower == QLatin1String(f.extension)) return lower;
+    return QStringLiteral("bin");
+}
+
+bool looksLikeMediaFile(const QByteArray &bytes)
+{
+    // Smaller than any header there is.
+    if (bytes.size() < 12) return false;
+    QByteArrayView head = QByteArrayView(bytes).first(std::min<qsizetype>(bytes.size(), 512));
+    if (head.startsWith("\xEF\xBB\xBF")) head = head.sliced(3);   // a UTF-8 byte order mark
+    // What begins as one of the lists of places to fetch, whatever else is in the file (a stray byte makes no movie of it).
+    QByteArrayView lead = head;
+    while (!lead.isEmpty() && (lead.front() == ' ' || lead.front() == '\t' || lead.front() == '\r' || lead.front() == '\n' || lead.front() == '\f')) lead = lead.sliced(1);
+    for (const char *sign : {"#EXT", "ffconcat", "v=0", "<?xml", "<mpd", "<asx", "[playlist]", "rtsp:", "rtp:", "http", "file:", "data:", "concat:", "subfile:", "pipe:", "unix:", "tcp:", "udp:"})
+        if (lead.size() >= qsizetype(strlen(sign)) && lead.first(qsizetype(strlen(sign))).compare(QByteArrayView(sign), Qt::CaseInsensitive) == 0) return false;
+    // What no movie or sound begins with: a text. Every container starts with bytes that are not text (a size, a signature, zeros), and
+    // audio frames carry such bytes within a few hundred; a file with none in its first 512 bytes is a text, whatever else is in it.
+    for (const char c : head) {
+        const uchar u = uchar(c);
+        if ((u < 0x20 && u != '\t' && u != '\n' && u != '\r' && u != '\f') || u == 0x7F) return true;
+    }
+    return false;
 }
 
 QStringList mediaExtensions(const QString &kind)
