@@ -4,7 +4,7 @@
 <context>
     <name>Canvas</name>
     <message numerus="yes">
-        <location filename="../../src/canvas/canvasaccessible.cpp" line="+95"/>
+        <location filename="../../apps/pub/canvas/canvasaccessible.cpp" line="+95"/>
         <source>Group of %n object(s)</source>
         <translation>
             <numerusform>Group of %n object</numerusform>
@@ -15,7 +15,7 @@
 <context>
     <name>Dialogs</name>
     <message numerus="yes">
-        <location filename="../../src/app/dialogs.cpp" line="+2877"/>
+        <location filename="../../apps/pub/app/dialogs.cpp" line="+2877"/>
         <source>Added %n page(s) for the rest of the text.</source>
         <translation>
             <numerusform>Added %n page for the rest of the text.</numerusform>
@@ -26,7 +26,7 @@
 <context>
     <name>jp::OnlinePicturesPane</name>
     <message numerus="yes">
-        <location filename="../../src/app/onlinepictures.cpp" line="+283"/>
+        <location filename="../../apps/pub/app/onlinepictures.cpp" line="+283"/>
         <source>%n picture(s) found. Choose one to see its license.</source>
         <translation>
             <numerusform>%n picture found. Choose it to see its license.</numerusform>
