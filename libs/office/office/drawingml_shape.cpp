@@ -448,7 +448,8 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         if (!geom.isNull()) break;
     }
     const bool custom = geom.localName() == QLatin1String("custGeom");
-    const QString prst = custom ? QString() : attr(geom, QStringLiteral("prst"));
+    // A connector that says nothing of its shape is straight.
+    const QString prst = custom ? QString() : connector && geom.isNull() ? QStringLiteral("straightConnector1") : attr(geom, QStringLiteral("prst"));
     const Frame frame = readFrame(firstWith(properties, "xfrm"));
 
     // A picture placeholder without its picture.

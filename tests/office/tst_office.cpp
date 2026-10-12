@@ -3271,6 +3271,10 @@ private Q_SLOTS:
         QVERIFY(near(l->stroke.width, 3));
         QVERIFY(l->stroke.startArrow == Arrow::Oval && l->stroke.endArrow == Arrow::Triangle);
         QVERIFY(near(l->p1.x(), 0) && near(l->p2.x(), 100) && near(l->p1.y(), 0) && near(l->p2.y(), 0));
+        // A connector that says nothing of its shape is a line from corner to corner.
+        it = dmlOne(env, dmlCxn(dmlXfrm(10, 20, 100, 50)));
+        l = dmlAs<LineItem>(it);
+        QVERIFY(l && near(l->p1.x(), 10) && near(l->p1.y(), 20) && near(l->p2.x(), 110) && near(l->p2.y(), 70));
         // A line drawn as a shape is a line.
         it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 80, 20) + QStringLiteral("<a:prstGeom prst=\"line\"/><a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")))));
         l = dmlAs<LineItem>(it);
