@@ -529,6 +529,9 @@ struct MasterInfo {
 struct TextCtx {
     const MasterInfo *main = nullptr, *title = nullptr;
     const QColor *scheme = nullptr;
+    // Whether the masters' styles apply: text in a text box that is no placeholder takes the presentation's own
+    // default text style, not the masters' style for other text (which is that of the footers).
+    bool masters = true;
 };
 
 // The page being read, for the functions the drawing reader calls.
@@ -1687,7 +1690,7 @@ StyleLevel Importer::resolve(int type, int level, const TextCtx &ctx) const
     int chain[4];
     int n = 0;
     for (int t = type; t >= 0 && n < 4; t = styleBase(t)) chain[n++] = t;
-    const StyleSet *sets[3] = {&m_styles, ctx.main ? &ctx.main->styles : nullptr, ctx.title ? &ctx.title->styles : nullptr};
+    const StyleSet *sets[3] = {&m_styles, ctx.masters && ctx.main ? &ctx.main->styles : nullptr, ctx.masters && ctx.title ? &ctx.title->styles : nullptr};
     for (const StyleSet *set : sets) {
         if (!set) continue;
         for (int i = n - 1; i >= 0; --i) {
@@ -2016,12 +2019,19 @@ void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArr
         use = &g;
     }
     if (!holdsText(item)) return;
+    // The old format's text is not hyphenated.
+    if (item.type() == ItemType::Text) static_cast<TextItem &>(item).hyphenate = false;
     QString &story = storyIdOf(item);
     if (!story.isEmpty() && (use || hasBox || !type.isEmpty())) {
         m_doc.removeStory(story);
         story.clear();
     }
-    if (use && use->hasText) story = buildStory(*use, use->type >= 0 ? use->type : g.type >= 0 ? g.type : textTypeOf(type), st.text);
+    if (use && use->hasText) {
+        const int textType = use->type >= 0 ? use->type : g.type >= 0 ? g.type : textTypeOf(type);
+        TextCtx ctx = st.text;
+        if (type.isEmpty() && textType == TxOther) ctx.masters = false;
+        story = buildStory(*use, textType, ctx);
+    }
     else if (hasBox || !type.isEmpty()) story = m_doc.createStory();
 }
 
@@ -2096,6 +2106,9 @@ bool Importer::run(QString *error)
     if (const QString body = fontName(resolve(TxBody, 0, ctx).cf); !body.isEmpty()) theme.bodyFont = body;
     setTheme(m_doc, theme);
     m_doc.fonts = {theme.name, theme.headingFont, theme.bodyFont};
+    // Tabs go to the next multiple of the style's default tab distance (an inch when the styles say nothing).
+    const quint16 tab = resolve(TxBody, 0, ctx).pf.defaultTab;
+    m_doc.defaultTabStop = tab >= 36 ? std::min(tab * kPoints, 288.0) : 72.0;
     m_doc.appData[QStringLiteral("footers")] = m_footers;
     return true;
 }
