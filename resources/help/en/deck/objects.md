@@ -1,5 +1,5 @@
 # Shapes, pictures, tables, and Text Art
-<!-- keywords: shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, table, grid, rows, columns, text art, chart, smartart, diagram, equation, movie, video, sound, audio, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop -->
+<!-- keywords: shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, table, grid, rows, columns, text art, chart, smartart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop -->
 
 Besides text, a slide can hold shapes, pictures, and tables. This topic shows how to add them and what JeffDeck does with other kinds of objects.
 
@@ -28,6 +28,43 @@ A **table** is a grid of rows and columns. Each box in the grid is a cell, and e
 
 While you type in a cell, the font, size, color, and alignment buttons on the **Home** tab work on its text. JeffDeck has no table tools yet for merging cells, borders, or table styles, but tables made elsewhere show as they were made.
 
+## Add a movie or a sound
+
+A **movie** or a **sound** plays right on the slide. JeffDeck keeps the file inside the presentation, so the movie or sound travels with it.
+
+1. Click **Insert > Media > Video** and choose **Video on This Device…**. Or click **Insert > Media > Audio** and choose **Audio on This Device…**.
+2. Pick a file and click **Open**. JeffDeck reads the file for a moment. Then it puts the movie or sound on the slide.
+
+A movie shows its **poster**. That is its first picture. A sound shows a picture of a speaker. You can move, resize, turn, and delete them like any picture. Both start in the **click sequence**. That is the list of steps the slide show plays, one at each click. So the movie or sound plays at a click in the slide show.
+
+JeffDeck plays the kinds of files the computer knows how to play, such as .mp4, .mov, .avi, .wmv, .mkv, .webm, .mp3, .wav, .m4a, .wma, .ogg, and .flac. A file the computer can't play shows a message where it should play. The rest of JeffDeck goes on working. A movie that a file only links to, on the web or on a disk, isn't played. The file has to be inside the presentation.
+
+JeffDeck never plays a file until you ask. Opening, saving, and printing a presentation use only the poster.
+
+### Play a movie or a sound while you edit
+
+Click the movie or sound, or point at it. A **control bar** shows under it:
+
+- The **play** button starts it. While it plays, the same button pauses it.
+- The **seek bar** shows how far it has played, and the time. Click on it to jump to that spot.
+- The **speaker** button mutes it, and the small slider next to it sets the volume.
+
+The movie plays right on the slide, and it gets bigger and smaller when you zoom. Only one plays at a time. It stops when you go to another slide.
+
+### Set how it plays
+
+Select a movie or sound. The **Playback** tab shows. It sets how the movie or sound plays in the slide show: when it starts, how loud it is, where it starts and stops, and more. Press **F1** on that tab for its topic.
+
+### Movies and sounds in the slide show
+
+In the slide show, a movie or sound plays when the file says it should:
+
+- **In Click Sequence**: it plays at a click, with the slide's animations. The click that plays it doesn't move the show on.
+- **Automatically**: it plays by itself when its turn comes. A first one starts when the slide appears.
+- **When Clicked On**: it plays when you click it.
+
+Point at a movie to show its control bar. Click the movie to play it or pause it. The movie plays in its own place on the slide, or it fills the screen if **Play Full Screen** is on. It stops when the slide changes, unless it was set to play across slides.
+
 ## Select, move, and arrange objects
 
 - Click an object to select it. Hold **Shift** and click to add more. Or drag a box around objects on an empty part of the slide. Press **Tab** to step from one object to the next.
@@ -50,7 +87,6 @@ A presentation made elsewhere can hold things JeffDeck has no tools for yet. It 
 - **Charts** are drawn from the values saved in the file, and saved whole. You can't edit them yet.
 - **SmartArt diagrams** are drawn the way they were saved. A SmartArt diagram is a set of shapes that work together, like a row of boxes or a chain of steps. JeffDeck treats the whole diagram as one object. You can select it, move it, resize it, copy it, and delete it. The drawing grows and shrinks with it. You can't change its words yet. When you save, the diagram goes back into the file whole, so the program that made it can still edit it. A copy you paste is only a picture of the diagram. A duplicated slide keeps the whole diagram.
 - **Equations** are shown as the picture the file keeps of them. An equation is math set in special type, like a fraction or a square root. You can move, resize, turn, copy, and delete the picture, but you can't change the math yet. When you save, the math goes back into the file as it was. This works for a text box that has other words around an equation too.
-- **Movies** and **sounds** are kept and saved, but they don't play yet.
 
 ## Related
 
