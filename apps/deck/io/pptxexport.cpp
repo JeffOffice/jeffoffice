@@ -1,5 +1,6 @@
 #include "io/pptxexport.h"
 
+#include "core/comments.h"
 #include "core/deck.h"
 #include "office/chart.h"
 #include "office/drawingml_table.h"
@@ -453,6 +454,9 @@ private:
     void writeNotesMaster();
     void writeProperties();
     void writePresentation();
+    void planComments();
+    void writeCommentAuthors();
+    void writeComments(int slide, const QString &slidePart);
     void add(const QString &part, const QString &type, const QString &xml);
 
     const Document &m_doc;
@@ -472,6 +476,20 @@ private:
     QString m_notesThemePart;
     QSet<QString> m_keptNames;                   // the names of kept chart parts written so far, lower-cased
     QByteArray m_thumbnail;
+    // The comments, as the file numbers them: authors by first appearance, and an index counting up for each author.
+    struct CommentOut {
+        int author = 0;
+        int idx = 0;
+        int parentAuthor = -1, parentIdx = 0;   // a reply names the comment it answers
+        QString text;
+        QDateTime date;
+        QPointF at;
+        bool done = false;
+    };
+    QVector<QPair<QString, QString>> m_commentAuthors;   // name, initials
+    QVector<int> m_commentLastIdx;                       // per author
+    QVector<QVector<CommentOut>> m_slideComments;        // per slide, each comment followed by its replies
+    int m_commentParts = 0;
     QSizeF m_notesSize{kNotesWidth / 12700.0, kNotesHeight / 12700.0};
 };
 
@@ -968,6 +986,7 @@ void Exporter::writeSlide(int i)
     xml += keptSlideXml(page, "timingXml", say("animation"), where, frameIds, mediaIds);
     xml += QStringLiteral("</p:sld>");
     add(part, kTypeBase + QStringLiteral("slide+xml"), xml);
+    writeComments(i, part);
 }
 
 void Exporter::writeNotesSlide(int slide, int number)
@@ -1138,9 +1157,100 @@ void Exporter::writePresentation()
     add(kPresentationPart, kTypeBase + QLatin1String(type_), xml);
 }
 
+// The comments are written in the older form, the one every version of the
+// program opens (ECMA-376 Part 1, 19.4): the authors in one part, which the
+// presentation relates to (".../commentAuthors"), and a part of comments for
+// each slide that has some (".../comments"). A comment has the author's id and
+// an index that counts up for that author across the presentation, then its
+// place (p:pos, in 576ths of an inch), then its text. A reply is a comment of
+// its own, in the place of the comment it answers, and says which that is in
+// the threading extension (p15:parentCm). The time is the author's own, with
+// the offset from UTC in minutes the extension gives (timeZoneBias: UTC is the
+// time plus the bias). The standard has no mark for a comment that is done, so
+// it goes in an extension of JeffDeck's own, which other programs pass over.
+void Exporter::planComments()
+{
+    m_slideComments.resize(m_doc.pages.size());
+    for (int i = 0; i < int(m_doc.pages.size()); ++i) {
+        const QVector<deck::Comment> list = deck::commentsOf(*m_doc.pages[i]);
+        auto author = [&](const QString &name, const QString &initials) {
+            const QPair<QString, QString> who(name, initials);
+            int id = int(m_commentAuthors.indexOf(who));
+            if (id < 0) {
+                id = int(m_commentAuthors.size());
+                m_commentAuthors << who;
+                m_commentLastIdx << 0;
+            }
+            return id;
+        };
+        for (const deck::Comment &c : list) {
+            CommentOut top;
+            top.author = author(c.author, c.initials);
+            top.idx = ++m_commentLastIdx[top.author];
+            top.text = c.text;
+            top.date = c.date;
+            top.at = c.at;
+            top.done = c.done;
+            m_slideComments[i] << top;
+            for (const deck::CommentReply &r : c.replies) {
+                CommentOut reply;
+                reply.author = author(r.author, r.initials);
+                reply.idx = ++m_commentLastIdx[reply.author];
+                reply.parentAuthor = top.author;
+                reply.parentIdx = top.idx;
+                reply.text = r.text;
+                reply.date = r.date;
+                reply.at = c.at;
+                m_slideComments[i] << reply;
+            }
+        }
+    }
+}
+
+void Exporter::writeCommentAuthors()
+{
+    if (m_commentAuthors.isEmpty()) return;
+    const QString part = QStringLiteral("/ppt/commentAuthors.xml");
+    m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("commentAuthors"), part);
+    QString xml = QStringLiteral("<p:cmAuthorLst%1>").arg(kNamespaces);
+    for (int i = 0; i < int(m_commentAuthors.size()); ++i)
+        xml += QStringLiteral("<p:cmAuthor id=\"%1\" name=\"%2\" initials=\"%3\" lastIdx=\"%4\" clrIdx=\"%1\"/>")
+                   .arg(i).arg(esc(m_commentAuthors[i].first), esc(m_commentAuthors[i].second)).arg(m_commentLastIdx[i]);
+    xml += QStringLiteral("</p:cmAuthorLst>");
+    add(part, kTypeBase + QStringLiteral("commentAuthors+xml"), xml);
+}
+
+void Exporter::writeComments(int slide, const QString &slidePart)
+{
+    if (slide >= m_slideComments.size() || m_slideComments[slide].isEmpty()) return;
+    const QString part = QStringLiteral("/ppt/comments/comment%1.xml").arg(++m_commentParts);
+    m_pkg.addRelationship(slidePart, kRelBase + QStringLiteral("comments"), part);
+    QString xml = QStringLiteral("<p:cmLst%1>").arg(kNamespaces);
+    for (const CommentOut &c : std::as_const(m_slideComments[slide])) {
+        xml += QStringLiteral("<p:cm authorId=\"%1\"").arg(c.author);
+        int bias = 0;
+        if (c.date.isValid()) {
+            const QDateTime own = c.date.toLocalTime();
+            bias = -own.offsetFromUtc() / 60;
+            xml += QStringLiteral(" dt=\"%1\"").arg(own.toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss.zzz")));
+        }
+        xml += QStringLiteral(" idx=\"%1\"><p:pos x=\"%2\" y=\"%3\"/><p:text>%4</p:text>").arg(c.idx).arg(std::lround(c.at.x() * 8)).arg(std::lround(c.at.y() * 8)).arg(esc(c.text));
+        xml += QStringLiteral("<p:extLst><p:ext uri=\"{C676402C-5697-4E1C-873F-D02D1690AC5C}\"><p15:threadingInfo xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2012/main\" timeZoneBias=\"%1\"")
+                   .arg(bias);
+        if (c.parentAuthor >= 0) xml += QStringLiteral("><p15:parentCm authorId=\"%1\" idx=\"%2\"/></p15:threadingInfo>").arg(c.parentAuthor).arg(c.parentIdx);
+        else xml += QStringLiteral("/>");
+        xml += QStringLiteral("</p:ext>");
+        if (c.done) xml += QStringLiteral("<p:ext uri=\"{7C0E3E5B-5A0B-4B52-9D6E-2F1A8E4C9B21}\"><jo:done xmlns:jo=\"http://jeffoffice.com/ns/deck/comments\" val=\"1\"/></p:ext>");
+        xml += QStringLiteral("</p:extLst></p:cm>");
+    }
+    xml += QStringLiteral("</p:cmLst>");
+    add(part, kTypeBase + QStringLiteral("comments+xml"), xml);
+}
+
 QByteArray Exporter::run(QString *error)
 {
     plan();
+    planComments();
     prepareThemes();
     m_thumbnail = thumbnail();
 
@@ -1171,6 +1281,7 @@ QByteArray Exporter::run(QString *error)
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("viewProps"), QStringLiteral("/ppt/viewProps.xml"));
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("theme"), m_masters.front().themePart);
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("tableStyles"), QStringLiteral("/ppt/tableStyles.xml"));
+    writeCommentAuthors();
 
     if (m_masters.size() + m_layouts.size() + 1 > size_t(kLastMasterId - kFirstMasterId)) {
         if (error) *error = say("The presentation has more slide masters and layouts than a file can number.");
