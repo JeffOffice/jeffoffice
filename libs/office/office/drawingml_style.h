@@ -30,8 +30,8 @@ QDomElement childNamed(const QDomElement &e, const char *local);
 // with ctx.addImage; empty if the link isn't to a picture this can read.
 QString loadImage(const QString &rId, const StyleContext &sc);
 // "png", "jpeg", "gif", "bmp", "tiff", "emf", "wmf", or "svg" for what the
-// bytes are (else by the content type, else by the part's name); empty if it is none.
-QString imageFormat(const QByteArray &bytes, const QString &contentType, const QString &partName);
+// bytes are (by how they begin, whatever the part is called); empty if none.
+QString imageFormat(const QByteArray &bytes);
 
 // Whether `properties` (an a:spPr or a:grpSpPr) has a fill of its own, which
 // includes saying there is none.
