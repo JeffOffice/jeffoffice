@@ -17,6 +17,10 @@ namespace jp::deck::odp {
 namespace {
 
 constexpr int kMaxEquationDepth = 64;
+// Inside one equation: real ones are a line long and nest a few levels; a
+// damaged file's can nest thousands deep, which would run out of stack.
+constexpr int kMaxFormulaLength = 4096;
+constexpr int kMaxNesting = 64;
 constexpr int kMaxEquations = 512;
 constexpr int kMaxPathTokens = 200000;
 constexpr double kMaxCoordinate = 1e7;
@@ -57,7 +61,7 @@ public:
         }
         const QString s = text;
         int pos = 0;
-        double v = sum(s, &pos);
+        double v = s.size() > kMaxFormulaLength ? 0.0 : sum(s, &pos);
         --m_depth;
         return std::isfinite(v) ? std::clamp(v, -1e15, 1e15) : 0.0;
     }
@@ -104,8 +108,14 @@ private:
 
     double unary(const QString &s, int *pos)
     {
+        // Each sign, parenthesis, and function's arguments comes back here, one level in.
+        struct Level {
+            explicit Level(int &n) : nesting(++n) {}
+            ~Level() { --nesting; }
+            int &nesting;
+        } level(m_nesting);
         skip(s, pos);
-        if (*pos >= s.size()) return 0;
+        if (*pos >= s.size() || m_nesting > kMaxNesting) return 0;
         if (s[*pos] == QLatin1Char('-')) {
             ++*pos;
             return -unary(s, pos);
@@ -235,6 +245,7 @@ private:
     QSet<QString> m_active;
     QVector<double> m_modifiers;
     int m_depth = 0;
+    int m_nesting = 0;
 };
 
 // The tokens of a path: command letters and operands.
