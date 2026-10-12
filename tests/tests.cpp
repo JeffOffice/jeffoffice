@@ -8237,7 +8237,7 @@ private Q_SLOTS:
         w.resize(1200, 900);
         w.show();
         w.showBackstage(QStringLiteral("about"));
-        const QStringList rows = {QStringLiteral("JeffPub, Publications, You're using it"), QStringLiteral("JeffDeck, Presentations, Coming soon"),
+        const QStringList rows = {QStringLiteral("JeffPub, Publications, You're using it"), QStringLiteral("JeffDeck, Presentations, Preview"),
                                   QStringLiteral("JeffWrite, Documents, Coming soon"), QStringLiteral("JeffCrunch, Spreadsheets, Coming soon"),
                                   QStringLiteral("JeffMail, Email and calendar, Coming soon"), QStringLiteral("JeffBase, Databases, Coming soon")};
         QStringList named;
@@ -8258,7 +8258,7 @@ private Q_SLOTS:
         QStringList want = rows;
         want.sort();
         QCOMPARE(named, want);
-        QCOMPARE(comingSoon, 5);
+        QCOMPARE(comingSoon, 4);   // JeffDeck is out, as a preview
         for (const QString &r : rows) QVERIFY2(appNames.contains(r.section(QLatin1String(", "), 0, 0)), qPrintable(r));
         // The suite comes first on the page, above the version.
         QVERIFY(version);

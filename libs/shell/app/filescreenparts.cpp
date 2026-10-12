@@ -202,20 +202,21 @@ QWidget *suiteCard(QWidget *parent, const QWidget *screen)
     suf.setWeight(QFont::DemiBold);
     suh->setFont(suf);
     suv->addWidget(suh);
-    // The app running says so; one that is out says it is available.
-    struct App { const char *name, *letters, *color; QString what; bool released; };
+    // The app running says so; one that is out says it is available, or a preview.
+    enum Stage { Soon, Preview, Out };
+    struct App { const char *name, *letters, *color; QString what; Stage stage; };
     const App apps[] = {
-        {"JeffPub", "JP", "#9E1F63", QCoreApplication::translate("jp::FileScreen", "Publications"), true},
-        {"JeffDeck", "JD", "#B6420F", QCoreApplication::translate("jp::FileScreen", "Presentations"), false},
-        {"JeffWrite", "JW", "#1D55C4", QCoreApplication::translate("jp::FileScreen", "Documents"), false},
-        {"JeffCrunch", "JC", "#13773A", QCoreApplication::translate("jp::FileScreen", "Spreadsheets"), false},
-        {"JeffMail", "JM", "#0A6C8C", QCoreApplication::translate("jp::FileScreen", "Email and calendar"), false},
-        {"JeffBase", "JB", "#5E2CA5", QCoreApplication::translate("jp::FileScreen", "Databases"), false},
+        {"JeffPub", "JP", "#9E1F63", QCoreApplication::translate("jp::FileScreen", "Publications"), Out},
+        {"JeffDeck", "JD", "#B6420F", QCoreApplication::translate("jp::FileScreen", "Presentations"), Preview},
+        {"JeffWrite", "JW", "#1D55C4", QCoreApplication::translate("jp::FileScreen", "Documents"), Soon},
+        {"JeffCrunch", "JC", "#13773A", QCoreApplication::translate("jp::FileScreen", "Spreadsheets"), Soon},
+        {"JeffMail", "JM", "#0A6C8C", QCoreApplication::translate("jp::FileScreen", "Email and calendar"), Soon},
+        {"JeffBase", "JB", "#5E2CA5", QCoreApplication::translate("jp::FileScreen", "Databases"), Soon},
     };
     const QString inUse = QCoreApplication::translate("jp::FileScreen", "You're using it"), soon = QCoreApplication::translate("jp::FileScreen", "Coming soon"),
-                  available = QCoreApplication::translate("jp::FileScreen", "Available");
+                  available = QCoreApplication::translate("jp::FileScreen", "Available"), preview = QCoreApplication::translate("jp::FileScreen", "Preview");
     auto here = [](const App &a) { return QLatin1String(a.name) == appInfo().name; };
-    auto stateOf = [&](const App &a) { return here(a) ? inUse : a.released ? available : soon; };
+    auto stateOf = [&](const App &a) { return here(a) ? inUse : a.stage == Out ? available : a.stage == Preview ? preview : soon; };
     auto line = [](const QString &what) { return QStringLiteral("— %1").arg(what); };
     QFont bold = screen->font();
     bold.setBold(true);
