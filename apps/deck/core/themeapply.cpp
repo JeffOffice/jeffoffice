@@ -295,6 +295,9 @@ QVector<MasterPage *> slideMasters(const Document &d)
 
 // ---- bringing a theme in ----
 
+// What marks a slide master that a change of theme made for some slides: one that no slide stands on any more goes the next time.
+const QString kMadeByTheme = QStringLiteral("madeByTheme");
+
 // Copies of a slide master and its layouts of another presentation, and of what they hold: the text, pictures, and movies they use are
 // copied once each.
 class Copier {
@@ -417,6 +420,7 @@ Copy copyMaster(Document &to, const Document &from, const MasterPage &src)
         p->props = s.props;
         p->props.remove(QStringLiteral("themeXml"));
         p->props.remove(QStringLiteral("reuseKey"));
+        p->props.remove(kMadeByTheme);
         p->background = s.background;
         copy.fill(p->background);
         p->items = copy.items(s.items);
@@ -442,10 +446,37 @@ Copy copyMaster(Document &to, const Document &from, const MasterPage &src)
 void dropMaster(Document &d, const std::shared_ptr<MasterPage> &m)
 {
     walkItems(m->items, [&](const ItemPtr &it) {
-        if (it->type() == ItemType::Text) d.removeStory(static_cast<TextItem *>(it.get())->storyId);
-        else if (it->type() == ItemType::Shape && !static_cast<ShapeItem *>(it.get())->storyId.isEmpty()) d.removeStory(static_cast<ShapeItem *>(it.get())->storyId);
+        if (it->type() == ItemType::Text) {
+            d.removeStory(static_cast<TextItem *>(it.get())->storyId);
+        } else if (it->type() == ItemType::Shape && !static_cast<ShapeItem *>(it.get())->storyId.isEmpty()) {
+            d.removeStory(static_cast<ShapeItem *>(it.get())->storyId);
+        } else if (it->type() == ItemType::Table) {
+            for (const TableCell &c : static_cast<TableItem *>(it.get())->cells) {
+                d.removeStory(c.storyId);
+                d.removeStory(c.storyId2);
+            }
+        }
     });
     d.masters.removeOne(m);
+}
+
+// Takes away the slide masters (and their layouts) that earlier changes of theme made for some slides and no slide stands on now,
+// so that trying one theme after another on the same slides doesn't leave a master behind for each; `keep` stays.
+void dropUnusedThemeMasters(Document &d, const MasterPage *keep)
+{
+    QHash<QString, const MasterPage *> byId;
+    for (const auto &m : d.masters) byId.insert(m->id, m.get());
+    QSet<QString> used;
+    for (const auto &p : d.pages)
+        if (const MasterPage *under = byId.value(p->masterId)) used.insert(isSlideMaster(*under) ? under->id : under->baseId);
+    const MasterPage *first = firstSlideMaster(d);
+    const QVector<std::shared_ptr<MasterPage>> all = d.masters;
+    for (const auto &m : all) {
+        if (!isSlideMaster(*m) || m.get() == keep || m.get() == first || used.contains(m->id) || !m->props.value(kMadeByTheme).toBool()) continue;
+        for (const auto &l : all)
+            if (isLayout(*l) && l->baseId == m->id) dropMaster(d, l);
+        dropMaster(d, m);
+    }
 }
 
 // The layout kind a set of placeholders asks for.
@@ -703,6 +734,7 @@ bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &s
     Standings standings(d);
     for (const auto &p : d.pages) was << standings.of(*p);
     const Copy made = copyMaster(d, source, *src);
+    made.master->props[kMadeByTheme] = true;
     keepLinksReadable(target, made.master->background);
     const bool dark = isDarkBackground(made.master->background);
     Places places(d);
@@ -713,6 +745,7 @@ bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &s
         if (layout) moveSlide(d, slide, was[i].layout, *layout, swapFor(was[i], target, dark), places);
     }
     storeMasterTheme(d, *made.master, target, targetXml.isEmpty() ? QByteArray() : patchThemePart(targetXml, target));
+    dropUnusedThemeMasters(d, made.master);
     return true;
 }
 
