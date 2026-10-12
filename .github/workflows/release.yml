@@ -36,13 +36,13 @@ jobs:
         with:
           run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
-          pattern: JeffPub-*
+          pattern: Jeff*-*
           path: art
       - name: Gather the downloads
         run: |
           set -euo pipefail
           mkdir out
-          cp art/JeffPub-Setup/JeffPub-Setup.exe out/
+          cp art/JeffOffice-Setup/JeffOffice-Setup.exe out/
           (cd art/JeffPub-windows && zip -r -q -X ../../out/JeffPub-windows.zip .)
           cp art/JeffPub-linux-packages/*.deb art/JeffPub-linux-packages/*.AppImage out/
           cp art/JeffPub-macos-dmg/*.dmg out/

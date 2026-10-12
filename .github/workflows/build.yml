@@ -179,12 +179,12 @@ jobs:
           $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(JeffPub VERSION ([0-9.]+)').Matches[0].Groups[1].Value
           makensis /DVERSION=$ver packaging/windows/installer.nsi
           New-Item -ItemType Directory -Force installer | Out-Null
-          Move-Item packaging/windows/JeffPub-Setup.exe installer/
+          Move-Item packaging/windows/JeffOffice-Setup.exe installer/
 
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
-          name: JeffPub-Setup
+          name: JeffOffice-Setup
           path: installer
 
       # The command-line tool, for testing on Windows: it runs from the
