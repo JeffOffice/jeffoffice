@@ -136,6 +136,7 @@ QString odpStyles()
         "<style:text-properties fo:font-size=\"28pt\"/></style:style>"
         "<style:style style:name=\"Default-notes\" style:family=\"presentation\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\"/><style:text-properties fo:font-size=\"20pt\"/></style:style>"
         "<draw:marker draw:name=\"Arrow\" svg:viewBox=\"0 0 20 30\" svg:d=\"M10 0l-10 30h20z\"/>"
+        "<draw:fill-image draw:name=\"Tile\" xlink:href=\"Pictures/a.png\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>"
         "</office:styles><office:automatic-styles>"
         "<style:page-layout style:name=\"PM1\"><style:page-layout-properties fo:page-width=\"28cm\" fo:page-height=\"15.75cm\" style:print-orientation=\"landscape\"/></style:page-layout>"
         "<style:page-layout style:name=\"PM0\"><style:page-layout-properties fo:page-width=\"21.59cm\" fo:page-height=\"27.94cm\" style:print-orientation=\"portrait\"/></style:page-layout>"
@@ -229,6 +230,8 @@ QString sampleAutomaticStyles()
         "<style:style style:name=\"gr4\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\""
         " draw:auto-grow-height=\"true\" fo:min-height=\"1cm\"/></style:style>"
         "<style:style style:name=\"gr5\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\"/></style:style>"
+        "<style:style style:name=\"gr6\" style:family=\"graphic\" style:parent-style-name=\"standard\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"bitmap\""
+        " draw:fill-image-name=\"Tile\"/></style:style>"
         "<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"3cm\"/></style:style>"
         "<style:style style:name=\"co2\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"4cm\"/></style:style>"
         "<style:style style:name=\"ro1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"1cm\"/></style:style>"
@@ -289,6 +292,7 @@ QString samplePages()
                          "<draw:image xlink:href=\"./ObjectReplacements/Object 1\"/><svg:desc>A chart of sales</svg:desc></draw:frame>")
         + QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"8cm\" svg:height=\"5cm\" svg:x=\"15cm\" svg:y=\"7cm\"><draw:object xlink:href=\"./Object 2\"/>"
                          "<draw:image xlink:href=\"./ObjectReplacements/Object 2\"/></draw:frame>")
+        + QStringLiteral("<draw:rect draw:style-name=\"gr6\" svg:width=\"2cm\" svg:height=\"2cm\" svg:x=\"10cm\" svg:y=\"14cm\"/>")
         + QStringLiteral("</draw:page>");
     // 4: a hidden slide on a background of its own.
     pages += QStringLiteral("<draw:page draw:name=\"page4\" draw:style-name=\"dp4\" draw:master-page-name=\"Default\"/>");
@@ -2664,6 +2668,10 @@ private Q_SLOTS:
         QCOMPARE(d->images.value(chartId).format, QStringLiteral("svg"));
         const QString svg = QString::fromUtf8(d->images.value(chartId).bytes);
         QVERIFY2(svg.contains(QStringLiteral("Revenue")) && svg.contains(QStringLiteral("Q2")) && svg.contains(QStringLiteral("Sales by quarter")), qPrintable(svg.left(300)));
+
+        // A picture fill that doesn't say how it fills is tiled.
+        QCOMPARE(items[9]->fill.type, Fill::Texture);
+        QVERIFY(items[9]->fill.tile && !items[9]->fill.imageId.isEmpty());
 
         // How the slide changes to the next, and when it moves on.
         const deck::Transition t = deck::transitionOf(third);
