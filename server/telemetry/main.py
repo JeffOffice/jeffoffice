@@ -98,7 +98,7 @@ def parse_ping(body):
     """The ping's fields, checked; None when anything is off."""
     try:
         p = json.loads(body)
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, RecursionError):   # UnicodeDecodeError is a ValueError
         return None
     if not isinstance(p, dict):
         return None

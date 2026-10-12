@@ -72,6 +72,7 @@ class Collector(unittest.TestCase):
         self.assertEqual(self.post(self.ping(counts={"x": -1})), 400)
         self.assertEqual(self.post(self.ping(lang="<script>")), 400)
         self.assertEqual(self.post(b"{not json"), 400)
+        self.assertEqual(self.post(b"[" * 16000), 400)   # nested too deep for the parser
         self.assertEqual(self.post(b"x" * (main.MAX_BODY + 1)), 413)
 
     def test_stats_need_the_password(self):
