@@ -1,14 +1,14 @@
 // Command-line helper for testing JeffDeck's reading of presentation files.
-//   jdecktool render <file.pptx> <outdir> [width=1280]   each slide to slide-001.png ...
-//   jdecktool info <file.pptx>                           the masters, layouts, and slides found
-//   jdecktool save <file> <out.pptx>                     read it and save it again, listing what was left out
+//   jdecktool render <file.pptx|.ppt> <outdir> [width=1280]   each slide to slide-001.png ...
+//   jdecktool info <file.pptx|.ppt>                           the masters, layouts, and slides found
+//   jdecktool save <file> <out.pptx>                          read it and save it again, listing what was left out
 
 #include "app/deckinfo.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/fonts.h"
 #include "io/pptxexport.h"
-#include "io/pptximport.h"
+#include "io/presentationfile.h"
 #include "render/renderer.h"
 
 #include <QDir>
@@ -59,14 +59,14 @@ int main(int argc, char **argv)
     const QStringList args = app.arguments();
     QTextStream out(stdout);
     if (args.size() < 3 || ((args[1] == "render" || args[1] == "save") && args.size() < 4) || (args[1] != "render" && args[1] != "info" && args[1] != "save")) {
-        out << "usage: jdecktool render <file.pptx> <outdir> [width=1280] | info <file.pptx> | save <file> <out.pptx>\n";
+        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx>\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
     QElapsedTimer timer;
     timer.start();
     QString notes;
-    std::unique_ptr<Document> doc = deck::importPresentationFile(in, &notes);
+    std::unique_ptr<Document> doc = deck::importAnyPresentationFile(in, &notes);
     if (!doc) {
         out << "cannot open: " << notes << "\n";
         return 1;

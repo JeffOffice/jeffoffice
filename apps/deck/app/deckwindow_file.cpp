@@ -7,7 +7,7 @@
 #include "app/notespane.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
-#include "io/pptximport.h"
+#include "io/presentationfile.h"
 
 #include <QApplication>
 #include <QFileInfo>
@@ -19,7 +19,7 @@ bool DeckWindow::openFile(const QString &path)
 {
     QString notes;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    std::unique_ptr<Document> doc = deck::importPresentationFile(path, &notes);
+    std::unique_ptr<Document> doc = deck::importAnyPresentationFile(path, &notes);
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();
     if (!doc) {
