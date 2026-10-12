@@ -1,6 +1,7 @@
 #include "office/package.h"
 
 #include "io/zip.h"
+#include "office/xml.h"
 
 #include <QCoreApplication>
 #include <QFile>
@@ -21,8 +22,8 @@ const int kMaxParts = 10000;
 const qint64 kMaxInflated = qint64(1) << 31;
 
 const QString kContentTypesItem = QStringLiteral("[Content_Types].xml");
-const QString kTypesNs = QStringLiteral("http://schemas.openxmlformats.org/package/2006/content-types");
-const QString kRelsNs = QStringLiteral("http://schemas.openxmlformats.org/package/2006/relationships");
+const QString kTypesNs = ns::ContentTypes;
+const QString kRelsNs = ns::PackageRelationships;
 const QString kRelsContentType = QStringLiteral("application/vnd.openxmlformats-package.relationships+xml");
 
 QString translate(const char *text) { return QCoreApplication::translate("Package", text); }
@@ -107,10 +108,10 @@ QString relationshipSource(const QString &name)
 }
 
 // Calls `child` with the reader at each child of the root element, which
-// must be {ns}root. False if the XML isn't well formed, has a DOCTYPE (which
+// must be {namespaceUri}root. False if the XML isn't well formed, has a DOCTYPE (which
 // is how an entity could be defined), has another root, or `child` says so.
 template <class F>
-bool forEachChild(const QByteArray &xml, const QString &ns, const QString &root, F child)
+bool forEachChild(const QByteArray &xml, const QString &namespaceUri, const QString &root, F child)
 {
     QXmlStreamReader r(xml);
     int depth = 0;
@@ -121,9 +122,9 @@ bool forEachChild(const QByteArray &xml, const QString &ns, const QString &root,
         if (r.isStartElement()) {
             ++depth;
             if (depth == 1) {
-                if (r.name() != root || r.namespaceUri() != ns) return false;
+                if (r.name() != root || r.namespaceUri() != namespaceUri) return false;
                 rootSeen = true;
-            } else if (depth == 2 && r.namespaceUri() == ns && !child(r)) {
+            } else if (depth == 2 && r.namespaceUri() == namespaceUri && !child(r)) {
                 return false;
             }
         } else if (r.isEndElement()) {
