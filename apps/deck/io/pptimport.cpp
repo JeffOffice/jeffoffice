@@ -6,11 +6,13 @@
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "office/odraw.h"
+#include "render/renderer.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QBuffer>
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QHash>
 #include <QImage>
 #include <QJsonArray>
@@ -44,6 +46,9 @@ constexpr int kMaxRuns = 20000, kMaxParagraphs = 10000;
 constexpr qint64 kMaxTotalParagraphs = 200000, kMaxTotalPieces = 500000;
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
+// What the frames made as tall as their text may cost: the time (milliseconds) all of them take together, and the size of a text.
+constexpr int kFitMilliseconds = 4000;
+constexpr int kFitMaxChars = 20000;
 // The format's unit for places and sizes is 1/576 inch.
 constexpr double kPoints = 72.0 / 576.0;
 // A slide may be 56 inches across at most (the standard's limit), and is a point at least.
@@ -868,6 +873,7 @@ private:
     void clientShape(Item &item, const QByteArray &textbox, const QByteArray &clientData);
     ItemList readShapes(const QByteArray &drawing, PageState &st);
 
+    void fitFramesToText();
     void note(const QString &text);
 
     const QByteArray m_file;
@@ -2180,12 +2186,26 @@ office::OdrawContext Importer::drawingContext()
     return ctx;
 }
 
+namespace {
+
+// Slide objects don't push text aside: the presentation program lets text and objects overlap.
+void leaveTextAlone(const ItemList &items)
+{
+    for (const ItemPtr &it : items) {
+        it->wrap.mode = Wrap::None;
+        if (it->type() == ItemType::Group) leaveTextAlone(static_cast<const GroupItem &>(*it).children);
+    }
+}
+
+} // namespace
+
 ItemList Importer::readShapes(const QByteArray &drawing, PageState &st)
 {
     if (drawing.isEmpty()) return {};
     m_state = &st;
     ItemList items = office::readOdrawShapes(drawing, drawingContext());
     m_state = nullptr;
+    leaveTextAlone(items);
     return items;
 }
 
@@ -2251,6 +2271,50 @@ void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArr
         story = buildStory(*use, textType, ctx);
     }
     else if (hasBox || !type.isEmpty()) story = m_doc.createStory();
+}
+
+// Text longer than its frame is drawn past it by the presentation program, where the text engine hides what overflows a frame (or shrinks
+// the text to fit it). A frame with no fill or line of its own, whose size nothing shows, is made as tall as its text instead, grown from
+// where the text is anchored: down from the top, both ways from the middle, up from the bottom.
+void Importer::fitFramesToText()
+{
+    LayoutEnv env;
+    env.colors = m_doc.colors;
+    env.fonts = m_doc.fonts;
+    env.defaultTab = m_doc.defaultTabStop;
+    const RenderOptions options;
+    QElapsedTimer timer;
+    timer.start();
+    int number = 0;
+    for (const auto &page : std::as_const(m_doc.pages)) {
+        ++number;
+        for (const auto &it : page->items) {
+            if (timer.elapsed() > kFitMilliseconds) return;
+            if (it->type() != ItemType::Text) continue;
+            auto *t = static_cast<TextItem *>(it.get());
+            if (!t->fill.isNone() || !t->stroke.isNone() || t->vertical || t->rotation != 0 || t->rect.isEmpty()) continue;
+            const QTextDocument *story = t->storyId.isEmpty() ? nullptr : m_doc.storyDoc(t->storyId);
+            if (!story || story->isEmpty() || story->characterCount() > kFitMaxChars) continue;
+            FrameSpec spec = Renderer::frameSpec(m_doc, *t, number, options);
+            spec.size.setHeight(1e5);
+            spec.valign = VAlign::Top;
+            StoryLayout layout;
+            layout.build(story, {spec}, env);
+            // The engine puts the spacing of a line below it, where the program puts it above, and doesn't count it under the last line: the
+            // text is that much higher at the top of a frame, half of it in the middle, and none at the bottom.
+            const auto lines = layout.lineInfo(0);
+            if (!lines.isEmpty() && lines.first().below > 0)
+                t->rect.translate(0, lines.first().below * (t->valign == VAlign::Top ? 1.0 : t->valign == VAlign::Middle ? 0.5 : 0.0));
+            const double extra = layout.usedHeight(0) - t->rect.height();
+            if (extra <= 0.5) continue;
+            QRectF r = t->rect;
+            if (t->valign == VAlign::Middle) r.adjust(0, -extra / 2, 0, extra / 2);
+            else if (t->valign == VAlign::Bottom) r.setTop(r.top() - extra);
+            else r.setBottom(r.bottom() + extra);
+            t->rect = r;
+            t->autofit = TextItem::NoAutofit;
+        }
+    }
 }
 
 // ---- The whole ----
@@ -2328,6 +2392,7 @@ bool Importer::run(QString *error)
     const quint16 tab = resolve(TxBody, 0, ctx).pf.defaultTab;
     m_doc.defaultTabStop = tab >= 36 ? std::min(tab * kPoints, 288.0) : 72.0;
     m_doc.appData[QStringLiteral("footers")] = m_footers;
+    fitFramesToText();
     return true;
 }
 
