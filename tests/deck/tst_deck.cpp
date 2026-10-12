@@ -34,11 +34,15 @@
 #include <QApplication>
 #include <QBuffer>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QRadioButton>
 #include <QDeadlineTimer>
 #include <QDesktopServices>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QLabel>
@@ -53,6 +57,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSlider>
+#include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextCursor>
@@ -3253,6 +3258,20 @@ private:
         }
         return all;
     }
+    // Sets up the dialog that asks what to print, which opens next, and clicks its `button`.
+    static void answerOutputDialog(const std::function<void(QDialog *)> &set = nullptr, QDialogButtonBox::StandardButton button = QDialogButtonBox::Ok,
+                                   QDeadlineTimer until = QDeadlineTimer(10000))
+    {
+        QTimer::singleShot(0, [set, button, until] {
+            auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dialog || dialog->objectName() != QLatin1String("outputDialog")) {
+                if (!until.hasExpired()) answerOutputDialog(set, button, until);
+                return;
+            }
+            if (set) set(dialog);
+            dialog->findChild<QDialogButtonBox *>()->button(button)->click();
+        });
+    }
     // Five slides, titled and with notes, the third hidden.
     static std::unique_ptr<Document> outputDeck(int n = 5)
     {
@@ -3749,6 +3768,142 @@ private Q_SLOTS:
             QCOMPARE(content.contains(rgb), !gray);
             QCOMPARE(pdf.contains("/Subtype /Image"), gray);
         }
+    }
+
+    // Print and the exports are in the File menu's commands, and Ctrl+P prints.
+    void outputCommandsExist()
+    {
+        DeckWindow w;
+        for (const char *id : {"file.exportPdf", "file.print", "file.exportPicture"}) {
+            QVERIFY2(w.act(id), id);
+            QVERIFY2(!w.act(id)->text().isEmpty(), id);
+        }
+        QCOMPARE(w.act("file.print")->shortcut(), QKeySequence(QKeySequence::Print));
+        QVERIFY(w.act("file.exportPdf")->text().endsWith(QChar(0x2026)));
+    }
+
+    // Export to PDF asks what to print, then where, and writes the file; a
+    // refusal at either step writes nothing, and a file that can't be written is said so.
+    void windowExportsPdf()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.newSlide();
+        w.newSlide();
+        const QString path = dir.filePath(QStringLiteral("talk.pdf"));
+        QStringList asked;
+        w.setSavePathChooser([&](const QString &suggested, const QString &filter) {
+            asked << suggested << filter;
+            return path;
+        });
+        auto choose = [](deck::PrintLayout layout) {
+            return [layout](QDialog *dialog) {
+                auto *what = dialog->findChild<QComboBox *>(QStringLiteral("outputWhat"));
+                QVERIFY(what);
+                const int at = what->findData(int(layout));
+                QVERIFY(at >= 0);
+                what->setCurrentIndex(at);
+            };
+        };
+        // Cancelled at the first step.
+        answerOutputDialog(nullptr, QDialogButtonBox::Cancel);
+        w.act("file.exportPdf")->trigger();
+        QVERIFY(asked.isEmpty());
+        QVERIFY(!QFileInfo::exists(path));
+        // Slides, as the dialog starts: a page for each.
+        answerOutputDialog();
+        w.act("file.exportPdf")->trigger();
+        QCOMPARE(asked.size(), 2);
+        QVERIFY2(asked[0].endsWith(QLatin1String("Presentation1.pdf")), qPrintable(asked[0]));
+        QVERIFY(asked[1].contains(QLatin1String("*.pdf")));
+        QCOMPARE(pdfPageCount(fileBytes(path)), 3);
+        QCOMPARE(pdfPageSizes(fileBytes(path)).value(0), QSizeF(960, 540));
+        QVERIFY(w.statusBar()->currentMessage().contains(QLatin1String("talk.pdf")));
+        // Notes pages, only the slides 2 to 3.
+        answerOutputDialog([&](QDialog *dialog) {
+            choose(deck::PrintLayout::NotesPages)(dialog);
+            dialog->findChild<QRadioButton *>(QStringLiteral("outputRangeSlides"))->setChecked(true);
+            dialog->findChild<QLineEdit *>(QStringLiteral("outputRangeText"))->setText(QStringLiteral("2-3"));
+        });
+        w.act("file.exportPdf")->trigger();
+        QCOMPARE(pdfPageCount(fileBytes(path)), 2);
+        QCOMPARE(pdfPageSizes(fileBytes(path)).value(0), deck::localePaper());
+        // The slide being edited, hidden slides left out.
+        w.editor()->setCurrentPage(1);
+        w.toggleHidden();
+        QVERIFY(QFile::remove(path));
+        answerOutputDialog(
+            [&](QDialog *dialog) {
+                dialog->findChild<QRadioButton *>(QStringLiteral("outputRangeCurrent"))->setChecked(true);
+                QVERIFY2(!dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->isEnabled(), "the only slide chosen is hidden: nothing to write");
+            },
+            QDialogButtonBox::Cancel);
+        w.act("file.exportPdf")->trigger();
+        QVERIFY(!QFileInfo::exists(path));
+        answerOutputDialog([&](QDialog *dialog) { dialog->findChild<QCheckBox *>(QStringLiteral("outputHidden"))->setChecked(true); });
+        w.act("file.exportPdf")->trigger();
+        QCOMPARE(pdfPageCount(fileBytes(path)), 3);
+        // No name chosen writes nothing.
+        QVERIFY(QFile::remove(path));
+        w.setSavePathChooser([](const QString &, const QString &) { return QString(); });
+        answerOutputDialog();
+        w.act("file.exportPdf")->trigger();
+        QVERIFY(!QFileInfo::exists(path));
+        // A place that can't be written is an error the person sees.
+        QString label;
+        w.setSavePathChooser([&](const QString &, const QString &) {
+            answerDialogs({QMessageBox::Ok}, &label);
+            return dir.filePath(QStringLiteral("missing/talk.pdf"));
+        });
+        answerOutputDialog();
+        w.act("file.exportPdf")->trigger();
+        QCOMPARE(label, QStringLiteral("OK"));
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("missing"))));
+    }
+
+    // Export slide as picture saves the slide being edited, 1920 pixels across,
+    // as the kind of picture the name asks for.
+    void windowExportsSlidePicture()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.newSlide();
+        deck::setSlideBackground(*w.editor()->doc()->pages[1], QColor(0x20, 0x80, 0x40));
+        w.editor()->setCurrentPage(1);
+        QString suggested, path = dir.filePath(QStringLiteral("slide.png"));
+        w.setSavePathChooser([&](const QString &name, const QString &) {
+            suggested = name;
+            return path;
+        });
+        w.act("file.exportPicture")->trigger();
+        QVERIFY2(suggested.endsWith(QLatin1String(".png")) && suggested.contains(QLatin1String("2")), qPrintable(suggested));
+        QImage png(path);
+        QCOMPARE(png.size(), QSize(1920, 1080));
+        QCOMPARE(png.pixelColor(4, 4), QColor(0x20, 0x80, 0x40));
+        path = dir.filePath(QStringLiteral("slide.jpg"));
+        w.act("file.exportPicture")->trigger();
+        QImage jpeg(path);
+        QCOMPARE(jpeg.size(), QSize(1920, 1080));
+        QVERIFY(qAbs(jpeg.pixelColor(4, 4).green() - 0x80) < 8);
+        QCOMPARE(fileBytes(path).left(2), QByteArray("\xff\xd8"));
+        // No ending takes the kind the dialog showed.
+        path = dir.filePath(QStringLiteral("bare"));
+        w.act("file.exportPicture")->trigger();
+        QVERIFY(QFileInfo::exists(path + QLatin1String(".png")));
+        // No name, no file; a place that can't be written is said.
+        const int before = int(QDir(dir.path()).entryList(QDir::Files).size());
+        w.setSavePathChooser([](const QString &, const QString &) { return QString(); });
+        w.act("file.exportPicture")->trigger();
+        QCOMPARE(int(QDir(dir.path()).entryList(QDir::Files).size()), before);
+        QString label;
+        w.setSavePathChooser([&](const QString &, const QString &) {
+            answerDialogs({QMessageBox::Ok}, &label);
+            return dir.filePath(QStringLiteral("missing/slide.png"));
+        });
+        w.act("file.exportPicture")->trigger();
+        QCOMPARE(label, QStringLiteral("OK"));
     }
 };
 
