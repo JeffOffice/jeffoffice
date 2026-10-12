@@ -19,7 +19,7 @@
 // is drawn as a fade), moving, resizing, turning, scaling, rotating, and
 // motion paths, with each behavior's delay, duration, speeding up and slowing
 // down, reversing, and repeats (a repeat "until the end" is played once);
-// builds by paragraph. Read but not played: colors (animClr), commands
+// builds by paragraph; hiding a shape after its effect, or at the next click. Read but not played: colors (animClr), commands
 // (media calls), triggers (interactive sequences), and what changes text
 // by letter or word (a shape's text range by characters moves the shape).
 
@@ -106,6 +106,8 @@ struct Effect {
     double begin = 0;                // ms after its step starts
     double repeat = 1;               // times the whole effect plays (a repeat "until the end" counts once)
     bool remove = false;             // it takes its work with it when it ends (rewind when done playing)
+    bool hideOnNextClick = false;    // its shape is hidden when the next click step starts
+    bool implied = false;            // not in the file: the hiding another effect asks for at this step's click
     QVector<Behavior> behaviors;
     // ms after its step starts, when its last behavior with an end has ended
     // (once() is how long one play takes); end() counts the repeats.
@@ -222,6 +224,9 @@ const EffectKind *effectKind(const QString &id);
 // Where the kinds of a class that come in groups end (motion paths), in order.
 QStringList motionPathGroups();
 
+// What an effect does to its shape when it is over: nothing, hide it at once, or hide it at the next click.
+enum class AfterEffect { None, Hide, HideOnNextClick };
+
 struct Anim {
     QString kind;                    // EffectKind::id; empty: kept as written
     EffectClass cls = EffectClass::Entrance;
@@ -232,6 +237,7 @@ struct Anim {
     int duration = 0, delay = 0;     // ms
     bool smoothStart = false, smoothEnd = false;
     bool rewind = false;             // goes back to how it was when it ends
+    AfterEffect after = AfterEffect::None;
     double repeat = 1;
     double amount = 0;               // growshrink: percent (150); spin: degrees (360)
     int group = -1;                  // effects of one shape with the same number are one build; -1 until written

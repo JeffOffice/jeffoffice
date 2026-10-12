@@ -26,8 +26,6 @@ namespace jp::deck {
 
 namespace {
 
-#define A_(text) QT_TRANSLATE_NOOP("Animation", text)
-
 struct VariantDef {
     const char *key, *name;
     int preset, subtype;
@@ -47,20 +45,20 @@ using Amount = EffectKind::Amount;
 
 std::vector<VariantDef> flyVariants()
 {
-    return {{"bottom", A_("From Bottom"), 2, 4},       {"left", A_("From Left"), 2, 8},         {"top", A_("From Top"), 2, 1},
-            {"right", A_("From Right"), 2, 2},         {"bottomLeft", A_("From Bottom-Left"), 2, 12}, {"topLeft", A_("From Top-Left"), 2, 9},
-            {"topRight", A_("From Top-Right"), 2, 3},  {"bottomRight", A_("From Bottom-Right"), 2, 6}};
+    return {{"bottom", QT_TRANSLATE_NOOP("Animation", "From Bottom"), 2, 4},       {"left", QT_TRANSLATE_NOOP("Animation", "From Left"), 2, 8},         {"top", QT_TRANSLATE_NOOP("Animation", "From Top"), 2, 1},
+            {"right", QT_TRANSLATE_NOOP("Animation", "From Right"), 2, 2},         {"bottomLeft", QT_TRANSLATE_NOOP("Animation", "From Bottom-Left"), 2, 12}, {"topLeft", QT_TRANSLATE_NOOP("Animation", "From Top-Left"), 2, 9},
+            {"topRight", QT_TRANSLATE_NOOP("Animation", "From Top-Right"), 2, 3},  {"bottomRight", QT_TRANSLATE_NOOP("Animation", "From Bottom-Right"), 2, 6}};
 }
 std::vector<VariantDef> wipeVariants()
 {
-    return {{"bottom", A_("From Bottom"), 22, 4}, {"left", A_("From Left"), 22, 8}, {"top", A_("From Top"), 22, 1}, {"right", A_("From Right"), 22, 2}};
+    return {{"bottom", QT_TRANSLATE_NOOP("Animation", "From Bottom"), 22, 4}, {"left", QT_TRANSLATE_NOOP("Animation", "From Left"), 22, 8}, {"top", QT_TRANSLATE_NOOP("Animation", "From Top"), 22, 1}, {"right", QT_TRANSLATE_NOOP("Animation", "From Right"), 22, 2}};
 }
 std::vector<VariantDef> splitVariants()
 {
-    return {{"verticalIn", A_("Vertical In"), 16, 21}, {"verticalOut", A_("Vertical Out"), 16, 37}, {"horizontalIn", A_("Horizontal In"), 16, 26},
-            {"horizontalOut", A_("Horizontal Out"), 16, 42}};
+    return {{"verticalIn", QT_TRANSLATE_NOOP("Animation", "Vertical In"), 16, 21}, {"verticalOut", QT_TRANSLATE_NOOP("Animation", "Vertical Out"), 16, 37}, {"horizontalIn", QT_TRANSLATE_NOOP("Animation", "Horizontal In"), 16, 26},
+            {"horizontalOut", QT_TRANSLATE_NOOP("Animation", "Horizontal Out"), 16, 42}};
 }
-std::vector<VariantDef> floatVariants() { return {{"up", A_("Float Up"), 42, 0}, {"down", A_("Float Down"), 47, 0}}; }
+std::vector<VariantDef> floatVariants() { return {{"up", QT_TRANSLATE_NOOP("Animation", "Float Up"), 42, 0}, {"down", QT_TRANSLATE_NOOP("Animation", "Float Down"), 47, 0}}; }
 
 // The motion paths by the number the presentation program gives each.
 struct PathName {
@@ -79,50 +77,50 @@ const std::vector<KindDef> &kindDefs()
     static const std::vector<KindDef> defs = [] {
         std::vector<KindDef> d;
         const auto none = Amount::None;
-        d.push_back({"entr.appear", A_("Appear"), kEntrance, "", 0, none, false, {{"none", A_("Appear"), 1, 0}}});
-        d.push_back({"entr.fade", A_("Fade"), kEntrance, "", 500, none, false, {{"none", A_("Fade"), 10, 0}}});
-        d.push_back({"entr.fly", A_("Fly In"), kEntrance, "", 500, none, false, flyVariants()});
-        d.push_back({"entr.float", A_("Float In"), kEntrance, "", 1000, none, false, floatVariants()});
-        d.push_back({"entr.split", A_("Split"), kEntrance, "", 500, none, false, splitVariants()});
-        d.push_back({"entr.wipe", A_("Wipe"), kEntrance, "", 500, none, false, wipeVariants()});
-        d.push_back({"entr.growturn", A_("Grow & Turn"), kEntrance, "", 1000, none, false, {{"none", A_("Grow & Turn"), 31, 0}}});
-        d.push_back({"entr.zoom", A_("Zoom"), kEntrance, "", 500, none, false, {{"object", A_("Object Center"), 53, 16}, {"slide", A_("Slide Center"), 53, 528}}});
+        d.push_back({"entr.appear", QT_TRANSLATE_NOOP("Animation", "Appear"), kEntrance, "", 0, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Appear"), 1, 0}}});
+        d.push_back({"entr.fade", QT_TRANSLATE_NOOP("Animation", "Fade"), kEntrance, "", 500, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Fade"), 10, 0}}});
+        d.push_back({"entr.fly", QT_TRANSLATE_NOOP("Animation", "Fly In"), kEntrance, "", 500, none, false, flyVariants()});
+        d.push_back({"entr.float", QT_TRANSLATE_NOOP("Animation", "Float In"), kEntrance, "", 1000, none, false, floatVariants()});
+        d.push_back({"entr.split", QT_TRANSLATE_NOOP("Animation", "Split"), kEntrance, "", 500, none, false, splitVariants()});
+        d.push_back({"entr.wipe", QT_TRANSLATE_NOOP("Animation", "Wipe"), kEntrance, "", 500, none, false, wipeVariants()});
+        d.push_back({"entr.growturn", QT_TRANSLATE_NOOP("Animation", "Grow & Turn"), kEntrance, "", 1000, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Grow & Turn"), 31, 0}}});
+        d.push_back({"entr.zoom", QT_TRANSLATE_NOOP("Animation", "Zoom"), kEntrance, "", 500, none, false, {{"object", QT_TRANSLATE_NOOP("Animation", "Object Center"), 53, 16}, {"slide", QT_TRANSLATE_NOOP("Animation", "Slide Center"), 53, 528}}});
 
-        d.push_back({"emph.pulse", A_("Pulse"), kEmphasis, "", 500, none, false, {{"none", A_("Pulse"), 26, 0}}});
-        d.push_back({"emph.teeter", A_("Teeter"), kEmphasis, "", 1000, none, false, {{"none", A_("Teeter"), 32, 0}}});
-        d.push_back({"emph.spin", A_("Spin"), kEmphasis, "", 2000, Amount::Spin, false, {{"cw", A_("Clockwise"), 8, 0}, {"ccw", A_("Counterclockwise"), 8, 0}}});
-        d.push_back({"emph.growshrink", A_("Grow/Shrink"), kEmphasis, "", 2000, Amount::Size, false,
-                     {{"both", A_("Both"), 6, 0}, {"horizontal", A_("Horizontal"), 6, 0}, {"vertical", A_("Vertical"), 6, 0}}});
+        d.push_back({"emph.pulse", QT_TRANSLATE_NOOP("Animation", "Pulse"), kEmphasis, "", 500, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Pulse"), 26, 0}}});
+        d.push_back({"emph.teeter", QT_TRANSLATE_NOOP("Animation", "Teeter"), kEmphasis, "", 1000, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Teeter"), 32, 0}}});
+        d.push_back({"emph.spin", QT_TRANSLATE_NOOP("Animation", "Spin"), kEmphasis, "", 2000, Amount::Spin, false, {{"cw", QT_TRANSLATE_NOOP("Animation", "Clockwise"), 8, 0}, {"ccw", QT_TRANSLATE_NOOP("Animation", "Counterclockwise"), 8, 0}}});
+        d.push_back({"emph.growshrink", QT_TRANSLATE_NOOP("Animation", "Grow/Shrink"), kEmphasis, "", 2000, Amount::Size, false,
+                     {{"both", QT_TRANSLATE_NOOP("Animation", "Both"), 6, 0}, {"horizontal", QT_TRANSLATE_NOOP("Animation", "Horizontal"), 6, 0}, {"vertical", QT_TRANSLATE_NOOP("Animation", "Vertical"), 6, 0}}});
 
-        d.push_back({"exit.disappear", A_("Disappear"), kExit, "", 0, none, false, {{"none", A_("Disappear"), 1, 0}}});
-        d.push_back({"exit.fade", A_("Fade"), kExit, "", 500, none, false, {{"none", A_("Fade"), 10, 0}}});
-        d.push_back({"exit.fly", A_("Fly Out"), kExit, "", 500, none, false, flyVariants()});
-        d.push_back({"exit.float", A_("Float Out"), kExit, "", 1000, none, false, floatVariants()});
-        d.push_back({"exit.split", A_("Split"), kExit, "", 500, none, false, splitVariants()});
-        d.push_back({"exit.wipe", A_("Wipe"), kExit, "", 500, none, false, wipeVariants()});
-        d.push_back({"exit.growturn", A_("Shrink & Turn"), kExit, "", 1000, none, false, {{"none", A_("Shrink & Turn"), 31, 0}}});
-        d.push_back({"exit.zoom", A_("Zoom"), kExit, "", 500, none, false, {{"object", A_("Object Center"), 53, 32}}});
+        d.push_back({"exit.disappear", QT_TRANSLATE_NOOP("Animation", "Disappear"), kExit, "", 0, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Disappear"), 1, 0}}});
+        d.push_back({"exit.fade", QT_TRANSLATE_NOOP("Animation", "Fade"), kExit, "", 500, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Fade"), 10, 0}}});
+        d.push_back({"exit.fly", QT_TRANSLATE_NOOP("Animation", "Fly Out"), kExit, "", 500, none, false, flyVariants()});
+        d.push_back({"exit.float", QT_TRANSLATE_NOOP("Animation", "Float Out"), kExit, "", 1000, none, false, floatVariants()});
+        d.push_back({"exit.split", QT_TRANSLATE_NOOP("Animation", "Split"), kExit, "", 500, none, false, splitVariants()});
+        d.push_back({"exit.wipe", QT_TRANSLATE_NOOP("Animation", "Wipe"), kExit, "", 500, none, false, wipeVariants()});
+        d.push_back({"exit.growturn", QT_TRANSLATE_NOOP("Animation", "Shrink & Turn"), kExit, "", 1000, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Shrink & Turn"), 31, 0}}});
+        d.push_back({"exit.zoom", QT_TRANSLATE_NOOP("Animation", "Zoom"), kExit, "", 500, none, false, {{"object", QT_TRANSLATE_NOOP("Animation", "Object Center"), 53, 32}}});
 
-        d.push_back({"path.lines", A_("Lines"), kPath, "Lines", 2000, none, true,
-                     pathVariants({{42, A_("Down")}, {63, A_("Right")}, {35, A_("Left")}, {64, A_("Up")}, {49, A_("Diagonal Down Right")}, {56, A_("Diagonal Up Right")}})});
-        d.push_back({"path.arcs", A_("Arcs"), kPath, "Arcs", 2000, none, true, pathVariants({{37, A_("Down")}, {51, A_("Left")}, {58, A_("Right")}, {44, A_("Up")}})});
-        d.push_back({"path.turns", A_("Turns"), kPath, "Turns", 2000, none, true,
-                     pathVariants({{36, A_("Down then Right")}, {50, A_("Right then Down")}, {57, A_("Up then Right")}, {43, A_("Right then Up")}})});
-        d.push_back({"path.shapes", A_("Shapes"), kPath, "Shapes", 2000, none, true,
-                     pathVariants({{1, A_("Circle")},         {3, A_("Diamond")},        {4, A_("Hexagon")},         {10, A_("Octagon")},         {15, A_("Pentagon")},
-                                   {7, A_("Square")},         {13, A_("Equal Triangle")}, {2, A_("Right Triangle")},  {8, A_("Trapezoid")},        {14, A_("Parallelogram")},
-                                   {12, A_("Football")},      {18, A_("Teardrop")},      {9, A_("Heart")},           {6, A_("Crescent Moon")},    {16, A_("4 Point Star")},
-                                   {5, A_("5 Point Star")},   {11, A_("6 Point Star")},  {17, A_("8 Point Star")}})});
-        d.push_back({"path.loops", A_("Loops"), kPath, "Loops", 2000, none, true,
-                     pathVariants({{24, A_("Horizontal Figure 8")}, {22, A_("Vertical Figure 8")}, {26, A_("Two Circles")}, {28, A_("Figure 8 Four")},
-                                   {48, A_("Loop de Loop")},        {61, A_("Loop de Loop Reverse")}, {46, A_("Spiral Left")}, {55, A_("Spiral Right")},
-                                   {52, A_("Funnel")},              {53, A_("Spring")}})});
-        d.push_back({"path.curves", A_("Curves"), kPath, "Curves", 2000, none, true,
-                     pathVariants({{38, A_("Zigzag")},      {39, A_("S Curve 1")},    {59, A_("S Curve 2")},     {40, A_("Sine Wave")},     {60, A_("Decaying Wave")},
-                                   {47, A_("Wave")},        {41, A_("Bounce Left")},  {54, A_("Bounce Right")},  {45, A_("Heartbeat")},     {62, A_("Stairs Down")},
-                                   {30, A_("Swoosh")},      {31, A_("Bean")},         {27, A_("Peanut")},        {29, A_("Neutron")},       {20, A_("Curved Square")},
-                                   {21, A_("Curved X")},    {19, A_("Inverted Square")}, {23, A_("Pointy Star")}, {25, A_("Curvy Star")},    {32, A_("Clover")},
-                                   {33, A_("Trefoil")},     {34, A_("Four Loops")}})});
+        d.push_back({"path.lines", QT_TRANSLATE_NOOP("Animation", "Lines"), kPath, "Lines", 2000, none, true,
+                     pathVariants({{42, QT_TRANSLATE_NOOP("Animation", "Down")}, {63, QT_TRANSLATE_NOOP("Animation", "Right")}, {35, QT_TRANSLATE_NOOP("Animation", "Left")}, {64, QT_TRANSLATE_NOOP("Animation", "Up")}, {49, QT_TRANSLATE_NOOP("Animation", "Diagonal Down Right")}, {56, QT_TRANSLATE_NOOP("Animation", "Diagonal Up Right")}})});
+        d.push_back({"path.arcs", QT_TRANSLATE_NOOP("Animation", "Arcs"), kPath, "Arcs", 2000, none, true, pathVariants({{37, QT_TRANSLATE_NOOP("Animation", "Down")}, {51, QT_TRANSLATE_NOOP("Animation", "Left")}, {58, QT_TRANSLATE_NOOP("Animation", "Right")}, {44, QT_TRANSLATE_NOOP("Animation", "Up")}})});
+        d.push_back({"path.turns", QT_TRANSLATE_NOOP("Animation", "Turns"), kPath, "Turns", 2000, none, true,
+                     pathVariants({{36, QT_TRANSLATE_NOOP("Animation", "Down then Right")}, {50, QT_TRANSLATE_NOOP("Animation", "Right then Down")}, {57, QT_TRANSLATE_NOOP("Animation", "Up then Right")}, {43, QT_TRANSLATE_NOOP("Animation", "Right then Up")}})});
+        d.push_back({"path.shapes", QT_TRANSLATE_NOOP("Animation", "Shapes"), kPath, "Shapes", 2000, none, true,
+                     pathVariants({{1, QT_TRANSLATE_NOOP("Animation", "Circle")},         {3, QT_TRANSLATE_NOOP("Animation", "Diamond")},        {4, QT_TRANSLATE_NOOP("Animation", "Hexagon")},         {10, QT_TRANSLATE_NOOP("Animation", "Octagon")},         {15, QT_TRANSLATE_NOOP("Animation", "Pentagon")},
+                                   {7, QT_TRANSLATE_NOOP("Animation", "Square")},         {13, QT_TRANSLATE_NOOP("Animation", "Equal Triangle")}, {2, QT_TRANSLATE_NOOP("Animation", "Right Triangle")},  {8, QT_TRANSLATE_NOOP("Animation", "Trapezoid")},        {14, QT_TRANSLATE_NOOP("Animation", "Parallelogram")},
+                                   {12, QT_TRANSLATE_NOOP("Animation", "Football")},      {18, QT_TRANSLATE_NOOP("Animation", "Teardrop")},      {9, QT_TRANSLATE_NOOP("Animation", "Heart")},           {6, QT_TRANSLATE_NOOP("Animation", "Crescent Moon")},    {16, QT_TRANSLATE_NOOP("Animation", "4 Point Star")},
+                                   {5, QT_TRANSLATE_NOOP("Animation", "5 Point Star")},   {11, QT_TRANSLATE_NOOP("Animation", "6 Point Star")},  {17, QT_TRANSLATE_NOOP("Animation", "8 Point Star")}})});
+        d.push_back({"path.loops", QT_TRANSLATE_NOOP("Animation", "Loops"), kPath, "Loops", 2000, none, true,
+                     pathVariants({{24, QT_TRANSLATE_NOOP("Animation", "Horizontal Figure 8")}, {22, QT_TRANSLATE_NOOP("Animation", "Vertical Figure 8")}, {26, QT_TRANSLATE_NOOP("Animation", "Two Circles")}, {28, QT_TRANSLATE_NOOP("Animation", "Figure 8 Four")},
+                                   {48, QT_TRANSLATE_NOOP("Animation", "Loop de Loop")},        {61, QT_TRANSLATE_NOOP("Animation", "Loop de Loop Reverse")}, {46, QT_TRANSLATE_NOOP("Animation", "Spiral Left")}, {55, QT_TRANSLATE_NOOP("Animation", "Spiral Right")},
+                                   {52, QT_TRANSLATE_NOOP("Animation", "Funnel")},              {53, QT_TRANSLATE_NOOP("Animation", "Spring")}})});
+        d.push_back({"path.curves", QT_TRANSLATE_NOOP("Animation", "Curves"), kPath, "Curves", 2000, none, true,
+                     pathVariants({{38, QT_TRANSLATE_NOOP("Animation", "Zigzag")},      {39, QT_TRANSLATE_NOOP("Animation", "S Curve 1")},    {59, QT_TRANSLATE_NOOP("Animation", "S Curve 2")},     {40, QT_TRANSLATE_NOOP("Animation", "Sine Wave")},     {60, QT_TRANSLATE_NOOP("Animation", "Decaying Wave")},
+                                   {47, QT_TRANSLATE_NOOP("Animation", "Wave")},        {41, QT_TRANSLATE_NOOP("Animation", "Bounce Left")},  {54, QT_TRANSLATE_NOOP("Animation", "Bounce Right")},  {45, QT_TRANSLATE_NOOP("Animation", "Heartbeat")},     {62, QT_TRANSLATE_NOOP("Animation", "Stairs Down")},
+                                   {30, QT_TRANSLATE_NOOP("Animation", "Swoosh")},      {31, QT_TRANSLATE_NOOP("Animation", "Bean")},         {27, QT_TRANSLATE_NOOP("Animation", "Peanut")},        {29, QT_TRANSLATE_NOOP("Animation", "Neutron")},       {20, QT_TRANSLATE_NOOP("Animation", "Curved Square")},
+                                   {21, QT_TRANSLATE_NOOP("Animation", "Curved X")},    {19, QT_TRANSLATE_NOOP("Animation", "Inverted Square")}, {23, QT_TRANSLATE_NOOP("Animation", "Pointy Star")}, {25, QT_TRANSLATE_NOOP("Animation", "Curvy Star")},    {32, QT_TRANSLATE_NOOP("Animation", "Clover")},
+                                   {33, QT_TRANSLATE_NOOP("Animation", "Trefoil")},     {34, QT_TRANSLATE_NOOP("Animation", "Four Loops")}})});
         return d;
     }();
     return defs;
@@ -170,7 +168,7 @@ QStringList motionPathGroups() { return {QStringLiteral("Lines"), QStringLiteral
 
 namespace {
 
-constexpr int kMaxAnims = 5000;     // effects one slide's sequence may hold; a longer one is read, not edited
+constexpr int kMaxAnims = 2000;     // effects one slide's sequence may hold; a longer one is read, not edited
 constexpr int kMaxDepth = 16;       // nesting searched for effects
 
 using office::attr;
@@ -288,6 +286,7 @@ void canon(const QDomElement &e, QString *out, int depth)
     for (int i = 0; i < attrs.length(); ++i) {
         const QDomAttr a = attrs.item(i).toAttr();
         if (a.localName() == QLatin1String("id") && e.localName() == QLatin1String("cTn")) continue;
+        if (a.localName() == QLatin1String("val") && e.localName() == QLatin1String("tn")) continue;   // a time node's number
         list.push_back({a.localName(), a.value()});
     }
     std::sort(list.begin(), list.end());
@@ -460,7 +459,15 @@ QString effectXml(const Anim &a, int grpId, bool placeholder, int *next)
     if (placeholder) attrs += QStringLiteral(" nodePh=\"1\"");
     const int id = (*next)++;
     const QString body = bodyOf(*t, a, next);
-    return QStringLiteral("<p:par><p:cTn id=\"%1\"%2><p:stCondLst><p:cond delay=\"%3\"/></p:stCondLst><p:childTnLst>%4</p:childTnLst></p:cTn></p:par>").arg(id).arg(attrs).arg(a.delay).arg(body);
+    // What it does to its shape when it is over: hide it when the effect ends, or at the next click.
+    QString after;
+    if (a.after != AfterEffect::None) {
+        const bool next = a.after == AfterEffect::HideOnNextClick;
+        const QString cTn = QStringLiteral("<p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"%1\" afterEffect=\"1\"").arg(next ? QStringLiteral("nextClick") : QStringLiteral("sameClick"))
+                            + (next ? QStringLiteral("/>") : QStringLiteral("><p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"%1\"/></p:cond></p:stCondLst></p:cTn>").arg(id));
+        after = QStringLiteral("<p:subTnLst><p:set><p:cBhvr override=\"childStyle\">%1%2<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val=\"hidden\"/></p:to></p:set></p:subTnLst>").arg(cTn, targetXml(a));
+    }
+    return QStringLiteral("<p:par><p:cTn id=\"%1\"%2><p:stCondLst><p:cond delay=\"%3\"/></p:stCondLst><p:childTnLst>%4</p:childTnLst>%5</p:cTn></p:par>").arg(id).arg(attrs).arg(a.delay).arg(body, after);
 }
 
 // A kept effect with the way it starts as the sequence has it.
@@ -589,6 +596,10 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     k.smoothStart = attr(cTn, QStringLiteral("accel")).toLongLong() > 0;
     k.smoothEnd = attr(cTn, QStringLiteral("decel")).toLongLong() > 0;
     k.rewind = attr(cTn, QStringLiteral("fill")) == QLatin1String("remove");
+    if (const QDomElement hide = pChild(pChild(pChild(pChild(cTn, "subTnLst"), "set"), "cBhvr"), "cTn"); !hide.isNull()) {
+        const QString master = attr(hide, QStringLiteral("masterRel"));
+        k.after = master == QLatin1String("nextClick") ? AfterEffect::HideOnNextClick : master == QLatin1String("sameClick") ? AfterEffect::Hide : AfterEffect::None;
+    }
     const QString count = attr(cTn, QStringLiteral("repeatCount"));
     k.repeat = count.isEmpty() ? 1 : std::max(1.0, count.toDouble() / 1000);
     if (found.kind->amount == EffectKind::Amount::Size) {
@@ -613,8 +624,9 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     const bool placeholder = hasAttr(cTn, QStringLiteral("nodePh"));
     int next = 1;
     QString again = effectXml(k, k.group, placeholder, &next);
+    if (again.isEmpty()) return a;
     again.replace(0, 6, QStringLiteral("<p:par xmlns:p=\"%1\"").arg(office::ns::P));
-    if (again.isEmpty() || canonOf(again) != canonOf(a.xml)) return a;
+    if (canonOf(again) != canonOf(a.xml)) return a;
     k.xml.clear();
     return k;
 }
@@ -666,6 +678,13 @@ AnimSequence readAnimations(const Page &slide)
     if (const QDomElement ext = pChild(root, "extLst"); !ext.isNull()) seq.extension = standalone(ext);
     for (const QDomElement &b : office::children(pChild(root, "bldLst"))) seq.builds << standalone(b);
     seq.editable = !tooMany;
+    // A sequence whose effects were not all found here (the file lays its time nodes out another way) is shown, and not rewritten.
+    if (seq.editable) {
+        qsizetype read = 0;
+        for (const deck::Step &step : readTimeline(xml).steps)
+            for (const deck::Effect &e : step.effects) read += e.implied ? 0 : 1;
+        if (read != seq.effects.size()) seq.editable = false;
+    }
     return seq;
 }
 
@@ -790,6 +809,7 @@ void changeKind(Anim &anim, const EffectKind &kind)
     a.delay = anim.delay;
     a.duration = duration;
     a.group = anim.group;
+    if (kind.cls != EffectClass::Exit) a.after = anim.after;
     anim = a;
 }
 

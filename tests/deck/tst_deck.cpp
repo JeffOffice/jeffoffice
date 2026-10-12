@@ -2,6 +2,8 @@
 // its window.
 
 #include "../../apps/pub/app/pubinfo.h"   // only its inline pubAppInfo(): the other app's colors, to compare
+#include "app/animationdialogs.h"
+#include "app/animationpane.h"
 #include "app/commentspane.h"
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
@@ -23,6 +25,7 @@
 #include "app/slideshow.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
+#include "app/widgets.h"
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
@@ -6654,6 +6657,475 @@ private Q_SLOTS:
         seq.effects[0].smoothEnd = true;
         QVERIFY(at(seq, 250) < 80);                    // slow at the start
         QVERIFY(std::abs(at(seq, 500) - 180) < 1e-6);
+    }
+
+    // The builds are listed by where the shapes are on the slide, as the presentation program lists them, whatever order the
+    // effects play in; a shape with two effects has two builds, numbered from 0.
+    void animationEditBuildsListByShape()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 11));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        const qsizetype a = xml.indexOf(QStringLiteral("<p:bldP spid=\"3\"")), b = xml.indexOf(QStringLiteral("<p:bldP spid=\"10\"")), c = xml.indexOf(QStringLiteral("<p:bldP spid=\"11\""));
+        QVERIFY(a > 0 && b > a && c > b);
+        deck::AnimSequence two;
+        two.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        two.add(deck::makeAnim(QStringLiteral("emph.spin"), 10));
+        deck::setAnimations(*d, slide, two);
+        const QString twoXml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(twoXml.contains(QStringLiteral("<p:bldP spid=\"10\" grpId=\"0\" animBg=\"1\"/><p:bldP spid=\"10\" grpId=\"1\" animBg=\"1\"/>")));
+        QCOMPARE(twoXml.count(QStringLiteral("nodeType=\"clickEffect\"")), 2);
+        QVERIFY(twoXml.contains(QStringLiteral("grpId=\"1\" nodeType")));
+    }
+
+    // Saved, the effects of shapes the slide no longer has are left out and the rest stay, in a file that reads back; a shape
+    // that was given a number to be animated keeps it, so its effect is still on it.
+    void animationEditSavesOnlyEffectsOfShapesThatAreThere()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        // A shape new to the file has no number: animating it gives it one, and it is written with it.
+        auto fresh = std::make_shared<ShapeItem>();
+        fresh->name = QStringLiteral("Fresh");
+        fresh->rect = QRectF(400, 100, 80, 40);
+        slide.items.push_back(fresh);
+        QCOMPARE(fresh->sourceId, 0);
+        const int number = deck::shapeNumber(slide, fresh->id);
+        QVERIFY(number > 11);   // past the numbers the boxes have
+        QCOMPARE(deck::shapeNumber(slide, fresh->id), number);   // the same again
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), number));
+        seq.add(deck::makeAnim(QStringLiteral("exit.fade"), 11));
+        deck::setAnimations(*d, slide, seq);
+        QString err;
+        QStringList skipped;
+        QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        deck::AnimSequence read = deck::readAnimations(*back->pages[0]);
+        QCOMPARE(read.effects.size(), 3);
+        QVERIFY(!read.effects[0].custom() && !read.effects[1].custom() && !read.effects[2].custom());
+        // Each still aims at the shape it did, by name.
+        auto nameOf = [&](const Document &doc, int shape) {
+            QString name;
+            walkItems(doc.pages[0]->items, [&](const ItemPtr &it) {
+                if (it->sourceId == shape) name = it->name;
+            });
+            return name;
+        };
+        QCOMPARE(nameOf(*back, read.effects[0].shape), QStringLiteral("Box 1"));
+        QCOMPARE(nameOf(*back, read.effects[1].shape), QStringLiteral("Fresh"));
+        QCOMPARE(nameOf(*back, read.effects[2].shape), QStringLiteral("Box 2"));
+        // Delete "Box 1": its effect is not written, the others are, and the file says so.
+        for (auto it = slide.items.begin(); it != slide.items.end(); ++it)
+            if ((*it)->name == QLatin1String("Box 1")) {
+                slide.items.erase(it);
+                break;
+            }
+        skipped.clear();
+        bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        read = deck::readAnimations(*back->pages[0]);
+        QCOMPARE(read.effects.size(), 2);
+        QCOMPARE(nameOf(*back, read.effects[0].shape), QStringLiteral("Fresh"));
+        QCOMPARE(nameOf(*back, read.effects[1].shape), QStringLiteral("Box 2"));
+        QVERIFY(!read.effects[0].custom() && read.effects[0].kind == QLatin1String("entr.fly"));
+        bool noted = false;
+        for (const QString &s : std::as_const(skipped)) noted |= s.startsWith(QLatin1String("Slide 1")) && s.contains(QStringLiteral("animation"));
+        QVERIFY2(noted, qPrintable(skipped.join('\n')));
+    }
+
+    // The Animations tab: between Transitions and Slide Show, with its gallery, Effect Options, Add Animation, the pane, the
+    // painter, and the timing controls; the commands are steps that undo, and the pane lists the effects.
+    void windowAnimationsTab()
+    {
+        DeckWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        Ribbon *r = w.ribbon();
+        int transitions = -1, animations = -1, show = -1;
+        for (int i = 0; i < r->tabCount(); ++i) {
+            if (r->tabName(i) == QLatin1String("Transitions")) transitions = i;
+            if (r->tabName(i) == QLatin1String("Animations")) animations = i;
+            if (r->tabName(i) == QLatin1String("Slide Show")) show = i;
+        }
+        QVERIFY(animations > 0);
+        QCOMPARE(animations, transitions + 1);
+        QCOMPARE(show, animations + 1);
+        for (const char *id : {"anim.preview", "anim.pane", "anim.painter", "anim.earlier", "anim.later", "anim.none", "anim.options", "anim.timing", "anim.remove", "anim.set.entr.fade", "anim.add.exit.fly"})
+            QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QVERIFY(r->findChild<Gallery *>(QStringLiteral("animationGallery")));
+        Editor *ed = w.editor();
+        auto slidePage = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        ed->doc()->storyDoc(static_cast<TextItem *>(slidePage().items[1].get())->storyId)->setPlainText(QStringLiteral("One\nTwo\nThree"));
+        QVERIFY(!slidePage().props.contains(QStringLiteral("timingXml")));
+        QVERIFY(!w.act("anim.preview")->isEnabled());
+        // Nothing selected, nothing happens.
+        w.act("anim.set.entr.fade")->trigger();
+        QVERIFY(!slidePage().props.contains(QStringLiteral("timingXml")));
+        // A shape selected: the effect is made, on a click, and undoes.
+        ed->select(slidePage().items[0]->id);
+        w.act("anim.set.entr.fade")->trigger();
+        deck::AnimSequence seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.effects[0].kind, QStringLiteral("entr.fade"));
+        QCOMPARE(seq.effects[0].shape, slidePage().items[0]->sourceId);
+        QVERIFY(slidePage().items[0]->sourceId > 0);
+        QVERIFY(w.act("anim.preview")->isEnabled());
+        auto *pane = w.animationPane();
+        QVERIFY(pane);
+        QCOMPARE(pane->rowCount(), 1);
+        QVERIFY(pane->list()->item(0)->text().contains(QStringLiteral("Fade")));
+        // Another effect on the same shape replaces the first; Add Animation adds one.
+        w.act("anim.set.entr.fly")->trigger();
+        seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.effects[0].kind, QStringLiteral("entr.fly"));
+        w.act("anim.add.emph.spin")->trigger();
+        seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects.size(), 2);
+        QCOMPARE(seq.effects[1].kind, QStringLiteral("emph.spin"));
+        QCOMPARE(pane->rowCount(), 2);
+        // The timing controls follow the effect picked.
+        auto *start = r->findChild<QComboBox *>(QStringLiteral("animStartBox"));
+        auto *duration = r->findChild<QDoubleSpinBox *>(QStringLiteral("animDuration"));
+        auto *delay = r->findChild<QDoubleSpinBox *>(QStringLiteral("animDelay"));
+        QVERIFY(start && duration && delay);
+        pane->list()->setCurrentRow(1, QItemSelectionModel::ClearAndSelect);
+        QCOMPARE(int(ed->selection().size()), 1);   // the row's shape is selected on the slide
+        QCOMPARE(duration->value(), 2.0);           // the spin takes 2 seconds
+        QCOMPARE(start->currentData().toInt(), int(deck::EffectStart::OnClick));
+        duration->setValue(1.25);
+        delay->setValue(0.5);
+        start->setCurrentIndex(start->findData(int(deck::EffectStart::AfterPrevious)));
+        Q_EMIT start->activated(start->currentIndex());
+        seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects[1].duration, 1250);
+        QCOMPARE(seq.effects[1].delay, 500);
+        QCOMPARE(seq.effects[1].start, deck::EffectStart::AfterPrevious);
+        QCOMPARE(seq.effects[0].duration, 500);   // the other is as it was
+        // Each was a step.
+        ed->undo();
+        QCOMPARE(deck::readAnimations(slidePage()).effects[1].start, deck::EffectStart::OnClick);
+        ed->undo();
+        QCOMPARE(deck::readAnimations(slidePage()).effects[1].delay, 0);
+        ed->undo();
+        QCOMPARE(deck::readAnimations(slidePage()).effects[1].duration, 2000);
+        // Re-Order from the pane: the picked effect moves earlier, and later.
+        pane->list()->setCurrentRow(1, QItemSelectionModel::ClearAndSelect);
+        Q_EMIT pane->reorderRequested(-1);
+        seq = deck::readAnimations(slidePage());
+        QCOMPARE(seq.effects[0].kind, QStringLiteral("emph.spin"));
+        w.act("anim.later")->trigger();
+        QCOMPARE(deck::readAnimations(slidePage()).effects[1].kind, QStringLiteral("emph.spin"));
+        // Remove, and None.
+        Q_EMIT pane->removeRequested({1});
+        QCOMPARE(int(deck::readAnimations(slidePage()).effects.size()), 1);
+        w.act("anim.none")->trigger();
+        QVERIFY(!slidePage().props.contains(QStringLiteral("timingXml")));
+    }
+
+    // Effect Options lists what the effect picked can do: its directions, its amounts, and by paragraph for text; each choice is a step.
+    void windowAnimationEffectOptions()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        auto slidePage = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        ed->doc()->storyDoc(static_cast<TextItem *>(slidePage().items[1].get())->storyId)->setPlainText(QStringLiteral("One\nTwo\nThree"));
+        QMenu *menu = nullptr;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() && b->defaultAction()->objectName() == QLatin1String("ribbon.animEffectOptions") && b->menu()) menu = b->menu();
+        QVERIFY(menu);
+        auto texts = [&] {
+            Q_EMIT menu->aboutToShow();
+            QStringList out;
+            for (QAction *a : menu->actions()) out << a->text();
+            return out;
+        };
+        QCOMPARE(texts(), (QStringList{QStringLiteral("No Effect Options")}));
+        ed->select(slidePage().items[1]->id);
+        w.act("anim.set.entr.fly")->trigger();
+        const QStringList fly = texts();
+        QVERIFY(fly.contains(QStringLiteral("From Left")) && fly.contains(QStringLiteral("From Bottom-Right")) && fly.contains(QStringLiteral("By Paragraph")));
+        auto choose = [&](const QString &text) {
+            Q_EMIT menu->aboutToShow();
+            for (QAction *a : menu->actions())
+                if (a->text() == text) {
+                    a->trigger();
+                    return true;
+                }
+            return false;
+        };
+        QVERIFY(choose(QStringLiteral("From Left")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].variant, QStringLiteral("left"));
+        QVERIFY(choose(QStringLiteral("By Paragraph")));
+        QCOMPARE(int(deck::readAnimations(slidePage()).effects.size()), 3);   // a paragraph each
+        QCOMPARE(deck::readAnimations(slidePage()).effects[2].variant, QStringLiteral("left"));
+        QVERIFY(choose(QStringLiteral("From Top")));
+        for (const deck::Anim &a : deck::readAnimations(slidePage()).effects) QCOMPARE(a.variant, QStringLiteral("top"));   // the build changes together
+        QVERIFY(choose(QStringLiteral("As One Object")));
+        QCOMPARE(int(deck::readAnimations(slidePage()).effects.size()), 1);
+        // Amounts: grow/shrink and spin.
+        w.act("anim.set.emph.growshrink")->trigger();
+        QVERIFY(texts().contains(QStringLiteral("Huge")));
+        QVERIFY(choose(QStringLiteral("Huge")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].amount, 400.0);
+        QVERIFY(choose(QStringLiteral("Horizontal")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].variant, QStringLiteral("horizontal"));
+        w.act("anim.set.emph.spin")->trigger();
+        QVERIFY(choose(QStringLiteral("Half Spin")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].amount, 180.0);
+        QVERIFY(choose(QStringLiteral("Counterclockwise")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].variant, QStringLiteral("ccw"));
+        // A motion path: its paths.
+        w.act("anim.set.path.shapes")->trigger();
+        QVERIFY(texts().contains(QStringLiteral("5 Point Star")));
+        QVERIFY(choose(QStringLiteral("5 Point Star")));
+        QCOMPARE(deck::readAnimations(slidePage()).effects[0].variant, QStringLiteral("p5"));
+    }
+
+    // The dialog for one effect shows its settings and gives them back.
+    void animationOptionsDialogReadsAndGives()
+    {
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fly"), 3);
+        a.delay = 500;
+        a.duration = 1500;
+        a.smoothStart = true;
+        a.repeat = 3;
+        AnimationOptionsDialog dlg(a, true, AnimationOptionsDialog::TimingTab);
+        QCOMPARE(dlg.findChild<QTabWidget *>()->currentIndex(), int(AnimationOptionsDialog::TimingTab));
+        QCOMPARE(dlg.findChild<QDoubleSpinBox *>(QStringLiteral("animDelay"))->value(), 0.5);
+        QCOMPARE(dlg.findChild<QDoubleSpinBox *>(QStringLiteral("animDuration"))->value(), 1.5);
+        QVERIFY(dlg.findChild<QCheckBox *>(QStringLiteral("animSmoothStart"))->isChecked());
+        QVERIFY(!dlg.findChild<QCheckBox *>(QStringLiteral("animSmoothEnd"))->isChecked());
+        QCOMPARE(dlg.findChild<QComboBox *>(QStringLiteral("animRepeat"))->currentData().toInt(), 3);
+        QVERIFY(!dlg.byParagraph());
+        auto *variant = dlg.findChild<QComboBox *>(QStringLiteral("animVariant"));
+        variant->setCurrentIndex(variant->findData(QStringLiteral("right")));
+        dlg.findChild<QDoubleSpinBox *>(QStringLiteral("animDuration"))->setValue(2.25);
+        dlg.findChild<QCheckBox *>(QStringLiteral("animRewind"))->setChecked(true);
+        dlg.findChild<QRadioButton *>(QStringLiteral("animByParagraph"))->setChecked(true);
+        const deck::Anim r = dlg.result();
+        QCOMPARE(r.variant, QStringLiteral("right"));
+        QCOMPARE(r.duration, 2250);
+        QCOMPARE(r.delay, 500);
+        QVERIFY(r.rewind && r.smoothStart);
+        QVERIFY(dlg.byParagraph());
+        // An appearing shape has no length to set, and an effect from another program offers only how it starts.
+        AnimationOptionsDialog d2(deck::makeAnim(QStringLiteral("entr.appear"), 3), false, AnimationOptionsDialog::EffectTab);
+        QVERIFY(!d2.findChild<QDoubleSpinBox *>(QStringLiteral("animDuration"))->isEnabled());
+        QVERIFY(!d2.findChild<QRadioButton *>(QStringLiteral("animByParagraph"))->isEnabled());
+        deck::Anim custom;
+        custom.cls = deck::EffectClass::Entrance;
+        custom.shape = 3;
+        custom.start = deck::EffectStart::WithPrevious;
+        AnimationOptionsDialog d3(custom, true, AnimationOptionsDialog::TimingTab);
+        QVERIFY(!d3.findChild<QDoubleSpinBox *>(QStringLiteral("animDelay"))->isEnabled());
+        QCOMPARE(d3.result().start, deck::EffectStart::WithPrevious);
+    }
+
+    // Preview plays the slide's effects over the slide and hides itself when they are over; the numbers sit by the shapes while
+    // the tab or the pane shows, and not otherwise.
+    void windowAnimationPreviewAndNumbers()
+    {
+        DeckWindow w;
+        w.resize(1300, 800);
+        w.show();
+        Editor *ed = w.editor();
+        auto slidePage = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        ed->select(slidePage().items[0]->id);
+        w.act("anim.set.entr.fade")->trigger();
+        ed->select(slidePage().items[1]->id);
+        w.act("anim.set.entr.fly")->trigger();
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 0);
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Animations")));
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 2);
+        QCOMPARE(w.canvas()->animationBadges()[1].text, QStringLiteral("2"));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Home")));
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 0);
+        w.showAnimationPane(true);
+        QVERIFY(w.act("anim.pane")->isChecked());
+        QTRY_VERIFY(w.animationPane()->isVisible());
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 2);   // the pane shows them too
+        w.showAnimationPane(false);
+        QVERIFY(!w.act("anim.pane")->isChecked());
+        QCOMPARE(int(w.canvas()->animationBadges().size()), 0);
+        w.act("anim.preview")->trigger();
+        auto *preview = w.canvas()->findChild<AnimationPreview *>(QStringLiteral("animationPreview"));
+        QVERIFY(preview);
+        QVERIFY(preview->isPlaying());
+        QTRY_VERIFY2_WITH_TIMEOUT(!w.canvas()->findChild<AnimationPreview *>(QStringLiteral("animationPreview")), "the preview ends", 8000);
+    }
+
+    // What an effect does to its shape when it is over: hide it when the effect ends, or at the next click. It is written as the
+    // presentation program writes it, reads back, and plays that way in the show.
+    void animationEditHidesAfterAnEffect()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 10);
+        a.after = deck::AfterEffect::Hide;
+        deck::Anim b = deck::makeAnim(QStringLiteral("emph.spin"), 11);
+        b.after = deck::AfterEffect::HideOnNextClick;
+        seq.add(a);
+        seq.add(b);
+        seq.add(deck::makeAnim(QStringLiteral("entr.appear"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        // The first effect's time node is 5; its hiding ends with it.
+        QVERIFY(xml.contains(QStringLiteral("<p:subTnLst><p:set><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"sameClick\" afterEffect=\"1\">"
+                                            "<p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"5\"/></p:cond></p:stCondLst></p:cTn>")));
+        QVERIFY(xml.contains(QStringLiteral("masterRel=\"nextClick\" afterEffect=\"1\"/>")));
+        const deck::AnimSequence back = deck::readAnimations(slide);
+        QCOMPARE(int(back.effects.size()), 3);
+        QVERIFY(!back.effects[0].custom() && !back.effects[1].custom());
+        QCOMPARE(back.effects[0].after, deck::AfterEffect::Hide);
+        QCOMPARE(back.effects[1].after, deck::AfterEffect::HideOnNextClick);
+        QCOMPARE(back.effects[2].after, deck::AfterEffect::None);
+        // Played: gone after its effect, and the second at the click after it.
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        auto visible = [&](int done, double ms, int shape) { return deck::statesAt(tl, g, done, ms).value(deck::Target{shape}).visible; };
+        QVERIFY(visible(0, 250, 10));     // while its fade plays, it is there
+        QVERIFY(!visible(1, -1, 10));     // and hidden when it ends
+        QVERIFY(visible(2, -1, 11));      // the spin is over, and the shape stays...
+        QVERIFY(!visible(3, -1, 11));     // ...until the next click: the step after it hides it
+        QVERIFY(visible(3, -1, 3));       // as the third step shows its own shape
+        QCOMPARE(int(tl.steps.size()), 3);
+        // Changing the kind of an effect keeps what it does when it is over, unless the kind is an exit.
+        deck::Anim c = a;
+        deck::changeKind(c, *deck::effectKind(QStringLiteral("entr.wipe")));
+        QCOMPARE(c.after, deck::AfterEffect::Hide);
+        deck::changeKind(c, *deck::effectKind(QStringLiteral("exit.wipe")));
+        QCOMPARE(c.after, deck::AfterEffect::None);
+        // The dialog gives it back.
+        AnimationOptionsDialog dlg(a, false, AnimationOptionsDialog::EffectTab);
+        auto *after = dlg.findChild<QComboBox *>(QStringLiteral("animAfter"));
+        QVERIFY(after && after->isEnabled());
+        QCOMPARE(after->currentData().toInt(), int(deck::AfterEffect::Hide));
+        after->setCurrentIndex(after->findData(int(deck::AfterEffect::HideOnNextClick)));
+        QCOMPARE(dlg.result().after, deck::AfterEffect::HideOnNextClick);
+        AnimationOptionsDialog exit(deck::makeAnim(QStringLiteral("exit.fade"), 3), false, AnimationOptionsDialog::EffectTab);
+        QVERIFY(!exit.findChild<QComboBox *>(QStringLiteral("animAfter"))->isEnabled());
+    }
+
+    // A timing a file makes hostile is read within limits and never rewritten: one with more effects than a slide could have, and
+    // one that nests its effects deeper than any program does, are shown as far as they can be and not changed.
+    void animationEditReadsHostileTiming()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        QStringList many;
+        for (int i = 0; i < 2600; ++i) many << animFadeIn(3, 100);
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps(many));
+        QElapsedTimer clock;
+        clock.start();
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QVERIFY2(clock.elapsed() < 8000, "reading 2,600 effects took too long");
+        QVERIFY(!seq.editable);
+        QCOMPARE(int(seq.effects.size()), 2000);
+        // Nested thirty deep, the effect is not found by the editing reader, which then does not rewrite the timing.
+        QString nested = animFadeIn(3, 100);
+        for (int i = 0; i < 30; ++i) nested = animGroup(0, {nested});
+        slide.props[QStringLiteral("timingXml")] = animTiming(animStep({nested}));
+        seq = deck::readAnimations(slide);
+        QVERIFY(!seq.editable);
+        // Garbage is nothing, and a timing with no sequence is none.
+        slide.props[QStringLiteral("timingXml")] = QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst/></p:timing>");
+        QVERIFY(deck::readAnimations(slide).effects.isEmpty());
+        slide.props[QStringLiteral("timingXml")] = QStringLiteral("<p:timing");
+        QVERIFY(deck::readAnimations(slide).effects.isEmpty());
+        QVERIFY(deck::readAnimations(slide).editable);
+    }
+
+    // The windows of the animation feature, as pictures, when JD_ANIM_SHOTS names a folder (the other times it only checks that they draw).
+    void animationScreenshots()
+    {
+        const QString folder = qEnvironmentVariable("JD_ANIM_SHOTS");
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        w.newSlide(QStringLiteral("obj"));
+        auto slidePage = [ed]() -> Page & { return *ed->doc()->pages[ed->currentPage()]; };
+        ed->doc()->storyDoc(static_cast<TextItem *>(slidePage().items[0].get())->storyId)->setPlainText(QStringLiteral("Quarterly review"));
+        ed->doc()->storyDoc(static_cast<TextItem *>(slidePage().items[1].get())->storyId)->setPlainText(QStringLiteral("Sales grew in every region\nThree new offices opened\nCosts stayed flat"));
+        auto box = std::make_shared<ShapeItem>();
+        box->name = QStringLiteral("Growth chart");
+        box->rect = QRectF(560, 330, 300, 150);
+        box->fill = Fill::solid(ColorRef::rgb(QColor(0x3A, 0x6E, 0xA5)));
+        slidePage().items.push_back(box);
+        auto pick = [&](const QString &id, const char *action) {
+            ed->select(id);
+            w.act(action)->trigger();
+        };
+        pick(slidePage().items[0]->id, "anim.set.entr.fade");
+        pick(slidePage().items[1]->id, "anim.set.entr.fly");
+        {
+            const deck::AnimSequence seq = deck::readAnimations(slidePage());
+            deck::AnimSequence two = seq;
+            two.effects[0].start = deck::EffectStart::OnClick;
+            deck::setByParagraph(two, 1, true, *ed->doc(), slidePage());
+            deck::setAnimations(*ed->doc(), slidePage(), two);
+        }
+        pick(box->id, "anim.set.emph.spin");
+        w.act("anim.add.path.shapes")->trigger();
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Animations")));
+        w.showAnimationPane(true);
+        w.animationPane()->list()->setCurrentRow(3, QItemSelectionModel::ClearAndSelect);
+        QTRY_VERIFY(w.animationPane()->isVisible());
+        QApplication::processEvents();
+        QCOMPARE(w.animationPane()->rowCount(), 6);
+        auto save = [&](const QImage &img, const char *name) {
+            QVERIFY(!img.isNull());
+            if (!folder.isEmpty()) QVERIFY(img.save(QDir(folder).filePath(QString::fromLatin1(name))));
+        };
+        save(w.grab().toImage(), "tab-and-pane.png");
+        // The gallery, all open.
+        auto *gallery = w.ribbon()->findChild<Gallery *>(QStringLiteral("animationGallery"));
+        QVERIFY(gallery);
+        for (QToolButton *b : gallery->findChildren<QToolButton *>())
+            if (b->accessibleName() == QLatin1String("Show all")) b->click();
+        QTRY_VERIFY(QApplication::activePopupWidget());
+        save(QApplication::activePopupWidget()->grab().toImage(), "gallery.png");
+        QApplication::activePopupWidget()->close();
+        // Effect Options of the fly in.
+        w.animationPane()->list()->setCurrentRow(1, QItemSelectionModel::ClearAndSelect);
+        QMenu *menu = nullptr;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() && b->defaultAction()->objectName() == QLatin1String("ribbon.animEffectOptions") && b->menu()) menu = b->menu();
+        QVERIFY(menu);
+        menu->popup(QPoint(300, 200));
+        QTRY_VERIFY(menu->isVisible());
+        save(menu->grab().toImage(), "effect-options-menu.png");
+        menu->close();
+        // The row menu.
+        // The dialogs.
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fly"), 3);
+        a.variant = QStringLiteral("left");
+        a.duration = 1500;
+        a.delay = 250;
+        a.smoothEnd = true;
+        for (auto tab : {AnimationOptionsDialog::EffectTab, AnimationOptionsDialog::TimingTab, AnimationOptionsDialog::TextTab}) {
+            AnimationOptionsDialog dlg(a, true, tab, &w);
+            dlg.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&dlg));
+            save(dlg.grab().toImage(), tab == AnimationOptionsDialog::EffectTab ? "dialog-effect.png" : tab == AnimationOptionsDialog::TimingTab ? "dialog-timing.png" : "dialog-text.png");
+        }
     }
 
     // ---- the show plays them ----
