@@ -4,6 +4,9 @@
 // sounds, charts, notes, and the transition and animation it keeps), under
 // new ids all through, so nothing in the two presentations shares one.
 //
+// A slide from a presentation of another slide size is fitted to this one's
+// (fitPageToSize in deck.h), and so are the layout and slide master it brings.
+//
 // Either the slide takes this presentation's look, or keeps its own:
 // - without its formatting, it stands on this presentation's layout of the
 //   same type (as the slide before it has one, else any), its placeholders

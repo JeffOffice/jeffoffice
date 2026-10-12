@@ -247,6 +247,7 @@ std::shared_ptr<MasterPage> copyMasterPage(Document &to, const Document &from, c
     carry.fill(page->background);
     QHash<QString, QString> ids;
     page->items = carry.items(src.items, &ids);
+    fitPageToSize(to, *page, from.pageSize(), to.pageSize(), false);
     remapCharts(&page->props, ids);
     page->props[QStringLiteral("reuseKey")] = key;
     if (isSlideMaster(src)) page->props[QStringLiteral("themeXml")] = QString::fromLatin1(themeXmlOf(from, src).toBase64());
@@ -388,6 +389,7 @@ int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool 
     }
     QHash<QString, QString> ids;
     page->items = carry.items(src.items, &ids);
+    fitPageToSize(to, *page, from.pageSize(), to.pageSize(), true);
     remapCharts(&page->props, ids);
     page->notesStoryId = src.notesStoryId.isEmpty() ? to.createStory() : carry.story(src.notesStoryId);
     to.pages.insert(index, page);

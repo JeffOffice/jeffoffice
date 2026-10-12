@@ -6504,6 +6504,41 @@ private Q_SLOTS:
         QCOMPARE(sectionCounts(*dest).value(0), 4);
     }
 
+    // A slide from a presentation of another slide size is fitted to this one's, as Slide Size
+    // does it: what it holds keeps its shape, scaled and centered, its layout and master stretch.
+    void reuseFitsASlideToThisPresentationsSlideSize()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        QCOMPARE(src->pageSize(), QSizeF(960, 540));
+        auto dest = deck::newPresentation();
+        deck::setSlideSize(*dest, QSizeF(720, 540));
+        const QRectF was = namedItem(*src->pages[0], QStringLiteral("Picture 7"))->rect;
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, false), 1);
+        const QRectF page(QPointF(0, 0), dest->pageSize());
+        const QRectF fitted = namedItem(*dest->pages[1], QStringLiteral("Picture 7"))->rect;
+        QVERIFY2(page.contains(fitted), qPrintable(QStringLiteral("%1,%2 %3x%4").arg(fitted.x()).arg(fitted.y()).arg(fitted.width()).arg(fitted.height())));
+        QVERIFY(std::abs(fitted.width() - was.width() * 0.75) < 0.01 && std::abs(fitted.height() - was.height() * 0.75) < 0.01);
+        QVERIFY(std::abs(fitted.x() - (was.x() * 0.75)) < 0.01);   // 720/960 across, and the height ratio is 1: scaled by 0.75, centered
+        for (const auto &it : dest->pages[1]->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(it->name + " " + it->role));
+        // With the formatting kept, the layout and the master come stretched to this slide size too.
+        QCOMPARE(deck::insertSlideFrom(*dest, 2, *src, 0, true), 2);
+        const MasterPage *layout = dest->masterFor(*dest->pages[2]);
+        QVERIFY(layout);
+        for (const MasterPage *m : QList<const MasterPage *>{layout, dest->master(layout->baseId)}) {
+            QVERIFY(m);
+            for (const auto &it : m->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(m->name + " " + it->name + " " + it->role));
+        }
+        const Item *band = namedItem(*dest->master(layout->baseId), QStringLiteral("Master Band"));
+        QVERIFY(band);
+        QVERIFY(std::abs(band->rect.width() - 720) < 0.01);
+        for (const auto &it : dest->pages[2]->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(it->name + " " + it->role));
+        // The same size changes nothing.
+        auto same = deck::newPresentation();
+        deck::insertSlideFrom(*same, 1, *src, 0, false);
+        QCOMPARE(namedItem(*same->pages[1], QStringLiteral("Picture 7"))->rect, was);
+    }
+
     // The Reuse Slides pane: Browse picks a presentation, its slides are listed as thumbnails with titles, and a
     // click puts a copy after the slide being edited, as one step that undoes. "Keep source formatting" is off
     // until it is turned on.
