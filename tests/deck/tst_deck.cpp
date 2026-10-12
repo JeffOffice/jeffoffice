@@ -17,6 +17,7 @@
 #include "app/outlineview.h"
 #include "app/presenterview.h"
 #include "app/recovery.h"
+#include "app/rehearsebar.h"
 #include "app/reusepane.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
@@ -27,6 +28,7 @@
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/ink.h"
 #include "core/reuse.h"
 #include "core/sections.h"
 #include "core/showsettings.h"
@@ -5684,6 +5686,615 @@ private Q_SLOTS:
         auto d5 = deck::importPresentation(with(QString(), props), &err);
         QVERIFY2(d5, qPrintable(err));
         QVERIFY(d5->appData.value(QStringLiteral("presPropsKept")).toObject().isEmpty() || QJsonDocument(d5->appData.value(QStringLiteral("presPropsKept")).toObject()).toJson().size() < 200000);
+    }
+
+    // Kept ink is a freeform line for each stroke above the slide's objects: the pen opaque and thin, the highlighter wide and
+    // see-through, both as lines the file holds and the program shows.
+    void inkBecomesFreeformShapes()
+    {
+        auto d = lettered(2);
+        const int before = int(d->pages[0]->items.size());
+        deck::InkStroke pen, marker, dot;
+        for (int i = 0; i <= 200; ++i) pen.points << QPointF(100 + i * 2, 100 + 30 * std::sin(i / 10.0));
+        pen.color = QColor(255, 0, 0);
+        pen.width = deck::penWeightFor(d->pageSize().width());
+        marker.points = {QPointF(100, 300), QPointF(400, 300)};
+        marker.color = QColor(255, 255, 0);
+        marker.width = deck::highlighterWeightFor(d->pageSize().width());
+        marker.highlighter = true;
+        dot.points = {QPointF(50, 50)};
+        dot.color = QColor(0, 0, 255);
+        dot.width = pen.width;
+        deck::addInk(*d->pages[0], {pen, marker, dot});
+        QCOMPARE(int(d->pages[0]->items.size()), before + 3);
+        QCOMPARE(int(d->pages[1]->items.size()), before);
+        const ShapeItem *p = static_cast<const ShapeItem *>(d->pages[0]->items[before].get());
+        const ShapeItem *m = static_cast<const ShapeItem *>(d->pages[0]->items[before + 1].get());
+        const ShapeItem *dotShape = static_cast<const ShapeItem *>(d->pages[0]->items[before + 2].get());
+        QVERIFY(p->type() == ItemType::Shape && m->type() == ItemType::Shape);
+        QVERIFY(!p->customPath.isEmpty());
+        QVERIFY(p->fill.isNone());
+        QVERIFY(p->customPath.elementCount() < 120);   // thinned to the points that matter, not all 201
+        QVERIFY(p->rect.contains(QPointF(300, 100)));
+        QCOMPARE(p->stroke.width, 2.5 * d->pageSize().width() / 960);
+        QCOMPARE(p->stroke.transparency, 0.0);   // opaque
+        QCOMPARE(m->stroke.transparency, 0.5);   // see-through
+        QVERIFY(m->stroke.width > 5 * p->stroke.width);
+        QVERIFY(p->stroke.width < 4);
+        QVERIFY(p->stroke.cap == Qt::RoundCap);
+        QVERIFY(dotShape->rect.width() >= 1 && dotShape->rect.height() >= 1);
+        QVERIFY(m->customPath.elementCount() == 2);
+        // Saved, each is a freeform with its own line, and the file reads back with them.
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QCOMPARE(int(slide.count(QStringLiteral("<a:custGeom>"))), 3);
+        QVERIFY(slide.contains(QStringLiteral("<a:ln w=\"%1\"").arg(qRound64(p->stroke.width * 12700))));
+        QVERIFY(slide.contains(QStringLiteral("<a:alpha val=\"50000\"/>")));
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages[0]->items.size()), before + 3);
+        // A stroke with no point makes nothing.
+        QVERIFY(!deck::inkShape(deck::InkStroke()));
+        // The eraser reaches a stroke by its line and half its weight.
+        QVERIFY(deck::inkTouches(marker, QPointF(250, 305), 1));
+        QVERIFY(!deck::inkTouches(marker, QPointF(250, 330), 1));
+        QVERIFY(deck::inkTouches(dot, QPointF(52, 50), 1));
+        QVERIFY(!deck::inkTouches(dot, QPointF(60, 50), 1));
+    }
+
+    // A show set to loop starts again at the first slide after the last, with the transition into it; one that does not ends with
+    // the black screen. Back from the first slide stays on it.
+    void showLoopsWhenSetTo()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow plain(d.get(), &cache, 0);
+        plain.goTo(2);
+        plain.next();
+        QCOMPARE(plain.currentSlide(), -1);
+        SlideShow loop(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.loop = true;
+        loop.setSettings(s);
+        loop.goTo(2);
+        loop.next();
+        QCOMPARE(loop.currentSlide(), 0);
+        loop.previous();
+        QCOMPARE(loop.currentSlide(), 0);
+        deck::setTransition(*d->pages[0], showTransition("fade", 30));
+        loop.goTo(2);
+        loop.next();
+        QVERIFY(loop.isAnimating());
+        QCOMPARE(loop.targetSlide(), 0);
+        loop.finishTransition();
+        QCOMPARE(loop.currentSlide(), 0);
+        // A hidden first slide is passed over on the way round.
+        d->pages[0]->hidden = true;
+        loop.goTo(2);
+        loop.next();
+        QCOMPARE(loop.currentSlide(), 1);
+    }
+
+    // At a kiosk the keys and clicks do nothing but Esc ends the show and a link opens; the slides' times move it on, and it
+    // starts again after the last.
+    void showAtAKioskMovesOnOnlyByTimings()
+    {
+        auto d = showDeck(3);
+        for (int i = 0; i < 3; ++i) {
+            deck::Transition t;
+            t.advanceAfter = 0.05;
+            deck::setTransition(*d->pages[i], t);
+        }
+        d->pages[1]->items[0]->hyperlink = QStringLiteral("https://example.com/kiosk");
+        LinkCatcher catcher;
+        QDesktopServices::setUrlHandler(QStringLiteral("https"), &catcher, "open");
+        LayoutCache cache;
+        QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Kiosk;
+        show->setSettings(s);
+        QVERIFY(show->isKiosk());
+        QVERIFY(!show->isWindowed());
+        QSignalSpy ended(show.data(), &SlideShow::ended);
+        show->resize(960, 540);
+        QTest::keyClick(show.data(), Qt::Key_Right);
+        QTest::keyClick(show.data(), Qt::Key_Space);
+        QTest::mouseClick(show.data(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 530));
+        QTest::mouseClick(show.data(), Qt::RightButton, Qt::NoModifier, QPoint(5, 530));
+        QTest::keyClick(show.data(), Qt::Key_P, Qt::ControlModifier);
+        QCOMPARE(show->currentSlide(), 0);
+        QVERIFY(!show->findChild<QMenu *>(QStringLiteral("showMenu")));
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));
+        QCOMPARE(ended.count(), 0);
+        // A link opens, and the show stays where it is.
+        show->goTo(1);
+        QTest::mouseClick(show.data(), Qt::LeftButton, Qt::NoModifier, d->pages[1]->items[0]->bounds().center().toPoint());
+        QCOMPARE(catcher.urls, (QStringList{"https://example.com/kiosk"}));
+        QCOMPARE(show->currentSlide(), 1);
+        QDesktopServices::unsetUrlHandler(QStringLiteral("https"));
+        // The times move it on, round and round.
+        QList<int> seen;
+        connect(show.data(), &SlideShow::changed, this, [&] { seen << show->currentSlide(); });
+        show->goTo(0);
+        seen.clear();
+        show->show();
+        QTRY_VERIFY(seen.size() >= 4);
+        QCOMPARE(seen.mid(0, 4), (QList<int>{1, 2, 0, 1}));
+        QTest::keyClick(show.data(), Qt::Key_Escape);
+        QCOMPARE(ended.count(), 1);
+        QTRY_VERIFY(show.isNull());
+    }
+
+    // Moving on by the slides' times is a setting: off, they do nothing.
+    void showFollowsTimingsOnlyWhenSetTo()
+    {
+        auto d = showDeck(2);
+        deck::Transition t;
+        t.advanceAfter = 30;
+        deck::setTransition(*d->pages[0], t);
+        LayoutCache cache;
+        SlideShow timed(d.get(), &cache, 0);
+        timed.show();
+        QVERIFY(timed.autoAdvanceActive());
+        SlideShow manual(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.useTimings = false;
+        manual.setSettings(s);
+        manual.show();
+        QVERIFY(!manual.autoAdvanceActive());
+        manual.next();   // by hand it still goes
+        QCOMPARE(manual.currentSlide(), 1);
+    }
+
+    // A show without animation has no steps to click through, and shows each slide whole.
+    void showWithoutAnimationShowsSlidesWhole()
+    {
+        auto d = animatedDeck(100);
+        LayoutCache cache;
+        SlideShow animated(d.get(), &cache, 0);
+        QCOMPARE(animated.stepCount(), 2);
+        SlideShow still(d.get(), &cache, 0);
+        deck::ShowSettings s;
+        s.animation = false;
+        still.setSettings(s);
+        QCOMPARE(still.stepCount(), 0);
+        const QSize size(640, 360);
+        const QImage start = animated.renderView(SlideShow::View{0, 0}, -1, size, 1.0);
+        const QImage end = animated.renderView(SlideShow::View{0, 2}, -1, size, 1.0);
+        QVERIFY(start != end);
+        QCOMPARE(still.renderView(SlideShow::View{0, 0}, -1, size, 1.0), end);
+        still.next();   // the first click moves on
+        QCOMPARE(still.currentSlide(), 1);
+    }
+
+    // A show plays the slides it is given in the order it is given them, a slide twice if it lists it twice, and hidden slides if it
+    // is a custom show; back goes the way it came; a number goes to the first place a slide has.
+    void showPlaysTheSlidesItIsGiven()
+    {
+        auto d = showDeck(5);
+        d->pages[3]->hidden = true;
+        LayoutCache cache;
+        SlideShow ranged(d.get(), &cache, 0);
+        ranged.setSlides({1, 2, 3}, false);
+        QCOMPARE(ranged.currentSlide(), 1);
+        QCOMPARE(ranged.playedSlides(), (QList<int>{1, 2}));
+        ranged.next();
+        QCOMPARE(ranged.currentSlide(), 2);
+        ranged.next();
+        QCOMPARE(ranged.currentSlide(), -1);   // the hidden slide is passed over
+        SlideShow custom(d.get(), &cache, 0);
+        custom.setSlides({3, 0, 3, 4}, true);
+        QCOMPARE(custom.currentSlide(), 3);
+        QCOMPARE(custom.playedSlides(), (QList<int>{3, 0, 3, 4}));
+        PresenterView pv(&custom);
+        QCOMPARE(pv.nextSlide(), 0);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 4 of 5"));
+        custom.next();
+        QCOMPARE(custom.currentSlide(), 0);
+        custom.next();
+        QCOMPARE(custom.currentSlide(), 3);
+        QCOMPARE(pv.nextSlide(), 4);
+        custom.previous();
+        QCOMPARE(custom.currentSlide(), 0);   // not the first 3: back is the place before
+        custom.next();
+        custom.next();
+        QCOMPARE(custom.currentSlide(), 4);
+        custom.next();
+        QCOMPARE(custom.currentSlide(), -1);
+        custom.previous();
+        QCOMPARE(custom.currentSlide(), 4);
+        custom.goTo(3);
+        QCOMPARE(custom.currentSlide(), 3);
+        custom.next();
+        QCOMPARE(custom.currentSlide(), 0);   // the first place of 3 came before 0
+        custom.goTo(2);                        // not in the show
+        QCOMPARE(custom.currentSlide(), 0);
+        QTest::keyClick(&custom, Qt::Key_End);
+        QCOMPARE(custom.currentSlide(), 4);
+        QTest::keyClick(&custom, Qt::Key_Home);
+        QCOMPARE(custom.currentSlide(), 3);
+        // A show of every slide starts where it is asked to.
+        SlideShow all(d.get(), &cache, 2);
+        all.setSlides({}, false);
+        QCOMPARE(all.currentSlide(), 2);
+    }
+
+    // Ctrl+P, Ctrl+I, Ctrl+L, and Ctrl+E choose the pen, the highlighter, the laser pointer, and the eraser; Ctrl+A and Esc bring the
+    // arrow back (Esc ends the show only from the arrow); P alone still goes back.
+    void showKeysChooseThePointer()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 1);
+        QSignalSpy ended(show.data(), &SlideShow::ended);
+        QSignalSpy changed(show.data(), &SlideShow::overlayChanged);
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));
+        auto press = [&](int key, SlideShow::Pointer expect) {
+            QTest::keyClick(show.data(), key, Qt::ControlModifier);
+            QCOMPARE(int(show->pointer()), int(expect));
+        };
+        press(Qt::Key_P, SlideShow::Pointer::Pen);
+        QVERIFY(changed.count() > 0);
+        press(Qt::Key_I, SlideShow::Pointer::Highlighter);
+        press(Qt::Key_L, SlideShow::Pointer::Laser);
+        press(Qt::Key_E, SlideShow::Pointer::Eraser);
+        press(Qt::Key_A, SlideShow::Pointer::Arrow);
+        press(Qt::Key_P, SlideShow::Pointer::Pen);
+        QTest::keyClick(show.data(), Qt::Key_Escape);   // the arrow first
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));
+        QCOMPARE(ended.count(), 0);
+        QCOMPARE(show->currentSlide(), 1);
+        QTest::keyClick(show.data(), Qt::Key_P);        // plain P: back
+        QCOMPARE(show->currentSlide(), 0);
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));
+        QTest::keyClick(show.data(), Qt::Key_Escape);
+        QCOMPARE(ended.count(), 1);
+        QTRY_VERIFY(show.isNull());
+    }
+
+    // The pen and the highlighter draw on the slide where the pointer drags, a click doesn't move the show on, the ink stays on its slide
+    // while the show runs and is on the screen, the eraser takes a stroke it touches, and E takes all the slide's.
+    void showDrawsInkOnTheSlide()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);   // slide points are pixels
+        auto mouse = [&](QEvent::Type type, QPoint p, Qt::MouseButton button, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            QMouseEvent e(type, QPointF(p), QPointF(show.mapToGlobal(p)), type == QEvent::MouseMove ? Qt::NoButton : button,
+                          type == QEvent::MouseButtonRelease ? Qt::NoButton : button, mods);
+            QApplication::sendEvent(&show, &e);
+        };
+        auto stroke = [&](QPoint from, QPoint to) {
+            mouse(QEvent::MouseButtonPress, from, Qt::LeftButton);
+            mouse(QEvent::MouseMove, QPoint((from.x() + to.x()) / 2, (from.y() + to.y()) / 2 + 10), Qt::LeftButton);
+            mouse(QEvent::MouseMove, to, Qt::LeftButton);
+            mouse(QEvent::MouseButtonRelease, to, Qt::LeftButton);
+        };
+        // The arrow draws nothing.
+        stroke(QPoint(100, 100), QPoint(300, 100));
+        QCOMPARE(show.inkCount(), 0);
+        QCOMPARE(show.currentSlide(), 1);   // (a click moved on)
+        show.goTo(0);
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        stroke(QPoint(100, 100), QPoint(300, 100));
+        QCOMPARE(show.currentSlide(), 0);   // a pen's click doesn't
+        QCOMPARE(show.inkCount(), 1);
+        QCOMPARE(int(show.ink(0).size()), 1);
+        const deck::InkStroke &pen = show.ink(0)[0];
+        QVERIFY(pen.points.size() >= 3);
+        QVERIFY(!pen.highlighter);
+        QCOMPARE(pen.color, QColor(255, 0, 0));
+        QCOMPARE(pen.width, 2.5);
+        QCOMPARE(pen.points.first(), QPointF(100, 100));
+        QVERIFY(!show.isDrawing());
+        // It is on the screen: red where the line goes.
+        auto redNear = [&](QPoint at) {
+            const QImage shot = show.grab().toImage();
+            for (int y = at.y() - 3; y <= at.y() + 3; ++y)
+                for (int x = at.x() - 3; x <= at.x() + 3; ++x)
+                    if (shot.pixelColor(x, y).red() > 200 && shot.pixelColor(x, y).green() < 60) return true;
+            return false;
+        };
+        QVERIFY(redNear(QPoint(300, 100)));
+        // Another color, and the highlighter: wide and yellow.
+        show.setInkColor(QColor(0, 112, 192));
+        QCOMPARE(show.inkColor(), QColor(0, 112, 192));
+        QTest::keyClick(&show, Qt::Key_I, Qt::ControlModifier);
+        QCOMPARE(show.inkColor(), QColor(255, 255, 0));
+        stroke(QPoint(100, 300), QPoint(400, 300));
+        QCOMPARE(int(show.ink(0).size()), 2);
+        QVERIFY(show.ink(0)[1].highlighter);
+        QCOMPARE(show.ink(0)[1].width, 18.0);
+        QCOMPARE(show.ink(0)[1].color, QColor(255, 255, 0));
+        // The pen kept its color.
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        QCOMPARE(show.inkColor(), QColor(0, 112, 192));
+        // Ink stays on its slide: gone from the screen on another, back when the show returns.
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.ink(1).size(), 0);
+        QVERIFY(!redNear(QPoint(300, 100)));
+        show.previous();
+        QCOMPARE(int(show.ink(0).size()), 2);
+        QCOMPARE(show.allInk().size(), 1);
+        // The eraser takes the stroke it touches, the rest stay.
+        QTest::keyClick(&show, Qt::Key_E, Qt::ControlModifier);
+        mouse(QEvent::MouseButtonPress, QPoint(250, 300), Qt::LeftButton);
+        mouse(QEvent::MouseButtonRelease, QPoint(250, 300), Qt::LeftButton);
+        QCOMPARE(int(show.ink(0).size()), 1);
+        QVERIFY(!show.ink(0)[0].highlighter);
+        // A press away from every stroke takes none.
+        mouse(QEvent::MouseButtonPress, QPoint(700, 450), Qt::LeftButton);
+        mouse(QEvent::MouseButtonRelease, QPoint(700, 450), Qt::LeftButton);
+        QCOMPARE(int(show.ink(0).size()), 1);
+        // E alone takes all the ink of the slide.
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        stroke(QPoint(500, 200), QPoint(600, 250));
+        QCOMPARE(int(show.ink(0).size()), 2);
+        show.goTo(1);
+        stroke(QPoint(500, 200), QPoint(600, 250));
+        QCOMPARE(show.inkCount(), 3);
+        QTest::keyClick(&show, Qt::Key_E);
+        QCOMPARE(int(show.ink(1).size()), 0);
+        QCOMPARE(int(show.ink(0).size()), 2);   // only the slide on the screen
+        QCOMPARE(show.inkCount(), 2);
+        // A click without a drag is a dot.
+        mouse(QEvent::MouseButtonPress, QPoint(50, 400), Qt::LeftButton);
+        mouse(QEvent::MouseButtonRelease, QPoint(50, 400), Qt::LeftButton);
+        QCOMPARE(int(show.ink(1).size()), 1);
+        QCOMPARE(int(show.ink(1)[0].points.size()), 1);
+    }
+
+    // The laser pointer is a dot on the slide that follows the mouse and leaves nothing behind; Ctrl and the button give it for as long as
+    // they are held, from the arrow.
+    void showLaserPointerFollowsTheMouse()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        auto mouse = [&](QEvent::Type type, QPoint p, Qt::MouseButton button, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            QMouseEvent e(type, QPointF(p), QPointF(show.mapToGlobal(p)), type == QEvent::MouseMove ? Qt::NoButton : button,
+                          type == QEvent::MouseButtonRelease ? Qt::NoButton : button, mods);
+            QApplication::sendEvent(&show, &e);
+        };
+        auto laserNear = [&](QPoint at) {
+            const QImage shot = show.grab().toImage();
+            return shot.pixelColor(at.x(), at.y()).red() > 200 && shot.pixelColor(at.x(), at.y()).green() < 80 && shot.pixelColor(at.x(), at.y()).blue() < 80;
+        };
+        QTest::keyClick(&show, Qt::Key_L, Qt::ControlModifier);
+        QVERIFY(!laserNear(QPoint(700, 400)));
+        mouse(QEvent::MouseMove, QPoint(700, 400), Qt::NoButton);
+        QVERIFY(laserNear(QPoint(700, 400)));
+        mouse(QEvent::MouseMove, QPoint(200, 400), Qt::NoButton);
+        QVERIFY(laserNear(QPoint(200, 400)));
+        QVERIFY(!laserNear(QPoint(700, 400)));
+        QCOMPARE(show.inkCount(), 0);
+        show.pointerLeft();
+        QVERIFY(!laserNear(QPoint(200, 400)));
+        // The color is the setting's.
+        deck::ShowSettings s;
+        s.laserColor = QColor(0, 255, 0);
+        show.setSettings(s);
+        QCOMPARE(show.laserColor(), QColor(0, 255, 0));
+        mouse(QEvent::MouseMove, QPoint(300, 300), Qt::NoButton);
+        QCOMPARE(show.grab().toImage().pixelColor(300, 300), QColor(0, 255, 0));
+        // From the arrow, Ctrl and the button.
+        QTest::keyClick(&show, Qt::Key_A, Qt::ControlModifier);
+        mouse(QEvent::MouseMove, QPoint(500, 300), Qt::NoButton);
+        QVERIFY(show.grab().toImage().pixelColor(500, 300) != QColor(0, 255, 0));   // no dot
+        mouse(QEvent::MouseButtonPress, QPoint(500, 300), Qt::LeftButton, Qt::ControlModifier);
+        QCOMPARE(show.currentSlide(), 0);   // it did not click
+        QCOMPARE(show.grab().toImage().pixelColor(500, 300), QColor(0, 255, 0));
+        mouse(QEvent::MouseButtonRelease, QPoint(500, 300), Qt::LeftButton, Qt::ControlModifier);
+        QCOMPARE(int(show.pointer()), int(SlideShow::Pointer::Arrow));
+        QVERIFY(show.grab().toImage().pixelColor(500, 300) != QColor(0, 255, 0));
+        QCOMPARE(show.inkCount(), 0);
+    }
+
+    // A right click opens a menu of the show: next and previous, go to a slide, the pointer's tools and ink colors, the screens, and
+    // the end; its pointer part is the same in Presenter View.
+    void showRightClickOpensTheMenu()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 1);
+        show.resize(960, 540);
+        QTest::mouseClick(&show, Qt::RightButton, Qt::NoModifier, QPoint(10, 10));
+        QCOMPARE(show.currentSlide(), 1);   // a right click no longer goes back: the menu has Previous
+        QMenu *menu = show.findChild<QMenu *>(QStringLiteral("showMenu"));
+        QVERIFY(menu);
+        QVERIFY(menu->isVisible());
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("menuNext")));
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("menuEnd")));
+        QMenu *go = menu->findChild<QMenu *>(QStringLiteral("goToSlideMenu"));
+        QVERIFY(go);
+        QCOMPARE(int(go->actions().size()), 3);
+        QVERIFY(go->actions()[1]->isChecked());
+        QVERIFY(go->actions()[0]->text().contains(QStringLiteral("Slide 1 title")));
+        go->actions()[2]->trigger();
+        QCOMPARE(show.currentSlide(), 2);
+        menu->findChild<QAction *>(QStringLiteral("menuPrevious"))->trigger();
+        QCOMPARE(show.currentSlide(), 1);
+        // The pointer's tools: each chooses it; the checked one is the pointer.
+        QAction *pen = menu->findChild<QAction *>(QStringLiteral("pointerPen"));
+        QVERIFY(pen);
+        QVERIFY(pen->isCheckable());
+        QVERIFY(!pen->isChecked());
+        QVERIFY(pen->text().contains(QKeySequence(Qt::CTRL | Qt::Key_P).toString(QKeySequence::NativeText)));
+        pen->trigger();
+        QCOMPARE(int(show.pointer()), int(SlideShow::Pointer::Pen));
+        for (const auto &pair : {QPair<const char *, SlideShow::Pointer>{"pointerHighlighter", SlideShow::Pointer::Highlighter},
+                                 {"pointerEraser", SlideShow::Pointer::Eraser}, {"pointerLaser", SlideShow::Pointer::Laser}, {"pointerArrow", SlideShow::Pointer::Arrow}}) {
+            QAction *a = menu->findChild<QAction *>(QString::fromLatin1(pair.first));
+            QVERIFY(a);
+            a->trigger();
+            QCOMPARE(int(show.pointer()), int(pair.second));
+        }
+        // Ink color: from the list, for the tool in hand.
+        show.setPointer(SlideShow::Pointer::Pen);
+        QMenu *colors = menu->findChild<QMenu *>(QStringLiteral("inkColorMenu"));
+        QVERIFY(colors);
+        QAction *blue = nullptr;
+        for (QAction *a : colors->actions())
+            if (a->data().value<QColor>() == QColor(0, 112, 192)) blue = a;
+        QVERIFY(blue);
+        blue->trigger();
+        QCOMPARE(show.inkColor(), QColor(0, 112, 192));
+        // Erase All Ink on Slide is there when the slide has ink.
+        QMenu *fresh = show.pointerMenu(&show);
+        QVERIFY(!fresh->findChild<QAction *>(QStringLiteral("eraseAllInk"))->isEnabled());
+        delete fresh;
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        QTest::mousePress(&show, Qt::LeftButton, Qt::NoModifier, QPoint(100, 100));
+        QTest::mouseRelease(&show, Qt::LeftButton, Qt::NoModifier, QPoint(100, 100));
+        QCOMPARE(show.inkCount(), 1);
+        fresh = show.pointerMenu(&show);
+        QAction *erase = fresh->findChild<QAction *>(QStringLiteral("eraseAllInk"));
+        QVERIFY(erase->isEnabled());
+        erase->trigger();
+        QCOMPARE(show.inkCount(), 0);
+        delete fresh;
+        // End Show ends it.
+        QSignalSpy ended(&show, &SlideShow::ended);
+        menu->findChild<QAction *>(QStringLiteral("menuEnd"))->trigger();
+        QCOMPARE(ended.count(), 1);
+        delete menu;
+    }
+
+    // Presenter View draws with the pen on its large slide, and the audience's screen follows; its button opens the pointer menu.
+    void presenterViewDrawsInk()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        PresenterView pv(&show);
+        pv.resize(1100, 700);
+        pv.show();
+        QWidget *large = pv.findChild<QWidget *>(QStringLiteral("currentSlide"));
+        QVERIFY(large);
+        QVERIFY(pv.findChild<QAbstractButton *>(QStringLiteral("pointerButton")));
+        QSignalSpy overlay(&show, &SlideShow::overlayChanged);
+        auto mouse = [&](QEvent::Type type, QPoint p) {
+            QMouseEvent e(type, QPointF(p), QPointF(large->mapToGlobal(p)), type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton,
+                          type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(large, &e);
+        };
+        // The arrow: a click moves on.
+        mouse(QEvent::MouseButtonPress, QPoint(10, 10));
+        mouse(QEvent::MouseButtonRelease, QPoint(10, 10));
+        QCOMPARE(show.currentSlide(), 1);
+        show.goTo(0);
+        QTest::keyClick(&pv, Qt::Key_P, Qt::ControlModifier);   // keys reach the show from this window too
+        QCOMPARE(int(show.pointer()), int(SlideShow::Pointer::Pen));
+        QVERIFY(pv.findChild<QAbstractButton *>(QStringLiteral("pointerButton"))->isChecked());
+        const QRectF at = slideRectIn(d->pageSize(), large->size());
+        const QPoint a(int(at.left() + at.width() * 0.25), int(at.top() + at.height() * 0.5)), b(int(at.left() + at.width() * 0.75), int(at.top() + at.height() * 0.5));
+        mouse(QEvent::MouseButtonPress, a);
+        mouse(QEvent::MouseMove, QPoint((a.x() + b.x()) / 2, a.y() + 8));
+        mouse(QEvent::MouseMove, b);
+        mouse(QEvent::MouseButtonRelease, b);
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.inkCount(), 1);
+        QVERIFY(overlay.count() >= 3);
+        // The stroke is in the slide's own points: a quarter of the way across to three quarters.
+        const QPointF first = show.ink(0)[0].points.first(), last = show.ink(0)[0].points.last();
+        QVERIFY(std::abs(first.x() - 0.25 * d->pageSize().width()) < 4);
+        QVERIFY(std::abs(last.x() - 0.75 * d->pageSize().width()) < 4);
+        // It shows in Presenter View.
+        const QImage shot = large->grab().toImage();
+        bool red = false;
+        for (int x = a.x(); x < b.x() && !red; ++x)
+            for (int y = a.y() - 12; y < a.y() + 12 && !red; ++y) red = shot.pixelColor(x, y).red() > 200 && shot.pixelColor(x, y).green() < 60;
+        QVERIFY(red);
+        // The button opens the menu of the pointer.
+        pv.findChild<QAbstractButton *>(QStringLiteral("pointerButton"))->click();
+        QMenu *menu = nullptr;
+        for (QMenu *m : pv.findChildren<QMenu *>(QStringLiteral("pointerMenu"))) menu = m;
+        QVERIFY(menu);
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("pointerLaser")));
+        delete menu;
+    }
+
+    // Rehearse Timings: the show times each slide from when it comes on the screen to when it goes, with the bar's next, pause, repeat,
+    // and the two clocks; it moves on only when told, and has no pen and no menu.
+    void showRecordsTheTimeOfEachSlide()
+    {
+        auto d = showDeck(3);
+        deck::Transition t;
+        t.advanceAfter = 0.05;
+        deck::setTransition(*d->pages[0], t);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        qint64 now = 1000;
+        show.setClock([&now] { return now; });
+        show.setRecording(true);
+        QVERIFY(show.isRecording());
+        RehearseBar *bar = show.rehearseBar();
+        QVERIFY(bar);
+        QAbstractButton *next = bar->findChild<QAbstractButton *>(QStringLiteral("rehearseNext"));
+        QAbstractButton *pause = bar->findChild<QAbstractButton *>(QStringLiteral("rehearsePause"));
+        QAbstractButton *repeat = bar->findChild<QAbstractButton *>(QStringLiteral("rehearseRepeat"));
+        QVERIFY(next && pause && repeat);
+        show.show();   // the slides' own times do not move it
+        QVERIFY(!show.autoAdvanceActive());
+        now = 1000 + 3000;
+        QCOMPARE(show.slideClock(), qint64(3000));
+        QCOMPARE(show.totalClock(), qint64(3000));
+        bar->refresh();
+        QCOMPARE(bar->slideText(), QStringLiteral("0:00:03"));
+        QCOMPARE(bar->totalText(), QStringLiteral("0:00:03"));
+        next->click();   // the bar's Next is the click
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.slideClock(), qint64(0));
+        now += 5000;
+        QCOMPARE(show.slideClock(), qint64(5000));
+        QCOMPARE(show.totalClock(), qint64(8000));
+        // Paused, the clocks hold; resumed, they go on.
+        pause->click();
+        QVERIFY(show.isRecordingPaused());
+        now += 9999;
+        QCOMPARE(show.slideClock(), qint64(5000));
+        QCOMPARE(show.totalClock(), qint64(8000));
+        pause->click();
+        QVERIFY(!show.isRecordingPaused());
+        now += 1000;
+        QCOMPARE(show.slideClock(), qint64(6000));
+        // Repeat starts the slide's time from nothing, and the total goes back by it.
+        repeat->click();
+        QCOMPARE(show.slideClock(), qint64(0));
+        QCOMPARE(show.totalClock(), qint64(3000));
+        now += 2000;
+        show.next();
+        QCOMPARE(show.currentSlide(), 2);
+        now += 700;
+        show.next();   // past the last slide: the end
+        QCOMPARE(show.currentSlide(), -1);
+        now += 5000;   // the black screen is no slide's time
+        const QMap<int, double> seconds = show.recordedSeconds();
+        QCOMPARE(seconds.keys(), (QList<int>{0, 1, 2}));
+        QCOMPARE(seconds.value(0), 3.0);
+        QCOMPARE(seconds.value(1), 2.0);
+        QCOMPARE(seconds.value(2), 0.7);
+        QCOMPARE(show.recordedTotal(), 5.7);
+        // No pen, no menu; a right click goes back as before.
+        QTest::keyClick(&show, Qt::Key_P, Qt::ControlModifier);
+        QCOMPARE(int(show.pointer()), int(SlideShow::Pointer::Arrow));
+        show.previous();
+        QCOMPARE(show.currentSlide(), 2);
+        show.resize(960, 540);
+        QTest::mouseClick(&show, Qt::RightButton, Qt::NoModifier, QPoint(300, 300));
+        QCOMPARE(show.currentSlide(), 1);
+        QVERIFY(!show.findChild<QMenu *>(QStringLiteral("showMenu")));
+        // Going back to a slide times it again.
+        now += 4000;
+        show.next();
+        QCOMPARE(show.recordedSeconds().value(1), 4.0);
     }
 
     // Slides that have a transition are marked in the thumbnails.
