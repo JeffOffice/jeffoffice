@@ -9,6 +9,7 @@
 #include "app/slidespane.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/transition.h"
 #include "render/renderer.h"
 
 #include <QSettings>
@@ -126,6 +127,61 @@ private Q_SLOTS:
         QVERIFY(d->pages[1]->notesStoryId != d->pages[0]->notesStoryId);
         QVERIFY(d->pages[1]->items[0]->id != d->pages[0]->items[0]->id);
     }
+
+    // A transition lives in the slide's props and comes back whole; what is
+    // missing or makes no sense takes its default.
+    void transitionJsonRoundTrip()
+    {
+        deck::Transition t;
+        QCOMPARE(t.type, QStringLiteral("none"));
+        QCOMPARE(t.dir, QStringLiteral("l"));
+        QCOMPARE(t.duration, 0.7);
+        QVERIFY(!t.advanceAfter);
+        QVERIFY(t.advanceOnClick);
+        QVERIFY(deck::Transition::fromJson(QJsonObject()) == t);
+        QVERIFY(!t.toJson().contains(QStringLiteral("advanceAfter")));   // absent, not zero
+        t.type = QStringLiteral("push");
+        t.dir = QStringLiteral("u");
+        t.duration = 1.5;
+        t.advanceAfter = 4.0;
+        t.advanceOnClick = false;
+        const QJsonObject o = t.toJson();
+        QCOMPARE(o.value("type").toString(), QStringLiteral("push"));
+        QCOMPARE(o.value("dir").toString(), QStringLiteral("u"));
+        QCOMPARE(o.value("duration").toDouble(), 1.5);
+        QCOMPARE(o.value("advanceAfter").toDouble(), 4.0);
+        QCOMPARE(o.value("advanceOnClick").toBool(true), false);
+        QVERIFY(deck::Transition::fromJson(o) == t);
+        // Split and zoom go in or out, the rest in a direction.
+        QCOMPARE(deck::Transition::fromJson({{"type", "split"}}).dir, QStringLiteral("out"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "zoom"}}).dir, QStringLiteral("in"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "zoom"}, {"dir", "in"}}).dir, QStringLiteral("in"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "split"}, {"dir", "in"}}).dir, QStringLiteral("in"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "wipe"}, {"dir", "out"}}).dir, QStringLiteral("l"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "wipe"}, {"dir", "d"}}).dir, QStringLiteral("d"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "zoom"}, {"dir", "u"}}).dir, QStringLiteral("in"));
+        // An unknown type is none; a duration stays within what a person can sit through.
+        QCOMPARE(deck::Transition::fromJson({{"type", "spin"}}).type, QStringLiteral("none"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "fade"}, {"duration", 500}}).duration, 59.0);
+        QCOMPARE(deck::Transition::fromJson({{"type", "fade"}, {"duration", 0}}).duration, 0.01);
+        QVERIFY(!deck::Transition::fromJson({{"advanceAfter", -3}}).advanceAfter);
+        QCOMPARE(*deck::Transition::fromJson({{"advanceAfter", 0}}).advanceAfter, 0.0);
+
+        // On a slide: kept in its props beside whatever else is there, and
+        // gone from them when it is the default again.
+        Page slide;
+        slide.props[QStringLiteral("kind")] = QStringLiteral("other");
+        QVERIFY(deck::transitionOf(slide) == deck::Transition());
+        deck::setTransition(slide, t);
+        QVERIFY(slide.props.value("transition").isObject());
+        QVERIFY(deck::transitionOf(slide) == t);
+        deck::setTransition(slide, deck::Transition());
+        QVERIFY(!slide.props.contains(QStringLiteral("transition")));
+        QCOMPARE(slide.props.value("kind").toString(), QStringLiteral("other"));
+        QCOMPARE(deck::transitionTypes(),
+                 (QStringList{"none", "fade", "push", "wipe", "split", "reveal", "cover", "uncover", "zoom", "cut"}));
+    }
+
 
     // The window: the ribbon builds from its file with nothing missing, and
     // the slide commands are steps that undo.
