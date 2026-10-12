@@ -3722,6 +3722,20 @@ private Q_SLOTS:
         for (int i = 0; i < 2; ++i) QCOMPARE(Renderer::renderToImage(ctx, i, 0.1).pixelColor(3, 3), QColor(0x11, 0x22, 0x33));
     }
 
+    // Ctrl+F1 collapses the ribbon and brings it back, as its button says.
+    void ctrlF1CollapsesTheRibbon()
+    {
+        DeckWindow w;
+        QAction *a = w.act(QStringLiteral("view.collapseRibbon"));
+        QVERIFY(a);
+        QCOMPARE(a->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_F1));
+        const bool was = w.ribbon()->isMinimized();
+        a->trigger();
+        QCOMPARE(w.ribbon()->isMinimized(), !was);
+        a->trigger();
+        QCOMPARE(w.ribbon()->isMinimized(), was);
+    }
+
     // The ribbon builds with nothing missing and has the commands of the
     // Home, Insert, Design, and View tabs; each of those tabs gives every
     // control its own KeyTip.
