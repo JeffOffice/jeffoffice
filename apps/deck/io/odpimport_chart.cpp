@@ -8,7 +8,9 @@
 
 #include "office/chart.h"
 
+#include <QCoreApplication>
 #include <QRegularExpression>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -16,7 +18,15 @@ namespace jp::deck::odp {
 
 namespace {
 
+QString say(const char *text) { return QCoreApplication::translate("OdpImport", text); }
+
 constexpr int kMaxColumns = 256, kMaxRows = 10000, kMaxSeries = 64;
+// The drawings of charts a presentation makes (one for each chart and size a frame asks for). The real decks here hold five at the most (one
+// chart to a slide would be a big deck), and each drawing is kept as a picture of a few megabytes, so a file that frames charts without end
+// would fill the memory with them.
+constexpr int kMaxChartDrawings = 300;
+// The text a title has: a paragraph or two.
+constexpr int kMaxTitle = 1000;
 
 // The cells of the chart's own table: what each says as text, and as a number (NaN for none).
 struct LocalTable {
@@ -92,12 +102,56 @@ bool cellRange(const QString &address, int *c0, int *r0, int *c1, int *r1)
     return *c0 >= 0 && *r0 >= 0 && *c1 >= *c0 && *r1 >= *r0;
 }
 
+// The cells a range names, held to the table: a file that names a million rows of a table of three has three, and one that begins past the
+// table's last row names none.
+bool cellsOf(const QString &address, const LocalTable &table, int *c0, int *r0, int *c1, int *r1)
+{
+    if (!cellRange(address, c0, r0, c1, r1)) return false;
+    *r1 = std::min({*r1, *r0 + kMaxRows - 1, table.rows() - 1});
+    return *r1 >= *r0;
+}
+
+// The text of a paragraph or two, cut where a title can't go on.
+QString joined(const QVector<QDomElement> &paragraphs)
+{
+    QString out;
+    for (const QDomElement &p : paragraphs) {
+        if (out.size() >= kMaxTitle) break;
+        out += (out.isEmpty() ? QString() : QStringLiteral("\n")) + p.text();
+    }
+    return out.left(kMaxTitle);
+}
+
 } // namespace
+
+// What the charts drawn so far came to, so that a chart a frame names again for a size it was drawn at is not read and drawn again.
+struct Reader::ChartCache {
+    QHash<QString, QString> images;   // the part's name and the size, to the image id ("" for a chart that can't be drawn)
+    int drawn = 0;
+};
 
 QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
 {
     const QString part = office::resolvePartName(QStringLiteral("/"), at(object, "xlink:href"));
     if (part.isEmpty() || size.width() < 1 || size.height() < 1) return QString();
+    // A frame is drawn no larger than a slide can be.
+    const QSizeF drawSize(std::min(size.width(), office::kChartMaxSide), std::min(size.height(), office::kChartMaxSide));
+    if (!m_charts) m_charts = std::make_shared<ChartCache>();
+    ChartCache &cache = *m_charts;
+    const QString key = part + QLatin1Char('|') + QString::number(drawSize.width(), 'g', 17) + QLatin1Char('x') + QString::number(drawSize.height(), 'g', 17);
+    if (const auto found = cache.images.constFind(key); found != cache.images.constEnd()) return found.value();
+    if (cache.drawn >= kMaxChartDrawings) {
+        note(say("Only the first %1 charts are drawn; the rest are left out.").arg(kMaxChartDrawings));
+        return QString();
+    }
+    const QString id = drawChart(part, drawSize);
+    if (!id.isEmpty()) ++cache.drawn;
+    cache.images.insert(key, id);
+    return id;
+}
+
+QString Reader::drawChart(const QString &part, const QSizeF &size)
+{
     QDomDocument dom;
     QString why;
     if (!parse(part + QStringLiteral("/content.xml"), &dom, &why)) return QString();
@@ -162,10 +216,10 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
         if (parseNumber(b.get(Graphic, "chart:interval-major"), &v) && v > 0) target.majorUnit = v;
         if (b.get(Graphic, "chart:reverse-direction") == QLatin1String("true")) target.reversed = true;
         if (double size = 0; parseLength(b.get(Text, "fo:font-size"), &size) && size > 0) target.font.size = size;
-        if (const QString family = b.get(Text, "fo:font-family"); !family.isEmpty() && chart.fontFamily.isEmpty()) chart.fontFamily = family.section(QLatin1Char(','), 0, 0).remove(QLatin1Char('\'')).remove(QLatin1Char('"')).trimmed();
+        if (const QString family = b.get(Text, "fo:font-family"); !family.isEmpty() && chart.fontFamily.isEmpty()) chart.fontFamily = family.section(QLatin1Char(','), 0, 0).remove(QLatin1Char('\'')).remove(QLatin1Char('"')).trimmed().left(office::kChartMaxLabel);
         if (const QDomElement title = kid(axis, "chart:title"); !title.isNull()) {
             target.title.present = true;
-            for (const QDomElement &p : kids(title, "text:p")) target.title.text += (target.title.text.isEmpty() ? QString() : QStringLiteral("\n")) + p.text();
+            target.title.text = joined(kids(title, "text:p"));
         }
         if (const QDomElement cat = kid(axis, "chart:categories"); !cat.isNull() && a.get("chart:dimension") != QLatin1String("y")) categoriesAddress = at(cat, "table:cell-range-address");
     }
@@ -173,8 +227,8 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
     QStringList categories;
     {
         int c0, r0, c1, r1;
-        if (cellRange(categoriesAddress, &c0, &r0, &c1, &r1))
-            for (int r = r0; r <= r1; ++r) categories << table.textAt(r, c0);
+        if (cellsOf(categoriesAddress, table, &c0, &r0, &c1, &r1))
+            for (int r = r0; r <= r1; ++r) categories << table.textAt(r, c0).left(office::kChartMaxLabel);
     }
 
     // The series, grouped into one plot for each kind of drawing the file asks for.
@@ -184,16 +238,16 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
         if (++seriesCount > kMaxSeries) break;
         const Attrs a(s);
         int c0, r0, c1, r1;
-        if (!cellRange(a.get("chart:values-cell-range-address"), &c0, &r0, &c1, &r1)) continue;
+        if (!cellsOf(a.get("chart:values-cell-range-address"), table, &c0, &r0, &c1, &r1)) continue;
         office::ChartSeries series;
         series.categories = categories;
-        for (int r = r0; r <= r1 && r - r0 < kMaxRows; ++r) series.values.append(table.numberAt(r, c0));
-        if (int lc, lr, lc1, lr1; cellRange(a.get("chart:label-cell-address"), &lc, &lr, &lc1, &lr1)) series.name = table.textAt(lr, lc);
+        for (int r = r0; r <= r1; ++r) series.values.append(table.numberAt(r, c0));
+        if (int lc, lr, lc1, lr1; cellRange(a.get("chart:label-cell-address"), &lc, &lr, &lc1, &lr1)) series.name = table.textAt(lr, lc).left(office::kChartMaxLabel);
         if (series.name.isEmpty()) series.name = QStringLiteral("Series %1").arg(seriesCount);
         if (series.categories.size() < series.values.size()) {
             // No categories named: the first column of the table, or numbers.
             series.categories.clear();
-            for (int r = r0; r <= r1; ++r) series.categories << (table.cols() > 1 && c0 > 0 ? table.textAt(r, 0) : QString::number(r - r0 + 1));
+            for (int r = r0; r <= r1; ++r) series.categories << (table.cols() > 1 && c0 > 0 ? table.textAt(r, 0).left(office::kChartMaxLabel) : QString::number(r - r0 + 1));
         }
         const Bag b = styles.resolve(QStringLiteral("chart"), a.get("chart:style-name"));
         const QString seriesClass = a.get("chart:class", cls);
@@ -203,6 +257,9 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
         if (color.isValid()) {
             series.color = color;
             series.colorFromFile = true;
+        } else {
+            // A series the file gives no color takes the next of the palette, as its slices would.
+            series.color = chart.palette[(seriesCount - 1) % chart.palette.size()];
         }
         if (b.get(Graphic, "draw:fill") == QLatin1String("none") && type != office::ChartType::Line) series.noFill = true;
         if (b.get(Graphic, "draw:stroke") == QLatin1String("none")) {
@@ -212,13 +269,28 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
         if (type == office::ChartType::Line && !b.has(Graphic, "svg:stroke-width")) series.outline.width = 2.25;
         if (double w = 0; parseLength(b.get(Graphic, "svg:stroke-width"), &w) && w > 0) {
             series.outline.set = true;
-            series.outline.width = std::max(w, 0.75);
+            series.outline.width = std::clamp(w, 0.75, 100.0);
             if (!series.outline.color.isValid()) series.outline.color = parseColor(b.get(Graphic, "svg:stroke-color"));
         }
         if (b.get(Graphic, "chart:symbol-type") == QLatin1String("none")) series.marker.symbol = office::ChartMarker::None;
         if (b.get(Graphic, "chart:data-label-number") == QLatin1String("value") || b.get(Graphic, "chart:data-label-number") == QLatin1String("percentage")) {
             series.labels.value = b.get(Graphic, "chart:data-label-number") == QLatin1String("value");
             series.labels.percent = !series.labels.value;
+        }
+        // A scatter's x values: the cells the series' domain names.
+        if (type == office::ChartType::Scatter) {
+            int dc0, dr0, dc1, dr1;
+            const QDomElement domain = kid(s, "chart:domain");
+            if (!domain.isNull() && cellsOf(at(domain, "table:cell-range-address"), table, &dc0, &dr0, &dc1, &dr1)) {
+                bool any = false;
+                for (int i = 0; i < series.values.size(); ++i) {
+                    const double x = dr0 + i <= dr1 ? table.numberAt(dr0 + i, dc0) : std::numeric_limits<double>::quiet_NaN();
+                    series.xValues.append(x);
+                    any = any || std::isfinite(x);
+                }
+                // Cells of text name no places: the points are at 1, 2, 3, as when there is no domain.
+                if (!any) series.xValues.clear();
+            }
         }
         // Points of another color (the slices of a pie).
         int point = 0;
@@ -251,11 +323,12 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
         plots[index].series.append(series);
     }
     if (plots.isEmpty()) return QString();
-    // A scatter's x values: the first series' column before its own, or the numbers 1, 2, 3.
+    // A scatter's x values, for a series with no domain: the numbers 1, 2, 3.
     for (office::ChartPlot &plot : plots)
         if (plot.type == office::ChartType::Scatter)
             for (office::ChartSeries &s : plot.series)
-                for (int i = 0; i < s.values.size(); ++i) s.xValues.append(i + 1);
+                if (s.xValues.isEmpty())
+                    for (int i = 0; i < s.values.size(); ++i) s.xValues.append(i + 1);
     chart.plots = plots;
     const bool pieLike = plots[0].type == office::ChartType::Pie || plots[0].type == office::ChartType::Doughnut;
     if (!pieLike) chart.axes = {categoryAxis, valueAxis};
@@ -267,7 +340,7 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
     // The title, the legend, and the areas behind the plot.
     if (const QDomElement title = kid(chartEl, "chart:title"); !title.isNull()) {
         chart.title.present = true;
-        for (const QDomElement &p : kids(title, "text:p")) chart.title.text += (chart.title.text.isEmpty() ? QString() : QStringLiteral("\n")) + p.text();
+        chart.title.text = joined(kids(title, "text:p"));
     }
     if (const QDomElement legend = kid(chartEl, "chart:legend"); !legend.isNull()) {
         chart.legend.shown = true;
@@ -280,7 +353,9 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
         const Bag wall = styles.resolve(QStringLiteral("chart"), at(kid(plotArea, "chart:wall"), "chart:style-name"));
         if (wall.get(Graphic, "draw:fill") == QLatin1String("solid")) chart.plotFill = parseColor(wall.get(Graphic, "draw:fill-color"));
     }
-    const QByteArray svg = office::chartSvg(chart, size);
+    bool coarser = false;
+    const QByteArray svg = office::chartSvg(chart, size, &coarser);
+    if (coarser) note(say("A chart has more points than a picture of it can show, so its picture is drawn from some of them."));
     return svg.isEmpty() ? QString() : m_doc.addImage(svg, QStringLiteral("svg"));
 }
 
