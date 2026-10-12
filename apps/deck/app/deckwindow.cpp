@@ -2,8 +2,10 @@
 
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
+#include "app/deckfilescreen.h"
 #include "app/editor.h"
 #include "app/icons.h"
+#include "app/keytips.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
 #include "app/ribbon.h"
@@ -23,8 +25,8 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QKeyEvent>
 #include <QLabel>
-#include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
 #include <QScreen>
@@ -89,7 +91,11 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     buildStatusBar();
     describeForScreenReaders(m_split);
     describeForScreenReaders(statusBar());
-    connect(m_ribbon, &Ribbon::fileClicked, this, &DeckWindow::showFileMenu);
+    m_fileScreen = new DeckFileScreen(this);
+    m_fileScreen->hide();
+    connect(m_fileScreen, &DeckFileScreen::closeRequested, this, &DeckWindow::hideFileScreen);
+    new KeyTips(this, m_ribbon, [this] { showFileScreen(); });   // Alt, F
+    connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showFileScreen(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_canvas->setFocus(Qt::OtherFocusReason); });
 
     m_refreshTimer.setSingleShot(true);
@@ -312,19 +318,43 @@ void DeckWindow::updateTitle()
     setWindowTitle(QStringLiteral("%1%2 - %3").arg(m_ed->displayName(), m_ed->isModified() ? QStringLiteral("*") : QString(), appInfo().name));
 }
 
-void DeckWindow::showFileMenu()
+void DeckWindow::showFileScreen(const QString &page)
 {
-    QMenu menu(this);
-    menu.addAction(act("file.new"));
-    menu.addAction(act("file.open"));
-    menu.addAction(act("file.save"));
-    menu.addAction(act("file.saveAs"));
-    menu.addAction(act("file.exportPdf"));
-    menu.addAction(act("file.exportPicture"));
-    menu.addAction(act("file.print"));
-    menu.addSeparator();
-    menu.addAction(act("file.close"));
-    menu.exec(m_ribbon->mapToGlobal(QPoint(0, m_ribbon->height() / 3)));
+    m_notes->commit();
+    m_ed->endTextEdit();
+    m_fileScreen->setGeometry(rect());
+    m_fileScreen->showPage(page.isEmpty() ? QStringLiteral("open") : page);
+    m_fileScreen->show();
+    m_fileScreen->raise();
+    m_fileScreen->setFocus();
+    qApp->installEventFilter(this);
+}
+
+void DeckWindow::hideFileScreen()
+{
+    if (!m_fileScreen->isVisible()) return;
+    qApp->removeEventFilter(this);
+    m_fileScreen->hide();
+    m_canvas->setFocus();
+}
+
+void DeckWindow::resizeEvent(QResizeEvent *e)
+{
+    AppWindow::resizeEvent(e);
+    if (m_fileScreen) m_fileScreen->setGeometry(rect());
+}
+
+bool DeckWindow::eventFilter(QObject *o, QEvent *e)
+{
+    // Escape closes the File screen from anywhere in the window.
+    if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_fileScreen->isVisible()) {
+        auto *w = qobject_cast<QWidget *>(o);
+        if (w && w->window() == this) {
+            hideFileScreen();
+            return true;
+        }
+    }
+    return AppWindow::eventFilter(o, e);
 }
 
 void DeckWindow::newSlide(const QString &layoutType)

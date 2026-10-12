@@ -8,6 +8,7 @@
 #include "app/deckwidgets.h"
 #include "app/deckwindow.h"
 #include "app/editor.h"
+#include "app/filescreen.h"
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -49,10 +50,12 @@
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFrame>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
@@ -2628,6 +2631,285 @@ private Q_SLOTS:
         w.newSlide();   // and moving on doesn't write them back
         QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QString());
         ed->markSaved();
+    }
+
+    // The button on the File screen with this text, if it is showing.
+    static QAbstractButton *screenButton(QWidget *screen, const QString &text)
+    {
+        for (QAbstractButton *b : screen->findChildren<QAbstractButton *>())
+            if (b->isVisibleTo(screen) && b->text() == text) return b;
+        return nullptr;
+    }
+
+    // The File button opens the File screen over the window, with the
+    // commands in its sidebar; Escape and the back button return to the slides.
+    void windowFileScreenOpens()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        QVERIFY(!screen->isVisible());
+        static_cast<QAbstractButton *>(w.ribbon()->fileButton())->click();
+        QVERIFY(screen->isVisible());
+        QCOMPARE(screen->geometry(), w.rect());
+        auto *side = screen->findChild<QFrame *>(QStringLiteral("jpSide"));
+        QVERIFY(side);
+        const QList<QAbstractButton *> buttons = side->findChildren<QAbstractButton *>(QString(), Qt::FindDirectChildrenOnly);
+        QStringList entries;
+        for (QAbstractButton *b : buttons) entries << b->text();
+        const QStringList want = {QStringLiteral("Back to presentation"), QStringLiteral("New"), QStringLiteral("Open"), QStringLiteral("Save"), QStringLiteral("Save As"),
+                                  QStringLiteral("Print"), QStringLiteral("Export"), QStringLiteral("Close"), QStringLiteral("About")};
+        QCOMPARE(entries, want);
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QVERIFY(!screen->isVisible());
+        w.showFileScreen(QStringLiteral("about"));
+        QVERIFY(screen->isVisible());
+        QCOMPARE(screen->currentPage(), QStringLiteral("about"));
+        buttons.constFirst()->click();   // back
+        QVERIFY(!screen->isVisible());
+    }
+
+    // Alt and F, the KeyTips' File letter, open it too.
+    void windowFileScreenOpensWithAltF()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen && !screen->isVisible());
+        QTest::keyPress(&w, Qt::Key_Alt);
+        QTest::keyClick(&w, Qt::Key_F, Qt::AltModifier);
+        QTest::keyRelease(&w, Qt::Key_Alt);
+        QVERIFY(screen->isVisible());
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QVERIFY(!screen->isVisible());
+    }
+
+    // New: the blank presentation takes the place of one nobody has touched,
+    // and opens in a window of its own beside one with work in it.
+    void windowFileScreenNew()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        Editor *ed = w.editor();
+        const int windows = int(AppWindow::windows().size());
+        QSignalSpy replaced(ed, &Editor::documentReplaced);
+        w.showFileScreen(QStringLiteral("new"));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        QAbstractButton *tile = screenButton(screen, QStringLiteral("Blank Presentation"));
+        QVERIFY(tile);
+        tile->click();
+        QCOMPARE(replaced.count(), 1);
+        QCOMPARE(int(AppWindow::windows().size()), windows);
+        QVERIFY(!screen->isVisible());
+        w.newSlide();
+        QVERIFY(ed->isModified());
+        w.showFileScreen(QStringLiteral("new"));
+        QVERIFY(screenButton(screen, QStringLiteral("Blank Presentation")));
+        screenButton(screen, QStringLiteral("Blank Presentation"))->click();
+        QCOMPARE(replaced.count(), 1);
+        QCOMPARE(int(AppWindow::windows().size()), windows + 1);
+        QCOMPARE(int(ed->doc()->pages.size()), 2);   // this one is as it was
+        QVERIFY(!screen->isVisible());
+        for (AppWindow *other : AppWindow::windows())
+            if (other != &w) other->close();
+        QTRY_COMPARE(int(AppWindow::windows().size()), windows);
+        ed->markSaved();
+    }
+
+    // Open lists the recent presentations, the pinned ones first and not
+    // again below; choosing one opens it, and Browse is there for the rest.
+    void windowFileScreenOpenListsRecentFiles()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString recent = dir.filePath(QStringLiteral("quarterly.pptx")), pinned = dir.filePath(QStringLiteral("pinned.pptx"));
+        for (const QString &path : {recent, pinned}) QVERIFY(deck::savePresentationFile(*deck::newPresentation(), path));
+        Settings::get().addRecentFile(recent);
+        Settings::get().addRecentFile(pinned);
+        Settings::get().setPinned(pinned, true);
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.showFileScreen(QStringLiteral("open"));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen && screen->isVisible());
+        QCOMPARE(screen->currentPage(), QStringLiteral("open"));
+        QVERIFY(screenButton(screen, QStringLiteral("Browse")));
+        QList<QListWidget *> lists;
+        for (QListWidget *l : screen->findChildren<QListWidget *>())
+            if (l->isVisibleTo(screen)) lists << l;
+        std::sort(lists.begin(), lists.end(), [](QListWidget *a, QListWidget *b) { return a->mapTo(a->window(), QPoint()).y() < b->mapTo(b->window(), QPoint()).y(); });
+        QCOMPARE(lists.size(), 2);
+        QCOMPARE(lists[0]->count(), 1);
+        QCOMPARE(lists[0]->item(0)->data(Qt::UserRole).toString(), pinned);
+        QVERIFY(lists[0]->item(0)->text().startsWith(QLatin1String("pinned.pptx")));
+        QCOMPARE(lists[1]->count(), 1);
+        QCOMPARE(lists[1]->item(0)->data(Qt::UserRole).toString(), recent);
+        QVERIFY(lists[1]->item(0)->text().startsWith(QLatin1String("quarterly.pptx")));
+        // This window holds nothing, so the presentation opens in it.
+        Q_EMIT lists[1]->itemActivated(lists[1]->item(0));
+        QCOMPARE(w.editor()->filePath(), recent);
+        QVERIFY(!screen->isVisible());
+        QCOMPARE(Settings::get().recentFiles().value(0), recent);
+        Settings::get().setPinned(pinned, false);
+        Settings::get().removeRecentFile(recent);
+        Settings::get().removeRecentFile(pinned);
+    }
+
+    // Save and Save As are commands in the sidebar: they save, and the screen
+    // goes away once the file is written.
+    void windowFileScreenSaves()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        const QString path = dir.filePath(QStringLiteral("saved.pptx"));
+        int asked = 0;
+        auto *screen = w.findChild<FileScreen *>();
+        w.showFileScreen(QStringLiteral("open"));
+        // No name chosen: nothing is written and the screen stays.
+        w.setSavePathChooser([&](const QString &, const QString &) {
+            ++asked;
+            return QString();
+        });
+        screenButton(screen, QStringLiteral("Save As"))->click();
+        QCOMPARE(asked, 1);
+        QVERIFY(screen->isVisible());
+        QVERIFY(!QFileInfo::exists(path));
+        w.setSavePathChooser([&](const QString &, const QString &) {
+            ++asked;
+            return path;
+        });
+        screenButton(screen, QStringLiteral("Save"))->click();   // never saved: asks where
+        QCOMPARE(asked, 2);
+        QVERIFY(QFileInfo::exists(path));
+        QVERIFY(!screen->isVisible());
+        QCOMPARE(w.editor()->filePath(), path);
+        // Close leaves the screen and closes the window.
+        w.showFileScreen(QStringLiteral("open"));
+        screenButton(screen, QStringLiteral("Close"))->click();
+        QVERIFY(!w.isVisible());
+        QVERIFY(!screen->isVisible());
+    }
+
+    // Print: the options beside a preview of the pages that will print, with
+    // arrows to page through them; the count follows the options.
+    void windowFilePrintPagePreviewsTheOutput()
+    {
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(7));
+        w.showFileScreen(QStringLiteral("print"));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen && screen->isVisible());
+        QCOMPARE(screen->currentPage(), QStringLiteral("print"));
+        auto *what = screen->findChild<QComboBox *>(QStringLiteral("printWhat"));
+        auto *pages = screen->findChild<QLabel *>(QStringLiteral("printPage"));
+        auto *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
+        QVERIFY(what && pages && preview);
+        QVERIFY(screenButton(screen, QStringLiteral("Print")));
+        QCOMPARE(pages->text(), QStringLiteral("Page 1 of 7"));
+        QTRY_VERIFY(!preview->pixmap().isNull());
+        what->setCurrentIndex(what->findData(int(deck::PrintLayout::Handout6)));
+        QCOMPARE(pages->text(), QStringLiteral("Page 1 of 2"));
+        auto *next = screen->findChild<QAbstractButton *>(QStringLiteral("printNext"));
+        auto *previous = screen->findChild<QAbstractButton *>(QStringLiteral("printPrevious"));
+        QVERIFY(next && previous);
+        QVERIFY(!previous->isEnabled());
+        next->click();
+        QCOMPARE(pages->text(), QStringLiteral("Page 2 of 2"));
+        QVERIFY(!next->isEnabled());
+        previous->click();
+        QCOMPARE(pages->text(), QStringLiteral("Page 1 of 2"));
+        // The slides asked for are the pages.
+        what->setCurrentIndex(what->findData(int(deck::PrintLayout::Slides)));
+        screen->findChild<QRadioButton *>(QStringLiteral("printRangeSlides"))->setChecked(true);
+        screen->findChild<QLineEdit *>(QStringLiteral("printRangeText"))->setText(QStringLiteral("2-4"));
+        QCOMPARE(pages->text(), QStringLiteral("Page 1 of 3"));
+        w.editor()->markSaved();
+    }
+
+    // Export: a button for each way out, each running the command the window
+    // has, and the screen goes away once the file is written.
+    void windowFileScreenExports()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.newSlide();
+        const QString png = dir.filePath(QStringLiteral("slide.png")), pdf = dir.filePath(QStringLiteral("talk.pdf"));
+        QString path = png;
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        w.showFileScreen(QStringLiteral("export"));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen && screen->isVisible());
+        QCOMPARE(screen->currentPage(), QStringLiteral("export"));
+        QVERIFY(screenButton(screen, QStringLiteral("Export to PDF")));
+        QVERIFY(screenButton(screen, QStringLiteral("Export Slide as Picture")));
+        screenButton(screen, QStringLiteral("Export Slide as Picture"))->click();
+        QCOMPARE(QImage(png).size(), QSize(1920, 1080));
+        QVERIFY(!screen->isVisible());
+        w.showFileScreen(QStringLiteral("export"));
+        path = pdf;
+        answerOutputDialog();
+        screenButton(screen, QStringLiteral("Export to PDF"))->click();
+        QCOMPARE(pdfPageCount(fileBytes(pdf)), 2);
+        QVERIFY(!screen->isVisible());
+        // Turned away at the first step, the screen stays.
+        QVERIFY(QFile::remove(pdf));
+        w.showFileScreen(QStringLiteral("export"));
+        answerOutputDialog(nullptr, QDialogButtonBox::Cancel);
+        screenButton(screen, QStringLiteral("Export to PDF"))->click();
+        QVERIFY(!QFileInfo::exists(pdf));
+        QVERIFY(screen->isVisible());
+        w.editor()->markSaved();
+    }
+
+    // About: the suite's apps with where each stands, this one's version, its
+    // links, and its license.
+    void windowFileScreenAbout()
+    {
+        DeckWindow w;
+        w.resize(1200, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("about"));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen && screen->isVisible());
+        const QStringList rows = {QStringLiteral("JeffPub, Publications, Available"), QStringLiteral("JeffDeck, Presentations, You're using it"),
+                                  QStringLiteral("JeffWrite, Documents, Coming soon"), QStringLiteral("JeffCrunch, Spreadsheets, Coming soon"),
+                                  QStringLiteral("JeffMail, Email and calendar, Coming soon"), QStringLiteral("JeffBase, Databases, Coming soon")};
+        QStringList named;
+        int comingSoon = 0;
+        bool version = false, links = false, license = false;
+        for (QWidget *c : screen->findChildren<QWidget *>()) {
+            if (!c->isVisibleTo(screen)) continue;
+            if (rows.contains(c->accessibleName())) named << c->accessibleName();
+            if (auto *l = qobject_cast<QLabel *>(c)) {
+                if (l->text() == QLatin1String("Coming soon")) ++comingSoon;
+                if (l->text().startsWith(QLatin1String("Version ")) && l->text().contains(QLatin1String(JP_VERSION)) && l->text().contains(QLatin1String("Qt"))) version = true;
+                if (l->text().contains(QLatin1String("github.com/JeffOffice/jeffoffice/releases"))) links = true;
+                if (l->text().contains(QLatin1String("GNU General Public License"))) license = true;
+            }
+        }
+        named.sort();
+        QStringList sorted = rows;
+        sorted.sort();
+        QCOMPARE(named, sorted);
+        QCOMPARE(comingSoon, 4);
+        QVERIFY(version);
+        QVERIFY(links);
+        QVERIFY(license);
     }
 
     // The slide show skips hidden slides, goes back, ends after the last.

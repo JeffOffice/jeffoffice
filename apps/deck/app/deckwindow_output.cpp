@@ -1,6 +1,6 @@
-// Printing and exporting from JeffDeck's window: File > Export to PDF and
-// Print (with the print preview), which ask first what to print, and Export
-// slide as picture.
+// Printing and exporting from JeffDeck's window: Export to PDF, which asks
+// first what to print, Export Slide as Picture, and the printing the File
+// screen's Print page asks for (it chooses what to print, and previews it).
 
 #include "app/deckwindow.h"
 
@@ -28,7 +28,6 @@
 #include <QPageSize>
 #include <QPainter>
 #include <QPrintDialog>
-#include <QPrintPreviewDialog>
 #include <QPrinter>
 #include <QPushButton>
 #include <QRadioButton>
@@ -44,15 +43,15 @@ namespace {
 
 using PathChooser = std::function<QString(const QString &suggested, const QString &filter)>;
 
-// The dialog before Export to PDF and Print: what to print, the slides, and
-// the options that go with them.
+// The dialog before Export to PDF: what to print, the slides, and the options
+// that go with them.
 class OutputDialog : public QDialog {
 public:
-    // `printing` adds a Preview button; `current` is the slide being edited (0-based).
-    OutputDialog(QWidget *parent, const Document &doc, bool printing, int current) : QDialog(parent), m_doc(doc), m_slides(int(doc.pages.size())), m_current(current)
+    // `current` is the slide being edited (0-based).
+    OutputDialog(QWidget *parent, const Document &doc, int current) : QDialog(parent), m_doc(doc), m_slides(int(doc.pages.size())), m_current(current)
     {
         setObjectName(QStringLiteral("outputDialog"));
-        setWindowTitle(printing ? DeckWindow::tr("Print") : DeckWindow::tr("Export to PDF"));
+        setWindowTitle(DeckWindow::tr("Export to PDF"));
         auto *form = new QFormLayout;
         m_what = new QComboBox(this);
         m_what->setObjectName(QStringLiteral("outputWhat"));
@@ -113,17 +112,11 @@ public:
         layout->addLayout(form);
         m_buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
         m_ok = m_buttons->button(QDialogButtonBox::Ok);
-        m_ok->setText(printing ? DeckWindow::tr("Print…") : DeckWindow::tr("Export…"));
-        if (printing) m_preview = m_buttons->addButton(DeckWindow::tr("Preview…"), QDialogButtonBox::ActionRole);
+        m_ok->setText(DeckWindow::tr("Export…"));
         layout->addWidget(m_buttons);
         m_ok->setDefault(true);
         connect(m_buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
         connect(m_buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-        if (m_preview)
-            connect(m_preview, &QPushButton::clicked, this, [this] {
-                m_wantsPreview = true;
-                accept();
-            });
 
         // What was chosen last time.
         Settings &st = Settings::get();
@@ -159,7 +152,6 @@ public:
         else if (m_some->isChecked()) o.slides = deck::parseSlideRange(m_text->text(), m_slides);
         return o;
     }
-    bool wantsPreview() const { return m_wantsPreview; }
     // Keeps the choices for next time.
     void remember() const
     {
@@ -186,7 +178,6 @@ private:
         const int pages = deck::outputPageCount(m_doc, o);
         m_summary->setText(badRange ? DeckWindow::tr("Enter slide numbers, such as 1-3, 5.") : pages ? DeckWindow::tr("%n page(s)", nullptr, pages) : DeckWindow::tr("There are no slides to print."));
         m_ok->setEnabled(pages > 0 && !badRange);
-        if (m_preview) m_preview->setEnabled(pages > 0 && !badRange);
     }
 
     const Document &m_doc;
@@ -197,8 +188,7 @@ private:
     QCheckBox *m_hidden = nullptr, *m_frame = nullptr, *m_gray = nullptr;
     QLabel *m_summary = nullptr;
     QDialogButtonBox *m_buttons = nullptr;
-    QPushButton *m_ok = nullptr, *m_preview = nullptr;
-    bool m_wantsPreview = false;
+    QPushButton *m_ok = nullptr;
 };
 
 // What the presentation holds when typing is done: the notes and the text being edited are in the slides.
@@ -209,13 +199,12 @@ void settle(DeckWindow *w)
 }
 
 // Asks what to print; false when cancelled.
-bool askWhatToPrint(DeckWindow *w, bool printing, deck::OutputOptions *options, bool *preview = nullptr)
+bool askWhatToPrint(DeckWindow *w, deck::OutputOptions *options)
 {
-    OutputDialog dlg(w, *w->editor()->doc(), printing, w->editor()->currentPage());
+    OutputDialog dlg(w, *w->editor()->doc(), w->editor()->currentPage());
     if (dlg.exec() != QDialog::Accepted) return false;
     dlg.remember();
     *options = dlg.options();
-    if (preview) *preview = dlg.wantsPreview();
     return true;
 }
 
@@ -228,15 +217,15 @@ QString suggestedPath(DeckWindow *w, const QString &name, const QString &ending)
     return dir + QLatin1Char('/') + name + ending;
 }
 
-void exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
+bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
 {
     settle(w);
     deck::OutputOptions options;
-    if (!askWhatToPrint(w, false, &options)) return;
+    if (!askWhatToPrint(w, &options)) return false;
     const QString filter = DeckWindow::tr("PDF (*.pdf)");
     const QString suggested = suggestedPath(w, w->editor()->displayName(), QStringLiteral(".pdf"));
     QString path = chooser ? chooser(suggested, filter) : askSavePath(w, DeckWindow::tr("Export to PDF"), suggested, filter);
-    if (path.isEmpty()) return;
+    if (path.isEmpty()) return false;
     if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
@@ -245,12 +234,13 @@ void exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
     if (!ok) {
         QMessageBox::warning(w, DeckWindow::tr("Export to PDF"),
                              DeckWindow::tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
-        return;
+        return false;
     }
     w->statusBar()->showMessage(DeckWindow::tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
+    return true;
 }
 
-void exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
+bool exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
 {
     settle(w);
     Editor *ed = w->editor();
@@ -261,7 +251,7 @@ void exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
     const QString suggested = suggestedPath(w, DeckWindow::tr("%1 - Slide %2").arg(ed->displayName()).arg(slide + 1), QStringLiteral(".png"));
     QString path = chooser ? chooser(suggested, selected)
                            : askSavePath(w, DeckWindow::tr("Export Slide as Picture"), suggested, pngFilter + QStringLiteral(";;") + jpegFilter, &selected);
-    if (path.isEmpty()) return;
+    if (path.isEmpty()) return false;
     const QString suffix = QFileInfo(path).suffix().toLower();
     if (suffix != QLatin1String("png") && suffix != QLatin1String("jpg") && suffix != QLatin1String("jpeg"))
         path += selected == jpegFilter ? QStringLiteral(".jpg") : QStringLiteral(".png");
@@ -274,9 +264,10 @@ void exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
         const QString err = file.error() != QFileDevice::NoError ? file.errorString() : DeckWindow::tr("The picture can't be made.");
         QMessageBox::warning(w, DeckWindow::tr("Export Slide as Picture"),
                              DeckWindow::tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
-        return;
+        return false;
     }
     w->statusBar()->showMessage(DeckWindow::tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
+    return true;
 }
 
 // Sets the printer up for the output: the locale's paper upright, or, for
@@ -318,40 +309,34 @@ void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, 
     p.end();
 }
 
-void printCommand(DeckWindow *w)
+} // namespace
+
+bool DeckWindow::printOutput(const deck::OutputOptions &options)
 {
-    settle(w);
-    deck::OutputOptions options;
-    bool preview = false;
-    if (!askWhatToPrint(w, true, &options, &preview)) return;
-    Editor *ed = w->editor();
-    const Document &doc = *ed->doc();
+    settle(this);
+    const Document &doc = *m_ed->doc();
     QPrinter printer(QPrinter::HighResolution);
-    printer.setDocName(ed->displayName());
+    printer.setDocName(m_ed->displayName());
     setUpPrinter(&printer, doc, options);
-    if (preview) {
-        QPrintPreviewDialog dlg(&printer, w);
-        dlg.setWindowTitle(DeckWindow::tr("Print Preview"));
-        QObject::connect(&dlg, &QPrintPreviewDialog::paintRequested, &dlg, [&](QPrinter *p) { paintOnPrinter(p, doc, &ed->cache(), options); });
-        dlg.exec();
-        return;
-    }
-    QPrintDialog dlg(&printer, w);
-    dlg.setWindowTitle(DeckWindow::tr("Print"));
-    if (dlg.exec() != QDialog::Accepted) return;
+    QPrintDialog dlg(&printer, this);
+    dlg.setWindowTitle(tr("Print"));
+    if (dlg.exec() != QDialog::Accepted) return false;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    paintOnPrinter(&printer, doc, &ed->cache(), options);
+    paintOnPrinter(&printer, doc, &m_ed->cache(), options);
     QApplication::restoreOverrideCursor();
-    w->statusBar()->showMessage(DeckWindow::tr("Sent %1 to the printer").arg(ed->displayName()), 5000);
+    statusBar()->showMessage(tr("Sent %1 to the printer").arg(m_ed->displayName()), 5000);
+    return true;
 }
 
-} // namespace
+bool DeckWindow::exportPdf() { return exportPdfCommand(this, m_pathChooser); }
+
+bool DeckWindow::exportPicture() { return exportPictureCommand(this, m_pathChooser); }
 
 void DeckWindow::createOutputActions()
 {
-    mk("file.exportPdf", tr("Export to PDF…"), "file-output", QKeySequence(), [this] { exportPdfCommand(this, m_pathChooser); });
-    mk("file.exportPicture", tr("Export Slide as Picture…"), "image", QKeySequence(), [this] { exportPictureCommand(this, m_pathChooser); });
-    mk("file.print", tr("Print…"), "printer", QKeySequence::Print, [this] { printCommand(this); });
+    mk("file.exportPdf", tr("Export to PDF…"), "file-output", QKeySequence(), [this] { exportPdf(); });
+    mk("file.exportPicture", tr("Export Slide as Picture…"), "image", QKeySequence(), [this] { exportPicture(); });
+    mk("file.print", tr("Print…"), "printer", QKeySequence::Print, [this] { showFileScreen(QStringLiteral("print")); });
 }
 
 } // namespace jp

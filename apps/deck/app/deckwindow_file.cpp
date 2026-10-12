@@ -6,6 +6,7 @@
 #include "app/editor.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
+#include "app/settings.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
 #include "io/presentationfile.h"
@@ -40,6 +41,8 @@ bool DeckWindow::openFile(const QString &path)
     target->m_ed->setDocument(std::move(doc), path);
     // The panes follow the new presentation (documentReplaced); its slides may be another size.
     target->m_canvas->zoomToFit(Canvas::Fit::WholePage);
+    Settings::get().addRecentFile(path);
+    hideFileScreen();
     if (!notes.isEmpty())
         QMessageBox::warning(target, tr("Open"), tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes));
     return true;
