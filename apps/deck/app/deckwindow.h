@@ -123,6 +123,7 @@ private:
     void addShowParts(struct RibbonParts &parts);
     void createActions();
     void createSaveActions();     // deckwindow_save.cpp
+    void createDialogActions();   // deckwindow_dialogs.cpp
     void createOutputActions();   // deckwindow_output.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();
