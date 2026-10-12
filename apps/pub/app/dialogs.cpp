@@ -1,14 +1,11 @@
 #include "app/dialogs.h"
-#include "app/telemetry.h"
 #include "app/mainwindow.h"
-#include "app/theme.h"
-#include "app/i18n.h"
 
 #include "app/appfuncs.h"
+#include "app/optionsdialog.h"
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/settings.h"
-#include "app/updater.h"
 #include "app/widgets.h"
 #include "core/presets.h"
 #include "io/importers.h"
@@ -57,6 +54,7 @@
 #include <QBuffer>
 #include <QStyleHints>
 #include <QPointer>
+#include <memory>
 #include <QClipboard>
 #include <QMimeData>
 #include <QTextDocumentFragment>
@@ -1369,134 +1367,78 @@ void styleDialog(QWidget *p, Editor *ed, const QString &styleName)
 }
 
 // ---------------- Options ----------------
+// The General and Proofing pages are the shared dialog's (optionsdialog.cpp);
+// Save and Advanced are JeffPub's own.
 void optionsDialog(QWidget *p, Editor *ed)
 {
     Settings &st = Settings::get();
-    Dlg dlg(p, QCoreApplication::translate("Dialogs", "JeffPub Options"));
-    auto *tabs = new QTabWidget(&dlg.d);
-    auto *gen = new QWidget();
-    auto *gf = new QFormLayout(gen);
-    auto *name = new QLineEdit(st.userName(), gen);
-    auto *initials = new QLineEdit(st.value("user/initials").toString(), gen);
-    auto *theme = new QComboBox(gen);
-    theme->addItems({QCoreApplication::translate("Dialogs", "Use system setting"), QCoreApplication::translate("Dialogs", "Light"), QCoreApplication::translate("Dialogs", "Dark")});
-    const int oldTheme = st.value("ui/theme", 0).toInt();
-    theme->setCurrentIndex(oldTheme);
-    gf->addRow(QCoreApplication::translate("Dialogs", "User name:"), name);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Initials:"), initials);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Theme:"), theme);
-    // The language of JeffPub's own text; it takes effect at the next start.
-    auto *uiLang = new QComboBox(gen);
-    uiLang->addItem(QCoreApplication::translate("Dialogs", "Use system language"), QString());
-    uiLang->addItem(QStringLiteral("English"), QStringLiteral("en"));
-    for (const QString &l : availableUiLanguages()) uiLang->addItem(uiLanguageName(l), l);
-    const QString oldLang = st.value("ui/language").toString();
-    uiLang->setCurrentIndex(std::max(0, uiLang->findData(oldLang)));
-    gf->addRow(QCoreApplication::translate("Dialogs", "Display language:"), uiLang);
-    // The choice the first start offered, which its message says is here.
-    auto *stats = new QCheckBox(QCoreApplication::translate("Dialogs", "Send anonymous usage statistics"), gen);
-    stats->setObjectName(QStringLiteral("stats"));
-    stats->setToolTip(QCoreApplication::translate("Dialogs", "Once a day, and the day it's updated: JeffPub's version, your operating system and language, and how often each command is used. "
-                                                            "Never your files, their names, or anything in them."));
-    stats->setChecked(telemetry::enabled());
-    gf->addRow(stats);
-    auto *updates = new QCheckBox(QCoreApplication::translate("Dialogs", "Check for updates when JeffPub starts"), gen);
-    updates->setObjectName(QStringLiteral("updates"));
-    updates->setChecked(st.value("updates/auto", true).toBool());
-    gf->addRow(updates);
-    // Beta versions are the test builds published ahead of each regular release.
-    auto *beta = new QCheckBox(QCoreApplication::translate("Dialogs", "Get beta versions (early builds for testing)"), gen);
-    beta->setObjectName(QStringLiteral("betaUpdates"));
-    const QString betaAbout = QCoreApplication::translate("Dialogs", "Beta versions arrive before the regular ones and may have rough edges. "
-                                                                    "Leave this off to get only the regular versions.");
-    beta->setToolTip(betaAbout);
-    beta->setWhatsThis(betaAbout);
-    beta->setAccessibleDescription(betaAbout);
-    beta->setChecked(Updater::betaChannel());
-    gf->addRow(beta);
-    tabs->addTab(gen, QCoreApplication::translate("Dialogs", "General"));
-    auto *proof = new QWidget();
-    auto *pf = new QFormLayout(proof);
-    auto *asType = new QCheckBox(QCoreApplication::translate("Dialogs", "Check spelling as you type"), proof);
-    asType->setChecked(ed->view.spelling);
-    auto *ignoreUpper = new QCheckBox(QCoreApplication::translate("Dialogs", "Ignore words in UPPERCASE"), proof);
-    ignoreUpper->setChecked(st.value("proof/ignoreUpper", true).toBool());
-    auto *ignoreNum = new QCheckBox(QCoreApplication::translate("Dialogs", "Ignore words that contain numbers"), proof);
-    ignoreNum->setChecked(st.value("proof/ignoreNumbers", true).toBool());
-    auto *autocorrect = new QCheckBox(QCoreApplication::translate("Dialogs", "Replace text as you type (AutoCorrect)"), proof);
-    autocorrect->setChecked(st.value("proof/autocorrect", true).toBool());
-    auto *quotes = new QCheckBox(QCoreApplication::translate("Dialogs", "Replace straight quotes with smart quotes"), proof);
-    auto *autoformat = new QCheckBox(QCoreApplication::translate("Dialogs", "AutoFormat as you type (dashes, fractions, ordinals, automatic lists)"), proof);
-    autoformat->setChecked(st.value("proof/autoformat", true).toBool());
-    quotes->setChecked(st.value("proof/smartQuotes", true).toBool());
-    pf->addRow(asType);
-    pf->addRow(ignoreUpper);
-    pf->addRow(ignoreNum);
-    pf->addRow(autocorrect);
-    pf->addRow(quotes);
-    pf->addRow(autoformat);
-    tabs->addTab(proof, QCoreApplication::translate("Dialogs", "Proofing"));
-    auto *save = new QWidget();
-    auto *sf = new QFormLayout(save);
-    auto *recover = new QSpinBox(save);
-    recover->setObjectName(QStringLiteral("autoRecoverMinutes"));
-    recover->setRange(1, 120);
-    recover->setValue(st.autoRecoverMinutes());
-    recover->setSuffix(QCoreApplication::translate("Dialogs", " minutes"));
-    auto *backup = new QCheckBox(QCoreApplication::translate("Dialogs", "Always create backup copy"), save);
-    backup->setChecked(st.value("save/backup", false).toBool());
-    sf->addRow(QCoreApplication::translate("Dialogs", "Save AutoRecover information every:"), recover);
-    sf->addRow(backup);
-    tabs->addTab(save, QCoreApplication::translate("Dialogs", "Save"));
-    auto *adv = new QWidget();
-    auto *af = new QFormLayout(adv);
-    auto *units = new QComboBox(adv);
-    units->addItems({QCoreApplication::translate("Dialogs", "Inches"), QCoreApplication::translate("Dialogs", "Centimeters"), QCoreApplication::translate("Dialogs", "Millimeters"), QCoreApplication::translate("Dialogs", "Points"), QCoreApplication::translate("Dialogs", "Picas")});
-    units->setCurrentIndex(int(st.unit()));
-    auto *nudge = measure(st.nudge(), adv, 0.1, 720);
-    auto *recent = new QSpinBox(adv);
-    recent->setRange(0, 50);
-    recent->setValue(st.value("recentCount", 25).toInt());
-    auto *wholeWord = new QCheckBox(QCoreApplication::translate("Dialogs", "When selecting, automatically select entire word"), adv);
-    wholeWord->setChecked(st.value("edit/wholeWord", true).toBool());
-    auto *dragText = new QCheckBox(QCoreApplication::translate("Dialogs", "Allow text to be dragged and dropped"), adv);
-    dragText->setChecked(st.value("edit/dragText", true).toBool());
-    auto *hyphenate = new QCheckBox(QCoreApplication::translate("Dialogs", "Automatically hyphenate in new text boxes"), adv);
-    hyphenate->setChecked(st.value("edit/hyphenate", true).toBool());
-    af->addRow(QCoreApplication::translate("Dialogs", "Measurement units:"), units);
-    af->addRow(QCoreApplication::translate("Dialogs", "Arrow keys nudge objects by:"), nudge);
-    af->addRow(QCoreApplication::translate("Dialogs", "Show this number of Recent Publications:"), recent);
-    af->addRow(wholeWord);
-    af->addRow(dragText);
-    af->addRow(hyphenate);
-    tabs->addTab(adv, QCoreApplication::translate("Dialogs", "Advanced"));
-    dlg.v->addWidget(tabs);
-    if (!dlg.exec()) return;
-    st.setValue("user/name", name->text());
-    st.setValue("user/initials", initials->text());
-    st.setValue("ui/theme", theme->currentIndex());
-    if (theme->currentIndex() != oldTheme) applyUiTheme(theme->currentIndex());   // the whole program changes now
-    if (const QString lang = uiLang->currentData().toString(); lang != oldLang) {
-        st.setValue("ui/language", lang);
-        QMessageBox::information(p, QCoreApplication::translate("Dialogs", "Display Language"), QCoreApplication::translate("Dialogs", "JeffPub shows its text in the new language the next time it starts."));
-    }
-    st.setValue("proof/ignoreUpper", ignoreUpper->isChecked());
-    st.setValue("proof/ignoreNumbers", ignoreNum->isChecked());
-    st.setValue("proof/autocorrect", autocorrect->isChecked());
-    st.setValue("proof/smartQuotes", quotes->isChecked());
-    st.setValue("proof/autoformat", autoformat->isChecked());
-    st.setValue("save/autoRecoverMinutes", recover->value());
-    st.setValue("save/backup", backup->isChecked());
-    st.setUnit(Unit(units->currentIndex()));
-    st.setValue("edit/nudge", nudge->value());
-    st.setValue("recentCount", recent->value());
-    st.setValue("edit/wholeWord", wholeWord->isChecked());
-    st.setValue("edit/dragText", dragText->isChecked());
-    st.setValue("edit/hyphenate", hyphenate->isChecked());
-    if (stats->isChecked() != telemetry::enabled()) telemetry::setEnabled(stats->isChecked());
-    st.setValue("updates/auto", updates->isChecked());
-    Updater::setBetaChannel(beta->isChecked());
-    ed->setView([&](ViewOptions &v) { v.spelling = asType->isChecked(); });
+    struct Fields {
+        QSpinBox *recover = nullptr;
+        QCheckBox *backup = nullptr;
+        QComboBox *units = nullptr;
+        MeasureSpin *nudge = nullptr;
+        QSpinBox *recent = nullptr;
+        QCheckBox *wholeWord = nullptr, *dragText = nullptr, *hyphenate = nullptr;
+    };
+    auto f = std::make_shared<Fields>();
+    QVector<OptionsPage> pages;
+    pages << OptionsPage{QCoreApplication::translate("Dialogs", "Save"), [&st, f] {
+        auto *save = new QWidget();
+        auto *sf = new QFormLayout(save);
+        auto *recover = new QSpinBox(save);
+        recover->setObjectName(QStringLiteral("autoRecoverMinutes"));
+        recover->setRange(1, 120);
+        recover->setValue(st.autoRecoverMinutes());
+        recover->setSuffix(QCoreApplication::translate("Dialogs", " minutes"));
+        auto *backup = new QCheckBox(QCoreApplication::translate("Dialogs", "Always create backup copy"), save);
+        backup->setChecked(st.value("save/backup", false).toBool());
+        sf->addRow(QCoreApplication::translate("Dialogs", "Save AutoRecover information every:"), recover);
+        sf->addRow(backup);
+        f->recover = recover;
+        f->backup = backup;
+        return save;
+    }, [&st, f] {
+        st.setValue("save/autoRecoverMinutes", f->recover->value());
+        st.setValue("save/backup", f->backup->isChecked());
+    }};
+    pages << OptionsPage{QCoreApplication::translate("Dialogs", "Advanced"), [&st, f] {
+        auto *adv = new QWidget();
+        auto *af = new QFormLayout(adv);
+        auto *units = new QComboBox(adv);
+        units->addItems({QCoreApplication::translate("Dialogs", "Inches"), QCoreApplication::translate("Dialogs", "Centimeters"), QCoreApplication::translate("Dialogs", "Millimeters"), QCoreApplication::translate("Dialogs", "Points"), QCoreApplication::translate("Dialogs", "Picas")});
+        units->setCurrentIndex(int(st.unit()));
+        auto *nudge = measure(st.nudge(), adv, 0.1, 720);
+        auto *recent = new QSpinBox(adv);
+        recent->setRange(0, 50);
+        recent->setValue(st.value("recentCount", 25).toInt());
+        auto *wholeWord = new QCheckBox(QCoreApplication::translate("Dialogs", "When selecting, automatically select entire word"), adv);
+        wholeWord->setChecked(st.value("edit/wholeWord", true).toBool());
+        auto *dragText = new QCheckBox(QCoreApplication::translate("Dialogs", "Allow text to be dragged and dropped"), adv);
+        dragText->setChecked(st.value("edit/dragText", true).toBool());
+        auto *hyphenate = new QCheckBox(QCoreApplication::translate("Dialogs", "Automatically hyphenate in new text boxes"), adv);
+        hyphenate->setChecked(st.value("edit/hyphenate", true).toBool());
+        af->addRow(QCoreApplication::translate("Dialogs", "Measurement units:"), units);
+        af->addRow(QCoreApplication::translate("Dialogs", "Arrow keys nudge objects by:"), nudge);
+        af->addRow(QCoreApplication::translate("Dialogs", "Show this number of Recent Publications:"), recent);
+        af->addRow(wholeWord);
+        af->addRow(dragText);
+        af->addRow(hyphenate);
+        f->units = units;
+        f->nudge = nudge;
+        f->recent = recent;
+        f->wholeWord = wholeWord;
+        f->dragText = dragText;
+        f->hyphenate = hyphenate;
+        return adv;
+    }, [&st, f] {
+        st.setUnit(Unit(f->units->currentIndex()));
+        st.setValue("edit/nudge", f->nudge->value());
+        st.setValue("recentCount", f->recent->value());
+        st.setValue("edit/wholeWord", f->wholeWord->isChecked());
+        st.setValue("edit/dragText", f->dragText->isChecked());
+        st.setValue("edit/hyphenate", f->hyphenate->isChecked());
+    }};
+    if (!optionsDialog(p, ed, pages)) return;
     // Every open window saves AutoRecover copies at the new interval.
     for (QWidget *w : QApplication::topLevelWidgets())
         if (auto *mw = qobject_cast<MainWindow *>(w)) mw->settingsChanged();
