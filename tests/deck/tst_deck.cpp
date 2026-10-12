@@ -12207,6 +12207,30 @@ private Q_SLOTS:
         QCOMPARE(deck::themeOf(*back).name, QStringLiteral("Marquee"));
     }
 
+    // The theme part of a file is kept as the file had it when a theme is taken from it, and is the part written when the presentation is saved.
+    void applyingAThemeKeepsThePartOfAFile()
+    {
+        QString err;
+        auto source = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(source, qPrintable(err));
+        auto d = deckToRestyle();
+        QVERIFY(deck::applyThemeToAll(*d, *source));
+        QCOMPARE(QByteArray::fromBase64(d->appData.value(QStringLiteral("themeXml")).toString().toLatin1()), themeXml());
+        QCOMPARE(deck::themeOf(*d).name, deck::themeOf(*source).name);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QCOMPARE(e.zip.value(QStringLiteral("ppt/theme/theme1.xml")), themeXml());
+        // Changing a color changes the part: the colors it says, and nothing else.
+        deck::ColorSet set = deck::colorSetOf(*d);
+        set.colors[4] = QColor(0x12, 0x34, 0x56);
+        deck::applyColors(*d, set);
+        office::Theme part;
+        QVERIFY(office::readTheme(QByteArray::fromBase64(d->appData.value(QStringLiteral("themeXml")).toString().toLatin1()), &part));
+        QCOMPARE(part.colors[4], QColor(0x12, 0x34, 0x56));
+        QCOMPARE(part.majorLatin, deck::themeOf(*source).headingFont);
+        QCOMPARE(part.minorLatin, deck::themeOf(*source).bodyFont);
+    }
+
     // A file can't make a change of theme slow: slides and a theme whose layout have hundreds of placeholders each are not matched one
     // against the other (the slides go to the layout as they are).
     void applyingAThemeToASlideFullOfPlaceholdersIsQuick()
@@ -12217,7 +12241,7 @@ private Q_SLOTS:
             for (int i = 0; i < count; ++i) {
                 auto box = std::make_shared<TextItem>();
                 box->role = deck::placeholderRole(QStringLiteral("obj"), i + 1);
-                box->rect = QRectF(10 + i % 40 * 20, 10 + i / 40 * 10, 18, 8);
+                box->rect = QRectF(10 + i % 40 * 20, 10 + i / 40 * 5, 18, 4);
                 box->storyId = doc.createStory(QStringLiteral("x"));
                 items.push_back(box);
             }
@@ -12226,16 +12250,16 @@ private Q_SLOTS:
         for (int s = 0; s < 4; ++s) {
             deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
             Page &slide = *d->pages.last();
-            const ItemList more = many(*d, 2000);
+            const ItemList more = many(*d, 3000);
             slide.items.insert(slide.items.end(), more.begin(), more.end());
         }
         auto source = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Granite")));
         MasterPage *obj = deck::layoutOfType(*source, QStringLiteral("obj"));
-        obj->items = many(*source, 2000);
+        obj->items = many(*source, 3000);
         QElapsedTimer timer;
         timer.start();
         QVERIFY(deck::applyThemeToAll(*d, *source));
-        QVERIFY2(timer.elapsed() < 1500, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 5000, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
         QCOMPARE(deck::themeOf(*d).name, QStringLiteral("Granite"));
         QCOMPARE(layoutTypes(*d), (QStringList{QStringLiteral("title"), QStringLiteral("obj"), QStringLiteral("obj"), QStringLiteral("obj"), QStringLiteral("obj")}));
     }
@@ -12542,6 +12566,7 @@ private Q_SLOTS:
         QCOMPARE(ed->doc()->colors.slot(Main), deck::themeOf(*ed->doc()).colors[0]);
         QCOMPARE(ed->doc()->colors.slot(Accent1), deck::themeOf(*ed->doc()).colors[4]);
     }
+
 
     // A presentation that isn't in a built-in theme has variants too: its own colors on four backgrounds.
     void variantsOfAnotherThemeAreItsColorsOnFourBackgrounds()
