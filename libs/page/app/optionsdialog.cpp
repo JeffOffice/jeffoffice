@@ -71,7 +71,10 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     const QString oldLang = st.value("ui/language").toString();
     uiLang->setCurrentIndex(std::max(0, uiLang->findData(oldLang)));
     gf->addRow(QCoreApplication::translate("Dialogs", "Display language:"), uiLang);
-    // The choice the first start offered, which its message says is here.
+    // The choice the first start offered, which its message says is here,
+    // and the update check: only in an app that sends and checks (the
+    // choices are the suite's, so JeffPub's Options keep them for JeffDeck).
+    const bool online = appInfo().online;
     auto *stats = new QCheckBox(QCoreApplication::translate("Dialogs", "Send anonymous usage statistics"), gen);
     stats->setObjectName(QStringLiteral("stats"));
     stats->setToolTip(forThisApp(QCoreApplication::translate("Dialogs", "Once a day, and the day it's updated: JeffPub's version, your operating system and language, and how often each command is used. "
@@ -92,6 +95,7 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     beta->setAccessibleDescription(betaAbout);
     beta->setChecked(Updater::betaChannel());
     gf->addRow(beta);
+    for (QWidget *box : {static_cast<QWidget *>(stats), static_cast<QWidget *>(updates), static_cast<QWidget *>(beta)}) gf->setRowVisible(box, online);
     tabs->addTab(gen, QCoreApplication::translate("Dialogs", "General"));
     auto *proof = new QWidget();
     auto *pf = new QFormLayout(proof);
@@ -132,9 +136,11 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     st.setValue("proof/autoformat", autoformat->isChecked());
     for (const OptionsPage &page : appPages)
         if (page.apply) page.apply();
-    if (stats->isChecked() != telemetry::enabled()) telemetry::setEnabled(stats->isChecked());
-    st.setValue("updates/auto", updates->isChecked());
-    Updater::setBetaChannel(beta->isChecked());
+    if (online) {
+        if (stats->isChecked() != telemetry::enabled()) telemetry::setEnabled(stats->isChecked());
+        st.setValue("updates/auto", updates->isChecked());
+        Updater::setBetaChannel(beta->isChecked());
+    }
     ed->setView([&](ViewOptions &v) { v.spelling = asType->isChecked(); });
     return true;
 }

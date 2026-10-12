@@ -7141,14 +7141,16 @@ private Q_SLOTS:
 
 
     // File > Options is the shared dialog: its General tab has the user name
-    // and the app's own name in the update check, Proofing follows, and
-    // JeffDeck's View page sets the ruler and snapping for every open window.
+    // but not the update check or the statistics (JeffDeck's preview does
+    // neither; JeffPub's Options keep them for the suite), Proofing follows,
+    // and JeffDeck's View page sets the ruler and snapping for every open window.
     void optionsHasTheGeneralTabAndTheViewPage()
     {
         DeckWindow w;
         QVERIFY(w.act(QStringLiteral("file.options")));
         QStringList tabNames;
-        QString title, shown, userName, updates;
+        QString title, shown, userName;
+        QStringList online;
         QTimer::singleShot(0, [&] {
             auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (!d) return;
@@ -7159,7 +7161,8 @@ private Q_SLOTS:
             }
             for (QLabel *l : d->findChildren<QLabel *>())
                 if (l->text() == QLatin1String("User name:") && l->buddy()) userName = static_cast<QLineEdit *>(l->buddy())->text();
-            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("updates"))) updates = box->text();
+            for (const char *name : {"updates", "stats", "betaUpdates"})
+                if (auto *box = d->findChild<QCheckBox *>(QLatin1String(name)); box && box->isVisibleTo(d)) online << box->text();
             d->reject();
         });
         w.act(QStringLiteral("file.options"))->trigger();
@@ -7167,7 +7170,7 @@ private Q_SLOTS:
         QCOMPARE(tabNames, (QStringList{"General", "Proofing", "View"}));
         QCOMPARE(shown, QStringLiteral("General"));
         QCOMPARE(userName, Settings::get().userName());
-        QCOMPARE(updates, QStringLiteral("Check for updates when JeffDeck starts"));
+        QVERIFY2(online.isEmpty(), qPrintable(online.join(QStringLiteral(", "))));
         // The View page: the ruler and snapping, in this window now and in new ones.
         QVERIFY(!w.editor()->view.rulers);
         QVERIFY(w.editor()->view.snapObjects);
