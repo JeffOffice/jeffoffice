@@ -739,11 +739,20 @@ QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVe
     else if (prst == QLatin1String("doubleWave")) slots = {{0, 200000}};
     else
         for (int i = 0; i < spec->count; ++i) slots.append({i, 100000});
+    double values[8];
+    std::copy(std::begin(spec->defaults), std::end(spec->defaults), values);
+    bool changed = false;
     for (int i = 0; i < slots.size() && i < adj.size(); ++i) {
         const double value = std::round(adj[i] * slots[i].scale);
         if (slots[i].index >= spec->count || !std::isfinite(value) || std::fabs(value - spec->defaults[slots[i].index]) < 1) continue;
-        out.append({spec->count == 1 ? QStringLiteral("adj") : QStringLiteral("adj%1").arg(slots[i].index + 1), value});
+        values[slots[i].index] = value;
+        changed = true;
     }
+    // All or none: the presentation program refuses a file with a shape that
+    // gives some of its preset's adjustments and leaves out the rest.
+    if (!changed) return out;
+    for (int i = 0; i < spec->count; ++i)
+        out.append({spec->count == 1 ? QStringLiteral("adj") : QStringLiteral("adj%1").arg(i + 1), values[i]});
     return out;
 }
 

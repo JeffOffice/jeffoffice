@@ -85,8 +85,10 @@ bool prefersPresetGeometry(const QString &prst);
 QVector<double> libraryAdjustments(const QString &prst, const QHash<QString, double> &given, const QSizeF &size);
 // The counterpart of libraryAdjustments, for writing: the standard's
 // adjustments ("adj", "adj1", ... with their values in 100,000ths) that a
-// shape of the library with `adj` is, leaving out those that are the
-// standard's own default. Empty for a preset the library has none for.
+// shape of the library with `adj` is. All of the preset's, or, when every
+// one is the standard's own default, none: the presentation program refuses
+// a file whose shape gives some and not the others. Empty for a preset the
+// library has none for.
 QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVector<double> &adj, const QSizeF &size);
 
 } // namespace jp::office
