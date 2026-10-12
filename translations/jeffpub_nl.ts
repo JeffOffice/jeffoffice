@@ -4,7 +4,7 @@
 <context>
     <name>BarcodeDialog</name>
     <message>
-        <location filename="../src/app/barcodedialog.cpp" line="+167"/>
+        <location filename="../apps/pub/app/barcodedialog.cpp" line="+167"/>
         <location line="+194"/>
         <source>Edit Barcode</source>
         <translation type="unfinished">Streepjescode bewerken</translation>
@@ -169,7 +169,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../src/templates/templates.cpp" line="+1714"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1714"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished">Kop met accentbalk</translation>
     </message>
@@ -445,7 +445,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>Canvas</name>
     <message>
-        <location filename="../src/canvas/canvas.cpp" line="+172"/>
+        <location filename="../apps/pub/canvas/canvas.cpp" line="+172"/>
         <source>Page</source>
         <translation type="unfinished">Pagina</translation>
     </message>
@@ -629,7 +629,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Inspringing</translation>
     </message>
     <message>
-        <location filename="../src/canvas/canvasaccessible.cpp" line="+75"/>
+        <location filename="../apps/pub/canvas/canvasaccessible.cpp" line="+75"/>
         <source>Empty text box</source>
         <translation type="unfinished">Leeg tekstvak</translation>
     </message>
@@ -711,7 +711,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>Core</name>
     <message>
-        <location filename="../src/core/barcode.cpp" line="+107"/>
+        <location filename="../libs/base/core/barcode.cpp" line="+107"/>
         <source>%1 takes %2 digits (or %3 without the check digit).</source>
         <translation type="unfinished">%1 vereist %2 cijfers (of %3 zonder controlecijfer).</translation>
     </message>
@@ -777,7 +777,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Typ de prijs.</translation>
     </message>
     <message>
-        <location filename="../src/core/color.cpp" line="+121"/>
+        <location filename="../libs/base/core/color.cpp" line="+121"/>
         <source>Main</source>
         <translation type="unfinished">Hoofdkleur</translation>
     </message>
@@ -837,7 +837,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">%1 (donkerder %2%)</translation>
     </message>
     <message>
-        <location filename="../src/core/document.cpp" line="+293"/>
+        <location filename="../apps/pub/core/document.cpp" line="+293"/>
         <source>Organization Name</source>
         <translation type="unfinished">Naam organisatie</translation>
     </message>
@@ -882,7 +882,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Website</translation>
     </message>
     <message>
-        <location filename="../src/core/items.cpp" line="+27"/>
+        <location filename="../libs/draw/core/items.cpp" line="+27"/>
         <source>Text Box</source>
         <translation type="unfinished">Tekstvak</translation>
     </message>
@@ -922,7 +922,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Uw tekst hier</translation>
     </message>
     <message>
-        <location filename="../src/core/style.cpp" line="+27"/>
+        <location filename="../libs/draw/core/style.cpp" line="+27"/>
         <source>Solid</source>
         <translation type="unfinished">Doorgetrokken</translation>
     </message>
@@ -965,7 +965,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>Dialogs</name>
     <message>
-        <location filename="../src/app/dialogs.cpp" line="+105"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+105"/>
         <source>No Color</source>
         <translation type="unfinished">Geen kleur</translation>
     </message>
@@ -3822,7 +3822,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>Export</name>
     <message>
-        <location filename="../src/io/pdfx.cpp" line="+19"/>
+        <location filename="../apps/pub/io/pdfx.cpp" line="+19"/>
         <source>U.S. web offset, coated paper (SWOP)</source>
         <translation type="unfinished">Amerikaans rotatieoffset, gestreken papier (SWOP)</translation>
     </message>
@@ -3892,18 +3892,18 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">geen uitvoerintentie (de afdrukconditie)</translation>
     </message>
     <message>
-        <location line="+14"/>
-        <location filename="../src/io/qtpdf.cpp" line="+78"/>
+        <location filename="../libs/base/io/qtpdf.cpp" line="+78"/>
+        <location filename="../apps/pub/io/pdfx.cpp" line="+14"/>
         <source>unexpected PDF layout</source>
         <translation type="unfinished">onverwachte PDF-indeling</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location filename="../apps/pub/io/pdfx.cpp" line="+10"/>
         <source>an RGB color space JeffPub couldn&apos;t convert</source>
         <translation type="unfinished">een RGB-kleurruimte die JeffPub niet kon converteren</translation>
     </message>
     <message>
-        <location filename="../src/io/pubexport.cpp" line="+2338"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2338"/>
         <source>%1 object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">%1 object(en) kon(den) niet in .pub worden opgeslagen</translation>
     </message>
@@ -3923,7 +3923,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">%1 tabelrand(en), arcering(en) of diagona(a)l(en) kon(den) niet in .pub worden opgeslagen</translation>
     </message>
     <message>
-        <location filename="../src/io/qtpdf.cpp" line="-26"/>
+        <location filename="../libs/base/io/qtpdf.cpp" line="-26"/>
         <source>not a PDF this program wrote</source>
         <translation type="unfinished">geen PDF die door dit programma is gemaakt</translation>
     </message>
@@ -3931,7 +3931,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>FileDialogs</name>
     <message>
-        <location filename="../src/app/filedialogs.cpp" line="+205"/>
+        <location filename="../libs/shell/app/filedialogs.cpp" line="+205"/>
         <source>Insert as</source>
         <translation type="unfinished">Invoegen als</translation>
     </message>
@@ -3959,18 +3959,18 @@ Artikel achterpagina	4</translation>
         <location line="+21"/>
         <source>
 
-Windows is probably blocking JeffPub from saving in this folder. Windows Security&apos;s &quot;Controlled folder access&quot; protects folders such as Documents and Desktop from programs it doesn&apos;t recognize yet.
+Windows is probably blocking %1 from saving in this folder. Windows Security&apos;s &quot;Controlled folder access&quot; protects folders such as Documents and Desktop from programs it doesn&apos;t recognize yet.
 
-To allow JeffPub: open Windows Security, choose Virus &amp; threat protection, then Manage ransomware protection, then Allow an app through Controlled folder access. Choose Add an allowed app, then Browse all apps, and select:
-%1
+To allow %1: open Windows Security, choose Virus &amp; threat protection, then Manage ransomware protection, then Allow an app through Controlled folder access. Choose Add an allowed app, then Browse all apps, and select:
+%2
 
 Or save to a folder that isn&apos;t protected.</source>
         <translation type="unfinished">
 
-Windows blokkeert waarschijnlijk het opslaan door JeffPub in deze map. &quot;Beheerde maptoegang&quot; van Windows-beveiliging beschermt mappen zoals Documenten en Bureaublad tegen programma&apos;s die nog niet worden herkend.
+Windows blokkeert waarschijnlijk dat %1 in deze map opslaat. &apos;Beheerde maptoegang&apos; van Windows-beveiliging beschermt mappen zoals Documenten en Bureaublad tegen programma&apos;s die het nog niet herkent.
 
-JeffPub toestaan: open Windows-beveiliging, kies Virus- en bedreigingsbeveiliging, vervolgens Ransomware-beveiliging beheren en daarna Een app toestaan via Beheerde maptoegang. Kies Een toegestane app toevoegen, vervolgens Door alle apps bladeren, en selecteer:
-%1
+%1 toestaan: open Windows-beveiliging, kies Virus- en bedreigingsbeveiliging, vervolgens Ransomwarebeveiliging beheren en daarna Een app toestaan via Beheerde maptoegang. Kies Een toegestane app toevoegen, vervolgens Door alle apps bladeren, en selecteer:
+%2
 
 Of sla op in een map die niet beveiligd is.</translation>
     </message>
@@ -3978,7 +3978,7 @@ Of sla op in een map die niet beveiligd is.</translation>
 <context>
     <name>Help</name>
     <message>
-        <location filename="../src/app/help.cpp" line="+240"/>
+        <location filename="../libs/shell/app/help.cpp" line="+241"/>
         <source>Quick Access Toolbar</source>
         <translation type="unfinished">Werkbalk Snelle toegang</translation>
     </message>
@@ -3998,7 +3998,7 @@ Of sla op in een map die niet beveiligd is.</translation>
         <translation type="unfinished">Op het lint</translation>
     </message>
     <message>
-        <location filename="../src/app/helpwiki.cpp" line="+51"/>
+        <location filename="../libs/shell/app/helpwiki.cpp" line="+52"/>
         <source>A link names the topic &quot;%1&quot;, which doesn&apos;t exist.</source>
         <translation type="unfinished">Een koppeling verwijst naar het onderwerp &quot;%1&quot;, dat niet bestaat.</translation>
     </message>
@@ -4019,16 +4019,16 @@ Of sla op in een map die niet beveiligd is.</translation>
     </message>
     <message>
         <location line="+22"/>
-        <source>This is JeffPub&apos;s built-in Help, as web pages. In the program, press **F1** at any time for help on what you&apos;re doing, or type in Help&apos;s search box to find a topic or a command to run.</source>
-        <translation type="unfinished">Dit is de ingebouwde Help van JeffPub, als webpagina&apos;s. Druk in het programma op elk moment op **F1** voor hulp bij wat u aan het doen bent, of typ in het zoekvak van Help om een onderwerp of een uit te voeren opdracht te vinden.</translation>
+        <source>This is %1&apos;s built-in Help, as web pages. In the program, press **F1** at any time for help on what you&apos;re doing, or type in Help&apos;s search box to find a topic or a command to run.</source>
+        <translation type="unfinished">Dit is de ingebouwde Help van %1, als webpagina&apos;s. Druk in het programma op elk moment op **F1** voor hulp bij wat u aan het doen bent, of typ in het zoekvak van Help om een onderwerp of een uit te voeren opdracht te vinden.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <source>These pages are generated from JeffPub&apos;s built-in Help (`resources/help/en` in the [repository](https://github.com/JeffOffice/jeffpub/tree/main/resources/help/en)) and are replaced on each update, so edits belong in the repository.</source>
-        <translation type="unfinished">Deze pagina&apos;s worden gegenereerd uit de ingebouwde Help van JeffPub (`resources/help/en` in de [repository](https://github.com/JeffOffice/jeffpub/tree/main/resources/help/en)) en worden bij elke update vervangen. Breng wijzigingen daarom aan in de repository.</translation>
+        <source>These pages are generated from %1&apos;s built-in Help (`resources/help/en` in the [repository](%2)) and are replaced on each update, so edits belong in the repository.</source>
+        <translation type="unfinished">Deze pagina&apos;s worden gegenereerd uit de ingebouwde Help van %1 (`resources/help/en` in de [repository](%2)) en bij elke update vervangen, dus wijzigingen horen in de repository thuis.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>The folder &quot;%1&quot; isn&apos;t empty.</source>
         <translation type="unfinished">De map &quot;%1&quot; is niet leeg.</translation>
     </message>
@@ -4046,7 +4046,7 @@ Of sla op in een map die niet beveiligd is.</translation>
 <context>
     <name>IconPicker</name>
     <message>
-        <location filename="../src/app/iconpicker.cpp" line="+80"/>
+        <location filename="../apps/pub/app/iconpicker.cpp" line="+80"/>
         <location line="+103"/>
         <source>Insert Icons</source>
         <translation type="unfinished">Pictogrammen invoegen</translation>
@@ -4090,7 +4090,7 @@ Of sla op in een map die niet beveiligd is.</translation>
 <context>
     <name>Import</name>
     <message>
-        <location filename="../src/io/importers.cpp" line="+437"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+437"/>
         <source>The file has no rows.</source>
         <translation type="unfinished">Het bestand bevat geen rijen.</translation>
     </message>
@@ -4206,7 +4206,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">%1 kB bespaard.</translation>
     </message>
     <message>
-        <location filename="../src/io/jpubfile.cpp" line="+106"/>
+        <location filename="../apps/pub/io/jpubfile.cpp" line="+116"/>
         <source>The file has no publication content.</source>
         <translation type="unfinished">Het bestand bevat geen publicatie-inhoud.</translation>
     </message>
@@ -4216,7 +4216,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">De publicatie-inhoud is beschadigd: %1</translation>
     </message>
     <message>
-        <location filename="../src/io/pubimport.cpp" line="+166"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+166"/>
         <source>Embedded font &quot;%1&quot; was not imported.</source>
         <translation type="unfinished">Het ingesloten lettertype &quot;%1&quot; is niet geïmporteerd.</translation>
     </message>
@@ -4256,14 +4256,14 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">JeffPub kan dit .pub-bestand niet lezen. Het is mogelijk beschadigd of gebruikt functies die nog niet worden ondersteund.</translation>
     </message>
     <message>
-        <location filename="../src/io/zip.cpp" line="+129"/>
+        <location filename="../libs/base/io/zip.cpp" line="+131"/>
         <source>The file is too small to be a publication.</source>
         <translation type="unfinished">Het bestand is te klein om een publicatie te zijn.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <source>The file is not a JeffPub publication (no ZIP directory).</source>
-        <translation type="unfinished">Het bestand is geen JeffPub-publicatie (geen ZIP-map).</translation>
+        <source>The file is not a %1 publication (no ZIP directory).</source>
+        <translation type="unfinished">Het bestand is geen %1-publicatie (geen ZIP-map).</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -4279,8 +4279,8 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     </message>
     <message>
         <location line="-1"/>
-        <source>The publication uses a compression method JeffPub cannot read.</source>
-        <translation type="unfinished">De publicatie gebruikt een compressiemethode die JeffPub niet kan lezen.</translation>
+        <source>The publication uses a compression method %1 cannot read.</source>
+        <translation type="unfinished">De publicatie gebruikt een compressiemethode die %1 niet kan lezen.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -4291,7 +4291,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>Main</name>
     <message>
-        <location filename="../src/main.cpp" line="+62"/>
+        <location filename="../apps/pub/main.cpp" line="+65"/>
         <source>JeffPub desktop publishing</source>
         <translation type="unfinished">JeffPub desktop publishing</translation>
     </message>
@@ -4354,7 +4354,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="+703"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+703"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Een afbeelding op pagina %1 heeft een lage resolutie (%2 ppi; drukkerijen vragen 300).</translation>
     </message>
@@ -4436,7 +4436,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Online</name>
     <message>
-        <location filename="../src/app/onlinepictures.cpp" line="+75"/>
+        <location filename="../apps/pub/app/onlinepictures.cpp" line="+75"/>
         <source>It is too large.</source>
         <translation type="unfinished">Het bestand is te groot.</translation>
     </message>
@@ -4464,7 +4464,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Proofing</name>
     <message>
-        <location filename="../src/app/proofing.cpp" line="+130"/>
+        <location filename="../apps/pub/app/proofing.cpp" line="+130"/>
         <location line="+75"/>
         <location line="+8"/>
         <source>Spelling</source>
@@ -4568,7 +4568,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../src/render/shapes.cpp" line="+142"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+142"/>
         <source>Rectangle</source>
         <translation type="unfinished">Rechthoek</translation>
     </message>
@@ -5346,7 +5346,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/render/textart.cpp" line="+21"/>
+        <location filename="../libs/draw/render/textart.cpp" line="+21"/>
         <source>Double Wave</source>
         <translation type="unfinished">Dubbele golf</translation>
     </message>
@@ -5423,7 +5423,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Stroomdiagrampijl</translation>
     </message>
     <message>
-        <location filename="../src/render/textart.cpp" line="-3"/>
+        <location filename="../libs/draw/render/textart.cpp" line="-3"/>
         <source>Plain Text</source>
         <translation type="unfinished">Platte tekst</translation>
     </message>
@@ -5721,7 +5721,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Ribbon</name>
     <message>
-        <location filename="../src/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/pub/app/ribbon_strings.cpp" line="+7"/>
         <source>3-D Effects</source>
         <translation type="unfinished">3D-effecten</translation>
     </message>
@@ -6371,7 +6371,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Zoomen</translation>
     </message>
     <message>
-        <location filename="../src/app/ribbon.cpp" line="+460"/>
+        <location filename="../libs/shell/app/ribbon.cpp" line="+461"/>
         <source>File</source>
         <translation type="unfinished">Bestand</translation>
     </message>
@@ -6387,14 +6387,14 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../src/app/ribbon_strings.cpp" line="-82"/>
+        <location filename="../apps/pub/app/ribbon_strings.cpp" line="-82"/>
         <source>Help</source>
         <translation type="unfinished">Help</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Opens Help: how to do things in JeffPub, and a search that finds commands too.</source>
-        <translation type="unfinished">Hiermee opent u Help: hoe u dingen doet in JeffPub, en een zoekfunctie die ook opdrachten vindt.</translation>
+        <source>Opens Help: how to do things in %1, and a search that finds commands too.</source>
+        <translation type="unfinished">Hiermee opent u Help: hoe u dingen doet in %1, en een zoekfunctie die ook opdrachten vindt.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6445,7 +6445,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Sharing</name>
     <message>
-        <location filename="../src/app/sharing.cpp" line="+51"/>
+        <location filename="../apps/pub/app/sharing.cpp" line="+51"/>
         <source>Save Email</source>
         <translation type="unfinished">E-mail opslaan</translation>
     </message>
@@ -6555,7 +6555,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>TableOfContents</name>
     <message>
-        <location filename="../src/app/toc.cpp" line="+196"/>
+        <location filename="../apps/pub/app/toc.cpp" line="+196"/>
         <location line="+16"/>
         <source>Insert Table of Contents</source>
         <translation type="unfinished">Inhoudsopgave invoegen</translation>
@@ -6569,14 +6569,14 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Telemetry</name>
     <message>
-        <location filename="../src/app/telemetry.cpp" line="+87"/>
-        <source>Help improve JeffPub</source>
-        <translation type="unfinished">Help JeffPub te verbeteren</translation>
+        <location filename="../libs/shell/app/telemetry.cpp" line="+88"/>
+        <source>Help improve %1</source>
+        <translation type="unfinished">Help %1 te verbeteren</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>JeffPub can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used. That shows how many people use it and which parts matter most.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%1&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
-        <translation type="unfinished">JeffPub kan eenmaal per dag (en na een update) anonieme gebruiksstatistieken verzenden: de versie, uw besturingssysteem en taal, en hoe vaak elke opdracht wordt gebruikt. Zo zien we hoeveel mensen het programma gebruiken en welke onderdelen het belangrijkst zijn.&lt;br&gt;&lt;br&gt;Uw bestanden, de namen ervan of de inhoud worden nooit verzonden. &lt;a href=&quot;%1&quot;&gt;Wat wordt er verzonden?&lt;/a&gt;&lt;br&gt;&lt;br&gt;U kunt dit altijd wijzigen via Bestand &amp;gt; Opties.</translation>
+        <source>%1 can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used. That shows how many people use it and which parts matter most.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%2&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
+        <translation type="unfinished">%1 kan eenmaal per dag (en bij een update) anonieme gebruiksstatistieken verzenden: de versie, uw besturingssysteem en taal, en hoe vaak elke opdracht wordt gebruikt. Zo is te zien hoeveel mensen het programma gebruiken en welke onderdelen het belangrijkst zijn.&lt;br&gt;&lt;br&gt;Uw bestanden, de namen ervan of de inhoud worden nooit verzonden. &lt;a href=&quot;%2&quot;&gt;Wat wordt verzonden&lt;/a&gt;&lt;br&gt;&lt;br&gt;U kunt dit altijd wijzigen via Bestand &amp;gt; Opties.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -6587,7 +6587,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Templates</name>
     <message>
-        <location filename="../src/templates/templates.cpp" line="-1443"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="-1443"/>
         <source>Riverbend Community Arts</source>
         <translation type="unfinished">Kunstcentrum Rivierbocht</translation>
     </message>
@@ -8485,7 +8485,7 @@ Desktop publishing</translation>
 <context>
     <name>Text</name>
     <message>
-        <location filename="../src/text/dictionaries.cpp" line="+28"/>
+        <location filename="../libs/base/text/dictionaries.cpp" line="+30"/>
         <source>English (United States)</source>
         <translation type="unfinished">Engels (Verenigde Staten)</translation>
     </message>
@@ -8545,7 +8545,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Portugees (Portugal)</translation>
     </message>
     <message>
-        <location filename="../src/text/textengine.cpp" line="+103"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+100"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Begroetingsregel»</translation>
     </message>
@@ -8583,7 +8583,7 @@ Desktop publishing</translation>
 <context>
     <name>Widgets</name>
     <message>
-        <location filename="../src/app/widgets.cpp" line="+1069"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+1069"/>
         <source>Standard</source>
         <translation type="unfinished">Standaard</translation>
     </message>
@@ -8666,7 +8666,7 @@ Desktop publishing</translation>
 <context>
     <name>jp::Backstage</name>
     <message>
-        <location filename="../src/app/backstage.cpp" line="+401"/>
+        <location filename="../apps/pub/app/backstage.cpp" line="+401"/>
         <source>Back to publication</source>
         <translation type="unfinished">Terug naar publicatie</translation>
     </message>
@@ -9628,7 +9628,7 @@ Desktop publishing</translation>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+654"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+654"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Kies de lijst met producten of items (een spreadsheet, een CSV-bestand of een lijst die u typt).</translation>
     </message>
@@ -9735,7 +9735,7 @@ Bron: %3</translation>
 <context>
     <name>jp::ColorButton</name>
     <message>
-        <location filename="../src/app/widgets.cpp" line="-942"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="-942"/>
         <source>Applies the color shown; Down arrow or F4 opens more colors.</source>
         <translation type="unfinished">Past de weergegeven kleur toe; Pijl-omlaag of F4 opent meer kleuren.</translation>
     </message>
@@ -9791,7 +9791,7 @@ Bron: %3</translation>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="-723"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-723"/>
         <source>Run general design checks</source>
         <translation type="unfinished">Algemene ontwerpcontroles uitvoeren</translation>
     </message>
@@ -9894,7 +9894,7 @@ Bron: %3</translation>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../src/app/editor.cpp" line="+108"/>
+        <location filename="../apps/pub/app/editor.cpp" line="+108"/>
         <source>Publication1</source>
         <translation type="unfinished">Publicatie1</translation>
     </message>
@@ -9910,7 +9910,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+117"/>
-        <location filename="../src/app/editor_text.cpp" line="+566"/>
+        <location filename="../apps/pub/app/editor_text.cpp" line="+566"/>
         <location line="+72"/>
         <location line="+21"/>
         <location line="+87"/>
@@ -10144,7 +10144,7 @@ Bron: %3</translation>
         <translation type="unfinished">Basispagina verwijderen</translation>
     </message>
     <message>
-        <location filename="../src/app/editor_text.cpp" line="-572"/>
+        <location filename="../apps/pub/app/editor_text.cpp" line="-572"/>
         <source>Bold</source>
         <translation type="unfinished">Vet</translation>
     </message>
@@ -10294,7 +10294,7 @@ Bron: %3</translation>
 <context>
     <name>jp::ExtraPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+728"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+728"/>
         <source>Text and pictures from your publication that had no place in the new design. Drag one onto the page, or select it and click Place on Page.</source>
         <translation type="unfinished">Tekst en afbeeldingen uit uw publicatie waarvoor geen plaats was in het nieuwe ontwerp. Sleep een item naar de pagina, of selecteer het en klik op Op pagina plaatsen.</translation>
     </message>
@@ -10397,7 +10397,7 @@ Bron: %3</translation>
 <context>
     <name>jp::FontCombo</name>
     <message>
-        <location filename="../src/app/widgets.cpp" line="+654"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+654"/>
         <source>Font</source>
         <translation type="unfinished">Lettertype</translation>
     </message>
@@ -10451,7 +10451,7 @@ Bron: %3</translation>
 <context>
     <name>jp::GraphicsPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+17"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+17"/>
         <source>Sort the pictures</source>
         <translation type="unfinished">De afbeeldingen sorteren</translation>
     </message>
@@ -10610,7 +10610,7 @@ Effectieve resolutie: %3 ppi</translation>
 <context>
     <name>jp::HelpView</name>
     <message>
-        <location filename="../src/app/help.cpp" line="+55"/>
+        <location filename="../libs/shell/app/help.cpp" line="+55"/>
         <source>Back</source>
         <translation type="unfinished">Vorige</translation>
     </message>
@@ -10716,7 +10716,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
 <context>
     <name>jp::MailMergePane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+46"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+46"/>
         <source>Create recipient list</source>
         <translation type="unfinished">Adressenlijst maken</translation>
     </message>
@@ -10786,8 +10786,8 @@ Bron: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="-1151"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+704"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1151"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+704"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -10815,7 +10815,7 @@ Bron: %3</translation>
         <location line="+10"/>
         <location line="+17"/>
         <location line="+161"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-470"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-470"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
@@ -10835,13 +10835,13 @@ Bron: %3</translation>
     <message>
         <location line="+27"/>
         <location line="+13"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+8"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+8"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
         <location line="-8"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+2"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+2"/>
         <source>Save as .pub File</source>
         <translation type="unfinished">Opslaan als .pub-bestand</translation>
     </message>
@@ -10874,7 +10874,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-7"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-7"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">.pub-publicatiebestanden (*.pub)</translation>
     </message>
@@ -10892,7 +10892,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+6"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+6"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
     </message>
@@ -10948,7 +10948,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+520"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+520"/>
         <source>Delete</source>
         <translation type="unfinished">Verwijderen</translation>
     </message>
@@ -10988,7 +10988,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <location line="+44"/>
         <location line="+63"/>
         <location line="+16"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-516"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-516"/>
         <source>Create PDF</source>
         <translation type="unfinished">PDF maken</translation>
     </message>
@@ -11084,7 +11084,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-10"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-10"/>
         <location line="+547"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
@@ -11168,20 +11168,20 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <location line="+18"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-536"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-536"/>
         <location line="+1117"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Opslaan als afbeelding</translation>
     </message>
     <message>
         <location line="-11"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+0"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+0"/>
         <source>PNG (*.png)</source>
         <translation type="unfinished">PNG (*.png)</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+0"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+0"/>
         <source>JPEG (*.jpg)</source>
         <translation type="unfinished">JPEG (*.jpg)</translation>
     </message>
@@ -11279,7 +11279,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-1116"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1116"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Opslaan als webpagina</translation>
     </message>
@@ -11297,7 +11297,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     <message>
         <location line="-46"/>
         <location line="+12"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+1001"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1001"/>
         <source>Change Picture</source>
         <translation type="unfinished">Afbeelding wijzigen</translation>
     </message>
@@ -11329,7 +11329,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     <message>
         <location line="+15"/>
         <location line="+33"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-135"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-135"/>
         <location line="+10"/>
         <source>Text Fit</source>
         <translation type="unfinished">Tekst passend maken</translation>
@@ -11341,20 +11341,20 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-514"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-514"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Tekstterugloop</translation>
     </message>
     <message>
         <location line="+33"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+336"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+336"/>
         <location line="+1"/>
         <location line="+696"/>
         <source>Zoom</source>
         <translation type="unfinished">Zoomen</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-381"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-381"/>
         <source>New</source>
         <translation type="unfinished">Nieuw</translation>
     </message>
@@ -11499,7 +11499,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="-147"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-634"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-634"/>
         <location line="+1"/>
         <source>Shapes</source>
         <translation type="unfinished">Vormen</translation>
@@ -11512,7 +11512,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     <message>
         <location line="+0"/>
         <location line="+156"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+171"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+171"/>
         <source>Text Art</source>
         <translation type="unfinished">Tekstopmaak</translation>
     </message>
@@ -11702,7 +11702,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <location line="+88"/>
         <location line="+76"/>
         <location line="+394"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+143"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+143"/>
         <source>None</source>
         <translation type="unfinished">Geen</translation>
     </message>
@@ -12091,13 +12091,13 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+385"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+385"/>
         <source>Group</source>
         <translation type="unfinished">Groeperen</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+0"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+0"/>
         <source>Ungroup</source>
         <translation type="unfinished">Groep opheffen</translation>
     </message>
@@ -12402,7 +12402,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-465"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-465"/>
         <source>No Background</source>
         <translation type="unfinished">Geen achtergrond</translation>
     </message>
@@ -12411,7 +12411,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <location line="+5"/>
         <location line="+4"/>
         <location line="+9"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-13"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-13"/>
         <location line="+21"/>
         <source>Background</source>
         <translation type="unfinished">Achtergrond</translation>
@@ -12862,7 +12862,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+265"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+265"/>
         <source>Guides</source>
         <translation type="unfinished">Hulplijnen</translation>
     </message>
@@ -12964,33 +12964,33 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-522"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-522"/>
         <source>Line</source>
         <translation type="unfinished">Lijn</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+15"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+0"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+0"/>
         <source>Arrow</source>
         <translation type="unfinished">Pijl</translation>
     </message>
     <message>
         <location line="-14"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+1"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+1"/>
         <source>Double Arrow</source>
         <translation type="unfinished">Dubbele pijl</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+57"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-134"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-134"/>
         <source>%1 pt</source>
         <translation type="unfinished">%1 pt</translation>
     </message>
     <message>
         <location line="-56"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+4"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+4"/>
         <source>Line Weight</source>
         <translation type="unfinished">Lijndikte</translation>
     </message>
@@ -13050,7 +13050,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+10"/>
         <location line="+289"/>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-82"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-82"/>
         <location line="+60"/>
         <source>Fill</source>
         <translation type="unfinished">Opvulling</translation>
@@ -13073,14 +13073,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-61"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-61"/>
         <location line="+55"/>
         <source>No Fill</source>
         <translation type="unfinished">Geen opvulling</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-48"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-48"/>
         <location line="+21"/>
         <location line="+19"/>
         <source>No Outline</source>
@@ -13089,7 +13089,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <location line="+173"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-39"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-39"/>
         <source>Outline</source>
         <translation type="unfinished">Omtrek</translation>
     </message>
@@ -13141,7 +13141,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+29"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+29"/>
         <source>No Glow</source>
         <translation type="unfinished">Geen gloed</translation>
     </message>
@@ -13382,7 +13382,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-9"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-9"/>
         <location line="+2"/>
         <location line="+1"/>
         <source>Text Outline</source>
@@ -13630,7 +13630,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+226"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+226"/>
         <source>Picture Shape</source>
         <translation type="unfinished">Afbeeldingsvorm</translation>
     </message>
@@ -13950,7 +13950,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Lint samenvouwen (Ctrl+F1): alleen de tabnamen worden weergegeven, zodat er meer ruimte is voor de pagina. Nogmaals om het weer te geven.</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-265"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-265"/>
         <source>Font Color</source>
         <translation type="unfinished">Tekstkleur</translation>
     </message>
@@ -14371,7 +14371,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::OnlinePicturesPane</name>
     <message>
-        <location filename="../src/app/onlinepictures.cpp" line="+12"/>
+        <location filename="../apps/pub/app/onlinepictures.cpp" line="+12"/>
         <source>Free, openly licensed pictures from two open libraries. Your search words go to the library you choose.</source>
         <translation type="unfinished">Gratis afbeeldingen met een open licentie uit twee open bibliotheken. Uw zoekwoorden gaan naar de bibliotheek die u kiest.</translation>
     </message>
@@ -14493,7 +14493,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::PagesPane</name>
     <message>
-        <location filename="../src/app/pagespane.cpp" line="+88"/>
+        <location filename="../apps/pub/app/pagespane.cpp" line="+88"/>
         <source>Pages</source>
         <translation type="unfinished">Pagina&apos;s</translation>
     </message>
@@ -14521,7 +14521,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::ResearchPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+244"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+244"/>
         <source>Search for:</source>
         <translation type="unfinished">Zoeken naar:</translation>
     </message>
@@ -14549,7 +14549,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::Ribbon</name>
     <message>
-        <location filename="../src/app/ribbon.cpp" line="+64"/>
+        <location filename="../libs/shell/app/ribbon.cpp" line="+64"/>
         <source>Ribbon</source>
         <translation type="unfinished">Lint</translation>
     </message>
@@ -14570,7 +14570,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::SizeCombo</name>
     <message>
-        <location filename="../src/app/widgets.cpp" line="+223"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+223"/>
         <source>Font Size</source>
         <translation type="unfinished">Tekengrootte</translation>
     </message>
@@ -14611,7 +14611,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="-844"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-844"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
     </message>
@@ -14669,34 +14669,34 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::Updater</name>
     <message>
-        <location filename="../src/app/updater.cpp" line="+97"/>
+        <location filename="../libs/shell/app/updater.cpp" line="+104"/>
         <location line="+30"/>
         <source>Check for Updates</source>
         <translation type="unfinished">Controleren op updates</translation>
     </message>
     <message>
-        <location line="-29"/>
-        <source>JeffPub couldn&apos;t reach the update server. Check your internet connection and try again.
-
-%1</source>
-        <translation type="unfinished">JeffPub kan de updateserver niet bereiken. Controleer uw internetverbinding en probeer het opnieuw.
-
-%1</translation>
-    </message>
-    <message>
-        <location line="+30"/>
-        <source>You have the latest version of JeffPub (%1).</source>
-        <translation type="unfinished">U hebt de nieuwste versie van JeffPub (%1).</translation>
-    </message>
-    <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>Update Available</source>
         <translation type="unfinished">Update beschikbaar</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>JeffPub %1 is available</source>
-        <translation type="unfinished">JeffPub %1 is beschikbaar</translation>
+        <location line="-69"/>
+        <source>%1 couldn&apos;t reach the update server. Check your internet connection and try again.
+
+%2</source>
+        <translation type="unfinished">%1 kan de updateserver niet bereiken. Controleer uw internetverbinding en probeer het opnieuw.
+
+%2</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>You have the latest version of %1 (%2).</source>
+        <translation type="unfinished">U hebt de nieuwste versie van %1 (%2).</translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>%1 %2 is available</source>
+        <translation type="unfinished">%1 %2 is beschikbaar</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -14739,14 +14739,24 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Downloadpagina openen</translation>
     </message>
     <message>
-        <location line="+47"/>
-        <source>Downloading JeffPub %1…</source>
-        <translation type="unfinished">JeffPub %1 downloaden…</translation>
+        <location line="+75"/>
+        <source>%1 couldn&apos;t save the installer to %2.</source>
+        <translation type="unfinished">%1 kan het installatieprogramma niet opslaan in %2.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 couldn&apos;t start the installer. You can run it yourself from %2.</source>
+        <translation type="unfinished">%1 kan het installatieprogramma niet starten. U kunt het zelf uitvoeren vanuit %2.</translation>
+    </message>
+    <message>
+        <location line="-35"/>
+        <source>Cancel</source>
+        <translation type="unfinished">Annuleren</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Cancel</source>
-        <translation type="unfinished">Annuleren</translation>
+        <source>Downloading %1 %2…</source>
+        <translation type="unfinished">%1 %2 downloaden…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -14766,16 +14776,6 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+8"/>
         <source>The downloaded installer didn&apos;t match the one published for this release, so it wasn&apos;t run. You can download it from the release page instead.</source>
         <translation type="unfinished">Het gedownloade installatieprogramma komt niet overeen met het programma dat voor deze release is gepubliceerd en is daarom niet uitgevoerd. U kunt het in plaats daarvan downloaden vanaf de releasepagina.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>JeffPub couldn&apos;t save the installer to %1.</source>
-        <translation type="unfinished">JeffPub kan het installatieprogramma niet opslaan in %1.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>JeffPub couldn&apos;t start the installer. You can run it yourself from %1.</source>
-        <translation type="unfinished">JeffPub kan het installatieprogramma niet starten. U kunt het zelf uitvoeren vanuit %1.</translation>
     </message>
 </context>
 </TS>

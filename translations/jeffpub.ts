@@ -4,7 +4,7 @@
 <context>
     <name>BarcodeDialog</name>
     <message>
-        <location filename="../src/app/barcodedialog.cpp" line="+167"/>
+        <location filename="../apps/pub/app/barcodedialog.cpp" line="+167"/>
         <location line="+194"/>
         <source>Edit Barcode</source>
         <translation type="unfinished"></translation>
@@ -169,7 +169,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../src/templates/templates.cpp" line="+1714"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1714"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished"></translation>
     </message>
@@ -439,7 +439,7 @@ Back page story	4</source>
 <context>
     <name>Canvas</name>
     <message>
-        <location filename="../src/canvas/canvas.cpp" line="+172"/>
+        <location filename="../apps/pub/canvas/canvas.cpp" line="+172"/>
         <source>Page</source>
         <translation type="unfinished"></translation>
     </message>
@@ -623,7 +623,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/canvas/canvasaccessible.cpp" line="+75"/>
+        <location filename="../apps/pub/canvas/canvasaccessible.cpp" line="+75"/>
         <source>Empty text box</source>
         <translation type="unfinished"></translation>
     </message>
@@ -704,7 +704,7 @@ Back page story	4</source>
 <context>
     <name>Core</name>
     <message>
-        <location filename="../src/core/barcode.cpp" line="+107"/>
+        <location filename="../libs/base/core/barcode.cpp" line="+107"/>
         <source>%1 takes %2 digits (or %3 without the check digit).</source>
         <translation type="unfinished"></translation>
     </message>
@@ -770,7 +770,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/core/color.cpp" line="+121"/>
+        <location filename="../libs/base/core/color.cpp" line="+121"/>
         <source>Main</source>
         <translation type="unfinished"></translation>
     </message>
@@ -830,7 +830,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/core/document.cpp" line="+293"/>
+        <location filename="../apps/pub/core/document.cpp" line="+293"/>
         <source>Organization Name</source>
         <translation type="unfinished"></translation>
     </message>
@@ -875,7 +875,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/core/items.cpp" line="+27"/>
+        <location filename="../libs/draw/core/items.cpp" line="+27"/>
         <source>Text Box</source>
         <translation type="unfinished"></translation>
     </message>
@@ -915,7 +915,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/core/style.cpp" line="+27"/>
+        <location filename="../libs/draw/core/style.cpp" line="+27"/>
         <source>Solid</source>
         <translation type="unfinished"></translation>
     </message>
@@ -958,7 +958,7 @@ Back page story	4</source>
 <context>
     <name>Dialogs</name>
     <message>
-        <location filename="../src/app/dialogs.cpp" line="+105"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+105"/>
         <source>No Color</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3814,7 +3814,7 @@ Back page story	4</source>
 <context>
     <name>Export</name>
     <message>
-        <location filename="../src/io/pdfx.cpp" line="+19"/>
+        <location filename="../apps/pub/io/pdfx.cpp" line="+19"/>
         <source>U.S. web offset, coated paper (SWOP)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3884,18 +3884,18 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+14"/>
-        <location filename="../src/io/qtpdf.cpp" line="+78"/>
+        <location filename="../libs/base/io/qtpdf.cpp" line="+78"/>
+        <location filename="../apps/pub/io/pdfx.cpp" line="+14"/>
         <source>unexpected PDF layout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location filename="../apps/pub/io/pdfx.cpp" line="+10"/>
         <source>an RGB color space JeffPub couldn&apos;t convert</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/io/pubexport.cpp" line="+2338"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2338"/>
         <source>%1 object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3915,7 +3915,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/io/qtpdf.cpp" line="-26"/>
+        <location filename="../libs/base/io/qtpdf.cpp" line="-26"/>
         <source>not a PDF this program wrote</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3923,7 +3923,7 @@ Back page story	4</source>
 <context>
     <name>FileDialogs</name>
     <message>
-        <location filename="../src/app/filedialogs.cpp" line="+205"/>
+        <location filename="../libs/shell/app/filedialogs.cpp" line="+205"/>
         <source>Insert as</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3951,10 +3951,10 @@ Back page story	4</source>
         <location line="+21"/>
         <source>
 
-Windows is probably blocking JeffPub from saving in this folder. Windows Security&apos;s &quot;Controlled folder access&quot; protects folders such as Documents and Desktop from programs it doesn&apos;t recognize yet.
+Windows is probably blocking %1 from saving in this folder. Windows Security&apos;s &quot;Controlled folder access&quot; protects folders such as Documents and Desktop from programs it doesn&apos;t recognize yet.
 
-To allow JeffPub: open Windows Security, choose Virus &amp; threat protection, then Manage ransomware protection, then Allow an app through Controlled folder access. Choose Add an allowed app, then Browse all apps, and select:
-%1
+To allow %1: open Windows Security, choose Virus &amp; threat protection, then Manage ransomware protection, then Allow an app through Controlled folder access. Choose Add an allowed app, then Browse all apps, and select:
+%2
 
 Or save to a folder that isn&apos;t protected.</source>
         <translation type="unfinished"></translation>
@@ -3963,7 +3963,7 @@ Or save to a folder that isn&apos;t protected.</source>
 <context>
     <name>Help</name>
     <message>
-        <location filename="../src/app/help.cpp" line="+240"/>
+        <location filename="../libs/shell/app/help.cpp" line="+241"/>
         <source>Quick Access Toolbar</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3983,7 +3983,7 @@ Or save to a folder that isn&apos;t protected.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/app/helpwiki.cpp" line="+51"/>
+        <location filename="../libs/shell/app/helpwiki.cpp" line="+52"/>
         <source>A link names the topic &quot;%1&quot;, which doesn&apos;t exist.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4004,16 +4004,16 @@ Or save to a folder that isn&apos;t protected.</source>
     </message>
     <message>
         <location line="+22"/>
-        <source>This is JeffPub&apos;s built-in Help, as web pages. In the program, press **F1** at any time for help on what you&apos;re doing, or type in Help&apos;s search box to find a topic or a command to run.</source>
+        <source>This is %1&apos;s built-in Help, as web pages. In the program, press **F1** at any time for help on what you&apos;re doing, or type in Help&apos;s search box to find a topic or a command to run.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+18"/>
-        <source>These pages are generated from JeffPub&apos;s built-in Help (`resources/help/en` in the [repository](https://github.com/JeffOffice/jeffpub/tree/main/resources/help/en)) and are replaced on each update, so edits belong in the repository.</source>
+        <source>These pages are generated from %1&apos;s built-in Help (`resources/help/en` in the [repository](%2)) and are replaced on each update, so edits belong in the repository.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>The folder &quot;%1&quot; isn&apos;t empty.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4031,7 +4031,7 @@ Or save to a folder that isn&apos;t protected.</source>
 <context>
     <name>IconPicker</name>
     <message>
-        <location filename="../src/app/iconpicker.cpp" line="+80"/>
+        <location filename="../apps/pub/app/iconpicker.cpp" line="+80"/>
         <location line="+103"/>
         <source>Insert Icons</source>
         <translation type="unfinished"></translation>
@@ -4075,7 +4075,7 @@ Or save to a folder that isn&apos;t protected.</source>
 <context>
     <name>Import</name>
     <message>
-        <location filename="../src/io/importers.cpp" line="+437"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+437"/>
         <source>The file has no rows.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4190,7 +4190,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/io/jpubfile.cpp" line="+106"/>
+        <location filename="../apps/pub/io/jpubfile.cpp" line="+116"/>
         <source>The file has no publication content.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4200,7 +4200,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/io/pubimport.cpp" line="+166"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+166"/>
         <source>Embedded font &quot;%1&quot; was not imported.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4240,13 +4240,13 @@ Open them with your email program to send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/io/zip.cpp" line="+129"/>
+        <location filename="../libs/base/io/zip.cpp" line="+131"/>
         <source>The file is too small to be a publication.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+4"/>
-        <source>The file is not a JeffPub publication (no ZIP directory).</source>
+        <source>The file is not a %1 publication (no ZIP directory).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4263,7 +4263,7 @@ Open them with your email program to send.</source>
     </message>
     <message>
         <location line="-1"/>
-        <source>The publication uses a compression method JeffPub cannot read.</source>
+        <source>The publication uses a compression method %1 cannot read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4275,7 +4275,7 @@ Open them with your email program to send.</source>
 <context>
     <name>Main</name>
     <message>
-        <location filename="../src/main.cpp" line="+62"/>
+        <location filename="../apps/pub/main.cpp" line="+65"/>
         <source>JeffPub desktop publishing</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4338,7 +4338,7 @@ Open them with your email program to send.</source>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="+703"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+703"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4418,7 +4418,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Online</name>
     <message>
-        <location filename="../src/app/onlinepictures.cpp" line="+75"/>
+        <location filename="../apps/pub/app/onlinepictures.cpp" line="+75"/>
         <source>It is too large.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4446,7 +4446,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Proofing</name>
     <message>
-        <location filename="../src/app/proofing.cpp" line="+130"/>
+        <location filename="../apps/pub/app/proofing.cpp" line="+130"/>
         <location line="+75"/>
         <location line="+8"/>
         <source>Spelling</source>
@@ -4550,7 +4550,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../src/render/shapes.cpp" line="+142"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+142"/>
         <source>Rectangle</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5328,7 +5328,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/render/textart.cpp" line="+21"/>
+        <location filename="../libs/draw/render/textart.cpp" line="+21"/>
         <source>Double Wave</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5405,7 +5405,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/render/textart.cpp" line="-3"/>
+        <location filename="../libs/draw/render/textart.cpp" line="-3"/>
         <source>Plain Text</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5703,7 +5703,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Ribbon</name>
     <message>
-        <location filename="../src/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/pub/app/ribbon_strings.cpp" line="+7"/>
         <source>3-D Effects</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6353,7 +6353,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/app/ribbon.cpp" line="+460"/>
+        <location filename="../libs/shell/app/ribbon.cpp" line="+461"/>
         <source>File</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6369,13 +6369,13 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../src/app/ribbon_strings.cpp" line="-82"/>
+        <location filename="../apps/pub/app/ribbon_strings.cpp" line="-82"/>
         <source>Help</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Opens Help: how to do things in JeffPub, and a search that finds commands too.</source>
+        <source>Opens Help: how to do things in %1, and a search that finds commands too.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6427,7 +6427,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Sharing</name>
     <message>
-        <location filename="../src/app/sharing.cpp" line="+51"/>
+        <location filename="../apps/pub/app/sharing.cpp" line="+51"/>
         <source>Save Email</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6534,7 +6534,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>TableOfContents</name>
     <message>
-        <location filename="../src/app/toc.cpp" line="+196"/>
+        <location filename="../apps/pub/app/toc.cpp" line="+196"/>
         <location line="+16"/>
         <source>Insert Table of Contents</source>
         <translation type="unfinished"></translation>
@@ -6548,13 +6548,13 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Telemetry</name>
     <message>
-        <location filename="../src/app/telemetry.cpp" line="+87"/>
-        <source>Help improve JeffPub</source>
+        <location filename="../libs/shell/app/telemetry.cpp" line="+88"/>
+        <source>Help improve %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>JeffPub can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used. That shows how many people use it and which parts matter most.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%1&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
+        <source>%1 can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used. That shows how many people use it and which parts matter most.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%2&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6566,7 +6566,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Templates</name>
     <message>
-        <location filename="../src/templates/templates.cpp" line="-1443"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="-1443"/>
         <source>Riverbend Community Arts</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8435,7 +8435,7 @@ Desktop publishing</source>
 <context>
     <name>Text</name>
     <message>
-        <location filename="../src/text/dictionaries.cpp" line="+28"/>
+        <location filename="../libs/base/text/dictionaries.cpp" line="+30"/>
         <source>English (United States)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8495,7 +8495,7 @@ Desktop publishing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/text/textengine.cpp" line="+103"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+100"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8533,7 +8533,7 @@ Desktop publishing</source>
 <context>
     <name>Widgets</name>
     <message>
-        <location filename="../src/app/widgets.cpp" line="+1069"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+1069"/>
         <source>Standard</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8616,7 +8616,7 @@ Desktop publishing</source>
 <context>
     <name>jp::Backstage</name>
     <message>
-        <location filename="../src/app/backstage.cpp" line="+401"/>
+        <location filename="../apps/pub/app/backstage.cpp" line="+401"/>
         <source>Back to publication</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9578,7 +9578,7 @@ Desktop publishing</source>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+654"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+654"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9684,7 +9684,7 @@ Source: %3</source>
 <context>
     <name>jp::ColorButton</name>
     <message>
-        <location filename="../src/app/widgets.cpp" line="-942"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="-942"/>
         <source>Applies the color shown; Down arrow or F4 opens more colors.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9740,7 +9740,7 @@ Source: %3</source>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="-723"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-723"/>
         <source>Run general design checks</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9843,7 +9843,7 @@ Source: %3</source>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../src/app/editor.cpp" line="+108"/>
+        <location filename="../apps/pub/app/editor.cpp" line="+108"/>
         <source>Publication1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9859,7 +9859,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+117"/>
-        <location filename="../src/app/editor_text.cpp" line="+566"/>
+        <location filename="../apps/pub/app/editor_text.cpp" line="+566"/>
         <location line="+72"/>
         <location line="+21"/>
         <location line="+87"/>
@@ -10093,7 +10093,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/app/editor_text.cpp" line="-572"/>
+        <location filename="../apps/pub/app/editor_text.cpp" line="-572"/>
         <source>Bold</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10243,7 +10243,7 @@ Source: %3</source>
 <context>
     <name>jp::ExtraPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+728"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+728"/>
         <source>Text and pictures from your publication that had no place in the new design. Drag one onto the page, or select it and click Place on Page.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10346,7 +10346,7 @@ Source: %3</source>
 <context>
     <name>jp::FontCombo</name>
     <message>
-        <location filename="../src/app/widgets.cpp" line="+654"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+654"/>
         <source>Font</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10400,7 +10400,7 @@ Source: %3</source>
 <context>
     <name>jp::GraphicsPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+17"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+17"/>
         <source>Sort the pictures</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10551,7 +10551,7 @@ Effective resolution: %3 ppi</source>
 <context>
     <name>jp::HelpView</name>
     <message>
-        <location filename="../src/app/help.cpp" line="+55"/>
+        <location filename="../libs/shell/app/help.cpp" line="+55"/>
         <source>Back</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10655,7 +10655,7 @@ There is no help topic called &quot;%1&quot;.</source>
 <context>
     <name>jp::MailMergePane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+46"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+46"/>
         <source>Create recipient list</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10724,8 +10724,8 @@ Source: %3</source>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="-1151"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+704"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1151"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+704"/>
         <source>%1 (%2)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10753,7 +10753,7 @@ Source: %3</source>
         <location line="+10"/>
         <location line="+17"/>
         <location line="+161"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-470"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-470"/>
         <source>Open</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10772,13 +10772,13 @@ Source: %3</source>
     <message>
         <location line="+27"/>
         <location line="+13"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+8"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+8"/>
         <source>Save</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-8"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+2"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+2"/>
         <source>Save as .pub File</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10808,7 +10808,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-7"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-7"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10826,7 +10826,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+6"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+6"/>
         <source>Save As</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10881,7 +10881,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+520"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+520"/>
         <source>Delete</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10920,7 +10920,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <location line="+44"/>
         <location line="+63"/>
         <location line="+16"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-516"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-516"/>
         <source>Create PDF</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11016,7 +11016,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-10"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-10"/>
         <location line="+547"/>
         <source>All Files (*)</source>
         <translation type="unfinished"></translation>
@@ -11100,20 +11100,20 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <location line="+18"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-536"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-536"/>
         <location line="+1117"/>
         <source>Save as Picture</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-11"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+0"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+0"/>
         <source>PNG (*.png)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+0"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+0"/>
         <source>JPEG (*.jpg)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11211,7 +11211,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-1116"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1116"/>
         <source>Save as Web Page</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11229,7 +11229,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     <message>
         <location line="-46"/>
         <location line="+12"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="+1001"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1001"/>
         <source>Change Picture</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11261,7 +11261,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     <message>
         <location line="+15"/>
         <location line="+33"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-135"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-135"/>
         <location line="+10"/>
         <source>Text Fit</source>
         <translation type="unfinished"></translation>
@@ -11273,20 +11273,20 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-514"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-514"/>
         <source>Wrap Text</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+33"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+336"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+336"/>
         <location line="+1"/>
         <location line="+696"/>
         <source>Zoom</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow_actions.cpp" line="-381"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-381"/>
         <source>New</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11431,7 +11431,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     </message>
     <message>
         <location line="-147"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-634"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-634"/>
         <location line="+1"/>
         <source>Shapes</source>
         <translation type="unfinished"></translation>
@@ -11444,7 +11444,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     <message>
         <location line="+0"/>
         <location line="+156"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+171"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+171"/>
         <source>Text Art</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11634,7 +11634,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <location line="+88"/>
         <location line="+76"/>
         <location line="+394"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+143"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+143"/>
         <source>None</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12023,13 +12023,13 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+385"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+385"/>
         <source>Group</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+0"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+0"/>
         <source>Ungroup</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12334,7 +12334,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-465"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-465"/>
         <source>No Background</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12343,7 +12343,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <location line="+5"/>
         <location line="+4"/>
         <location line="+9"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-13"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-13"/>
         <location line="+21"/>
         <source>Background</source>
         <translation type="unfinished"></translation>
@@ -12792,7 +12792,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+265"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+265"/>
         <source>Guides</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12894,33 +12894,33 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-522"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-522"/>
         <source>Line</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+15"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+0"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+0"/>
         <source>Arrow</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-14"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+1"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+1"/>
         <source>Double Arrow</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+57"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-134"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-134"/>
         <source>%1 pt</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-56"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+4"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+4"/>
         <source>Line Weight</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12980,7 +12980,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+10"/>
         <location line="+289"/>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-82"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-82"/>
         <location line="+60"/>
         <source>Fill</source>
         <translation type="unfinished"></translation>
@@ -13003,14 +13003,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-61"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-61"/>
         <location line="+55"/>
         <source>No Fill</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-48"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-48"/>
         <location line="+21"/>
         <location line="+19"/>
         <source>No Outline</source>
@@ -13019,7 +13019,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <location line="+173"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-39"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-39"/>
         <source>Outline</source>
         <translation type="unfinished"></translation>
     </message>
@@ -13071,7 +13071,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+29"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+29"/>
         <source>No Glow</source>
         <translation type="unfinished"></translation>
     </message>
@@ -13312,7 +13312,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <location line="+1"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-9"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-9"/>
         <location line="+2"/>
         <location line="+1"/>
         <source>Text Outline</source>
@@ -13560,7 +13560,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="+226"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+226"/>
         <source>Picture Shape</source>
         <translation type="unfinished"></translation>
     </message>
@@ -13880,7 +13880,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow_ribbon.cpp" line="-265"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-265"/>
         <source>Font Color</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14301,7 +14301,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::OnlinePicturesPane</name>
     <message>
-        <location filename="../src/app/onlinepictures.cpp" line="+12"/>
+        <location filename="../apps/pub/app/onlinepictures.cpp" line="+12"/>
         <source>Free, openly licensed pictures from two open libraries. Your search words go to the library you choose.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14422,7 +14422,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PagesPane</name>
     <message>
-        <location filename="../src/app/pagespane.cpp" line="+88"/>
+        <location filename="../apps/pub/app/pagespane.cpp" line="+88"/>
         <source>Pages</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14450,7 +14450,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::ResearchPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="+244"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+244"/>
         <source>Search for:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14478,7 +14478,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::Ribbon</name>
     <message>
-        <location filename="../src/app/ribbon.cpp" line="+64"/>
+        <location filename="../libs/shell/app/ribbon.cpp" line="+64"/>
         <source>Ribbon</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14499,7 +14499,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::SizeCombo</name>
     <message>
-        <location filename="../src/app/widgets.cpp" line="+223"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+223"/>
         <source>Font Size</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14540,7 +14540,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../src/app/taskpane.cpp" line="-844"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-844"/>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14598,31 +14598,31 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::Updater</name>
     <message>
-        <location filename="../src/app/updater.cpp" line="+97"/>
+        <location filename="../libs/shell/app/updater.cpp" line="+104"/>
         <location line="+30"/>
         <source>Check for Updates</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-29"/>
-        <source>JeffPub couldn&apos;t reach the update server. Check your internet connection and try again.
-
-%1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+30"/>
-        <source>You have the latest version of JeffPub (%1).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>Update Available</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>JeffPub %1 is available</source>
+        <location line="-69"/>
+        <source>%1 couldn&apos;t reach the update server. Check your internet connection and try again.
+
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>You have the latest version of %1 (%2).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>%1 %2 is available</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -14666,13 +14666,23 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+47"/>
-        <source>Downloading JeffPub %1…</source>
+        <location line="+75"/>
+        <source>%1 couldn&apos;t save the installer to %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 couldn&apos;t start the installer. You can run it yourself from %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-35"/>
+        <source>Cancel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Cancel</source>
+        <source>Downloading %1 %2…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -14692,16 +14702,6 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+8"/>
         <source>The downloaded installer didn&apos;t match the one published for this release, so it wasn&apos;t run. You can download it from the release page instead.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>JeffPub couldn&apos;t save the installer to %1.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>JeffPub couldn&apos;t start the installer. You can run it yourself from %1.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
