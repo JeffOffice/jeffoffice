@@ -210,6 +210,7 @@ void DeckWindow::createActions()
     mk("view.notes", tr("Notes"), "notebook-pen", QKeySequence(), [this] { m_notes->setVisible(m_notes->isHidden()); refreshUi(); }, true);
     mk("view.fit", tr("Fit to Window"), "scan", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::WholePage); });
     createShowActions();
+    createSaveActions();
 }
 
 void DeckWindow::refreshUi()
@@ -313,6 +314,8 @@ void DeckWindow::showFileMenu()
     QMenu menu(this);
     menu.addAction(act("file.new"));
     menu.addAction(act("file.open"));
+    menu.addAction(act("file.save"));
+    menu.addAction(act("file.saveAs"));
     menu.addSeparator();
     menu.addAction(act("file.close"));
     menu.exec(m_ribbon->mapToGlobal(QPoint(0, m_ribbon->height() / 3)));
@@ -412,11 +415,17 @@ void DeckWindow::startShow(int slide)
 
 bool DeckWindow::maybeSave()
 {
-    // Saving comes with the presentation file format; until then a changed
-    // presentation asks before it closes.
+    m_ed->flushTyping();
     if (!m_ed->isModified()) return true;
-    return QMessageBox::question(this, appInfo().name, tr("Close without saving? This version of JeffDeck can't save presentations yet."),
-                                 QMessageBox::Close | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Close;
+    QMessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
+                    QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
+    box.setDefaultButton(QMessageBox::Save);
+    box.button(QMessageBox::Discard)->setText(tr("Don't Save"));
+    box.exec();
+    if (box.clickedButton() == box.button(QMessageBox::Save)) return save();
+    if (box.clickedButton() != box.button(QMessageBox::Discard)) return false;
+    dropRecoveryCopy();
+    return true;
 }
 
 void DeckWindow::closeEvent(QCloseEvent *e)

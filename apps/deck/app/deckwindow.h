@@ -30,6 +30,9 @@ class SlidesPane;
 namespace deck {
 struct FooterOptions;
 }
+namespace recovery {
+struct Recovered;
+}
 
 class DeckWindow : public AppWindow {
     Q_OBJECT
@@ -76,6 +79,28 @@ public:
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
     bool openFile(const QString &path);
+    // Saves to the file the presentation came from, else asks where (Save As).
+    // A presentation opened from a template always asks, so the template is
+    // not written over. False if nothing was written.
+    bool save();
+    // Asks for a name and writes the presentation there (.pptx, .potx, or .ppsx).
+    bool saveAs();
+    // Writes the file, and the presentation is saved and takes the file's name.
+    // On failure, says why and leaves the presentation unsaved.
+    bool saveTo(const QString &path);
+    // What Save As asks for a name with: the file dialog, unless this stands
+    // in for it (tests). Given the name to suggest and the filter to start on;
+    // returns the path chosen, empty for none.
+    void setSavePathChooser(const std::function<QString(const QString &suggested, const QString &filter)> &chooser) { m_pathChooser = chooser; }
+    // AutoRecover: writes a .pptx copy of unsaved work (the timer does, at the
+    // interval Options sets), and offers the copies a run that crashed left.
+    void autoRecover();
+    int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
+    QString recoveryCopy() const { return m_recoveryCopy; }
+    void offerRecovery(bool askIfNone = false);
+    // Opens a recovered copy as unsaved work, in this window while it holds
+    // nothing, else in a window of its own. Null, with the reason, if it can't be read.
+    DeckWindow *openRecovered(const recovery::Recovered &r, QString *error = nullptr);
 
 protected:
     void closeEvent(QCloseEvent *e) override;
@@ -86,6 +111,7 @@ private:
     void createShowActions();
     void addShowParts(struct RibbonParts &parts);
     void createActions();
+    void createSaveActions();     // deckwindow_save.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();
     void createDesignActions();
@@ -103,6 +129,7 @@ private:
     void updateTitle();
     void showFileMenu();
     bool maybeSave();
+    void dropRecoveryCopy();      // deckwindow_save.cpp
 
     Editor *m_ed = nullptr;
     DeckCanvas *m_canvas = nullptr;
@@ -119,7 +146,12 @@ private:
     QPointer<SlideShow> m_show;
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
-    QTimer m_refreshTimer;
+    QTimer m_refreshTimer, m_recoverTimer;
+    QString m_recoveryCopy;      // this window's AutoRecover copy, if written
+    QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
+    QString m_templatePath;      // a template this window wrote: saving again writes over it
+    std::function<QString(const QString &, const QString &)> m_pathChooser;
+    quint64 m_serial = 0;
 };
 
 } // namespace jp
