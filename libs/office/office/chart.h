@@ -191,13 +191,27 @@ struct Chart {
 // (no series) is still one.
 bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMap &colors, Chart *out, QString *error = nullptr);
 
+// The largest a chart is drawn on a side, in points: the longest side a
+// slide has (56 inches). A frame that asks for more is drawn this large.
+constexpr double kChartMaxSide = 4032;
 // The most of the text a chart keeps for a label, name, or title; real ones
 // are a few dozen characters, and a longer text can't be read as a label.
 constexpr int kChartMaxLabel = 256;
 
-// The chart as SVG, `size` points across and high: shapes, and the text as
-// text in the chart's fonts.
-QByteArray chartSvg(const Chart &chart, const QSizeF &size);
+// The chart as SVG, `size` points across and high (at most kChartMaxSide):
+// shapes, and the text as text in the chart's fonts. A chart with more to
+// draw than a picture can show (tens of thousands of points) is drawn
+// coarser, from every nth point, and leaves out the labels that crowd it;
+// `coarser` is told whether it was.
+QByteArray chartSvg(const Chart &chart, const QSizeF &size, bool *coarser = nullptr);
+// The same, drawn as a test wants to see it: gridlines and the marks of axes
+// drawn one by one while the chart has this many of them (more are one path;
+// the usual is 300), a line of many points drawn in paths of this many
+// segments (the usual is 32; it is drawn so only if it has more than 256
+// points), and markers drawn one by one while the chart has this many (more
+// are one path for a series; the usual is 1,500). -1 (0 for the segments)
+// leaves the usual. The picture is the same however they are set.
+QByteArray chartSvgTuned(const Chart &chart, const QSizeF &size, int separateLines, int segmentsPerPath, int separateMarkers = -1);
 
 // A number as a number format code shows it ("0.0%", "#,##0", "$#,##0.00;($#,##0.00)",
 // "mmm-yy"...); "General", or no code, shows it as short as it can be.

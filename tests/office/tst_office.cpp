@@ -1650,6 +1650,262 @@ private Q_SLOTS:
         QVERIFY(c.plots[0].series[0].categories[0].size() <= kChartMaxLabel);
         QVERIFY(c.plots[0].series[0].name.size() <= kChartMaxLabel);
         QVERIFY2(chartSvg(c, QSizeF(400, 300)).size() < 100000, "the picture repeats the long text");
+        // Text with characters XML has no place for (control characters, half a surrogate pair) still makes a picture a reader can parse.
+        c.plots[0].series[0].categories[1] = QStringLiteral("a") + QChar(1) + QStringLiteral("b") + QChar(7) + QStringLiteral("c") + QChar(0xD800) + QChar(0xFFFE) + QStringLiteral("<&\">'");
+        c.plots[0].series[0].name = QStringLiteral("n") + QChar(2) + QChar(0xDC00);
+        const QByteArray svg = chartSvg(c, QSizeF(400, 300));
+        QXmlStreamReader xml(svg);
+        while (!xml.atEnd()) xml.readNext();
+        QVERIFY2(!xml.hasError(), qPrintable(xml.errorString()));
+        QVERIFY(QSvgRenderer(svg).isValid());
+    }
+
+    // However much data a chart holds, its picture is a few thousand tags at most: the time QSvgRenderer takes to read a picture grows with the
+    // square of them, and 20,000 columns took minutes.
+    void chartDrawsHugeDataInFewPieces()
+    {
+        const int n = 6000;
+        QStringList names;
+        QVector<double> values, blanks;
+        for (int i = 0; i < n; ++i) {
+            names << QStringLiteral("c%1").arg(i);
+            values << 10 + (i * 7) % 50;
+            blanks << (i % 2 ? values.last() : std::nan(""));
+        }
+        const QString labels = QStringLiteral("<c:dLbls><c:showLegendKey val=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/></c:dLbls>");
+        const QString bar = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>%1<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>");
+        const QString line = QStringLiteral("<c:lineChart><c:grouping val=\"standard\"/>%1<c:marker val=\"1\"/><c:axId val=\"111\"/><c:axId val=\"222\"/></c:lineChart>");
+        const QString area = QStringLiteral("<c:areaChart><c:grouping val=\"standard\"/>%1<c:axId val=\"111\"/><c:axId val=\"222\"/></c:areaChart>");
+        const QString pie = QStringLiteral("<c:pieChart><c:varyColors val=\"1\"/>%1</c:pieChart>");
+        const QString legend = QStringLiteral("<c:legend><c:legendPos val=\"r\"/></c:legend>");
+        QString xs, ys;
+        for (int i = 0; i < n; ++i) {
+            xs += QStringLiteral("<c:pt idx=\"%1\"><c:v>%2</c:v></c:pt>").arg(i).arg((i * 37) % 1000);
+            ys += QStringLiteral("<c:pt idx=\"%1\"><c:v>%2</c:v></c:pt>").arg(i).arg(values[i]);
+        }
+        const QString scatter = QStringLiteral("<c:scatterChart><c:scatterStyle val=\"lineMarker\"/><c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:xVal><c:numRef><c:f>S!$A$1</c:f><c:numCache><c:formatCode>General</c:formatCode>"
+                                               "<c:ptCount val=\"%1\"/>%2</c:numCache></c:numRef></c:xVal><c:yVal><c:numRef><c:f>S!$B$1</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val=\"%1\"/>%3</c:numCache></c:numRef></c:yVal></c:ser>"
+                                               "<c:axId val=\"111\"/><c:axId val=\"222\"/></c:scatterChart>").arg(n).arg(xs, ys);
+        QString everyLabel = chartAxes(), tinyUnit = chartAxes();
+        everyLabel.replace(QStringLiteral("<c:crossAx val=\"222\"/>"), QStringLiteral("<c:crossAx val=\"222\"/><c:tickLblSkip val=\"1\"/>"));
+        tinyUnit.replace(QStringLiteral("<c:crossBetween val=\"between\"/>"), QStringLiteral("<c:crossBetween val=\"between\"/><c:majorUnit val=\"0.001\"/>"));
+        struct Case {
+            const char *name;
+            QString plot, legend;
+        };
+        const Case cases[] = {
+            {"columns", bar.arg(chartSeries(0, QStringLiteral("S"), names, values)) + chartAxes(), QString()},
+            {"columns with a label on each", bar.arg(chartSeries(0, QStringLiteral("S"), names, values, QString(), labels)) + chartAxes(), legend},
+            {"columns with every category named", bar.arg(chartSeries(0, QStringLiteral("S"), names, values)) + everyLabel, QString()},
+            {"columns on a scale of tiny steps", bar.arg(chartSeries(0, QStringLiteral("S"), names, values)) + tinyUnit, QString()},
+            {"many series of columns", bar.arg(chartSeries(0, QStringLiteral("A"), names.mid(0, 2000), values.mid(0, 2000)) + chartSeries(1, QStringLiteral("B"), names.mid(0, 2000), values.mid(0, 2000))
+                                               + chartSeries(2, QStringLiteral("C"), names.mid(0, 2000), values.mid(0, 2000))) + chartAxes(), legend},
+            {"line with markers", line.arg(chartSeries(0, QStringLiteral("S"), names, values)) + chartAxes(), legend},
+            {"line with a label on each", line.arg(chartSeries(0, QStringLiteral("S"), names, values, QString(), labels)) + chartAxes(), QString()},
+            {"area broken at blanks", area.arg(chartSeries(0, QStringLiteral("S"), names, blanks)) + chartAxes(), QString()},
+            {"scatter", scatter + chartAxes(), legend},
+            {"pie", pie.arg(chartSeries(0, QStringLiteral("S"), names, values)), legend},
+            {"pie with a label on each", pie.arg(chartSeries(0, QStringLiteral("S"), names, values, QString(), labels)), QString()},
+        };
+        for (const Case &k : cases) {
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(chartPart(k.plot, QString(), k.legend), defaultTheme(), ColorMap(), &c, &err), k.name);
+            QElapsedTimer timer;
+            timer.start();
+            const QByteArray svg = chartSvg(c, QSizeF(480, 320));
+            const qint64 tags = svg.count('<');
+            QVERIFY2(tags <= 8000, qPrintable(QStringLiteral("%1: %2 tags").arg(QLatin1String(k.name)).arg(tags)));
+            QSvgRenderer r(svg);
+            QVERIFY2(r.isValid(), k.name);
+            // And drawn, as a picture is for the page it is on.
+            QImage img(600, 400, QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::white);
+            QPainter painter(&img);
+            r.render(&painter, QRectF(QPointF(), QSizeF(img.size())));
+            painter.end();
+            QVERIFY2(timer.elapsed() < 20000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(k.name)).arg(timer.elapsed())));
+            // It is still a picture of the chart: its axis, and (but for a pie) the plot's ink, are there.
+            QVERIFY2(tags > 10, k.name);
+        }
+    }
+
+    // A chart too big to draw says so, and one that is not does not.
+    void chartSaysWhenItIsDrawnCoarser()
+    {
+        QStringList names;
+        QVector<double> values;
+        for (int i = 0; i < 12000; ++i) {
+            names << QStringLiteral("c%1").arg(i);
+            values << i % 90;
+        }
+        const QString line = QStringLiteral("<c:lineChart><c:grouping val=\"standard\"/>%1<c:marker val=\"0\"/><c:axId val=\"111\"/><c:axId val=\"222\"/></c:lineChart>");
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(line.arg(chartSeries(0, QStringLiteral("S"), names, values)) + chartAxes()), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        bool coarser = false;
+        const QByteArray big = chartSvg(c, QSizeF(480, 320), &coarser);
+        QVERIFY(coarser);
+        QVERIFY(big.size() < 2000000);
+        QVERIFY(readChart(chartPart(line.arg(chartSeries(0, QStringLiteral("S"), names.mid(0, 200), values.mid(0, 200))) + chartAxes()), defaultTheme(), ColorMap(), &c, &err));
+        coarser = true;
+        chartSvg(c, QSizeF(480, 320), &coarser);
+        QVERIFY(!coarser);
+        // So is one that has points enough, but more labels on them than can be read.
+        const QString labels = QStringLiteral("<c:dLbls><c:showLegendKey val=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"0\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/></c:dLbls>");
+        const QString bars = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>%1<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>");
+        QVERIFY(readChart(chartPart(bars.arg(chartSeries(0, QStringLiteral("S"), names.mid(0, 800), values.mid(0, 800), QString(), labels)) + chartAxes()), defaultTheme(), ColorMap(), &c, &err));
+        coarser = false;
+        chartSvg(c, QSizeF(480, 320), &coarser);
+        QVERIFY(coarser);
+    }
+
+    // A font name with the characters an SVG attribute can't hold doesn't make the whole chart vanish.
+    void chartSurvivesAnyFontName()
+    {
+        const QString plot = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>") + chartSeries(0, QStringLiteral("Only series"), {"a", "b"}, {1, 2})
+                             + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>") + chartAxes();
+        const QString legend = QStringLiteral("<c:legend><c:legendPos val=\"r\"/></c:legend>");
+        for (const QString &name : {QStringLiteral("Bad\"Name"), QStringLiteral("A<b>C"), QStringLiteral("R&amp;D"), QStringLiteral("It's"), QStringLiteral("x\"/><script>y"), QStringLiteral("a") + QChar(1) + QStringLiteral("b"), QString(5000, QLatin1Char('f'))}) {
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(chartPart(plot, QString(), legend), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            // As the file names it (through a typeface attribute, which XML escapes), and as another reader might set it.
+            c.font.family = name;
+            c.fontFamily = name;
+            const QByteArray svg = chartSvg(c, QSizeF(400, 300));
+            QXmlStreamReader xml(svg);
+            while (!xml.atEnd()) xml.readNext();
+            QVERIFY2(!xml.hasError(), qPrintable(name.left(20) + QLatin1Char(' ') + xml.errorString()));
+            QVERIFY2(svg.size() < 100000, "the font name is written once for every text");
+            QVERIFY2(svg.contains(">Only series<"), qPrintable(name.left(20)));
+            QVERIFY2(!svg.contains("<script"), qPrintable(name.left(20)));
+            QVERIFY(QSvgRenderer(svg).isValid());
+        }
+    }
+
+    // Numbers no picture can hold (a size or an axis of 1e300, values of 1e308) draw a picture and not coordinates that are not numbers.
+    void chartSurvivesNumbersBeyondAPicture()
+    {
+        const QString plot = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>") + chartSeries(0, QStringLiteral("S"), {"a", "b", "c"}, {1, 2, 3})
+                             + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>");
+        QString huge = chartAxes();
+        huge.replace(QStringLiteral("<c:valAx><c:axId val=\"222\"/><c:scaling><c:orientation val=\"minMax\"/>"),
+                     QStringLiteral("<c:valAx><c:axId val=\"222\"/><c:scaling><c:orientation val=\"minMax\"/><c:max val=\"1e308\"/><c:min val=\"-1e308\"/>"));
+        static const QRegularExpression notANumber(QStringLiteral("(?<![A-Za-z])(nan|-?inf)(?![A-Za-z])"));
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(plot + huge), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QVERIFY(c.axes.size() == 2 && !c.axes[1].autoMax);
+        const QByteArray big = chartSvg(c, QSizeF(400, 300));
+        QVERIFY2(!QString::fromUtf8(big).contains(notANumber), qPrintable(notANumber.match(QString::fromUtf8(big)).captured()));
+        QVERIFY(QSvgRenderer(big).isValid());
+        // Values past what an axis can be made of are blanks.
+        for (const double v : {1e308, -1e308, 1e200}) {
+            Chart d;
+            QVERIFY2(readChart(chartPart(QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>") + chartSeries(0, QStringLiteral("S"), {"a", "b", "c"}, {1, v, -v})
+                                         + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>") + chartAxes()), defaultTheme(), ColorMap(), &d, &err), qPrintable(err));
+            const QString svg = QString::fromUtf8(chartSvg(d, QSizeF(400, 300)));
+            QVERIFY2(!svg.contains(notANumber), qPrintable(QString::number(v)));
+            QVERIFY(QSvgRenderer(svg.toUtf8()).isValid());
+        }
+        // A size is at most a slide's longest side, and a size that is no number is a point.
+        const QString huger = QString::fromUtf8(chartSvg(c, QSizeF(1e300, 1e300)));
+        QVERIFY2(huger.contains(QStringLiteral("viewBox=\"0 0 4032 4032\"")), qPrintable(huger.left(300)));
+        const QString none = QString::fromUtf8(chartSvg(c, QSizeF(std::nan(""), std::numeric_limits<double>::infinity())));
+        QVERIFY2(!none.contains(notANumber), qPrintable(none.left(300)));
+    }
+
+    // Gridlines, the marks of axes, and markers drawn one by one when a chart has few, and as one path when it has many, and a line of many
+    // points drawn as one path or in paths of some segments each, make the same picture.
+    void chartMergedPiecesLookTheSame()
+    {
+        const QString dashed = QStringLiteral("<c:spPr><a:ln w=\"9525\"><a:solidFill><a:srgbClr val=\"808080\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr>");
+        QStringList names;
+        QVector<double> a, b, walk;
+        double at = 50;
+        for (int i = 0; i < 40; ++i) {
+            names << QStringLiteral("cat %1").arg(i);
+            a << 20 + (i * 13) % 37;
+            b << 10 + (i * 29) % 41;
+        }
+        QStringList manyNames;
+        for (int i = 0; i < 1500; ++i) {
+            manyNames << QString::number(i);
+            at += ((i * 7919) % 31) - 15;
+            walk << at;
+        }
+        QString dashedAxes = chartAxes();
+        dashedAxes.replace(QStringLiteral("<c:majorGridlines/>"), QStringLiteral("<c:majorGridlines>") + dashed + QStringLiteral("</c:majorGridlines>"));
+        const QString red = QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln></c:spPr>");
+        const QString bars = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>%1<c:gapWidth val=\"60\"/><c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>");
+        const QString line = QStringLiteral("<c:lineChart><c:grouping val=\"standard\"/>%1<c:marker val=\"0\"/><c:axId val=\"111\"/><c:axId val=\"222\"/></c:lineChart>");
+        struct Case {
+            const char *name;
+            QString plot;
+            int separateLines, segments, separateMarkers;   // what makes the picture another way, against the usual
+        };
+        const QString dots = QStringLiteral("<c:marker><c:symbol val=\"circle\"/><c:size val=\"6\"/></c:marker>"), crosses = QStringLiteral("<c:marker><c:symbol val=\"x\"/><c:size val=\"6\"/></c:marker>");
+        const QString withMarkers = QStringLiteral("<c:lineChart><c:grouping val=\"standard\"/>%1<c:marker val=\"1\"/><c:axId val=\"111\"/><c:axId val=\"222\"/></c:lineChart>");
+        const Case cases[] = {
+            {"columns with gridlines and ticks", bars.arg(chartSeries(0, QStringLiteral("A"), names, a, red) + chartSeries(1, QStringLiteral("B"), names, b)) + chartAxes(), 0, 0, -1},
+            {"columns with dashed gridlines", bars.arg(chartSeries(0, QStringLiteral("A"), names, a)) + dashedAxes, 0, 0, -1},
+            {"a line of 1,500 points", line.arg(chartSeries(0, QStringLiteral("A"), manyNames, walk)) + chartAxes(), -1, 20, -1},
+            {"a line of 1,500 points, one path", line.arg(chartSeries(0, QStringLiteral("A"), manyNames, walk)) + chartAxes(), -1, 100000, -1},
+            {"lines with markers", withMarkers.arg(chartSeries(0, QStringLiteral("A"), names, a, QString(), dots) + chartSeries(1, QStringLiteral("B"), names, b, QString(), crosses)) + chartAxes(), -1, 0, 0},
+        };
+        for (const Case &k : cases) {
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(chartPart(k.plot, QString(), QStringLiteral("<c:legend><c:legendPos val=\"b\"/></c:legend>")), defaultTheme(), ColorMap(), &c, &err), k.name);
+            const QSizeF size(500, 300);
+            auto draw = [&](const QByteArray &svg) {
+                QSvgRenderer r(svg);
+                QImage img(1000, 600, QImage::Format_ARGB32);
+                img.fill(Qt::white);
+                QPainter p(&img);
+                r.render(&p, QRectF(QPointF(), QSizeF(img.size())));
+                return img;
+            };
+            const QByteArray usual = chartSvg(c, size), other = chartSvgTuned(c, size, k.separateLines, k.segments, k.separateMarkers);
+            QVERIFY2(usual != other, qPrintable(QStringLiteral("%1 is drawn the same way both times").arg(QLatin1String(k.name))));
+            const QImage one = draw(usual), two = draw(other);
+            // Where two strokes meet the edges come out a shade apart (as dark as the strokes' own where they overlap); nothing else may: what
+            // differs is a small part of the ink of the picture.
+            double differs = 0, ink = 0;
+            for (int y = 0; y < one.height(); ++y)
+                for (int x = 0; x < one.width(); ++x) {
+                    ink += 255 - qGray(one.pixel(x, y));
+                    differs += qAbs(qGray(one.pixel(x, y)) - qGray(two.pixel(x, y)));
+                }
+            QVERIFY2(ink > 20000, qPrintable(QStringLiteral("%1 draws no ink").arg(QLatin1String(k.name))));
+            QVERIFY2(differs <= 0.02 * ink, qPrintable(QStringLiteral("%1: %2 of %3").arg(QLatin1String(k.name)).arg(differs).arg(ink)));
+        }
+    }
+
+    // A line that crosses its plot back and forth thousands of times takes seconds to fill; drawn from fewer of its points, it takes a fraction of one.
+    void chartDrawsLinesThatCrossTheirPlotQuickly()
+    {
+        QString xs, ys;
+        quint32 state = 12345;
+        auto next = [&] { state = state * 1664525u + 1013904223u; return (state >> 8) % 1000; };
+        for (int i = 0; i < 2000; ++i) {
+            xs += QStringLiteral("<c:pt idx=\"%1\"><c:v>%2</c:v></c:pt>").arg(i).arg(next());
+            ys += QStringLiteral("<c:pt idx=\"%1\"><c:v>%2</c:v></c:pt>").arg(i).arg(next());
+        }
+        const QString scatter = QStringLiteral("<c:scatterChart><c:scatterStyle val=\"lineMarker\"/><c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:spPr><a:ln w=\"28575\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln></c:spPr>"
+                                               "<c:marker><c:symbol val=\"none\"/></c:marker><c:xVal><c:numRef><c:f>S!$A$1</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val=\"2000\"/>%1</c:numCache></c:numRef></c:xVal>"
+                                               "<c:yVal><c:numRef><c:f>S!$B$1</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val=\"2000\"/>%2</c:numCache></c:numRef></c:yVal></c:ser>"
+                                               "<c:axId val=\"111\"/><c:axId val=\"222\"/></c:scatterChart>").arg(xs, ys);
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(scatter + chartAxes()), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QElapsedTimer timer;
+        timer.start();
+        const QImage img = renderChart(c, QSizeF(500, 333), 2);
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        // It is still a picture of the line: the plot has plenty of red in it.
+        QVERIFY(colorArea(img, Qt::red) > 2000);
     }
 
 private:
