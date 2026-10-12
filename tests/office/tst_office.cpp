@@ -2190,7 +2190,7 @@ private Q_SLOTS:
     void odrawReadsGradientAndPictureFills()
     {
         auto fillOf = [&](const QVector<OdProp> &more, OdrawContext *c = nullptr) {
-            QVector<OdProp> props = {{0x01BF, 0x00100010}};
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x019C, 0}};   // no shading curve: the colors run straight
             props += more;
             const OdrawContext ctx = c ? *c : odContext();
             return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill;
@@ -5215,7 +5215,7 @@ private Q_SLOTS:
     void odrawShadeColorsFollowTheFocus()
     {
         auto stopsOf = [&](int focus, const QByteArray &list, const QVector<OdProp> &more = {}) {
-            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x018C, quint32(focus)}, {0x0197, 0, odArray(list.size() / 8, 8, list)}};
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x019C, 0}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x018C, quint32(focus)}, {0x0197, 0, odArray(list.size() / 8, 8, list)}};
             props += more;
             const Fill f = readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), odContext())[0]->fill;
             QStringList out;
@@ -5237,16 +5237,66 @@ private Q_SLOTS:
         two += odU32(0x000000FF) + odU32(0);
         two += odU32(0x00FF0000) + odU32(65536);
         for (int focus : {0, 50, 100, -100, -50}) {
-            const Fill plain = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100010}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x018C, quint32(focus)}}, odClientAnchor(0, 0, 10, 10))),
+            const Fill plain = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100010}, {0x019C, 0}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x018C, quint32(focus)}}, odClientAnchor(0, 0, 10, 10))),
                                               odContext())[0]->fill;
             QStringList expected;
             for (const GradientStop &st : plain.stops) expected << QStringLiteral("%1%2").arg(odRgb(st.color) == QColor(255, 0, 0) ? 'r' : 'b').arg(st.pos, 0, 'f', 2);
             QCOMPARE(stopsOf(focus, two), expected.join(QLatin1Char(' ')));
         }
         // The property before it (the preset) isn't the list: a gradient with that one alone has its two colors.
-        const Fill preset = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100010}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x0196, 0, odArray(3, 8, band)}},
+        const Fill preset = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100010}, {0x019C, 0}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x0196, 0, odArray(3, 8, band)}},
                                                               odClientAnchor(0, 0, 10, 10))), odContext())[0]->fill;
         QCOMPARE(int(preset.stops.size()), 2);
+    }
+
+    // A shaded fill of two colors runs along a curve unless the shape turns it off (fillShadeType 0x019C: gamma 1, sigma 2): the position is
+    // eased by the sigma curve (3u^2 - 2u^3) and the colors blend in linear light (a power of 2.2), as the program draws them; a gradient
+    // that says nothing of it is drawn that way (gamma and sigma). A list of colors is not.
+    void odrawShadesFollowTheirCurve()
+    {
+        auto stopsOf = [&](const QVector<OdProp> &more, const QByteArray &list = QByteArray()) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}};
+            if (!list.isEmpty()) props << OdProp{0x0197, 0, odArray(list.size() / 8, 8, list)};
+            props += more;
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), odContext())[0]->fill.stops;
+        };
+        // Red to blue, eight steps: the middle one, a quarter of the way eased by the sigma curve to the red or the blue.
+        auto expectedRed = [&](double u, int type) {
+            const double e = (type & 2) ? u * u * (3 - 2 * u) : u;
+            return (type & 1) ? 255 * std::pow((1 - e) * 1.0, 1 / 2.2) : 255 * (1 - e);
+        };
+        for (const QVector<OdProp> &more : {QVector<OdProp>(), QVector<OdProp>{{0x019C, 3}}, QVector<OdProp>{{0x019C, 0x40000003}}}) {
+            const QVector<GradientStop> st = stopsOf(more);
+            QCOMPARE(int(st.size()), 9);
+            QCOMPARE(odRgb(st.first().color), QColor(255, 0, 0));
+            QCOMPARE(odRgb(st.last().color), QColor(0, 0, 255));
+            for (int k = 1; k < 8; ++k) {
+                QVERIFY(qAbs(st[k].pos - k / 8.0) < 1e-9);
+                const QColor c = odRgb(st[k].color);
+                QVERIFY2(qAbs(c.red() - expectedRed(k / 8.0, 3)) <= 1.5 && qAbs(c.blue() - expectedRed(1 - k / 8.0, 3)) <= 1.5 && c.green() == 0, qPrintable(QString::number(k)));
+            }
+        }
+        // The middle of it: 186, not 128.
+        QVERIFY(qAbs(odRgb(stopsOf({})[4].color).red() - 186) <= 1);
+        // Sigma alone eases the position; gamma alone blends in linear light; neither is two colors.
+        QVector<GradientStop> st = stopsOf({{0x019C, 2}});
+        QCOMPARE(int(st.size()), 9);
+        QVERIFY(qAbs(odRgb(st[1].color).red() - expectedRed(1 / 8.0, 2)) <= 1.5);
+        QVERIFY(qAbs(odRgb(st[4].color).red() - 128) <= 1);
+        st = stopsOf({{0x019C, 1}});
+        QVERIFY(qAbs(odRgb(st[1].color).red() - expectedRed(1 / 8.0, 1)) <= 1.5);
+        QCOMPARE(int(stopsOf({{0x019C, 0}}).size()), 2);
+        QCOMPARE(int(stopsOf({{0x019C, 0x40000000}}).size()), 2);
+        // A list of colors is drawn as it stands: the colors at their places, and nothing between.
+        QByteArray list;
+        list += odU32(0x000000FF) + odU32(0);
+        list += odU32(0x000000FF) + odU32(0x8000);
+        list += odU32(0x00FF0000) + odU32(65536);
+        QCOMPARE(int(stopsOf({}, list).size()), 3);
+        QCOMPARE(int(stopsOf({{0x019C, 3}}, list).size()), 3);
+        // The opacity runs along it evenly.
+        st = stopsOf({{0x0182, 0x10000}, {0x0184, 0x8000}});
+        QVERIFY(qAbs(st[4].transparency - 0.25) < 1e-6);
     }
 
     // A shape that carries the XML its writer made for it (property 0x03A9) hands it to the host, which may take the shape's look from it.
