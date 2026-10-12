@@ -5249,6 +5249,101 @@ private Q_SLOTS:
         QCOMPARE(int(preset.stops.size()), 2);
     }
 
+    // A picture or texture fill has the brightness and contrast of its shape (a texture washed out for a background): the host makes
+    // the picture the fill shows from them, as the picture items have them (a percent each way).
+    void odrawFillsAdjustTheirPictures()
+    {
+        OdrawContext ctx = odContext();
+        QStringList asked;
+        ctx.adjusted = [&](const QString &id, double brightness, double contrast) {
+            asked << QStringLiteral("%1 %2 %3").arg(id).arg(brightness, 0, 'f', 1).arg(contrast, 0, 'f', 1);
+            return id + QLatin1Char('+');
+        };
+        auto fillOf = [&](int type, const QVector<OdProp> &more) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x0180, quint32(type)}, {0x0186, 2, {}, true}};
+            props += more;
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill;
+        };
+        // Brightness 0x5C29 of 0x8000 (72 percent), and contrast 0xD70A of 0x10000 (16 percent less than none).
+        Fill f = fillOf(2, {{0x0109, 0x5C29}, {0x0108, 0xD70A}});
+        QVERIFY(f.type == Fill::Texture);
+        QCOMPARE(f.imageId, QStringLiteral("pic2+"));
+        QCOMPARE(asked, QStringList({QStringLiteral("pic2 72.0 -16.0")}));
+        asked.clear();
+        QCOMPARE(fillOf(3, {{0x0109, 0xFFFFC000}}).imageId, QStringLiteral("pic2+"));
+        QCOMPARE(asked, QStringList({QStringLiteral("pic2 -50.0 0.0")}));
+        asked.clear();
+        QCOMPARE(fillOf(1, {{0x0108, 0x20000}}).imageId, QStringLiteral("pic2+"));
+        QCOMPARE(asked, QStringList({QStringLiteral("pic2 0.0 100.0")}));
+        // Neither set: the picture as it is, and the host isn't asked.
+        asked.clear();
+        QCOMPARE(fillOf(2, {}).imageId, QStringLiteral("pic2"));
+        QVERIFY(asked.isEmpty());
+        // A picture the host has none for stays solid.
+        ctx.picture = nullptr;
+        QVERIFY(fillOf(2, {{0x0109, 0x5C29}}).type == Fill::Solid);
+        QVERIFY(asked.isEmpty());
+    }
+
+    // A picture takes its brightness and contrast the same way when the host can make the picture as adjusted: the picture is the
+    // adjusted one, and the item has none of its own; where it can't, the item has them.
+    void odrawPicturesTakeAdjustedImagesFromTheHost()
+    {
+        OdrawContext ctx = odContext();
+        QStringList asked;
+        bool works = true;
+        ctx.adjusted = [&](const QString &id, double brightness, double contrast) {
+            asked << QStringLiteral("%1 %2 %3").arg(id).arg(brightness, 0, 'f', 1).arg(contrast, 0, 'f', 1);
+            return works ? id + QLatin1Char('+') : id;
+        };
+        auto pictureOf = [&](const QVector<OdProp> &props) {
+            return static_cast<PictureItem *>(readOdrawShapes(odDrawing(odShape(75, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0].get());
+        };
+        PictureItem *pic = pictureOf({{0x0104, 3, {}, true}, {0x0109, 0x5C29}, {0x0108, 0xD70A}});
+        QCOMPARE(pic->imageId, QStringLiteral("pic3+"));
+        QCOMPARE(pic->brightness, 0.0);
+        QCOMPARE(pic->contrast, 0.0);
+        QCOMPARE(asked, QStringList({QStringLiteral("pic3 72.0 -16.0")}));
+        // Nothing to adjust: the host isn't asked.
+        asked.clear();
+        pic = pictureOf({{0x0104, 3, {}, true}});
+        QCOMPARE(pic->imageId, QStringLiteral("pic3"));
+        QVERIFY(asked.isEmpty());
+        // The host can't: the item has them, as when there is no host.
+        works = false;
+        pic = pictureOf({{0x0104, 3, {}, true}, {0x0109, 0x5C29}});
+        QCOMPARE(pic->imageId, QStringLiteral("pic3"));
+        QVERIFY(qAbs(pic->brightness - 72.0) < 0.01);
+        ctx.adjusted = nullptr;
+        pic = pictureOf({{0x0104, 3, {}, true}, {0x0108, 0x20000}});
+        QVERIFY(qAbs(pic->contrast - 100.0) < 0.01);
+    }
+
+    // A fill of the background kind shows the page's own background where the shape is: the host says what that is, given the place.
+    void odrawFillsWithThePagesBackground()
+    {
+        OdrawContext ctx = odContext();
+        auto fillOf = [&]() {
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0180, 9}, {0x01BF, 0x00100010}, {0x0181, 0x0000FF}}, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill;
+        };
+        QVERIFY(fillOf().isNone());   // no page to say
+        Fill background = Fill::gradient(ColorRef::rgb(Qt::red), ColorRef::rgb(Qt::blue));
+        QRectF seen;
+        ctx.background = [&](const QRectF &shape) {
+            seen = shape;
+            return background;
+        };
+        Fill f = fillOf();
+        QCOMPARE(seen, QRectF(0, 0, 10, 10));   // where the shape is, for a fill that keeps its place on the page
+        QVERIFY(f.type == Fill::Gradient);
+        QCOMPARE(odRgb(f.color), QColor(Qt::red));
+        QCOMPARE(odRgb(f.color2), QColor(Qt::blue));
+        background = Fill::solid(ColorRef::rgb(Qt::green));
+        QVERIFY(fillOf().type == Fill::Solid);
+        // Not filled at all: nothing, whatever the page has.
+        QVERIFY(readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0180, 9}, {0x01BF, 0x00100000}}, odClientAnchor(0, 0, 10, 10))), ctx)[0]->fill.isNone());
+    }
+
     // ---- text bodies (DrawingML text read into stories)
 
 private:

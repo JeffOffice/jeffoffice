@@ -8,11 +8,14 @@
 #include "office/odraw.h"
 #include "text/textprops.h"
 
+#include <QBuffer>
 #include <QCoreApplication>
 #include <QHash>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMap>
+#include <QPainter>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -548,6 +551,7 @@ struct PageState {
     int contents = 0;                             // content placeholders met so far
     QStringList types;                            // the placeholders met, by type
     bool master = false;
+    Fill background;                              // what the page stands on, for shapes filled with the background
 };
 
 // The type a placeholder is called by ([MS-PPT] 2.13.21 PlaceholderEnum), as presentation files name it.
@@ -830,10 +834,13 @@ private:
     QVector<SlideEntry> readSlideList(const Rec &list);
     TextGroup readTextGroup(Records &rs, const QVector<Rec> &recs);
     QString pictureId(int blipIndex);
+    QString adjustedPicture(const QString &id, double brightness, double contrast);
 
     // The masters.
     void readMasters();
     void buildMaster(MasterInfo &m);
+    const Fill &backgroundOf(const MasterInfo &m) const;
+    Fill backgroundAt(const Fill &background, const QRectF &shape);
     void makeMasterPage(MasterInfo &m, int number);
     const Item *masterPlaceholder(const MasterInfo &m, const QString &type) const;
     QByteArray masterShapeProps(const MasterInfo &m, const QString &type) const;
@@ -879,6 +886,7 @@ private:
     QVector<office::OdrawStoreEntry> m_store;
     QByteArray m_defaults;   // the drawing group's default property records
     QHash<int, QString> m_pictureIds;
+    QHash<QString, QString> m_adjusted;   // pictures with brightness and contrast applied, by picture and the two
     QVector<SlideEntry> m_slides, m_masterList, m_notesList;
     std::vector<std::unique_ptr<MasterInfo>> m_masters;
     QHash<quint32, quint32> m_notesOfSlide;   // by slide id, the id of its notes
@@ -1249,6 +1257,67 @@ QString Importer::pictureId(int blipIndex)
     return id;
 }
 
+// A picture with a brightness and a contrast (a percent each way) in its pixels, as the presentation program draws it: each color is
+// scaled by the contrast about the middle, and moved by the brightness times the mean of one and that scale (fitted to what the program
+// makes of pictures and of washed-out textures). The picture itself when it can't be read.
+QString Importer::adjustedPicture(const QString &id, double brightness, double contrast)
+{
+    const QString key = QStringLiteral("%1|%2|%3").arg(id).arg(brightness).arg(contrast);
+    if (const auto it = m_adjusted.constFind(key); it != m_adjusted.constEnd()) return it.value();
+    QString result = id;
+    QImage img = m_doc.image(id);
+    if (!img.isNull() && m_adjusted.size() < 200) {
+        img = img.convertToFormat(QImage::Format_ARGB32);
+        const double bright = brightness / 100.0, factor = (100.0 + contrast) / 100.0;
+        auto level = [&](int v) { return std::clamp(int(std::lround(((v / 255.0 - 0.5) * factor + 0.5 + bright * (1 + factor) / 2) * 255)), 0, 255); };
+        for (int y = 0; y < img.height(); ++y) {
+            QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
+            for (int x = 0; x < img.width(); ++x) line[x] = qRgba(level(qRed(line[x])), level(qGreen(line[x])), level(qBlue(line[x])), qAlpha(line[x]));
+        }
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        if (img.save(&buffer, "PNG")) result = m_doc.addImage(png, QStringLiteral("png"), QString(), img);
+    }
+    m_adjusted.insert(key, result);
+    return result;
+}
+
+// A page's background as a shape at `shape` shows it: tiles lie where the page's do, so the picture is moved by the shape's place (a
+// tile is a picture point at 96 per inch, scaled).
+Fill Importer::backgroundAt(const Fill &background, const QRectF &shape)
+{
+    if (background.type != Fill::Texture && !(background.type == Fill::Picture && background.tile)) return background;
+    if (shape.isNull() || (shape.left() == 0 && shape.top() == 0)) return background;
+    const double pointsPerPixel = 0.75 * background.tileScale;
+    const QString key = QStringLiteral("%1@%2,%3").arg(background.imageId).arg(shape.left() / pointsPerPixel, 0, 'f', 3).arg(shape.top() / pointsPerPixel, 0, 'f', 3);
+    Fill f = background;
+    if (const auto it = m_adjusted.constFind(key); it != m_adjusted.constEnd()) {
+        f.imageId = it.value();
+        return f;
+    }
+    const QImage tile = m_doc.image(background.imageId);
+    if (tile.isNull() || m_adjusted.size() >= 200) return background;
+    // The tile seen from a point further along, as the brush of the shape starts at its corner.
+    QImage moved(tile.size(), QImage::Format_ARGB32);
+    moved.fill(Qt::transparent);
+    {
+        QPainter p(&moved);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+        const double dx = std::fmod(shape.left() / pointsPerPixel, tile.width()), dy = std::fmod(shape.top() / pointsPerPixel, tile.height());
+        for (int i = -1; i <= 1; ++i)
+            for (int j = -1; j <= 1; ++j) p.drawImage(QPointF(-dx + i * tile.width(), -dy + j * tile.height()), tile);
+    }
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    QString id = background.imageId;
+    if (moved.save(&buffer, "PNG")) id = m_doc.addImage(png, QStringLiteral("png"), QString(), moved);
+    m_adjusted.insert(key, id);
+    f.imageId = id;
+    return f;
+}
+
 // ---- The masters ----
 
 void Importer::readMasters()
@@ -1324,6 +1393,15 @@ void Importer::readMasters()
         }
     for (auto &m : m_masters)
         if (m->title && !m->main->titleMaster) m->main->titleMaster = m.get();
+    // The backgrounds first: a shape of a master or of a slide may be filled with one.
+    for (auto &m : m_masters) {
+        PageState st;
+        st.scheme = m->scheme;
+        m_state = &st;
+        m->background = office::odrawBackground(m->drawing, drawingContext());
+        m_state = nullptr;
+        if (m->background.isNone()) m->background = Fill::solid(ColorRef::rgb(m->scheme[0]));
+    }
     for (auto &m : m_masters) buildMaster(*m);
     int number = 0;
     for (auto &m : m_masters)
@@ -1337,13 +1415,16 @@ void Importer::buildMaster(MasterInfo &m)
     st.text = TextCtx{m.main, m.title ? &m : nullptr, m.scheme};
     st.source = &m;
     st.master = true;
+    st.background = backgroundOf(m);
     readShapeProps(m.drawing, &m.shapeProps);
     m.items = readShapes(m.drawing, st);
     finishItems(m.items, st, false);
-    m_state = &st;
-    m.background = office::odrawBackground(m.drawing, drawingContext());
-    m_state = nullptr;
-    if (m.background.isNone()) m.background = Fill::solid(ColorRef::rgb(m.scheme[0]));
+}
+
+// What a page on the master stands on: the master's background, or for a title master that follows the main master's, that.
+const Fill &Importer::backgroundOf(const MasterInfo &m) const
+{
+    return m.title && (m.flags & 4) && m.main ? m.main->background : m.background;
 }
 
 void Importer::makeMasterPage(MasterInfo &m, int number)
@@ -1655,15 +1736,18 @@ void Importer::readSlide(int number, const SlideEntry &e)
                 break;
             }
     }
-    ItemList items = readShapes(drawing, st);
-    finishItems(items, st, true);
+    // The slide's own background, unless it follows its master's.
+    Fill bg;
     if (!(flags & 4)) {
         m_state = &st;
-        Fill bg = office::odrawBackground(drawing, drawingContext());
+        bg = office::odrawBackground(drawing, drawingContext());
         m_state = nullptr;
         if (bg.isNone() && ownColors) bg = Fill::solid(ColorRef::rgb(own[0]));
         page->background = bg;
     }
+    st.background = bg.isNone() ? backgroundOf(*source) : bg;
+    ItemList items = readShapes(drawing, st);
+    finishItems(items, st, true);
     page->items = std::move(items);
     for (const auto &it : page->items) {
         const QString type = placeholderType(*it);
@@ -2066,6 +2150,7 @@ office::OdrawContext Importer::drawingContext()
 {
     office::OdrawContext ctx;
     ctx.defaults = m_defaults;
+    ctx.background = [this](const QRectF &shape) { return m_state ? backgroundAt(m_state->background, shape) : Fill(); };
     ctx.inherits = [this](const QByteArray &clientData) {
         // A slide's placeholder takes after its master's shape of its kind.
         if (!m_state || m_state->master || !m_state->source) return QByteArray();
@@ -2075,6 +2160,7 @@ office::OdrawContext Importer::drawingContext()
     ctx.clientAnchor = [](const QByteArray &anchor) { return anchorRect(anchor); };
     ctx.schemeColor = [this](int index) { return m_state && m_state->scheme && index >= 0 && index < 8 ? m_state->scheme[index] : QColor(); };
     ctx.picture = [this](int index) { return pictureId(index); };
+    ctx.adjusted = [this](const QString &id, double brightness, double contrast) { return adjustedPicture(id, brightness, contrast); };
     ctx.client = [this](Item &item, const QByteArray &textbox, const QByteArray &clientData) {
         if (m_state) clientShape(item, textbox, clientData);
     };

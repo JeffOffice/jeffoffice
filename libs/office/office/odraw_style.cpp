@@ -175,7 +175,11 @@ Arrow arrowOf(quint32 end)
 
 QColor colorProperty(const Props &props, const OdrawContext &ctx, quint16 id) { return colorFor(props, ctx, id, 0); }
 
-Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault)
+double pictureBrightness(const Props &p) { return p.has(0x0109) ? std::clamp(p.integer(0x0109, 0) / 327.68, -100.0, 100.0) : 0; }
+
+double pictureContrast(const Props &p) { return p.has(0x0108) ? std::clamp((p.fixed(0x0108, 1.0) - 1.0) * 100, -100.0, 100.0) : 0; }
+
+Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault, const QRectF &shape)
 {
     if (!p.flag(kFillStyleFlags, 0x10, filledByDefault)) return Fill();
     const int type = int(p.value(kFillType, 0));
@@ -185,8 +189,12 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault)
     case 1: case 2: case 3: {
         // A pattern, a texture, or a picture: the picture the fill's blip names.
         const int index = int(p.value(kFillBlip, 0));
-        const QString image = index > 0 && ctx.picture ? ctx.picture(index) : QString();
+        QString image = index > 0 && ctx.picture ? ctx.picture(index) : QString();
         if (image.isEmpty()) break;
+        if (ctx.adjusted && (pictureBrightness(p) != 0 || pictureContrast(p) != 0)) {
+            const QString changed = ctx.adjusted(image, pictureBrightness(p), pictureContrast(p));
+            if (!changed.isEmpty()) image = changed;
+        }
         Fill f;
         f.type = type == 3 ? Fill::Picture : Fill::Texture;
         f.color = ColorRef::rgb(fillColor);
@@ -198,7 +206,7 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault)
     case 4: case 5: case 6: case 7: case 8:
         return gradientFill(p, ctx, type, fillColor, backColor, opacity, backOpacity);
     case 9:
-        return Fill();   // the page's own background shows through
+        return ctx.background ? ctx.background(shape) : Fill();   // the page's own background shows through
     default:
         break;
     }
