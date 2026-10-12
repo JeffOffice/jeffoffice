@@ -4,6 +4,7 @@
 #include "core/deck.h"
 #include "core/sections.h"
 #include "io/pptxdiagram.h"
+#include "io/pptxshow.h"
 #include "io/pptxtransition.h"
 #include "office/chart.h"
 #include "office/drawingml_table.h"
@@ -1224,7 +1225,7 @@ void Exporter::writeNotesMaster()
 void Exporter::writeProperties()
 {
     const QString presProps = QStringLiteral("/ppt/presProps.xml"), viewProps = QStringLiteral("/ppt/viewProps.xml"), tableStyles = QStringLiteral("/ppt/tableStyles.xml");
-    add(presProps, kTypeBase + QStringLiteral("presProps+xml"), QStringLiteral("<p:presentationPr%1/>").arg(kNamespaces));
+    add(presProps, kTypeBase + QStringLiteral("presProps+xml"), deck::presentationPropertiesXml(m_doc, kNamespaces));
     add(viewProps, kTypeBase + QStringLiteral("viewProps+xml"),
         QStringLiteral("<p:viewPr%1><p:normalViewPr><p:restoredLeft sz=\"15620\"/><p:restoredTop sz=\"94660\"/></p:normalViewPr><p:slideViewPr><p:cSldViewPr><p:cViewPr varScale=\"1\">"
                        "<p:scale><a:sx n=\"100\" d=\"100\"/><a:sy n=\"100\" d=\"100\"/></p:scale><p:origin x=\"0\" y=\"0\"/></p:cViewPr><p:guideLst/></p:cSldViewPr></p:slideViewPr>"
@@ -1326,6 +1327,7 @@ void Exporter::writePresentation()
     const QString type = sizeType(m_doc.setup.sizeName);
     xml += QStringLiteral("<p:sldSz cx=\"%1\" cy=\"%2\"%3/>").arg(emu(size.width()), emu(size.height()), type.isEmpty() ? QString() : QStringLiteral(" type=\"%1\"").arg(type));
     xml += QStringLiteral("<p:notesSz cx=\"%1\" cy=\"%2\"/>").arg(emu(m_notesSize.width()), emu(m_notesSize.height()));
+    xml += deck::customShowListXml(m_doc, m_slideRel);
     xml += QStringLiteral("<p:defaultTextStyle><a:defPPr><a:defRPr lang=\"en-US\"/></a:defPPr>");
     for (int i = 0; i < 9; ++i)
         xml += QStringLiteral("<a:lvl%1pPr marL=\"%2\" algn=\"l\" defTabSz=\"914400\" rtl=\"0\" eaLnBrk=\"1\" latinLnBrk=\"0\" hangingPunct=\"1\"><a:defRPr sz=\"1800\" kern=\"1200\">"
