@@ -48,7 +48,8 @@ A presentation made elsewhere can hold things JeffDeck has no tools for yet. It 
 
 - **Text Art** from an older file is shown and saved. You can move, resize, turn, and delete it, but you can't add new Text Art or change its words yet.
 - **Charts** are drawn from the values saved in the file, and saved whole. You can't edit them yet.
-- **SmartArt diagrams** and **equations** show as they were saved.
+- **SmartArt diagrams** are drawn the way they were saved. A SmartArt diagram is a set of shapes that work together, like a row of boxes or a chain of steps. JeffDeck treats the whole diagram as one object. You can select it, move it, resize it, copy it, and delete it. The drawing grows and shrinks with it. You can't change its words yet. When you save, the diagram goes back into the file whole, so the program that made it can still edit it. A copy you paste is only a picture of the diagram. A duplicated slide keeps the whole diagram.
+- **Equations** are shown as the picture the file keeps of them. An equation is math set in special type, like a fraction or a square root. You can move, resize, turn, copy, and delete the picture, but you can't change the math yet. When you save, the math goes back into the file as it was. This works for a text box that has other words around an equation too.
 - **Movies** and **sounds** are kept and saved, but they don't play yet.
 
 ## Related
