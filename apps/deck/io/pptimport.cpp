@@ -53,7 +53,11 @@ constexpr int kMaxNotes = 20;
 // The XML a writer kept for a shape or a theme: the most of one that is read, and of all of them.
 // The most pixels of a picture that has its brightness or contrast applied to them, or its tiles moved.
 constexpr qint64 kMaxAdjustedPixels = 16'000'000;
+// A shape's is a few kilobytes, packed and unpacked; a theme's package may
+// hold the theme's pictures as well. Each is held to its size unpacked too
+// (a few packed bytes can unpack to gigabytes), and all of them together.
 constexpr qsizetype kMaxWritersXml = 1 << 20;
+constexpr qint64 kMaxWritersShapeUnpacked = 1 << 20, kMaxWritersThemeUnpacked = 16 << 20;
 constexpr qint64 kMaxTotalWritersXml = 64 << 20;
 // The format's unit for places and sizes is 1/576 inch.
 constexpr double kPoints = 72.0 / 576.0;
@@ -1348,7 +1352,7 @@ Fill Importer::backgroundAt(const Fill &background, const QRectF &shape)
 std::shared_ptr<WritersTheme> Importer::readWritersTheme(const QByteArray &themePackage, const QByteArray &colorMapping) const
 {
     office::Package package;
-    if (themePackage.size() > kMaxWritersXml || !package.read(themePackage)) return nullptr;
+    if (themePackage.size() > kMaxWritersXml || !package.read(themePackage, nullptr, kMaxWritersThemeUnpacked)) return nullptr;
     QByteArray xml;
     for (const QString &name : package.partNames())
         if (QRegularExpression(QStringLiteral("/theme\\d*\\.xml$"), QRegularExpression::CaseInsensitiveOption).match(name).hasMatch()) {
@@ -1369,8 +1373,9 @@ void Importer::takeLookFromWritersXml(Item &item, const QByteArray &packageBytes
 {
     office::Package package;
     QDomDocument dom;
-    if (packageBytes.size() > kMaxWritersXml || (m_writersXmlBytes += packageBytes.size()) > kMaxTotalWritersXml) return;
-    if (!package.read(packageBytes) || !office::parseXml(package.part(QStringLiteral("/drs/shapexml.xml")), &dom)) return;
+    if (packageBytes.size() > kMaxWritersXml || m_writersXmlBytes > kMaxTotalWritersXml || !package.read(packageBytes, nullptr, kMaxWritersShapeUnpacked)) return;
+    const QByteArray xml = package.part(QStringLiteral("/drs/shapexml.xml"));
+    if ((m_writersXmlBytes += xml.size()) > kMaxTotalWritersXml || !office::parseXml(xml, &dom)) return;
     const QDomElement properties = office::childNamed(dom.documentElement(), "spPr"), style = office::childNamed(dom.documentElement(), "style");
     if (properties.isNull()) return;
     const MasterInfo *source = m_state ? m_state->source : nullptr;
