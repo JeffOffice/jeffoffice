@@ -279,7 +279,7 @@ private:
         kind.setFallback(s.props.fallback());
         Props p = s.props;
         p.setFallback(&kind);
-        it.fill = readFill(p, ctx, filledByDefault);
+        it.fill = readFill(p, ctx, filledByDefault, it.rect);
         it.stroke = readStroke(p, ctx, lineByDefault);
         readShadow(p, ctx, it.fx);
     }
@@ -391,8 +391,16 @@ private:
         const double l = p.fixed(0x0102, 0), r = p.fixed(0x0103, 0), t = p.fixed(0x0100, 0), b = p.fixed(0x0101, 0);
         const double w = pic->rect.width() / std::max(0.01, 1 - l - r), h = pic->rect.height() / std::max(0.01, 1 - t - b);
         pic->imgRect = QRectF(-l * w, -t * h, w, h);
-        if (p.has(0x0109)) pic->brightness = std::clamp(p.integer(0x0109, 0) / 327.68, -100.0, 100.0);
-        if (p.has(0x0108)) pic->contrast = std::clamp((p.fixed(0x0108, 1.0) - 1.0) * 100, -100.0, 100.0);
+        pic->brightness = pictureBrightness(p);
+        pic->contrast = pictureContrast(p);
+        // Where the host makes the picture as adjusted, it does.
+        if (ctx.adjusted && !pic->imageId.isEmpty() && (pic->brightness != 0 || pic->contrast != 0)) {
+            const QString changed = ctx.adjusted(pic->imageId, pic->brightness, pic->contrast);
+            if (!changed.isEmpty() && changed != pic->imageId) {
+                pic->imageId = changed;
+                pic->brightness = pic->contrast = 0;
+            }
+        }
         if (p.flag(0x013F, 0x04, false)) pic->recolor = PictureItem::Grayscale;
         else if (p.flag(0x013F, 0x02, false)) pic->recolor = PictureItem::BlackWhite;
         if (p.has(0x0107)) {
