@@ -2555,6 +2555,56 @@ private Q_SLOTS:
         QVERIFY(bodyItem->stroke.isNone());
     }
 
+    // Spacing as the presentation program sets it: no space before the first paragraph of a text, and a line of a share (100 for a
+    // single line) of 1.2 times the text size, where the text engine's single line is the font's own.
+    void importBinarySpacingFollowsTheProgram()
+    {
+        // Three paragraphs of the body's 28 points: 100 percent with 20 before, 80 percent with 20 before, and 500 master units exactly.
+        const QByteArray styles = pfRun(4, 0, 0x3000, le(100, 2) + le(20, 2)) + pfRun(4, 0, 0x3000, le(80, 2) + le(20, 2)) + pfRun(6, 0, 0x3000, le(quint16(-500), 2) + le(20, 2));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\rTwo\rThree"), styles)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body && body->blockCount() == 3);
+        const QTextBlock one = body->begin(), two = one.next(), three = two.next();
+        // 20 percent of a line of 1.2 times 28 points, but not at the top.
+        QCOMPARE(one.blockFormat().topMargin(), 0.0);
+        QVERIFY(qAbs(two.blockFormat().topMargin() - 0.2 * 28 * 1.2) < 1e-9);
+        // The font's own single line is the engine's, whatever it is: the share makes the line 1.2 times the size.
+        QFont font(QStringLiteral("Alpha Sans"));
+        const double single = naturalLineEm(font, QStringLiteral("Alpha Sans"));
+        QVERIFY(single > 0.6);
+        QVERIFY(one.blockFormat().lineHeightType() == QTextBlockFormat::ProportionalHeight);
+        QVERIFY2(qAbs(one.blockFormat().lineHeight() - 100 * 1.2 / single) < 1e-6, qPrintable(QString::number(one.blockFormat().lineHeight())));
+        QVERIFY2(qAbs(two.blockFormat().lineHeight() - 80 * 1.2 / single) < 1e-6, qPrintable(QString::number(two.blockFormat().lineHeight())));
+        // A line of so many master units is that many points.
+        QVERIFY(three.blockFormat().lineHeightType() == QTextBlockFormat::FixedHeight);
+        QCOMPARE(three.blockFormat().lineHeight(), 500.0 / 8);
+    }
+
+    // A paragraph with no text has no bullet, as the presentation program draws it: the blank lines between the points of a list.
+    void importBinaryBlankParagraphsHaveNoBullets()
+    {
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\r\rTwo\r"))), &err);
+        QVERIFY2(d, qPrintable(err));
+        QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QCOMPARE(body->blockCount(), 4);
+        const QTextBlock one = body->begin(), blank = one.next(), two = blank.next(), last = two.next();
+        QVERIFY(one.textList() && two.textList());
+        QVERIFY(!blank.textList());
+        QVERIFY(!last.textList());
+        // The text of the blank paragraph keeps the place it has: its margins are the level's.
+        QCOMPARE(blank.blockFormat().leftMargin(), one.blockFormat().leftMargin());
+        // A paragraph of nothing but a space has one.
+        d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\r \rTwo"))), &err);
+        QVERIFY2(d, qPrintable(err));
+        body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body && body->blockCount() == 3);
+        QVERIFY(body->begin().next().textList());
+    }
+
     // A texture with a brightness and a contrast (a background's, washed out) has them in its pixels, where a fill has no other place
     // for them.
     void importBinaryTexturesTakeTheirBrightnessAndContrast()
