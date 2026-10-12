@@ -42,6 +42,9 @@ public:
     void setPlay(const deck::MediaPlay &play);
     const deck::MediaPlay &settings() const { return m_play; }
 
+    // Says it can't be played here (a movie linked from outside the presentation, say), with what to tell the person.
+    void setUnavailable(const QString &message);
+
     State state() const { return m_state; }
     // It has played, or is playing, or has a picture to show.
     bool started() const { return m_started; }
@@ -129,7 +132,7 @@ class MediaBar {
 public:
     enum class Part { None, Play, Seek, Mute, Volume };
     static constexpr double kHeight = 30;
-    static constexpr double kMinWidth = 240;
+    static constexpr double kMinWidth = 320;
     // Where the bar goes for a movie or sound that shows in `picture`: under it, as wide as it is (at least kMinWidth),
     // inside `area`; over its bottom when there is no room below.
     static QRectF placement(const QRectF &picture, const QRectF &area);

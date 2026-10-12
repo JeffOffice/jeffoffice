@@ -59,6 +59,8 @@ void MediaPlayback::setPlay(const deck::MediaPlay &play)
     applyVolume();
 }
 
+void MediaPlayback::setUnavailable(const QString &message) { fail(message); }
+
 qint64 MediaPlayback::trimEnd() const
 {
     if (m_play.trimEnd > 0 && (m_fileDuration <= 0 || m_play.trimEnd < m_fileDuration)) return m_play.trimEnd;
@@ -325,7 +327,7 @@ BarLayout layoutOf(const QRectF &bar)
     l.play = QRectF(bar.left() + 3, bar.top() + 3, 24, 24);
     l.volume = QRectF(bar.right() - 8 - 52, bar.center().y() - 10, 52, 20);
     l.mute = QRectF(l.volume.left() - 4 - 24, bar.top() + 3, 24, 24);
-    l.time = QRectF(l.mute.left() - 4 - 84, bar.top(), 84, bar.height());
+    l.time = QRectF(l.mute.left() - 4 - 96, bar.top(), 96, bar.height());
     const double left = l.play.right() + 8;
     l.seek = QRectF(left, bar.center().y() - 10, std::max(0.0, l.time.left() - 4 - left), 20);
     return l;

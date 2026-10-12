@@ -45,6 +45,7 @@ namespace jp {
 class Document;
 class LayoutCache;
 class PresenterView;
+class ShowMedia;
 class StepFrames;
 
 // A slide drawn to fill `size` device-independent pixels at `dpr`, centered
@@ -102,6 +103,8 @@ public:
     const Document *document() const { return m_doc; }
     LayoutCache *cache() const { return m_cache; }
     PresenterView *presenterView() const;
+    // The movies and sounds of the slide on the screen.
+    ShowMedia *media() const { return m_media; }
 
     void next();
     void previous();
@@ -195,6 +198,7 @@ private:
     qreal m_nowRatio = 1;
     bool m_nowValid = false;
     QPointer<PresenterView> m_presenter;
+    ShowMedia *m_media = nullptr;   // the movies and sounds (showmedia.h)
 };
 
 // Plays the transition into a slide over a widget, from the slide before it,

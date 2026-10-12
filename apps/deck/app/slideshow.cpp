@@ -2,6 +2,8 @@
 
 #include "app/presenterview.h"
 #include "app/settings.h"
+#include "app/showmedia.h"
+#include "core/media.h"
 #include "core/document.h"
 #include "render/renderer.h"
 
@@ -244,7 +246,7 @@ QImage paintSlide(const Document *doc, LayoutCache *cache, int slide, const QSiz
         PaintContext ctx;
         ctx.doc = doc;
         ctx.cache = cache;
-        ctx.opt.hidden = hidden;
+        ctx.opt.hidden = hidden | deck::mediaHiddenWhenStopped(*doc->pages[slide]);   // a movie or sound that shows only while it plays
         if (states) deck::animate(ctx, *doc, *states);
         Renderer::paintPage(&p, ctx, slide);
     }
@@ -381,6 +383,7 @@ SlideShow::SlideShow(const Document *doc, LayoutCache *cache, int startSlide, QW
     setFocusPolicy(Qt::StrongFocus);
     setCursor(Qt::BlankCursor);
     setMouseTracking(true);
+    m_media = new ShowMedia(doc, this);
     m_slide = nextShown(std::clamp(startSlide, 0, std::max(0, int(doc->pages.size()) - 1)), 1);
     if (m_slide < 0) m_atEnd = true;
     m_target = m_slide;
@@ -436,6 +439,13 @@ void SlideShow::next()
         update();
         return;
     }
+    // A step of only a call to a movie or sound is a click of its own.
+    if (!m_atEnd && m_media->takeClick(m_slide, m_done)) {
+        m_auto.stop();
+        m_blank = QColor();
+        update();
+        return;
+    }
     if (!m_atEnd && m_done < stepCount()) {
         m_auto.stop();
         m_blank = QColor();
@@ -459,6 +469,7 @@ void SlideShow::moveOn()
     const int n = nextShown(m_slide + 1, 1);
     if (n < 0) {
         m_atEnd = true;
+        m_media->sync(-1, 0);
         update();
         Q_EMIT changed();
         return;
@@ -530,6 +541,7 @@ void SlideShow::startTransition(int slide, const deck::Transition &t)
     m_target = slide;
     m_trans = t;
     m_animating = true;
+    m_media->sync(-1, 0);
     m_painted = -1;
     m_anim.stop();
     m_anim.setDuration(std::max(1, qRound(t.duration * 1000)));
@@ -637,6 +649,7 @@ std::shared_ptr<StepFrames> SlideShow::framesOf(const View &view, const QSize &s
 // The step plays from its click, one frame after another, and ends at its last effect's end.
 void SlideShow::startStep(int step)
 {
+    m_media->stepStarted(m_slide, step);
     m_playing = step;
     m_stepLength = playOf(m_slide).timeline.steps[step].duration();
     m_stepMs = 0;
@@ -697,6 +710,7 @@ void SlideShow::stepChanged()
 // A slide shown at its start, or a step after one that has played, that begins by itself.
 void SlideShow::startAutomaticSteps()
 {
+    m_media->sync(m_atEnd || m_animating ? -1 : m_slide, m_done);
     if (!m_started || m_atEnd || m_animating || m_playing >= 0) return;
     const deck::Timeline &tl = playOf(m_slide).timeline;
     if (m_done < tl.steps.size() && tl.steps[m_done].automatic) startStep(m_done);
@@ -770,8 +784,12 @@ void SlideShow::paintEvent(QPaintEvent *)
     }
     const QImage now = nowImage();
     if (now.deviceIndependentSize().toSize() != size()) p.fillRect(rect(), Qt::black);
-    if (m_animating) paintTransition(&p, m_trans, now, imageOf(m_target), m_anim.currentValue().toDouble());
-    else p.drawImage(0, 0, now);
+    if (m_animating) {
+        paintTransition(&p, m_trans, now, imageOf(m_target), m_anim.currentValue().toDouble());
+    } else {
+        p.drawImage(0, 0, now);
+        m_media->paint(&p);
+    }
 }
 
 void SlideShow::resizeEvent(QResizeEvent *e)
@@ -853,6 +871,7 @@ QString SlideShow::linkAt(const QPointF &pos) const
 void SlideShow::mousePressEvent(QMouseEvent *e)
 {
     if (e->button() == Qt::LeftButton) {
+        if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mousePress(e->position())) return;
         if (const QString link = linkAt(e->position()); !link.isEmpty()) {
             // A page, a mail address; not a file or a program a slide names.
             const QUrl url = QUrl::fromUserInput(link);
@@ -872,6 +891,10 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
 void SlideShow::mouseMoveEvent(QMouseEvent *e)
 {
     if (m_rehearsal) return;
+    if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mouseMove(e->position())) {
+        setCursor(Qt::ArrowCursor);
+        return;
+    }
     setCursor(linkAt(e->position()).isEmpty() ? Qt::BlankCursor : Qt::PointingHandCursor);
 }
 
@@ -886,6 +909,7 @@ void SlideShow::showEvent(QShowEvent *e)
 
 void SlideShow::closeEvent(QCloseEvent *e)
 {
+    m_media->sync(-1, 0);
     m_anim.stop();
     m_frame.stop();
     m_auto.stop();
