@@ -606,6 +606,38 @@
               "keytip": "WC"
             }
           ]
+        },
+        {
+          "name": "Comments",
+          "keytip": "ZO",
+          "items": [
+            {
+              "large": "comment.new",
+              "keytip": "NC"
+            },
+            {
+              "large": "comment.delete",
+              "keytip": "DC",
+              "split": true,
+              "menu": [
+                "comment.delete",
+                "comment.deleteSlide",
+                "comment.deleteAll"
+              ]
+            },
+            {
+              "large": "comment.prev",
+              "keytip": "PV"
+            },
+            {
+              "large": "comment.next",
+              "keytip": "NX"
+            },
+            {
+              "large": "comment.show",
+              "keytip": "SC"
+            }
+          ]
         }
       ]
     },

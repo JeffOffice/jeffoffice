@@ -19,6 +19,7 @@ class QStackedWidget;
 namespace jp {
 
 class ColorButton;
+class CommentsPane;
 class DeckCanvas;
 class DeckFileScreen;
 class Editor;
@@ -52,6 +53,7 @@ public:
     DeckCanvas *canvas() const { return m_canvas; }
     SlidesPane *slidesPane() const { return m_slides; }
     NotesPane *notesPane() const { return m_notes; }
+    CommentsPane *commentsPane() const { return m_comments; }
     SlideShow *slideShow() const { return m_show; }
     SlideSorter *slideSorter() const { return m_sorter; }
     OutlineView *outlineView() const { return m_outline; }
@@ -70,6 +72,10 @@ public:
     void duplicateSlide();
     void deleteSlide();
     void toggleHidden();
+    // Comments: the pane beside the slide and the markers on it, together.
+    void showComments(bool on);
+    // A new comment on the slide: asks who is writing the first time, and opens the box to type it in.
+    void newComment();
     void setLayout(const QString &layoutType);
     void resetSlide();
     // Gives the slides another size, everything on them scaled to fit (as
@@ -138,6 +144,7 @@ private:
     void createActions();
     void createSaveActions();     // deckwindow_save.cpp
     void createDialogActions();   // deckwindow_dialogs.cpp
+    void createCommentActions();  // deckwindow_comments.cpp
     void createOutputActions();   // deckwindow_output.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();
@@ -162,8 +169,9 @@ private:
     Ribbon *m_ribbon = nullptr;
     SlidesPane *m_slides = nullptr;
     NotesPane *m_notes = nullptr;
+    CommentsPane *m_comments = nullptr;
     DeckFileScreen *m_fileScreen = nullptr;
-    QSplitter *m_split = nullptr, *m_rightSplit = nullptr;
+    QSplitter *m_split = nullptr, *m_rightSplit = nullptr, *m_commentSplit = nullptr;   // the last: the slide and the Comments pane
     QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
     SlideSorter *m_sorter = nullptr;
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
