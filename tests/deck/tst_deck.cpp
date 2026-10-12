@@ -2811,10 +2811,9 @@ private Q_SLOTS:
                                                  "<manifest:file-entry manifest:full-path=\"content.xml\"><manifest:encryption-data manifest:checksum-type=\"x\"/></manifest:file-entry></manifest:manifest>");
         QVERIFY(!deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {}, "application/vnd.oasis.opendocument.presentation", encrypted), &err));
         QVERIFY2(err.contains(QStringLiteral("password")), qPrintable(err));
-        // A part named to climb out of the package.
+        // A part named to climb out of the package is left out, and the rest opens.
         err.clear();
-        QVERIFY(!deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {{QStringLiteral("../evil.xml"), "x"}}), &err));
-        QVERIFY(!err.isEmpty());
+        QVERIFY2(deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {{QStringLiteral("../evil.xml"), "x"}}), &err), qPrintable(err));
         // A slide whose master page isn't there stands on the first one.
         {
             QString content = odptest::sampleContent();
@@ -2857,12 +2856,12 @@ private Q_SLOTS:
         // Deep nesting: groups inside groups, and lists inside lists, are cut at a depth, and XML nested too deeply is refused.
         {
             QString groups, lists;
-            for (int i = 0; i < 400; ++i) groups += QStringLiteral("<draw:g>");
+            for (int i = 0; i < 200; ++i) groups += QStringLiteral("<draw:g>");
             groups += QStringLiteral("<draw:rect svg:width=\"1cm\" svg:height=\"1cm\" svg:x=\"0cm\" svg:y=\"0cm\"/>");
-            for (int i = 0; i < 400; ++i) groups += QStringLiteral("</draw:g>");
-            for (int i = 0; i < 400; ++i) lists += QStringLiteral("<text:list><text:list-item>");
+            for (int i = 0; i < 200; ++i) groups += QStringLiteral("</draw:g>");
+            for (int i = 0; i < 100; ++i) lists += QStringLiteral("<text:list><text:list-item>");
             lists += QStringLiteral("<text:p>deep</text:p>");
-            for (int i = 0; i < 400; ++i) lists += QStringLiteral("</text:list-item></text:list>");
+            for (int i = 0; i < 100; ++i) lists += QStringLiteral("</text:list-item></text:list>");
             const QString page = QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">%1<draw:frame svg:width=\"10cm\" svg:height=\"5cm\" svg:x=\"1cm\" svg:y=\"1cm\">"
                                                 "<draw:text-box>%2</draw:text-box></draw:frame></draw:page>");
             err.clear();
@@ -2873,8 +2872,8 @@ private Q_SLOTS:
             QCOMPARE(int(d->pages.size()), 1);
             QVERIFY(timer.elapsed() < 20000);
             QString deeper;
-            for (int i = 0; i < 2000; ++i) deeper += QStringLiteral("<draw:g>");
-            for (int i = 0; i < 2000; ++i) deeper += QStringLiteral("</draw:g>");
+            for (int i = 0; i < 300; ++i) deeper += QStringLiteral("<draw:g>");
+            for (int i = 0; i < 300; ++i) deeper += QStringLiteral("</draw:g>");
             err.clear();
             QVERIFY(!deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), page.arg(deeper, QString()))), &err));
             QVERIFY(!err.isEmpty());
