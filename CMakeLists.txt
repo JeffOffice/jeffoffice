@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Xml Test)
 
 add_subdirectory(third_party)
 include(cmake/pdfium.cmake)
@@ -16,6 +16,8 @@ include(cmake/pdfium.cmake)
 #   jo_base   colors, fonts, measurements, file containers, PDF, proofing
 #   jo_draw   shapes, fills and outlines, Text Art, placed objects, SVG
 #   jo_text   the text engine
+#   jo_office the file packages (OPC), themes, and DrawingML colors of the
+#             presentation, word processor, and spreadsheet formats
 #   jo_shell  the window: ribbon, KeyTips, themes, Help, updater, AutoRecover
 #   jo_page   pages of placed objects: the document, its drawing, the editor
 #             and the canvas (JeffPub's publications, JeffDeck's slides)
@@ -39,8 +41,10 @@ jo_library(jo_draw libs/draw)
 target_link_libraries(jo_draw PUBLIC jo_base)
 jo_library(jo_text libs/text)
 target_link_libraries(jo_text PUBLIC jo_draw)
+jo_library(jo_office libs/office)
+target_link_libraries(jo_office PUBLIC jo_text Qt6::Xml)
 jo_library(jo_shell libs/shell)
-target_link_libraries(jo_shell PUBLIC jo_text)
+target_link_libraries(jo_shell PUBLIC jo_office)
 if(WIN32)
   # The system Save dialog (filedialogs.cpp).
   target_link_libraries(jo_shell PRIVATE ole32 uuid shell32)
@@ -52,7 +56,7 @@ target_link_libraries(jo_page PUBLIC jo_shell)
 # object of it is pulled in, so a call into a higher layer (which the include
 # check can't see) fails to link here. Linux's linker is enough to catch one.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  foreach(lib jo_base jo_draw jo_text jo_shell jo_page)
+  foreach(lib jo_base jo_draw jo_text jo_office jo_shell jo_page)
     add_executable(${lib}_linkcheck tools/linkcheck.cpp)
     target_link_libraries(${lib}_linkcheck PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
   endforeach()
@@ -124,7 +128,7 @@ if(Qt6LinguistTools_FOUND)
   list(REMOVE_ITEM JP_TRANSLATIONS ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts)
   qt_add_lupdate(TS_FILES ${CMAKE_SOURCE_DIR}/translations/jeffpub.ts ${JP_TRANSLATIONS}
                  PLURALS_TS_FILE ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts
-                 SOURCE_TARGETS jo_base jo_draw jo_text jo_shell jo_page jpcore jeffpub
+                 SOURCE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jpcore jeffpub
                  LUPDATE_TARGET jeffpub_lupdate
                  OPTIONS -no-obsolete -locations relative)
   qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${CMAKE_SOURCE_DIR}/translations/jeffpub_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)
@@ -170,6 +174,13 @@ add_dependencies(jptests jpcrashtest)
 target_compile_definitions(jptests PRIVATE JP_CRASHTEST="$<TARGET_FILE:jpcrashtest>")
 add_test(NAME jptests COMMAND jptests)
 set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# The tests of libs/office, which need none of the app.
+qt_add_executable(officetests tests/office/tst_office.cpp)
+target_link_libraries(officetests PRIVATE jo_office Qt6::Test)
+set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME officetests COMMAND officetests)
+set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 
