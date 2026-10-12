@@ -55,6 +55,10 @@ constexpr qint64 kMaxThemeBytes = 256 << 10;
 // letters, so these are 394, 76, 320, 380, 750, and 1,080 times as many. A file that uses up any one of them (measured with files that do, the time of
 // reading their XML included) takes at most 10 seconds and 0.6 GB, and one that uses up several at once 14 seconds and 1.3 GB.
 constexpr qint64 kMaxObjects = 200000, kMaxStories = 30000, kMaxCells = 50000, kMaxParagraphs = 300000, kMaxRuns = 500000, kMaxLetters = 20000000;
+// What one page (a slide, a layout, or a master) may keep of it, so that each can be drawn in a moment: the sample decks' fullest slides hold
+// 49 objects, 49 shapes with text, and 2,056 letters, so these are 102, 20, and 49 times as many (the cells, paragraphs, and runs as many
+// again as the file's, in proportion).
+constexpr qint64 kMaxPageObjects = 5000, kMaxPageStories = 1000, kMaxPageCells = 2000, kMaxPageParagraphs = 10000, kMaxPageRuns = 20000, kMaxPageLetters = 100000;
 
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
@@ -724,6 +728,8 @@ private:
 
     PhList placeholdersIn(const QDomElement &tree);
     void readTree(const QDomElement &tree, Scope &sc);
+    // readTree for a whole page: within what the file has left, held to what one page may keep (kMaxPageObjects...).
+    void readPageTree(const QDomElement &tree, Scope &sc);
     void readChild(const QDomElement &c, Scope &sc);
     void readAlternate(const QDomElement &alternate, Scope &sc);
     ItemPtr readOne(const QDomElement &shape, Scope &sc);
@@ -745,6 +751,7 @@ private:
     bool m_layoutLimitSaid = false;
     QDomElement m_defaultStyle;
     office::DrawingBudget m_budget;               // what the whole file may keep (kMaxObjects...), drawn from by every read of it
+    bool m_pageFull = false;                      // a page held more than one may keep
     QHash<QString, QString> m_images;             // the pictures and movies kept, by part and link, for every shape that uses one
     std::vector<std::unique_ptr<MasterCtx>> m_masters;
     std::vector<std::unique_ptr<LayoutCtx>> m_layouts;
@@ -779,6 +786,11 @@ void Importer::sayWhatRanOut()
     if (m_budget.ranOut[B::Runs]) note(say("The file holds more than %1 runs of text in all; the rest are left out.").arg(kMaxRuns));
     if (m_budget.ranOut[B::Letters]) note(say("The file holds more than %1 letters of text in all; the rest are left out.").arg(kMaxLetters));
     if (m_budget.longBody) note(say("Some text is longer than a text box is read to, so the rest of it is left out."));
+    if (m_pageFull)
+        note(say("A slide is read to %1 objects, %2 shapes with text, and %3 letters; some slides here hold more, and the rest of them is left out.")
+                 .arg(kMaxPageObjects)
+                 .arg(kMaxPageStories)
+                 .arg(kMaxPageLetters));
 }
 
 bool Importer::parsePart(const QString &part, const QString &root, const char *rootNs, QDomDocument *dom, QDomElement *rootElement, QString *why)
@@ -978,7 +990,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     sc.ctx.background = page->background;
     const QDomElement tree = pChild(cSld, "spTree");
     m->placeholders = placeholdersIn(tree);
-    readTree(tree, sc);
+    readPageTree(tree, sc);
 
     MasterCtx *raw = m.get();
     m_masters.push_back(std::move(m));
@@ -1054,13 +1066,38 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
     sc.ctx.background = !page->background.isNone() ? page->background : base->page->background;
     const QDomElement tree = pChild(cSld, "spTree");
     l->placeholders = placeholdersIn(tree);
-    readTree(tree, sc);
+    readPageTree(tree, sc);
 
     LayoutCtx *raw = l.get();
     m_layouts.push_back(std::move(l));
     m_layoutByPart.insert(key, raw);
     m_doc.masters << page;
     return raw;
+}
+
+void Importer::readPageTree(const QDomElement &tree, Scope &sc)
+{
+    using B = office::DrawingBudget;
+    static constexpr qint64 caps[B::KindCount] = {kMaxPageObjects, kMaxPageStories, kMaxPageCells, kMaxPageParagraphs, kMaxPageRuns, kMaxPageLetters};
+    // The page reads from the smaller of what the file has left and what a page may keep; the file pays for what the page took.
+    qint64 fileLeft[B::KindCount], given[B::KindCount];
+    bool fileRanOut[B::KindCount];
+    for (int k = 0; k < B::KindCount; ++k) {
+        fileLeft[k] = m_budget.left[k];
+        fileRanOut[k] = m_budget.ranOut[k];
+        given[k] = std::min(fileLeft[k], caps[k]);
+        m_budget.left[k] = given[k];
+        m_budget.ranOut[k] = false;
+    }
+    readTree(tree, sc);
+    for (int k = 0; k < B::KindCount; ++k) {
+        if (m_budget.ranOut[k]) {
+            if (caps[k] < fileLeft[k]) m_pageFull = true;
+            else fileRanOut[k] = true;
+        }
+        m_budget.left[k] = fileLeft[k] - (given[k] - m_budget.left[k]);
+        m_budget.ranOut[k] = fileRanOut[k];
+    }
 }
 
 void Importer::readTree(const QDomElement &tree, Scope &sc)
@@ -1369,7 +1406,7 @@ bool Importer::readSlide(int number, const QString &part)
     sc.ctx.background = !page->background.isNone() ? page->background
                       : layout && !layout->page->background.isNone() ? layout->page->background
                                                                       : master.page->background;
-    readTree(pChild(cSld, "spTree"), sc);
+    readPageTree(pChild(cSld, "spTree"), sc);
 
     // How the slide changes to the next, and what moves on it, as written.
     for (const QDomElement &c : office::children(root)) {
