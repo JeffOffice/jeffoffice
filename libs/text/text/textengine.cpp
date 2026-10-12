@@ -152,7 +152,7 @@ QString FieldContext::key() const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "");
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (int i = 0; i < SlotCount; ++i) k += colors.c[i].name();
     return k;
@@ -1163,6 +1163,17 @@ double singleSpacing(const QVector<QTextLayout::FormatRange> &ranges, int from, 
     return m;
 }
 
+// A slide's single line: 1.2 times the largest text on it, whatever the font.
+double slideSingle(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
+{
+    double m = 0;
+    for (const auto &r : ranges)
+        if (r.start < from + len && r.start + r.length > from)
+            m = std::max(m, (r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : r.format.font().pointSizeF()) / fontPointFactor() * 1.2);
+    if (m <= 0) m = fallback.pointSizeF() / fontPointFactor() * 1.2;
+    return m;
+}
+
 // Descent (document points) of the proprietary fonts with known metrics on a
 // line (installed or not), or 0 when none is known; the baseline sits this far above the line's bottom.
 // Single spaced text up to 31 pt sits higher in some fonts' lines (KnownMetrics::lift).
@@ -1413,6 +1424,35 @@ void StoryLayout::build(const QTextDocument *doc, const QVector<FrameSpec> &fram
         return;
     }
     QVector<double> shifts = buildOnce(doc, frames, env);
+    if (m_overflow && frames.size() == 1 && frames[0].runsOver && frames[0].columns <= 1 && frames[0].obstacles.isEmpty() && !frames[0].fitToShape) {
+        // Set from the top in a frame that holds it all, then moved as far up
+        // as its alignment says for the frame it has.
+        FrameSpec tall = frames[0];
+        tall.valign = VAlign::Top;
+        tall.size.setHeight(std::max(tall.size.height(), 100000.0));
+        buildOnce(doc, {tall}, env);
+        double top = 1e18, bottom = -1e18;
+        for (const auto &B : m_blocks)
+            for (const Line &l : B->lines)
+                if (l.frame == 0) {
+                    top = std::min(top, l.rect.top());
+                    bottom = std::max(bottom, l.rect.bottom() - l.below);
+                }
+        const double room = frames[0].size.height() - frames[0].insets.top() - frames[0].insets.bottom();
+        const double share = frames[0].valign == VAlign::Middle ? 0.5 : frames[0].valign == VAlign::Bottom ? 1.0 : 0.0;
+        const double shift = bottom >= top ? (room - (bottom - frames[0].insets.top())) * share : 0;
+        if (shift != 0)
+            for (auto &B : m_blocks)
+                for (int i = 0; i < B->lines.size(); ++i)
+                    if (B->lines[i].frame == 0) {
+                        PtLine tl(B->tl->lineAt(i));
+                        tl.setPosition(tl.position() + QPointF(0, shift));
+                        B->lines[i].rect.translate(0, shift);
+                    }
+        if (!m_used.isEmpty()) m_used[0] += shift;
+        m_frames = frames;
+        return;
+    }
     // Text centered or set at the bottom meets the objects it wraps around
     // where it ends up, not at the frame's top (as in Publisher: a centered
     // line just below a picture stays whole). Lay it out again with the
@@ -1446,6 +1486,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_used = QVector<double>(frames.size(), 0.0);
     const double scale = env.fontScale;
     const int nF = frames.size();
+    auto singleOf = [&](const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback) {
+        return env.slideLines ? slideSingle(ranges, from, len, fallback) : singleSpacing(ranges, from, len, fallback);
+    };
 
     auto colRect = [&](int f, int c) {
         const FrameSpec &fs = frames[f];
@@ -1855,7 +1898,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
         // List marker.
         double markerW = 0, markerSingle = 0;
-        if (QTextList *list = b.textList()) {
+        if (QTextList *list = env.slideLines && b.length() <= 1 ? nullptr : b.textList()) {
             const QTextListFormat lf = list->format();
             QString custom = bf.stringProperty(tp::BulletChar);
             if (custom.isEmpty()) custom = lf.stringProperty(tp::BulletChar);
@@ -1920,7 +1963,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // Symbol bullet (as .pub lists have) is taller than most text.
             const QString mfam = bfont.isEmpty() ? requestedFamily(B->markerFont) : bfont;
             const double known = knownMetrics(mfam, B->markerFont.weight() >= QFont::DemiBold).line;
-            markerSingle = B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
+            // (A slide's bullet doesn't: its line is the text's, however big the bullet is drawn.)
+            markerSingle = env.slideLines ? 0.0 : B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
         }
 
         // Drop cap metrics: cap height spans dropLines lines.
@@ -1966,14 +2010,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             }
             if (startNext && f < nF) advance();
             if (f < nF && y > 0) y += before;
-            else if (f < nF) y += before;  // space before also applies at the top of a frame
+            else if (f < nF && !env.slideLines) y += before;  // space before also applies at the top of a frame (not a slide's)
             // A raised cap rises above the first line: room for it.
             if (f < nF && B->dropUp && !B->dropText.isEmpty())
                 y += std::max(0.0, capHeightOf(B->dropFont) - capHeightOf(base));
 
             // Estimate with the same rule the placed line will use, so wrap checks
             // see the obstacles the real line will meet.
-            const double estSingle = singleSpacing({}, 0, 0, base);
+            const double estSingle = singleOf({}, 0, 0, base);
             const double estH = std::max(1.0, lineHeightFor(bf, scale, estSingle));
             // Wrapping counts a line's text (its fonts' ascent and descent),
             // not the spacing around it: in Publisher a line moves aside only
@@ -2155,14 +2199,19 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             continue;
                         }
                     }
-                    double single = singleSpacing(ranges, line.textStart(), std::max(1, line.textLength()), base);
+                    double single = singleOf(ranges, line.textStart(), std::max(1, line.textLength()), base);
                     if (line.textStart() == 0) single = std::max(single, markerSingle);
                     double h = lineHeightFor(bf, scale, single);
+                    if (env.lineCut > 0 && (bf.lineHeightType() == QTextBlockFormat::SingleHeight || bf.lineHeightType() == QTextBlockFormat::ProportionalHeight)) {
+                        const double share = bf.lineHeightType() == QTextBlockFormat::ProportionalHeight ? bf.lineHeight() : 100.0;
+                        h = single * std::max(1.0, share - env.lineCut) / 100.0;
+                    }
                     // .pub layouts put a line's extra spacing below it: the first
                     // line of a column sits one ascent below the top, and a
                     // paragraph after one with wider spacing starts that much
                     // lower. Whether a line fits counts its text, not that space.
-                    double below = h > single && bf.lineHeightType() == QTextBlockFormat::ProportionalHeight ? h - single : 0;
+                    // (A slide's goes above it.)
+                    double below = !env.slideLines && h > single && bf.lineHeightType() == QTextBlockFormat::ProportionalHeight ? h - single : 0;
                     double textH = h - below;
                     // Baseline one descent above the text's bottom (for a substituted
                     // proprietary font, the original font's descent). Set closer than
@@ -2178,7 +2227,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                                                    bf.lineHeightType() != QTextBlockFormat::FixedHeight && std::abs(h - single) < 0.01);
                     const double fd = kd > 0 ? 0 : fontDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer);
                     const double descent = kd > 0 ? kd : fd > 0 ? fd : line.height() - line.ascent();
-                    double baseDown = closer ? h / single * (single - descent) : textH - descent;
+                    double baseDown = closer && !(env.slideLines && bf.lineHeightType() != QTextBlockFormat::FixedHeight) ? h / single * (single - descent) : textH - descent;
                     // An object set in the line sits on the baseline with its wrap
                     // distances around it; one reaching above the text's ascent
                     // lowers the baseline, and the line, by the difference. The
@@ -2384,7 +2433,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (roomAhead && bf.boolProperty(tp::KeepWithNext) && !startSpot.columnEmpty && b.next().isValid() && f < nF && !B->lines.isEmpty() && B->lines.first().frame >= 0) {
             const QTextBlock nb = b.next();
             const QTextBlockFormat nbf = nb.blockFormat();
-            const double nextH = (nbf.topMargin() * scale) + std::max(1.0, lineHeightFor(nbf, scale, singleSpacing({}, 0, 0, baseFontFor(nb, env))));
+            const double nextH = (nbf.topMargin() * scale) + std::max(1.0, lineHeightFor(nbf, scale, singleOf({}, 0, 0, baseFontFor(nb, env))));
             const QRectF col = colRect(f, c);
             if (y + nextH > col.height() + 0.01 && B->lines.first().frame == f && B->lines.first().column == c) redo(true, -1);
         }

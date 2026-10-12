@@ -4,6 +4,7 @@
 #include "app/icons.h"
 #include "app/theme.h"
 #include "core/deck.h"
+#include "core/sections.h"
 #include "text/textprops.h"
 
 #include <QAbstractTextDocumentLayout>
@@ -450,6 +451,7 @@ void OutlineView::apply(const QString &label)
     m_applying = true;
     m_ed->endTextEdit();
     m_ed->beginChange(label);
+    const deck::SectionMemory sections = deck::rememberSections(*d);
     const QVector<std::shared_ptr<Page>> old = d->pages;
     QVector<std::shared_ptr<Page>> pages;
     for (const Entry &e : std::as_const(entries)) {
@@ -500,6 +502,7 @@ void OutlineView::apply(const QString &label)
         }
     }
     if (pages != d->pages) d->pages = pages;
+    deck::restoreSections(*d, sections);
     // The slide the cursor is in is the current one.
     int at = 0;
     const int pos = textCursor().block().position();

@@ -69,6 +69,12 @@ struct FrameSpec {
     // a word too long for the place beside them moves down to where it fits instead of being broken, and
     // middle or bottom aligned text goes as far down as it fits.
     bool fitToShape = false;
+    // The text that doesn't fit runs out of the frame instead of waiting for
+    // a next one (a slide's text box: the presentation program shows it all):
+    // on down from text at the top, both ways from centered text, and up from
+    // text at the bottom. Text that fits is set as without it. One frame, one
+    // column, nothing to wrap around.
+    bool runsOver = false;
     FieldContext ctx;
 };
 
@@ -78,6 +84,14 @@ struct LayoutEnv {
     double fontScale = 1.0;
     double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
+    // Lines as the presentation program sets a slide's text: a single line is
+    // 1.2 times the largest text on it whatever the font, a line's extra
+    // spacing goes above it, the paragraph at the top of a box takes no space
+    // before it, and an empty paragraph shows no bullet.
+    bool slideLines = false;
+    // Percent taken off each paragraph's line spacing (a slide's text the
+    // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
+    double lineCut = 0;
     QString key() const;
 };
 

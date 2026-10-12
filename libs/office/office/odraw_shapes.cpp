@@ -46,9 +46,10 @@ struct Records {
 
 qsizetype endOf(const OdrawRecord &r) { return qsizetype(qint64(r.offset) + r.length); }
 
-Records readRecords(const QByteArray &d, const OdrawRecord &container)
+Records readRecords(const QByteArray &d, const OdrawRecord &container, const Props *defaults)
 {
     Records r;
+    r.props.setFallback(defaults);
     for (const OdrawRecord &c : odrawRecords(d, container.offset, endOf(container))) {
         switch (c.type) {
         case 0xF00A:
@@ -152,9 +153,18 @@ void flipItem(Item &it, bool horizontal, double axis)
     it.rotation = std::fmod(360 - it.rotation, 360.0);
 }
 
+// The drawing group's default properties, from the context's records.
+Props defaultProps(const OdrawContext &ctx)
+{
+    Props p;
+    for (const OdrawRecord &r : odrawRecords(ctx.defaults))
+        if (r.type == 0xF00B || r.type == 0xF121 || r.type == 0xF122) p.add(ctx.defaults, r);
+    return p;
+}
+
 class Reader {
 public:
-    Reader(const QByteArray &data, const OdrawContext &ctx) : d(data), ctx(ctx) {}
+    Reader(const QByteArray &data, const OdrawContext &ctx) : d(data), ctx(ctx), defaults(defaultProps(ctx)) {}
 
     // The shapes of a group container into `out`; the top group's (the
     // patriarch's) go straight in, any other group's become a group item.
@@ -167,7 +177,7 @@ public:
         Records own;
         int first = 0;
         if (!kids.isEmpty() && kids[0].type == 0xF004) {
-            own = readRecords(d, kids[0]);
+            own = readRecords(d, kids[0], &defaults);
             if (own.groupRect || (own.flags & (fGroup | fPatriarch))) first = 1; else own = Records();
         }
         const bool patriarch = depth == 0 || (own.flags & fPatriarch);
@@ -219,13 +229,23 @@ public:
     ItemPtr readShape(const OdrawRecord &container, const Frame &parent)
     {
         if (shapes >= kMaxShapes) return nullptr;
-        const Records s = readRecords(d, container);
+        Records s = readRecords(d, container, &defaults);
         if (!s.shape || (s.flags & (fDeleted | fBackground | fGroup))) return nullptr;
+        // What it leaves out, the shape it takes after has.
+        if (s.hasData && ctx.inherits) {
+            const QByteArray table = ctx.inherits(s.data);
+            Props base;
+            for (const OdrawRecord &r : odrawRecords(table))
+                if (r.type == 0xF00B || r.type == 0xF121 || r.type == 0xF122) base.add(table, r);
+            s.props.inherit(base);
+        }
         if (s.props.flag(0x03BF, 0x02, false)) return nullptr;   // hidden
         ++shapes;
         QRectF rect;
         place(s, parent, &rect);
         ItemPtr it = makeItem(s, rect);
+        if (it && ctx.richLook)
+            if (const QByteArray xml = s.props.complex(0x03A9); !xml.isEmpty()) ctx.richLook(*it, xml);
         if (it) client(*it, s);
         return it;
     }
@@ -251,11 +271,19 @@ private:
         if (ctx.client && (s.hasTextbox || s.hasData)) ctx.client(it, s.textbox, s.data);
     }
 
+    // The fill, line, and shadow. A kind of shape that has no fill or no line of itself keeps that over what the drawing's defaults
+    // say (a picture frame or a line isn't filled whatever they are).
     static void look(Item &it, const Records &s, const OdrawContext &ctx, bool filledByDefault, bool lineByDefault)
     {
-        it.fill = readFill(s.props, ctx, filledByDefault);
-        it.stroke = readStroke(s.props, ctx, lineByDefault);
-        readShadow(s.props, ctx, it.fx);
+        Props kind;
+        if (!filledByDefault) kind.set(0x01BF, 0x00100000);
+        if (!lineByDefault) kind.set(0x01FF, 0x00080000);
+        kind.setFallback(s.props.fallback());
+        Props p = s.props;
+        p.setFallback(&kind);
+        it.fill = readFill(p, ctx, filledByDefault, it.rect);
+        it.stroke = readStroke(p, ctx, lineByDefault);
+        readShadow(p, ctx, it.fx);
     }
 
     // The frame, turn, and flips of an item. The format turns a shape and then
@@ -365,8 +393,16 @@ private:
         const double l = p.fixed(0x0102, 0), r = p.fixed(0x0103, 0), t = p.fixed(0x0100, 0), b = p.fixed(0x0101, 0);
         const double w = pic->rect.width() / std::max(0.01, 1 - l - r), h = pic->rect.height() / std::max(0.01, 1 - t - b);
         pic->imgRect = QRectF(-l * w, -t * h, w, h);
-        if (p.has(0x0109)) pic->brightness = std::clamp(p.integer(0x0109, 0) / 327.68, -100.0, 100.0);
-        if (p.has(0x0108)) pic->contrast = std::clamp((p.fixed(0x0108, 1.0) - 1.0) * 100, -100.0, 100.0);
+        pic->brightness = pictureBrightness(p);
+        pic->contrast = pictureContrast(p);
+        // Where the host makes the picture as adjusted, it does.
+        if (ctx.adjusted && !pic->imageId.isEmpty() && (pic->brightness != 0 || pic->contrast != 0)) {
+            const QString changed = ctx.adjusted(pic->imageId, pic->brightness, pic->contrast);
+            if (!changed.isEmpty() && changed != pic->imageId) {
+                pic->imageId = changed;
+                pic->brightness = pic->contrast = 0;
+            }
+        }
         if (p.flag(0x013F, 0x04, false)) pic->recolor = PictureItem::Grayscale;
         else if (p.flag(0x013F, 0x02, false)) pic->recolor = PictureItem::BlackWhite;
         if (p.has(0x0107)) {
@@ -414,6 +450,7 @@ private:
 
     const QByteArray &d;
     const OdrawContext &ctx;
+    const Props defaults;
     int shapes = 0;
 };
 
@@ -425,18 +462,18 @@ bool hasBackgroundFlag(const QByteArray &d, const OdrawRecord &container)
 }
 
 // The first shape container with the background flag, in a drawing's containers.
-bool findBackground(const QByteArray &d, const OdrawRecord &r, int depth, const OdrawContext &ctx, Fill *fill, int *budget)
+bool findBackground(const QByteArray &d, const OdrawRecord &r, int depth, const OdrawContext &ctx, const Props &defaults, Fill *fill, int *budget)
 {
     if (depth > kMaxDepth) return false;
     for (const OdrawRecord &c : odrawRecords(d, r.offset, endOf(r))) {
         if (--*budget < 0) return false;
         if (c.type == 0xF004) {
             if (hasBackgroundFlag(d, c)) {
-                *fill = readFill(readRecords(d, c).props, ctx, true);
+                *fill = readFill(readRecords(d, c, &defaults).props, ctx, true);
                 return true;
             }
         } else if (c.type == 0xF002 || c.type == 0xF003) {
-            if (findBackground(d, c, depth + 1, ctx, fill, budget)) return true;
+            if (findBackground(d, c, depth + 1, ctx, defaults, fill, budget)) return true;
         }
     }
     return false;
@@ -470,10 +507,11 @@ ItemList readOdrawShapes(const QByteArray &data, const OdrawContext &ctx)
 Fill odrawBackground(const QByteArray &data, const OdrawContext &ctx)
 {
     Fill fill;
+    const Props defaults = defaultProps(ctx);
     int budget = kMaxShapes * 2;
     for (const OdrawRecord &r : odrawRecords(data)) {
         if (r.type == 0xF002 || r.type == 0xF003) {
-            findBackground(data, r, 0, ctx, &fill, &budget);
+            findBackground(data, r, 0, ctx, defaults, &fill, &budget);
             break;
         }
     }

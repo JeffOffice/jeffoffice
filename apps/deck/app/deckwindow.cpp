@@ -16,6 +16,7 @@
 #include "app/widgets.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
+#include "core/sections.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
 
@@ -102,13 +103,34 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     m_refreshTimer.setInterval(30);
     connect(&m_refreshTimer, &QTimer::timeout, this, &DeckWindow::refreshUi);
     auto queue = [this] { m_refreshTimer.start(); };
-    connect(m_ed, &Editor::changed, this, [this, queue] {
+    // A box the presentation program shrank keeps the size it gave the text until the text is edited here (a click into
+    // it changes nothing): then it is fitted here.
+    auto watchFit = [this](bool changed) {
+        if (!m_ed->isEditingText()) {
+            m_fitWatch = {};
+            return;
+        }
+        const Editor::TextTarget &target = m_ed->textTarget();
+        const QTextDocument *story = m_ed->doc()->storyDoc(target.storyId);
+        const int revision = story ? story->revision() : -1;
+        if (m_fitWatch.first != target.itemId) {
+            m_fitWatch = {target.itemId, revision};
+        } else if (changed && revision != m_fitWatch.second) {
+            if (Item *it = m_ed->doc()->item(target.itemId); it && it->type() == ItemType::Text) static_cast<TextItem *>(it)->fitAsStored = false;
+            m_fitWatch.second = revision;
+        }
+    };
+    connect(m_ed, &Editor::changed, this, [this, queue, watchFit] {
+        watchFit(true);
         m_slides->refresh(true);
         m_notes->reload();   // an undo can change the notes
         queue();
     });
     connect(m_ed, &Editor::selectionChanged, this, queue);
-    connect(m_ed, &Editor::textCursorChanged, this, queue);
+    connect(m_ed, &Editor::textCursorChanged, this, [queue, watchFit] {
+        watchFit(false);
+        queue();
+    });
     connect(m_ed, &Editor::toolChanged, this, queue);
     connect(m_ed, &Editor::pageChanged, this, [this, queue] {
         m_notes->commit();
@@ -221,6 +243,8 @@ void DeckWindow::createActions()
     createViewModeActions();
     createSaveActions();
     createDialogActions();
+    createCommentActions();
+    createSectionActions();
     createOutputActions();
 }
 
@@ -397,7 +421,10 @@ void DeckWindow::deleteSlide()
 {
     if (m_ed->doc()->pages.size() < 2) return;
     m_ed->endTextEdit();
+    m_ed->beginChange(tr("Delete Slide"));
+    deck::slideRemoved(*m_ed->doc(), m_ed->currentPage());
     m_ed->deletePage(m_ed->currentPage());
+    m_ed->endChange();
 }
 
 void DeckWindow::toggleHidden()

@@ -209,6 +209,7 @@ QJsonObject TextItem::toJson() const
     if (std::abs(hyphenZone - 18) > 1e-6) o["hyphZone"] = hyphenZone;
     if (continuedFrom) o["contFrom"] = true;
     if (fitScale != 1.0) o["fitScale"] = fitScale;
+    if (fitLineCut != 0) o["fitLineCut"] = fitLineCut;
     if (!prompt.isEmpty()) o["prompt"] = prompt;
     if (fitAsStored) o["fitStored"] = true;
     return o;
@@ -231,6 +232,7 @@ void TextItem::fromJson(const QJsonObject &o)
     continuedFrom = o["contFrom"].toBool();
     prompt = o["prompt"].toString();
     fitScale = o["fitScale"].toDouble(1.0);
+    fitLineCut = o["fitLineCut"].toDouble();
     fitAsStored = o["fitStored"].toBool();
 }
 

@@ -205,6 +205,16 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
     return out;
 }
 
+LayoutEnv Renderer::layoutEnv(const Document &doc)
+{
+    LayoutEnv env;
+    env.colors = doc.colors;
+    env.fonts = doc.fonts;
+    env.defaultTab = doc.defaultTabStop;
+    env.slideLines = doc.slideText;
+    return env;
+}
+
 FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt)
 {
     FrameSpec s;
@@ -216,6 +226,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.valign = t.valign;
     s.hyphenate = t.hyphenate;
     s.hyphenZone = t.hyphenZone;
+    s.runsOver = doc.slideText;
     // Baseline guides of the page's master (for "align text to baseline guides").
     const auto at = doc.find(t.id);
     const MasterPage *mp = at.page >= 0 ? doc.masterFor(*doc.pages[at.page]) : (!at.masterId.isEmpty() ? doc.master(at.masterId) : nullptr);
@@ -223,7 +234,8 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
         s.baselineGrid = mp->grid.baseline;
         s.baselineOrigin = doc.setup.margins.top() + mp->grid.baselineOffset - t.rect.top();
     }
-    if (!t.vertical) {
+    // A slide's text doesn't wrap around objects: the presentation program lets them overlap.
+    if (!t.vertical && !doc.slideText) {
         bool covered = false;
         s.obstacles = wrapObstacles(doc, t, &covered);
         if (covered) s.valign = VAlign::Top;
@@ -260,6 +272,7 @@ static QString specSig(const FrameSpec &s)
                     .arg(s.insets.right()).arg(s.insets.bottom()).arg(s.columns).arg(s.gap).arg(int(s.valign)).arg(s.ctx.key());
     k += QStringLiteral("h%1,%2|b%3,%4;").arg(int(s.hyphenate)).arg(s.hyphenZone).arg(s.baselineGrid).arg(s.baselineOrigin);
     if (s.fitToShape) k += QLatin1Char('s');
+    if (s.runsOver) k += QLatin1Char('r');
     for (const auto &o : s.obstacles) {
         const QRectF b = o.boundingRect();
         // The points' sum too, so moving a point inside the same bounds re-wraps.
@@ -286,19 +299,24 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
         specs << Renderer::frameSpec(doc, *chain[i], pageNumber, opt);
         sig += specSig(specs.last());
     }
-    LayoutEnv env;
-    env.colors = doc.colors;
-    env.fonts = doc.fonts;
-    env.defaultTab = doc.defaultTabStop;
+    LayoutEnv env = Renderer::layoutEnv(doc);
     sig += env.key();
-    const bool autofit = chain.size() == 1 && (head->autofit == TextItem::BestFit || head->autofit == TextItem::ShrinkOnOverflow);
+    // A slide's text the presentation program shrank keeps the size it was given (its file says it) until it is edited here.
+    const bool asStored = doc.slideText && chain.size() == 1 && head->autofit == TextItem::ShrinkOnOverflow && head->fitAsStored;
+    const bool autofit = !asStored && chain.size() == 1 && (head->autofit == TextItem::BestFit || head->autofit == TextItem::ShrinkOnOverflow);
     if (autofit) sig += QStringLiteral("|fit%1%2").arg(int(head->autofit)).arg(head->fitAsStored ? "s" : "");
+    if (asStored) sig += QStringLiteral("|stored%1,%2").arg(head->fitScale).arg(head->fitLineCut);
     const QString key = head->id + QStringLiteral("@") + (doc.find(head->id).page < 0 ? QString::number(pageNumber) : QString());
     Entry &e = m_entries[key];
     if (e.sig != sig || !e.layout) {
         auto lay = std::make_shared<StoryLayout>();
         double scale = 1.0;
-        if (autofit) {
+        if (asStored) {
+            scale = std::clamp(head->fitScale, 0.01, 1.0);
+            env.fontScale = scale;
+            env.lineCut = std::clamp(head->fitLineCut, 0.0, 99.0);
+            lay->build(story->doc.get(), specs, env);
+        } else if (autofit) {
             // Text fits when none is left over and the box holds its lines:
             // a line taller than the box (a banner's headline grown to fill
             // its width) doesn't fit, though the layout still places it. The
@@ -351,10 +369,7 @@ const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &sto
 {
     Story *story = doc.story(storyId);
     if (!story) return nullptr;
-    LayoutEnv env;
-    env.colors = doc.colors;
-    env.fonts = doc.fonts;
-    env.defaultTab = doc.defaultTabStop;
+    LayoutEnv env = Renderer::layoutEnv(doc);
     const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {
@@ -672,7 +687,8 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
             p->translate(r.width(), 0);
             p->rotate(90);
         }
-        fl.layout->paint(p, fl.frame, po);
+        if (ctx.aroundText) ctx.aroundText(p, t, *fl.layout, fl.frame, [&](QPainter *pp) { fl.layout->paint(pp, fl.frame, po); });
+        else fl.layout->paint(p, fl.frame, po);
         paintInlineObjects(p, ctx, *fl.layout, fl.frame);
         p->restore();
         // Continued notices.
@@ -753,7 +769,8 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
     const QImage src = pic.imageId.isEmpty() ? QImage() : ctx.doc->image(pic.imageId);
     if (src.isNull()) {
         if (!ctx.opt.output) {
-            p->fillPath(mask, QColor(236, 236, 236));
+            // A slide's empty picture placeholder shows its fill (a layout's sample picture) under the icon.
+            if (!ctx.doc->slideText || pic.fill.isNone()) p->fillPath(mask, QColor(236, 236, 236));
             drawPlaceholderIcon(p, r);
         }
     } else {
@@ -818,7 +835,8 @@ static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
             if (ctx.opt.editStory == s.storyId) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
             p->save();
             p->translate(origin);
-            lay->paint(p, 0, po);
+            if (ctx.aroundText) ctx.aroundText(p, s, *lay, 0, [&](QPainter *pp) { lay->paint(pp, 0, po); });
+            else lay->paint(p, 0, po);
             paintInlineObjects(p, ctx, *lay, 0);
             p->restore();
         }
@@ -1228,7 +1246,11 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
         paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
     }
     if (!ctx.opt.flattenTransparency) {
-        paintItems(p, c, pg.items);
+        if (ctx.around) {
+            for (const auto &it : pg.items) ctx.around(p, *it, [&](QPainter *pp) { paintItem(pp, c, *it); });
+        } else {
+            paintItems(p, c, pg.items);
+        }
         paintCatalogCells(p, c, pg);
         return;
     }

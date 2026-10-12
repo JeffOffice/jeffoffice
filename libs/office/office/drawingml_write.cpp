@@ -4,6 +4,7 @@
 
 #include "office/drawingml_write.h"
 
+#include "core/shapetypes.h"
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_write_util.h"
 #include "office/xml.h"
@@ -463,6 +464,7 @@ struct Body {
     bool vertical = false;
     TextItem::Autofit autofit = TextItem::NoAutofit;
     double fitScale = 1.0;
+    double fitLineCut = 0;
 };
 
 void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, bool placeholder, DrawingWriteContext &ctx)
@@ -488,6 +490,7 @@ void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, boo
     case TextItem::ShrinkOnOverflow:
         begin(w, "a:normAutofit");
         if (b.fitScale < 1.0) attribute(w, "fontScale", std::clamp<qint64>(percent(b.fitScale), 1000, 100000));
+        if (b.fitLineCut > 0) attribute(w, "lnSpcReduction", std::clamp<qint64>(percent(b.fitLineCut / 100), 0, 99000));
         w.writeEndElement();
         break;
     }
@@ -545,7 +548,87 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     body.vertical = t.vertical;
     body.autofit = t.autofit;
     body.fitScale = t.fitScale;
+    body.fitLineCut = t.fitLineCut;
     writeBody(w, body, storyOf(t.storyId, ctx), ph.is, ctx);
+    w.writeEndElement();
+}
+
+// The standard's warps of text art, in the order of the drawing format's text shapes they stand for (136 and on).
+const char *const kTextWarps[] = {
+    "textPlain", "textStop", "textTriangle", "textTriangleInverted", "textChevron", "textChevronInverted", "textRingInside",
+    "textRingOutside", "textArchUp", "textArchDown", "textCircle", "textButton", "textArchUpPour", "textArchDownPour",
+    "textCirclePour", "textButtonPour", "textCurveUp", "textCurveDown", "textCascadeUp", "textCascadeDown", "textWave1",
+    "textWave2", "textDoubleWave1", "textWave4", "textInflate", "textDeflate", "textInflateBottom", "textDeflateBottom",
+    "textInflateTop", "textDeflateTop", "textDeflateInflate", "textDeflateInflateDeflate", "textFadeRight", "textFadeLeft",
+    "textFadeUp", "textFadeDown", "textSlantUp", "textSlantDown", "textCanUp", "textCanDown",
+};
+
+// Text art: a box whose text is warped into its shape (a:prstTxWarp) and
+// stretched to fill it as the older text art was (fromWordArt), each line a
+// paragraph, the art's fill and outline those of its letters.
+void writeTextArt(QXmlStreamWriter &w, const TextArtItem &a, DrawingWriteContext &ctx)
+{
+    const int id = takeId(ctx, a);
+    begin(w, "p:sp");
+    begin(w, "p:nvSpPr");
+    writeIdentity(w, a, id, say("Text Art"), ctx);
+    leaf(w, "p:cNvSpPr");
+    leaf(w, "p:nvPr");
+    w.writeEndElement();
+    begin(w, "p:spPr");
+    writeTransform(w, a.rect, a.rotation, a.flipH, a.flipV);
+    writePreset(w, QStringLiteral("rect"));
+    leaf(w, "a:noFill");
+    w.writeEndElement();
+    begin(w, "p:txBody");
+    begin(w, "a:bodyPr");
+    attribute(w, "wrap", QStringLiteral("none"));
+    for (const char *side : {"lIns", "tIns", "rIns", "bIns"}) attribute(w, side, QStringLiteral("0"));
+    if (a.vertical) attribute(w, "vert", QStringLiteral("wordArtVert"));
+    attribute(w, "fromWordArt", QStringLiteral("1"));
+    attribute(w, "anchor", QStringLiteral("ctr"));
+    const int type = textArtShapeType(a.transform_);
+    begin(w, "a:prstTxWarp");
+    attribute(w, "prst", QLatin1String(type >= 136 && type < 136 + int(std::size(kTextWarps)) ? kTextWarps[type - 136] : "textPlain"));
+    leaf(w, "a:avLst");
+    w.writeEndElement();
+    leaf(w, "a:normAutofit");
+    w.writeEndElement();
+    leaf(w, "a:lstStyle");
+    static const char *const kAlign[] = {"l", "ctr", "r", "just", "dist", "ctr"};
+    const qint64 size = std::clamp<qint64>(std::llround(a.size * 100), 100, 400000);
+    for (const QString &line : a.text.split(QLatin1Char('\n'))) {
+        begin(w, "a:p");
+        begin(w, "a:pPr");
+        attribute(w, "algn", QLatin1String(kAlign[std::clamp(a.align, 0, 5)]));
+        w.writeEndElement();
+        auto runProperties = [&](const char *name) {
+            begin(w, name);
+            attribute(w, "lang", QStringLiteral("en-US"));
+            attribute(w, "sz", size);
+            attribute(w, "b", QLatin1String(a.bold ? "1" : "0"));
+            attribute(w, "i", QLatin1String(a.italic ? "1" : "0"));
+            if (std::abs(a.spacing - 1.0) > 0.001) attribute(w, "spc", std::clamp<qint64>(std::llround((a.spacing - 1.0) * a.size * 100), -400000, 400000));
+            writeLine(w, a.stroke, ctx);
+            writeFill(w, a.fill, ctx);
+            writeEffects(w, a.fx, ctx);
+            begin(w, "a:latin");
+            attribute(w, "typeface", clean(a.font));
+            w.writeEndElement();
+            w.writeEndElement();
+        };
+        if (!line.isEmpty()) {
+            begin(w, "a:r");
+            runProperties("a:rPr");
+            begin(w, "a:t");
+            w.writeCharacters(clean(line));
+            w.writeEndElement();
+            w.writeEndElement();
+        }
+        runProperties("a:endParaRPr");
+        w.writeEndElement();
+    }
+    w.writeEndElement();
     w.writeEndElement();
 }
 
@@ -992,7 +1075,6 @@ int shapeNumber(DrawingWriteContext &ctx, const Item &item) { return takeId(ctx,
 void assignShapeIds(const ItemList &items, DrawingWriteContext &ctx)
 {
     walkItems(items, [&](const ItemPtr &it) {
-        if (it->type() == ItemType::TextArt) return;
         if (it->type() == ItemType::Table && !hasCells(static_cast<const TableItem &>(*it))) return;
         if (it->type() == ItemType::Group && static_cast<const GroupItem &>(*it).children.empty()) return;
         if (it->type() == ItemType::Picture) {
@@ -1033,7 +1115,7 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
         writeTable(w, static_cast<const TableItem &>(item), ctx, skipped);
         break;
     case ItemType::TextArt:
-        if (skipped) skipped->append(say("\"%1\": text art can't be saved and was left out.").arg(item.name.isEmpty() ? item.id : item.name));
+        writeTextArt(w, static_cast<const TextArtItem &>(item), ctx);
         break;
     }
 }

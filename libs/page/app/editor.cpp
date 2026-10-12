@@ -1154,10 +1154,7 @@ void Editor::autoGrowText(TextItem *t)
     Story *s = m_doc->story(t->storyId);
     if (!s) return;
     StoryLayout lay;
-    LayoutEnv env;
-    env.colors = m_doc->colors;
-    env.fonts = m_doc->fonts;
-    env.defaultTab = m_doc->defaultTabStop;
+    LayoutEnv env = Renderer::layoutEnv(*m_doc);
     lay.build(s->doc.get(), {spec}, env);
     const double need = std::max(18.0, lay.usedHeight(0));
     if (std::abs(need - t->rect.height()) > 0.5) t->rect.setHeight(need);
@@ -1166,10 +1163,7 @@ void Editor::autoGrowText(TextItem *t)
 void Editor::fitTableRows(TableItem *t)
 {
     if (!t || !t->growToFit) return;
-    LayoutEnv env;
-    env.colors = m_doc->colors;
-    env.fonts = m_doc->fonts;
-    env.defaultTab = m_doc->defaultTabStop;
+    LayoutEnv env = Renderer::layoutEnv(*m_doc);
     bool grew = false;
     for (int r = 0; r < t->rows; ++r) {
         double need = 0;
