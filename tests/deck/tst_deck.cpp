@@ -5688,6 +5688,58 @@ private Q_SLOTS:
         QVERIFY(d5->appData.value(QStringLiteral("presPropsKept")).toObject().isEmpty() || QJsonDocument(d5->appData.value(QStringLiteral("presPropsKept")).toObject()).toJson().size() < 200000);
     }
 
+    // A file that repeats the show properties, or lists many shows for them to name, makes the program do the work once: only the first
+    // properties are read, and the shows are looked through once.
+    void showPropertiesInHostileFilesAreReadOnce()
+    {
+        auto d = lettered(2);
+        QString err;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &err), qPrintable(err));
+        QDomDocument dom;
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(rootOf(base.zip.value(QStringLiteral("ppt/presentation.xml")), &dom), office::ns::P, QStringLiteral("sldIdLst")), office::ns::P,
+                                                     QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        // 1,000 shows of 90 slides, and 20,000 show properties that each name one of them.
+        QString shows = QStringLiteral("<p:custShowLst>");
+        for (int i = 0; i < 1000; ++i) {
+            shows += QStringLiteral("<p:custShow name=\"Show %1\" id=\"%1\"><p:sldLst>").arg(i);
+            for (int k = 0; k < 90; ++k) shows += QStringLiteral("<p:sld r:id=\"%1\"/>").arg(rels[k % 2]);
+            shows += QStringLiteral("</p:sldLst></p:custShow>");
+        }
+        shows += QStringLiteral("</p:custShowLst>");
+        QString props = QStringLiteral("<p:presentationPr xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">");
+        props += QStringLiteral("<p:showPr loop=\"1\"><p:kiosk/><p:custShow id=\"7\"/></p:showPr>");
+        for (int i = 0; i < 20000; ++i) props += QStringLiteral("<p:showPr><p:present/><p:custShow id=\"%1\"/></p:showPr>").arg(i % 1000);
+        props += QStringLiteral("</p:presentationPr>");
+        QMap<QString, QByteArray> zip = base.zip;
+        QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+        xml.insert(xml.indexOf(QStringLiteral("<p:defaultTextStyle>")), shows);
+        zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+        zip[QStringLiteral("ppt/presProps.xml")] = props.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        QElapsedTimer clock;
+        clock.start();
+        auto back = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(clock.elapsed() < 5000, qPrintable(QString::number(clock.elapsed())));
+        const deck::ShowSettings s = deck::showSettingsOf(*back);
+        QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Kiosk));   // the first one's
+        QCOMPARE(s.customShow, qint64(7));
+        QVERIFY(s.loop);
+        QCOMPARE(int(deck::customShowsOf(*back).size()), 1000);
+        QCOMPARE(int(deck::customShowsOf(*back)[0].slides.size()), 90);
+        // Saved again, the shows and the properties are written once, in a moment.
+        clock.restart();
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QVERIFY2(clock.elapsed() < 5000, qPrintable(QString::number(clock.elapsed())));
+        QCOMPARE(int(part(again, QStringLiteral("/ppt/presProps.xml")).count(QStringLiteral("<p:showPr"))), 1);
+        QCOMPARE(int(part(again, QStringLiteral("/ppt/presentation.xml")).count(QStringLiteral("<p:custShow "))), 1000);
+    }
+
     // Kept ink is a freeform line for each stroke above the slide's objects: the pen opaque and thin, the highlighter wide and
     // see-through, both as lines the file holds and the program shows.
     void inkBecomesFreeformShapes()
