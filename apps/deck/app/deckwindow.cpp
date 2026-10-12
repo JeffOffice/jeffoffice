@@ -324,6 +324,7 @@ void DeckWindow::showFileMenu()
     menu.addAction(act("file.exportPicture"));
     menu.addAction(act("file.print"));
     menu.addSeparator();
+    menu.addAction(act("file.options"));
     menu.addAction(act("file.close"));
     menu.exec(m_ribbon->mapToGlobal(QPoint(0, m_ribbon->height() / 3)));
 }
