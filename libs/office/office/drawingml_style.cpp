@@ -2,8 +2,10 @@
 
 #include "office/xml.h"
 
+#include <QtMath>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace jp::office {
 
