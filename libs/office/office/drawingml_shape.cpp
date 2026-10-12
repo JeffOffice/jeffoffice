@@ -511,7 +511,9 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     std::vector<GeometryPath::Fill> faceFill;
     std::vector<bool> faceStroke;
     if (!geometry.isEmpty()) {
-        if (!libraryShape.isEmpty()) base.shape = libraryShape;
+        // (Not an open shape's name: the library draws no fill in one, and an arc has a filled sector.)
+        const ShapeDef *def = shapeDef(libraryShape);
+        if (def && !def->open) base.shape = libraryShape;
         if (!geometry.textRect.isNull()) {
             const QRectF tr = geometry.textRect;
             base.insets = QMarginsF(std::max(0.0, base.insets.left() + tr.left()), std::max(0.0, base.insets.top() + tr.top()),

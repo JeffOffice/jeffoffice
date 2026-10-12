@@ -2682,6 +2682,15 @@ private Q_SLOTS:
         QVERIFY(wedge->customPath.boundingRect().bottom() > 50);
         auto trap = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"nonIsoscelesTrapezoid\"/>")));
         QVERIFY(!trap->customPath.isEmpty());
+        // An arc is its curve, and with a fill its sector too, drawn as shapes whose names don't say "no fill".
+        auto arcItem = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"arc\"/>") + dmlSolid(QStringLiteral("FF0000")) +
+                                         QStringLiteral("<a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")))));
+        auto arcGroup = dmlAs<GroupItem>(arcItem);
+        QVERIFY(arcGroup && arcGroup->children.size() == 2);
+        QVERIFY(dmlAs<ShapeItem>(arcGroup->children[0])->shape != QLatin1String("arc") && !dmlAs<ShapeItem>(arcGroup->children[0])->fill.isNone());
+        QVERIFY(dmlAs<ShapeItem>(arcGroup->children[1])->fill.isNone() && !dmlAs<ShapeItem>(arcGroup->children[1])->stroke.isNone());
+        auto arcOnly = dmlAs<ShapeItem>(dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"arc\"/><a:noFill/><a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000"))))));
+        QVERIFY(arcOnly && arcOnly->fill.isNone() && !arcOnly->customPath.isEmpty());
         // A preset nobody draws is a rectangle, and so is one that isn't one.
         auto gear = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"gear6\"/>")));
         QCOMPARE(gear->shape, QStringLiteral("rect"));
@@ -3652,6 +3661,12 @@ private Q_SLOTS:
         QCOMPARE(elbow->start.site, 3);
         QCOMPARE(elbow->end.id, list[3]->id);
         QCOMPARE(elbow->end.site, 1);
+        // What is read can be saved and opened again by the program's own format.
+        jp::walkItems(list, [&](const ItemPtr &it) {
+            const ItemPtr again = Item::fromJsonAny(it->toJson());
+            QVERIFY(again && again->type() == it->type());
+            QVERIFY(dmlRectIs(again->rect, it->rect.x(), it->rect.y(), it->rect.width(), it->rect.height(), 1e-9));
+        });
         // The same title as a placeholder with a layout to take its place from.
         QDomElement titleElement = spTree.firstChildElement();
         while (!titleElement.isNull() && titleElement.localName() != QLatin1String("sp")) titleElement = titleElement.nextSiblingElement();
