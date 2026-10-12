@@ -3,7 +3,8 @@
 
 Two parts:
   ui    the program's strings, translations/jeffoffice_<language>.ts
-  help  Help's topics, resources/help/<language>/<topic>.md
+  help  Help's topics, resources/help/<language>/<topic>.md (JeffPub's), and
+        resources/help/<language>/deck/<topic>.md (JeffDeck's)
 
 Only what is new or changed is sent. Every translation then goes through
 automatic checks (placeholders, plural forms, links...) and a second pass
@@ -527,9 +528,17 @@ def ui_table(lang):
     return "\n".join(f"{en} = {' | '.join(tr)}" for en, tr in sorted(rows.items(), key=lambda kv: kv[0].lower()))
 
 
-def help_system(lang, terms, table):
+# The apps that have Help: the folder under each language ("" is the language
+# folder itself), the app's name, and what it is, for the prompts below.
+HELP_APPS = [
+    ("", "JeffPub", "a free desktop publishing program"),
+    ("deck", "JeffDeck", "a free presentation program"),
+]
+
+
+def help_system(lang, terms, table, app="JeffPub", kind="a free desktop publishing program"):
     name = LANGUAGES[lang]
-    return f"""You translate the Help of JeffPub, a free desktop publishing program, from American English into {name}. Each request is one Help topic, a Markdown file.
+    return f"""You translate the Help of {app}, {kind}, from American English into {name}. Each request is one Help topic, a Markdown file.
 
 How to translate:
 - Answer with the translated file only: nothing before or after it, and no code block around it.
@@ -540,8 +549,8 @@ How to translate:
 - Links: in [text](target), translate the text and never change the target (topic names such as linked-text-boxes, and web addresses).
 - When the text names a command, tab, group, button, box, or dialog, use exactly the {name} label the program shows, from "Program text" below (where it lists two, separated by |, pick the one that fits: the command or the noun); for one not listed, translate consistently with the glossary.
 - Keyboard shortcuts: write key names as {name} keyboards print them (German, for example, writes Strg+C), keeping the + between keys.
-- Measurements: {name} readers measure in centimeters, and JeffPub shows them centimeters unless they choose otherwise. Give lengths, sizes, and distances in centimeters (millimeters for small ones), converting from inches (1 inch = 2.54 cm) and rounding as {name} documentation would (2 inches becomes 5 cm; a quarter inch, 0.6 cm). Where an example depends on US paper sizes (Letter, half-letter), use A4 and A5 instead when the example works the same way. Units that name a measure stay as they are: points, picas, ppi and dpi (pixels or dots per inch), and a point being 1/72 inch.
-- Keep file names, file extensions, code, and web addresses as they are. Product and format names stay as they are (JeffPub, PDF, EPUB, CMYK...). Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt.
+- Measurements: {name} readers measure in centimeters, and {app} shows them centimeters unless they choose otherwise. Give lengths, sizes, and distances in centimeters (millimeters for small ones), converting from inches (1 inch = 2.54 cm) and rounding as {name} documentation would (2 inches becomes 5 cm; a quarter inch, 0.6 cm). Where an example depends on US paper sizes (Letter, half-letter), use A4 and A5 instead when the example works the same way. Units that name a measure stay as they are: points, picas, ppi and dpi (pixels or dots per inch), and a point being 1/72 inch.
+- Keep file names, file extensions, code, and web addresses as they are. Product and format names stay as they are ({app}, PDF, EPUB, CMYK...). Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt.
 - Write plainly, as good {name} software documentation does, addressing the reader the way {name} software documentation usually does.
 
 Glossary (English = {name}):
@@ -556,9 +565,9 @@ HELP_REVIEW_SCHEMA = strict({"ok": {"type": "boolean"}, "problems": {"type": "ar
     {"english": STR, "translated": STR, "back": STR, "problem": STR})}})
 
 
-def help_review_system(lang, terms, table):
+def help_review_system(lang, terms, table, app="JeffPub", kind="a desktop publishing program"):
     name = LANGUAGES[lang]
-    return f"""You check a {name} translation of a Help topic of JeffPub, a desktop publishing program, against its American English original.
+    return f"""You check a {name} translation of a Help topic of {app}, {kind}, against its American English original.
 
 List each place where the translation's meaning drifted: something said differently, left out, or added; a command, tab, button, or dialog named differently from "Program text" below; a link target changed. For each, quote the English and the {name}, give "back" (the {name} translated literally back into English), and say what's wrong in one sentence. Do not list matters of style or word choice that are correct. "ok" is true when there is nothing to list.
 
@@ -602,45 +611,57 @@ def translate_topic(api, system, rsystem, tid, en, report):
 LANGUAGES_LABEL = "Translation"
 
 
+def help_key(folder, tid):
+    """A topic's name in the record and the report: "deck/index" in an app's folder."""
+    return f"{folder}/{tid}" if folder else tid
+
+
 def run_help(lang, api, dry, report):
     terms = glossary(lang, api, dry)
     state = load_state(lang)
     record = state.setdefault("help", {})
-    out_dir = os.path.join(HELP_DIR, lang)
-    todo = []
-    for path in sorted(glob.glob(os.path.join(HELP_DIR, "en", "*.md"))):
-        tid = os.path.basename(path)[:-3]
-        with open(path, encoding="utf-8") as f:
-            en = f.read()
-        target = os.path.join(out_dir, tid + ".md")
-        rec = record.get(tid)
-        if not os.path.exists(target):
-            todo.append((tid, en))
-            continue
-        with open(target, encoding="utf-8") as f:
-            mine = sha(f.read())
-        if rec and rec["en"] == sha(en):
-            continue
-        if rec and rec["out"] == mine:
-            todo.append((tid, en))   # the English changed under the machine's version
-        else:
-            report.problem(f"Help topic {tid}: the English changed, but a person edited the {LANGUAGES[lang]}; update it by hand")
-    report.note(f"Help topics: {len(todo)} to translate ({sum(len(en.split()) for _, en in todo):,} words)")
-    if dry or not todo:
-        return
-    table = ui_table(lang)
-    system, rsystem = help_system(lang, terms, table), help_review_system(lang, terms, table)
-    os.makedirs(out_dir, exist_ok=True)
-    with cf.ThreadPoolExecutor(WORKERS) as pool:
-        for (tid, en), out in zip(todo, pool.map(lambda t: translate_topic(api, system, rsystem, t[0], t[1], report), todo)):
-            if out is None:
+    table = None
+    wrote = False
+    for folder, app, kind in HELP_APPS:
+        out_dir = os.path.join(HELP_DIR, lang, folder)
+        todo = []
+        for path in sorted(glob.glob(os.path.join(HELP_DIR, "en", folder, "*.md"))):
+            tid = os.path.basename(path)[:-3]
+            key = help_key(folder, tid)
+            with open(path, encoding="utf-8") as f:
+                en = f.read()
+            target = os.path.join(out_dir, tid + ".md")
+            rec = record.get(key)
+            if not os.path.exists(target):
+                todo.append((key, tid, en))
                 continue
-            with open(os.path.join(out_dir, tid + ".md"), "w", encoding="utf-8") as f:
-                f.write(out)
-            record[tid] = {"en": sha(en), "out": sha(out)}
-            report.topics += 1
-    save_state(lang, state)
-    subprocess.run([sys.executable, os.path.join(ROOT, "tools", "help_files.py")], check=True, stdout=subprocess.DEVNULL)
+            with open(target, encoding="utf-8") as f:
+                mine = sha(f.read())
+            if rec and rec["en"] == sha(en):
+                continue
+            if rec and rec["out"] == mine:
+                todo.append((key, tid, en))   # the English changed under the machine's version
+            else:
+                report.problem(f"Help topic {key}: the English changed, but a person edited the {LANGUAGES[lang]}; update it by hand")
+        report.note(f"{app + ' Help topics' if folder else 'Help topics'}: {len(todo)} to translate ({sum(len(en.split()) for _, _, en in todo):,} words)")
+        if dry or not todo:
+            continue
+        if table is None:
+            table = ui_table(lang)
+        system, rsystem = help_system(lang, terms, table, app, kind), help_review_system(lang, terms, table, app, kind)
+        os.makedirs(out_dir, exist_ok=True)
+        with cf.ThreadPoolExecutor(WORKERS) as pool:
+            for (key, tid, en), out in zip(todo, pool.map(lambda t: translate_topic(api, system, rsystem, t[0], t[2], report), todo)):
+                if out is None:
+                    continue
+                with open(os.path.join(out_dir, tid + ".md"), "w", encoding="utf-8") as f:
+                    f.write(out)
+                record[key] = {"en": sha(en), "out": sha(out)}
+                report.topics += 1
+                wrote = True
+    if wrote:
+        save_state(lang, state)
+        subprocess.run([sys.executable, os.path.join(ROOT, "tools", "help_files.py")], check=True, stdout=subprocess.DEVNULL)
 
 
 # ---------- state and report ----------

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Lists Help's files in resources/resources.qrc.
 
-Help's topics are Markdown files in resources/help/<language>/, built into
-the program under :/help. Run this after adding, renaming, or removing one
-(the test helpTopicsAreComplete checks that the list is current):
+Help's topics are Markdown files in resources/help/<language>/ (JeffDeck's in
+its deck/ folder), built into the program under :/help. Run this after adding,
+renaming, or removing one (the test helpTopicsAreComplete checks that the list
+is current):
 
     python3 tools/help_files.py
 """
