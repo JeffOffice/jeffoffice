@@ -19535,6 +19535,51 @@ private Q_SLOTS:
         QVERIFY(QFile::exists(to + "/Templates/club.jpub"));
     }
 
+    void settingsSharedAcrossTheSuite()
+    {
+        // The look, the person, updates, and the statistics choice are the
+        // suite's; everything else stays with the app.
+        for (const char *k : {"ui/theme", "ui/language", "user/name", "user/initials", "updates/auto", "updates/channel", "telemetry/enabled"})
+            QVERIFY2(jp::suiteWide(QString::fromLatin1(k)), k);
+        for (const char *k : {"units", "recent", "edit/nudge", "ui/windowGeometry", "telemetry/install", "telemetry/counts", "migration/suite"})
+            QVERIFY2(!jp::suiteWide(QString::fromLatin1(k)), k);
+
+        // A choice made in one app is kept in the suite's store, where every app reads it.
+        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), app(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
+        const QVariant theme = jp::Settings::get().value("ui/theme"), nudge = jp::Settings::get().value("edit/nudge");
+        jp::Settings::get().setValue("ui/theme", 2);
+        jp::Settings::get().setValue("edit/nudge", 4.5);
+        QCOMPARE(suite.value("ui/theme").toInt(), 2);
+        QVERIFY(!app.contains("ui/theme"));
+        QCOMPARE(app.value("edit/nudge").toDouble(), 4.5);
+        QVERIFY(!suite.contains("edit/nudge"));
+        suite.setValue("ui/theme", 1);   // as another app would
+        QCOMPARE(jp::Settings::get().value("ui/theme").toInt(), 1);
+        jp::Settings::get().setValue("ui/theme", theme);
+        jp::Settings::get().setValue("edit/nudge", nudge);
+
+        // What an app kept itself before moves over once, except what setup already wrote.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QSettings mine(dir.filePath("app.ini"), QSettings::IniFormat), all(dir.filePath("suite.ini"), QSettings::IniFormat);
+        mine.setValue("ui/theme", 2);
+        mine.setValue("user/name", "Pat Doe");
+        mine.setValue("updates/skip", "v0.6.9");
+        mine.setValue("telemetry/enabled", true);
+        mine.setValue("recent", QStringList{"/home/a/flyer.jpub"});
+        all.setValue("telemetry/enabled", false);
+        jp::moveToSuite(mine, all);
+        QCOMPARE(all.value("ui/theme").toInt(), 2);
+        QCOMPARE(all.value("user/name").toString(), QStringLiteral("Pat Doe"));
+        QCOMPARE(all.value("updates/skip").toString(), QStringLiteral("v0.6.9"));
+        QCOMPARE(all.value("telemetry/enabled").toBool(), false);
+        QVERIFY(!all.contains("recent"));
+        QCOMPARE(mine.value("ui/theme").toInt(), 2);   // kept, for an older version
+        mine.setValue("ui/theme", 0);
+        jp::moveToSuite(mine, all);   // only once
+        QCOMPARE(all.value("ui/theme").toInt(), 2);
+    }
+
     // Folded cards and envelopes keep their layout through a .pub, written
     // as Publisher writes them (DOCUMENT field 11: 3 and 7; a card's pages as
     // spreads, flags 06 and 0b); Publisher kept both when saving them again.

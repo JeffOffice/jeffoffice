@@ -15,16 +15,22 @@ enum class Unit { Inch, Centimeter, Millimeter, Point, Pica };
 // it measures in inches (the United States), else centimeters, as Office does.
 Unit defaultUnit(const QLocale &region);
 
-// JeffPub was called JeffPub 79 through version 0.5.0, and kept its settings
-// and files under that name. Brings them over the first time the renamed
-// program starts: settings it doesn't have yet (setup may already have
-// written the statistics choice), and the folder of templates, building
-// blocks, AutoRecover copies and downloads. The old settings stay behind.
-void moveFromJeffPub79();
-// The two halves, for tests: copies the keys `to` lacks, and moves the
-// folder unless `to` already exists.
+// For an app that kept its settings and files under another name: copies
+// the keys `to` lacks, and moves the folder unless `to` already exists.
 void copyMissingSettings(const QSettings &from, QSettings &to);
 bool moveDataFolder(const QString &from, const QString &to);
+
+// Whether a setting belongs to the whole suite rather than one app: the
+// theme, the language, the name and initials of the person using it, the
+// updates (setup installs every app at once), and whether to send
+// statistics. Those are kept in the suite's own store, so a choice made in
+// one app holds in all of them; everything else stays with the app.
+bool suiteWide(const QString &key);
+// Copies the suite-wide settings an app kept itself (before there was a
+// suite store) that the suite store doesn't have yet (setup may already have
+// written the statistics choice there), the first time. The app's copies
+// stay, for an older version that reads them.
+void moveToSuite(QSettings &app, QSettings &suite);
 
 class Settings {
 public:
@@ -48,8 +54,9 @@ public:
     QJsonArray customPageSizes() const;
     void setCustomPageSizes(const QJsonArray &sizes);
 
-    QVariant value(const QString &key, const QVariant &def = QVariant()) const { return m_s.value(key, def); }
-    void setValue(const QString &key, const QVariant &v) { m_s.setValue(key, v); }
+    // From the app's store, or the suite's for a suite-wide key.
+    QVariant value(const QString &key, const QVariant &def = QVariant()) const { return store(key).value(key, def); }
+    void setValue(const QString &key, const QVariant &v) { store(key).setValue(key, v); }
 
     QString userName() const;
     int autoRecoverMinutes() const { return m_s.value("save/autoRecoverMinutes", 10).toInt(); }
@@ -57,7 +64,10 @@ public:
 
 private:
     Settings();
-    QSettings m_s;
+    QSettings &store(const QString &key) { return suiteWide(key) ? m_suite : m_s; }
+    const QSettings &store(const QString &key) const { return suiteWide(key) ? m_suite : m_s; }
+    QSettings m_s;       // this app's
+    QSettings m_suite;   // the whole suite's
     Unit m_unit = Unit::Inch;
 };
 
