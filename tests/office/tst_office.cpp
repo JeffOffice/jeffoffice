@@ -8500,8 +8500,11 @@ private Q_SLOTS:
             asked << QStringLiteral("%1 %2 %3").arg(id).arg(brightness, 0, 'f', 1).arg(contrast, 0, 'f', 1);
             return works ? id + QLatin1Char('+') : id;
         };
+        // The list read is kept until the next: the picture is one of its items.
+        ItemList read;
         auto pictureOf = [&](const QVector<OdProp> &props) {
-            return static_cast<PictureItem *>(readOdrawShapes(odDrawing(odShape(75, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0].get());
+            read = readOdrawShapes(odDrawing(odShape(75, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx);
+            return static_cast<PictureItem *>(read[0].get());
         };
         PictureItem *pic = pictureOf({{0x0104, 3, {}, true}, {0x0109, 0x5C29}, {0x0108, 0xD70A}});
         QCOMPARE(pic->imageId, QStringLiteral("pic3+"));
