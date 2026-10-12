@@ -93,6 +93,7 @@ public:
     bool hyphenate = true;       // automatic hyphenation (on by default for text boxes, as in .pub files)
     double hyphenZone = 18;      // points: break a word only if moving it whole would leave more empty
     double fitScale = 1.0;       // computed by autofit, saved so files open identically
+    double fitLineCut = 0;       // and the percent taken off each paragraph's line spacing with it (a slide's)
     // Best Fit from a .pub: the text keeps the size the file stores (the
     // other program fitted it with its own fonts, and opening its files
     // gives that size again), shrinking only if a stand-in font no longer

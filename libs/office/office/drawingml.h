@@ -9,6 +9,7 @@
 #include "office/drawingml_color.h"
 #include "office/package.h"
 
+#include <QDomDocument>
 #include <QDomElement>
 #include <QVector>
 #include <functional>
@@ -24,6 +25,10 @@ struct DrawingContext {
     // The theme's part: the pictures of its fill styles (a background
     // referring to a picture style) are named by its relationships.
     QString themePart;
+    // The parts of the XML documents a shape inherits from (a slide
+    // placeholder's layout and master), by document: a picture fill it
+    // inherits is named by that part's relationships.
+    QVector<QPair<QDomDocument, QString>> inheritedParts;
     Theme theme;
     ColorMap colors;
     // The theme's a:fmtScheme, for style references (p:style's lnRef,

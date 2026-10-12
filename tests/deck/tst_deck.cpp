@@ -1669,6 +1669,96 @@ private Q_SLOTS:
         }
     }
 
+    // Text the presentation program shrank to fit keeps the size and line spacing it was given (a:normAutofit's fontScale and
+    // lnSpcReduction), read and written back, until it is edited here: then JeffDeck fits it.
+    void shrunkTextKeepsTheProgramsFit()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QString lines;
+        for (int i = 0; i < 12; ++i) lines += para(QStringLiteral("Line %1 of a long list").arg(i + 1));
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Shrunk\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 914400)
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr><a:normAutofit fontScale=\"62500\" lnSpcReduction=\"20000\"/></a:bodyPr><a:lstStyle/>")
+                                                       + lines + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        TextItem *t = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Shrunk")) t = static_cast<TextItem *>(it.get());
+        QVERIFY(t);
+        QCOMPARE(int(t->autofit), int(TextItem::ShrinkOnOverflow));
+        QVERIFY(t->fitAsStored);
+        QCOMPARE(t->fitScale, 0.625);
+        QCOMPARE(t->fitLineCut, 20.0);
+        // Drawn at that size, though it doesn't fit (the program's metrics are its own), the lines 20 points closer.
+        LayoutCache cache;
+        auto fl = cache.textFrame(*d, *t, 1, RenderOptions());
+        QCOMPARE(fl.fitScale, 0.625);
+        const auto stored = fl.layout->lineInfo(0);
+        QCOMPARE(int(stored.size()), 12);
+        QVERIFY2(std::abs(stored[1].baseline - stored[0].baseline - 0.8 * 1.2 * 18 * 0.625) < 0.05, qPrintable(QString::number(stored[1].baseline - stored[0].baseline)));
+        // Written back so.
+        Exported e;
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:normAutofit fontScale=\"62500\" lnSpcReduction=\"20000\"/>")));
+        // Edited here, it is fitted here: smaller, to hold all twelve lines.
+        t->fitAsStored = false;
+        fl = cache.textFrame(*d, *t, 1, RenderOptions());
+        QVERIFY2(fl.fitScale < 0.625, qPrintable(QString::number(fl.fitScale)));
+        // The window does that as the text is typed.
+        DeckWindow w;
+        w.editor()->replaceDocument(deck::importPresentation(pack(p), &err), QString());
+        Editor *ed = w.editor();
+        TextItem *box = nullptr;
+        for (const auto &it : ed->doc()->pages[0]->items)
+            if (it->name == QLatin1String("Shrunk")) box = static_cast<TextItem *>(it.get());
+        QVERIFY(box && box->fitAsStored);
+        ed->select(box->id);
+        ed->beginTextEdit(box->id, 0);
+        QVERIFY(box->fitAsStored);   // clicking into it changes nothing
+        ed->insertText(QStringLiteral("x"));
+        QVERIFY(!box->fitAsStored);
+    }
+
+    // A slide's empty placeholder shows the fill its layout gives it (a design's sample picture), whose picture is named by the
+    // layout's relationships, not the slide's.
+    void emptyPlaceholderShowsItsLayoutsPictureFill()
+    {
+        Parts p = samplePptx();
+        QImage green(4, 4, QImage::Format_RGB32);
+        green.fill(QColor(0x10, 0xC0, 0x30));
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        green.save(&buf, "PNG");
+        p.data["/ppt/media/image2.png"] = {QStringLiteral("image/png"), png};
+        // The layout's rId2 is the green picture; the slide's rId2 is the orange one.
+        p.rels << Rel{"/ppt/slideLayouts/slideLayout2.xml", "image", "/ppt/media/image2.png"};
+        QString layout = QString::fromUtf8(p.data["/ppt/slideLayouts/slideLayout2.xml"].xml);
+        layout.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"9\" name=\"Picture Placeholder 8\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph type=\"pic\" idx=\"13\"/></p:nvPr></p:nvSpPr><p:spPr>")
+                                                          + xfrm(6400800, 1825625, 4572000, 3429000)
+                                                          + QStringLiteral("<a:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill></p:spPr></p:sp></p:spTree>"));
+        p.data["/ppt/slideLayouts/slideLayout2.xml"].xml = layout.toUtf8();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"31\" name=\"Picture Placeholder 30\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph type=\"pic\" idx=\"13\"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const PictureItem *slot = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Picture Placeholder 30")) slot = static_cast<const PictureItem *>(it.get());
+        QVERIFY(slot && slot->imageId.isEmpty());
+        QCOMPARE(int(slot->fill.type), int(Fill::Picture));
+        const QImage shown = d->image(slot->fill.imageId);
+        QVERIFY(!shown.isNull());
+        QCOMPARE(QColor(shown.pixel(1, 1)), QColor(0x10, 0xC0, 0x30));
+    }
+
     void headerAndFooterPlaceholders()
     {
         auto d = deck::newPresentation();   // a title slide

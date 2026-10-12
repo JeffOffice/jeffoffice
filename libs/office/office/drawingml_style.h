@@ -32,7 +32,7 @@ QDomElement childNamed(const QDomElement &e, const char *local);
 
 // The picture that relationship `rId` of the drawing's part links to, kept
 // with ctx.addImage; empty if the link isn't to a picture this can read.
-QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QColor> &duotone = {});
+QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QColor> &duotone = {}, const QDomElement &from = QDomElement());
 // "png", "jpeg", "gif", "bmp", "tiff", "emf", "wmf", or "svg" for what the
 // bytes are (by how they begin, whatever the part is called); empty if none.
 QString imageFormat(const QByteArray &bytes);

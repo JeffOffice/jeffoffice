@@ -133,7 +133,7 @@ bool fillFromElement(const QDomElement &e, const StyleContext &sc, Fill *out)
     }
     if (kind == QLatin1String("blipFill")) {
         const QDomElement blip = childNamed(e, "blip");
-        const QString id = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), sc, duotoneOf(blip, sc));
+        const QString id = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), sc, duotoneOf(blip, sc), blip);
         Fill f;
         if (!id.isEmpty()) {
             f.type = Fill::Picture;
@@ -335,11 +335,15 @@ QString imageFormat(const QByteArray &bytes)
     return QString();
 }
 
-QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QColor> &duotone)
+QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QColor> &duotone, const QDomElement &from)
 {
     const DrawingContext &ctx = *sc.ctx;
-    // A theme style's picture is named by the theme part's relationships.
-    const QString part = sc.fromTheme && !ctx.themePart.isEmpty() ? ctx.themePart : ctx.part;
+    // A theme style's picture is named by the theme part's relationships, one
+    // inherited from a layout or master by that part's.
+    QString part = sc.fromTheme && !ctx.themePart.isEmpty() ? ctx.themePart : ctx.part;
+    if (!sc.fromTheme && !from.isNull())
+        for (const auto &inherited : ctx.inheritedParts)
+            if (inherited.first == from.ownerDocument()) part = inherited.second;
     if (rId.isEmpty() || !ctx.package || !ctx.addImage || part.isEmpty()) return QString();
     QString key = part + QLatin1Char('#') + rId;
     for (const QColor &c : duotone) key += QLatin1Char('/') + c.name(QColor::HexArgb);

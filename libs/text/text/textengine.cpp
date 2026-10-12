@@ -152,7 +152,7 @@ QString FieldContext::key() const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "");
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (int i = 0; i < SlotCount; ++i) k += colors.c[i].name();
     return k;
@@ -2201,6 +2201,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     double single = singleOf(ranges, line.textStart(), std::max(1, line.textLength()), base);
                     if (line.textStart() == 0) single = std::max(single, markerSingle);
                     double h = lineHeightFor(bf, scale, single);
+                    if (env.lineCut > 0 && (bf.lineHeightType() == QTextBlockFormat::SingleHeight || bf.lineHeightType() == QTextBlockFormat::ProportionalHeight)) {
+                        const double share = bf.lineHeightType() == QTextBlockFormat::ProportionalHeight ? bf.lineHeight() : 100.0;
+                        h = single * std::max(1.0, share - env.lineCut) / 100.0;
+                    }
                     // .pub layouts put a line's extra spacing below it: the first
                     // line of a column sits one ascent below the top, and a
                     // paragraph after one with wider spacing starts that much

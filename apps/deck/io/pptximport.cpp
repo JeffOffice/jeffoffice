@@ -262,6 +262,7 @@ private:
     };
     struct LayoutCtx {
         std::shared_ptr<MasterPage> page;
+        QString part;
         MasterCtx *master = nullptr;
         office::ColorMap colors;
         QVector<PhRef> placeholders;
@@ -524,6 +525,7 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
             if (m->part.compare(own[0].target, Qt::CaseInsensitive) == 0) base = m.get();
 
     auto l = std::make_unique<LayoutCtx>();
+    l->part = part;
     l->master = base;
     l->colors = colorsOf(pChild(root, "clrMapOvr"), base->colors);
     const int n = ++m_layoutCount;
@@ -797,8 +799,12 @@ ItemPtr Importer::readOne(const QDomElement &shape, Scope &sc)
             if (const QDomElement lst = listStyleOf(from->shape); !lst.isNull()) styles << lst;
     if (const QDomElement lst = listStyleOf(shape); !lst.isNull()) styles << lst;
 
+    // What it inherits that names other parts (a layout's picture fill) is named by its own part's relationships.
+    office::DrawingContext ctx = sc.ctx;
+    if (layoutPh && sc.layout) ctx.inheritedParts.append({layoutPh->shape.ownerDocument(), sc.layout->part});
+    if (masterPh && sc.master) ctx.inheritedParts.append({masterPh->shape.ownerDocument(), sc.master->part});
     const bool text = shape.localName() == QLatin1String("sp") && holdsText(ph.type) && pChild(shape, "txBody").isNull();
-    ItemPtr it = office::readShape(text ? withEmptyText(shape) : shape, sc.ctx, styles, inherits);
+    ItemPtr it = office::readShape(text ? withEmptyText(shape) : shape, ctx, styles, inherits);
     if (!it) return nullptr;
     it->role = roleOf(ph);
     if (sc.kind == Kind::Slide) {
