@@ -76,6 +76,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QDialogButtonBox>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QComboBox>
 #include <QCheckBox>
@@ -5251,6 +5252,43 @@ private Q_SLOTS:
         zip[dir + 29] = char(0xFF);
         QMap<QString, QByteArray> bad;
         QVERIFY(!jp::readZip(zip, bad));
+    }
+
+    // Insert > Text > Text Art lists every style, each drawn as "Aa". Chosen, a style makes a Text Art in that style, in the middle of the
+    // page a third of the way down, and asks for its words with the old ones selected.
+    void textArtFromTheRibbonIsPlacedAndAsksForItsWords()
+    {
+        jp::MainWindow w;
+        jp::GalleryButton *gallery = nullptr;
+        for (auto *g : w.findChildren<jp::GalleryButton *>())
+            if (g->text() == QStringLiteral("Text Art")) gallery = g;
+        QVERIFY(gallery);
+        const auto &styles = jp::textArtStyles();
+        const QVector<jp::GalleryItem> items = gallery->items();
+        QCOMPARE(items.size(), styles.size());
+        QCOMPARE(items[3].id, styles[3].id);
+        QCOMPARE(items[3].tip, styles[3].name);
+        QVERIFY(!items[3].icon.pixmap(QSize(64, 40)).toImage().isNull());
+        QString asked, selected;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            asked = d->windowTitle();
+            if (auto *edit = d->findChild<QPlainTextEdit *>()) selected = edit->textCursor().selectedText();
+            d->reject();
+        });
+        Q_EMIT gallery->activated(styles[3].id);
+        QCOMPARE(asked, QStringLiteral("Edit Text Art Text"));
+        auto *art = dynamic_cast<jp::TextArtItem *>(w.editor()->single());
+        QVERIFY(art);
+        QCOMPARE(art->styleId, styles[3].id);
+        QCOMPARE(art->font, styles[3].font);
+        const QSizeF ps = w.editor()->doc()->pageSize();
+        QCOMPARE(art->rect, QRectF(ps.width() / 2 - 144, ps.height() / 3, 288, 72));
+        QCOMPARE(selected, art->text);
+        QVERIFY(!art->text.isEmpty());
+        w.editor()->undo();
+        QVERIFY(!w.editor()->doc()->item(art->id));
     }
 
     // A picture kept in a .jpub file is held to what any picture is: an SVG
