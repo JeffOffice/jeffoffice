@@ -602,6 +602,11 @@ private Q_SLOTS:
         QCOMPARE(ed->selection(), QStringList{pic->id});
         ed->undo();
         QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        // Dropped on the slide, it goes where it was dropped.
+        Q_EMIT w.canvas()->insertFilesWanted({dir.filePath(QStringLiteral("red.png"))}, QPointF(100, 50));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        QCOMPARE(ed->doc()->pages[0]->items.back()->rect.topLeft(), QPointF(100, 50));
+        ed->undo();
 
         w.insertTable(3, 4);
         const auto *table = dynamic_cast<const TableItem *>(ed->doc()->pages[0]->items.back().get());
