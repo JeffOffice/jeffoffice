@@ -284,13 +284,15 @@ def term_list():
     terms = []
     with open(os.path.join(HERE, "terms.txt"), encoding="utf-8") as f:
         terms = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-    with open(os.path.join(ROOT, "resources", "ribbon.json"), encoding="utf-8") as f:
-        ribbon = json.load(f)
-    groups = list(ribbon.get("templates", {}).values())
-    for tab in ribbon["tabs"]:
-        terms.append(tab["name"])
-        groups += [g for g in tab["groups"] if "name" in g]
-    terms += [g["name"] for g in groups]
+    # Each app's ribbon: JeffPub's, then JeffDeck's.
+    for path in (("resources", "ribbon.json"), ("apps", "deck", "resources", "ribbon.json")):
+        with open(os.path.join(ROOT, *path), encoding="utf-8") as f:
+            ribbon = json.load(f)
+        groups = list(ribbon.get("templates", {}).values())
+        for tab in ribbon["tabs"]:
+            terms.append(tab["name"])
+            groups += [g for g in tab["groups"] if "name" in g]
+        terms += [g["name"] for g in groups]
     seen, out = set(), []
     for t in terms:
         if t.lower() not in seen:

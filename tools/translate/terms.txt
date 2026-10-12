@@ -173,3 +173,27 @@ undo
 redo
 gridlines
 display language
+# JeffDeck's ("Outline view" is the view of the slides' text, not a shape's outline)
+presentation
+slide
+slide master
+layout
+placeholder
+Title Slide
+slide show
+Presenter View
+speaker notes
+notes page
+handout
+Outline view
+Slide Sorter
+Normal view
+section
+transition
+animation
+slide size
+Reuse Slides
+comment
+reply
+theme
+chart
