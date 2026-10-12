@@ -4,7 +4,9 @@
 // or being typed in (never every object); Guides are dashed lines through the
 // slide's center and Gridlines are dots a twelfth of an inch apart. While
 // comments are shown, each of the slide's comments has a marker where its place
-// is: a click opens the comment, and dragging it moves the comment.
+// is: a click opens the comment, and dragging it moves the comment. While
+// the Animations tab or the Animation Pane shows, a small number sits by each
+// shape that is animated (the click its effect plays at).
 
 #include "canvas/canvas.h"
 
@@ -29,6 +31,15 @@ public:
     void setActiveComment(const QString &id);
     // The comment whose marker is at a point of the view, or empty.
     QString commentAt(const QPointF &view) const;
+    // A number by a shape of the slide: its top left in the page's coordinates, and what to say. None to take them away.
+    struct AnimationBadge {
+        QPointF at;
+        QString text;
+        bool picked = false;
+        int slot = 0;     // which of the shape's effects, counting leftward
+    };
+    void setAnimationBadges(const QVector<AnimationBadge> &badges);
+    const QVector<AnimationBadge> &animationBadges() const { return m_badges; }
 
 Q_SIGNALS:
     void commentClicked(const QString &id);
@@ -45,6 +56,7 @@ private:
     QRectF commentMarker(const QPointF &page) const;
     bool m_guides = false, m_grid = false, m_comments = false;
     QString m_activeComment;
+    QVector<AnimationBadge> m_badges;
     QString m_dragId;                  // the comment whose marker is being dragged
     QPointF m_dragFrom, m_dragOffset, m_dragAt;
     bool m_dragMoved = false;

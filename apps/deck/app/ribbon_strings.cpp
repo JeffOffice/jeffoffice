@@ -4,7 +4,10 @@
 #include <QtGlobal>
 
 [[maybe_unused]] static const char *const kRibbonStrings[] = {
+    QT_TRANSLATE_NOOP("Ribbon", "Advanced Animation"),
     QT_TRANSLATE_NOOP("Ribbon", "Align Text"),
+    QT_TRANSLATE_NOOP("Ribbon", "Animation"),
+    QT_TRANSLATE_NOOP("Ribbon", "Animations"),
     QT_TRANSLATE_NOOP("Ribbon", "Arrange"),
     QT_TRANSLATE_NOOP("Ribbon", "Audio"),
     QT_TRANSLATE_NOOP("Ribbon", "Change Case"),
@@ -12,7 +15,9 @@
     QT_TRANSLATE_NOOP("Ribbon", "Clipboard"),
     QT_TRANSLATE_NOOP("Ribbon", "Columns"),
     QT_TRANSLATE_NOOP("Ribbon", "Comments"),
+    QT_TRANSLATE_NOOP("Ribbon", "Custom Slide Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Customize"),
+    QT_TRANSLATE_NOOP("Ribbon", "Delay:"),
     QT_TRANSLATE_NOOP("Ribbon", "Design"),
     QT_TRANSLATE_NOOP("Ribbon", "Drawing"),
     QT_TRANSLATE_NOOP("Ribbon", "Duration:"),
@@ -35,6 +40,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Presentation Views"),
     QT_TRANSLATE_NOOP("Ribbon", "Preview"),
     QT_TRANSLATE_NOOP("Ribbon", "Proofing"),
+    QT_TRANSLATE_NOOP("Ribbon", "Reorder Animation"),
     QT_TRANSLATE_NOOP("Ribbon", "Review"),
     QT_TRANSLATE_NOOP("Ribbon", "Section"),
     QT_TRANSLATE_NOOP("Ribbon", "Set Up"),

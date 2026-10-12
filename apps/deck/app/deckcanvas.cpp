@@ -39,6 +39,13 @@ void DeckCanvas::setCommentsShown(bool on)
     viewport()->update();
 }
 
+void DeckCanvas::setAnimationBadges(const QVector<AnimationBadge> &badges)
+{
+    if (badges.size() == m_badges.size() && std::equal(badges.begin(), badges.end(), m_badges.begin(), [](const AnimationBadge &a, const AnimationBadge &b) { return a.at == b.at && a.text == b.text && a.picked == b.picked && a.slot == b.slot; })) return;
+    m_badges = badges;
+    viewport()->update();
+}
+
 void DeckCanvas::setActiveComment(const QString &id)
 {
     m_activeComment = id;
@@ -167,6 +174,22 @@ void DeckCanvas::paintEvent(QPaintEvent *e)
         p.drawPolygon(poly);
     }
     m_media->paint(&p);
+    // The animation numbers: a small tag at the top left of each animated shape, the one of an effect that is picked in the pane filled.
+    if (!m_badges.isEmpty()) {
+        QFont number = p.font();
+        number.setPixelSize(11);
+        number.setBold(true);
+        p.setFont(number);
+        for (const AnimationBadge &b : std::as_const(m_badges)) {
+            const QPointF at = pageToView(b.at);
+            const QRectF tag(at.x() - 24 - 22 * b.slot, at.y() - 2, 20, 18);
+            p.setPen(QPen(QColor(0xB6, 0x42, 0x0F), 1.4));
+            p.setBrush(b.picked ? QColor(0xB6, 0x42, 0x0F) : QColor(255, 255, 255, 235));
+            p.drawRoundedRect(tag, 5, 5);
+            p.setPen(b.picked ? Qt::white : QColor(0xB6, 0x42, 0x0F));
+            p.drawText(tag, Qt::AlignCenter, b.text);
+        }
+    }
     if (!m_comments) return;
     QFont initials = p.font();
     initials.setPixelSize(8);
