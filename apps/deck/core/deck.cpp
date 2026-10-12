@@ -228,6 +228,29 @@ Item *matchIn(const MasterPage &layout, const Item &it, QSet<const Item *> &take
     return nullptr;
 }
 
+// Puts a picture that stands in a placeholder in the place `to` of a layout (page coordinates), showing the part of the picture it showed, in
+// its proportions. A picture placeholder crops it to fill the place, centered; any other placeholder (a content one) fits that part inside the
+// place, centered, so that nothing is cut off.
+void fitPictureToPlace(PictureItem &pic, const QRectF &to, bool cropToFill)
+{
+    const QRectF frame(QPointF(0, 0), pic.rect.size());
+    QRectF shown = frame.intersected(pic.imgRect);
+    if (shown.isEmpty()) shown = pic.imgRect;
+    if (pic.imgRect.isEmpty() || shown.isEmpty()) {
+        pic.rect = to;
+        pic.imgRect = QRectF(QPointF(0, 0), to.size());
+        return;
+    }
+    const double kx = to.width() / shown.width(), ky = to.height() / shown.height();
+    const double k = cropToFill ? std::max(kx, ky) : std::min(kx, ky);
+    const QSizeF size = cropToFill ? to.size() : QSizeF(shown.width() * k, shown.height() * k);
+    pic.rect = cropToFill ? to : QRectF(to.center() - QPointF(size.width() / 2, size.height() / 2), size);
+    // The part shown sits in the middle of the new frame.
+    const QPointF middle(size.width() / 2, size.height() / 2);
+    const QPointF topLeft = middle - (shown.center() - pic.imgRect.topLeft()) * k;
+    pic.imgRect = QRectF(topLeft, QSizeF(pic.imgRect.width() * k, pic.imgRect.height() * k));
+}
+
 ItemPtr slidePlaceholder(Document &d, const Item &fromLayout)
 {
     ItemPtr copy = d.cloneItem(fromLayout);
@@ -531,7 +554,8 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
     for (const auto &it : slide.items) {
         if (placeholderType(*it).isEmpty()) continue;
         if (Item *place = matchIn(layout, *it, taken)) {
-            it->rect = place->rect;
+            if (it->type() == ItemType::Picture) fitPictureToPlace(static_cast<PictureItem &>(*it), place->rect, placeholderType(*place) == QLatin1String("pic"));
+            else it->rect = place->rect;
             it->rotation = place->rotation;
             it->role = place->role;
             if (it->type() == ItemType::Text && place->type() == ItemType::Text) {
