@@ -3,6 +3,7 @@
 
 #include "app/appfuncs.h"
 #include "app/dialogs.h"
+#include "app/filescreenparts.h"
 #include "app/icons.h"
 #include "app/mainwindow.h"
 #include "app/settings.h"
@@ -22,7 +23,6 @@
 #include <QTextOption>
 #include <QStyledItemDelegate>
 #include <QFrame>
-#include <QButtonGroup>
 #include <QAbstractButton>
 #include <QCheckBox>
 #include <QComboBox>
@@ -36,7 +36,6 @@
 #include <QGridLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
-#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -47,7 +46,6 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSpinBox>
-#include <QStackedWidget>
 #include <QStandardPaths>
 #include <QStyleHints>
 #include <QToolButton>
@@ -56,88 +54,7 @@
 
 namespace jp {
 
-static bool dark() { return uiDark(); }
-static QString cardStyle()
-{
-    return QStringLiteral("#jpCard{background:%1; border:1px solid %2; border-radius:12px;}").arg(uiCard().name(), uiLine().name());
-}
-
-static QLabel *heading(const QString &t, QWidget *parent, double scale = 1.75)
-{
-    auto *l = new QLabel(t, parent);
-    QFont f = l->font();
-    f.setPointSizeF(f.pointSizeF() * scale);
-    f.setWeight(QFont::DemiBold);
-    l->setFont(f);
-    l->setContentsMargins(0, 0, 0, 6);
-    return l;
-}
-
-// A page drawn as paper: soft layered shadow and a hairline edge.
-static QPixmap paperPixmap(const QImage &page, const QSize &box, qreal dpr)
-{
-    QPixmap pm(box * dpr);
-    pm.setDevicePixelRatio(dpr);
-    pm.fill(Qt::transparent);
-    QPainter p(&pm);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setRenderHint(QPainter::SmoothPixmapTransform);
-    const QSizeF avail = QSizeF(box) - QSizeF(16, 18);
-    QSizeF sz = QSizeF(page.size()) / page.devicePixelRatio();
-    sz.scale(avail, Qt::KeepAspectRatio);
-    const QRectF r(QPointF((box.width() - sz.width()) / 2.0, (box.height() - sz.height()) / 2.0 - 2), sz);
-    for (int i = 6; i >= 1; --i) {
-        p.setPen(Qt::NoPen);
-        p.setBrush(QColor(0, 0, 0, 7));
-        p.drawRoundedRect(r.adjusted(-i * 0.6, -i * 0.3 + 1, i * 0.6, i * 0.9 + 1), 2 + i * 0.5, 2 + i * 0.5);
-    }
-    p.drawImage(r, page);
-    p.setPen(QPen(QColor(0, 0, 0, 38), 1));
-    p.setBrush(Qt::NoBrush);
-    p.drawRect(r.adjusted(0.5, 0.5, -0.5, -0.5));
-    return pm;
-}
-
-// A rounded white (or dark) panel used for grouped content.
-static QFrame *cardFrame(QWidget *parent)
-{
-    auto *f = new QFrame(parent);
-    f->setObjectName(QStringLiteral("jpCard"));
-    f->setStyleSheet(cardStyle());
-    return f;
-}
-
-static QLabel *mutedLabel(const QString &t, QWidget *parent, double alpha = 0.62)
-{
-    auto *l = new QLabel(t, parent);
-    QPalette pl = l->palette();
-    QColor c = uiText();
-    c.setAlphaF(float(alpha));
-    pl.setColor(QPalette::WindowText, c);
-    l->setPalette(pl);
-    return l;
-}
-
 namespace {
-// Keeps a word-wrapped label as tall as its text at the width it gets. The
-// About cards are capped at 820 pixels, but Qt works out a card's height for
-// the page's full width, where text wraps less: in a wide window the cards
-// came out short and cut off their last lines.
-class FitHeight : public QObject {
-public:
-    using QObject::QObject;
-    bool eventFilter(QObject *o, QEvent *e) override
-    {
-        if (e->type() == QEvent::Resize)
-            if (auto *l = qobject_cast<QLabel *>(o)) {
-                const int h = l->heightForWidth(l->width());
-                if (h > 0 && h != l->minimumHeight()) l->setMinimumHeight(h);
-            }
-        return false;
-    }
-};
-void fitHeight(QLabel *l) { l->installEventFilter(new FitHeight(l)); }
-
 // Template cards: rounded hover and selection, picture above a two-line name.
 class CardDelegate : public QStyledItemDelegate {
 public:
@@ -182,335 +99,39 @@ public:
 };
 } // namespace
 
-namespace {
-
-// One sidebar entry: icon and label, a rounded highlight when current, a
-// softer one on hover, and a short accent bar at the left edge.
-class NavItem : public QAbstractButton {
-public:
-    NavItem(const QString &iconName, const QString &text, QWidget *parent) : QAbstractButton(parent), m_icon(iconName)
-    {
-        setText(text);
-        setCheckable(true);
-        setCursor(Qt::PointingHandCursor);
-        setFocusPolicy(Qt::TabFocus);
-        setMinimumHeight(38);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        setAttribute(Qt::WA_Hover);
-    }
-    QSize sizeHint() const override { return QSize(200, 38); }
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing);
-        const QRectF r = QRectF(rect()).adjusted(10, 2, -10, -2);
-        const QColor accent = uiAccent();
-        const bool on = isChecked(), hover = underMouse() && !on;
-        if (on) {
-            QColor bg = accent;
-            bg.setAlphaF(dark() ? 0.28f : 0.12f);
-            p.setPen(Qt::NoPen);
-            p.setBrush(bg);
-            p.drawRoundedRect(r, 8, 8);
-            p.setBrush(accent);
-            p.drawRoundedRect(QRectF(r.left() + 2, r.center().y() - 9, 3.5, 18), 1.75, 1.75);
-        } else if (hover) {
-            p.setPen(Qt::NoPen);
-            p.setBrush(dark() ? QColor(255, 255, 255, 18) : QColor(0, 0, 0, 12));
-            p.drawRoundedRect(r, 8, 8);
-        }
-        if (hasFocus() && !on) {
-            p.setPen(QPen(accent, 1.5));
-            p.setBrush(Qt::NoBrush);
-            p.drawRoundedRect(r.adjusted(0.75, 0.75, -0.75, -0.75), 8, 8);
-        }
-        const QColor fg = on ? (dark() ? accent.lighter(170) : accent) : uiText();
-        // Tint the line icon to the label color.
-        const int is = 18;
-        QPixmap pm = jp::icon(m_icon).pixmap(QSize(is, is), devicePixelRatioF());
-        QPainter tp(&pm);
-        tp.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        tp.fillRect(pm.rect(), fg);
-        tp.end();
-        p.drawPixmap(QPointF(r.left() + 14, r.center().y() - is / 2.0), pm);
-        QFont f = font();
-        f.setWeight(on ? QFont::DemiBold : QFont::Normal);
-        p.setFont(f);
-        p.setPen(fg);
-        p.drawText(r.adjusted(14 + is + 12, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft, text());
-    }
-
-private:
-    QString m_icon;
-};
-
-
-// A command shown as a card: tinted icon tile, bold title, muted description.
-class ActionCard : public QAbstractButton {
-public:
-    ActionCard(const QString &iconName, const QString &title, const QString &desc, QWidget *parent)
-        : QAbstractButton(parent), m_icon(iconName), m_desc(desc)
-    {
-        setText(title);
-        setCursor(Qt::PointingHandCursor);
-        setAttribute(Qt::WA_Hover);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        setMaximumWidth(820);
-    }
-    QSize sizeHint() const override
-    {
-        const QFontMetrics fm(font());
-        const int textW = std::max(200, width() - 92);
-        const int dh = fm.boundingRect(QRect(0, 0, textW, 1000), Qt::TextWordWrap, m_desc).height();
-        return QSize(520, std::max(64, 22 + fm.height() + 4 + dh));
-    }
-    bool hasHeightForWidth() const override { return true; }
-    int heightForWidth(int w) const override
-    {
-        const QFontMetrics fm(font());
-        const int dh = fm.boundingRect(QRect(0, 0, std::max(200, w - 92), 1000), Qt::TextWordWrap, m_desc).height();
-        return std::max(64, 22 + fm.height() + 4 + dh);
-    }
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing);
-        const QRectF r = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
-        const bool hover = underMouse(), down = isDown();
-        const QColor accent = uiAccent();
-        QColor bg = down ? uiCardPressed() : uiCard();
-        QColor border = uiLine();
-        if (hover || hasFocus()) border = accent;
-        p.setPen(QPen(border, hover ? 1.4 : 1));
-        p.setBrush(bg);
-        p.drawRoundedRect(r, 10, 10);
-        const QRectF tile(r.left() + 14, r.top() + 12, 40, 40);
-        QColor tbg = accent;
-        tbg.setAlphaF(dark() ? 0.25f : 0.10f);
-        p.setPen(Qt::NoPen);
-        p.setBrush(tbg);
-        p.drawRoundedRect(tile, 9, 9);
-        QPixmap pm = jp::icon(m_icon).pixmap(QSize(22, 22), devicePixelRatioF());
-        {
-            QPainter tp(&pm);
-            tp.setCompositionMode(QPainter::CompositionMode_SourceIn);
-            tp.fillRect(pm.rect(), dark() ? accent.lighter(150) : accent);
-        }
-        p.drawPixmap(QPointF(tile.center().x() - 11, tile.center().y() - 11), pm);
-        QFont tf = font();
-        tf.setWeight(QFont::DemiBold);
-        p.setFont(tf);
-        p.setPen(uiText());
-        const QFontMetrics fm(font());
-        const QRectF tr(tile.right() + 14, r.top() + 11, r.right() - tile.right() - 28, fm.height() + 2);
-        p.drawText(tr, Qt::AlignLeft | Qt::AlignVCenter, text());
-        p.setFont(font());
-        QColor dc = uiText();
-        dc.setAlphaF(0.68f);
-        p.setPen(dc);
-        p.drawText(QRectF(tr.left(), tr.bottom() + 2, tr.width(), r.bottom() - tr.bottom() - 8), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, m_desc);
-        // Chevron on the right.
-        p.setPen(QPen(hover ? accent : dc, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        const QPointF c(r.right() - 18, r.center().y());
-        p.drawPolyline(QPolygonF({c + QPointF(-3, -5), c + QPointF(2, 0), c + QPointF(-3, 5)}));
-    }
-    bool event(QEvent *e) override
-    {
-        if (e->type() == QEvent::HoverEnter || e->type() == QEvent::HoverLeave) update();
-        return QAbstractButton::event(e);
-    }
-
-private:
-    QString m_icon, m_desc;
-};
-
-QLabel *sectionLabel(const QString &t, QWidget *parent)
+Backstage::Backstage(MainWindow *win) : FileScreen(win), m_win(win)
 {
-    auto *l = new QLabel(t.toUpper(), parent);
-    QFont f = l->font();
-    f.setPointSizeF(f.pointSizeF() * 0.78);
-    f.setWeight(QFont::DemiBold);
-    f.setLetterSpacing(QFont::PercentageSpacing, 108);
-    l->setFont(f);
-    QPalette pl = l->palette();
-    QColor c = uiText();
-    c.setAlphaF(0.55f);
-    pl.setColor(QPalette::WindowText, c);
-    l->setPalette(pl);
-    l->setContentsMargins(24, 14, 12, 4);
-    return l;
+    setBackButton(tr("Back to publication"), tr("Return to your publication (Esc)"));
+    setPageBuilder([this](const QString &key) { return buildPage(key); });
+    addSection(tr("Start"));
+    addPage(QStringLiteral("new"), QStringLiteral("file-plus"), tr("New"));
+    addPage(QStringLiteral("open"), QStringLiteral("folder-open"), tr("Open"));
+    addSection(tr("This publication"));
+    addCommand(QStringLiteral("save"), QStringLiteral("save"), tr("Save"), [this] { if (m_win->save()) Q_EMIT closeRequested(); });
+    addCommand(QStringLiteral("saveas"), QStringLiteral("copy"), tr("Save As"), [this] { if (m_win->saveAs()) Q_EMIT closeRequested(); });
+    addPage(QStringLiteral("print"), QStringLiteral("printer"), tr("Print"));
+    addPage(QStringLiteral("export"), QStringLiteral("file-output"), tr("Export"));
+    addPage(QStringLiteral("share"), QStringLiteral("share-2"), tr("Share"));
+    addPage(QStringLiteral("info"), QStringLiteral("file-text"), tr("Properties"));
+    addCommand(QStringLiteral("close"), QStringLiteral("circle-x"), tr("Close"), [this] { m_win->act("file.close")->trigger(); Q_EMIT closeRequested(); });
+    addSection(QStringLiteral("JeffPub"));
+    addCommand(QStringLiteral("options"), QStringLiteral("settings"), tr("Options"), [this] { optionsDialog(this, m_win->editor()); });
+    addPage(QStringLiteral("about"), QStringLiteral("info"), tr("About"));
+    addHiddenPage(QStringLiteral("change"));
 }
 
-} // namespace
-
-Backstage::Backstage(MainWindow *win) : QWidget(win), m_win(win)
+// The pages are built when they are shown, so they show what is now.
+QWidget *Backstage::buildPage(const QString &key)
 {
-    setAutoFillBackground(true);
-    auto *h = new QHBoxLayout(this);
-    h->setContentsMargins(0, 0, 0, 0);
-    h->setSpacing(0);
-
-    // Sidebar: a quiet panel with the wordmark, a back button and grouped commands.
-    auto *side = new QFrame(this);
-    m_side = side;
-    side->setObjectName(QStringLiteral("jpSide"));
-    side->setFixedWidth(236);
-    auto *sv = new QVBoxLayout(side);
-    sv->setContentsMargins(0, 18, 0, 14);
-    sv->setSpacing(0);
-
-    auto *brand = new QWidget(side);
-    auto *bh = new QHBoxLayout(brand);
-    bh->setContentsMargins(22, 0, 12, 0);
-    bh->setSpacing(10);
-    auto *badge = new QLabel(brand);
-    {
-        const qreal dpr = devicePixelRatioF();
-        QPixmap pm(QSize(30, 30) * dpr);
-        pm.setDevicePixelRatio(dpr);
-        pm.fill(Qt::transparent);
-        QPainter p(&pm);
-        p.setRenderHint(QPainter::Antialiasing);
-        p.setPen(Qt::NoPen);
-        p.setBrush(uiAccent());
-        p.drawRoundedRect(QRectF(0, 0, 30, 30), 8, 8);
-        QFont bf = font();
-        bf.setBold(true);
-        bf.setPixelSize(13);
-        p.setFont(bf);
-        p.setPen(Qt::white);
-        p.drawText(QRectF(0, 0, 30, 30), Qt::AlignCenter, QStringLiteral("JP"));
-        p.end();
-        badge->setPixmap(pm);
-    }
-    auto *word = new QLabel(QStringLiteral("JeffPub"), brand);
-    QFont wf = word->font();
-    wf.setPointSizeF(wf.pointSizeF() * 1.35);
-    wf.setWeight(QFont::DemiBold);
-    word->setFont(wf);
-    bh->addWidget(badge);
-    bh->addWidget(word);
-    bh->addStretch(1);
-    sv->addWidget(brand);
-    sv->addSpacing(14);
-
-    auto *back = new NavItem(QStringLiteral("arrow-left"), tr("Back to publication"), side);
-    back->setCheckable(false);
-    back->setToolTip(tr("Return to your publication (Esc)"));
-    connect(back, &QAbstractButton::clicked, this, &Backstage::closeRequested);
-    sv->addWidget(back);
-
-    auto *group = new QButtonGroup(this);
-    m_navGroup = group;
-    group->setExclusive(true);
-    struct Entry { const char *key, *icon; QString label; };
-    const QList<QPair<QString, QList<Entry>>> sections = {
-        {tr("Start"), {{"new", "file-plus", tr("New")}, {"open", "folder-open", tr("Open")}}},
-        {tr("This publication"),
-         {{"save", "save", tr("Save")}, {"saveas", "copy", tr("Save As")}, {"print", "printer", tr("Print")}, {"export", "file-output", tr("Export")},
-          {"share", "share-2", tr("Share")}, {"info", "file-text", tr("Properties")}, {"close", "circle-x", tr("Close")}}},
-        {QStringLiteral("JeffPub"), {{"options", "settings", tr("Options")}, {"about", "info", tr("About")}}},
-    };
-    for (const auto &sec : sections) {
-        sv->addWidget(sectionLabel(sec.first, side));
-        for (const Entry &e : sec.second) {
-            const QString key = QString::fromLatin1(e.key);
-            auto *item = new NavItem(QString::fromLatin1(e.icon), e.label, side);
-            const bool command = key == "save" || key == "saveas" || key == "close" || key == "options";
-            if (command) item->setCheckable(false);
-            else group->addButton(item);
-            m_navItems.insert(key, item);
-            sv->addWidget(item);
-            connect(item, &QAbstractButton::clicked, this, [this, key] {
-                if (key == "save") { if (m_win->save()) Q_EMIT closeRequested(); return; }
-                if (key == "saveas") { if (m_win->saveAs()) Q_EMIT closeRequested(); return; }
-                if (key == "close") { m_win->act("file.close")->trigger(); Q_EMIT closeRequested(); return; }
-                if (key == "options") { optionsDialog(this, m_win->editor()); return; }
-                showPage(key);
-            });
-        }
-    }
-    sv->addStretch(1);
-    auto *ver = new QLabel(tr("Version %1").arg(QStringLiteral(JP_VERSION)), side);
-    m_version = ver;
-    ver->setContentsMargins(24, 0, 12, 0);
-    sv->addWidget(ver);
-    h->addWidget(side);
-
-    m_stack = new QStackedWidget(this);
-    h->addWidget(m_stack, 1);
-    for (const QString &key : {QStringLiteral("info"), QStringLiteral("new"), QStringLiteral("change"), QStringLiteral("open"), QStringLiteral("print"),
-                               QStringLiteral("share"), QStringLiteral("export"), QStringLiteral("about")})
-        m_index[key] = m_stack->addWidget(new QWidget());
-    restyle();
-    // The look switched in Options: the colors set here, and the page shown.
-    connect(UiTheme::instance(), &UiTheme::changed, this, [this] {
-        restyle();
-        if (isVisible())
-            for (auto it = m_index.cbegin(); it != m_index.cend(); ++it)
-                if (it.value() == m_stack->currentIndex()) rebuild(it.key());
-    });
-}
-
-void Backstage::restyle()
-{
-    QPalette pal = palette();
-    pal.setColor(QPalette::Window, uiWindow());
-    setPalette(pal);
-    m_side->setStyleSheet(QStringLiteral("#jpSide{background:%1; border-right:1px solid %2;}").arg(uiPanel().name(), uiLine().name()));
-    QPalette vp = m_version->palette();
-    QColor vc = uiText();
-    vc.setAlphaF(0.5f);
-    vp.setColor(QPalette::WindowText, vc);
-    m_version->setPalette(vp);
-}
-
-void Backstage::keyPressEvent(QKeyEvent *e)
-{
-    if (e->key() == Qt::Key_Escape) { Q_EMIT closeRequested(); return; }
-    QWidget::keyPressEvent(e);
-}
-
-void Backstage::rebuild(const QString &name)
-{
-    QWidget *w = nullptr;
-    if (name == "info") w = buildInfo();
-    else if (name == "new") w = buildNew();
-    else if (name == "change") w = buildNew(true);
-    else if (name == "open") w = buildOpen();
-    else if (name == "print") w = buildPrint();
-    else if (name == "share") w = buildShare();
-    else if (name == "export") w = buildExport();
-    else if (name == "about") w = buildAbout();
-    if (!w) return;
-    auto *scroll = new QScrollArea();
-    scroll->setWidget(w);
-    scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::NoFrame);
-    const int idx = m_index.value(name, -1);
-    if (idx < 0) return;
-    QWidget *old = m_stack->widget(idx);
-    m_stack->insertWidget(idx, scroll);
-    m_stack->removeWidget(old);
-    old->deleteLater();
-}
-
-QString Backstage::currentPage() const { return m_index.key(m_stack->currentIndex()); }
-
-void Backstage::showPage(const QString &name)
-{
-    rebuild(name);
-    m_stack->setCurrentIndex(m_index.value(name, 0));
-    if (QAbstractButton *b = m_navItems.value(name)) b->setChecked(true);
-    else if (QAbstractButton *on = m_navGroup->checkedButton()) {   // a page with no item of its own: none is lit
-        m_navGroup->setExclusive(false);
-        on->setChecked(false);
-        m_navGroup->setExclusive(true);
-    }
+    if (key == "info") return buildInfo();
+    if (key == "new") return buildNew();
+    if (key == "change") return buildNew(true);
+    if (key == "open") return buildOpen();
+    if (key == "print") return buildPrint();
+    if (key == "share") return buildShare();
+    if (key == "export") return buildExport();
+    if (key == "about") return buildAbout();
+    return nullptr;
 }
 
 // ---------------- Info ----------------
@@ -1487,55 +1108,6 @@ QWidget *Backstage::buildExport()
     return w;
 }
 
-// One app of the suite: a rounded tile in the app's color holding its two
-// letters, its name in bold, what it makes, and where it stands.
-// The columns are the widths given, so the rows line up.
-static QWidget *suiteRow(QWidget *parent, const QString &name, const QString &letters, const QColor &color, const QString &what, const QString &state,
-                         bool muted, const int (&widths)[3], const QString &accessible)
-{
-    auto *row = new QWidget(parent);
-    row->setAccessibleName(accessible);
-    auto *h = new QHBoxLayout(row);
-    h->setContentsMargins(0, 0, 0, 0);
-    h->setSpacing(12);
-    auto *tile = new QLabel(row);
-    const qreal dpr = parent->devicePixelRatioF();
-    QPixmap pm(QSize(28, 28) * dpr);
-    pm.setDevicePixelRatio(dpr);
-    pm.fill(Qt::transparent);
-    QPainter p(&pm);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setPen(Qt::NoPen);
-    p.setBrush(color);
-    p.drawRoundedRect(QRectF(0, 0, 28, 28), 28 * 0.24, 28 * 0.24);
-    QFont tf = parent->font();
-    tf.setWeight(QFont::DemiBold);
-    tf.setPixelSize(12);
-    p.setFont(tf);
-    p.setPen(Qt::white);
-    p.drawText(QRectF(0, 0, 28, 28), Qt::AlignCenter, letters);
-    p.end();
-    tile->setPixmap(pm);
-    h->addWidget(tile);
-    auto *nameLabel = new QLabel(name, row);
-    QFont nf = nameLabel->font();
-    nf.setBold(true);
-    nameLabel->setFont(nf);
-    nameLabel->setFixedWidth(widths[0]);
-    h->addWidget(nameLabel);
-    auto *whatLabel = new QLabel(what, row);
-    // A narrow window clips this column, not the state; the stretches give it
-    // all the room it can use before the spare goes to the end of the row.
-    whatLabel->setMaximumWidth(widths[1]);
-    whatLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    h->addWidget(whatLabel, 1000);
-    QLabel *stateLabel = muted ? mutedLabel(state, row) : new QLabel(state, row);
-    stateLabel->setFixedWidth(widths[2]);
-    h->addWidget(stateLabel);
-    h->addStretch(1);
-    return row;
-}
-
 QWidget *Backstage::buildAbout()
 {
     auto *w = new QWidget();
@@ -1545,54 +1117,7 @@ QWidget *Backstage::buildAbout()
     v->addWidget(heading(tr("About"), w));
 
     // The suite JeffPub belongs to: the JeffOffice logo, then each app.
-    auto *suite = cardFrame(w);
-    suite->setMaximumWidth(820);
-    auto *suv = new QVBoxLayout(suite);
-    suv->setContentsMargins(20, 16, 20, 16);
-    suv->setSpacing(10);
-    auto *logo = new QLabel(suite);
-    {
-        const qreal dpr = devicePixelRatioF();
-        const QImage lockup(uiDark() ? QStringLiteral(":/brand/jeffoffice-lockup-on-dark.png") : QStringLiteral(":/brand/jeffoffice-lockup.png"));
-        QPixmap pm = QPixmap::fromImage(lockup.scaledToHeight(qRound(40 * dpr), Qt::SmoothTransformation));
-        pm.setDevicePixelRatio(dpr);
-        logo->setPixmap(pm);
-        logo->setAccessibleName(QStringLiteral("JeffOffice"));
-    }
-    suv->addWidget(logo);
-    auto *suh = new QLabel(tr("JeffOffice apps"), suite);
-    QFont suf = suh->font();
-    suf.setWeight(QFont::DemiBold);
-    suh->setFont(suf);
-    suv->addWidget(suh);
-    struct App { const char *name, *letters, *color; QString what; bool here; };
-    const App apps[] = {
-        {"JeffPub", "JP", "#9E1F63", tr("Publications"), true},
-        {"JeffDeck", "JD", "#B6420F", tr("Presentations"), false},
-        {"JeffWrite", "JW", "#1D55C4", tr("Documents"), false},
-        {"JeffCrunch", "JC", "#13773A", tr("Spreadsheets"), false},
-        {"JeffMail", "JM", "#0A6C8C", tr("Email and calendar"), false},
-        {"JeffBase", "JB", "#5E2CA5", tr("Databases"), false},
-    };
-    const QString inUse = tr("You're using it"), soon = tr("Coming soon");
-    auto line = [](const QString &what) { return QStringLiteral("— %1").arg(what); };
-    QFont bold = font();
-    bold.setBold(true);
-    const QFontMetrics plain(font()), strong(bold);
-    int widths[3] = {0, 0, qMax(plain.horizontalAdvance(inUse), plain.horizontalAdvance(soon))};
-    for (const App &a : apps) {
-        widths[0] = qMax(widths[0], strong.horizontalAdvance(QLatin1String(a.name)));
-        widths[1] = qMax(widths[1], plain.horizontalAdvance(line(a.what)));
-    }
-    widths[0] += 4;
-    widths[1] += 16;   // and room before the state
-    widths[2] += 4;
-    for (const App &a : apps) {
-        const QString state = a.here ? inUse : soon;
-        suv->addWidget(suiteRow(suite, QLatin1String(a.name), QLatin1String(a.letters), QColor(QLatin1String(a.color)), line(a.what), state,
-                                !a.here, widths, tr("%1, %2, %3").arg(QLatin1String(a.name), a.what, state)));
-    }
-    v->addWidget(suite);
+    v->addWidget(suiteCard(w, this));
 
     // Identity card: badge, name, version and the one-line description.
     auto *id = cardFrame(w);
