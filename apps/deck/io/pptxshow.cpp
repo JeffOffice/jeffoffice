@@ -135,6 +135,7 @@ void readShowProperties(const QDomElement &presProps, const office::Theme &theme
     qint64 bytes = 0;
     bool tooLarge = false;
     auto keep = [&](QJsonArray &into, const QDomElement &e) {
+        if (tooLarge) return;
         const QString xml = standalone(e);
         if (bytes + xml.size() * 2 > kMaxKeptPropsBytes) {
             tooLarge = true;
@@ -144,11 +145,12 @@ void readShowProperties(const QDomElement &presProps, const office::Theme &theme
         into.append(xml);
     };
     ShowSettings settings;
+    const QVector<CustomShow> shows = customShowsOf(doc);
     for (const QDomElement &c : office::children(presProps)) {
         const QString name = c.localName();
         if (name == QLatin1String("htmlPubPr") || name == QLatin1String("webPr") || name == QLatin1String("prnPr")) keep(before, c);
         else if (name == QLatin1String("clrMru") || name == QLatin1String("extLst")) keep(after, c);
-        else if (name == QLatin1String("showPr") && office::isElement(c, P, name)) {
+        else if (name == QLatin1String("showPr") && office::isElement(c, P, name) && !kept.contains(QStringLiteral("showPr"))) {   // the first only
             kept["showPr"] = true;
             const office::ColorMap map;
             settings.loop = office::parseBool(office::attr(c, QStringLiteral("loop")), false);
@@ -171,7 +173,7 @@ void readShowProperties(const QDomElement &presProps, const office::Theme &theme
                 settings.to = int(std::clamp<qint64>(end, 1, 100000));
             } else if (const QDomElement custom = pChild(c, "custShow"); !custom.isNull()) {
                 const qint64 id = office::parseInt(office::attr(custom, QStringLiteral("id")), -1);
-                if (customShowById(customShowsOf(doc), id)) {
+                if (customShowById(shows, id)) {
                     settings.slides = ShowSettings::Slides::Custom;
                     settings.customShow = id;
                 } else if (notes) {
