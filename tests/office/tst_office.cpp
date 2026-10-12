@@ -18,6 +18,7 @@
 #include "text/textprops.h"
 
 #include <QBuffer>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
 #include <QPainter>
@@ -30,6 +31,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
+#include <QXmlStreamReader>
 #include <QXmlStreamWriter>
 #include <QtEndian>
 #include <QtTest>
@@ -1610,6 +1612,44 @@ private Q_SLOTS:
             if (pos == QLatin1String("l")) QVERIFY2(key.x() < img.width() * 0.4, qPrintable(QString::number(key.x())));
             QVERIFY(QString::fromUtf8(chartSvg(c, QSizeF(400, 300))).contains(QStringLiteral(">Only series<")));
         }
+    }
+
+    // A number format code is at most 255 characters (the spreadsheet limit); a longer one is not applied, and the numbers show as they are.
+    void chartIgnoresFormatCodesPastTheSpreadsheetLimit()
+    {
+        const QString fits = QStringLiteral("0.0") + QString(252, QLatin1Char('x')), tooLong = fits + QLatin1Char('x');
+        QCOMPARE(fits.size(), 255);
+        QCOMPARE(formatChartNumber(1234.5, fits), QStringLiteral("1234.5") + QString(252, QLatin1Char('x')));
+        QCOMPARE(formatChartNumber(1234.5, tooLong), QStringLiteral("1234.5"));
+        // The same through a chart: 100 categories that are numbers, with a code of 20,000 characters, read in no time.
+        QString points;
+        for (int i = 0; i < 100; ++i) points += QStringLiteral("<c:pt idx=\"%1\"><c:v>%1.5</c:v></c:pt>").arg(i);
+        const QString plot = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/><c:ser><c:idx val=\"0\"/><c:order val=\"0\"/>"
+                                            "<c:cat><c:numRef><c:f>Sheet1!$A$2:$A$101</c:f><c:numCache><c:formatCode>0.0%1</c:formatCode><c:ptCount val=\"100\"/>%2</c:numCache></c:numRef></c:cat>"
+                                            "<c:val><c:numRef><c:f>Sheet1!$B$2:$B$101</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val=\"100\"/>%2</c:numCache></c:numRef></c:val></c:ser>"
+                                            "<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>")
+                                 .arg(QString(20000, QLatin1Char('x')), points) + chartAxes();
+        Chart c;
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY2(readChart(chartPart(plot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QVERIFY2(timer.elapsed() < 500, qPrintable(QString::number(timer.elapsed())));
+        QCOMPARE(c.plots[0].series[0].categories[3], QStringLiteral("3.5"));
+    }
+
+    // The text a chart keeps for a label is cut at a few hundred characters, and what can't be written in a picture is left out of it.
+    void chartKeepsLabelsShortAndWritable()
+    {
+        const QString huge(100000, QLatin1Char('m'));
+        const QString plot = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>")
+                             + chartSeries(0, huge, {huge, QStringLiteral("b")}, {1, 2}) + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>") + chartAxes();
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(plot, QString(), QStringLiteral("<c:legend><c:legendPos val=\"r\"/></c:legend>")), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QVERIFY(c.plots[0].series[0].categories[0].size() <= kChartMaxLabel);
+        QVERIFY(c.plots[0].series[0].name.size() <= kChartMaxLabel);
+        QVERIFY2(chartSvg(c, QSizeF(400, 300)).size() < 100000, "the picture repeats the long text");
     }
 
 private:
