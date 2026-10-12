@@ -17,7 +17,7 @@ on the same yardstick as JeffPub's.
 
 | Area | What it covers | Status |
 | --- | --- | --- |
-| Slides | Layouts, slide masters, themes and their variants, backgrounds, sections, the slide sorter, outline view, speaker notes, and notes and handout masters | Layouts, masters, notes, backgrounds, slide size, header and footer, sections (saved, and shown in the slides pane and Slide Sorter), Slide Sorter, Outline view: started |
+| Slides | Layouts, slide masters, themes and their variants, backgrounds, sections, the slide sorter, outline view, speaker notes, and notes and handout masters | Layouts, masters, notes, backgrounds, slide size, header and footer, sections (saved, and shown in the slides pane and Slide Sorter), Slide Sorter, Outline view: started. Themes: nine built-in ones (JeffOffice's own designs, each with four variants) in the Design tab's Themes gallery, applied to every slide or to the selected ones (a slide master of their own) or taken from another presentation file, with the Variants group and its Colors, Fonts, and Background Styles; saved as theme, slide master, and layout parts, and read back as they were |
 | On a slide | Text, shapes, pictures, icons, Text Art, tables, charts, audio, and video. SmartArt diagrams and equations show as saved at first; editing them follows | Text, shapes, pictures, tables: shown and saved; charts: drawn from their stored values and saved whole; movies and sounds: kept and saved, not yet played; Text Art, old files' too: shown and saved |
 | Motion | Slide transitions, including Morph, and animations (entrance, emphasis, exit, motion paths) with the animation pane and timings | Nine transitions with a Transitions tab, read from and saved to the file (an effect JeffDeck has no form for plays as a fade and is saved as it was); animations play in the show click by click (appear, fade, wipe, moves, turns, sizes, motion paths, builds by paragraph; other effects play as a fade); editing them not yet |
 | Slide Show | Full screen, Presenter View on a second screen (notes, next slide, timer), pen and highlighter, rehearsed timings, custom shows, and looping for kiosks | Full screen, Presenter View, rehearsal (Alt+F5): started |
@@ -49,6 +49,18 @@ libs/base            colors, fonts, files, PDF
   are a story (`notesStoryId`); hidden slides, transitions, and what the
   reader keeps for writing back are in the page's `props`; the theme is the
   document's `appData`. See `apps/deck/core/deck.h`.
+- **Themes** (`apps/deck/core/themes.cpp`, `themeapply.cpp`). A theme is a
+  slide master, its layouts, and a theme part. The nine built-in ones are
+  made from the standard master and layouts by giving each its own text
+  places, fonts, colors, and shapes drawn on the master (a theme's presentation
+  is what the galleries draw and what applying takes). Colors are plain
+  colors on the objects, as files hold them (saving finds the theme's colors
+  in them again), so a change of colors swaps each color of the old scheme for
+  the new scheme's; text and shapes on a dark background use the four dark
+  and light colors, so they trade places when a background turns light or dark.
+  Applying a theme copies its master and layouts in (`Copier`), moves each
+  slide to the layout of its kind with `applyLayout`, and sets text that
+  followed the old layout in the new layout's look.
 - **Undo** is the shared editor's: every change is one step that restores the
   whole document.
 - **Files.** `.pptx` is ECMA-376 PresentationML: `libs/office` reads the
