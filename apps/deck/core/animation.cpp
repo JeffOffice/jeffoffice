@@ -454,12 +454,17 @@ Timeline playableTimeline(const Page &slide)
 
 namespace {
 
+// Real formulas are a line long and nest a few levels; a damaged file's can
+// nest thousands deep, which would run the parser out of stack.
+constexpr qsizetype kMaxFormulaLength = 4096;
+constexpr int kMaxFormulaDepth = 64;
+
 class Formula {
 public:
     Formula(const QString &text, const QHash<QString, double> &variables) : m_s(text), m_vars(variables) {}
     bool evaluate(double *out)
     {
-        if (!expression(out)) return false;
+        if (m_s.size() > kMaxFormulaLength || !expression(out)) return false;
         skip();
         return m_i == m_s.size() && std::isfinite(*out);
     }
@@ -510,8 +515,16 @@ private:
             }
         }
     }
+    // Counts the levels a sign or a parenthesis opens, while one is read.
+    struct Level {
+        explicit Level(int &depth) : m_depth(++depth) {}
+        ~Level() { --m_depth; }
+        int &m_depth;
+    };
     bool unary(double *v)
     {
+        const Level level(m_depth);
+        if (m_depth > kMaxFormulaDepth) return false;
         if (peek(QLatin1Char('-'))) {
             ++m_i;
             if (!unary(v)) return false;
@@ -559,6 +572,7 @@ private:
     QString m_s;
     const QHash<QString, double> &m_vars;
     qsizetype m_i = 0;
+    int m_depth = 0;
 };
 
 } // namespace

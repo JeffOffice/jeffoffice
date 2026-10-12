@@ -2524,6 +2524,25 @@ private Q_SLOTS:
         QVERIFY2(lost.hasMatch() && lost.captured(1) == QStringLiteral("1"), qPrintable(skipped.join(QLatin1Char('\n'))));
     }
 
+    // A custom shape's equation nested thousands deep (a damaged or hostile
+    // file) reads as 0 rather than running out of stack; the shape is kept.
+    void odpFormulasNestOnlySoDeep()
+    {
+        for (const QString &formula : {QString(1000, QLatin1Char('(')) + QStringLiteral("1"), QString(100000, QLatin1Char('(')) + QStringLiteral("1"), QString(300000, QLatin1Char('-')) + QStringLiteral("1"),
+                                       QStringLiteral("abs(").repeated(50000) + QStringLiteral("1")}) {
+            const QString page = QStringLiteral("<draw:page draw:name=\"p1\" draw:master-page-name=\"Default\">"
+                                                "<draw:custom-shape svg:width=\"4cm\" svg:height=\"4cm\" svg:x=\"1cm\" svg:y=\"1cm\">"
+                                                "<draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:enhanced-path=\"M 0 0 L ?f0 0 21600 21600 Z N\">"
+                                                "<draw:equation draw:name=\"f0\" draw:formula=\"")
+                                 + formula + QStringLiteral("\"/></draw:enhanced-geometry></draw:custom-shape></draw:page>");
+            QString err;
+            auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(QString(), page)), &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(d->pages.size()), 1);
+            QCOMPARE(int(d->pages[0]->items.size()), 1);
+        }
+    }
+
     // Text takes what its styles give it: the placeholder's presentation style, the automatic styles of
     // paragraphs and spans, the sizes in percent, and the bullets and numbers of the list styles.
     void odpReadsTextAndLists()
@@ -5273,6 +5292,26 @@ private Q_SLOTS:
         const deck::Timeline junk = deck::readTimeline(animTiming(animSteps({animNode("entr", 1, 0, "clickEffect", 0, {QStringLiteral(
             "<p:set><p:cBhvr><p:cTn id=\"95\" dur=\"1\"/><p:tgtEl><p:spTgt spid=\"x\"/></p:tgtEl></p:cBhvr><p:to><p:strVal val=\"visible\"/></p:to></p:set>")})})));
         QVERIFY(!junk.steps[0].visual());
+    }
+
+    // A formula nested thousands deep (a damaged or hostile file) is refused
+    // like any other it can't read, without running out of stack; real ones
+    // nest a few levels.
+    void animationFormulasNestOnlySoDeep()
+    {
+        const QHash<QString, double> v{{"ppt_x", 0.25}};
+        bool ok = false;
+        const QString deep = QString(40, QLatin1Char('(')) + QStringLiteral("#ppt_x") + QString(40, QLatin1Char(')'));
+        QVERIFY(animNear(deck::evaluateFormula(deep, v, &ok), 0.25) && ok);
+        ok = true;
+        deck::evaluateFormula(QString(1000, QLatin1Char('(')) + QStringLiteral("1") + QString(1000, QLatin1Char(')')), v, &ok);   // short, but deep
+        QVERIFY(!ok);
+        ok = true;
+        deck::evaluateFormula(QString(200000, QLatin1Char('(')) + QStringLiteral("1") + QString(200000, QLatin1Char(')')), v, &ok);
+        QVERIFY(!ok);
+        ok = true;
+        deck::evaluateFormula(QString(300000, QLatin1Char('-')) + QStringLiteral("1"), v, &ok);
+        QVERIFY(!ok);
     }
 
     // The shapes' places are found by the number the file gave, in groups too.
