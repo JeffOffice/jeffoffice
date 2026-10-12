@@ -752,6 +752,13 @@ private:
     QDomElement m_defaultStyle;
     office::DrawingBudget m_budget;               // what the whole file may keep (kMaxObjects...), drawn from by every read of it
     bool m_pageFull = false;                      // a page held more than one may keep
+    // The charts drawn so far, by part, size, and look (readFrameChart), and the parts kept behind each chart part.
+    struct ChartDrawing {
+        QString imageId;
+        bool coarser = false;
+    };
+    QHash<QString, ChartDrawing> m_chartDrawings;
+    QHash<QString, std::optional<QJsonObject>> m_chartParts;
     QHash<QString, QString> m_images;             // the pictures and movies kept, by part and link, for every shape that uses one
     std::vector<std::unique_ptr<MasterCtx>> m_masters;
     std::vector<std::unique_ptr<LayoutCtx>> m_layouts;
@@ -1253,13 +1260,26 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     if (rel.id.isEmpty() || rel.external || !m_pkg.hasPart(rel.target)) return false;
     const QDomElement cNvPr = pChild(pChild(frame, "nvGraphicFramePr"), "cNvPr");
     if (office::parseBool(office::attr(cNvPr, QStringLiteral("hidden")))) return false;
-    office::Chart chart;
-    if (!office::readChart(m_pkg.part(rel.target), sc.ctx.theme, sc.ctx.colors, &chart)) return false;
     const QDomElement xfrm = pChild(frame, "xfrm"), off = aChild(xfrm, "off"), ext = aChild(xfrm, "ext");
     auto points = [](const QDomElement &e, const char *name) { return office::emuToPoints(office::parseInt(office::attr(e, QLatin1String(name)))); };
     // A frame is no larger than a slide can be (a chart is drawn that large, not as large as a file says it is).
     const QRectF rect(points(off, "x"), points(off, "y"), std::clamp(points(ext, "cx"), 0.0, office::kChartMaxSide), std::clamp(points(ext, "cy"), 0.0, office::kChartMaxSide));
     if (rect.width() < 1 || rect.height() < 1) return false;
+    // A chart that many frames show is read and drawn once for each size and look: the theme's colors and fonts, and how the slide maps them.
+    QString look = rel.target.toLower() + QLatin1Char('|') + QString::number(rect.width()) + QLatin1Char('x') + QString::number(rect.height());
+    for (const QColor &c : sc.ctx.theme.colors) look += QLatin1Char('|') + c.name(QColor::HexArgb);
+    look += QLatin1Char('|') + sc.ctx.theme.majorLatin + QLatin1Char('|') + sc.ctx.theme.minorLatin;
+    const office::ColorMap &map = sc.ctx.colors;
+    for (const auto slot : {map.bg1, map.tx1, map.bg2, map.tx2, map.accent[0], map.accent[1], map.accent[2], map.accent[3], map.accent[4], map.accent[5], map.hlink, map.folHlink})
+        look += QLatin1Char('|') + QString::number(int(slot));
+    auto drawn = m_chartDrawings.constFind(look);
+    if (drawn == m_chartDrawings.cend()) {
+        office::Chart chart;
+        ChartDrawing d;
+        if (office::readChart(m_pkg.part(rel.target), sc.ctx.theme, sc.ctx.colors, &chart)) d.imageId = addImage(office::chartSvg(chart, rect.size(), &d.coarser), QStringLiteral("svg"));
+        drawn = m_chartDrawings.insert(look, d);
+    }
+    if (drawn->imageId.isEmpty()) return false;
 
     auto pic = std::make_shared<PictureItem>();
     pic->name = office::attr(cNvPr, QStringLiteral("name"));
@@ -1267,18 +1287,23 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     pic->rect = rect;
     pic->imgRect = QRectF(QPointF(0, 0), rect.size());
     pic->wrap.mode = Wrap::None;
-    bool coarser = false;
-    pic->imageId = addImage(office::chartSvg(chart, rect.size(), &coarser), QStringLiteral("svg"));
-    if (coarser) note(say("The chart \"%1\" has more points than a picture of it can show, so its picture is drawn from some of them.").arg(pic->name));
+    pic->imageId = drawn->imageId;
+    if (drawn->coarser) note(say("The chart \"%1\" has more points than a picture of it can show, so its picture is drawn from some of them.").arg(pic->name));
     PhRef ph;
     if (placeholderOf(frame, &ph)) pic->role = roleOf(ph);
     sc.page->items.push_back(pic);
 
-    QJsonObject parts;
-    QSet<QString> seen;
-    qint64 bytes = 0;
-    if (keepChartPart(rel.target, &parts, &seen, &bytes, 0))
-        sc.charts.append(QJsonObject{{"item", pic->id}, {"main", rel.target}, {"frameXml", standaloneXml(frame)}, {"parts", parts}});
+    // The parts behind it are kept once too, and shared by the frames that show it.
+    auto kept = m_chartParts.constFind(rel.target.toLower());
+    if (kept == m_chartParts.cend()) {
+        QJsonObject parts;
+        QSet<QString> seen;
+        qint64 bytes = 0;
+        const bool ok = keepChartPart(rel.target, &parts, &seen, &bytes, 0);
+        kept = m_chartParts.insert(rel.target.toLower(), ok ? std::optional<QJsonObject>(parts) : std::nullopt);
+    }
+    if (*kept)
+        sc.charts.append(QJsonObject{{"item", pic->id}, {"main", rel.target}, {"frameXml", standaloneXml(frame)}, {"parts", **kept}});
     else
         note(say("The parts behind the chart \"%1\" are too many or too large to keep, so it is saved as a picture of the chart.").arg(pic->name));
     return true;

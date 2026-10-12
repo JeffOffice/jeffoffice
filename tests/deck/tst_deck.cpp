@@ -8839,6 +8839,44 @@ private Q_SLOTS:
         QVERIFY(d->pages[0]->notesStoryId != d->pages[1]->notesStoryId);
     }
 
+    // A chart that many frames show is read and drawn once for each size and
+    // look: 120 frames of one chart of 8,000 points take the time of one.
+    void importDrawsAChartOnceForTheFramesThatShowIt()
+    {
+        Parts p = chartPptx();
+        QString points;
+        for (int i = 0; i < 8000; ++i) points += QStringLiteral("<c:pt idx=\"%1\"><c:v>%2</c:v></c:pt>").arg(i).arg(i % 97);
+        QString chart = QString::fromUtf8(p.data["/ppt/charts/chart1.xml"].xml);
+        chart.replace(QRegularExpression(QStringLiteral("<c:ptCount val=\"3\"/><c:pt idx=\"0\"><c:v>10</c:v>.*?</c:numCache>")),
+                      QStringLiteral("<c:ptCount val=\"8000\"/>") + points + QStringLiteral("</c:numCache>"));
+        QVERIFY(chart.contains(QStringLiteral("val=\"8000\"")));
+        p.data["/ppt/charts/chart1.xml"].xml = chart.toUtf8();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const qsizetype named = xml.indexOf(QStringLiteral("name=\"Chart 8\""));
+        const qsizetype from = xml.lastIndexOf(QStringLiteral("<p:graphicFrame>"), named), to = xml.indexOf(QStringLiteral("</p:graphicFrame>"), named) + 17;
+        const QString frame = xml.mid(from, to - from);
+        QString frames;
+        for (int i = 0; i < 120; ++i) frames += QString(frame).replace(QStringLiteral("id=\"9\""), QStringLiteral("id=\"%1\"").arg(100 + i));
+        xml.replace(frame, frames);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        const qint64 ms = timer.elapsed();
+        QVERIFY2(d, qPrintable(err));
+        QSet<QString> ids;
+        int charts = 0;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Picture && it->name == QLatin1String("Chart 8")) {
+                ++charts;
+                ids.insert(static_cast<const PictureItem *>(it.get())->imageId);
+            }
+        QCOMPARE(charts, 120);
+        QCOMPARE(int(ids.size()), 1);
+        QVERIFY2(ms < 3000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+    }
+
     // A chart on a slide is a picture of it (an SVG drawn from the values the file stores), in the frame's place, and its parts
     // (the chart, the workbook behind it, and what they link to) are kept with the slide to be written back.
     void importReadsChartsAsPictures()
