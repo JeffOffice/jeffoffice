@@ -1,18 +1,24 @@
 // JeffDeck's commands that open the dialog boxes it shares with the other
 // apps (Font, Paragraph, Bullets and Numbering, Symbol, Link, Date and Time,
-// Spelling, Thesaurus, Word Count).
+// Spelling, Thesaurus, Word Count, Options), and its own page of Options.
 
 #include "app/deckwindow.h"
 
+#include "app/deckcanvas.h"
 #include "app/editor.h"
+#include "app/optionsdialog.h"
 #include "app/proofingdialogs.h"
+#include "app/settings.h"
 #include "app/textdialogs.h"
 
 #include <QAction>
+#include <QCheckBox>
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextDocument>
+#include <QVBoxLayout>
+#include <memory>
 
 namespace jp {
 
@@ -69,6 +75,46 @@ void DeckWindow::createDialogActions()
     mk("review.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this, ed] { spellingDialog(this, ed); });
     mk("review.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this, ed] { thesaurusDialog(this, ed); });
     mk("review.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this, ed] { slideWordCount(this, ed); });
+
+    // Options: the shared General and Proofing pages, then the View page, which
+    // sets how every window opens (and the open ones, now).
+    mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
+        struct Fields {
+            QCheckBox *ruler = nullptr, *snap = nullptr;
+        };
+        auto f = std::make_shared<Fields>();
+        QVector<OptionsPage> pages;
+        pages << OptionsPage{tr("View"), [this, f] {
+            auto *page = new QWidget();
+            auto *column = new QVBoxLayout(page);
+            f->ruler = new QCheckBox(tr("Show the ruler"), page);
+            f->ruler->setObjectName(QStringLiteral("showRuler"));
+            f->ruler->setChecked(m_ed->view.rulers);
+            f->snap = new QCheckBox(tr("Snap objects to other objects"), page);
+            f->snap->setObjectName(QStringLiteral("snapObjects"));
+            f->snap->setChecked(m_ed->view.snapObjects);
+            column->addWidget(f->ruler);
+            column->addWidget(f->snap);
+            column->addStretch(1);
+            return page;
+        }, [f] {
+            Settings::get().setValue(QStringLiteral("view/rulers"), f->ruler->isChecked());
+            Settings::get().setValue(QStringLiteral("view/snapObjects"), f->snap->isChecked());
+            for (AppWindow *w : AppWindow::windows())
+                if (auto *deck = qobject_cast<DeckWindow *>(w)) {
+                    deck->m_ed->view.rulers = f->ruler->isChecked();
+                    deck->m_canvas->setRulersVisible(f->ruler->isChecked());
+                    deck->m_ed->view.snapObjects = f->snap->isChecked();
+                    deck->refreshUi();
+                }
+        }};
+        optionsDialog(this, m_ed, pages);
+    });
+
+    // A window opens as the View page left it.
+    m_ed->view.rulers = Settings::get().value(QStringLiteral("view/rulers"), false).toBool();
+    m_canvas->setRulersVisible(m_ed->view.rulers);
+    m_ed->view.snapObjects = Settings::get().value(QStringLiteral("view/snapObjects"), true).toBool();
 }
 
 } // namespace jp

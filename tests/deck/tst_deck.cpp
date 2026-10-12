@@ -2819,7 +2819,7 @@ private Q_SLOTS:
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
         QCOMPARE(tabs.indexOf(QStringLiteral("Review")), tabs.indexOf(QStringLiteral("Slide Show")) + 1);
         for (const char *id : {"review.spelling", "review.thesaurus", "review.wordCount", "insert.symbol", "insert.link", "insert.dateTime", "fmt.fontDialog", "para.dialog", "fmt.spacingDialog",
-                               "para.bulletsDialog", "para.numberingDialog"})
+                               "para.bulletsDialog", "para.numberingDialog", "file.options"})
             QVERIFY2(w.act(QString::fromLatin1(id)), id);
         for (const QString &name : {QStringLiteral("Home"), QStringLiteral("Insert"), QStringLiteral("Review")}) {
             QVERIFY2(w.ribbon()->tab(name), qPrintable(name));
@@ -2843,6 +2843,57 @@ private Q_SLOTS:
         QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.symbol")));
         QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.link")));
         QVERIFY(has(QStringLiteral("Insert"), QStringLiteral("insert.dateTime")));
+    }
+
+    // File > Options is the shared dialog: its General tab has the user name
+    // and the app's own name in the update check, Proofing follows, and
+    // JeffDeck's View page sets the ruler and snapping for every open window.
+    void optionsHasTheGeneralTabAndTheViewPage()
+    {
+        DeckWindow w;
+        QVERIFY(w.act(QStringLiteral("file.options")));
+        QStringList tabNames;
+        QString title, shown, userName, updates;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            title = d->windowTitle();
+            if (auto *tabs = d->findChild<QTabWidget *>()) {
+                shown = tabs->tabText(tabs->currentIndex());
+                for (int i = 0; i < tabs->count(); ++i) tabNames << tabs->tabText(i);
+            }
+            for (QLabel *l : d->findChildren<QLabel *>())
+                if (l->text() == QLatin1String("User name:") && l->buddy()) userName = static_cast<QLineEdit *>(l->buddy())->text();
+            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("updates"))) updates = box->text();
+            d->reject();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QCOMPARE(title, QStringLiteral("JeffDeck Options"));
+        QCOMPARE(tabNames, (QStringList{"General", "Proofing", "View"}));
+        QCOMPARE(shown, QStringLiteral("General"));
+        QCOMPARE(userName, Settings::get().userName());
+        QCOMPARE(updates, QStringLiteral("Check for updates when JeffDeck starts"));
+        // The View page: the ruler and snapping, in this window now and in new ones.
+        QVERIFY(!w.editor()->view.rulers);
+        QVERIFY(w.editor()->view.snapObjects);
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("showRuler"))) box->setChecked(true);
+            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("snapObjects"))) box->setChecked(false);
+            d->accept();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(w.editor()->view.rulers);
+        QVERIFY(!w.canvas()->hRuler()->isHidden());
+        QVERIFY(!w.editor()->view.snapObjects);
+        {
+            DeckWindow another;
+            QVERIFY(another.editor()->view.rulers);
+            QVERIFY(!another.editor()->view.snapObjects);
+        }
+        Settings::get().setValue(QStringLiteral("view/rulers"), false);
+        Settings::get().setValue(QStringLiteral("view/snapObjects"), true);
     }
 
 private:
