@@ -355,9 +355,12 @@ QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QCol
     if (rId.isEmpty() || !ctx.package || !ctx.addImage || part.isEmpty()) return QString();
     QString key = part + QLatin1Char('#') + rId;
     for (const QColor &c : duotone) key += QLatin1Char('/') + c.name(QColor::HexArgb);
-    if (sc.images) {
-        const auto known = sc.images->constFind(key);
-        if (known != sc.images->constEnd()) return *known;
+    // The read's own pictures, else the whole import's (a background's or a
+    // table cell's picture fill is read without a shape's).
+    QHash<QString, QString> *images = sc.images ? sc.images : ctx.images;
+    if (images) {
+        const auto known = images->constFind(key);
+        if (known != images->constEnd()) return *known;
     }
     QString id;
     const Relationship rel = ctx.package->relationship(part, rId);
@@ -391,7 +394,7 @@ QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QCol
         }
         if (!bytes.isEmpty() && !format.isEmpty()) id = ctx.addImage(bytes, format);
     }
-    if (sc.images) sc.images->insert(key, id);
+    if (images) images->insert(key, id);
     return id;
 }
 
