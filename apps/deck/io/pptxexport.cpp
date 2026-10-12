@@ -1346,8 +1346,8 @@ QByteArray Exporter::run(QString *error)
 
 PresentationKind kindOfFileName(const QString &path)
 {
-    if (path.endsWith(QLatin1String(".potx"), Qt::CaseInsensitive)) return PresentationKind::Template;
-    if (path.endsWith(QLatin1String(".ppsx"), Qt::CaseInsensitive)) return PresentationKind::Show;
+    if (path.endsWith(QLatin1String(".potx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pot"), Qt::CaseInsensitive)) return PresentationKind::Template;
+    if (path.endsWith(QLatin1String(".ppsx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pps"), Qt::CaseInsensitive)) return PresentationKind::Show;
     return PresentationKind::Presentation;
 }
 

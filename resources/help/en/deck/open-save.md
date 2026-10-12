@@ -25,7 +25,7 @@ Click **File > Save As**, or press F12. Type a name, pick the kind, and click **
 
 If you leave off the ending, JeffDeck adds the one that goes with the kind. After a save, the title bar shows the new name, and you keep working in the new file.
 
-A presentation you opened from a template is saved as a new presentation: **Save** asks for a name, so the template stays as it was. The same goes for one opened from an .odp or .otp file.
+A presentation you opened from a template is saved as a new presentation: **Save** asks for a name, so the template stays as it was. The same goes for one opened from an older .ppt, .pps, or .pot file, or from an .odp or .otp file.
 
 ## Open
 
@@ -38,7 +38,7 @@ Right-click a name in the list to **Pin to list** (it stays at the top), **Unpin
 ## Kinds of files JeffDeck reads
 
 - **.pptx, .potx, and .ppsx** are one format in three forms: a presentation, a template, and a show. JeffDeck reads and writes all three.
-- **.ppt, .pps, and .pot** are the older kind. JeffDeck reads them but can't write them. Use **Save As** and save a .pptx.
+- **.ppt, .pps, and .pot** are the older kind. JeffDeck reads them but can't write them, so **Save** asks for a new name and saves a .pptx (a .ppsx for a .pps). It never writes over the original.
 - **.odp and .otp** are open document presentations and their templates. JeffDeck reads them, and saves them as a new .pptx. It never writes over the original.
 
 If part of a file can't be read, JeffDeck opens the rest and lists what it left out. If the whole file can't be read, it says why.
