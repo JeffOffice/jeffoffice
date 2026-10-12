@@ -174,6 +174,7 @@ void DeckWindow::createActions()
 
     mk("view.notes", tr("Notes"), "notebook-pen", QKeySequence(), [this] { m_notes->setVisible(!m_notes->isVisible()); refreshUi(); }, true);
     mk("view.fit", tr("Fit to Window"), "scan", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::WholePage); });
+    createShowActions();
 }
 
 void DeckWindow::buildRibbon()
@@ -197,6 +198,7 @@ void DeckWindow::buildRibbon()
     QFile f(QStringLiteral(":/deck/ribbon.json"));
     QByteArray json;
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
+    addShowParts(parts);
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
 }
 

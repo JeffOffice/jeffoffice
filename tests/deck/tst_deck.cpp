@@ -6,6 +6,7 @@
 #include "app/editor.h"
 #include "app/notespane.h"
 #include "app/presenterview.h"
+#include "app/ribbon.h"
 #include "app/slideshow.h"
 #include "app/slidespane.h"
 #include "core/deck.h"
@@ -14,8 +15,11 @@
 #include "render/renderer.h"
 
 #include <QAbstractButton>
+#include <QCheckBox>
 #include <QDesktopServices>
+#include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QMenu>
 #include <QPainter>
 #include <QPointer>
 #include <QSettings>
@@ -23,6 +27,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextDocument>
+#include <QToolButton>
 #include <QUrl>
 
 using namespace jp;
@@ -482,6 +487,88 @@ private Q_SLOTS:
         QCOMPARE(pv.timerText(), QStringLiteral("00:00"));
     }
 
+    // The Transitions tab: each command is a step that undoes; Apply To All
+    // gives every slide the transition of the one being edited.
+    void windowTransitionsTab()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.ribbon()->tab(QStringLiteral("Transitions")));
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        QCOMPARE(ed->currentPage(), 2);
+        auto current = [&] { return deck::transitionOf(*ed->doc()->pages[ed->currentPage()]); };
+        QCOMPARE(current().type, QStringLiteral("none"));
+        for (const QString &type : deck::transitionTypes()) QVERIFY2(w.act("transition." + type), qPrintable(type));
+        w.act("transition.push")->trigger();
+        QCOMPARE(current().type, QStringLiteral("push"));
+        QCOMPARE(deck::transitionOf(*ed->doc()->pages[1]).type, QStringLiteral("none"));   // only this slide
+        QVERIFY(w.act("transition.push")->isChecked());
+        w.act("transition.dir.u")->trigger();
+        QCOMPARE(current().dir, QStringLiteral("u"));
+        w.act("transition.zoom")->trigger();   // a type that goes in or out takes its default
+        QCOMPARE(current().dir, QStringLiteral("in"));
+        w.act("transition.dir.out")->trigger();
+        QCOMPARE(current().dir, QStringLiteral("out"));
+        w.act("transition.push")->trigger();
+        QCOMPARE(current().dir, QStringLiteral("l"));   // and back to one that goes in a direction
+        // Timing.
+        auto *duration = w.ribbon()->findChild<QDoubleSpinBox *>("transitionDuration");
+        auto *onClick = w.ribbon()->findChild<QCheckBox *>("advanceOnClick");
+        auto *after = w.ribbon()->findChild<QCheckBox *>("advanceAfter");
+        auto *seconds = w.ribbon()->findChild<QDoubleSpinBox *>("advanceAfterSeconds");
+        QVERIFY(duration && onClick && after && seconds);
+        QCOMPARE(duration->value(), 0.7);
+        QVERIFY(onClick->isChecked());
+        QVERIFY(!after->isChecked());
+        QVERIFY(!seconds->isEnabled());
+        duration->setValue(1.5);
+        QCOMPARE(current().duration, 1.5);
+        onClick->setChecked(false);
+        QVERIFY(!current().advanceOnClick);
+        after->setChecked(true);
+        QVERIFY(seconds->isEnabled());
+        QVERIFY(current().advanceAfter);
+        seconds->setValue(4);
+        QCOMPARE(*current().advanceAfter, 4.0);
+        // Another slide shows its own settings; coming back shows these.
+        ed->setCurrentPage(0);
+        QTRY_COMPARE(duration->value(), 0.7);
+        QVERIFY(onClick->isChecked());
+        QVERIFY(!after->isChecked());
+        ed->setCurrentPage(2);
+        QTRY_COMPARE(duration->value(), 1.5);
+        QVERIFY(!onClick->isChecked());
+        QVERIFY(after->isChecked());
+        QCOMPARE(seconds->value(), 4.0);
+        // Apply To All is one step.
+        const deck::Transition mine = current();
+        QVERIFY(mine.type == QLatin1String("push"));
+        w.act("transition.applyToAll")->trigger();
+        for (int i = 0; i < 3; ++i) QVERIFY(deck::transitionOf(*ed->doc()->pages[i]) == mine);
+        ed->undo();
+        QVERIFY(deck::transitionOf(*ed->doc()->pages[0]) == deck::Transition());
+        QVERIFY(deck::transitionOf(*ed->doc()->pages[1]) == deck::Transition());
+        QVERIFY(deck::transitionOf(*ed->doc()->pages[2]) == mine);
+        // Each of the others was a step too.
+        ed->undo();   // seconds
+        QCOMPARE(current().advanceAfter.value_or(-1), 5.0);
+        ed->undo();   // After on
+        QVERIFY(!current().advanceAfter);
+        ed->undo();   // On Mouse Click off
+        QVERIFY(current().advanceOnClick);
+        ed->undo();   // duration
+        QCOMPARE(current().duration, 0.7);
+        ed->undo();   // push again
+        QCOMPARE(current().type, QStringLiteral("zoom"));
+        QCOMPARE(current().dir, QStringLiteral("out"));
+        // None takes the transition off and the star with it.
+        w.act("transition.none")->trigger();
+        QVERIFY(deck::transitionOf(*ed->doc()->pages[2]) == deck::Transition());
+        QVERIFY(!ed->doc()->pages[2]->props.contains(QStringLiteral("transition")));
+    }
+
     // Painting only the changed part of a frame over the last one gives the
     // next frame, for every type and direction.
     void transitionChangeRegionIsComplete()
@@ -530,6 +617,78 @@ private Q_SLOTS:
         cut.type = QStringLiteral("cut");
         QVERIFY(transitionChange(cut, QSizeF(1920, 1080), 0.4, 0.5).isEmpty());
         QVERIFY(!transitionChange(cut, QSizeF(1920, 1080), 0.3, 0.4).isEmpty());
+    }
+
+    // Effect Options lists the ways the slide's transition goes.
+    void windowEffectOptionsMenu()
+    {
+        DeckWindow w;
+        QAction *command = w.findChild<QAction *>(QStringLiteral("ribbon.effectOptions"));
+        QVERIFY(command);
+        QMenu *menu = nullptr;
+        for (QObject *o : command->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        auto listed = [&] {
+            Q_EMIT menu->aboutToShow();
+            return menu->actions();
+        };
+        QCOMPARE(listed().size(), 1);   // nothing to choose for no transition
+        QVERIFY(!listed().at(0)->isEnabled());
+        w.act("transition.push")->trigger();
+        QCOMPARE(listed(), (QList<QAction *>{w.act("transition.dir.l"), w.act("transition.dir.r"), w.act("transition.dir.u"), w.act("transition.dir.d")}));
+        QVERIFY(w.act("transition.dir.l")->isChecked());
+        QVERIFY(!w.act("transition.dir.u")->isChecked());
+        w.act("transition.zoom")->trigger();
+        QCOMPARE(listed(), (QList<QAction *>{w.act("transition.dir.out"), w.act("transition.dir.in")}));
+        QVERIFY(w.act("transition.dir.in")->isChecked());
+        QVERIFY(!w.act("transition.dir.l")->isEnabled());   // a direction means nothing to zoom
+        w.act("transition.fade")->trigger();
+        QCOMPARE(listed().size(), 1);
+    }
+
+    // Preview plays the slide's transition over the slide area and puts
+    // itself away when it is done.
+    void windowTransitionPreview()
+    {
+        DeckWindow w;
+        w.newSlide();
+        QVERIFY(!w.act("transition.preview")->isEnabled());   // no transition to see
+        w.act("transition.wipe")->trigger();
+        QVERIFY(w.act("transition.preview")->isEnabled());
+        w.ribbon()->findChild<QDoubleSpinBox *>("transitionDuration")->setValue(0.2);
+        w.act("transition.preview")->trigger();
+        auto *preview = w.findChild<TransitionPreview *>(QStringLiteral("transitionPreview"));
+        QVERIFY(preview);
+        QVERIFY(preview->isPlaying());
+        QVERIFY(!preview->grab().isNull());
+        QTRY_VERIFY(!preview->isPlaying());
+        QVERIFY(preview->isHidden());
+    }
+
+    // Slides that have a transition are marked in the thumbnails.
+    void slidesPaneMarksTransitions()
+    {
+        DeckWindow w;
+        w.newSlide();
+        Editor *ed = w.editor();
+        auto starPixels = [&] {
+            const QImage img = w.slidesPane()->viewport()->grab().toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (img.pixelColor(x, y) == QColor(0xB6, 0x42, 0x0F)) ++n;
+            return n;
+        };
+        w.slidesPane()->resize(260, 400);
+        w.slidesPane()->refresh();
+        const int plain = starPixels();
+        w.act("transition.fade")->trigger();
+        w.slidesPane()->refresh();
+        QVERIFY(starPixels() > plain);
+        ed->undo();
+        w.slidesPane()->refresh();
+        QCOMPARE(starPixels(), plain);
     }
 
 

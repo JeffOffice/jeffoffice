@@ -193,6 +193,82 @@
       ]
     },
     {
+      "name": "Transitions",
+      "keytip": "K",
+      "groups": [
+        {
+          "name": "Preview",
+          "keytip": "ZP",
+          "items": [
+            {
+              "large": "transition.preview",
+              "keytip": "P"
+            }
+          ]
+        },
+        {
+          "name": "Transition to This Slide",
+          "keytip": "ZT",
+          "items": [
+            {
+              "widget": "transitionGallery",
+              "keytip": "G"
+            },
+            {
+              "large": {
+                "id": "ribbon.effectOptions",
+                "text": "Effect Options",
+                "icon": "sliders-horizontal"
+              },
+              "keytip": "E",
+              "menu": "@effectOptions"
+            }
+          ]
+        },
+        {
+          "name": "Timing",
+          "keytip": "ZM",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Duration:"
+                },
+                {
+                  "widget": "transitionDuration",
+                  "keytip": "D"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "advanceOnClick",
+                  "keytip": "M"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "advanceAfter",
+                  "keytip": "A"
+                },
+                {
+                  "widget": "advanceAfterSeconds",
+                  "keytip": "S"
+                }
+              ]
+            },
+            {
+              "large": "transition.applyToAll",
+              "keytip": "L"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Slide Show",
       "keytip": "S",
       "groups": [

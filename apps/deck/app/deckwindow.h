@@ -56,6 +56,8 @@ protected:
 private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
+    void createShowActions();
+    void addShowParts(struct RibbonParts &parts);
     void createActions();
     void buildRibbon();
     void buildStatusBar();
