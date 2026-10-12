@@ -65,6 +65,7 @@
 #include <QFile>
 #include <QFrame>
 #include <QFileInfo>
+#include <QImageWriter>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLabel>
@@ -7773,6 +7774,332 @@ private Q_SLOTS:
         QCOMPARE(static_cast<const PictureItem *>(second.items[3].get())->imageId, id);
         QCOMPARE(int(d->images.size()), 1);
     }
+
+    // A picture added is not decoded: only its size is read. The first time it
+    // is drawn it is decoded, and a decode the caller already has is kept.
+    void addImageKeepsNoDecodeUntilDrawn()
+    {
+        Document d;
+        QImage img(64, 32, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        const QString id = d.addImage(imageBytes(img), QStringLiteral("png"));
+        QVERIFY(!id.isEmpty());
+        QCOMPARE(d.images.value(id).pixelSize, QSize(64, 32));
+        QVERIFY(d.images.value(id).cache.isNull());
+        QCOMPARE(d.image(id).size(), QSize(64, 32));
+        QVERIFY(!d.images.value(id).cache.isNull());
+        Document e;
+        const QString kept = e.addImage(imageBytes(img), QStringLiteral("png"), QString(), img);
+        QVERIFY(!e.images.value(kept).cache.isNull());
+        // The size read is the size decoding gives: for a JPEG that says it is turned, with its sides swapped,
+        // and for a metafile, which is drawn 1,600 pixels on its long side.
+        QByteArray turned;
+        QBuffer buffer(&turned);
+        buffer.open(QIODevice::WriteOnly);
+        QImageWriter writer(&buffer, "JPEG");
+        writer.setTransformation(QImageIOHandler::TransformationRotate90);
+        QVERIFY(writer.write(img));
+        const QString jpeg = d.addImage(turned, QStringLiteral("jpg"));
+        QVERIFY(d.images.value(jpeg).cache.isNull());
+        const QSize jpegSize = d.images.value(jpeg).pixelSize;
+        QCOMPARE(d.image(jpeg).size(), jpegSize);
+        QCOMPARE(jpegSize, QSize(32, 64));
+        const QString emf = d.addImage(emfBytes(), QStringLiteral("emf"));
+        QVERIFY(!emf.isEmpty());
+        QVERIFY(d.images.value(emf).cache.isNull());
+        QCOMPARE(d.images.value(emf).pixelSize, QSize(1600, 800));
+        QCOMPARE(d.image(emf).size(), QSize(1600, 800));
+        // What isn't a picture is kept as it always was, with a size that is nothing.
+        const QString junk = d.addImage(QByteArray(100, 'x'), QStringLiteral("png"));
+        QVERIFY(!junk.isEmpty());
+        QVERIFY(d.image(junk).isNull());
+    }
+
+    // A picture of more than 256 million pixels (a decode of a gigabyte), and a
+    // metafile of more than 32 MB, are left out, and the document counts them
+    // for the importer's notes. The reference decks' largest picture has 9 million
+    // pixels, JeffPub's own files' 101 million, and the largest metafile is under 1 MB.
+    void addImageLeavesOutPicturesPastTheLimits()
+    {
+        Document d;
+        QImage atLimit(16384, 16384, QImage::Format_Mono);
+        atLimit.fill(0);
+        const QString kept = d.addImage(imageBytes(atLimit), QStringLiteral("png"));
+        QVERIFY(!kept.isEmpty());
+        QVERIFY(d.images.value(kept).cache.isNull());
+        QCOMPARE(d.images.value(kept).pixelSize, QSize(16384, 16384));
+        QCOMPARE(d.imagesLeftOut, 0);
+        QImage past(20000, 16384, QImage::Format_Mono);
+        past.fill(0);
+        const QByteArray png = imageBytes(past);
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(d.addImage(png, QStringLiteral("png")).isEmpty());
+        QVERIFY2(timer.elapsed() < 3000, "reading the size of a picture must not decode it");
+        QCOMPARE(d.imagesLeftOut, 1);
+        QCOMPARE(int(d.images.size()), 1);
+        // The same picture again is left out again (and counted again), not found.
+        QVERIFY(d.addImage(png, QStringLiteral("png")).isEmpty());
+        QCOMPARE(d.imagesLeftOut, 2);
+        // A metafile of 33 MB.
+        const QByteArray emf = emfBytes() + QByteArray(33 * 1024 * 1024, '\0');
+        QVERIFY(d.addImage(emf, QStringLiteral("emf")).isEmpty());
+        QCOMPARE(d.imagesLeftOut, 3);
+        QVERIFY(!d.addImage(emfBytes(), QStringLiteral("emf")).isEmpty());
+        QCOMPARE(d.imagesLeftOut, 3);
+    }
+
+    // The pictures decoded are kept up to a budget; past it, those used longest
+    // ago are dropped (they are decoded again when drawn).
+    void decodedPicturesStayWithinTheirBudget()
+    {
+        Document d;
+        d.imageCacheBudget = 14 * 1024 * 1024;   // three and a half of the 4 MB decodes below
+        QStringList ids;
+        for (int i = 0; i < 12; ++i) ids << d.addImage(imageBytes(grayImage(1024, 1024, 20 * i)), QStringLiteral("png"));
+        QCOMPARE(QSet<QString>(ids.cbegin(), ids.cend()).size(), 12);
+        auto held = [&] {
+            qint64 n = 0;
+            for (const ImageData &image : d.images) n += image.cache.sizeInBytes();
+            return n;
+        };
+        QCOMPARE(held(), qint64(0));
+        for (int i = 0; i < 3; ++i) QVERIFY(!d.image(ids[i]).isNull());
+        QVERIFY(held() <= d.imageCacheBudget);
+        QVERIFY(!d.images.value(ids[1]).cache.isNull());
+        d.image(ids[0]);                                   // used again: the one used longest ago is now ids[1]
+        QVERIFY(!d.image(ids[3]).isNull());
+        QVERIFY(d.images.value(ids[1]).cache.isNull());
+        QVERIFY(!d.images.value(ids[0]).cache.isNull());
+        QVERIFY(!d.images.value(ids[3]).cache.isNull());
+        for (int i = 4; i < 12; ++i) {
+            QVERIFY(!d.image(ids[i]).isNull());
+            QVERIFY(held() <= d.imageCacheBudget);
+        }
+        const QImage again = d.image(ids[1]);
+        QCOMPARE(again.size(), QSize(1024, 1024));
+        QCOMPARE(qGray(again.pixel(0, 0)), 20);
+        QVERIFY(held() <= d.imageCacheBudget);
+        // A picture bigger than the budget is still drawn: it is the only one kept.
+        d.imageCacheBudget = 1024;
+        const QImage alone = d.image(ids[7]);
+        QCOMPARE(alone.size(), QSize(1024, 1024));
+        QCOMPARE(held(), alone.sizeInBytes());
+    }
+
+    // A picture added again is found by what its bytes hash to, wherever the
+    // bytes are kept; entries put in some other way (a file read) are found too, and
+    // an entry whose bytes were changed is never taken for the old bytes.
+    void addImageFindsKnownPicturesByHash()
+    {
+        Document d;
+        QVector<QByteArray> files;
+        QStringList ids;
+        for (int i = 0; i < 300; ++i) {
+            QImage img(8, 8, QImage::Format_RGB32);
+            img.fill(QColor(i % 256, i / 256, 7));
+            files << imageBytes(img);
+            ids << d.addImage(files[i], QStringLiteral("png"));
+        }
+        QCOMPARE(QSet<QString>(ids.cbegin(), ids.cend()).size(), 300);
+        for (int i = 299; i >= 0; --i) QCOMPARE(d.addImage(QByteArray(files[i].constData(), files[i].size()), QStringLiteral("png")), ids[i]);
+        QCOMPARE(int(d.images.size()), 300);
+        ImageData loaded;
+        loaded.bytes = grayPng(8, 8, 99);
+        loaded.format = QStringLiteral("png");
+        d.images.insert(QStringLiteral("zz-loaded"), loaded);
+        QCOMPARE(d.addImage(QByteArray(loaded.bytes.constData(), loaded.bytes.size()), QStringLiteral("png")), QStringLiteral("zz-loaded"));
+        d.images[ids[5]].bytes = grayPng(8, 8, 50);
+        const QString fresh = d.addImage(QByteArray(files[5].constData(), files[5].size()), QStringLiteral("png"));
+        QVERIFY(fresh != ids[5] && !fresh.isEmpty());
+        QCOMPARE(d.addImage(QByteArray(files[6].constData(), files[6].size()), QStringLiteral("png")), ids[6]);
+    }
+
+    // The same picture used again and again (one image part listed by thousands of
+    // pictures) is not compared with the stored copy each time.
+    void addImageDoesNotCompareASharedPictureAgain()
+    {
+        QImage img(2048, 2048, QImage::Format_RGB32);
+        img.fill(Qt::darkGreen);
+        const QByteArray bmp = imageBytes(img, "BMP");
+        QVERIFY(bmp.size() > 10 * 1024 * 1024);
+        Document d;
+        const QString id = d.addImage(bmp, QStringLiteral("bmp"));
+        QVERIFY(!id.isEmpty());
+        QElapsedTimer timer;
+        timer.start();
+        for (int i = 0; i < 4000; ++i)
+            if (d.addImage(bmp, QStringLiteral("bmp")) != id) QFAIL("a picture used again is stored again");
+        QVERIFY2(timer.elapsed() < 1000, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
+        QCOMPARE(int(d.images.size()), 1);
+    }
+
+    // An SVG picture that could read a file, run a script, or take minutes to
+    // draw is left out; ordinary ones, with their links to their own parts and
+    // their small pictures, are kept and drawn.
+    void addImageLeavesOutHostileSvg()
+    {
+        Document d;
+        int left = 0;
+        auto leavesOut = [&](const char *what, const QByteArray &svg) {
+            QElapsedTimer timer;
+            timer.start();
+            const QString id = d.addImage(svg, QStringLiteral("svg"));
+            QVERIFY2(id.isEmpty(), what);
+            QVERIFY2(timer.elapsed() < 2000, what);
+            QCOMPARE(d.imagesLeftOut, ++left);
+        };
+        auto keeps = [&](const char *what, const QByteArray &svg) {
+            const QString id = d.addImage(svg, QStringLiteral("svg"));
+            QVERIFY2(!id.isEmpty(), what);
+            QVERIFY2(!d.image(id).isNull(), what);
+        };
+        const QString rect = QStringLiteral("<rect width=\"10\" height=\"10\" fill=\"red\"/>");
+        leavesOut("script", svgOf(QStringLiteral("<script>alert(1)</script>") + rect));
+        leavesOut("foreignObject", svgOf(QStringLiteral("<foreignObject width=\"10\" height=\"10\"><p xmlns=\"http://www.w3.org/1999/xhtml\">x</p></foreignObject>")));
+        leavesOut("local file", svgOf(QStringLiteral("<image xlink:href=\"/etc/hostname\" width=\"10\" height=\"10\"/>")));
+        leavesOut("file URL", svgOf(QStringLiteral("<image xlink:href=\"file:///etc/hostname\" width=\"10\" height=\"10\"/>")));
+        leavesOut("server share", svgOf(QStringLiteral("<image xlink:href=\"//server/share/x.png\" width=\"10\" height=\"10\"/>")));
+        leavesOut("relative path", svgOf(QStringLiteral("<image href=\"x.png\" width=\"10\" height=\"10\"/>")));
+        leavesOut("web address", svgOf(QStringLiteral("<image href=\"https://example.com/x.png\" width=\"10\" height=\"10\"/>")));
+        leavesOut("another file's part", svgOf(QStringLiteral("<use xlink:href=\"other.svg#a\"/>")));
+        leavesOut("a style that names a file", svgOf(QStringLiteral("<rect width=\"10\" height=\"10\" style=\"fill:url(/tmp/x.png)\"/>")));
+        leavesOut("an imported style sheet", svgOf(QStringLiteral("<style>@import url(x.css);</style>") + rect));
+        leavesOut("doubling uses", svgOf(useBomb(26)));
+        leavesOut("doubling uses, a few more", svgOf(useBomb(20)));
+        leavesOut("a use of itself", svgOf(QStringLiteral("<g id=\"a\"><use xlink:href=\"#a\"/></g>")));
+        leavesOut("a use of a parent", svgOf(QStringLiteral("<g id=\"a\"><g><use xlink:href=\"#a\"/></g></g>")));
+        leavesOut("deep nesting", svgOf(QStringLiteral("<g>").repeated(200) + QStringLiteral("</g>").repeated(200)));
+        leavesOut("a hundred thousand and one parts", svgOf(QStringLiteral("<g/>").repeated(100001)));
+        leavesOut("not an svg", QByteArray("<html><body><svg xmlns=\"http://www.w3.org/2000/svg\"/></body></html>"));
+        leavesOut("not well formed", QByteArray("<svg xmlns=\"http://www.w3.org/2000/svg\"><g></svg>"));
+        // A picture inside one: a nested SVG, or one of more pixels than the limit.
+        leavesOut("an svg inside", svgOf(QStringLiteral("<image width=\"10\" height=\"10\" xlink:href=\"data:image/svg+xml;base64,%1\"/>").arg(QString::fromLatin1(svgOf(rect).toBase64()))));
+        QImage past(20000, 16384, QImage::Format_Mono);
+        past.fill(0);
+        leavesOut("a picture past the limit inside", svgOf(QStringLiteral("<image width=\"10\" height=\"10\" xlink:href=\"data:image/png;base64,%1\"/>").arg(QString::fromLatin1(imageBytes(past).toBase64()))));
+        QVERIFY(d.images.isEmpty());
+        keeps("plain", svgOf(rect));
+        keeps("uses of a part", svgOf(QStringLiteral("<defs>%1</defs><use xlink:href=\"#a\"/><use href=\"#a\" x=\"20\"/>").arg(QStringLiteral("<g id=\"a\">%1</g>").arg(rect))));
+        keeps("eight doublings", svgOf(useBomb(8)));
+        keeps("a link", svgOf(QStringLiteral("<a xlink:href=\"https://example.com\">%1</a>").arg(rect)));
+        keeps("a gradient", svgOf(QStringLiteral("<defs><linearGradient id=\"g\"><stop offset=\"0\" stop-color=\"red\"/><stop offset=\"1\" stop-color=\"blue\"/></linearGradient></defs>"
+                                                 "<rect width=\"10\" height=\"10\" style=\"fill:url(#g)\"/><rect width=\"5\" height=\"5\" fill=\"url(#g)\"/>")));
+        keeps("a small picture inside", svgOf(QStringLiteral("<image width=\"10\" height=\"10\" xlink:href=\"data:image/png;base64,%1\"/>").arg(QString::fromLatin1(tinyPng().toBase64()))));
+        keeps("anchors that link to the part they are in", svgOf(QStringLiteral("<g id=\"state\"><a xlink:href=\"#state\">%1</a></g>").arg(rect)));
+        keeps("a style sheet", svgOf(QStringLiteral("<style>.r { fill: red }</style><rect class=\"r\" width=\"10\" height=\"10\"/>")));
+        QCOMPARE(d.imagesLeftOut, left);
+    }
+
+    // An SVG is drawn 1,200 pixels on its long side at the least, and, whatever
+    // size it asks for, no more than 4,096 on a side or 16 million pixels in all.
+    void svgPicturesAreDrawnWithinASizeCap()
+    {
+        Document d;
+        const QString rect = QStringLiteral("<rect width=\"10\" height=\"10\" fill=\"red\"/>");
+        const QString small = d.addImage(svgOf(rect, QStringLiteral("width=\"400\" height=\"300\" viewBox=\"0 0 400 300\"")), QStringLiteral("svg"));
+        QCOMPARE(d.image(small).size(), QSize(1200, 900));
+        QCOMPARE(d.images.value(small).pixelSize, QSize(1200, 900));
+        const QString wide = d.addImage(svgOf(rect, QStringLiteral("width=\"20000\" height=\"2000\" viewBox=\"0 0 20000 2000\"")), QStringLiteral("svg"));
+        QVERIFY(!wide.isEmpty());
+        const QImage img = d.image(wide);
+        QVERIFY(!img.isNull());
+        QVERIFY(img.width() <= 4096 && img.height() <= 4096);
+        QVERIFY(qint64(img.width()) * img.height() <= 16'000'000);
+        QVERIFY(std::abs(double(img.width()) / img.height() - 10.0) < 0.1);
+        QCOMPARE(d.images.value(wide).pixelSize, img.size());
+        // A frame of a hundred thousand points by ten thousand (a chart, as an SVG) takes no more.
+        const QString huge = d.addImage(svgOf(rect, QStringLiteral("width=\"100000\" height=\"10000\" viewBox=\"0 0 100000 10000\"")), QStringLiteral("svg"));
+        QVERIFY(!huge.isEmpty());
+        QCOMPARE(d.image(huge).size(), d.images.value(huge).pixelSize);
+        QVERIFY(d.image(huge).width() <= 4096);
+        // A thin one keeps at least a pixel.
+        const QString thin = d.addImage(svgOf(rect, QStringLiteral("width=\"1000000\" height=\"85\" viewBox=\"0 0 1000000 85\"")), QStringLiteral("svg"));
+        QVERIFY(!thin.isEmpty());
+        QVERIFY(d.image(thin).width() <= 4096 && d.image(thin).height() >= 1);
+    }
+
+    // A slide's picture that is an SVG which would run for minutes, or one that
+    // reads a file beside the presentation, is left out when the file opens.
+    void importLeavesOutHostileSvgPictures()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QImage secret(4, 4, QImage::Format_RGB32);
+        secret.fill(Qt::red);
+        const QString secretFile = dir.filePath(QStringLiteral("secret.png"));
+        QVERIFY(secret.save(secretFile));
+        const QList<QByteArray> hostile = {svgOf(useBomb(26)),
+                                           svgOf(QStringLiteral("<image xlink:href=\"%1\" width=\"10\" height=\"10\"/>").arg(secretFile))};
+        for (const QByteArray &svg : hostile) {
+            Parts p = samplePptx();
+            p.data["/ppt/media/image1.png"] = {QStringLiteral("image/png"), svg};
+            QElapsedTimer timer;
+            timer.start();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY2(d, qPrintable(err));
+            QVERIFY2(timer.elapsed() < 5000, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
+            QVERIFY(d->images.isEmpty());
+            QVERIFY(d->imagesLeftOut >= 1);
+        }
+    }
+
+private:
+    static QByteArray imageBytes(const QImage &img, const char *format = "PNG")
+    {
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        img.save(&buffer, format);
+        return bytes;
+    }
+    static QImage grayImage(int w, int h, int shade)
+    {
+        QImage img(w, h, QImage::Format_RGB32);
+        img.fill(QColor(shade, shade, shade));
+        return img;
+    }
+    static QByteArray grayPng(int w, int h, int shade) { return imageBytes(grayImage(w, h, shade)); }
+    static QByteArray svgOf(const QString &body, const QString &attrs = QStringLiteral("width=\"100\" height=\"50\" viewBox=\"0 0 100 50\""))
+    {
+        return QStringLiteral("<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" %1>%2</svg>").arg(attrs, body).toUtf8();
+    }
+    // Levels of two uses of the level below, then a use of the top one: 2^levels parts to draw from a few lines.
+    static QString useBomb(int levels)
+    {
+        QString s = QStringLiteral("<defs><g id=\"l0\"><rect width=\"1\" height=\"1\"/></g>");
+        for (int i = 1; i <= levels; ++i)
+            s += QStringLiteral("<g id=\"l%1\"><use xlink:href=\"#l%2\"/><use xlink:href=\"#l%2\"/></g>").arg(i).arg(i - 1);
+        return s + QStringLiteral("</defs><use xlink:href=\"#l%1\"/>").arg(levels);
+    }
+    // A metafile of 150 by 75 points: the 88-byte header, then the end record.
+    static QByteArray emfBytes()
+    {
+        QByteArray e(88, '\0');
+        auto put = [&](int at, qint32 v) {
+            for (int i = 0; i < 4; ++i) e[at + i] = char((quint32(v) >> (8 * i)) & 0xFF);
+        };
+        put(0, 1);
+        put(4, 88);
+        put(16, 199);
+        put(20, 99);
+        put(32, 5290);   // the frame, in hundredths of a millimeter
+        put(36, 2646);
+        put(40, 0x464D4520);
+        put(72, 1920);   // the device, in pixels and in millimeters
+        put(76, 1080);
+        put(80, 508);
+        put(84, 286);
+        QByteArray end(20, '\0');
+        end[0] = 14;
+        end[4] = 20;
+        end[12] = 16;
+        end[16] = 20;
+        return e + end;
+    }
+
+private Q_SLOTS:
 
     // What can't be read yet is kept to write back, with its place.
     void importKeepsUnreadFrames()

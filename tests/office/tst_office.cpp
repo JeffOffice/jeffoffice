@@ -4875,6 +4875,39 @@ private Q_SLOTS:
         QCOMPARE(other.images[0].format, QStringLiteral("jpeg"));
     }
 
+    // A blur, glow, or soft edge is held to 200 points: real presentations use 20,
+    // 10, and 7 at most, and one of the standard's 1,584 points makes a small
+    // shape take most of a minute and gigabytes to draw.
+    void dmlEffectRadiiStopAtTwoHundredPoints()
+    {
+        DmlEnv env;
+        const QString rect = dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        ItemPtr it = dmlOne(env, dmlSp(rect + QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"20116800\" dist=\"0\" dir=\"0\"><a:srgbClr val=\"000000\"/></a:outerShdw>"
+                                                             "<a:glow rad=\"20116800\"><a:srgbClr val=\"00FF00\"/></a:glow><a:softEdge rad=\"20116800\"/></a:effectLst>")));
+        QVERIFY(it->fx.shadow.on && it->fx.glow.on);
+        QVERIFY(near(it->fx.shadow.blur, 200) && near(it->fx.glow.size, 200) && near(it->fx.softEdge, 200));
+        it = dmlOne(env, dmlSp(rect + QStringLiteral("<a:effectLst><a:innerShdw blurRad=\"20116800\" dist=\"0\" dir=\"0\"><a:srgbClr val=\"000000\"/></a:innerShdw></a:effectLst>")));
+        QVERIFY(it->fx.shadow.inner && near(it->fx.shadow.blur, 200));
+        // The largest radii the reference decks have are kept as they are.
+        it = dmlOne(env, dmlSp(rect + QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"254160\" dist=\"0\" dir=\"0\"><a:srgbClr val=\"000000\"/></a:outerShdw>"
+                                                     "<a:glow rad=\"127000\"><a:srgbClr val=\"00FF00\"/></a:glow><a:softEdge rad=\"88900\"/></a:effectLst>")));
+        QVERIFY(near(it->fx.shadow.blur, 20.01, 1e-2) && near(it->fx.glow.size, 10) && near(it->fx.softEdge, 7));
+    }
+
+    // A metafile in a picture record inflates to at most 32 MB (the reference
+    // decks' largest is under 1 MB): a small stream that would give more is left
+    // out, not inflated into memory.
+    void odrawBlipLeavesOutMetafilesOverTheLimit()
+    {
+        QString format;
+        const QByteArray small = odFakeEmf() + QByteArray(1024 * 1024, 'a');
+        QCOMPARE(odrawBlip(odMetafileBlip(0xF01A, 0x3D4, small, true), &format), small);
+        const QByteArray huge = odFakeEmf() + QByteArray(40 * 1024 * 1024, 'a');
+        QVERIFY(odrawBlip(odMetafileBlip(0xF01A, 0x3D4, huge, true), &format).isEmpty());   // deflated: 40 KB
+        QVERIFY(odrawBlip(odMetafileBlip(0xF01A, 0x3D4, huge, false), &format).isEmpty());  // stored
+        QVERIFY(odrawBlip(odMetafileBlip(0xF01B, 0x216, huge, true), &format).isEmpty());
+    }
+
     void dmlFillTakesTheStyleWhenThePropertiesSayNothing()
     {
         DmlEnv env;
