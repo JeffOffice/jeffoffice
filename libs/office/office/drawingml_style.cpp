@@ -377,6 +377,40 @@ Effects resolveEffects(const QVector<QDomElement> &properties, const QDomElement
     return fx;
 }
 
+TextStyleStack withFontReference(const TextStyleStack &base, const QDomElement &style, const QDomElement &own, QDomDocument *keep)
+{
+    const QDomElement ref = childNamed(style, "fontRef");
+    if (ref.isNull()) return base;
+    const QDomElement color = ref.firstChildElement();
+    const bool major = attr(ref, QStringLiteral("idx")) == QLatin1String("major");
+    if (color.isNull() && !major) return base;
+    const QString a(ns::A);
+    QDomElement root = keep->createElementNS(a, QStringLiteral("a:fontStyles"));
+    keep->appendChild(root);
+    QDomElement list = keep->createElementNS(a, QStringLiteral("a:lstStyle"));
+    root.appendChild(list);
+    for (int level = 1; level <= 9; ++level) {
+        QDomElement lvl = keep->createElementNS(a, QStringLiteral("a:lvl%1pPr").arg(level));
+        QDomElement run = keep->createElementNS(a, QStringLiteral("a:defRPr"));
+        if (!color.isNull()) {
+            QDomElement fill = keep->createElementNS(a, QStringLiteral("a:solidFill"));
+            fill.appendChild(keep->importNode(color, true));
+            run.appendChild(fill);
+        }
+        if (major) {
+            QDomElement latin = keep->createElementNS(a, QStringLiteral("a:latin"));
+            latin.setAttributeNS(QString(), QStringLiteral("typeface"), QStringLiteral("+mj-lt"));
+            run.appendChild(latin);
+        }
+        lvl.appendChild(run);
+        list.appendChild(lvl);
+    }
+    TextStyleStack out = base;
+    if (!out.isEmpty() && !own.isNull() && out.last() == own) out.insert(out.size() - 1, list);
+    else out.append(list);
+    return out;
+}
+
 Fill readFill(const QDomElement &spPr, const QDomElement &style, const DrawingContext &ctx)
 {
     StyleContext sc;

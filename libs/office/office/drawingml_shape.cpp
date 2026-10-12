@@ -294,7 +294,7 @@ private:
     ItemPtr line(const Frame &frame, const QString &prst, const QHash<QString, double> &adjust, const QDomElement &cNvPr, const QDomElement &nv,
                  const QVector<QDomElement> &properties, const QDomElement &style);
     void decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, const QVector<QDomElement> &properties, const QDomElement &style);
-    void fillText(const QDomElement &body, const QString &storyId);
+    void fillText(const QDomElement &body, const QString &storyId, const QDomElement &style);
     QString hyperlinkOf(const QDomElement &cNvPr) const;
     void remember(const QDomElement &cNvPr, const ItemPtr &it);
 
@@ -390,10 +390,13 @@ void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, co
     it.fx = resolveEffects(properties, style, sc);
 }
 
-void Reader::fillText(const QDomElement &body, const QString &storyId)
+void Reader::fillText(const QDomElement &body, const QString &storyId, const QDomElement &style)
 {
     if (body.isNull() || storyId.isEmpty() || !m_ctx.storyDoc) return;
-    if (QTextDocument *doc = m_ctx.storyDoc(storyId)) readTextBody(body, doc, m_ctx, m_styles);
+    QTextDocument *doc = m_ctx.storyDoc(storyId);
+    if (!doc) return;
+    QDomDocument keep;
+    readTextBody(body, doc, m_ctx, withFontReference(m_styles, style, childNamed(body, "lstStyle"), &keep));
 }
 
 ItemPtr Reader::group(const QDomElement &e)
@@ -485,7 +488,7 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         t->vertical = props.vertical;
         if (m_ctx.newStory) {
             t->storyId = m_ctx.newStory();
-            fillText(body, t->storyId);
+            fillText(body, t->storyId, style);
         }
         remember(cNvPr, t);
         return t;
@@ -553,7 +556,7 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     if (!body.isNull() && (hasText(body) || !ph.isNull() || textBox) && m_ctx.newStory) {
         auto *first = static_cast<ShapeItem *>(parts[0].get());
         first->storyId = m_ctx.newStory();
-        fillText(body, first->storyId);
+        fillText(body, first->storyId, style);
     }
     ItemPtr result = parts[0];
     if (parts.size() > 1) {

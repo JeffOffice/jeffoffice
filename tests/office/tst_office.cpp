@@ -3,6 +3,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_color.h"
 #include "office/drawingml_geometry.h"
+#include "office/drawingml_style.h"
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
@@ -2136,6 +2137,10 @@ private Q_SLOTS:
         QVERIFY(right.paths[0].path.contains(QPointF(10, 5)));
         QVERIFY(!right.paths[0].path.contains(QPointF(190, 5)));
         QVERIFY(right.paths[0].path.contains(QPointF(180, 60)));
+        // Text goes in the box, not on the arrow.
+        QVERIFY2(dmlRectIs(right.textRect, 0, 0, 200 * 0.64977, 120, 1e-4), qPrintable(dmlRectText(right.textRect)));
+        const Geometry left = presetGeometry(QStringLiteral("leftArrowCallout"), {}, QSizeF(200, 120));
+        QVERIFY2(dmlRectIs(left.textRect, 200 * (1 - 0.64977), 0, 200 * 0.64977, 120, 1e-4), qPrintable(dmlRectText(left.textRect)));
         const Geometry down = presetGeometry(QStringLiteral("downArrowCallout"), {}, QSizeF(120, 200));
         QVERIFY(down.paths[0].path.contains(QPointF(5, 10)));
         QVERIFY(!down.paths[0].path.contains(QPointF(5, 190)));
@@ -2928,6 +2933,49 @@ private Q_SLOTS:
         // A text box with no style has no fill or line, as it says.
         it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"), dmlBody(), QString(), QStringLiteral("txBox=\"1\"")));
         QVERIFY(it->fill.isNone() && it->stroke.isNone());
+    }
+
+    void dmlTextTakesTheStylesFontReference()
+    {
+        DmlEnv env;
+        const QString a(ns::A);
+        const QDomElement base = env.element(QStringLiteral("<a:lstStyle><a:lvl1pPr><a:defRPr sz=\"1800\"/></a:lvl1pPr></a:lstStyle>"));
+        const QDomElement other = env.element(QStringLiteral("<a:lstStyle><a:lvl1pPr algn=\"ctr\"/></a:lstStyle>"));
+        const QDomElement style = env.element(dmlStyle(QStringLiteral("1"), QStringLiteral("1")));
+        QDomDocument keep;
+        // As one more list style, above the others: the font reference's color (light 1 here) at every level.
+        TextStyleStack stack = withFontReference({base}, style, QDomElement(), &keep);
+        QCOMPARE(int(stack.size()), 2);
+        QVERIFY(stack[0] == base);
+        for (int level = 1; level <= 9; ++level) {
+            const QDomElement run = child(child(stack[1], a, QStringLiteral("lvl%1pPr").arg(level)), a, QStringLiteral("defRPr"));
+            QVERIFY(!run.isNull());
+            QCOMPARE(attr(child(child(run, a, QStringLiteral("solidFill")), a, QStringLiteral("schemeClr")), QStringLiteral("val")), QStringLiteral("lt1"));
+        }
+        // Below the shape's own list, when the stack ends in it.
+        stack = withFontReference({other, base}, style, base, &keep);
+        QCOMPARE(int(stack.size()), 3);
+        QVERIFY(stack[0] == other && stack[2] == base);
+        QVERIFY(!child(stack[1], a, QStringLiteral("lvl3pPr")).isNull());
+        stack = withFontReference({base, other}, style, base, &keep);
+        QVERIFY(stack.last() != other && stack.size() == 3);
+        // The heading font, with or without a color; no reference, nothing to say, no change.
+        const QDomElement major = env.element(QStringLiteral("<p:style><a:fontRef idx=\"major\"/></p:style>"));
+        stack = withFontReference({base}, major, QDomElement(), &keep);
+        QCOMPARE(int(stack.size()), 2);
+        const QDomElement run = child(child(stack[1], a, QStringLiteral("lvl1pPr")), a, QStringLiteral("defRPr"));
+        QCOMPARE(attr(child(run, a, QStringLiteral("latin")), QStringLiteral("typeface")), QStringLiteral("+mj-lt"));
+        QVERIFY(child(run, a, QStringLiteral("solidFill")).isNull());
+        QCOMPARE(int(withFontReference({base}, env.element(QStringLiteral("<p:style><a:fontRef idx=\"minor\"/></p:style>")), QDomElement(), &keep).size()), 1);
+        QCOMPARE(int(withFontReference({base}, env.element(QStringLiteral("<p:style/>")), QDomElement(), &keep).size()), 1);
+        QCOMPARE(int(withFontReference({base}, QDomElement(), QDomElement(), &keep).size()), 1);
+        QCOMPARE(int(withFontReference({}, style, QDomElement(), &keep).size()), 1);
+        // A shape that has the style reads its text with it.
+        const QString rect = dmlXfrm(0, 0, 100, 40) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        env.useFormats();
+        const ItemPtr it = dmlOne(env, dmlSp(rect, dmlBody(), dmlStyle(QStringLiteral("1"), QStringLiteral("1"))));
+        QVERIFY(dmlAs<TextItem>(it));
+        QVERIFY(env.stories[0]->toPlainText().contains(QStringLiteral("Hello")));
     }
 
     void dmlShapeReadsEffects()
