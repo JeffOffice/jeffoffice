@@ -7,6 +7,7 @@
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
+#include "text/textengine.h"
 
 #include <QCoreApplication>
 #include <QDomDocument>
@@ -294,6 +295,7 @@ private:
     bool readFramePicture(const QDomElement &frame, Scope &sc);
     bool readFrameTable(const QDomElement &frame, Scope &sc);
     QDomElement tableStyles();
+    void fitRows(TableItem &t);
     void keepUnread(const QDomElement &whole, const QDomElement &frame, Scope &sc);
     QDomElement withEmptyText(const QDomElement &shape);
     QDomElement textStyleFor(const MasterCtx &m, const QString &type) const;
@@ -623,10 +625,45 @@ bool Importer::readFrameTable(const QDomElement &frame, Scope &sc)
     if (!m_defaultStyle.isNull()) styles << m_defaultStyle;
     ItemPtr it = office::readTable(frame, sc.ctx, styles, tableStyles());
     if (!it) return false;
+    fitRows(static_cast<TableItem &>(*it));
     PhRef ph;
     if (placeholderOf(frame, &ph)) it->role = roleOf(ph);
     sc.page->items.push_back(it);
     return true;
+}
+
+// The height a row has in the file is the least it can be: it grows to hold the
+// text of its cells (as Editor::fitTableRows does as text is typed), and the
+// table with it. Cells that span rows, or turn their text, don't make it grow.
+void Importer::fitRows(TableItem &t)
+{
+    if (!t.growToFit) return;
+    LayoutEnv env;
+    env.colors = m_doc.colors;
+    env.fonts = m_doc.fonts;
+    env.defaultTab = m_doc.defaultTabStop;
+    bool grew = false;
+    for (int r = 0; r < t.rows; ++r) {
+        double need = 0;
+        for (int c = 0; c < t.cols; ++c) {
+            const TableCell &cell = t.cell(r, c);
+            const QTextDocument *story = cell.covered || cell.rowSpan > 1 || cell.vertical || cell.divided() ? nullptr : m_doc.storyDoc(cell.storyId);
+            if (!story) continue;
+            FrameSpec spec;
+            spec.size = QSizeF(t.cellRect(r, c).width(), 1e5);
+            spec.insets = cell.margins;
+            spec.hyphenate = cell.hyphenate;
+            spec.hyphenZone = cell.hyphenZone;
+            StoryLayout layout;
+            layout.build(story, {spec}, env);
+            need = std::max(need, layout.usedHeight(0));
+        }
+        if (need > t.rowH[r]) {
+            t.rowH[r] = need;
+            grew = true;
+        }
+    }
+    if (grew) t.syncRect();
 }
 
 // What a frame shows for itself, when it holds a picture of it.

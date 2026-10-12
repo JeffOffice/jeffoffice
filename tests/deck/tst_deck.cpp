@@ -2014,6 +2014,68 @@ private Q_SLOTS:
         QCOMPARE(back->storyDoc(u->cell(0, 1).storyId)->toPlainText(), QStringLiteral("Revenue"));
     }
 
+    // A table in a pair of alternatives is read from the choice, and its fallback picture is left alone.
+    void importReadsATableInAlternatives()
+    {
+        Parts p = samplePptx();
+        const QString table = QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Chosen\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                                             "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"1828800\" cy=\"370840\"/></p:xfrm>"
+                                             "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr/><a:tblGrid><a:gridCol w=\"1828800\"/></a:tblGrid>"
+                                             "<a:tr h=\"370840\"><a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Alternative</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc></a:tr>"
+                                             "</a:tbl></a:graphicData></a:graphic></p:graphicFrame>");
+        const QString alternatives = QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\">"
+                                                    "<mc:Choice xmlns:a14=\"urn:test:a14\" Requires=\"a14\">%1</mc:Choice><mc:Fallback>%2</mc:Fallback></mc:AlternateContent>")
+                                         .arg(table, pictureShape(9, 914400, 914400));
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(unknownFrame(8), alternatives);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        int tables = 0, pictures = 0;
+        for (const auto &it : d->pages[0]->items) {
+            tables += it->type() == ItemType::Table;
+            pictures += it->type() == ItemType::Picture;
+        }
+        QCOMPARE(tables, 1);
+        QCOMPARE(pictures, 1);   // the slide's own, not the fallback's
+        QVERIFY(!d->pages[0]->props.contains(QStringLiteral("unread")));
+    }
+
+    // The height a table's row has in the file is the least it can be: the row grows to hold its text, as in the
+    // presentation program, and the table with it.
+    void importGrowsTableRowsToTheirText()
+    {
+        const auto cell = [](const QString &text) {
+            return QStringLiteral("<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\" sz=\"1400\"/><a:t>%1</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc>").arg(text);
+        };
+        // One narrow column (1 inch): a row of 10 points that has a sentence to hold, one of 200 that has a word, and one empty.
+        const QString table =
+            QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Grows\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                           "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"914400\" cy=\"2794000\"/></p:xfrm>"
+                           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr/><a:tblGrid><a:gridCol w=\"914400\"/></a:tblGrid>"
+                           "<a:tr h=\"127000\">%1</a:tr><a:tr h=\"2540000\">%2</a:tr><a:tr h=\"127000\"><a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p/></a:txBody><a:tcPr/></a:tc></a:tr>"
+                           "</a:tbl></a:graphicData></a:graphic></p:graphicFrame>")
+                .arg(cell(QStringLiteral("one two three four five six seven eight nine ten")), cell(QStringLiteral("word")));
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(unknownFrame(8), table);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TableItem *t = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Table) t = static_cast<const TableItem *>(it.get());
+        QVERIFY(t);
+        QCOMPARE(t->rows, 3);
+        QVERIFY2(t->rowH[0] > 40, qPrintable(QString::number(t->rowH[0])));    // five or so lines of 14 points
+        QCOMPARE(t->rowH[1], 200.0);                                           // room enough: as the file says
+        QVERIFY2(t->rowH[2] > 10 && t->rowH[2] < 40, qPrintable(QString::number(t->rowH[2])));   // a line of the usual 18 points
+        QCOMPARE(t->rect.height(), t->rowH[0] + t->rowH[1] + t->rowH[2]);
+        QCOMPARE(t->rect.width(), 72.0);
+    }
+
     void importKeepsTheme()
     {
         const Parts p = samplePptx();
