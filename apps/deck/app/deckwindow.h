@@ -181,6 +181,7 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QTimer m_refreshTimer, m_recoverTimer;
+    QPair<QString, int> m_fitWatch;   // the text box being edited, and its story's revision when that began
     QString m_recoveryCopy;      // this window's AutoRecover copy, if written
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     QString m_templatePath;      // a template this window wrote: saving again writes over it

@@ -163,6 +163,7 @@ struct BodyProperties {
     VAlign valign = VAlign::Top;
     TextItem::Autofit autofit = TextItem::NoAutofit;
     double fitScale = 1.0;
+    double fitLineCut = 0;      // a:normAutofit's lnSpcReduction, in percent
     int columns = 1;
     double columnGap = 0;
     bool vertical = false;
@@ -194,6 +195,7 @@ BodyProperties readBodyProperties(const QVector<QDomElement> &bodyPrs)
         if (!norm.isNull()) {
             b.autofit = TextItem::ShrinkOnOverflow;
             b.fitScale = std::clamp(parsePercent(attr(norm, QStringLiteral("fontScale")), 1.0), 0.01, 1.0);
+            b.fitLineCut = std::clamp(parsePercent(attr(norm, QStringLiteral("lnSpcReduction")), 0.0) * 100, 0.0, 99.0);
         } else if (!grow.isNull()) {
             b.autofit = TextItem::GrowBox;
         } else if (none.isNull()) {
@@ -487,6 +489,9 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         t->valign = props.valign;
         t->autofit = props.autofit;
         t->fitScale = props.fitScale;
+        t->fitLineCut = props.fitLineCut;
+        // Text the program shrank keeps the size it was given (a:normAutofit's fontScale) until it is edited.
+        t->fitAsStored = t->autofit == TextItem::ShrinkOnOverflow;
         t->columns = props.columns;
         t->columnGap = props.columnGap;
         t->vertical = props.vertical;

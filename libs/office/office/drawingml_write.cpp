@@ -463,6 +463,7 @@ struct Body {
     bool vertical = false;
     TextItem::Autofit autofit = TextItem::NoAutofit;
     double fitScale = 1.0;
+    double fitLineCut = 0;
 };
 
 void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, bool placeholder, DrawingWriteContext &ctx)
@@ -488,6 +489,7 @@ void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, boo
     case TextItem::ShrinkOnOverflow:
         begin(w, "a:normAutofit");
         if (b.fitScale < 1.0) attribute(w, "fontScale", std::clamp<qint64>(percent(b.fitScale), 1000, 100000));
+        if (b.fitLineCut > 0) attribute(w, "lnSpcReduction", std::clamp<qint64>(percent(b.fitLineCut / 100), 0, 99000));
         w.writeEndElement();
         break;
     }
@@ -545,6 +547,7 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     body.vertical = t.vertical;
     body.autofit = t.autofit;
     body.fitScale = t.fitScale;
+    body.fitLineCut = t.fitLineCut;
     writeBody(w, body, storyOf(t.storyId, ctx), ph.is, ctx);
     w.writeEndElement();
 }

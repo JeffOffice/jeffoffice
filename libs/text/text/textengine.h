@@ -89,6 +89,9 @@ struct LayoutEnv {
     // spacing goes above it, the paragraph at the top of a box takes no space
     // before it, and an empty paragraph shows no bullet.
     bool slideLines = false;
+    // Percent taken off each paragraph's line spacing (a slide's text the
+    // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
+    double lineCut = 0;
     QString key() const;
 };
 

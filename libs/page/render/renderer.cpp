@@ -301,14 +301,22 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     }
     LayoutEnv env = Renderer::layoutEnv(doc);
     sig += env.key();
-    const bool autofit = chain.size() == 1 && (head->autofit == TextItem::BestFit || head->autofit == TextItem::ShrinkOnOverflow);
+    // A slide's text the presentation program shrank keeps the size it was given (its file says it) until it is edited here.
+    const bool asStored = doc.slideText && chain.size() == 1 && head->autofit == TextItem::ShrinkOnOverflow && head->fitAsStored;
+    const bool autofit = !asStored && chain.size() == 1 && (head->autofit == TextItem::BestFit || head->autofit == TextItem::ShrinkOnOverflow);
     if (autofit) sig += QStringLiteral("|fit%1%2").arg(int(head->autofit)).arg(head->fitAsStored ? "s" : "");
+    if (asStored) sig += QStringLiteral("|stored%1,%2").arg(head->fitScale).arg(head->fitLineCut);
     const QString key = head->id + QStringLiteral("@") + (doc.find(head->id).page < 0 ? QString::number(pageNumber) : QString());
     Entry &e = m_entries[key];
     if (e.sig != sig || !e.layout) {
         auto lay = std::make_shared<StoryLayout>();
         double scale = 1.0;
-        if (autofit) {
+        if (asStored) {
+            scale = std::clamp(head->fitScale, 0.01, 1.0);
+            env.fontScale = scale;
+            env.lineCut = std::clamp(head->fitLineCut, 0.0, 99.0);
+            lay->build(story->doc.get(), specs, env);
+        } else if (autofit) {
             // Text fits when none is left over and the box holds its lines:
             // a line taller than the box (a banner's headline grown to fill
             // its width) doesn't fit, though the layout still places it. The
@@ -760,7 +768,8 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
     const QImage src = pic.imageId.isEmpty() ? QImage() : ctx.doc->image(pic.imageId);
     if (src.isNull()) {
         if (!ctx.opt.output) {
-            p->fillPath(mask, QColor(236, 236, 236));
+            // A slide's empty picture placeholder shows its fill (a layout's sample picture) under the icon.
+            if (!ctx.doc->slideText || pic.fill.isNone()) p->fillPath(mask, QColor(236, 236, 236));
             drawPlaceholderIcon(p, r);
         }
     } else {
