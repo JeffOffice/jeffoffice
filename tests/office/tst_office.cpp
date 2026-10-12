@@ -2233,7 +2233,7 @@ private Q_SLOTS:
         list += odU32(0x00FF0000) + odU32(65536);       // blue at the end
         list += odU32(0x0000FF00) + odU32(0x4000);      // green a quarter along
         list += odU32(0x000000FF) + odU32(0);           // red at the start
-        f = fillOf({{0x0180, 7}, red, blue, {0x0196, 0, odArray(3, 8, list)}});
+        f = fillOf({{0x0180, 7}, red, blue, {0x0197, 0, odArray(3, 8, list)}});
         QCOMPARE(int(f.stops.size()), 3);
         QVERIFY(f.stops[0].pos == 0 && f.stops[1].pos == 0.25 && f.stops[2].pos == 1);
         QCOMPARE(odRgb(f.stops[1].color), QColor(0, 255, 0));
@@ -2455,7 +2455,7 @@ private Q_SLOTS:
             odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {10800, 0}, {21600, 10800}, {21600, 21600}, {0, 21600}})}, {0x0146, 0, odSegments({0x4000, 0xB300, 0x2001, 0x0001, 0x6001, 0x8000})}}, at) +
             odShape(202, 0xA00, {{0x0081, 127000}, {0x0087, 2}}, at, text) +
             odShape(75, 0xA00, {{0x0104, 2, {}, true}, {0x0100, 0x2000}, {0x0102, 0x2000}}, at) +
-            odShape(3, 0xA00, {{0x0180, 7}, {0x0196, 0, odArray(2, 8, list)}, {0x01D0, 1}}, at) +
+            odShape(3, 0xA00, {{0x0180, 7}, {0x0197, 0, odArray(2, 8, list)}, {0x01D0, 1}}, at) +
             odShape(20, 0xA40, {}, at) + odShape(34, 0xA00, {{0x0147, 5400}}, at) +
             odGroup(QRect(0, 0, 1000, 1000), 0x40, odClientAnchor(0, 0, 100, 100), odShape(1, 0xA02, {}, odChildAnchor(0, 0, 500, 500)) + inner, {{0x0004, 90u << 16}});
         const QByteArray drawing = odDrawing(shapes, odShape(1, 0xC00, {{0x0181, 0x00FF8000}}));
@@ -2518,7 +2518,7 @@ private Q_SLOTS:
         QByteArray segs;
         for (int i = 0; i < 20000; ++i) segs += odU16(0x1FFF);                                   // 20000 runs of 8191 lines, over three vertices
         QVERIFY(tryShape(odShape(0, 0xA00, {{0x0145, 0, odVertices({{0, 0}, {1, 1}, {2, 2}})}, {0x0146, 0, odArray(20000, 2, segs)}}, at)).size() == 1);
-        QVERIFY(tryShape(odShape(3, 0xA00, {{0x0180, 7}, {0x0196, 0, odArray(65535, 8, QByteArray(24, '\x03'))}}, at)).size() == 1);
+        QVERIFY(tryShape(odShape(3, 0xA00, {{0x0180, 7}, {0x0197, 0, odArray(65535, 8, QByteArray(24, '\x03'))}}, at)).size() == 1);
         for (quint32 length : {0xFFFFFFFFu, 0x80000000u, 0x7FFFFFFFu}) {
             QByteArray d = odDrawing(shape);
             for (int at = 0; at + 4 <= d.size(); at += 2) {
@@ -5091,6 +5091,45 @@ private Q_SLOTS:
         QVERIFY(p.read(w.finish()));
         QCOMPARE(p.contentType(QStringLiteral("/a.xml")), QStringLiteral("text/xml"));
         QCOMPARE(p.contentType(QStringLiteral("/b.xml")), QStringLiteral("application/xml"));
+    }
+
+    // The colors of a gradient (fillShadeColors, property 0x0197; the one before it is the preset's number) run along it as the focus
+    // says, like the two colors do: at 100 they run the other way, at 50 there and back, and below zero from the other end.
+    void odrawShadeColorsFollowTheFocus()
+    {
+        auto stopsOf = [&](int focus, const QByteArray &list, const QVector<OdProp> &more = {}) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x018C, quint32(focus)}, {0x0197, 0, odArray(list.size() / 8, 8, list)}};
+            props += more;
+            const Fill f = readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), odContext())[0]->fill;
+            QStringList out;
+            for (const GradientStop &st : f.stops)
+                out << QStringLiteral("%1%2").arg(odRgb(st.color) == QColor(255, 0, 0) ? 'r' : odRgb(st.color) == QColor(0, 0, 255) ? 'b' : 'g').arg(st.pos, 0, 'f', 2);
+            return out.join(QLatin1Char(' '));
+        };
+        // Red, then red up to 65 percent, then blue: how a dark band over a fade is stored.
+        QByteArray band;
+        band += odU32(0x000000FF) + odU32(0);
+        band += odU32(0x000000FF) + odU32(0xA666);
+        band += odU32(0x00FF0000) + odU32(65536);
+        QCOMPARE(stopsOf(0, band), QStringLiteral("r0.00 r0.65 b1.00"));
+        QCOMPARE(stopsOf(100, band), QStringLiteral("b0.00 r0.35 r1.00"));
+        QCOMPARE(stopsOf(-100, band), QStringLiteral("r0.00 r0.65 b1.00"));   // from the other end and the other way: as at 0
+        QCOMPARE(stopsOf(50, band), QStringLiteral("r0.00 r0.32 b0.50 r0.68 r1.00"));
+        // Two colors in a list are the same as two colors without one.
+        QByteArray two;
+        two += odU32(0x000000FF) + odU32(0);
+        two += odU32(0x00FF0000) + odU32(65536);
+        for (int focus : {0, 50, 100, -100, -50}) {
+            const Fill plain = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100010}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x018C, quint32(focus)}}, odClientAnchor(0, 0, 10, 10))),
+                                              odContext())[0]->fill;
+            QStringList expected;
+            for (const GradientStop &st : plain.stops) expected << QStringLiteral("%1%2").arg(odRgb(st.color) == QColor(255, 0, 0) ? 'r' : 'b').arg(st.pos, 0, 'f', 2);
+            QCOMPARE(stopsOf(focus, two), expected.join(QLatin1Char(' ')));
+        }
+        // The property before it (the preset) isn't the list: a gradient with that one alone has its two colors.
+        const Fill preset = readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x01BF, 0x00100010}, {0x0180, 4}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x0196, 0, odArray(3, 8, band)}},
+                                                              odClientAnchor(0, 0, 10, 10))), odContext())[0]->fill;
+        QCOMPARE(int(preset.stops.size()), 2);
     }
 
     // ---- text bodies (DrawingML text read into stories)

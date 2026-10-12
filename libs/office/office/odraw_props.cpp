@@ -15,7 +15,7 @@ bool isArrayProperty(quint16 id)
 {
     switch (id) {
     case 0x0145: case 0x0146: case 0x0151: case 0x0152: case 0x0155: case 0x0156: case 0x0157: case 0x0159:
-    case 0x0196: case 0x01CF: case 0x0383:
+    case 0x0196: case 0x0197: case 0x01CF: case 0x0383:
         return true;
     default:
         return false;
