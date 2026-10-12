@@ -3,13 +3,12 @@
 #include <QCoreApplication>
 #include <QXmlStreamReader>
 #include <cmath>
+#include <cstring>
+#include <string>
 
 namespace jp::office {
 
 namespace {
-
-// Deeper than any real file; see parseXml.
-const int kMaxDepth = 1000;
 
 // Which standard's namespace a URI is, strict or transitional alike: 0 if it
 // is none of ours.
@@ -66,6 +65,67 @@ double finish(bool good, double value, double fallback, bool *ok)
     return good ? value : fallback;
 }
 
+// Whether some tag in the text has more attributes (or namespace
+// declarations) than kMaxAttributesPerElement: a count of the "=" outside
+// quotes in each tag. Comments, CDATA, processing instructions, and a
+// declaration are skipped, so what looks like an attribute in one is not
+// counted. XML that is not well formed may be counted wrong either way, which
+// the parsers then say.
+template <class C>
+bool crowdedTag(const C *p, const C *const end)
+{
+    auto at = [&](const char *text) {
+        for (const C *q = p; *text; ++text, ++q)
+            if (q >= end || *q != C(*text)) return false;
+        return true;
+    };
+    auto skipPast = [&](const char *closer) {
+        while (p < end && !at(closer)) ++p;
+        p = size_t(end - p) < std::strlen(closer) ? end : p + std::strlen(closer);
+    };
+    while (p < end) {
+        if (*p++ != '<') continue;
+        if (at("!--")) {
+            skipPast("-->");
+        } else if (at("![CDATA[")) {
+            skipPast("]]>");
+        } else if (at("?")) {
+            skipPast("?>");
+        } else if (at("!")) {
+            skipPast(">");
+        } else {
+            int count = 0;
+            C quote = 0;
+            for (; p < end && (quote || *p != '>'); ++p) {
+                if (quote) {
+                    if (*p == quote) quote = 0;
+                } else if (*p == '"' || *p == '\'') {
+                    quote = *p;
+                } else if (*p == '=' && ++count > kMaxAttributesPerElement) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// Whether some tag in the XML is crowded (see above). This is done first, on
+// the bytes, because both parsers below take time in proportion to the square
+// of the attributes in a tag and cannot be stopped partway through one. The
+// XML is read as UTF-16 if it is that (a byte order mark, or a "<" in the
+// first two bytes), and as bytes otherwise.
+bool hasCrowdedElement(const QByteArray &xml)
+{
+    const auto *b = reinterpret_cast<const uchar *>(xml.constData());
+    const bool little = xml.size() >= 2 && ((b[0] == 0xff && b[1] == 0xfe) || (b[0] == '<' && b[1] == 0));
+    const bool big = xml.size() >= 2 && ((b[0] == 0xfe && b[1] == 0xff) || (b[0] == 0 && b[1] == '<'));
+    if (!little && !big) return crowdedTag(xml.constData(), xml.constData() + xml.size());
+    std::u16string text(size_t(xml.size()) / 2, u'\0');
+    for (size_t i = 0; i < text.size(); ++i) text[i] = char16_t(little ? b[2 * i] | b[2 * i + 1] << 8 : b[2 * i] << 8 | b[2 * i + 1]);
+    return crowdedTag(text.data(), text.data() + text.size());
+}
+
 } // namespace
 
 bool sameNamespace(const QString &a, const QString &b)
@@ -80,16 +140,26 @@ bool parseXml(const QByteArray &xml, QDomDocument *doc, QString *error)
         if (error) *error = message;
         return false;
     };
+    if (xml.size() > kMaxXmlBytes) return fail(QCoreApplication::translate("Xml", "The XML is too large to open."));
+    if (hasCrowdedElement(xml)) return fail(QCoreApplication::translate("Xml", "The XML has an element with too many attributes."));
     // One quick pass for what the DOM would be slow or unsafe with: a DOCTYPE
-    // (nothing here has a use for entities), and nesting deep enough to make
-    // building the tree take minutes.
+    // (nothing here has a use for entities), nesting deep enough to make
+    // building the tree take minutes, and more nodes than memory is there for.
     QXmlStreamReader r(xml);
     int depth = 0;
+    qint64 nodes = 0;
     while (!r.atEnd()) {
         r.readNext();
         if (r.isDTD()) return fail(QCoreApplication::translate("Xml", "The XML has a DOCTYPE, which is not allowed."));
-        if (r.isStartElement() && ++depth > kMaxDepth) return fail(QCoreApplication::translate("Xml", "The XML is nested too deeply."));
-        if (r.isEndElement()) --depth;
+        if (r.isStartElement()) {
+            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Xml", "The XML is nested too deeply."));
+            nodes += 1 + r.attributes().size();
+        } else if (r.isEndElement()) {
+            --depth;
+        } else if (r.isCharacters() || r.isComment() || r.isProcessingInstruction()) {
+            ++nodes;
+        }
+        if (nodes > kMaxXmlNodes) return fail(QCoreApplication::translate("Xml", "The XML is too large to open."));
     }
     if (r.hasError()) return fail(r.errorString());
     QDomDocument::ParseOptions options(QDomDocument::ParseOption::UseNamespaceProcessing);
