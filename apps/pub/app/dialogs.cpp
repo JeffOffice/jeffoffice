@@ -41,6 +41,7 @@
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRandomGenerator>
 #include <QRadioButton>
 #include <QRegularExpression>
 #include <QSlider>
@@ -1795,6 +1796,49 @@ void fontSchemeDialog(QWidget *p, Editor *ed)
     if (!dlg.exec()) return;
     s = FontScheme{name->text().trimmed().isEmpty() ? QStringLiteral("Custom") : name->text().trimmed(), heading->currentText(), body->currentText()};
     ed->change(QCoreApplication::translate("Dialogs", "Font Scheme"), [&] { ed->doc()->fonts = s; });
+}
+
+// Seamless textures generated from noise, so no texture images need shipping.
+QImage proceduralTexture(const QString &name, int size)
+{
+    QImage img(size, size, QImage::Format_RGB32);
+    QRandomGenerator rng(qHash(name));
+    struct Spec { QColor a, b; double grain; int kind; };
+    static const QHash<QString, Spec> specs{
+        {"Canvas", {QColor(232, 224, 205), QColor(206, 196, 172), 0.6, 1}}, {"Denim", {QColor(70, 96, 140), QColor(46, 64, 104), 0.7, 1}},
+        {"Linen", {QColor(240, 234, 222), QColor(220, 210, 192), 0.4, 1}}, {"Paper", {QColor(250, 248, 242), QColor(232, 228, 216), 0.3, 0}},
+        {"Parchment", {QColor(242, 228, 196), QColor(214, 190, 150), 0.5, 0}}, {"Recycled", {QColor(214, 206, 190), QColor(176, 166, 148), 0.9, 0}},
+        {"Wood", {QColor(176, 128, 82), QColor(132, 88, 52), 0.5, 2}}, {"Marble", {QColor(238, 238, 236), QColor(170, 170, 176), 0.4, 3}},
+        {"Granite", {QColor(150, 146, 140), QColor(90, 86, 84), 1.0, 0}}, {"Cork", {QColor(196, 150, 100), QColor(150, 108, 64), 1.0, 0}},
+        {"Sand", {QColor(232, 212, 170), QColor(204, 180, 134), 0.8, 0}}, {"Stationery", {QColor(252, 252, 250), QColor(214, 226, 240), 0.2, 4}},
+    };
+    const Spec s = specs.value(name, specs["Paper"]);
+    // Tileable value noise.
+    const int g = 16;
+    QVector<double> grid(g * g);
+    for (double &v : grid) v = rng.generateDouble();
+    auto noise = [&](double x, double y) {
+        x = std::fmod(x, g); y = std::fmod(y, g);
+        const int x0 = int(x), y0 = int(y), x1 = (x0 + 1) % g, y1 = (y0 + 1) % g;
+        const double fx = x - x0, fy = y - y0;
+        auto at = [&](int i, int j) { return grid[j * g + i]; };
+        const double a = at(x0, y0) * (1 - fx) + at(x1, y0) * fx, b = at(x0, y1) * (1 - fx) + at(x1, y1) * fx;
+        return a * (1 - fy) + b * fy;
+    };
+    for (int y = 0; y < size; ++y) {
+        QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
+        for (int x = 0; x < size; ++x) {
+            const double u = double(x) / size * g, v = double(y) / size * g;
+            double t = 0.5 * noise(u, v) + 0.25 * noise(u * 2, v * 2) + 0.125 * noise(u * 4, v * 4) + 0.125 * rng.generateDouble() * s.grain;
+            if (s.kind == 1) t = 0.6 * t + 0.4 * (0.5 + 0.5 * std::sin(x * 1.3) * std::sin(y * 1.3));
+            if (s.kind == 2) t = 0.5 + 0.5 * std::sin((double(y) / size * 2 * M_PI * 6) + 4 * noise(u, v));
+            if (s.kind == 3) t = std::pow(std::abs(std::sin((double(x + y) / size * 2 * M_PI * 2) + 5 * noise(u, v))), 0.3);
+            if (s.kind == 4) t = (y % std::max(4, size / 16) == 0) ? 1.0 : 0.1 * t;
+            t = std::clamp(t, 0.0, 1.0);
+            line[x] = qRgb(int(s.a.red() + (s.b.red() - s.a.red()) * t), int(s.a.green() + (s.b.green() - s.a.green()) * t), int(s.a.blue() + (s.b.blue() - s.a.blue()) * t));
+        }
+    }
+    return img;
 }
 
 // ---------------- Fill Effects ----------------
