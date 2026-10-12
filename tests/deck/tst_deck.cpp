@@ -10,6 +10,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/outlineview.h"
 #include "app/presenterview.h"
 #include "app/recovery.h"
 #include "app/ribbon.h"
@@ -505,6 +506,321 @@ private Q_SLOTS:
         w.act("view.normal")->trigger();
         QCOMPARE(w.canvas()->zoom(), canvasZoom);
         QVERIFY(w.canvas()->fitMode() == Canvas::Fit::WholePage);
+    }
+
+    // Outline view: the presentation's text, each slide a numbered heading
+    // with its title in bold and its body lines under it, by level.
+    void outlineShowsTitlesAndBodyLines()
+    {
+        setUiDark(false);
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"Quarterly Review", "Plan", "Budget"}, {{"Subtitle text"}, {"Goals", "Risks"}, {"Spend"}});
+        QVERIFY(w.outlineView()->isHidden());
+        QVERIFY(w.act("view.outline")->isEnabled());
+        QVERIFY(!w.act("view.notesPage")->isEnabled() && w.act("view.notesPage")->toolTip().contains(QStringLiteral("coming")));
+        QVERIFY(!w.act("view.reading")->isEnabled() && w.act("view.reading")->toolTip().contains(QStringLiteral("coming")));
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        QCOMPARE(w.view(), DeckWindow::View::Outline);
+        QVERIFY(o->isVisible() && w.canvas()->isVisible() && w.slidesPane()->isHidden());
+        QVERIFY(w.act("view.outline")->isChecked());
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nPlan\nGoals\nRisks\nBudget\nSpend"));
+        // Titles bold at the left; body lines indented under them.
+        QTextDocument *doc = o->document();
+        auto weight = [&](int line) { return doc->findBlockByNumber(line).begin().fragment().charFormat().fontWeight(); };
+        QVERIFY(weight(0) >= QFont::DemiBold && weight(2) >= QFont::DemiBold && weight(5) >= QFont::DemiBold);
+        QVERIFY(weight(1) < QFont::DemiBold && weight(3) < QFont::DemiBold);
+        QVERIFY(doc->findBlockByNumber(3).blockFormat().leftMargin() > doc->findBlockByNumber(2).blockFormat().leftMargin());
+        // The text follows a change made elsewhere, and the cursor tells the current slide.
+        Editor *ed = w.editor();
+        auto *plan = static_cast<TextItem *>(ed->doc()->pages[1]->items[0].get());
+        ed->doc()->storyDoc(plan->storyId)->clear();
+        QTextCursor typed(ed->doc()->storyDoc(plan->storyId));
+        typed.insertText(QStringLiteral("Roadmap"));
+        ed->notifyLive();
+        QTRY_COMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nRoadmap\nGoals\nRisks\nBudget\nSpend"));
+        o->goToSlide(2);
+        QCOMPARE(o->slideAtCursor(), 2);
+        QCOMPARE(ed->currentPage(), 2);
+        QTextCursor c = o->textCursor();
+        c.setPosition(doc->findBlockByNumber(4).position());   // "Risks"
+        o->setTextCursor(c);
+        QCOMPARE(ed->currentPage(), 1);
+        ed->setCurrentPage(2);   // the slide chosen elsewhere takes the cursor
+        QCOMPARE(o->slideAtCursor(), 2);
+    }
+
+    // Typing in the outline edits the slide's placeholder as one undo step
+    // once typing pauses, keeping the text's formatting.
+    void typingInTheOutlineEditsTheSlide()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"Quarterly Review", "Plan", "Budget"}, {{"Subtitle text"}, {"Goals", "Risks"}, {"Spend"}});
+        Editor *ed = w.editor();
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        const QString before = o->toPlainText();
+        QTextCursor c(o->document()->findBlockByNumber(2));
+        c.movePosition(QTextCursor::EndOfBlock);
+        o->setTextCursor(c);
+        QTest::keyClicks(o, " B");
+        QVERIFY(o->hasTyping());
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QStringLiteral("Plan"));   // waits for a pause
+        o->commit();
+        QVERIFY(!o->hasTyping());
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QStringLiteral("Plan B"));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        const auto *title = static_cast<TextItem *>(ed->doc()->pages[1]->items[0].get());
+        QCOMPARE(ed->doc()->storyDoc(title->storyId)->begin().begin().fragment().charFormat().fontPointSize(), 44.0);
+        ed->undo();
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QStringLiteral("Plan"));
+        QCOMPARE(o->toPlainText(), before);
+        ed->redo();
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QStringLiteral("Plan B"));
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nPlan B\nGoals\nRisks\nBudget\nSpend"));
+        // A body line, and a pause saves it without asking.
+        c = QTextCursor(o->document()->findBlockByNumber(4));
+        c.movePosition(QTextCursor::EndOfBlock);
+        o->setTextCursor(c);
+        QTest::keyClicks(o, "!");
+        QTRY_VERIFY(!o->hasTyping());
+        QCOMPARE(bodyOfSlide(*ed->doc(), 1)->toPlainText(), QStringLiteral("Goals\nRisks!"));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        // Ctrl+Z in the outline undoes the saved step; the line goes back.
+        QTest::keyClick(o, Qt::Key_Z, Qt::ControlModifier);
+        QCOMPARE(bodyOfSlide(*ed->doc(), 1)->toPlainText(), QStringLiteral("Goals\nRisks"));
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nPlan B\nGoals\nRisks\nBudget\nSpend"));
+        // Clicking anywhere else, as for a command, saves what is waiting first.
+        QTest::keyClicks(o, "?");
+        QVERIFY(o->hasTyping());
+        QTest::mouseClick(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
+        QVERIFY(!o->hasTyping());
+        QCOMPARE(bodyOfSlide(*ed->doc(), 1)->toPlainText(), QStringLiteral("Goals\nRisks?"));
+    }
+
+    // Enter on a title line makes a Title and Content slide after that slide
+    // (after its body lines), with the cursor on its title.
+    void enterOnATitleMakesASlide()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"Quarterly Review", "Plan", "Budget"}, {{"Subtitle text"}, {"Goals", "Risks"}, {"Spend"}});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        QTextCursor c(o->document()->findBlockByNumber(2));
+        c.movePosition(QTextCursor::EndOfBlock);
+        o->setTextCursor(c);
+        QTest::keyClick(o, Qt::Key_Return);
+        QCOMPARE(int(d->pages.size()), 4);
+        QCOMPARE(titlesOf(*d), (QStringList{"Quarterly Review", "Plan", "", "Budget"}));
+        QCOMPARE(deck::layoutType(*d->masterFor(*d->pages[2])), QStringLiteral("obj"));
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Goals\nRisks"));   // still Plan's
+        QCOMPARE(ed->currentPage(), 2);
+        QCOMPARE(o->slideAtCursor(), 2);
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nPlan\nGoals\nRisks\n\nBudget\nSpend"));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QTest::keyClicks(o, "Risks");
+        o->commit();
+        QCOMPARE(titleOfSlide(*d, 2), QStringLiteral("Risks"));
+        QCOMPARE(int(d->pages.size()), 4);
+        const auto *made = static_cast<TextItem *>(d->pages[2]->items[0].get());   // typed in the way the title place looks
+        QCOMPARE(d->storyDoc(made->storyId)->begin().begin().fragment().charFormat().fontPointSize(), 44.0);
+        // In the middle of a title it splits: the rest goes to the new slide.
+        c = QTextCursor(o->document()->findBlockByNumber(0));
+        c.setPosition(c.block().position() + 9);
+        o->setTextCursor(c);
+        QTest::keyClick(o, Qt::Key_Return);
+        QCOMPARE(titlesOf(*d), (QStringList{"Quarterly", " Review", "Plan", "Risks", "Budget"}));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(o->slideAtCursor(), 1);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"Quarterly Review", "Plan", "Risks", "Budget"}));
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"Quarterly Review", "Plan", "", "Budget"}));
+        ed->undo();
+        QCOMPARE(int(d->pages.size()), 3);
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nPlan\nGoals\nRisks\nBudget\nSpend"));
+    }
+
+    // Tab on a body line moves it a level in, Shift+Tab a level out (and at
+    // the first level makes it a slide of its own); Tab on a title makes it a
+    // line of the slide before.
+    void tabChangesALinesLevel()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"Quarterly Review", "Plan", "Budget"}, {{"Subtitle text"}, {"Goals", "Risks"}, {"Spend"}});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        auto levelOf = [&](int slide, int line) { return bodyOfSlide(*d, slide)->findBlockByNumber(line).blockFormat().property(tp::ListLevel).toInt(); };
+        auto lineAt = [&](int block) {
+            QTextCursor c(o->document()->findBlockByNumber(block));
+            c.movePosition(QTextCursor::EndOfBlock);
+            o->setTextCursor(c);
+        };
+        lineAt(4);   // "Risks"
+        const qreal flush = o->document()->findBlockByNumber(4).blockFormat().leftMargin();
+        QTest::keyClick(o, Qt::Key_Tab);
+        QCOMPARE(levelOf(1, 1), 1);
+        QCOMPARE(levelOf(1, 0), 0);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QVERIFY(o->document()->findBlockByNumber(4).blockFormat().leftMargin() > flush);
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Goals\nRisks"));
+        QTest::keyClick(o, Qt::Key_Tab);
+        QCOMPARE(levelOf(1, 1), 2);
+        QTest::keyClick(o, Qt::Key_Backtab);
+        QCOMPARE(levelOf(1, 1), 1);
+        QTest::keyClick(o, Qt::Key_Backtab);
+        QCOMPARE(levelOf(1, 1), 0);
+        QCOMPARE(ed->undoStack()->count(), 4);
+        for (int k = 0; k < 4; ++k) ed->undo();
+        QCOMPARE(levelOf(1, 1), 0);
+        ed->undoStack()->clear();
+        // Shift+Tab at the first level: the line becomes a slide, after its own.
+        lineAt(4);
+        QTest::keyClick(o, Qt::Key_Backtab);
+        QCOMPARE(titlesOf(*d), (QStringList{"Quarterly Review", "Plan", "Risks", "Budget"}));
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Goals"));
+        QCOMPARE(ed->currentPage(), 2);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"Quarterly Review", "Plan", "Budget"}));
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Goals\nRisks"));
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nPlan\nGoals\nRisks\nBudget\nSpend"));
+        // Tab on a title: it becomes a line of the slide before, its own lines a level deeper.
+        lineAt(5);   // "Budget"
+        QTest::keyClick(o, Qt::Key_Tab);
+        QCOMPARE(int(d->pages.size()), 2);
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Goals\nRisks\nBudget\nSpend"));
+        QCOMPARE(levelOf(1, 2), 0);
+        QCOMPARE(levelOf(1, 3), 1);
+        QCOMPARE(ed->currentPage(), 1);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"Quarterly Review", "Plan", "Budget"}));
+        // The first slide can't be one.
+        lineAt(0);
+        QTest::keyClick(o, Qt::Key_Tab);
+        QCOMPARE(int(d->pages.size()), 3);
+    }
+
+    // A line typed under a slide that has no place for one gives it a layout
+    // that has, as does a title typed on a slide with no place for a title.
+    void outlineGivesASlideThePlaceholdersItNeeds()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"Quarterly Review", "Plan", "x"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        d->pages[1]->items.resize(1);   // a title only
+        d->pages[1]->masterId = deck::layoutOfType(*d, QStringLiteral("titleOnly"))->id;
+        d->pages[2]->items.clear();     // nothing at all
+        d->pages[2]->masterId = deck::layoutOfType(*d, QStringLiteral("blank"))->id;
+        ed->notifyLive();
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nPlan\n"));
+        QTextCursor c(o->document()->findBlockByNumber(2));
+        o->setTextCursor(c);
+        QTest::keyClicks(o, "Budget");
+        o->commit();
+        QCOMPARE(titleOfSlide(*d, 2), QStringLiteral("Budget"));
+        QCOMPARE(deck::layoutType(*d->masterFor(*d->pages[2])), QStringLiteral("titleOnly"));
+        // Under Plan: its title only, so Tab on the next title (a line of Plan now) gives it a body.
+        c = QTextCursor(o->document()->findBlockByNumber(2));
+        o->setTextCursor(c);
+        QTest::keyClick(o, Qt::Key_Tab);
+        QCOMPARE(int(d->pages.size()), 2);
+        QCOMPARE(deck::layoutType(*d->masterFor(*d->pages[1])), QStringLiteral("obj"));
+        QVERIFY(bodyOfSlide(*d, 1));
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Budget"));
+        QCOMPARE(titleOfSlide(*d, 1), QStringLiteral("Plan"));
+    }
+
+    // Backspace at the start of a title joins it to the line before, which
+    // takes the slide's lines with it; pasting lines makes lines.
+    void joiningAndPastingLinesInTheOutline()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"Quarterly Review", "Plan", "Budget"}, {{"Subtitle text"}, {"Goals", "Risks"}, {"Spend"}});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        QTextCursor c(o->document()->findBlockByNumber(5));   // "Budget"
+        o->setTextCursor(c);
+        QTest::keyClick(o, Qt::Key_Backspace);
+        QCOMPARE(titlesOf(*d), (QStringList{"Quarterly Review", "Plan"}));
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Goals\nRisksBudget\nSpend"));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(int(d->pages.size()), 3);
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nPlan\nGoals\nRisks\nBudget\nSpend"));
+        // Two lines pasted at the end of a body line: the first joins it, the second is a line of its own.
+        QApplication::clipboard()->setText(QStringLiteral("x\ny"));
+        c = QTextCursor(o->document()->findBlockByNumber(3));
+        c.movePosition(QTextCursor::EndOfBlock);
+        o->setTextCursor(c);
+        QTest::keyClick(o, Qt::Key_V, Qt::ControlModifier);
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Goalsx\ny\nRisks"));
+        QCOMPARE(o->toPlainText(), QStringLiteral("Quarterly Review\nSubtitle text\nPlan\nGoalsx\ny\nRisks\nBudget\nSpend"));
+        QCOMPARE(ed->undoStack()->count(), 1);   // in place of the undone join
+        ed->undo();
+        QCOMPARE(bodyOfSlide(*d, 1)->toPlainText(), QStringLiteral("Goals\nRisks"));
+    }
+
+    // Switching views keeps the current slide: the outline puts its cursor on
+    // it, the sorter selects it, and what is chosen there is current in Normal.
+    void switchingViewsKeepsTheCurrentSlide()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four"}, {{}, {"a"}, {"b"}, {"c"}});
+        Editor *ed = w.editor();
+        ed->setCurrentPage(2);
+        w.act("view.outline")->trigger();
+        QCOMPARE(ed->currentPage(), 2);
+        QCOMPARE(w.outlineView()->slideAtCursor(), 2);
+        w.act("view.sorter")->trigger();
+        QCOMPARE(ed->currentPage(), 2);
+        QCOMPARE(w.slideSorter()->selection(), QList<int>({2}));
+        QTest::mouseClick(w.slideSorter()->viewport(), Qt::LeftButton, Qt::NoModifier, centerOf(w.slideSorter(), 3));
+        w.act("view.outline")->trigger();
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(w.outlineView()->slideAtCursor(), 3);
+        w.outlineView()->goToSlide(1);
+        QCOMPARE(ed->currentPage(), 1);
+        w.act("view.normal")->trigger();
+        QCOMPARE(ed->currentPage(), 1);
+        QVERIFY(w.slidesPane()->isVisible() && w.outlineView()->isHidden() && w.slideSorter()->isHidden());
+        QCOMPARE(w.slidesPane()->currentRow(), 1);
+        // The status bar's buttons are the same commands; only one view is checked.
+        w.act("view.sorter")->trigger();
+        int checked = 0;
+        for (const char *id : {"view.normal", "view.outline", "view.sorter", "view.notesPage", "view.reading"}) checked += w.act(QString::fromLatin1(id))->isChecked();
+        QCOMPARE(checked, 1);
+        // Slides added in one view show in the others.
+        w.act("view.normal")->trigger();
+        w.newSlide();
+        w.act("view.sorter")->trigger();
+        QCOMPARE(w.slideSorter()->slideCount(), 5);
+        w.act("view.outline")->trigger();
+        QCOMPARE(w.outlineView()->toPlainText().split(QLatin1Char('\n')).size(), 8);
+        w.act("view.normal")->trigger();
     }
 
     // Slides copy their layout's placeholders; the date, footer, and slide

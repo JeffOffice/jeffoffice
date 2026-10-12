@@ -23,6 +23,7 @@ class DeckCanvas;
 class Editor;
 class FontCombo;
 class NotesPane;
+class OutlineView;
 class Ribbon;
 struct RibbonParts;
 class SizeCombo;
@@ -51,9 +52,10 @@ public:
     NotesPane *notesPane() const { return m_notes; }
     SlideShow *slideShow() const { return m_show; }
     SlideSorter *slideSorter() const { return m_sorter; }
+    OutlineView *outlineView() const { return m_outline; }
     // The ways to see the slides: Normal (the thumbnails, the slide, and its
-    // notes) and the Slide Sorter.
-    enum class View { Normal, Sorter };
+    // notes), Outline (the text in the thumbnails' place), and the Slide Sorter.
+    enum class View { Normal, Outline, Sorter };
     View view() const { return m_view; }
     void setView(View view);
     // What the ribbon file named that the window doesn't have (empty when
@@ -148,6 +150,7 @@ private:
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr;
     QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
     SlideSorter *m_sorter = nullptr;
+    OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     View m_view = View::Normal;
     // Normal view's zoom while the Slide Sorter borrows the zoom controls: its Canvas::Fit and the zoom.
     int m_normalFit = 0;
