@@ -10,6 +10,7 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QRadioButton>
 #include <QShortcut>
 #include <QTabWidget>
@@ -114,11 +115,12 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
     m_repeat = new QComboBox();
     m_repeat->setObjectName(QStringLiteral("animRepeat"));
     m_repeat->setAccessibleName(tr("Repeat"));
-    m_repeat->addItem(tr("(none)"), 1);
-    for (int n : {2, 3, 4, 5, 10}) m_repeat->addItem(QString::number(n), n);
-    int found = m_repeat->findData(int(anim.repeat));
+    m_repeat->addItem(tr("(none)"), 1.0);
+    for (int n : {2, 3, 4, 5, 10}) m_repeat->addItem(QString::number(n), double(n));
+    int found = m_repeat->findData(anim.repeat);
     if (found < 0) {
-        m_repeat->addItem(QString::number(anim.repeat), int(anim.repeat));
+        // A repeat the list has no entry for (2.5 times, 1000 times) stays as the file has it.
+        m_repeat->addItem(QLocale().toString(anim.repeat, 'g', 6), anim.repeat);
         found = m_repeat->count() - 1;
     }
     m_repeat->setCurrentIndex(found);
@@ -186,7 +188,7 @@ deck::Anim AnimationOptionsDialog::result() const
     a.smoothEnd = m_smoothEnd->isChecked();
     a.delay = qRound(m_delay->value() * 1000);
     if (m_duration->isEnabled()) a.duration = qRound(m_duration->value() * 1000);
-    if (m_repeat->isEnabled()) a.repeat = m_repeat->currentData().toInt();
+    if (m_repeat->isEnabled()) a.repeat = m_repeat->currentData().toDouble();
     a.rewind = m_rewind->isChecked();
     if (m_after && m_after->isEnabled()) a.after = deck::AfterEffect(m_after->currentData().toInt());
     return a;

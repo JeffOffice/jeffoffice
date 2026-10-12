@@ -7315,6 +7315,37 @@ private Q_SLOTS:
         QVERIFY2(number > 23, qPrintable(QString::number(number)));
     }
 
+    // A shape that is deleted has no effects in the pane, or in the show, and the next change to the slide's animations leaves them
+    // out; undoing the deletion brings them back.
+    void windowAnimationsFollowDeletedShapes()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        auto page = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        ed->select(page().items[0]->id);
+        w.act("anim.set.entr.fade")->trigger();
+        ed->select(page().items[1]->id);
+        w.act("anim.set.entr.fly")->trigger();
+        QCOMPARE(w.animationPane()->rowCount(), 2);
+        const QString bodyName = page().items[1]->name;
+        ed->select(page().items[1]->id);
+        ed->deleteSelection();
+        QCOMPARE(w.animationPane()->rowCount(), 1);
+        QCOMPARE(int(deck::readAnimations(page(), ed->doc()).effects.size()), 1);
+        QCOMPARE(int(deck::playableTimeline(*ed->doc(), page()).steps.size()), 1);   // no click for the shape that is gone
+        QCOMPARE(int(deck::playableTimeline(page()).steps.size()), 2);
+        ed->undo();
+        QCOMPARE(w.animationPane()->rowCount(), 2);
+        // Deleted again, a change to the animations takes the stale effect out of the file.
+        ed->select(page().items[1]->id);
+        ed->deleteSelection();
+        ed->select(page().items[0]->id);
+        w.act("anim.add.emph.spin")->trigger();
+        QCOMPARE(int(deck::readAnimations(page()).effects.size()), 2);
+        QCOMPARE(w.animationPane()->rowCount(), 2);
+    }
+
     // A build of what a kept sequence aims at stays with it.
     void animationEditKeepsBuildsOfKeptSequences()
     {
@@ -7383,6 +7414,35 @@ private Q_SLOTS:
         QCOMPARE(xml.count(QStringLiteral("<p:par>")), effect.count(QStringLiteral("<p:par>")) + 5);   // the nested pars, and each click's two and the new effect's one
         QVERIFY(xml.contains(QStringLiteral("spid=\"10\"")));
         QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+    }
+
+    // The Repeat box keeps a repeat that is not a whole number.
+    void animationOptionsDialogKeepsFractionalRepeats()
+    {
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 3);
+        a.repeat = 2.5;
+        AnimationOptionsDialog dlg(a, false, AnimationOptionsDialog::TimingTab);
+        QCOMPARE(dlg.result().repeat, 2.5);
+        a.repeat = 3;
+        AnimationOptionsDialog whole(a, false, AnimationOptionsDialog::TimingTab);
+        QCOMPARE(whole.result().repeat, 3.0);
+    }
+
+    // The gallery's pictures say what each effect is called, under the picture.
+    void animationGalleryPicturesAreNamed()
+    {
+        const deck::EffectKind &kind = *deck::effectKind(QStringLiteral("entr.fly"));
+        const QSize size(64, 60);
+        const QImage plain = effectIcon(kind).pixmap(size).toImage(), named = effectIcon(kind, QString(), true).pixmap(size).toImage();
+        QVERIFY(plain != named);
+        // The name is in the bottom of the picture, and the slide above it.
+        int ink = 0;
+        for (int y = size.height() - 12; y < size.height(); ++y)
+            for (int x = 8; x < size.width() - 8; ++x)
+                if (qAlpha(named.pixel(x, y)) > 160) ++ink;
+        QVERIFY2(ink > 15, qPrintable(QString::number(ink)));
+        QCOMPARE(qAlpha(named.pixel(4, size.height() - 3)), 0);
+        QVERIFY(qAlpha(plain.pixel(4, size.height() - 3)) > 0);
     }
 
     // The windows of the animation feature, as pictures, when JD_ANIM_SHOTS names a folder (the other times it only checks that they draw).
