@@ -5093,6 +5093,123 @@ private Q_SLOTS:
         QCOMPARE(p.contentType(QStringLiteral("/b.xml")), QStringLiteral("application/xml"));
     }
 
+    // What a shape leaves out, the drawing's table of default properties says (its colors, whether the fill and the line are drawn);
+    // what the shape says wins, and so does a flag it uses, however the table has it.
+    void odrawFallsBackOnTheDrawingsDefaultProperties()
+    {
+        OdrawContext ctx = odContext();
+        // Filled in the fills color (scheme 4), a line in the text color (1), a shadow in the shadow color (2), a line 2 points wide.
+        ctx.defaults = odProps({{0x0181, 0x08000004}, {0x0183, 0x08000000}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01CB, 25400}, {0x01FF, 0x00080008}, {0x0201, 0x08000002}});
+        auto shapeOf = [&](const QVector<OdProp> &props, int type = 1) {
+            return readOdrawShapes(odDrawing(odShape(type, 0xA00, props, odClientAnchor(0, 0, 10, 10))), ctx)[0];
+        };
+        ItemPtr it = shapeOf({});
+        QVERIFY(it->fill.type == Fill::Solid);
+        QCOMPARE(odRgb(it->fill.color), QColor(40, 24, 38));
+        QCOMPARE(odRgb(it->stroke.color), QColor(10, 21, 32));
+        QVERIFY(qAbs(it->stroke.width - 2.0) < 1e-9);
+        // The shape's own colors and width win.
+        it = shapeOf({{0x0181, 0x0000FF}, {0x01CB, 12700}});
+        QCOMPARE(odRgb(it->fill.color), QColor(255, 0, 0));
+        QVERIFY(qAbs(it->stroke.width - 1.0) < 1e-9);
+        // The colors a gradient has are the table's too.
+        it = shapeOf({{0x0180, 4}});
+        QVERIFY(it->fill.type == Fill::Gradient);
+        QCOMPARE(odRgb(it->fill.stops.first().color), QColor(40, 24, 38));
+        QCOMPARE(odRgb(it->fill.stops.last().color), QColor(0, 20, 30));
+        // A system color that stands for the shape's fill color means the table's when the shape has none of its own.
+        QCOMPARE(odRgb(shapeOf({{0x01C0, 0x100000F0}})->stroke.color), QColor(40, 24, 38));
+        // The shape turns the fill off (its use bit set, its value clear); a flag it doesn't use, the table's stays.
+        QVERIFY(shapeOf({{0x01BF, 0x00100000}})->fill.isNone());
+        QVERIFY(shapeOf({{0x01FF, 0x00080000}})->stroke.isNone());
+        QVERIFY(!shapeOf({{0x01BF, 0x00020000}})->fill.isNone());
+        QVERIFY(!shapeOf({{0x01BF, 0x00200020}})->fill.isNone());
+        // A table that leaves the shapes unfilled: a rectangle is, unless it says it isn't.
+        ctx.defaults = odProps({{0x01BF, 0x00100000}, {0x01FF, 0x00080000}});
+        QVERIFY(shapeOf({})->fill.isNone());
+        QVERIFY(shapeOf({})->stroke.isNone());
+        QVERIFY(!shapeOf({{0x01BF, 0x00100010}})->fill.isNone());
+        // A table with no say about it leaves the format's own: a white fill and a thin black line.
+        ctx.defaults = odProps({{0x0183, 0x0000FF}});
+        it = shapeOf({});
+        QCOMPARE(odRgb(it->fill.color), QColor(Qt::white));
+        QCOMPARE(odRgb(it->stroke.color), QColor(Qt::black));
+        QVERIFY(qAbs(it->stroke.width - 0.75) < 1e-9);
+        // No table, or one that can't be read: the same.
+        for (const QByteArray &none : {QByteArray(), QByteArray("junk"), odRecord(3, 40, 0xF00B, QByteArray(10, '\x01'))}) {
+            ctx.defaults = none;
+            QCOMPARE(odRgb(shapeOf({})->fill.color), QColor(Qt::white));
+        }
+        // The table's other records (the tertiary one, a second primary) read as well, a later one replacing an earlier.
+        ctx.defaults = odProps({{0x0181, 0x0000FF}}) + odProps({{0x0181, 0x00FF00}}, 0xF122) + odRecord(0, 0, 0xF006, QByteArray(16, '\0'));
+        QCOMPARE(odRgb(shapeOf({})->fill.color), QColor(0, 255, 0));
+        // The background shape's fill falls back on it too.
+        ctx.defaults = odProps({{0x0181, 0x08000004}, {0x01BF, 0x00100010}});
+        const Fill bg = odrawBackground(odDrawing(QByteArray(), odShape(1, 0x400, {})), ctx);
+        QVERIFY(bg.type == Fill::Solid);
+        QCOMPARE(odRgb(bg.color), QColor(40, 24, 38));
+    }
+
+    // The flags of a boolean property (the fill's, the line's) sit in one property that the shape's tables may each hold a part of:
+    // each table's flags that it uses are the shape's.
+    void odrawMergesTheFlagsOfAPropertyAcrossTables()
+    {
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        // Primary: the line is used, and off; tertiary: another flag of the same property (the pen is inset). The line stays off.
+        QByteArray tables = odProps({{0x01BF, 0x00100010}, {0x01FF, 0x00080000}}) + odProps({{0x01FF, 0x00400040}}, 0xF122);
+        ItemList items = readOdrawShapes(odDrawing(odContainer(0xF004, odFsp(1, 0xA00) + tables + at)), odContext());
+        QVERIFY(items[0]->stroke.isNone());
+        QVERIFY(!items[0]->fill.isNone());
+        // The later table has the say over a flag both use.
+        tables = odProps({{0x01FF, 0x00080008}}) + odProps({{0x01FF, 0x00480000}}, 0xF122);
+        items = readOdrawShapes(odDrawing(odContainer(0xF004, odFsp(1, 0xA00) + tables + at)), odContext());
+        QVERIFY(items[0]->stroke.isNone());
+        // A flag the later table doesn't use stays as it was; one neither uses is the default's.
+        tables = odProps({{0x01FF, 0x00080008}}) + odProps({{0x01FF, 0x00400000}}, 0xF122);
+        items = readOdrawShapes(odDrawing(odContainer(0xF004, odFsp(1, 0xA00) + tables + at)), odContext());
+        QVERIFY(!items[0]->stroke.isNone());
+        // Properties that are not flags are replaced, as they were.
+        tables = odProps({{0x01CB, 25400}}) + odProps({{0x01CB, 12700}}, 0xF121);
+        items = readOdrawShapes(odDrawing(odContainer(0xF004, odFsp(1, 0xA00) + tables + at)), odContext());
+        QVERIFY(qAbs(items[0]->stroke.width - 1.0) < 1e-9);
+    }
+
+    // A shape that takes after another (a slide's placeholder after its master's) has what that shape's table says for what it leaves out,
+    // and the drawing's defaults for what neither says.
+    void odrawTakesWhatItLeavesOutFromTheShapeItTakesAfter()
+    {
+        OdrawContext ctx = odContext();
+        // Defaults: filled in scheme color 4, and a line.
+        ctx.defaults = odProps({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}});
+        QStringList asked;
+        ctx.inherits = [&](const QByteArray &data) {
+            asked << QString::fromLatin1(data);
+            // One shape's table: not filled and no line, a green line color, 3 points wide.
+            return data == "title" ? odProps({{0x01BF, 0x00100000}, {0x01FF, 0x00080000}, {0x01C0, 0x00FF00}, {0x01CB, 38100}}) : QByteArray();
+        };
+        const QByteArray at = odClientAnchor(0, 0, 10, 10);
+        auto shapeOf = [&](const QByteArray &data, const QVector<OdProp> &props) {
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, at, odRecord(0, 0, 0xF011, data))), ctx)[0];
+        };
+        ItemPtr it = shapeOf("title", {});
+        QCOMPARE(asked, QStringList({QStringLiteral("title")}));   // the client data's contents
+        QVERIFY(it->fill.isNone());
+        QVERIFY(it->stroke.isNone());
+        // What the shape says wins, and the colors it leaves out are the other shape's, then the defaults'.
+        it = shapeOf("title", {{0x01BF, 0x00100010}, {0x01FF, 0x00080008}});
+        QCOMPARE(odRgb(it->fill.color), QColor(40, 24, 38));
+        QCOMPARE(odRgb(it->stroke.color), QColor(0, 255, 0));
+        QVERIFY(qAbs(it->stroke.width - 3.0) < 1e-9);
+        QCOMPARE(odRgb(shapeOf("title", {{0x01BF, 0x00100010}, {0x0181, 0x0000FF}})->fill.color), QColor(255, 0, 0));
+        // A shape that takes after none, or one with no client data, has the defaults.
+        it = shapeOf("body", {});
+        QCOMPARE(odRgb(it->fill.color), QColor(40, 24, 38));
+        asked.clear();
+        it = readOdrawShapes(odDrawing(odShape(1, 0xA00, {}, at)), ctx)[0];
+        QVERIFY(asked.isEmpty());
+        QCOMPARE(odRgb(it->fill.color), QColor(40, 24, 38));
+    }
+
     // The colors of a gradient (fillShadeColors, property 0x0197; the one before it is the preset's number) run along it as the focus
     // says, like the two colors do: at 100 they run the other way, at 50 there and back, and below zero from the other end.
     void odrawShadeColorsFollowTheFocus()

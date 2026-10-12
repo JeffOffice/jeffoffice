@@ -24,6 +24,16 @@ bool isArrayProperty(quint16 id)
 
 int elementSize(quint16 recorded) { return recorded == 0xFFF0 ? 4 : recorded; }
 
+// The properties that are sets of flags: the number ends in 0x3F.
+bool isFlagProperty(quint16 id) { return (id & 0x3F) == 0x3F; }
+
+// The flags of a boolean property with `over`'s used ones set over `base`'s.
+quint32 mergedFlags(quint32 base, quint32 over)
+{
+    const quint32 used = over >> 16;
+    return ((base >> 16 | used) << 16) | ((base & ~used & 0xFFFF) | (over & used));
+}
+
 } // namespace
 
 void Props::add(const QByteArray &data, const OdrawRecord &record)
@@ -50,27 +60,56 @@ void Props::add(const QByteArray &data, const OdrawRecord &record)
                 tail = end;   // damaged: nothing more to read after the table
             }
         }
+        if (isFlagProperty(id) && !(opid & 0x8000)) {
+            const auto earlier = m_props.constFind(id);
+            if (earlier != m_props.constEnd()) prop.value = mergedFlags(earlier->value, prop.value);
+        }
         m_props.insert(id, prop);
+    }
+}
+
+void Props::set(quint16 id, quint32 value)
+{
+    Prop prop;
+    prop.value = value;
+    m_props.insert(id, prop);
+}
+
+void Props::inherit(const Props &under)
+{
+    for (auto it = under.m_props.cbegin(); it != under.m_props.cend(); ++it) {
+        const auto mine = m_props.find(it.key());
+        if (mine == m_props.end()) m_props.insert(it.key(), it.value());
+        else if (isFlagProperty(it.key()) && mine->complex.isEmpty()) mine->value = mergedFlags(it->value, mine->value);
     }
 }
 
 quint32 Props::value(quint16 id, quint32 fallback) const
 {
     const auto it = m_props.constFind(id);
-    return it == m_props.constEnd() ? fallback : it->value;
+    if (it == m_props.constEnd()) return m_fallback ? m_fallback->value(id, fallback) : fallback;
+    return it->value;
 }
 
 double Props::fixed(quint16 id, double fallback) const
 {
     const auto it = m_props.constFind(id);
-    return it == m_props.constEnd() ? fallback : qint32(it->value) / 65536.0;
+    if (it == m_props.constEnd()) return m_fallback ? m_fallback->fixed(id, fallback) : fallback;
+    return qint32(it->value) / 65536.0;
 }
 
 bool Props::flag(quint16 id, quint32 bit, bool fallback) const
 {
     const auto it = m_props.constFind(id);
-    if (it == m_props.constEnd() || !(it->value & (bit << 16))) return fallback;
+    if (it == m_props.constEnd() || !(it->value & (bit << 16))) return m_fallback ? m_fallback->flag(id, bit, fallback) : fallback;
     return (it->value & bit) != 0;
+}
+
+QByteArray Props::complex(quint16 id) const
+{
+    const auto it = m_props.constFind(id);
+    if (it == m_props.constEnd()) return m_fallback ? m_fallback->complex(id) : QByteArray();
+    return it->complex;
 }
 
 QString Props::text(quint16 id) const { return utf16Text(complex(id)); }

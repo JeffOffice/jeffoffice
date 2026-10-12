@@ -12,6 +12,7 @@
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QMap>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -519,6 +520,7 @@ struct MasterInfo {
     StyleSet styles;
     QString name;
     QByteArray drawing;         // its drawing container (0xF002), header and all
+    QMap<QString, QByteArray> shapeProps;   // the property records of its placeholder shapes, by type: what slides' placeholders take after
     ItemList items;
     Fill background;
     std::shared_ptr<MasterPage> page;               // the slide master, of a main master
@@ -576,6 +578,50 @@ bool isTitleType(const QString &t) { return t == QLatin1String("title") || t == 
 bool isFooterType(const QString &t) { return t == QLatin1String("dt") || t == QLatin1String("ftr") || t == QLatin1String("sldNum") || t == QLatin1String("hdr"); }
 // A placeholder that takes the text and the objects of the slide: it is numbered by its place among them.
 bool isContentType(const QString &t) { return !t.isEmpty() && !isTitleType(t) && !isFooterType(t) && t != QLatin1String("sldImg"); }
+
+// The kind of shape a placeholder takes after on a master: a title, a footer of its own kind, or the body.
+QString placeholderKind(const QString &t) { return isTitleType(t) ? QStringLiteral("title") : isFooterType(t) ? t : QStringLiteral("body"); }
+
+// The type of the placeholder a shape is, from the records of its client data (the contents of its client data record); none when it is no
+// placeholder.
+QString placeholderOf(const QByteArray &clientData)
+{
+    QString type;
+    Records rs(clientData);
+    QVector<Rec> kids = rs.in(0, clientData.size());
+    if (kids.size() == 1 && kids.first().type == RT_ClientData) kids = rs.in(kids.first());
+    for (const Rec &r : kids) {
+        if (r.type != RT_PlaceholderAtom || r.len < 5) continue;
+        Cursor c(clientData, r.off, r.end());
+        c.u32();
+        type = placeholderName(c.u8());
+    }
+    return type;
+}
+
+// The property records of the placeholder shapes of a master's drawing (0xF002), by the placeholder's type, the first of each: what the
+// placeholders of the slides on the master take after.
+void readShapeProps(const QByteArray &drawing, QMap<QString, QByteArray> *out)
+{
+    std::function<void(const office::OdrawRecord &, int)> walk = [&](const office::OdrawRecord &box, int depth) {
+        if (depth > 8) return;
+        for (const office::OdrawRecord &r : office::odrawRecords(drawing, box.offset, box.offset + qsizetype(box.length))) {
+            if (r.type == RT_DgContainer || r.type == RT_SpgrContainer) {
+                walk(r, depth + 1);
+                continue;
+            }
+            if (r.type != RT_SpContainer) continue;
+            QByteArray props, clientData;
+            for (const office::OdrawRecord &c : office::odrawRecords(drawing, r.offset, r.offset + qsizetype(r.length))) {
+                if (c.type == 0xF00B || c.type == 0xF121 || c.type == 0xF122) props += drawing.mid(c.offset - 8, qsizetype(c.length) + 8);
+                else if (c.type == RT_ClientData) clientData = drawing.mid(c.offset, qsizetype(c.length));
+            }
+            const QString type = placeholderOf(clientData);
+            if (!type.isEmpty() && !out->contains(type)) out->insert(type, props);
+        }
+    };
+    for (const office::OdrawRecord &r : office::odrawRecords(drawing)) walk(r, 0);
+}
 
 // The text type a placeholder's text has, when its text names none.
 int textTypeOf(const QString &placeholder)
@@ -790,6 +836,7 @@ private:
     void buildMaster(MasterInfo &m);
     void makeMasterPage(MasterInfo &m, int number);
     const Item *masterPlaceholder(const MasterInfo &m, const QString &type) const;
+    QByteArray masterShapeProps(const MasterInfo &m, const QString &type) const;
     QRectF masterRect(const MasterInfo &m, const QString &type) const;
     std::shared_ptr<MasterPage> layoutFor(MasterInfo &main, const MasterInfo &source, int geom);
     void assembleMasters();
@@ -830,6 +877,7 @@ private:
     StyleSet m_styles;
     QHash<quint32, QString> m_links;
     QVector<office::OdrawStoreEntry> m_store;
+    QByteArray m_defaults;   // the drawing group's default property records
     QHash<int, QString> m_pictureIds;
     QVector<SlideEntry> m_slides, m_masterList, m_notesList;
     std::vector<std::unique_ptr<MasterInfo>> m_masters;
@@ -1037,6 +1085,8 @@ void Importer::readDrawingGroup(const Rec &r)
     for (const Rec &dgg : m_ppt.in(r)) {
         if (dgg.type != 0xF000) continue;
         for (const Rec &b : m_ppt.in(dgg)) {
+            // The properties a shape has when it names none: its default tables.
+            if (b.type == 0xF00B || b.type == 0xF121 || b.type == 0xF122) m_defaults += view(b);
             if (b.type != 0xF001) continue;
             m_store = office::odrawStore(view(b));
             // A store given as the records inside the container.
@@ -1287,6 +1337,7 @@ void Importer::buildMaster(MasterInfo &m)
     st.text = TextCtx{m.main, m.title ? &m : nullptr, m.scheme};
     st.source = &m;
     st.master = true;
+    readShapeProps(m.drawing, &m.shapeProps);
     m.items = readShapes(m.drawing, st);
     finishItems(m.items, st, false);
     m_state = &st;
@@ -1311,7 +1362,6 @@ void Importer::makeMasterPage(MasterInfo &m, int number)
 // the same kind (a title for a centered title, the body for the rest).
 const Item *Importer::masterPlaceholder(const MasterInfo &m, const QString &type) const
 {
-    auto kind = [](const QString &t) { return isTitleType(t) ? QStringLiteral("title") : isFooterType(t) ? t : QStringLiteral("body"); };
     for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
         if (!x) continue;
         for (const auto &it : x->items)
@@ -1321,10 +1371,23 @@ const Item *Importer::masterPlaceholder(const MasterInfo &m, const QString &type
         if (!x) continue;
         for (const auto &it : x->items) {
             const QString t = placeholderType(*it);
-            if (!t.isEmpty() && kind(t) == kind(type)) return it.get();
+            if (!t.isEmpty() && placeholderKind(t) == placeholderKind(type)) return it.get();
         }
     }
     return nullptr;
+}
+
+// The property records of the master's placeholder shape that a slide's placeholder of this type takes after, like masterPlaceholder.
+QByteArray Importer::masterShapeProps(const MasterInfo &m, const QString &type) const
+{
+    for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main})
+        if (x && x->shapeProps.contains(type)) return x->shapeProps.value(type);
+    for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
+        if (!x) continue;
+        for (auto it = x->shapeProps.cbegin(); it != x->shapeProps.cend(); ++it)
+            if (placeholderKind(it.key()) == placeholderKind(type)) return it.value();
+    }
+    return QByteArray();
 }
 
 QRectF Importer::masterRect(const MasterInfo &m, const QString &type) const
@@ -2002,6 +2065,13 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
 office::OdrawContext Importer::drawingContext()
 {
     office::OdrawContext ctx;
+    ctx.defaults = m_defaults;
+    ctx.inherits = [this](const QByteArray &clientData) {
+        // A slide's placeholder takes after its master's shape of its kind.
+        if (!m_state || m_state->master || !m_state->source) return QByteArray();
+        const QString type = placeholderOf(clientData);
+        return type.isEmpty() ? QByteArray() : masterShapeProps(*m_state->source, type);
+    };
     ctx.clientAnchor = [](const QByteArray &anchor) { return anchorRect(anchor); };
     ctx.schemeColor = [this](int index) { return m_state && m_state->scheme && index >= 0 && index < 8 ? m_state->scheme[index] : QColor(); };
     ctx.picture = [this](int index) { return pictureId(index); };
@@ -2025,17 +2095,14 @@ ItemList Importer::readShapes(const QByteArray &drawing, PageState &st)
 void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArray &clientData)
 {
     PageState &st = *m_state;
-    QString type, link;
+    QString link;
+    const QString type = placeholderOf(clientData);
     if (!clientData.isEmpty()) {
         Records rs(clientData);
         QVector<Rec> kids = rs.in(0, clientData.size());
         if (kids.size() == 1 && kids.first().type == RT_ClientData) kids = rs.in(kids.first());
         for (const Rec &r : kids) {
-            if (r.type == RT_PlaceholderAtom && r.len >= 5) {
-                Cursor c(clientData, r.off, r.end());
-                c.u32();
-                type = placeholderName(c.u8());
-            } else if (r.type == RT_InteractiveInfo && r.inst == 0 && link.isEmpty()) {
+            if (r.type == RT_InteractiveInfo && r.inst == 0 && link.isEmpty()) {
                 for (const Rec &k : rs.in(r)) {
                     if (k.type != RT_InteractiveInfoAtom || k.len < 9) continue;
                     Cursor c(clientData, k.off, k.end());
