@@ -5,6 +5,7 @@
 #include "core/deck.h"
 #include "core/transition.h"
 #include "io/cfb.h"
+#include "io/presentationfile.h"
 #include "office/drawingml.h"
 #include "office/drawingml_style.h"
 #include "office/odraw.h"
@@ -2566,7 +2567,7 @@ std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QStr
         return nullptr;
     }
     doc->fromFile = true;   // what the file names outside itself is read only from beside it
-    if (error) *error = importer.notesText();
+    if (error) *error = (QStringList{importer.notesText()} + leftOutNotes(doc->imagesLeftOut, 0)).join(QLatin1Char('\n')).trimmed();
     return doc;
 }
 
