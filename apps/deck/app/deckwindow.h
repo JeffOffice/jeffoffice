@@ -76,6 +76,15 @@ public:
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
     bool openFile(const QString &path);
+    // Saves to the file the presentation came from, else asks where (Save As).
+    // A presentation opened from a template always asks, so the template is
+    // not written over. False if nothing was written.
+    bool save();
+    // Asks for a name and writes the presentation there (.pptx, .potx, or .ppsx).
+    bool saveAs();
+    // Writes the file, and the presentation is saved and takes the file's name.
+    // On failure, says why and leaves the presentation unsaved.
+    bool saveTo(const QString &path);
 
 protected:
     void closeEvent(QCloseEvent *e) override;
@@ -84,6 +93,7 @@ private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
     void createActions();
+    void createSaveActions();     // deckwindow_save.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();
     void createDesignActions();
@@ -118,6 +128,7 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QTimer m_refreshTimer;
+    QString m_templatePath;      // a template this window wrote: saving again writes over it
 };
 
 } // namespace jp

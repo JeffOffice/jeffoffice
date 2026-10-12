@@ -29,6 +29,7 @@
 #include <QApplication>
 #include <QBuffer>
 #include <QCheckBox>
+#include <QDeadlineTimer>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -1622,6 +1623,27 @@ private:
         return out;
     }
 
+    // Answers the modal dialogs that open next, one for each answer: a button of a
+    // message box, or (NoButton) closing the dialog, which is how a file dialog is
+    // cancelled. The first label clicked is kept in `label`.
+    static void answerDialogs(QList<QMessageBox::StandardButton> answers, QString *label = nullptr, QDeadlineTimer until = QDeadlineTimer(10000))
+    {
+        if (answers.isEmpty() || until.hasExpired()) return;
+        QTimer::singleShot(0, [answers, label, until]() mutable {
+            QWidget *dialog = QApplication::activeModalWidget();
+            if (!dialog) {
+                answerDialogs(answers, label, until);
+                return;
+            }
+            const QMessageBox::StandardButton which = answers.takeFirst();
+            auto *box = qobject_cast<QMessageBox *>(dialog);
+            QAbstractButton *button = box && which != QMessageBox::NoButton ? box->button(which) : nullptr;
+            if (button && label && label->isEmpty()) *label = button->text();
+            if (button) button->click();
+            else dialog->close();
+            answerDialogs(answers, label, until);
+        });
+    }
     static QByteArray fileBytes(const QString &path)
     {
         QFile f(path);
@@ -2206,6 +2228,144 @@ private Q_SLOTS:
             QCOMPARE(fileBytes(locked), lockedBytes);
         }
         QFile::setPermissions(dir.filePath(QStringLiteral("locked")), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    }
+
+    // File > Save and Save As: the window writes the file, marks itself saved,
+    // and takes its name from the file; a save that fails says so and leaves
+    // the presentation unsaved.
+    void windowSavesThePresentation()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        QVERIFY(w.act(QStringLiteral("file.save")));
+        QVERIFY(w.act(QStringLiteral("file.saveAs")));
+        QCOMPARE(w.act(QStringLiteral("file.save"))->shortcut(), QKeySequence(QKeySequence::Save));
+        QCOMPARE(w.act(QStringLiteral("file.saveAs"))->shortcut(), QKeySequence(Qt::Key_F12));
+        w.newSlide();
+        QVERIFY(ed->isModified());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        QVERIFY(w.saveTo(path));
+        QVERIFY(!ed->isModified());
+        QCOMPARE(ed->filePath(), path);
+        QCOMPARE(w.windowTitle(), QStringLiteral("talk - JeffDeck"));
+        QString err;
+        auto back = deck::importPresentationFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 2);
+
+        // Save, with a name already, writes to it without asking.
+        w.newSlide();
+        QVERIFY(ed->isModified());
+        QVERIFY(w.windowTitle().contains(QLatin1Char('*')));
+        w.act(QStringLiteral("file.save"))->trigger();
+        QVERIFY(!ed->isModified());
+        QVERIFY(!w.windowTitle().contains(QLatin1Char('*')));
+        back = deck::importPresentationFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        // Notes typed and not yet in the slide are saved too.
+        QTest::keyClicks(w.notesPane(), QStringLiteral("Last words"));
+        QVERIFY(w.save());
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[ed->currentPage()]), QStringLiteral("Last words"));
+        QVERIFY(!ed->isModified());
+
+        // A save that can't be done says so, and the presentation is still unsaved, under the same name.
+        w.newSlide();
+        const QByteArray before = fileBytes(path);
+        answerDialogs({QMessageBox::Ok});
+        QVERIFY(!w.saveTo(dir.filePath(QStringLiteral("missing/talk.pptx"))));
+        QVERIFY(ed->isModified());
+        QCOMPARE(ed->filePath(), path);
+        QCOMPARE(fileBytes(path), before);
+
+        // Save As to another name moves the presentation there, even when nothing changed since the last save.
+        QVERIFY(w.saveTo(path));
+        const QString other = dir.filePath(QStringLiteral("other.pptx"));
+        QVERIFY(w.saveTo(other));
+        QCOMPARE(ed->filePath(), other);
+        QCOMPARE(w.windowTitle(), QStringLiteral("other - JeffDeck"));
+        QVERIFY(!ed->isModified());
+        ed->markSaved();
+    }
+
+    // A presentation opened from a template saves under a new name, never over the template.
+    void windowSavesATemplateAsANewPresentation()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString templatePath = dir.filePath(QStringLiteral("look.potx"));
+        QString err;
+        auto d = deck::newPresentation();
+        QVERIFY2(deck::savePresentationFile(*d, templatePath, &err), qPrintable(err));
+        const QByteArray before = fileBytes(templatePath);
+        DeckWindow w;
+        QVERIFY(w.openFile(templatePath));
+        w.newSlide();
+        // Save asks where, since the template is not to be written over; cancelled, nothing is written.
+        answerDialogs({QMessageBox::NoButton});
+        QVERIFY(!w.save());
+        QCOMPARE(fileBytes(templatePath), before);
+        QVERIFY(w.editor()->isModified());
+        // Saved to a name, that is the presentation's file from then on.
+        const QString path = dir.filePath(QStringLiteral("deck.pptx"));
+        QVERIFY(w.saveTo(path));
+        QCOMPARE(w.editor()->filePath(), path);
+        QCOMPARE(fileBytes(templatePath), before);
+        // A template the window itself wrote is saved over when saved again.
+        const QString mine = dir.filePath(QStringLiteral("mine.potx"));
+        QVERIFY(w.saveTo(mine));
+        w.newSlide();
+        QVERIFY(w.save());
+        QVERIFY(!w.editor()->isModified());
+        auto back = deck::importPresentationFile(mine, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        w.editor()->markSaved();
+    }
+
+    // Closing a changed presentation asks Save, Don't Save, or Cancel.
+    void windowAsksToSaveBeforeClosing()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        w.newSlide();
+        QString label;
+        answerDialogs({QMessageBox::Cancel});
+        QVERIFY(!w.close());
+        QVERIFY(w.isVisible());
+        QVERIFY(w.editor()->isModified());
+        // Save, with nowhere to save to yet, asks where; a window left from there stays open.
+        answerDialogs({QMessageBox::Save, QMessageBox::NoButton});
+        QVERIFY(!w.close());
+        QVERIFY(w.isVisible());
+        // Save with a name writes the file and closes.
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        QVERIFY(w.saveTo(path));
+        w.newSlide();
+        answerDialogs({QMessageBox::Save});
+        QVERIFY(w.close());
+        QVERIFY(!w.isVisible());
+        auto back = deck::importPresentationFile(path);
+        QVERIFY(back);
+        QCOMPARE(int(back->pages.size()), 3);
+        // Don't Save closes and leaves the file alone.
+        DeckWindow v;
+        v.show();
+        QVERIFY(v.openFile(path));
+        v.newSlide();
+        const QByteArray before = fileBytes(path);
+        answerDialogs({QMessageBox::Discard}, &label);
+        QVERIFY(v.close());
+        QCOMPARE(label, QStringLiteral("Don't Save"));
+        QCOMPARE(fileBytes(path), before);
+        // Nothing changed: it closes without asking.
+        DeckWindow u;
+        u.show();
+        QVERIFY(u.close());
     }
 };
 
