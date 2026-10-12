@@ -1,4 +1,4 @@
-#include "io/pubshapes.h"
+#include "core/shapetypes.h"
 
 #include <QHash>
 
@@ -8,11 +8,10 @@ namespace {
 
 struct Pair { const char *preset; int type; bool same = false; };
 
-// Shapes Publisher has too (and the .pub reader can draw, so they reopen
-// in JeffPub). `same` marks those whose standard form looks exactly like
-// JeffPub's at every proportion (checked with `jpubtool shapecheck`); the
-// others differ in their default proportions, so they're saved as freeforms
-// until their handle settings are converted.
+// Shapes the drawing format numbers that JeffOffice draws too. `same` marks
+// those whose standard form looks exactly like JeffOffice's at every
+// proportion (checked with `jpubtool shapecheck`); the others differ in their
+// default proportions or their handles.
 const Pair kPairs[] = {
     {"rect", 1, true}, {"roundRect", 2, true}, {"ellipse", 3, true}, {"diamond", 4, true}, {"triangle", 5, true}, {"rtTriangle", 6, true},
     {"parallelogram", 7, true}, {"trapezoid", 8}, {"hexagon", 9, true}, {"octagon", 10}, {"plus", 11}, {"star5", 12},
@@ -35,17 +34,6 @@ const Pair kPairs[] = {
     {"actionButtonBlank", 189},
 };
 
-const QHash<QString, int> &byPreset()
-{
-    static const QHash<QString, int> h = [] {
-        QHash<QString, int> m;
-        for (const Pair &p : kPairs)
-            if (p.same) m.insert(QString::fromLatin1(p.preset), p.type);
-        return m;
-    }();
-    return h;
-}
-
 const Pair kTextArt[] = {
     {"plain", 136}, {"triangleUp", 138}, {"triangleDown", 139}, {"chevronUp", 140}, {"chevronDown", 141},
     {"ringInside", 142}, {"ringOutside", 143}, {"archUp", 144}, {"archDown", 145}, {"circle", 146}, {"button", 147},
@@ -57,27 +45,42 @@ const Pair kTextArt[] = {
 
 } // namespace
 
-int pubTextArtType(const QString &transform)
+int textArtShapeType(const QString &transform)
 {
     for (const Pair &p : kTextArt)
         if (transform == QLatin1String(p.preset)) return p.type;
     return 136;
 }
 
-QString textArtTransformForPubType(int type)
+QString textArtForShapeType(int type)
 {
     for (const Pair &p : kTextArt)
         if (p.type == type) return QString::fromLatin1(p.preset);
     return QString();
 }
 
-int pubShapeType(const QString &preset) { return byPreset().value(preset, -1); }
+int drawingShapeType(const QString &preset)
+{
+    static const QHash<QString, int> byPreset = [] {
+        QHash<QString, int> m;
+        for (const Pair &p : kPairs) m.insert(QString::fromLatin1(p.preset), p.type);
+        return m;
+    }();
+    return byPreset.value(preset, -1);
+}
 
-QString presetForPubShapeType(int type)
+QString presetForDrawingShapeType(int type)
 {
     for (const Pair &p : kPairs)
-        if (p.same && p.type == type) return QString::fromLatin1(p.preset);
+        if (p.type == type) return QString::fromLatin1(p.preset);
     return QString();
+}
+
+bool drawsAsShapeType(const QString &preset)
+{
+    for (const Pair &p : kPairs)
+        if (p.same && preset == QLatin1String(p.preset)) return true;
+    return false;
 }
 
 } // namespace jp
