@@ -32,9 +32,13 @@ public:
     // `view` is the show's window: it is painted again as a movie plays.
     ShowMedia(const Document *doc, QWidget *view);
 
-    // The slide the show is on, with `done` of its click steps played: -1 when none is on the screen (a transition
-    // is playing, or the show has ended). Told again and again as steps play; only a new slide starts and stops anything.
-    void sync(int slide, int done);
+    // A slide is on the screen to stay, with `done` of its click steps played: what plays by itself begins.
+    void arrive(int slide, int done);
+    // The slide on the screen goes (a transition begins, or the show moves to another slide): what plays stops, but
+    // what the file says plays across slides, which goes on until it has been across that many. Said again, it counts once.
+    void leave();
+    // The show is over (its last slide has gone, or it is closed): everything stops.
+    void end();
     // The click step (counting those that show something) begins: the media that go with it start.
     void stepStarted(int slide, int step);
     // A click or key forward when `done` steps have played: true when it starts or controls media instead (a step of
@@ -73,8 +77,7 @@ private:
     Entry *entryOnSlide(const QString &itemId);
     void run(const deck::MediaCue &cue);
     void runStep(int step);
-    void leave();
-    void arrive(int slide, int done);
+    const Page *page() const;
     QRectF slideRect() const;
     QTransform toWindow() const;
     QRectF barFor(const PictureItem &pic) const;
@@ -83,6 +86,8 @@ private:
     const Document *m_doc;
     QWidget *m_view;
     int m_slide = -1;
+    QString m_pageId;   // of the slide on the screen: the presentation may be edited while the show plays
+    bool m_on = false;  // a slide is on the screen
     int m_generation = 0;
     deck::MediaPlan m_plan;
     QVector<Pending> m_pending;

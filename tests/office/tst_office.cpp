@@ -5452,6 +5452,155 @@ private Q_SLOTS:
         QCOMPARE(QColor(got.pixel(1, 0)), QColor(0xFF, 0xFF, 0x00));   // white the second (here the reference's)
     }
 
+    // A shape of a diagram's drawing (dsp:sp) is a p:sp with one more element, dsp:txXfrm: the rectangle its text is
+    // laid out in, which need not be the shape's own, and which turns by its own angle on top of the shape's.
+    static QString dspSp(const QString &spPr, const QString &txXfrm, const QString &text = QStringLiteral("Hello"), const QString &style = QString())
+    {
+        return QStringLiteral("<dsp:sp xmlns:dsp=\"http://schemas.microsoft.com/office/drawing/2008/diagram\" modelId=\"{1}\">"
+                              "<dsp:nvSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvSpPr/></dsp:nvSpPr><dsp:spPr>%1</dsp:spPr>%4"
+                              "<dsp:txBody><a:bodyPr lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" anchor=\"ctr\"><a:noAutofit/></a:bodyPr><a:lstStyle/>%2</dsp:txBody>%3</dsp:sp>")
+            .arg(spPr, text.isEmpty() ? QStringLiteral("<a:p/>") : QStringLiteral("<a:p><a:r><a:t>%1</a:t></a:r></a:p>").arg(text), txXfrm, style);
+    }
+
+    void dmlDiagramShapeLaysItsTextInTheTextTransform()
+    {
+        DmlEnv env;
+        const QString plain = dmlXfrm(10, 10, 200, 100) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + dmlSolid(QStringLiteral("336699"));
+        // Text in the shape's own rectangle: the shape is its text, as a p:sp with a text body is.
+        ItemPtr it = dmlOne(env, dspSp(plain, dmlXfrm(10, 10, 200, 100, QString(), "dsp:txXfrm")));
+        auto t = dmlAs<TextItem>(it);
+        QVERIFY(t);
+        QCOMPARE(dmlHex(t->fill.color), QStringLiteral("336699"));
+        QVERIFY(dmlRectIs(t->rect, 10, 10, 200, 100));
+        QVERIFY(env.stories.last()->toPlainText().contains(QStringLiteral("Hello")));
+        QVERIFY(t->valign == VAlign::Middle);
+        QVERIFY(t->insets == QMarginsF(0, 0, 0, 0));
+        // A rectangle for the text that is not the shape's: the shape draws, and its text is a box of its own, with neither fill nor line.
+        const QString round = dmlXfrm(10, 10, 200, 100) + QStringLiteral("<a:prstGeom prst=\"roundRect\"/>") + dmlSolid(QStringLiteral("336699"))
+                              + QStringLiteral("<a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("FFFFFF")));
+        it = dmlOne(env, dspSp(round, dmlXfrm(30, 20, 160, 80, QString(), "dsp:txXfrm")));
+        auto g = dmlAs<GroupItem>(it);
+        QVERIFY(g);
+        QCOMPARE(int(g->children.size()), 2);
+        auto shape = dmlAs<ShapeItem>(g->children[0]);
+        t = dmlAs<TextItem>(g->children[1]);
+        QVERIFY(shape && t);
+        QCOMPARE(shape->shape, QStringLiteral("roundRect"));
+        QVERIFY(dmlRectIs(shape->rect, 10, 10, 200, 100));
+        QCOMPARE(dmlHex(shape->fill.color), QStringLiteral("336699"));
+        QVERIFY(shape->storyId.isEmpty());
+        QVERIFY(dmlRectIs(t->rect, 30, 20, 160, 80));
+        QVERIFY(t->fill.isNone() && t->stroke.isNone());
+        QVERIFY(near(t->rotation, 0));
+        QVERIFY(env.stories.last()->toPlainText().contains(QStringLiteral("Hello")));
+        QVERIFY(dmlRectIs(g->rect, 10, 10, 200, 100));
+        // The text turns with the shape: the same rectangle, the text's own angle added to the shape's.
+        it = dmlOne(env, dspSp(dmlXfrm(0, 0, 100, 40, QStringLiteral("rot=\"16200000\"")) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + dmlSolid(QStringLiteral("336699")),
+                               dmlXfrm(0, 0, 100, 40, QString(), "dsp:txXfrm")));
+        t = dmlAs<TextItem>(it);
+        QVERIFY(t);
+        QVERIFY(near(t->rotation, 270));
+        QVERIFY(dmlRectIs(t->rect, 0, 0, 100, 40));
+        // A shape turned a quarter, its text turned back, and its text's rectangle off the shape's center: the center goes round with the shape.
+        it = dmlOne(env, dspSp(dmlXfrm(0, 0, 100, 40, QStringLiteral("rot=\"5400000\"")) + QStringLiteral("<a:prstGeom prst=\"rightArrow\"/>") + dmlSolid(QStringLiteral("336699")),
+                               dmlXfrm(0, 0, 60, 40, QStringLiteral("rot=\"-5400000\""), "dsp:txXfrm")));
+        g = dmlAs<GroupItem>(it);
+        QVERIFY(g && g->children.size() == 2);
+        t = dmlAs<TextItem>(g->children[1]);
+        QVERIFY(t);
+        QVERIFY(near(t->rotation, 0));
+        QVERIFY(dmlRectIs(t->rect, 20, -20, 60, 40));   // (30, 20) about the shape's center (50, 20) a quarter turn clockwise: (50, 0)
+        QVERIFY(dmlAs<ShapeItem>(g->children[0]) && near(g->children[0]->rotation, 90));
+        // A flip puts the rectangle on the other side of the shape's center.
+        it = dmlOne(env, dspSp(dmlXfrm(0, 0, 100, 40, QStringLiteral("flipH=\"1\"")) + QStringLiteral("<a:prstGeom prst=\"rightArrow\"/>") + dmlSolid(QStringLiteral("336699")),
+                               dmlXfrm(0, 0, 60, 40, QString(), "dsp:txXfrm")));
+        g = dmlAs<GroupItem>(it);
+        QVERIFY(g && g->children.size() == 2);
+        QVERIFY(dmlRectIs(g->children[1]->rect, 40, 0, 60, 40));
+        // No text, no text box; no rectangle for the text, the shape's own place for it.
+        it = dmlOne(env, dspSp(round, dmlXfrm(30, 20, 160, 80, QString(), "dsp:txXfrm"), QString()));
+        QVERIFY(dmlAs<ShapeItem>(it) && dmlAs<ShapeItem>(it)->storyId.isEmpty());
+        it = dmlOne(env, dspSp(round, QString()));
+        QVERIFY(dmlAs<ShapeItem>(it) && !dmlAs<ShapeItem>(it)->storyId.isEmpty());
+        // The font of the shape's style gives the text its color, as it does a p:sp's.
+        it = dmlOne(env, dspSp(plain, dmlXfrm(10, 10, 200, 100, QString(), "dsp:txXfrm"), QStringLiteral("Hello"),
+                               QStringLiteral("<dsp:style><a:lnRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:lnRef><a:fillRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:fillRef>"
+                                              "<a:effectRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:effectRef><a:fontRef idx=\"minor\"><a:srgbClr val=\"FF0000\"/></a:fontRef></dsp:style>")));
+        t = dmlAs<TextItem>(it);
+        QVERIFY(t);
+        QCOMPARE(env.stories.last()->begin().begin().fragment().charFormat().foreground().color(), QColor(0xFF, 0x00, 0x00));
+    }
+
+    // A picture a diagram's shape is filled with is cut to fill it by spreading it past the shape (a negative a:fillRect) or by cutting it (a:srcRect):
+    // a fill has no such cut, so the shape is a picture, cut to the shape's outline, with the shape's line and text over it.
+    void dmlDiagramShapeWithACutPictureIsAPictureUnderTheShape()
+    {
+        DmlEnv env;
+        env.usePackage();
+        auto picShape = [](const QString &blipFillInner, const QString &prst, const QString &txXfrm = QString(), const QString &text = QString()) {
+            return dspSp(dmlXfrm(10, 10, 100, 50) + QStringLiteral("<a:prstGeom prst=\"%1\"/><a:blipFill><a:blip r:embed=\"rId1\"/>%2</a:blipFill><a:ln w=\"12700\">%3</a:ln>")
+                                                        .arg(prst, blipFillInner, dmlSolid(QStringLiteral("FFFFFF"))),
+                         txXfrm, text);
+        };
+        // Spread past the shape by a tenth of its width on each side: the picture is that much larger, and centered.
+        ItemPtr it = dmlOne(env, picShape(QStringLiteral("<a:stretch><a:fillRect l=\"-10000\" r=\"-10000\"/></a:stretch>"), QStringLiteral("ellipse"), QString(), QString()));
+        auto g = dmlAs<GroupItem>(it);
+        QVERIFY(g && g->children.size() == 2);
+        auto pic = dmlAs<PictureItem>(g->children[0]);
+        auto shape = dmlAs<ShapeItem>(g->children[1]);
+        QVERIFY(pic && shape);
+        QCOMPARE(pic->maskShape, QStringLiteral("ellipse"));
+        QVERIFY(dmlRectIs(pic->rect, 10, 10, 100, 50));
+        QVERIFY(dmlRectIs(pic->imgRect, -10, 0, 120, 50));
+        QVERIFY(!pic->imageId.isEmpty());
+        QVERIFY(shape->fill.isNone());                  // the picture is no longer the shape's fill
+        QVERIFY(near(shape->stroke.width, 1));          // its line stays, over the picture
+        QCOMPARE(shape->shape, QStringLiteral("ellipse"));
+        // Cut by a:srcRect, a quarter off the top and the bottom: the picture is twice as tall as the shape, spread evenly above and below.
+        it = dmlOne(env, picShape(QStringLiteral("<a:srcRect t=\"25000\" b=\"25000\"/><a:stretch><a:fillRect/></a:stretch>"), QStringLiteral("rect")));
+        g = dmlAs<GroupItem>(it);
+        QVERIFY(g && g->children.size() == 2);
+        pic = dmlAs<PictureItem>(g->children[0]);
+        QVERIFY(pic);
+        QVERIFY(dmlRectIs(pic->imgRect, 0, -25, 100, 100));
+        // With text in a rectangle of its own, the text box comes with the shape, over the picture.
+        it = dmlOne(env, picShape(QStringLiteral("<a:stretch><a:fillRect l=\"-10000\" r=\"-10000\"/></a:stretch>"), QStringLiteral("roundRect"), dmlXfrm(20, 20, 80, 30, QString(), "dsp:txXfrm"), QStringLiteral("Caption")));
+        g = dmlAs<GroupItem>(it);
+        QVERIFY(g && g->children.size() == 3);
+        QVERIFY(dmlAs<PictureItem>(g->children[0]) && dmlAs<ShapeItem>(g->children[1]) && dmlAs<TextItem>(g->children[2]));
+        QVERIFY(g->children[1]->fill.isNone());
+        // A picture that fills it plainly stays a fill, and so does one in a shape drawn by its own paths.
+        it = dmlOne(env, picShape(QStringLiteral("<a:stretch><a:fillRect/></a:stretch>"), QStringLiteral("rect")));
+        QVERIFY(dmlAs<ShapeItem>(it) && dmlAs<ShapeItem>(it)->fill.type == Fill::Picture);
+    }
+
+    // A diagram's drawing is a tree of such shapes (dsp:spTree), with groups (dsp:grpSp) that place theirs as p:grpSp does.
+    void dmlDiagramTreeReadsItsShapesAndGroups()
+    {
+        DmlEnv env;
+        const QString dsp = QStringLiteral("xmlns:dsp=\"http://schemas.microsoft.com/office/drawing/2008/diagram\"");
+        auto sp = [](double x, double y, const QString &text, double inset = 0) {
+            return dspSp(dmlXfrm(x, y, 50, 20) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + dmlSolid(QStringLiteral("336699")),
+                         dmlXfrm(x + inset, y + inset, 50 - 2 * inset, 20 - 2 * inset, QString(), "dsp:txXfrm"), text);
+        };
+        const QString tree = QStringLiteral("<dsp:spTree %1><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>%2%3"
+                                            "<dsp:grpSp><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr><a:xfrm><a:off x=\"%4\" y=\"0\"/><a:ext cx=\"%5\" cy=\"%6\"/>"
+                                            "<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"%5\" cy=\"%6\"/></a:xfrm></dsp:grpSpPr>%7</dsp:grpSp></dsp:spTree>")
+                                 .arg(dsp, sp(0, 0, QStringLiteral("One")), sp(60, 0, QStringLiteral("Two"), 2), emu(200), emu(50), emu(20), sp(0, 0, QStringLiteral("Inner")));
+        const ItemList items = readShapeTree(env.element(tree), env.ctx);
+        QCOMPARE(int(items.size()), 3);
+        QVERIFY(dmlRectIs(items[0]->rect, 0, 0, 50, 20));
+        // The second has a rectangle for its text inside it: a shape and its text box.
+        auto second = dmlAs<GroupItem>(items[1]);
+        QVERIFY(second && second->children.size() == 2);
+        QVERIFY(dmlRectIs(second->rect, 60, 0, 50, 20));
+        QVERIFY(dmlRectIs(second->children[1]->rect, 62, 2, 46, 16));
+        auto group = dmlAs<GroupItem>(items[2]);
+        QVERIFY(group && group->children.size() == 1);
+        QVERIFY(dmlRectIs(group->children[0]->rect, 200, 0, 50, 20));
+        QCOMPARE(env.stories.size(), 3);
+    }
+
     // ---- DrawingML shapes: writing shapes (the counterpart of reading them)
 
 private:

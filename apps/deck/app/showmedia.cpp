@@ -12,6 +12,14 @@ namespace jp {
 
 ShowMedia::ShowMedia(const Document *doc, QWidget *view) : QObject(view), m_doc(doc), m_view(view) {}
 
+// The slide on the screen, if the presentation still has it where the show left it.
+const Page *ShowMedia::page() const
+{
+    if (!m_on || m_slide < 0 || m_slide >= m_doc->pages.size()) return nullptr;
+    const Page *page = m_doc->pages[m_slide].get();
+    return page->id == m_pageId ? page : nullptr;
+}
+
 QRectF ShowMedia::slideRect() const
 {
     const QSizeF page = m_doc->pageSize(), area = m_view->size();
@@ -29,16 +37,18 @@ QTransform ShowMedia::toWindow() const
 
 const PictureItem *ShowMedia::pictureWithShape(int shape) const
 {
-    if (m_slide < 0 || shape <= 0) return nullptr;
-    for (const PictureItem *pic : deck::mediaPicturesOf(*m_doc->pages[m_slide]))
+    const Page *slide = page();
+    if (!slide || shape <= 0) return nullptr;
+    for (const PictureItem *pic : deck::mediaPicturesOf(*slide))
         if (pic->sourceId == shape) return pic;
     return nullptr;
 }
 
 const PictureItem *ShowMedia::pictureWithId(const QString &id) const
 {
-    if (m_slide < 0 || id.isEmpty()) return nullptr;
-    for (const PictureItem *pic : deck::mediaPicturesOf(*m_doc->pages[m_slide]))
+    const Page *slide = page();
+    if (!slide || id.isEmpty()) return nullptr;
+    for (const PictureItem *pic : deck::mediaPicturesOf(*slide))
         if (pic->id == id) return pic;
     return nullptr;
 }
@@ -59,7 +69,7 @@ ShowMedia::Entry *ShowMedia::entryFor(const PictureItem &pic, bool create)
     Entry e;
     e.slide = m_slide;
     e.itemId = pic.id;
-    e.play = pic.sourceId > 0 && m_plan.plays.contains(pic.sourceId) ? m_plan.plays.value(pic.sourceId) : deck::mediaPlayOf(*m_doc->pages[m_slide], pic);
+    e.play = pic.sourceId > 0 && m_plan.plays.contains(pic.sourceId) ? m_plan.plays.value(pic.sourceId) : deck::mediaPlayOf(*page(), pic);
     e.left = std::max(1, e.play.acrossSlides);
     auto *pb = new MediaPlayback(this);
     const auto data = m_doc->media.constFind(pic.mediaId);
@@ -77,6 +87,8 @@ ShowMedia::Entry *ShowMedia::entryFor(const PictureItem &pic, bool create)
 
 void ShowMedia::leave()
 {
+    if (!m_on) return;
+    m_on = false;
     ++m_generation;   // what was to be called later on the slide is not
     for (auto it = m_entries.begin(); it != m_entries.end();) {
         if (it->left > 1) {
@@ -94,11 +106,27 @@ void ShowMedia::leave()
     m_plan = deck::MediaPlan();
     m_hover.clear();
     m_hoverPart = MediaBar::Part::None;
+    m_view->update();
+}
+
+void ShowMedia::end()
+{
+    leave();
+    for (Entry &e : m_entries)
+        if (e.player) {
+            e.player->stop();
+            delete e.player;
+        }
+    m_entries.clear();
 }
 
 void ShowMedia::arrive(int slide, int done)
 {
+    leave();
     if (slide < 0 || slide >= m_doc->pages.size()) return;
+    m_slide = slide;
+    m_pageId = m_doc->pages[slide]->id;
+    m_on = true;
     m_plan = deck::mediaPlanOf(*m_doc->pages[slide]);
     if (m_plan.isEmpty()) return;
     int visual = 0;
@@ -115,14 +143,6 @@ void ShowMedia::arrive(int slide, int done)
             m_pending.push_back(Pending{visual, i, visual < done});
         }
     }
-}
-
-void ShowMedia::sync(int slide, int done)
-{
-    if (slide == m_slide) return;
-    leave();
-    m_slide = slide;
-    arrive(slide, done);
     m_view->update();
 }
 
@@ -143,7 +163,7 @@ void ShowMedia::runStep(int step)
 
 void ShowMedia::stepStarted(int slide, int step)
 {
-    if (slide != m_slide || m_plan.isEmpty()) return;
+    if (!m_on || slide != m_slide || m_plan.isEmpty()) return;
     int visual = -1;
     for (int i = 0; i < m_plan.steps.size(); ++i) {
         if (m_plan.steps[i].visual) ++visual;
@@ -156,7 +176,7 @@ void ShowMedia::stepStarted(int slide, int step)
 
 bool ShowMedia::takeClick(int slide, int done)
 {
-    if (slide != m_slide) return false;
+    if (!m_on || slide != m_slide) return false;
     for (Pending &p : m_pending)
         if (!p.taken && p.atDone == done) {
             p.taken = true;
@@ -215,8 +235,9 @@ MediaPlayback *ShowMedia::playbackOf(const QString &itemId) const
 // playing can't be pointed at then.
 const PictureItem *ShowMedia::pictureAt(const QPointF &pos) const
 {
-    if (m_slide < 0) return nullptr;
-    const QVector<const PictureItem *> pictures = deck::mediaPicturesOf(*m_doc->pages[m_slide]);
+    const Page *slide = page();
+    if (!slide) return nullptr;
+    const QVector<const PictureItem *> pictures = deck::mediaPicturesOf(*slide);
     for (const PictureItem *pic : pictures)
         if (const Entry *e = const_cast<ShowMedia *>(this)->entryOnSlide(pic->id); e && e->play.fullScreen && e->play.video && showsFrame(*e)) return pic;
     const QTransform view = toWindow();
@@ -253,7 +274,7 @@ bool ShowMedia::controlsOf(const QPointF &pos, QString *id, MediaBar::Part *part
 
 bool ShowMedia::mouseMove(const QPointF &pos)
 {
-    if (m_slide < 0 || m_plan.isEmpty()) return false;
+    if (!page() || m_plan.isEmpty()) return false;
     QString id;
     MediaBar::Part part;
     const bool over = controlsOf(pos, &id, &part);
@@ -267,7 +288,7 @@ bool ShowMedia::mouseMove(const QPointF &pos)
 
 bool ShowMedia::mousePress(const QPointF &pos)
 {
-    if (m_slide < 0 || m_plan.isEmpty()) return false;
+    if (!page() || m_plan.isEmpty()) return false;
     QString id;
     MediaBar::Part part;
     if (controlsOf(pos, &id, &part)) {
@@ -319,10 +340,10 @@ bool ShowMedia::mousePress(const QPointF &pos)
     }
     // A click on another shape that the timing says starts a movie or sound.
     if (m_plan.triggers.isEmpty()) return false;
-    const QPointF page = toWindow().inverted().map(pos);
-    const ItemList &items = m_doc->pages[m_slide]->items;
+    const QPointF at = toWindow().inverted().map(pos);
+    const ItemList &items = page()->items;
     for (auto it = items.rbegin(); it != items.rend(); ++it)
-        if ((*it)->sourceId > 0 && m_plan.triggers.contains((*it)->sourceId) && (*it)->outline().containsPoint(page, Qt::OddEvenFill)) {
+        if ((*it)->sourceId > 0 && m_plan.triggers.contains((*it)->sourceId) && (*it)->outline().containsPoint(at, Qt::OddEvenFill)) {
             for (const deck::MediaCue &cue : m_plan.triggers.value((*it)->sourceId)) run(cue);
             return true;
         }
@@ -331,8 +352,9 @@ bool ShowMedia::mousePress(const QPointF &pos)
 
 void ShowMedia::paint(QPainter *p)
 {
-    if (m_slide < 0 || m_slide >= m_doc->pages.size()) return;
-    const QVector<const PictureItem *> pictures = deck::mediaPicturesOf(*m_doc->pages[m_slide]);
+    const Page *slide = page();
+    if (!slide) return;
+    const QVector<const PictureItem *> pictures = deck::mediaPicturesOf(*slide);
     if (pictures.isEmpty()) return;
     const QTransform view = toWindow();
     for (const PictureItem *pic : pictures) {

@@ -8,6 +8,9 @@
 // and its controls call the show; keys work in either window and a click on
 // the large slide moves on. It shows the slide as the audience sees it, an
 // effect partway through included, and Next shows what the next click gives.
+// "Pen and Pointer" opens the show's pointer menu; with the pen, the
+// highlighter, or the eraser in hand, the large slide takes strokes, and the
+// laser pointer's dot follows the mouse over it, for the audience's screen too.
 
 #include <QElapsedTimer>
 #include <QImage>
@@ -79,7 +82,7 @@ private:
     QPlainTextEdit *m_notes = nullptr;
     QStackedWidget *m_pages = nullptr;
     QListWidget *m_grid = nullptr;
-    QAbstractButton *m_pause = nullptr, *m_black = nullptr, *m_all = nullptr;
+    QAbstractButton *m_pause = nullptr, *m_black = nullptr, *m_all = nullptr, *m_pointerButton = nullptr;
     QTimer m_tick;
     QElapsedTimer m_since;     // when the timer last started running
     qint64 m_before = 0;       // what it had counted before that
