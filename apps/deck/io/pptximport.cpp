@@ -4,6 +4,7 @@
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/sections.h"
+#include "io/pptxtransition.h"
 #include "office/chart.h"
 #include "office/drawingml.h"
 #include "office/drawingml_table.h"
@@ -1269,6 +1270,8 @@ bool Importer::readSlide(int number, const QString &part)
                 if (!pChild(alt, "transition").isNull()) page->props[QStringLiteral("transitionXml")] = standaloneXml(c);
         }
     }
+    // The show plays it, and the Transitions tab shows it; saved again unchanged, the XML read is written back.
+    deck::setTransition(*page, deck::transitionFromXml(page->props.value(QStringLiteral("transitionXml")).toString()));
     for (const auto &it : page->items) {
         const QString type = placeholderType(*it);
         if ((type == QLatin1String("title") || type == QLatin1String("ctrTitle")) && it->type() == ItemType::Text) {

@@ -34,6 +34,7 @@
 #include "io/pptimport.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
+#include "io/pptxtransition.h"
 #include "io/presentationfile.h"
 #include "io/zip.h"
 #include "office/chart.h"
@@ -62,6 +63,7 @@
 #include <QFrame>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -3339,6 +3341,66 @@ private Q_SLOTS:
         QCOMPARE(read->fill.color.resolve(back->colors), QColor(0xCC, 0x11, 0x22));
         QCOMPARE(read->stroke.color.resolve(back->colors), QColor(0x11, 0x22, 0xCC));
         QVERIFY(std::abs(read->rect.width() - 400) < 0.5 && std::abs(read->rect.height() - 150) < 0.5);
+    }
+
+    // A transition read from a file plays in the show and shows on the Transitions tab; saved unchanged, the XML read is
+    // written back (what the show has no form for stays); changed here, or made here or from an old file, it is written
+    // as the presentation program writes it, and reads back the same.
+    void transitionsAreReadPlayedAndSaved()
+    {
+        // Each kind, written and read back.
+        const QStringList types = deck::transitionTypes();
+        for (const QString &type : types) {
+            deck::Transition t;
+            t.type = type;
+            if (t.hasDirection()) t.dir = type == QLatin1String("reveal") ? QStringLiteral("r") : QStringLiteral("u");
+            if (t.hasInOut()) t.dir = QStringLiteral("in");
+            t.duration = 1.0;
+            t.advanceAfter = 4.5;
+            t.advanceOnClick = false;
+            // As a slide holds it: the slide's root declares the p: prefix.
+            QString xml = deck::transitionXml(t);
+            xml.insert(xml.indexOf(QLatin1Char(' ')), QStringLiteral(" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""));
+            QDomDocument dom;
+            QVERIFY2(office::parseXml(xml.toUtf8(), &dom), qPrintable(type + QLatin1Char(' ') + xml));
+            const deck::Transition back = deck::transitionFromXml(xml);
+            QVERIFY2(back == t, qPrintable(type + QLatin1Char(' ') + xml + QLatin1Char(' ') + QString::fromUtf8(QJsonDocument(back.toJson()).toJson(QJsonDocument::Compact))));
+        }
+        QVERIFY(deck::transitionXml(deck::Transition()).isEmpty());
+        QVERIFY(deck::transitionXml(deck::Transition{QStringLiteral("reveal"), QStringLiteral("l")}).contains(QStringLiteral("<mc:Fallback><p:transition spd=\"med\"><p:fade/>")));
+
+        // Read from a file: the sample slide fades at medium speed.
+        QString err;
+        auto d = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(deck::transitionOf(*d->pages[0]).type, QStringLiteral("fade"));
+        QCOMPARE(deck::transitionOf(*d->pages[0]).duration, 0.75);
+        // An effect the show has no form for plays as a fade, and is written back as read.
+        d->pages[0]->props[QStringLiteral("transitionXml")] = QStringLiteral("<p:transition xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" spd=\"slow\"><p:dissolve/></p:transition>");
+        deck::setTransition(*d->pages[0], deck::transitionFromXml(d->pages[0]->props.value(QStringLiteral("transitionXml")).toString()));
+        QCOMPARE(deck::transitionOf(*d->pages[0]).type, QStringLiteral("fade"));
+        // A transition set here on the second slide.
+        deck::Transition push;
+        push.type = QStringLiteral("push");
+        push.dir = QStringLiteral("l");
+        deck::setTransition(*d->pages[1], push);
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:dissolve/>")));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide2.xml")).contains(QStringLiteral("<p:push dir=\"l\"/>")));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::transitionOf(*back->pages[1]) == push);
+        // Changed here, the first is written as it is now.
+        deck::Transition wipe;
+        wipe.type = QStringLiteral("wipe");
+        wipe.dir = QStringLiteral("d");
+        deck::setTransition(*d->pages[0], wipe);
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        const QString first = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(first.contains(QStringLiteral("<p:wipe dir=\"d\"/>")) && !first.contains(QStringLiteral("dissolve")));
     }
 
     void headerAndFooterPlaceholders()
@@ -9174,7 +9236,8 @@ private Q_SLOTS:
         QVERIFY(!slide.contains(QStringLiteral("rId9")));
         QVERIFY(!slide.contains(QStringLiteral("<p:timing")));
         QVERIFY(!slide.contains(QStringLiteral("chime.wav")));
-        QVERIFY(!slide.contains(QStringLiteral("<p:transition")));
+        // The transition stays, without its sound.
+        QVERIFY(slide.contains(QStringLiteral("<p:fade/>")) && !slide.contains(QStringLiteral("sndAc")));
         int notes = 0;
         for (const QString &s : std::as_const(skipped))
             if (s.startsWith(QLatin1String("Slide 1"))) ++notes;
