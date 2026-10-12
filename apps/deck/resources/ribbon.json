@@ -562,8 +562,20 @@
               "keytip": "NM"
             },
             {
+              "large": "view.outline",
+              "keytip": "OV"
+            },
+            {
               "large": "view.sorter",
               "keytip": "SB"
+            },
+            {
+              "large": "view.notesPage",
+              "keytip": "PN"
+            },
+            {
+              "large": "view.reading",
+              "keytip": "RV"
             }
           ]
         },
