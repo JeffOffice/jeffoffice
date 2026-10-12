@@ -7,6 +7,8 @@
 
 #include "io/odpimport_p.h"
 
+#include "core/fonts.h"
+
 #include <QRegularExpression>
 #include <QTextDocument>
 #include <algorithm>
@@ -51,29 +53,11 @@ QString bulletLetter(const QString &text, const QString &font, bool *dropFont)
     const QChar c = text[0];
     const QString f = font.toLower();
     // The letters of the symbol fonts that bullets use, as the letters of ours that look like them.
-    if (f.contains(QLatin1String("wingdings")) || f.contains(QLatin1String("symbol")) || f.contains(QLatin1String("webdings"))) {
+    if (isSymbolFont(font)) {
+        QString mapped = symbolToUnicode(font, c.unicode());
+        // The pointing triangles of the third set of pictures.
         const ushort code = c.unicode() >= 0xF000 ? c.unicode() - 0xF000 : c.unicode();
-        const bool three = f.contains(QLatin1String("wingdings 3"));
-        const bool wing = f.contains(QLatin1String("wingdings")) && !three && !f.contains(QLatin1String("wingdings 2"));
-        QString mapped;
-        if (three && (code == 0x7D || code == 0x75)) mapped = QStringLiteral("▶");
-        else if (wing) {
-            switch (code) {
-            case 0xA7: mapped = QStringLiteral("▪"); break;
-            case 0xD8: mapped = QStringLiteral("➢"); break;
-            case 0xFC: mapped = QStringLiteral("✓"); break;
-            case 0xFB: mapped = QStringLiteral("✗"); break;
-            case 0x76: mapped = QStringLiteral("❖"); break;
-            case 0x6C: mapped = QStringLiteral("●"); break;
-            case 0x6E: mapped = QStringLiteral("■"); break;
-            case 0x71: mapped = QStringLiteral("❑"); break;
-            case 0xE8: mapped = QStringLiteral("➔"); break;
-            case 0x9F: mapped = QStringLiteral("•"); break;
-            default: break;
-            }
-        } else if (f.contains(QLatin1String("symbol")) && !wing && !three && code == 0xB7) {
-            mapped = QStringLiteral("•");
-        }
+        if (mapped.isEmpty() && f == QLatin1String("wingdings 3") && (code == 0x7D || code == 0x75)) mapped = QStringLiteral("\u25B6");
         if (!mapped.isEmpty()) {
             if (dropFont) *dropFont = true;
             return mapped;
