@@ -13,6 +13,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QLocale>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPlainTextEdit>
@@ -35,6 +36,21 @@ public:
         setMinimumSize(160, 90);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         setAttribute(Qt::WA_OpaquePaintEvent);
+    }
+    // The slide is drawn again (the deck was edited).
+    void invalidate()
+    {
+        m_image = QImage();
+        update();
+    }
+    // The ink and the laser pointer's dot go over the slide this shows (the large one).
+    void setOverlay(bool on) { m_overlay = on; }
+    // A point of this widget as a point of the slide, in the slide's own units.
+    QPointF pageAt(const QPointF &pos) const
+    {
+        if (!m_show) return QPointF();
+        const QRectF at = slideRectIn(m_show->document()->pageSize(), size());
+        return at.width() > 0 ? (pos - at.topLeft()) * (m_show->document()->pageSize().width() / at.width()) : QPointF();
     }
     // The slide and its steps played, and `ms` into the next step (-1: at rest).
     void setView(const SlideShow::View &view, double ms)
@@ -72,9 +88,11 @@ protected:
         QPainter p(this);
         p.fillRect(rect(), kBars);
         p.drawImage(0, 0, image());
+        if (m_overlay && m_show && m_view.slide >= 0) m_show->paintOverlay(&p, m_view.slide, slideRectIn(m_show->document()->pageSize(), size()));
     }
 
 private:
+    bool m_overlay = false;
     QPointer<SlideShow> m_show;
     QString m_endText;
     SlideShow::View m_view{-2, 0};   // slide -1 is the end, -2 nothing drawn yet
@@ -138,6 +156,8 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     m_current = new SlideView(show, tr("End of slide show"), main);
     m_current->setObjectName(QStringLiteral("currentSlide"));
     m_current->setAccessibleName(tr("Current slide"));
+    m_current->setOverlay(true);
+    m_current->setMouseTracking(true);
     m_current->installEventFilter(this);
     mainLayout->addWidget(m_current, 3);
     auto *side = new QVBoxLayout;
@@ -195,6 +215,9 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     m_counter->setAlignment(Qt::AlignCenter);
     m_counter->setMinimumWidth(140);
     m_counter->setFont(heading);
+    m_pointerButton = button(QStringLiteral("pointerButton"), tr("Pen and Pointer"));
+    m_pointerButton->setCheckable(true);
+    m_pointerButton->setToolTip(tr("The pen, the highlighter, the eraser, and the laser pointer"));
     m_black = button(QStringLiteral("blackButton"), tr("Black Screen"));
     m_black->setCheckable(true);
     m_all = button(QStringLiteral("allSlidesButton"), tr("See All Slides"));
@@ -204,6 +227,7 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     bottom->addWidget(m_counter);
     bottom->addWidget(next);
     bottom->addStretch(1);
+    bottom->addWidget(m_pointerButton);
     bottom->addWidget(m_black);
     bottom->addWidget(m_all);
     bottom->addWidget(end);
@@ -212,6 +236,13 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     connect(previous, &QAbstractButton::clicked, this, [this] { if (m_show) m_show->previous(); });
     connect(next, &QAbstractButton::clicked, this, [this] { if (m_show) m_show->next(); });
     connect(m_black, &QAbstractButton::clicked, this, [this] { if (m_show) m_show->toggleBlank(Qt::black); });
+    connect(m_pointerButton, &QAbstractButton::clicked, this, [this] {
+        if (!m_show) return;
+        QMenu *menu = m_show->pointerMenu(this);
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        menu->popup(m_pointerButton->mapToGlobal(QPoint(0, -menu->sizeHint().height())));
+        m_pointerButton->setChecked(m_show->pointer() != SlideShow::Pointer::Arrow);
+    });
     connect(m_all, &QAbstractButton::clicked, this, [this](bool on) { showAllSlides(on); });
     connect(end, &QAbstractButton::clicked, this, [this] { if (m_show) m_show->close(); });
     connect(m_pause, &QAbstractButton::clicked, this, [this] { setPaused(!m_paused); });
@@ -222,6 +253,21 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
 
     connect(show, &SlideShow::changed, this, &PresenterView::refresh);
     connect(show, &SlideShow::frameChanged, this, &PresenterView::frame);
+    // The deck was edited: the slides are drawn again, and the grid is made again if it is showing.
+    connect(show, &SlideShow::slidesChanged, this, [this] {
+        m_current->invalidate();
+        m_nextView->invalidate();
+        m_grid->clear();
+        if (isShowingAllSlides()) {
+            buildGrid();
+            if (m_show) m_grid->setCurrentRow(std::max(0, m_show->targetSlide()));
+        }
+        refresh();
+    });
+    connect(show, &SlideShow::overlayChanged, this, [this] {
+        m_current->update();
+        if (m_show) m_pointerButton->setChecked(m_show->pointer() != SlideShow::Pointer::Arrow);
+    });
     connect(show, &SlideShow::ended, this, [this] {
         hide();
         deleteLater();
@@ -257,7 +303,7 @@ void PresenterView::refresh()
     m_current->setView(m_show->currentView(), m_show->currentMs());
     m_nextView->setView(next, -1);
     m_counter->setText(slide >= 0 ? tr("Slide %1 of %2").arg(slide + 1).arg(doc->pages.size()) : tr("End of slide show"));
-    const QString notes = slide >= 0 ? deck::notesText(*doc, *doc->pages[slide]) : QString();
+    const QString notes = slide >= 0 && slide < doc->pages.size() ? deck::notesText(*doc, *doc->pages[slide]) : QString();
     if (notes != m_notes->toPlainText()) m_notes->setPlainText(notes);
     m_black->setChecked(m_show->blankColor() == QColor(Qt::black));
     if (isShowingAllSlides() && slide >= 0 && slide < m_grid->count()) m_grid->setCurrentRow(slide);
@@ -365,9 +411,31 @@ void PresenterView::keyPressEvent(QKeyEvent *e)
 
 bool PresenterView::eventFilter(QObject *o, QEvent *e)
 {
-    if (o == m_current && e->type() == QEvent::MouseButtonPress && m_show) {
-        if (static_cast<QMouseEvent *>(e)->button() == Qt::LeftButton) m_show->next();
-        return true;
+    if (o == m_current && m_show) {
+        const auto page = [this](QEvent *ev) { return m_current->pageAt(static_cast<QMouseEvent *>(ev)->position()); };
+        if (e->type() == QEvent::MouseButtonPress) {
+            // A right click opens the show's menu, as it does in the show.
+            if (static_cast<QMouseEvent *>(e)->button() == Qt::RightButton && !m_show->isKiosk() && !m_show->isRecording()) {
+                QMenu *menu = m_show->buildMenu(this);
+                menu->setAttribute(Qt::WA_DeleteOnClose);
+                menu->popup(static_cast<QMouseEvent *>(e)->globalPosition().toPoint());
+            }
+            if (static_cast<QMouseEvent *>(e)->button() != Qt::LeftButton) return true;
+            // With the pen, the highlighter, or the eraser in hand a press draws on the slide; else it moves on.
+            const SlideShow::Pointer pointer = m_show->pointer();
+            if (pointer == SlideShow::Pointer::Pen || pointer == SlideShow::Pointer::Highlighter || pointer == SlideShow::Pointer::Eraser) m_show->pressAt(page(e));
+            else m_show->next();
+            return true;
+        }
+        if (e->type() == QEvent::MouseMove) {
+            m_show->moveTo(page(e));
+            return true;
+        }
+        if (e->type() == QEvent::MouseButtonRelease) {
+            m_show->releasePointer();
+            return true;
+        }
+        if (e->type() == QEvent::Leave) m_show->pointerLeft();
     }
     return QWidget::eventFilter(o, e);
 }

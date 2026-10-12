@@ -1,6 +1,8 @@
 // The slide show's side of JeffDeck's window: the Transitions tab (the
 // transition of the slide being edited, its timing, and a preview), Presenter
-// View's commands, and the star that marks slides with a transition.
+// View's commands, the star that marks slides with a transition, and the Slide
+// Show tab's Set Up Slide Show, custom shows, Rehearse Timings, and Use Timings,
+// with what a show leaves behind (ink, and new times) kept or discarded when it ends.
 
 #include "app/deckcanvas.h"
 #include "app/deckwindow.h"
@@ -13,22 +15,29 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/slideshow.h"
+#include "app/showdialogs.h"
 #include "app/slidespane.h"
 #include "app/widgets.h"
 #include "canvas/canvas.h"
+#include "core/appinfo.h"
 #include "core/document.h"
+#include "core/ink.h"
+#include "core/showsettings.h"
 #include "core/transition.h"
 
 #include <QAction>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPainter>
+#include <QPushButton>
 #include <QPolygonF>
 #include <QtMath>
 #include <QScreen>
 #include <QSignalBlocker>
 #include <QStyledItemDelegate>
+#include <cmath>
 #include <memory>
 
 namespace jp {
@@ -58,6 +67,20 @@ void editTransition(Editor *ed, const QString &label, const std::function<void(d
     ed->endTextEdit();
     ed->beginChange(label);
     deck::setTransition(*d->pages[i], t);
+    ed->endChange();
+}
+
+// Changes the slide show's settings, as one undo step; nothing when they come out the same.
+void editShowSettings(Editor *ed, const QString &label, const std::function<void(deck::ShowSettings &)> &change)
+{
+    Document *d = ed->doc();
+    const deck::ShowSettings before = deck::showSettingsOf(*d);
+    deck::ShowSettings now = before;
+    change(now);
+    if (deck::ShowSettings::fromJson(now.toJson()) == before) return;
+    ed->endTextEdit();
+    ed->beginChange(label);
+    deck::setShowSettings(*d, now);
     ed->endChange();
 }
 
@@ -146,26 +169,27 @@ void DeckWindow::createShowActions()
 
     // Presenter View: Alt+F5 rehearses in windows, on any number of screens.
     mk("show.presenterView", tr("Presenter View"), "monitor-up", QKeySequence(Qt::ALT | Qt::Key_F5), [this] {
-        m_notes->commit();
-        if (m_outline) m_outline->commit();
-        m_ed->endTextEdit();
-        if (m_show) m_show->close();
-        m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), m_ed->currentPage());
-        m_show->setRehearsal(true);
-        if (QScreen *s = screen()) m_show->setGeometry(s->availableGeometry());
-        connect(m_show, &SlideShow::destroyed, this, [this] { activateWindow(); });
-        // Back in the window, on the last slide the show showed.
-        connect(m_show, &SlideShow::ended, this, [this](int last) {
-            if (last >= 0) m_ed->setCurrentPage(last);
-        });
-        m_show->show();
-        m_show->activateWindow();
-        m_show->setFocus();
+        playShow(m_ed->currentPage(), deck::ShowPlan(), false, true);
     });
     QAction *use = mk("show.usePresenterView", tr("Use Presenter View"), QString(), QKeySequence(), [this] {
         SlideShow::setUsePresenterView(act("show.usePresenterView")->isChecked());
     }, true);
     use->setChecked(SlideShow::usePresenterView());
+
+    // Set Up: the show's settings are the presentation's; the commands show what it has.
+    mk("show.setUp", tr("Set Up Slide Show"), "monitor-cog", QKeySequence(), [this] { setUpShow(); });
+    mk("show.customShows", tr("Custom Shows…"), "list-video", QKeySequence(), [this] { editCustomShows(); });
+    mk("show.rehearse", tr("Rehearse Timings"), "timer", QKeySequence(), [this] { rehearseTimings(); });
+    mk("show.useTimings", tr("Use Timings"), QString(), QKeySequence(), [this, ed] {
+        const bool on = act("show.useTimings")->isChecked();
+        editShowSettings(ed, tr("Use Timings"), [on](deck::ShowSettings &s) { s.useTimings = on; });
+    }, true);
+    auto syncTimings = [this, ed] {
+        if (const Document *d = ed->doc()) act("show.useTimings")->setChecked(deck::showSettingsOf(*d).useTimings);
+    };
+    connect(ed, &Editor::changed, this, syncTimings);
+    connect(ed, &Editor::documentReplaced, this, syncTimings);
+    syncTimings();
 
     // The transitions, and the ways each goes.
     const struct { const char *type; QString text; } kinds[] = {
@@ -358,6 +382,37 @@ void DeckWindow::addShowParts(RibbonParts &parts)
         return spin;
     };
 
+    // Slide Show > Set Up > Use Timings, and Custom Slide Show's menu: the shows by name, and Custom Shows….
+    parts.widgets[QStringLiteral("useTimings")] = [this] {
+        QAction *a = act(QStringLiteral("show.useTimings"));
+        auto *box = new QCheckBox(a->text());
+        box->setObjectName(QStringLiteral("useTimings"));
+        box->setToolTip(tr("Use Timings: the slide show moves on by itself after the seconds each slide is set to wait. Without it, only the presenter moves it on."));
+        box->setChecked(a->isChecked());
+        connect(box, &QCheckBox::clicked, a, [a] { a->trigger(); });
+        connect(a, &QAction::toggled, box, [box](bool on) {
+            const QSignalBlocker block(box);
+            box->setChecked(on);
+        });
+        return box;
+    };
+    parts.menus[QStringLiteral("customShows")] = [this](QWidget *owner) {
+        auto *menu = new QMenu(owner);
+        auto fill = [this, menu] {
+            menu->clear();
+            for (const deck::CustomShow &show : deck::customShowsOf(*m_ed->doc())) {
+                QAction *a = menu->addAction(QString(show.name).replace(QLatin1Char('&'), QStringLiteral("&&")));
+                const qint64 id = show.id;
+                connect(a, &QAction::triggered, this, [this, id] { startCustomShow(id); });
+            }
+            if (!menu->isEmpty()) menu->addSeparator();
+            menu->addAction(act(QStringLiteral("show.customShows")));
+        };
+        connect(menu, &QMenu::aboutToShow, menu, fill);
+        fill();
+        return menu;
+    };
+
     // Slide Show > Monitors.
     parts.widgets[QStringLiteral("usePresenterView")] = [this] {
         QAction *a = act(QStringLiteral("show.usePresenterView"));
@@ -372,6 +427,179 @@ void DeckWindow::addShowParts(RibbonParts &parts)
         });
         return box;
     };
+}
+
+} // namespace jp
+
+namespace jp {
+
+// ---- playing the show ----
+
+void DeckWindow::startShowFromBeginning()
+{
+    const Document &d = *m_ed->doc();
+    const deck::ShowSettings settings = deck::showSettingsOf(d);
+    const deck::ShowPlan plan = deck::planOf(d, settings);
+    if (plan.none) {
+        tellAboutShow(tr("The slide show is set to play slides %1 to %2, and the presentation has only %3. Change this in Set Up Slide Show.")
+                          .arg(settings.from).arg(settings.to).arg(d.pages.size()));
+        return;
+    }
+    playShow(0, plan, false);
+}
+
+void DeckWindow::startCustomShow(qint64 id)
+{
+    const Document &d = *m_ed->doc();
+    const QVector<deck::CustomShow> shows = deck::customShowsOf(d);
+    const deck::CustomShow *show = deck::customShowById(shows, id);
+    if (!show) return;
+    const deck::ShowPlan plan = deck::planOfCustomShow(d, *show);
+    if (!plan.slides.isEmpty()) playShow(plan.slides.first(), plan, false);
+}
+
+void DeckWindow::rehearseTimings() { playShow(0, deck::ShowPlan(), true); }
+
+// Starts the show as the presentation is set up: the slides `plan` names (every slide when it names none) from `slide`; `recording`
+// times the slides (Rehearse Timings), as a speaker's show that does not loop. `rehearsal` is the window Alt+F5 opens, with Presenter View
+// beside it: the set up applies to it, except that it is a window for a speaker, never a kiosk.
+void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording, bool rehearsal)
+{
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    m_ed->endTextEdit();
+    if (m_show) m_show->close();
+    deck::ShowSettings settings = deck::showSettingsOf(*m_ed->doc());
+    if (recording) {
+        settings.type = deck::ShowSettings::Type::Speaker;
+        settings.loop = false;
+    }
+    if (rehearsal) settings.type = deck::ShowSettings::Type::Speaker;
+    m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), slide);
+    if (rehearsal) m_show->setRehearsal(true);
+    m_show->setSettings(settings);
+    if (!plan.slides.isEmpty()) m_show->setSlides(plan.slides, plan.hidden);
+    if (recording) m_show->setRecording(true);
+    QScreen *s = screen();
+    if (rehearsal) {
+        if (s) m_show->setGeometry(s->availableGeometry());
+    } else if (m_show->isWindowed()) {
+        // By an individual, in a window: three quarters of the screen, in the middle.
+        if (s) {
+            const QRect area = s->availableGeometry();
+            const QSize size(area.width() * 3 / 4, area.height() * 3 / 4);
+            m_show->setGeometry(QRect(area.center() - QPoint(size.width() / 2, size.height() / 2), size));
+        }
+    } else if (s) {
+        // On the window's screen, the whole screen.
+        m_show->setGeometry(s->geometry());
+    }
+    watchShow(m_show, recording);
+    if (m_show->isWindowed()) m_show->show();
+    else m_show->showFullScreen();
+    m_show->activateWindow();
+    m_show->setFocus();
+}
+
+// When the show ends the window is back on the last slide the show showed, and asks about what the show left (once the show is gone).
+void DeckWindow::watchShow(SlideShow *show, bool recording)
+{
+    connect(show, &SlideShow::destroyed, this, [this] { activateWindow(); });
+    // A show in a window leaves the deck open to editing: it follows the slides by their pages; a presentation put in the window in
+    // place of this one ends it.
+    connect(m_ed, &Editor::changed, show, &SlideShow::documentChanged);
+    connect(m_ed, &Editor::documentReplaced, show, [this, show] {
+        show->rebind(m_ed->doc());
+        show->close();
+    });
+    connect(show, &SlideShow::ended, this, [this, show, recording](int last) {
+        if (last >= 0 && last < m_ed->doc()->pages.size()) m_ed->setCurrentPage(last);
+        const QHash<QString, QVector<deck::InkStroke>> ink = show->allInk();
+        const QMap<int, double> seconds = recording ? show->recordedSeconds() : QMap<int, double>();
+        const double total = recording ? show->recordedTotal() : 0;
+        QMetaObject::invokeMethod(this, [this, ink, seconds, total, recording] { afterShow(ink, seconds, total, recording); }, Qt::QueuedConnection);
+    });
+}
+
+void DeckWindow::afterShow(const QHash<QString, QVector<deck::InkStroke>> &ink, const QMap<int, double> &seconds, double total, bool recording)
+{
+    Document *d = m_ed->doc();
+    // Ink: a freeform line for each stroke on the slide it was drawn on (by its page: the slides may have moved or gone), all as one step.
+    // Ink on slides that are gone is nothing to keep.
+    const QHash<QString, int> pages = deck::pageIndexById(*d);
+    QList<QPair<int, QVector<deck::InkStroke>>> drawn;
+    for (auto it = ink.cbegin(); it != ink.cend(); ++it)
+        if (const auto at = pages.constFind(it.key()); at != pages.constEnd() && !it.value().isEmpty()) drawn << qMakePair(at.value(), it.value());
+    if (!drawn.isEmpty() && askAboutShow(tr("Do you want to keep your ink annotations?"), tr("Keep"), tr("Discard"))) {
+        m_ed->endTextEdit();
+        m_ed->beginChange(tr("Keep Ink"));
+        for (const auto &slide : std::as_const(drawn)) deck::addInk(*d->pages[slide.first], slide.second);
+        m_ed->endChange();
+    }
+    // Times: each slide's After, and Use Timings on.
+    if (recording && !seconds.isEmpty() &&
+        askAboutShow(tr("The slide show took %1. Do you want to keep the new slide timings?").arg(RehearseBar::clockText(qRound64(total * 1000))), tr("Yes"), tr("No"))) {
+        m_ed->endTextEdit();
+        m_ed->beginChange(tr("Rehearse Timings"));
+        for (auto it = seconds.cbegin(); it != seconds.cend(); ++it) {
+            if (it.key() < 0 || it.key() >= d->pages.size()) continue;
+            deck::Transition t = deck::transitionOf(*d->pages[it.key()]);
+            t.advanceAfter = std::max(0.1, std::round(it.value() * 10) / 10);
+            deck::setTransition(*d->pages[it.key()], t);
+        }
+        deck::ShowSettings settings = deck::showSettingsOf(*d);
+        settings.useTimings = true;
+        deck::setShowSettings(*d, settings);
+        m_ed->endChange();
+    }
+}
+
+bool DeckWindow::askAboutShow(const QString &question, const QString &keep, const QString &discard)
+{
+    if (m_showQuestion) return m_showQuestion(question);
+    QMessageBox box(QMessageBox::Question, appInfo().name, question, QMessageBox::NoButton, this);
+    QPushButton *yes = box.addButton(keep, QMessageBox::AcceptRole);
+    QPushButton *no = box.addButton(discard, QMessageBox::RejectRole);
+    box.setDefaultButton(yes);
+    box.setEscapeButton(no);   // Esc has just ended the show: it must not also change the slides
+    box.exec();
+    return box.clickedButton() == yes;
+}
+
+void DeckWindow::tellAboutShow(const QString &text)
+{
+    if (m_showQuestion) {
+        m_showQuestion(text);
+        return;
+    }
+    QMessageBox::information(this, appInfo().name, text);
+}
+
+// ---- Set Up Slide Show and Custom Shows ----
+
+void DeckWindow::setUpShow()
+{
+    const Document *d = m_ed->doc();
+    SetUpShowDialog dlg(deck::showSettingsOf(*d), deck::customShowsOf(*d), int(d->pages.size()), d->colors, this);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const deck::ShowSettings chosen = dlg.settings();
+    editShowSettings(m_ed, tr("Set Up Slide Show"), [&chosen](deck::ShowSettings &s) { s = chosen; });
+}
+
+void DeckWindow::editCustomShows()
+{
+    Document *d = m_ed->doc();
+    const QVector<deck::CustomShow> before = deck::customShowsOf(*d);
+    CustomShowsDialog dlg(*d, before, this);
+    dlg.exec();
+    const QVector<deck::CustomShow> after = dlg.shows();
+    if (after != before) {
+        m_ed->endTextEdit();
+        m_ed->beginChange(tr("Custom Shows"));
+        deck::setCustomShows(*d, after);   // a show set to play one that is gone plays every slide
+        m_ed->endChange();
+    }
+    if (dlg.playId() >= 0) startCustomShow(dlg.playId());
 }
 
 } // namespace jp

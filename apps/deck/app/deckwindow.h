@@ -112,8 +112,25 @@ public:
     bool insertPicture(const QString &path, const QPointF &at = QPointF(-1, -1));
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
-    // Starts the slide show at `slide` (0 is the first).
+    // Starts the slide show at `slide` (0 is the first), with every slide in
+    // play from there; the rest of how it goes is what the presentation is set
+    // up for (Set Up Slide Show).
     void startShow(int slide);
+    // The Slide Show tab (deckwindow_show.cpp). From Beginning plays the slides
+    // the show is set up for. Set Up Slide Show and Custom Shows ask in dialogs
+    // and are each one step that undoes; a custom show plays by its id.
+    // Rehearse Timings plays the show with the timing bar. What a show leaves
+    // behind is asked about when it ends: ink (kept as freeform lines on the
+    // slides) and the new times (kept as each slide's After, with Use Timings on).
+    void startShowFromBeginning();
+    void startCustomShow(qint64 id);
+    void setUpShow();
+    void editCustomShows();
+    void rehearseTimings();
+    // What those questions are asked with, and the notices the show gives (a range
+    // of slides past the end): the message box, unless this stands in for it
+    // (tests). Given the question, it says whether to keep; a notice's answer is ignored.
+    void setShowQuestion(const std::function<bool(const QString &)> &ask) { m_showQuestion = ask; }
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
@@ -166,6 +183,11 @@ private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
     void createShowActions();
+    void playShow(int slide, const deck::ShowPlan &plan, bool recording, bool rehearsal = false);
+    void watchShow(SlideShow *show, bool recording);
+    void afterShow(const QHash<QString, QVector<deck::InkStroke>> &ink, const QMap<int, double> &seconds, double total, bool recording);
+    bool askAboutShow(const QString &question, const QString &keep, const QString &discard);
+    void tellAboutShow(const QString &text);
     void createViewModeActions();   // deckwindow_views.cpp
     void addShowParts(struct RibbonParts &parts);
     void createActions();
@@ -230,6 +252,7 @@ private:
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
+    std::function<bool(const QString &)> m_showQuestion;
     quint64 m_serial = 0;
 };
 

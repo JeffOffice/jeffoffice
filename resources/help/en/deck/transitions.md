@@ -24,7 +24,7 @@ Click **Effect Options** for the effect's choices:
 The **Timing** group sets how long it takes and how the show leaves the slide.
 
 - **Duration** is how many seconds the effect takes. A new transition takes 0.7 seconds. You can type from 0.01 to 59.
-- **On Mouse Click** is on by default. The show moves on from this slide when the presenter clicks. Turn it off to move on with a key such as Space or Right instead. The slide's animations still play at a click. A right-click always goes back.
+- **On Mouse Click** is on by default. The show moves on from this slide when the presenter clicks. Turn it off to move on with a key such as Space or Right instead. The slide's animations still play at a click.
 - **After** makes the show move on by itself after the number of seconds you type. You can use **After** together with **On Mouse Click**: the show moves on at whichever comes first.
 
 **Apply To All** gives every slide the transition and the timing of the slide you are on.

@@ -25,5 +25,8 @@
   "file:open": "open-save",
   "file:print": "printing",
   "file:export": "printing",
-  "file:about": "file-screen"
+  "file:about": "file-screen",
+  "dialog:Set Up Show": "show",
+  "dialog:Custom Shows": "show",
+  "dialog:Define Custom Show": "show"
 }
