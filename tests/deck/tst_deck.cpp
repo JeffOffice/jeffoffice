@@ -6265,6 +6265,16 @@ private Q_SLOTS:
         for (int x = a.x(); x < b.x() && !red; ++x)
             for (int y = a.y() - 12; y < a.y() + 12 && !red; ++y) red = shot.pixelColor(x, y).red() > 200 && shot.pixelColor(x, y).green() < 60;
         QVERIFY(red);
+        // A right click on the large slide opens the show's menu.
+        {
+            QMouseEvent press(QEvent::MouseButtonPress, QPointF(a), QPointF(large->mapToGlobal(a)), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+            QApplication::sendEvent(large, &press);
+            QMenu *shown = pv.findChild<QMenu *>(QStringLiteral("showMenu"));
+            QVERIFY(shown);
+            QVERIFY(shown->findChild<QAction *>(QStringLiteral("menuNext")));
+            QCOMPARE(show.currentSlide(), 0);   // it did not move on
+            delete shown;
+        }
         // The button opens the menu of the pointer.
         pv.findChild<QAbstractButton *>(QStringLiteral("pointerButton"))->click();
         QMenu *menu = nullptr;

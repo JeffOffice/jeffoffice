@@ -397,6 +397,12 @@ bool PresenterView::eventFilter(QObject *o, QEvent *e)
     if (o == m_current && m_show) {
         const auto page = [this](QEvent *ev) { return m_current->pageAt(static_cast<QMouseEvent *>(ev)->position()); };
         if (e->type() == QEvent::MouseButtonPress) {
+            // A right click opens the show's menu, as it does in the show.
+            if (static_cast<QMouseEvent *>(e)->button() == Qt::RightButton && !m_show->isKiosk() && !m_show->isRecording()) {
+                QMenu *menu = m_show->buildMenu(this);
+                menu->setAttribute(Qt::WA_DeleteOnClose);
+                menu->popup(static_cast<QMouseEvent *>(e)->globalPosition().toPoint());
+            }
             if (static_cast<QMouseEvent *>(e)->button() != Qt::LeftButton) return true;
             // With the pen, the highlighter, or the eraser in hand a press draws on the slide; else it moves on.
             const SlideShow::Pointer pointer = m_show->pointer();
