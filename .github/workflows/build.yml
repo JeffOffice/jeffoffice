@@ -30,7 +30,7 @@ jobs:
         if: runner.os == 'Linux'
         with:
           version: '6.8.3'
-          modules: 'qtimageformats'
+          modules: 'qtimageformats qtmultimedia'
           cache: true
 
       # Windows builds with MinGW-w64 (GCC), the compiler Qt ships for Windows.
@@ -39,7 +39,7 @@ jobs:
         with:
           version: '6.8.3'
           arch: 'win64_mingw'
-          modules: 'qtimageformats'
+          modules: 'qtimageformats qtmultimedia'
           tools: 'tools_mingw1310'
           cache: true
 
@@ -50,7 +50,7 @@ jobs:
           host: 'mac'
           target: 'desktop'
           arch: 'clang_64'
-          modules: 'qtimageformats'
+          modules: 'qtimageformats qtmultimedia'
           cache: true
 
       - name: Ninja (macOS)
@@ -66,7 +66,7 @@ jobs:
 
       - name: Linux packages
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev libfuse2
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev libfuse2 libpulse-dev
 
       # Each shared library uses only the ones below it (libs/base < draw <
       # text < office < shell < page < apps), and no app reaches into another.
@@ -183,6 +183,15 @@ jobs:
           # Also copies the GCC runtime DLLs beside the programs.
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffPub.exe
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffDeck.exe
+          # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg
+          # plugin, which needs FFmpeg's DLLs beside it. windeployqt brings
+          # them with the plugin; if a version of it doesn't, they come from
+          # Qt's folder. JeffPub doesn't link Qt Multimedia and gets neither.
+          foreach ($name in 'avcodec', 'avformat', 'avutil', 'swresample', 'swscale') {
+            if (-not (Test-Path "dist/JeffOffice/$name-*.dll")) { Copy-Item "$env:QT_ROOT_DIR/bin/$name-*.dll" dist/JeffOffice/ }
+          }
+          if (-not (Test-Path dist/JeffOffice/multimedia/ffmpegmediaplugin.dll)) { throw "the FFmpeg multimedia plugin was not deployed" }
+          if (-not (Test-Path dist/JeffOffice/avcodec-*.dll)) { throw "FFmpeg's DLLs were not deployed" }
           Get-ChildItem dist/JeffOffice/*.dll | Select-Object -ExpandProperty Name
           Copy-Item LICENSE, README.md dist/JeffOffice/
           Copy-Item -Recurse resources/fonts dist/JeffOffice/fonts
@@ -247,6 +256,9 @@ jobs:
           test -s deb-check/deck.png
           # PDFium is in the package, with the license texts.
           test -f deb-check/opt/jeffoffice/lib/libpdfium.so
+          # JeffDeck plays movies and sounds: Qt Multimedia's FFmpeg plugin and FFmpeg's libraries are in the package.
+          test -f deb-check/opt/jeffoffice/plugins/multimedia/libffmpegmediaplugin.so
+          ls deb-check/opt/jeffoffice/lib/libavcodec.so.*
           test -f deb-check/usr/share/doc/jeffoffice/pdfium/pdfium.txt
           ls -la linux-packages
 
@@ -279,6 +291,11 @@ jobs:
             codesign --force --deep --sign - dist/$app.app
             lipo -archs dist/$app.app/Contents/MacOS/$app
           done
+          # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg plugin; macdeployqt brings the plugin and
+          # FFmpeg's libraries with it. JeffPub doesn't link Qt Multimedia and gets neither.
+          test -f dist/JeffDeck.app/Contents/PlugIns/multimedia/libffmpegmediaplugin.dylib
+          ls dist/JeffDeck.app/Contents/Frameworks | grep -q '^libavcodec'
+          test ! -d dist/JeffPub.app/Contents/Frameworks/QtMultimedia.framework
           # The packaged programs must start on their own bundled Qt (and PDFium).
           QT_QPA_PLATFORM=offscreen dist/JeffPub.app/Contents/MacOS/JeffPub --template flyer-announce --export-pdf dist/check.pdf
           test -s dist/check.pdf && rm dist/check.pdf
