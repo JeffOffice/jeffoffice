@@ -9751,6 +9751,209 @@ private Q_SLOTS:
         QVERIFY(!deck::looksLikeMediaFile(QByteArray(2000, 'a')));
     }
 
+    // ---- what a reviewer found ----
+
+    // What the media may come to is held under what a file can be read with: bytes that would go past it are not put in (those it already
+    // keeps add nothing), and what a file holds is read only up to the most, whatever size it says.
+    void mediaIsHeldUnderWhatAFileCanBeReadWith()
+    {
+        auto d = deck::newPresentation();
+        deck::setMediaByteLimit(0);
+        QVERIFY(deck::mediaByteLimit() >= (qint64(1) << 30));
+        QVERIFY(deck::mediaByteLimit() < (qint64(1) << 31));
+        QVERIFY(deck::mediaWouldFit(*d, QByteArray(1000, 'a')));
+        qint64 used = 0;
+        for (const auto &image : std::as_const(d->images)) used += image.bytes.size();
+        deck::setMediaByteLimit(used + 5000);
+        const QByteArray kept(3000, 'k');
+        d->addMedia(kept, QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        QVERIFY(deck::mediaWouldFit(*d, QByteArray(1500, 'b')));
+        QVERIFY(!deck::mediaWouldFit(*d, QByteArray(3000, 'c')));
+        QVERIFY(deck::mediaWouldFit(*d, kept));   // already in: one copy is kept
+        // A stream that has no end, and says it has no size.
+        struct Endless : QIODevice {
+            qint64 readData(char *data, qint64 max) override
+            {
+                memset(data, 'z', size_t(max));
+                given += max;
+                return max;
+            }
+            qint64 writeData(const char *, qint64) override { return -1; }
+            bool isSequential() const override { return true; }
+            qint64 given = 0;
+        } endless;
+        endless.open(QIODevice::ReadOnly);
+        QByteArray got;
+        QVERIFY(!deck::readMediaBytes(endless, 1000, &got));
+        QVERIFY(got.isEmpty());
+        QVERIFY2(endless.given <= 1000 + 65536, qPrintable(QString::number(endless.given)));   // it stopped soon after the most
+        QByteArray small(500, 'q');
+        QBuffer exact(&small);
+        exact.open(QIODevice::ReadOnly);
+        QVERIFY(deck::readMediaBytes(exact, 500, &got));
+        QCOMPARE(got, small);
+        QBuffer over(&small);
+        over.open(QIODevice::ReadOnly);
+        QVERIFY(!deck::readMediaBytes(over, 499, &got));
+        deck::setMediaByteLimit(0);
+    }
+
+    // Insert says no, with the reason, before it reads or decodes a thing, when the slide being edited is not a slide (a master) or when
+    // the presentation could not take the file and be read again.
+    void insertMediaSaysWhyBeforeItReadsAnything()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        const QString wav = writeTestFile(dir, QStringLiteral("tune.wav"), testWav(1000));
+        QString shown;
+        QTimer closer;
+        closer.setInterval(10);
+        connect(&closer, &QTimer::timeout, &closer, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                shown = box->text();
+                box->close();
+            }
+        });
+        closer.start();
+        const int before = MediaPlayback::decoders();
+        // Too much for a file to hold.
+        qint64 used = 0;
+        for (const auto &image : std::as_const(ed->doc()->images)) used += image.bytes.size();
+        deck::setMediaByteLimit(used + 1000);
+        QVERIFY(!w.insertMedia(wav, QStringLiteral("audio")));
+        QVERIFY2(shown.contains(QStringLiteral("tune.wav")) && shown.contains(QStringLiteral("too")), qPrintable(shown));
+        QVERIFY(ed->doc()->media.isEmpty());
+        deck::setMediaByteLimit(0);
+        // A master is not a slide.
+        shown.clear();
+        QVERIFY(!ed->doc()->masters.isEmpty());
+        ed->setMasterView(ed->doc()->masters.first()->id);
+        QVERIFY(!w.insertMedia(wav, QStringLiteral("audio")));
+        QVERIFY2(shown.contains(QStringLiteral("slide")), qPrintable(shown));
+        QCOMPARE(MediaPlayback::decoders(), before);   // nothing was decoded to find out
+        QVERIFY(ed->doc()->media.isEmpty());
+        closer.stop();
+        ed->setMasterView(QString());
+    }
+
+    // After a clip stops (at its trim end, say), moving in it and playing again plays to the trim end again, not to the end of the file.
+    void mediaStopsAtTheTrimEndAgainAfterScrubbing()
+    {
+        MediaPlayback pb;
+        deck::MediaPlay play;
+        play.trimStart = 300;
+        play.trimEnd = 800;
+        pb.setFile(testWav(3000), QStringLiteral("wav"));
+        pb.setPlay(play);
+        pb.play();
+        QSignalSpy ended(&pb, &MediaPlayback::ended);
+        QTest::qWait(100);
+        QTRY_VERIFY_WITH_TIMEOUT(pb.failed() || ended.count() > 0, 8000);
+        if (pb.failed() || ended.count() == 0) QSKIP("this computer's player doesn't run a sound out here");
+        // Moved back into it, and played again.
+        pb.seek(100);
+        QTRY_COMPARE_WITH_TIMEOUT(int(pb.state()), int(MediaPlayback::State::Paused), 5000);
+        pb.resume();
+        QTRY_VERIFY_WITH_TIMEOUT(pb.state() == MediaPlayback::State::Playing || ended.count() > 1, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(ended.count() > 1, 5000);   // at 800, not at 3,000
+        QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
+    }
+
+    // "Across N slides" counts a slide's going once, whether a transition plays or not, and nothing plays on after the show.
+    void showMediaAcrossSlidesCountsEachChangeOnceAndEndsWithTheShow()
+    {
+        auto d = showDeck(4);
+        for (int i = 1; i < 4; ++i) deck::setTransition(*d->pages[i], showTransition("fade", 0.05));
+        deck::MediaPlay across;
+        across.start = deck::MediaStart::Automatically;
+        across.acrossSlides = 3;
+        auto sound = showMedia(*d, 0, testWav(8000), QStringLiteral("song.wav"), QPointF(40, 40), across);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QPointer<MediaPlayback> song = show.media()->playbackOf(sound->id);
+        QVERIFY(song);
+        show.next();
+        QTRY_VERIFY(!show.isAnimating());
+        QCOMPARE(show.currentSlide(), 1);
+        QVERIFY(!song.isNull());   // over one slide's end
+        show.next();
+        QTRY_VERIFY(!show.isAnimating());
+        QCOMPARE(show.currentSlide(), 2);
+        QVERIFY2(!song.isNull(), "three slides: still on the second");
+        show.next();
+        QTRY_VERIFY(!show.isAnimating());
+        QCOMPARE(show.currentSlide(), 3);
+        QTRY_VERIFY(song.isNull());   // after the third
+        // A show that ends takes what plays across slides with it.
+        auto d2 = showDeck(2);
+        deck::MediaPlay everywhere;
+        everywhere.start = deck::MediaStart::Automatically;
+        everywhere.acrossSlides = 999;
+        auto bell = showMedia(*d2, 0, testWav(8000), QStringLiteral("bell.wav"), QPointF(40, 40), everywhere);
+        SlideShow other(d2.get(), &cache, 0);
+        other.resize(960, 540);
+        other.show();
+        QPointer<MediaPlayback> ring = other.media()->playbackOf(bell->id);
+        QVERIFY(ring);
+        other.next();
+        QCOMPARE(other.currentSlide(), 1);
+        QVERIFY(!ring.isNull());
+        other.next();   // past the last slide: the end of the show
+        QVERIFY(other.currentSlide() < 0);
+        QTRY_VERIFY(ring.isNull());
+    }
+
+    // Trim doesn't decode the file to learn how long it is: the timing's length is what it goes by.
+    void trimDoesNotDecodeTheFile()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        auto sound = deck::newMediaPicture(*d, *d->pages[0], testWav(3000), QStringLiteral("t.wav"), QImage(), 3000);
+        QVERIFY(sound);
+        w.editor()->beginChange(QStringLiteral("Insert"));
+        d->pages[0]->items.push_back(sound);
+        w.editor()->endChange();
+        w.editor()->select(sound->id);
+        const int before = MediaPlayback::decoders();
+        double shownEnd = -1;
+        QTimer closer;
+        closer.setInterval(10);
+        connect(&closer, &QTimer::timeout, &closer, [&] {
+            if (auto *dlg = qobject_cast<MediaTrimDialog *>(QApplication::activeModalWidget())) {
+                if (auto *end = dlg->findChild<QDoubleSpinBox *>(QStringLiteral("trimEnd"))) shownEnd = end->value();
+                dlg->reject();
+            }
+        });
+        closer.start();
+        w.act(QStringLiteral("playback.trim"))->trigger();
+        closer.stop();
+        QCOMPARE(MediaPlayback::decoders(), before);
+        QCOMPARE(shownEnd, 3.0);   // the length the timing says
+    }
+
+    // A document that is replaced lets go of the players it had.
+    void editorMediaLetsGoOfItsPlayersWhenTheDocumentIsReplaced()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        auto sound = deck::newMediaPicture(*d, *d->pages[0], testWav(3000), QStringLiteral("t.wav"), QImage(), 3000);
+        QVERIFY(sound);
+        w.editor()->beginChange(QStringLiteral("Insert"));
+        d->pages[0]->items.push_back(sound);
+        w.editor()->endChange();
+        w.editor()->select(sound->id);
+        w.canvas()->media()->play(sound->id);
+        QPointer<MediaPlayback> pb = w.canvas()->media()->playbackOf(sound->id);
+        QVERIFY(pb);
+        w.editor()->setDocument(deck::newPresentation());
+        QVERIFY(pb.isNull());
+        QVERIFY(w.canvas()->media()->activeId().isEmpty());
+    }
+
     // The cTn id the effect that calls the shape's media has, in a timing; 0 if none.
     static int mediaCallNode(const QString &timing, int shape)
     {
