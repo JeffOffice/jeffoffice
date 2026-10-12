@@ -24,6 +24,10 @@
 #include <QTextDocument>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QVarLengthArray>
+#include <QXmlStreamReader>
+#include <utility>
+#include <vector>
 
 namespace jp {
 
@@ -106,28 +110,70 @@ quint64 Story::nextSerial()
 }
 
 // ---------- ImageData ----------
+namespace {
+
+enum class PictureKind { Metafile, Pdf, Svg, Raster };
+
+PictureKind kindOf(const QString &format, const QByteArray &bytes)
+{
+    if (format == QLatin1String("wmf") || format == QLatin1String("emf") || Metafile::looksLikeMetafile(bytes)) return PictureKind::Metafile;
+    if (format == QLatin1String("pdf")) return PictureKind::Pdf;
+    if (format == QLatin1String("svg")) return PictureKind::Svg;
+    return PictureKind::Raster;
+}
+
+// The size of the picture image() makes of each kind, which is what a picture's
+// pixelSize is: known from the file's own size, without drawing it.
+QSize metafileImageSize(const Metafile &m)
+{
+    QSizeF s = m.naturalSize();
+    if (s.width() <= 0 || s.height() <= 0) s = QSizeF(400, 400);
+    s.scale(1600, 1600, Qt::KeepAspectRatio);
+    return s.toSize().expandedTo(QSize(1, 1));
+}
+
+QSize pdfImageSize(const QSizeF &pt)
+{
+    const double scale = std::min(300.0 / 72.0, 2400.0 / std::max(pt.width(), pt.height()));
+    return QSize(std::max(1, qRound(pt.width() * scale)), std::max(1, qRound(pt.height() * scale)));
+}
+
+// An SVG is drawn 1,200 pixels on its long side at the least, as large as it
+// asks to be, but no more than kMaxSvgRasterSide (a chart's frame can be a
+// million points wide), with its shape kept.
+QSize svgImageSize(const QSvgRenderer &r)
+{
+    QSize s = r.defaultSize().isValid() ? r.defaultSize() : QSize(512, 512);
+    s.scale(std::max(s.width(), 1200), std::max(s.height(), 1200), Qt::KeepAspectRatio);
+    const int longSide = std::max(s.width(), s.height());
+    if (longSide > kMaxSvgRasterSide) {
+        const double k = double(kMaxSvgRasterSide) / longSide;
+        s = QSize(std::max(1, qRound(s.width() * k)), std::max(1, qRound(s.height() * k)));
+    }
+    return s;
+}
+
+} // namespace
+
 QImage ImageData::image() const
 {
     if (!cache.isNull()) return cache;
-    if (format == QLatin1String("wmf") || format == QLatin1String("emf") || Metafile::looksLikeMetafile(bytes)) {
+    switch (kindOf(format, bytes)) {
+    case PictureKind::Metafile: {
         Metafile m;
         if (m.load(bytes)) cache = m.toImage(1600);
         return cache;
     }
-    if (format == QLatin1String("pdf")) {
+    case PictureKind::Pdf: {
         // A PDF page: PDFium's drawing of it, about 2,400 pixels on its long side.
         const auto pdf = PdfDocument::shared(bytes);
         const QSizeF pt = pdf->pageSize(0);
-        if (!pt.isEmpty()) {
-            const double scale = std::min(300.0 / 72.0, 2400.0 / std::max(pt.width(), pt.height()));
-            cache = pdf->render(0, QSize(std::max(1, qRound(pt.width() * scale)), std::max(1, qRound(pt.height() * scale))));
-        }
+        if (!pt.isEmpty()) cache = pdf->render(0, pdfImageSize(pt));
         return cache;
     }
-    if (format == QLatin1String("svg")) {
+    case PictureKind::Svg: {
         QSvgRenderer r(bytes);
-        QSize s = r.defaultSize().isValid() ? r.defaultSize() : QSize(512, 512);
-        s.scale(std::max(s.width(), 1200), std::max(s.height(), 1200), Qt::KeepAspectRatio);
+        const QSize s = svgImageSize(r);
         QImage img(s, QImage::Format_ARGB32_Premultiplied);
         img.fill(Qt::transparent);
         QPainter p(&img);
@@ -135,10 +181,15 @@ QImage ImageData::image() const
         cache = img;
         return cache;
     }
+    case PictureKind::Raster: break;
+    }
     QBuffer buf;
     buf.setData(bytes);
     QImageReader rd(&buf);
     rd.setAutoTransform(true);
+    // An SVG that isn't called one is not drawn by the reader: it would draw it, whatever it asks for.
+    const QByteArray detected = rd.format();
+    if (detected == "svg" || detected == "svgz") return QImage();
     cache = rd.read();
     return cache;
 }
@@ -210,6 +261,146 @@ bool readPictureFile(const QString &path, int pdfPage, QByteArray *bytes, QStrin
     QImageReader r(&buffer, format->toLatin1());
     *pixels = r.size();
     return pixels->isValid() || *format == "svg";
+}
+
+// ---------- SVG pictures ----------
+namespace {
+
+// Whether what an attribute or a style sheet says (`text`) leaves the SVG: an
+// @import, or a url( that is neither a part of the SVG itself nor a picture
+// inline. The parts it points at are added to `to`.
+bool urlsStayInside(QStringView text, QStringList *to)
+{
+    if (text.contains(QLatin1String("@import"), Qt::CaseInsensitive)) return false;
+    for (qsizetype at = text.indexOf(QLatin1String("url("), 0, Qt::CaseInsensitive); at >= 0; at = text.indexOf(QLatin1String("url("), at + 4, Qt::CaseInsensitive)) {
+        const qsizetype end = text.indexOf(QLatin1Char(')'), at + 4);
+        if (end < 0 || to->size() >= kMaxSvgParts) return false;
+        QStringView target = text.mid(at + 4, end - at - 4).trimmed();
+        while (!target.isEmpty() && (target.front() == QLatin1Char('"') || target.front() == QLatin1Char('\''))) target = target.mid(1);
+        while (!target.isEmpty() && (target.back() == QLatin1Char('"') || target.back() == QLatin1Char('\''))) target.chop(1);
+        target = target.trimmed();
+        if (target.startsWith(QLatin1Char('#'))) to->append(target.mid(1).toString());
+        else if (!target.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) return false;
+    }
+    return true;
+}
+
+// A picture inline (a data: address) in an SVG's image: of a kind the image
+// reader knows other than SVG itself (which would be read without these
+// checks), and with its pixels, with those of the others in the SVG, within
+// the limit. `weight` gets what drawing it costs, in parts.
+bool inlinePictureIsSafe(QStringView address, qint64 *pixels, qint64 *weight)
+{
+    const qsizetype comma = address.indexOf(QLatin1Char(','));
+    if (comma < 0) return false;
+    const bool base64 = address.left(comma).contains(QLatin1String("base64"), Qt::CaseInsensitive);
+    const QByteArray payload = address.mid(comma + 1).toLatin1();
+    QByteArray data = base64 ? QByteArray::fromBase64(payload) : QByteArray::fromPercentEncoding(payload);
+    QBuffer buffer(&data);
+    QImageReader reader(&buffer);
+    const QByteArray kind = reader.format();
+    const QSize size = reader.size();
+    if (kind.isEmpty() || kind == "svg" || kind == "svgz" || !size.isValid()) return false;
+    const qint64 n = qint64(size.width()) * size.height();
+    *pixels += n;
+    if (n > kMaxPicturePixels || *pixels > kMaxPicturePixels) return false;
+    *weight += n / 4096;
+    return true;
+}
+
+} // namespace
+
+bool svgIsSafe(const QByteArray &svg)
+{
+    std::vector<qint64> cost;                   // what each part costs to draw by itself, then with all inside it and all it uses
+    std::vector<std::vector<int>> inside;       // the parts inside each part, then those it uses
+    std::vector<int> open;                      // the parts being read, outermost first
+    QHash<QString, QVarLengthArray<int, 2>> named;
+    std::vector<std::pair<int, QString>> uses;
+    qint64 pictures = 0;
+    int styleAt = -1;
+    QXmlStreamReader xml(svg);
+    while (!xml.atEnd()) {
+        const auto token = xml.readNext();
+        if (token == QXmlStreamReader::StartElement) {
+            if (cost.size() >= size_t(kMaxSvgParts) || open.size() >= size_t(kMaxSvgDepth) || uses.size() >= size_t(kMaxSvgParts)) return false;
+            const QStringView name = xml.name();
+            if (cost.empty() && name != QLatin1String("svg")) return false;
+            if (name == QLatin1String("script") || name == QLatin1String("foreignObject")) return false;
+            const int me = int(cost.size());
+            cost.push_back(name == QLatin1String("stop") ? 0 : 1);
+            inside.emplace_back();
+            if (!open.empty()) inside[size_t(open.back())].push_back(me);
+            QStringList to;
+            for (const QXmlStreamAttribute &a : xml.attributes()) {
+                const QStringView attribute = a.name(), value = a.value();
+                if (attribute == QLatin1String("href")) {
+                    // An anchor's link only goes somewhere when it is clicked: it uses nothing, and is read by nothing.
+                    // Another one is to a part of the SVG, or to a picture inline; anything else is a file or an
+                    // address to read.
+                    if (name == QLatin1String("a")) continue;
+                    const QStringView target = value.trimmed();
+                    if (target.startsWith(QLatin1Char('#'))) to.append(target.mid(1).toString());
+                    else if (!target.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) return false;
+                    else if (name == QLatin1String("image") && !inlinePictureIsSafe(target, &pictures, &cost.back())) return false;
+                    continue;
+                }
+                if (attribute == QLatin1String("id")) {
+                    auto &same = named[value.toString()];
+                    if (same.size() >= 8) return false;
+                    same.append(me);
+                }
+                if (!urlsStayInside(value, &to)) return false;
+            }
+            for (const QString &target : std::as_const(to)) uses.emplace_back(me, target);
+            if (name == QLatin1String("style")) styleAt = me;
+            open.push_back(me);
+        } else if (token == QXmlStreamReader::EndElement) {
+            if (!open.empty()) open.pop_back();
+        } else if (token == QXmlStreamReader::Characters && !open.empty() && open.back() == styleAt) {
+            QStringList to;
+            if (!urlsStayInside(xml.text(), &to)) return false;
+            for (const QString &target : std::as_const(to)) uses.emplace_back(open.back(), target);
+        }
+    }
+    if (xml.hasError() || cost.empty()) return false;
+    for (const auto &use : uses) {
+        const auto parts = named.constFind(use.second);
+        if (parts == named.cend()) continue;
+        for (int part : *parts) inside[size_t(use.first)].push_back(part);
+    }
+    // The cost of the whole, each part counted once per place it is drawn: the parts and what they use,
+    // added up from the inside out (and a part that uses itself, however far round, is left out).
+    enum { Unseen, Open, Done };
+    std::vector<char> state(cost.size(), Unseen);
+    std::vector<std::pair<int, size_t>> walk{{0, 0}};
+    state[0] = Open;
+    while (!walk.empty()) {
+        const int part = walk.back().first;
+        const size_t next = walk.back().second;
+        if (next < inside[size_t(part)].size()) {
+            ++walk.back().second;
+            const int to = inside[size_t(part)][next];
+            if (state[size_t(to)] == Open) return false;
+            if (state[size_t(to)] == Unseen) {
+                state[size_t(to)] = Open;
+                walk.emplace_back(to, 0);
+            } else {
+                cost[size_t(part)] += cost[size_t(to)];
+                if (cost[size_t(part)] > kMaxSvgParts) return false;
+            }
+        } else {
+            state[size_t(part)] = Done;
+            const qint64 total = cost[size_t(part)];
+            walk.pop_back();
+            if (total > kMaxSvgParts) return false;
+            if (!walk.empty()) {
+                cost[size_t(walk.back().first)] += total;
+                if (cost[size_t(walk.back().first)] > kMaxSvgParts) return false;
+            }
+        }
+    }
+    return true;
 }
 
 // ---------- small structs ----------
@@ -653,19 +844,146 @@ QSet<QString> Document::storiesInUse() const
     return used;
 }
 
+QString Document::findImage(const QByteArray &bytes) const
+{
+    // Something else put pictures in or took them out (a file was read): index them again.
+    if (m_imagesIndexed != images.size()) rebuildImageIndex();
+    // The same buffer as a stored picture's (one image part listed by many pictures): equal without a look.
+    const auto buffer = m_imageBuffers.constFind(bytes.constData());
+    if (buffer != m_imageBuffers.cend()) {
+        const auto it = images.constFind(*buffer);
+        if (it != images.cend() && !it->linked && it->bytes.constData() == bytes.constData() && it->bytes.size() == bytes.size()) return *buffer;
+    }
+    const size_t hash = qHash(bytes);
+    for (auto at = m_imageHashes.constFind(hash); at != m_imageHashes.cend() && at.key() == hash; ++at) {
+        const auto it = images.constFind(*at);
+        if (it != images.cend() && !it->linked && it->bytes == bytes) return *at;
+    }
+    return QString();
+}
+
+void Document::indexImage(const QString &id)
+{
+    const auto it = images.constFind(id);
+    if (it == images.cend() || it->linked) return;
+    m_imageHashes.insert(qHash(it->bytes), id);
+    m_imageBuffers.insert(it->bytes.constData(), id);
+}
+
+void Document::rebuildImageIndex() const
+{
+    m_imageHashes.clear();
+    m_imageBuffers.clear();
+    for (auto it = images.cbegin(); it != images.cend(); ++it) {
+        if (it->linked) continue;
+        m_imageHashes.insert(qHash(it->bytes), it.key());
+        m_imageBuffers.insert(it->bytes.constData(), it.key());
+    }
+    m_imagesIndexed = images.size();
+}
+
+void Document::noteDecoded(const QString &id) const
+{
+    const auto it = images.constFind(id);
+    if (it == images.cend() || it->cache.isNull()) return;
+    it->used = ++m_imageClock;
+    m_decodedBytes += it->cache.sizeInBytes();
+    if (m_decodedBytes > imageCacheBudget) trimImageCache(id);
+}
+
+void Document::trimImageCache(const QString &keep, qint64 room) const
+{
+    // Counted again, as pictures may have been decoded, or their decodes dropped, behind the count.
+    struct Held {
+        quint64 used;
+        qint64 bytes;
+        const ImageData *image;
+    };
+    std::vector<Held> held;
+    qint64 total = 0;
+    for (auto it = images.cbegin(); it != images.cend(); ++it) {
+        if (it->cache.isNull()) continue;
+        total += it->cache.sizeInBytes();
+        if (it.key() != keep) held.push_back({it->used, it->cache.sizeInBytes(), &*it});
+    }
+    if (total + room > imageCacheBudget) {
+        std::sort(held.begin(), held.end(), [](const Held &a, const Held &b) { return a.used < b.used; });
+        const qint64 aim = std::max<qint64>(0, imageCacheBudget / 4 * 3 - room);
+        for (const Held &h : held) {
+            if (total <= aim) break;
+            total -= h.bytes;
+            h.image->cache = QImage();
+        }
+    }
+    m_decodedBytes = total;
+}
+
 QString Document::addImage(const QByteArray &bytes, const QString &format, const QString &sourcePath, const QImage &decoded)
 {
-    for (auto it = images.cbegin(); it != images.cend(); ++it)
-        if (!it->linked && it->bytes == bytes) return it.key();
+    const QString same = findImage(bytes);
+    if (!same.isEmpty()) return same;
     ImageData d;
     d.bytes = bytes;
     d.format = format.toLower();
     d.sourcePath = sourcePath;
     d.cache = decoded;
-    const QImage img = d.image();
-    d.pixelSize = img.size();
+    // Its size is read, not its picture: a decode is made when it is drawn, and kept within the budget.
+    QSize size;
+    if (!decoded.isNull()) {
+        size = decoded.size();
+    } else {
+        switch (kindOf(d.format, bytes)) {
+        case PictureKind::Metafile: {
+            if (bytes.size() > kMaxMetafileBytes) {
+                ++imagesLeftOut;
+                return QString();
+            }
+            Metafile m;
+            size = m.load(bytes) ? metafileImageSize(m) : QSize(0, 0);
+            break;
+        }
+        case PictureKind::Pdf: {
+            const QSizeF pt = PdfDocument::shared(bytes)->pageSize(0);
+            size = pt.isEmpty() ? QSize(0, 0) : pdfImageSize(pt);
+            break;
+        }
+        case PictureKind::Svg: {
+            const bool again = !m_refusedSvg.isEmpty() && m_refusedSvg.constData() == bytes.constData() && m_refusedSvg.size() == bytes.size();
+            if (again || !svgIsSafe(bytes)) {
+                m_refusedSvg = bytes;
+                ++imagesLeftOut;
+                return QString();
+            }
+            size = svgImageSize(QSvgRenderer(bytes));
+            break;
+        }
+        case PictureKind::Raster: {
+            QBuffer buf;
+            buf.setData(bytes);
+            QImageReader rd(&buf);
+            rd.setAutoTransform(true);
+            const QByteArray detected = rd.format();
+            size = rd.size();
+            if (detected == "svg" || detected == "svgz") { ++imagesLeftOut; return QString(); }
+            // A kind that gives no size before it is decoded: decoded once, to learn it.
+            if (!size.isValid()) {
+                d.cache = d.image();
+                size = d.cache.size();
+            }
+            break;
+        }
+        }
+    }
+    if (qint64(size.width()) * size.height() > kMaxPicturePixels) {
+        ++imagesLeftOut;
+        return QString();
+    }
+    d.pixelSize = size;
     const QString id = newId("img");
     images.insert(id, d);
+    indexImage(id);
+    m_imagesIndexed = images.size();
+    noteDecoded(id);
     return id;
 }
 
@@ -702,7 +1020,11 @@ QString Document::addLinkedImage(const QByteArray &bytes, const QString &format,
     d.pixelSize = d.image().size();
     d.makePreview();
     const QString id = newId("img");
+    // A link isn't indexed (only embedded pictures are found by their bytes), but it is counted as one that is.
+    const bool indexed = m_imagesIndexed == images.size();
     images.insert(id, d);
+    if (indexed) m_imagesIndexed = images.size();
+    noteDecoded(id);
     return id;
 }
 
@@ -865,7 +1187,17 @@ void Document::refreshLinks()
 QImage Document::image(const QString &id) const
 {
     auto it = images.find(id);
-    return it == images.end() ? QImage() : it->image();
+    if (it == images.end()) return QImage();
+    const bool decoded = !it->cache.isNull();
+    if (!decoded && it->pixelSize.isValid()) {
+        // Room is made before the decode, not after: a picture can come out at four bytes a pixel.
+        const qint64 need = qint64(it->pixelSize.width()) * it->pixelSize.height() * 4;
+        if (m_decodedBytes + need > imageCacheBudget) trimImageCache(id, need);
+    }
+    const QImage img = it->image();
+    if (decoded) it->used = ++m_imageClock;
+    else noteDecoded(id);
+    return img;
 }
 
 QSize Document::imageSize(const QString &id) const

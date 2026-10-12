@@ -9,6 +9,7 @@
 
 #include <QByteArray>
 #include <QDateTime>
+#include <QHash>
 #include <QImage>
 #include <QJsonObject>
 #include <QMap>
@@ -48,6 +49,10 @@ struct ImageData {
     QImage image() const;       // decoded, cached
     void makePreview();         // fills preview from the picture
     mutable QImage cache;
+    // When Document::image last gave the decode out, in its own count: the
+    // decode of the picture used longest ago is the first to go (see
+    // Document::imageCacheBudget).
+    mutable quint64 used = 0;
     // Not saved: when the publication opened, the file was read and its
     // contents were not the linked ones. (A status check looks only at the
     // size and date, and doesn't read the file.)
@@ -227,6 +232,35 @@ struct MediaData {
     QString extension;          // "mp4", "wav", ...
 };
 
+// What a picture is held to when it is added and drawn, and what real files
+// use: the reference presentations' largest picture has 9 million pixels,
+// JeffPub's 284 sample publications' 101 million (a book cover at 300 dpi), and
+// the largest metafile in either is under 1 MB. Of 10,377 SVG files found on
+// disk, none has more than 889 parts or is nested deeper than 5.
+// The most pixels a picture may have: 256 million, a decode of a gigabyte at
+// four bytes a pixel (2.5 times the largest above; Qt's own limit on one decode
+// is 2 GB, and a higher one would let one picture take the machine).
+constexpr qint64 kMaxPicturePixels = 256LL * 1024 * 1024;
+// The most bytes a metafile may be (as inflated, from a presentation file): 32 MB.
+constexpr qint64 kMaxMetafileBytes = 32LL * 1024 * 1024;
+// The decodes of all a document's pictures kept at once: 1 GiB, twice what the
+// sample publication with the most pictures decodes to (510 MB).
+constexpr qint64 kImageCacheBudget = 1024LL * 1024 * 1024;
+// An SVG is drawn at most this many pixels on its long side.
+constexpr int kMaxSvgRasterSide = 4096;
+// An SVG with more parts to draw than this, counting each use of a part again
+// where it is used (a few lines can build millions), or nested deeper, is not
+// drawn. A part takes about 10 microseconds, so 100,000 take a second or two.
+constexpr int kMaxSvgParts = 100000;
+constexpr int kMaxSvgDepth = 128;
+
+// Whether an SVG picture is safe to read and draw: well formed, with no
+// script or foreign content, nothing that names a file or an address (a
+// picture of its own inline is read, and held to the picture limit), no
+// part that is drawn inside itself, and no more to draw than kMaxSvgParts
+// once every use of a part is counted. Document::addImage asks this of every SVG.
+bool svgIsSafe(const QByteArray &svg);
+
 class Document : public FieldSource {
 public:
     Document();
@@ -243,6 +277,13 @@ public:
     ItemList extra;
     QMap<QString, std::shared_ptr<Story>> stories;
     QMap<QString, ImageData> images;
+    // How many pictures addImage has left out since the document was made:
+    // those past a limit, and SVG it won't draw. An importer reads it for its notes.
+    int imagesLeftOut = 0;
+    // The most bytes the pictures' decodes kept in `images` come to. Past it,
+    // the decodes of the pictures used longest ago are dropped (to three
+    // quarters of it), and made again when drawn.
+    qint64 imageCacheBudget = kImageCacheBudget;
     // The movies and sounds pictures play (PictureItem::mediaId). Like the
     // pictures' bytes they are not in toJson, so undoing an edit leaves them
     // be; nothing takes one away while the document is open.
@@ -321,7 +362,11 @@ public:
 
     // pictures
     // `decoded`, when the caller has it, is the picture as image() would
-    // read it, saving the decoding.
+    // read it, saving the decoding. Without it only the picture's size is read
+    // here, and it is decoded (and kept within imageCacheBudget) when it is
+    // drawn. A picture left out comes back with no id, and is counted in
+    // imagesLeftOut: one past kMaxPicturePixels, a metafile past kMaxMetafileBytes,
+    // an SVG that svgIsSafe won't have, or an SVG that isn't called one.
     QString addImage(const QByteArray &bytes, const QString &format, const QString &sourcePath = QString(), const QImage &decoded = QImage());
     QImage image(const QString &id) const;
     // Keeps a movie or sound and returns its id; the same bytes kept again
@@ -396,6 +441,24 @@ public:
     void resetDefaults();
 
     static std::unique_ptr<Document> blank(const QSizeF &size, const QString &sizeName = QStringLiteral("Letter"), int pageCount = 1);
+
+private:
+    // The picture with these bytes, if one is kept: by the buffer itself, or
+    // by a hash of the bytes (compared only when the hashes agree).
+    QString findImage(const QByteArray &bytes) const;
+    void indexImage(const QString &id);
+    void rebuildImageIndex() const;
+    // A picture was decoded: counts its decode, and drops others' past the budget.
+    void noteDecoded(const QString &id) const;
+    // Drops the decodes of the pictures used longest ago, but not `keep`'s, when
+    // those held and `room` more would pass the budget.
+    void trimImageCache(const QString &keep, qint64 room = 0) const;
+    mutable QMultiHash<size_t, QString> m_imageHashes;
+    mutable QHash<const char *, QString> m_imageBuffers;
+    mutable qsizetype m_imagesIndexed = 0;      // how many images the index above was made for
+    mutable qint64 m_decodedBytes = 0;          // the decodes held, as last counted
+    mutable quint64 m_imageClock = 0;
+    QByteArray m_refusedSvg;                    // the last SVG left out, so that the same one again costs nothing
 };
 
 // The most a picture file can be, in bytes; a larger file isn't read.
