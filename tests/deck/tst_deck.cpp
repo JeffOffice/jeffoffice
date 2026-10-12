@@ -12,6 +12,7 @@
 #include "app/filescreen.h"
 #include "app/help.h"
 #include "app/i18n.h"
+#include "app/mediaplayer.h"
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -6381,6 +6382,262 @@ private Q_SLOTS:
         slide.items.push_back(text);
         QVERIFY(unpack(deck::exportPresentation(*d, &err), &e, &err));
         QCOMPARE(packageProblem(e), QString());
+    }
+
+    // ---- playing ----
+
+    // A WAV file of a sine wave: 16-bit mono PCM at 8,000 Hz.
+    static QByteArray testWav(int ms = 1000, int hz = 440)
+    {
+        const int rate = 8000, samples = rate * ms / 1000;
+        QByteArray pcm;
+        pcm.resize(samples * 2);
+        for (int i = 0; i < samples; ++i) {
+            const qint16 v = qint16(12000 * std::sin(2 * M_PI * hz * i / rate));
+            pcm[2 * i] = char(v & 0xFF);
+            pcm[2 * i + 1] = char((v >> 8) & 0xFF);
+        }
+        auto le32 = [](quint32 v) { return QByteArray(reinterpret_cast<const char *>(&v), 4); };
+        auto le16 = [](quint16 v) { return QByteArray(reinterpret_cast<const char *>(&v), 2); };
+        const QByteArray fmt = le16(1) + le16(1) + le32(rate) + le32(rate * 2) + le16(2) + le16(16);
+        return "RIFF" + le32(4 + 8 + fmt.size() + 8 + pcm.size()) + "WAVE" + "fmt " + le32(fmt.size()) + fmt + "data" + le32(pcm.size()) + pcm;
+    }
+
+    // A short movie: motion JPEG frames of one color each, in an AVI file.
+    static QByteArray testAvi(int frames = 5, const QSize &size = QSize(64, 48), int fps = 10)
+    {
+        auto le32 = [](quint32 v) { return QByteArray(reinterpret_cast<const char *>(&v), 4); };
+        auto le16 = [](quint16 v) { return QByteArray(reinterpret_cast<const char *>(&v), 2); };
+        auto chunk = [&](const char *id, const QByteArray &data) { return QByteArray(id, 4) + le32(quint32(data.size())) + data + (data.size() & 1 ? QByteArray(1, '\0') : QByteArray()); };
+        auto list = [&](const char *type, const QByteArray &data) { return QByteArray("LIST") + le32(quint32(data.size() + 4)) + QByteArray(type, 4) + data; };
+        QVector<QByteArray> jpegs;
+        quint32 biggest = 0;
+        for (int i = 0; i < frames; ++i) {
+            QImage img(size, QImage::Format_RGB32);
+            img.fill(QColor::fromHsv((i * 60) % 360, 255, 230));
+            QByteArray jpeg;
+            QBuffer buffer(&jpeg);
+            buffer.open(QIODevice::WriteOnly);
+            img.save(&buffer, "JPG", 92);
+            biggest = std::max(biggest, quint32(jpeg.size()));
+            jpegs << jpeg;
+        }
+        const QByteArray avih = le32(quint32(1000000 / fps)) + le32(biggest * fps) + le32(0) + le32(0x10) + le32(quint32(frames)) + le32(0) + le32(1) + le32(biggest) +
+                                le32(quint32(size.width())) + le32(quint32(size.height())) + le32(0) + le32(0) + le32(0) + le32(0);
+        const QByteArray strh = QByteArray("vids") + QByteArray("MJPG") + le32(0) + le16(0) + le16(0) + le32(0) + le32(1) + le32(quint32(fps)) + le32(0) + le32(quint32(frames)) + le32(biggest) +
+                                le32(0xFFFFFFFF) + le32(0) + le16(0) + le16(0) + le16(quint16(size.width())) + le16(quint16(size.height()));
+        const QByteArray strf = le32(40) + le32(quint32(size.width())) + le32(quint32(size.height())) + le16(1) + le16(24) + QByteArray("MJPG") +
+                                le32(quint32(size.width() * size.height() * 3)) + le32(0) + le32(0) + le32(0) + le32(0);
+        const QByteArray hdrl = list("hdrl", chunk("avih", avih) + list("strl", chunk("strh", strh) + chunk("strf", strf)));
+        QByteArray movi, index;
+        for (const QByteArray &jpeg : std::as_const(jpegs)) {
+            index += QByteArray("00dc") + le32(0x10) + le32(quint32(4 + movi.size())) + le32(quint32(jpeg.size()));
+            movi += chunk("00dc", jpeg);
+        }
+        const QByteArray body = QByteArray("AVI ") + hdrl + list("movi", movi) + chunk("idx1", index);
+        return QByteArray("RIFF") + le32(quint32(body.size())) + body;
+    }
+
+    // What a test of playing waits for: a player that plays (or has a picture), or one that says why not. The backend not being
+    // there at all is not the program's failure: the test is skipped.
+    static bool playerSettled(const MediaPlayback &pb, bool wantFrame)
+    {
+        return pb.failed() || (wantFrame ? !pb.frame().isNull() : pb.state() == MediaPlayback::State::Playing);
+    }
+
+    // A movie or sound is decoded only when it is played: opening a presentation, saving it, drawing its slides, and making its
+    // thumbnails never start the decoder, whatever the file holds.
+    void mediaIsNeverDecodedUntilPlayed()
+    {
+        const int before = MediaPlayback::decoders();
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto video = deck::newMediaPicture(*d, slide, testAvi(), QStringLiteral("clip.avi"), QImage(64, 48, QImage::Format_RGB32), 500);
+        QVERIFY(video);
+        slide.items.push_back(video);
+        auto sound = deck::newMediaPicture(*d, slide, QByteArray("not a sound at all, but kept"), QStringLiteral("tune.mp3"), QImage(), 1000);
+        QVERIFY(sound);
+        slide.items.push_back(sound);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = back.get();
+        ctx.cache = &cache;
+        QVERIFY(!Renderer::renderToImage(ctx, 0, 0.5).isNull());
+        QVERIFY(!renderSlideImage(back.get(), &cache, 0, QSize(480, 270), 1).isNull());
+        // A window with the file open: its thumbnails, and a save.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("media.pptx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(bytes);
+        f.close();
+        DeckWindow w;
+        w.show();
+        QVERIFY(w.openFile(path));
+        QVERIFY(w.slidesPane());
+        w.slidesPane()->grab();
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("again.pptx"))));
+        QCOMPARE(MediaPlayback::decoders(), before);
+        // A player with its file set decodes nothing either.
+        MediaPlayback pb;
+        pb.setFile(testWav(), QStringLiteral("wav"));
+        QCOMPARE(MediaPlayback::decoders(), before);
+    }
+
+    // A sound plays, or the player says why it can't (a computer with no sound device is not an error for the picture, and
+    // a runner with no backend says so clearly).
+    void mediaPlaybackPlaysASoundOrSaysWhy()
+    {
+        MediaPlayback pb;
+        deck::MediaPlay play;
+        pb.setFile(testWav(1500), QStringLiteral("wav"));
+        pb.setPlay(play);
+        const int before = MediaPlayback::decoders();
+        pb.play();
+        QCOMPARE(MediaPlayback::decoders(), before + 1);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(pb, false), 15000);
+        if (pb.failed()) {
+            QVERIFY(!pb.error().isEmpty());
+            QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
+            return;
+        }
+        QTRY_VERIFY_WITH_TIMEOUT(pb.length() > 0, 5000);
+        QVERIFY(std::abs(pb.length() - 1500) < 100);
+        pb.pause();
+        QTRY_COMPARE_WITH_TIMEOUT(int(pb.state()), int(MediaPlayback::State::Paused), 5000);
+        pb.resume();
+        QTRY_COMPARE_WITH_TIMEOUT(int(pb.state()), int(MediaPlayback::State::Playing), 5000);
+        pb.stop();
+        QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
+        QVERIFY(pb.frame().isNull());
+        pb.setVolume(0.25);
+        pb.setMuted(true);
+        QCOMPARE(pb.volume(), 0.25);
+        QVERIFY(pb.muted());
+    }
+
+    // A movie gives its pictures to paint in place; its first picture and its length can be had for the poster.
+    void mediaPlaybackGivesTheFramesOfAMovie()
+    {
+        const QByteArray avi = testAvi(8, QSize(64, 48), 10);
+        MediaProbe probe = probeMedia(avi, QStringLiteral("avi"), true, 15000);
+        if (!probe.error.isEmpty() || probe.frame.isNull()) QSKIP(qPrintable(QStringLiteral("this Qt has no movie backend here: ") + probe.error));
+        QCOMPARE(probe.frame.size(), QSize(64, 48));
+        QVERIFY(std::abs(probe.duration - 800) < 150);
+        const QColor first = probe.frame.pixelColor(32, 24);
+        QVERIFY2(first.red() > 150 && first.green() < 110 && first.blue() < 110, qPrintable(first.name()));   // the first color is red
+        MediaPlayback pb;
+        pb.setFile(avi, QStringLiteral("avi"));
+        deck::MediaPlay play;
+        play.video = true;
+        pb.setPlay(play);
+        pb.play();
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(pb, true), 15000);
+        QVERIFY2(!pb.failed(), qPrintable(pb.error()));
+        QCOMPARE(pb.frame().size(), QSize(64, 48));
+        // It plays to its end and stops, holding its last picture.
+        QSignalSpy ended(&pb, &MediaPlayback::ended);
+        QTRY_VERIFY_WITH_TIMEOUT(ended.count() > 0, 15000);
+        QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
+        QVERIFY(!pb.frame().isNull());
+        // With rewind, the picture goes back to the poster.
+        MediaPlayback again;
+        again.setFile(avi, QStringLiteral("avi"));
+        play.rewind = true;
+        again.setPlay(play);
+        again.play();
+        QSignalSpy over(&again, &MediaPlayback::ended);
+        QTRY_VERIFY_WITH_TIMEOUT(over.count() > 0, 15000);
+        QVERIFY(again.frame().isNull());
+    }
+
+    // A file that can't be played says so and nothing closes; asking again, pausing, or moving in it does no harm.
+    void mediaPlaybackSaysWhenAFileCantBePlayed()
+    {
+        MediaPlayback pb;
+        QByteArray junk(5000, '\0');
+        for (int i = 0; i < junk.size(); ++i) junk[i] = char((i * 131 + 7) & 0xFF);
+        pb.setFile(junk, QStringLiteral("mp4"));
+        deck::MediaPlay play;
+        play.video = true;
+        pb.setPlay(play);
+        pb.play();
+        QTRY_VERIFY_WITH_TIMEOUT(pb.failed(), 15000);
+        QVERIFY(pb.error().contains(QStringLiteral("movie")));
+        pb.play();
+        pb.pause();
+        pb.resume();
+        pb.seek(500);
+        pb.stop();
+        pb.togglePause();
+        QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
+        // Nothing to play at all.
+        MediaPlayback none;
+        none.play();
+        QVERIFY(none.failed());
+        // The probe says it can't be read.
+        const MediaProbe probe = probeMedia(junk, QStringLiteral("wav"), false, 15000);
+        QVERIFY(!probe.error.isEmpty() || probe.duration == 0);
+    }
+
+    // The control bar: its parts are where they are drawn, a click on the seek bar means a moment, and it stays on the
+    // screen when the picture is at the bottom.
+    void mediaBarLaysOutItsPartsAndStaysOnTheScreen()
+    {
+        const QRectF area(0, 0, 800, 600);
+        QRectF bar = MediaBar::placement(QRectF(100, 100, 400, 225), area);
+        QCOMPARE(bar.top(), 331.0);   // under the picture
+        QCOMPARE(bar.width(), 400.0);
+        QCOMPARE(bar.height(), MediaBar::kHeight);
+        // A small picture gets a bar that is wide enough to use, kept inside the area.
+        bar = MediaBar::placement(QRectF(0, 100, 48, 48), area);
+        QCOMPARE(bar.width(), MediaBar::kMinWidth);
+        QVERIFY(bar.left() >= 0);
+        bar = MediaBar::placement(QRectF(760, 500, 40, 40), area);
+        QVERIFY(bar.right() <= 800.0);
+        // A picture at the bottom: the bar goes over its bottom edge.
+        bar = MediaBar::placement(QRectF(100, 350, 400, 250), area);
+        QVERIFY(bar.bottom() <= 600.0);
+        QVERIFY(bar.top() < 600.0 - MediaBar::kHeight + 1);
+        // The parts, from left to right, and nothing outside the bar.
+        bar = QRectF(100, 100, 400, MediaBar::kHeight);
+        QVERIFY(MediaBar::partAt(bar, QPointF(115, 115)) == MediaBar::Part::Play);
+        QVERIFY(MediaBar::partAt(bar, QPointF(200, 115)) == MediaBar::Part::Seek);
+        QVERIFY(MediaBar::partAt(bar, QPointF(430, 115)) == MediaBar::Part::Mute);
+        QVERIFY(MediaBar::partAt(bar, QPointF(480, 115)) == MediaBar::Part::Volume);
+        QVERIFY(MediaBar::partAt(bar, QPointF(50, 115)) == MediaBar::Part::None);
+        // Along the seek bar, from the start to the end of what plays; along the volume slider, from none to all.
+        QCOMPARE(MediaBar::seekAt(bar, QPointF(0, 115), 10000), qint64(0));
+        QCOMPARE(MediaBar::seekAt(bar, QPointF(1000, 115), 10000), qint64(10000));
+        const qint64 middle = MediaBar::seekAt(bar, QPointF(200, 115), 10000);
+        QVERIFY(middle > 0 && middle < 10000);
+        QCOMPARE(MediaBar::volumeAt(bar, QPointF(0, 115)), 0.0);
+        QCOMPARE(MediaBar::volumeAt(bar, QPointF(1000, 115)), 1.0);
+        QCOMPARE(MediaBar::timeText(7000), QStringLiteral("0:07"));
+        QCOMPARE(MediaBar::timeText(754000), QStringLiteral("12:34"));
+        QCOMPARE(MediaBar::timeText(3723000), QStringLiteral("1:02:03"));
+        // Drawn in every state without trouble.
+        QImage img(420, 40, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        MediaBarState s;
+        s.length = 90000;
+        s.played = 30000;
+        for (const auto state : {MediaPlayback::State::Stopped, MediaPlayback::State::Playing, MediaPlayback::State::Paused}) {
+            s.state = state;
+            for (const bool muted : {false, true}) {
+                s.muted = muted;
+                MediaBar::paint(&p, QRectF(10, 5, 400, MediaBar::kHeight), s, MediaBar::Part::Play);
+            }
+        }
+        p.end();
+        QVERIFY(img.pixelColor(20, 20) != QColor(Qt::white));
     }
 
     // What can't be read is left out and the rest plays: a behavior that aims
