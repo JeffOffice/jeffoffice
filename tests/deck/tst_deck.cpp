@@ -11,14 +11,19 @@
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/presenterview.h"
+#include "app/recovery.h"
 #include "app/ribbon.h"
+#include "app/settings.h"
 #include "app/slideshow.h"
 #include "app/slidespane.h"
 #include "core/deck.h"
 #include "core/fonts.h"
 #include "core/transition.h"
+#include "io/pptxexport.h"
 #include "io/pptximport.h"
+#include "io/zip.h"
 #include "office/drawingml.h"
+#include "office/drawingml_write.h"
 #include "office/package.h"
 #include "office/xml.h"
 #include "render/renderer.h"
@@ -28,9 +33,12 @@
 #include <QApplication>
 #include <QBuffer>
 #include <QCheckBox>
+#include <QDeadlineTimer>
 #include <QDesktopServices>
+#include <QDir>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
@@ -50,6 +58,7 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QUrl>
+#include <QXmlStreamWriter>
 
 using namespace jp;
 
@@ -2210,6 +2219,983 @@ private Q_SLOTS:
         QVERIFY2(shown.contains(QStringLiteral("bad.pptx")), qPrintable(shown));
         QCOMPARE(int(ed->doc()->pages.size()), 2);
         ed->markSaved();
+    }
+
+private:
+    // An exported file as the tests below look at it.
+    struct Exported {
+        QMap<QString, QByteArray> zip;   // by entry name, no leading slash
+        office::Package pkg;
+    };
+    static bool unpack(const QByteArray &bytes, Exported *out, QString *why)
+    {
+        return readZip(bytes, out->zip, why) && out->pkg.read(bytes, why);
+    }
+    static QString part(const Exported &e, const QString &name) { return QString::fromUtf8(e.zip.value(name.mid(1))); }
+
+    // Whether a drawing writer that writes shapes is in place (the first version writes none).
+    static bool writerWritesShapes()
+    {
+        ShapeItem shape;
+        shape.rect = QRectF(0, 0, 10, 10);
+        office::PackageWriter package;
+        office::DrawingWriteContext ctx;
+        ctx.package = &package;
+        ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
+        ctx.storyDoc = [](const QString &) -> const QTextDocument * { return nullptr; };
+        QByteArray out;
+        QXmlStreamWriter w(&out);
+        office::writeShape(w, shape, ctx);
+        return !out.isEmpty();
+    }
+
+    // The first thing wrong with a package, as a reader that stops at the first
+    // damage would find it; empty when it is sound: every part has a content
+    // type and every type names a part, every XML part parses, every
+    // relationship and every r:id in a part resolves, and every part is
+    // reached from the package's relationships.
+    static QString packageProblem(const Exported &e)
+    {
+        QDomDocument types;
+        QString why;
+        if (!e.zip.contains(QStringLiteral("[Content_Types].xml"))) return QStringLiteral("no [Content_Types].xml");
+        if (!office::parseXml(e.zip.value(QStringLiteral("[Content_Types].xml")), &types, &why)) return QStringLiteral("[Content_Types].xml: ") + why;
+        QSet<QString> defaults, overrides;
+        for (const QDomElement &d : office::children(types.documentElement(), office::ns::ContentTypes, QStringLiteral("Default"))) defaults << d.attribute(QStringLiteral("Extension")).toLower();
+        for (const QDomElement &o : office::children(types.documentElement(), office::ns::ContentTypes, QStringLiteral("Override"))) {
+            const QString name = o.attribute(QStringLiteral("PartName"));
+            if (!e.zip.contains(name.mid(1))) return QStringLiteral("the content types list a part that is missing: ") + name;
+            overrides << name.toLower();
+        }
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) {
+            if (it.key() == QLatin1String("[Content_Types].xml")) continue;
+            if (!defaults.contains(QFileInfo(it.key()).suffix().toLower()) && !overrides.contains(QLatin1Char('/') + it.key().toLower()))
+                return QStringLiteral("no content type for ") + it.key();
+            if (!it.key().endsWith(QLatin1String(".xml")) && !it.key().endsWith(QLatin1String(".rels"))) continue;
+            QDomDocument dom;
+            if (!office::parseXml(it.value(), &dom, &why)) return it.key() + QStringLiteral(" doesn't parse: ") + why;
+            if (!it.value().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")) return it.key() + QStringLiteral(" has no XML declaration");
+            // Every r:id (and r:embed...) in a part is one of its relationships.
+            if (it.key().endsWith(QLatin1String(".rels"))) continue;
+            QVector<QDomElement> stack{dom.documentElement()};
+            while (!stack.isEmpty()) {
+                const QDomElement el = stack.takeLast();
+                const QDomNamedNodeMap attrs = el.attributes();
+                for (int i = 0; i < attrs.length(); ++i) {
+                    const QDomAttr a = attrs.item(i).toAttr();
+                    if (!office::sameNamespace(a.namespaceURI(), office::ns::R)) continue;
+                    if (e.pkg.relationship(QLatin1Char('/') + it.key(), a.value()).id.isEmpty()) return it.key() + QStringLiteral(" uses ") + a.name() + QStringLiteral("=") + a.value() + QStringLiteral(", which isn't a relationship");
+                }
+                for (QDomElement c = el.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+            }
+        }
+        QStringList sources = e.pkg.partNames();
+        sources << QStringLiteral("/");
+        for (const QString &s : std::as_const(sources))
+            for (const office::Relationship &r : e.pkg.relationships(s)) {
+                if (!r.external && !e.pkg.hasPart(r.target)) return s + QStringLiteral(" links to a part that is missing: ") + r.target;
+                if (!r.external && r.type.isEmpty()) return s + QStringLiteral(" has a link without a type");
+            }
+        QSet<QString> reached;
+        QStringList queue{QStringLiteral("/")};
+        while (!queue.isEmpty()) {
+            const QString s = queue.takeLast();
+            for (const office::Relationship &r : e.pkg.relationships(s))
+                if (!r.external && !reached.contains(r.target.toLower())) {
+                    reached << r.target.toLower();
+                    queue << r.target;
+                }
+        }
+        for (const QString &name : e.pkg.partNames())
+            if (!reached.contains(name.toLower())) return name + QStringLiteral(" is not linked from anywhere");
+        return QString();
+    }
+
+    // The local names of an element's children, in order.
+    static QStringList childNames(const QByteArray &xml)
+    {
+        QDomDocument dom;
+        QString why;
+        if (!office::parseXml(xml, &dom, &why)) return {QStringLiteral("unreadable: ") + why};
+        QStringList out;
+        for (const QDomElement &c : office::children(dom.documentElement())) out << c.localName();
+        return out;
+    }
+    // Whether names come in the order of the schema's sequence (each at or after the one before).
+    static bool inSequence(const QStringList &names, const QStringList &sequence)
+    {
+        int at = 0;
+        for (const QString &n : names) {
+            const int i = int(sequence.indexOf(n));
+            if (i < at) return false;
+            at = i;
+        }
+        return true;
+    }
+    static QDomElement rootOf(const QByteArray &xml, QDomDocument *dom)
+    {
+        office::parseXml(xml, dom);
+        return dom->documentElement();
+    }
+    static QStringList relationshipTargets(const Exported &e, const QString &source, const QString &typeSuffix)
+    {
+        QStringList out;
+        for (const office::Relationship &r : e.pkg.relationshipsOfType(source, typeSuffix)) out << r.target;
+        return out;
+    }
+
+    // Answers the modal dialogs that open next, one for each answer: a button of a
+    // message box, or (NoButton) closing the dialog. The first label clicked is kept in `label`.
+    static void answerDialogs(QList<QMessageBox::StandardButton> answers, QString *label = nullptr, QDeadlineTimer until = QDeadlineTimer(10000))
+    {
+        if (answers.isEmpty() || until.hasExpired()) return;
+        QTimer::singleShot(0, [answers, label, until]() mutable {
+            QWidget *dialog = QApplication::activeModalWidget();
+            if (!dialog) {
+                answerDialogs(answers, label, until);
+                return;
+            }
+            const QMessageBox::StandardButton which = answers.takeFirst();
+            auto *box = qobject_cast<QMessageBox *>(dialog);
+            QAbstractButton *button = box && which != QMessageBox::NoButton ? box->button(which) : nullptr;
+            if (button && label && label->isEmpty()) *label = button->text();
+            if (button) button->click();
+            else dialog->close();
+            answerDialogs(answers, label, until);
+        });
+    }
+    static QByteArray fileBytes(const QString &path)
+    {
+        QFile f(path);
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    }
+
+private Q_SLOTS:
+    // A new presentation is written as a whole package: every part has its
+    // type, every link leads to a part, and the main part, its master, the
+    // layouts, the slides, and the notes are chained as the presentation
+    // program chains them.
+    void exportWritesACompletePackage()
+    {
+        auto d = deck::newPresentation();
+        d->props.title = QStringLiteral("Quarterly results");
+        d->storyDoc(d->pages[0]->notesStoryId)->setPlainText(QStringLiteral("Say hello first"));
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("twoObj")));
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        d->pages[2]->hidden = true;
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(bytes, &e, &why), qPrintable(why));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+
+        QCOMPARE(e.pkg.mainPart(), QStringLiteral("/ppt/presentation.xml"));
+        QCOMPARE(e.pkg.contentType(QStringLiteral("/ppt/presentation.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"));
+        const QStringList names = e.pkg.partNames();
+        for (const char *n : {"/ppt/presProps.xml", "/ppt/viewProps.xml", "/ppt/tableStyles.xml", "/ppt/theme/theme1.xml", "/ppt/slideMasters/slideMaster1.xml",
+                              "/ppt/notesMasters/notesMaster1.xml", "/ppt/slides/slide3.xml", "/ppt/slideLayouts/slideLayout9.xml", "/ppt/notesSlides/notesSlide1.xml",
+                              "/docProps/core.xml", "/docProps/app.xml", "/docProps/thumbnail.jpeg"})
+            QVERIFY2(names.contains(QLatin1String(n)), n);
+        QCOMPARE(int(names.filter(QRegularExpression(QStringLiteral("^/ppt/slides/slide\\d+\\.xml$"))).size()), 3);
+        QCOMPARE(int(names.filter(QRegularExpression(QStringLiteral("^/ppt/slideLayouts/slideLayout\\d+\\.xml$"))).size()), 9);
+        QCOMPARE(int(names.filter(QRegularExpression(QStringLiteral("^/ppt/notesSlides/"))).size()), 1);   // only the first slide has notes
+        QCOMPARE(e.pkg.contentType(QStringLiteral("/ppt/slides/slide1.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"));
+        QCOMPARE(e.pkg.contentType(QStringLiteral("/ppt/slideLayouts/slideLayout1.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"));
+        QCOMPARE(e.pkg.contentType(QStringLiteral("/ppt/slideMasters/slideMaster1.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"));
+        QCOMPARE(e.pkg.contentType(QStringLiteral("/ppt/theme/theme1.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+        QCOMPARE(e.pkg.contentType(QStringLiteral("/docProps/thumbnail.jpeg")), QStringLiteral("image/jpeg"));
+
+        // The chains: presentation to master, slides in order, notes master; master to layouts and theme.
+        const QString pres = QStringLiteral("/ppt/presentation.xml");
+        QCOMPARE(relationshipTargets(e, pres, QStringLiteral("/slideMaster")), QStringList{QStringLiteral("/ppt/slideMasters/slideMaster1.xml")});
+        QCOMPARE(relationshipTargets(e, pres, QStringLiteral("/slide")),
+                 (QStringList{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/ppt/slides/slide2.xml"), QStringLiteral("/ppt/slides/slide3.xml")}));
+        QCOMPARE(relationshipTargets(e, pres, QStringLiteral("/notesMaster")), QStringList{QStringLiteral("/ppt/notesMasters/notesMaster1.xml")});
+        for (const char *type : {"/presProps", "/viewProps", "/theme", "/tableStyles"}) QCOMPARE(int(e.pkg.relationshipsOfType(pres, QLatin1String(type)).size()), 1);
+        const QString master = QStringLiteral("/ppt/slideMasters/slideMaster1.xml");
+        const QStringList layoutParts = relationshipTargets(e, master, QStringLiteral("/slideLayout"));
+        QCOMPARE(int(layoutParts.size()), 9);
+        QCOMPARE(int(e.pkg.relationshipsOfType(master, QStringLiteral("/theme")).size()), 1);
+        for (const QString &l : layoutParts) QCOMPARE(relationshipTargets(e, l, QStringLiteral("/slideMaster")), QStringList{master});
+        // Each slide stands on the layout of its type, in the order the master lists them.
+        const QVector<MasterPage *> layouts = deck::layouts(*d);
+        for (int i = 0; i < 3; ++i) {
+            const QStringList on = relationshipTargets(e, QStringLiteral("/ppt/slides/slide%1.xml").arg(i + 1), QStringLiteral("/slideLayout"));
+            QCOMPARE(int(on.size()), 1);
+            QCOMPARE(on[0], layoutParts.value(int(layouts.indexOf(d->masterFor(*d->pages[i])))));
+        }
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/notesSlide")), QStringList{QStringLiteral("/ppt/notesSlides/notesSlide1.xml")});
+        QVERIFY(relationshipTargets(e, QStringLiteral("/ppt/slides/slide2.xml"), QStringLiteral("/notesSlide")).isEmpty());
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/notesSlides/notesSlide1.xml"), QStringLiteral("/notesMaster")), QStringList{QStringLiteral("/ppt/notesMasters/notesMaster1.xml")});
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/notesSlides/notesSlide1.xml"), QStringLiteral("/slide")), QStringList{QStringLiteral("/ppt/slides/slide1.xml")});
+        QCOMPARE(int(e.pkg.relationshipsOfType(QStringLiteral("/ppt/notesMasters/notesMaster1.xml"), QStringLiteral("/theme")).size()), 1);
+        // Master and notes master do not share a theme part.
+        QVERIFY(relationshipTargets(e, QStringLiteral("/ppt/notesMasters/notesMaster1.xml"), QStringLiteral("/theme")) != relationshipTargets(e, master, QStringLiteral("/theme")));
+        // The package's own links.
+        QCOMPARE(int(e.pkg.relationshipsOfType(QStringLiteral("/"), QStringLiteral("/officeDocument")).size()), 1);
+        QCOMPARE(int(e.pkg.relationshipsOfType(QStringLiteral("/"), QStringLiteral("/metadata/core-properties")).size()), 1);
+        QCOMPARE(int(e.pkg.relationshipsOfType(QStringLiteral("/"), QStringLiteral("/extended-properties")).size()), 1);
+        QCOMPARE(int(e.pkg.relationshipsOfType(QStringLiteral("/"), QStringLiteral("/metadata/thumbnail")).size()), 1);
+
+        // What the properties say.
+        const QString core = part(e, QStringLiteral("/docProps/core.xml")), app = part(e, QStringLiteral("/docProps/app.xml"));
+        QVERIFY(core.contains(QStringLiteral("<dc:title>Quarterly results</dc:title>")));
+        QVERIFY2(core.contains(QRegularExpression(QStringLiteral("<dcterms:created xsi:type=\"dcterms:W3CDTF\">\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ</dcterms:created>"))), qPrintable(core));
+        QVERIFY(core.contains(QStringLiteral("<dcterms:modified xsi:type=\"dcterms:W3CDTF\">")));
+        QVERIFY(app.contains(QStringLiteral("<Application>JeffOffice</Application>")));
+        QVERIFY(app.contains(QStringLiteral("<Slides>3</Slides>")));
+        QVERIFY(app.contains(QStringLiteral("<Notes>1</Notes>")));
+        QVERIFY(app.contains(QStringLiteral("<HiddenSlides>1</HiddenSlides>")));
+        // The thumbnail is the first slide, 256 pixels across.
+        const QImage thumb = QImage::fromData(e.zip.value(QStringLiteral("docProps/thumbnail.jpeg")));
+        QCOMPARE(thumb.width(), 256);
+        QVERIFY(std::abs(thumb.height() - 144) <= 1);
+    }
+
+    // Each part's elements follow the schema's sequence, the ids that must be
+    // unique are, and the slide size says what it is.
+    void exportWritesElementsInSchemaOrder()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+
+        const QByteArray pres = e.zip.value(QStringLiteral("ppt/presentation.xml"));
+        QStringList names = childNames(pres);
+        QVERIFY2(inSequence(names, {"sldMasterIdLst", "notesMasterIdLst", "handoutMasterIdLst", "sldIdLst", "sldSz", "notesSz", "smartTags", "embeddedFontLst", "custShowLst",
+                                    "photoAlbum", "custDataLst", "kinsoku", "defaultTextStyle", "modifyVerifier", "extLst"}), qPrintable(names.join(' ')));
+        for (const char *required : {"sldMasterIdLst", "sldIdLst", "sldSz", "notesSz", "defaultTextStyle"}) QVERIFY2(names.contains(QLatin1String(required)), required);
+        QVERIFY2(inSequence(childNames(e.zip.value(QStringLiteral("ppt/slideMasters/slideMaster1.xml"))), {"cSld", "clrMap", "sldLayoutIdLst", "transition", "timing", "hf", "txStyles", "extLst"}), "master");
+        QCOMPARE(childNames(e.zip.value(QStringLiteral("ppt/slideMasters/slideMaster1.xml"))).mid(0, 2), (QStringList{"cSld", "clrMap"}));
+        for (const QString &l : {QStringLiteral("ppt/slideLayouts/slideLayout1.xml"), QStringLiteral("ppt/slideLayouts/slideLayout2.xml")}) {
+            names = childNames(e.zip.value(l));
+            QVERIFY2(inSequence(names, {"cSld", "clrMapOvr", "transition", "timing", "hf", "extLst"}), qPrintable(l + ": " + names.join(' ')));
+            QCOMPARE(names, (QStringList{"cSld", "clrMapOvr"}));
+        }
+        for (const QString &s : {QStringLiteral("ppt/slides/slide1.xml"), QStringLiteral("ppt/slides/slide2.xml")}) {
+            names = childNames(e.zip.value(s));
+            QVERIFY2(inSequence(names, {"cSld", "clrMapOvr", "transition", "timing", "extLst"}), qPrintable(s + ": " + names.join(' ')));
+        }
+        // The first slide's transition and timing follow its color mapping.
+        QCOMPARE(childNames(e.zip.value(QStringLiteral("ppt/slides/slide1.xml"))), (QStringList{"cSld", "clrMapOvr", "transition", "timing"}));
+        QCOMPARE(childNames(e.zip.value(QStringLiteral("ppt/slides/slide2.xml"))), (QStringList{"cSld", "clrMapOvr"}));
+        QVERIFY(inSequence(childNames(e.zip.value(QStringLiteral("ppt/notesSlides/notesSlide1.xml"))), {"cSld", "clrMapOvr", "extLst"}));
+        QVERIFY(inSequence(childNames(e.zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml"))), {"cSld", "clrMap", "hf", "notesStyle", "extLst"}));
+        // A shape tree starts with its group's properties, after the background.
+        for (const QString &s : {QStringLiteral("ppt/slides/slide1.xml"), QStringLiteral("ppt/slides/slide2.xml"), QStringLiteral("ppt/slideMasters/slideMaster1.xml"), QStringLiteral("ppt/slideLayouts/slideLayout1.xml")}) {
+            QDomDocument dom;
+            const QDomElement cSld = office::child(rootOf(e.zip.value(s), &dom), office::ns::P, QStringLiteral("cSld"));
+            QStringList inside;
+            for (const QDomElement &c : office::children(cSld)) inside << c.localName();
+            QVERIFY2(inSequence(inside, {"bg", "spTree", "custDataLst", "controls", "extLst"}) && inside.contains(QStringLiteral("spTree")), qPrintable(s + ": " + inside.join(' ')));
+            const QDomElement tree = office::child(cSld, office::ns::P, QStringLiteral("spTree"));
+            const QVector<QDomElement> kids = office::children(tree);
+            QVERIFY(kids.size() >= 2);
+            QCOMPARE(kids[0].localName(), QStringLiteral("nvGrpSpPr"));
+            QCOMPARE(kids[1].localName(), QStringLiteral("grpSpPr"));
+        }
+
+        // The ids: masters and layouts share one range from 2147483648 and none repeats; slides count from 256.
+        QDomDocument dom;
+        const QDomElement root = rootOf(pres, &dom);
+        QSet<qint64> ids;
+        for (const QDomElement &m : office::children(office::child(root, office::ns::P, QStringLiteral("sldMasterIdLst")))) ids << office::attr(m, QStringLiteral("id")).toLongLong();
+        QDomDocument masterDom;
+        const QDomElement master = rootOf(e.zip.value(QStringLiteral("ppt/slideMasters/slideMaster1.xml")), &masterDom);
+        const QVector<QDomElement> layoutIds = office::children(office::child(master, office::ns::P, QStringLiteral("sldLayoutIdLst")));
+        QCOMPARE(int(layoutIds.size()), 2);
+        for (const QDomElement &l : layoutIds) ids << office::attr(l, QStringLiteral("id")).toLongLong();
+        QCOMPARE(int(ids.size()), 3);
+        for (qint64 id : std::as_const(ids)) QVERIFY(id >= 2147483648LL && id <= 4294967295LL);
+        QStringList slideIds;
+        for (const QDomElement &s : office::children(office::child(root, office::ns::P, QStringLiteral("sldIdLst")))) slideIds << office::attr(s, QStringLiteral("id"));
+        QCOMPARE(slideIds, (QStringList{"256", "257"}));
+        // The master's layouts are the ones the layout parts are, in order.
+        QCOMPARE(layoutIds[0].attributeNS(QString::fromLatin1(office::ns::R.data()), QStringLiteral("id")), e.pkg.relationshipsOfType(QStringLiteral("/ppt/slideMasters/slideMaster1.xml"), QStringLiteral("/slideLayout"))[0].id);
+
+        // The size: widescreen says no type; the standard 4:3 slide says screen4x3.
+        QDomElement sz = office::child(root, office::ns::P, QStringLiteral("sldSz"));
+        QCOMPARE(sz.attribute(QStringLiteral("cx")), QStringLiteral("12192000"));
+        QCOMPARE(sz.attribute(QStringLiteral("cy")), QStringLiteral("6858000"));
+        QVERIFY(!sz.hasAttribute(QStringLiteral("type")));
+        const QDomElement notesSz = office::child(root, office::ns::P, QStringLiteral("notesSz"));
+        QCOMPARE(notesSz.attribute(QStringLiteral("cx")), QStringLiteral("6858000"));
+        QCOMPARE(notesSz.attribute(QStringLiteral("cy")), QStringLiteral("9144000"));
+        deck::setSlideSize(*d, QSizeF(deck::kStandardWidth, deck::kStandardHeight));
+        Exported small;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &small, &err), qPrintable(err));
+        QDomDocument smallDom;
+        sz = office::child(rootOf(small.zip.value(QStringLiteral("ppt/presentation.xml")), &smallDom), office::ns::P, QStringLiteral("sldSz"));
+        QCOMPARE(sz.attribute(QStringLiteral("cx")), QStringLiteral("9144000"));
+        QCOMPARE(sz.attribute(QStringLiteral("cy")), QStringLiteral("6858000"));
+        QCOMPARE(sz.attribute(QStringLiteral("type")), QStringLiteral("screen4x3"));
+        QVERIFY2(packageProblem(small).isEmpty(), qPrintable(packageProblem(small)));
+    }
+
+    // Exported and read back, the slides are the same slides: their order,
+    // layouts, hidden flags, and backgrounds, the notes, and what the reader
+    // keeps (transition, timing, frames) as it was. The shapes and the text in
+    // them come back once the drawing writer writes them.
+    void exportRoundTripKeepsTheSlides()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+
+        QCOMPARE(back->pageSize(), d->pageSize());
+        QCOMPARE(back->setup.sizeName, d->setup.sizeName);
+        QCOMPARE(int(back->pages.size()), 2);
+        QCOMPARE(deck::layouts(*back).size(), deck::layouts(*d).size());
+        for (int i = 0; i < 2; ++i) {
+            QCOMPARE(back->masterFor(*back->pages[i])->name, d->masterFor(*d->pages[i])->name);
+            QCOMPARE(deck::layoutType(*back->masterFor(*back->pages[i])), deck::layoutType(*d->masterFor(*d->pages[i])));
+            QCOMPARE(back->pages[i]->hidden, d->pages[i]->hidden);
+            QCOMPARE(back->pages[i]->showMasterItems, d->pages[i]->showMasterItems);
+        }
+        QVERIFY(!back->pages[0]->hidden);
+        QVERIFY(back->pages[1]->hidden);
+        QVERIFY(!back->pages[1]->showMasterItems);
+        QCOMPARE(back->pages[1]->background.type, Fill::Solid);
+        QCOMPARE(back->pages[1]->background.color.rgbValue(), QColor(0x11, 0x22, 0x33));
+        QCOMPARE(back->pages[0]->background.type, Fill::NoFill);
+        // The layouts keep their names, and the Title Slide layout hides the master's graphics.
+        QCOMPARE(back->masters[1]->name, QStringLiteral("Title Slide"));
+        QVERIFY(!back->masters[1]->showMasterItems);
+        QCOMPARE(back->masters[2]->name, QStringLiteral("Title and Content"));
+        QVERIFY(back->masters[2]->showMasterItems);
+        QCOMPARE(back->masters[0]->name, d->masters[0]->name);
+
+        // What the reader keeps comes back as it was kept.
+        QCOMPARE(back->pages[0]->props.value(QStringLiteral("transitionXml")).toString(), d->pages[0]->props.value(QStringLiteral("transitionXml")).toString());
+        QVERIFY(!back->pages[0]->props.value(QStringLiteral("transitionXml")).toString().isEmpty());
+        QCOMPARE(back->pages[0]->props.value(QStringLiteral("timingXml")).toString(), d->pages[0]->props.value(QStringLiteral("timingXml")).toString());
+        QVERIFY(!back->pages[0]->props.value(QStringLiteral("timingXml")).toString().isEmpty());
+        QVERIFY(!back->pages[1]->props.contains(QStringLiteral("transitionXml")));
+        const QJsonArray was = d->pages[0]->props.value(QStringLiteral("unread")).toArray(), now = back->pages[0]->props.value(QStringLiteral("unread")).toArray();
+        QCOMPARE(int(was.size()), 1);
+        QCOMPARE(now, was);
+        QCOMPARE(back->appData.value(QStringLiteral("themeXml")), d->appData.value(QStringLiteral("themeXml")));
+        QCOMPARE(back->appData.value(QStringLiteral("notesSize")), d->appData.value(QStringLiteral("notesSize")));
+        QCOMPARE(deck::themeOf(*back).colors[4], deck::themeOf(*d).colors[4]);
+
+        // The notes: a page for the first slide, none for the second.
+        QCOMPARE(int(back->pages[0]->notesStoryId.isEmpty()), 0);
+        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
+        QCOMPARE(deck::notesText(*back, *back->pages[0]), QStringLiteral("Say hello first\nThen the numbers"));
+        QVERIFY(deck::notesText(*back, *back->pages[1]).isEmpty());
+        // The shapes: the placeholders with their roles, the text, the picture.
+        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
+        QCOMPARE(int(back->pages[0]->items.size()), int(d->pages[0]->items.size()));
+        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
+        {
+            QStringList roles, backRoles;
+            for (const auto &it : d->pages[0]->items) roles << it->role;
+            for (const auto &it : back->pages[0]->items) backRoles << it->role;
+            QCOMPARE(backRoles, roles);
+        }
+        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
+        QCOMPARE(back->pages[0]->title, QStringLiteral("Quarterly results"));
+    }
+
+    // A new presentation, saved and opened again, is the presentation it was.
+    void exportRoundTripOfANewPresentation()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("secHead")));
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("picTx")));
+        d->pages[1]->hidden = true;
+        deck::setSlideBackground(*d->pages[2], QColor(0x20, 0x40, 0x60));
+        d->storyDoc(d->pages[2]->notesStoryId)->setPlainText(QStringLiteral("Third slide"));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(back->pageSize(), QSizeF(960, 540));
+        QCOMPARE(back->setup.sizeName, QStringLiteral("Widescreen"));
+        QCOMPARE(int(back->pages.size()), 3);
+        QStringList types, backTypes;
+        for (int i = 0; i < 3; ++i) {
+            types << deck::layoutType(*d->masterFor(*d->pages[i]));
+            backTypes << deck::layoutType(*back->masterFor(*back->pages[i]));
+        }
+        QCOMPARE(backTypes, (QStringList{"title", "secHead", "picTx"}));
+        QCOMPARE(backTypes, types);
+        QCOMPARE(back->pages[1]->hidden, true);
+        QCOMPARE(back->pages[2]->background.color.rgbValue(), QColor(0x20, 0x40, 0x60));
+        // The nine layouts, over the one master, in their order, with the theme.
+        QCOMPARE(int(deck::layouts(*back).size()), 9);
+        QStringList layoutTypes, backLayoutTypes;
+        for (MasterPage *l : deck::layouts(*d)) layoutTypes << deck::layoutType(*l);
+        for (MasterPage *l : deck::layouts(*back)) backLayoutTypes << deck::layoutType(*l);
+        QCOMPARE(backLayoutTypes, layoutTypes);
+        QCOMPARE(deck::themeOf(*back).name, QStringLiteral("JeffOffice"));
+        for (int i = 0; i < 12; ++i) QCOMPARE(deck::themeOf(*back).colors[i], deck::themeOf(*d).colors[i]);
+        QCOMPARE(deck::themeOf(*back).headingFont, QStringLiteral("Carlito"));
+        QCOMPARE(deck::themeOf(*back).bodyFont, QStringLiteral("Carlito"));
+        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
+        QCOMPARE(int(back->pages[0]->items.size()), 2);
+        if (!writerWritesShapes()) QEXPECT_FAIL("", "drawing writer pending", Continue);
+        QCOMPARE(deck::notesText(*back, *back->pages[2]), QStringLiteral("Third slide"));
+    }
+
+    // What the reader kept that points at parts it did not keep, or at shapes
+    // whose numbers it did not keep, is left out with a note, never written
+    // as a link that leads nowhere.
+    void exportLeavesOutWhatWouldPointNowhere()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const QString chart = QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"9\" name=\"Chart 8\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                                             "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1371600\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">"
+                                             "<c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"rId9\"/></a:graphicData></a:graphic></p:graphicFrame>");
+        xml.replace(QStringLiteral("</p:spTree>"), chart + QStringLiteral("</p:spTree>"));
+        // An animation that aims at a shape by its number, and a transition with a sound.
+        xml.replace(QRegularExpression(QStringLiteral("<p:timing>.*</p:timing>")),
+                    QStringLiteral("<p:timing><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childLst><p:set><p:cBhvr><p:cTn id=\"2\"/><p:tgtEl><p:spTgt spid=\"5\"/></p:tgtEl></p:cBhvr></p:set></p:childLst></p:cTn></p:par></p:tnLst></p:timing>"));
+        xml.replace(QStringLiteral("<p:transition spd=\"med\"><p:fade/></p:transition>"),
+                    QStringLiteral("<p:transition spd=\"med\"><p:fade/><p:sndAc><p:stSnd><p:snd r:embed=\"rId8\" name=\"chime.wav\"/></p:stSnd></p:sndAc></p:transition>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);   // the table, and the chart
+
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("Cell &amp; &lt;1&gt;")));   // the table has nothing to point at, and stays
+        QVERIFY(!slide.contains(QStringLiteral("c:chart")));
+        QVERIFY(!slide.contains(QStringLiteral("rId9")));
+        QVERIFY(!slide.contains(QStringLiteral("<p:timing")));
+        QVERIFY(!slide.contains(QStringLiteral("chime.wav")));
+        QVERIFY(!slide.contains(QStringLiteral("<p:transition")));
+        int notes = 0;
+        for (const QString &s : std::as_const(skipped))
+            if (s.startsWith(QLatin1String("Slide 1"))) ++notes;
+        QVERIFY2(notes >= 3, qPrintable(skipped.join('\n')));   // the chart, the animation, the transition
+        // The shape number of the table is not given to anything else on the slide.
+        QDomDocument dom;
+        QVERIFY(office::parseXml(slide.toUtf8(), &dom));
+        QStringList ids;
+        QVector<QDomElement> stack{dom.documentElement()};
+        while (!stack.isEmpty()) {
+            const QDomElement el = stack.takeLast();
+            if (el.localName() == QLatin1String("cNvPr")) ids << el.attribute(QStringLiteral("id"));
+            for (QDomElement c = el.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+        }
+        QVERIFY(ids.contains(QStringLiteral("8")));
+        QCOMPARE(int(QSet<QString>(ids.cbegin(), ids.cend()).size()), int(ids.size()));
+
+        // An animation that aims at a frame that is kept, by the number the frame keeps, stays.
+        QJsonObject props = d->pages[0]->props;
+        props[QStringLiteral("timingXml")] = QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" nodeType=\"tmRoot\"><p:childTnLst>"
+                                                           "<p:set><p:cBhvr><p:cTn id=\"2\"/><p:tgtEl><p:spTgt spid=\"8\"/></p:tgtEl></p:cBhvr></p:set></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
+        props.remove(QStringLiteral("transitionXml"));
+        d->pages[0]->props = props;
+        const QByteArray kept = deck::exportPresentation(*d, &err);
+        QVERIFY2(!kept.isEmpty(), qPrintable(err));
+        Exported k;
+        QVERIFY2(unpack(kept, &k, &err), qPrintable(err));
+        QVERIFY(part(k, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:spTgt spid=\"8\"/>")));
+    }
+
+    // Slide masters beyond the first keep their own themes, and every master and
+    // layout has an id of its own.
+    void exportWritesEachMastersTheme()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto second = std::make_shared<MasterPage>(*d->masters[0]);
+        second->id = QStringLiteral("SM2");
+        second->items.clear();
+        second->props[QStringLiteral("themeXml")] = QString::fromLatin1(QByteArray(themeXml()).replace("Test Theme", "Second Theme").toBase64());
+        auto layout = std::make_shared<MasterPage>();
+        layout->id = QStringLiteral("L3");
+        layout->name = QStringLiteral("Only Title");
+        layout->baseId = second->id;
+        layout->props[QStringLiteral("kind")] = QStringLiteral("layout");
+        layout->props[QStringLiteral("type")] = QStringLiteral("cust");
+        d->masters << second << layout;
+        auto slide = std::make_shared<Page>();
+        slide->masterId = layout->id;
+        slide->notesStoryId = d->createStory();
+        d->pages << slide;
+
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QCOMPARE(e.pkg.relationshipsOfType(QStringLiteral("/ppt/presentation.xml"), QStringLiteral("/slideMaster")).size(), 2);
+        // The first master's theme is the kept part as it was; the second's is its own; the notes master has a third.
+        QCOMPARE(e.zip.value(QStringLiteral("ppt/theme/theme1.xml")), themeXml());
+        QVERIFY(part(e, QStringLiteral("/ppt/theme/theme2.xml")).contains(QStringLiteral("Second Theme")));
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slideMasters/slideMaster2.xml"), QStringLiteral("/theme")), QStringList{QStringLiteral("/ppt/theme/theme2.xml")});
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml"), QStringLiteral("/theme")), QStringList{QStringLiteral("/ppt/theme/theme1.xml")});
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/notesMasters/notesMaster1.xml"), QStringLiteral("/theme")), QStringList{QStringLiteral("/ppt/theme/theme3.xml")});
+        // The layouts: two on the first master, one on the second, numbered across.
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slideMasters/slideMaster2.xml"), QStringLiteral("/slideLayout")), QStringList{QStringLiteral("/ppt/slideLayouts/slideLayout3.xml")});
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slides/slide3.xml"), QStringLiteral("/slideLayout")), QStringList{QStringLiteral("/ppt/slideLayouts/slideLayout3.xml")});
+        // A custom layout says no type; the master's ids and the layouts' ids do not repeat.
+        QDomDocument layoutDom;
+        QVERIFY(!rootOf(e.zip.value(QStringLiteral("ppt/slideLayouts/slideLayout3.xml")), &layoutDom).hasAttribute(QStringLiteral("type")));
+        QDomDocument presDom;
+        const QDomElement pres = rootOf(e.zip.value(QStringLiteral("ppt/presentation.xml")), &presDom);
+        QSet<QString> ids;
+        int count = 0;
+        for (const QDomElement &m : office::children(office::child(pres, office::ns::P, QStringLiteral("sldMasterIdLst")))) ids << office::attr(m, QStringLiteral("id")), ++count;
+        for (const QString &m : {QStringLiteral("ppt/slideMasters/slideMaster1.xml"), QStringLiteral("ppt/slideMasters/slideMaster2.xml")}) {
+            QDomDocument md;
+            for (const QDomElement &l : office::children(office::child(rootOf(e.zip.value(m), &md), office::ns::P, QStringLiteral("sldLayoutIdLst")))) ids << office::attr(l, QStringLiteral("id")), ++count;
+        }
+        QCOMPARE(count, 5);
+        QCOMPARE(int(ids.size()), 5);
+        // Read back: two masters, the second with its theme.
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        int masters = 0;
+        for (const auto &m : back->masters) masters += deck::isSlideMaster(*m);
+        QCOMPARE(masters, 2);
+        QCOMPARE(back->masterFor(*back->pages[2])->name, QStringLiteral("Only Title"));
+        QVERIFY(back->masters[3]->props.contains(QStringLiteral("themeXml")));
+    }
+
+    // The master's text styles say what its title and text placeholders look
+    // like: sizes, the theme's fonts, bullets, and indents, level by level.
+    void exportWritesTheMastersTextStyles()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QDomDocument dom;
+        const QDomElement styles = office::child(rootOf(e.zip.value(QStringLiteral("ppt/slideMasters/slideMaster1.xml")), &dom), office::ns::P, QStringLiteral("txStyles"));
+        QStringList kinds;
+        for (const QDomElement &c : office::children(styles)) kinds << c.localName();
+        QCOMPARE(kinds, (QStringList{"titleStyle", "bodyStyle", "otherStyle"}));
+        const QDomElement title = office::child(office::child(styles, office::ns::P, QStringLiteral("titleStyle")), office::ns::A, QStringLiteral("lvl1pPr"));
+        QCOMPARE(office::attr(title, QStringLiteral("algn")), QStringLiteral("l"));
+        const QDomElement titleRun = office::child(title, office::ns::A, QStringLiteral("defRPr"));
+        QCOMPARE(office::attr(titleRun, QStringLiteral("sz")), QStringLiteral("4400"));
+        QCOMPARE(office::attr(office::child(titleRun, office::ns::A, QStringLiteral("latin")), QStringLiteral("typeface")), QStringLiteral("+mj-lt"));
+        QVERIFY(!office::child(title, office::ns::A, QStringLiteral("buNone")).isNull());
+        // The text style has nine levels, none larger than the one before; the first is bulleted as the master's text is.
+        const QDomElement body = office::child(styles, office::ns::P, QStringLiteral("bodyStyle"));
+        QCOMPARE(int(office::children(body).size()), 9);
+        const QDomElement first = office::child(body, office::ns::A, QStringLiteral("lvl1pPr"));
+        QCOMPARE(office::attr(first, QStringLiteral("marL")), QStringLiteral("228600"));
+        QCOMPARE(office::attr(first, QStringLiteral("indent")), QStringLiteral("-228600"));
+        QCOMPARE(office::attr(office::child(first, office::ns::A, QStringLiteral("buChar")), QStringLiteral("char")), QStringLiteral("\u2022"));
+        QCOMPARE(office::attr(office::child(first, office::ns::A, QStringLiteral("defRPr")), QStringLiteral("sz")), QStringLiteral("2800"));
+        QStringList inLevel;
+        for (const QDomElement &c : office::children(first)) inLevel << c.localName();
+        QVERIFY2(inSequence(inLevel, {"lnSpc", "spcBef", "spcAft", "buClrTx", "buClr", "buSzTx", "buSzPct", "buSzPts", "buFontTx", "buFont", "buNone", "buAutoNum", "buChar", "buBlip", "tabLst", "defRPr", "extLst"}),
+                 qPrintable(inLevel.join(' ')));
+        int previous = 100000;
+        for (const QDomElement &level : office::children(body)) {
+            const int size = office::attr(office::child(level, office::ns::A, QStringLiteral("defRPr")), QStringLiteral("sz")).toInt();
+            QVERIFY(size > 0 && size <= previous);
+            previous = size;
+        }
+        // A presentation made here has no bullets in its text, and its master says so.
+        auto fresh = deck::newPresentation();
+        Exported n;
+        QVERIFY2(unpack(deck::exportPresentation(*fresh, &err), &n, &err), qPrintable(err));
+        QDomDocument freshDom;
+        const QDomElement freshStyles = office::child(rootOf(n.zip.value(QStringLiteral("ppt/slideMasters/slideMaster1.xml")), &freshDom), office::ns::P, QStringLiteral("txStyles"));
+        for (const QDomElement &level : office::children(office::child(freshStyles, office::ns::P, QStringLiteral("bodyStyle")))) {
+            QVERIFY(!office::child(level, office::ns::A, QStringLiteral("buNone")).isNull());
+            QVERIFY(office::child(level, office::ns::A, QStringLiteral("buChar")).isNull());
+        }
+    }
+
+    // The theme: kept as the file had it, made from the presentation's colors
+    // and fonts when it came from none, and as the presentation says when the
+    // colors changed after the file was read.
+    void exportWritesTheTheme()
+    {
+        QString err;
+        auto d = deck::newPresentation();
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        office::Theme theme;
+        QVERIFY2(office::readTheme(e.zip.value(QStringLiteral("ppt/theme/theme1.xml")), &theme, &err), qPrintable(err));
+        const deck::DeckTheme was = deck::themeOf(*d);
+        for (int i = 0; i < 12; ++i) QCOMPARE(theme.colors[i], was.colors[i]);
+        QCOMPARE(theme.majorLatin, was.headingFont);
+        QCOMPARE(theme.minorLatin, was.bodyFont);
+        QCOMPARE(theme.name, was.name);
+
+        auto imported = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(imported, qPrintable(err));
+        Exported kept;
+        QVERIFY2(unpack(deck::exportPresentation(*imported, &err), &kept, &err), qPrintable(err));
+        QCOMPARE(kept.zip.value(QStringLiteral("ppt/theme/theme1.xml")), themeXml());
+        // A color changed since the file was read is written, not the part kept from before.
+        deck::DeckTheme changed = deck::themeOf(*imported);
+        changed.colors[4] = QColor(0x00, 0x99, 0x66);
+        changed.bodyFont = QStringLiteral("Calibri");
+        deck::setTheme(*imported, changed);
+        Exported fresh;
+        QVERIFY2(unpack(deck::exportPresentation(*imported, &err), &fresh, &err), qPrintable(err));
+        QVERIFY2(office::readTheme(fresh.zip.value(QStringLiteral("ppt/theme/theme1.xml")), &theme, &err), qPrintable(err));
+        QCOMPARE(theme.colors[4], QColor(0x00, 0x99, 0x66));
+        QCOMPARE(theme.minorLatin, QStringLiteral("Calibri"));
+        QCOMPARE(theme.majorLatin, QStringLiteral("Georgia"));
+        QVERIFY2(packageProblem(fresh).isEmpty(), qPrintable(packageProblem(fresh)));
+    }
+
+    // A theme's picture fills (its textures) point at pictures the reader did not keep:
+    // written as they were, they would point nowhere, so they become plain fills.
+    void exportLeavesOutThePicturesOfATheme()
+    {
+        Parts p = samplePptx();
+        QByteArray theme = p.data["/ppt/theme/theme1.xml"].xml;
+        const QByteArray texture =
+            "<a:blipFill dpi=\"0\" rotWithShape=\"1\"><a:blip xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:embed=\"rId1\">"
+            "<a:duotone><a:schemeClr val=\"phClr\"/></a:duotone></a:blip><a:srcRect/><a:tile tx=\"0\" ty=\"0\" sx=\"100000\" sy=\"100000\" flip=\"none\" algn=\"tl\"/></a:blipFill>";
+        theme.replace("<a:bgFillStyleLst>", "<a:bgFillStyleLst>" + texture);
+        p.data["/ppt/theme/theme1.xml"].xml = theme;
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        // The rest of the part is as it was.
+        QCOMPARE(e.zip.value(QStringLiteral("ppt/theme/theme1.xml")), QByteArray(theme).replace(texture, "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>"));
+        office::Theme read;
+        QVERIFY2(office::readTheme(e.zip.value(QStringLiteral("ppt/theme/theme1.xml")), &read, &err), qPrintable(err));
+        QCOMPARE(read.colors[4], QColor(0xB6, 0x42, 0x0F));
+        // The same for the theme of a second slide master, which is kept in its master's properties.
+        auto second = std::make_shared<MasterPage>(*d->masters[0]);
+        second->id = QStringLiteral("SM2");
+        second->items.clear();
+        second->props[QStringLiteral("themeXml")] = QString::fromLatin1(theme.toBase64());
+        d->masters << second;
+        Exported two;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &two, &err), qPrintable(err));
+        QVERIFY2(packageProblem(two).isEmpty(), qPrintable(packageProblem(two)));
+        QVERIFY(!part(two, QStringLiteral("/ppt/theme/theme2.xml")).contains(QStringLiteral("embed")));
+        // A theme that points at something else that isn't kept is made again from its colors and fonts.
+        QByteArray odd = QByteArray(theme).replace("<a:objectDefaults/>", "");
+        odd.replace("</a:themeElements>", "</a:themeElements><a:objectDefaults><a:spDef><a:spPr/><a:bodyPr/><a:lstStyle/><a:style><a:lnRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:lnRef>"
+                                          "<a:fillRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:fillRef><a:effectRef idx=\"0\"><a:schemeClr val=\"accent1\"/></a:effectRef>"
+                                          "<a:fontRef idx=\"minor\"><a:hlinkClick xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"rId5\"/></a:fontRef></a:style></a:spDef></a:objectDefaults>");
+        second->props[QStringLiteral("themeXml")] = QString::fromLatin1(odd.toBase64());
+        Exported three;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &three, &err), qPrintable(err));
+        QVERIFY2(packageProblem(three).isEmpty(), qPrintable(packageProblem(three)));
+        QVERIFY2(office::readTheme(three.zip.value(QStringLiteral("ppt/theme/theme2.xml")), &read, &err), qPrintable(err));
+        QCOMPARE(read.colors[4], QColor(0xB6, 0x42, 0x0F));
+    }
+
+    // The same presentation as a template or a show differs in one content type.
+    void exportKindsDifferInTheMainPartsType()
+    {
+        auto d = deck::newPresentation();
+        QString err;
+        const QString base = QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.");
+        const struct { deck::PresentationKind kind; const char *type; } kinds[] = {
+            {deck::PresentationKind::Presentation, "presentation.main+xml"}, {deck::PresentationKind::Template, "template.main+xml"}, {deck::PresentationKind::Show, "slideshow.main+xml"}};
+        for (const auto &k : kinds) {
+            Exported e;
+            QVERIFY2(unpack(deck::exportPresentation(*d, &err, nullptr, k.kind), &e, &err), qPrintable(err));
+            QCOMPARE(e.pkg.contentType(QStringLiteral("/ppt/presentation.xml")), base + QLatin1String(k.type));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        }
+        QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a.pptx")), deck::PresentationKind::Presentation);
+        QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a.POTX")), deck::PresentationKind::Template);
+        QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a.ppsx")), deck::PresentationKind::Show);
+        QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a")), deck::PresentationKind::Presentation);
+    }
+
+    // Saving a file replaces the old one only when the new one is whole: a
+    // path that is no path, a folder that isn't there, or one that can't be
+    // written leave the old file as it was.
+    void saveKeepsTheOldFileWhenItCantWriteTheNewOne()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = deck::newPresentation();
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        QString err;
+        QVERIFY2(deck::savePresentationFile(*d, path, &err), qPrintable(err));
+        const QByteArray first = fileBytes(path);
+        QVERIFY(first.startsWith("PK"));
+        auto read = deck::importPresentationFile(path, &err);
+        QVERIFY2(read, qPrintable(err));
+        QCOMPARE(int(read->pages.size()), 1);
+
+        // Another save of a changed presentation replaces it, and no stray temporary file stays.
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        QVERIFY2(deck::savePresentationFile(*d, path, &err), qPrintable(err));
+        QVERIFY(fileBytes(path) != first);
+        read = deck::importPresentationFile(path, &err);
+        QVERIFY2(read, qPrintable(err));
+        QCOMPARE(int(read->pages.size()), 2);
+        QCOMPARE(QDir(dir.path()).entryList(QDir::Files).size(), 1);
+
+        // A template and a show are written under their endings.
+        QVERIFY2(deck::savePresentationFile(*d, dir.filePath(QStringLiteral("look.potx")), &err), qPrintable(err));
+        QVERIFY2(deck::savePresentationFile(*d, dir.filePath(QStringLiteral("show.ppsx")), &err), qPrintable(err));
+        Exported t, s;
+        QVERIFY2(unpack(fileBytes(dir.filePath(QStringLiteral("look.potx"))), &t, &err), qPrintable(err));
+        QVERIFY2(unpack(fileBytes(dir.filePath(QStringLiteral("show.ppsx"))), &s, &err), qPrintable(err));
+        QVERIFY(t.pkg.contentType(QStringLiteral("/ppt/presentation.xml")).endsWith(QLatin1String("template.main+xml")));
+        QVERIFY(s.pkg.contentType(QStringLiteral("/ppt/presentation.xml")).endsWith(QLatin1String("slideshow.main+xml")));
+
+        const QByteArray second = fileBytes(path);
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        err.clear();
+        QVERIFY(!deck::savePresentationFile(*d, dir.filePath(QStringLiteral("missing/talk.pptx")), &err));
+        QVERIFY(!err.isEmpty());
+        err.clear();
+        QVERIFY(!deck::savePresentationFile(*d, QString(), &err));
+        QVERIFY(!err.isEmpty());
+        err.clear();
+        QVERIFY(!deck::savePresentationFile(*d, dir.path(), &err));   // a folder is not a file
+        QVERIFY(!err.isEmpty());
+        QCOMPARE(fileBytes(path), second);
+        // A folder that can't be written (a user who may write anywhere can't be kept out, and skips this).
+        QVERIFY(QDir(dir.path()).mkdir(QStringLiteral("locked")));
+        const QString locked = dir.filePath(QStringLiteral("locked/talk.pptx"));
+        QVERIFY2(deck::savePresentationFile(*d, locked, &err), qPrintable(err));
+        const QByteArray lockedBytes = fileBytes(locked);
+        QVERIFY(QFile::setPermissions(dir.filePath(QStringLiteral("locked")), QFileDevice::ReadOwner | QFileDevice::ExeOwner));
+        if (!QFileInfo(dir.filePath(QStringLiteral("locked"))).isWritable()) {
+            err.clear();
+            deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+            QVERIFY(!deck::savePresentationFile(*d, locked, &err));
+            QVERIFY(!err.isEmpty());
+            QCOMPARE(fileBytes(locked), lockedBytes);
+        }
+        QFile::setPermissions(dir.filePath(QStringLiteral("locked")), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    }
+
+    // File > Save and Save As: the window writes the file, marks itself saved,
+    // and takes its name from the file; a save that fails says so and leaves
+    // the presentation unsaved.
+    void windowSavesThePresentation()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        QVERIFY(w.act(QStringLiteral("file.save")));
+        QVERIFY(w.act(QStringLiteral("file.saveAs")));
+        QCOMPARE(w.act(QStringLiteral("file.save"))->shortcut(), QKeySequence(QKeySequence::Save));
+        QCOMPARE(w.act(QStringLiteral("file.saveAs"))->shortcut(), QKeySequence(Qt::Key_F12));
+        w.newSlide();
+        QVERIFY(ed->isModified());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        QVERIFY(w.saveTo(path));
+        QVERIFY(!ed->isModified());
+        QCOMPARE(ed->filePath(), path);
+        QCOMPARE(w.windowTitle(), QStringLiteral("talk - JeffDeck"));
+        QString err;
+        auto back = deck::importPresentationFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 2);
+
+        // Save, with a name already, writes to it without asking.
+        w.newSlide();
+        QVERIFY(ed->isModified());
+        QVERIFY(w.windowTitle().contains(QLatin1Char('*')));
+        w.act(QStringLiteral("file.save"))->trigger();
+        QVERIFY(!ed->isModified());
+        QVERIFY(!w.windowTitle().contains(QLatin1Char('*')));
+        back = deck::importPresentationFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        // Notes typed and not yet in the slide are saved too.
+        QTest::keyClicks(w.notesPane(), QStringLiteral("Last words"));
+        QVERIFY(w.save());
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[ed->currentPage()]), QStringLiteral("Last words"));
+        QVERIFY(!ed->isModified());
+
+        // A save that can't be done says so, and the presentation is still unsaved, under the same name.
+        w.newSlide();
+        const QByteArray before = fileBytes(path);
+        answerDialogs({QMessageBox::Ok});
+        QVERIFY(!w.saveTo(dir.filePath(QStringLiteral("missing/talk.pptx"))));
+        QVERIFY(ed->isModified());
+        QCOMPARE(ed->filePath(), path);
+        QCOMPARE(fileBytes(path), before);
+
+        // Save As to another name moves the presentation there, even when nothing changed since the last save.
+        QVERIFY(w.saveTo(path));
+        const QString other = dir.filePath(QStringLiteral("other.pptx"));
+        QVERIFY(w.saveTo(other));
+        QCOMPARE(ed->filePath(), other);
+        QCOMPARE(w.windowTitle(), QStringLiteral("other - JeffDeck"));
+        QVERIFY(!ed->isModified());
+        ed->markSaved();
+    }
+
+    // A presentation opened from a template saves under a new name, never over the template.
+    void windowSavesATemplateAsANewPresentation()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString templatePath = dir.filePath(QStringLiteral("look.potx"));
+        QString err;
+        auto d = deck::newPresentation();
+        QVERIFY2(deck::savePresentationFile(*d, templatePath, &err), qPrintable(err));
+        const QByteArray before = fileBytes(templatePath);
+        DeckWindow w;
+        QVERIFY(w.openFile(templatePath));
+        w.newSlide();
+        // Save asks where, since the template is not to be written over, and suggests a new name; cancelled, nothing is written.
+        QStringList asked;
+        w.setSavePathChooser([&](const QString &suggested, const QString &) {
+            asked << suggested;
+            return QString();
+        });
+        QVERIFY(!w.save());
+        QCOMPARE(asked, QStringList{dir.filePath(QStringLiteral("look.pptx"))});
+        QCOMPARE(fileBytes(templatePath), before);
+        QVERIFY(w.editor()->isModified());
+        // Saved to a name, that is the presentation's file from then on.
+        const QString path = dir.filePath(QStringLiteral("deck.pptx"));
+        QVERIFY(w.saveTo(path));
+        QCOMPARE(w.editor()->filePath(), path);
+        QCOMPARE(fileBytes(templatePath), before);
+        // A template the window itself wrote is saved over when saved again.
+        const QString mine = dir.filePath(QStringLiteral("mine.potx"));
+        QVERIFY(w.saveTo(mine));
+        w.newSlide();
+        QVERIFY(w.save());
+        QVERIFY(!w.editor()->isModified());
+        auto back = deck::importPresentationFile(mine, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        w.editor()->markSaved();
+    }
+
+    // Closing a changed presentation asks Save, Don't Save, or Cancel.
+    void windowAsksToSaveBeforeClosing()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        w.newSlide();
+        QString label;
+        answerDialogs({QMessageBox::Cancel});
+        QVERIFY(!w.close());
+        QVERIFY(w.isVisible());
+        QVERIFY(w.editor()->isModified());
+        // Save, with nowhere to save to yet, asks where; a window left from there stays open.
+        w.setSavePathChooser([](const QString &, const QString &) { return QString(); });
+        answerDialogs({QMessageBox::Save});
+        QVERIFY(!w.close());
+        QVERIFY(w.isVisible());
+        // Save, with a name given, writes the file and closes.
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        answerDialogs({QMessageBox::Save});
+        QVERIFY(w.close());
+        QVERIFY(!w.isVisible());
+        auto back = deck::importPresentationFile(path);
+        QVERIFY(back);
+        QCOMPARE(int(back->pages.size()), 2);
+        // Don't Save closes and leaves the file alone.
+        DeckWindow v;
+        v.show();
+        QVERIFY(v.openFile(path));
+        v.newSlide();
+        const QByteArray before = fileBytes(path);
+        answerDialogs({QMessageBox::Discard}, &label);
+        QVERIFY(v.close());
+        QCOMPARE(label, QStringLiteral("Don't Save"));
+        QCOMPARE(fileBytes(path), before);
+        // Nothing changed: it closes without asking.
+        DeckWindow u;
+        u.show();
+        QVERIFY(u.close());
+    }
+
+    // AutoRecover: a changed presentation keeps a .pptx copy at the interval Options sets,
+    // the copy goes when the work is saved, and a copy a crash left opens as unsaved work.
+    void windowKeepsAutoRecoverCopies()
+    {
+        QTemporaryDir root, dir;
+        QVERIFY(root.isValid() && dir.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        {
+            DeckWindow w;
+            QCOMPARE(w.autoRecoverInterval(), std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000);
+            w.autoRecover();   // nothing changed: nothing to keep
+            QVERIFY(w.recoveryCopy().isEmpty());
+            w.newSlide();
+            w.autoRecover();
+            const QString copy = w.recoveryCopy();
+            QVERIFY(copy.endsWith(QLatin1String(".pptx")));
+            QVERIFY(QFileInfo::exists(copy));
+            QVERIFY(copy.startsWith(root.path()));
+            QString err;
+            auto kept = deck::importPresentationFile(copy, &err);
+            QVERIFY2(kept, qPrintable(err));
+            QCOMPARE(int(kept->pages.size()), 2);
+            // Saved, the work needs no copy.
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.pptx"))));
+            QVERIFY(!QFileInfo::exists(copy));
+            QVERIFY(w.recoveryCopy().isEmpty());
+
+            // A copy of work never saved comes back as work never saved.
+            DeckWindow lost;
+            lost.newSlide();
+            lost.newSlide();
+            lost.autoRecover();
+            const QString lostCopy = lost.recoveryCopy();
+            QVERIFY(QFileInfo::exists(lostCopy));
+            recovery::Recovered r;
+            r.file = lostCopy;
+            r.title = QStringLiteral("Lost talk");
+            r.saved = QDateTime::currentDateTime();
+            DeckWindow host;   // untouched, so it takes the copy itself
+            DeckWindow *opened = host.openRecovered(r, &err);
+            QVERIFY2(opened, qPrintable(err));
+            QCOMPARE(opened, &host);
+            QCOMPARE(int(host.editor()->doc()->pages.size()), 3);
+            QVERIFY(host.editor()->isModified());
+            QVERIFY(host.editor()->filePath().isEmpty());
+            QCOMPARE(host.editor()->displayName(), QStringLiteral("Lost talk"));
+            QVERIFY(!QFileInfo::exists(lostCopy));   // the old copy is replaced by this window's own
+            QVERIFY(!host.recoveryCopy().isEmpty());
+            host.editor()->markSaved();
+            lost.editor()->markSaved();
+            w.editor()->markSaved();
+            // With no copies left, asking says so.
+            answerDialogs({QMessageBox::Ok});
+            DeckWindow asker;
+            asker.offerRecovery(true);
+        }
+        recovery::setRoot(QString());
     }
 };
 
