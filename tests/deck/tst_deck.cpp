@@ -2,6 +2,7 @@
 // its window.
 
 #include "../../apps/pub/app/pubinfo.h"   // only its inline pubAppInfo(): the other app's colors, to compare
+#include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
 #include "app/deckinfo.h"
 #include "app/deckwidgets.h"
@@ -19,10 +20,14 @@
 
 #include <QAbstractButton>
 #include <QCheckBox>
+#include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QSlider>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextCursor>
@@ -320,6 +325,180 @@ private Q_SLOTS:
         for (int i = 0; i < 2; ++i) QCOMPARE(Renderer::renderToImage(ctx, i, 0.1).pixelColor(3, 3), QColor(0x11, 0x22, 0x33));
     }
 
+    // The ribbon builds with nothing missing and has the commands of the
+    // Home, Insert, Design, and View tabs; each of those tabs gives every
+    // control its own KeyTip.
+    void ribbonHasTheTabsCommands()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        for (const char *id : {"fmt.bold", "fmt.shadow", "fmt.grow", "fmt.shrink", "fmt.clear", "case.2", "spacing.Tight", "edit.formatPainter", "para.bullets", "bullet.check",
+                               "para.numbers", "number.3", "para.indentDec", "para.indentInc", "ls.1.5", "fmt.alignCenter", "tb.dirVertical", "valign.1", "cols.2", "arr.front",
+                               "arr.backward", "arr.group", "arr.flipH", "slide.new", "insert.picture", "insert.table", "insert.textBox", "insert.headerFooter",
+                               "design.sizeStandard", "design.sizeWidescreen", "design.formatBackground", "view.rulers", "view.gridlines", "view.guides", "view.notes",
+                               "view.fit", "view.normal", "view.sorter", "view.slideShow", "zoom.in", "zoom.out", "zoom.100"})
+            QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QStringList tabs;
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
+        QVERIFY(tabs.indexOf(QStringLiteral("Insert")) < tabs.indexOf(QStringLiteral("Design")));
+        QVERIFY(tabs.indexOf(QStringLiteral("Design")) < tabs.indexOf(QStringLiteral("Slide Show")));
+        for (const QString &name : {QStringLiteral("Home"), QStringLiteral("Insert"), QStringLiteral("Design"), QStringLiteral("View")}) {
+            QVERIFY2(w.ribbon()->tab(name), qPrintable(name));
+            QStringList seen;
+            for (const QWidget *c : w.ribbon()->tab(name)->findChildren<QWidget *>()) {
+                const QString k = keytip(c);
+                if (k.isEmpty()) continue;
+                QVERIFY2(k.size() <= 2 && k.indexOf(QRegularExpression(QStringLiteral("[^A-Z0-9]"))) < 0, qPrintable(name + ": " + k));
+                QVERIFY2(!seen.contains(k), qPrintable(name + ": two controls have the KeyTip " + k));
+                seen << k;
+            }
+            QVERIFY2(seen.size() > 3, qPrintable(name));
+        }
+    }
+
+    // A presentation shows no rulers until asked, and no outline around every
+    // object; the View tab's check boxes turn the ruler, gridlines, and guides on.
+    void normalViewDefaults()
+    {
+        DeckWindow w;
+        QVERIFY(!w.editor()->view.rulers);
+        QVERIFY(!w.editor()->view.boundaries);
+        QVERIFY(w.canvas()->hRuler()->isHidden() && w.canvas()->vRuler()->isHidden());
+        QVERIFY(!w.act("view.rulers")->isChecked() && !w.act("view.gridlines")->isChecked() && !w.act("view.guides")->isChecked());
+        w.act("view.rulers")->trigger();
+        QVERIFY(w.editor()->view.rulers);
+        QVERIFY(!w.canvas()->hRuler()->isHidden() && !w.canvas()->vRuler()->isHidden());
+        QVERIFY(w.act("view.rulers")->isChecked());
+        w.act("view.rulers")->trigger();
+        QVERIFY(w.canvas()->hRuler()->isHidden());
+        w.act("view.gridlines")->trigger();
+        w.act("view.guides")->trigger();
+        QVERIFY(w.canvas()->gridlines() && w.canvas()->guides());
+        // The boxes are the commands'.
+        QCheckBox *ruler = nullptr;
+        for (QCheckBox *b : w.ribbon()->findChildren<QCheckBox *>())
+            if (b->text() == QStringLiteral("Ruler")) ruler = b;
+        QVERIFY(ruler);
+        ruler->click();
+        QVERIFY(w.editor()->view.rulers);
+        QVERIFY(ruler->isChecked());
+    }
+
+    // A placeholder is outlined (dotted) while it is empty or selected, and a
+    // slide's objects aren't outlined the way every object is in the other apps.
+    void placeholdersAreOutlinedOnlyWhileEmptyOrSelected()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        auto outlined = [&] {
+            const QImage img = w.canvas()->viewport()->grab().toImage();
+            const auto *title = static_cast<const TextItem *>(ed->doc()->pages[0]->items[0].get());
+            const QPoint at = w.canvas()->pageToView(QPointF(title->rect.center().x(), title->rect.top())).toPoint();
+            int marks = 0;
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dx = -20; dx < 20; ++dx) {
+                    const QColor c = img.pixelColor(at.x() + dx, at.y() + dy);
+                    marks += c.lightness() < 235;
+                }
+            return marks;
+        };
+        QVERIFY(outlined() > 3);   // empty
+        auto *title = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get());
+        ed->doc()->storyDoc(title->storyId)->setPlainText(QStringLiteral("Hi"));
+        ed->notifyLive();
+        QCOMPARE(outlined(), 0);   // text in it, not selected
+        ed->select(title->id);
+        QVERIFY(outlined() > 3);   // selected
+        ed->clearSelection();
+        QCOMPARE(outlined(), 0);
+    }
+
+    // The status bar: the slide's place, Notes, the views (Slide Sorter
+    // waiting), and a zoom slider with its percent and a fit button.
+    void statusBarShowsSlideAndZoom()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        auto *place = w.findChild<QLabel *>(QStringLiteral("slideNumber"));
+        QVERIFY(place);
+        QCOMPARE(place->text(), QStringLiteral("Slide 1 of 1"));
+        w.newSlide();
+        QTRY_COMPARE(place->text(), QStringLiteral("Slide 2 of 2"));
+        QVERIFY(!w.act("view.sorter")->isEnabled());
+        QVERIFY(w.act("view.sorter")->toolTip().contains(QStringLiteral("coming")));
+        QVERIFY(w.act("view.normal")->isChecked());
+        // Notes shows and hides the notes below the slide.
+        QVERIFY(!w.notesPane()->isHidden());
+        QTRY_VERIFY(w.act("view.notes")->isChecked());
+        w.act("view.notes")->trigger();
+        QVERIFY(w.notesPane()->isHidden());
+        QTRY_VERIFY(!w.act("view.notes")->isChecked());
+        w.act("view.notes")->trigger();
+        QVERIFY(!w.notesPane()->isHidden());
+        // Zoom: the slider zooms, the label follows the canvas, and Fit comes back to the window.
+        auto *slider = w.findChild<QSlider *>(QStringLiteral("zoomSlider"));
+        auto *percent = w.findChild<QLabel *>(QStringLiteral("zoomPercent"));
+        QVERIFY(slider && percent);
+        slider->setValue(0);
+        QCOMPARE(w.canvas()->zoom(), 1.0);
+        QCOMPARE(percent->text(), QStringLiteral("100%"));
+        w.canvas()->setZoom(0.5);
+        QCOMPARE(percent->text(), QStringLiteral("50%"));
+        w.act("view.fit")->trigger();
+        QVERIFY(w.canvas()->fitMode() == Canvas::Fit::WholePage);
+        w.act("zoom.200")->trigger();
+        QCOMPARE(w.canvas()->zoom(), 2.0);
+    }
+
+    // The slide size from the window is one step that undoes, and the
+    // thumbnails take the slides' new shape.
+    void slideSizeFromTheWindow()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        const QRectF before = ed->doc()->pages[0]->items[0]->rect;
+        w.setSlideSize(QSizeF(deck::kStandardWidth, deck::kStandardHeight));
+        QCOMPARE(ed->doc()->pageSize(), QSizeF(720, 540));
+        QVERIFY(ed->doc()->pages[0]->items[0]->rect != before);
+        QTRY_COMPARE(w.slidesPane()->iconSize(), QSize(168, 126));
+        QTRY_VERIFY(w.act("design.sizeStandard")->isChecked());
+        QVERIFY(!w.act("design.sizeWidescreen")->isChecked());
+        ed->undo();
+        QCOMPARE(ed->doc()->pageSize(), QSizeF(960, 540));
+        QCOMPARE(ed->doc()->pages[0]->items[0]->rect, before);
+        QTRY_VERIFY(w.act("design.sizeWidescreen")->isChecked());
+    }
+
+    // Format Background and Header & Footer from the window are steps that undo.
+    void backgroundAndFooterFromTheWindow()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.setBackground(QColor(0x33, 0x66, 0x99), false);
+        QCOMPARE(ed->doc()->pages[1]->background, Fill::solid(ColorRef::rgb(QColor(0x33, 0x66, 0x99))));
+        QVERIFY(ed->doc()->pages[0]->background.type == Fill::NoFill);
+        ed->undo();
+        QVERIFY(ed->doc()->pages[1]->background.type == Fill::NoFill);
+        w.setBackground(QColor(0x11, 0x22, 0x33), true);
+        QCOMPARE(ed->doc()->masters[0]->background, Fill::solid(ColorRef::rgb(QColor(0x11, 0x22, 0x33))));
+        ed->undo();
+        QCOMPARE(ed->doc()->masters[0]->background, Fill::solid(ColorRef::rgb(Qt::white)));
+
+        deck::FooterOptions o;
+        o.slideNumber = true;
+        o.skipTitleSlide = true;
+        w.applyFooters(o, true);
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), 2);
+        QCOMPARE(int(ed->doc()->pages[1]->items.size()), 3);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[1]->items.size()), 2);
+        QVERIFY(!ed->doc()->appData.value(QStringLiteral("footers")).toBool());
+    }
+
     // The Header & Footer dialog hands back what was chosen and which button.
     void headerFooterDialogReturnsTheChoice()
     {
@@ -372,6 +551,116 @@ private Q_SLOTS:
         QTest::keyClick(&g, Qt::Key_Return);
         QCOMPARE(chosen.count(), 1);
         QCOMPARE(chosen.first().first().toString(), g.typeAt(4));   // the middle of the second row
+    }
+
+    // The layouts gallery in the New Slide menu makes a slide with the layout
+    // chosen, and the one in the Layout menu changes the slide's.
+    void layoutMenusUseTheGallery()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        // In the order the ribbon built them: Home's New Slide and Layout, then Insert's New Slide.
+        QList<LayoutGallery *> galleries;
+        for (QMenu *m : w.findChildren<QMenu *>())
+            if (auto *g = m->findChild<LayoutGallery *>()) galleries << g;
+        QCOMPARE(galleries.size(), 3);
+        LayoutGallery *newSlide = galleries.at(0), *layout = galleries.at(1);
+        for (int i = 0; i < 6; ++i) QTest::keyClick(newSlide, Qt::Key_Right);
+        QTest::keyClick(newSlide, Qt::Key_Return);   // Title Only
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[1])), QStringLiteral("titleOnly"));
+        QCOMPARE(ed->currentPage(), 1);
+        QTest::keyClick(layout, Qt::Key_Home);
+        QTest::keyClick(layout, Qt::Key_Return);   // Title Slide
+        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[1])), QStringLiteral("title"));
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+    }
+
+    // Insert > Pictures centers the picture on the slide at its natural size, one
+    // step that undoes; Insert > Table puts a table there too.
+    void insertPictureAndTable()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QImage image(200, 100, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        QVERIFY(image.save(dir.filePath(QStringLiteral("red.png"))));
+        QFile text(dir.filePath(QStringLiteral("notes.txt")));
+        QVERIFY(text.open(QIODevice::WriteOnly));
+        text.write("not a picture");
+        text.close();
+        DeckWindow w;
+        Editor *ed = w.editor();
+        const int before = int(ed->doc()->pages[0]->items.size());
+        QVERIFY(!w.insertPicture(dir.filePath(QStringLiteral("notes.txt"))));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        QVERIFY(w.insertPicture(dir.filePath(QStringLiteral("red.png"))));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        const auto *pic = dynamic_cast<const PictureItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(480 - 75, 270 - 37.5, 150, 75));
+        QCOMPARE(ed->selection(), QStringList{pic->id});
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+
+        w.insertTable(3, 4);
+        const auto *table = dynamic_cast<const TableItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(table);
+        QCOMPARE(table->rows, 3);
+        QCOMPARE(table->cols, 4);
+        QCOMPARE(table->rect.center(), QPointF(480, 270));
+        QCOMPARE(QTextCursor(ed->doc()->storyDoc(table->cells[0].storyId)).charFormat().fontPointSize(), 18.0);
+    }
+
+    void duplicateSlideCopiesNotes()
+    {
+        auto d = deck::newPresentation();
+        d->storyDoc(d->pages[0]->notesStoryId)->setPlainText(QStringLiteral("Say hello"));
+        const int i = deck::duplicateSlide(*d, 0);
+        QCOMPARE(i, 1);
+        QCOMPARE(deck::notesText(*d, *d->pages[1]), QStringLiteral("Say hello"));
+        QVERIFY(d->pages[1]->notesStoryId != d->pages[0]->notesStoryId);
+        QVERIFY(d->pages[1]->items[0]->id != d->pages[0]->items[0]->id);
+    }
+
+    // The window: the ribbon builds from its file with nothing missing, and
+    // the slide commands are steps that undo.
+    void windowSlideCommands()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        Editor *ed = w.editor();
+        QCOMPARE(w.slidesPane()->count(), 1);
+        w.newSlide();
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[1])), QStringLiteral("obj"));   // content after a title slide
+        QTRY_COMPARE(w.slidesPane()->count(), 2);
+        w.duplicateSlide();
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        w.toggleHidden();
+        QVERIFY(ed->doc()->pages[2]->hidden);
+        w.setLayout(QStringLiteral("titleOnly"));
+        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[2])), QStringLiteral("titleOnly"));
+        ed->undo();
+        ed->undo();
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        w.deleteSlide();
+        QCOMPARE(int(ed->doc()->pages.size()), 1);
+        w.deleteSlide();   // the last slide stays
+        QCOMPARE(int(ed->doc()->pages.size()), 1);
+        // Notes typed in the pane reach the slide as an undo step.
+        QTest::keyClicks(w.notesPane(), QStringLiteral("Remember the demo"));
+        QVERIFY(w.notesPane()->hasTyping());
+        w.notesPane()->commit();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("Remember the demo"));
+        ed->undo();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QString());
+        QCOMPARE(w.notesPane()->toPlainText(), QString());   // the pane shows the undone notes
+        w.newSlide();   // and moving on doesn't write them back
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QString());
+        ed->markSaved();
     }
 
     // The slide show skips hidden slides, goes back, ends after the last.
