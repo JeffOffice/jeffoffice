@@ -69,6 +69,9 @@ struct PaintContext {
 
 class Renderer {
 public:
+    // How a document's text is set: its colors, fonts, tab stops, and (a
+    // presentation's) slide lines.
+    static LayoutEnv layoutEnv(const Document &doc);
     // Paints one page (background, master items, page items) in page coordinates.
     static void paintPage(QPainter *p, const PaintContext &ctx, int pageIndex);
     static void paintMaster(QPainter *p, const PaintContext &ctx, const MasterPage &m, double xOffset = 0);

@@ -205,6 +205,16 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
     return out;
 }
 
+LayoutEnv Renderer::layoutEnv(const Document &doc)
+{
+    LayoutEnv env;
+    env.colors = doc.colors;
+    env.fonts = doc.fonts;
+    env.defaultTab = doc.defaultTabStop;
+    env.slideLines = doc.slideText;
+    return env;
+}
+
 FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt)
 {
     FrameSpec s;
@@ -216,7 +226,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.valign = t.valign;
     s.hyphenate = t.hyphenate;
     s.hyphenZone = t.hyphenZone;
-    s.runsOver = doc.textRunsOver;
+    s.runsOver = doc.slideText;
     // Baseline guides of the page's master (for "align text to baseline guides").
     const auto at = doc.find(t.id);
     const MasterPage *mp = at.page >= 0 ? doc.masterFor(*doc.pages[at.page]) : (!at.masterId.isEmpty() ? doc.master(at.masterId) : nullptr);
@@ -224,7 +234,8 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
         s.baselineGrid = mp->grid.baseline;
         s.baselineOrigin = doc.setup.margins.top() + mp->grid.baselineOffset - t.rect.top();
     }
-    if (!t.vertical) {
+    // A slide's text doesn't wrap around objects: the presentation program lets them overlap.
+    if (!t.vertical && !doc.slideText) {
         bool covered = false;
         s.obstacles = wrapObstacles(doc, t, &covered);
         if (covered) s.valign = VAlign::Top;
@@ -288,10 +299,7 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
         specs << Renderer::frameSpec(doc, *chain[i], pageNumber, opt);
         sig += specSig(specs.last());
     }
-    LayoutEnv env;
-    env.colors = doc.colors;
-    env.fonts = doc.fonts;
-    env.defaultTab = doc.defaultTabStop;
+    LayoutEnv env = Renderer::layoutEnv(doc);
     sig += env.key();
     const bool autofit = chain.size() == 1 && (head->autofit == TextItem::BestFit || head->autofit == TextItem::ShrinkOnOverflow);
     if (autofit) sig += QStringLiteral("|fit%1%2").arg(int(head->autofit)).arg(head->fitAsStored ? "s" : "");
@@ -353,10 +361,7 @@ const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &sto
 {
     Story *story = doc.story(storyId);
     if (!story) return nullptr;
-    LayoutEnv env;
-    env.colors = doc.colors;
-    env.fonts = doc.fonts;
-    env.defaultTab = doc.defaultTabStop;
+    LayoutEnv env = Renderer::layoutEnv(doc);
     const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {

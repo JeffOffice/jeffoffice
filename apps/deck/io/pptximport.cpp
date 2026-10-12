@@ -8,6 +8,7 @@
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
+#include "render/renderer.h"
 #include "text/textengine.h"
 
 #include <QCoreApplication>
@@ -650,10 +651,7 @@ bool Importer::readFrameTable(const QDomElement &frame, Scope &sc)
 void Importer::fitRows(TableItem &t)
 {
     if (!t.growToFit) return;
-    LayoutEnv env;
-    env.colors = m_doc.colors;
-    env.fonts = m_doc.fonts;
-    env.defaultTab = m_doc.defaultTabStop;
+    LayoutEnv env = Renderer::layoutEnv(m_doc);
     bool grew = false;
     for (int r = 0; r < t.rows; ++r) {
         double need = 0;
@@ -974,7 +972,7 @@ bool Importer::run(const QString &mainPart, QString *error)
 std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *error)
 {
     auto doc = std::make_unique<Document>();
-    doc->textRunsOver = true;
+    doc->slideText = true;
     Importer importer(pkg, *doc);
     if (!importer.run(pkg.mainPart(), error)) return nullptr;
     doc->fromFile = true;   // what the file names outside itself is read only from beside it

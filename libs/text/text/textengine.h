@@ -84,6 +84,11 @@ struct LayoutEnv {
     double fontScale = 1.0;
     double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
+    // Lines as the presentation program sets a slide's text: a single line is
+    // 1.2 times the largest text on it whatever the font, a line's extra
+    // spacing goes above it, the paragraph at the top of a box takes no space
+    // before it, and an empty paragraph shows no bullet.
+    bool slideLines = false;
     QString key() const;
 };
 

@@ -382,7 +382,7 @@ MasterPage *layoutOfType(const Document &d, const QString &type, const QString &
 std::unique_ptr<Document> newPresentation()
 {
     auto d = std::make_unique<Document>();
-    d->textRunsOver = true;
+    d->slideText = true;
     d->masters.clear();
     d->setup.size = d->setup.sheet = QSizeF(kSlideWidth, kSlideHeight);
     d->setup.sizeName = QStringLiteral("Widescreen");
