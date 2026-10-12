@@ -1,5 +1,5 @@
 # Change JeffPub's settings
-<!-- keywords: options, settings, preferences, theme, dark mode, units, inches, autorecover, backup, language, user name, nudge, updates, usage statistics, about -->
+<!-- keywords: options, settings, preferences, theme, dark mode, units, inches, autorecover, backup, language, user name, nudge, updates, beta, usage statistics, about -->
 
 Your settings are in the **JeffPub Options** window. Click **File > Options** to open it. It has four tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -40,6 +40,7 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 Click **File > About** to find these. The two check boxes are also on the **General** tab of **File > Options**.
 
 - **Check for Updates** looks for a newer version now. If one is out, an **Update Available** window shows what is new. Choose **Update Now**, **Later**, or **Skip This Version**.
+- **Get beta versions (early builds for testing)**, found only on the **General** tab of **File > Options**, makes JeffPub also offer beta versions, which come out before the regular ones and may have rough edges.
 - **Check for updates automatically** makes JeffPub look each time it starts.
 - **Send anonymous usage statistics** is your choice about sharing facts about how JeffPub is used. When it is on, JeffPub sends these once a day, and on the day you update: its version, your operating system and language, and how often each command is used. It never sends your files, their names, or anything in them. Click **What's sent** to read more. JeffPub asks about this the first time it starts, in a window called **Help improve JeffPub**. On Windows, setup may ask first.
 - **Your name** is the same name as **User name** above.
