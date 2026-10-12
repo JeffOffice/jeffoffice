@@ -16,7 +16,10 @@ EditorMedia::EditorMedia(DeckCanvas *canvas) : QObject(canvas), m_canvas(canvas)
     connect(ed, &Editor::pageChanged, this, [this] { stop(); });
     connect(ed, &Editor::documentReplaced, this, [this] {
         stop();
+        for (const QPointer<MediaPlayback> &pb : std::as_const(m_players)) delete pb.data();
         m_players.clear();
+        m_hover.clear();
+        m_drag.clear();
     });
     connect(ed, &Editor::changed, this, [this] { forgetGone(); });
 }
