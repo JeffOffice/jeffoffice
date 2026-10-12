@@ -5,6 +5,7 @@
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
 //   JeffDeck --view normal|outline|sorter  start in that view
+//   JeffDeck --backstage <page>         open on a File page (new, open, print, ...)
 
 #include "app/crash.h"
 #include "app/deckinfo.h"
@@ -41,7 +42,8 @@ int main(int argc, char **argv)
     QCommandLineOption shotOpt(QStringLiteral("screenshot"), QCoreApplication::translate("Main", "Save a screenshot of the window and quit."), QStringLiteral("png"));
     QCommandLineOption sizeOpt(QStringLiteral("size"), QCoreApplication::translate("Main", "Window size for --screenshot."), QStringLiteral("WxH"), QStringLiteral("1440x900"));
     QCommandLineOption viewOpt(QStringLiteral("view"), QCoreApplication::translate("Main", "Start in this view: normal, outline, or sorter."), QStringLiteral("view"));
-    cli.addOptions({shotOpt, sizeOpt, viewOpt});
+    QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
+    cli.addOptions({shotOpt, sizeOpt, viewOpt, stageOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Presentations to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
@@ -72,6 +74,7 @@ int main(int argc, char **argv)
         const QStringList wh = cli.value(sizeOpt).split('x');
         w->resize(wh.value(0).toInt() > 0 ? wh.value(0).toInt() : 1440, wh.value(1).toInt() > 0 ? wh.value(1).toInt() : 900);
         w->show();
+        if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
         const QString out = cli.value(shotOpt);
         QTimer::singleShot(600, w, [w, out] {
             w->grab().save(out);
@@ -80,6 +83,7 @@ int main(int argc, char **argv)
         return app.exec();
     }
     w->show();
+    if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
     // A normal exit takes this run's AutoRecover copies with it; copies a
     // crashed run left are offered once the window is up.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, [] { jp::recovery::endSession(); });
