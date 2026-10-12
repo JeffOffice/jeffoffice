@@ -7439,7 +7439,7 @@ private Q_SLOTS:
         QList<QUrl> opened;
         const auto keep = jp::help::openUrl;
         jp::help::openUrl = [&opened](const QUrl &u) { opened << u; return true; };
-        Q_EMIT v->browser()->anchorClicked(QUrl(QStringLiteral("https://github.com/JeffOffice/jeffpub")));
+        Q_EMIT v->browser()->anchorClicked(QUrl(QStringLiteral("https://github.com/JeffOffice/jeffoffice")));
         QCOMPARE(v->currentTopic(), QStringLiteral("index"));
         // The Help tab's web pages: Feedback (a problem or an idea) carries the
         // version and system; What's New is this version's release. There is
@@ -7449,9 +7449,9 @@ private Q_SLOTS:
         w.act(QStringLiteral("help.whatsNew"))->trigger();
         jp::help::openUrl = keep;
         QCOMPARE(opened.size(), 3);
-        QCOMPARE(opened[1].toString(QUrl::RemoveQuery), QStringLiteral("https://github.com/JeffOffice/jeffpub/issues/new"));
+        QCOMPARE(opened[1].toString(QUrl::RemoveQuery), QStringLiteral("https://github.com/JeffOffice/jeffoffice/issues/new"));
         QVERIFY(QUrlQuery(opened[1]).queryItemValue(QStringLiteral("body"), QUrl::FullyDecoded).contains(QStringLiteral("JeffPub " JP_VERSION " on ")));
-        QCOMPARE(opened[2].toString(), QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/tag/v" JP_VERSION));
+        QCOMPARE(opened[2].toString(), QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/tag/v" JP_VERSION));
         // Ctrl+F1 collapses the ribbon and brings it back, as there.
         QVERIFY(!w.ribbon()->isMinimized());
         QTest::keyClick(&w, Qt::Key_F1, Qt::ControlModifier);
@@ -19592,7 +19592,7 @@ private Q_SLOTS:
         qApp->setStyleSheet(jp::modernStyleSheet());
         Q_INIT_RESOURCE(resources);   // the app icon lives in the static jpcore library
         QApplication::setWindowIcon(QIcon(QStringLiteral(":/app.png")));
-        std::unique_ptr<QDialog> d(jp::Updater::offerDialog(nullptr, QStringLiteral("0.1.19"), h, true, QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/tag/v0.1.19")));
+        std::unique_ptr<QDialog> d(jp::Updater::offerDialog(nullptr, QStringLiteral("0.1.19"), h, true, QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/tag/v0.1.19")));
         d->show();
         QApplication::processEvents();
         auto *notes = d->findChild<QTextBrowser *>();
