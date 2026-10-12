@@ -20,6 +20,7 @@ class QStackedWidget;
 namespace jp {
 
 class ColorButton;
+class Document;
 class CommentsPane;
 class DeckCanvas;
 class DeckFileScreen;
@@ -37,6 +38,8 @@ class SlideSorter;
 class SlidesPane;
 
 namespace deck {
+struct ColorSet;
+struct FontSet;
 struct FooterOptions;
 struct OutputOptions;
 }
@@ -106,6 +109,17 @@ public:
     void setBackground(const QColor &color, bool all);
     // Header & Footer for the slide being edited, or for all of them.
     void applyFooters(const deck::FooterOptions &options, bool all);
+    // Design > Themes and Variants (deckwindow_design.cpp), each one step that undoes. A theme is one of the built-in ones (by number) or
+    // the one a presentation file has, for every slide or for the selected ones (the slides selected in the Slide Sorter, else the slide
+    // being edited, who get a slide master of their own). The file is any the program opens; false, with the reason shown, if it can't
+    // be used. A variant (by number, in variantsOf), colors, fonts, and background styles apply to the whole presentation.
+    void applyTheme(int theme, bool allSlides);
+    bool applyThemeFile(const QString &path, bool allSlides);
+    void browseForTheme(bool allSlides = true);
+    void chooseVariant(int variant);
+    void chooseColors(const deck::ColorSet &colors);
+    void chooseFonts(const deck::FontSet &fonts);
+    void chooseBackgroundStyle(int style);
     // A picture from a file, centered on the slide (or with its corner at `at`
     // when that isn't negative) and selected. False when the file can't be
     // read as a picture.
@@ -168,6 +182,9 @@ private:
     void createShowActions();
     void createViewModeActions();   // deckwindow_views.cpp
     void addShowParts(struct RibbonParts &parts);
+    void addDesignParts(struct RibbonParts &parts);   // deckwindow_design.cpp
+    bool applyThemeFrom(const Document &source, bool allSlides);
+    void changeDesign(const QString &label, const std::function<void(Document &)> &fn);
     void createActions();
     void createSaveActions();     // deckwindow_save.cpp
     void createDialogActions();   // deckwindow_dialogs.cpp

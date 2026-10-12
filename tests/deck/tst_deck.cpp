@@ -23,6 +23,7 @@
 #include "app/slideshow.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
+#include "app/themegallery.h"
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
@@ -12239,6 +12240,327 @@ private Q_SLOTS:
         QCOMPARE(layoutTypes(*d), (QStringList{QStringLiteral("title"), QStringLiteral("obj"), QStringLiteral("obj"), QStringLiteral("obj"), QStringLiteral("obj")}));
     }
 
+    // A grid of pictures: the arrow keys move between them, Enter chooses, and it scrolls by rows.
+    void pictureGridMovesAndChooses()
+    {
+        PictureGrid g(60, 3, true);
+        QVector<PictureGrid::Tile> tiles;
+        for (int i = 0; i < 7; ++i) tiles << PictureGrid::Tile{QStringLiteral("Tile %1").arg(i + 1), {}};
+        g.setTiles(tiles);
+        g.setPictures([](int tile, int width, qreal) {
+            QImage img(width, width * 9 / 16, QImage::Format_RGB32);
+            img.fill(QColor::fromHsv(tile * 40, 200, 200));
+            return img;
+        });
+        QCOMPARE(g.count(), 7);
+        QCOMPARE(g.rows(), 3);
+        QCOMPARE(g.nameAt(4), QStringLiteral("Tile 5"));
+        QVERIFY(g.tileRect(0).isValid() && g.tileRect(6).isValid());
+        QCOMPARE(g.tileAt(g.tileRect(4).center()), 4);
+        QVERIFY(g.tileRect(1).left() > g.tileRect(0).left());
+        QVERIFY(g.tileRect(3).top() > g.tileRect(0).top());
+        g.setCurrent(2);
+        QCOMPARE(g.current(), 2);
+        QSignalSpy chosen(&g, &PictureGrid::chosen);
+        QTest::keyClick(&g, Qt::Key_Home);
+        QTest::keyClick(&g, Qt::Key_Right);
+        QTest::keyClick(&g, Qt::Key_Down);
+        QTest::keyClick(&g, Qt::Key_Return);
+        QCOMPARE(chosen.count(), 1);
+        QCOMPARE(chosen.first().first().toInt(), 4);
+        QTest::keyClick(&g, Qt::Key_End);
+        QTest::keyClick(&g, Qt::Key_Space);
+        QCOMPARE(chosen.last().first().toInt(), 6);
+        // One row at a time in view: the others are out of it until scrolled to, and keys bring them in.
+        g.setVisibleRows(1);
+        QCOMPARE(g.visibleRows(), 1);
+        QVERIFY(g.tileRect(0).isEmpty() == (g.firstRow() != 0));
+        g.setFirstRow(0);
+        QVERIFY(!g.tileRect(0).isEmpty());
+        QVERIFY(g.tileRect(3).isEmpty());
+        QTest::keyClick(&g, Qt::Key_Home);
+        QTest::keyClick(&g, Qt::Key_Down);
+        QCOMPARE(g.firstRow(), 1);
+        QVERIFY(!g.tileRect(3).isEmpty() && g.tileRect(0).isEmpty());
+        g.setFirstRow(99);
+        QCOMPARE(g.firstRow(), 2);
+        // The picture of a tile is drawn when first needed.
+        int asked = 0;
+        g.setPictures([&asked](int, int width, qreal) {
+            ++asked;
+            return QImage(width, width * 9 / 16, QImage::Format_RGB32);
+        });
+        g.reload();
+        QCOMPARE(asked, 0);
+        QImage shot(g.sizeHint(), QImage::Format_RGB32);
+        shot.fill(Qt::white);
+        g.render(&shot);
+        QCOMPARE(asked, 1);   // the one row in view
+    }
+
+    // The Themes gallery shows the nine themes as pictures of their title slides, marks the presentation's, and offers each its menu.
+    void themeGalleryShowsEachTheme()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ThemeGallery g(ed);
+        QCOMPARE(g.grid()->count(), 9);
+        QCOMPARE(g.grid()->nameAt(0), QStringLiteral("JeffOffice"));
+        QCOMPARE(g.grid()->nameAt(8), deck::builtinThemeName(8));
+        QCOMPARE(g.currentTheme(), 0);
+        QCOMPARE(g.grid()->visibleRows(), 1);
+        QCOMPARE(g.grid()->columns(), 4);
+        // The pictures are the themes' title slides, each its own.
+        QSet<QByteArray> seen;
+        for (int i = 0; i < 9; ++i) {
+            const QImage pic = themePicture(i, 0, 78, 1);
+            QCOMPARE(pic.width(), 78);
+            QVERIFY(pic.height() == 43 || pic.height() == 44);
+            QByteArray bytes(reinterpret_cast<const char *>(pic.constBits()), pic.sizeInBytes());
+            QVERIFY(!seen.contains(bytes));
+            seen.insert(bytes);
+        }
+        QVERIFY(themePicture(1, 0, 156, 1).width() == 156);
+        // A click, or Enter, chooses one for every slide.
+        QSignalSpy chosen(&g, &ThemeGallery::themeChosen);
+        QTest::keyClick(g.grid(), Qt::Key_Home);
+        QTest::keyClick(g.grid(), Qt::Key_Right);
+        QTest::keyClick(g.grid(), Qt::Key_Return);
+        QCOMPARE(chosen.count(), 1);
+        QCOMPARE(chosen.first().at(0).toInt(), 1);
+        QCOMPARE(chosen.first().at(1).toBool(), true);
+        g.grid()->resize(g.grid()->sizeHint());
+        QTest::mouseClick(g.grid(), Qt::LeftButton, {}, g.grid()->tileRect(2).center());
+        QCOMPARE(chosen.last().at(0).toInt(), 2);
+        // The right-click menu.
+        QSignalSpy browse(&g, &ThemeGallery::browseRequested);
+        std::unique_ptr<QMenu> menu(g.contextMenu(3));
+        QStringList texts;
+        for (QAction *a : menu->actions())
+            if (!a->isSeparator()) texts << a->text();
+        QCOMPARE(texts, (QStringList{QStringLiteral("Apply to All Slides"), QStringLiteral("Apply to Selected Slides"), QStringLiteral("Browse for Themes…")}));
+        menu->actions().at(0)->trigger();
+        QCOMPARE(chosen.last().at(0).toInt(), 3);
+        QCOMPARE(chosen.last().at(1).toBool(), true);
+        menu->actions().at(1)->trigger();
+        QCOMPARE(chosen.last().at(0).toInt(), 3);
+        QCOMPARE(chosen.last().at(1).toBool(), false);
+        menu->actions().at(3)->trigger();
+        QCOMPARE(browse.count(), 1);
+        // All of them in a popup, with the same menu, and Browse for Themes at the foot.
+        QPointer<QFrame> all = g.openAll();
+        QVERIFY(all);
+        auto *grid = all->findChild<PictureGrid *>();
+        QVERIFY(grid);
+        QCOMPARE(grid->count(), 9);
+        QCOMPARE(grid->rows(), 3);
+        QCOMPARE(grid->current(), 0);
+        auto *footer = all->findChild<QPushButton *>();
+        QVERIFY(footer && footer->text().contains(QStringLiteral("Browse")));
+        footer->click();
+        QCOMPARE(browse.count(), 2);
+        QTRY_VERIFY(!all || !all->isVisible());
+    }
+
+    // Choosing a theme in the Design tab's gallery applies it to every slide as one step, and the gallery marks it.
+    void designTabAppliesAThemeInOneStep()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.show();
+        auto *gallery = w.findChild<ThemeGallery *>();
+        QVERIFY(gallery);
+        w.newSlide(QStringLiteral("twoObj"));
+        w.newSlide(QStringLiteral("titleOnly"));
+        sayIn(*ed->doc(), *placeholderOn(*ed->doc()->pages[1], QStringLiteral("title")), QStringLiteral("Two"));
+        const QStringList kinds = layoutTypes(*ed->doc());
+        const int harbor = deck::builtinThemeIndex(QStringLiteral("Harbor"));
+        const QString firstMaster = deck::slideMasterOf(*ed->doc(), 0);
+        QTest::keyClick(gallery->grid(), Qt::Key_Home);
+        for (int i = 0; i < harbor; ++i) QTest::keyClick(gallery->grid(), Qt::Key_Right);
+        QTest::keyClick(gallery->grid(), Qt::Key_Return);
+        QCOMPARE(deck::themeOf(*ed->doc()).name, QStringLiteral("Harbor"));
+        QCOMPARE(layoutTypes(*ed->doc()), kinds);
+        QCOMPARE(deck::slideTitle(*ed->doc(), 1), QStringLiteral("Two"));
+        QVERIFY(deck::slideMasterOf(*ed->doc(), 0) != firstMaster);
+        QTRY_COMPARE(gallery->currentTheme(), harbor);
+        // One step undoes all of it, and redoes.
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).name, deck::defaultTheme().name);
+        QCOMPARE(deck::slideMasterOf(*ed->doc(), 0), firstMaster);
+        QCOMPARE(layoutTypes(*ed->doc()), kinds);
+        QCOMPARE(deck::slideTitle(*ed->doc(), 1), QStringLiteral("Two"));
+        QTRY_COMPARE(gallery->currentTheme(), 0);
+        QCOMPARE(ed->doc()->fonts.heading, deck::defaultTheme().headingFont);
+        ed->redo();
+        QCOMPARE(deck::themeOf(*ed->doc()).name, QStringLiteral("Harbor"));
+        QCOMPARE(ed->doc()->fonts.heading, deck::builtinThemeFonts(harbor).heading);
+        ed->undo();
+        // For the selected slides only: the slide being edited, or the Slide Sorter's selection.
+        ed->setCurrentPage(1);
+        w.applyTheme(deck::builtinThemeIndex(QStringLiteral("Granite")), false);
+        QVERIFY(deck::slideMasterOf(*ed->doc(), 1) != firstMaster);
+        QCOMPARE(deck::slideMasterOf(*ed->doc(), 0), firstMaster);
+        QCOMPARE(deck::slideMasterOf(*ed->doc(), 2), firstMaster);
+        QCOMPARE(deck::themeOf(*ed->doc()).name, deck::defaultTheme().name);
+        ed->undo();
+        QCOMPARE(deck::slideMasterOf(*ed->doc(), 1), firstMaster);
+        w.setView(DeckWindow::View::Sorter);
+        w.slideSorter()->select({1, 2}, 2);
+        w.applyTheme(deck::builtinThemeIndex(QStringLiteral("Orchard")), false);
+        QVERIFY(deck::slideMasterOf(*ed->doc(), 1) != firstMaster);
+        QCOMPARE(deck::slideMasterOf(*ed->doc(), 1), deck::slideMasterOf(*ed->doc(), 2));
+        QCOMPARE(deck::slideMasterOf(*ed->doc(), 0), firstMaster);
+        ed->undo();
+        QCOMPARE(deck::slideMasterOf(*ed->doc(), 2), firstMaster);
+    }
+
+    // Browse for Themes takes the theme of another presentation file (a .pptx or .potx), and says so when a file has none to take.
+    void designTabTakesTheThemeOfAFile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Marquee")), 3), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QFile file(dir.filePath(QStringLiteral("marquee.potx")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(bytes);
+        file.close();
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        QVERIFY(w.applyThemeFile(file.fileName(), true));
+        QCOMPARE(deck::themeOf(*ed->doc()).name, QStringLiteral("Marquee"));
+        QCOMPARE(layoutTypes(*ed->doc()), (QStringList{QStringLiteral("title"), QStringLiteral("obj")}));
+        const deck::Variant v = deck::builtinThemeVariants(deck::builtinThemeIndex(QStringLiteral("Marquee"))).value(3);
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], v.colors.colors[4]);
+        QCOMPARE(deck::backgroundStyleOf(ed->doc()->masters[0]->background, deck::themeOf(*ed->doc())), v.background);
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).name, deck::defaultTheme().name);
+    }
+
+    // The Variants group shows the four variants of the theme with the one it has marked; a click applies one; its menu offers colors,
+    // fonts, and the twelve background styles, each a step that undoes.
+    void designTabVariantsAndTheirMenu()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.show();
+        auto *variants = w.findChild<VariantGallery *>();
+        QVERIFY(variants);
+        QCOMPARE(variants->grid()->count(), 4);
+        QCOMPARE(variants->grid()->current(), 0);
+        const int ember = deck::builtinThemeIndex(QStringLiteral("Ember"));
+        w.applyTheme(ember, true);
+        QTRY_VERIFY(variants->grid()->nameAt(0).startsWith(QStringLiteral("Ember")));
+        QCOMPARE(variants->grid()->current(), 0);
+        QCOMPARE(variants->grid()->nameAt(2).contains(deck::backgroundStyleName(deck::builtinThemeVariants(ember)[2].background)), true);
+        // A variant, by a click: its colors and background.
+        variants->grid()->resize(variants->grid()->sizeHint());
+        QTest::mouseClick(variants->grid(), Qt::LeftButton, {}, variants->grid()->tileRect(3).center());
+        const deck::Variant third = deck::builtinThemeVariants(ember)[3];
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], third.colors.colors[4]);
+        QCOMPARE(deck::backgroundStyleOf(ed->doc()->masters[0]->background, deck::themeOf(*ed->doc())), third.background);
+        QTRY_COMPARE(variants->grid()->current(), 3);
+        ed->undo();
+        QTRY_COMPARE(variants->grid()->current(), 0);
+
+        // The menu.
+        QMenu *menu = variants->moreButton()->menu();
+        QVERIFY(menu);
+        QMenu *colors = menu->findChild<QMenu *>(QStringLiteral("variantColors"));
+        QMenu *fonts = menu->findChild<QMenu *>(QStringLiteral("variantFonts"));
+        QMenu *styles = menu->findChild<QMenu *>(QStringLiteral("variantBackgrounds"));
+        QVERIFY(colors && fonts && styles);
+        QCOMPARE(menu->actions().size(), 3);
+        Q_EMIT colors->aboutToShow();
+        QVERIFY(colors->findChild<ThemeColors *>());   // the presentation's own twelve
+        QList<QAction *> schemes;
+        for (QAction *a : colors->actions())
+            if (a->isCheckable()) schemes << a;
+        QCOMPARE(schemes.size(), deck::colorSets().size());
+        QCOMPARE(schemes.size(), 18);
+        int checked = 0;
+        for (QAction *a : schemes) checked += a->isChecked();
+        QCOMPARE(checked, 1);
+        QVERIFY(schemes.at(4)->isChecked());   // Ember's own
+        schemes.at(5)->trigger();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], deck::colorSets().value(5).colors[4]);
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], deck::builtinThemeVariants(ember)[0].colors.colors[4]);
+        Q_EMIT fonts->aboutToShow();
+        QList<QAction *> faces;
+        for (QAction *a : fonts->actions())
+            if (a->isCheckable()) faces << a;
+        QCOMPARE(faces.size(), deck::fontSets().size());
+        QVERIFY(faces.size() > 9);
+        QVERIFY(faces.at(ember)->isChecked());
+        faces.at(3)->trigger();
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, deck::fontSets().value(3).heading);
+        QCOMPARE(ed->doc()->fonts.heading, deck::fontSets().value(3).heading);
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, deck::builtinThemeFonts(ember).heading);
+        Q_EMIT styles->aboutToShow();
+        auto *grid = styles->findChild<BackgroundStyles *>();
+        QVERIFY(grid);
+        QCOMPARE(grid->current(), deck::builtinThemeVariants(ember)[0].background);
+        QCOMPARE(grid->styleAt(grid->swatchRect(7).center()), 7);
+        QCOMPARE(grid->swatchRect(4).left(), grid->swatchRect(5).left());   // a color's three styles stand one above another
+        QVERIFY(grid->swatchRect(3).left() > grid->swatchRect(0).left());
+        const int other = deck::builtinThemeVariants(ember)[2].background;
+        QVERIFY(other != grid->current());
+        Q_EMIT grid->chosen(other);
+        QCOMPARE(deck::backgroundStyleOf(ed->doc()->masters[0]->background, deck::themeOf(*ed->doc())), other);
+        QCOMPARE(colorOfRun(*ed->doc(), firstRunOf(*ed->doc(), *placeholderOn(*ed->doc()->pages[0], QStringLiteral("ctrTitle")))), deck::themeOf(*ed->doc()).colors[0]);
+        QTRY_COMPARE(variants->grid()->current(), 2);   // Ember's third variant is its colors on that background
+        ed->undo();
+        QCOMPARE(deck::backgroundStyleOf(ed->doc()->masters[0]->background, deck::themeOf(*ed->doc())), deck::builtinThemeVariants(ember)[0].background);
+    }
+
+    // A dark presentation opened from a file has light text where none was chosen, so a new text box can be read; a light one is as it was.
+    void darkPresentationsGiveNewTextALightColor()
+    {
+        QString err;
+        DeckWindow w;
+        Editor *ed = w.editor();
+        const QColor usual = ed->doc()->colors.slot(Main);
+        auto dark = deck::importPresentation(deck::exportPresentation(*deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Ember"))), &err), &err);
+        QVERIFY2(dark, qPrintable(err));
+        QCOMPARE(dark->colors.slot(Main), usual);
+        const QColor light = deck::themeOf(*dark).colors[1];
+        ed->setDocument(std::move(dark));
+        QCOMPARE(ed->doc()->colors.slot(Main), light);
+        auto bright = deck::importPresentation(deck::exportPresentation(*deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Harbor"))), &err), &err);
+        QVERIFY2(bright, qPrintable(err));
+        ed->setDocument(std::move(bright));
+        QCOMPARE(ed->doc()->colors.slot(Main), usual);
+        // Applying a dark theme does it too, and a light one gives the dark text back.
+        w.applyTheme(deck::builtinThemeIndex(QStringLiteral("Marquee")), true);
+        QCOMPARE(ed->doc()->colors.slot(Main), deck::themeOf(*ed->doc()).colors[1]);
+        w.applyTheme(deck::builtinThemeIndex(QStringLiteral("Tideline")), true);
+        QCOMPARE(ed->doc()->colors.slot(Main), deck::themeOf(*ed->doc()).colors[0]);
+        QCOMPARE(ed->doc()->colors.slot(Accent1), deck::themeOf(*ed->doc()).colors[4]);
+    }
+
+    // A presentation that isn't in a built-in theme has variants too: its own colors on four backgrounds.
+    void variantsOfAnotherThemeAreItsColorsOnFourBackgrounds()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto *variants = w.findChild<VariantGallery *>();
+        QVERIFY(variants);
+        deck::DeckTheme mine = deck::themeOf(*ed->doc());
+        mine.name = QStringLiteral("Mine");
+        deck::setTheme(*ed->doc(), mine);
+        Q_EMIT ed->changed();
+        QCOMPARE(variants->grid()->count(), 4);
+        QCOMPARE(variants->grid()->current(), 0);
+        Q_EMIT variants->variantChosen(2);
+        QVERIFY(deck::backgroundStyleIsDark(deck::backgroundStyleOf(ed->doc()->masters[0]->background, deck::themeOf(*ed->doc()))));
+        QCOMPARE(deck::themeOf(*ed->doc()).name, QStringLiteral("Mine"));
+        QTRY_COMPARE(variants->grid()->current(), 2);
+    }
 
     // A theme's picture fills (its textures) point at pictures the reader did not keep:
     // written as they were, they would point nowhere, so they become plain fills.
