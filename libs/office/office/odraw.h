@@ -27,6 +27,11 @@ QVector<OdrawRecord> odrawRecords(const QByteArray &data, qsizetype offset = 0, 
 
 // What reading a drawing needs from the format around it.
 struct OdrawContext {
+    // The drawing group's default properties: the property records (0xF00B,
+    // 0xF121, 0xF122, header included) of its OfficeArtDggContainer. A shape
+    // that leaves a property out has the value these give, before the one the
+    // format gives it when nothing does.
+    QByteArray defaults;
     // The shape's place on the page, in points, from its client anchor
     // record's data (OfficeArtClientAnchor, 0xF010), whose form each host
     // format defines (a .ppt slide's is a rectangle in master units).
@@ -36,6 +41,12 @@ struct OdrawContext {
     // The picture with this 1-based index in the picture store (the shape's
     // pib property), as an image id (PictureItem::imageId); "" if none.
     std::function<QString(int blipIndex)> picture;
+    // The shape another takes after: from a shape's client data record's
+    // contents, the property records (0xF00B, 0xF121, 0xF122, header included)
+    // of the shape whose properties it has for those it leaves out (a slide's
+    // placeholder takes after its master's); empty for a shape that takes
+    // after none.
+    std::function<QByteArray(const QByteArray &clientData)> inherits;
     // The shape's client text box (0xF00D) and client data (0xF011)
     // records' contents: text, a placeholder's identity. Called after the
     // item is made, so it may set its story, its role, or replace its type's

@@ -259,12 +259,12 @@ private:
         const QByteArray group = pptBox(0xF004, pptRec(0xF009, QByteArray(16, '\0'), 0, 1) + pptRec(0xF00A, le(0x400, 4) + le(5, 4), 0, 2));
         return pptBox(1036, pptBox(0xF002, pptRec(0xF008, le(2, 4) + le(0x402, 4)) + pptBox(0xF003, group + shapes)));
     }
-    // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds.
-    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900)
+    // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds (and its property record).
+    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray())
     {
         const QByteArray anchor = le(top, 2) + le(left, 2) + le(right, 2) + le(bottom, 2);
         const QByteArray data = pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({placeholder, 0, 0, 0})));
-        return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
+        return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
     }
     static QByteArray outlineRef(int index) { return pptRec(3998, le(index, 4)); }
 
@@ -288,8 +288,10 @@ private:
     // has a field, a link, a language, and a ruler, and that fades in. `cycle`
     // makes the older edit point back at the newer. `notesByAtom` leaves the
     // first slide without the id of its notes, which then name the slide.
-    // `bodyGroup` stands for the first slide's body text.
-    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray())
+    // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
+    // shapes for the first slide's drawing, and `masterTitleProps` a property record for the main master's title shape.
+    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
+                               const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
@@ -302,6 +304,7 @@ private:
         const QByteArray environment = pptBox(1010, fonts + pptRec(4003, bodyStyle, 1));
         const QByteArray document = pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
             + environment
+            + drawingGroup
             + (links ? pptBox(1033, pptRec(1034, le(1, 4)) + pptBox(4055, pptRec(4051, le(7, 4)) + pptRec(4026, utf16(QStringLiteral("the site")), 0) + pptRec(4026, utf16(QStringLiteral("https://example.org/site")), 1)))
                      : QByteArray())
             + pptBox(4080, slidePersist(3, 0, kMaster) + (titleMaster ? slidePersist(7, 0, kTitleMaster) : QByteArray()), 1)
@@ -327,7 +330,7 @@ private:
         const QByteArray mainMaster = pptBox(1016, slideAtom(1, QByteArray("\x01\x02\x07\x08\x09", 5), 0, 0, 3) + colorScheme(1)
             // The title text: centered, the second font, 44 points, the title text color.
             + pptRec(4003, le(1, 2) + le(0x800, 4) + le(1, 2) + le(0x70000, 4) + le(1, 2) + le(44, 2) + pptColor(0, 0, 0, 3), 0)
-            + pptDrawing(pptShape(0x402, 1, QByteArray()) + pptShape(0x403, 2, QByteArray())));
+            + pptDrawing(pptShape(0x402, 1, QByteArray(), 100, 200, 5000, 900, masterTitleProps) + pptShape(0x403, 2, QByteArray())));
         const QByteArray titleMasterRec = pptBox(1016, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
             // The centered title and the subtitle, with only their sizes (the levels of these two start with their number).
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0x800, 4) + le(1, 2) + le(0x20000, 4) + le(54, 2), 6)
@@ -339,7 +342,7 @@ private:
             return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, transition.isEmpty() ? info : transition) + pptDrawing(shapes));
         };
         const QByteArray titleOnBody = pptShape(0x402, 0xD, outlineRef(0)) + pptShape(0x403, 0xE, outlineRef(1), 1000, 200, 5000, 3800);
-        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody);
+        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody + firstSlideShapes);
         const QByteArray secondOld = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody);
         const QByteArray second = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, true, titleOnBody);
         const QByteArray third = slide(0, QByteArray("\x0F\x10", 2), kTitleMaster, 0, false, pptShape(0x402, 0xF, outlineRef(0)) + pptShape(0x403, 0x10, outlineRef(1)));
@@ -2480,6 +2483,75 @@ private Q_SLOTS:
         // The notes page size.
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("w")).toDouble(), 540.0);
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("h")).toDouble(), 720.0);
+    }
+
+    // The presentation's drawing group keeps the properties a shape starts from: a shape of a slide that names no colors has the
+    // fills color and the text color of the scheme (the master's), not white and black.
+    void importBinaryShapesTakeTheDrawingGroupsDefaults()
+    {
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        // Filled in scheme color 4 (the fills color), a line in scheme color 1 (the text color).
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
+        // A rectangle that says nothing of its look, and one that has its own fill.
+        auto rectangle = [&](quint32 id, int top, const QByteArray &props) {
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2)));
+        };
+        const QByteArray shapes = rectangle(0x500, 100, QByteArray()) + rectangle(0x501, 800, table({{0x0181, 0x0000FF}}));
+        auto look = [&](const QByteArray &file) {
+            QString err;
+            auto d = deck::importBinaryPresentation(file, &err);
+            QList<QPair<QColor, QColor>> out;   // the fill and the line color of the page's plain shapes
+            if (!d) qWarning("%s", qPrintable(err));
+            if (!d) return out;
+            for (const auto &it : d->pages[0]->items)
+                if (it->role.isEmpty() && it->type() == ItemType::Shape)
+                    out << qMakePair(it->fill.color.kind() == ColorRef::Rgb ? it->fill.color.rgbValue() : QColor(), it->stroke.color.kind() == ColorRef::Rgb ? it->stroke.color.rgbValue() : QColor());
+            return out;
+        };
+        const auto withGroup = look(buildPpt(false, false, false, false, QByteArray(), group, shapes));
+        QCOMPARE(int(withGroup.size()), 2);
+        QCOMPARE(withGroup[0].first, QColor(0x77, 0x88, 0x99));
+        QCOMPARE(withGroup[0].second, QColor(0x11, 0x22, 0x33));
+        QCOMPARE(withGroup[1].first, QColor(255, 0, 0));
+        // With no drawing group, the format's own: white, and black.
+        const auto without = look(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes));
+        QCOMPARE(int(without.size()), 2);
+        QCOMPARE(without[0].first, QColor(Qt::white));
+        QCOMPARE(without[0].second, QColor(Qt::black));
+    }
+
+    // A slide's placeholder takes what it leaves out of its look from the master's shape of its kind, and then from the drawing group's
+    // defaults: the master's title says what the slides' titles look like.
+    void importBinaryPlaceholdersTakeAfterTheirMastersShapes()
+    {
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        // The defaults: filled in the fills color, with a line in the text color.
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
+        // The master's title: a green fill and no line. Its body says nothing.
+        const QByteArray title = table({{0x0181, 0x00FF00}, {0x01BF, 0x00100010}, {0x01FF, 0x00080000}});
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, QByteArray(), title), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Item *titleItem = nullptr, *bodyItem = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->role == QLatin1String("ph:title")) titleItem = it.get();
+            if (it->role.startsWith(QLatin1String("ph:body"))) bodyItem = it.get();
+        }
+        QVERIFY(titleItem && bodyItem);
+        QVERIFY(titleItem->fill.type == Fill::Solid);
+        QCOMPARE(titleItem->fill.color.rgbValue(), QColor(0, 255, 0));
+        QVERIFY(titleItem->stroke.isNone());
+        // The master's body says nothing: a text frame is neither filled nor lined of itself, whatever the defaults are.
+        QVERIFY(bodyItem->fill.isNone());
+        QVERIFY(bodyItem->stroke.isNone());
     }
 
     // A slide's placeholder takes its layout's by index, then by type; a layout's takes its master's by
