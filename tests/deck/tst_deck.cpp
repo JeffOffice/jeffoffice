@@ -6266,6 +6266,7 @@ private Q_SLOTS:
                 seq.add(a);
                 deck::setAnimations(*d, slide, seq);
                 const QString where = kind.id + QLatin1Char(' ') + v.key;
+                QVERIFY2(animIdProblem(slide.props.value(QStringLiteral("timingXml")).toString()).isEmpty(), qPrintable(where));
                 QVERIFY2(!slide.props.value(QStringLiteral("timingXml")).toString().isEmpty(), qPrintable(where));
                 const deck::AnimSequence back = deck::readAnimations(slide);
                 QVERIFY2(back.effects.size() == 1, qPrintable(where));
@@ -7046,9 +7047,342 @@ private Q_SLOTS:
         // Garbage is nothing, and a timing with no sequence is none.
         slide.props[QStringLiteral("timingXml")] = QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst/></p:timing>");
         QVERIFY(deck::readAnimations(slide).effects.isEmpty());
+        QVERIFY(deck::readAnimations(slide).editable);
         slide.props[QStringLiteral("timingXml")] = QStringLiteral("<p:timing");
         QVERIFY(deck::readAnimations(slide).effects.isEmpty());
-        QVERIFY(deck::readAnimations(slide).editable);
+        QVERIFY(!deck::readAnimations(slide).editable);   // never an empty sequence that an edit would write over it
+    }
+
+    // ---- what the review of real slides found ----
+
+    // The problem with a timing's time nodes, "" for none: each has an id of its own, and what refers to a node refers to one there is.
+    static QString animIdProblem(const QString &timing)
+    {
+        QDomDocument dom;
+        if (!office::parseXml(timing.toUtf8(), &dom)) return QStringLiteral("not XML");
+        QSet<QString> ids;
+        QStringList refs;
+        QVector<QDomElement> stack{dom.documentElement()};
+        while (!stack.isEmpty()) {
+            const QDomElement e = stack.takeLast();
+            if (e.localName() == QLatin1String("cTn") && e.hasAttribute(QStringLiteral("id"))) {
+                const QString id = e.attribute(QStringLiteral("id"));
+                if (ids.contains(id)) return QStringLiteral("the id %1 is on two time nodes").arg(id);
+                ids.insert(id);
+            }
+            if (e.localName() == QLatin1String("tn")) refs << e.attribute(QStringLiteral("val"));
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+        }
+        for (const QString &r : std::as_const(refs))
+            if (!ids.contains(r)) return QStringLiteral("a reference to the time node %1, which is not there").arg(r);
+        return QString();
+    }
+
+    static const QString animMainNs() { return QStringLiteral("http://schemas.openxmlformats.org/presentationml/2006/main"); }
+
+    // A timing of one click step holding the effects (written as XML text), the way a file lays it out; the ids come last in each time node, which a file may do.
+    static QString animBareTiming(const QString &effects, const QString &around = QString(), const QString &before = QString(), const QString &after = QString())
+    {
+        return animXml("<p:timing xmlns:p='http://schemas.openxmlformats.org/presentationml/2006/main'><p:tnLst><p:par><p:cTn dur='indefinite' restart='never' nodeType='tmRoot' id='1'><p:childTnLst>")
+            + before + animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn dur='indefinite' nodeType='mainSeq' id='2'><p:childTnLst><p:par><p:cTn fill='hold' id='3'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst>"
+                               "<p:childTnLst><p:par><p:cTn fill='hold' id='4'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>")
+            + effects + animXml("</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:seq>") + after
+            + animXml("</p:childTnLst></p:cTn></p:par></p:tnLst>") + around + animXml("</p:timing>");
+    }
+
+    // An effect JeffDeck has no kind for (preset 77), on shape `spid`, its time nodes numbered from `id`, the id the last attribute of each.
+    static QString animUnknownEffect(int spid, int id)
+    {
+        return animXml("<p:par><p:cTn presetID='77' presetClass='entr' presetSubtype='0' fill='hold' grpId='0' nodeType='clickEffect' id='%1'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+                       "<p:set><p:cBhvr><p:cTn dur='1' fill='hold' id='%2'><p:stCondLst><p:cond delay='0'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='%4'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='visible'/></p:to></p:set>"
+                       "<p:animEffect transition='in' filter='wheel(1)'><p:cBhvr><p:cTn dur='2000' id='%3'/><p:tgtEl><p:spTgt spid='%4'/></p:tgtEl></p:cBhvr></p:animEffect>"
+                       "</p:childTnLst></p:cTn></p:par>").arg(id).arg(id + 1).arg(id + 2).arg(spid);
+    }
+
+    // Writing a slide's animations back gives each time node an id of its own, a kept effect's too, whatever order a file wrote its attributes in.
+    void animationEditNumbersTimeNodesOnce()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(animUnknownEffect(10, 5));
+        QVERIFY2(animIdProblem(slide.props.value(QStringLiteral("timingXml")).toString()).isEmpty(), "the timing a file has is sound");
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(int(seq.effects.size()), 1);
+        QVERIFY(seq.effects[0].custom());
+        // Written again as it is, and with an effect added to it: the ids are all different.
+        deck::setAnimations(*d, slide, seq);
+        QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+        QVERIFY(xml.contains(QStringLiteral("presetID=\"77\"")) && xml.contains(QStringLiteral("filter=\"wheel(1)\"")));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 11));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), 3));
+        deck::setAnimations(*d, slide, seq);
+        xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 3);
+        // Two kept effects, one after the other, and a start that refers to a time node of its own.
+        QString second = animUnknownEffect(11, 5).replace(QStringLiteral("<p:cond delay=\"0\"/></p:stCondLst><p:childTnLst><p:set>"),
+                                                          QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"6\"/></p:cond></p:stCondLst><p:childTnLst><p:set>"));
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(animUnknownEffect(10, 5) + second.replace(QStringLiteral("id=\"5\""), QStringLiteral("id=\"8\"")).replace(QStringLiteral("id=\"6\""), QStringLiteral("id=\"9\""))
+                                                                  .replace(QStringLiteral("id=\"7\""), QStringLiteral("id=\"10\"")).replace(QStringLiteral("<p:tn val=\"6\"/>"), QStringLiteral("<p:tn val=\"9\"/>")));
+        QVERIFY2(animIdProblem(slide.props.value(QStringLiteral("timingXml")).toString()).isEmpty(), qPrintable(animIdProblem(slide.props.value(QStringLiteral("timingXml")).toString())));
+        seq = deck::readAnimations(slide);
+        QCOMPARE(int(seq.effects.size()), 2);
+        deck::setAnimations(*d, slide, seq);
+        xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));   // the reference follows its node to the new number
+    }
+
+    // What a timing holds beside its main sequence (a movie's or sound's node, a sequence that waits for a click) is written back
+    // just as it was, in its place, with its own ids; the main sequence takes the numbers it leaves.
+    void animationEditKeepsMediaNodesAsWritten()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        const QString video = QStringLiteral("<p:video><p:cMediaNode vol=\"80000\" numSld=\"1\" showWhenStopped=\"0\"><p:cTn id=\"9\" fill=\"hold\" display=\"0\"><p:stCondLst><p:cond delay=\"indefinite\"/>"
+                                             "<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"2\"/></p:cond></p:stCondLst><p:endCondLst><p:cond evt=\"onStopAudio\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:endCondLst></p:cTn>"
+                                             "<p:tgtEl><p:spTgt spid=\"10\"/></p:tgtEl></p:cMediaNode></p:video>");
+        const QString audio = QString::fromUtf8("<p:audio isNarration=\"1\" descr=\"caf\u00E9 \u2603 &amp; \U0001F600 &#x41;\"><p:cMediaNode vol=\"80000\" numSld=\"3\" showWhenStopped=\"0\"><p:cTn id=\"6\" repeatCount=\"indefinite\" fill=\"hold\" display=\"0\">"
+                                                "<p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"11\"/></p:tgtEl></p:cMediaNode></p:audio>");
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(animFadeIn(3, 500), QString(), video, audio);
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QVERIFY(seq.editable);
+        QCOMPARE(int(seq.effects.size()), 1);
+        QCOMPARE(int(seq.kept.size()), 2);
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), 10));
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(video));   // byte for byte
+        QVERIFY(xml.contains(audio));
+        const qsizetype v = xml.indexOf(video), m = xml.indexOf(QStringLiteral("nodeType=\"mainSeq\"")), a = xml.indexOf(audio);
+        QVERIFY(v > 0 && m > v && a > m);   // in the places they had
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 2);
+        // When the file is saved with some effects dropped for shapes that are gone, they stay too.
+        int dropped = 0;
+        const QString saved = deck::timingForSave(*d, slide, [](int shape) { return shape != 3; }, &dropped);
+        QCOMPARE(dropped, 1);
+        QVERIFY(saved.contains(video) && saved.contains(audio));
+        QVERIFY2(animIdProblem(saved).isEmpty(), qPrintable(animIdProblem(saved)));
+    }
+
+    // A frame the slide has but JeffDeck has no object for (a diagram kept as written) and a table are shapes an effect can be on; an
+    // edit keeps their effects, and a chart or a table read from a file carries the number the file gave it.
+    void animationEditKeepsEffectsOnFramesAndTables()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        auto table = std::make_shared<TableItem>();
+        table->sourceId = 14;
+        table->rect = QRectF(300, 100, 200, 80);
+        slide.items.push_back(table);
+        QJsonArray unread;
+        unread.append(QJsonObject{{"xml", QStringLiteral("<p:graphicFrame xmlns:p=\"%1\"><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Diagram\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr></p:graphicFrame>").arg(animMainNs())}});
+        slide.props[QStringLiteral("unread")] = unread;
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 14));
+        seq.add(deck::makeAnim(QStringLiteral("entr.wipe"), 8));
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), 10));
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 3);
+        // Another edit keeps them.
+        seq = deck::readAnimations(slide);
+        seq.add(deck::makeAnim(QStringLiteral("emph.spin"), 14));
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 4);
+        // A number no frame, table, or other shape has is a shape that is gone.
+        deck::AnimSequence gone = deck::readAnimations(slide);
+        gone.add(deck::makeAnim(QStringLiteral("entr.fade"), 99));
+        deck::setAnimations(*d, slide, gone);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 4);
+    }
+
+    // A table and a chart read from a file are given the number the file gave their frame, so that an effect on them finds them.
+    void importGivesTablesAndChartsTheirFrameNumbers()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const auto *pic = chartPicture(*d, *d->pages[0]);
+        QVERIFY(pic);
+        QCOMPARE(pic->sourceId, 9);
+        const QString table =
+            QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Grid\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                           "<p:xfrm><a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"914400\" cy=\"254000\"/></p:xfrm>"
+                           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr/><a:tblGrid><a:gridCol w=\"914400\"/></a:tblGrid>"
+                           "<a:tr h=\"254000\"><a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"/><a:t>x</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc></a:tr>"
+                           "</a:tbl></a:graphicData></a:graphic></p:graphicFrame>");
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(unknownFrame(8), table);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        auto withTable = deck::importPresentation(pack(p), &err);
+        QVERIFY2(withTable, qPrintable(err));
+        const TableItem *t = nullptr;
+        for (const auto &it : withTable->pages[0]->items)
+            if (it->type() == ItemType::Table) t = static_cast<const TableItem *>(it.get());
+        QVERIFY(t);
+        QCOMPARE(t->sourceId, 8);
+    }
+
+    // Effects on a chart and on a frame kept as written are saved with the file, and read back from it.
+    void animationEditSavesEffectsOnChartsAndFrames()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 9));    // the chart
+        seq.add(deck::makeAnim(QStringLiteral("entr.wipe"), 8));    // the frame kept as written
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 2);
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const deck::AnimSequence read = deck::readAnimations(*back->pages[0]);
+        QCOMPARE(int(read.effects.size()), 2);
+        QVERIFY(!read.effects[0].custom() && !read.effects[1].custom());
+    }
+
+    // What an effect does to its shape afterwards takes no part in the effect's own time: hide after a fade that plays three times is
+    // at the end of the third, and a spin that goes back when it ends still hides its shape.
+    void animationEditHidesAfterTheEffectEnds()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim fade = deck::makeAnim(QStringLiteral("entr.fade"), 10);
+        fade.repeat = 3;
+        fade.after = deck::AfterEffect::Hide;
+        seq.add(fade);
+        deck::setAnimations(*d, slide, seq);
+        deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        auto visible = [&](int done, double ms, int shape) { return deck::statesAt(tl, g, done, ms).value(deck::Target{shape}).visible; };
+        QVERIFY(std::abs(tl.steps[0].duration() - 1500) < 5);
+        QVERIFY(visible(0, 1400, 10));
+        QVERIFY(!visible(0, 1600, 10));
+        QVERIFY(!visible(1, -1, 10));
+        // A spin that rewinds, and hides.
+        deck::AnimSequence spin;
+        deck::Anim a = deck::makeAnim(QStringLiteral("emph.spin"), 11);
+        a.duration = 1000;
+        a.rewind = true;
+        a.after = deck::AfterEffect::Hide;
+        spin.add(a);
+        deck::setAnimations(*d, slide, spin);
+        tl = deck::playableTimeline(slide);
+        QVERIFY(visible(0, 500, 11));
+        QVERIFY(!visible(1, -1, 11));
+        QCOMPARE(deck::statesAt(tl, g, 1, -1).value(deck::Target{11}).rotation, 0.0);   // and it is as it was
+    }
+
+    // A repeat count a file makes huge does not make a step that long: an effect plays its repeats for at most twenty seconds.
+    void animationEditLimitsHugeRepeats()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("emph.spin"), 10);
+        a.duration = 500;
+        a.repeat = 9999;
+        seq.add(a);
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(deck::readAnimations(slide).effects[0].repeat, 9999.0);   // the file keeps what it says
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        QVERIFY2(tl.steps[0].duration() <= 20500, qPrintable(QString::number(tl.steps[0].duration())));
+        QVERIFY(tl.steps[0].duration() >= 19000);
+        // "Until the end" plays once.
+        QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        xml.replace(QRegularExpression(QStringLiteral("repeatCount=\"\\d+\"")), QStringLiteral("repeatCount=\"indefinite\""));
+        slide.props[QStringLiteral("timingXml")] = xml;
+        QVERIFY(deck::playableTimeline(slide).steps[0].duration() < 600);
+    }
+
+    // A new shape does not take the number of one that was deleted, or of any shape the timing names, in its effects, its kept
+    // sequences, or its builds.
+    void animationEditNumbersNewShapesPastGoneOnes()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(animFadeIn(10, 300) + animFadeIn(20, 300), animXml("<p:bldLst><p:bldP spid='23' grpId='0'/></p:bldLst>"));
+        auto fresh = std::make_shared<ShapeItem>();
+        fresh->rect = QRectF(400, 100, 80, 40);
+        slide.items.push_back(fresh);
+        const int number = deck::shapeNumber(slide, fresh->id);
+        QVERIFY2(number > 23, qPrintable(QString::number(number)));
+    }
+
+    // A build of what a kept sequence aims at stays with it.
+    void animationEditKeepsBuildsOfKeptSequences()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        deck::setAnimations(*d, slide, seq);
+        QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        const QString waits = animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn id='30' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='11'/></p:tgtEl></p:cond></p:stCondLst>"
+                                      "<p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst/></p:cTn><p:nextCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='11'/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
+        const QString tail = QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst>");
+        QVERIFY(xml.contains(tail));
+        xml.replace(tail, waits + tail);
+        xml.replace(QStringLiteral("</p:bldLst>"), QStringLiteral("<p:bldP spid=\"11\" grpId=\"0\" animBg=\"1\"/></p:bldLst>"));
+        slide.props[QStringLiteral("timingXml")] = xml;
+        seq = deck::readAnimations(slide);
+        QVERIFY(seq.editable);
+        QCOMPARE(int(seq.kept.size()), 1);
+        seq.add(deck::makeAnim(QStringLiteral("entr.fly"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const QString written = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(written.contains(waits));
+        QVERIFY2(written.contains(QStringLiteral("<p:bldP spid=\"11\"")), qPrintable(written.right(500)));
+        QVERIFY2(animIdProblem(written).isEmpty(), qPrintable(animIdProblem(written)));
+    }
+
+    // A paragraph that is gone has no effect: not in the pane, not written, and not a click in the show.
+    void animationEditDropsParagraphsThatAreGone()
+    {
+        auto d = editDeck();
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 3));
+        deck::setByParagraph(seq, 0, true, *d, slide);
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(int(deck::playableTimeline(*d, slide).steps.size()), 3);
+        QTextDocument *story = d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId);
+        story->setPlainText(QStringLiteral("First paragraph\nSecond paragraph"));
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 3);
+        QCOMPARE(int(deck::readAnimations(slide, d.get()).effects.size()), 2);
+        QCOMPARE(int(deck::playableTimeline(*d, slide).steps.size()), 2);
+        // The next write leaves it out.
+        deck::AnimSequence again = deck::readAnimations(slide);
+        again.add(deck::makeAnim(QStringLiteral("entr.fly"), 2));
+        deck::setAnimations(*d, slide, again);
+        QCOMPARE(int(deck::readAnimations(slide).effects.size()), 3);
+    }
+
+    // A kept effect nested deeper than a hundred levels is written back whole.
+    void animationEditKeepsDeepEffects()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        QString inner = animXml("<p:set><p:cBhvr><p:cTn dur='1' fill='hold' id='900'/><p:tgtEl><p:spTgt spid='10'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='visible'/></p:to></p:set>");
+        for (int i = 0; i < 40; ++i) inner = animXml("<p:par><p:cTn fill='hold' id='%1'><p:childTnLst>").arg(100 + i) + inner + animXml("</p:childTnLst></p:cTn></p:par>");
+        const QString effect = animXml("<p:par><p:cTn presetID='77' presetClass='entr' presetSubtype='0' fill='hold' nodeType='clickEffect' id='5'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>")
+                               + inner + animXml("</p:childTnLst></p:cTn></p:par>");
+        slide.props[QStringLiteral("timingXml")] = animBareTiming(effect);
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(int(seq.effects.size()), 1);
+        QVERIFY(seq.effects[0].custom());
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QCOMPARE(xml.count(QStringLiteral("<p:par>")), effect.count(QStringLiteral("<p:par>")) + 5);   // the nested pars, and each click's two and the new effect's one
+        QVERIFY(xml.contains(QStringLiteral("spid=\"10\"")));
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
     }
 
     // The windows of the animation feature, as pictures, when JD_ANIM_SHOTS names a folder (the other times it only checks that they draw).

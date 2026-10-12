@@ -14,11 +14,13 @@
 #include <QJsonArray>
 #include <QRegularExpression>
 #include <QSet>
+#include <QXmlStreamReader>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextList>
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace jp::deck {
 
@@ -170,6 +172,8 @@ namespace {
 
 constexpr int kMaxAnims = 2000;     // effects one slide's sequence may hold; a longer one is read, not edited
 constexpr int kMaxDepth = 16;       // nesting searched for effects
+constexpr int kMaxWriteDepth = 300; // the XML reader allows 256 levels, so no element is ever cut when written or compared
+constexpr int kMaxKept = 500;       // nodes beside the main sequence a timing may have, to be kept
 
 using office::attr;
 using office::hasAttr;
@@ -236,7 +240,7 @@ QString qualified(const QString &prefix, const QString &local) { return prefix.i
 
 void writeElement(const QDomElement &e, QString *out, Prefixes *prefixes, int depth)
 {
-    if (depth > 64) return;
+    if (depth > kMaxWriteDepth) return;
     prefixes->need(e.prefix(), e.namespaceURI());
     *out += QLatin1Char('<') + qualified(e.prefix(), e.localName());
     const QDomNamedNodeMap attrs = e.attributes();
@@ -279,7 +283,7 @@ QString standalone(const QDomElement &e)
 // their time nodes aside.
 void canon(const QDomElement &e, QString *out, int depth)
 {
-    if (depth > 64) return;
+    if (depth > kMaxWriteDepth) return;
     *out += QLatin1Char('<') + e.localName();
     QVector<QPair<QString, QString>> list;
     const QDomNamedNodeMap attrs = e.attributes();
@@ -312,30 +316,40 @@ QString canonOf(const QString &xml)
     return out;
 }
 
-// A kept effect's time nodes numbered afresh from `*next`, and what refers to them with them.
-QString renumbered(const QString &xml, int *next)
+// The ids a timing's time nodes take, one each, in the order they are written; the ids the file's kept nodes have are left to them.
+struct Ids {
+    int next = 1;
+    QSet<int> reserved;
+    int take()
+    {
+        while (reserved.contains(next)) ++next;
+        return next++;
+    }
+};
+
+// The elements of a tree, each before what is inside it.
+template <typename F>
+void forEachElement(const QDomElement &root, F &&fn)
 {
-    static const QRegularExpression ids(QStringLiteral("<p:cTn id=\"(\\d+)\""));
-    QHash<QString, QString> map;
-    QString out;
-    qsizetype last = 0;
-    for (auto it = ids.globalMatch(xml); it.hasNext();) {
-        const QRegularExpressionMatch m = it.next();
-        const QString fresh = QString::number((*next)++);
-        map.insert(m.captured(1), fresh);
-        out += xml.mid(last, m.capturedStart(1) - last) + fresh;
-        last = m.capturedEnd(1);
+    QVector<QDomElement> stack{root};
+    while (!stack.isEmpty()) {
+        const QDomElement e = stack.takeLast();
+        fn(e);
+        const QVector<QDomElement> kids = office::children(e);
+        for (qsizetype i = kids.size() - 1; i >= 0; --i) stack.push_back(kids[i]);
     }
-    out += xml.mid(last);
-    static const QRegularExpression refs(QStringLiteral("(<p:r?tn val=\")(\\d+)(\")"));
-    QString done;
-    last = 0;
-    for (auto it = refs.globalMatch(out); it.hasNext();) {
-        const QRegularExpressionMatch m = it.next();
-        done += out.mid(last, m.capturedStart(2) - last) + map.value(m.captured(2), m.captured(2));
-        last = m.capturedEnd(2);
-    }
-    return done + out.mid(last);
+}
+
+// The ids of the time nodes in some of the file's own XML (that uses the namespaces `declarations` declares).
+QSet<int> timeNodeIds(const QString &xml, const QString &declarations)
+{
+    QSet<int> out;
+    QDomDocument dom;
+    if (!office::parseXml(QStringLiteral("<w%1>%2</w>").arg(declarations, xml).toUtf8(), &dom)) return out;
+    forEachElement(dom.documentElement(), [&](const QDomElement &e) {
+        if (e.localName() == QLatin1String("cTn") && hasAttr(e, QStringLiteral("id"))) out.insert(int(attr(e, QStringLiteral("id")).toLongLong()));
+    });
+    return out;
 }
 
 // ---- the presets ----
@@ -389,8 +403,8 @@ QString targetXml(const Anim &a)
 
 QString numberText(double v) { return QString::number(v, 'f', 0); }
 
-// The template's behaviors for the effect: ids from `*next`, the target, and the times.
-QString bodyOf(const PresetTemplate &t, const Anim &a, int *next)
+// The template's behaviors for the effect: their ids, the target, and the times.
+QString bodyOf(const PresetTemplate &t, const Anim &a, Ids *ids)
 {
     const QString body = QString::fromUtf8(t.body);
     const QString target = targetXml(a);
@@ -413,7 +427,7 @@ QString bodyOf(const PresetTemplate &t, const Anim &a, int *next)
         const QString token = body.mid(open + 1, close - open - 1);
         i = close + 1;
         if (token == QLatin1String("I")) {
-            out += QString::number((*next)++);
+            out += QString::number(ids->take());
         } else if (token == QLatin1String("T")) {
             out += target;
         } else if (token == QLatin1String("D")) {
@@ -442,7 +456,7 @@ QString bodyOf(const PresetTemplate &t, const Anim &a, int *next)
 // An effect JeffDeck makes, as one p:par of a click step: `grpId` the build it
 // belongs to (-1 for a shape that has none), `placeholder` as the program marks
 // a placeholder animated whole.
-QString effectXml(const Anim &a, int grpId, bool placeholder, int *next)
+QString effectXml(const Anim &a, int grpId, bool placeholder, Ids *ids)
 {
     const EffectKind *kind = effectKind(a.kind);
     const EffectVariant *v = kind ? kind->variant(a.variant) : nullptr;
@@ -457,8 +471,8 @@ QString effectXml(const Anim &a, int grpId, bool placeholder, int *next)
     if (grpId >= 0) attrs += QStringLiteral(" grpId=\"%1\"").arg(grpId);
     attrs += QStringLiteral(" nodeType=\"%1\"").arg(QLatin1String(nodeTypeOf(a.start)));
     if (placeholder) attrs += QStringLiteral(" nodePh=\"1\"");
-    const int id = (*next)++;
-    const QString body = bodyOf(*t, a, next);
+    const int id = ids->take();
+    const QString body = bodyOf(*t, a, ids);
     // What it does to its shape when it is over: hide it when the effect ends, or at the next click.
     QString after;
     if (a.after != AfterEffect::None) {
@@ -470,23 +484,6 @@ QString effectXml(const Anim &a, int grpId, bool placeholder, int *next)
     return QStringLiteral("<p:par><p:cTn id=\"%1\"%2><p:stCondLst><p:cond delay=\"%3\"/></p:stCondLst><p:childTnLst>%4</p:childTnLst>%5</p:cTn></p:par>").arg(id).arg(attrs).arg(a.delay).arg(body, after);
 }
 
-// A kept effect with the way it starts as the sequence has it.
-QString keptEffectXml(const Anim &a, int *next)
-{
-    QString xml = a.xml;
-    const qsizetype start = xml.indexOf(QLatin1String("<p:cTn "));
-    const qsizetype end = start < 0 ? -1 : xml.indexOf(QLatin1Char('>'), start);
-    if (end > 0) {
-        QString tag = xml.mid(start, end - start);
-        static const QRegularExpression nodeType(QStringLiteral("\\bnodeType=\"[^\"]*\""));
-        const QString now = QStringLiteral("nodeType=\"%1\"").arg(QLatin1String(nodeTypeOf(a.start)));
-        if (tag.contains(nodeType)) tag.replace(nodeType, now);
-        else tag += QLatin1Char(' ') + now;
-        xml = xml.left(start) + tag + xml.mid(end);
-    }
-    return renumbered(xml, next);
-}
-
 // ---- what a slide's shapes are ----
 
 struct ShapeInfo {
@@ -495,9 +492,41 @@ struct ShapeInfo {
     bool placeholder = false;
     bool background = false;   // it has a fill or an outline
     int order = 0;             // where it is among the slide's shapes, bottom first
+    int paragraphs = -1;       // how many paragraphs its text has; -1 when that isn't known (no document, or no text)
 };
 
-QHash<int, ShapeInfo> shapeInfos(const Page &slide)
+// The story an item's text is in.
+QString storyOf(const Item &it)
+{
+    if (it.type() == ItemType::Text) return static_cast<const TextItem &>(it).storyId;
+    if (it.type() == ItemType::Shape) return static_cast<const ShapeItem &>(it).storyId;
+    return QString();
+}
+
+int paragraphCount(const Document *doc, const Item &it)
+{
+    const QString id = storyOf(it);
+    const QTextDocument *story = doc && !id.isEmpty() ? doc->storyDoc(id) : nullptr;
+    return story ? story->blockCount() : -1;
+}
+
+// The numbers of the frames the slide keeps as written (a diagram, a chart's frame): shapes it has no item for.
+QSet<int> frameNumbers(const Page &slide)
+{
+    static const QRegularExpression numbers(QStringLiteral("<\\w+:cNvPr\\b[^>]*?\\bid=\"(\\d+)\""));
+    QSet<int> out;
+    auto scan = [&](const QString &xml) {
+        for (auto it = numbers.globalMatch(xml); it.hasNext();) {
+            const qint64 n = it.next().captured(1).toLongLong();
+            if (n > 0 && n <= 1000000000) out.insert(int(n));
+        }
+    };
+    for (const QJsonValue &v : slide.props.value(QStringLiteral("unread")).toArray()) scan(v.toObject().value(QStringLiteral("xml")).toString());
+    for (const QJsonValue &v : slide.props.value(QStringLiteral("charts")).toArray()) scan(v.toObject().value(QStringLiteral("frameXml")).toString());
+    return out;
+}
+
+QHash<int, ShapeInfo> shapeInfos(const Page &slide, const Document *doc)
 {
     QHash<int, ShapeInfo> out;
     int order = 0;
@@ -510,9 +539,47 @@ QHash<int, ShapeInfo> shapeInfos(const Page &slide)
         s.sp = it->type() == ItemType::Text || it->type() == ItemType::Shape;
         s.placeholder = !placeholderType(*it).isEmpty();
         s.background = !it->fill.isNone() || !it->stroke.isNone();
+        s.paragraphs = paragraphCount(doc, *it);
         out.insert(it->sourceId, s);
     });
+    // A frame has no item of its own, or has one the file's number didn't reach: what an effect on it aims at is there all the same.
+    for (int n : frameNumbers(slide)) {
+        if (out.contains(n)) continue;
+        ShapeInfo s;
+        s.found = true;
+        s.order = 1 << 29;
+        out.insert(n, s);
+    }
     return out;
+}
+
+// The shape numbers some XML aims at.
+QSet<int> shapesOfKept(const QString &xml)
+{
+    static const QRegularExpression spid(QStringLiteral("\\bspid\\s*=\\s*[\"'](\\d+)[\"']"));
+    QSet<int> out;
+    for (auto it = spid.globalMatch(xml); it.hasNext();) out.insert(int(std::min<qint64>(it.next().captured(1).toLongLong(), 2000000000)));
+    return out;
+}
+
+// Whether the shapes (and paragraphs) an effect is on are still on the slide.
+bool aimsAtThings(const QHash<int, ShapeInfo> &shapes, const Anim &a)
+{
+    if (a.custom()) {
+        for (int s : shapesOfKept(a.xml))
+            if (!shapes.value(s).found) return false;
+        return true;
+    }
+    const ShapeInfo info = shapes.value(a.shape);
+    if (!info.found) return false;
+    return !(a.paragraphs() && info.paragraphs >= 0 && a.firstParagraph >= info.paragraphs);
+}
+
+// The effects of shapes (and paragraphs) the slide no longer has, taken out; the click an effect took goes on to the next of its step.
+void dropGoneEffects(AnimSequence &seq, const QHash<int, ShapeInfo> &shapes)
+{
+    for (int i = int(seq.effects.size()) - 1; i >= 0; --i)
+        if (!aimsAtThings(shapes, seq.effects[i])) seq.remove(i);
 }
 
 // ---- reading ----
@@ -622,8 +689,8 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     }
     // The same preset as another way of the kind (the ways of a motion path are presets themselves).
     const bool placeholder = hasAttr(cTn, QStringLiteral("nodePh"));
-    int next = 1;
-    QString again = effectXml(k, k.group, placeholder, &next);
+    Ids ids;
+    QString again = effectXml(k, k.group, placeholder, &ids);
     if (again.isEmpty()) return a;
     again.replace(0, 6, QStringLiteral("<p:par xmlns:p=\"%1\"").arg(office::ns::P));
     if (canonOf(again) != canonOf(a.xml)) return a;
@@ -653,30 +720,88 @@ void collectEffects(const QDomElement &list, int depth, QVector<Anim> *out, bool
     }
 }
 
+// What the file wrote for the children of the elements at `path` (their names, from the root), character for character, in order; and the
+// namespaces the root declares.
+QStringList childTexts(const QString &xml, const QStringList &path, QString *declarations = nullptr)
+{
+    QStringList out;
+    QXmlStreamReader r(xml);
+    QStringList open;
+    qsizetype start = 0;
+    const qsizetype depth = path.size() + 1;
+    auto inside = [&] { return open.size() == depth && open.mid(0, path.size()) == path; };
+    while (!r.atEnd()) {
+        const qsizetype before = r.characterOffset();   // a token starts where the one before it ended
+        const QXmlStreamReader::TokenType token = r.readNext();
+        if (token == QXmlStreamReader::StartElement) {
+            if (open.isEmpty() && declarations) {
+                declarations->clear();
+                for (const QXmlStreamNamespaceDeclaration &n : r.namespaceDeclarations())
+                    *declarations += n.prefix().isEmpty() ? QStringLiteral(" xmlns=\"%1\"").arg(esc(n.namespaceUri().toString()))
+                                                          : QStringLiteral(" xmlns:%1=\"%2\"").arg(n.prefix().toString(), esc(n.namespaceUri().toString()));
+            }
+            open.push_back(r.name().toString());
+            if (inside()) start = before;
+        } else if (token == QXmlStreamReader::EndElement && !open.isEmpty()) {
+            if (inside()) out << xml.mid(start, r.characterOffset() - start);
+            open.pop_back();
+        }
+    }
+    return out;
+}
+
+// The time nodes beside the main sequence, as the file wrote them when that text is what the element says; else written out from the element.
+QString keptText(const QDomElement &e, const QStringList &texts, qsizetype at, const QString &declarations)
+{
+    if (at < texts.size()) {
+        QDomDocument dom;
+        if (office::parseXml(QStringLiteral("<w%1>%2</w>").arg(declarations, texts[at]).toUtf8(), &dom)) {
+            const QDomElement same = dom.documentElement().firstChildElement();
+            if (!same.isNull() && same.nextSiblingElement().isNull() && standalone(same) == standalone(e)) return texts[at];
+        }
+    }
+    return standalone(e);
+}
+
 } // namespace
 
-AnimSequence readAnimations(const Page &slide)
+AnimSequence readAnimations(const Page &slide, const Document *doc)
 {
     AnimSequence seq;
-    QDomDocument dom;
     const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
-    if (xml.isEmpty() || !office::parseXml(xml.toUtf8(), &dom)) return seq;
+    if (xml.isEmpty()) return seq;
+    // A timing that can't be read is not an empty sequence that an edit would write over.
+    QDomDocument dom;
+    if (!office::parseXml(xml.toUtf8(), &dom) || !pIs(dom.documentElement(), "timing")) {
+        seq.editable = false;
+        return seq;
+    }
     const QDomElement root = dom.documentElement();
-    if (!pIs(root, "timing")) return seq;
     bool haveMain = false, tooMany = false;
     // The sequences are the time nodes' children: the tmRoot's, in a p:tnLst.
     const QDomElement rootNode = pChild(pChild(pChild(pChild(root, "tnLst"), "par"), "cTn"), "childTnLst");
-    for (const QDomElement &s : pChildren(rootNode, "seq")) {
-        const QDomElement cTn = pChild(s, "cTn");
-        if (attr(cTn, QStringLiteral("nodeType")) == QLatin1String("mainSeq") && !haveMain) {
+    const QVector<QDomElement> nodes = office::children(rootNode);
+    QString declarations;
+    const QStringList texts = nodes.isEmpty() ? QStringList() : childTexts(xml, {QStringLiteral("timing"), QStringLiteral("tnLst"), QStringLiteral("par"), QStringLiteral("cTn"), QStringLiteral("childTnLst")}, &declarations);
+    seq.declarations = declarations;
+    if (nodes.size() > kMaxKept) tooMany = true;
+    for (qsizetype i = 0; i < nodes.size(); ++i) {
+        const QDomElement &s = nodes[i];
+        const QDomElement cTn = pIs(s, "seq") ? pChild(s, "cTn") : QDomElement();
+        if (!haveMain && !cTn.isNull() && attr(cTn, QStringLiteral("nodeType")) == QLatin1String("mainSeq")) {
             haveMain = true;
+            seq.keptBeforeMain = int(seq.kept.size());
             collectEffects(pChild(cTn, "childTnLst"), 0, &seq.effects, &tooMany);
-        } else {
-            seq.kept << standalone(s);
+        } else if (!tooMany) {
+            seq.kept << keptText(s, texts, i, declarations);
         }
     }
     if (const QDomElement ext = pChild(root, "extLst"); !ext.isNull()) seq.extension = standalone(ext);
-    for (const QDomElement &b : office::children(pChild(root, "bldLst"))) seq.builds << standalone(b);
+    {
+        const QVector<QDomElement> builds = office::children(pChild(root, "bldLst"));
+        const QStringList buildTexts = builds.isEmpty() ? QStringList() : childTexts(xml, {QStringLiteral("timing"), QStringLiteral("bldLst")});
+        for (qsizetype i = 0; i < builds.size(); ++i) seq.builds << keptText(builds[i], buildTexts, i, declarations);
+    }
     seq.editable = !tooMany;
     // A sequence whose effects were not all found here (the file lays its time nodes out another way) is shown, and not rewritten.
     if (seq.editable) {
@@ -685,6 +810,7 @@ AnimSequence readAnimations(const Page &slide)
             for (const deck::Effect &e : step.effects) read += e.implied ? 0 : 1;
         if (read != seq.effects.size()) seq.editable = false;
     }
+    if (doc) dropGoneEffects(seq, shapeInfos(slide, doc));
     return seq;
 }
 
@@ -817,21 +943,17 @@ void changeKind(Anim &anim, const EffectKind &kind)
 
 int shapeNumber(Page &slide, const QString &itemId)
 {
-    int highest = 1;
     Item *found = nullptr;
     walkItems(slide.items, [&](const ItemPtr &it) {
-        highest = std::max(highest, it->sourceId);
         if (it->id == itemId) found = it.get();
     });
     if (!found) return 0;
     if (found->sourceId > 0) return found->sourceId;
-    // The numbers of the frames kept as they were are taken too.
-    static const QRegularExpression numbers(QStringLiteral("<p:cNvPr id=\"(\\d+)\""));
-    auto scan = [&](const QString &xml) {
-        for (auto it = numbers.globalMatch(xml); it.hasNext();) highest = std::max<qint64>(highest, std::min<qint64>(it.next().captured(1).toLongLong(), 1000000000));
-    };
-    for (const QJsonValue &v : slide.props.value(QStringLiteral("unread")).toArray()) scan(v.toObject().value(QStringLiteral("xml")).toString());
-    for (const QJsonValue &v : slide.props.value(QStringLiteral("charts")).toArray()) scan(v.toObject().value(QStringLiteral("frameXml")).toString());
+    // A number no shape has, no frame the slide keeps, and nothing in the timing aims at (a shape that was deleted had effects that still name it).
+    int highest = 1;
+    walkItems(slide.items, [&](const ItemPtr &it) { highest = std::max(highest, it->sourceId); });
+    for (int n : frameNumbers(slide)) highest = std::max(highest, n);
+    for (int n : shapesOfKept(slide.props.value(QStringLiteral("timingXml")).toString())) highest = std::max(highest, n);
     found->sourceId = highest + 1;
     return found->sourceId;
 }
@@ -844,9 +966,7 @@ QVector<QPair<int, int>> paragraphGroups(const Document &doc, const Page &slide,
         if (it->sourceId == shape && !item) item = it.get();
     });
     if (!item) return out;
-    QString storyId;
-    if (item->type() == ItemType::Text) storyId = static_cast<const TextItem *>(item)->storyId;
-    else if (item->type() == ItemType::Shape) storyId = static_cast<const ShapeItem *>(item)->storyId;
+    const QString storyId = storyOf(*item);
     const QTextDocument *story = storyId.isEmpty() ? nullptr : doc.storyDoc(storyId);
     if (!story) return out;
     int first = -1, index = 0;
@@ -937,32 +1057,75 @@ void copyEffects(AnimSequence &seq, int from, const QVector<int> &to)
 
 namespace {
 
-// The shape numbers a kept effect aims at.
-QSet<int> shapesOfKept(const QString &xml)
+// The namespaces the written timing declares: the ones the file's timing did, and the presentation namespace the effects JeffDeck makes use.
+QString declarationsFor(const QString &declared)
 {
-    static const QRegularExpression spid(QStringLiteral("\\bspid=\"(\\d+)\""));
-    QSet<int> out;
-    for (auto it = spid.globalMatch(xml); it.hasNext();) out.insert(int(it.next().captured(1).toLongLong()));
+    QString out = declared;
+    if (!out.contains(QStringLiteral(" xmlns:p=\"")) && !out.contains(QStringLiteral(" xmlns:p='"))) out += QStringLiteral(" xmlns:p=\"%1\"").arg(office::ns::P);
     return out;
 }
+
+// A kept effect whose place in the written XML is a marker, its time nodes numbered afresh (what refers to them follows once all are numbered).
+struct KeptEffects {
+    struct One {
+        QDomDocument dom;
+        QDomElement root;
+        QHash<QString, QString> renamed;
+    };
+    QVector<std::shared_ptr<One>> list;
+    QHash<QString, QString> everywhere;   // the first node of each old number, for what refers to a node of another effect
+
+    static QString marker(qsizetype i) { return QStringLiteral("\x01%1\x02").arg(i); }
+
+    QString add(const Anim &a, EffectStart start, Ids *ids)
+    {
+        auto one = std::make_shared<One>();
+        if (!office::parseXml(a.xml.toUtf8(), &one->dom)) return QString();
+        one->root = one->dom.documentElement();
+        if (QDomElement cTn = pChild(one->root, "cTn"); !cTn.isNull()) cTn.setAttribute(QStringLiteral("nodeType"), QLatin1String(nodeTypeOf(start)));
+        forEachElement(one->root, [&](QDomElement e) {
+            if (e.localName() != QLatin1String("cTn") || !hasAttr(e, QStringLiteral("id"))) return;
+            const QString fresh = QString::number(ids->take());
+            const QString was = attr(e, QStringLiteral("id"));
+            one->renamed.insert(was, fresh);
+            if (!everywhere.contains(was)) everywhere.insert(was, fresh);
+            e.setAttribute(QStringLiteral("id"), fresh);
+        });
+        list.push_back(one);
+        return marker(list.size() - 1);
+    }
+
+    // The XML with each marker replaced by its effect, written out.
+    QString fill(QString xml) const
+    {
+        for (qsizetype i = 0; i < list.size(); ++i) {
+            const auto &one = list[i];
+            forEachElement(one->root, [&](QDomElement e) {
+                if (e.localName() != QLatin1String("tn")) return;
+                const QString was = attr(e, QStringLiteral("val"));
+                if (const auto here = one->renamed.constFind(was); here != one->renamed.constEnd()) e.setAttribute(QStringLiteral("val"), here.value());
+                else if (const auto other = everywhere.constFind(was); other != everywhere.constEnd()) e.setAttribute(QStringLiteral("val"), other.value());
+            });
+            xml.replace(marker(i), standalone(one->root));
+        }
+        return xml;
+    }
+};
 
 } // namespace
 
 QString animationsXml(const Document &doc, const Page &slide, const AnimSequence &seq)
 {
-    Q_UNUSED(doc)
-    const QHash<int, ShapeInfo> shapes = shapeInfos(slide);
-    // The effects that still have a shape to play on.
-    QVector<Anim> effects;
-    for (const Anim &a : seq.effects) {
-        if (!a.custom() && !shapes.value(a.shape).found) continue;
-        effects.push_back(a);
-    }
+    const QHash<int, ShapeInfo> shapes = shapeInfos(slide, &doc);
+    // The effects that still have a shape (and paragraphs) to play on.
+    AnimSequence live = seq;
+    dropGoneEffects(live, shapes);
+    const QVector<Anim> &effects = live.effects;
     if (effects.isEmpty() && seq.kept.isEmpty()) return QString();
 
     // Which build each effect belongs to: per shape, the groups in the order they come, numbered from 0 around the ones kept effects hold.
     QHash<int, QSet<int>> taken;
-    for (const Anim &a : std::as_const(effects))
+    for (const Anim &a : effects)
         if (a.custom() && a.group >= 0)
             for (int s : shapesOfKept(a.xml)) taken[s].insert(a.group);
     QHash<QPair<int, int>, int> numbered;
@@ -981,9 +1144,18 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
         grp[i] = numbered.value(key);
     }
 
-    // Written in document order, so the ids come out in it: each click step, each part of it, each effect.
+    // What the file keeps beside the main sequence keeps its own numbers; the rest are numbered around them, in document order: each
+    // click step, each part of it, each effect.
+    const QString declared = declarationsFor(seq.declarations);
+    Ids ids;
+    QSet<int> aimedAt;
+    for (const QString &k : seq.kept) {
+        ids.reserved.unite(timeNodeIds(k, declared));
+        aimedAt.unite(shapesOfKept(k));
+    }
+    const int rootId = ids.take(), mainId = ids.take();
     const QVector<Placed> placed = layoutOf(effects);
-    int next = 3;
+    KeptEffects keptEffects;
     QString mainXml, parts, inside;
     struct Build {
         int order, group;
@@ -991,20 +1163,19 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
     };
     QVector<Build> builds;   // the program lists them by where the shape is on the slide
     QSet<QPair<int, int>> built;
-    QSet<int> aimedAt;
     int step = -1, part = -1, clickId = 0, partId = 0, partDelay = 0;
     bool automatic = false;
     auto closePart = [&] {
         if (part < 0) return;
-        parts += QStringLiteral("<p:par><p:cTn id=\"%1\" fill=\"hold\"><p:stCondLst><p:cond delay=\"%2\"/></p:stCondLst><p:childTnLst>%3</p:childTnLst></p:cTn></p:par>").arg(partId).arg(partDelay).arg(inside);
+        parts += QStringLiteral("<p:par><p:cTn id=\"%1\" fill=\"hold\"><p:stCondLst><p:cond delay=\"%2\"/></p:stCondLst><p:childTnLst>").arg(partId).arg(partDelay) + inside + QStringLiteral("</p:childTnLst></p:cTn></p:par>");
         inside.clear();
         part = -1;
     };
     auto closeStep = [&] {
         closePart();
         if (step < 0) return;
-        const QString begin = automatic ? QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"2\"/></p:cond>") : QString();
-        mainXml += QStringLiteral("<p:par><p:cTn id=\"%1\" fill=\"hold\"><p:stCondLst><p:cond delay=\"indefinite\"/>%2</p:stCondLst><p:childTnLst>%3</p:childTnLst></p:cTn></p:par>").arg(clickId).arg(begin, parts);
+        const QString begin = automatic ? QStringLiteral("<p:cond evt=\"onBegin\" delay=\"0\"><p:tn val=\"%1\"/></p:cond>").arg(mainId) : QString();
+        mainXml += QStringLiteral("<p:par><p:cTn id=\"%1\" fill=\"hold\"><p:stCondLst><p:cond delay=\"indefinite\"/>%2</p:stCondLst><p:childTnLst>").arg(clickId).arg(begin) + parts + QStringLiteral("</p:childTnLst></p:cTn></p:par>");
         parts.clear();
         step = -1;
     };
@@ -1013,23 +1184,23 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
         if (step != placed[i].click || step < 0) {
             closeStep();
             step = placed[i].click;
-            clickId = next++;
+            clickId = ids.take();
             automatic = placed[i].click == 0;
             part = -1;
         }
         if (part != placed[i].inner || part < 0) {
             closePart();
             part = placed[i].inner;
-            partId = next++;
+            partId = ids.take();
             partDelay = placed[i].innerStart;
         }
         if (a.custom()) {
-            inside += keptEffectXml(a, &next);
+            inside += keptEffects.add(a, a.start, &ids);
             aimedAt.unite(shapesOfKept(a.xml));
             continue;
         }
         const ShapeInfo &si = shapes.value(a.shape);
-        inside += effectXml(a, grp[i], si.placeholder && !a.paragraphs(), &next);
+        inside += effectXml(a, grp[i], si.placeholder && !a.paragraphs(), &ids);
         aimedAt.insert(a.shape);
         if (si.sp && !built.contains({a.shape, grp[i]})) {
             built.insert({a.shape, grp[i]});
@@ -1037,11 +1208,9 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
         }
     }
     closeStep();
-    // What was kept: sequences that wait for a shape's click, and the builds of what the file holds, as long as a shape they are for is still aimed at.
-    QString kept;
-    for (const QString &k : seq.kept) kept += renumbered(k, &next);
+    // The builds of what the file holds (charts, diagrams) stay as long as a shape they are for is still aimed at, by the main sequence or another.
     for (const QString &b : seq.builds) {
-        static const QRegularExpression spid(QStringLiteral("\\bspid=\"(\\d+)\"")), grpIdRe(QStringLiteral("\\bgrpId=\"(\\d+)\""));
+        static const QRegularExpression spid(QStringLiteral("\\bspid\\s*=\\s*[\"'](\\d+)[\"']")), grpIdRe(QStringLiteral("\\bgrpId\\s*=\\s*[\"'](\\d+)[\"']"));
         const QRegularExpressionMatch m = spid.match(b), g = grpIdRe.match(b);
         const int shape = m.hasMatch() ? int(m.captured(1).toLongLong()) : -1;
         const int group = g.hasMatch() ? int(g.captured(1).toLongLong()) : -1;
@@ -1051,11 +1220,15 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
     std::stable_sort(builds.begin(), builds.end(), [](const Build &x, const Build &y) { return x.order != y.order ? x.order < y.order : x.group < y.group; });
     QString buildXml;
     for (const Build &b : std::as_const(builds)) buildXml += b.xml;
-    QString xml = QStringLiteral("<p:timing xmlns:p=\"%1\"><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>").arg(office::ns::P);
-    xml += QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>") + mainXml + QStringLiteral("</p:childTnLst></p:cTn>");
+
+    const int before = std::clamp(seq.keptBeforeMain, 0, int(seq.kept.size()));
+    QString xml = QStringLiteral("<p:timing%1><p:tnLst><p:par><p:cTn id=\"%2\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>").arg(declared, QString::number(rootId));
+    for (int i = 0; i < before; ++i) xml += seq.kept[i];
+    xml += QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"%1\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>").arg(mainId) + keptEffects.fill(mainXml) + QStringLiteral("</p:childTnLst></p:cTn>");
     xml += QStringLiteral("<p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
                           "<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
-    xml += kept + QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst>");
+    for (qsizetype i = before; i < seq.kept.size(); ++i) xml += seq.kept[i];
+    xml += QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst>");
     if (!buildXml.isEmpty()) xml += QStringLiteral("<p:bldLst>") + buildXml + QStringLiteral("</p:bldLst>");
     xml += seq.extension + QStringLiteral("</p:timing>");
     return xml;
@@ -1074,22 +1247,63 @@ QString timingForSave(const Document &doc, const Page &slide, const std::functio
     if (dropped) *dropped = 0;
     AnimSequence seq = readAnimations(slide);
     if (!seq.editable || seq.effects.isEmpty()) return was;
-    int gone = 0;
+    const qsizetype total = seq.effects.size();
+    // What is gone: the shapes the file doesn't get, and the paragraphs the text no longer has.
+    const QHash<int, ShapeInfo> shapes = shapeInfos(slide, &doc);
     for (int i = int(seq.effects.size()) - 1; i >= 0; --i) {
         const Anim &a = seq.effects[i];
-        bool missing = false;
+        bool missing = !aimsAtThings(shapes, a);
         if (a.custom()) {
             for (int s : shapesOfKept(a.xml)) missing |= !present(s);
         } else {
-            missing = !present(a.shape);
+            missing |= !present(a.shape);
         }
-        if (!missing) continue;
-        seq.remove(i);
-        ++gone;
+        if (missing) seq.remove(i);
     }
+    const int gone = int(total - seq.effects.size());
     if (gone == 0) return was;
     if (dropped) *dropped = gone;
     return animationsXml(doc, slide, seq);
+}
+
+quint64 animationSignature(const Document &doc, const Page &slide)
+{
+    const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+    if (xml.isEmpty()) return 0;
+    quint64 h = 1469598103934665603ULL;
+    auto mix = [&h](quint64 v) { h = (h ^ v) * 1099511628211ULL; };
+    mix(qHash(xml));
+    mix(quint64(xml.size()));
+    walkItems(slide.items, [&](const ItemPtr &it) {
+        if (it->sourceId <= 0) return;
+        mix(quint64(it->sourceId));
+        mix(qHash(it->name));
+        mix(quint64(paragraphCount(&doc, *it) + 1));
+    });
+    mix(quint64(slide.props.value(QStringLiteral("unread")).toArray().size()));
+    mix(quint64(slide.props.value(QStringLiteral("charts")).toArray().size()));
+    return h | 1;
+}
+
+Timeline playableTimeline(const Document &doc, const Page &slide)
+{
+    Timeline tl = timelineOf(slide);
+    if (!tl.steps.isEmpty()) {
+        // What is on shapes (and paragraphs) the slide no longer has takes no part, and no click.
+        const QHash<int, ShapeInfo> shapes = shapeInfos(slide, &doc);
+        auto gone = [&](const Effect &e) {
+            for (const Behavior &b : e.behaviors) {
+                const Target &t = b.target;
+                if (t.shape <= 0) continue;
+                const ShapeInfo info = shapes.value(t.shape);
+                if (!info.found || (t.paragraphs() && info.paragraphs >= 0 && t.firstParagraph >= info.paragraphs)) return true;
+            }
+            return false;
+        };
+        for (Step &step : tl.steps) step.effects.erase(std::remove_if(step.effects.begin(), step.effects.end(), gone), step.effects.end());
+    }
+    tl.steps.erase(std::remove_if(tl.steps.begin(), tl.steps.end(), [](const Step &s) { return !s.visual(); }), tl.steps.end());
+    return tl;
 }
 
 } // namespace jp::deck
