@@ -1,13 +1,13 @@
 #include "app/settings.h"
 
-#include <QCoreApplication>
+#include "core/appinfo.h"
+
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QRegularExpression>
-#include <QStandardPaths>
 
 namespace jp {
 
@@ -39,26 +39,20 @@ bool moveDataFolder(const QString &from, const QString &to)
     return ok;
 }
 
-void moveFromJeffPub79()
+bool suiteWide(const QString &key)
 {
-    const QString marker = QStringLiteral("migration/jeffpub79");
-    QSettings now(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
-    if (now.value(marker).toBool()) return;
-    {
-        const QSettings old(QStringLiteral("JeffPub79"), QStringLiteral("JeffPub79"));
-        copyMissingSettings(old, now);
-    }
-    // The old folder is where QStandardPaths put it under the old names.
-    const QString org = QCoreApplication::organizationName(), app = QCoreApplication::applicationName();
-    QCoreApplication::setOrganizationName(QStringLiteral("JeffPub"));
-    QCoreApplication::setApplicationName(QStringLiteral("JeffPub 79"));
-    const QString oldData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QCoreApplication::setOrganizationName(org);
-    QCoreApplication::setApplicationName(app);
-    const QString newData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (!oldData.isEmpty() && !newData.isEmpty() && oldData != newData && moveDataFolder(oldData, newData))
-        QDir().rmdir(QFileInfo(oldData).path());   // the old "JeffPub" folder, if now empty
-    now.setValue(marker, true);
+    static const QStringList keys = {QStringLiteral("ui/theme"), QStringLiteral("ui/language"), QStringLiteral("user/name"),
+                                     QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled")};
+    return key.startsWith(QLatin1String("updates/")) || keys.contains(key);
+}
+
+void moveToSuite(QSettings &app, QSettings &suite)
+{
+    const QString marker = QStringLiteral("migration/suite");
+    if (app.value(marker).toBool()) return;
+    for (const QString &key : app.allKeys())
+        if (suiteWide(key) && !suite.contains(key)) suite.setValue(key, app.value(key));
+    app.setValue(marker, true);
 }
 
 Unit defaultUnit(const QLocale &region)
@@ -66,8 +60,10 @@ Unit defaultUnit(const QLocale &region)
     return region.measurementSystem() == QLocale::ImperialUSSystem ? Unit::Inch : Unit::Centimeter;
 }
 
-Settings::Settings() : m_s(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"))
+Settings::Settings()
+    : m_s(appInfo().organization, appInfo().name), m_suite(appInfo().organization, QStringLiteral("JeffOffice"))
 {
+    moveToSuite(m_s, m_suite);
     m_unit = Unit(m_s.value("units", int(defaultUnit(QLocale::system()))).toInt());
 }
 
@@ -170,7 +166,7 @@ void Settings::setPinned(const QString &path, bool pinned)
 
 QString Settings::userName() const
 {
-    QString n = m_s.value("user/name").toString();
+    QString n = value(QStringLiteral("user/name")).toString();
     if (n.isEmpty()) n = qEnvironmentVariable("USER", qEnvironmentVariable("USERNAME"));
     return n;
 }
