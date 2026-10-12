@@ -155,7 +155,7 @@ Section "${APP}: publications" SecMain
   WriteRegStr HKCU "${UNKEY}" "DisplayIcon" "$INSTDIR\jeffoffice.ico"
   WriteRegStr HKCU "${UNKEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKCU "${UNKEY}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKCU "${UNKEY}" "URLInfoAbout" "https://github.com/JeffOffice/jeffpub"
+  WriteRegStr HKCU "${UNKEY}" "URLInfoAbout" "https://github.com/JeffOffice/jeffoffice"
   WriteRegDWORD HKCU "${UNKEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNKEY}" "NoRepair" 1
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2

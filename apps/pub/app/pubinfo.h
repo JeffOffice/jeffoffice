@@ -8,7 +8,7 @@ namespace jp {
 
 inline AppInfo pubAppInfo()
 {
-    return {QStringLiteral("JeffPub"), QStringLiteral("jeffpub"), QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice/jeffpub")};
+    return {QStringLiteral("JeffPub"), QStringLiteral("jeffpub"), QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice/jeffoffice")};
 }
 
 // JeffPub was called JeffPub 79 through version 0.5.0, and kept its settings

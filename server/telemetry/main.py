@@ -233,7 +233,7 @@ your operating system, and the same random number as above. It never includes yo
 names or contents, anything you typed, or anything that was in your computer's memory. If you turn
 usage statistics off, no crash reports are sent either.</p>
 <p>The program that collects all of this is part of JeffPub's source:
-<a href="https://github.com/JeffOffice/jeffpub/tree/main/server/telemetry">server/telemetry</a>.</p>
+<a href="https://github.com/JeffOffice/jeffoffice/tree/main/server/telemetry">server/telemetry</a>.</p>
 """
 
 

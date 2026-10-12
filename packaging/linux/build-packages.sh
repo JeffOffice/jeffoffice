@@ -73,8 +73,8 @@ Depends: libc6 (>= 2.35), libstdc++6, libgl1, libegl1, libfontconfig1, libfreety
 Conflicts: jeffpub79
 Replaces: jeffpub79
 Provides: jeffpub79
-Maintainer: JeffOffice LLC <https://github.com/JeffOffice/jeffpub>
-Homepage: https://github.com/JeffOffice/jeffpub
+Maintainer: JeffOffice LLC <https://github.com/JeffOffice/jeffoffice>
+Homepage: https://github.com/JeffOffice/jeffoffice
 Description: Desktop publishing: flyers, newsletters, brochures and cards
  JeffPub is a free, open-source desktop publishing program. It lays out
  text boxes, pictures, shapes and tables on the page, comes with templates,

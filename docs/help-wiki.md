@@ -4,7 +4,7 @@ JeffPub's Help is a set of Markdown files, one per topic, in
 `resources/help/en/`. The top of `libs/shell/app/help.h` says how a topic file is
 written. **Edit the topics there.** They are built into the program, and the
 same pages are published to the project's
-[wiki](https://github.com/JeffOffice/jeffpub/wiki) automatically. Anything
+[wiki](https://github.com/JeffOffice/jeffoffice/wiki) automatically. Anything
 edited on the wiki itself is replaced by the next update.
 
 After adding, renaming, or removing a topic file, run

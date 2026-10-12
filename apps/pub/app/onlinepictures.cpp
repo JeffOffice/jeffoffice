@@ -60,7 +60,7 @@ void download(QNetworkAccessManager *net, const QUrl &url, QObject *context, con
 {
     QNetworkRequest req(url);
     // Wikimedia asks programs to say who they are.
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("JeffPub/" JP_VERSION " (https://github.com/JeffOffice/jeffpub)"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("JeffPub/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
     req.setTransferTimeout(30000);   // no data at all for this long
     QNetworkReply *r = net->get(req);
     // Past the size or the time allowed, the download stops and says why.
