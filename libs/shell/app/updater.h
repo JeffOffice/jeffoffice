@@ -23,6 +23,10 @@ public:
     // Check each time JeffPub starts, if automatic checks are on.
     void checkOnStartup();
     static bool checksOnStartup();
+    // The Beta channel also offers pre-releases (the test builds in between);
+    // Stable, the default, offers only regular releases.
+    static bool betaChannel();
+    static void setBetaChannel(bool beta);
 
     // Version strings like "0.1.6" or tags like "v0.1.0-preview5", compared numerically.
     static bool isNewer(const QString &candidate, const QString &current);
@@ -34,10 +38,10 @@ public:
     // The part of a release's notes worth showing in the offer: its "New
     // in" sections (headings made bold), without the install steps.
     static QString releaseHighlights(const QString &notes);
-    // The releases (not drafts) newer than `current`, newest version first,
-    // whatever order the list gives them in (a release published again is
-    // listed as the newest made).
-    static QVector<QJsonObject> newerReleases(const QJsonArray &releases, const QString &current);
+    // The releases (not drafts, and pre-releases only on the Beta channel)
+    // newer than `current`, newest version first, whatever order the list
+    // gives them in (a release published again is listed as the newest made).
+    static QVector<QJsonObject> newerReleases(const QJsonArray &releases, const QString &current, bool beta);
     // What the offer's exec() returns besides Rejected (Later).
     enum OfferChoice { Install = 1, Skip, OpenPage };
     // The update offer: the new version, its notes (Markdown) and a choice;

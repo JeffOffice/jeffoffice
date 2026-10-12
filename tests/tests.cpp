@@ -19496,11 +19496,74 @@ private Q_SLOTS:
         // release published again is listed first, as the newest made).
         auto rel = [](const char *tag, bool draft = false) { return QJsonObject{{"tag_name", QString::fromLatin1(tag)}, {"draft", draft}}; };
         const QJsonArray list{rel("v0.1.9"), rel("v0.5.2"), rel("v0.6.0", true), rel("v0.5.1"), rel("v0.1.39")};
-        const auto newer = jp::Updater::newerReleases(list, QStringLiteral("0.5.0"));
+        const auto newer = jp::Updater::newerReleases(list, QStringLiteral("0.5.0"), false);
         QCOMPARE(newer.size(), 2);
         QCOMPARE(newer[0].value("tag_name").toString(), QStringLiteral("v0.5.2"));
         QCOMPARE(newer[1].value("tag_name").toString(), QStringLiteral("v0.5.1"));
-        QVERIFY(jp::Updater::newerReleases(list, QStringLiteral("0.5.2")).isEmpty());
+        QVERIFY(jp::Updater::newerReleases(list, QStringLiteral("0.5.2"), false).isEmpty());
+    }
+
+    // Regular releases reach everyone; GitHub's pre-releases (the test builds
+    // in between) only those on the Beta channel; drafts no one.
+    void updateChannelChoosesReleases()
+    {
+        auto rel = [](const char *tag, bool prerelease, bool draft = false) {
+            return QJsonObject{{"tag_name", QString::fromLatin1(tag)}, {"prerelease", prerelease}, {"draft", draft}};
+        };
+        const QJsonArray list{rel("v0.7.2", true), rel("v0.7.1", false), rel("v0.7.4", true, true), rel("v0.7.3", false, true), rel("v0.6.9", false)};
+        const auto stable = jp::Updater::newerReleases(list, QStringLiteral("0.7.0"), false);
+        QCOMPARE(stable.size(), 1);
+        QCOMPARE(stable[0].value("tag_name").toString(), QStringLiteral("v0.7.1"));
+        const auto beta = jp::Updater::newerReleases(list, QStringLiteral("0.7.0"), true);
+        QCOMPARE(beta.size(), 2);
+        QCOMPARE(beta[0].value("tag_name").toString(), QStringLiteral("v0.7.2"));
+        QCOMPARE(beta[1].value("tag_name").toString(), QStringLiteral("v0.7.1"));
+        // Nothing newer than the newest regular release: Stable has nothing, Beta still has the test build.
+        QVERIFY(jp::Updater::newerReleases(list, QStringLiteral("0.7.1"), false).isEmpty());
+        QCOMPARE(jp::Updater::newerReleases(list, QStringLiteral("0.7.1"), true).size(), 1);
+    }
+
+    // The channel is Stable until Beta is chosen, and the choice is kept.
+    void updateChannelSetting()
+    {
+        QSettings raw(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
+        raw.remove(QStringLiteral("updates/channel"));
+        QVERIFY(!jp::Updater::betaChannel());
+        jp::Updater::setBetaChannel(true);
+        QVERIFY(jp::Updater::betaChannel());
+        QCOMPARE(jp::Settings::get().value(QStringLiteral("updates/channel")).toString(), QStringLiteral("beta"));
+        jp::Updater::setBetaChannel(false);
+        QVERIFY(!jp::Updater::betaChannel());
+        QCOMPARE(jp::Settings::get().value(QStringLiteral("updates/channel")).toString(), QStringLiteral("stable"));
+        raw.remove(QStringLiteral("updates/channel"));
+    }
+
+    // File > Options has the Beta choice, off to begin with, and keeps it.
+    void optionsBetaUpdates()
+    {
+        jp::MainWindow w;
+        QSettings raw(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
+        raw.remove(QStringLiteral("updates/channel"));
+        // Opens Options, notes whether the box was checked (-1: no box), and sets it.
+        auto choose = [&w](bool on) {
+            int was = -1;
+            QTimer::singleShot(0, [&was, on] {
+                auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!d) return;
+                if (auto *beta = d->findChild<QCheckBox *>(QStringLiteral("betaUpdates"))) {
+                    was = beta->isChecked();
+                    beta->setChecked(on);
+                }
+                d->accept();   // whatever was found, so a failure can't leave it open
+            });
+            w.act(QStringLiteral("file.options"))->trigger();
+            return was;
+        };
+        QCOMPARE(choose(true), 0);
+        QVERIFY(jp::Updater::betaChannel());
+        QCOMPARE(choose(false), 1);
+        QVERIFY(!jp::Updater::betaChannel());
+        raw.remove(QStringLiteral("updates/channel"));
     }
 
     void movesJeffPub79Settings()
