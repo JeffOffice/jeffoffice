@@ -4,7 +4,7 @@
 <context>
     <name>Canvas</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/canvas/canvasaccessible.cpp" line="+95"/>
+        <location filename="../../libs/page/canvas/canvasaccessible.cpp" line="+95"/>
         <source>Group of %n object(s)</source>
         <translation>
             <numerusform>Group of %n object</numerusform>
@@ -15,11 +15,30 @@
 <context>
     <name>Dialogs</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/app/dialogs.cpp" line="+2889"/>
+        <location filename="../../apps/pub/app/dialogs.cpp" line="+1920"/>
         <source>Added %n page(s) for the rest of the text.</source>
         <translation>
             <numerusform>Added %n page for the rest of the text.</numerusform>
             <numerusform>Added %n pages for the rest of the text.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::DeckWindow</name>
+    <message numerus="yes">
+        <location filename="../../apps/deck/app/deckwindow_output.cpp" line="+179"/>
+        <source>%n page(s)</source>
+        <translation>
+            <numerusform>%n page</numerusform>
+            <numerusform>%n pages</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../apps/deck/app/deckwindow_save.cpp" line="+127"/>
+        <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
+        <translation>
+            <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>
+            <numerusform>Saved %1, but %n objects can&apos;t be saved in this kind of file yet.</numerusform>
         </translation>
     </message>
 </context>

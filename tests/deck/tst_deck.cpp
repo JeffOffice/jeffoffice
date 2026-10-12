@@ -10,6 +10,7 @@
 #include "app/deckwindow.h"
 #include "app/editor.h"
 #include "app/filescreen.h"
+#include "app/i18n.h"
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -88,6 +89,7 @@
 #include <QTextList>
 #include <QTimeZone>
 #include <QTimer>
+#include <QTranslator>
 #include <QToolButton>
 #include <QUrl>
 #include <QXmlStreamWriter>
@@ -2978,6 +2980,45 @@ private Q_SLOTS:
     // The slide thumbnails: a row for each slide, the current row following
     // the editor and the editor following Up and Down; the current slide
     // outlined in the accent without a fill over it; a hidden slide marked.
+    // JeffDeck's ribbon labels are listed for translators (tools/ribbon_strings.py), as JeffPub's are.
+    void ribbonStringsListed()
+    {
+        QFile json(QStringLiteral(":/deck/ribbon.json"));
+        QVERIFY(json.open(QIODevice::ReadOnly));
+        QFile listed(QStringLiteral(JD_SOURCE_DIR "/apps/deck/app/ribbon_strings.cpp"));
+        QVERIFY(listed.open(QIODevice::ReadOnly | QIODevice::Text));
+        const QString have = QString::fromUtf8(listed.readAll());
+        QStringList missing;
+        const QStringList keys = {"name", "text", "launcherTip", "tip", "label", "section", "submenu", "context"};
+        std::function<void(const QJsonValue &)> walk = [&](const QJsonValue &v) {
+            if (v.isObject()) {
+                const QJsonObject o = v.toObject();
+                for (auto it = o.begin(); it != o.end(); ++it) {
+                    if (keys.contains(it.key()) && it.value().isString() && !it.value().toString().isEmpty()) {
+                        const QString lit = QStringLiteral("QT_TRANSLATE_NOOP(\"Ribbon\", \"%1\")").arg(it.value().toString().replace(QLatin1Char('"'), QStringLiteral("\\\"")));
+                        if (!have.contains(lit)) missing << it.value().toString();
+                    }
+                    walk(it.value());
+                }
+            } else if (v.isArray()) {
+                for (const QJsonValue &x : v.toArray()) walk(x);
+            }
+        };
+        walk(QJsonDocument::fromJson(json.readAll()).object());
+        QVERIFY2(missing.isEmpty(), qPrintable(QStringLiteral("not in ribbon_strings.cpp (run tools/ribbon_strings.py): ") + missing.join(QStringLiteral(", "))));
+    }
+
+    // JeffDeck has the suite's translations built in, and speaks German when German is chosen.
+    void translationsAreBuiltIn()
+    {
+        const QStringList have = availableUiLanguages();
+        for (const char *lang : {"de", "es", "fr", "it", "nl", "pt_BR", "pt_PT"}) QVERIFY2(have.contains(QLatin1String(lang)), qPrintable(have.join(QLatin1Char(' '))));
+        QTranslator de;
+        QVERIFY(de.load(QStringLiteral(":/i18n/jeffoffice_de.qm")));
+        // A string of the shared libraries, translated.
+        QVERIFY(!de.translate("Ribbon", "File").isEmpty());
+    }
+
     void thumbnailsFollowTheEditor()
     {
         setUiDark(false);

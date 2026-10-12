@@ -8046,17 +8046,17 @@ private Q_SLOTS:
     void englishPlurals()
     {
         QTranslator en;
-        QVERIFY(en.load(QStringLiteral(":/i18n/jeffpub_en.qm")));
+        QVERIFY(en.load(QStringLiteral(":/i18n/jeffoffice_en.qm")));
         QCoreApplication::installTranslator(&en);
         QCOMPARE(QCoreApplication::translate("Dialogs", "Added %n page(s) for the rest of the text.", "", 1), QStringLiteral("Added 1 page for the rest of the text."));
         QCOMPARE(QCoreApplication::translate("Dialogs", "Added %n page(s) for the rest of the text.", "", 3), QStringLiteral("Added 3 pages for the rest of the text."));
         QCoreApplication::removeTranslator(&en);
         QVERIFY(!jp::availableUiLanguages().contains(QStringLiteral("en")));
-        QFile ts(QStringLiteral(JP_TEST_DATA "/../../translations/jeffpub_en.ts"));
+        QFile ts(QStringLiteral(JP_TEST_DATA "/../../translations/jeffoffice_en.ts"));
         QVERIFY(ts.open(QIODevice::ReadOnly));
         const QByteArray xml = ts.readAll();
         QVERIFY2(!xml.contains("type=\"unfinished\"") && !xml.contains("<numerusform></numerusform>"),
-                 "translations/jeffpub_en.ts has a plural without its English forms");
+                 "translations/jeffoffice_en.ts has a plural without its English forms");
     }
 
     // Every translation keeps what the program fills in or acts on: its
@@ -8078,8 +8078,8 @@ private Q_SLOTS:
         const QDir dir(QStringLiteral(JP_TEST_DATA "/../../translations"));
         QStringList problems;
         int checked = 0;
-        for (const QString &name : dir.entryList({QStringLiteral("jeffpub_*.ts")}, QDir::Files)) {
-            if (name == QLatin1String("jeffpub_en.ts")) continue;
+        for (const QString &name : dir.entryList({QStringLiteral("jeffoffice_*.ts")}, QDir::Files)) {
+            if (name == QLatin1String("jeffoffice_en.ts")) continue;
             QFile f(dir.filePath(name));
             QVERIFY(f.open(QIODevice::ReadOnly));
             QXmlStreamReader xml(&f);
@@ -8178,7 +8178,8 @@ private Q_SLOTS:
     }
 
     // The shared libraries name the program from its AppInfo: another app's
-    // issue tracker, update server, and translations, not JeffPub's.
+    // issue tracker and update server, not JeffPub's; the translations are
+    // the suite's, the same for every app.
     void sharedPartsFollowTheAppInfo()
     {
         struct Restore {
@@ -8190,7 +8191,7 @@ private Q_SLOTS:
         const QString digest = QStringLiteral("sha256:63e329c3c1a9aea0f90af5e2519c9315af365cb424a7bd00abb3ad9d201573e7");
         QVERIFY(jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/download/v0.7.0/JeffDeck-Setup.exe"), QStringLiteral("v0.7.0"), digest));
         QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/download/v0.7.0/JeffPub-Setup.exe"), QStringLiteral("v0.7.0"), digest));
-        QVERIFY(jp::availableUiLanguages().isEmpty());   // there are no jeffdeck_*.qm files
+        QVERIFY(jp::availableUiLanguages().contains(QStringLiteral("de")));   // jeffoffice_*.qm, whichever app
     }
 
     // Until Options sets a unit, JeffPub measures in inches where the region
