@@ -45,4 +45,4 @@ Digitare nella casella di ricerca qui sopra per trovare un argomento o un comand
 
 ## Le schede della barra multifunzione
 
-- [Home](tab-home), [Inserisci](tab-insert), [Struttura](tab-design), [Transizioni](tab-transitions), [Presentazione](tab-slide-show), [Revisione](tab-review) e [Visualizza](tab-view)
+- [Home](tab-home), [Inserisci](tab-insert), [Struttura](tab-design), [Transizioni](tab-transitions), [Animazioni](tab-animations), [Presentazione](tab-slide-show), [Revisione](tab-review) e [Visualizza](tab-view)
