@@ -7,6 +7,7 @@
 
 #include "office/drawingml.h"
 
+#include <QDomDocument>
 #include <QHash>
 #include <QSizeF>
 
@@ -44,5 +45,12 @@ bool hasOwnFill(const QDomElement &properties);
 Fill resolveFill(const QVector<QDomElement> &properties, const QDomElement &style, const StyleContext &sc);
 Stroke resolveLine(const QVector<QDomElement> &properties, const QDomElement &style, const StyleContext &sc);
 Effects resolveEffects(const QVector<QDomElement> &properties, const QDomElement &style, const StyleContext &sc);
+
+// The list styles for a shape's text: `base`, with what the shape's style
+// says of its text (p:style's fontRef: a color, and the heading font if
+// "major") as one more, above the others but for the shape's own list
+// (`own`, if `base` ends in it). A shape with an accent fill has its text in
+// the fontRef's color, usually white. The element made is kept in `keep`.
+TextStyleStack withFontReference(const TextStyleStack &base, const QDomElement &style, const QDomElement &own, QDomDocument *keep);
 
 } // namespace jp::office
