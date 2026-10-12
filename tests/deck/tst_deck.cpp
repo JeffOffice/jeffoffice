@@ -738,14 +738,23 @@ private:
             if (!a->isSeparator()) out << a->text();
         return out;
     }
+    // Calls `poll` until it says it is done (the popup or box it waits for is up), or it has tried for a few seconds.
+    static void untilDone(const std::function<bool()> &poll, int tries = 300)
+    {
+        if (poll() || tries <= 0) return;
+        QTimer::singleShot(10, [poll, tries] { untilDone(poll, tries - 1); });
+    }
     // Opens the right-click menu of a widget at `pos` and, while it is open, tells `inspect` about it; it closes after.
     static void rightClick(QWidget *viewport, const QPoint &pos, const std::function<void(QMenu *)> &inspect)
     {
         QTimer::singleShot(0, [inspect] {
-            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
-            if (!menu) return;
-            inspect(menu);
-            menu->close();
+            untilDone([inspect] {
+                auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!menu) return false;
+                inspect(menu);
+                menu->close();
+                return true;
+            });
         });
         QContextMenuEvent e(QContextMenuEvent::Mouse, pos, viewport->mapToGlobal(pos));
         QApplication::sendEvent(viewport, &e);
@@ -754,17 +763,20 @@ private:
     static void answerRename(QString *shown, QString *selected, const QString &name)
     {
         QTimer::singleShot(0, [shown, selected, name] {
-            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-            if (!dlg) return;
-            auto *edit = dlg->findChild<QLineEdit *>();
-            *shown = edit->text();
-            *selected = edit->selectedText();
-            if (name.isEmpty()) {
-                dlg->reject();
-                return;
-            }
-            edit->setText(name);
-            dlg->accept();
+            untilDone([shown, selected, name] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return false;
+                auto *edit = dlg->findChild<QLineEdit *>();
+                *shown = edit->text();
+                *selected = edit->selectedText();
+                if (name.isEmpty()) {
+                    dlg->reject();
+                } else {
+                    edit->setText(name);
+                    dlg->accept();
+                }
+                return true;
+            });
         });
     }
 
