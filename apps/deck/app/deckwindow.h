@@ -10,6 +10,7 @@
 #include <QPointer>
 #include <QTimer>
 #include <functional>
+#include <memory>
 
 class QDockWidget;
 class QLabel;
@@ -19,6 +20,7 @@ class QStackedWidget;
 
 namespace jp {
 
+class AnimationPane;
 class ColorButton;
 class CommentsPane;
 class DeckCanvas;
@@ -72,6 +74,10 @@ public:
     enum class View { Normal, Outline, Sorter };
     View view() const { return m_view; }
     void setView(View view);
+    // The Animation Pane on the right (Animations tab > Animation Pane), with the effects of the slide being edited; the
+    // numbers by the shapes show while it, or the tab, does (deckwindow_animations.cpp).
+    AnimationPane *animationPane() const { return m_animPane; }
+    void showAnimationPane(bool on = true);
     // What the ribbon file named that the window doesn't have (empty when
     // the ribbon built cleanly).
     QString ribbonErrors() const { return m_ribbonErrors; }
@@ -196,6 +202,8 @@ private:
     void createCommentActions();  // deckwindow_comments.cpp
     void createSectionActions();  // deckwindow_sections.cpp
     void createReuseActions();    // deckwindow_reuse.cpp, from createSectionActions()
+    void createAnimationActions();   // deckwindow_animations.cpp
+    void addAnimationParts(struct RibbonParts &parts);
     void createOutputActions();   // deckwindow_output.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();
@@ -232,6 +240,9 @@ private:
     QDockWidget *m_reuseDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    AnimationPane *m_animPane = nullptr;
+    QDockWidget *m_animDock = nullptr;
+    std::shared_ptr<void> m_animations;   // what the animation controls do (deckwindow_animations.cpp)
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     View m_view = View::Normal;
     // Normal view's zoom while the Slide Sorter borrows the zoom controls: its Canvas::Fit and the zoom.

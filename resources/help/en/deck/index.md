@@ -45,4 +45,4 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 ## The ribbon's tabs
 
-- [Home](tab-home), [Insert](tab-insert), [Design](tab-design), [Transitions](tab-transitions), [Slide Show](tab-slide-show), [Review](tab-review), and [View](tab-view)
+- [Home](tab-home), [Insert](tab-insert), [Design](tab-design), [Transitions](tab-transitions), [Animations](tab-animations), [Slide Show](tab-slide-show), [Review](tab-review), and [View](tab-view)

@@ -807,7 +807,7 @@ const SlideShow::Play &SlideShow::playOf(int slide) const
     auto it = m_plays.find(slide);
     if (it == m_plays.end()) {
         Play play;
-        play.timeline = deck::playableTimeline(*m_doc->pages[slide]);
+        play.timeline = deck::playableTimeline(*m_doc, *m_doc->pages[slide]);
         if (!play.timeline.isEmpty()) play.geometry = deck::geometryOf(*m_doc, *m_doc->pages[slide]);
         it = m_plays.insert(slide, play);
     }
@@ -1751,7 +1751,7 @@ void TransitionPreview::play(int slide)
     const qreal dpr = devicePixelRatioF();
     // As the show has them: the slide at its start, and the one before with its steps played.
     auto drawn = [&](int index, bool played) {
-        const deck::Timeline tl = index >= 0 ? deck::playableTimeline(*m_doc->pages[index]) : deck::Timeline();
+        const deck::Timeline tl = index >= 0 ? deck::playableTimeline(*m_doc, *m_doc->pages[index]) : deck::Timeline();
         if (tl.isEmpty()) return renderSlideImage(m_doc, m_cache, index, m_area.size(), dpr);
         const deck::States states = deck::statesAt(tl, deck::geometryOf(*m_doc, *m_doc->pages[index]), played ? int(tl.steps.size()) : 0);
         return renderSlideImage(m_doc, m_cache, index, m_area.size(), dpr, Qt::black, &states);

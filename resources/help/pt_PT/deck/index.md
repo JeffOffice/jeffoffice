@@ -45,4 +45,4 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 ## Os separadores do friso
 
-- [Base](tab-home), [Inserir](tab-insert), [Estrutura](tab-design), [Transições](tab-transitions), [Apresentação de Diapositivos](tab-slide-show), [Rever](tab-review) e [Ver](tab-view)
+- [Base](tab-home), [Inserir](tab-insert), [Estrutura](tab-design), [Transições](tab-transitions), [Animações](tab-animations), [Apresentação de Diapositivos](tab-slide-show), [Rever](tab-review) e [Ver](tab-view)

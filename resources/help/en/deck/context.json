@@ -3,6 +3,7 @@
   "tab:Insert": "tab-insert",
   "tab:Design": "tab-design",
   "tab:Transitions": "tab-transitions",
+  "tab:Animations": "tab-animations",
   "tab:Slide Show": "tab-slide-show",
   "tab:Review": "tab-review",
   "tab:View": "tab-view",
@@ -10,6 +11,7 @@
   "pane:notes": "notes",
   "pane:comments": "comments",
   "pane:reuse": "reuse",
+  "pane:animation": "animations",
   "pane:help": "index",
   "view:outline": "views",
   "view:sorter": "views",
@@ -28,5 +30,7 @@
   "file:about": "file-screen",
   "dialog:Set Up Show": "show",
   "dialog:Custom Shows": "show",
-  "dialog:Define Custom Show": "show"
+  "dialog:Define Custom Show": "show",
+  "dialog:Effect Options": "animations",
+  "dialog:Timing": "animations"
 }

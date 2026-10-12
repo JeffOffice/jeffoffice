@@ -1,5 +1,6 @@
 #include "io/pptxexport.h"
 
+#include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/sections.h"
@@ -449,7 +450,7 @@ private:
     void writeKeptParts(const QJsonObject &parts, const QHash<QString, QString> &names, const std::function<QByteArray(const QString &, const QByteArray &)> &rewrite = nullptr);
     QString keptPartName(const QString &original, const QString &folder, bool keepMedia = false);
     QString keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds,
-                         const QSet<qint64> &mediaIds);
+                         const QSet<qint64> &mediaIds, const QString *xmlGiven = nullptr);
     QString background(const PageBase &page, const QString &part, bool required, const QString &where);
     QString textStyles(const MasterOut &master);
     QString titleOf(const Page &slide, int number) const;
@@ -671,9 +672,9 @@ bool playsOnlyMedia(const QDomElement &e, const QSet<qint64> &mediaIds, bool aim
 // shapes by numbers that no longer stand for the same shapes, or plays a
 // movie or sound on a shape that no longer has one.
 QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds,
-                               const QSet<qint64> &mediaIds)
+                               const QSet<qint64> &mediaIds, const QString *xmlGiven)
 {
-    const QString xml = slide.props.value(QLatin1String(key)).toString();
+    const QString xml = xmlGiven ? *xmlGiven : slide.props.value(QLatin1String(key)).toString();
     if (xml.isEmpty()) return QString();
     QDomDocument dom;
     if (!parsesAlone(xml, &dom)) {
@@ -1142,7 +1143,11 @@ void Exporter::writeSlide(int i)
         }
     }
     xml += transitionOut;
-    xml += keptSlideXml(page, "timingXml", say("animation"), where, frameIds, mediaIds);
+    // The animation, but for the effects of shapes that are gone: the ones on the other shapes stay, as the animation pane writes them.
+    int dropped = 0;
+    const QString timing = deck::timingForSave(m_doc, page, [&](int shape) { return frameIds.contains(shape); }, &dropped);
+    if (dropped > 0) note(say("%1: animation effects of shapes that are gone were left out.").arg(where));
+    xml += keptSlideXml(page, "timingXml", say("animation"), where, frameIds, mediaIds, &timing);
     xml += QStringLiteral("</p:sld>");
     add(part, kTypeBase + QStringLiteral("slide+xml"), xml);
     writeComments(i, part);
