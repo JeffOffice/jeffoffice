@@ -61,6 +61,23 @@ int containing(const QVector<Section> &list, int slide)
     return list.isEmpty() ? -1 : int(list.size()) - 1;
 }
 
+// Which of `seq` (places; -1 for none) are in a longest run that goes up.
+QVector<bool> longestRun(const QVector<int> &seq)
+{
+    QVector<int> tails;   // for each length, the index of the smallest last entry of a run that long
+    QVector<int> before(seq.size(), -1);
+    for (int i = 0; i < seq.size(); ++i) {
+        if (seq[i] < 0) continue;
+        auto at = std::lower_bound(tails.begin(), tails.end(), seq[i], [&](int t, int v) { return seq[t] < v; });
+        before[i] = at == tails.begin() ? -1 : *(at - 1);
+        if (at == tails.end()) tails.push_back(i);
+        else *at = i;
+    }
+    QVector<bool> in(seq.size(), false);
+    for (int i = tails.isEmpty() ? -1 : tails.last(); i >= 0; i = before[i]) in[i] = true;
+    return in;
+}
+
 } // namespace
 
 QVector<Section> sectionsOf(const Document &d)
@@ -207,7 +224,10 @@ void slideRemoved(Document &d, int at)
 {
     QVector<Section> list = stored(d);
     if (list.isEmpty()) return;
-    fit(list, int(d.pages.size()) + 1);
+    int total = 0;
+    for (const Section &s : std::as_const(list)) total += s.count;
+    // Called before the slide goes the counts match the slides; after, they are one over.
+    if (total != int(d.pages.size()) && total != int(d.pages.size()) + 1) fit(list, int(d.pages.size()) + 1);
     const int s = containing(list, at);
     if (s >= 0 && list[s].count > 0) list[s].count--;
     setSections(d, list);
@@ -243,6 +263,33 @@ void slidesReordered(Document &d, const QList<int> &order, const QList<int> &mov
     }
     for (Section &s : list) s.count = 0;
     for (int s : now) list[s].count++;
+    setSections(d, list);
+}
+
+SectionMemory rememberSections(const Document &d)
+{
+    SectionMemory out;
+    if (!hasSections(d)) return out;
+    out.section = perSlide(sectionsOf(d), int(d.pages.size()));
+    for (int i = 0; i < d.pages.size(); ++i) out.index.insert(d.pages[i]->id, i);
+    return out;
+}
+
+void restoreSections(Document &d, const SectionMemory &was)
+{
+    if (was.isEmpty()) return;
+    QVector<Section> list = stored(d);
+    if (list.isEmpty()) return;
+    const int n = int(d.pages.size());
+    QVector<int> place(n);
+    for (int k = 0; k < n; ++k) place[k] = was.index.value(d.pages[k]->id, -1);
+    const QVector<bool> stays = longestRun(place);
+    for (Section &s : list) s.count = 0;
+    int section = 0;
+    for (int k = 0; k < n; ++k) {
+        if (stays[k]) section = std::clamp(was.section.value(place[k]), 0, int(list.size()) - 1);
+        list[section].count++;
+    }
     setSections(d, list);
 }
 
