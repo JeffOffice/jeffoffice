@@ -207,8 +207,9 @@ private:
     // id 5, with notes) and Second (4, hidden by the newer of two edits); with
     // `titleMaster`, a slide on a title master; with `links`, a slide whose text
     // has a field, a link, a language, and a ruler, and that fades in. `cycle`
-    // makes the older edit point back at the newer.
-    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false)
+    // makes the older edit point back at the newer. `notesByAtom` leaves the
+    // first slide without the id of its notes, which then name the slide.
+    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false)
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
@@ -258,7 +259,7 @@ private:
             return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, transition.isEmpty() ? info : transition) + pptDrawing(shapes));
         };
         const QByteArray titleOnBody = pptShape(0x402, 0xD, outlineRef(0)) + pptShape(0x403, 0xE, outlineRef(1), 1000, 200, 5000, 3800);
-        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0x200, false, titleOnBody);
+        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody);
         const QByteArray secondOld = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody);
         const QByteArray second = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, true, titleOnBody);
         const QByteArray third = slide(0, QByteArray("\x0F\x10", 2), kTitleMaster, 0, false, pptShape(0x402, 0xF, outlineRef(0)) + pptShape(0x403, 0x10, outlineRef(1)));
@@ -359,6 +360,11 @@ private Q_SLOTS:
         QVERIFY(!d->pages[0]->hidden);
         QCOMPARE(deck::notesText(*d, *d->pages[0]), QStringLiteral("Remember the demo"));
         QVERIFY(deck::notesText(*d, *d->pages[1]).isEmpty());
+        // Notes also find their slide by the slide they name.
+        auto byAtom = deck::importBinaryPresentation(buildPpt(false, false, false, true), &err);
+        QVERIFY2(byAtom, qPrintable(err));
+        QCOMPARE(deck::notesText(*byAtom, *byAtom->pages[0]), QStringLiteral("Remember the demo"));
+        QVERIFY(deck::notesText(*byAtom, *byAtom->pages[1]).isEmpty());
 
         int masters = 0;
         for (const auto &m : d->masters) masters += deck::isSlideMaster(*m);
