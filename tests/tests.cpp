@@ -55,6 +55,7 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/telemetry.h"
+#include "app/crash.h"
 #include "app/updater.h"
 #include "app/toc.h"
 #include "app/notes.h"
@@ -65,6 +66,8 @@
 #include <cstdio>
 #include <tuple>
 #include <QTemporaryDir>
+#include <QProcess>
+#include <csignal>
 #include <QFileDialog>
 #include <QFileOpenEvent>
 #include <QSettings>
@@ -11804,6 +11807,103 @@ private Q_SLOTS:
         QVERIFY(!telemetry::due());
         QVERIFY(telemetry::payload()[QStringLiteral("counts")].toObject().isEmpty());
         QVERIFY(telemetry::payload()[QStringLiteral("install")].toString() != id);
+        telemetry::setEnabled(false);
+    }
+
+    // A crash leaves a report of where it stopped: the module and offset of
+    // each step of the stack, the version, the day, and the signal or
+    // exception. Checked by crashing a small program (tests/crashtest.cpp).
+    void crashLeavesAReport()
+    {
+#if defined(__SANITIZE_ADDRESS__)
+        QSKIP("The address sanitizer catches crashes itself.");
+#endif
+        for (const QString &how : {QStringLiteral("segv"), QStringLiteral("abort")}) {
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            const QString path = dir.filePath(QStringLiteral("reports/crash-report.txt"));
+            QProcess p;
+            p.start(QStringLiteral(JP_CRASHTEST), {path, how});
+            QVERIFY(p.waitForFinished(60000));
+            QVERIFY2(p.exitStatus() == QProcess::CrashExit || p.exitCode() != 0, qPrintable(how));
+            const QList<QByteArray> where = p.readAllStandardOutput().trimmed().split(' ');
+            QCOMPARE(where.size(), 2);
+            const QJsonObject r = jp::crash::readReport(path);
+            QVERIFY2(!r.isEmpty(), qPrintable(how + QStringLiteral(": no report")));
+            QCOMPARE(r[QStringLiteral("version")].toString(), QStringLiteral(JP_VERSION));
+            QCOMPARE(r[QStringLiteral("when")].toString(), QDateTime::currentDateTimeUtc().date().toString(Qt::ISODate));
+#ifdef Q_OS_WIN
+            const bool exception = how == QLatin1String("segv");
+            QCOMPARE(r[QStringLiteral("kind")].toString(), exception ? QStringLiteral("exception") : QStringLiteral("signal"));
+            QCOMPARE(r[QStringLiteral("code")].toInteger(), exception ? 0xC0000005ll : qint64(SIGABRT));
+#else
+            QCOMPARE(r[QStringLiteral("kind")].toString(), QStringLiteral("signal"));
+            QCOMPARE(r[QStringLiteral("code")].toInteger(), how == QLatin1String("segv") ? qint64(SIGSEGV) : qint64(SIGABRT));
+#endif
+            // The function that crashed is among the steps, by its module and offset.
+            const quint64 at = where[1].toULongLong(nullptr, 16);
+            const QJsonArray frames = r[QStringLiteral("frames")].toArray();
+            QVERIFY(!frames.isEmpty() && frames.size() <= 64);
+            bool found = false;
+            QStringList seen;
+            for (const QJsonValue &f : frames) {
+                const QString module = f[QStringLiteral("module")].toString();
+                const quint64 offset = quint64(f[QStringLiteral("offset")].toInteger());
+                seen << module + QStringLiteral("+") + QString::number(offset, 16);
+                QVERIFY(QRegularExpression(QStringLiteral("^[A-Za-z0-9._+-]{1,64}$")).match(module).hasMatch());
+                if (module == QString::fromLatin1(where[0]) && offset >= at && offset < at + 64) found = true;
+            }
+            QVERIFY2(found, qPrintable(how + QStringLiteral(": ") + QString::fromLatin1(where[0]) + QStringLiteral("+") +
+                                       QString::number(at, 16) + QStringLiteral(" not in ") + seen.join(QLatin1Char(' '))));
+        }
+    }
+
+    // What a report holds is cut to what the collector takes, and only sent
+    // while statistics are on.
+    void crashReportsAreCheckedAndSentOnlyWhenOn()
+    {
+        using namespace jp;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto write = [&](const QByteArray &text) {
+            QFile f(dir.filePath(QStringLiteral("r.txt")));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(text);
+        };
+        const QByteArray today = QDateTime::currentDateTimeUtc().date().toString(Qt::ISODate).toLatin1();
+        write("jeffoffice-crash 1\nversion 0.6.11\nwhen " + today + "\nkind exception\ncode 3221225477\n"
+              "frame JeffPub.exe 1a2b\nframe C:\\Users\\pat\\x.dll 10\nframe Qt6Core.dll 1000000000000\nframe libc.so.6 zz\n");
+        QJsonObject r = crash::readReport(dir.filePath(QStringLiteral("r.txt")));
+        QCOMPARE(r[QStringLiteral("version")].toString(), QStringLiteral("0.6.11"));
+        QCOMPARE(r[QStringLiteral("kind")].toString(), QStringLiteral("exception"));
+        QCOMPARE(r[QStringLiteral("code")].toInteger(), 3221225477ll);
+        const QJsonArray frames = r[QStringLiteral("frames")].toArray();
+        QCOMPARE(frames.size(), 4);
+        QCOMPARE(frames[0][QStringLiteral("module")].toString(), QStringLiteral("JeffPub.exe"));
+        QCOMPARE(frames[0][QStringLiteral("offset")].toInteger(), 0x1a2bll);
+        QVERIFY(!frames[1][QStringLiteral("module")].toString().contains(QLatin1Char('\\')));   // a path is never sent
+        QCOMPARE(frames[2][QStringLiteral("module")].toString(), QStringLiteral("unknown"));    // past 2^48
+        QCOMPARE(frames[3][QStringLiteral("module")].toString(), QStringLiteral("unknown"));    // not a number
+
+        // Not a report, or one missing what the collector needs: nothing.
+        write("hello\n");
+        QVERIFY(crash::readReport(dir.filePath(QStringLiteral("r.txt"))).isEmpty());
+        write("jeffoffice-crash 1\nversion 0.6.11\nwhen " + today + "\nkind fire\ncode 11\n");
+        QVERIFY(crash::readReport(dir.filePath(QStringLiteral("r.txt"))).isEmpty());
+        QVERIFY(crash::readReport(dir.filePath(QStringLiteral("none.txt"))).isEmpty());
+
+        // Sent with the install and the system while statistics are on;
+        // never when they're off or the report is over 30 days old.
+        telemetry::setEnabled(false);
+        QVERIFY(telemetry::crashPayload(r).isEmpty());
+        telemetry::setEnabled(true);
+        const QJsonObject sent = telemetry::crashPayload(r);
+        QStringList keys = sent.keys();
+        keys.sort();
+        QCOMPARE(keys, (QStringList{"code", "frames", "install", "kind", "os", "version", "when"}));
+        QCOMPARE(sent[QStringLiteral("install")].toString(), telemetry::payload()[QStringLiteral("install")].toString());
+        r[QStringLiteral("when")] = QDateTime::currentDateTimeUtc().date().addDays(-31).toString(Qt::ISODate);
+        QVERIFY(telemetry::crashPayload(r).isEmpty());
         telemetry::setEnabled(false);
     }
 
