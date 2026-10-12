@@ -18,7 +18,7 @@ closely as JeffPub's pages match Publisher's.
 | On a slide | Text, shapes, pictures, icons, Text Art, tables, charts, audio, and video. SmartArt diagrams and equations show as saved at first; editing them follows | Text, shapes, pictures, tables: shown and saved; charts: drawn from their stored values and saved whole; movies and sounds: kept and saved, not yet played; Text Art from old files: shown, not yet saved |
 | Motion | Slide transitions, including Morph, and animations (entrance, emphasis, exit, motion paths) with the animation pane and timings | Ten transitions with a Transitions tab; animations kept, not yet played |
 | Slide Show | Full screen, Presenter View on a second screen (notes, next slide, timer), pen and highlighter, rehearsed timings, custom shows, and looping for kiosks | Full screen, Presenter View, rehearsal (Alt+F5): started |
-| Working together | Comments on slides, and reusing slides from another presentation | Not started |
+| Working together | Comments on slides, and reusing slides from another presentation | Comments: read, shown, edited, and saved (the presentation program shows them with their replies) |
 | Output | Printed slides, notes pages, and handouts, with print preview; PDF and pictures. Video export follows the first release | Print with preview, PDF (slides, notes pages, handouts, outline), slide pictures |
 | Files | .pptx, .potx, and .ppsx; opens .ppt and .odp | Reads .pptx, .potx, .ppsx, and .ppt; saves .pptx, .potx, and .ppsx. The presentation program opens all 64 reference presentations JeffDeck saved (its 10 designs and 54 real ones, old .ppt files among them) |
 
