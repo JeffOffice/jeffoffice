@@ -8,19 +8,22 @@ and how it is built.
 
 **Ready to ship when** the presentation program of that era opens every file
 JeffDeck saves, and JeffDeck's slides match that program's own PDFs about as
-closely as JeffPub's pages match Publisher's.
+closely as JeffPub's pages match Publisher's. JeffDeck ships in JeffOffice
+0.7.0 as a preview: the first holds (the program opens all 64 reference
+presentations JeffDeck saved), and the second is close but not yet measured
+on the same yardstick as JeffPub's.
 
 ## Features
 
 | Area | What it covers | Status |
 | --- | --- | --- |
 | Slides | Layouts, slide masters, themes and their variants, backgrounds, sections, the slide sorter, outline view, speaker notes, and notes and handout masters | Layouts, masters, notes, backgrounds, slide size, header and footer, sections (saved, and shown in the slides pane and Slide Sorter), Slide Sorter, Outline view: started |
-| On a slide | Text, shapes, pictures, icons, Text Art, tables, charts, audio, and video. SmartArt diagrams and equations show as saved at first; editing them follows | Text, shapes, pictures, tables: shown and saved; charts: drawn from their stored values and saved whole; movies and sounds: kept and saved, not yet played; Text Art from old files: shown, not yet saved |
-| Motion | Slide transitions, including Morph, and animations (entrance, emphasis, exit, motion paths) with the animation pane and timings | Ten transitions with a Transitions tab, read from and saved to the file (an effect JeffDeck has no form for plays as a fade and is saved as it was); animations play in the show click by click (appear, fade, wipe, moves, turns, sizes, motion paths, builds by paragraph; other effects play as a fade); editing them not yet |
+| On a slide | Text, shapes, pictures, icons, Text Art, tables, charts, audio, and video. SmartArt diagrams and equations show as saved at first; editing them follows | Text, shapes, pictures, tables: shown and saved; charts: drawn from their stored values and saved whole; movies and sounds: kept and saved, not yet played; Text Art, old files' too: shown and saved |
+| Motion | Slide transitions, including Morph, and animations (entrance, emphasis, exit, motion paths) with the animation pane and timings | Nine transitions with a Transitions tab, read from and saved to the file (an effect JeffDeck has no form for plays as a fade and is saved as it was); animations play in the show click by click (appear, fade, wipe, moves, turns, sizes, motion paths, builds by paragraph; other effects play as a fade); editing them not yet |
 | Slide Show | Full screen, Presenter View on a second screen (notes, next slide, timer), pen and highlighter, rehearsed timings, custom shows, and looping for kiosks | Full screen, Presenter View, rehearsal (Alt+F5): started |
 | Working together | Comments on slides, and reusing slides from another presentation | Comments: read, shown, edited, and saved (the presentation program shows them with their replies); Reuse Slides, keeping the source's design or taking this one's |
 | Output | Printed slides, notes pages, and handouts, with print preview; PDF and pictures. Video export follows the first release | Print with preview, PDF (slides, notes pages, handouts, outline), slide pictures |
-| Files | .pptx, .potx, and .ppsx; opens .ppt and .odp | Reads .pptx, .potx, .ppsx, .ppt, .odp, and .otp; saves .pptx, .potx, and .ppsx (an .odp is saved as a new .pptx). The presentation program opens all 64 reference presentations JeffDeck saved (its 10 designs and 54 real ones, old .ppt files among them) |
+| Files | .pptx, .potx, and .ppsx; opens .ppt and .odp | Reads .pptx, .potx, .ppsx, .ppt, .odp, and .otp; saves .pptx, .potx, and .ppsx (an .odp, or an old .ppt, .pps, or .pot, is saved under a new name, never written over). The presentation program opens all 64 reference presentations JeffDeck saved (its 10 designs and 54 real ones, old .ppt files among them) |
 
 ## How it is built
 

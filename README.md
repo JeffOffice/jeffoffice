@@ -1,22 +1,29 @@
-# JeffPub
+# JeffOffice
 
-> **JeffPub is an independent project. It is not affiliated with, endorsed by, sponsored by, or supported by Microsoft Corporation.** See [Legal notices](#legal-notices).
+> **JeffOffice is an independent project. It is not affiliated with, endorsed by, sponsored by, or supported by Microsoft Corporation.** See [Legal notices](#legal-notices).
 
-JeffPub is a free, open-source desktop publishing app for **Windows, macOS, and Linux**. Its features are modeled on those of Microsoft Publisher, and it opens Publisher files. Use it to lay out flyers, newsletters, brochures, business cards, certificates, and other print pieces on a page. Text, pictures, shapes, and tables sit in frames that you can move and resize wherever you like.
+JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**. It has two apps today:
 
-JeffPub is the first app of **JeffOffice**, a free, open-source office suite. On Windows it installs with JeffOffice setup, which also lists the apps on the way: JeffDeck for presentations, JeffWrite for documents, JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will be offered by an update once it's ready.
+- **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
+- **JeffDeck** (a preview), for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`).
 
-## Why JeffPub exists
+More apps are on the way: JeffWrite for documents, JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
+
+> **Status:** beta (0.7). JeffPub's features are in place and are being polished; JeffDeck is a preview, with the main features working and more still being built (see [JeffDeck](#jeffdeck)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
+>
+> - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out). No administrator rights are needed.
+> - **Mac:** `JeffOffice-<version>.dmg` holds both apps. It isn't signed yet, so macOS asks before opening each one the first time.
+> - **Linux:** `jeffoffice_<version>_amd64.deb` installs both apps on Debian, Ubuntu, and their relatives (`sudo apt install ./jeffoffice_<version>_amd64.deb`; it replaces an earlier `jeffpub` package). For most other distributions there's an AppImage of each app: make the file executable and run it.
+
+## JeffPub
+
+### Why JeffPub exists
 
 Microsoft is retiring Publisher. Microsoft 365 subscribers lost access to Publisher on October 1, 2026, and support for the last standalone version ends on October 13, 2026 ([Microsoft's announcement](https://support.microsoft.com/en-us/publisher/microsoft-publisher-will-no-longer-be-supported-after-october-2026)). Microsoft suggests converting existing publications to PDF or Word before then.
 
-JeffPub was started in response. It gives the people, small businesses, schools, and publishers who built years of work in Publisher a free, open-source program that keeps opening, editing, and printing those `.pub` files, on Windows and Linux, without a subscription and without depending on any one company's product plans.
+JeffPub was started in response. It gives the people, small businesses, schools, and publishers who built years of work in Publisher a free, open-source program that keeps opening, editing, and printing those `.pub` files, on Windows, macOS, and Linux, without a subscription and without depending on any one company's product plans.
 
-> **Status:** beta (0.6): the features are in place and are being polished. Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases): a Windows installer (`JeffOffice-Setup.exe`), a Mac disk image (not yet signed, so macOS asks before opening it the first time), and for Linux a `.deb` package (Debian, Ubuntu, and their relatives) and an AppImage that runs on most other distributions. JeffPub opens and saves Publisher's `.pub` files, from Publisher 98 on.
->
-> On Debian or Ubuntu, install the package with `sudo apt install ./jeffpub_<version>_amd64.deb`. For the AppImage, make the file executable and run it.
-
-## What it will do
+### What it does
 
 - **Page layout.** Free-form frames on a page: text boxes, pictures, shapes, tables, and Text Art headings. You can move, resize, rotate, group, align, and layer them, and they snap to margins and guides.
 - **Linked text boxes.** A long story flows from one text box to the next, across columns and pages, the way newsletters need.
@@ -29,19 +36,42 @@ JeffPub was started in response. It gives the people, small businesses, schools,
 - Rulers, guides, a pages pane, zoom, and a two-page spread view.
 - **Microsoft Publisher files.** Opens `.pub` files from every version of Publisher since Publisher 98, and saves publications back to `.pub` so they can be shared with Publisher users. JeffPub also has its own open format, `.jpub`.
 
+Every feature and where it stands is listed in [FEATURES.md](FEATURES.md).
+
+## JeffDeck
+
+JeffDeck makes presentations and plays them as slide shows. It's a **preview**: the main features work, and some are still being built.
+
+### What it does
+
+- **Slides** with layouts and slide masters, backgrounds, slide size, headers and footers, sections, and speaker notes. Work in Normal view, the Outline, or the Slide Sorter, and reuse slides from another presentation.
+- **On a slide:** text, shapes, pictures, tables, Text Art, and charts (drawn from the numbers saved with them).
+- **Slide shows** full screen or with Presenter View on a second screen (your notes, the next slide, and a timer), with transitions between slides and animations that play click by click. A slide can move on by itself after the seconds you set, and Presenter View can be practiced in a window on one screen.
+- **Comments** on slides, with replies, which other presentation programs show too.
+- **Print and export** slides, notes pages, handouts, and the outline, to paper or PDF, and slides as pictures.
+- **Presentation files.** Opens `.pptx`, `.potx`, `.ppsx`, and the older `.ppt` files from Microsoft PowerPoint, and OpenDocument presentations (`.odp`, `.otp`); saves `.pptx`, `.potx`, and `.ppsx`. What it can't show yet, such as SmartArt diagrams, is kept and saved back.
+
+### Not yet in the preview
+
+Editing animations (the ones in a file play, but can't be changed yet), changing themes and their color variants, SmartArt diagrams and equations (kept, but not shown), playing movies and sounds (kept, but not played), and saving `.odp` files (an `.odp` is saved as a new `.pptx`). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
+
 ## Privacy
 
-JeffPub checks GitHub for new versions when it starts (you can turn that off in File > Options).
+JeffPub checks GitHub for new versions when it starts (you can turn that off in File > Options); on Windows, its update installs the whole suite. JeffDeck doesn't check for updates itself yet.
 
-Online Pictures (Insert > Online Pictures) sends the words you search for to the library you choose, Openverse or Wikimedia Commons, and nothing else.
+Online Pictures (in JeffPub, Insert > Online Pictures) sends the words you search for to the library you choose, Openverse or Wikimedia Commons, and nothing else.
 
-Unless you turn them off, it also sends anonymous usage statistics once a day while it's in use (and once more the day it's updated): a random number made up when it was installed (it says nothing about you or your computer), its version, your operating system and its version, the language it's set to, how many times it was started, and how many times each of its commands was used. It never sends your files, their names, or anything in them, and the server doesn't keep IP addresses. You choose in Windows setup or the first time JeffPub starts, and can change it anytime in File > Options. The collector's code is in [server/telemetry](server/telemetry).
+Unless you turn them off, JeffPub also sends anonymous usage statistics once a day while it's in use (and once more the day it's updated): a random number made up when it was installed (it says nothing about you or your computer), its version, your operating system and its version, the language it's set to, how many times it was started, and how many times each of its commands was used. It never sends your files, their names, or anything in them, and the server doesn't keep IP addresses. You choose in Windows setup or the first time JeffPub starts, and can change it anytime in File > Options. The collector's code is in [server/telemetry](server/telemetry). JeffDeck sends no usage statistics yet.
 
-If usage statistics are on and JeffPub crashes, it also sends a crash report the next time it starts: where in the program it stopped (as program file names and numeric positions), what kind of failure it was, the day it happened, its version, your operating system, and the same random number. It never sends your documents, their names or contents, anything you typed, or anything from your computer's memory.
+If usage statistics are on and JeffPub crashes, it also sends a crash report the next time it starts: where in the program it stopped (as program file names and numeric positions), what kind of failure it was, the day it happened, its version, your operating system, and the same random number. It never sends your documents, their names or contents, anything you typed, or anything from your computer's memory. JeffDeck keeps a crash report on your computer but doesn't send it yet.
 
 ## Help
 
-Help is built into the program (press F1) and published to the project's [wiki](https://github.com/JeffOffice/jeffoffice/wiki). Its topics are the Markdown files in [resources/help/en](resources/help/en). Edit them there, not on the wiki: every push to `main` replaces the wiki's pages with them. See [docs/help-wiki.md](docs/help-wiki.md).
+Help is built into each app (press F1). JeffPub's is also published to the project's [wiki](https://github.com/JeffOffice/jeffoffice/wiki). The topics are the Markdown files in [resources/help/en](resources/help/en) (JeffDeck's in its `deck` folder). Edit them there, not on the wiki: every push to `main` replaces the wiki's pages with JeffPub's. See [docs/help-wiki.md](docs/help-wiki.md).
+
+## Languages
+
+Both apps are in American English, German, Spanish, French, Italian, Dutch, and Portuguese (Brazil and Portugal). They follow your computer's language, or the one chosen in File > Options > General. The translations are in [translations](translations/README.md).
 
 ## Built with
 
@@ -52,25 +82,25 @@ Help is built into the program (press F1) and published to the project's [wiki](
 
 Copyright © 2026 JeffOffice LLC.
 
-JeffPub is free software under the [GNU General Public License v3.0](LICENSE). You may use, study, change, and share it. If you distribute a modified version, you must share its source under the same license.
+JeffOffice, with JeffPub and JeffDeck, is free software under the [GNU General Public License v3.0](LICENSE). You may use, study, change, and share it. If you distribute a modified version, you must share its source under the same license.
 
 ## Legal notices
 
-**No affiliation with Microsoft.** JeffPub is an independent, community-made program. It is not a Microsoft product. It is not affiliated with, authorized, sponsored, endorsed, licensed, or supported by Microsoft Corporation or any of its subsidiaries. Microsoft has not reviewed or approved this project. Do not contact Microsoft for help with JeffPub, and do not contact this project for help with Microsoft products.
+**No affiliation with Microsoft.** JeffOffice and its apps, JeffPub and JeffDeck, are independent, community-made programs. They are not Microsoft products. It is not affiliated with, authorized, sponsored, endorsed, licensed, or supported by Microsoft Corporation or any of its subsidiaries. Microsoft has not reviewed or approved this project. Do not contact Microsoft for help with JeffOffice, and do not contact this project for help with Microsoft products.
 
-**Trademarks.** Microsoft, Microsoft Publisher, Microsoft 365, Office, Windows, Arial, Times New Roman, Calibri, Georgia, and the other Microsoft product and font names mentioned in this project are trademarks or registered trademarks of Microsoft Corporation or of their respective owners, in the United States and other countries. Qt is a trademark of The Qt Company Ltd. Linux is a registered trademark of Linus Torvalds. All other trademarks belong to their owners. This project uses these names only to describe compatibility, for example that JeffPub can open files created by Microsoft Publisher. That use does not imply any relationship with, or endorsement by, the trademark owners. "JeffPub" is the name of this project and is not a Microsoft name or product.
+**Trademarks.** Microsoft, Microsoft Publisher, Microsoft PowerPoint, Microsoft 365, Office, Windows, Arial, Times New Roman, Calibri, Georgia, and the other Microsoft product and font names mentioned in this project are trademarks or registered trademarks of Microsoft Corporation or of their respective owners, in the United States and other countries. Qt is a trademark of The Qt Company Ltd. Linux is a registered trademark of Linus Torvalds. All other trademarks belong to their owners. This project uses these names only to describe compatibility, for example that JeffPub can open files created by Microsoft Publisher and JeffDeck files created by Microsoft PowerPoint. That use does not imply any relationship with, or endorsement by, the trademark owners. "JeffOffice", "JeffPub", and "JeffDeck" are names of this project and are not Microsoft names or products.
 
-**No Microsoft code or artwork.** JeffPub contains no source code, program files, icons, logos, templates, clip art, or fonts from Microsoft. Its interface uses its own name, design, and the open-source Lucide icon set. Its templates and sample text are original; the sample business details in them are fictitious. Where a publication asks for a Microsoft font that isn't installed, JeffPub substitutes a freely licensed font with similar metrics, and gives each letter the missing font's own width and pair kerning (measured numbers in `resources/fontwidths.txt` and `resources/fontkerning.txt`, not font data) so lines break where they do in Microsoft Publisher; it does not ship Microsoft fonts.
+**No Microsoft code or artwork.** JeffOffice contains no source code, program files, icons, logos, templates, clip art, or fonts from Microsoft. Its apps use their own names, design, and the open-source Lucide icon set. Its templates and sample text are original; the sample business details in them are fictitious. Where a publication asks for a Microsoft font that isn't installed, JeffPub substitutes a freely licensed font with similar metrics, and gives each letter the missing font's own width and pair kerning (measured numbers in `resources/fontwidths.txt` and `resources/fontkerning.txt`, not font data) so lines break where they do in Microsoft Publisher; it does not ship Microsoft fonts.
 
-**File compatibility.** Support for reading `.pub` files is built on the open-source [libmspub](https://wiki.documentfoundation.org/DLP/Libraries/libmspub) and [librevenge](https://sourceforge.net/p/libwpd/librevenge/) libraries, extended through independent analysis of publications the project's contributors created or own. This interoperability work is not based on any confidential Microsoft information. Converting files between programs can change how they look. Always check converted files, and keep your originals.
+**File compatibility.** JeffDeck reads and writes presentation files from the published Office Open XML (ECMA-376) and OpenDocument standards and Microsoft's published Open Specifications for the older `.ppt` format. Support for reading `.pub` files is built on the open-source [libmspub](https://wiki.documentfoundation.org/DLP/Libraries/libmspub) and [librevenge](https://sourceforge.net/p/libwpd/librevenge/) libraries, extended through independent analysis of publications the project's contributors created or own. This interoperability work is not based on any confidential Microsoft information. Converting files between programs can change how they look. Always check converted files, and keep your originals.
 
-**No warranty.** JeffPub is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. The authors and contributors are not liable for any claim, damages, data loss, or other liability arising from the use of this software. See sections 15 and 16 of the [GPL](LICENSE) for the full terms.
+**No warranty.** JeffOffice is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. The authors and contributors are not liable for any claim, damages, data loss, or other liability arising from the use of this software. See sections 15 and 16 of the [GPL](LICENSE) for the full terms.
 
-**Your content.** You are responsible for the text, pictures, and other material you put into your publications, and for having the rights to use them. Links to online picture libraries are provided for convenience; check each picture's license before you use it.
+**Your content.** You are responsible for the text, pictures, and other material you put into your publications and presentations, and for having the rights to use them. Links to online picture libraries are provided for convenience; check each picture's license before you use it.
 
 ## Third-party software
 
-JeffPub includes or downloads these components, each under its own license:
+JeffOffice includes or downloads these components, each under its own license:
 
 | Component | Use | License |
 |---|---|---|
@@ -100,4 +130,4 @@ JeffPub includes or downloads these components, each under its own license:
 | [PSO Coated v3](https://www.eci.org/) color profile, from the European Color Initiative | The printing condition in PDF/X-4 files; downloaded from ECI the first time you make one (after asking); not bundled | ECI's terms: free to use and embed in PDFs, not to pass on |
 | [International ISBN Agency](https://www.isbn-international.org/range_file_generation) range table | Placing the hyphens in ISBNs from every country; downloaded from the agency when you make an ISBN barcode, monthly at most; not bundled | The agency's terms (it doesn't allow republishing the table) |
 
-The dictionaries come unchanged from the [LibreOffice dictionaries project](https://github.com/LibreOffice/dictionaries); each language's authors, license, and license text are in [resources/dict](resources/dict/README.md). Changes made to libmspub and librevenge are listed in [third_party/README.md](third_party/README.md). PDFium's license texts, and those of the libraries built into it, are in [third_party/pdfium/licenses](third_party/pdfium/licenses) and ship with the program (in its `licenses/pdfium` folder; on Linux in `/usr/share/doc/jeffpub/pdfium`).
+The dictionaries come unchanged from the [LibreOffice dictionaries project](https://github.com/LibreOffice/dictionaries); each language's authors, license, and license text are in [resources/dict](resources/dict/README.md). Changes made to libmspub and librevenge are listed in [third_party/README.md](third_party/README.md). PDFium's license texts, and those of the libraries built into it, are in [third_party/pdfium/licenses](third_party/pdfium/licenses) and ship with the program (in its `licenses/pdfium` folder; on Linux in `/usr/share/doc/jeffoffice/pdfium`).
