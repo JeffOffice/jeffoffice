@@ -24,6 +24,7 @@
 #include <QTextDocument>
 #include <QRandomGenerator>
 #include <QRegularExpression>
+#include <QStringConverter>
 #include <QSvgRenderer>
 #include <QTemporaryDir>
 #include <QTextBlock>
@@ -638,7 +639,7 @@ private Q_SLOTS:
         QTest::newRow("external entity")
             << QByteArray("<?xml version=\"1.0\"?>\n<!DOCTYPE x [<!ENTITY e SYSTEM \"file:///etc/hostname\">]>\n<x>&e;</x>");
         QTest::newRow("entity with no DOCTYPE") << QByteArray("<x>&e;</x>");
-        QTest::newRow("1,001 levels deep") << QByteArray("<a>").repeated(1001) + QByteArray("</a>").repeated(1001);
+        QTest::newRow("one level too deep") << QByteArray("<a>").repeated(kMaxXmlDepth + 1) + QByteArray("</a>").repeated(kMaxXmlDepth + 1);
     }
 
     void xmlRefusesWhatIsNotSafe()
@@ -650,13 +651,117 @@ private Q_SLOTS:
         QVERIFY(!err.isEmpty());
     }
 
+    // A few bytes repeated make a tree that takes hundreds of times their size, so what a part may hold is
+    // limited. The XML is built here, in memory.
+    void xmlRefusesWhatWouldFillMemory_data()
+    {
+        QTest::addColumn<QByteArray>("xml");
+        const QByteArray head("<a:x xmlns:a=\"urn:x\">"), tail("</a:x>");
+        QTest::newRow("too many elements") << head + QByteArray("<a:b/>").repeated(kMaxXmlNodes) + tail;
+        QTest::newRow("too many attributes")
+            << head + QByteArray("<a:b p0=\"1\" p1=\"1\" p2=\"1\" p3=\"1\" p4=\"1\" p5=\"1\" p6=\"1\" p7=\"1\" p8=\"1\" p9=\"1\"/>").repeated(kMaxXmlNodes / 10) + tail;
+        QTest::newRow("too many runs of text") << head + QByteArray("<a:b>t</a:b>").repeated(kMaxXmlNodes / 2) + tail;
+        QTest::newRow("too many comments") << head + QByteArray("<!---->").repeated(kMaxXmlNodes) + tail;
+        QTest::newRow("too many bytes") << head + QByteArray(kMaxXmlBytes, 'x') + tail;
+    }
+
+    void xmlRefusesWhatWouldFillMemory()
+    {
+        QFETCH(QByteArray, xml);
+        QDomDocument doc;
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!parseXml(xml, &doc, &err));
+        QVERIFY(!err.isEmpty());
+        QVERIFY(doc.documentElement().isNull());
+        // Counted on the way in, not found out by building the tree.
+        QVERIFY2(timer.elapsed() < 10000, "the XML was refused too slowly");
+    }
+
+    void xmlRefusesAnElementWithManyAttributes()
+    {
+        // The parsers' time grows with the square of the attributes on one element: 100,000 of them, in 1.4 MB,
+        // keep them busy for minutes.
+        for (int count : {kMaxAttributesPerElement + 1, 100000}) {
+            QByteArray xml("<a:x xmlns:a=\"urn:x\"");
+            for (int i = 0; i < count; ++i) xml += " p" + QByteArray::number(i) + "=\"1\"";
+            xml += "/>";
+            QDomDocument doc;
+            QString err;
+            QElapsedTimer timer;
+            timer.start();
+            QVERIFY2(!parseXml(xml, &doc, &err), qPrintable(QString::number(count)));
+            QVERIFY(!err.isEmpty());
+            QVERIFY2(timer.elapsed() < 5000, "the XML was refused too slowly");
+        }
+    }
+
+    void xmlAcceptsMoreThanARealFileHolds()
+    {
+        // About three times the most any real part holds (54,000 nodes), in the shapes real parts have.
+        QByteArray xml("<a:x xmlns:a=\"urn:x\">");
+        xml += QByteArray("<a:b p=\"1\" q=\"2\"/>").repeated(40000) + QByteArray("<a:c>text</a:c>").repeated(20000);
+        xml += QByteArray("<!-- = \" ' < -->").repeated(1000) + "</a:x>";
+        QDomDocument doc;
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY2(parseXml(xml, &doc, &err), qPrintable(err));
+        QCOMPARE(doc.documentElement().childNodes().size(), 61000);
+        QVERIFY2(timer.elapsed() < 5000, "the XML took too long to parse");
+
+        // The busiest element a part may have (each "=" in its tag is one attribute or namespace declaration).
+        QByteArray busy("<a:x xmlns:a=\"urn:x\"");
+        for (int i = 1; i < kMaxAttributesPerElement; ++i) busy += " p" + QByteArray::number(i) + "=\"1\"";
+        QVERIFY2(parseXml(busy + "/>", &doc, &err), qPrintable(err));
+        QCOMPARE(doc.documentElement().attributes().size(), kMaxAttributesPerElement - 1);
+    }
+
+    void xmlRefusesManyAttributesInUtf16()
+    {
+        // The same count is made for XML written in UTF-16, in either byte order.
+        for (QStringConverter::Encoding encoding : {QStringConverter::Utf16LE, QStringConverter::Utf16BE}) {
+            QString text = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-16\"?>\n<a:x xmlns:a=\"urn:x\"");
+            for (int i = 0; i < 100000; ++i) text += QStringLiteral(" p%1=\"1\"").arg(i);
+            text += QStringLiteral("/>");
+            QStringEncoder encode(encoding, QStringConverter::Flag::WriteBom);
+            const QByteArray bytes = encode(text);
+            QDomDocument doc;
+            QString err;
+            QElapsedTimer timer;
+            timer.start();
+            QVERIFY(!parseXml(bytes, &doc, &err));
+            QVERIFY(!err.isEmpty());
+            QVERIFY2(timer.elapsed() < 5000, "the XML was refused too slowly");
+
+            // And a small document in UTF-16 is read as before.
+            QStringEncoder small(encoding, QStringConverter::Flag::WriteBom);
+            QVERIFY2(parseXml(small(QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-16\"?><a:x xmlns:a=\"urn:x\" p=\"1\">\u00e9</a:x>")), &doc, &err), qPrintable(err));
+            QCOMPARE(doc.documentElement().text(), QStringLiteral("\u00e9"));
+        }
+    }
+
+    void xmlCountsAttributesOnlyInTags()
+    {
+        // What looks like attributes in text, comments, CDATA, processing instructions, and quoted values is not
+        // one, however many there are.
+        const QByteArray equals(5000, '=');
+        const QByteArray xml = "<a:x xmlns:a=\"urn:x\" note=\"" + equals + "\" other='" + equals + "'><!-- " + equals + " \"' -->"
+                               "<![CDATA[" + equals + "]]><?pi " + equals + "?>" + equals + "<a:b t=\"a>b\"/> <a:c u='\"=\"=\"'/></a:x>";
+        QDomDocument doc;
+        QString err;
+        QVERIFY2(parseXml(xml, &doc, &err), qPrintable(err));
+        QCOMPARE(doc.documentElement().attribute(QStringLiteral("note")).size(), 5000);
+    }
+
     void xmlAcceptsDeepButReasonableNesting()
     {
         QDomDocument doc;
         QString err;
         QElapsedTimer timer;
         timer.start();
-        QVERIFY2(parseXml(QByteArray("<a>").repeated(1000) + QByteArray("</a>").repeated(1000), &doc, &err), qPrintable(err));
+        QVERIFY2(parseXml(QByteArray("<a>").repeated(kMaxXmlDepth) + QByteArray("</a>").repeated(kMaxXmlDepth), &doc, &err), qPrintable(err));
         QVERIFY2(timer.elapsed() < 5000, "deep XML took too long to parse");
     }
 
