@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QJsonArray>
+#include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -199,6 +200,98 @@ ItemPtr slidePlaceholder(Document &d, const Item &fromLayout)
     return copy;
 }
 
+// The layout's own placeholder of that type, else its slide master's.
+const Item *layoutPlaceholder(const Document &d, const MasterPage &layout, const QString &type)
+{
+    const QVector<MasterPage *> chain = d.masterChain(&layout);
+    for (int i = int(chain.size()) - 1; i >= 0; --i)
+        for (const auto &it : chain[i]->items)
+            if (placeholderType(*it) == type) return it.get();
+    return nullptr;
+}
+
+// A footer placeholder's content: the footer text, or the date or slide
+// number as the field that keeps it current.
+void fillFooter(Document &d, Item &it, const QString &type, const FooterOptions &o)
+{
+    if (it.type() != ItemType::Text) return;
+    const QString storyId = static_cast<TextItem &>(it).storyId;
+    clearStory(d, storyId);
+    QTextDocument *sd = d.storyDoc(storyId);
+    if (!sd) return;
+    QTextCursor c(sd);
+    if (type == QLatin1String("ftr")) {
+        c.insertText(o.footerText);
+        return;
+    }
+    QTextCharFormat f = c.charFormat();
+    f.setProperty(tp::Field, type == QLatin1String("sldNum") ? QStringLiteral("page") : QStringLiteral("date"));
+    c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+}
+
+// The text of a story at a new size: each run's point size times `k`.
+void scaleStoryText(QTextDocument *sd, double k)
+{
+    struct Run { int from, to; double size; };
+    QVector<Run> runs;
+    QVector<QPair<int, double>> blocks;
+    for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
+        if (b.charFormat().hasProperty(QTextFormat::FontPointSize)) blocks << qMakePair(b.position(), b.charFormat().fontPointSize());
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fr = it.fragment();
+            if (fr.charFormat().hasProperty(QTextFormat::FontPointSize)) runs << Run{fr.position(), fr.position() + fr.length(), fr.charFormat().fontPointSize()};
+        }
+    }
+    for (const auto &b : blocks) {
+        QTextCursor c(sd);
+        c.setPosition(b.first);
+        QTextCharFormat f;
+        f.setFontPointSize(b.second * k);
+        c.mergeBlockCharFormat(f);
+    }
+    for (const Run &r : runs) {
+        QTextCursor c(sd);
+        c.setPosition(r.from);
+        c.setPosition(r.to, QTextCursor::KeepAnchor);
+        QTextCharFormat f;
+        f.setFontPointSize(r.size * k);
+        c.mergeCharFormat(f);
+    }
+}
+
+// Everything on one master or slide at a new size: stretched to the new
+// shape (`whole`), or, on a slide, objects that aren't placeholders kept in
+// shape, scaled by `k` and centered (`fitted`). Text sizes and outline
+// weights go by `k`.
+void scaleItems(Document &d, ItemList &items, const QRectF &from, const QRectF &whole, const QRectF &fitted, double k, bool onSlide, QSet<QString> &stories)
+{
+    for (const auto &it : items) it->scaleInto(from, onSlide && placeholderType(*it).isEmpty() ? fitted : whole);
+    walkItems(items, [&](const ItemPtr &it) {
+        if (!it->stroke.isNone()) it->stroke.width *= k;
+        QStringList ids;
+        if (it->type() == ItemType::Text) {
+            auto *t = static_cast<TextItem *>(it.get());
+            t->insets = QMarginsF(t->insets.left() * k, t->insets.top() * k, t->insets.right() * k, t->insets.bottom() * k);
+            ids << t->storyId;
+        } else if (it->type() == ItemType::Shape) {
+            ids << static_cast<ShapeItem *>(it.get())->storyId;
+        } else if (it->type() == ItemType::Table) {
+            for (const TableCell &c : static_cast<TableItem *>(it.get())->cells) ids << c.storyId << c.storyId2;
+        }
+        for (const QString &id : ids)
+            if (!id.isEmpty() && !stories.contains(id)) {
+                stories.insert(id);
+                if (QTextDocument *sd = d.storyDoc(id)) scaleStoryText(sd, k);
+            }
+    });
+}
+
+void scaleGuides(RulerGuides &g, double sx, double sy)
+{
+    for (double &y : g.h) y *= sy;
+    for (double &x : g.v) x *= sx;
+}
+
 } // namespace
 
 QJsonObject DeckTheme::toJson() const
@@ -319,11 +412,13 @@ int addSlide(Document &d, const MasterPage &layout, int at)
 {
     auto slide = std::make_shared<Page>();
     slide->masterId = layout.id;
-    const bool footers = d.appData.value(QStringLiteral("footers")).toBool();
+    const FooterOptions footers = footerOptions(d);
+    const bool chosen = d.appData.contains(QStringLiteral("footerOptions"));   // else the footers are only empty places
     for (const auto &it : layout.items) {
         const QString type = placeholderType(*it);
-        if (type.isEmpty() || (isFooterType(type) && !footers)) continue;
+        if (type.isEmpty() || (isFooterType(type) && !footers.shows(type, layoutType(layout)))) continue;
         slide->items.push_back(slidePlaceholder(d, *it));
+        if (chosen && isFooterType(type)) fillFooter(d, *slide->items.back(), type, footers);
     }
     slide->notesStoryId = d.createStory();
     const int index = at < 0 || at > d.pages.size() ? int(d.pages.size()) : at;
@@ -368,11 +463,13 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
         }
     }
     // The new layout's places that nothing filled get empty placeholders.
-    const bool footers = d.appData.value(QStringLiteral("footers")).toBool();
+    const FooterOptions footers = footerOptions(d);
+    const bool chosen = d.appData.contains(QStringLiteral("footerOptions"));
     for (const auto &l : layout.items) {
         const QString type = placeholderType(*l);
-        if (type.isEmpty() || taken.contains(l.get()) || (isFooterType(type) && !footers)) continue;
+        if (type.isEmpty() || taken.contains(l.get()) || (isFooterType(type) && !footers.shows(type, layoutType(layout)))) continue;
         slide.items.push_back(slidePlaceholder(d, *l));
+        if (chosen && isFooterType(type)) fillFooter(d, *slide.items.back(), type, footers);
     }
 }
 
@@ -398,6 +495,107 @@ QString notesText(const Document &d, const Page &slide)
 {
     const QTextDocument *sd = d.storyDoc(slide.notesStoryId);
     return sd ? sd->toPlainText() : QString();
+}
+
+QString slideSizeName(const QSizeF &size)
+{
+    if (size == QSizeF(kStandardWidth, kStandardHeight)) return QStringLiteral("Standard");
+    if (size == QSizeF(kSlideWidth, kSlideHeight)) return QStringLiteral("Widescreen");
+    return QStringLiteral("Custom");
+}
+
+void setSlideSize(Document &d, const QSizeF &size)
+{
+    const QSizeF old = d.pageSize();
+    if (size.isEmpty() || old.isEmpty() || size == old) return;
+    const double sx = size.width() / old.width(), sy = size.height() / old.height(), k = std::min(sx, sy);
+    const QRectF from(QPointF(0, 0), old), whole(QPointF(0, 0), size);
+    const QRectF fitted((size.width() - old.width() * k) / 2, (size.height() - old.height() * k) / 2, old.width() * k, old.height() * k);
+    QSet<QString> stories;
+    for (auto &m : d.masters) {
+        scaleItems(d, m->items, from, whole, fitted, k, false, stories);
+        scaleGuides(m->guides, sx, sy);
+    }
+    for (auto &p : d.pages) {
+        scaleItems(d, p->items, from, whole, fitted, k, true, stories);
+        scaleGuides(p->guides, sx, sy);
+    }
+    d.setup.size = d.setup.sheet = size;
+    d.setup.sizeName = slideSizeName(size);
+}
+
+bool FooterOptions::shows(const QString &placeholderType, const QString &layoutType) const
+{
+    if (skipTitleSlide && layoutType == QLatin1String("title")) return false;
+    if (placeholderType == QLatin1String("dt")) return date;
+    if (placeholderType == QLatin1String("ftr")) return footer;
+    if (placeholderType == QLatin1String("sldNum")) return slideNumber;
+    return false;
+}
+
+QJsonObject FooterOptions::toJson() const
+{
+    return {{"date", date}, {"slideNumber", slideNumber}, {"footer", footer}, {"text", footerText}, {"skipTitle", skipTitleSlide}};
+}
+
+FooterOptions FooterOptions::fromJson(const QJsonObject &o)
+{
+    FooterOptions f;
+    f.date = o["date"].toBool();
+    f.slideNumber = o["slideNumber"].toBool();
+    f.footer = o["footer"].toBool();
+    f.footerText = o["text"].toString();
+    f.skipTitleSlide = o["skipTitle"].toBool();
+    return f;
+}
+
+FooterOptions footerOptions(const Document &d)
+{
+    const QJsonObject o = d.appData.value(QStringLiteral("footerOptions")).toObject();
+    if (!o.isEmpty()) return FooterOptions::fromJson(o);
+    FooterOptions all;
+    all.date = all.slideNumber = all.footer = d.appData.value(QStringLiteral("footers")).toBool();
+    return all;
+}
+
+void applyFooters(Document &d, const FooterOptions &o, Page *only)
+{
+    if (!only) {
+        d.appData[QStringLiteral("footerOptions")] = o.toJson();
+        d.appData[QStringLiteral("footers")] = o.any();
+    }
+    for (auto &p : d.pages) {
+        if (only && p.get() != only) continue;
+        const MasterPage *layout = d.masterFor(*p);
+        const QString ltype = layout ? layoutType(*layout) : QString();
+        for (const QString &type : {QStringLiteral("dt"), QStringLiteral("ftr"), QStringLiteral("sldNum")}) {
+            auto at = std::find_if(p->items.begin(), p->items.end(), [&](const ItemPtr &it) { return placeholderType(*it) == type; });
+            if (!o.shows(type, ltype)) {
+                if (at == p->items.end()) continue;
+                if ((*at)->type() == ItemType::Text) d.removeStory(static_cast<TextItem *>(at->get())->storyId);
+                p->items.erase(at);
+                continue;
+            }
+            if (at == p->items.end()) {
+                const Item *from = layout ? layoutPlaceholder(d, *layout, type) : nullptr;
+                if (!from) continue;
+                p->items.push_back(slidePlaceholder(d, *from));
+                at = std::prev(p->items.end());
+            }
+            fillFooter(d, **at, type, o);
+        }
+    }
+}
+
+void setSlideBackground(Page &slide, const QColor &color) { slide.background = Fill::solid(ColorRef::rgb(color)); }
+
+void setAllBackgrounds(Document &d, const QColor &color)
+{
+    for (auto &m : d.masters) {
+        if (isSlideMaster(*m)) m->background = Fill::solid(ColorRef::rgb(color));
+        else if (isLayout(*m)) m->background = Fill();
+    }
+    for (auto &p : d.pages) p->background = Fill();
 }
 
 } // namespace jp::deck
