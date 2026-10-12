@@ -3,6 +3,7 @@
 #include "core/appinfo.h"
 #include "core/color.h"
 #include "core/deck.h"
+#include "core/transition.h"
 #include "io/cfb.h"
 #include "office/odraw.h"
 #include "text/textprops.h"
@@ -704,6 +705,33 @@ QString sizeName(int type, const QSizeF &size)
     }
     default: return QStringLiteral("Custom");
     }
+}
+
+// A slide's transition from the numbers of its slide show info: the effect (0 none, 4 cover, 5 dissolve, 6 fade, 7 uncover,
+// 10 wipe, 11 zoom, 13 split; any other is a fade), its direction (left, up, right, down; for a split or a zoom, 0 and 1 go
+// out and in), its speed (slow, medium, fast), when the slide moves on by itself, and whether a click moves it on.
+Transition transitionOf(int effect, int direction, int speed, int flags, qint32 timeMs)
+{
+    Transition t;
+    switch (effect) {
+    case 0: t.type = QStringLiteral("none"); break;
+    case 4: t.type = QStringLiteral("cover"); break;
+    case 7: t.type = QStringLiteral("uncover"); break;
+    case 10: t.type = QStringLiteral("wipe"); break;
+    case 11: t.type = QStringLiteral("zoom"); break;
+    case 13: t.type = QStringLiteral("split"); break;
+    default: t.type = QStringLiteral("fade"); break;
+    }
+    if (t.hasDirection()) {
+        static const char *const dirs[] = {"l", "u", "r", "d"};
+        t.dir = QString::fromLatin1(dirs[direction & 3]);
+    } else if (t.hasInOut()) {
+        t.dir = direction & 1 ? QStringLiteral("in") : QStringLiteral("out");
+    }
+    if (effect != 0) t.duration = speed == 0 ? 1.0 : speed == 1 ? 0.7 : 0.5;
+    if (flags & 0x100) t.advanceAfter = std::max(0.0, timeMs / 1000.0);
+    t.advanceOnClick = (flags & 1) || !(flags & 0x100);
+    return t;
 }
 
 // The colors a scheme has when a master names none.
@@ -1536,16 +1564,18 @@ void Importer::readSlide(int number, const SlideEntry &e)
         hasOwn = true;
     }
     const bool ownColors = hasOwn && !(flags & 2);
-    // How the slide ends and moves on: the flags hide it; the rest is kept as the file has it.
+    // How the slide ends and moves on: the flags hide it, and the effect, its direction and speed, and when the
+    // slide moves on are the slide's transition. What the file says is also kept as it is, when there is an effect.
     if (const Rec *info = find(kids, RT_SlideShowSlideInfoAtom); info && info->len >= 16) {
         Cursor ic(d, info->off, info->end());
         const qint32 time = ic.i32();
         ic.u32();
         const int direction = ic.u8(), effect = ic.u8(), infoFlags = ic.u16(), speed = ic.u8();
         page->hidden = infoFlags & 0x4;
-        if (effect != 0 || (infoFlags & 0x100))
+        if (effect != 0)
             page->props[QStringLiteral("binaryTransition")] = QJsonObject{{"effect", effect}, {"direction", direction}, {"speed", speed},
                                                                           {"advanceOnTime", bool(infoFlags & 0x100)}, {"advanceMs", time}, {"advanceOnClick", bool(infoFlags & 1)}};
+        setTransition(*page, transitionOf(effect, direction, speed, infoFlags, time));
     }
 
     PageState st;

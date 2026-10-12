@@ -591,13 +591,21 @@ private Q_SLOTS:
         QCOMPARE(body->begin().blockFormat().leftMargin(), 90.0);
         QCOMPARE(body->begin().blockFormat().textIndent(), -54.0);
 
-        const QJsonObject t = slide.props.value(QStringLiteral("binaryTransition")).toObject();
-        QCOMPARE(t.value(QStringLiteral("effect")).toInt(), 6);
-        QCOMPARE(t.value(QStringLiteral("direction")).toInt(), 1);
-        QCOMPARE(t.value(QStringLiteral("speed")).toInt(), 2);
-        QVERIFY(t.value(QStringLiteral("advanceOnTime")).toBool());
-        QCOMPARE(t.value(QStringLiteral("advanceMs")).toInt(), 3000);
+        // Effect 6 (a fade), medium speed, moving on by itself after 3 seconds and on a click.
+        const deck::Transition fade = deck::transitionOf(slide);
+        QCOMPARE(fade.type, QStringLiteral("fade"));
+        QCOMPARE(fade.duration, 0.5);
+        QVERIFY(fade.advanceAfter.has_value());
+        QCOMPARE(*fade.advanceAfter, 3.0);
+        QVERIFY(fade.advanceOnClick);
+        // What the file said is kept too.
+        const QJsonObject raw = slide.props.value(QStringLiteral("binaryTransition")).toObject();
+        QCOMPARE(raw.value(QStringLiteral("effect")).toInt(), 6);
+        QCOMPARE(raw.value(QStringLiteral("direction")).toInt(), 1);
+        QCOMPARE(raw.value(QStringLiteral("speed")).toInt(), 2);
+        QCOMPARE(raw.value(QStringLiteral("advanceMs")).toInt(), 3000);
         QVERIFY(!d->pages[0]->props.contains(QStringLiteral("binaryTransition")));
+        QVERIFY(!d->pages[0]->props.contains(QStringLiteral("transition")));
     }
 
     // Files that can't be read say why: protected with a password, cut short,
