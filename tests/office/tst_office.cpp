@@ -3729,6 +3729,44 @@ private Q_SLOTS:
         QCOMPARE(QColor(got.pixel(1, 0)), QColor(0xFF, 0xFF, 0x00));   // white the second (here the reference's)
     }
 
+    void itemSourceIdIsKeptInJsonAndNotByCopies()
+    {
+        auto s = std::make_shared<ShapeItem>();
+        QVERIFY(!s->toJson().contains(QStringLiteral("srcId")));
+        s->sourceId = 42;
+        QCOMPARE(s->toJson().value(QStringLiteral("srcId")).toInt(), 42);
+        const ItemPtr back = jp::Item::fromJsonAny(s->toJson());
+        QCOMPARE(back->sourceId, 42);
+        // A copy is a new shape.
+        QCOMPARE(s->clone()->sourceId, 0);
+        auto t = std::make_shared<TextItem>();
+        t->sourceId = 9;
+        QCOMPARE(t->clone()->sourceId, 0);
+        auto g = std::make_shared<GroupItem>();
+        g->children = {s};
+        g->sourceId = 3;
+        const ItemPtr copy = g->clone();
+        QCOMPARE(copy->sourceId, 0);
+        QCOMPARE(static_cast<GroupItem *>(copy.get())->children[0]->sourceId, 0);
+    }
+
+    void dmlReadKeepsTheNumbersShapesHad()
+    {
+        DmlEnv env;
+        ItemPtr sp = readShape(env.element(dmlSp(dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"ellipse\"/>"), QString(), QString(), QString(), QString(), QString(), QStringLiteral("17"))), env.ctx);
+        QVERIFY(sp);
+        QCOMPARE(sp->sourceId, 17);
+        ItemPtr text = readShape(env.element(dmlSp(dmlXfrm(0, 0, 10, 10), dmlBody(), QString(), QStringLiteral("txBox=\"1\""), QString(), QString(), QStringLiteral("23"))), env.ctx);
+        QVERIFY(text);
+        QCOMPARE(text->sourceId, 23);
+        ItemPtr group = readShape(env.element(QStringLiteral("<p:grpSp><p:nvGrpSpPr><p:cNvPr id=\"30\" name=\"G\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr>%1</p:grpSpPr>%2</p:grpSp>")
+                                                .arg(dmlXfrm(0, 0, 10, 10).replace(QStringLiteral("</a:xfrm>"), QStringLiteral("<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"127000\" cy=\"127000\"/></a:xfrm>")),
+                                                     dmlSp(dmlXfrm(0, 0, 5, 5) + QStringLiteral("<a:prstGeom prst=\"ellipse\"/>"), QString(), QString(), QString(), QString(), QString(), QStringLiteral("31")))), env.ctx);
+        QVERIFY(group);
+        QCOMPARE(group->sourceId, 30);
+        QCOMPARE(static_cast<GroupItem *>(group.get())->children[0]->sourceId, 31);
+    }
+
     void dmlBackgroundReadsItsFill()
     {
         DmlEnv env;

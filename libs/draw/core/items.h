@@ -35,6 +35,10 @@ public:
     virtual ItemPtr clone() const = 0;
 
     QString id = newId();
+    // The number a file gave the object (a slide's shape id), 0 for one that
+    // is new here or a copy: saving the file again gives it the same number,
+    // so what refers to it (an animation) still does.
+    int sourceId = 0;
     QString name;
     // What the box is for in a design (title, body, picture...): Change Template
     // moves your content into the new design's box with the same role.
