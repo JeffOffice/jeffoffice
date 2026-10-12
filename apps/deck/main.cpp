@@ -10,6 +10,7 @@
 #include "app/crash.h"
 #include "app/deckinfo.h"
 #include "app/deckwindow.h"
+#include "app/editor.h"
 #include "app/focusring.h"
 #include "app/i18n.h"
 #include "app/icons.h"
@@ -20,8 +21,42 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QFileOpenEvent>
 #include <QStyleFactory>
 #include <QTimer>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
+namespace {
+// A presentation opened from the Finder (Open With, or dragged onto the app)
+// comes as an event, not on the command line: into a window still empty,
+// else a new one.
+class FileOpener : public QObject {
+public:
+    using QObject::QObject;
+    bool eventFilter(QObject *o, QEvent *e) override
+    {
+        if (e->type() != QEvent::FileOpen) return QObject::eventFilter(o, e);
+        const QString path = static_cast<QFileOpenEvent *>(e)->file();
+        if (path.isEmpty()) return false;
+        jp::DeckWindow *target = nullptr;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *w = qobject_cast<jp::DeckWindow *>(top))
+                if (w->isVisible() && w->editor()->filePath().isEmpty() && !w->editor()->isModified()) target = w;
+        if (!target) {
+            target = new jp::DeckWindow();
+            target->setAttribute(Qt::WA_DeleteOnClose);
+            target->show();
+        }
+        target->openFile(path);
+        target->raise();
+        target->activateWindow();
+        return true;
+    }
+};
+} // namespace
 
 int main(int argc, char **argv)
 {
@@ -55,6 +90,7 @@ int main(int argc, char **argv)
     jp::followSystemTheme();
     jp::installUiPolish();
     jp::installFocusRing(&app);
+    app.installEventFilter(new FileOpener(&app));
 
     auto *w = new jp::DeckWindow();
     w->setAttribute(Qt::WA_DeleteOnClose);
@@ -84,6 +120,10 @@ int main(int argc, char **argv)
         });
         return app.exec();
     }
+#ifdef Q_OS_WIN
+    // Lets the installer see that JeffDeck is running and ask to close it first.
+    CreateMutexW(nullptr, FALSE, L"JeffDeckRunning");
+#endif
     w->show();
     if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
     // A normal exit takes this run's AutoRecover copies with it; copies a
