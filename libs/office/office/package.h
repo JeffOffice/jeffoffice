@@ -37,6 +37,11 @@ public:
     // A failed read leaves the package empty.
     bool read(const QByteArray &zip, QString *error = nullptr);
     bool readFile(const QString &path, QString *error = nullptr);
+    // The same for a package of the open document kind (.odp and its kin):
+    // the ZIP of named parts ("mimetype", "content.xml", "Pictures/a.png")
+    // with no [Content_Types].xml or relationships, so it has no content types,
+    // no relationships, and no main part. The refusals are the same.
+    bool readOpenDocument(const QByteArray &zip, QString *error = nullptr);
 
     // Every part, in order of name. [Content_Types].xml and the relationship
     // parts are not listed: they have their own accessors below.
@@ -61,6 +66,8 @@ public:
     QString mainPart() const;
 
 private:
+    bool load(const QByteArray &zip, QString *error, bool opc);
+
     QMap<QString, QByteArray> m_parts;              // by part name, relationship parts too
     QHash<QString, QString> m_names;                // lower-cased part name -> name as stored
     QHash<QString, QString> m_defaults;             // lower-cased extension -> content type
