@@ -21,6 +21,9 @@ public:
     explicit SlidesPane(Editor *ed, QWidget *parent = nullptr);
     // Draws the thumbnails again (soon, or now).
     void refresh(bool soon = false);
+    // Shows the editor's current slide as the current one, without drawing
+    // the thumbnails again (unless slides were added or removed).
+    void followCurrent();
     // Where row `row`'s thumbnail is, in the pane's viewport.
     QRect thumbnailRect(int row) const;
 

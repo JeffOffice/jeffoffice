@@ -9,6 +9,7 @@
 #include "app/filedialogs.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/outlineview.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
 #include "core/deck.h"
@@ -207,6 +208,7 @@ void DeckWindow::setSlideSize(const QSizeF &size)
 {
     if (size.isEmpty() || size == m_ed->doc()->pageSize()) return;
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Slide Size"));
     deck::setSlideSize(*m_ed->doc(), size);
@@ -262,6 +264,7 @@ void DeckWindow::applyFooters(const deck::FooterOptions &options, bool all)
     const int i = m_ed->currentPage();
     if (!all && (i < 0 || i >= d->pages.size())) return;
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Header & Footer"));
     deck::applyFooters(*d, options, all ? nullptr : d->pages[i].get());

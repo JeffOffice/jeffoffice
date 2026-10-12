@@ -69,6 +69,7 @@ void DeckWindow::createViewModeActions()
 void DeckWindow::setView(View view)
 {
     m_notes->commit();
+    if (m_outline) m_outline->commit();
     m_outline->commit();
     const View was = m_view;
     m_view = view;

@@ -99,6 +99,19 @@ void SlidesPane::refresh(bool soon)
     else rebuild();
 }
 
+void SlidesPane::followCurrent()
+{
+    const Document *d = m_ed->doc();
+    if (!d) return;
+    if (count() != d->pages.size()) {
+        rebuild();
+        return;
+    }
+    m_updating = true;
+    setCurrentRow(std::clamp(m_ed->currentPage(), 0, int(d->pages.size()) - 1));
+    m_updating = false;
+}
+
 void SlidesPane::rebuild()
 {
     const Document *d = m_ed->doc();
