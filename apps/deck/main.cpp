@@ -1,6 +1,6 @@
 // JeffDeck entry point.
 //
-//   JeffDeck                            a new presentation
+//   JeffDeck [file ...]                 open presentations (.pptx, .potx, .ppsx), or start a new one
 //   JeffDeck --screenshot <png> [--size WxH]
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
@@ -38,6 +38,7 @@ int main(int argc, char **argv)
     QCommandLineOption shotOpt(QStringLiteral("screenshot"), QCoreApplication::translate("Main", "Save a screenshot of the window and quit."), QStringLiteral("png"));
     QCommandLineOption sizeOpt(QStringLiteral("size"), QCoreApplication::translate("Main", "Window size for --screenshot."), QStringLiteral("WxH"), QStringLiteral("1440x900"));
     cli.addOptions({shotOpt, sizeOpt});
+    cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Presentations to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
     jp::initCore();
@@ -49,6 +50,16 @@ int main(int argc, char **argv)
 
     auto *w = new jp::DeckWindow();
     w->setAttribute(Qt::WA_DeleteOnClose);
+    const QStringList files = cli.positionalArguments();
+    if (!files.isEmpty()) {
+        w->openFile(files.first());
+        for (int i = 1; i < files.size(); ++i) {
+            auto *other = new jp::DeckWindow();
+            other->setAttribute(Qt::WA_DeleteOnClose);
+            other->openFile(files[i]);
+            other->show();
+        }
+    }
     if (cli.isSet(shotOpt)) {
         const QStringList wh = cli.value(sizeOpt).split('x');
         w->resize(wh.value(0).toInt() > 0 ? wh.value(0).toInt() : 1440, wh.value(1).toInt() > 0 ? wh.value(1).toInt() : 900);
