@@ -209,7 +209,8 @@ private:
     // has a field, a link, a language, and a ruler, and that fades in. `cycle`
     // makes the older edit point back at the newer. `notesByAtom` leaves the
     // first slide without the id of its notes, which then name the slide.
-    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false)
+    // `bodyGroup` stands for the first slide's body text.
+    static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
@@ -227,7 +228,7 @@ private:
             + pptBox(4080, slidePersist(3, 0, kMaster) + (titleMaster ? slidePersist(7, 0, kTitleMaster) : QByteArray()), 1)
             + pptBox(4080,
                      slidePersist(5, 2, 0x100) + pptText(0, QStringLiteral("Quarterly Results"), pfRun(18, 0, 0) + cfRun(18, 0), true)
-                         + pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(12, 0) + cfRun(6, 1, le(1, 2)) + cfRun(19, 0))
+                         + (!bodyGroup.isEmpty() ? bodyGroup : pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(12, 0) + cfRun(6, 1, le(1, 2)) + cfRun(19, 0)))
                          + slidePersist(4, 2, 0x101) + pptText(0, QStringLiteral("Plan"), QByteArray(), true)
                          // The first paragraph turns its bullet off: the bullet flags name only hasBullet, and it is clear.
                          + pptText(1, QStringLiteral("Ship\vit"), pfRun(8, 0, 1, le(0, 2)) + cfRun(8, 0))
@@ -565,6 +566,23 @@ private Q_SLOTS:
         err.clear();
         QVERIFY(!deck::importBinaryPresentation(cfb::write(other), &err));
         QVERIFY(!err.isEmpty());
+    }
+
+    // A text of thousands of paragraphs, a bullet on each, is read to a limit and
+    // quickly (a list takes its items at a cost that grows with its length).
+    void binaryPresentationLimitsHugeTexts()
+    {
+        QString text;
+        for (int i = 0; i < 30000; ++i) text += QStringLiteral("a\r");
+        const QByteArray big = pptRec(3999, le(1, 4)) + pptRec(4000, utf16(text)) + pptRec(4001, pfRun(text.size() + 1, 0, 0) + cfRun(text.size() + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, big), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("paragraphs")), qPrintable(err));
+        const QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QCOMPARE(body->blockCount(), 10000);
+        QVERIFY(body->begin().textList());
     }
 
     // Damage to the bytes of the streams never crashes or hangs the reader: a
