@@ -3,6 +3,7 @@
 
 #include "app/textdialogs.h"
 
+#include "app/appwords.h"
 #include "app/editor.h"
 #include "app/settings.h"
 #include "app/widgets.h"
@@ -169,7 +170,7 @@ void fontDialog(QWidget *p, Editor *ed)
     const QList<QCheckBox *> boxes{sup, sub, strike, smallcaps, allcaps, shadow, outline, emboss, engrave};
     for (int i = 0; i < boxes.size(); ++i) eg->addWidget(boxes[i], i / 3, i % 3);
     dlg.v->addWidget(effects);
-    auto *preview = new QLabel(QCoreApplication::translate("Dialogs", "JeffPub sample text"), &dlg.d);
+    auto *preview = new QLabel(forThisApp(QCoreApplication::translate("Dialogs", "JeffPub sample text")), &dlg.d);
     preview->setMinimumHeight(48);
     preview->setAlignment(Qt::AlignCenter);
     preview->setFrameShape(QFrame::StyledPanel);
