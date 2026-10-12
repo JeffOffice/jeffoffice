@@ -34,7 +34,8 @@ constexpr qint64 kMaxRecords = 1000000;   // read from one stream
 constexpr int kMaxEdits = 100000;
 // What one text may hold, and all the texts together: more is left out.
 constexpr qint64 kMaxTextChars = 1 << 20, kMaxTotalChars = 20 << 20;
-constexpr int kMaxRuns = 200000;
+constexpr int kMaxRuns = 20000, kMaxParagraphs = 10000;
+constexpr qint64 kMaxTotalParagraphs = 200000, kMaxTotalPieces = 500000;
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
 // The format's unit for places and sizes is 1/576 inch.
@@ -516,7 +517,7 @@ struct MasterInfo {
     QColor scheme[8];
     StyleSet styles;
     QString name;
-    QByteArray drawing;         // its drawing's OfficeArtDgContainer
+    QByteArray drawing;         // its drawing container (0xF002), header and all
     ItemList items;
     Fill background;
     std::shared_ptr<MasterPage> page;               // the slide master, of a main master
@@ -808,8 +809,8 @@ private:
     bool m_notesIndexed = false;
 
     PageState *m_state = nullptr;
-    qint64 m_chars = 0;
-    bool m_charLimitSaid = false;
+    qint64 m_chars = 0, m_paragraphs = 0, m_pieces = 0;
+    bool m_charLimitSaid = false, m_paragraphLimitSaid = false;
     int m_layoutCount = 0;
     bool m_footers = false;
     QStringList m_notes;
@@ -1759,6 +1760,9 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
     }
     m_chars += text.size();
     const qint64 n = text.size();
+    // The text is put in at once, with no history kept of it.
+    const bool undo = doc->isUndoRedoEnabled();
+    doc->setUndoRedoEnabled(false);
     const RunIndex<PfRun> pfIndex(g.pf);
     const RunIndex<CfRun> cfIndex(g.cf);
     const RunIndex<LangRun> langIndex(g.lang);
@@ -1776,11 +1780,19 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
     int nextLink = 0;
 
     QTextCursor cur(doc);
+    cur.beginEditBlock();
     bool firstBlock = true;
     QTextList *list = nullptr;
     QString listKey;
+    int inList = 0;
     qint64 start = 0;
+    int paragraphs = 0;
     for (;;) {
+        if (++paragraphs > kMaxParagraphs || ++m_paragraphs > kMaxTotalParagraphs) {
+            if (!m_paragraphLimitSaid) note(say("A text has more paragraphs than can be read; the rest is left out."));
+            m_paragraphLimitSaid = true;
+            break;
+        }
         qint64 end = text.indexOf(QLatin1Char('\r'), qsizetype(start));
         const bool hasEnd = end >= 0;
         if (!hasEnd) end = n;
@@ -1823,18 +1835,21 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         qint64 pos = start;
         while (pos < end) {
             qint64 next = end;
-            const int ci = cfIndex.at(pos), li = langIndex.at(pos);
+            // Past the limit on pieces, what is left of the paragraph is one piece in the paragraph's own style.
+            const bool plain = m_pieces >= kMaxTotalPieces;
+            ++m_pieces;
+            const int ci = plain ? -1 : cfIndex.at(pos), li = plain ? -1 : langIndex.at(pos);
             if (ci >= 0) next = std::min(next, cfIndex.endOf(ci));
             if (li >= 0) next = std::min(next, langIndex.endOf(li));
-            const FieldMark *field = fields.value(pos, nullptr);
+            const FieldMark *field = plain ? nullptr : fields.value(pos, nullptr);
             if (field) {
                 next = pos + 1;
-            } else if (const auto it = std::upper_bound(fieldPositions.cbegin(), fieldPositions.cend(), pos); it != fieldPositions.cend()) {
+            } else if (const auto it = std::upper_bound(fieldPositions.cbegin(), fieldPositions.cend(), pos); !plain && it != fieldPositions.cend()) {
                 next = std::min(next, *it);
             }
             const LinkMark *link = nullptr;
-            while (nextLink < links.size() && links[nextLink].end <= pos) ++nextLink;
-            if (nextLink < links.size()) {
+            while (!plain && nextLink < links.size() && links[nextLink].end <= pos) ++nextLink;
+            if (!plain && nextLink < links.size()) {
                 const LinkMark &l = links[nextLink];
                 if (l.start <= pos) {
                     link = &l;
@@ -1921,9 +1936,12 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             if (std::abs(markSize - size) < 0.01) markSize = 0;
             const QString color = (pf.flags & BulletOwnColor) ? ColorRef::rgb(colorOf(pf.bulletColor, ctx, QColor(Qt::black))).toString() : QString();
             const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6").arg(level).arg(ch).arg(font).arg(markSize).arg(color).arg(leftMargin);
-            if (list && key == listKey) {
+            // (A list takes its items one by one at a cost that grows with its length, so a long run of bullets is cut into lists of at most 400.)
+            if (list && key == listKey && inList < 400) {
                 list->add(cur.block());
+                ++inList;
             } else {
+                inList = 1;
                 QTextListFormat lf;
                 lf.setStyle(QTextListFormat::ListDisc);
                 lf.setIndent(0);
@@ -1944,6 +1962,8 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         if (!hasEnd) break;
         start = end + 1;
     }
+    cur.endEditBlock();
+    doc->setUndoRedoEnabled(undo);
     return id;
 }
 
