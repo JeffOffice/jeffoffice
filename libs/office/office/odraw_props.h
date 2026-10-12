@@ -24,7 +24,7 @@ public:
     void set(quint16 id, quint32 value);
     // Takes the properties of the shape this one takes after: those `under`
     // has that this one hasn't, and the flags of a boolean property that this
-    // one doesn't use.
+    // one doesn't use; but not its name, alternative text, hyperlink, or XML.
     void inherit(const Props &under);
     bool has(quint16 id) const { return m_props.contains(id) || (m_fallback && m_fallback->has(id)); }
     // The property's value (for a complex one, the length of its data).

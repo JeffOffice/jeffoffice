@@ -78,6 +78,8 @@ void Props::set(quint16 id, quint32 value)
 void Props::inherit(const Props &under)
 {
     for (auto it = under.m_props.cbegin(); it != under.m_props.cend(); ++it) {
+        // What names a shape or links it, and the XML its writer kept for it, is its own.
+        if (it.key() == 0x0380 || it.key() == 0x0381 || it.key() == 0x0382 || it.key() == 0x03A9) continue;
         const auto mine = m_props.find(it.key());
         if (mine == m_props.end()) m_props.insert(it.key(), it.value());
         else if (isFlagProperty(it.key()) && mine->complex.isEmpty()) mine->value = mergedFlags(it->value, mine->value);

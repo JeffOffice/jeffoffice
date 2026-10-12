@@ -289,10 +289,11 @@ private:
     // makes the older edit point back at the newer. `notesByAtom` leaves the
     // first slide without the id of its notes, which then name the slide.
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
-    // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, and `masterBackground`
-    // a shape for its drawing.
+    // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
+    // a shape for its drawing, and `masterExtra` more records for the main master.
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
-                               const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray())
+                               const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
+                               const QByteArray &masterExtra = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
@@ -331,6 +332,7 @@ private:
         const QByteArray mainMaster = pptBox(1016, slideAtom(1, QByteArray("\x01\x02\x07\x08\x09", 5), 0, 0, 3) + colorScheme(1)
             // The title text: centered, the second font, 44 points, the title text color.
             + pptRec(4003, le(1, 2) + le(0x800, 4) + le(1, 2) + le(0x70000, 4) + le(1, 2) + le(44, 2) + pptColor(0, 0, 0, 3), 0)
+            + masterExtra
             + pptDrawing(pptShape(0x402, 1, QByteArray(), 100, 200, 5000, 900, masterTitleProps) + pptShape(0x403, 2, QByteArray()) + masterBackground));
         const QByteArray titleMasterRec = pptBox(1016, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
             // The centered title and the subtitle, with only their sizes (the levels of these two start with their number).
@@ -2648,6 +2650,76 @@ private Q_SLOTS:
         QVERIFY(seen >= 3);
         for (const auto &m : d->masters)
             for (const auto &it : m->items) QVERIFY2(it->wrap.mode == Wrap::None, qPrintable(it->role));
+    }
+
+    // The XML a presentation's writer kept for a shape beside its old properties says what the shape looks like where they can't: its
+    // fill and line, and colors by the theme's names (the theme the writer kept with the master). What it doesn't say stays.
+    void importBinaryShapesTakeTheirLookFromTheWritersXml()
+    {
+        auto xmlPackage = [&](const QString &properties) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/drs/shapexml.xml"),
+                      QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:sp xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" "
+                                     "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><p:nvSpPr><p:cNvPr id=\"2\" name=\"R\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>"
+                                     "<p:spPr>%1</p:spPr></p:sp>").arg(properties).toUtf8(),
+                      QStringLiteral("application/xml"));
+            return w.finish();
+        };
+        // An old shape: filled blue, with a red line, and the writer's XML as property 0x03A9, whose data follows the table.
+        auto rectangle = [&](quint32 id, int top, const QByteArray &package) {
+            QByteArray table = le(0x0181, 2) + le(0xFF0000, 4) + le(0x01BF, 2) + le(0x00100010, 4) + le(0x01C0, 2) + le(0x0000FF, 4) + le(0x01FF, 2) + le(0x00080008, 4)
+                               + le(0x03A9 | 0x8000, 2) + le(quint32(package.size()), 4);
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, table + package, 5, 3) + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2)));
+        };
+        const QByteArray shapes = rectangle(0x500, 100, xmlPackage(QStringLiteral("<a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill><a:ln w=\"12700\"><a:noFill/></a:ln>")))
+                                  + rectangle(0x501, 800, xmlPackage(QStringLiteral("<a:solidFill><a:schemeClr val=\"accent1\"><a:alpha val=\"50000\"/></a:schemeClr></a:solidFill>")))
+                                  + rectangle(0x502, 1500, xmlPackage(QStringLiteral("<a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"10\" cy=\"10\"/></a:xfrm>")))
+                                  + rectangle(0x503, 2200, QByteArray("not a package"));
+        // The master's theme (as a package) and color mapping, as the writer kept them: accent 1 is magenta.
+        office::PackageWriter t;
+        t.addPart(QStringLiteral("/theme/theme/theme1.xml"),
+                  QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"T\"><a:themeElements>"
+                             "<a:clrScheme name=\"C\"><a:dk1><a:srgbClr val=\"000000\"/></a:dk1><a:lt1><a:srgbClr val=\"FFFFFF\"/></a:lt1><a:dk2><a:srgbClr val=\"111111\"/></a:dk2>"
+                             "<a:lt2><a:srgbClr val=\"EEEEEE\"/></a:lt2><a:accent1><a:srgbClr val=\"FF00FF\"/></a:accent1><a:accent2><a:srgbClr val=\"00FFFF\"/></a:accent2>"
+                             "<a:accent3><a:srgbClr val=\"333333\"/></a:accent3><a:accent4><a:srgbClr val=\"444444\"/></a:accent4><a:accent5><a:srgbClr val=\"555555\"/></a:accent5>"
+                             "<a:accent6><a:srgbClr val=\"666666\"/></a:accent6><a:hlink><a:srgbClr val=\"0000FF\"/></a:hlink><a:folHlink><a:srgbClr val=\"800080\"/></a:folHlink></a:clrScheme>"
+                             "<a:fontScheme name=\"F\"><a:majorFont><a:latin typeface=\"Alpha Sans\"/></a:majorFont><a:minorFont><a:latin typeface=\"Alpha Sans\"/></a:minorFont></a:fontScheme>"
+                             "<a:fmtScheme name=\"M\"/></a:themeElements></a:theme>"),
+                  QStringLiteral("application/xml"));
+        const QByteArray masterExtra = pptRec(1038, t.finish())
+                                       + pptRec(1039, QByteArray("<?xml version=\"1.0\"?><p:clrMap xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" "
+                                                                 "accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" "
+                                                                 "hlink=\"hlink\" folHlink=\"folHlink\"/>"));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes, QByteArray(), QByteArray(), masterExtra), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const Item *> plain;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role.isEmpty() && it->type() == ItemType::Shape) plain << it.get();
+        QCOMPARE(int(plain.size()), 4);
+        // Its own color and no line, where the old properties say blue and red.
+        QVERIFY(plain[0]->fill.type == Fill::Solid);
+        QCOMPARE(plain[0]->fill.color.rgbValue(), QColor(0, 255, 0));
+        QVERIFY(plain[0]->stroke.isNone());
+        // A color by name is the master's theme's, with its transparency; the line it says nothing of stays.
+        QVERIFY(plain[1]->fill.type == Fill::Solid);
+        QCOMPARE(plain[1]->fill.color.rgbValue(), QColor(255, 0, 255));
+        QVERIFY(qAbs(plain[1]->fill.transparency - 0.5) < 0.01);
+        QCOMPARE(plain[1]->stroke.color.rgbValue(), QColor(255, 0, 0));
+        // A shape the XML says nothing of the look of, and one whose XML can't be read, stay as the old properties have them.
+        QCOMPARE(plain[2]->fill.color.rgbValue(), QColor(0, 0, 255));
+        QCOMPARE(plain[2]->stroke.color.rgbValue(), QColor(255, 0, 0));
+        QCOMPARE(plain[3]->fill.color.rgbValue(), QColor(0, 0, 255));
+        // A theme and a color mapping that can't be read: the colors the XML spells out still show, and the named ones are the defaults'.
+        d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes, QByteArray(), QByteArray(),
+                                                    pptRec(1038, QByteArray("not a package")) + pptRec(1039, QByteArray("<not xml"))), &err);
+        QVERIFY2(d, qPrintable(err));
+        plain.clear();
+        for (const auto &it : d->pages[0]->items)
+            if (it->role.isEmpty() && it->type() == ItemType::Shape) plain << it.get();
+        QCOMPARE(int(plain.size()), 4);
+        QCOMPARE(plain[0]->fill.color.rgbValue(), QColor(0, 255, 0));
+        QVERIFY(plain[1]->fill.type == Fill::Solid);
     }
 
     // A paragraph with no text has no bullet, as the presentation program draws it: the blank lines between the points of a list.

@@ -244,6 +244,8 @@ public:
         QRectF rect;
         place(s, parent, &rect);
         ItemPtr it = makeItem(s, rect);
+        if (it && ctx.richLook)
+            if (const QByteArray xml = s.props.complex(0x03A9); !xml.isEmpty()) ctx.richLook(*it, xml);
         if (it) client(*it, s);
         return it;
     }

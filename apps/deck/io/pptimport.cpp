@@ -5,13 +5,19 @@
 #include "core/deck.h"
 #include "core/transition.h"
 #include "io/cfb.h"
+#include "office/drawingml.h"
+#include "office/drawingml_style.h"
 #include "office/odraw.h"
+#include "office/package.h"
+#include "office/theme.h"
+#include "office/xml.h"
 #include "render/renderer.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QBuffer>
 #include <QCoreApplication>
+#include <QDomDocument>
 #include <QElapsedTimer>
 #include <QHash>
 #include <QImage>
@@ -19,6 +25,7 @@
 #include <QJsonObject>
 #include <QMap>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -46,6 +53,9 @@ constexpr int kMaxRuns = 20000, kMaxParagraphs = 10000;
 constexpr qint64 kMaxTotalParagraphs = 200000, kMaxTotalPieces = 500000;
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
+// The XML a writer kept for a shape or a theme: the most of one that is read, and of all of them.
+constexpr qsizetype kMaxWritersXml = 1 << 20;
+constexpr qint64 kMaxTotalWritersXml = 64 << 20;
 // What the frames made as tall as their text may cost: the time (milliseconds) all of them take together, and the size of a text.
 constexpr int kFitMilliseconds = 4000;
 constexpr int kFitMaxChars = 20000;
@@ -162,6 +172,7 @@ const Rec *find(const QVector<Rec> &list, quint16 type, int inst = -1)
 enum : quint16 {
     RT_Document = 1000, RT_DocumentAtom = 1001, RT_Slide = 1006, RT_SlideAtom = 1007, RT_Notes = 1008, RT_NotesAtom = 1009, RT_Environment = 1010,
     RT_SlidePersistAtom = 1011, RT_MainMaster = 1016, RT_SlideShowSlideInfoAtom = 1017, RT_ExObjList = 1033, RT_DrawingGroup = 1035, RT_PPDrawing = 1036,
+    RT_RoundTripThemeAtom = 1038, RT_RoundTripColorMappingAtom = 1039,
     RT_FontCollection = 2005, RT_ColorSchemeAtom = 2032, RT_PlaceholderAtom = 3011, RT_OutlineTextRefAtom = 3998, RT_TextHeaderAtom = 3999,
     RT_TextCharsAtom = 4000, RT_StyleTextPropAtom = 4001, RT_MasterTextPropAtom = 4002, RT_TextMasterStyleAtom = 4003, RT_TextCFExceptionAtom = 4004,
     RT_TextPFExceptionAtom = 4005, RT_TextRulerAtom = 4006, RT_TextBytesAtom = 4008, RT_TextSpecialInfoAtom = 4010, RT_FontEntityAtom = 4023,
@@ -518,6 +529,15 @@ struct SlideEntry {
     QVector<TextGroup> groups;
 };
 
+// The theme a master's writer kept with it (the old format's round-trip records hold the 2007 program's), the shape XML names colors by,
+// with its list of styles and the master's color mapping.
+struct WritersTheme {
+    office::Theme theme = office::defaultTheme();
+    QDomDocument dom;         // the theme part's XML, which `formats` points into
+    QDomElement formats;
+    office::ColorMap colors;
+};
+
 // A slide master: a main master, or a title master, which the title slides of a main master stand on.
 struct MasterInfo {
     quint32 persist = 0, slideId = 0;
@@ -530,6 +550,7 @@ struct MasterInfo {
     QString name;
     QByteArray drawing;         // its drawing container (0xF002), header and all
     QMap<QString, QByteArray> shapeProps;   // the property records of its placeholder shapes, by type: what slides' placeholders take after
+    std::shared_ptr<WritersTheme> theme;    // the theme its writer kept with it, if it did
     ItemList items;
     Fill background;
     std::shared_ptr<MasterPage> page;               // the slide master, of a main master
@@ -873,6 +894,8 @@ private:
     void clientShape(Item &item, const QByteArray &textbox, const QByteArray &clientData);
     ItemList readShapes(const QByteArray &drawing, PageState &st);
 
+    std::shared_ptr<WritersTheme> readWritersTheme(const QByteArray &themePackage, const QByteArray &colorMapping) const;
+    void takeLookFromWritersXml(Item &item, const QByteArray &package);
     void fitFramesToText();
     void note(const QString &text);
 
@@ -893,6 +916,7 @@ private:
     QVector<office::OdrawStoreEntry> m_store;
     QByteArray m_defaults;   // the drawing group's default property records
     QHash<int, QString> m_pictureIds;
+    qint64 m_writersXmlBytes = 0;   // the XML of shapes read so far
     QHash<QString, QString> m_adjusted;   // pictures with brightness and contrast applied, by picture and the two
     QVector<SlideEntry> m_slides, m_masterList, m_notesList;
     std::vector<std::unique_ptr<MasterInfo>> m_masters;
@@ -1325,6 +1349,60 @@ Fill Importer::backgroundAt(const Fill &background, const QRectF &shape)
     return f;
 }
 
+// The theme a master's round-trip records hold: a package with the theme part, and the XML of the color mapping. None if they can't be read.
+std::shared_ptr<WritersTheme> Importer::readWritersTheme(const QByteArray &themePackage, const QByteArray &colorMapping) const
+{
+    office::Package package;
+    if (themePackage.size() > kMaxWritersXml || !package.read(themePackage)) return nullptr;
+    QByteArray xml;
+    for (const QString &name : package.partNames())
+        if (QRegularExpression(QStringLiteral("/theme\\d*\\.xml$"), QRegularExpression::CaseInsensitiveOption).match(name).hasMatch()) {
+            xml = package.part(name);
+            break;
+        }
+    auto theme = std::make_shared<WritersTheme>();
+    if (xml.isEmpty() || !office::readTheme(xml, &theme->theme) || !office::parseXml(xml, &theme->dom)) return nullptr;
+    theme->formats = office::childNamed(office::childNamed(theme->dom.documentElement(), "themeElements"), "fmtScheme");
+    QDomDocument map;
+    if (!colorMapping.isEmpty() && office::parseXml(colorMapping, &map)) theme->colors = office::readColorMap(map.documentElement());
+    return theme;
+}
+
+// The look of a shape from the XML its writer kept for it: the fill, and the line, as far as it states them; what it doesn't state the
+// old properties have said.
+void Importer::takeLookFromWritersXml(Item &item, const QByteArray &packageBytes)
+{
+    office::Package package;
+    QDomDocument dom;
+    if (packageBytes.size() > kMaxWritersXml || (m_writersXmlBytes += packageBytes.size()) > kMaxTotalWritersXml) return;
+    if (!package.read(packageBytes) || !office::parseXml(package.part(QStringLiteral("/drs/shapexml.xml")), &dom)) return;
+    const QDomElement properties = office::childNamed(dom.documentElement(), "spPr"), style = office::childNamed(dom.documentElement(), "style");
+    if (properties.isNull()) return;
+    const MasterInfo *source = m_state ? m_state->source : nullptr;
+    const std::shared_ptr<WritersTheme> theme = source && source->theme ? source->theme : source && source->main ? source->main->theme : nullptr;
+    office::DrawingContext ctx;
+    ctx.package = &package;
+    ctx.part = QStringLiteral("/drs/shapexml.xml");
+    if (theme) {
+        ctx.theme = theme->theme;
+        ctx.colors = theme->colors;
+        ctx.formats = theme->formats;
+    } else {
+        ctx.theme = office::defaultTheme();
+    }
+    ctx.addImage = [this](const QByteArray &bytes, const QString &format) { return m_doc.addImage(bytes, format); };
+    ctx.newStory = [this] { return m_doc.createStory(); };
+    ctx.storyDoc = [this](const QString &id) { return m_doc.storyDoc(id); };
+    if (office::hasOwnFill(properties)) item.fill = office::readFill(properties, style, ctx);
+    // A line that says what it is drawn with (and not just how wide).
+    const QDomElement line = office::childNamed(properties, "ln");
+    for (const char *kind : {"noFill", "solidFill", "gradFill", "pattFill"})
+        if (!office::childNamed(line, kind).isNull()) {
+            item.stroke = office::readLine(properties, style, ctx);
+            break;
+        }
+}
+
 // ---- The masters ----
 
 void Importer::readMasters()
@@ -1372,6 +1450,10 @@ void Importer::readMasters()
                     m->drawing = view(k);
                     break;
                 }
+        }
+        if (const Rec *t = find(kids, RT_RoundTripThemeAtom)) {
+            const Rec *map = find(kids, RT_RoundTripColorMappingAtom);
+            m->theme = readWritersTheme(view(*t, 0), map ? view(*map, 0) : QByteArray());
         }
         // A title master has the centered title and the subtitle, and a main master the title and the body; a master
         // that lists no placeholders is known by its layout.
@@ -2169,6 +2251,7 @@ office::OdrawContext Importer::drawingContext()
 {
     office::OdrawContext ctx;
     ctx.defaults = m_defaults;
+    ctx.richLook = [this](Item &item, const QByteArray &package) { takeLookFromWritersXml(item, package); };
     ctx.background = [this](const QRectF &shape) { return m_state ? backgroundAt(m_state->background, shape) : Fill(); };
     ctx.inherits = [this](const QByteArray &clientData) {
         // A slide's placeholder takes after its master's shape of its kind.
