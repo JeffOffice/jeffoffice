@@ -19,6 +19,7 @@
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
 #endif
@@ -223,6 +224,55 @@ void addFrame(const void *pc)
     else g_report.frame("unknown", 0);
 }
 
+#ifdef __APPLE__
+
+// Older SDKs read the registers directly.
+#ifndef __darwin_arm_thread_state64_get_pc
+#define __darwin_arm_thread_state64_get_pc(ts) ((ts).__pc)
+#define __darwin_arm_thread_state64_get_lr(ts) ((ts).__lr)
+#define __darwin_arm_thread_state64_get_fp(ts) ((ts).__fp)
+#endif
+
+// Each step of the call stack from where the signal stopped, by the chain of
+// frame pointers Apple's systems always keep. (backtrace() stops at the edge
+// of the thread's stack, and this handler runs on a stack of its own.)
+int stackAt(void *context, const void **frames, int max)
+{
+    const auto *state = &static_cast<ucontext_t *>(context)->uc_mcontext->__ss;
+#if defined(__aarch64__) || defined(__arm64__)
+    // The system's own code signs the return addresses it saves (pointer
+    // authentication) in the bits above the address; they're cleared here.
+    constexpr uintptr_t kAddress = (uintptr_t(1) << 47) - 1;
+    const uintptr_t pc = uintptr_t(__darwin_arm_thread_state64_get_pc(*state)) & kAddress;
+    const uintptr_t lr = uintptr_t(__darwin_arm_thread_state64_get_lr(*state)) & kAddress;
+    uintptr_t fp = uintptr_t(__darwin_arm_thread_state64_get_fp(*state));
+#else
+    constexpr uintptr_t kAddress = ~uintptr_t(0);
+    const uintptr_t pc = state->__rip, lr = 0;
+    uintptr_t fp = state->__rbp;
+#endif
+    const pthread_t self = pthread_self();
+    const uintptr_t top = reinterpret_cast<uintptr_t>(pthread_get_stackaddr_np(self)), bottom = top - pthread_get_stacksize_np(self);
+    auto onStack = [&](uintptr_t p) { return p >= bottom && p + 2 * sizeof(uintptr_t) <= top && p % sizeof(uintptr_t) == 0; };
+    int n = 0;
+    frames[n++] = reinterpret_cast<const void *>(pc);
+    // A function that calls nothing may not have saved its return address:
+    // it's still in the link register.
+    if (lr && max > 1 && (!onStack(fp) || (reinterpret_cast<const uintptr_t *>(fp)[1] & kAddress) != lr))
+        frames[n++] = reinterpret_cast<const void *>(lr);
+    while (n < max && onStack(fp)) {
+        const uintptr_t *record = reinterpret_cast<const uintptr_t *>(fp);   // {caller's frame, return address}
+        const uintptr_t ret = record[1] & kAddress;
+        if (!ret) break;
+        frames[n++] = reinterpret_cast<const void *>(ret);
+        if (record[0] <= fp) break;   // frames only go up the stack
+        fp = record[0];
+    }
+    return n;
+}
+
+#else
+
 // The instruction the signal stopped.
 const void *stoppedAt(void *context)
 {
@@ -236,23 +286,34 @@ const void *stoppedAt(void *context)
 #endif
 }
 
+// Each step of the call stack from where the signal stopped.
+int stackAt(void *context, const void **frames, int max)
+{
+    void *all[kMaxFrames + 8];
+    const int n = backtrace(all, kMaxFrames + 8);
+    // Start at the stopped instruction, past this handler and the system's
+    // code that called it; without it, after this handler.
+    const void *pc = stoppedAt(context);
+    int first = -1, out = 0;
+    for (int i = 0; i < n && first < 0; ++i)
+        if (all[i] == pc) first = i;
+    if (first < 0) {
+        first = 1;
+        if (pc) frames[out++] = pc;
+    }
+    for (int i = first; i < n && out < max; ++i) frames[out++] = all[i];
+    return out;
+}
+
+#endif
+
 void onSignal(int sig, siginfo_t *, void *context)
 {
     if (!g_crashed.exchange(true)) {
         g_report.begin("signal", sig);
-        void *frames[kMaxFrames + 8];
-        const int n = backtrace(frames, kMaxFrames + 8);
-        // Start at the stopped instruction, past this handler and the
-        // system's code that called it; without it, after this handler.
-        const void *pc = stoppedAt(context);
-        int first = -1;
-        for (int i = 0; i < n && first < 0; ++i)
-            if (frames[i] == pc) first = i;
-        if (first < 0) {
-            first = 1;
-            if (pc) addFrame(pc);
-        }
-        for (int i = first; i < n && g_report.size < int(sizeof g_report.text) - 300 && i - first < kMaxFrames; ++i) addFrame(frames[i]);
+        const void *frames[kMaxFrames];
+        const int n = stackAt(context, frames, kMaxFrames);
+        for (int i = 0; i < n && g_report.size < int(sizeof g_report.text) - 300; ++i) addFrame(frames[i]);
         const int file = open(g_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
         if (file >= 0) {
             [[maybe_unused]] const ssize_t written = write(file, g_report.text, size_t(g_report.size));
