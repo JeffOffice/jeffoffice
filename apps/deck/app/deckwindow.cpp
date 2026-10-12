@@ -110,6 +110,12 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     connect(m_slides, &SlidesPane::duplicateWanted, this, &DeckWindow::duplicateSlide);
     connect(m_slides, &SlidesPane::deleteWanted, this, &DeckWindow::deleteSlide);
     connect(m_slides, &SlidesPane::hideWanted, this, &DeckWindow::toggleHidden);
+    // Pictures dropped on the slide.
+    connect(m_canvas, &Canvas::insertFilesWanted, this, [this](const QStringList &paths, const QPointF &at) {
+        QPointF where = at;
+        for (const QString &path : paths)
+            if (insertPicture(path, where) && where.x() >= 0) where += QPointF(18, 18);
+    });
     m_canvas->zoomToFit(Canvas::Fit::WholePage);
     resize(1280, 800);
     updateTitle();

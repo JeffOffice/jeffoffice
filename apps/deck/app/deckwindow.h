@@ -14,7 +14,6 @@
 class QLabel;
 class QSlider;
 class QSplitter;
-class QToolButton;
 
 namespace jp {
 
