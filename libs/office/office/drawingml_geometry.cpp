@@ -251,13 +251,14 @@ void addArc(QPainterPath &p, double wR, double hR, double startAngle60k, double 
     const QPointF center(from.x() - a * std::cos(t1), from.y() - b * std::sin(t1));
     const int pieces = std::max(1, int(std::ceil(std::fabs(dt) / (M_PI / 2) - 1e-9)));
     const double step = dt / pieces, k = 4.0 / 3.0 * std::tan(step / 4);
+    auto kept = [](const QPointF &pt) { return QPointF(std::clamp(pt.x(), -kMaxPoint, kMaxPoint), std::clamp(pt.y(), -kMaxPoint, kMaxPoint)); };
     for (int i = 0; i < pieces; ++i) {
         const double ta = t1 + step * i, tb = ta + step;
         const QPointF pa(center.x() + a * std::cos(ta), center.y() + b * std::sin(ta));
         const QPointF pb(center.x() + a * std::cos(tb), center.y() + b * std::sin(tb));
         const QPointF c1(pa.x() - k * a * std::sin(ta), pa.y() + k * b * std::cos(ta));
         const QPointF c2(pb.x() + k * a * std::sin(tb), pb.y() - k * b * std::cos(tb));
-        p.cubicTo(c1, c2, pb);
+        p.cubicTo(kept(c1), kept(c2), kept(pb));
     }
 }
 
@@ -317,9 +318,389 @@ Geometry readCustomGeometry(const QDomElement &custGeom, const QSizeF &size)
     return build(readSpec(custGeom), {}, size);
 }
 
-Geometry presetGeometry(const QString &, const QHash<QString, double> &, const QSizeF &) { return {}; }
-bool hasPresetGeometry(const QString &) { return false; }
-bool prefersPresetGeometry(const QString &) { return false; }
-QVector<double> libraryAdjustments(const QString &, const QHash<QString, double> &, const QSizeF &) { return {}; }
+namespace {
+
+// A preset's definition in a short form of the standard's own: the default
+// adjustments ("adj1=16667 adj2=0"), the guides ("name=formula;..."), and
+// the paths. A path is its commands, M(oveTo) L(ineTo) A(rcTo) Q(uadBezTo)
+// C(ubicBezTo) and Z (close), with the points' names or numbers after
+// them, behind [nofill] and [nostroke] if it has them; paths are separated by #.
+struct PresetText {
+    const char *name;
+    const char *adjust;
+    const char *guides;
+    const char *paths;
+    bool preferred;     // used though the shape library has the preset
+};
+
+const char kAngles[] =
+    "stAng=pin 0 adj1 21599999;enAng=pin 0 adj2 21599999;sw1=+- enAng 0 stAng;sw2=+- sw1 21600000 0;swAng=?: sw1 sw1 sw2;"
+    "wt1=sin wd2 stAng;ht1=cos hd2 stAng;dx1=cat2 wd2 ht1 wt1;dy1=sat2 hd2 ht1 wt1;x1=+- hc dx1 0;y1=+- vc dy1 0;"
+    "wt2=sin wd2 enAng;ht2=cos hd2 enAng;dx2=cat2 wd2 ht2 wt2;dy2=sat2 hd2 ht2 wt2;x2=+- hc dx2 0;y2=+- vc dy2 0";
+
+// Where a callout's pointer meets the box, and the sides it leaves from.
+const char kWedge[] =
+    "dxPos=*/ w adj1 100000;dyPos=*/ h adj2 100000;xPos=+- hc dxPos 0;yPos=+- vc dyPos 0;dq=*/ dxPos h w;ady=abs dyPos;adq=abs dq;dz=+- ady 0 adq;"
+    "xg1=?: dxPos 7 2;xg2=?: dxPos 10 5;x1=*/ w xg1 12;x2=*/ w xg2 12;yg1=?: dyPos 7 2;yg2=?: dyPos 10 5;y1=*/ h yg1 12;y2=*/ h yg2 12;"
+    "t1=?: dxPos l xPos;xl=?: dz l t1;t2=?: dyPos x1 xPos;xt=?: dz t2 x1;t3=?: dxPos xPos r;xr=?: dz r t3;t4=?: dyPos xPos x1;xb=?: dz t4 x1;"
+    "t5=?: dxPos y1 yPos;yl=?: dz y1 t5;t6=?: dyPos t yPos;yt=?: dz t6 t;t7=?: dxPos yPos y1;yr=?: dz y1 t7;t8=?: dyPos yPos b;yb=?: dz t8 b";
+
+const char kLine1[] = "y1=*/ h adj1 100000;x1=*/ w adj2 100000;y2=*/ h adj3 100000;x2=*/ w adj4 100000";
+const char kLine2[] = "y1=*/ h adj1 100000;x1=*/ w adj2 100000;y2=*/ h adj3 100000;x2=*/ w adj4 100000;y3=*/ h adj5 100000;x3=*/ w adj6 100000";
+const char kLine3[] = "y1=*/ h adj1 100000;x1=*/ w adj2 100000;y2=*/ h adj3 100000;x2=*/ w adj4 100000;y3=*/ h adj5 100000;x3=*/ w adj6 100000;"
+                      "y4=*/ h adj7 100000;x4=*/ w adj8 100000";
+const char kAdjust1[] = "adj1=18750 adj2=-8333 adj3=112500 adj4=-38333";
+const char kAdjust2[] = "adj1=18750 adj2=-8333 adj3=18750 adj4=-16667 adj5=112500 adj6=-46667";
+const char kAdjust3[] = "adj1=18750 adj2=-8333 adj3=18750 adj4=-16667 adj5=100000 adj6=-16667 adj7=112963 adj8=-8333";
+const char kBox[] = "M l t L r t L r b L l b Z";
+
+const PresetText kPresets[] = {
+    {"pie", "adj1=0 adj2=16200000", kAngles, "M x1 y1 A wd2 hd2 stAng swAng L hc vc Z", true},
+    {"chord", "adj1=2700000 adj2=16200000", kAngles, "M x1 y1 A wd2 hd2 stAng swAng Z", true},
+    {"arc", "adj1=16200000 adj2=0", kAngles, "[nostroke] M x1 y1 A wd2 hd2 stAng swAng L hc vc Z # [nofill] M x1 y1 A wd2 hd2 stAng swAng", true},
+    {"blockArc", "adj1=10800000 adj2=0 adj3=25000",
+     "stAng=pin 0 adj1 21599999;istAng=pin 0 adj2 21599999;a3=pin 0 adj3 50000;sw11=+- istAng 0 stAng;sw12=+- sw11 21600000 0;swAng=?: sw11 sw11 sw12;"
+     "iswAng=+- 0 0 swAng;wt1=sin wd2 stAng;ht1=cos hd2 stAng;dx1=cat2 wd2 ht1 wt1;dy1=sat2 hd2 ht1 wt1;x1=+- hc dx1 0;y1=+- vc dy1 0;"
+     "dr=*/ ss a3 100000;iwd2=+- wd2 0 dr;ihd2=+- hd2 0 dr;wt2=sin iwd2 istAng;ht2=cos ihd2 istAng;dx2=cat2 iwd2 ht2 wt2;dy2=sat2 ihd2 ht2 wt2;"
+     "x2=+- hc dx2 0;y2=+- vc dy2 0",
+     "M x1 y1 A wd2 hd2 stAng swAng L x2 y2 A iwd2 ihd2 istAng iswAng Z", true},
+    {"pieWedge", "", "", "M l b A w h cd2 cd4 L r b Z", false},
+    {"nonIsoscelesTrapezoid", "adj1=25000 adj2=25000",
+     "maxAdj=*/ 50000 w ss;a1=pin 0 adj1 maxAdj;a2=pin 0 adj2 maxAdj;x2=*/ ss a1 100000;x3=*/ ss a2 100000;x4=+- r 0 x3",
+     "M l b L x2 t L x4 t L r b Z", false},
+
+    // Callouts: a box with a pointer, or with a line to what it is about.
+    {"wedgeRectCallout", "adj1=-20833 adj2=62500", kWedge,
+     "M l t L x1 t L xt yt L x2 t L r t L r y1 L xr yr L r y2 L r b L x2 b L xb yb L x1 b L l b L l y2 L xl yl L l y1 Z", true},
+    {"wedgeRoundRectCallout", "adj1=-20833 adj2=62500 adj3=16667",
+     "dxPos=*/ w adj1 100000;dyPos=*/ h adj2 100000;xPos=+- hc dxPos 0;yPos=+- vc dyPos 0;dq=*/ dxPos h w;ady=abs dyPos;adq=abs dq;dz=+- ady 0 adq;"
+     "xg1=?: dxPos 7 2;xg2=?: dxPos 10 5;x1=*/ w xg1 12;x2=*/ w xg2 12;yg1=?: dyPos 7 2;yg2=?: dyPos 10 5;y1=*/ h yg1 12;y2=*/ h yg2 12;"
+     "t1=?: dxPos l xPos;xl=?: dz l t1;t2=?: dyPos x1 xPos;xt=?: dz t2 x1;t3=?: dxPos xPos r;xr=?: dz r t3;t4=?: dyPos xPos x1;xb=?: dz t4 x1;"
+     "t5=?: dxPos y1 yPos;yl=?: dz y1 t5;t6=?: dyPos t yPos;yt=?: dz t6 t;t7=?: dxPos yPos y1;yr=?: dz y1 t7;t8=?: dyPos yPos b;yb=?: dz t8 b;"
+     "u1=*/ ss adj3 100000;u2=+- r 0 u1;v2=+- b 0 u1",
+     "M l u1 A u1 u1 cd2 cd4 L x1 t L xt yt L x2 t L u2 t A u1 u1 3cd4 cd4 L r y1 L xr yr L r y2 L r v2 A u1 u1 0 cd4 "
+     "L x2 b L xb yb L x1 b L u1 b A u1 u1 cd4 cd4 L l y2 L xl yl L l y1 Z", true},
+    {"wedgeEllipseCallout", "adj1=-20833 adj2=62500",
+     "dxPos=*/ w adj1 100000;dyPos=*/ h adj2 100000;xPos=+- hc dxPos 0;yPos=+- vc dyPos 0;sdx=*/ dxPos h 1;sdy=*/ dyPos w 1;pang=at2 sdx sdy;"
+     "stAng=+- pang 660000 0;enAng=+- pang 0 660000;dx1=cos wd2 stAng;dy1=sin hd2 stAng;x1=+- hc dx1 0;y1=+- vc dy1 0;"
+     "dx2=cos wd2 enAng;dy2=sin hd2 enAng;x2=+- hc dx2 0;y2=+- vc dy2 0;stAng1=at2 dx1 dy1;enAng1=at2 dx2 dy2;swAng0=+- enAng1 0 stAng1;"
+     "swAng1=+- swAng0 21600000 0;swAng=?: swAng0 swAng0 swAng1",
+     "M x1 y1 A wd2 hd2 stAng1 swAng L xPos yPos Z", true},
+    {"borderCallout1", kAdjust1, kLine1, "M l t L r t L r b L l b Z # [nofill] M x1 y1 L x2 y2", true},
+    {"borderCallout2", kAdjust2, kLine2, "M l t L r t L r b L l b Z # [nofill] M x1 y1 L x2 y2 L x3 y3", false},
+    {"borderCallout3", kAdjust3, kLine3, "M l t L r t L r b L l b Z # [nofill] M x1 y1 L x2 y2 L x3 y3 L x4 y4", false},
+    {"callout1", kAdjust1, kLine1, "[nostroke] M l t L r t L r b L l b Z # [nofill] M x1 y1 L x2 y2", true},
+    {"callout2", kAdjust2, kLine2, "[nostroke] M l t L r t L r b L l b Z # [nofill] M x1 y1 L x2 y2 L x3 y3", false},
+    {"callout3", kAdjust3, kLine3, "[nostroke] M l t L r t L r b L l b Z # [nofill] M x1 y1 L x2 y2 L x3 y3 L x4 y4", false},
+    {"accentCallout1", kAdjust1, kLine1, "[nostroke] M l t L r t L r b L l b Z # [nofill] M x1 t L x1 b # [nofill] M x1 y1 L x2 y2", true},
+    {"accentCallout2", kAdjust2, kLine2, "[nostroke] M l t L r t L r b L l b Z # [nofill] M x1 t L x1 b # [nofill] M x1 y1 L x2 y2 L x3 y3", false},
+    {"accentCallout3", kAdjust3, kLine3, "[nostroke] M l t L r t L r b L l b Z # [nofill] M x1 t L x1 b # [nofill] M x1 y1 L x2 y2 L x3 y3 L x4 y4", false},
+    {"accentBorderCallout1", kAdjust1, kLine1, "M l t L r t L r b L l b Z # [nofill] M x1 t L x1 b # [nofill] M x1 y1 L x2 y2", false},
+    {"accentBorderCallout2", kAdjust2, kLine2, "M l t L r t L r b L l b Z # [nofill] M x1 t L x1 b # [nofill] M x1 y1 L x2 y2 L x3 y3", false},
+    {"accentBorderCallout3", kAdjust3, kLine3, "M l t L r t L r b L l b Z # [nofill] M x1 t L x1 b # [nofill] M x1 y1 L x2 y2 L x3 y3 L x4 y4", false},
+
+    // Block arrows with a box behind the arrow.
+    {"rightArrowCallout", "adj1=25000 adj2=25000 adj3=25000 adj4=64977",
+     "maxAdj2=*/ 50000 h ss;a2=pin 0 adj2 maxAdj2;maxAdj1=*/ a2 2 1;a1=pin 0 adj1 maxAdj1;maxAdj3=*/ 100000 w ss;a3=pin 0 adj3 maxAdj3;"
+     "q2=*/ a3 ss w;maxAdj4=+- 100000 0 q2;a4=pin 0 adj4 maxAdj4;dy1=*/ ss a2 100000;dy2=*/ ss a1 200000;y1=+- vc 0 dy1;y2=+- vc 0 dy2;"
+     "y3=+- vc dy2 0;y4=+- vc dy1 0;dx3=*/ ss a3 100000;x3=+- r 0 dx3;x2=*/ w a4 100000",
+     "M l t L x2 t L x2 y2 L x3 y2 L x3 y1 L r vc L x3 y4 L x3 y3 L x2 y3 L x2 b L l b Z", true},
+    {"leftArrowCallout", "adj1=25000 adj2=25000 adj3=25000 adj4=64977",
+     "maxAdj2=*/ 50000 h ss;a2=pin 0 adj2 maxAdj2;maxAdj1=*/ a2 2 1;a1=pin 0 adj1 maxAdj1;maxAdj3=*/ 100000 w ss;a3=pin 0 adj3 maxAdj3;"
+     "q2=*/ a3 ss w;maxAdj4=+- 100000 0 q2;a4=pin 0 adj4 maxAdj4;dy1=*/ ss a2 100000;dy2=*/ ss a1 200000;y1=+- vc 0 dy1;y2=+- vc 0 dy2;"
+     "y3=+- vc dy2 0;y4=+- vc dy1 0;x1=*/ ss a3 100000;dx2=*/ w a4 100000;x2=+- r 0 dx2",
+     "M l vc L x1 y1 L x1 y2 L x2 y2 L x2 t L r t L r b L x2 b L x2 y3 L x1 y3 L x1 y4 Z", false},
+    {"downArrowCallout", "adj1=25000 adj2=25000 adj3=25000 adj4=64977",
+     "maxAdj2=*/ 50000 w ss;a2=pin 0 adj2 maxAdj2;maxAdj1=*/ a2 2 1;a1=pin 0 adj1 maxAdj1;maxAdj3=*/ 100000 h ss;a3=pin 0 adj3 maxAdj3;"
+     "q2=*/ a3 ss h;maxAdj4=+- 100000 0 q2;a4=pin 0 adj4 maxAdj4;dx1=*/ ss a2 100000;dx2=*/ ss a1 200000;x1=+- hc 0 dx1;x2=+- hc 0 dx2;"
+     "x3=+- hc dx2 0;x4=+- hc dx1 0;dy3=*/ ss a3 100000;y3=+- b 0 dy3;y2=*/ h a4 100000",
+     "M l t L r t L r y2 L x3 y2 L x3 y3 L x4 y3 L hc b L x1 y3 L x2 y3 L x2 y2 L l y2 Z", true},
+    {"upArrowCallout", "adj1=25000 adj2=25000 adj3=25000 adj4=64977",
+     "maxAdj2=*/ 50000 w ss;a2=pin 0 adj2 maxAdj2;maxAdj1=*/ a2 2 1;a1=pin 0 adj1 maxAdj1;maxAdj3=*/ 100000 h ss;a3=pin 0 adj3 maxAdj3;"
+     "q2=*/ a3 ss h;maxAdj4=+- 100000 0 q2;a4=pin 0 adj4 maxAdj4;dx1=*/ ss a2 100000;dx2=*/ ss a1 200000;x1=+- hc 0 dx1;x2=+- hc 0 dx2;"
+     "x3=+- hc dx2 0;x4=+- hc dx1 0;y1=*/ ss a3 100000;dy2=*/ h a4 100000;y2=+- b 0 dy2",
+     "M l y2 L x2 y2 L x2 y1 L x1 y1 L hc t L x4 y1 L x3 y1 L x3 y2 L r y2 L r b L l b Z", false},
+    {"leftRightArrowCallout", "adj1=25000 adj2=25000 adj3=25000 adj4=48123",
+     "maxAdj2=*/ 50000 h ss;a2=pin 0 adj2 maxAdj2;maxAdj1=*/ a2 2 1;a1=pin 0 adj1 maxAdj1;maxAdj3=*/ 50000 w ss;a3=pin 0 adj3 maxAdj3;"
+     "q2=*/ a3 ss wd2;maxAdj4=+- 100000 0 q2;a4=pin 0 adj4 maxAdj4;dy1=*/ ss a2 100000;dy2=*/ ss a1 200000;y1=+- vc 0 dy1;y2=+- vc 0 dy2;"
+     "y3=+- vc dy2 0;y4=+- vc dy1 0;x1=*/ ss a3 100000;x4=+- r 0 x1;dx2=*/ w a4 200000;x2=+- hc 0 dx2;x3=+- hc dx2 0",
+     "M l vc L x1 y1 L x1 y2 L x2 y2 L x2 t L x3 t L x3 y2 L x4 y2 L x4 y1 L r vc L x4 y4 L x4 y3 L x3 y3 L x3 b L x2 b L x2 y3 L x1 y3 L x1 y4 Z", false},
+    {"upDownArrowCallout", "adj1=25000 adj2=25000 adj3=25000 adj4=48123",
+     "maxAdj2=*/ 50000 w ss;a2=pin 0 adj2 maxAdj2;maxAdj1=*/ a2 2 1;a1=pin 0 adj1 maxAdj1;maxAdj3=*/ 50000 h ss;a3=pin 0 adj3 maxAdj3;"
+     "q2=*/ a3 ss hd2;maxAdj4=+- 100000 0 q2;a4=pin 0 adj4 maxAdj4;dx1=*/ ss a2 100000;dx2=*/ ss a1 200000;x1=+- hc 0 dx1;x2=+- hc 0 dx2;"
+     "x3=+- hc dx2 0;x4=+- hc dx1 0;y1=*/ ss a3 100000;y4=+- b 0 y1;dy2=*/ h a4 200000;y2=+- vc 0 dy2;y3=+- vc dy2 0",
+     "M l y2 L x2 y2 L x2 y1 L x1 y1 L hc t L x4 y1 L x3 y1 L x3 y2 L r y2 L r y3 L x3 y3 L x3 y4 L x4 y4 L hc b L x1 y4 L x2 y4 L x2 y3 L l y3 Z", false},
+
+    // Connectors: open paths from the frame's top left to its bottom right.
+    {"bentConnector2", "", "", "[nofill] M l t L r t L r b", false},
+    {"bentConnector3", "adj1=50000", "x1=*/ w adj1 100000", "[nofill] M l t L x1 t L x1 b L r b", false},
+    {"bentConnector4", "adj1=50000 adj2=50000", "x1=*/ w adj1 100000;y2=*/ h adj2 100000", "[nofill] M l t L x1 t L x1 y2 L r y2 L r b", false},
+    {"bentConnector5", "adj1=50000 adj2=50000 adj3=50000", "x1=*/ w adj1 100000;x3=*/ w adj3 100000;y2=*/ h adj2 100000",
+     "[nofill] M l t L x1 t L x1 y2 L x3 y2 L x3 b L r b", false},
+    {"curvedConnector2", "", "", "[nofill] M l t C wd2 t r hd2 r b", false},
+    {"curvedConnector3", "adj1=50000", "x2=*/ w adj1 100000;x1=+/ l x2 2;x3=+/ r x2 2;y3=*/ h 3 4",
+     "[nofill] M l t C x1 t x2 hd4 x2 vc C x2 y3 x3 b r b", false},
+    {"curvedConnector4", "adj1=50000 adj2=50000",
+     "x2=*/ w adj1 100000;x1=+/ l x2 2;x3=+/ r x2 2;x4=+/ x2 x3 2;x5=+/ x3 r 2;y4=*/ h adj2 100000;y1=+/ t y4 2;y2=+/ t y1 2;y3=+/ y1 y4 2;y5=+/ b y4 2",
+     "[nofill] M l t C x1 t x2 y2 x2 y1 C x2 y3 x4 y4 x3 y4 C x5 y4 r y5 r b", false},
+    {"curvedConnector5", "adj1=50000 adj2=50000 adj3=50000",
+     "x3=*/ w adj1 100000;x6=*/ w adj3 100000;x1=+/ x3 x6 2;x2=+/ l x3 2;x4=+/ x3 x1 2;x5=+/ x6 x1 2;x7=+/ x6 r 2;y4=*/ h adj2 100000;"
+     "y1=+/ t y4 2;y2=+/ t y1 2;y3=+/ y1 y4 2;y5=+/ b y4 2;y6=+/ y5 y4 2;y7=+/ y5 b 2",
+     "[nofill] M l t C x2 t x3 y2 x3 y1 C x3 y3 x4 y4 x1 y4 C x5 y4 x6 y6 x6 y5 C x6 y7 x7 b r b", false},
+};
+
+// The definitions, read once.
+const QHash<QString, ShapeSpec> &presetSpecs()
+{
+    static const QHash<QString, ShapeSpec> specs = [] {
+        QHash<QString, ShapeSpec> out;
+        for (const PresetText &t : kPresets) {
+            ShapeSpec spec;
+            for (const QString &a : QString::fromLatin1(t.adjust).split(QLatin1Char(' '), Qt::SkipEmptyParts))
+                spec.adjust.append({a.section(QLatin1Char('='), 0, 0), QStringLiteral("val ") + a.section(QLatin1Char('='), 1)});
+            for (const QString &g : QString::fromLatin1(t.guides).split(QLatin1Char(';'), Qt::SkipEmptyParts))
+                spec.guides.append({g.section(QLatin1Char('='), 0, 0), g.section(QLatin1Char('='), 1)});
+            for (const QString &pathText : QString::fromLatin1(t.paths).split(QLatin1Char('#'), Qt::SkipEmptyParts)) {
+                PathSpec ps;
+                const QStringList tokens = pathText.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+                for (int i = 0; i < tokens.size();) {
+                    const QString &tok = tokens[i];
+                    PathCommand cmd;
+                    int n = 0;
+                    if (tok == QLatin1String("[nofill]")) { ps.fill = GeometryPath::None; ++i; continue; }
+                    if (tok == QLatin1String("[nostroke]")) { ps.stroke = false; ++i; continue; }
+                    if (tok == QLatin1String("M")) { cmd.kind = PathCommand::Move; n = 2; }
+                    else if (tok == QLatin1String("L")) { cmd.kind = PathCommand::Line; n = 2; }
+                    else if (tok == QLatin1String("A")) { cmd.kind = PathCommand::Arc; n = 4; }
+                    else if (tok == QLatin1String("Q")) { cmd.kind = PathCommand::Quad; n = 4; }
+                    else if (tok == QLatin1String("C")) { cmd.kind = PathCommand::Cubic; n = 6; }
+                    else if (tok == QLatin1String("Z")) cmd.kind = PathCommand::Close;
+                    else { ++i; continue; }
+                    for (int k = 0; k < n && i + 1 + k < tokens.size(); ++k) cmd.arg[k] = tokens[i + 1 + k];
+                    ps.commands.append(cmd);
+                    i += 1 + n;
+                }
+                spec.paths.append(ps);
+            }
+            out.insert(QString::fromLatin1(t.name), spec);
+        }
+        return out;
+    }();
+    return specs;
+}
+
+const PresetText *presetText(const QString &prst)
+{
+    for (const PresetText &t : kPresets)
+        if (prst == QLatin1String(t.name)) return &t;
+    return nullptr;
+}
+
+} // namespace
+
+Geometry presetGeometry(const QString &prst, const QHash<QString, double> &adjust, const QSizeF &size)
+{
+    const auto it = presetSpecs().constFind(prst);
+    return it == presetSpecs().constEnd() ? Geometry() : build(*it, adjust, size);
+}
+
+bool hasPresetGeometry(const QString &prst)
+{
+    return presetText(prst) != nullptr;
+}
+
+bool prefersPresetGeometry(const QString &prst)
+{
+    const PresetText *t = presetText(prst);
+    return t && t->preferred;
+}
+
+// ---- the shape library's presets
+
+namespace {
+
+using Converter = QVector<double> (*)(const double *a, double w, double h);
+
+struct AdjustSpec {
+    const char *prst;
+    int count;
+    double defaults[8];
+    Converter convert;
+};
+
+double pin(double lo, double v, double hi) { return v < lo ? lo : v > hi ? hi : v; }
+double side(double w, double h) { return std::min(w, h); }
+double over(double v, double d) { return d > 0 ? v / d : 0.0; }
+
+// Most shapes have one adjustment, a size across the shorter side that the
+// library takes as a fraction of it too; the standard's range for it is
+// 0 to `most` (in 100,000ths).
+#define SIDE_FRACTION(most) [](const double *a, double, double) { return QVector<double>{pin(0, a[0], most) / 100000}; }
+
+const AdjustSpec kAdjustments[] = {
+    {"roundRect", 1, {16667}, SIDE_FRACTION(50000)},
+    {"snip1Rect", 1, {16667}, SIDE_FRACTION(50000)},
+    {"snip2SameRect", 2, {16667, 0}, SIDE_FRACTION(50000)},
+    // Diagonal snips: the standard's first is for the top left and bottom right (none), the second for the others.
+    {"snip2DiagRect", 2, {0, 16667}, [](const double *a, double, double) { return QVector<double>{pin(0, a[1], 50000) / 100000}; }},
+    {"snipRoundRect", 2, {16667, 16667}, SIDE_FRACTION(50000)},
+    {"round1Rect", 1, {16667}, SIDE_FRACTION(50000)},
+    {"round2SameRect", 2, {16667, 0}, SIDE_FRACTION(50000)},
+    {"round2DiagRect", 2, {16667, 0}, SIDE_FRACTION(50000)},
+    {"triangle", 1, {50000}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 100000) / 100000}; }},
+    {"parallelogram", 1, {25000}, [](const double *a, double w, double h) {
+        const double ss = side(w, h);
+        return QVector<double>{over(ss * pin(0, a[0], over(100000 * w, ss)) / 100000, w)}; }},
+    {"trapezoid", 1, {25000}, [](const double *a, double w, double h) {
+        const double ss = side(w, h);
+        return QVector<double>{over(ss * pin(0, a[0], over(50000 * w, ss)) / 100000, w)}; }},
+    {"hexagon", 1, {25000}, [](const double *a, double w, double h) {
+        const double ss = side(w, h);
+        return QVector<double>{over(ss * pin(0, a[0], over(50000 * w, ss)) / 100000, w)}; }},
+    {"octagon", 1, {29289}, SIDE_FRACTION(50000)},
+    {"plaque", 1, {16667}, SIDE_FRACTION(50000)},
+    {"homePlate", 1, {50000}, [](const double *a, double w, double h) { return QVector<double>{pin(0, a[0], over(100000 * w, side(w, h))) / 100000}; }},
+    {"chevron", 1, {50000}, [](const double *a, double w, double h) { return QVector<double>{pin(0, a[0], over(100000 * w, side(w, h))) / 100000}; }},
+    {"donut", 1, {25000}, SIDE_FRACTION(50000)},
+    {"noSmoking", 1, {18750}, SIDE_FRACTION(50000)},
+    {"frame", 1, {12500}, SIDE_FRACTION(50000)},
+    {"halfFrame", 2, {33333, 33333}, SIDE_FRACTION(100000)},
+    {"corner", 2, {50000, 50000}, SIDE_FRACTION(100000)},
+    {"diagStripe", 1, {50000}, SIDE_FRACTION(100000)},
+    {"plus", 1, {25000}, SIDE_FRACTION(50000)},
+    {"can", 1, {25000}, [](const double *a, double w, double h) { return QVector<double>{pin(0, a[0], over(50000 * h, side(w, h))) / 100000}; }},
+    {"cube", 1, {25000}, SIDE_FRACTION(100000)},
+    {"bevel", 1, {12500}, SIDE_FRACTION(50000)},
+    {"foldedCorner", 1, {16667}, SIDE_FRACTION(50000)},
+    {"smileyFace", 1, {4653}, [](const double *a, double, double) { return QVector<double>{pin(-4653, a[0], 4653) / 100000}; }},
+    {"sun", 1, {25000}, [](const double *a, double, double) { return QVector<double>{pin(12500, a[0], 46875) / 100000}; }},
+    {"moon", 1, {50000}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 87500) / 100000}; }},
+    {"bracketPair", 1, {16667}, SIDE_FRACTION(50000)},
+    {"bracePair", 1, {8333}, SIDE_FRACTION(25000)},
+    // Arrows: the shaft's thickness as a fraction of the arrow's breadth, and the head's length as one of the shorter side.
+    {"rightArrow", 2, {50000, 50000}, [](const double *a, double w, double h) {
+        return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], over(100000 * w, side(w, h))) / 100000}; }},
+    {"leftArrow", 2, {50000, 50000}, [](const double *a, double w, double h) {
+        return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], over(100000 * w, side(w, h))) / 100000}; }},
+    {"upArrow", 2, {50000, 50000}, [](const double *a, double w, double h) {
+        return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], over(100000 * h, side(w, h))) / 100000}; }},
+    {"downArrow", 2, {50000, 50000}, [](const double *a, double w, double h) {
+        return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], over(100000 * h, side(w, h))) / 100000}; }},
+    {"stripedRightArrow", 2, {50000, 50000}, [](const double *a, double w, double h) {
+        return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], over(84000 * w, side(w, h))) / 100000}; }},
+    {"notchedRightArrow", 2, {50000, 50000}, [](const double *a, double w, double h) {
+        return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], over(100000 * w, side(w, h))) / 100000}; }},
+    {"leftRightArrow", 2, {50000, 50000}, [](const double *a, double w, double h) {
+        return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], over(50000 * w, side(w, h))) / 100000}; }},
+    {"upDownArrow", 2, {50000, 50000}, [](const double *a, double w, double h) {
+        return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], over(50000 * h, side(w, h))) / 100000}; }},
+    // The library's thickness is half the shaft's.
+    {"quadArrow", 3, {22500, 22500, 22500}, [](const double *a, double, double) {
+        const double head = pin(0, a[1], 50000);
+        return QVector<double>{pin(0, a[0], head * 2) / 200000, head / 100000, pin(0, a[2], 50000) / 100000}; }},
+    {"bentArrow", 4, {25000, 25000, 25000, 43750}, [](const double *a, double, double) {
+        return QVector<double>{pin(0, a[0], 50000) / 100000, pin(0, a[1], 50000) / 100000, pin(0, a[2], 50000) / 100000}; }},
+    {"uturnArrow", 5, {25000, 25000, 25000, 43750, 75000}, [](const double *a, double, double) {
+        return QVector<double>{pin(0, a[0], 50000) / 100000, pin(0, a[2], 50000) / 100000}; }},
+    {"leftUpArrow", 3, {25000, 25000, 25000}, [](const double *a, double, double) {
+        return QVector<double>{pin(0, a[0], 50000) / 100000, pin(0, a[1], 50000) / 100000}; }},
+    {"bentUpArrow", 3, {25000, 25000, 25000}, [](const double *a, double, double) {
+        return QVector<double>{pin(0, a[0], 50000) / 100000, pin(0, a[1], 50000) / 100000}; }},
+    {"circularArrow", 5, {12500, 1142319, 20457681, 10800000, 12500}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 25000) / 100000}; }},
+    {"mathPlus", 1, {23520}, SIDE_FRACTION(73490)},
+    {"mathMinus", 1, {23520}, SIDE_FRACTION(100000)},
+    {"mathMultiply", 1, {23520}, SIDE_FRACTION(51965)},
+    {"mathDivide", 3, {23520, 5882, 11760}, SIDE_FRACTION(36745)},
+    {"mathEqual", 2, {23520, 11760}, SIDE_FRACTION(36745)},
+    {"mathNotEqual", 3, {23520, 6600000, 11760}, SIDE_FRACTION(50000)},
+    // Stars: the inner points' distance from the center, over the outer's, in half of 100,000ths.
+    {"star4", 1, {12500}, SIDE_FRACTION(50000)},
+    {"star5", 1, {19098}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"star6", 1, {28868}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"star7", 1, {34601}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"star8", 1, {37500}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"star10", 1, {42533}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"star12", 1, {37500}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"star16", 1, {37500}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"star24", 1, {37500}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"star32", 1, {37500}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},
+    {"verticalScroll", 1, {12500}, SIDE_FRACTION(25000)},
+    {"horizontalScroll", 1, {12500}, SIDE_FRACTION(25000)},
+    {"wave", 2, {12500, 0}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 20000) / 100000}; }},
+    {"doubleWave", 2, {12500, 0}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 12500) / 200000}; }},
+};
+
+// The standard's name for the shape library's preset, and the library's own.
+const struct { const char *prst; const char *shape; } kShapes[] = {
+    {"rect", "rect"}, {"roundRect", "roundRect"}, {"snip1Rect", "snip1"}, {"snip2SameRect", "snip2same"}, {"snip2DiagRect", "snip2diag"},
+    {"snipRoundRect", "snipRound"}, {"round1Rect", "round1"}, {"round2SameRect", "round2same"}, {"round2DiagRect", "round2diag"},
+    {"ellipse", "ellipse"}, {"triangle", "triangle"}, {"rtTriangle", "rtTriangle"}, {"parallelogram", "parallelogram"}, {"trapezoid", "trapezoid"},
+    {"diamond", "diamond"}, {"pentagon", "pentagon"}, {"hexagon", "hexagon"}, {"heptagon", "heptagon"}, {"octagon", "octagon"},
+    {"decagon", "decagon"}, {"dodecagon", "dodecagon"}, {"pie", "pie"}, {"chord", "chord"}, {"teardrop", "teardrop"}, {"frame", "frame"},
+    {"halfFrame", "halfFrame"}, {"corner", "corner"}, {"diagStripe", "diagStripe"}, {"plus", "plus"}, {"plaque", "plaque"}, {"can", "can"},
+    {"cube", "cube"}, {"bevel", "bevel"}, {"donut", "donut"}, {"noSmoking", "noSmoking"}, {"blockArc", "blockArc"}, {"foldedCorner", "foldedCorner"},
+    {"smileyFace", "smiley"}, {"heart", "heart"}, {"lightningBolt", "lightning"}, {"sun", "sun"}, {"moon", "moon"}, {"cloud", "cloud"}, {"arc", "arc"},
+    {"bracketPair", "bracketPair"}, {"bracePair", "bracePair"}, {"leftBracket", "leftBracket"}, {"rightBracket", "rightBracket"},
+    {"leftBrace", "leftBrace"}, {"rightBrace", "rightBrace"},
+    {"rightArrow", "rightArrow"}, {"leftArrow", "leftArrow"}, {"upArrow", "upArrow"}, {"downArrow", "downArrow"}, {"leftRightArrow", "leftRightArrow"},
+    {"upDownArrow", "upDownArrow"}, {"quadArrow", "quadArrow"}, {"bentArrow", "bentArrow"}, {"uturnArrow", "uturnArrow"}, {"leftUpArrow", "leftUpArrow"},
+    {"bentUpArrow", "bentUpArrow"}, {"curvedRightArrow", "curvedRightArrow"}, {"curvedLeftArrow", "curvedLeftArrow"},
+    {"curvedUpArrow", "curvedUpArrow"}, {"curvedDownArrow", "curvedDownArrow"}, {"stripedRightArrow", "stripedRightArrow"},
+    {"notchedRightArrow", "notchedRightArrow"}, {"homePlate", "homePlate"}, {"chevron", "chevron"}, {"rightArrowCallout", "rightArrowCallout"},
+    {"downArrowCallout", "downArrowCallout"}, {"circularArrow", "circularArrow"},
+    {"mathPlus", "mathPlus"}, {"mathMinus", "mathMinus"}, {"mathMultiply", "mathMultiply"}, {"mathDivide", "mathDivide"}, {"mathEqual", "mathEqual"},
+    {"mathNotEqual", "mathNotEqual"},
+    {"flowChartProcess", "fcProcess"}, {"flowChartAlternateProcess", "fcAltProcess"}, {"flowChartDecision", "fcDecision"},
+    {"flowChartInputOutput", "fcData"}, {"flowChartPredefinedProcess", "fcPredefined"}, {"flowChartInternalStorage", "fcInternalStorage"},
+    {"flowChartDocument", "fcDocument"}, {"flowChartMultidocument", "fcMultidocument"}, {"flowChartTerminator", "fcTerminator"},
+    {"flowChartPreparation", "fcPreparation"}, {"flowChartManualInput", "fcManualInput"}, {"flowChartManualOperation", "fcManualOperation"},
+    {"flowChartConnector", "fcConnector"}, {"flowChartOffpageConnector", "fcOffpage"}, {"flowChartPunchedCard", "fcCard"},
+    {"flowChartPunchedTape", "fcPunchedTape"}, {"flowChartSummingJunction", "fcSummingJunction"}, {"flowChartOr", "fcOr"},
+    {"flowChartCollate", "fcCollate"}, {"flowChartSort", "fcSort"}, {"flowChartExtract", "fcExtract"}, {"flowChartMerge", "fcMerge"},
+    // Offline storage is the merge triangle with a letter in it.
+    {"flowChartOfflineStorage", "fcMerge"}, {"flowChartOnlineStorage", "fcStoredData"}, {"flowChartMagneticTape", "fcSequential"},
+    {"flowChartMagneticDisk", "fcMagneticDisk"}, {"flowChartMagneticDrum", "fcDirectAccess"}, {"flowChartDisplay", "fcDisplay"},
+    {"flowChartDelay", "fcDelay"},
+    {"irregularSeal1", "irregularSeal1"}, {"irregularSeal2", "irregularSeal2"},
+    {"star4", "star4"}, {"star5", "star5"}, {"star6", "star6"}, {"star7", "star7"}, {"star8", "star8"}, {"star10", "star10"}, {"star12", "star12"},
+    {"star16", "star16"}, {"star24", "star24"}, {"star32", "star32"},
+    {"ribbon", "ribbon"}, {"ribbon2", "ribbon2"}, {"ellipseRibbon", "ellipseRibbon"}, {"ellipseRibbon2", "ellipseRibbon2"},
+    {"verticalScroll", "verticalScroll"}, {"horizontalScroll", "horizontalScroll"}, {"wave", "wave"}, {"doubleWave", "doubleWave"},
+    {"wedgeRectCallout", "wedgeRectCallout"}, {"wedgeRoundRectCallout", "wedgeRoundRectCallout"}, {"wedgeEllipseCallout", "wedgeEllipseCallout"},
+    {"cloudCallout", "cloudCallout"}, {"borderCallout1", "borderCallout1"}, {"borderCallout2", "borderCallout2"}, {"accentCallout1", "accentCallout1"},
+    {"callout1", "callout1"},
+    // The library has one blank button; the pictures on the others are not drawn.
+    {"actionButtonBlank", "actionButtonBlank"}, {"actionButtonHome", "actionButtonBlank"}, {"actionButtonHelp", "actionButtonBlank"},
+    {"actionButtonInformation", "actionButtonBlank"}, {"actionButtonForwardNext", "actionButtonBlank"},
+    {"actionButtonBackPrevious", "actionButtonBlank"}, {"actionButtonEnd", "actionButtonBlank"}, {"actionButtonBeginning", "actionButtonBlank"},
+    {"actionButtonReturn", "actionButtonBlank"}, {"actionButtonDocument", "actionButtonBlank"}, {"actionButtonSound", "actionButtonBlank"},
+    {"actionButtonMovie", "actionButtonBlank"},
+};
+
+} // namespace
+
+QString shapeForPreset(const QString &prst)
+{
+    for (const auto &m : kShapes)
+        if (prst == QLatin1String(m.prst)) return QString::fromLatin1(m.shape);
+    return QString();
+}
+
+QVector<double> libraryAdjustments(const QString &prst, const QHash<QString, double> &given, const QSizeF &size)
+{
+    for (const AdjustSpec &spec : kAdjustments) {
+        if (prst != QLatin1String(spec.prst)) continue;
+        double a[8];
+        for (int i = 0; i < spec.count && i < 8; ++i) {
+            const QString name = QStringLiteral("adj%1").arg(i + 1);
+            auto it = given.constFind(name);
+            if (it == given.constEnd() && spec.count == 1) it = given.constFind(QStringLiteral("adj"));
+            a[i] = it == given.constEnd() ? spec.defaults[i] : *it;
+        }
+        const double w = std::isfinite(size.width()) ? std::max(0.0, size.width()) : 0.0, h = std::isfinite(size.height()) ? std::max(0.0, size.height()) : 0.0;
+        return spec.convert(a, w, h);
+    }
+    return {};
+}
 
 } // namespace jp::office

@@ -7,6 +7,7 @@
 #include "office/theme.h"
 #include "office/xml.h"
 #include "io/zip.h"
+#include "render/shapes.h"
 
 #include <QFile>
 #include <QRandomGenerator>
@@ -1678,6 +1679,427 @@ private Q_SLOTS:
         for (int i = 0; i < 20000; ++i) gds += QStringLiteral("<a:gd name=\"g%1\" fmla=\"val %1\"/>").arg(i);
         g = customGeometryOf(QStringLiteral("<a:gdLst>%1</a:gdLst><a:pathLst>%2</a:pathLst>").arg(gds, linePath(QString(), {{"g1", "g2"}, {"g3", "g4"}})), QSizeF(100, 100));
         QVERIFY(g.paths.size() <= 1);
+    }
+
+    // ---- DrawingML shapes: preset geometry
+
+    static QStringList dmlAllPresets()
+    {
+        return QStringLiteral(
+            "line lineInv triangle rtTriangle rect diamond parallelogram trapezoid nonIsoscelesTrapezoid pentagon hexagon heptagon octagon decagon "
+            "dodecagon star4 star5 star6 star7 star8 star10 star12 star16 star24 star32 roundRect round1Rect round2SameRect round2DiagRect "
+            "snipRoundRect snip1Rect snip2SameRect snip2DiagRect plaque ellipse teardrop homePlate chevron pieWedge pie blockArc donut noSmoking "
+            "rightArrow leftArrow upArrow downArrow stripedRightArrow notchedRightArrow bentUpArrow leftRightArrow upDownArrow leftUpArrow "
+            "leftRightUpArrow quadArrow leftArrowCallout rightArrowCallout upArrowCallout downArrowCallout leftRightArrowCallout upDownArrowCallout "
+            "quadArrowCallout bentArrow uturnArrow circularArrow leftCircularArrow leftRightCircularArrow curvedRightArrow curvedLeftArrow "
+            "curvedUpArrow curvedDownArrow swooshArrow cube can lightningBolt heart sun moon smileyFace irregularSeal1 irregularSeal2 foldedCorner "
+            "bevel frame halfFrame corner diagStripe chord arc leftBracket rightBracket leftBrace rightBrace bracketPair bracePair straightConnector1 "
+            "bentConnector2 bentConnector3 bentConnector4 bentConnector5 curvedConnector2 curvedConnector3 curvedConnector4 curvedConnector5 "
+            "callout1 callout2 callout3 accentCallout1 accentCallout2 accentCallout3 borderCallout1 borderCallout2 borderCallout3 "
+            "accentBorderCallout1 accentBorderCallout2 accentBorderCallout3 wedgeRectCallout wedgeRoundRectCallout wedgeEllipseCallout cloudCallout "
+            "cloud ribbon ribbon2 ellipseRibbon ellipseRibbon2 leftRightRibbon verticalScroll horizontalScroll wave doubleWave plus "
+            "flowChartProcess flowChartAlternateProcess flowChartDecision flowChartInputOutput flowChartPredefinedProcess flowChartInternalStorage "
+            "flowChartDocument flowChartMultidocument flowChartTerminator flowChartPreparation flowChartManualInput flowChartManualOperation "
+            "flowChartConnector flowChartOffpageConnector flowChartPunchedCard flowChartPunchedTape flowChartSummingJunction flowChartOr "
+            "flowChartCollate flowChartSort flowChartExtract flowChartMerge flowChartOfflineStorage flowChartOnlineStorage flowChartMagneticTape "
+            "flowChartMagneticDisk flowChartMagneticDrum flowChartDisplay flowChartDelay actionButtonBlank actionButtonHome actionButtonHelp "
+            "actionButtonInformation actionButtonForwardNext actionButtonBackPrevious actionButtonEnd actionButtonBeginning actionButtonReturn "
+            "actionButtonDocument actionButtonSound actionButtonMovie gear6 gear9 funnel mathPlus mathMinus mathMultiply mathDivide mathEqual "
+            "mathNotEqual cornerTabs squareTabs plaqueTabs chartX chartStar chartPlus").split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    }
+
+    // The presets that no shape and no definition here draws as they should be: the ones the report lists.
+    static QStringList dmlUnsupportedPresets()
+    {
+        return QStringLiteral("leftRightUpArrow quadArrowCallout leftCircularArrow leftRightCircularArrow swooshArrow "
+                              "leftRightRibbon gear6 gear9 funnel cornerTabs squareTabs plaqueTabs chartX chartStar chartPlus").split(QLatin1Char(' '));
+    }
+
+    void dmlPresetNamesMapToTheShapeLibrary_data()
+    {
+        QTest::addColumn<QString>("preset");
+        QTest::addColumn<QString>("shape");
+        const struct { const char *preset, *shape; } map[] = {
+            {"rect", "rect"}, {"roundRect", "roundRect"}, {"ellipse", "ellipse"}, {"triangle", "triangle"}, {"rtTriangle", "rtTriangle"},
+            {"diamond", "diamond"}, {"parallelogram", "parallelogram"}, {"trapezoid", "trapezoid"}, {"pentagon", "pentagon"},
+            {"hexagon", "hexagon"}, {"heptagon", "heptagon"}, {"octagon", "octagon"}, {"decagon", "decagon"}, {"dodecagon", "dodecagon"},
+            {"snip1Rect", "snip1"}, {"snip2SameRect", "snip2same"}, {"snip2DiagRect", "snip2diag"}, {"snipRoundRect", "snipRound"},
+            {"round1Rect", "round1"}, {"round2SameRect", "round2same"}, {"round2DiagRect", "round2diag"},
+            {"plaque", "plaque"}, {"teardrop", "teardrop"}, {"homePlate", "homePlate"}, {"chevron", "chevron"}, {"pie", "pie"}, {"chord", "chord"},
+            {"blockArc", "blockArc"}, {"arc", "arc"}, {"donut", "donut"}, {"noSmoking", "noSmoking"}, {"frame", "frame"}, {"halfFrame", "halfFrame"},
+            {"corner", "corner"}, {"diagStripe", "diagStripe"}, {"plus", "plus"}, {"can", "can"}, {"cube", "cube"}, {"bevel", "bevel"},
+            {"foldedCorner", "foldedCorner"}, {"smileyFace", "smiley"}, {"heart", "heart"}, {"lightningBolt", "lightning"}, {"sun", "sun"},
+            {"moon", "moon"}, {"cloud", "cloud"}, {"bracketPair", "bracketPair"}, {"bracePair", "bracePair"}, {"leftBracket", "leftBracket"},
+            {"rightBracket", "rightBracket"}, {"leftBrace", "leftBrace"}, {"rightBrace", "rightBrace"},
+            {"rightArrow", "rightArrow"}, {"leftArrow", "leftArrow"}, {"upArrow", "upArrow"}, {"downArrow", "downArrow"},
+            {"leftRightArrow", "leftRightArrow"}, {"upDownArrow", "upDownArrow"}, {"quadArrow", "quadArrow"}, {"bentArrow", "bentArrow"},
+            {"uturnArrow", "uturnArrow"}, {"leftUpArrow", "leftUpArrow"}, {"bentUpArrow", "bentUpArrow"}, {"curvedRightArrow", "curvedRightArrow"},
+            {"curvedLeftArrow", "curvedLeftArrow"}, {"curvedUpArrow", "curvedUpArrow"}, {"curvedDownArrow", "curvedDownArrow"},
+            {"stripedRightArrow", "stripedRightArrow"}, {"notchedRightArrow", "notchedRightArrow"}, {"rightArrowCallout", "rightArrowCallout"},
+            {"downArrowCallout", "downArrowCallout"}, {"circularArrow", "circularArrow"},
+            {"mathPlus", "mathPlus"}, {"mathMinus", "mathMinus"}, {"mathMultiply", "mathMultiply"}, {"mathDivide", "mathDivide"},
+            {"mathEqual", "mathEqual"}, {"mathNotEqual", "mathNotEqual"},
+            {"flowChartProcess", "fcProcess"}, {"flowChartAlternateProcess", "fcAltProcess"}, {"flowChartDecision", "fcDecision"},
+            {"flowChartInputOutput", "fcData"}, {"flowChartPredefinedProcess", "fcPredefined"}, {"flowChartInternalStorage", "fcInternalStorage"},
+            {"flowChartDocument", "fcDocument"}, {"flowChartMultidocument", "fcMultidocument"}, {"flowChartTerminator", "fcTerminator"},
+            {"flowChartPreparation", "fcPreparation"}, {"flowChartManualInput", "fcManualInput"}, {"flowChartManualOperation", "fcManualOperation"},
+            {"flowChartConnector", "fcConnector"}, {"flowChartOffpageConnector", "fcOffpage"}, {"flowChartPunchedCard", "fcCard"},
+            {"flowChartPunchedTape", "fcPunchedTape"}, {"flowChartSummingJunction", "fcSummingJunction"}, {"flowChartOr", "fcOr"},
+            {"flowChartCollate", "fcCollate"}, {"flowChartSort", "fcSort"}, {"flowChartExtract", "fcExtract"}, {"flowChartMerge", "fcMerge"},
+            {"flowChartOnlineStorage", "fcStoredData"}, {"flowChartDelay", "fcDelay"}, {"flowChartMagneticTape", "fcSequential"},
+            {"flowChartMagneticDisk", "fcMagneticDisk"}, {"flowChartMagneticDrum", "fcDirectAccess"}, {"flowChartDisplay", "fcDisplay"},
+            {"irregularSeal1", "irregularSeal1"}, {"irregularSeal2", "irregularSeal2"},
+            {"star4", "star4"}, {"star5", "star5"}, {"star6", "star6"}, {"star7", "star7"}, {"star8", "star8"}, {"star10", "star10"},
+            {"star12", "star12"}, {"star16", "star16"}, {"star24", "star24"}, {"star32", "star32"},
+            {"ribbon", "ribbon"}, {"ribbon2", "ribbon2"}, {"ellipseRibbon", "ellipseRibbon"}, {"ellipseRibbon2", "ellipseRibbon2"},
+            {"verticalScroll", "verticalScroll"}, {"horizontalScroll", "horizontalScroll"}, {"wave", "wave"}, {"doubleWave", "doubleWave"},
+            {"wedgeRectCallout", "wedgeRectCallout"}, {"wedgeRoundRectCallout", "wedgeRoundRectCallout"}, {"wedgeEllipseCallout", "wedgeEllipseCallout"},
+            {"borderCallout1", "borderCallout1"}, {"borderCallout2", "borderCallout2"}, {"accentCallout1", "accentCallout1"}, {"callout1", "callout1"},
+            {"actionButtonBlank", "actionButtonBlank"}, {"actionButtonHome", "actionButtonBlank"}, {"actionButtonSound", "actionButtonBlank"}};
+        for (const auto &m : map) QTest::newRow(m.preset) << QString::fromLatin1(m.preset) << QString::fromLatin1(m.shape);
+    }
+
+    void dmlPresetNamesMapToTheShapeLibrary()
+    {
+        QFETCH(QString, preset);
+        QFETCH(QString, shape);
+        QCOMPARE(shapeForPreset(preset), shape);
+        QVERIFY2(jp::shapeDef(shape) != nullptr, qPrintable(shape));
+    }
+
+    void dmlEveryShapeTheLibraryDrawsHasAPreset()
+    {
+        // The library holds two shapes the standard doesn't name (a tab and a flow arrow);
+        // every other has a preset that maps to it.
+        QSet<QString> reached;
+        for (const QString &prst : dmlAllPresets()) {
+            const QString id = shapeForPreset(prst);
+            if (!id.isEmpty()) {
+                QVERIFY2(jp::shapeDef(id) != nullptr, qPrintable(prst));
+                reached.insert(id);
+            }
+        }
+        for (const jp::ShapeDef &d : jp::shapeLibrary())
+            if (d.id != QLatin1String("tab") && d.id != QLatin1String("flowArrow")) QVERIFY2(reached.contains(d.id), qPrintable(d.id));
+    }
+
+    void dmlEveryPresetHasAShapeOrADefinitionOrIsListed()
+    {
+        const QStringList unsupported = dmlUnsupportedPresets();
+        for (const QString &prst : dmlAllPresets()) {
+            const bool line = prst == QLatin1String("line") || prst == QLatin1String("lineInv") || prst == QLatin1String("straightConnector1");
+            const bool drawn = !shapeForPreset(prst).isEmpty() || hasPresetGeometry(prst) || line;
+            QVERIFY2(drawn != unsupported.contains(prst), qPrintable(prst));
+        }
+        QVERIFY(shapeForPreset(QStringLiteral("noSuchShape")).isEmpty());
+        QVERIFY(shapeForPreset(QString()).isEmpty());
+        QVERIFY(shapeForPreset(QStringLiteral("Rect")).isEmpty());   // names are case sensitive
+    }
+
+    static QHash<QString, double> dmlAdjust(const QString &list)
+    {
+        QHash<QString, double> out;
+        for (const QString &item : list.split(QLatin1Char(';'), Qt::SkipEmptyParts)) out.insert(item.section(QLatin1Char('='), 0, 0), item.section(QLatin1Char('='), 1).toDouble());
+        return out;
+    }
+
+    void dmlLibraryAdjustments_data()
+    {
+        QTest::addColumn<QString>("preset");
+        QTest::addColumn<QString>("given");
+        QTest::addColumn<double>("width");
+        QTest::addColumn<double>("height");
+        QTest::addColumn<QList<double>>("expected");
+        using L = QList<double>;
+        QTest::newRow("roundRect default") << "roundRect" << "" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("roundRect half") << "roundRect" << "adj=50000" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("roundRect past half") << "roundRect" << "adj=75000" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("roundRect negative") << "roundRect" << "adj=-100" << 100.0 << 50.0 << L{0.0};
+        QTest::newRow("roundRect huge") << "roundRect" << "adj=999999999999" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("triangle default") << "triangle" << "" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("triangle apex at the left") << "triangle" << "adj=0" << 100.0 << 50.0 << L{0.0};
+        QTest::newRow("triangle apex at the right") << "triangle" << "adj=100000" << 100.0 << 50.0 << L{1.0};
+        QTest::newRow("parallelogram wide") << "parallelogram" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("parallelogram tall") << "parallelogram" << "" << 50.0 << 100.0 << L{0.25};
+        QTest::newRow("trapezoid") << "trapezoid" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("trapezoid set") << "trapezoid" << "adj=50000" << 200.0 << 100.0 << L{0.25};
+        QTest::newRow("hexagon") << "hexagon" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("octagon") << "octagon" << "" << 100.0 << 50.0 << L{0.29289};
+        QTest::newRow("plus") << "plus" << "" << 100.0 << 50.0 << L{0.25};
+        QTest::newRow("can") << "can" << "adj=40000" << 100.0 << 50.0 << L{0.4};
+        QTest::newRow("cube") << "cube" << "" << 100.0 << 50.0 << L{0.25};
+        QTest::newRow("bevel") << "bevel" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("donut") << "donut" << "" << 100.0 << 50.0 << L{0.25};
+        QTest::newRow("frame") << "frame" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("foldedCorner") << "foldedCorner" << "" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("chevron") << "chevron" << "" << 100.0 << 50.0 << L{0.5};
+        QTest::newRow("homePlate") << "homePlate" << "adj=30000" << 100.0 << 50.0 << L{0.3};
+        QTest::newRow("rightArrow default") << "rightArrow" << "" << 100.0 << 50.0 << L{0.5, 0.5};
+        QTest::newRow("rightArrow set") << "rightArrow" << "adj1=25000;adj2=75000" << 100.0 << 50.0 << L{0.25, 0.75};
+        QTest::newRow("leftArrow") << "leftArrow" << "adj1=30000" << 100.0 << 50.0 << L{0.3, 0.5};
+        QTest::newRow("upArrow") << "upArrow" << "adj2=20000" << 100.0 << 50.0 << L{0.5, 0.2};
+        QTest::newRow("leftRightArrow") << "leftRightArrow" << "" << 100.0 << 50.0 << L{0.5, 0.5};
+        QTest::newRow("quadArrow") << "quadArrow" << "" << 100.0 << 100.0 << L{0.1125, 0.225, 0.225};
+        QTest::newRow("star4") << "star4" << "" << 100.0 << 100.0 << L{0.125};
+        QTest::newRow("star5") << "star5" << "" << 100.0 << 100.0 << L{0.38196};
+        QTest::newRow("star5 set") << "star5" << "adj=25000" << 100.0 << 100.0 << L{0.5};
+        QTest::newRow("star6") << "star6" << "" << 100.0 << 100.0 << L{0.57736};
+        QTest::newRow("star24") << "star24" << "" << 100.0 << 100.0 << L{0.75};
+        QTest::newRow("mathPlus") << "mathPlus" << "" << 100.0 << 100.0 << L{0.2352};
+        QTest::newRow("wave") << "wave" << "" << 100.0 << 100.0 << L{0.125};
+        QTest::newRow("doubleWave") << "doubleWave" << "" << 100.0 << 100.0 << L{0.0625};
+        QTest::newRow("verticalScroll") << "verticalScroll" << "" << 100.0 << 100.0 << L{0.125};
+        QTest::newRow("smileyFace") << "smileyFace" << "" << 100.0 << 100.0 << L{0.04653};
+        QTest::newRow("sun") << "sun" << "" << 100.0 << 100.0 << L{0.25};
+        QTest::newRow("moon") << "moon" << "" << 100.0 << 100.0 << L{0.5};
+        QTest::newRow("snip1Rect") << "snip1Rect" << "adj=30000" << 100.0 << 50.0 << L{0.3};
+        QTest::newRow("round2DiagRect") << "round2DiagRect" << "" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("a name the preset doesn't use") << "roundRect" << "adj9=5" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("no adjustments: rect") << "rect" << "adj=5" << 100.0 << 50.0 << L{};
+        QTest::newRow("no adjustments: ellipse") << "ellipse" << "" << 100.0 << 50.0 << L{};
+        QTest::newRow("no such preset") << "noSuchShape" << "adj=5" << 100.0 << 50.0 << L{};
+    }
+
+    void dmlLibraryAdjustments()
+    {
+        QFETCH(QString, preset);
+        QFETCH(QString, given);
+        QFETCH(double, width);
+        QFETCH(double, height);
+        QFETCH(QList<double>, expected);
+        const QVector<double> got = libraryAdjustments(preset, dmlAdjust(given), QSizeF(width, height));
+        QCOMPARE(got.size(), expected.size());
+        for (int i = 0; i < expected.size(); ++i) QVERIFY2(qAbs(got[i] - expected[i]) < 1e-4, qPrintable(QStringLiteral("%1: %2 not %3").arg(i).arg(got[i]).arg(expected[i])));
+    }
+
+    void dmlLibraryAdjustmentsStayInRange()
+    {
+        // Whatever a file says, a library shape gets numbers in the range its handle has.
+        const QList<double> hostile = {-1e18, -100000, -1, 0, 1, 99999, 100000, 250000, 1e18};
+        for (const QString &prst : dmlAllPresets()) {
+            const QString id = shapeForPreset(prst);
+            const jp::ShapeDef *def = jp::shapeDef(id);
+            if (!def) continue;
+            for (double v : hostile) {
+                QHash<QString, double> given;
+                for (const char *name : {"adj", "adj1", "adj2", "adj3", "adj4", "adj5"}) given.insert(QString::fromLatin1(name), v);
+                const QVector<double> adj = libraryAdjustments(prst, given, QSizeF(300, 120));
+                QVERIFY2(adj.size() <= def->defaults.size() + 1, qPrintable(prst));
+                for (double a : adj) QVERIFY2(std::isfinite(a) && a >= -1 && a <= 3, qPrintable(QStringLiteral("%1 %2 %3").arg(prst).arg(v).arg(a)));
+                // And the shape can be drawn with them (a shape with a thickness of nothing may show nothing).
+                const QPainterPath path = jp::shapePath(id, QSizeF(300, 120), adj);
+                for (int i = 0; i < path.elementCount(); ++i) QVERIFY2(std::isfinite(path.elementAt(i).x) && std::isfinite(path.elementAt(i).y), qPrintable(prst));
+            }
+        }
+    }
+
+    void dmlPieAndChordFollowTheirAngles()
+    {
+        // A pie from the standard's defaults is three quarters, clockwise from the right: the top right is missing.
+        Geometry g = presetGeometry(QStringLiteral("pie"), {}, QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 1);
+        QVERIFY(g.paths[0].path.contains(QPointF(25, 25)));
+        QVERIFY(g.paths[0].path.contains(QPointF(75, 75)));
+        QVERIFY(g.paths[0].path.contains(QPointF(25, 75)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(75, 25)));
+        // A quarter from the right to the bottom.
+        g = presetGeometry(QStringLiteral("pie"), {{"adj1", 0}, {"adj2", 5400000}}, QSizeF(100, 100));
+        QVERIFY(g.paths[0].path.contains(QPointF(75, 75)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(25, 25)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(75, 25)));
+        // The same angles on a wide ellipse still bound the same quarter.
+        g = presetGeometry(QStringLiteral("pie"), {{"adj1", 0}, {"adj2", 5400000}}, QSizeF(300, 100));
+        QVERIFY(g.paths[0].path.contains(QPointF(225, 75)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(75, 25)));
+        const QRectF b = g.paths[0].path.boundingRect();
+        QVERIFY2(near(b.left(), 150, 1e-3) && near(b.top(), 50, 1e-3) && near(b.right(), 300, 1e-3) && near(b.bottom(), 100, 1e-3),
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(b.left()).arg(b.top()).arg(b.width()).arg(b.height())));
+        // A chord, from 45 to 270 degrees, is cut off by a straight line from the top to the lower right.
+        g = presetGeometry(QStringLiteral("chord"), {}, QSizeF(100, 100));
+        QVERIFY(g.paths[0].path.contains(QPointF(20, 50)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(80, 30)));
+        // Equal start and end angles are nothing odd, and no number makes it fail.
+        for (double v : {-1e18, -1.0, 0.0, 21600000.0, 1e18}) {
+            g = presetGeometry(QStringLiteral("pie"), {{"adj1", v}, {"adj2", v}}, QSizeF(100, 100));
+            QVERIFY(!g.paths.isEmpty());
+        }
+    }
+
+    void dmlArcDrawsAnOpenArcAndItsSector()
+    {
+        // The standard's arc is a quarter from the top to the right; its sector is filled, only the arc stroked.
+        const Geometry g = presetGeometry(QStringLiteral("arc"), {}, QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 2);
+        QVERIFY(g.paths[0].fill == GeometryPath::Normal && !g.paths[0].stroke);
+        QVERIFY(g.paths[1].fill == GeometryPath::None && g.paths[1].stroke);
+        const QRectF arc = g.paths[1].path.boundingRect();
+        QVERIFY2(near(arc.left(), 50, 1e-3) && near(arc.top(), 0, 1e-3) && near(arc.right(), 100, 1e-3) && near(arc.bottom(), 50, 1e-3),
+                 qPrintable(QStringLiteral("%1,%2 %3x%4").arg(arc.left()).arg(arc.top()).arg(arc.width()).arg(arc.height())));
+        QVERIFY(near(g.paths[1].path.elementAt(0).x, 50, 1e-3) && near(g.paths[1].path.elementAt(0).y, 0, 1e-3));
+        QVERIFY(near(g.paths[1].path.currentPosition().x(), 100, 1e-3) && near(g.paths[1].path.currentPosition().y(), 50, 1e-3));
+    }
+
+    void dmlBlockArcIsARingBand()
+    {
+        const Geometry g = presetGeometry(QStringLiteral("blockArc"), {}, QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 1);
+        const QPainterPath &p = g.paths[0].path;
+        QVERIFY(p.contains(QPointF(50, 20)));      // in the band at the top
+        QVERIFY(p.contains(QPointF(10, 45)));      // and at its left end
+        QVERIFY(!p.contains(QPointF(50, 40)));     // not in the hole
+        QVERIFY(!p.contains(QPointF(50, 70)));     // not in the missing lower half
+        // A thinner band.
+        const Geometry thin = presetGeometry(QStringLiteral("blockArc"), {{"adj3", 10000}}, QSizeF(100, 100));
+        QVERIFY(thin.paths[0].path.contains(QPointF(50, 5)));
+        QVERIFY(!thin.paths[0].path.contains(QPointF(50, 20)));
+    }
+
+    void dmlWedgeCalloutPointsAtItsTarget()
+    {
+        // By default the pointer comes from the bottom edge, toward a point below and left of the center.
+        Geometry g = presetGeometry(QStringLiteral("wedgeRectCallout"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths.size(), 1);
+        QPainterPath p = g.paths[0].path;
+        QVERIFY(p.contains(QPointF(100, 50)));
+        QVERIFY(p.contains(QPointF(58, 106)));
+        QVERIFY(!p.contains(QPointF(150, 106)));
+        QVERIFY(near(p.boundingRect().bottom(), 112.5, 1e-3));
+        QVERIFY(near(p.boundingRect().top(), 0) && near(p.boundingRect().left(), 0) && near(p.boundingRect().right(), 200));
+        // A pointer to the right of the box.
+        g = presetGeometry(QStringLiteral("wedgeRectCallout"), {{"adj1", 90000}, {"adj2", 10000}}, QSizeF(200, 100));
+        p = g.paths[0].path;
+        QVERIFY(near(p.boundingRect().right(), 280, 1e-3));
+        QVERIFY(p.contains(QPointF(240, 65)));
+        QVERIFY(!p.contains(QPointF(240, 40)));
+        // Rounded and oval ones reach the same point.
+        for (const char *name : {"wedgeRoundRectCallout", "wedgeEllipseCallout"}) {
+            g = presetGeometry(QString::fromLatin1(name), {{"adj1", -50000}, {"adj2", 90000}}, QSizeF(200, 100));
+            QCOMPARE(g.paths.size(), 1);
+            const QRectF r = g.paths[0].path.boundingRect();
+            QVERIFY2(near(r.bottom(), 140, 1e-3) && r.left() <= 50 + 1e-3 && r.top() >= -0.1,
+                     qPrintable(QStringLiteral("%1: %2,%3 %4x%5").arg(QString::fromLatin1(name)).arg(r.left()).arg(r.top()).arg(r.width()).arg(r.height())));
+            QVERIFY2(g.paths[0].path.contains(QPointF(100, 40)), name);
+        }
+    }
+
+    void dmlLineCalloutsHaveABoxAndALeader()
+    {
+        // borderCallout1: the box is stroked, the line (from outside the box to its target) is not filled.
+        Geometry g = presetGeometry(QStringLiteral("borderCallout1"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths.size(), 2);
+        QVERIFY(g.paths[0].stroke && g.paths[0].fill == GeometryPath::Normal);
+        QVERIFY(g.paths[1].fill == GeometryPath::None && g.paths[1].stroke);
+        QVERIFY(near(g.paths[1].path.elementAt(0).x, -16.666, 1e-3) && near(g.paths[1].path.elementAt(0).y, 18.75, 1e-3));
+        QVERIFY(near(g.paths[1].path.elementAt(1).x, -76.666, 1e-3) && near(g.paths[1].path.elementAt(1).y, 112.5, 1e-3));
+        // callout1 has no border; accentCallout1 an accent bar too; with a border as well, the box is stroked.
+        g = presetGeometry(QStringLiteral("callout1"), {}, QSizeF(200, 100));
+        QVERIFY(!g.paths[0].stroke);
+        g = presetGeometry(QStringLiteral("accentCallout1"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths.size(), 3);
+        QVERIFY(!g.paths[0].stroke);
+        QVERIFY(near(g.paths[1].path.elementAt(0).x, -16.666, 1e-3) && near(g.paths[1].path.elementAt(1).x, -16.666, 1e-3));
+        QVERIFY(near(g.paths[1].path.elementAt(1).y, 100));
+        g = presetGeometry(QStringLiteral("accentBorderCallout1"), {}, QSizeF(200, 100));
+        QVERIFY(g.paths[0].stroke);
+        // The second and third kinds bend the leader once and twice more.
+        g = presetGeometry(QStringLiteral("borderCallout2"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths[1].path.elementCount(), 3);
+        g = presetGeometry(QStringLiteral("borderCallout3"), {}, QSizeF(200, 100));
+        QCOMPARE(g.paths[1].path.elementCount(), 4);
+        QVERIFY(near(g.paths[1].path.currentPosition().x(), -16.666, 1e-3) && near(g.paths[1].path.currentPosition().y(), 112.963, 1e-3));
+    }
+
+    void dmlArrowCalloutsFillTheirFrame()
+    {
+        for (const char *name : {"rightArrowCallout", "leftArrowCallout", "upArrowCallout", "downArrowCallout", "leftRightArrowCallout", "upDownArrowCallout"}) {
+            const Geometry g = presetGeometry(QString::fromLatin1(name), {}, QSizeF(200, 120));
+            QCOMPARE(g.paths.size(), 1);
+            const QRectF r = g.paths[0].path.boundingRect();
+            QVERIFY2(near(r.left(), 0, 1e-3) && near(r.top(), 0, 1e-3) && near(r.right(), 200, 1e-3) && near(r.bottom(), 120, 1e-3), name);
+            QVERIFY2(g.paths[0].path.contains(QPointF(100, 60)) || g.paths[0].path.contains(QPointF(60, 60)), name);
+        }
+        // The right arrow's head is at the right, the box at the left.
+        const Geometry right = presetGeometry(QStringLiteral("rightArrowCallout"), {}, QSizeF(200, 120));
+        QVERIFY(right.paths[0].path.contains(QPointF(10, 5)));
+        QVERIFY(!right.paths[0].path.contains(QPointF(190, 5)));
+        QVERIFY(right.paths[0].path.contains(QPointF(180, 60)));
+        const Geometry down = presetGeometry(QStringLiteral("downArrowCallout"), {}, QSizeF(120, 200));
+        QVERIFY(down.paths[0].path.contains(QPointF(5, 10)));
+        QVERIFY(!down.paths[0].path.contains(QPointF(5, 190)));
+        QVERIFY(down.paths[0].path.contains(QPointF(60, 190)));
+    }
+
+    void dmlShapesTheLibraryLacksHaveDefinitions()
+    {
+        // A quarter pie sits in the lower right corner; the trapezoid is narrower at the top on both sides.
+        Geometry g = presetGeometry(QStringLiteral("pieWedge"), {}, QSizeF(100, 100));
+        QCOMPARE(g.paths.size(), 1);
+        QVERIFY(g.paths[0].path.contains(QPointF(90, 90)));
+        QVERIFY(g.paths[0].path.contains(QPointF(5, 95)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(10, 10)));
+        g = presetGeometry(QStringLiteral("nonIsoscelesTrapezoid"), {}, QSizeF(200, 100));
+        QVERIFY(g.paths[0].path.contains(QPointF(100, 5)));
+        QVERIFY(!g.paths[0].path.contains(QPointF(5, 5)));
+        QVERIFY(g.paths[0].path.contains(QPointF(5, 95)));
+    }
+
+    void dmlConnectorPresetsAreOpenPaths()
+    {
+        // The elbow with one bend goes along the top and down the right; with two, across at the adjusted position.
+        Geometry g = presetGeometry(QStringLiteral("bentConnector2"), {}, QSizeF(100, 60));
+        QCOMPARE(g.paths.size(), 1);
+        QVERIFY(g.paths[0].fill == GeometryPath::None);
+        QCOMPARE(g.paths[0].path.elementCount(), 3);
+        QVERIFY(near(g.paths[0].path.elementAt(1).x, 100) && near(g.paths[0].path.elementAt(1).y, 0));
+        g = presetGeometry(QStringLiteral("bentConnector3"), {{"adj1", 25000}}, QSizeF(100, 60));
+        QCOMPARE(g.paths[0].path.elementCount(), 4);
+        QVERIFY(near(g.paths[0].path.elementAt(1).x, 25) && near(g.paths[0].path.elementAt(2).x, 25) && near(g.paths[0].path.elementAt(2).y, 60));
+        g = presetGeometry(QStringLiteral("bentConnector4"), {}, QSizeF(100, 60));
+        QCOMPARE(g.paths[0].path.elementCount(), 5);
+        QVERIFY(near(g.paths[0].path.currentPosition().x(), 100) && near(g.paths[0].path.currentPosition().y(), 60));
+        g = presetGeometry(QStringLiteral("bentConnector5"), {{"adj1", 25000}, {"adj3", 75000}}, QSizeF(100, 60));
+        QCOMPARE(g.paths[0].path.elementCount(), 6);
+        QVERIFY(near(g.paths[0].path.elementAt(1).x, 25) && near(g.paths[0].path.elementAt(4).x, 75));
+        for (const char *name : {"curvedConnector2", "curvedConnector3", "curvedConnector4", "curvedConnector5"}) {
+            g = presetGeometry(QString::fromLatin1(name), {}, QSizeF(100, 60));
+            QCOMPARE(g.paths.size(), 1);
+            QVERIFY(near(g.paths[0].path.elementAt(0).x, 0) && near(g.paths[0].path.elementAt(0).y, 0));
+            QVERIFY2(near(g.paths[0].path.currentPosition().x(), 100) && near(g.paths[0].path.currentPosition().y(), 60), name);
+        }
+    }
+
+    void dmlPresetGeometryUsesTheLibraryWhereItIsAsGood()
+    {
+        for (const char *name : {"rect", "roundRect", "ellipse", "triangle", "rightArrow", "star5", "hexagon", "flowChartProcess"})
+            QVERIFY2(!prefersPresetGeometry(QString::fromLatin1(name)), name);
+        for (const char *name : {"pie", "chord", "arc", "blockArc", "wedgeRectCallout", "wedgeRoundRectCallout", "wedgeEllipseCallout", "borderCallout1",
+                                 "rightArrowCallout", "downArrowCallout"})
+            QVERIFY2(prefersPresetGeometry(QString::fromLatin1(name)) && hasPresetGeometry(QString::fromLatin1(name)), name);
+        QVERIFY(!hasPresetGeometry(QStringLiteral("rect")));
+        QVERIFY(presetGeometry(QStringLiteral("rect"), {}, QSizeF(10, 10)).isEmpty());
+        QVERIFY(presetGeometry(QStringLiteral("pie"), {}, QSizeF(0, 0)).isEmpty());
+        QVERIFY(presetGeometry(QStringLiteral("pie"), {}, QSizeF(-5, 10)).isEmpty());
+    }
+
+    void dmlEveryPresetDefinitionSurvivesAnySizeAndAdjustment()
+    {
+        const QList<double> values = {-1e18, -100000, 0, 1, 50000, 100000, 21600000, 1e18};
+        const QList<QSizeF> sizes = {QSizeF(100, 100), QSizeF(0, 50), QSizeF(50, 0), QSizeF(1e6, 1), QSizeF(1, 1e6), QSizeF(0.001, 0.001)};
+        for (const QString &prst : dmlAllPresets()) {
+            if (!hasPresetGeometry(prst)) continue;
+            for (double v : values) {
+                QHash<QString, double> adj;
+                for (const char *name : {"adj", "adj1", "adj2", "adj3", "adj4", "adj5", "adj6", "adj7", "adj8"}) adj.insert(QString::fromLatin1(name), v);
+                for (const QSizeF &size : sizes) {
+                    const Geometry g = presetGeometry(prst, adj, size);
+                    for (const GeometryPath &gp : g.paths)
+                        for (int i = 0; i < gp.path.elementCount(); ++i) {
+                            const auto e = gp.path.elementAt(i);
+                            QVERIFY2(std::isfinite(e.x) && std::isfinite(e.y) && qAbs(e.x) <= 1e6 + 1 && qAbs(e.y) <= 1e6 + 1, qPrintable(prst));
+                        }
+                }
+            }
+        }
     }
 
     void writerRoundTrip()
