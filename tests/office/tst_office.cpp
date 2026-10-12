@@ -1,6 +1,7 @@
 // Tests of libs/office: packages, the theme, and DrawingML colors. Every
 // package they read is built in memory (never a real-world file).
 #include "office/package.h"
+#include "office/xml.h"
 #include "io/zip.h"
 
 #include <QFile>
@@ -433,6 +434,276 @@ private Q_SLOTS:
         QFETCH(QString, target);
         QFETCH(QString, expected);
         QCOMPARE(resolvePartName(source, target), expected);
+    }
+
+    // ---- XML helpers
+
+    void xmlParsesWithNamespaces()
+    {
+        const QByteArray xml =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+            "<a:txBody xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"\n"
+            "          xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"rId3\" val=\"v\">\n"
+            "  <a:r><a:t> </a:t></a:r>\n"
+            "</a:txBody>";
+        QDomDocument doc;
+        QString err;
+        QVERIFY2(parseXml(xml, &doc, &err), qPrintable(err));
+        const QDomElement root = doc.documentElement();
+        QCOMPARE(root.localName(), QStringLiteral("txBody"));
+        QCOMPARE(root.namespaceURI(), QString(ns::A));
+        // A run of one space is text, and stays.
+        QCOMPARE(root.firstChildElement().firstChildElement().text(), QStringLiteral(" "));
+    }
+
+    void xmlRefusesWhatIsNotSafe_data()
+    {
+        QTest::addColumn<QByteArray>("xml");
+        QTest::newRow("empty") << QByteArray();
+        QTest::newRow("not XML") << QByteArray("plain text");
+        QTest::newRow("cut short") << QByteArray("<a:x xmlns:a=\"urn:x\"><a:y>");
+        QTest::newRow("two roots") << QByteArray("<a/><b/>");
+        QTest::newRow("DOCTYPE") << QByteArray("<?xml version=\"1.0\"?>\n<!DOCTYPE x [<!ENTITY e \"y\">]>\n<x>&e;</x>");
+        QTest::newRow("bare DOCTYPE") << QByteArray("<!DOCTYPE x>\n<x/>");
+        QTest::newRow("external entity")
+            << QByteArray("<?xml version=\"1.0\"?>\n<!DOCTYPE x [<!ENTITY e SYSTEM \"file:///etc/hostname\">]>\n<x>&e;</x>");
+        QTest::newRow("entity with no DOCTYPE") << QByteArray("<x>&e;</x>");
+        QTest::newRow("1,001 levels deep") << QByteArray("<a>").repeated(1001) + QByteArray("</a>").repeated(1001);
+    }
+
+    void xmlRefusesWhatIsNotSafe()
+    {
+        QFETCH(QByteArray, xml);
+        QDomDocument doc;
+        QString err;
+        QVERIFY(!parseXml(xml, &doc, &err));
+        QVERIFY(!err.isEmpty());
+    }
+
+    void xmlAcceptsDeepButReasonableNesting()
+    {
+        QDomDocument doc;
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY2(parseXml(QByteArray("<a>").repeated(1000) + QByteArray("</a>").repeated(1000), &doc, &err), qPrintable(err));
+        QVERIFY2(timer.elapsed() < 5000, "deep XML took too long to parse");
+    }
+
+    void xmlNamespacesInBothForms()
+    {
+        QVERIFY(sameNamespace(ns::A, ns::A));
+        QVERIFY(sameNamespace(ns::A, ns::AStrict));
+        QVERIFY(sameNamespace(ns::PStrict, ns::P));
+        QVERIFY(sameNamespace(ns::R, ns::RStrict));
+        QVERIFY(!sameNamespace(ns::A, ns::P));
+        QVERIFY(!sameNamespace(ns::AStrict, ns::PStrict));
+        QVERIFY(!sameNamespace(ns::A, QString()));
+        QVERIFY(sameNamespace(QString(), QString()));
+        QVERIFY(!sameNamespace(ns::A, QStringLiteral("urn:other")));
+        QVERIFY(sameNamespace(QStringLiteral("urn:other"), QStringLiteral("urn:other")));
+    }
+
+    void xmlFindsElements_data()
+    {
+        QTest::addColumn<QString>("a");
+        QTest::addColumn<QString>("p");
+        QTest::newRow("transitional") << QString(ns::A) << QString(ns::P);
+        QTest::newRow("strict") << QString(ns::AStrict) << QString(ns::PStrict);
+    }
+
+    void xmlFindsElements()
+    {
+        QFETCH(QString, a);
+        QFETCH(QString, p);
+        const QByteArray xml = QStringLiteral(
+            "<a:spPr xmlns:a=\"%1\" xmlns:p=\"%2\" xmlns:x=\"urn:other\">"
+            "<a:ln w=\"1\"/><x:ln w=\"2\"/><p:ln w=\"3\"/><a:ln w=\"4\"/><a:fill/>"
+            "</a:spPr>").arg(a, p).toUtf8();
+        QDomDocument doc;
+        QVERIFY(parseXml(xml, &doc));
+        const QDomElement root = doc.documentElement();
+        // Asked for in either form, only this namespace's elements are found.
+        for (const QLatin1String &form : {ns::A, ns::AStrict}) {
+            QCOMPARE(child(root, form, QStringLiteral("ln")).attribute(QStringLiteral("w")), QStringLiteral("1"));
+            const QVector<QDomElement> lines = jp::office::children(root, form, QStringLiteral("ln"));
+            QCOMPARE(lines.size(), 2);
+            QCOMPARE(lines[1].attribute(QStringLiteral("w")), QStringLiteral("4"));
+            QVERIFY(isElement(lines[0], form, QStringLiteral("ln")));
+            QVERIFY(!isElement(lines[0], form, QStringLiteral("fill")));
+            QVERIFY(!isElement(lines[0], ns::P, QStringLiteral("ln")));
+        }
+        QCOMPARE(child(root, ns::P, QStringLiteral("ln")).attribute(QStringLiteral("w")), QStringLiteral("3"));
+        QCOMPARE(child(root, QStringLiteral("urn:other"), QStringLiteral("ln")).attribute(QStringLiteral("w")), QStringLiteral("2"));
+        QVERIFY(child(root, ns::A, QStringLiteral("missing")).isNull());
+        QVERIFY(jp::office::children(root, ns::A, QStringLiteral("missing")).isEmpty());
+        QCOMPARE(jp::office::children(root).size(), 5);
+        // Not found below the first level, and nothing from a null element.
+        QVERIFY(child(root, ns::A, QStringLiteral("w")).isNull());
+        QVERIFY(child(QDomElement(), ns::A, QStringLiteral("ln")).isNull());
+        QVERIFY(jp::office::children(QDomElement()).isEmpty());
+        QVERIFY(!isElement(QDomElement(), ns::A, QStringLiteral("ln")));
+    }
+
+    void xmlReadsAttributes_data()
+    {
+        QTest::addColumn<QString>("r");
+        QTest::newRow("transitional") << QString(ns::R);
+        QTest::newRow("strict") << QString(ns::RStrict);
+    }
+
+    void xmlReadsAttributes()
+    {
+        QFETCH(QString, r);
+        const QByteArray xml = QStringLiteral(
+            "<a:blip xmlns:a=\"%1\" xmlns:r=\"%2\" xmlns:x=\"urn:other\" r:embed=\"rId7\" x:embed=\"other\" val=\"1\" empty=\"\"/>")
+            .arg(ns::A, r).toUtf8();
+        QDomDocument doc;
+        QVERIFY(parseXml(xml, &doc));
+        const QDomElement e = doc.documentElement();
+        QCOMPARE(attr(e, QStringLiteral("val")), QStringLiteral("1"));
+        QCOMPARE(attr(e, QStringLiteral("none"), QStringLiteral("dflt")), QStringLiteral("dflt"));
+        QCOMPARE(attr(e, QStringLiteral("empty"), QStringLiteral("dflt")), QString());   // present but empty
+        QVERIFY(hasAttr(e, QStringLiteral("val")));
+        QVERIFY(hasAttr(e, QStringLiteral("empty")));
+        QVERIFY(!hasAttr(e, QStringLiteral("none")));
+        // A namespaced attribute is no plain one, and the reverse.
+        QVERIFY(!hasAttr(e, QStringLiteral("embed")));
+        QCOMPARE(attr(e, QStringLiteral("embed")), QString());
+        for (const QLatin1String &form : {ns::R, ns::RStrict}) {
+            QCOMPARE(attrNs(e, form, QStringLiteral("embed")), QStringLiteral("rId7"));
+            QCOMPARE(attrNs(e, form, QStringLiteral("none"), QStringLiteral("dflt")), QStringLiteral("dflt"));
+        }
+        QCOMPARE(attrNs(e, QStringLiteral("urn:other"), QStringLiteral("embed")), QStringLiteral("other"));
+        QCOMPARE(attrNs(e, ns::R, QStringLiteral("val"), QStringLiteral("dflt")), QStringLiteral("dflt"));   // val has no namespace
+        QCOMPARE(attr(QDomElement(), QStringLiteral("val"), QStringLiteral("dflt")), QStringLiteral("dflt"));
+        QCOMPARE(attrNs(QDomElement(), ns::R, QStringLiteral("embed"), QStringLiteral("dflt")), QStringLiteral("dflt"));
+    }
+
+    void xmlConvertsEmuAndPoints()
+    {
+        QCOMPARE(EmuPerPoint, qint64(12700));
+        QCOMPARE(emuToPoints(12700), 1.0);
+        QCOMPARE(emuToPoints(127000), 10.0);
+        QCOMPARE(emuToPoints(-6350), -0.5);
+        QCOMPARE(emuToPoints(9144000), 720.0);   // a ten-inch slide
+        QCOMPARE(pointsToEmu(10), qint64(127000));
+        QCOMPARE(pointsToEmu(0.5), qint64(6350));
+        QCOMPARE(pointsToEmu(-72), qint64(-914400));
+        QCOMPARE(pointsToEmu(emuToPoints(4572000)), qint64(4572000));
+    }
+
+    void xmlParsesLengths_data()
+    {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<double>("points");
+        QTest::addColumn<bool>("ok");
+        QTest::newRow("EMU") << "12700" << 1.0 << true;
+        QTest::newRow("negative EMU") << "-25400" << -2.0 << true;
+        QTest::newRow("zero") << "0" << 0.0 << true;
+        QTest::newRow("spaces around") << " 127000 " << 10.0 << true;
+        QTest::newRow("a fraction of an EMU") << "6350.5" << 6350.5 / 12700 << true;
+        QTest::newRow("points") << "36pt" << 36.0 << true;
+        QTest::newRow("inches") << "1in" << 72.0 << true;
+        QTest::newRow("fractional inches") << "1.5in" << 108.0 << true;
+        QTest::newRow("centimeters") << "2.54cm" << 72.0 << true;
+        QTest::newRow("millimeters") << "25.4mm" << 72.0 << true;
+        QTest::newRow("picas") << "1pc" << 12.0 << true;
+        QTest::newRow("picas, the other way") << "2pi" << 24.0 << true;
+        QTest::newRow("negative inches") << "-0.5in" << -36.0 << true;
+        QTest::newRow("empty") << "" << 0.0 << false;
+        QTest::newRow("word") << "wide" << 0.0 << false;
+        QTest::newRow("unknown unit") << "5furlongs" << 0.0 << false;
+        QTest::newRow("unit alone") << "pt" << 0.0 << false;
+        QTest::newRow("two numbers") << "1 2" << 0.0 << false;
+    }
+
+    void xmlParsesLengths()
+    {
+        QFETCH(QString, text);
+        QFETCH(double, points);
+        QFETCH(bool, ok);
+        bool gotOk = !ok;
+        const double v = parseLength(text, -99, &gotOk);
+        QCOMPARE(gotOk, ok);
+        QCOMPARE(v, ok ? points : -99.0);
+        QCOMPARE(parseLength(text, 7), ok ? points : 7.0);   // without `ok`, too
+    }
+
+    void xmlParsesPercentages_data()
+    {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<double>("fraction");
+        QTest::addColumn<bool>("ok");
+        QTest::newRow("whole") << "100000" << 1.0 << true;
+        QTest::newRow("half") << "50000" << 0.5 << true;
+        QTest::newRow("over") << "250000" << 2.5 << true;
+        QTest::newRow("negative") << "-25000" << -0.25 << true;
+        QTest::newRow("zero") << "0" << 0.0 << true;
+        QTest::newRow("strict, whole") << "100%" << 1.0 << true;
+        QTest::newRow("strict, fraction") << "12.5%" << 0.125 << true;
+        QTest::newRow("strict, negative") << "-50%" << -0.5 << true;
+        QTest::newRow("spaces around") << " 50000 " << 0.5 << true;
+        QTest::newRow("empty") << "" << 0.0 << false;
+        QTest::newRow("word") << "half" << 0.0 << false;
+        QTest::newRow("just a sign") << "%" << 0.0 << false;
+    }
+
+    void xmlParsesPercentages()
+    {
+        QFETCH(QString, text);
+        QFETCH(double, fraction);
+        QFETCH(bool, ok);
+        bool gotOk = !ok;
+        QCOMPARE(parsePercent(text, -99, &gotOk), ok ? fraction : -99.0);
+        QCOMPARE(gotOk, ok);
+    }
+
+    void xmlParsesAngles()
+    {
+        bool ok = false;
+        QCOMPARE(parseAngle(QStringLiteral("5400000"), 0, &ok), 90.0);
+        QVERIFY(ok);
+        QCOMPARE(parseAngle(QStringLiteral("21600000")), 360.0);
+        QCOMPARE(parseAngle(QStringLiteral("-5400000")), -90.0);
+        QCOMPARE(parseAngle(QStringLiteral("0")), 0.0);
+        QCOMPARE(parseAngle(QStringLiteral("30000")), 0.5);
+        QCOMPARE(parseAngle(QStringLiteral("x"), 45, &ok), 45.0);
+        QVERIFY(!ok);
+        QCOMPARE(parseAngle(QString(), 45), 45.0);
+    }
+
+    void xmlParsesBooleans()
+    {
+        bool ok = false;
+        for (const char *t : {"1", "true", "on", "TRUE", "On"}) {
+            ok = false;
+            QVERIFY2(parseBool(QString::fromLatin1(t), false, &ok), t);
+            QVERIFY2(ok, t);
+        }
+        for (const char *t : {"0", "false", "off", "False", "OFF"}) {
+            ok = false;
+            QVERIFY2(!parseBool(QString::fromLatin1(t), true, &ok), t);
+            QVERIFY2(ok, t);
+        }
+        QVERIFY(parseBool(QString(), true, &ok));
+        QVERIFY(!ok);
+        QVERIFY(!parseBool(QStringLiteral("maybe"), false, &ok));
+        QVERIFY(!ok);
+        QVERIFY(parseBool(QStringLiteral("2"), true));
+    }
+
+    void xmlParsesIntegers()
+    {
+        bool ok = false;
+        QCOMPARE(parseInt(QStringLiteral("12700"), 0, &ok), qint64(12700));
+        QVERIFY(ok);
+        QCOMPARE(parseInt(QStringLiteral("-3")), qint64(-3));
+        QCOMPARE(parseInt(QStringLiteral("9144000000")), qint64(9144000000));   // past 32 bits
+        QCOMPARE(parseInt(QStringLiteral("1.5"), 8, &ok), qint64(8));
+        QVERIFY(!ok);
+        QCOMPARE(parseInt(QString(), 8), qint64(8));
+        QCOMPARE(parseInt(QStringLiteral("12x"), 8), qint64(8));
     }
 
     void writerRoundTrip()
