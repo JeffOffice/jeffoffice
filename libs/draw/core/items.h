@@ -128,8 +128,11 @@ public:
     // A movie or sound the picture plays, as a slide's video does (the
     // picture shows until it plays): "video" or "audio", and the media's id in
     // the document's store (Document::media), or its address when the file
-    // links to it outside. Kept to be written back; not played here yet.
+    // links to it outside. Kept to be written back.
     QString mediaKind, mediaId, mediaLink;
+    // Where in the file it plays from and to, and how long its volume rises
+    // and falls at the ends (milliseconds; 0 trim end: to the end of the file).
+    int mediaTrimStart = 0, mediaTrimEnd = 0, mediaFadeIn = 0, mediaFadeOut = 0;
 
     void fitImage(const QSize &px, bool fill);  // fill: crop to cover, else fit inside
     void keepProportions(const QSize &px);      // the picture's height follows its width, around the same center
