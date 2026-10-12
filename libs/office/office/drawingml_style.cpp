@@ -298,7 +298,7 @@ QDomElement childNamed(const QDomElement &e, const char *local)
     return QDomElement();
 }
 
-QString imageFormat(const QByteArray &bytes, const QString &contentType, const QString &partName)
+QString imageFormat(const QByteArray &bytes)
 {
     auto starts = [&](const char *magic, int n, int at = 0) { return bytes.size() >= at + n && std::memcmp(bytes.constData() + at, magic, size_t(n)) == 0; };
     if (starts("\x89PNG", 4)) return QStringLiteral("png");
@@ -309,13 +309,6 @@ QString imageFormat(const QByteArray &bytes, const QString &contentType, const Q
     if (starts("\x01\x00\x00\x00", 4) && starts(" EMF", 4, 40)) return QStringLiteral("emf");
     if (starts("BM", 2) && bytes.size() > 14) return QStringLiteral("bmp");
     if (bytes.left(2048).contains("<svg")) return QStringLiteral("svg");
-    const QString type = contentType.toLower();
-    const QString ext = partName.section(QLatin1Char('.'), -1).toLower();
-    static const struct { const char *name; const char *format; } known[] = {
-        {"png", "png"}, {"jpeg", "jpeg"}, {"jpg", "jpeg"}, {"gif", "gif"}, {"bmp", "bmp"}, {"tif", "tiff"}, {"tiff", "tiff"},
-        {"emf", "emf"}, {"wmf", "wmf"}, {"svg", "svg"}};
-    for (const auto &k : known)
-        if (type == QLatin1String("image/") + QLatin1String(k.name) || ext == QLatin1String(k.name)) return QString::fromLatin1(k.format);
     return QString();
 }
 
@@ -331,7 +324,7 @@ QString loadImage(const QString &rId, const StyleContext &sc)
     const Relationship rel = ctx.package->relationship(ctx.part, rId);
     if (!rel.id.isEmpty() && !rel.external) {
         const QByteArray bytes = ctx.package->part(rel.target);
-        const QString format = imageFormat(bytes, ctx.package->contentType(rel.target), rel.target);
+        const QString format = imageFormat(bytes);
         if (!bytes.isEmpty() && !format.isEmpty()) id = ctx.addImage(bytes, format);
     }
     if (sc.images) sc.images->insert(rId, id);
