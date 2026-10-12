@@ -56,6 +56,11 @@ QString slideMasterOf(const Document &d, int slide);
 // the nine standard layouts, and one Title Slide.
 std::unique_ptr<Document> newPresentation();
 
+// A presentation saved with no slides (a template can be) gets one, as a
+// new presentation starts: a Title Slide, or the first layout or master it
+// has. False if it has neither.
+bool ensureASlide(Document &d);
+
 // Adds a slide with `layout` at `at` (-1: at the end): copies of the
 // layout's title, body, and other content placeholders, empty, with their
 // formatting and prompts (the date, footer, and slide number only when the

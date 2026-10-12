@@ -656,7 +656,7 @@ bool Reader::run(QString *error)
     readMasters();
     if (m_masters.empty()) return fail(say("The presentation has no master page that can be read."));
     readSlides(presentation);
-    if (m_doc.pages.isEmpty()) return fail(say("The presentation has no slides."));
+    if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
 
     // The theme: the colors the first master names, and the fonts of its title and outline.
     DeckTheme theme = defaultTheme();

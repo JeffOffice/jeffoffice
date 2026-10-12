@@ -2700,6 +2700,30 @@ private Q_SLOTS:
         QVERIFY(d->appData.value(QStringLiteral("footers")).toBool());
     }
 
+    // A presentation saved with no slides (a template can be, and so can a
+    // script's empty one) opens with one blank Title Slide, as a new one
+    // starts, rather than as a window with nothing to show.
+    void emptyPresentationsOpenWithASlide()
+    {
+        QString err;
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(deck::exportPresentation(*deck::newPresentation()), zip, &err));
+        QString pres = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+        pres.replace(QRegularExpression(QStringLiteral("<p:sldIdLst>.*</p:sldIdLst>")), QString());
+        QVERIFY(!pres.contains(QLatin1String("sldId")));
+        zip[QStringLiteral("ppt/presentation.xml")] = pres.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto pptx = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(pptx, qPrintable(err));
+        QCOMPARE(pptx->pages.size(), 1);
+        QCOMPARE(deck::layoutType(*pptx->masterFor(*pptx->pages[0])), QStringLiteral("title"));
+        // An .odp with no pages, the same.
+        auto odp = deck::importOdp(odptest::odpZip(odptest::odpContent(QString(), QString())), &err);
+        QVERIFY2(odp, qPrintable(err));
+        QCOMPARE(odp->pages.size(), 1);
+    }
+
     // Damaged and hostile files are refused, or read as far as they go, and say why.
     void odpSurvivesHostileFiles()
     {
@@ -2719,9 +2743,6 @@ private Q_SLOTS:
         QVERIFY(!err.isEmpty());
         err.clear();
         QVERIFY(!deck::importOdp(odptest::odpZip(QStringLiteral("<a/>")), &err));
-        QVERIFY(!err.isEmpty());
-        err.clear();
-        QVERIFY(!deck::importOdp(odptest::odpZip(odptest::odpContent(QString(), QString())), &err));   // no slides
         QVERIFY(!err.isEmpty());
         err.clear();
         QVERIFY(!deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles().replace(QStringLiteral("<style:master-page"), QStringLiteral("<style:no-page"))
