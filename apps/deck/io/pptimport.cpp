@@ -1628,7 +1628,8 @@ QString Importer::readNotes(const SlideEntry &slide, quint32 notesRef, const Mas
             for (const SlideEntry &n : std::as_const(m_notesList)) {
                 Rec nc;
                 if (!containerAt(n.persist, RT_Notes, &nc)) continue;
-                if (const Rec *a = find(m_ppt.in(nc), RT_NotesAtom); a && a->len >= 4) {
+                const QVector<Rec> parts = m_ppt.in(nc);
+                if (const Rec *a = find(parts, RT_NotesAtom); a && a->len >= 4) {
                     Cursor c(m_ppt.data(), a->off, a->end());
                     m_notesOfSlide.insert(c.u32(), n.slideId);
                 }
@@ -1648,7 +1649,8 @@ QString Importer::readNotes(const SlideEntry &slide, quint32 notesRef, const Mas
     TextGroup g;
     Rec nc, textbox;
     if (containerAt(entry->persist, RT_Notes, &nc)) {
-        if (const Rec *pp = find(m_ppt.in(nc), RT_PPDrawing); pp && findPlaceholderText(m_ppt, *pp, {0x06, 0x0C}, 0, &textbox)) g = readTextGroup(m_ppt, m_ppt.in(textbox));
+        const QVector<Rec> parts = m_ppt.in(nc);
+        if (const Rec *pp = find(parts, RT_PPDrawing); pp && findPlaceholderText(m_ppt, *pp, {0x06, 0x0C}, 0, &textbox)) g = readTextGroup(m_ppt, m_ppt.in(textbox));
     }
     if (g.outline >= 0 && g.outline < entry->groups.size()) g = entry->groups.at(int(g.outline));
     if (!g.hasText)
