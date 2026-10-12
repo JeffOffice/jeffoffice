@@ -210,6 +210,7 @@ void DeckWindow::createActions()
     mk("view.notes", tr("Notes"), "notebook-pen", QKeySequence(), [this] { m_notes->setVisible(m_notes->isHidden()); refreshUi(); }, true);
     mk("view.fit", tr("Fit to Window"), "scan", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::WholePage); });
     createShowActions();
+    createViewModeActions();
     createSaveActions();
 }
 
@@ -294,7 +295,6 @@ void DeckWindow::refreshUi()
     act("view.rulers")->setChecked(ed->view.rulers);
     act("view.gridlines")->setChecked(m_canvas->gridlines());
     act("view.guides")->setChecked(m_canvas->guides());
-    act("view.normal")->setChecked(true);
     act("design.sizeStandard")->setChecked(d->pageSize() == QSizeF(deck::kStandardWidth, deck::kStandardHeight));
     act("design.sizeWidescreen")->setChecked(d->pageSize() == QSizeF(deck::kSlideWidth, deck::kSlideHeight));
     if (d->pageSize() != m_shownSize) {
