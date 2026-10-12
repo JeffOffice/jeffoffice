@@ -99,6 +99,12 @@ QSet<QString> mediaHiddenWhenStopped(const Page &slide);
 QString mediaKindOfFile(const QString &fileName);
 // Its media type for the package ("video/mp4"), and a general one when unknown.
 QString mediaTypeOfFile(const QString &fileName, const QString &kind);
+// The name's end that a movie or sound's file may be given for the decoder to go by: one of those below, in lower case, else "bin". The
+// name a stranger's file gave its part (m3u8, sdp, a path) never goes to the decoder.
+QString mediaExtensionFor(const QString &extension);
+// Whether the bytes could be a movie or sound's file. A text (a playlist, a manifest, a list of files to join, a session
+// description) is a list of places to fetch, which a decoder follows: none of that is media, and nothing here follows it.
+bool looksLikeMediaFile(const QByteArray &bytes);
 // The file types Insert > Video and Insert > Audio offer, as a file dialog's filter.
 QStringList mediaExtensions(const QString &kind);
 

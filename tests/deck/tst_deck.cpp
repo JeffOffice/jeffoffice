@@ -94,6 +94,8 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QSignalSpy>
 #include <QSlider>
 #include <QStatusBar>
@@ -408,6 +410,26 @@ public:
 public Q_SLOTS:
     void open(const QUrl &url) { urls << url.toString(); }
 };
+
+// A server on this computer that counts who calls, for the tests of what a file may make the player fetch.
+struct MediaListener {
+    QTcpServer server;
+    int calls = 0;
+    QByteArray what;
+    MediaListener()
+    {
+        QObject::connect(&server, &QTcpServer::newConnection, &server, [this] {
+            while (QTcpSocket *s = server.nextPendingConnection()) {
+                ++calls;
+                QObject::connect(s, &QTcpSocket::readyRead, s, [this, s] { what += s->readAll(); });
+                s->disconnectFromHost();
+            }
+        });
+        server.listen(QHostAddress::LocalHost, 0);
+    }
+    QString url(const char *path) const { return QStringLiteral("http://127.0.0.1:%1/%2").arg(server.serverPort()).arg(QLatin1String(path)); }
+};
+
 
 class DeckTests : public QObject {
     Q_OBJECT
@@ -9629,6 +9651,104 @@ private Q_SLOTS:
         QCOMPARE(show.currentSlide(), 0);
         show.next();
         QCOMPARE(show.currentSlide(), 1);
+    }
+
+    // ---- a stranger's media is only media ----
+
+    // A playlist that names a place to fetch, which FFmpeg follows: the player never gets one (what the player fetches or reads is the
+    // presentation's own bytes, and nothing else).
+    void mediaPlayerNeverFollowsAPlaylist()
+    {
+        MediaListener where;
+        QVERIFY(where.server.isListening());
+        const int before = MediaPlayback::decoders();
+        const QString hls = QStringLiteral("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:1\n#EXTINF:1.0,\n%1\n#EXT-X-ENDLIST\n").arg(where.url("segment.ts"));
+        const QStringList texts = {
+            hls,
+            hls + QStringLiteral("# ") + QString(80, QChar(0xE9)) + QStringLiteral("\n"),   // with a good deal that isn't ASCII
+            QStringLiteral("  \n#EXTM3U\n#EXTINF:1,\n%1\n").arg(where.url("a.mp3")),
+            QStringLiteral("ffconcat version 1.0\nfile '%1'\n").arg(where.url("b.wav")),
+            QStringLiteral("v=0\no=- 0 0 IN IP4 127.0.0.1\ns=x\nc=IN IP4 127.0.0.1\nm=audio 5004 RTP/AVP 0\na=control:%1\n").arg(where.url("c")),
+            QStringLiteral("<?xml version=\"1.0\"?><MPD xmlns=\"urn:mpeg:dash:schema:mpd:2011\"><Period><AdaptationSet><Representation><BaseURL>%1</BaseURL></Representation></AdaptationSet></Period></MPD>").arg(where.url("d.mp4")),
+            QStringLiteral("[playlist]\nFile1=%1\nNumberOfEntries=1\n").arg(where.url("e.mp3")),
+            QStringLiteral("<ASX VERSION=\"3.0\"><ENTRY><REF HREF=\"%1\"/></ENTRY></ASX>").arg(where.url("f.wma")),
+            where.url("g.mp4") + QStringLiteral("\n"),
+            QStringLiteral("file:///etc/passwd\n"),
+        };
+        QList<QByteArray> lists{QByteArray("\xEF\xBB\xBF") + hls.toUtf8()};   // after a byte order mark
+        for (const QString &text : texts) lists << text.toUtf8();
+        for (const QByteArray &text : std::as_const(lists)) {
+            // Whatever the part is called: a playlist's name, a sound's, or a movie's.
+            for (const char *extension : {"m3u8", "wav", "mp4", "txt"}) {
+                MediaPlayback pb;
+                deck::MediaPlay play;
+                play.video = extension[0] == 'm' && extension[1] == 'p';
+                pb.setFile(text, QLatin1String(extension));
+                pb.setPlay(play);
+                pb.play();
+                QVERIFY2(pb.failed(), qPrintable(QString::fromUtf8(text.left(40)) + QStringLiteral(" as .") + QLatin1String(extension)));
+                QVERIFY(!pb.error().isEmpty());
+            }
+        }
+        QCOMPARE(MediaPlayback::decoders(), before);   // not even a decoder was started
+        QTest::qWait(300);
+        QCOMPARE(where.calls, 0);
+        // The same for what a window's Insert would read.
+        QVERIFY(!probeMedia(hls.toUtf8(), QStringLiteral("m3u8"), false, 3000).error.isEmpty());
+        QCOMPARE(MediaPlayback::decoders(), before);
+        QCOMPARE(where.calls, 0);
+    }
+
+    // And where a file hides its list in something that looks like media (the sniff doesn't see it), FFmpeg is held to the protocols the player
+    // allows: it reads no address and no file the presentation names.
+    void mediaPlayerAllowsFFmpegNoProtocolButItsOwnBytes()
+    {
+        MediaListener where;
+        QVERIFY(where.server.isListening());
+        const QByteArray hls = QStringLiteral("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:1\n#EXTINF:1.0,\n%1\n#EXT-X-ENDLIST\n").arg(where.url("segment.ts")).toUtf8();
+        // The check of the first bytes off (a test of the second wall).
+        MediaPlayback::checkBytes(false);
+        {
+            MediaPlayback pb;
+            pb.setFile(hls, QStringLiteral("m3u8"));
+            deck::MediaPlay play;
+            pb.setPlay(play);
+            pb.play();
+            QTRY_VERIFY_WITH_TIMEOUT(pb.failed() || pb.state() == MediaPlayback::State::Playing, 15000);
+            QTest::qWait(500);
+            QCOMPARE(where.calls, 0);
+        }
+        // What the player plays still plays with it.
+        MediaPlayback ok;
+        ok.setFile(testWav(400), QStringLiteral("wav"));
+        ok.play();
+        MediaPlayback::checkBytes(true);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(ok, false), 15000);
+        QVERIFY2(!ok.failed() || ok.error().contains(QStringLiteral("sound")), qPrintable(ok.error()));
+        QCOMPARE(qgetenv("QT_FFMPEG_PROTOCOL_WHITELIST"), QByteArray("data"));
+    }
+
+    // The part's own name is not the player's: only a name a movie or sound file may have goes to the decoder, else "bin".
+    void mediaExtensionsAreOnlyThoseOfMediaFiles()
+    {
+        QCOMPARE(deck::mediaExtensionFor(QStringLiteral("mp4")), QStringLiteral("mp4"));
+        QCOMPARE(deck::mediaExtensionFor(QStringLiteral("WAV")), QStringLiteral("wav"));
+        for (const char *odd : {"m3u8", "m3u", "pls", "asx", "sdp", "mpd", "txt", "ffconcat", "", "mp4/../x", "a b", "mp4?x=1", "..", "http://x/y.mp3", "abcdefghijklmnop"})
+            QCOMPARE(deck::mediaExtensionFor(QString::fromLatin1(odd)), QStringLiteral("bin"));
+        // Binary media is media; text is not.
+        QVERIFY(deck::looksLikeMediaFile(testWav(100)));
+        QVERIFY(deck::looksLikeMediaFile(testAvi()));
+        QByteArray frames("\xFF\xFB\x90\x64\x00", 5);   // MPEG audio
+        for (int i = 0; i < 600; ++i) frames.append(char((i * 7 + 3) & 0xFF));
+        QVERIFY(deck::looksLikeMediaFile(frames));
+        // A playlist with a stray byte in it is no more media than one without.
+        QVERIFY(!deck::looksLikeMediaFile(QByteArray("#EXTM3U\n#x\x01\n#EXTINF:1,\nhttp://127.0.0.1:9/a.ts\n", 48)));
+        QVERIFY(!deck::looksLikeMediaFile(QByteArray("FFCONCAT version 1.0\nfile 'x'\n\x02", 32)));
+        QVERIFY(!deck::looksLikeMediaFile(QByteArray("<MPD\n\x02 xmlns=\"urn:mpeg:dash:schema:mpd:2011\"></MPD>", 50)));
+        QVERIFY(deck::looksLikeMediaFile(QByteArray("ID3\x03\x00\x00\x00\x00\x00\x00", 10) + QByteArray(300, '\x01')));
+        QVERIFY(!deck::looksLikeMediaFile(QByteArray()));
+        QVERIFY(!deck::looksLikeMediaFile(QByteArray("#EXTM3U\n#EXTINF:1,\nhttp://example.com/a.mp3\n")));
+        QVERIFY(!deck::looksLikeMediaFile(QByteArray(2000, 'a')));
     }
 
     // The cTn id the effect that calls the shape's media has, in a timing; 0 if none.
