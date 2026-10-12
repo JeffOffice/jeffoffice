@@ -20,6 +20,114 @@
 "en": "c65c1b6425be5e10",
 "out": "0acd2fdb837ed639"
 },
+"deck/animations": {
+"en": "ffe2bde4d52840d6",
+"out": "8e638eaccc1547ac"
+},
+"deck/comments": {
+"en": "d293c804c1a3453a",
+"out": "f94829de33e1fc5b"
+},
+"deck/design": {
+"en": "eabc8b92f613ecf3",
+"out": "b27e729961603b5d"
+},
+"deck/file-screen": {
+"en": "73aa18ca7df1c3e6",
+"out": "036c306c659cd3e1"
+},
+"deck/index": {
+"en": "2c4e8115f69d6564",
+"out": "4ce4c5fbc38d173b"
+},
+"deck/keyboard": {
+"en": "0152dc108e7c1e9c",
+"out": "ebdfb56bfc45c056"
+},
+"deck/notes": {
+"en": "66a05dc2206ed237",
+"out": "e8f7749a7bafb39e"
+},
+"deck/objects": {
+"en": "ca4fa22098e7a4be",
+"out": "21df8931ff8b7fff"
+},
+"deck/open-save": {
+"en": "231f2c5fb1dba15c",
+"out": "50bc2784fa7a02a5"
+},
+"deck/options": {
+"en": "b00e8f4770dad275",
+"out": "b9e0d07ebebe1a47"
+},
+"deck/printing": {
+"en": "26df794af39f97ec",
+"out": "b4a0a083be1d3717"
+},
+"deck/recover": {
+"en": "e7b208482d87d7c4",
+"out": "dbfd5141e9a7136c"
+},
+"deck/reuse": {
+"en": "7fed0c9bd14f4b5f",
+"out": "01ab66f649907576"
+},
+"deck/show": {
+"en": "7765b3f9a32dc9a9",
+"out": "bc809fd03cfbec0f"
+},
+"deck/slides": {
+"en": "5bca48008cff90ef",
+"out": "3481e0bd8da979a3"
+},
+"deck/start": {
+"en": "516b6d94061909c6",
+"out": "8d3985ece87a1acf"
+},
+"deck/tab-design": {
+"en": "fcb1e3bc4ece68c7",
+"out": "be6f63eaa4e6160a"
+},
+"deck/tab-home": {
+"en": "27520d7c4b8817e7",
+"out": "9958b1c30253aa01"
+},
+"deck/tab-insert": {
+"en": "7536bd994c4aecb0",
+"out": "3a2a0bc4c80d4906"
+},
+"deck/tab-review": {
+"en": "aab7b5d4d5dee582",
+"out": "8154f7a6fa07b543"
+},
+"deck/tab-slide-show": {
+"en": "e94c6d7ae9354962",
+"out": "45b3165d926db667"
+},
+"deck/tab-transitions": {
+"en": "3222c3a29ea87347",
+"out": "1609368a5d6b5d99"
+},
+"deck/tab-view": {
+"en": "a775921d99883ef4",
+"out": "a7ee5246a8fe2cfb"
+},
+"deck/text": {
+"en": "0a2aeba83b166dc4",
+"out": "fd5d48a4c20d17c7"
+},
+"deck/transitions": {
+"en": "22490f261aa86ffc",
+"out": "ffc9dea767451cc4"
+},
+"deck/views": {
+"en": "c1929bc8e8c88fc3",
+"out": "e03ca7a23bc1f015"
+},
+"deck/window": {
+"en": "f13481cfaf2c356c",
+"out": "8b6c0180619aeaac"
+},
 "design-checker": {
 "en": "a6f2fb1b11fb22a7",
 "out": "feffc737215af753"
@@ -339,6 +447,7 @@
 "08791d535a9d7710": "71cbddc5fcd8e558",
 "088df0ee79048fb2": "8a9bbf2daf7e2847",
 "0892672ab49b4af3": "232c177edcc9e3be",
+"08af73cded287f8a": "c235e0c3fdb5c0d5",
 "08ba7115a812b635": "22bfeb3c286c8011",
 "08bbaf880ee434b5": "f7e99a47251264b7",
 "08bc99ba27541a48": "6ab322edb930a58b",
@@ -2263,6 +2372,7 @@
 "9ceb8deacd03bb2d": "c3d5b5ffe9e548e1",
 "9cf76486fcea44ef": "c7fe59714afbd431",
 "9d0fe6e25ba08dfd": "fd8cbd3afe88c714",
+"9d22d9931689fa5b": "04c9ed702ae4d935",
 "9d2657f6ea46a196": "b706abc5aec85450",
 "9d2d53394a092ff1": "7800edf496f64457",
 "9d36969104aa1c79": "449d973ec4b6eafb",
@@ -2573,6 +2683,7 @@
 "b4d0d08fadd2b207": "5ed0211caf453c1e",
 "b4d744852558ed6d": "0db9774d98838ed5",
 "b514536e67ddcb30": "af57b82669523252",
+"b544743c62c891fe": "f75ad6c5e2b2894d",
 "b5663774c7baa2b7": "e74af4f9d44d6283",
 "b58fa88741ac7639": "c0a61a3b2217bd0d",
 "b5a30aa747721c41": "38d701f617614406",
@@ -3138,6 +3249,7 @@
 "e0d7c0214de8a956": "d704e102745c194a",
 "e1116f4765f93cb4": "12a8a52af25a68cc",
 "e11d3e5ca2489c92": "2fa0760182b0d7ad",
+"e136c6c99e2113de": "029b0f77498d3403",
 "e13acb06c9105b62": "c4f9e9ea6a0d5411",
 "e16448e1c9b8d9f4": "3fee11d1777156c6",
 "e1ace81cd374f7fc": "d444199854f5be2c",
@@ -3258,6 +3370,7 @@
 "ebe3c9dc28116076": "2d9401ee26d62008",
 "ebef3c419f379425": "58968b8f0de91ee9",
 "ebf4f47776d1f57d": "b9fd235465ca6421",
+"ec470d3d431b2fdb": "6256d3b051ec59ef",
 "ec60fc0598970dc3": "833eef3de2a640e5",
 "ec6ad40da263669e": "f40ea5ac4f9a94ee",
 "ec8e055dc22796ae": "5d734328f80817b4",
@@ -3322,6 +3435,7 @@
 "f095ba72ec658c15": "2225bad463c3fc39",
 "f0ba3796e6f99b6c": "f86e2369c7acbf68",
 "f0bd3b7bbddb60bf": "f0d646ef59d938eb",
+"f0c6222186176c4e": "b8c8360313799ce0",
 "f0de7f5a197d882d": "d8809575b115a36d",
 "f0f46b1d48e94b9e": "07c57f050327d02c",
 "f101c742aea89176": "b5e782d505c1e7af",
