@@ -407,7 +407,8 @@ void Importer::readSize(const QDomElement &presentation)
 }
 
 // The sections the presentation lists in its extensions, each with the slides it names: kept as how many slides each holds, in slide order. A slide
-// that none names joins the section before it, the first slide's the first section; a section can't come before an earlier one's slides.
+// that none names joins the section before it, and those before the first section's slides are a "Default Section" made for them; a section can't
+// come before an earlier one's slides.
 void Importer::readSections(const QDomElement &presentation, const QHash<qint64, int> &pageOfSlideId)
 {
     QDomElement list;
@@ -427,6 +428,11 @@ void Importer::readSections(const QDomElement &presentation, const QHash<qint64,
         }
     }
     if (sections.isEmpty()) return;
+    if (!sectionOfPage.isEmpty() && sectionOfPage.first() < 0) {
+        sections.prepend(Section{newSectionId(), defaultSectionName(), 0});
+        for (int &section : sectionOfPage)
+            if (section >= 0) ++section;
+    }
     int current = 0;
     for (int section : std::as_const(sectionOfPage)) {
         current = std::max(current, section);

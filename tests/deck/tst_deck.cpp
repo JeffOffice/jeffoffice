@@ -1075,6 +1075,29 @@ private Q_SLOTS:
         ed->undo();
         QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
         QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{3, 2}));
+        // Put under the next heading without changing places (the last of a section to the first of the next), it changes section.
+        pane->moveSlide(2, 3, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "One", "Five", "Two"}));
+        ed->undo();
+        pane->moveSlide(2, 2, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{2, 3}));
+        pane->moveSlide(2, 2, 1);   // where it is: nothing
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        // Up and Down in the pane go from slide to slide, past the slides of a section folded away.
+        pane->setFocus();
+        ed->setCurrentPage(2);   // the last of the first section
+        pane->setCollapsed(1, true);
+        QTest::keyClick(pane, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 2);
+        pane->setCollapsed(1, false);
+        QTest::keyClick(pane, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 3);
+        QTest::keyClick(pane, Qt::Key_Home);
+        QCOMPARE(ed->currentPage(), 0);
+        QTest::keyClick(pane, Qt::Key_End);
+        QCOMPARE(ed->currentPage(), 4);
     }
 
     // The slide sorter starts each section on a row of its own under its heading; a heading folds
@@ -6176,8 +6199,8 @@ private Q_SLOTS:
     // Sections are written as the extension that lists each section's slides
     // by the numbers the slide list gives them, and read back the same (an
     // empty section too); a presentation without sections writes no list. A
-    // file's slides that no section lists join the section before them, or
-    // the first.
+    // file's slides that no section lists join the section before them, and
+    // those before the first section's are in a Default Section.
     void sectionsAreWrittenAndReadBack()
     {
         const QString ext = QStringLiteral("{521415D9-36F7-43E2-AB2F-B90AF26B5E84}");
@@ -6257,11 +6280,11 @@ private Q_SLOTS:
         QCOMPARE(sectionNames(*odd), (QStringList{"Opening", "Middle", "Closing", "Epilogue"}));
         QCOMPARE(sectionCounts(*odd), (QList<int>{2, 2, 1, 0}));   // the second slide is in none: it joins Opening
         QCOMPARE(deck::sectionsOf(*odd)[1].id, QStringLiteral("{00000000-0000-4000-8000-000000000006}"));
-        // The first slide in none goes to the first section.
+        // Slides in none before the first section's get a Default Section of their own.
         auto late = edited(section(QStringLiteral("Only"), {slideIds[1], slideIds[2], slideIds[3], slideIds[4]}));
         QVERIFY2(late, qPrintable(err));
-        QCOMPARE(sectionNames(*late), (QStringList{"Only"}));
-        QCOMPARE(sectionCounts(*late), (QList<int>{5}));
+        QCOMPARE(sectionNames(*late), (QStringList{"Default Section", "Only"}));
+        QCOMPARE(sectionCounts(*late), (QList<int>{1, 4}));
         // A list with no sections, or no list, is no sections.
         auto empty = edited(QString());
         QVERIFY2(empty && !deck::hasSections(*empty), qPrintable(err));
@@ -6496,6 +6519,22 @@ private Q_SLOTS:
         QCOMPARE(deck::insertSlideFrom(*dest, 5, *same, 0, true), 5);
         QCOMPARE(int(dest->masters.size()), sameMasters);
         QCOMPARE(dest->masterFor(*dest->pages[5])->id, deck::layoutOfType(*dest, QStringLiteral("title"), dest->masters[0]->id)->id);
+        // What came with the slides is a sound file when saved: the charts' parts, the movie, the extra masters and their themes.
+        {
+            QString err;
+            Exported e;
+            const QByteArray bytes = deck::exportPresentation(*dest, &err);
+            QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+            auto back = deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            QCOMPARE(int(back->pages.size()), int(dest->pages.size()));
+            QCOMPARE(titleOfSlide(*back, 1), QStringLiteral("Quarterly results"));
+            QCOMPARE(back->masterFor(*back->pages[1])->name, QStringLiteral("Title and Content"));
+            QCOMPARE(back->master(back->masterFor(*back->pages[1])->baseId)->name, QStringLiteral("Test Master"));
+            QVERIFY(chartPicture(*back, *back->pages[1]));
+            QVERIFY(namedItem(*back->pages[1], QStringLiteral("Movie")));
+        }
         // The sections follow: the copy is in the section of the slide before it.
         deck::addSection(*dest, 3, QStringLiteral("Later"));
         const int before = int(dest->pages.size());
