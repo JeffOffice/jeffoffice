@@ -25,8 +25,19 @@ struct OdrawRecord {
 // -1), one level deep; a record running past the end stops the list.
 QVector<OdrawRecord> odrawRecords(const QByteArray &data, qsizetype offset = 0, qsizetype end = -1);
 
+// How much of drawings a host reads in all, shared by every drawing it reads: a file can have one drawing read again and again, or
+// a drawing for each of thousands of slides.
+struct OdrawBudget {
+    // The shapes it still takes (a group is one, and what is in it), and the records looked at to find a background.
+    qint64 left = 0;
+    // Set when a drawing had more shapes than were left to read, or than one drawing is read to (100,000), so the host can say so.
+    bool refused = false;
+};
+
 // What reading a drawing needs from the format around it.
 struct OdrawContext {
+    // Given, the budget that the drawings read with this context share: reading a drawing stops with what it has when it is spent.
+    OdrawBudget *budget = nullptr;
     // The drawing group's default properties: the property records (0xF00B,
     // 0xF121, 0xF122, header included) of its container (0xF000). A shape
     // that leaves a property out has the value these give, before the one the
