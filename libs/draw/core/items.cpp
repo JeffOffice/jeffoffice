@@ -281,6 +281,11 @@ QJsonObject PictureItem::toJson() const
     if (hasTransparentColor) o["transparentColor"] = transparentColor.name();
     if (transparency) o["transparency"] = transparency;
     if (!caption.isEmpty()) o["caption"] = caption;
+    if (!mediaKind.isEmpty()) {
+        o["mediaKind"] = mediaKind;
+        if (!mediaId.isEmpty()) o["media"] = mediaId;
+        if (!mediaLink.isEmpty()) o["mediaLink"] = mediaLink;
+    }
     return o;
 }
 
@@ -299,6 +304,9 @@ void PictureItem::fromJson(const QJsonObject &o)
     transparentColor = QColor(o["transparentColor"].toString());
     transparency = o["transparency"].toDouble();
     caption = o["caption"].toString();
+    mediaKind = o["mediaKind"].toString();
+    mediaId = o["media"].toString();
+    mediaLink = o["mediaLink"].toString();
 }
 
 // ---------- ShapeItem ----------

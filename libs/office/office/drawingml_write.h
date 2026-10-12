@@ -27,10 +27,15 @@ struct DrawingWriteContext {
     // A picture's file bytes and format ("png", "jpeg", "emf"...) by image id.
     std::function<QByteArray(const QString &imageId, QString *format)> imageBytes;
     std::function<const QTextDocument *(const QString &storyId)> storyDoc;
+    // A movie's or sound's bytes, content type, and file extension by media
+    // id (PictureItem::mediaId). Unset, a picture that plays one the file
+    // held is written as the picture alone.
+    std::function<QByteArray(const QString &mediaId, QString *contentType, QString *extension)> mediaBytes;
     // The next shape id in the part (p:cNvPr id): unique within the part.
     int nextShapeId = 2;
     // Pictures already written into the package, by image id, so each is
-    // stored once (the part name, "/ppt/media/image3.png").
+    // stored once (the part name, "/ppt/media/image3.png"); movies and sounds
+    // by "media:" and their media id.
     QHash<QString, QString> *mediaParts = nullptr;
     // What the scheme colors of a fill, line, or text stand for.
     ColorScheme colors;
@@ -65,7 +70,8 @@ int shapeNumber(DrawingWriteContext &ctx, const Item &item);
 // One placed object: p:sp (shapes and text boxes), p:pic, p:cxnSp, or
 // p:grpSp, with its transform, geometry (a:prstGeom for presets, a:custGeom
 // for freeforms), fill, line, effects, hyperlink, text body, and, for an item
-// whose role is "ph:<type>[:<idx>]", its p:nvPr/p:ph. Nothing for an item it
+// whose role is "ph:<type>[:<idx>]", its p:nvPr/p:ph; a picture that plays a
+// movie or sound has it in p:nvPr. Nothing for an item it
 // can't write (a table with no cells, text art, a group with nothing in it, a
 // picture with no bytes): it says so in `skipped`. A table is written as a
 // p:graphicFrame with its cells' own fills, lines, and text; no table style.

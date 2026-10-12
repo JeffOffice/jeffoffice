@@ -36,12 +36,19 @@ QColor resolve(const ColorRef &color, const DrawingWriteContext &ctx);
 void writeColor(QXmlStreamWriter &w, const QColor &color, double transparency = 0);
 
 // The id of the relationship from the part being written to `target`, made
-// the first time. An internal target is a part name.
+// the first time. An internal target is a part name. `type` is the last word
+// of a relationship type of the standard ("image"), or a whole type URI.
 QString relate(DrawingWriteContext &ctx, const QString &type, const QString &target, bool external = false);
 // The relationship to a picture (the part is stored once for an image id);
 // empty if the context has no package or the picture has no bytes.
 QString relatePicture(DrawingWriteContext &ctx, const QString &imageId);
 // The relationship to an address a hyperlink goes to.
 QString relateAddress(DrawingWriteContext &ctx, const QString &address);
+// The relationships of the movie or sound a picture plays: `link` for its
+// a:videoFile or a:audioFile, and `copy` for the p14:media that says the file
+// holds it (empty when the picture links to it outside). Both empty when it
+// plays none, or its media can't be had.
+struct MediaRelations { QString link, copy; };
+MediaRelations relateMedia(DrawingWriteContext &ctx, const PictureItem &p);
 
 } // namespace jp::office::dmlwrite

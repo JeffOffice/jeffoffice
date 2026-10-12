@@ -124,6 +124,11 @@ public:
     QColor transparentColor;
     double transparency = 0;
     QString caption;            // caption style id when inserted from Caption gallery
+    // A movie or sound the picture plays, as a slide's video does (the
+    // picture shows until it plays): "video" or "audio", and the media's id in
+    // the document's store (Document::media), or its address when the file
+    // links to it outside. Kept to be written back; not played here yet.
+    QString mediaKind, mediaId, mediaLink;
 
     void fitImage(const QSize &px, bool fill);  // fill: crop to cover, else fit inside
     void keepProportions(const QSize &px);      // the picture's height follows its width, around the same center

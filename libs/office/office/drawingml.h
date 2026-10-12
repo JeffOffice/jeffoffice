@@ -32,6 +32,10 @@ struct DrawingContext {
     // Keeps a picture's bytes ("png", "jpeg", "gif", "bmp", "tiff", "emf",
     // "wmf", "svg"); returns its id for PictureItem::imageId or a picture fill.
     std::function<QString(const QByteArray &bytes, const QString &format)> addImage;
+    // Keeps the movie or sound a picture plays, with its content type and
+    // file extension; returns its id for PictureItem::mediaId. Unset, a
+    // picture that plays one keeps only an address it links to outside.
+    std::function<QString(const QByteArray &bytes, const QString &contentType, const QString &extension)> addMedia;
     // A new empty story's id, and a story's document by id.
     std::function<QString()> newStory;
     std::function<QTextDocument *(const QString &id)> storyDoc;
