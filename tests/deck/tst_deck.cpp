@@ -1763,6 +1763,42 @@ private Q_SLOTS:
         QCOMPARE(QColor(shown.pixel(1, 1)), QColor(0x10, 0xC0, 0x30));
     }
 
+    // A shape filled with the slide's background (p:sp useBgFill) has the background's fill: the slide's own, else the one its
+    // layout or master shows.
+    void shapesFilledWithTheBackground()
+    {
+        const QString panel = QStringLiteral("<p:sp useBgFill=\"1\"><p:nvSpPr><p:cNvPr id=\"40\" name=\"Panel\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>")
+                              + xfrm(0, 0, 6096000, 6858000)
+                              + QStringLiteral("<a:ln><a:noFill/></a:ln></p:spPr><p:style><a:lnRef idx=\"2\"><a:schemeClr val=\"accent1\"/></a:lnRef><a:fillRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:fillRef>"
+                                               "<a:effectRef idx=\"0\"><a:schemeClr val=\"accent1\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"lt1\"/></a:fontRef></p:style></p:sp>");
+        auto panelOf = [](const Document &d, int slide) -> const Item * {
+            for (const auto &it : d.pages[slide]->items)
+                if (it->name == QLatin1String("Panel")) return it.get();
+            return nullptr;
+        };
+        Parts p = samplePptx();
+        // Slide 2 has a background of its own (112233); slide 1 shows its master's.
+        for (const char *slide : {"/ppt/slides/slide1.xml", "/ppt/slides/slide2.xml"}) {
+            QString xml = QString::fromUtf8(p.data[QString::fromLatin1(slide)].xml);
+            xml.replace(QStringLiteral("</p:spTree>"), panel + QStringLiteral("</p:spTree>"));
+            p.data[QString::fromLatin1(slide)].xml = xml.toUtf8();
+        }
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Item *own = panelOf(*d, 1), *inherited = panelOf(*d, 0);
+        QVERIFY(own && inherited);
+        QCOMPARE(int(own->fill.type), int(Fill::Solid));
+        QCOMPARE(own->fill.color.resolve(d->colors), QColor(0x11, 0x22, 0x33));
+        const MasterPage *layout = d->masterFor(*d->pages[0]);
+        Fill shown = layout ? layout->background : Fill();
+        for (const MasterPage *m : d->masterChain(layout))
+            if (!m->background.isNone()) shown = m->background;
+        if (layout && !layout->background.isNone()) shown = layout->background;
+        QCOMPARE(int(inherited->fill.type), int(shown.type));
+        QVERIFY(!(inherited->fill.type == Fill::Solid && inherited->fill.color.resolve(d->colors) == d->colors.c[Accent1]));
+    }
+
     void headerAndFooterPlaceholders()
     {
         auto d = deck::newPresentation();   // a title slide
