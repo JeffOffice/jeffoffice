@@ -31,12 +31,4 @@ ItemList readOdrawShapes(const QByteArray &, const OdrawContext &) { return {}; 
 
 Fill odrawBackground(const QByteArray &, const OdrawContext &) { return Fill(); }
 
-QByteArray odrawBlip(const QByteArray &, QString *format)
-{
-    if (format) format->clear();
-    return QByteArray();
-}
-
-QVector<OdrawStoreEntry> odrawStore(const QByteArray &) { return {}; }
-
 } // namespace jp::office
