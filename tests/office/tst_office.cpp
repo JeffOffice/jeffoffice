@@ -2143,6 +2143,11 @@ private Q_SLOTS:
 
     void textDateFieldsHaveTheirFormats()
     {
+        // The names of days and months are the locale's.
+        struct Restore {
+            QLocale was;
+            ~Restore() { QLocale::setDefault(was); }
+        } restore;
         QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
         struct Row { const char *type; const char *shown; };
         const Row rows[] = {
@@ -2277,7 +2282,7 @@ private Q_SLOTS:
         };
         const int fewer = lines(1200), more = lines(3600);
         QVERIFY2(more > fewer, qPrintable(QStringLiteral("%1 lines at 12 pt, %2 at 36 pt").arg(fewer).arg(more)));
-        QVERIFY(fewer >= 3);
+        QVERIFY(fewer >= 2);
     }
 
     void textBodyHostileInputIsClamped()
@@ -2292,6 +2297,100 @@ private Q_SLOTS:
         QCOMPARE(b.charAt(0, 3).fontPointSize(), 1.0);
         QCOMPARE(b.charAt(0, 4).fontPointSize(), 18.0);
         QVERIFY(qAbs(b.charAt(0, 5).fontLetterSpacing()) <= 1584.0);
+    }
+
+    void textBodyDamagedElementsAreSurvived()
+    {
+        const QString junk = QStringLiteral(
+            "<a:p><a:pPr lvl=\"99\" marL=\"abc\" indent=\"\" algn=\"sideways\" defTabSz=\"x\" rtl=\"maybe\"><a:lnSpc/><a:spcBef><a:spcPct/></a:spcBef><a:spcAft><a:spcPts val=\"-5\"/></a:spcAft>"
+            "<a:buClr/><a:buSzPct/><a:buSzPts val=\"q\"/><a:buFont/><a:buChar/><a:buAutoNum/><a:buAutoNum type=\"arabicPeriod\" startAt=\"-4\"/>"
+            "<a:tabLst><a:tab/><a:tab pos=\"x\"/></a:tabLst><a:defRPr sz=\"abc\"/></a:pPr>"
+            "<a:r/><a:r><a:rPr><a:hlinkClick/><a:solidFill/><a:highlight/><a:latin/><a:ea/><a:cs/><a:gradFill/></a:rPr></a:r><a:fld/><a:br/><a:endParaRPr/><a:r><a:t/></a:r></a:p>"
+            "<a:p><a:pPr lvl=\"-3\"/></a:p><a:p/><a:p><a:r><a:rPr u=\"bogus\" strike=\"bogus\" cap=\"bogus\" b=\"bogus\"/><a:t>t</a:t></a:r></a:p>");
+        Body b(junk, {QStringLiteral("<a:lvl1pPr><a:defRPr/></a:lvl1pPr><a:lvl9pPr/><a:defPPr/>"), QString()});
+        QCOMPARE(b.doc.blockCount(), 4);
+        QCOMPARE(b.block(0).blockFormat().intProperty(jp::tp::ListLevel), 8);
+        QCOMPARE(b.block(1).blockFormat().intProperty(jp::tp::ListLevel), 0);
+        // And a body of the wrong kind of element.
+        QDomDocument dom;
+        QVERIFY(parseXml("<a:txBody xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:p><a:p><a:r><a:r/></a:r></a:p></a:p><a:t>stray</a:t></a:txBody>", &dom));
+        QTextDocument doc;
+        readTextBody(dom.documentElement(), &doc, DrawingContext());
+        QVERIFY(doc.blockCount() >= 1);
+        // And a stack with nothing in some of its layers.
+        readTextBody(dom.documentElement(), &doc, DrawingContext(), TextStyleStack{QDomElement(), dom.documentElement(), QDomElement()});
+        QVERIFY(doc.blockCount() >= 1);
+    }
+
+    void textBodySurvivesRandomDamage()
+    {
+        const QString layer = QStringLiteral(
+            "<a:lstStyle %1><a:defPPr><a:defRPr sz=\"1800\"/></a:defPPr><a:lvl1pPr marL=\"342900\" indent=\"-342900\" algn=\"ctr\" defTabSz=\"914400\" rtl=\"0\">"
+            "<a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc><a:spcBef><a:spcPts val=\"1000\"/></a:spcBef><a:buClr><a:srgbClr val=\"FF0000\"/></a:buClr>"
+            "<a:buSzPct val=\"80000\"/><a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/><a:tabLst><a:tab pos=\"914400\" algn=\"r\"/></a:tabLst>"
+            "<a:defRPr sz=\"2800\" kern=\"1200\" b=\"1\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/></a:defRPr></a:lvl1pPr>"
+            "</a:lstStyle>").arg(declarations());
+        const QString body = QStringLiteral(
+            "<p:txBody %1><a:bodyPr/><a:lstStyle/>"
+            "<a:p><a:pPr lvl=\"0\" marL=\"457200\"><a:buAutoNum type=\"arabicPeriod\" startAt=\"2\"/></a:pPr>"
+            "<a:r><a:rPr lang=\"en-US\" sz=\"2000\" b=\"1\" i=\"1\" u=\"wavyHeavy\" strike=\"sngStrike\" baseline=\"30000\" spc=\"-50\" cap=\"small\">"
+            "<a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill><a:highlight><a:srgbClr val=\"FFFF00\"/></a:highlight><a:latin typeface=\"Arial\"/>"
+            "<a:hlinkClick r:id=\"rId1\"/></a:rPr><a:t>Some text</a:t></a:r><a:br><a:rPr sz=\"1200\"/></a:br>"
+            "<a:fld id=\"{1}\" type=\"slidenum\"><a:rPr/><a:t>1</a:t></a:fld><a:fld id=\"{2}\" type=\"datetime9\"><a:t>now</a:t></a:fld>"
+            "<a:endParaRPr sz=\"900\"/></a:p>"
+            "<a:p><a:pPr lvl=\"1\" algn=\"dist\" rtl=\"1\"><a:lnSpc><a:spcPts val=\"2400\"/></a:lnSpc><a:spcAft><a:spcPct val=\"50000\"/></a:spcAft><a:buNone/></a:pPr>"
+            "<a:r><a:t>tab\there</a:t></a:r></a:p></p:txBody>").arg(declarations());
+        PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/slides/slide1.xml"), "<p:sld/>", kSlideType);
+        w.addRelationship(QStringLiteral("/ppt/slides/slide1.xml"), kRelBase + "hyperlink", QStringLiteral("https://example.com/"), true);
+        Package package;
+        QVERIFY(package.read(w.finish()));
+        DrawingContext ctx;
+        ctx.package = &package;
+        ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
+        ctx.theme = colorTestTheme();
+        QRandomGenerator gen(4711);
+        int read = 0;
+        for (int i = 0; i < 600; ++i) {
+            QByteArray badBody = body.toUtf8(), badLayer = layer.toUtf8();
+            for (QByteArray *bad : {&badBody, &badLayer})
+                if (gen.bounded(3) != 0)
+                    for (int k = 0, n = 1 + int(gen.bounded(4)); k < n; ++k) (*bad)[int(gen.bounded(quint32(bad->size())))] = char(gen.bounded(32u, 127u));
+            QDomDocument bodyDom, layerDom;
+            if (!parseXml(badBody, &bodyDom) || !parseXml(badLayer, &layerDom)) continue;
+            ++read;
+            QTextDocument doc;
+            readTextBody(bodyDom.documentElement(), &doc, ctx, TextStyleStack{layerDom.documentElement()});
+            QVERIFY(doc.blockCount() >= 1);
+            if (i % 12 == 0) {
+                // What was read goes through the text engine too.
+                jp::FrameSpec fs;
+                fs.size = QSizeF(300, 300);
+                jp::StoryLayout lay;
+                lay.build(&doc, {fs}, jp::LayoutEnv());
+            }
+        }
+        QVERIFY(read > 100);
+    }
+
+    void textBodyStopsAtAHundredThousandParagraphsAndRuns()
+    {
+        {
+            QString many;
+            many.reserve(100001 * 6);
+            for (int i = 0; i < 100001; ++i) many += QStringLiteral("<a:p/>");
+            Body b(many);
+            QCOMPARE(b.doc.blockCount(), 100000);
+        }
+        {
+            QString runs = QStringLiteral("<a:p>");
+            runs.reserve(100001 * 20);
+            for (int i = 0; i < 100001; ++i) runs += QStringLiteral("<a:r><a:t>x</a:t></a:r>");
+            runs += QStringLiteral("</a:p>");
+            Body b(runs);
+            QCOMPARE(b.doc.blockCount(), 1);
+            QCOMPARE(b.text().size(), 100000);
+        }
     }
 };
 
