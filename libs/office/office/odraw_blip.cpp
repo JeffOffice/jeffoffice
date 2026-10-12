@@ -15,7 +15,10 @@ namespace {
 
 using namespace odraw;
 
-constexpr qint64 kMaxMetafile = 256 * 1024 * 1024;
+// A metafile of more than 32 MB, as inflated, is left out: the reference
+// presentations' and publications' largest is under 1 MB. (Document::addImage
+// holds a metafile to the same size.)
+constexpr qint64 kMaxMetafile = 32 * 1024 * 1024;
 constexpr int kMaxStoreEntries = 100000;
 
 // A device-independent bitmap with a file header in front, which is what bitmap
