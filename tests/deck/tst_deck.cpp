@@ -2,7 +2,9 @@
 // its window.
 
 #include "../../apps/pub/app/pubinfo.h"   // only its inline pubAppInfo(): the other app's colors, to compare
+#include "app/deckdialogs.h"
 #include "app/deckinfo.h"
+#include "app/deckwidgets.h"
 #include "app/deckwindow.h"
 #include "app/editor.h"
 #include "app/icons.h"
@@ -16,7 +18,11 @@
 #include "text/textprops.h"
 
 #include <QAbstractButton>
+#include <QCheckBox>
+#include <QLineEdit>
+#include <QPushButton>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextCursor>
@@ -312,6 +318,60 @@ private Q_SLOTS:
         ctx.doc = d.get();
         ctx.cache = &cache;
         for (int i = 0; i < 2; ++i) QCOMPARE(Renderer::renderToImage(ctx, i, 0.1).pixelColor(3, 3), QColor(0x11, 0x22, 0x33));
+    }
+
+    // The Header & Footer dialog hands back what was chosen and which button.
+    void headerFooterDialogReturnsTheChoice()
+    {
+        deck::FooterOptions o;
+        o.slideNumber = true;
+        o.footerText = QStringLiteral("Quarterly");
+        HeaderFooterDialog dlg(o);
+        QVERIFY(dlg.options().slideNumber && !dlg.options().date && !dlg.options().footer);
+        QVERIFY(!dlg.findChild<QLineEdit *>(QStringLiteral("footerText"))->isEnabled());   // until Footer is checked
+        dlg.findChild<QCheckBox *>(QStringLiteral("footer"))->setChecked(true);
+        dlg.findChild<QCheckBox *>(QStringLiteral("date"))->setChecked(true);
+        dlg.findChild<QCheckBox *>(QStringLiteral("skipTitle"))->setChecked(true);
+        dlg.findChild<QLineEdit *>(QStringLiteral("footerText"))->setText(QStringLiteral("Q3 review"));
+        const deck::FooterOptions got = dlg.options();
+        QVERIFY(got.date && got.slideNumber && got.footer && got.skipTitleSlide);
+        QCOMPARE(got.footerText, QStringLiteral("Q3 review"));
+        dlg.findChild<QPushButton *>(QStringLiteral("applyToAll"))->click();
+        QCOMPARE(dlg.result(), int(QDialog::Accepted));
+        QVERIFY(dlg.applyToAll());
+        HeaderFooterDialog one(o);
+        one.findChild<QPushButton *>(QStringLiteral("apply"))->click();
+        QCOMPARE(one.result(), int(QDialog::Accepted));
+        QVERIFY(!one.applyToAll());
+    }
+
+    // New Slide's gallery shows each layout as a picture and says which was chosen.
+    void layoutGalleryShowsEachLayout()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        LayoutGallery g(ed);
+        QCOMPARE(g.count(), 9);
+        QCOMPARE(g.typeAt(0), QStringLiteral("title"));
+        QCOMPARE(g.typeAt(8), QStringLiteral("picTx"));
+        QCOMPARE(layoutPicture(*ed->doc(), *deck::layoutOfType(*ed->doc(), QStringLiteral("obj")), 112).size(), QSize(112, 63));
+        auto busy = [&](const QString &type) {
+            const QImage img = layoutPicture(*ed->doc(), *deck::layoutOfType(*ed->doc(), type), 112);
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (img.pixelColor(x, y) != QColor(Qt::white)) return true;
+            return false;
+        };
+        QVERIFY(busy(QStringLiteral("obj")));
+        QVERIFY(busy(QStringLiteral("twoObj")));
+        QVERIFY(!busy(QStringLiteral("blank")));
+        QSignalSpy chosen(&g, &LayoutGallery::chosen);
+        QTest::keyClick(&g, Qt::Key_Right);
+        QTest::keyClick(&g, Qt::Key_Right);
+        QTest::keyClick(&g, Qt::Key_Down);
+        QTest::keyClick(&g, Qt::Key_Return);
+        QCOMPARE(chosen.count(), 1);
+        QCOMPARE(chosen.first().first().toString(), g.typeAt(4));   // the middle of the second row
     }
 
     // The slide show skips hidden slides, goes back, ends after the last.
