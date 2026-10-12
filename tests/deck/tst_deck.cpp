@@ -15,6 +15,7 @@
 #include "app/outlineview.h"
 #include "app/presenterview.h"
 #include "app/recovery.h"
+#include "app/reusepane.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/slideshow.h"
@@ -24,6 +25,8 @@
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/reuse.h"
+#include "core/sections.h"
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/deckoutput.h"
@@ -46,6 +49,7 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QDialogButtonBox>
 #include <QRadioButton>
 #include <QDeadlineTimer>
@@ -539,6 +543,706 @@ private Q_SLOTS:
         w.act("view.normal")->trigger();
         QCOMPARE(w.canvas()->zoom(), canvasZoom);
         QVERIFY(w.canvas()->fitMode() == Canvas::Fit::WholePage);
+    }
+
+private:
+    // The sections' names and slide counts, in order.
+    static QStringList sectionNames(const Document &d)
+    {
+        QStringList out;
+        for (const deck::Section &s : deck::sectionsOf(d)) out << s.name;
+        return out;
+    }
+    static QList<int> sectionCounts(const Document &d)
+    {
+        QList<int> out;
+        for (const deck::Section &s : deck::sectionsOf(d)) out << s.count;
+        return out;
+    }
+    // A presentation of `n` Title and Content slides whose page titles are the letters A, B, C...
+    static std::unique_ptr<Document> lettered(int n)
+    {
+        auto d = deck::newPresentation();
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        while (d->pages.size() < n) deck::addSlide(*d, *layout);
+        for (int i = 0; i < n; ++i) d->pages[i]->title = QString(QChar('A' + i));
+        return d;
+    }
+    static QString letters(const Document &d)
+    {
+        QString out;
+        for (const auto &p : d.pages) out += p->title;
+        return out;
+    }
+
+private Q_SLOTS:
+    // Sections are named runs of slides kept as counts: the first one made in
+    // the middle of a deck puts the slides before it in a Default Section,
+    // removing a section gives its slides to the one before (the next, for the
+    // first), and a section moves with its slides.
+    void sectionsAreAddedRenamedMovedAndRemoved()
+    {
+        auto d = lettered(6);
+        QVERIFY(!deck::hasSections(*d));
+        QVERIFY(deck::sectionsOf(*d).isEmpty());
+        QCOMPARE(deck::sectionOfSlide(*d, 2), -1);
+        QCOMPARE(deck::addSection(*d, 2), 1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        const QRegularExpression guid(QStringLiteral("^\\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\\}$"));
+        const QVector<deck::Section> two = deck::sectionsOf(*d);
+        QVERIFY(guid.match(two[0].id).hasMatch() && guid.match(two[1].id).hasMatch());
+        QVERIFY(two[0].id != two[1].id);
+        QCOMPARE(deck::sectionOfSlide(*d, 1), 0);
+        QCOMPARE(deck::sectionOfSlide(*d, 2), 1);
+        QCOMPARE(deck::sectionOfSlide(*d, 6), -1);
+        QCOMPARE(deck::firstSlideOf(*d, 1), 2);
+        QCOMPARE(deck::slideCountOf(*d, 1), 4);
+        // A section made inside another takes the rest of it.
+        QCOMPARE(deck::addSection(*d, 4, QStringLiteral("Budget")), 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        // At a section's first slide it takes that section's slides and leaves it empty.
+        QCOMPARE(deck::addSection(*d, 2, QStringLiteral("Plan")), 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section", "Plan", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 0, 2, 2}));
+        QCOMPARE(deck::sectionOfSlide(*d, 2), 2);
+        QCOMPARE(deck::firstSlideOf(*d, 1), 2);
+        QCOMPARE(deck::slideCountOf(*d, 1), 0);
+        deck::renameSection(*d, 1, QStringLiteral("Intro"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Intro", "Plan", "Budget"}));
+        deck::renameSection(*d, 9, QStringLiteral("Nowhere"));
+        QCOMPARE(sectionNames(*d).size(), 4);
+
+        // Removing: the slides go up to the section before.
+        deck::removeSection(*d, 2);
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Intro", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        deck::removeSection(*d, 0);   // the first gives its slides to the next
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2}));
+
+        // Moving a section takes its slides along.
+        QCOMPARE(letters(*d), QStringLiteral("ABCDEF"));
+        QCOMPARE(deck::moveSection(*d, 0, 1), 1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget", "Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        QCOMPARE(letters(*d), QStringLiteral("EFABCD"));
+        QCOMPARE(deck::moveSection(*d, 0, -1), -1);   // nothing above the first
+        QCOMPARE(deck::moveSection(*d, 1, 1), -1);    // nor below the last
+        QCOMPARE(letters(*d), QStringLiteral("EFABCD"));
+        QCOMPARE(deck::moveSection(*d, 1, -1), 0);
+        QCOMPARE(letters(*d), QStringLiteral("ABCDEF"));
+
+        // A section and its slides go together, but never all the slides.
+        QVERIFY(deck::removeSectionAndSlides(*d, 1));
+        QCOMPARE(letters(*d), QStringLiteral("ABCD"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+        QVERIFY(!deck::removeSectionAndSlides(*d, 0));
+        QCOMPARE(letters(*d), QStringLiteral("ABCD"));
+        // The only section's removal leaves none, and so does Remove All.
+        deck::removeSection(*d, 0);
+        QVERIFY(!deck::hasSections(*d));
+        QVERIFY(!d->appData.contains(QStringLiteral("sections")));
+        QCOMPARE(deck::addSection(*d, 0), 0);   // at the first slide there is nothing for a Default Section
+        QCOMPARE(sectionNames(*d), (QStringList{"Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+        deck::addSection(*d, 2);
+        deck::removeAllSections(*d);
+        QVERIFY(!deck::hasSections(*d));
+    }
+
+    // The counts follow the slide list: a new slide joins the section of the
+    // slide before it, a slide taken away leaves its section, and slides put
+    // in another order join the section where they land. What a caller misses
+    // is made good on reading.
+    void sectionCountsFollowTheSlideList()
+    {
+        auto d = lettered(6);
+        deck::addSection(*d, 2, QStringLiteral("Plan"));    // Default Section 2, Plan 4
+        deck::addSection(*d, 4, QStringLiteral("Budget"));  // 2, 2, 2
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        // After the last slide of a section it joins that section; at the very start, the first.
+        deck::addSlide(*d, *layout, 2);
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 2, 2}));
+        deck::addSlide(*d, *layout, 0);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2, 2}));
+        deck::addSlide(*d, *layout);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2, 3}));
+        QCOMPARE(int(d->pages.size()), 9);
+        // A copy stands right after its slide, in its section.
+        deck::duplicateSlide(*d, 3);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 2, 3}));
+        deck::duplicateSlide(*d, 5);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 3, 3}));
+        // Slides taken away.
+        d->pages.removeAt(9);
+        deck::slideRemoved(*d, 9);
+        QCOMPARE(sectionCounts(*d), (QList<int>{5, 3, 2}));
+        d->pages.removeAt(0);
+        deck::slideRemoved(*d, 0);
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 3, 2}));
+
+        // Moves: a slide dropped between two sections' slides takes the one before it, or the section it is dropped into.
+        auto fresh = lettered(6);
+        deck::addSection(*fresh, 2, QStringLiteral("Plan"));    // AB | CDEF
+        deck::addSection(*fresh, 4, QStringLiteral("Budget"));  // AB | CD | EF
+        auto move = [&](const QList<int> &slides, int before, int into = -1) {
+            const QList<int> order = deck::orderAfterMoving(int(fresh->pages.size()), slides, before);
+            const QVector<std::shared_ptr<Page>> old = fresh->pages;
+            for (int k = 0; k < order.size(); ++k) fresh->pages[k] = old[order[k]];
+            deck::slidesReordered(*fresh, order, slides, into);
+        };
+        move({0}, 3);   // A between C and D: Plan
+        QCOMPARE(letters(*fresh), QStringLiteral("BCADEF"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{1, 3, 2}));
+        move({2}, 4, 2);   // A to the start of Budget (before E), by the section it is dropped into
+        QCOMPARE(letters(*fresh), QStringLiteral("BCDAEF"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{1, 2, 3}));
+        move({5}, 0);   // F to the very start: the first section
+        QCOMPARE(letters(*fresh), QStringLiteral("FBCDAE"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{2, 2, 2}));
+        move({0, 1}, 6, 0);   // two to the end, asked into the first section: only where they could be, after the last slide's
+        QCOMPARE(letters(*fresh), QStringLiteral("CDAEFB"));
+        QCOMPARE(sectionCounts(*fresh), (QList<int>{0, 2, 4}));
+        QCOMPARE(deck::orderAfterMoving(5, {3, 1, 3, 9}, 0), (QList<int>{1, 3, 0, 2, 4}));
+
+        // A list made again out of the slides it had (the outline does): those that keep their order keep their
+        // sections, a moved one and a new one join the section of the slide before them, and a slide left out is gone.
+        auto again = lettered(6);
+        deck::addSection(*again, 2, QStringLiteral("Plan"));
+        deck::addSection(*again, 4, QStringLiteral("Budget"));   // AB | CD | EF
+        const deck::SectionMemory memory = deck::rememberSections(*again);
+        QVERIFY(!memory.isEmpty());
+        auto added = std::make_shared<Page>();
+        added->title = QStringLiteral("N");
+        const QVector<std::shared_ptr<Page>> was = again->pages;
+        again->pages = QVector<std::shared_ptr<Page>>{was[2], was[0], was[1], was[3], added, was[5]};
+        deck::restoreSections(*again, memory);
+        QCOMPARE(letters(*again), QStringLiteral("CABDNF"));
+        QCOMPARE(sectionCounts(*again), (QList<int>{3, 2, 1}));
+        QVERIFY(deck::rememberSections(*lettered(3)).isEmpty());   // none to keep without sections
+        QCOMPARE(deck::orderAfterMoving(5, {0}, 5), (QList<int>{1, 2, 3, 4, 0}));
+
+        // Counts that don't add up are made to: slides they miss join the last section, counts past the end are cut.
+        auto odd = lettered(5);
+        odd->appData[QStringLiteral("sections")] = QJsonArray{QJsonObject{{"id", "{A}"}, {"name", "One"}, {"count", 2}}, QJsonObject{{"id", "{B}"}, {"name", "Two"}, {"count", 1}}};
+        QCOMPARE(sectionCounts(*odd), (QList<int>{2, 3}));
+        odd->appData[QStringLiteral("sections")] = QJsonArray{QJsonObject{{"id", "{A}"}, {"name", "One"}, {"count", 4}}, QJsonObject{{"id", "{B}"}, {"name", "Two"}, {"count", 4}}};
+        QCOMPARE(sectionCounts(*odd), (QList<int>{4, 1}));
+        deck::setSections(*odd, {});
+        QVERIFY(!deck::hasSections(*odd));
+    }
+
+private:
+    // The names of the actions a menu offers, in order (separators left out).
+    static QStringList menuTexts(const QMenu *menu)
+    {
+        QStringList out;
+        for (const QAction *a : menu->actions())
+            if (!a->isSeparator()) out << a->text();
+        return out;
+    }
+    // Calls `poll` until it says it is done (the popup or box it waits for is up), or it has tried for a few seconds.
+    static void untilDone(const std::function<bool()> &poll, int tries = 300)
+    {
+        if (poll() || tries <= 0) return;
+        QTimer::singleShot(10, [poll, tries] { untilDone(poll, tries - 1); });
+    }
+    // Opens the right-click menu of a widget at `pos` and, while it is open, tells `inspect` about it; it closes after.
+    static void rightClick(QWidget *viewport, const QPoint &pos, const std::function<void(QMenu *)> &inspect)
+    {
+        QTimer::singleShot(0, [inspect] {
+            untilDone([inspect] {
+                auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!menu) return false;
+                inspect(menu);
+                menu->close();
+                return true;
+            });
+        });
+        QContextMenuEvent e(QContextMenuEvent::Mouse, pos, viewport->mapToGlobal(pos));
+        QApplication::sendEvent(viewport, &e);
+    }
+    // Answers the Rename Section box: what the name shows when it opens, then the name to give (cancel when empty).
+    static void answerRename(QString *shown, QString *selected, const QString &name)
+    {
+        QTimer::singleShot(0, [shown, selected, name] {
+            untilDone([shown, selected, name] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return false;
+                auto *edit = dlg->findChild<QLineEdit *>();
+                *shown = edit->text();
+                *selected = edit->selectedText();
+                if (name.isEmpty()) {
+                    dlg->reject();
+                } else {
+                    edit->setText(name);
+                    dlg->accept();
+                }
+                return true;
+            });
+        });
+    }
+
+private Q_SLOTS:
+    // Every section command is one undo step; Rename asks for the name with it selected; Add Section is at
+    // the slide being edited, and the others are on its section.
+    void sectionCommandsAreOneUndoStepEach()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D", "E", "F"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        for (const char *id : {"section.rename", "section.remove", "section.removeAll", "section.collapseAll", "section.expandAll"}) QVERIFY(!w.act(id)->isEnabled());
+        QVERIFY(w.act("section.add")->isEnabled());
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Untitled Section"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(ed->currentPage(), 2);
+        for (const char *id : {"section.rename", "section.remove", "section.removeAll", "section.collapseAll", "section.expandAll"}) QTRY_VERIFY(w.act(id)->isEnabled());
+        ed->undo();
+        QVERIFY(!deck::hasSections(*d));
+        ed->redo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+
+        // Rename: the box opens with the name selected; Cancel changes nothing.
+        QString shown, selected;
+        answerRename(&shown, &selected, QString());
+        w.act("section.rename")->trigger();
+        QCOMPARE(shown, QStringLiteral("Untitled Section"));
+        QCOMPARE(selected, shown);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        answerRename(&shown, &selected, QStringLiteral("Budget"));
+        w.act("section.rename")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Budget"}));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->setCurrentPage(0);
+        answerRename(&shown, &selected, QStringLiteral("Intro"));
+        w.act("section.rename")->trigger();
+        QCOMPARE(shown, QStringLiteral("Default Section"));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Default Section", "Budget"}));
+        ed->redo();
+
+        // Moving a section takes its slides; the current slide stays the one being edited.
+        ed->setCurrentPage(3);
+        w.moveSection(1, -1);
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget", "Intro"}));
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F", "A", "B"}));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        QCOMPARE(ed->currentPage(), 3);
+        w.moveSection(0, 1);
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F", "A", "B"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 2}));
+        w.moveSection(0, -1);   // the first can't go up: no step
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        ed->undoStack()->clear();
+
+        // Remove Section is on the section of the slide being edited; its slides join the one before.
+        ed->setCurrentPage(4);
+        w.act("section.remove")->trigger();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{6}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro", "Budget"}));
+        // Remove Section & Slides takes the slides too, and the editor lands on a slide that is there.
+        ed->setCurrentPage(5);
+        w.removeSectionAndSlides(1);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B"}));
+        QCOMPARE(sectionNames(*d), (QStringList{"Intro"}));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4}));
+        // The last section holding every slide can't take them all with it.
+        ed->undoStack()->clear();
+        w.removeSectionAndSlides(0);
+        QCOMPARE(titlesOf(*d), (QStringList{"C", "D", "E", "F"}));
+        QCOMPARE(sectionNames(*d), (QStringList{"Budget"}));
+        w.removeSectionAndSlides(0);
+        QCOMPARE(int(d->pages.size()), 4);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        w.act("section.removeAll")->trigger();
+        QVERIFY(!deck::hasSections(*d));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{4}));
+    }
+
+    // New, duplicated, deleted, and moved slides keep the sections' counts right, whichever view
+    // does it, each as the one step it was.
+    void sectionCountsFollowSlidesChangedInTheWindow()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D", "E", "F"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // AB | CDEF
+        ed->setCurrentPage(4);
+        w.act("section.add")->trigger();   // AB | CD | EF
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        ed->undoStack()->clear();
+        // A new slide after the last slide of a section is in that section.
+        ed->setCurrentPage(3);
+        w.newSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 2}));
+        QCOMPARE(ed->currentPage(), 4);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        ed->redo();
+        w.duplicateSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4, 2}));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        w.deleteSlide();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 2}));
+        QCOMPARE(ed->undoStack()->count(), 3);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 4, 2}));
+        ed->undo();
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 2}));
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D", "E", "F"}));
+        ed->undoStack()->clear();
+
+        // The slide sorter: deleting, duplicating, and moving (the last slide dropped under a header joins its section).
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        s->select({3, 4}, 4);
+        s->deleteSelected();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "F"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 1, 1}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        s->select({0}, 0);
+        s->duplicateSelected();
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 1, 1}));
+        s->moveSlides({4}, 1);   // F to between A and its copy: the first section
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "F", "A", "B", "C"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 1, 0}));
+        s->moveSlides({0}, 5, 2);   // A to the end, asked into the last section
+        QCOMPARE(titlesOf(*d), (QStringList{"F", "A", "B", "C", "A"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 1, 1}));
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{4, 1, 0}));
+        w.act("view.normal")->trigger();
+    }
+
+    // Enter on a title makes a slide in its section, and a slide folded into
+    // the one before leaves its section.
+    void sectionCountsFollowTheOutline()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"A", "B", "C", "D"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // AB | CD
+        ed->undoStack()->clear();
+        w.act("view.outline")->trigger();
+        OutlineView *o = w.outlineView();
+        auto lineAt = [&](int block) {
+            QTextCursor c(o->document()->findBlockByNumber(block));
+            c.movePosition(QTextCursor::EndOfBlock);
+            o->setTextCursor(c);
+        };
+        lineAt(1);
+        QTest::keyClick(o, Qt::Key_Return);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "", "C", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 2}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2}));
+        lineAt(2);   // "C", the first of its section
+        QTest::keyClick(o, Qt::Key_Tab);
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 1}));
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"A", "B", "C", "D"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2}));
+        lineAt(3);
+        QTest::keyClick(o, Qt::Key_Return);
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3}));
+    }
+
+    // The slides pane puts a heading row before each section's slides; a click on it folds the section
+    // away, and its menu has the section's commands.
+    void slidesPaneGroupsSlidesUnderSectionHeaders()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four", "Five"});
+        Editor *ed = w.editor();
+        SlidesPane *pane = w.slidesPane();
+        QCOMPARE(pane->count(), 5);   // no sections: one row a slide
+        QVERIFY(!pane->isHeaderRow(0));
+        QCOMPARE(pane->rowOfSlide(3), 3);
+        QCOMPARE(pane->slideOfRow(3), 3);
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();   // One Two | Three Four Five
+        QString shown, selected;
+        answerRename(&shown, &selected, QStringLiteral("Budget"));
+        w.act("section.rename")->trigger();
+        QTRY_COMPARE(pane->count(), 7);
+        QVERIFY(pane->isHeaderRow(0) && pane->isHeaderRow(3));
+        QCOMPARE(pane->headerRow(0), 0);
+        QCOMPARE(pane->headerRow(1), 3);
+        QCOMPARE(pane->item(0)->text(), QStringLiteral("Default Section"));
+        QCOMPARE(pane->item(3)->text(), QStringLiteral("Budget"));
+        QCOMPARE(pane->item(0)->data(SlidesPane::CountRole).toInt(), 2);
+        QCOMPARE(pane->item(3)->data(SlidesPane::CountRole).toInt(), 3);
+        QCOMPARE(pane->rowOfSlide(0), 1);
+        QCOMPARE(pane->rowOfSlide(1), 2);
+        QCOMPARE(pane->rowOfSlide(2), 4);
+        QCOMPARE(pane->slideOfRow(4), 2);
+        QCOMPARE(pane->slideOfRow(3), -1);
+        QCOMPARE(pane->item(pane->rowOfSlide(2))->text(), QStringLiteral("3"));   // numbers run on through the sections
+        QCOMPARE(pane->currentRow(), 4);
+        // Clicking a thumbnail goes to its slide; the editor's slide is the one marked.
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->thumbnailRect(1).center());
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(pane->currentRow(), pane->rowOfSlide(1));
+        ed->setCurrentPage(3);
+        QCOMPARE(pane->currentRow(), pane->rowOfSlide(3));
+        // Clicking a heading folds its section away, and again brings it back; the slide being edited stays.
+        QVERIFY(!pane->isCollapsed(0));
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->headerRect(0).center());
+        QVERIFY(pane->isCollapsed(0));
+        QVERIFY(pane->isRowHidden(pane->rowOfSlide(0)) && pane->isRowHidden(pane->rowOfSlide(1)));
+        QVERIFY(pane->thumbnailRect(0).isNull());
+        QVERIFY(!pane->thumbnailRect(2).isNull());
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(ed->undoStack()->count(), 2);   // folding is not a change to the presentation
+        QVERIFY(w.slideSorter()->isCollapsed(0));   // the Slide Sorter folds the same way
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, pane->headerRect(0).center());
+        QVERIFY(!pane->isCollapsed(0) && !pane->isRowHidden(pane->rowOfSlide(0)));
+        QVERIFY(!w.slideSorter()->isCollapsed(0));
+        w.act("section.collapseAll")->trigger();
+        QVERIFY(pane->isCollapsed(0) && pane->isCollapsed(1));
+        QVERIFY(w.slideSorter()->isCollapsed(0) && w.slideSorter()->isCollapsed(1));
+        // A slide chosen from elsewhere opens its section.
+        ed->setCurrentPage(0);
+        QVERIFY(!pane->isCollapsed(0) && pane->isCollapsed(1));
+        QVERIFY(!pane->thumbnailRect(0).isNull());
+        w.act("section.expandAll")->trigger();
+        QVERIFY(!pane->isCollapsed(0) && !pane->isCollapsed(1));
+        QCOMPARE(ed->undoStack()->count(), 2);
+
+        // The menu of a heading, and of a slide.
+        QStringList texts;
+        QList<bool> enabled;
+        rightClick(pane->viewport(), pane->headerRect(1).center(), [&](QMenu *m) {
+            texts = menuTexts(m);
+            for (const QAction *a : m->actions())
+                if (!a->isSeparator()) enabled << a->isEnabled();
+        });
+        QCOMPARE(texts, (QStringList{"Rename Section", "Remove Section", "Remove Section && Slides", "Move Section Up", "Move Section Down", "Collapse All", "Expand All"}));
+        QCOMPARE(enabled, (QList<bool>{true, true, true, true, false, true, true}));   // the last section can't go down
+        rightClick(pane->viewport(), pane->headerRect(0).center(), [&](QMenu *m) {
+            enabled.clear();
+            for (const QAction *a : m->actions())
+                if (!a->isSeparator()) enabled << a->isEnabled();
+        });
+        QCOMPARE(enabled, (QList<bool>{true, true, true, false, true, true, true}));
+        rightClick(pane->viewport(), pane->thumbnailRect(1).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QVERIFY(texts.contains(QStringLiteral("Add Section")) && texts.contains(QStringLiteral("Duplicate Slide")));
+        // Move Section Up, from the menu, takes the section's slides along.
+        rightClick(pane->viewport(), pane->headerRect(1).center(), [&](QMenu *m) {
+            for (QAction *a : m->actions())
+                if (a->text() == QLatin1String("Move Section Up")) a->trigger();
+        });
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionNames(*ed->doc()), (QStringList{"Budget", "Default Section"}));
+        QCOMPARE(ed->undoStack()->count(), 3);
+        QTRY_COMPARE(pane->item(0)->text(), QStringLiteral("Budget"));
+        // Remove Section from the menu, and Remove Section & Slides.
+        rightClick(pane->viewport(), pane->headerRect(0).center(), [&](QMenu *m) {
+            for (QAction *a : m->actions())
+                if (a->text() == QLatin1String("Remove Section && Slides")) a->trigger();
+        });
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"One", "Two"}));
+        QCOMPARE(sectionNames(*ed->doc()), (QStringList{"Default Section"}));
+        QTRY_COMPARE(pane->count(), 3);
+        ed->undo();
+        QTRY_COMPARE(pane->count(), 7);
+        // Dragging a thumbnail to another section's place (what a drop does): it joins the section it lands in.
+        pane->moveSlide(0, 3, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Four", "Five", "One", "Three", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{2, 3}));
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{3, 2}));
+        // Put under the next heading without changing places (the last of a section to the first of the next), it changes section.
+        pane->moveSlide(2, 3, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "One", "Five", "Two"}));
+        ed->undo();
+        pane->moveSlide(2, 2, 1);
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Three", "Four", "Five", "One", "Two"}));
+        QCOMPARE(sectionCounts(*ed->doc()), (QList<int>{2, 3}));
+        pane->moveSlide(2, 2, 1);   // where it is: nothing
+        QCOMPARE(ed->undoStack()->count(), 4);
+        ed->undo();
+        // Up and Down in the pane go from slide to slide, past the slides of a section folded away.
+        pane->setFocus();
+        ed->setCurrentPage(2);   // the last of the first section
+        pane->setCollapsed(1, true);
+        QTest::keyClick(pane, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 2);
+        pane->setCollapsed(1, false);
+        QTest::keyClick(pane, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 3);
+        QTest::keyClick(pane, Qt::Key_Home);
+        QCOMPARE(ed->currentPage(), 0);
+        QTest::keyClick(pane, Qt::Key_End);
+        QCOMPARE(ed->currentPage(), 4);
+    }
+
+    // The slide sorter starts each section on a row of its own under its heading; a heading folds
+    // its section, and a slide dropped among a section's slides is in the section.
+    void slideSorterGroupsThumbnailsUnderSectionHeaders()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four", "Five", "Six"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->setCurrentPage(2);
+        w.act("section.add")->trigger();
+        ed->setCurrentPage(5);
+        w.act("section.add")->trigger();   // One Two | Three Four Five | Six
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 1}));
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        QTRY_COMPARE(s->renderedCount(), 6);
+        auto row = [&](int slide) { return s->thumbnailRect(slide).top(); };
+        // A heading above each section's first row; a section's slides in rows from there.
+        for (int section = 0; section < 3; ++section) {
+            QVERIFY(!s->sectionHeaderRect(section).isNull());
+            QCOMPARE(s->headerAt(s->sectionHeaderRect(section).center()), section);
+            QCOMPARE(s->slideAt(s->sectionHeaderRect(section).center()), -1);
+        }
+        QVERIFY(s->sectionHeaderRect(0).bottom() < row(0));
+        QCOMPARE(row(1), row(0));
+        QVERIFY(row(2) > row(1) + s->thumbnailRect(1).height());
+        QVERIFY(s->sectionHeaderRect(1).top() >= s->thumbnailRect(1).bottom());
+        QVERIFY(s->sectionHeaderRect(1).bottom() < row(2));
+        QCOMPARE(row(3), row(2));
+        QCOMPARE(row(4), row(2));
+        QVERIFY(row(5) > row(4) + s->thumbnailRect(4).height());
+        QVERIFY(s->sectionHeaderRect(2).bottom() < row(5));
+        QCOMPARE(s->slideAt(centerOf(s, 4)), 4);
+        // Folding: the slides go and the rest comes up.
+        const int before = row(5);
+        QTest::mouseClick(s->viewport(), Qt::LeftButton, Qt::NoModifier, s->sectionHeaderRect(1).center());
+        QVERIFY(s->isCollapsed(1));
+        QVERIFY(s->thumbnailRect(3).isNull());
+        QCOMPARE(s->slideAt(QPoint(5, 5)), -1);
+        QVERIFY(row(5) < before);
+        QVERIFY(w.slidesPane()->isCollapsed(1));
+        s->setCollapsed(1, false);
+        QCOMPARE(row(5), before);
+        QVERIFY(!w.slidesPane()->isCollapsed(1));
+        // Dragging "Six" to the left of the first slide puts it first in the first section.
+        QTRY_COMPARE(s->renderedCount(), 6);
+        QWidget *vp = s->viewport();
+        const QPoint from = centerOf(s, 5), to(s->thumbnailRect(0).left() + 3, s->thumbnailRect(0).center().y());
+        ed->undoStack()->clear();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(vp, from + QPoint(-12, 0));
+        QTest::mouseMove(vp, from + QPoint(-40, 0));
+        QTest::mouseMove(vp, to);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(titlesOf(*d), (QStringList{"Six", "One", "Two", "Three", "Four", "Five"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{3, 3, 0}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 3, 1}));
+        // Dropped at the right of a section's last slide, it is that section's (not the next one's first).
+        QTRY_COMPARE(s->renderedCount(), 6);
+        const QRect last = s->thumbnailRect(4);
+        const QPoint far(last.right() + 8, last.center().y());
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, centerOf(s, 0));
+        QTest::mouseMove(vp, centerOf(s, 0) + QPoint(14, 14));
+        QTest::mouseMove(vp, centerOf(s, 0) + QPoint(60, 40));
+        QTest::mouseMove(vp, far);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, far);
+        QCOMPARE(titlesOf(*d), (QStringList{"Two", "Three", "Four", "Five", "One", "Six"}));
+        QCOMPARE(sectionCounts(*d), (QList<int>{1, 4, 1}));
+        ed->undo();
+        // A heading's menu is the section's, as in the slides pane.
+        QStringList texts;
+        rightClick(vp, s->sectionHeaderRect(2).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QCOMPARE(texts, (QStringList{"Rename Section", "Remove Section", "Remove Section && Slides", "Move Section Up", "Move Section Down", "Collapse All", "Expand All"}));
+        rightClick(vp, s->thumbnailRect(2).center(), [&](QMenu *m) { texts = menuTexts(m); });
+        QVERIFY(texts.contains(QStringLiteral("Add Section")));
+        // Left and Right go from slide to slide across the sections; Down to the row below.
+        ed->setCurrentPage(1);
+        QTest::keyClick(s, Qt::Key_Right);
+        QCOMPARE(ed->currentPage(), 2);
+        QTest::keyClick(s, Qt::Key_Left);
+        QCOMPARE(ed->currentPage(), 1);
+        QTest::keyClick(s, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 3);   // the nearest slide of the section below
+        QTest::keyClick(s, Qt::Key_Down);
+        QCOMPARE(ed->currentPage(), 5);
+        QTest::keyClick(s, Qt::Key_Up);
+        QCOMPARE(ed->currentPage(), 2);   // the one across from "Six", at the left
+    }
+
+    // The Home tab's Section button: Add, Rename, Remove, Remove All, Collapse All, and Expand All.
+    void ribbonSectionMenu()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QAction *command = w.findChild<QAction *>(QStringLiteral("ribbon.section"));
+        QVERIFY(command);
+        QMenu *menu = nullptr;
+        for (QObject *o : command->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        QCOMPARE(menu->actions(), (QList<QAction *>{w.act("section.add"), w.act("section.rename"), w.act("section.remove"), w.act("section.removeAll"), menu->actions().at(4),
+                                                    w.act("section.collapseAll"), w.act("section.expandAll")}));
+        QVERIFY(menu->actions().at(4)->isSeparator());
+        QCOMPARE(w.act("section.add")->text(), QStringLiteral("Add Section"));
+        QCOMPARE(w.act("section.rename")->text(), QStringLiteral("Rename Section"));
+        QCOMPARE(w.act("section.remove")->text(), QStringLiteral("Remove Section"));
+        QCOMPARE(w.act("section.removeAll")->text(), QStringLiteral("Remove All Sections"));
+        QCOMPARE(w.act("section.collapseAll")->text(), QStringLiteral("Collapse All"));
+        QCOMPARE(w.act("section.expandAll")->text(), QStringLiteral("Expand All"));
+        // In the Slides group, after Reset.
+        RibbonGroup *slides = nullptr;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Home"))->groups())
+            if (g->title() == QLatin1String("Slides")) slides = g;
+        QVERIFY(slides);
+        QList<QToolButton *> buttons = slides->findChildren<QToolButton *>();
+        int reset = -1, section = -1;
+        for (int i = 0; i < buttons.size(); ++i) {
+            if (buttons[i]->defaultAction() == w.act("slide.reset")) reset = i;
+            if (buttons[i]->defaultAction() == command) section = i;
+        }
+        QVERIFY(reset >= 0 && section > reset);
     }
 
     // Outline view: the presentation's text, each slide a numbered heading
@@ -8190,6 +8894,474 @@ private Q_SLOTS:
         QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a.POTX")), deck::PresentationKind::Template);
         QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a.ppsx")), deck::PresentationKind::Show);
         QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a")), deck::PresentationKind::Presentation);
+    }
+
+    // Sections are written as the extension that lists each section's slides
+    // by the numbers the slide list gives them, and read back the same (an
+    // empty section too); a presentation without sections writes no list. A
+    // file's slides that no section lists join the section before them, and
+    // those before the first section's are in a Default Section.
+    void sectionsAreWrittenAndReadBack()
+    {
+        const QString ext = QStringLiteral("{521415D9-36F7-43E2-AB2F-B90AF26B5E84}");
+        const QString p14 = QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main");
+        auto d = lettered(5);
+        deck::addSection(*d, 2, QStringLiteral("Plan & Goals"));
+        deck::addSection(*d, 4, QStringLiteral("Budget"));
+        deck::addSection(*d, 4, QStringLiteral("Last"));   // leaves Budget with no slides
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 0, 1}));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presentation.xml")), &dom);
+        QStringList slideIds;
+        for (const QDomElement &s : office::children(office::child(root, office::ns::P, QStringLiteral("sldIdLst")), office::ns::P, QStringLiteral("sldId"))) slideIds << office::attr(s, QStringLiteral("id"));
+        QCOMPARE(int(slideIds.size()), 5);
+        // After the default text style, as the schema has it: the extension list is the last child.
+        QCOMPARE(root.lastChildElement().localName(), QStringLiteral("extLst"));
+        const QDomElement extension = office::child(office::child(root, office::ns::P, QStringLiteral("extLst")), office::ns::P, QStringLiteral("ext"));
+        QCOMPARE(extension.attribute(QStringLiteral("uri")), ext);
+        const QVector<QDomElement> written = office::children(office::child(extension, p14, QStringLiteral("sectionLst")), p14, QStringLiteral("section"));
+        QCOMPARE(int(written.size()), 4);
+        const QVector<deck::Section> sections = deck::sectionsOf(*d);
+        int next = 0;
+        for (int i = 0; i < written.size(); ++i) {
+            QCOMPARE(office::attr(written[i], QStringLiteral("name")), sections[i].name);
+            QCOMPARE(office::attr(written[i], QStringLiteral("id")), sections[i].id);
+            QStringList listed;
+            for (const QDomElement &s : office::children(office::child(written[i], p14, QStringLiteral("sldIdLst")), p14, QStringLiteral("sldId"))) listed << office::attr(s, QStringLiteral("id"));
+            QCOMPARE(listed, slideIds.mid(next, sections[i].count));
+            next += sections[i].count;
+        }
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 5);
+        QCOMPARE(sectionNames(*back), (QStringList{"Default Section", "Plan & Goals", "Budget", "Last"}));
+        QCOMPARE(sectionCounts(*back), (QList<int>{2, 2, 0, 1}));
+        for (int i = 0; i < 4; ++i) QCOMPARE(deck::sectionsOf(*back)[i].id, sections[i].id);
+        // Saved again, they are the same.
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QCOMPARE(again.zip.value(QStringLiteral("ppt/presentation.xml")), e.zip.value(QStringLiteral("ppt/presentation.xml")));
+
+        // Without sections nothing is written.
+        auto plain = lettered(3);
+        Exported none;
+        QVERIFY2(unpack(deck::exportPresentation(*plain, &err), &none, &err), qPrintable(err));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("sectionLst")));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("extLst")));
+        auto plainBack = deck::importPresentation(deck::exportPresentation(*plain, &err), &err);
+        QVERIFY2(plainBack, qPrintable(err));
+        QVERIFY(!deck::hasSections(*plainBack));
+
+        // A file's own lists: ids the file doesn't have are passed over, a slide in none joins the section before it.
+        auto edited = [&](const QString &sections) {
+            QMap<QString, QByteArray> zip = e.zip;
+            QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+            const qsizetype from = xml.indexOf(QStringLiteral("<p:extLst>")), to = xml.indexOf(QStringLiteral("</p:extLst>")) + 11;
+            xml.replace(from, to - from, sections.isEmpty() ? QString() : QStringLiteral("<p:extLst><p:ext uri=\"%1\"><p14:sectionLst xmlns:p14=\"%2\">%3</p14:sectionLst></p:ext></p:extLst>").arg(ext, p14, sections));
+            zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+            ZipWriter z;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+            return deck::importPresentation(z.finish(), &err);
+        };
+        auto section = [&](const QString &name, const QStringList &ids) {
+            QString list;
+            for (const QString &id : ids) list += QStringLiteral("<p14:sldId id=\"%1\"/>").arg(id);
+            return QStringLiteral("<p14:section name=\"%1\" id=\"{00000000-0000-4000-8000-00000000000%2}\"><p14:sldIdLst>%3</p14:sldIdLst></p14:section>").arg(name).arg(name.size()).arg(list);
+        };
+        auto odd = edited(section(QStringLiteral("Opening"), {slideIds[0], QStringLiteral("999")}) + section(QStringLiteral("Middle"), {slideIds[2], slideIds[3]})
+                          + section(QStringLiteral("Closing"), {slideIds[4]}) + section(QStringLiteral("Epilogue"), {}));
+        QVERIFY2(odd, qPrintable(err));
+        QCOMPARE(sectionNames(*odd), (QStringList{"Opening", "Middle", "Closing", "Epilogue"}));
+        QCOMPARE(sectionCounts(*odd), (QList<int>{2, 2, 1, 0}));   // the second slide is in none: it joins Opening
+        QCOMPARE(deck::sectionsOf(*odd)[1].id, QStringLiteral("{00000000-0000-4000-8000-000000000006}"));
+        // Slides in none before the first section's get a Default Section of their own.
+        auto late = edited(section(QStringLiteral("Only"), {slideIds[1], slideIds[2], slideIds[3], slideIds[4]}));
+        QVERIFY2(late, qPrintable(err));
+        QCOMPARE(sectionNames(*late), (QStringList{"Default Section", "Only"}));
+        QCOMPARE(sectionCounts(*late), (QList<int>{1, 4}));
+        // A list with no sections, or no list, is no sections.
+        auto empty = edited(QString());
+        QVERIFY2(empty && !deck::hasSections(*empty), qPrintable(err));
+        auto emptyList = edited(QStringLiteral(" "));
+        QVERIFY2(emptyList && !deck::hasSections(*emptyList), qPrintable(err));
+    }
+
+private:
+    // A presentation to take slides from, built here: the chart sample (a chart with its workbook, a picture, notes,
+    // a slide's transition and animation, a frame kept as it was) with a movie on its first slide, under a master
+    // and layouts of its own whose theme has other fonts than a new presentation's.
+    static QByteArray reuseMovie() { return QByteArray("not really a movie, but kept byte for byte"); }
+    static std::unique_ptr<Document> reuseSource()
+    {
+        Parts p = chartPptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"),
+                    QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"20\" name=\"Movie\"><a:hlinkClick r:id=\"\" action=\"ppaction://media\"/></p:cNvPr><p:cNvPicPr/><p:nvPr><a:videoFile r:link=\"rId5\"/>"
+                                   "<p:extLst><p:ext uri=\"{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}\"><p14:media xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" r:embed=\"rId6\"/></p:ext></p:extLst>"
+                                   "</p:nvPr></p:nvPicPr><p:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>")
+                        + xfrm(0, 0, 1828800, 1371600) + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        p.data["/ppt/media/media1.mp4"] = {QStringLiteral("video/mp4"), reuseMovie()};
+        p.rels << Rel{"/ppt/slides/slide1.xml", "video", "/ppt/media/media1.mp4"} << Rel{"/ppt/slides/slide1.xml", "http://schemas.microsoft.com/office/2007/relationships/media", "/ppt/media/media1.mp4"};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        if (!d) return nullptr;
+        // The title in a size of its own, and a body with one bold word: what the layout gives and what the writer chose.
+        for (const auto &it : d->pages[0]->items) {
+            auto *text = it->type() == ItemType::Text ? static_cast<TextItem *>(it.get()) : nullptr;
+            if (!text) continue;
+            QTextDocument *story = d->storyDoc(text->storyId);
+            if (deck::placeholderType(*it) == QLatin1String("title")) {
+                QTextCursor c(story);
+                c.select(QTextCursor::Document);
+                QTextCharFormat f;
+                f.setFontPointSize(31);
+                c.mergeCharFormat(f);
+            } else if (deck::placeholderType(*it) == QLatin1String("obj")) {
+                QTextCursor c(story);
+                c.insertText(QStringLiteral("Plain and "));
+                QTextCharFormat bold;
+                bold.setFontWeight(QFont::Bold);
+                c.insertText(QStringLiteral("bold"), bold);
+            }
+        }
+        return d;
+    }
+    static const Item *namedItem(const PageBase &page, const QString &name)
+    {
+        const Item *found = nullptr;
+        walkItems(page.items, [&](const ItemPtr &it) {
+            if (it->name == name) found = it.get();
+        });
+        return found;
+    }
+    static const Item *placeholderOn(const PageBase &page, const QString &type)
+    {
+        for (const auto &it : page.items)
+            if (deck::placeholderType(*it) == type) return it.get();
+        return nullptr;
+    }
+    // Every object's id in the presentation, with how many there are.
+    static QSet<QString> allItemIds(const Document &d, int *count)
+    {
+        QSet<QString> ids;
+        *count = 0;
+        d.forEachItem([&](Item *it, int, const QString &) {
+            ids.insert(it->id);
+            ++*count;
+        });
+        return ids;
+    }
+
+private Q_SLOTS:
+    // A slide taken from another presentation without its formatting stands on this one's layout of
+    // its kind, its title and text in that layout's places and look (what the writer emphasized stays),
+    // and brings what is its own: pictures, movies, notes, a chart, an animation and a transition, all with new ids.
+    void reuseTakesTheDestinationsLayout()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        auto dest = deck::newPresentation();
+        deck::addSlide(*dest, *deck::layoutOfType(*dest, QStringLiteral("obj")));
+        const MasterPage *layout = deck::layoutOfType(*dest, QStringLiteral("obj"));
+        const int masters = int(dest->masters.size());
+        int destItemsBefore;
+        allItemIds(*dest, &destItemsBefore);
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, false), 1);
+        QCOMPARE(int(dest->pages.size()), 3);
+        QCOMPARE(int(dest->masters.size()), masters);   // no layout or master comes with it
+        const Page &page = *dest->pages[1];
+        const Page &was = *src->pages[0];
+        QCOMPARE(page.masterId, layout->id);
+        QCOMPARE(int(src->pages.size()), 2);
+        QCOMPARE(titleOfSlide(*src, 0), QStringLiteral("Quarterly results"));   // the source is as it was
+
+        // The title and the text: in the layout's places, in the layout's look.
+        const Item *title = placeholderOn(page, QStringLiteral("title"));
+        QVERIFY(title);
+        const Item *layoutTitle = nullptr;
+        for (const auto &it : layout->items)
+            if (deck::placeholderType(*it) == QLatin1String("title")) layoutTitle = it.get();
+        QVERIFY(layoutTitle);
+        QCOMPARE(title->rect, layoutTitle->rect);
+        QTextDocument *titleStory = dest->storyDoc(static_cast<const TextItem *>(title)->storyId);
+        QCOMPARE(titleStory->toPlainText(), QStringLiteral("Quarterly results"));
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontPointSize(), 44.0);
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontFamilies().toStringList().value(0), deck::themeOf(*dest).headingFont);
+        QTextDocument *body = bodyOfSlide(*dest, 1);
+        QVERIFY(body);
+        QCOMPARE(body->toPlainText(), QStringLiteral("Plain and bold"));
+        QTextBlock::iterator fragment = body->begin().begin();
+        QCOMPARE(fragment.fragment().charFormat().fontPointSize(), 28.0);
+        QVERIFY(fragment.fragment().charFormat().fontWeight() < QFont::DemiBold);
+        ++fragment;
+        QCOMPARE(fragment.fragment().text(), QStringLiteral("bold"));
+        QVERIFY(fragment.fragment().charFormat().fontWeight() >= QFont::Bold);
+        QCOMPARE(fragment.fragment().charFormat().fontPointSize(), 28.0);
+
+        // What the slide brought: the picture, the movie, the chart, the notes, the animation and the transition.
+        const auto *picture = static_cast<const PictureItem *>(namedItem(page, QStringLiteral("Picture 7")));
+        QVERIFY(picture && picture->type() == ItemType::Picture);
+        QVERIFY(dest->images.contains(picture->imageId));
+        QCOMPARE(dest->images.value(picture->imageId).bytes, tinyPng());
+        const auto *movie = static_cast<const PictureItem *>(namedItem(page, QStringLiteral("Movie")));
+        QVERIFY(movie && movie->type() == ItemType::Picture);
+        QCOMPARE(movie->mediaKind, QStringLiteral("video"));
+        QVERIFY(dest->media.contains(movie->mediaId));
+        QCOMPARE(dest->media.value(movie->mediaId).bytes, reuseMovie());
+        QCOMPARE(dest->media.value(movie->mediaId).contentType, QStringLiteral("video/mp4"));
+        const PictureItem *chart = chartPicture(*dest, page), *chartWas = chartPicture(*src, was);
+        QVERIFY(chart && chartWas);
+        QVERIFY(chart->id != chartWas->id);
+        QVERIFY(dest->images.contains(chart->imageId));
+        const QJsonArray charts = page.props.value(QStringLiteral("charts")).toArray();
+        QCOMPARE(int(charts.size()), 1);
+        QCOMPARE(charts[0].toObject().value(QStringLiteral("parts")), was.props.value(QStringLiteral("charts")).toArray()[0].toObject().value(QStringLiteral("parts")));
+        QCOMPARE(deck::notesText(*dest, page), QStringLiteral("Say hello first\nThen the numbers"));
+        QVERIFY(page.notesStoryId != was.notesStoryId);
+        QVERIFY(!src->stories.contains(page.notesStoryId));
+        QCOMPARE(page.props.value(QStringLiteral("timingXml")), was.props.value(QStringLiteral("timingXml")));
+        QVERIFY(!page.props.value(QStringLiteral("timingXml")).toString().isEmpty());
+        QCOMPARE(page.props.value(QStringLiteral("transitionXml")), was.props.value(QStringLiteral("transitionXml")));
+        QVERIFY(!page.props.value(QStringLiteral("transitionXml")).toString().isEmpty());
+        QCOMPARE(page.props.value(QStringLiteral("unread")), was.props.value(QStringLiteral("unread")));
+        QVERIFY(!page.props.value(QStringLiteral("unread")).toArray().isEmpty());
+        // The shapes keep their numbers in the file: what the animation aims at.
+        QCOMPARE(namedItem(page, QStringLiteral("Movie"))->sourceId, namedItem(was, QStringLiteral("Movie"))->sourceId);
+
+        // New ids all through: no object, story, or page shares one with the source, or with another in this presentation.
+        int count;
+        const QSet<QString> ids = allItemIds(*dest, &count);
+        QCOMPARE(int(ids.size()), count);
+        QCOMPARE(count, destItemsBefore + int(page.items.size()));
+        int sourceCount;
+        for (const QString &id : allItemIds(*src, &sourceCount)) QVERIFY2(!ids.contains(id), qPrintable(id));
+        QVERIFY(page.id != was.id);
+        for (const auto &it : page.items)
+            if (it->type() == ItemType::Text) {
+                const QString story = static_cast<const TextItem *>(it.get())->storyId;
+                QVERIFY(dest->stories.contains(story) && !src->stories.contains(story));
+            }
+        // A slide at the end goes at the end; one past it too.
+        QCOMPARE(deck::insertSlideFrom(*dest, 99, *src, 1, false), 3);
+        QCOMPARE(int(dest->pages.size()), 4);
+        QCOMPARE(titleOfSlide(*dest, 3), QStringLiteral("Second"));
+        QCOMPARE(deck::insertSlideFrom(*dest, 0, *src, 5, false), -1);   // no such slide
+        QCOMPARE(int(dest->pages.size()), 4);
+        // The slide that has a background of its own and is hidden: hidden stays, the background is the layout's.
+        QVERIFY(dest->pages[3]->hidden);
+        QVERIFY(dest->pages[3]->background.isNone());
+        QVERIFY(!src->pages[1]->background.isNone());
+        // A slide on a title layout lands on the title layout.
+        QCOMPARE(deck::layoutType(*dest->masterFor(*dest->pages[3])), QStringLiteral("title"));
+    }
+
+    // With its formatting kept, a slide brings its layout and slide master (named as they were, with their
+    // theme), once for each: a second slide from the same master finds them here.
+    void reuseKeepsTheSourceFormattingWithItsLayoutAndMaster()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        auto dest = deck::newPresentation();
+        const int masters = int(dest->masters.size());
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, true), 1);
+        QCOMPARE(int(dest->masters.size()), masters + 2);   // the master and the layout
+        const Page &page = *dest->pages[1];
+        const MasterPage *layout = dest->masterFor(page);
+        QVERIFY(layout && deck::isLayout(*layout));
+        QCOMPARE(layout->name, QStringLiteral("Title and Content"));
+        QCOMPARE(deck::layoutType(*layout), QStringLiteral("obj"));
+        const MasterPage *master = dest->master(layout->baseId);
+        QVERIFY(master && deck::isSlideMaster(*master));
+        QCOMPARE(master->name, QStringLiteral("Test Master"));
+        QVERIFY(master != dest->masters[0].get());
+        QCOMPARE(master->props.value(QStringLiteral("themeXml")).toString(), src->appData.value(QStringLiteral("themeXml")).toString());
+        QVERIFY(!master->props.value(QStringLiteral("themeXml")).toString().isEmpty());
+        // The master's own band stays, and the layout's places are the source's.
+        QVERIFY(namedItem(*master, QStringLiteral("Master Band")));
+        const Item *title = placeholderOn(page, QStringLiteral("title"));
+        const Item *sourceTitle = placeholderOn(*src->pages[0], QStringLiteral("title"));
+        QVERIFY(title && sourceTitle);
+        QCOMPARE(title->rect, sourceTitle->rect);
+        QTextDocument *titleStory = dest->storyDoc(static_cast<const TextItem *>(title)->storyId);
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontPointSize(), 31.0);
+        // The source's theme fonts are fonts of the source: Georgia, not what this presentation's headings are.
+        QCOMPARE(titleStory->begin().begin().fragment().charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Georgia"));
+        QVERIFY(deck::themeOf(*dest).headingFont != QStringLiteral("Georgia"));
+        // The master's pictures and the layout's objects came with new ids and stories of their own.
+        int count;
+        const QSet<QString> ids = allItemIds(*dest, &count);
+        QCOMPARE(int(ids.size()), count);
+        // A slide on another layout of that master: only that layout comes; the master was copied already.
+        QCOMPARE(deck::insertSlideFrom(*dest, 2, *src, 1, true), 2);
+        QCOMPARE(int(dest->masters.size()), masters + 3);
+        const MasterPage *titleLayout = dest->masterFor(*dest->pages[2]);
+        QVERIFY(titleLayout && deck::layoutType(*titleLayout) == QLatin1String("title"));
+        QCOMPARE(titleLayout->baseId, master->id);
+        // The same layout again finds the one that is here.
+        QCOMPARE(deck::insertSlideFrom(*dest, 3, *src, 0, true), 3);
+        QCOMPARE(deck::insertSlideFrom(*dest, 4, *src, 1, true), 4);
+        QCOMPARE(int(dest->masters.size()), masters + 3);
+        QCOMPARE(dest->pages[3]->masterId, page.masterId);
+        // A slide's own background and its hiding come along; with the formatting kept, the background stays.
+        QVERIFY(dest->pages[2]->hidden);
+        QVERIFY(dest->pages[2]->background == src->pages[1]->background);
+        QVERIFY(!dest->pages[2]->background.isNone());
+        // A master that looks the same as one here is the one here: reusing a slide of this presentation's own kind adds nothing.
+        auto same = deck::newPresentation();
+        const int sameMasters = int(dest->masters.size());
+        QCOMPARE(deck::insertSlideFrom(*dest, 5, *same, 0, true), 5);
+        QCOMPARE(int(dest->masters.size()), sameMasters);
+        QCOMPARE(dest->masterFor(*dest->pages[5])->id, deck::layoutOfType(*dest, QStringLiteral("title"), dest->masters[0]->id)->id);
+        // What came with the slides is a sound file when saved: the charts' parts, the movie, the extra masters and their themes.
+        {
+            QString err;
+            Exported e;
+            const QByteArray bytes = deck::exportPresentation(*dest, &err);
+            QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+            auto back = deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            QCOMPARE(int(back->pages.size()), int(dest->pages.size()));
+            QCOMPARE(titleOfSlide(*back, 1), QStringLiteral("Quarterly results"));
+            QCOMPARE(back->masterFor(*back->pages[1])->name, QStringLiteral("Title and Content"));
+            QCOMPARE(back->master(back->masterFor(*back->pages[1])->baseId)->name, QStringLiteral("Test Master"));
+            QVERIFY(chartPicture(*back, *back->pages[1]));
+            QVERIFY(namedItem(*back->pages[1], QStringLiteral("Movie")));
+        }
+        // The sections follow: the copy is in the section of the slide before it.
+        deck::addSection(*dest, 3, QStringLiteral("Later"));
+        const int before = int(dest->pages.size());
+        deck::insertSlideFrom(*dest, 3, *src, 0, false);
+        QCOMPARE(int(dest->pages.size()), before + 1);
+        QCOMPARE(sectionCounts(*dest).value(0), 4);
+    }
+
+    // A slide from a presentation of another slide size is fitted to this one's, as Slide Size
+    // does it: what it holds keeps its shape, scaled and centered, its layout and master stretch.
+    void reuseFitsASlideToThisPresentationsSlideSize()
+    {
+        auto src = reuseSource();
+        QVERIFY(src);
+        QCOMPARE(src->pageSize(), QSizeF(960, 540));
+        auto dest = deck::newPresentation();
+        deck::setSlideSize(*dest, QSizeF(720, 540));
+        const QRectF was = namedItem(*src->pages[0], QStringLiteral("Picture 7"))->rect;
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, false), 1);
+        const QRectF page(QPointF(0, 0), dest->pageSize());
+        const QRectF fitted = namedItem(*dest->pages[1], QStringLiteral("Picture 7"))->rect;
+        QVERIFY2(page.contains(fitted), qPrintable(QStringLiteral("%1,%2 %3x%4").arg(fitted.x()).arg(fitted.y()).arg(fitted.width()).arg(fitted.height())));
+        QVERIFY(std::abs(fitted.width() - was.width() * 0.75) < 0.01 && std::abs(fitted.height() - was.height() * 0.75) < 0.01);
+        QVERIFY(std::abs(fitted.x() - (was.x() * 0.75)) < 0.01);   // 720/960 across, and the height ratio is 1: scaled by 0.75, centered
+        for (const auto &it : dest->pages[1]->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(it->name + " " + it->role));
+        // With the formatting kept, the layout and the master come stretched to this slide size too.
+        QCOMPARE(deck::insertSlideFrom(*dest, 2, *src, 0, true), 2);
+        const MasterPage *layout = dest->masterFor(*dest->pages[2]);
+        QVERIFY(layout);
+        for (const MasterPage *m : QList<const MasterPage *>{layout, dest->master(layout->baseId)}) {
+            QVERIFY(m);
+            for (const auto &it : m->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(m->name + " " + it->name + " " + it->role));
+        }
+        const Item *band = namedItem(*dest->master(layout->baseId), QStringLiteral("Master Band"));
+        QVERIFY(band);
+        QVERIFY(std::abs(band->rect.width() - 720) < 0.01);
+        for (const auto &it : dest->pages[2]->items) QVERIFY2(page.adjusted(-0.01, -0.01, 0.01, 0.01).contains(it->rect), qPrintable(it->name + " " + it->role));
+        // The same size changes nothing.
+        auto same = deck::newPresentation();
+        deck::insertSlideFrom(*same, 1, *src, 0, false);
+        QCOMPARE(namedItem(*same->pages[1], QStringLiteral("Picture 7"))->rect, was);
+    }
+
+    // The Reuse Slides pane: Browse picks a presentation, its slides are listed as thumbnails with titles, and a
+    // click puts a copy after the slide being edited, as one step that undoes. "Keep source formatting" is off
+    // until it is turned on.
+    void reuseSlidesPaneInsertsACopyAfterTheCurrentSlide()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("source.pptx"));
+        {
+            QString err;
+            auto src = reuseSource();
+            QVERIFY(src);
+            QVERIFY2(deck::savePresentationFile(*src, path, &err), qPrintable(err));
+        }
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        ed->undoStack()->clear();
+        QVERIFY(w.act("slide.reuse"));
+        QCOMPARE(w.act("slide.reuse")->text(), QStringLiteral("Reuse Slides…"));
+        QVERIFY(!w.reusePane() || !w.reusePane()->isVisible());
+        // The New Slide menu offers it.
+        QMenu *menu = nullptr;
+        for (QObject *o : w.act("slide.new")->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        QVERIFY(menu->actions().contains(w.act("slide.reuse")));
+        w.act("slide.reuse")->trigger();
+        ReusePane *pane = w.reusePane();
+        QVERIFY(pane && pane->isVisible());
+        QVERIFY(w.centralWidget()->geometry().right() <= pane->mapTo(&w, QPoint(0, 0)).x() + 2);   // on the right of the slides
+        QVERIFY(!pane->keepFormatting());
+        QCOMPARE(pane->slideCount(), 0);
+        // A file that isn't a presentation says so and lists nothing.
+        const QString bad = dir.filePath(QStringLiteral("bad.pptx"));
+        QFile b(bad);
+        QVERIFY(b.open(QIODevice::WriteOnly));
+        b.write("not a presentation");
+        b.close();
+        QVERIFY(!pane->open(bad));
+        QCOMPARE(pane->slideCount(), 0);
+        QVERIFY(!pane->message().isEmpty());
+        QVERIFY(pane->open(path));
+        QCOMPARE(pane->slideCount(), 2);
+        QTRY_COMPARE(pane->renderedCount(), 2);
+        QCOMPARE(pane->list()->item(0)->text(), QStringLiteral("1  Quarterly results"));
+        QCOMPARE(pane->list()->item(1)->text(), QStringLiteral("2  Second"));
+        QVERIFY(!pane->list()->item(0)->icon().isNull());
+        QVERIFY(pane->message().isEmpty());
+        // A click inserts after the slide being edited.
+        QListWidget *list = pane->list();
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, list->visualItemRect(list->item(0)).center());
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QStringLiteral("Quarterly results"));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->undoStack()->count(), 1);
+        QCOMPARE(int(ed->doc()->masters.size()), 10);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        QCOMPARE(titleOfSlide(*ed->doc(), 1), QString());
+        ed->redo();
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        // With the check box on, the slide brings its layout and master; undone, they go.
+        auto *keep = pane->findChild<QCheckBox *>();
+        QVERIFY(keep);
+        QCOMPARE(keep->text(), QStringLiteral("Keep source formatting"));
+        keep->click();
+        QVERIFY(pane->keepFormatting());
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, list->visualItemRect(list->item(1)).center());
+        QCOMPARE(int(ed->doc()->pages.size()), 4);
+        QCOMPARE(ed->currentPage(), 2);
+        QCOMPARE(titleOfSlide(*ed->doc(), 2), QStringLiteral("Second"));
+        QCOMPARE(int(ed->doc()->masters.size()), 12);
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 3);
+        QCOMPARE(int(ed->doc()->masters.size()), 10);
+        // The source file is untouched by all this, and the pane can be put away.
+        QVERIFY(QFileInfo(path).size() > 0);
+        w.reusePane()->setKeepFormatting(false);
+        QVERIFY(!keep->isChecked());
     }
 
     // Saving a file replaces the old one only when the new one is whole: a

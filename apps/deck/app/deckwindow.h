@@ -11,6 +11,7 @@
 #include <QTimer>
 #include <functional>
 
+class QDockWidget;
 class QLabel;
 class QSlider;
 class QSplitter;
@@ -27,6 +28,7 @@ class FontCombo;
 class NotesPane;
 class OutlineView;
 class Ribbon;
+class ReusePane;
 struct RibbonParts;
 class SizeCombo;
 class SlideSorter;
@@ -57,6 +59,12 @@ public:
     SlideShow *slideShow() const { return m_show; }
     SlideSorter *slideSorter() const { return m_sorter; }
     OutlineView *outlineView() const { return m_outline; }
+    // The Reuse Slides pane on the right, once it has been opened (Reuse
+    // Slides on the New Slide menu): a click on one of its slides puts a copy
+    // after the slide being edited, as one step that undoes.
+    ReusePane *reusePane() const { return m_reuse; }
+    void showReusePane();
+    void reuseSlide(int slide, bool keepFormatting);
     // The ways to see the slides: Normal (the thumbnails, the slide, and its
     // notes), Outline (the text in the thumbnails' place), and the Slide Sorter.
     enum class View { Normal, Outline, Sorter };
@@ -76,6 +84,17 @@ public:
     void showComments(bool on);
     // A new comment on the slide: asks who is writing the first time, and opens the box to type it in.
     void newComment();
+    // Sections (deckwindow_sections.cpp), each one step that undoes. A section
+    // is named by its index, -1 for the one the slide being edited is in.
+    // Add Section starts one at that slide (-1: the slide being edited);
+    // Rename asks for the name; moving takes the section's slides along (by -1
+    // up, 1 down); Remove Section & Slides keeps at least one slide.
+    void addSection(int before = -1);
+    void renameSection(int section = -1);
+    void removeSection(int section = -1);
+    void removeSectionAndSlides(int section = -1);
+    void moveSection(int section, int by);
+    void removeAllSections();
     void setLayout(const QString &layoutType);
     void resetSlide();
     // Gives the slides another size, everything on them scaled to fit (as
@@ -145,6 +164,8 @@ private:
     void createSaveActions();     // deckwindow_save.cpp
     void createDialogActions();   // deckwindow_dialogs.cpp
     void createCommentActions();  // deckwindow_comments.cpp
+    void createSectionActions();  // deckwindow_sections.cpp
+    void createReuseActions();    // deckwindow_reuse.cpp, from createSectionActions()
     void createOutputActions();   // deckwindow_output.cpp
     void createFormatActions();   // deckwindow_actions.cpp
     void createInsertActions();
@@ -174,6 +195,8 @@ private:
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr, *m_commentSplit = nullptr;   // the last: the slide and the Comments pane
     QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
     SlideSorter *m_sorter = nullptr;
+    ReusePane *m_reuse = nullptr;
+    QDockWidget *m_reuseDock = nullptr;
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     View m_view = View::Normal;
     // Normal view's zoom while the Slide Sorter borrows the zoom controls: its Canvas::Fit and the zoom.
