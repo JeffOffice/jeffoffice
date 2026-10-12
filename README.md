@@ -4,13 +4,15 @@
 
 JeffPub is a free, open-source desktop publishing app for **Windows, macOS, and Linux**. Its features are modeled on those of Microsoft Publisher, and it opens Publisher files. Use it to lay out flyers, newsletters, brochures, business cards, certificates, and other print pieces on a page. Text, pictures, shapes, and tables sit in frames that you can move and resize wherever you like.
 
+JeffPub is the first app of **JeffOffice**, a free, open-source office suite. On Windows it installs with JeffOffice setup, which also lists the apps on the way: JeffDeck for presentations, JeffWrite for documents, JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will be offered by an update once it's ready.
+
 ## Why JeffPub exists
 
 Microsoft is retiring Publisher. Microsoft 365 subscribers lost access to Publisher on October 1, 2026, and support for the last standalone version ends on October 13, 2026 ([Microsoft's announcement](https://support.microsoft.com/en-us/publisher/microsoft-publisher-will-no-longer-be-supported-after-october-2026)). Microsoft suggests converting existing publications to PDF or Word before then.
 
 JeffPub was started in response. It gives the people, small businesses, schools, and publishers who built years of work in Publisher a free, open-source program that keeps opening, editing, and printing those `.pub` files, on Windows and Linux, without a subscription and without depending on any one company's product plans.
 
-> **Status:** beta (0.6): the features are in place and are being polished. Downloads are on the [Releases page](https://github.com/JeffOffice/jeffpub/releases): a Windows installer, a Mac disk image (not yet signed, so macOS asks before opening it the first time), and for Linux a `.deb` package (Debian, Ubuntu, and their relatives) and an AppImage that runs on most other distributions. JeffPub opens and saves Publisher's `.pub` files, from Publisher 98 on.
+> **Status:** beta (0.6): the features are in place and are being polished. Downloads are on the [Releases page](https://github.com/JeffOffice/jeffpub/releases): a Windows installer (`JeffOffice-Setup.exe`), a Mac disk image (not yet signed, so macOS asks before opening it the first time), and for Linux a `.deb` package (Debian, Ubuntu, and their relatives) and an AppImage that runs on most other distributions. JeffPub opens and saves Publisher's `.pub` files, from Publisher 98 on.
 >
 > On Debian or Ubuntu, install the package with `sudo apt install ./jeffpub_<version>_amd64.deb`. For the AppImage, make the file executable and run it.
 
