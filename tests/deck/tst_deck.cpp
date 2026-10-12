@@ -9631,6 +9631,121 @@ private Q_SLOTS:
         QCOMPARE(show.currentSlide(), 1);
     }
 
+    // The cTn id the effect that calls the shape's media has, in a timing; 0 if none.
+    static int mediaCallNode(const QString &timing, int shape)
+    {
+        QDomDocument dom;
+        if (!office::parseXml(timing.toUtf8(), &dom)) return 0;
+        QVector<QDomElement> stack{dom.documentElement()};
+        while (!stack.isEmpty()) {
+            const QDomElement e = stack.takeLast();
+            if (e.localName() == QLatin1String("cTn") && e.attribute(QStringLiteral("presetClass")) == QLatin1String("mediacall")) {
+                for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+                    if (c.localName() == QLatin1String("childTnLst") && c.toElement().text().isEmpty()) {
+                        QVector<QDomElement> in{c};
+                        while (!in.isEmpty()) {
+                            const QDomElement f = in.takeLast();
+                            if (f.localName() == QLatin1String("spTgt") && f.attribute(QStringLiteral("spid")).toInt() == shape) return e.attribute(QStringLiteral("id")).toInt();
+                            for (QDomElement g = f.firstChildElement(); !g.isNull(); g = g.nextSiblingElement()) in << g;
+                        }
+                    }
+            }
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+        }
+        return 0;
+    }
+
+    // What a media node begins with: the node of the call that plays it, named by its onBegin condition.
+    static int mediaBeginsWith(const QString &timing, const char *kind)
+    {
+        const int at = timing.indexOf(QStringLiteral("<p:%1").arg(QLatin1String(kind)));
+        if (at < 0) return 0;
+        const QString node = timing.mid(at, timing.indexOf(QStringLiteral("</p:%1>").arg(QLatin1String(kind)), at) - at);
+        static const QRegularExpression begin(QStringLiteral("evt=\"onBegin\" delay=\"0\"><p:tn val=\"(\\d+)\""));
+        const QRegularExpressionMatch m = begin.match(node);
+        return m.hasMatch() ? m.captured(1).toInt() : 0;
+    }
+
+    // An edit of the slide's animations keeps the movie's and sound's nodes and the calls to them, and the node of a sound that begins with its
+    // call still names that call by its new number; an edit of how they play keeps the animations.
+    void animationEditsKeepTheMediaAndTheNumbersItNames()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        QImage poster(160, 120, QImage::Format_RGB32);
+        poster.fill(QColor(30, 90, 160));
+        // Two fades first (their numbers come before the sound's), then a sound that begins after them, and a movie that waits for a click on it.
+        deck::AnimSequence first;
+        first.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        first.add(deck::makeAnim(QStringLiteral("entr.fade"), 11));
+        deck::setAnimations(*d, slide, first);
+        auto sound = deck::newMediaPicture(*d, slide, testWav(), QStringLiteral("tune.wav"), QImage(), 1000);
+        slide.items.push_back(sound);
+        deck::MediaPlay auto1;
+        auto1.start = deck::MediaStart::Automatically;
+        auto1.loop = true;
+        deck::setMediaPlay(slide, *sound, auto1, 1000);
+        auto movie = deck::newMediaPicture(*d, slide, testAvi(), QStringLiteral("clip.avi"), poster, 500);
+        slide.items.push_back(movie);
+        deck::MediaPlay click;
+        click.start = deck::MediaStart::WhenClickedOn;
+        click.fullScreen = true;
+        deck::setMediaPlay(slide, *movie, click, 500);
+        QString timing = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(timing).isEmpty(), qPrintable(animIdProblem(timing)));
+        const int called = mediaCallNode(timing, sound->sourceId);
+        QVERIFY(called > 0);
+        QCOMPARE(mediaBeginsWith(timing, "audio"), called);
+        // An effect is put in front of everything: the sound's call is numbered afresh.
+        deck::AnimSequence seq = deck::readAnimations(slide, d.get());
+        QVERIFY(seq.editable);
+        seq.add(deck::makeAnim(QStringLiteral("entr.wipe"), 10), 0);
+        seq.add(deck::makeAnim(QStringLiteral("entr.wipe"), 11), 0);
+        seq.add(deck::makeAnim(QStringLiteral("entr.wipe"), 10), 0);
+        seq.add(deck::makeAnim(QStringLiteral("emph.pulse"), 11));
+        deck::setAnimations(*d, slide, seq);
+        timing = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(timing).isEmpty(), qPrintable(animIdProblem(timing)));
+        QCOMPARE(int(timing.count(QStringLiteral("<p:audio>"))), 1);
+        QCOMPARE(int(timing.count(QStringLiteral("<p:video"))), 1);
+        QVERIFY(timing.contains(QStringLiteral("fullScrn=\"1\"")));
+        const int calledNow = mediaCallNode(timing, sound->sourceId);
+        QVERIFY2(calledNow > 0, qPrintable(timing));
+        QCOMPARE(mediaBeginsWith(timing, "audio"), calledNow);   // follows the call to its new number
+        QVERIFY(deck::mediaPlayOf(slide, *sound) == [&] { deck::MediaPlay p = auto1; p.shape = sound->sourceId; p.video = false; p.lengthHint = deck::mediaPlayOf(slide, *sound).lengthHint; return p; }());
+        QVERIFY(deck::mediaPlayOf(slide, *movie).start == deck::MediaStart::WhenClickedOn);
+        QCOMPARE(int(deck::readAnimations(slide, d.get()).effects.size()), 7);   // 2 fades, the 4 added, and the sound's call (the movie waits for a click on it: that is not in the main sequence)
+        QVERIFY2(calledNow != called, "the edit renumbered the call, so following it means something");
+        // An edit of how the sound plays leaves the animations alone.
+        deck::MediaPlay quiet = deck::mediaPlayOf(slide, *sound);
+        quiet.volume = deck::kVolumeLow;
+        quiet.start = deck::MediaStart::ClickSequence;
+        deck::setMediaPlay(slide, *sound, quiet);
+        timing = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(timing).isEmpty(), qPrintable(animIdProblem(timing)));
+        int fades = 0, wipes = 0, pulses = 0;
+        for (const deck::Step &s : deck::readTimeline(timing).steps)
+            for (const deck::Effect &e : s.effects) {
+                fades += e.cls == deck::EffectClass::Entrance && e.presetId == 10;
+                wipes += e.cls == deck::EffectClass::Entrance && e.presetId == 22;
+                pulses += e.cls == deck::EffectClass::Emphasis;
+            }
+        QCOMPARE(fades, 2);
+        QCOMPARE(wipes, 3);
+        QCOMPARE(pulses, 1);
+        QVERIFY(deck::mediaPlayOf(slide, *sound).start == deck::MediaStart::ClickSequence);
+        QCOMPARE(deck::mediaPlayOf(slide, *sound).volume, deck::kVolumeLow);
+        QVERIFY(deck::mediaPlayOf(slide, *movie).fullScreen);
+        // Saved, the numbers hold.
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString saved = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(animIdProblem(saved.mid(saved.indexOf(QStringLiteral("<p:timing")), saved.indexOf(QStringLiteral("</p:timing>")) + 11 - saved.indexOf(QStringLiteral("<p:timing")))).isEmpty(), "ids in the saved timing");
+    }
+
     // The notes a save makes about the animations of shapes that are gone, and nothing else.
     static bool onlyGoneNotes(const QStringList &notes)
     {
