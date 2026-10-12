@@ -1,6 +1,7 @@
 // Tests of libs/office: packages, the theme, and DrawingML colors. Every
 // package they read is built in memory (never a real-world file).
 #include "office/package.h"
+#include "office/theme.h"
 #include "office/xml.h"
 #include "io/zip.h"
 
@@ -125,6 +126,54 @@ QByteArray declaredHuge()
     }
     return zip;
 }
+
+
+// A theme part written by hand, with the twelve colors (the first two as
+// system colors, whose lastClr is the value) and a font scheme with a
+// per-script font the struct has no place for.
+QByteArray handWrittenTheme(const QString &a = QString(ns::A))
+{
+    return QStringLiteral(R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="%1" name="Test Theme">
+  <a:themeElements>
+    <a:clrScheme name="Test Colors">
+      <a:dk1><a:sysClr val="windowText" lastClr="101010"/></a:dk1>
+      <a:lt1><a:sysClr val="window" lastClr="FEFEFE"/></a:lt1>
+      <a:dk2><a:srgbClr val="44546A"/></a:dk2>
+      <a:lt2><a:srgbClr val="E7E6E6"/></a:lt2>
+      <a:accent1><a:srgbClr val="4472C4"/></a:accent1>
+      <a:accent2><a:srgbClr val="ED7D31"/></a:accent2>
+      <a:accent3><a:srgbClr val="A5A5A5"/></a:accent3>
+      <a:accent4><a:srgbClr val="FFC000"/></a:accent4>
+      <a:accent5><a:srgbClr val="5B9BD5"/></a:accent5>
+      <a:accent6><a:srgbClr val="70AD47"/></a:accent6>
+      <a:hlink><a:srgbClr val="0563C1"/></a:hlink>
+      <a:folHlink><a:srgbClr val="954F72"/></a:folHlink>
+    </a:clrScheme>
+    <a:fontScheme name="Test Fonts">
+      <a:majorFont>
+        <a:latin typeface="Georgia" panose="02040502050405020303"/>
+        <a:ea typeface="Noto Serif CJK JP"/>
+        <a:cs typeface="Arial"/>
+        <a:font script="Jpan" typeface="Yu Mincho"/>
+      </a:majorFont>
+      <a:minorFont>
+        <a:latin typeface="Verdana"/>
+        <a:ea typeface=""/>
+        <a:cs typeface="Tahoma"/>
+      </a:minorFont>
+    </a:fontScheme>
+    <a:fmtScheme name="Test Formats"><a:fillStyleLst><a:noFill/></a:fillStyleLst></a:fmtScheme>
+  </a:themeElements>
+  <a:objectDefaults/>
+  <a:extraClrSchemeLst/>
+</a:theme>)").arg(a).toUtf8();
+}
+
+const QColor kHandWrittenColors[Theme::ColorCount] = {
+    QColor(0x10, 0x10, 0x10), QColor(0xFE, 0xFE, 0xFE), QColor(0x44, 0x54, 0x6A), QColor(0xE7, 0xE6, 0xE6),
+    QColor(0x44, 0x72, 0xC4), QColor(0xED, 0x7D, 0x31), QColor(0xA5, 0xA5, 0xA5), QColor(0xFF, 0xC0, 0x00),
+    QColor(0x5B, 0x9B, 0xD5), QColor(0x70, 0xAD, 0x47), QColor(0x05, 0x63, 0xC1), QColor(0x95, 0x4F, 0x72)};
 
 } // namespace
 
@@ -704,6 +753,244 @@ private Q_SLOTS:
         QVERIFY(!ok);
         QCOMPARE(parseInt(QString(), 8), qint64(8));
         QCOMPARE(parseInt(QStringLiteral("12x"), 8), qint64(8));
+    }
+
+    // ---- the theme
+
+    void themeColorNames()
+    {
+        const QStringList names = {"dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"};
+        QCOMPARE(names.size(), int(Theme::ColorCount));
+        for (int i = 0; i < Theme::ColorCount; ++i) {
+            QCOMPARE(themeColorName(Theme::Color(i)), names[i]);
+            Theme::Color back = Theme::ColorCount;
+            QVERIFY(themeColorFromName(names[i], &back));
+            QCOMPARE(int(back), i);
+        }
+        Theme::Color slot = Theme::Accent3;
+        for (const char *bad : {"", "bg1", "tx1", "accent7", "Accent1", "phClr"}) {
+            QVERIFY2(!themeColorFromName(QString::fromLatin1(bad), &slot), bad);
+            QCOMPARE(int(slot), int(Theme::Accent3));   // untouched
+        }
+    }
+
+    void themeReadsColorsAndFonts()
+    {
+        Theme t;
+        QString err;
+        const QByteArray xml = handWrittenTheme();
+        QVERIFY2(readTheme(xml, &t, &err), qPrintable(err));
+        QCOMPARE(t.name, QStringLiteral("Test Theme"));
+        QCOMPARE(t.colorSchemeName, QStringLiteral("Test Colors"));
+        QCOMPARE(t.fontSchemeName, QStringLiteral("Test Fonts"));
+        for (int i = 0; i < Theme::ColorCount; ++i) {
+            QVERIFY2(t.colors[i].isValid(), qPrintable(themeColorName(Theme::Color(i))));
+            QCOMPARE(t.colors[i].name(QColor::HexRgb), kHandWrittenColors[i].name(QColor::HexRgb));   // the sysClr two by their lastClr
+            QCOMPARE(t.colors[i].alpha(), 255);
+        }
+        QCOMPARE(t.majorLatin, QStringLiteral("Georgia"));
+        QCOMPARE(t.majorEastAsian, QStringLiteral("Noto Serif CJK JP"));
+        QCOMPARE(t.majorComplex, QStringLiteral("Arial"));
+        QCOMPARE(t.minorLatin, QStringLiteral("Verdana"));
+        QCOMPARE(t.minorEastAsian, QString());
+        QCOMPARE(t.minorComplex, QStringLiteral("Tahoma"));
+        QCOMPARE(t.xml, xml);
+    }
+
+    void themeReadsStrictNamespace()
+    {
+        Theme t;
+        QString err;
+        QVERIFY2(readTheme(handWrittenTheme(QString(ns::AStrict)), &t, &err), qPrintable(err));
+        QCOMPARE(t.name, QStringLiteral("Test Theme"));
+        QCOMPARE(t.colors[Theme::Accent4].name(QColor::HexRgb), QStringLiteral("#ffc000"));
+        QCOMPARE(t.minorLatin, QStringLiteral("Verdana"));
+    }
+
+    void themeFillsInWhatIsMissing()
+    {
+        // Only some colors, no fonts: the colors it lacks are the default's.
+        const QByteArray xml = QStringLiteral(
+            "<a:theme xmlns:a=\"%1\" name=\"Small\"><a:themeElements><a:clrScheme name=\"S\">"
+            "<a:accent1><a:srgbClr val=\"123456\"/></a:accent1>"
+            "<a:accent2><a:srgbClr val=\"nonsense\"/></a:accent2>"
+            "<a:hlink/>"
+            "</a:clrScheme></a:themeElements></a:theme>").arg(ns::A).toUtf8();
+        Theme t;
+        QString err;
+        QVERIFY2(readTheme(xml, &t, &err), qPrintable(err));
+        const Theme d = defaultTheme();
+        QCOMPARE(t.name, QStringLiteral("Small"));
+        QCOMPARE(t.colors[Theme::Accent1].name(QColor::HexRgb), QStringLiteral("#123456"));
+        QCOMPARE(t.colors[Theme::Accent2], d.colors[Theme::Accent2]);   // unreadable
+        QCOMPARE(t.colors[Theme::Hyperlink], d.colors[Theme::Hyperlink]);   // empty
+        QCOMPARE(t.colors[Theme::Dark1], d.colors[Theme::Dark1]);   // absent
+        QCOMPARE(t.fontSchemeName, QString());
+        QCOMPARE(t.majorLatin, QString());
+        QCOMPARE(t.minorLatin, QString());
+    }
+
+    void themeUsesSystemColorNamesWithoutLastClr()
+    {
+        const QByteArray xml = QStringLiteral(
+            "<a:theme xmlns:a=\"%1\"><a:themeElements><a:clrScheme name=\"S\">"
+            "<a:dk1><a:sysClr val=\"windowText\"/></a:dk1><a:lt1><a:sysClr val=\"window\"/></a:lt1>"
+            "</a:clrScheme></a:themeElements></a:theme>").arg(ns::A).toUtf8();
+        Theme t;
+        QVERIFY(readTheme(xml, &t));
+        QCOMPARE(t.colors[Theme::Dark1].name(QColor::HexRgb), QStringLiteral("#000000"));
+        QCOMPARE(t.colors[Theme::Light1].name(QColor::HexRgb), QStringLiteral("#ffffff"));
+    }
+
+    void themeRejectsWhatIsNotATheme_data()
+    {
+        QTest::addColumn<QByteArray>("xml");
+        QTest::newRow("empty") << QByteArray();
+        QTest::newRow("not XML") << QByteArray("a theme, in words");
+        QTest::newRow("another root") << QStringLiteral("<a:other xmlns:a=\"%1\"/>").arg(ns::A).toUtf8();
+        QTest::newRow("a theme in another namespace") << QByteArray("<a:theme xmlns:a=\"urn:other\"><a:themeElements/></a:theme>");
+        QTest::newRow("no theme elements") << QStringLiteral("<a:theme xmlns:a=\"%1\"/>").arg(ns::A).toUtf8();
+        QTest::newRow("no color scheme") << QStringLiteral("<a:theme xmlns:a=\"%1\"><a:themeElements><a:fontScheme name=\"f\"/></a:themeElements></a:theme>").arg(ns::A).toUtf8();
+        QTest::newRow("DOCTYPE") << QByteArray("<!DOCTYPE a:theme [<!ENTITY e \"x\">]>") + handWrittenTheme();
+        QByteArray inner = handWrittenTheme();
+        inner.insert(inner.indexOf("?>") + 2, "\n<!DOCTYPE a:theme [<!ENTITY e \"x\">]>");
+        QTest::newRow("DOCTYPE after the declaration") << inner;
+    }
+
+    void themeRejectsWhatIsNotATheme()
+    {
+        QFETCH(QByteArray, xml);
+        Theme t = defaultTheme();
+        QString err;
+        QVERIFY(!readTheme(xml, &t, &err));
+        QVERIFY(!err.isEmpty());
+        QCOMPARE(t.name, defaultTheme().name);   // left as it was
+    }
+
+    void themeWritesWhatItRead()
+    {
+        // A part read is written back byte for byte, whatever it holds that
+        // the struct doesn't.
+        QByteArray xml = handWrittenTheme();
+        Theme t;
+        QVERIFY(readTheme(xml, &t));
+        QCOMPARE(writeTheme(t), xml);
+        // Until the xml is cleared, a changed field is not written.
+        t.colors[Theme::Accent1] = QColor(Qt::red);
+        QCOMPARE(writeTheme(t), xml);
+        t.xml.clear();
+        Theme back;
+        QVERIFY(readTheme(writeTheme(t), &back));
+        QCOMPARE(back.colors[Theme::Accent1].name(QColor::HexRgb), QStringLiteral("#ff0000"));
+    }
+
+    void themeWritesFromFields()
+    {
+        Theme t;
+        t.name = QStringLiteral("Fine & \"Dandy\" <1>");
+        t.colorSchemeName = QStringLiteral("Colors > Others");
+        t.fontSchemeName = QStringLiteral("Fonts 'n' Things");
+        for (int i = 0; i < Theme::ColorCount; ++i) t.colors[i] = kHandWrittenColors[i];
+        t.majorLatin = QStringLiteral("Georgia");
+        t.minorLatin = QStringLiteral("Verdana");
+        t.majorEastAsian = QStringLiteral("Noto Serif CJK JP");
+        t.minorEastAsian = QString();
+        t.majorComplex = QStringLiteral("Arial & Co");
+        t.minorComplex = QStringLiteral("Tahoma");
+        const QByteArray xml = writeTheme(t);
+        QVERIFY(!xml.isEmpty());
+
+        Theme back;
+        QString err;
+        QVERIFY2(readTheme(xml, &back, &err), qPrintable(err));
+        QCOMPARE(back.name, t.name);
+        QCOMPARE(back.colorSchemeName, t.colorSchemeName);
+        QCOMPARE(back.fontSchemeName, t.fontSchemeName);
+        for (int i = 0; i < Theme::ColorCount; ++i) QCOMPARE(back.colors[i].name(QColor::HexRgb), t.colors[i].name(QColor::HexRgb));
+        QCOMPARE(back.majorLatin, t.majorLatin);
+        QCOMPARE(back.minorLatin, t.minorLatin);
+        QCOMPARE(back.majorEastAsian, t.majorEastAsian);
+        QCOMPARE(back.minorEastAsian, t.minorEastAsian);
+        QCOMPARE(back.majorComplex, t.majorComplex);
+        QCOMPARE(back.minorComplex, t.minorComplex);
+        QCOMPARE(back.xml, xml);
+    }
+
+    void themeWrittenHasACompleteStructure()
+    {
+        // The parts the schema requires: the three schemes in order, and in
+        // the format scheme three of each style.
+        QDomDocument doc;
+        QString err;
+        QVERIFY2(parseXml(writeTheme(defaultTheme()), &doc, &err), qPrintable(err));
+        const QDomElement root = doc.documentElement();
+        QVERIFY(isElement(root, ns::A, QStringLiteral("theme")));
+        const QDomElement elements = child(root, ns::A, QStringLiteral("themeElements"));
+        QVERIFY(!elements.isNull());
+        const QVector<QDomElement> schemes = jp::office::children(elements);
+        QCOMPARE(schemes.size(), 3);
+        QVERIFY(isElement(schemes[0], ns::A, QStringLiteral("clrScheme")));
+        QVERIFY(isElement(schemes[1], ns::A, QStringLiteral("fontScheme")));
+        QVERIFY(isElement(schemes[2], ns::A, QStringLiteral("fmtScheme")));
+        // Twelve colors, in the schema's order, each a plain RGB.
+        const QStringList slots = {"dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"};
+        const QVector<QDomElement> colors = jp::office::children(schemes[0]);
+        QCOMPARE(colors.size(), 12);
+        for (int i = 0; i < 12; ++i) {
+            QVERIFY(isElement(colors[i], ns::A, slots[i]));
+            QVERIFY(!child(colors[i], ns::A, QStringLiteral("srgbClr")).isNull());
+        }
+        for (const QString &font : {QStringLiteral("majorFont"), QStringLiteral("minorFont")}) {
+            const QDomElement f = child(schemes[1], ns::A, font);
+            QVERIFY(!f.isNull());
+            // latin, ea, and cs are all required, even when empty.
+            QVERIFY(!child(f, ns::A, QStringLiteral("latin")).isNull());
+            QVERIFY(!child(f, ns::A, QStringLiteral("ea")).isNull());
+            QVERIFY(!child(f, ns::A, QStringLiteral("cs")).isNull());
+        }
+        const QVector<QDomElement> styles = jp::office::children(schemes[2]);
+        QCOMPARE(styles.size(), 4);
+        const QStringList lists = {"fillStyleLst", "lnStyleLst", "effectStyleLst", "bgFillStyleLst"};
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY(isElement(styles[i], ns::A, lists[i]));
+            QCOMPARE(jp::office::children(styles[i]).size(), 3);
+        }
+        QVERIFY(!child(root, ns::A, QStringLiteral("objectDefaults")).isNull());
+        QVERIFY(!child(root, ns::A, QStringLiteral("extraClrSchemeLst")).isNull());
+    }
+
+    void themeWritesUnsetColorsAsDefault()
+    {
+        Theme t;
+        t.name = QStringLiteral("Bare");
+        Theme back;
+        QVERIFY(readTheme(writeTheme(t), &back));
+        const Theme d = defaultTheme();
+        for (int i = 0; i < Theme::ColorCount; ++i) QCOMPARE(back.colors[i].name(QColor::HexRgb), d.colors[i].name(QColor::HexRgb));
+    }
+
+    void themeDefault()
+    {
+        const Theme d = defaultTheme();
+        QCOMPARE(d.name, QStringLiteral("JeffOffice"));
+        QCOMPARE(d.colorSchemeName, QStringLiteral("JeffOffice"));
+        QCOMPARE(d.fontSchemeName, QStringLiteral("JeffOffice"));
+        QCOMPARE(d.majorLatin, QStringLiteral("Carlito"));
+        QCOMPARE(d.minorLatin, QStringLiteral("Carlito"));
+        QVERIFY(d.xml.isEmpty());
+        const char *expected[Theme::ColorCount] = {"#1f2937", "#ffffff", "#24364f", "#e8ecf2", "#1d55c4", "#b6420f",
+                                                   "#13773a", "#9e1f63", "#0a6c8c", "#5e2ca5", "#1d55c4", "#5e2ca5"};
+        for (int i = 0; i < Theme::ColorCount; ++i) {
+            QCOMPARE(d.colors[i].name(QColor::HexRgb), QString::fromLatin1(expected[i]));
+            QCOMPARE(d.colors[i].alpha(), 255);
+        }
+        // It makes a part and reads it back as it was.
+        Theme back;
+        QString err;
+        QVERIFY2(readTheme(writeTheme(d), &back, &err), qPrintable(err));
+        QCOMPARE(back.name, d.name);
+        QCOMPARE(back.majorLatin, d.majorLatin);
+        for (int i = 0; i < Theme::ColorCount; ++i) QCOMPARE(back.colors[i], d.colors[i]);
     }
 
     void writerRoundTrip()
