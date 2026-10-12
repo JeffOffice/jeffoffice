@@ -9,7 +9,7 @@
 namespace jp::deck {
 
 namespace {
-const QString kSettingsKey = QStringLiteral("showSettings"), kShowsKey = QStringLiteral("customShows");
+const QString kSettingsKey = QStringLiteral("showSettings"), kShowsKey = QStringLiteral("customShows"), kNextKey = QStringLiteral("customShowNextId");
 constexpr qint64 kMaxId = 4294967295LL;   // an id is an unsigned 32-bit number in a file
 
 QColor colorOf(const QJsonValue &v, const QColor &fallback)
@@ -73,7 +73,16 @@ ShowSettings ShowSettings::fromJson(const QJsonObject &o)
     return s;
 }
 
-ShowSettings showSettingsOf(const Document &d) { return ShowSettings::fromJson(d.appData.value(kSettingsKey).toObject()); }
+ShowSettings showSettingsOf(const Document &d)
+{
+    ShowSettings s = ShowSettings::fromJson(d.appData.value(kSettingsKey).toObject());
+    // A custom show that is not there is every slide.
+    if (s.slides == ShowSettings::Slides::Custom && !customShowById(customShowsOf(d), s.customShow)) {
+        s.slides = ShowSettings::Slides::All;
+        s.customShow = -1;
+    }
+    return s;
+}
 
 void setShowSettings(Document &d, const ShowSettings &s)
 {
@@ -123,6 +132,17 @@ void setCustomShows(Document &d, const QVector<CustomShow> &shows)
     }
     if (list.isEmpty()) d.appData.remove(kShowsKey);
     else d.appData[kShowsKey] = list;
+    // The next id is past every id there has been, the ones taken out too.
+    qint64 next = qint64(d.appData.value(kNextKey).toDouble(0));
+    for (const qint64 id : std::as_const(ids)) next = std::max(next, id + 1);
+    if (next > 0) d.appData[kNextKey] = double(next);
+    // A show set to play one that is gone plays every slide.
+    ShowSettings s = ShowSettings::fromJson(d.appData.value(kSettingsKey).toObject());
+    if (s.slides == ShowSettings::Slides::Custom && !ids.contains(s.customShow)) {
+        s.slides = ShowSettings::Slides::All;
+        s.customShow = -1;
+        setShowSettings(d, s);
+    }
 }
 
 const CustomShow *customShowById(const QVector<CustomShow> &shows, qint64 id)
@@ -139,14 +159,25 @@ qint64 newCustomShowId(const QVector<CustomShow> &shows)
     return id;
 }
 
+qint64 newCustomShowId(const Document &d, const QVector<CustomShow> &shows)
+{
+    qint64 id = std::max(newCustomShowId(shows), qint64(d.appData.value(kNextKey).toDouble(0)));
+    if (id <= kMaxId) return id;
+    // Every number there is has been used: the first one the shows leave.
+    QSet<qint64> taken;
+    for (const CustomShow &s : shows) taken.insert(s.id);
+    for (id = 0; taken.contains(id); ++id) {}
+    return id;
+}
+
+QString customShowDefaultName(int n) { return QCoreApplication::translate("CustomShows", "Custom Show %1").arg(n); }
+
 QString newCustomShowName(const QVector<CustomShow> &shows)
 {
-    for (int n = 1;; ++n) {
-        const QString name = QCoreApplication::translate("CustomShows", "Custom Show %1").arg(n);
-        bool taken = false;
-        for (const CustomShow &s : shows) taken |= s.name.compare(name, Qt::CaseInsensitive) == 0;
-        if (!taken) return name;
-    }
+    QSet<QString> names;
+    for (const CustomShow &s : shows) names.insert(s.name.toLower());
+    for (int n = 1;; ++n)
+        if (!names.contains(customShowDefaultName(n).toLower())) return customShowDefaultName(n);
 }
 
 QHash<QString, int> pageIndexById(const Document &d)
@@ -186,7 +217,9 @@ ShowPlan planOf(const Document &d, const ShowSettings &s, bool honorSlides)
     } else if (s.slides == ShowSettings::Slides::Range) {
         const int count = int(d.pages.size());
         const int from = std::max(1, s.from), to = std::min(count, s.to);
-        if (from <= to && !(from == 1 && to == count))
+        // A range that begins past the last slide leaves nothing; one that runs backwards is every slide.
+        if (from > count) plan.none = true;
+        else if (from <= to && !(from == 1 && to == count))
             for (int i = from - 1; i < to; ++i) plan.slides << i;
     }
     return plan;

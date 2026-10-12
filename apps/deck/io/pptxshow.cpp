@@ -117,8 +117,16 @@ void readCustomShows(const QDomElement &presentation, const QHash<QString, int> 
     for (const CustomShow &s : std::as_const(shows)) next = std::max(next, s.id + 1);
     for (CustomShow &s : shows)
         if (s.id < 0) s.id = next++;
-    for (CustomShow &s : shows)
-        if (s.name.isEmpty()) s.name = newCustomShowName(shows);
+    // A show with no name is the next "Custom Show n" no show has: one pass, not a look at every show for each.
+    QSet<QString> names;
+    for (const CustomShow &s : std::as_const(shows)) names.insert(s.name.toLower());
+    int counter = 1;
+    for (CustomShow &s : shows) {
+        if (!s.name.isEmpty()) continue;
+        while (names.contains(customShowDefaultName(counter).toLower())) ++counter;
+        s.name = customShowDefaultName(counter);
+        names.insert(s.name.toLower());
+    }
     setCustomShows(doc, shows);
     if (notes) {
         if (tooMany) *notes << say("Only the first %1 custom slide shows are read.").arg(kMaxCustomShows);

@@ -3,6 +3,7 @@
 #include "core/color.h"
 #include "core/items.h"
 
+#include <QCoreApplication>
 #include <QLineF>
 #include <algorithm>
 #include <cmath>
@@ -13,36 +14,9 @@ namespace {
 
 double scaleFor(double pageWidth) { return pageWidth > 0 ? pageWidth / kInkSlideWidth : 1.0; }
 
-// Keeps the points of a run that matter at `tolerance`: the farthest from the chord stays, and each side is thinned in turn.
-void thin(const QVector<QPointF> &in, int a, int b, double tolerance, QVector<bool> &keep)
-{
-    // A stack, not recursion: a stroke has as many points as the pointer moved through.
-    QVector<QPair<int, int>> todo{{a, b}};
-    while (!todo.isEmpty()) {
-        const auto [lo, hi] = todo.takeLast();
-        if (hi <= lo + 1) continue;
-        const QLineF chord(in[lo], in[hi]);
-        double far = -1;
-        int at = -1;
-        for (int i = lo + 1; i < hi; ++i) {
-            double dist;
-            if (chord.length() > 1e-9) {
-                const QPointF d = in[i] - in[lo], u = (in[hi] - in[lo]) / chord.length();
-                dist = std::abs(d.x() * u.y() - d.y() * u.x());
-            } else {
-                dist = QLineF(in[lo], in[i]).length();
-            }
-            if (dist > far) {
-                far = dist;
-                at = i;
-            }
-        }
-        if (far <= tolerance) continue;
-        keep[at] = true;
-        todo << qMakePair(lo, at) << qMakePair(at, hi);
-    }
-}
-
+// Keeps the points of a stroke that matter, in one pass: from a point the run goes on while the points stay within `tolerance` of the line
+// through it and the point after it (and keep going the same way along it); the last such point is kept, and the next run starts there.
+// Each point is looked at about twice, however the stroke winds.
 QVector<QPointF> thinned(const QVector<QPointF> &points, double tolerance)
 {
     // The same point twice in a row adds nothing.
@@ -50,12 +24,24 @@ QVector<QPointF> thinned(const QVector<QPointF> &points, double tolerance)
     for (const QPointF &pt : points)
         if (p.isEmpty() || p.last() != pt) p << pt;
     if (p.size() < 3) return p;
-    QVector<bool> keep(p.size(), false);
-    keep.first() = keep.last() = true;
-    thin(p, 0, int(p.size()) - 1, tolerance, keep);
-    QVector<QPointF> out;
-    for (int i = 0; i < p.size(); ++i)
-        if (keep[i]) out << p[i];
+    const int n = int(p.size());
+    QVector<QPointF> out{p.first()};
+    int i = 0;
+    while (i < n - 1) {
+        const QPointF a = p[i], d = p[i + 1] - a;
+        const double length = std::hypot(d.x(), d.y());
+        double along = length;   // how far along the line the last point of the run is
+        int j = i + 2;
+        for (; j < n; ++j) {
+            const QPointF v = p[j] - a;
+            const double across = std::abs(v.x() * d.y() - v.y() * d.x()) / length, ahead = (v.x() * d.x() + v.y() * d.y()) / length;
+            // Off the line, or turned back along it.
+            if (across > tolerance || ahead < along - tolerance) break;
+            along = std::max(along, ahead);
+        }
+        out << p[j - 1];
+        i = j - 1;
+    }
     return out;
 }
 
@@ -65,6 +51,24 @@ double penWeightFor(double pageWidth) { return kPenWeight * scaleFor(pageWidth);
 double highlighterWeightFor(double pageWidth) { return kHighlighterWeight * scaleFor(pageWidth); }
 double eraserReachFor(double pageWidth) { return kEraserReach * scaleFor(pageWidth); }
 QColor highlighterColor() { return QColor(255, 255, 0); }
+
+QVector<InkColor> inkColors()
+{
+    auto name = [](const char *text) { return QCoreApplication::translate("Ink", text); };
+    return {{name(QT_TRANSLATE_NOOP("Ink", "Red")), QColor(255, 0, 0)},       {name(QT_TRANSLATE_NOOP("Ink", "Orange")), QColor(255, 140, 0)},
+            {name(QT_TRANSLATE_NOOP("Ink", "Yellow")), QColor(255, 255, 0)},  {name(QT_TRANSLATE_NOOP("Ink", "Green")), QColor(0, 176, 80)},
+            {name(QT_TRANSLATE_NOOP("Ink", "Light Blue")), QColor(0, 176, 240)}, {name(QT_TRANSLATE_NOOP("Ink", "Blue")), QColor(0, 112, 192)},
+            {name(QT_TRANSLATE_NOOP("Ink", "Purple")), QColor(112, 48, 160)}, {name(QT_TRANSLATE_NOOP("Ink", "Black")), QColor(0, 0, 0)},
+            {name(QT_TRANSLATE_NOOP("Ink", "White")), QColor(255, 255, 255)}};
+}
+
+QString inkColorName(const QColor &color)
+{
+    const QColor rgb(color.red(), color.green(), color.blue());
+    for (const InkColor &c : inkColors())
+        if (c.color == rgb) return c.name;
+    return rgb.name(QColor::HexRgb).toUpper();
+}
 
 QPainterPath inkPath(const InkStroke &stroke)
 {
