@@ -38,6 +38,7 @@ void DeckWindow::buildRibbon()
     QFile f(QStringLiteral(":/deck/ribbon.json"));
     QByteArray json;
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
+    addShowParts(parts);
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
 }
 

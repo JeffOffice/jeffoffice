@@ -208,6 +208,7 @@ void DeckWindow::createActions()
 
     mk("view.notes", tr("Notes"), "notebook-pen", QKeySequence(), [this] { m_notes->setVisible(m_notes->isHidden()); refreshUi(); }, true);
     mk("view.fit", tr("Fit to Window"), "scan", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::WholePage); });
+    createShowActions();
 }
 
 void DeckWindow::refreshUi()
