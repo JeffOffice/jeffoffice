@@ -3,13 +3,13 @@
 
 #include "app/optionsdialog.h"
 
+#include "app/appwords.h"
 #include "app/editor.h"
 #include "app/i18n.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
 #include "app/theme.h"
 #include "app/updater.h"
-#include "core/appinfo.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -44,14 +44,6 @@ struct Dlg {
         return d.exec() == QDialog::Accepted;
     }
 };
-
-// The words of these pages were written for JeffPub and are translated that
-// way; the program that shows them puts its own name where JeffPub's was.
-QString forThisApp(const QString &text)
-{
-    const QString &name = appInfo().name;
-    return name.isEmpty() ? text : QString(text).replace(QStringLiteral("JeffPub"), name);
-}
 
 } // namespace
 
