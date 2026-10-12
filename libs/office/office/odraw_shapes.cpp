@@ -170,8 +170,8 @@ public:
     // patriarch's) go straight in, any other group's become a group item.
     void readGroup(const OdrawRecord &group, int depth, const Frame &parent, ItemList &out)
     {
-        if (depth > kMaxDepth || shapes >= kMaxShapes) return;
-        if (depth > 0) ++shapes;
+        if (depth > kMaxDepth || spent()) return;
+        if (depth > 0) take();
         const QVector<OdrawRecord> kids = odrawRecords(d, group.offset, endOf(group));
         // Its first shape container describes the group (when it is made for one).
         Records own;
@@ -195,7 +195,7 @@ public:
             inner.page = frame;
         }
         ItemList children;
-        for (int i = first; i < kids.size() && shapes < kMaxShapes; ++i) {
+        for (int i = first; i < kids.size() && !spent(); ++i) {
             if (kids[i].type == 0xF004) {
                 if (ItemPtr it = readShape(kids[i], inner)) children.push_back(it);
             } else if (kids[i].type == 0xF003) {
@@ -228,7 +228,7 @@ public:
     // background, or no shape.
     ItemPtr readShape(const OdrawRecord &container, const Frame &parent)
     {
-        if (shapes >= kMaxShapes) return nullptr;
+        if (spent()) return nullptr;
         Records s = readRecords(d, container, &defaults);
         if (!s.shape || (s.flags & (fDeleted | fBackground | fGroup))) return nullptr;
         // What it leaves out, the shape it takes after has.
@@ -240,7 +240,7 @@ public:
             s.props.inherit(base);
         }
         if (s.props.flag(0x03BF, 0x02, false)) return nullptr;   // hidden
-        ++shapes;
+        take();
         QRectF rect;
         place(s, parent, &rect);
         ItemPtr it = makeItem(s, rect);
@@ -251,6 +251,19 @@ public:
     }
 
 private:
+    // Whether no more shapes are read: this drawing has as many as one has (a drawing's own limit), or the host's budget is spent.
+    bool spent() const
+    {
+        if (shapes < kMaxShapes && (!ctx.budget || ctx.budget->left > 0)) return false;
+        if (ctx.budget) ctx.budget->refused = true;
+        return true;
+    }
+    void take()
+    {
+        ++shapes;
+        if (ctx.budget) --ctx.budget->left;
+    }
+
     // Where a shape is: in its group's child coordinates when it has them there
     // and the group has its place, else by the host's anchor.
     bool place(const Records &s, const Frame &parent, QRectF *rect) const
@@ -467,6 +480,12 @@ bool findBackground(const QByteArray &d, const OdrawRecord &r, int depth, const 
     if (depth > kMaxDepth) return false;
     for (const OdrawRecord &c : odrawRecords(d, r.offset, endOf(r))) {
         if (--*budget < 0) return false;
+        // The host's budget pays for the records looked at too: a file with a drawing for each of thousands of slides, none with a
+        // background, would have them all walked.
+        if (ctx.budget && --ctx.budget->left < 0) {
+            ctx.budget->refused = true;
+            return false;
+        }
         if (c.type == 0xF004) {
             if (hasBackgroundFlag(d, c)) {
                 *fill = readFill(readRecords(d, c, &defaults).props, ctx, true);
@@ -507,6 +526,10 @@ ItemList readOdrawShapes(const QByteArray &data, const OdrawContext &ctx)
 Fill odrawBackground(const QByteArray &data, const OdrawContext &ctx)
 {
     Fill fill;
+    if (ctx.budget && ctx.budget->left <= 0) {
+        ctx.budget->refused = true;
+        return fill;
+    }
     const Props defaults = defaultProps(ctx);
     int budget = kMaxShapes * 2;
     for (const OdrawRecord &r : odrawRecords(data)) {

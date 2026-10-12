@@ -28,6 +28,11 @@ namespace {
 constexpr int kMaxShapes = 100000;
 constexpr int kMaxDepth = 64;
 constexpr int kMaxTableSide = 256, kMaxTableCells = 10000;
+// The text of one table, in all its cells: the cells after it are left without text. And how much of it the rows are fitted to, in all and
+// in one cell: laying out a long text in a narrow cell takes a long time (a tenth of a second for two thousand characters, a second and a
+// half for twenty thousand), so the rows of cells past those limits keep the height the file gives them. The tables of the real decks
+// here hold 1,107 characters at the most (a cell, 675) and 48 cells.
+constexpr qsizetype kMaxTableChars = 1000000, kMaxFitChars = 50000, kMaxFitCellChars = 10000;
 constexpr double kMaxPoint = 1e6;
 
 QString say(const char *text) { return QCoreApplication::translate("OdpImport", text); }
@@ -485,10 +490,16 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
         }
     };
     Collect::run(tableEl, styles, &columns, &rows, &tooBig, 0);
-    if (columns.isEmpty() || rows.isEmpty() || columns.size() * rows.size() > kMaxTableCells) {
-        if (!m_said.contains(QStringLiteral("table"))) note(say("A table that is empty or too large was left out."));
+    if (columns.isEmpty() || rows.isEmpty()) {
+        if (!m_said.contains(QStringLiteral("table"))) note(say("A table with no rows or no columns was left out."));
         m_said.insert(QStringLiteral("table"));
         return nullptr;
+    }
+    // A table of more cells than that is read as far as its rows go.
+    if (columns.size() * rows.size() > kMaxTableCells) {
+        rows.resize(std::max<qsizetype>(1, kMaxTableCells / columns.size()));
+        if (!m_said.contains(QStringLiteral("tablecells"))) note(say("Tables are read up to 10,000 cells."));
+        m_said.insert(QStringLiteral("tablecells"));
     }
     if (tooBig && !m_said.contains(QStringLiteral("tablebig"))) {
         note(say("Tables are read up to 256 rows and columns."));
@@ -517,9 +528,22 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
     for (const RowInfo &r : rows) t->rowH.append(r.height > 0 ? r.height : (frameH > rowsHeight && unsizedRows > 0 ? (frameH - rowsHeight) / unsizedRows : 20.0));
     t->cells.resize(nr * nc);
 
-    // Each cell, with the merged cells it covers.
+    // Each cell, with the merged cells it covers. A cell that the table repeats (across a row, or down the table when rows repeat, which
+    // share one element) is made once, and the ones that repeat it are copies, each with a story of its own.
+    struct Made {
+        bool valid = false;
+        QDomElement element;
+        QString styleName;
+        bool covered = false;
+        TableCell cell;
+        qsizetype chars = 0;   // of its text
+    };
+    QVector<Made> above(nc), here(nc);
+    qsizetype tableChars = 0;
+    bool textCut = false;
     int cellCount = 0;
     for (int r = 0; r < nr; ++r) {
+        here.fill(Made());
         int c = 0;
         for (QDomElement cell = rows[r].element.firstChildElement(); !cell.isNull() && c < nc; cell = cell.nextSiblingElement()) {
             const QString tag = tagOf(cell);
@@ -530,6 +554,17 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
             for (int k = 0; k < repeat && c < nc; ++k, ++c) {
                 if (++cellCount > kMaxTableCells) break;
                 TableCell &out = t->cell(r, c);
+                // The cell's style: its own, else its row's, else its column's.
+                QString styleName = ca.get("table:style-name");
+                if (styleName.isEmpty()) styleName = rows[r].cellStyle;
+                if (styleName.isEmpty()) styleName = columns[c].cellStyle;
+                const Made *twin = nullptr;
+                for (const Made *m : {c > 0 ? &here[c - 1] : nullptr, &above[c]})
+                    if (m && m->valid && m->element == cell && m->styleName == styleName && m->covered == covered) {
+                        twin = m;
+                        break;
+                    }
+                if (twin) out = twin->cell;
                 out.covered = covered;
                 out.hyphenate = false;
                 out.colSpan = out.rowSpan = 1;
@@ -537,10 +572,14 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
                     out.colSpan = int(std::clamp(lengthOr(ca.get("table:number-columns-spanned", QStringLiteral("1")), 1), 1.0, double(nc - c)));
                     out.rowSpan = int(std::clamp(lengthOr(ca.get("table:number-rows-spanned", QStringLiteral("1")), 1), 1.0, double(nr - r)));
                 }
-                // The cell's style: its own, else its row's, else its column's.
-                QString styleName = ca.get("table:style-name");
-                if (styleName.isEmpty()) styleName = rows[r].cellStyle;
-                if (styleName.isEmpty()) styleName = columns[c].cellStyle;
+                if (twin) {
+                    const bool room = tableChars + twin->chars <= kMaxTableChars;
+                    textCut = textCut || !room;
+                    out.storyId = room && !covered ? m_doc.copyStory(twin->cell.storyId) : m_doc.createStory();
+                    if (room) tableChars += twin->chars;
+                    here[c] = *twin;
+                    continue;
+                }
                 Bag cellBag = styles.resolve(QStringLiteral("table-cell"), styleName);
                 const Bag fillBag = [&] {
                     // The fill is said in the cell properties of a file from the standard's own, and as a shape's in the one from others.
@@ -575,23 +614,37 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
                 out.border.right = side("right");
                 out.border.top = side("top");
                 out.border.bottom = side("bottom");
-                // The text.
+                // The text, as far as the table's budget goes.
                 out.storyId = m_doc.createStory();
+                qsizetype chars = 0;
                 if (!covered) {
-                    Bag textBag;
-                    styles.applyDefaults(textBag, QStringLiteral("graphic"));
-                    textBag.values[Text].insert(cellBag.values[Text]);
-                    textBag.values[Para].insert(cellBag.values[Para]);
-                    TextEnv env;
-                    env.styles = &styles;
-                    env.base = textBag;
-                    QColor behind = sc.background;
-                    if (out.fill.type == Fill::Solid && out.fill.transparency < 0.5 && out.fill.color.kind() == ColorRef::Rgb) behind = out.fill.color.rgbValue();
-                    env.autoColor = behind.lightness() < 128 ? QColor(Qt::white) : QColor(Qt::black);
-                    fillStory(out.storyId, cell, env);
+                    chars = cell.text().size();
+                    if (tableChars + chars > kMaxTableChars) {
+                        textCut = true;
+                        chars = 0;
+                    } else {
+                        Bag textBag;
+                        styles.applyDefaults(textBag, QStringLiteral("graphic"));
+                        textBag.values[Text].insert(cellBag.values[Text]);
+                        textBag.values[Para].insert(cellBag.values[Para]);
+                        TextEnv env;
+                        env.styles = &styles;
+                        env.base = textBag;
+                        QColor behind = sc.background;
+                        if (out.fill.type == Fill::Solid && out.fill.transparency < 0.5 && out.fill.color.kind() == ColorRef::Rgb) behind = out.fill.color.rgbValue();
+                        env.autoColor = behind.lightness() < 128 ? QColor(Qt::white) : QColor(Qt::black);
+                        fillStory(out.storyId, cell, env);
+                        tableChars += chars;
+                    }
                 }
+                here[c] = Made{true, cell, styleName, covered, out, chars};
             }
         }
+        std::swap(above, here);
+    }
+    if (textCut && !m_said.contains(QStringLiteral("tabletext"))) {
+        note(say("A table holds more text than can be read; the rest is left out."));
+        m_said.insert(QStringLiteral("tabletext"));
     }
     // A merged cell covers the ones its spans reach.
     for (int r = 0; r < nr; ++r)
@@ -629,13 +682,23 @@ void Reader::fitRows(TableItem &t)
     env.colors = m_doc.colors;
     env.fonts = m_doc.fonts;
     env.defaultTab = m_doc.defaultTabStop;
-    bool grew = false;
-    for (int r = 0; r < t.rows; ++r) {
+    bool grew = false, spent = false;
+    qsizetype fitted = 0;
+    for (int r = 0; r < t.rows && !spent; ++r) {
         double need = 0;
         for (int c = 0; c < t.cols; ++c) {
             const TableCell &cell = t.cell(r, c);
             const QTextDocument *story = cell.covered || cell.rowSpan > 1 || cell.vertical || cell.divided() ? nullptr : m_doc.storyDoc(cell.storyId);
             if (!story) continue;
+            // Past the limits, the rows keep the heights the file gives them.
+            const qsizetype chars = story->characterCount();
+            if (chars > kMaxFitCellChars || (fitted += chars) > kMaxFitChars) {
+                spent = fitted > kMaxFitChars;
+                if (!m_said.contains(QStringLiteral("tablefit"))) note(say("The rows of a table with a great deal of text keep the heights the file gives them."));
+                m_said.insert(QStringLiteral("tablefit"));
+                if (spent) break;
+                continue;
+            }
             FrameSpec spec;
             spec.size = QSizeF(t.cellRect(r, c).width(), 1e5);
             spec.insets = cell.margins;
