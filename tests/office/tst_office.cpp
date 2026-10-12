@@ -4422,6 +4422,41 @@ private Q_SLOTS:
         QCOMPARE(gds[0].attribute(QStringLiteral("fmla")), QStringLiteral("val 40000"));
     }
 
+    // A preset with more than one adjustment has all of them written once one
+    // is not the standard's: the presentation program refuses a file whose
+    // u-turn arrow says adj1 and not adj2 to adj5 (or whose arrow says adj2
+    // and not adj1), and opens the same file with all or none.
+    void dmlWriteShapesWriteAllOfAPresetsAdjustmentsOrNone()
+    {
+        auto names = [](const QVector<QDomElement> &gds) {
+            QStringList out;
+            for (const QDomElement &g : gds) out << g.attribute(QStringLiteral("name")) + QLatin1Char('=') + g.attribute(QStringLiteral("fmla"));
+            return out;
+        };
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = QRectF(0, 0, 160, 80);
+        s->shape = QStringLiteral("rightArrow");
+        s->adj = {0.5, 0.75};   // the shaft as the standard has it, a longer head
+        WriteRound arrow;
+        QVERIFY2(arrow.run({s}), qPrintable(arrow.error));
+        QCOMPARE(names(elementsNamed(arrow.spTree, "gd")), (QStringList{"adj1=val 50000", "adj2=val 75000"}));
+
+        s->shape = QStringLiteral("uturnArrow");
+        s->rect = QRectF(0, 0, 100, 100);
+        s->adj = {0.2};          // the library's first is the standard's adj1; the others keep the standard's
+        WriteRound turn;
+        QVERIFY2(turn.run({s}), qPrintable(turn.error));
+        QCOMPARE(names(elementsNamed(turn.spTree, "gd")),
+                 (QStringList{"adj1=val 20000", "adj2=val 25000", "adj3=val 25000", "adj4=val 43750", "adj5=val 75000"}));
+
+        s->shape = QStringLiteral("rightArrow");
+        s->rect = QRectF(0, 0, 160, 80);
+        s->adj = {0.5, 0.5};     // the standard's own: none
+        WriteRound plain;
+        QVERIFY2(plain.run({s}), qPrintable(plain.error));
+        QCOMPARE(int(elementsNamed(plain.spTree, "gd").size()), 0);
+    }
+
     void dmlWriteShapeHoldsItsText()
     {
         WriteRound r;
