@@ -1,5 +1,6 @@
 #include "office/drawingml_geometry.h"
 
+#include "office/drawingml_write.h"
 #include "office/xml.h"
 
 #include <QtMath>
@@ -703,6 +704,47 @@ QVector<double> libraryAdjustments(const QString &prst, const QHash<QString, dou
         return spec.convert(a, w, h);
     }
     return {};
+}
+
+QString presetForShape(const QString &shapeId)
+{
+    for (const auto &m : kShapes)
+        if (shapeId == QLatin1String(m.shape)) return QString::fromLatin1(m.prst);
+    return QString();
+}
+
+QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVector<double> &adj, const QSizeF &size)
+{
+    QVector<QPair<QString, double>> out;
+    const AdjustSpec *spec = nullptr;
+    for (const AdjustSpec &s : kAdjustments)
+        if (prst == QLatin1String(s.prst)) {
+            spec = &s;
+            break;
+        }
+    if (!spec) return out;
+    const double w = std::isfinite(size.width()) ? std::max(0.0, size.width()) : 0.0, h = std::isfinite(size.height()) ? std::max(0.0, size.height()) : 0.0;
+    // Which of the standard's adjustments each of the library's is, and by how much the library's value is smaller.
+    struct Slot {
+        int index;
+        double scale;
+    };
+    QVector<Slot> slots;
+    if (prst == QLatin1String("snip2DiagRect")) slots = {{1, 100000}};
+    else if (prst == QLatin1String("uturnArrow")) slots = {{0, 100000}, {2, 100000}};
+    else if (prst == QLatin1String("quadArrow")) slots = {{0, 200000}, {1, 100000}, {2, 100000}};
+    else if (prst == QLatin1String("parallelogram") || prst == QLatin1String("trapezoid") || prst == QLatin1String("hexagon"))
+        slots = {{0, side(w, h) > 0 ? 100000 * w / side(w, h) : 100000}};
+    else if (prst.startsWith(QLatin1String("star")) && prst != QLatin1String("star4")) slots = {{0, 50000}};
+    else if (prst == QLatin1String("doubleWave")) slots = {{0, 200000}};
+    else
+        for (int i = 0; i < spec->count; ++i) slots.append({i, 100000});
+    for (int i = 0; i < slots.size() && i < adj.size(); ++i) {
+        const double value = std::round(adj[i] * slots[i].scale);
+        if (slots[i].index >= spec->count || !std::isfinite(value) || std::fabs(value - spec->defaults[slots[i].index]) < 1) continue;
+        out.append({spec->count == 1 ? QStringLiteral("adj") : QStringLiteral("adj%1").arg(slots[i].index + 1), value});
+    }
+    return out;
 }
 
 } // namespace jp::office
