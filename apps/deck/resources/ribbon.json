@@ -34,6 +34,10 @@
             {
               "small": "edit.copy",
               "keytip": "C"
+            },
+            {
+              "small": "edit.formatPainter",
+              "keytip": "FP"
             }
           ]
         },
@@ -58,7 +62,7 @@
             },
             {
               "small": "slide.reset",
-              "keytip": "A"
+              "keytip": "R"
             },
             {
               "small": "slide.delete",
@@ -70,6 +74,30 @@
           "name": "Font",
           "keytip": "ZF",
           "items": [
+            {
+              "row": [
+                {
+                  "widget": "fontCombo",
+                  "keytip": "FF"
+                },
+                {
+                  "widget": "sizeCombo",
+                  "keytip": "FS"
+                },
+                {
+                  "icon": "fmt.grow",
+                  "keytip": "FG"
+                },
+                {
+                  "icon": "fmt.shrink",
+                  "keytip": "FK"
+                },
+                {
+                  "icon": "fmt.clear",
+                  "keytip": "E"
+                }
+              ]
+            },
             {
               "row": [
                 {
@@ -87,6 +115,44 @@
                 {
                   "icon": "fmt.strike",
                   "keytip": "4"
+                },
+                {
+                  "icon": "fmt.shadow",
+                  "keytip": "5"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.characterSpacing",
+                    "text": "Character Spacing",
+                    "icon": "move-horizontal"
+                  },
+                  "keytip": "AV",
+                  "menu": [
+                    "spacing.Very Tight",
+                    "spacing.Tight",
+                    "spacing.Normal",
+                    "spacing.Loose",
+                    "spacing.Very Loose"
+                  ]
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.changeCase",
+                    "text": "Change Case",
+                    "icon": "case-sensitive"
+                  },
+                  "keytip": "7",
+                  "menu": [
+                    "case.0",
+                    "case.1",
+                    "case.2",
+                    "case.3",
+                    "case.4"
+                  ]
+                },
+                {
+                  "widget": "textColor",
+                  "keytip": "FC"
                 }
               ]
             }
@@ -96,6 +162,80 @@
           "name": "Paragraph",
           "keytip": "ZP",
           "items": [
+            {
+              "row": [
+                {
+                  "icon": "para.bullets",
+                  "keytip": "U",
+                  "split": true,
+                  "menu": [
+                    "bullet.disc",
+                    "bullet.circle",
+                    "bullet.square",
+                    "bullet.diamond",
+                    "bullet.arrow",
+                    "bullet.check",
+                    "bullet.star",
+                    "bullet.dash",
+                    "-",
+                    "para.listNone"
+                  ]
+                },
+                {
+                  "icon": "para.numbers",
+                  "keytip": "N",
+                  "split": true,
+                  "menu": [
+                    "number.0",
+                    "number.1",
+                    "number.2",
+                    "number.3",
+                    "number.4",
+                    "number.5",
+                    "number.6",
+                    "-",
+                    "para.listNone"
+                  ]
+                },
+                {
+                  "icon": "para.indentDec",
+                  "keytip": "AO"
+                },
+                {
+                  "icon": "para.indentInc",
+                  "keytip": "AI"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.lineSpacing",
+                    "text": "Line Spacing",
+                    "icon": "chevrons-up-down"
+                  },
+                  "keytip": "K",
+                  "menu": [
+                    "ls.1",
+                    "ls.1.15",
+                    "ls.1.5",
+                    "ls.2",
+                    "ls.2.5",
+                    "ls.3"
+                  ]
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.columns",
+                    "text": "Columns",
+                    "icon": "columns-2"
+                  },
+                  "keytip": "J",
+                  "menu": [
+                    "cols.1",
+                    "cols.2",
+                    "cols.3"
+                  ]
+                }
+              ]
+            },
             {
               "row": [
                 {
@@ -113,6 +253,31 @@
                 {
                   "icon": "fmt.justify",
                   "keytip": "AJ"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.textDirection",
+                    "text": "Text Direction",
+                    "icon": "arrow-down-wide-narrow"
+                  },
+                  "keytip": "TD",
+                  "menu": [
+                    "tb.dirHorizontal",
+                    "tb.dirVertical"
+                  ]
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.alignText",
+                    "text": "Align Text",
+                    "icon": "align-vertical-justify-start"
+                  },
+                  "keytip": "AX",
+                  "menu": [
+                    "valign.0",
+                    "valign.1",
+                    "valign.2"
+                  ]
                 }
               ]
             }
@@ -123,12 +288,46 @@
           "keytip": "ZD",
           "items": [
             {
-              "large": "insert.shape",
+              "widget": "shapesButton",
               "keytip": "SH"
             },
             {
-              "small": "insert.textBox",
-              "keytip": "X"
+              "large": {
+                "id": "ribbon.arrange",
+                "text": "Arrange",
+                "icon": "bring-to-front"
+              },
+              "keytip": "G",
+              "menu": [
+                "arr.front",
+                "arr.forward",
+                "arr.backward",
+                "arr.back",
+                "-",
+                "arr.group",
+                "arr.ungroup",
+                "-",
+                "arr.rotR",
+                "arr.rotL",
+                "arr.flipH",
+                "arr.flipV"
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "shapeFill",
+                  "keytip": "SF"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "shapeOutline",
+                  "keytip": "SO"
+                }
+              ]
             }
           ]
         }
@@ -155,7 +354,7 @@
           "keytip": "ZT",
           "items": [
             {
-              "large": "insert.table",
+              "widget": "tableButton",
               "keytip": "T"
             }
           ]
@@ -175,7 +374,7 @@
           "keytip": "ZL",
           "items": [
             {
-              "large": "insert.shape",
+              "widget": "shapesButton",
               "keytip": "SH"
             }
           ]
@@ -187,6 +386,120 @@
             {
               "large": "insert.textBox",
               "keytip": "X"
+            },
+            {
+              "large": "insert.headerFooter",
+              "keytip": "HF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Design",
+      "keytip": "G",
+      "groups": [
+        {
+          "name": "Variants",
+          "keytip": "ZV",
+          "items": [
+            {
+              "widget": "themeColors"
+            }
+          ]
+        },
+        {
+          "name": "Customize",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.slideSize",
+                "text": "Slide Size",
+                "icon": "ratio"
+              },
+              "keytip": "SZ",
+              "menu": "@slideSizes"
+            },
+            {
+              "large": "design.formatBackground",
+              "keytip": "FB"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transitions",
+      "keytip": "K",
+      "groups": [
+        {
+          "name": "Preview",
+          "keytip": "ZP",
+          "items": [
+            {
+              "large": "transition.preview",
+              "keytip": "P"
+            }
+          ]
+        },
+        {
+          "name": "Transition to This Slide",
+          "keytip": "ZT",
+          "items": [
+            {
+              "widget": "transitionGallery",
+              "keytip": "G"
+            },
+            {
+              "large": {
+                "id": "ribbon.effectOptions",
+                "text": "Effect Options",
+                "icon": "sliders-horizontal"
+              },
+              "keytip": "E",
+              "menu": "@effectOptions"
+            }
+          ]
+        },
+        {
+          "name": "Timing",
+          "keytip": "ZM",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Duration:"
+                },
+                {
+                  "widget": "transitionDuration",
+                  "keytip": "D"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "advanceOnClick",
+                  "keytip": "M"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "advanceAfter",
+                  "keytip": "A"
+                },
+                {
+                  "widget": "advanceAfterSeconds",
+                  "keytip": "S"
+                }
+              ]
+            },
+            {
+              "large": "transition.applyToAll",
+              "keytip": "L"
             }
           ]
         }
@@ -219,6 +532,20 @@
               "keytip": "H"
             }
           ]
+        },
+        {
+          "name": "Monitors",
+          "keytip": "ZM",
+          "items": [
+            {
+              "widget": "usePresenterView",
+              "keytip": "V"
+            },
+            {
+              "large": "show.presenterView",
+              "keytip": "P"
+            }
+          ]
         }
       ]
     },
@@ -227,9 +554,47 @@
       "keytip": "W",
       "groups": [
         {
+          "name": "Presentation Views",
+          "keytip": "ZV",
+          "items": [
+            {
+              "large": "view.normal",
+              "keytip": "NM"
+            },
+            {
+              "large": "view.sorter",
+              "keytip": "SB"
+            }
+          ]
+        },
+        {
           "name": "Show",
           "keytip": "ZS",
           "items": [
+            {
+              "row": [
+                {
+                  "widget": "rulerCheck",
+                  "keytip": "SR"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "gridlinesCheck",
+                  "keytip": "SG"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "guidesCheck",
+                  "keytip": "SU"
+                }
+              ]
+            },
             {
               "large": "view.notes",
               "keytip": "N"
@@ -241,8 +606,29 @@
           "keytip": "ZZ",
           "items": [
             {
+              "large": {
+                "id": "ribbon.zoom",
+                "text": "Zoom",
+                "icon": "zoom-in"
+              },
+              "keytip": "Q",
+              "menu": [
+                "zoom.400",
+                "zoom.300",
+                "zoom.200",
+                "zoom.150",
+                "zoom.100",
+                "zoom.75",
+                "zoom.66",
+                "zoom.50",
+                "zoom.33",
+                "zoom.25",
+                "zoom.10"
+              ]
+            },
+            {
               "large": "view.fit",
-              "keytip": "W"
+              "keytip": "F"
             }
           ]
         }

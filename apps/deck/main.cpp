@@ -10,6 +10,7 @@
 #include "app/deckwindow.h"
 #include "app/focusring.h"
 #include "app/icons.h"
+#include "app/recovery.h"
 #include "app/settings.h"
 #include "app/theme.h"
 #include "core/fonts.h"
@@ -30,6 +31,7 @@ int main(int argc, char **argv)
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
     jp::crash::install(jp::crash::reportPath());
+    jp::recovery::setCopySuffix(QStringLiteral(".pptx"));   // AutoRecover keeps presentations
 
     QCommandLineParser cli;
     cli.setApplicationDescription(QCoreApplication::translate("Main", "JeffDeck presentations"));
@@ -72,5 +74,9 @@ int main(int argc, char **argv)
         return app.exec();
     }
     w->show();
+    // A normal exit takes this run's AutoRecover copies with it; copies a
+    // crashed run left are offered once the window is up.
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [] { jp::recovery::endSession(); });
+    QTimer::singleShot(0, w, [w] { w->offerRecovery(); });
     return app.exec();
 }

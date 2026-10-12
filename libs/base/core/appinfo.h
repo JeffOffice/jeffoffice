@@ -4,6 +4,7 @@
 // program: in messages, file and folder names, settings, and the addresses
 // of its update server and issue tracker.
 
+#include <QColor>
 #include <QString>
 
 namespace jp {
@@ -13,6 +14,11 @@ struct AppInfo {
     QString fileName;       // in file, folder, and variable names, lower case: "jeffpub"
     QString organization;   // owns its settings and data folders: "JeffOffice"
     QString repository;     // on GitHub: "JeffOffice/jeffoffice"
+    QColor accent;          // the app's color on the light interface: "#9E1F63"
+    QColor accentDark;      // its shade on the dark interface, light enough to read there
+    QString badge;          // two letters in the circle on the File button: "JP"
+    QColor highlight;       // the dark interface's selection color, under white text (invalid: accentDark darkened)
+    QColor link;            // the dark interface's link color (invalid: accentDark lightened)
 };
 
 const AppInfo &appInfo();

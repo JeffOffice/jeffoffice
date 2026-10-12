@@ -37,10 +37,13 @@ QColor uiText()
     return uiDark() ? QColor(0xDF, 0xE3, 0xEA) : QColor(0x2A, 0x30, 0x3B);
 }
 
+// The app's own color (AppInfo); a blue when it names none.
 QColor uiAccent()
 {
     if (g_highContrast) return QGuiApplication::palette().color(QPalette::Highlight);
-    return uiDark() ? QColor(0xE0, 0x6A, 0xA5) : QColor(0x9E, 0x1F, 0x63);
+    const QColor c = uiDark() ? appInfo().accentDark : appInfo().accent;
+    if (c.isValid()) return c;
+    return uiDark() ? QColor(0x7F, 0xB2, 0xFF) : QColor(0x1A, 0x5F, 0xD6);
 }
 
 // Surfaces of the program's own panels; in high contrast, the system's.

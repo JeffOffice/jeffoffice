@@ -21,6 +21,9 @@ namespace jp::office {
 struct DrawingContext {
     const Package *package = nullptr;
     QString part;                 // the part the drawing is in: its relationships name the pictures
+    // The theme's part: the pictures of its fill styles (a background
+    // referring to a picture style) are named by its relationships.
+    QString themePart;
     Theme theme;
     ColorMap colors;
     // The theme's a:fmtScheme, for style references (p:style's lnRef,
@@ -59,7 +62,8 @@ ItemList readShapeTree(const QDomElement &tree, const DrawingContext &ctx, const
 // its text: paragraphs (alignment, indents, spacing, bullets and numbering,
 // level), runs (font, size, bold, italic, underline, strike, color, baseline,
 // letter spacing), line breaks, and fields (slide number, date). `styles` as
-// above; `fontScale` and `lineReduction` are a:normAutofit's.
+// above. The text box's a:bodyPr (insets, anchoring, a:normAutofit's
+// shrinking) is the shape's, read by readShape.
 void readTextBody(const QDomElement &txBody, QTextDocument *doc, const DrawingContext &ctx, const TextStyleStack &styles = {});
 
 // A shape's fill and outline from its properties (a:spPr), with its style

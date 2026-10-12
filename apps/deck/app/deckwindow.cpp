@@ -1,5 +1,7 @@
 #include "app/deckwindow.h"
 
+#include "app/deckcanvas.h"
+#include "app/deckdialogs.h"
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/notespane.h"
@@ -8,10 +10,11 @@
 #include "app/settings.h"
 #include "app/slideshow.h"
 #include "app/slidespane.h"
-#include "canvas/canvas.h"
+#include "app/widgets.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "render/renderer.h"
+#include "text/textprops.h"
 
 #include <QAction>
 #include <QApplication>
@@ -28,6 +31,8 @@
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QStatusBar>
+#include <QTextBlock>
+#include <QTextList>
 #include <QWindow>
 
 namespace jp {
@@ -37,19 +42,24 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     setObjectName(QStringLiteral("deckWindow"));
     setWindowIcon(drawnIcon([](QPainter *p, const QRectF &r) {
         p->setPen(Qt::NoPen);
-        p->setBrush(QColor(0xB6, 0x42, 0x0F));
+        p->setBrush(appInfo().accent);
         p->drawRoundedRect(r.adjusted(1, 1, -1, -1), r.width() * 0.24, r.width() * 0.24);
         QFont f;
         f.setPixelSize(int(r.height() * 0.42));
         f.setWeight(QFont::DemiBold);
         p->setFont(f);
         p->setPen(Qt::white);
-        p->drawText(r, Qt::AlignCenter, QStringLiteral("JD"));
+        p->drawText(r, Qt::AlignCenter, appInfo().badge);
     }));
     m_ed = new Editor(this);
+    m_ed->setNewDocumentName(tr("Presentation1"));
     m_ed->setDocument(deck::newPresentation());
+    // A presentation's view: no rulers, guides, or boundaries until they are asked for (the canvas outlines empty placeholders itself).
     m_ed->view.guides = false;
-    m_canvas = new Canvas(m_ed, this);
+    m_ed->view.boundaries = false;
+    m_ed->view.rulers = false;
+    m_canvas = new DeckCanvas(m_ed, this);
+    m_canvas->setRulersVisible(false);
     m_ribbon = new Ribbon(this);
     m_slides = new SlidesPane(m_ed, this);
     m_notes = new NotesPane(m_ed, this);
@@ -66,10 +76,14 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     m_split->addWidget(m_rightSplit);
     m_split->setStretchFactor(1, 1);
     m_split->setCollapsible(1, false);
-    m_split->setSizes({230, 1000});
+    m_split->setSizes({250, 1000});
     setCentralWidget(m_split);
 
     createActions();
+    createFormatActions();
+    createInsertActions();
+    createDesignActions();
+    createViewActions();
     buildRibbon();
     buildStatusBar();
     describeForScreenReaders(m_split);
@@ -88,6 +102,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     });
     connect(m_ed, &Editor::selectionChanged, this, queue);
     connect(m_ed, &Editor::textCursorChanged, this, queue);
+    connect(m_ed, &Editor::toolChanged, this, queue);
     connect(m_ed, &Editor::pageChanged, this, [this, queue] {
         m_notes->commit();
         m_notes->reload();
@@ -100,6 +115,12 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     connect(m_slides, &SlidesPane::duplicateWanted, this, &DeckWindow::duplicateSlide);
     connect(m_slides, &SlidesPane::deleteWanted, this, &DeckWindow::deleteSlide);
     connect(m_slides, &SlidesPane::hideWanted, this, &DeckWindow::toggleHidden);
+    // Pictures dropped on the slide.
+    connect(m_canvas, &Canvas::insertFilesWanted, this, [this](const QStringList &paths, const QPointF &at) {
+        QPointF where = at;
+        for (const QString &path : paths)
+            if (insertPicture(path, where) && where.x() >= 0) where += QPointF(18, 18);
+    });
     m_canvas->zoomToFit(Canvas::Fit::WholePage);
     resize(1280, 800);
     updateTitle();
@@ -120,6 +141,7 @@ QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &i
     if (!key.isEmpty()) {
         a->setShortcut(key);
         a->setShortcutContext(Qt::WindowShortcut);
+        a->setToolTip(tr("%1 (%2)").arg(QString(text).remove('&'), key.toString(QKeySequence::NativeText)));
         addAction(a);
     }
     a->setCheckable(checkable);
@@ -176,58 +198,110 @@ void DeckWindow::createActions()
     mk("fmt.justify", tr("Justify"), "align-justify", QKeySequence(Qt::CTRL | Qt::Key_J), [ed] { ed->setAlignment(Qt::AlignJustify); }, true);
 
     mk("insert.textBox", tr("Text Box"), "text-cursor-input", QKeySequence(), [ed] { ed->setTool(Tool::Text); });
-    mk("insert.picture", tr("Pictures"), "image", QKeySequence(), [ed] { ed->setTool(Tool::Picture); });
-    mk("insert.shape", tr("Shapes"), "shapes", QKeySequence(), [ed] { ed->setTool(Tool::Shape, QStringLiteral("rect")); });
-    mk("insert.table", tr("Table"), "table", QKeySequence(), [ed] { ed->setTool(Tool::Table); });
+    mk("insert.picture", tr("Pictures"), "image", QKeySequence(), [this] { insertPictureFromFile(); });
+    mk("insert.table", tr("Insert Table…"), "table", QKeySequence(), [this] {
+        TableSizeDialog dlg(this);
+        if (dlg.exec() == QDialog::Accepted) insertTable(dlg.rows(), dlg.columns());
+    });
 
     mk("show.fromStart", tr("From Beginning"), "presentation", QKeySequence(Qt::Key_F5), [this] { startShow(0); });
     mk("show.fromCurrent", tr("From Current Slide"), "monitor-play", QKeySequence(Qt::SHIFT | Qt::Key_F5), [this] { startShow(m_ed->currentPage()); });
 
-    mk("view.notes", tr("Notes"), "notebook-pen", QKeySequence(), [this] { m_notes->setVisible(!m_notes->isVisible()); refreshUi(); }, true);
+    mk("view.notes", tr("Notes"), "notebook-pen", QKeySequence(), [this] { m_notes->setVisible(m_notes->isHidden()); refreshUi(); }, true);
     mk("view.fit", tr("Fit to Window"), "scan", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::WholePage); });
-}
-
-void DeckWindow::buildRibbon()
-{
-    RibbonParts parts;
-    parts.action = [this](const QString &id) { return m_actions.value(id); };
-    // The layouts, by name, for New Slide and Layout.
-    auto layoutMenu = [this](QWidget *owner, bool change) {
-        auto *menu = new QMenu(owner);
-        for (MasterPage *l : deck::layouts(*m_ed->doc())) {
-            const QString type = deck::layoutType(*l);
-            menu->addAction(QCoreApplication::translate("Ribbon", l->name.toUtf8().constData()), this, [this, type, change] {
-                if (change) setLayout(type);
-                else newSlide(type);
-            });
-        }
-        return menu;
-    };
-    parts.menus[QStringLiteral("newSlideLayouts")] = [layoutMenu](QWidget *owner) { return layoutMenu(owner, false); };
-    parts.menus[QStringLiteral("changeLayout")] = [layoutMenu](QWidget *owner) { return layoutMenu(owner, true); };
-    QFile f(QStringLiteral(":/deck/ribbon.json"));
-    QByteArray json;
-    if (f.open(QIODevice::ReadOnly)) json = f.readAll();
-    jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
-}
-
-void DeckWindow::buildStatusBar()
-{
-    m_slideLabel = new QLabel(this);
-    m_slideLabel->setObjectName(QStringLiteral("slideNumber"));
-    statusBar()->addWidget(m_slideLabel);
+    createShowActions();
+    createSaveActions();
 }
 
 void DeckWindow::refreshUi()
 {
-    const Document *d = m_ed->doc();
+    Editor *ed = m_ed;
+    Document *d = ed->doc();
     const int n = d ? int(d->pages.size()) : 0;
-    m_slideLabel->setText(tr("Slide %1 of %2").arg(m_ed->currentPage() + 1).arg(n));
+    m_slideLabel->setText(tr("Slide %1 of %2").arg(ed->currentPage() + 1).arg(n));
     act("slide.delete")->setEnabled(n > 1);
-    act("slide.hide")->setChecked(n && d->pages[std::clamp(m_ed->currentPage(), 0, n - 1)]->hidden);
-    act("view.notes")->setChecked(m_notes->isVisible());
-    act("edit.undo")->setEnabled(m_ed->undoStack()->canUndo());
-    act("edit.redo")->setEnabled(m_ed->undoStack()->canRedo());
+    act("slide.hide")->setChecked(n && d->pages[std::clamp(ed->currentPage(), 0, n - 1)]->hidden);
+    act("edit.undo")->setEnabled(ed->undoStack()->canUndo());
+    act("edit.redo")->setEnabled(ed->undoStack()->canRedo());
+    act("edit.undo")->setToolTip(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText()));
+    act("edit.redo")->setToolTip(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText()));
+
+    // What the selection lets the text and drawing commands do.
+    const QString kind = ed->selectionKind();
+    const bool sel = !kind.isEmpty(), editing = ed->isEditingText();
+    const bool textish = editing || (ed->single() && ed->single()->hasText()) || kind == "multi";
+    const QTextCharFormat cf = textish ? ed->currentCharFormat() : QTextCharFormat();
+    const QTextBlockFormat bf = textish ? ed->currentBlockFormat() : QTextBlockFormat();
+    for (const char *id : {"edit.cut", "edit.copy", "edit.delete"}) act(id)->setEnabled(sel || (editing && ed->cursor().hasSelection()));
+    for (const char *id : {"arr.front", "arr.forward", "arr.backward", "arr.back", "arr.rotR", "arr.rotL", "arr.flipH", "arr.flipV"}) act(id)->setEnabled(sel);
+    act("arr.group")->setEnabled(kind == "multi");
+    act("arr.ungroup")->setEnabled(kind == "group");
+    for (const char *id : {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.strike", "fmt.shadow", "fmt.grow", "fmt.shrink", "fmt.clear", "para.bullets", "para.numbers",
+                           "fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "fmt.justify", "para.indentDec", "para.indentInc"})
+        act(id)->setEnabled(textish);
+    for (QAction *a : m_actions)
+        if (a->objectName().startsWith(QLatin1String("ls.")) || a->objectName().startsWith(QLatin1String("case.")) || a->objectName().startsWith(QLatin1String("spacing.")))
+            a->setEnabled(textish);
+    act("fmt.bold")->setChecked(cf.fontWeight() >= QFont::DemiBold);
+    act("fmt.italic")->setChecked(cf.fontItalic());
+    act("fmt.underline")->setChecked(cf.underlineStyle() != QTextCharFormat::NoUnderline);
+    act("fmt.strike")->setChecked(cf.fontStrikeOut());
+    act("fmt.shadow")->setChecked(cf.boolProperty(tp::Shadow));
+    const Qt::Alignment al = bf.alignment() & Qt::AlignHorizontal_Mask;
+    act("fmt.alignLeft")->setChecked(textish && (al == Qt::AlignLeft || al == 0 || al == Qt::AlignLeading));
+    act("fmt.alignCenter")->setChecked(al == Qt::AlignHCenter);
+    act("fmt.alignRight")->setChecked(al == Qt::AlignRight || al == Qt::AlignTrailing);
+    act("fmt.justify")->setChecked(al == Qt::AlignJustify);
+    QTextList *list = editing ? ed->cursor().block().textList() : nullptr;
+    act("para.bullets")->setChecked(list && isBulletList(list->format().style()));
+    act("para.numbers")->setChecked(list && !isBulletList(list->format().style()));
+    act("edit.formatPainter")->setChecked(ed->tool() == Tool::FormatPainter);
+    // Text Direction, Align Text, and Columns read the box being typed in or the selected one.
+    Item *one = editing ? d->item(ed->textTarget().itemId) : ed->single();
+    const bool box = one && (one->type() == ItemType::Text || one->type() == ItemType::Shape);
+    for (QAction *a : m_actions)
+        if (a->objectName().startsWith(QLatin1String("valign.")) || a->objectName().startsWith(QLatin1String("cols.")) || a->objectName().startsWith(QLatin1String("tb.dir")))
+            a->setEnabled(box);
+    if (auto *t = dynamic_cast<TextItem *>(one)) {
+        act("tb.dirHorizontal")->setChecked(!t->vertical);
+        act("tb.dirVertical")->setChecked(t->vertical);
+        for (int k = 0; k < 3; ++k) act(QStringLiteral("valign.%1").arg(k))->setChecked(int(t->valign) == k);
+        for (int c = 1; c <= 3; ++c) act(QStringLiteral("cols.%1").arg(c))->setChecked(t->columns == c);
+    } else if (auto *s = dynamic_cast<ShapeItem *>(one)) {
+        for (int k = 0; k < 3; ++k) act(QStringLiteral("valign.%1").arg(k))->setChecked(int(s->valign) == k);
+    }
+
+    // The font and size boxes, and the colors the pickers offer.
+    QString family;
+    if (textish) {
+        if (cf.hasProperty(QTextFormat::FontFamilies)) family = cf.fontFamilies().toStringList().value(0);
+        else family = cf.stringProperty(tp::ThemeFont) == QLatin1String("major") ? d->fonts.heading : d->fonts.body;
+    }
+    for (FontCombo *f : m_fontCombos) {
+        f->setSchemeFonts(d->fonts.heading, d->fonts.body);
+        f->setEnabled(textish);
+        f->setCurrentFamily(family);
+    }
+    for (SizeCombo *sz : m_sizeCombos) {
+        sz->setEnabled(textish);
+        sz->setSize(textish ? (cf.hasProperty(QTextFormat::FontPointSize) ? cf.fontPointSize() : 11) : 0);
+    }
+    for (ColorButton *c : m_colorButtons) c->setScheme(d->colors);
+    for (ColorButton *c : m_colorButtons) c->setEnabled(c->objectName() == QLatin1String("textColor") ? textish : sel);
+
+    // The view, and the slide size, which the canvas fits again when it changed.
+    act("view.notes")->setChecked(!m_notes->isHidden());
+    act("view.rulers")->setChecked(ed->view.rulers);
+    act("view.gridlines")->setChecked(m_canvas->gridlines());
+    act("view.guides")->setChecked(m_canvas->guides());
+    act("view.normal")->setChecked(true);
+    act("design.sizeStandard")->setChecked(d->pageSize() == QSizeF(deck::kStandardWidth, deck::kStandardHeight));
+    act("design.sizeWidescreen")->setChecked(d->pageSize() == QSizeF(deck::kSlideWidth, deck::kSlideHeight));
+    if (d->pageSize() != m_shownSize) {
+        m_shownSize = d->pageSize();
+        if (m_canvas->fitMode() != Canvas::Fit::None) m_canvas->zoomToFit(m_canvas->fitMode());
+        m_canvas->viewport()->update();
+    }
 }
 
 void DeckWindow::updateTitle()
@@ -240,6 +314,8 @@ void DeckWindow::showFileMenu()
     QMenu menu(this);
     menu.addAction(act("file.new"));
     menu.addAction(act("file.open"));
+    menu.addAction(act("file.save"));
+    menu.addAction(act("file.saveAs"));
     menu.addSeparator();
     menu.addAction(act("file.close"));
     menu.exec(m_ribbon->mapToGlobal(QPoint(0, m_ribbon->height() / 3)));
@@ -250,12 +326,15 @@ void DeckWindow::newSlide(const QString &layoutType)
     m_notes->commit();
     Document *d = m_ed->doc();
     const int at = m_ed->currentPage();
-    const MasterPage *layout = layoutType.isEmpty() ? nullptr : deck::layoutOfType(*d, layoutType);
+    // The current slide's slide master's layouts, when the file has several.
+    const QString master = deck::slideMasterOf(*d, at);
+    const MasterPage *layout = layoutType.isEmpty() ? nullptr : deck::layoutOfType(*d, layoutType, master);
     if (!layout && at >= 0 && at < d->pages.size()) {
         layout = d->masterFor(*d->pages[at]);
         // After a title slide comes a slide with content, as people expect.
-        if (layout && deck::layoutType(*layout) == QLatin1String("title")) layout = deck::layoutOfType(*d, QStringLiteral("obj"));
+        if (layout && deck::layoutType(*layout) == QLatin1String("title")) layout = deck::layoutOfType(*d, QStringLiteral("obj"), master);
     }
+    if (!layout) layout = deck::layoutOfType(*d, QStringLiteral("obj"), master);
     if (!layout) layout = deck::layoutOfType(*d, QStringLiteral("obj"));
     if (!layout) return;
     m_ed->endTextEdit();
@@ -296,7 +375,8 @@ void DeckWindow::setLayout(const QString &layoutType)
 {
     Document *d = m_ed->doc();
     const int i = m_ed->currentPage();
-    const MasterPage *layout = deck::layoutOfType(*d, layoutType);
+    const MasterPage *layout = deck::layoutOfType(*d, layoutType, deck::slideMasterOf(*d, i));
+    if (!layout) layout = deck::layoutOfType(*d, layoutType);
     if (!layout || i < 0 || i >= d->pages.size()) return;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Layout"));
@@ -324,6 +404,10 @@ void DeckWindow::startShow(int slide)
     // On the window's screen, the whole screen.
     if (QScreen *s = screen()) m_show->setGeometry(s->geometry());
     connect(m_show, &SlideShow::destroyed, this, [this] { activateWindow(); });
+    // Back in the window, on the last slide the show showed.
+    connect(m_show, &SlideShow::ended, this, [this](int last) {
+        if (last >= 0) m_ed->setCurrentPage(last);
+    });
     m_show->showFullScreen();
     m_show->activateWindow();
     m_show->setFocus();
@@ -331,11 +415,17 @@ void DeckWindow::startShow(int slide)
 
 bool DeckWindow::maybeSave()
 {
-    // Saving comes with the presentation file format; until then a changed
-    // presentation asks before it closes.
+    m_ed->flushTyping();
     if (!m_ed->isModified()) return true;
-    return QMessageBox::question(this, appInfo().name, tr("Close without saving? This version of JeffDeck can't save presentations yet."),
-                                 QMessageBox::Close | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Close;
+    QMessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
+                    QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
+    box.setDefaultButton(QMessageBox::Save);
+    box.button(QMessageBox::Discard)->setText(tr("Don't Save"));
+    box.exec();
+    if (box.clickedButton() == box.button(QMessageBox::Save)) return save();
+    if (box.clickedButton() != box.button(QMessageBox::Discard)) return false;
+    dropRecoveryCopy();
+    return true;
 }
 
 void DeckWindow::closeEvent(QCloseEvent *e)
