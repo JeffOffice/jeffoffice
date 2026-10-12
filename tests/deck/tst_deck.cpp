@@ -3265,17 +3265,17 @@ private Q_SLOTS:
         QVERIFY(t);
         QCOMPARE(t->rows, 100);
         QCOMPARE(t->cols, 100);
-        // A million characters of text: the first 500 cells have theirs, each its own, and the rest have none.
+        // A table keeps 100,000 characters of text: the first 50 cells have theirs, each its own, and the rest have none.
         int withText = 0;
         QSet<QString> stories;
         for (int i = 0; i < t->cells.size(); ++i) {
             stories.insert(t->cells[i].storyId);
             withText += d->storyDoc(t->cells[i].storyId)->toPlainText() == word;
         }
-        QCOMPARE(withText, 500);
+        QCOMPARE(withText, 50);
         QCOMPARE(int(stories.size()), 10000);
-        QVERIFY(d->storyDoc(t->cell(4, 99).storyId)->toPlainText() == word);
-        QVERIFY(d->storyDoc(t->cell(5, 0).storyId)->toPlainText().isEmpty());
+        QVERIFY(d->storyDoc(t->cell(0, 49).storyId)->toPlainText() == word);
+        QVERIFY(d->storyDoc(t->cell(0, 50).storyId)->toPlainText().isEmpty());
         // A copy is independent of the cell it copies.
         QTextCursor cursor(d->storyDoc(t->cell(0, 1).storyId));
         cursor.insertText(QStringLiteral("z"));

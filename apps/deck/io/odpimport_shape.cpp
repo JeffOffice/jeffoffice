@@ -31,8 +31,9 @@ constexpr int kMaxTableSide = 256, kMaxTableCells = 10000;
 // The text of one table, in all its cells: the cells after it are left without text. And how much of it the rows are fitted to, in all and
 // in one cell: laying out a long text in a narrow cell takes a long time (a tenth of a second for two thousand characters, a second and a
 // half for twenty thousand), so the rows of cells past those limits keep the height the file gives them. The tables of the real decks
-// here hold 1,107 characters at the most (a cell, 675) and 48 cells.
-constexpr qsizetype kMaxTableChars = 1000000, kMaxFitChars = 50000, kMaxFitCellChars = 10000;
+// here hold 1,107 characters at the most (a cell, 675) and 48 cells; a table of a million took minutes to draw, so a table keeps 90 times
+// the most real ones hold.
+constexpr qsizetype kMaxTableChars = 100000, kMaxFitChars = 50000, kMaxFitCellChars = 10000;
 constexpr double kMaxPoint = 1e6;
 
 QString say(const char *text) { return QCoreApplication::translate("OdpImport", text); }
