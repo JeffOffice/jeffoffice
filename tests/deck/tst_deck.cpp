@@ -2555,6 +2555,57 @@ private Q_SLOTS:
         QVERIFY(bodyItem->stroke.isNone());
     }
 
+    // Text longer than its place is drawn past it, in the way it is anchored (down from the top, both ways from the middle, up from the
+    // bottom); the text engine hides what overflows a frame, so a frame with no fill or line of its own is made as tall as its text.
+    void importBinaryFramesGrowToTheirOverflowingText()
+    {
+        auto textBox = [&](quint32 id, int anchorText, int top, int height, const QString &text, const QVector<QPair<int, quint32>> &more = {}) {
+            QByteArray props = le(0x0087, 2) + le(quint32(anchorText), 4);
+            int count = 1;
+            for (const auto &p : more) {
+                props += le(quint16(p.first), 2) + le(p.second, 4);
+                ++count;
+            }
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, quint16(count), 3) + pptRec(0xF010, le(top, 2) + le(200, 2) + le(2600, 2) + le(top + height, 2))
+                                      + pptBox(0xF00D, pptText(4, text)));
+        };
+        const QString four = QStringLiteral("One\rTwo\rThree\rFour"), one = QStringLiteral("One");
+        // No fill and no line: unfilled (0x01BF, 0x01FF with their use bits).
+        const QVector<QPair<int, quint32>> plain = {{0x01BF, 0x00100000}, {0x01FF, 0x00080000}};
+        const QByteArray shapes = textBox(0x500, 0, 2000, 200, four, plain) + textBox(0x501, 1, 2400, 200, four, plain) + textBox(0x502, 2, 2800, 200, four, plain)
+                                  + textBox(0x503, 1, 3200, 400, one, plain) + textBox(0x504, 1, 3800, 200, four, {{0x0181, 0x0000FF}, {0x01BF, 0x00100010}});
+        QByteArray manyPoints;
+        for (int i = 0; i < 14; ++i) manyPoints += QByteArray(i ? "\r" : "") + "Point " + QByteArray::number(i);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QString::fromLatin1(manyPoints)), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const TextItem *> boxes;
+        const TextItem *body = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text) continue;
+            if (it->role.startsWith(QLatin1String("ph:body"))) body = static_cast<const TextItem *>(it.get());
+            else if (it->role.isEmpty()) boxes << static_cast<const TextItem *>(it.get());
+        }
+        QVERIFY(body);
+        QCOMPARE(int(boxes.size()), 5);
+        // The body placeholder: 350 points tall from 125, and 14 lines of 28 points and more.
+        QCOMPARE(body->rect.top(), 125.0);
+        QVERIFY2(body->rect.height() > 400, qPrintable(QString::number(body->rect.height())));
+        QCOMPARE(int(body->autofit), int(TextItem::NoAutofit));
+        // 25 points tall boxes of four lines: from the top, from the middle, from the bottom.
+        const double h0 = boxes[0]->rect.height();
+        QVERIFY2(h0 > 60, qPrintable(QString::number(h0)));
+        QCOMPARE(boxes[0]->rect.top(), 250.0);
+        QCOMPARE(boxes[1]->rect.center().y(), 300.0 + 12.5);
+        QVERIFY(boxes[1]->rect.height() > 60);
+        QCOMPARE(boxes[2]->rect.bottom(), 350.0 + 25.0);
+        QVERIFY(boxes[2]->rect.height() > 60);
+        for (int i : {0, 1, 2}) QCOMPARE(int(boxes[i]->autofit), int(TextItem::NoAutofit));
+        // A box that holds its text stays as it is, and so does one with a fill, which can't grow without showing.
+        QCOMPARE(boxes[3]->rect.height(), 50.0);
+        QCOMPARE(boxes[4]->rect.height(), 25.0);
+    }
+
     // Spacing as the presentation program sets it: no space before the first paragraph of a text, and a line of a share (100 for a
     // single line) of 1.2 times the text size, where the text engine's single line is the font's own.
     void importBinarySpacingFollowsTheProgram()
@@ -2580,6 +2631,23 @@ private Q_SLOTS:
         // A line of so many master units is that many points.
         QVERIFY(three.blockFormat().lineHeightType() == QTextBlockFormat::FixedHeight);
         QCOMPARE(three.blockFormat().lineHeight(), 500.0 / 8);
+    }
+
+    // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.
+    void importBinaryObjectsDoNotWrapText()
+    {
+        const QByteArray shape = pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF010, le(100, 2) + le(200, 2) + le(2000, 2) + le(600, 2)));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shape, QByteArray(), shape), &err);
+        QVERIFY2(d, qPrintable(err));
+        int seen = 0;
+        for (const auto &it : d->pages[0]->items) {
+            QVERIFY2(it->wrap.mode == Wrap::None, qPrintable(it->role));
+            ++seen;
+        }
+        QVERIFY(seen >= 3);
+        for (const auto &m : d->masters)
+            for (const auto &it : m->items) QVERIFY2(it->wrap.mode == Wrap::None, qPrintable(it->role));
     }
 
     // A paragraph with no text has no bullet, as the presentation program draws it: the blank lines between the points of a list.
