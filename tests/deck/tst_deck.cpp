@@ -3784,6 +3784,42 @@ private Q_SLOTS:
     }
 
     // A chart that was moved, resized, or deleted: its frame goes where the picture is, or is not written at all.
+    // A duplicated slide keeps its chart (the copy of the chart's picture is
+    // written as the chart, once more) and the animations that aim at its
+    // shapes by number.
+    void duplicatedSlideKeepsItsChartAndAnimations()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Item *chart = chartPicture(*d, *d->pages[0]);
+        QVERIFY(chart);
+        // The chart's frame keeps its number from the file; an animation aims at that.
+        const QString frame = d->pages[0]->props.value(QStringLiteral("charts")).toArray().at(0).toObject().value(QStringLiteral("frameXml")).toString();
+        const int number = QRegularExpression(QStringLiteral("cNvPr\\b[^>]*\\bid=\"(\\d+)\"")).match(frame).captured(1).toInt();
+        QVERIFY(number >= 2);
+        d->pages[0]->props[QStringLiteral("timingXml")] =
+            QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" nodeType=\"tmRoot\"><p:childTnLst>"
+                           "<p:set><p:cBhvr><p:cTn id=\"2\"/><p:tgtEl><p:spTgt spid=\"%1\"/></p:tgtEl></p:cBhvr></p:set></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>").arg(number);
+        QCOMPARE(deck::duplicateSlide(*d, 0), 1);
+        const Item *copy = chartPicture(*d, *d->pages[1]);
+        QVERIFY(copy && copy->id != chart->id);
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        for (const QString &slide : {QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/ppt/slides/slide2.xml")}) {
+            QCOMPARE(int(relationshipTargets(e, slide, QStringLiteral("/chart")).size()), 1);
+            QVERIFY2(part(e, slide).contains(QStringLiteral("<p:spTgt spid=\"%1\"/>").arg(number)), qPrintable(slide));
+        }
+        // Two charts, each with parts of its own.
+        QVERIFY(relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/chart"))
+                != relationshipTargets(e, QStringLiteral("/ppt/slides/slide2.xml"), QStringLiteral("/chart")));
+        QVERIFY2(skipped.filter(QStringLiteral("Slide 2")).isEmpty(), qPrintable(skipped.join('\n')));
+    }
+
     void exportPlacesAndDropsCharts()
     {
         QString err;
