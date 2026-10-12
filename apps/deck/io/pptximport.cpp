@@ -4,6 +4,7 @@
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/sections.h"
+#include "io/pptxshow.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
 #include "office/chart.h"
@@ -720,6 +721,7 @@ private:
 
     void readSize(const QDomElement &presentation);
     void readSections(const QDomElement &presentation, const QHash<qint64, int> &pageOfSlideId);
+    void readShowSettings(const QDomElement &presentation, const QHash<QString, int> &pageOfRel);
     MasterCtx *readMaster(const QString &part);
     LayoutCtx *readLayout(const QString &part, MasterCtx &master);
     bool readSlide(int number, const QString &part);
@@ -904,6 +906,24 @@ void Importer::readSections(const QDomElement &presentation, const QHash<qint64,
         sections[current].count++;
     }
     setSections(m_doc, sections);
+}
+
+// The custom slide shows, and the slide show's settings from the presentation properties (ppt/presProps.xml).
+void Importer::readShowSettings(const QDomElement &presentation, const QHash<QString, int> &pageOfRel)
+{
+    QStringList notes;
+    readCustomShows(presentation, pageOfRel, m_doc, &notes);
+    const QVector<office::Relationship> rels = m_pkg.relationshipsOfType(m_mainPart, QStringLiteral("/presProps"));
+    if (!rels.isEmpty() && !rels[0].external) {
+        QDomDocument &dom = newDom();
+        QDomElement root;
+        QString why;
+        if (parsePart(rels[0].target, QStringLiteral("presentationPr"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why))
+            readShowProperties(root, m_masters.empty() ? office::defaultTheme() : m_masters.front()->theme, [](const QDomElement &e) { return standaloneXml(e); }, m_doc, &notes);
+        else
+            notes << say("The slide show settings can't be read (%1), so the defaults are used.").arg(why);
+    }
+    for (const QString &text : std::as_const(notes)) note(text);
 }
 
 PhList Importer::placeholdersIn(const QDomElement &tree)
@@ -1550,6 +1570,7 @@ bool Importer::run(const QString &mainPart, QString *error)
     if (m_masters.empty()) return fail(say("The presentation has no slide master that can be read.") + QLatin1Char('\n') + m_notes.join(QLatin1Char('\n')));
 
     QHash<qint64, int> pageOfSlideId;
+    QHash<QString, int> pageOfRel;   // for the custom shows, which name slides by relationship
     int number = 0;
     for (const QDomElement &id : office::children(pChild(root, "sldIdLst"), office::ns::P, QStringLiteral("sldId"))) {
         if (++number > kMaxSlides) {
@@ -1567,10 +1588,14 @@ bool Importer::run(const QString &mainPart, QString *error)
             continue;
         }
         m_slideByPart.insert(rel.target.toLower(), number);
-        if (readSlide(number, rel.target)) pageOfSlideId.insert(office::parseInt(office::attr(id, QStringLiteral("id")), -1), int(m_doc.pages.size()) - 1);
+        if (readSlide(number, rel.target)) {
+            pageOfSlideId.insert(office::parseInt(office::attr(id, QStringLiteral("id")), -1), int(m_doc.pages.size()) - 1);
+            pageOfRel.insert(rel.id, int(m_doc.pages.size()) - 1);
+        }
     }
     if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
     readSections(root, pageOfSlideId);
+    readShowSettings(root, pageOfRel);
     m_doc.appData[QStringLiteral("footers")] = m_footers;
     sayWhatRanOut();
     for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);

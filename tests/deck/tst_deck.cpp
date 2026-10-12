@@ -29,6 +29,7 @@
 #include "core/fonts.h"
 #include "core/reuse.h"
 #include "core/sections.h"
+#include "core/showsettings.h"
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/deckoutput.h"
@@ -36,6 +37,7 @@
 #include "io/pptimport.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
+#include "io/pptxshow.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
 #include "io/zip.h"
@@ -5288,6 +5290,400 @@ private Q_SLOTS:
         box->click();
         QVERIFY(use->isChecked());
         QVERIFY(SlideShow::usePresenterView());
+    }
+
+    // The slide show's settings are the presentation's own: the defaults leave no key, what a person sets comes back whole, and a value that
+    // makes no sense takes its default.
+    void showSettingsAreKept()
+    {
+        auto d = lettered(3);
+        QVERIFY(!d->appData.contains(QStringLiteral("showSettings")));
+        QVERIFY(deck::showSettingsOf(*d) == deck::ShowSettings());
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Kiosk;
+        s.slides = deck::ShowSettings::Slides::Range;
+        s.from = 2;
+        s.to = 3;
+        s.loop = true;
+        s.animation = false;
+        s.useTimings = false;
+        s.penColor = QColor(QStringLiteral("#2060c0"));
+        s.laserColor = QColor(QStringLiteral("#00ff00"));
+        deck::setShowSettings(*d, s);
+        QVERIFY(deck::showSettingsOf(*d) == s);
+        QVERIFY(s.looping());
+        QVERIFY(s.usesTimings());   // a kiosk has nothing else to move it on
+        deck::setShowSettings(*d, deck::ShowSettings());
+        QVERIFY(!d->appData.contains(QStringLiteral("showSettings")));
+        QVERIFY(!deck::ShowSettings().looping());
+        // Nonsense takes the defaults: no show is "custom" without one, a color that isn't one is red.
+        const deck::ShowSettings odd = deck::ShowSettings::fromJson({{"type", "spin"}, {"slides", "custom"}, {"from", -4}, {"to", "x"}, {"pen", "nope"}, {"loop", 3}});
+        QVERIFY(odd == deck::ShowSettings());
+    }
+
+    // A custom show lists slides by their pages, in any order, a slide twice if it likes. A slide taken from the presentation leaves
+    // its shows, and a show left with none is gone.
+    void customShowsFollowTheSlides()
+    {
+        auto d = lettered(5);
+        deck::CustomShow a, b, c;
+        a.id = 7;
+        a.name = QStringLiteral("Short");
+        a.slides = {d->pages[3]->id, d->pages[0]->id, d->pages[3]->id};
+        b.id = 7;   // an id twice: the second gets a new one
+        b.name = QStringLiteral("Other");
+        b.slides = {d->pages[1]->id};
+        c.id = 2;
+        c.name = QStringLiteral("Stray");
+        c.slides = {QStringLiteral("not a page")};
+        deck::setCustomShows(*d, {a, b, c});
+        QVector<deck::CustomShow> shows = deck::customShowsOf(*d);
+        QCOMPARE(shows.size(), 2);   // the one with no slide that exists is not a show
+        QCOMPARE(shows[0].id, qint64(7));
+        QVERIFY(shows[1].id != 7);
+        QCOMPARE(deck::customShowSlides(*d, shows[0]), (QList<int>{3, 0, 3}));
+        QVERIFY(deck::customShowById(shows, shows[1].id));
+        QVERIFY(!deck::customShowById(shows, 99));
+        QCOMPARE(deck::newCustomShowName(shows), QStringLiteral("Custom Show 1"));
+        QVERIFY(deck::newCustomShowId(shows) > shows[1].id);
+        // Plans: a custom show plays the slides it lists, hidden ones too; the others leave hidden slides to the show.
+        d->pages[3]->hidden = true;
+        const deck::ShowPlan plan = deck::planOfCustomShow(*d, shows[0]);
+        QCOMPARE(plan.slides, (QList<int>{3, 0, 3}));
+        QVERIFY(plan.hidden);
+        deck::ShowSettings s;
+        QVERIFY(deck::planOf(*d, s).slides.isEmpty());   // every slide
+        s.slides = deck::ShowSettings::Slides::Range;
+        s.from = 2;
+        s.to = 4;
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{1, 2, 3}));
+        QVERIFY(!deck::planOf(*d, s).hidden);
+        QVERIFY(deck::planOf(*d, s, false).slides.isEmpty());   // From Current Slide plays every slide
+        s.to = 99;   // past the last slide is the last slide
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{1, 2, 3, 4}));
+        s.from = 4;
+        s.to = 2;   // nothing between: every slide
+        QVERIFY(deck::planOf(*d, s).slides.isEmpty());
+        s.slides = deck::ShowSettings::Slides::Custom;
+        s.customShow = 7;
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{3, 0, 3}));
+        // Slide D goes: the show keeps the others, in their order.
+        d->pages.removeAt(3);
+        shows = deck::customShowsOf(*d);
+        QCOMPARE(shows.size(), 2);
+        QCOMPARE(deck::customShowSlides(*d, shows[0]), (QList<int>{0}));
+        QCOMPARE(shows[0].slides.size(), 1);
+        QCOMPARE(deck::planOf(*d, s).slides, (QList<int>{0}));
+        // Slide A goes too: Short has nothing left and is gone, and a presentation set to play it plays every slide.
+        d->pages.removeAt(0);
+        shows = deck::customShowsOf(*d);
+        QCOMPARE(shows.size(), 1);
+        QCOMPARE(shows[0].name, QStringLiteral("Other"));
+        QVERIFY(deck::planOf(*d, s).slides.isEmpty());
+    }
+
+    // The settings are p:showPr in the presentation properties, in the order the schema has: the kind of show, which slides, the pen's
+    // color, then the extensions with the laser pointer's color. They come back as set, and a show with defaults writes none.
+    void showSettingsAreWrittenAndReadBack()
+    {
+        auto d = lettered(4);
+        deck::ShowSettings s;
+        s.type = deck::ShowSettings::Type::Kiosk;
+        s.slides = deck::ShowSettings::Slides::Range;
+        s.from = 2;
+        s.to = 3;
+        s.loop = true;
+        s.animation = false;
+        s.useTimings = false;
+        s.penColor = QColor(QStringLiteral("#2060c0"));
+        s.laserColor = QColor(QStringLiteral("#00ff00"));
+        s.kioskRestart = 60000;
+        deck::setShowSettings(*d, s);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presProps.xml")), &dom);
+        QCOMPARE(root.localName(), QStringLiteral("presentationPr"));
+        const QDomElement show = office::child(root, office::ns::P, QStringLiteral("showPr"));
+        QVERIFY(!show.isNull());
+        QCOMPARE(show.attribute(QStringLiteral("loop")), QStringLiteral("1"));
+        QCOMPARE(show.attribute(QStringLiteral("showAnimation")), QStringLiteral("0"));
+        QCOMPARE(show.attribute(QStringLiteral("useTimings")), QStringLiteral("0"));
+        QVERIFY(!show.hasAttribute(QStringLiteral("showNarration")));   // the default is not written
+        QStringList order;
+        for (const QDomElement &c : office::children(show)) order << c.localName();
+        QCOMPARE(order, (QStringList{"kiosk", "sldRg", "penClr", "extLst"}));
+        QCOMPARE(office::child(show, office::ns::P, QStringLiteral("kiosk")).attribute(QStringLiteral("restart")), QStringLiteral("60000"));
+        const QDomElement range = office::child(show, office::ns::P, QStringLiteral("sldRg"));
+        QCOMPARE(range.attribute(QStringLiteral("st")), QStringLiteral("2"));
+        QCOMPARE(range.attribute(QStringLiteral("end")), QStringLiteral("3"));
+        QCOMPARE(office::child(office::child(show, office::ns::P, QStringLiteral("penClr")), office::ns::A, QStringLiteral("srgbClr")).attribute(QStringLiteral("val")),
+                 QStringLiteral("2060C0"));
+        const QString p14 = QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main");
+        const QDomElement ext = office::child(office::child(show, office::ns::P, QStringLiteral("extLst")), office::ns::P, QStringLiteral("ext"));
+        QCOMPARE(ext.attribute(QStringLiteral("uri")), QStringLiteral("{EC167BDD-8182-4AB7-AECC-EB403E3ABB37}"));
+        QCOMPARE(office::child(office::child(ext, p14, QStringLiteral("laserClr")), office::ns::A, QStringLiteral("srgbClr")).attribute(QStringLiteral("val")),
+                 QStringLiteral("00FF00"));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::showSettingsOf(*back) == s);
+        // Saved again, the file is the same.
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QCOMPARE(again.zip.value(QStringLiteral("ppt/presProps.xml")), e.zip.value(QStringLiteral("ppt/presProps.xml")));
+        // A speaker's show, and a show in a window; narration, the scroll bar, and a show that plays a custom show.
+        auto other = lettered(3);
+        deck::CustomShow c;
+        c.id = 4;
+        c.name = QStringLiteral("Quick");
+        c.slides = {other->pages[2]->id};
+        deck::setCustomShows(*other, {c});
+        deck::ShowSettings t;
+        t.type = deck::ShowSettings::Type::Individual;
+        t.scrollbar = false;
+        t.narration = true;
+        t.slides = deck::ShowSettings::Slides::Custom;
+        t.customShow = 4;
+        deck::setShowSettings(*other, t);
+        Exported second;
+        QVERIFY2(unpack(deck::exportPresentation(*other, &err), &second, &err), qPrintable(err));
+        const QDomElement browsed = office::child(rootOf(second.zip.value(QStringLiteral("ppt/presProps.xml")), &dom), office::ns::P, QStringLiteral("showPr"));
+        QCOMPARE(browsed.attribute(QStringLiteral("showNarration")), QStringLiteral("1"));
+        QCOMPARE(office::child(browsed, office::ns::P, QStringLiteral("browse")).attribute(QStringLiteral("showScrollbar")), QStringLiteral("0"));
+        QCOMPARE(office::child(browsed, office::ns::P, QStringLiteral("custShow")).attribute(QStringLiteral("id")), QStringLiteral("4"));
+        auto otherBack = deck::importPresentation(deck::exportPresentation(*other, &err), &err);
+        QVERIFY2(otherBack, qPrintable(err));
+        QVERIFY(deck::showSettingsOf(*otherBack) == t);
+        // Defaults write no show properties.
+        auto plain = lettered(2);
+        Exported none;
+        QVERIFY2(unpack(deck::exportPresentation(*plain, &err), &none, &err), qPrintable(err));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presProps.xml")).contains(QStringLiteral("showPr")));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("custShow")));
+    }
+
+    // The custom shows are p:custShowLst in the presentation, after the notes size and before the default text style, each show's
+    // slides named by the relationship the presentation has to them; they come back with their slides in order, a slide twice too.
+    void customShowsAreWrittenAndReadBack()
+    {
+        auto d = lettered(4);
+        deck::CustomShow a, b;
+        a.id = 0;
+        a.name = QStringLiteral("Q & \"A\"");
+        a.slides = {d->pages[2]->id, d->pages[0]->id, d->pages[2]->id};
+        b.id = 5;
+        b.name = QStringLiteral("Closing");
+        b.slides = {d->pages[3]->id};
+        deck::setCustomShows(*d, {a, b});
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presentation.xml")), &dom);
+        QStringList order;
+        for (const QDomElement &c : office::children(root)) order << c.localName();
+        const int sizes = int(order.indexOf(QStringLiteral("notesSz")));
+        QVERIFY(sizes >= 0);
+        QCOMPARE(order.mid(sizes), (QStringList{"notesSz", "custShowLst", "defaultTextStyle"}));
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(root, office::ns::P, QStringLiteral("sldIdLst")), office::ns::P, QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        QCOMPARE(int(rels.size()), 4);
+        const QVector<QDomElement> written = office::children(office::child(root, office::ns::P, QStringLiteral("custShowLst")), office::ns::P, QStringLiteral("custShow"));
+        QCOMPARE(int(written.size()), 2);
+        QCOMPARE(written[0].attribute(QStringLiteral("name")), a.name);
+        QCOMPARE(written[0].attribute(QStringLiteral("id")), QStringLiteral("0"));
+        QCOMPARE(written[1].attribute(QStringLiteral("id")), QStringLiteral("5"));
+        QStringList listed;
+        for (const QDomElement &s : office::children(office::child(written[0], office::ns::P, QStringLiteral("sldLst")), office::ns::P, QStringLiteral("sld")))
+            listed << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        QCOMPARE(listed, (QStringList{rels[2], rels[0], rels[2]}));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QVector<deck::CustomShow> shows = deck::customShowsOf(*back);
+        QCOMPARE(shows.size(), 2);
+        QCOMPARE(shows[0].name, a.name);
+        QCOMPARE(shows[0].id, qint64(0));
+        QCOMPARE(shows[1].id, qint64(5));
+        QCOMPARE(deck::customShowSlides(*back, shows[0]), (QList<int>{2, 0, 2}));
+        QCOMPARE(deck::customShowSlides(*back, shows[1]), (QList<int>{3}));
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QCOMPARE(again.zip.value(QStringLiteral("ppt/presentation.xml")), e.zip.value(QStringLiteral("ppt/presentation.xml")));
+    }
+
+    // A file the presentation program wrote: show properties with its extensions, custom shows, and a show set to play one read in;
+    // what JeffDeck has no form for (the recent colors, the media controls, the image settings) is written back as it was.
+    void showSettingsFromTheProgramAreRead()
+    {
+        const QString p14 = QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main");
+        auto d = lettered(4);
+        QString err;
+        const QByteArray plain = deck::exportPresentation(*d, &err);
+        Exported base;
+        QVERIFY2(unpack(plain, &base, &err), qPrintable(err));
+        QDomDocument dom;
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(rootOf(base.zip.value(QStringLiteral("ppt/presentation.xml")), &dom), office::ns::P, QStringLiteral("sldIdLst")), office::ns::P,
+                                                     QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        QCOMPARE(int(rels.size()), 4);
+        const QString namespaces = QStringLiteral("xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                                                  "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"");
+        auto written = [&](const QString &props, const QString &shows) {
+            QMap<QString, QByteArray> zip = base.zip;
+            zip[QStringLiteral("ppt/presProps.xml")] = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<p:presentationPr %1>%2</p:presentationPr>").arg(namespaces, props).toUtf8();
+            QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+            const qsizetype at = xml.indexOf(QStringLiteral("<p:defaultTextStyle>"));
+            xml.insert(at, shows);
+            zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+            ZipWriter z;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+            return z.finish();
+        };
+        const QString shows = QStringLiteral("<p:custShowLst><p:custShow name=\"Tour\" id=\"2\"><p:sldLst><p:sld r:id=\"%1\"/><p:sld r:id=\"%2\"/></p:sldLst></p:custShow>"
+                                             "<p:custShow name=\"Lost\" id=\"3\"><p:sldLst><p:sld r:id=\"rId999\"/></p:sldLst></p:custShow></p:custShowLst>")
+                                  .arg(rels[3], rels[1]);
+        const QString props = QStringLiteral("<p:showPr loop=\"1\" showNarration=\"1\" showAnimation=\"0\" useTimings=\"0\"><p:browse showScrollbar=\"0\"/><p:custShow id=\"2\"/>"
+                                             "<p:penClr><a:srgbClr val=\"0070C0\"/></p:penClr><p:extLst>"
+                                             "<p:ext uri=\"{EC167BDD-8182-4AB7-AECC-EB403E3ABB37}\"><p14:laserClr xmlns:p14=\"%1\"><a:srgbClr val=\"00FF00\"/></p14:laserClr></p:ext>"
+                                             "<p:ext uri=\"{2FDB2607-1784-4EEB-B798-7EB5836EED8A}\"><p14:showMediaCtrls xmlns:p14=\"%1\" val=\"1\"/></p:ext></p:extLst></p:showPr>"
+                                             "<p:clrMru><a:srgbClr val=\"FF0000\"/></p:clrMru>"
+                                             "<p:extLst><p:ext uri=\"{E76CE94A-603C-4142-B9EB-6D1370010A27}\"><p14:discardImageEditData xmlns:p14=\"%1\" val=\"0\"/></p:ext>"
+                                             "<p:ext uri=\"{D31A062A-798A-4329-ABDD-BBA856620510}\"><p14:defaultImageDpi xmlns:p14=\"%1\" val=\"220\"/></p:ext></p:extLst>")
+                                  .arg(p14);
+        const QByteArray file = written(props, shows);
+        auto d2 = deck::importPresentation(file, &err);
+        QVERIFY2(d2, qPrintable(err));
+        const deck::ShowSettings s = deck::showSettingsOf(*d2);
+        QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Individual));
+        QVERIFY(!s.scrollbar);
+        QVERIFY(s.loop);
+        QVERIFY(s.narration);
+        QVERIFY(!s.animation);
+        QVERIFY(!s.useTimings);
+        QCOMPARE(int(s.slides), int(deck::ShowSettings::Slides::Custom));
+        QCOMPARE(s.customShow, qint64(2));
+        QCOMPARE(s.penColor, QColor(0x00, 0x70, 0xC0));
+        QCOMPARE(s.laserColor, QColor(0x00, 0xFF, 0x00));
+        const QVector<deck::CustomShow> custom = deck::customShowsOf(*d2);
+        QCOMPARE(custom.size(), 1);   // the one that names a slide the file doesn't have is left out
+        QCOMPARE(custom[0].name, QStringLiteral("Tour"));
+        QCOMPARE(deck::customShowSlides(*d2, custom[0]), (QList<int>{3, 1}));
+        QCOMPARE(deck::planOf(*d2, s).slides, (QList<int>{3, 1}));
+        // Saved again, what was kept is there, in the schema's order.
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d2, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presProps.xml")), &dom);
+        QStringList order;
+        for (const QDomElement &c : office::children(root)) order << c.localName();
+        QCOMPARE(order, (QStringList{"showPr", "clrMru", "extLst"}));
+        const QDomElement show = office::child(root, office::ns::P, QStringLiteral("showPr"));
+        QStringList inShow;
+        for (const QDomElement &c : office::children(show)) inShow << c.localName();
+        QCOMPARE(inShow, (QStringList{"browse", "custShow", "penClr", "extLst"}));
+        QStringList exts;
+        for (const QDomElement &x : office::children(office::child(show, office::ns::P, QStringLiteral("extLst")))) exts << x.attribute(QStringLiteral("uri"));
+        QCOMPARE(exts, (QStringList{"{EC167BDD-8182-4AB7-AECC-EB403E3ABB37}", "{2FDB2607-1784-4EEB-B798-7EB5836EED8A}"}));
+        const QString text = part(e, QStringLiteral("/ppt/presProps.xml"));
+        QVERIFY(text.contains(QStringLiteral("showMediaCtrls")));
+        QVERIFY(text.contains(QStringLiteral("defaultImageDpi")));
+        QVERIFY(text.contains(QStringLiteral("discardImageEditData")));
+        QVERIFY(text.contains(QStringLiteral("<p:clrMru")));
+        auto back = deck::importPresentation(deck::exportPresentation(*d2, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::showSettingsOf(*back) == s);
+        // A speaker's range, and a pen the program names by a preset color, read as such.
+        auto ranged = deck::importPresentation(written(QStringLiteral("<p:showPr><p:present/><p:sldRg st=\"2\" end=\"3\"/><p:penClr><a:prstClr val=\"red\"/></p:penClr></p:showPr>"), QString()), &err);
+        QVERIFY2(ranged, qPrintable(err));
+        const deck::ShowSettings r = deck::showSettingsOf(*ranged);
+        QCOMPARE(int(r.type), int(deck::ShowSettings::Type::Speaker));
+        QCOMPARE(int(r.slides), int(deck::ShowSettings::Slides::Range));
+        QCOMPARE(r.from, 2);
+        QCOMPARE(r.to, 3);
+        QCOMPARE(r.penColor, QColor(255, 0, 0));
+        QVERIFY(r.animation && r.useTimings && !r.loop);
+        // A kiosk.
+        auto kiosk = deck::importPresentation(written(QStringLiteral("<p:showPr loop=\"1\" showNarration=\"1\"><p:kiosk/><p:sldAll/></p:showPr>"), QString()), &err);
+        QVERIFY2(kiosk, qPrintable(err));
+        QCOMPARE(int(deck::showSettingsOf(*kiosk).type), int(deck::ShowSettings::Type::Kiosk));
+        QCOMPARE(deck::showSettingsOf(*kiosk).kioskRestart, qint64(300000));
+        // A show set to play a custom show the file doesn't have plays every slide, and the file says so.
+        auto missing = deck::importPresentation(written(QStringLiteral("<p:showPr><p:present/><p:custShow id=\"41\"/></p:showPr>"), QString()), &err);
+        QVERIFY2(missing, qPrintable(err));
+        QCOMPARE(int(deck::showSettingsOf(*missing).slides), int(deck::ShowSettings::Slides::All));
+        QVERIFY2(err.contains(QStringLiteral("custom slide show")), qPrintable(err));
+    }
+
+    // A file may list only so many custom shows and slides in them; the rest are left out, with a note, and what is kept reads as it
+    // would anywhere. Properties that can't be read leave the defaults.
+    void customShowsInHostileFilesAreLimited()
+    {
+        auto d = lettered(2);
+        QString err;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &err), qPrintable(err));
+        QDomDocument dom;
+        QStringList rels;
+        for (const QDomElement &s : office::children(office::child(rootOf(base.zip.value(QStringLiteral("ppt/presentation.xml")), &dom), office::ns::P, QStringLiteral("sldIdLst")), office::ns::P,
+                                                     QStringLiteral("sldId")))
+            rels << office::attrNs(s, office::ns::R, QStringLiteral("id"));
+        auto with = [&](const QString &shows, const QByteArray &props = QByteArray()) {
+            QMap<QString, QByteArray> zip = base.zip;
+            QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+            xml.insert(xml.indexOf(QStringLiteral("<p:defaultTextStyle>")), shows);
+            zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+            if (!props.isEmpty()) zip[QStringLiteral("ppt/presProps.xml")] = props;
+            ZipWriter z;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+            return z.finish();
+        };
+        // 1,500 shows of one slide: 1,000 are read.
+        QString many = QStringLiteral("<p:custShowLst>");
+        for (int i = 0; i < 1500; ++i) many += QStringLiteral("<p:custShow name=\"Show %1\" id=\"%1\"><p:sldLst><p:sld r:id=\"%2\"/></p:sldLst></p:custShow>").arg(i).arg(rels[0]);
+        many += QStringLiteral("</p:custShowLst>");
+        auto d1 = deck::importPresentation(with(many), &err);
+        QVERIFY2(d1, qPrintable(err));
+        QCOMPARE(int(deck::customShowsOf(*d1).size()), 1000);
+        QVERIFY2(err.contains(QStringLiteral("1000")), qPrintable(err));
+        // One show that lists a slide 12,000 times: 10,000 are read.
+        QString slides;
+        for (int i = 0; i < 12000; ++i) slides += QStringLiteral("<p:sld r:id=\"%1\"/>").arg(rels[i % 2]);
+        auto d2 = deck::importPresentation(with(QStringLiteral("<p:custShowLst><p:custShow name=\"Long\" id=\"1\"><p:sldLst>%1</p:sldLst></p:custShow></p:custShowLst>").arg(slides)), &err);
+        QVERIFY2(d2, qPrintable(err));
+        const QVector<deck::CustomShow> longShow = deck::customShowsOf(*d2);
+        QCOMPARE(int(longShow.size()), 1);
+        QCOMPARE(int(longShow[0].slides.size()), 10000);
+        // A name past 255 characters is cut, an id twice is made new, a show with no name is given one.
+        auto d3 = deck::importPresentation(with(QStringLiteral("<p:custShowLst><p:custShow name=\"%1\" id=\"4\"><p:sldLst><p:sld r:id=\"%2\"/></p:sldLst></p:custShow>"
+                                                               "<p:custShow name=\"\" id=\"4\"><p:sldLst><p:sld r:id=\"%2\"/></p:sldLst></p:custShow></p:custShowLst>")
+                                                    .arg(QString(400, QLatin1Char('x')), rels[0])),
+                                           &err);
+        QVERIFY2(d3, qPrintable(err));
+        const QVector<deck::CustomShow> odd = deck::customShowsOf(*d3);
+        QCOMPARE(int(odd.size()), 2);
+        QCOMPARE(int(odd[0].name.size()), 255);
+        QVERIFY(odd[1].id != 4);
+        QVERIFY(!odd[1].name.isEmpty());
+        // Presentation properties that are not XML leave the defaults, with a note.
+        auto d4 = deck::importPresentation(with(QString(), QByteArray("<p:presentationPr")), &err);
+        QVERIFY2(d4, qPrintable(err));
+        QVERIFY(deck::showSettingsOf(*d4) == deck::ShowSettings());
+        // Kept properties are held to a size too.
+        QString huge;
+        for (int i = 0; i < 3000; ++i) huge += QStringLiteral("<p:ext uri=\"{%1}\"/>").arg(i);
+        const QByteArray props = QStringLiteral("<p:presentationPr xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:extLst>%1</p:extLst></p:presentationPr>").arg(huge).toUtf8();
+        auto d5 = deck::importPresentation(with(QString(), props), &err);
+        QVERIFY2(d5, qPrintable(err));
+        QVERIFY(d5->appData.value(QStringLiteral("presPropsKept")).toObject().isEmpty() || QJsonDocument(d5->appData.value(QStringLiteral("presPropsKept")).toObject()).toJson().size() < 200000);
     }
 
     // Slides that have a transition are marked in the thumbnails.
