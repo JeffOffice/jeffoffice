@@ -1107,7 +1107,8 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     if (!office::readChart(m_pkg.part(rel.target), sc.ctx.theme, sc.ctx.colors, &chart)) return false;
     const QDomElement xfrm = pChild(frame, "xfrm"), off = aChild(xfrm, "off"), ext = aChild(xfrm, "ext");
     auto points = [](const QDomElement &e, const char *name) { return office::emuToPoints(office::parseInt(office::attr(e, QLatin1String(name)))); };
-    const QRectF rect(points(off, "x"), points(off, "y"), std::max(0.0, points(ext, "cx")), std::max(0.0, points(ext, "cy")));
+    // A frame is no larger than a slide can be (a chart is drawn that large, not as large as a file says it is).
+    const QRectF rect(points(off, "x"), points(off, "y"), std::clamp(points(ext, "cx"), 0.0, office::kChartMaxSide), std::clamp(points(ext, "cy"), 0.0, office::kChartMaxSide));
     if (rect.width() < 1 || rect.height() < 1) return false;
 
     auto pic = std::make_shared<PictureItem>();
@@ -1116,7 +1117,9 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     pic->rect = rect;
     pic->imgRect = QRectF(QPointF(0, 0), rect.size());
     pic->wrap.mode = Wrap::None;
-    pic->imageId = addImage(office::chartSvg(chart, rect.size()), QStringLiteral("svg"));
+    bool coarser = false;
+    pic->imageId = addImage(office::chartSvg(chart, rect.size(), &coarser), QStringLiteral("svg"));
+    if (coarser) note(say("The chart \"%1\" has more points than a picture of it can show, so its picture is drawn from some of them.").arg(pic->name));
     PhRef ph;
     if (placeholderOf(frame, &ph)) pic->role = roleOf(ph);
     sc.page->items.push_back(pic);
