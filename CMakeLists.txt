@@ -44,6 +44,16 @@ if(WIN32)
   target_link_libraries(jo_shell PRIVATE ole32 uuid shell32)
 endif()
 
+# Each shared library links on its own, with only the ones below it: every
+# object of it is pulled in, so a call into a higher layer (which the include
+# check can't see) fails to link here. Linux's linker is enough to catch one.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  foreach(lib jo_base jo_draw jo_text jo_shell)
+    add_executable(${lib}_linkcheck tools/linkcheck.cpp)
+    target_link_libraries(${lib}_linkcheck PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
+  endforeach()
+endif()
+
 # JeffPub: everything except main() lives in a library so the tests can link it.
 file(GLOB_RECURSE JP_PUB_SOURCES CONFIGURE_DEPENDS apps/pub/*.cpp apps/pub/*.h apps/pub/*.inc)
 list(REMOVE_ITEM JP_PUB_SOURCES ${CMAKE_SOURCE_DIR}/apps/pub/main.cpp)
