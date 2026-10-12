@@ -14,13 +14,13 @@ closely as JeffPub's pages match Publisher's.
 
 | Area | What it covers | Status |
 | --- | --- | --- |
-| Slides | Layouts, slide masters, themes and their variants, backgrounds, sections, the slide sorter, outline view, speaker notes, and notes and handout masters | Layouts, masters, notes, backgrounds: started |
-| On a slide | Text, shapes, pictures, icons, Text Art, tables, charts, audio, and video. SmartArt diagrams and equations show as saved at first; editing them follows | Text, shapes, pictures: from the shared engine |
-| Motion | Slide transitions, including Morph, and animations (entrance, emphasis, exit, motion paths) with the animation pane and timings | Transitions: started |
-| Slide Show | Full screen, Presenter View on a second screen (notes, next slide, timer), pen and highlighter, rehearsed timings, custom shows, and looping for kiosks | Full screen, Presenter View: started |
+| Slides | Layouts, slide masters, themes and their variants, backgrounds, sections, the slide sorter, outline view, speaker notes, and notes and handout masters | Layouts, masters, notes, backgrounds, slide size, header and footer: started |
+| On a slide | Text, shapes, pictures, icons, Text Art, tables, charts, audio, and video. SmartArt diagrams and equations show as saved at first; editing them follows | Text, shapes, pictures: from the shared engine; tables, charts: kept, not yet shown |
+| Motion | Slide transitions, including Morph, and animations (entrance, emphasis, exit, motion paths) with the animation pane and timings | Ten transitions with a Transitions tab; animations kept, not yet played |
+| Slide Show | Full screen, Presenter View on a second screen (notes, next slide, timer), pen and highlighter, rehearsed timings, custom shows, and looping for kiosks | Full screen, Presenter View, rehearsal (Alt+F5): started |
 | Working together | Comments on slides, and reusing slides from another presentation | Not started |
 | Output | Printed slides, notes pages, and handouts, with print preview; PDF and pictures. Video export follows the first release | Not started |
-| Files | .pptx, .potx, and .ppsx; opens .ppt and .odp | .pptx reading: started |
+| Files | .pptx, .potx, and .ppsx; opens .ppt and .odp | Reads .pptx and .ppt; saves .pptx (the presentation program opens all 29 reference decks JeffDeck saved) |
 
 ## How it is built
 
