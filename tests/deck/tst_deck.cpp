@@ -5,6 +5,7 @@
 #include "app/deckwindow.h"
 #include "app/editor.h"
 #include "app/notespane.h"
+#include "app/presenterview.h"
 #include "app/slideshow.h"
 #include "app/slidespane.h"
 #include "core/deck.h"
@@ -12,6 +13,7 @@
 #include "core/transition.h"
 #include "render/renderer.h"
 
+#include <QAbstractButton>
 #include <QDesktopServices>
 #include <QElapsedTimer>
 #include <QPainter>
@@ -385,6 +387,99 @@ private Q_SLOTS:
         QCOMPARE(show.currentSlide(), 1);
         QCOMPARE(catcher.urls.size(), 1);
         QDesktopServices::unsetUrlHandler(QStringLiteral("https"));
+    }
+
+    // Presenter View: where the show is, the next slide, the notes, the timer;
+    // its buttons drive the show.
+    void presenterViewFollowsTheShow()
+    {
+        auto d = showDeck(4);
+        d->pages[2]->hidden = true;
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        PresenterView pv(&show);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 1 of 4"));
+        QCOMPARE(pv.notesText(), QStringLiteral("Notes 1"));
+        QCOMPARE(pv.nextSlide(), 1);
+        const QImage firstNext = pv.nextImage();
+        QVERIFY(!firstNext.isNull());
+        show.next();
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 2 of 4"));
+        QCOMPARE(pv.notesText(), QStringLiteral("Notes 2"));
+        QCOMPARE(pv.nextSlide(), 3);   // the hidden slide is skipped
+        QVERIFY(pv.nextImage() != firstNext);
+        // The buttons call the show.
+        pv.findChild<QAbstractButton *>("previousButton")->click();
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 1 of 4"));
+        pv.findChild<QAbstractButton *>("nextButton")->click();
+        QCOMPARE(show.currentSlide(), 1);
+        pv.findChild<QAbstractButton *>("blackButton")->click();
+        QVERIFY(show.isBlank());
+        pv.findChild<QAbstractButton *>("blackButton")->click();
+        QVERIFY(!show.isBlank());
+        // Keys work in Presenter View too.
+        QTest::keyClick(&pv, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 3);
+        QCOMPARE(pv.nextSlide(), -1);
+        QTest::keyClick(&pv, Qt::Key_Right);   // the end
+        QCOMPARE(pv.counterText(), QStringLiteral("End of slide show"));
+        QTest::keyClick(&pv, Qt::Key_Left);
+        QCOMPARE(pv.counterText(), QStringLiteral("Slide 4 of 4"));
+        // The notes grow and shrink.
+        const int size = pv.notesPointSize();
+        pv.findChild<QAbstractButton *>("notesBigger")->click();
+        QVERIFY(pv.notesPointSize() > size);
+        pv.findChild<QAbstractButton *>("notesSmaller")->click();
+        pv.findChild<QAbstractButton *>("notesSmaller")->click();
+        QVERIFY(pv.notesPointSize() < size);
+        // The slide grid jumps to a slide.
+        pv.findChild<QAbstractButton *>("allSlidesButton")->click();
+        QVERIFY(pv.isShowingAllSlides());
+        pv.jumpTo(0);
+        QCOMPARE(show.currentSlide(), 0);
+        QVERIFY(!pv.isShowingAllSlides());
+        // It draws: the slides and the controls, not a blank window.
+        pv.resize(1100, 700);
+        const QImage shot = pv.grab().toImage();
+        QCOMPARE(shot.size(), QSize(1100, 700));
+        QSet<QRgb> colors;
+        for (int y = 0; y < shot.height(); y += 9)
+            for (int x = 0; x < shot.width(); x += 9) colors.insert(shot.pixel(x, y));
+        QVERIFY(colors.size() >= 4);
+        // End Slide Show closes the show, and Presenter View with it.
+        QPointer<SlideShow> alive = new SlideShow(d.get(), &cache, 0);
+        QPointer<PresenterView> pv2 = new PresenterView(alive.data());
+        pv2->findChild<QAbstractButton *>("endButton")->click();
+        QTRY_VERIFY(alive.isNull());
+        QTRY_VERIFY(pv2.isNull());
+    }
+
+    // The timer counts from the start of the show, pauses and resumes, and resets.
+    void presenterViewTimer()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        PresenterView pv(&show);
+        QCOMPARE(pv.timerText(), QStringLiteral("00:00"));
+        QVERIFY(!pv.isTimerPaused());
+        QAbstractButton *pause = pv.findChild<QAbstractButton *>("pauseButton");
+        QVERIFY(pause);
+        const QString runningLabel = pause->text();
+        pause->click();
+        QVERIFY(pv.isTimerPaused());
+        QVERIFY(pause->text() != runningLabel);   // it says Resume
+        pv.setTimerElapsed(65 * 1000);
+        QCOMPARE(pv.timerText(), QStringLiteral("01:05"));
+        pause->click();
+        QVERIFY(!pv.isTimerPaused());
+        QCOMPARE(pause->text(), runningLabel);
+        pv.setTimerElapsed(3725 * 1000);
+        QCOMPARE(pv.timerText(), QStringLiteral("1:02:05"));
+        pv.findChild<QAbstractButton *>("resetButton")->click();
+        QVERIFY(pv.timerElapsed() < 1000);
+        QCOMPARE(pv.timerText(), QStringLiteral("00:00"));
     }
 
     // Painting only the changed part of a frame over the last one gives the

@@ -1,12 +1,16 @@
 #include "app/slideshow.h"
 
+#include "app/presenterview.h"
+#include "app/settings.h"
 #include "core/document.h"
 #include "render/renderer.h"
 
 #include <QCloseEvent>
 #include <QDesktopServices>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QScreen>
 #include <QSet>
 #include <QUrl>
 
@@ -285,6 +289,21 @@ int SlideShow::nextShown(int from, int step) const
     return -1;
 }
 
+PresenterView *SlideShow::presenterView() const { return m_presenter; }
+
+bool SlideShow::usePresenterView() { return Settings::get().value(QStringLiteral("show/usePresenterView"), true).toBool(); }
+
+void SlideShow::setUsePresenterView(bool on) { Settings::get().setValue(QStringLiteral("show/usePresenterView"), on); }
+
+void SlideShow::setRehearsal(bool on)
+{
+    m_rehearsal = on;
+    setWindowFlag(Qt::FramelessWindowHint, !on);
+    if (on) unsetCursor();
+    else setCursor(Qt::BlankCursor);
+    setWindowTitle(on ? tr("Slide Show") : QString());
+}
+
 // ---- moving ----
 
 void SlideShow::next()
@@ -541,6 +560,7 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
 
 void SlideShow::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_rehearsal) return;
     setCursor(linkAt(e->position()).isEmpty() ? Qt::BlankCursor : Qt::PointingHandCursor);
 }
 
@@ -558,6 +578,55 @@ void SlideShow::closeEvent(QCloseEvent *e)
     m_auto.stop();
     Q_EMIT ended(m_atEnd ? m_slide : targetSlide());
     QWidget::closeEvent(e);
+}
+
+// ---- two screens ----
+
+void SlideShow::setVisible(bool visible)
+{
+    if (visible && !m_placed) {
+        m_placed = true;
+        place();
+    }
+    QWidget::setVisible(visible);
+}
+
+// Where the show and Presenter View go, the first time the show is shown.
+void SlideShow::place()
+{
+    QScreen *mine = QGuiApplication::screenAt(geometry().center());
+    if (!mine) mine = screen();
+    if (m_rehearsal) {
+        // The show small at a corner, Presenter View over the rest.
+        const QRect area = mine->availableGeometry();
+        const int width = std::max(320, area.width() / 3);
+        setGeometry(QRect(area.right() - width - 12, area.top() + 12, width, width * 9 / 16));
+        openPresenterView(mine);
+        return;
+    }
+    if (QGuiApplication::screens().size() < 2 || !usePresenterView()) return;
+    // The other screen is the audience's: the primary one when the window is not on it.
+    QScreen *other = mine == QGuiApplication::primaryScreen() ? nullptr : QGuiApplication::primaryScreen();
+    for (QScreen *s : QGuiApplication::screens())
+        if (!other && s != mine) other = s;
+    if (!other) return;
+    setScreen(other);
+    setGeometry(other->geometry());
+    openPresenterView(mine);
+}
+
+void SlideShow::openPresenterView(QScreen *on)
+{
+    m_presenter = new PresenterView(this);
+    const QRect area = on->availableGeometry();
+    if (m_rehearsal) {
+        const int right = geometry().left() - 12;
+        m_presenter->setGeometry(QRect(area.left() + 12, area.top() + 12, std::max(640, right - area.left() - 12), area.height() - 24));
+    } else {
+        m_presenter->setScreen(on);
+        m_presenter->setGeometry(area);
+    }
+    m_presenter->show();
 }
 
 // ---- the ribbon's preview ----
