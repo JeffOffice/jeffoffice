@@ -4089,6 +4089,205 @@ private Q_SLOTS:
         QVERIFY(g.paths.size() <= 1);
     }
 
+    // The whole of an import draws from one budget: what two reads keep between them is what one would.
+    void dmlSharedBudgetHoldsWhatManyReadsKeep()
+    {
+        DmlEnv env;
+        DrawingBudget budget;
+        budget.left[DrawingBudget::Objects] = 10;
+        env.ctx.budget = &budget;
+        const QString leaf = dmlSp(dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"));
+        QString six;
+        for (int i = 0; i < 6; ++i) six += leaf;
+        auto count = [&](const ItemList &list) {
+            int n = 0;
+            jp::walkItems(list, [&](const ItemPtr &) { ++n; });
+            return n;
+        };
+        QCOMPARE(count(dmlTree(env, six)), 6);
+        QVERIFY(!budget.ranOut[DrawingBudget::Objects]);
+        QCOMPARE(count(dmlTree(env, six)), 4);   // the second read gets what is left
+        QVERIFY(budget.ranOut[DrawingBudget::Objects]);
+        QCOMPARE(budget.left[DrawingBudget::Objects], qint64(0));
+        QCOMPARE(count(dmlTree(env, six)), 0);
+        QVERIFY(!dmlOne(env, leaf));
+        // A group costs one, and what is in it one each.
+        DmlEnv again;
+        DrawingBudget small;
+        small.left[DrawingBudget::Objects] = 3;
+        again.ctx.budget = &small;
+        const QString frame = dmlGroupFrame(QRectF(0, 0, 100, 100), QRectF(0, 0, 100, 100));
+        const ItemList grouped = dmlTree(again, dmlGrp(frame, leaf + leaf + leaf));
+        QCOMPARE(count(grouped), 3);   // the group, and two of its three
+        QVERIFY(small.ranOut[DrawingBudget::Objects]);
+        // With no budget a read has only its own limits.
+        DmlEnv free;
+        QCOMPARE(count(dmlTree(free, six + six + six)), 18);
+    }
+
+    // A text box or a shape's text is a story; past the budget's stories a box is left out, and a shape stays without its text.
+    void dmlSharedBudgetHoldsStoriesAndCells()
+    {
+        DmlEnv env;
+        DrawingBudget budget;
+        budget.left[DrawingBudget::Objects] = 100;
+        budget.left[DrawingBudget::Stories] = 2;
+        env.ctx.budget = &budget;
+        const QString box = dmlSp(dmlXfrm(0, 0, 100, 30) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"), dmlBody(), QString(), QStringLiteral("txBox=\"1\""));
+        const QString ellipse = dmlSp(dmlXfrm(0, 0, 100, 30) + QStringLiteral("<a:prstGeom prst=\"ellipse\"/>"), dmlBody());
+        const ItemList boxes = dmlTree(env, box + box + box + box);
+        QCOMPARE(int(boxes.size()), 2);
+        QCOMPARE(int(env.stories.size()), 2);
+        QVERIFY(budget.ranOut[DrawingBudget::Stories]);
+        const ItemList shapes = dmlTree(env, ellipse);
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(static_cast<ShapeItem &>(*shapes[0]).storyId.isEmpty());
+        QCOMPARE(int(env.stories.size()), 2);
+
+        // A table takes a cell each; one that would pass the budget is left to the caller.
+        DmlEnv tables;
+        DrawingBudget cells;
+        cells.left[DrawingBudget::Cells] = 7;
+        tables.ctx.budget = &cells;
+        const QString grid = QStringLiteral("<a:tblGrid><a:gridCol w=\"%1\"/><a:gridCol w=\"%1\"/><a:gridCol w=\"%1\"/></a:tblGrid>").arg(emu(50));
+        auto row = [&] { return QStringLiteral("<a:tr h=\"%1\">%2%2%2</a:tr>").arg(emu(20), dmlTc(QStringLiteral("x"))); };
+        const QString twoRows = dmlTableFrame(QStringLiteral("<a:tblPr/>"), grid, row() + row(), 0, 0, 150, 40);
+        QVERIFY(!readTable(tables.element(twoRows), tables.ctx));   // 6 cells and the table's own two, 7 left
+        QVERIFY(cells.ranOut[DrawingBudget::Cells]);
+        QCOMPARE(cells.left[DrawingBudget::Cells], qint64(7));
+        QCOMPARE(int(tables.stories.size()), 0);
+        const QString oneRow = dmlTableFrame(QStringLiteral("<a:tblPr/>"), grid, row(), 0, 0, 150, 20);
+        QVERIFY(readTable(tables.element(oneRow), tables.ctx));
+        QCOMPARE(cells.left[DrawingBudget::Cells], qint64(2));   // 3 cells and the two
+        QCOMPARE(int(tables.stories.size()), 3);
+    }
+
+    // The paragraphs, runs, and letters of every text body of an import come out of one budget.
+    void dmlSharedBudgetHoldsText()
+    {
+        auto read = [](DrawingBudget *budget, const QString &paragraphs) {
+            QDomDocument dom;
+            const QString xml = QStringLiteral("<p:txBody %1><a:bodyPr/><a:lstStyle/>%2</p:txBody>").arg(dmlNamespaces(), paragraphs);
+            if (!parseXml(xml.toUtf8(), &dom)) qWarning("bad test XML");
+            DrawingContext ctx;
+            ctx.budget = budget;
+            auto doc = std::make_unique<QTextDocument>();
+            readTextBody(dom.documentElement(), doc.get(), ctx);
+            return doc;
+        };
+        auto paragraph = [](const QString &text) { return QStringLiteral("<a:p><a:r><a:t>%1</a:t></a:r></a:p>").arg(text); };
+        DrawingBudget budget;
+        budget.left[DrawingBudget::Paragraphs] = 5;
+        budget.left[DrawingBudget::Runs] = 1000;
+        budget.left[DrawingBudget::Letters] = 1000;
+        QString eight;
+        for (int i = 0; i < 8; ++i) eight += paragraph(QStringLiteral("p%1").arg(i));
+        QCOMPARE(read(&budget, eight)->blockCount(), 5);
+        QVERIFY(budget.ranOut[DrawingBudget::Paragraphs]);
+        // What is left when a body is read again is none: the body is one empty paragraph.
+        QCOMPARE(read(&budget, eight)->toPlainText(), QString());
+        QCOMPARE(read(&budget, eight)->blockCount(), 1);
+
+        DrawingBudget letters;
+        letters.left[DrawingBudget::Paragraphs] = 100;
+        letters.left[DrawingBudget::Runs] = 100;
+        letters.left[DrawingBudget::Letters] = 7;
+        const auto cut = read(&letters, paragraph(QStringLiteral("abcd")) + paragraph(QStringLiteral("efgh")) + paragraph(QStringLiteral("ijkl")));
+        QCOMPARE(cut->toPlainText().remove(QLatin1Char('\n')).remove(QChar::ParagraphSeparator), QStringLiteral("abcdefg"));
+        QVERIFY(letters.ranOut[DrawingBudget::Letters]);
+        QCOMPARE(letters.left[DrawingBudget::Letters], qint64(0));
+
+        DrawingBudget runs;
+        runs.left[DrawingBudget::Paragraphs] = 100;
+        runs.left[DrawingBudget::Runs] = 4;
+        runs.left[DrawingBudget::Letters] = 100;
+        QString six;
+        for (int i = 0; i < 6; ++i) six += QStringLiteral("<a:r><a:t>a</a:t></a:r>");
+        QCOMPARE(read(&runs, QStringLiteral("<a:p>%1</a:p>").arg(six))->toPlainText(), QStringLiteral("aaaa"));
+        QVERIFY(runs.ranOut[DrawingBudget::Runs]);
+    }
+
+    // One run longer than a body may be is cut where the body ends (real bodies have a few thousand letters at most).
+    void dmlTextBodyCutsARunPastTheLettersOfABody()
+    {
+        QDomDocument dom;
+        const QString xml = QStringLiteral("<p:txBody %1><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>%2</a:t></a:r></a:p></p:txBody>").arg(dmlNamespaces(), QString(2000100, QLatin1Char('z')));
+        QVERIFY(parseXml(xml.toUtf8(), &dom));
+        QTextDocument doc;
+        readTextBody(dom.documentElement(), &doc, DrawingContext());
+        QCOMPARE(doc.characterCount() - 1, 2000000);
+        // With a budget, which has plenty left, it says that a body was cut, and that nothing ran out.
+        DrawingBudget budget;
+        for (qint64 &left : budget.left) left = 100000000;
+        DrawingContext ctx;
+        ctx.budget = &budget;
+        readTextBody(dom.documentElement(), &doc, ctx);
+        QCOMPARE(doc.characterCount() - 1, 2000000);
+        QVERIFY(budget.longBody);
+        for (bool out : budget.ranOut) QVERIFY(!out);
+        QCOMPARE(budget.left[DrawingBudget::Letters], qint64(100000000 - 2000000));
+    }
+
+    // Qt adds a block to a list in time proportional to the list's length, so one long bulleted run is read as lists of a few hundred each,
+    // numbered on from one to the next.
+    void dmlBulletedParagraphsAreReadInLinearTime()
+    {
+        auto read = [](const QString &pPr, int count) {
+            QString paragraphs;
+            for (int i = 0; i < count; ++i) paragraphs += QStringLiteral("<a:p><a:pPr marL=\"285750\" indent=\"-285750\">%1</a:pPr><a:r><a:t>x</a:t></a:r></a:p>").arg(pPr);
+            QDomDocument dom;
+            const QString xml = QStringLiteral("<p:txBody %1><a:bodyPr/><a:lstStyle/>%2</p:txBody>").arg(dmlNamespaces(), paragraphs);
+            if (!parseXml(xml.toUtf8(), &dom)) qWarning("bad test XML");
+            auto doc = std::make_unique<QTextDocument>();
+            readTextBody(dom.documentElement(), doc.get(), DrawingContext());
+            return doc;
+        };
+        QElapsedTimer timer;
+        timer.start();
+        const auto bullets = read(QStringLiteral("<a:buChar char=\"&#8226;\"/>"), 10000);
+        const qint64 ms = timer.elapsed();
+        QCOMPARE(bullets->blockCount(), 10000);
+        QHash<QTextList *, int> lists;
+        for (QTextBlock b = bullets->begin(); b.isValid(); b = b.next()) {
+            QVERIFY(b.textList());
+            ++lists[b.textList()];
+        }
+        int longest = 0;
+        for (int blocks : std::as_const(lists)) longest = std::max(longest, blocks);
+        QVERIFY2(longest <= 500 && lists.size() >= 20, qPrintable(QStringLiteral("%1 lists, the longest of %2").arg(lists.size()).arg(longest)));
+        QVERIFY2(ms < 3000, qPrintable(QStringLiteral("10,000 bulleted paragraphs took %1 ms").arg(ms)));
+        // Counted on across the lists they are split into.
+        const auto numbered = read(QStringLiteral("<a:buAutoNum type=\"arabicPeriod\"/>"), 1300);
+        QCOMPARE(numbered->blockCount(), 1300);
+        QCOMPARE(numbered->begin().textList()->itemText(numbered->begin()), QStringLiteral("1."));
+        const QTextBlock last = numbered->findBlockByNumber(1299);
+        QCOMPARE(last.textList()->itemText(last), QStringLiteral("1300."));
+        const QTextBlock middle = numbered->findBlockByNumber(700);
+        QCOMPARE(middle.textList()->itemText(middle), QStringLiteral("701."));
+        const auto from5 = read(QStringLiteral("<a:buAutoNum type=\"arabicPeriod\" startAt=\"5\"/>"), 1300);
+        const QTextBlock end = from5->findBlockByNumber(1299);
+        QCOMPARE(end.textList()->itemText(end), QStringLiteral("1304."));
+    }
+
+    // One cache of pictures across every read of a file: the same picture on the next shape, or the next page, is handed over once.
+    void dmlPicturesAreKeptOnceAcrossReads()
+    {
+        DmlEnv env;
+        env.usePackage();
+        QHash<QString, QString> kept;
+        env.ctx.images = &kept;
+        QString pics;
+        for (int i = 0; i < 5; ++i) pics += dmlPic(QString(), dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"));
+        for (int page = 0; page < 3; ++page) {
+            const ItemList list = dmlTree(env, pics);
+            QCOMPARE(int(list.size()), 5);
+            QCOMPARE(static_cast<PictureItem &>(*list[4]).imageId, static_cast<PictureItem &>(*list[0]).imageId);
+        }
+        for (int page = 0; page < 3; ++page) QVERIFY(dmlOne(env, dmlPic(QString(), dmlXfrm(0, 0, 10, 10) + QStringLiteral("<a:prstGeom prst=\"rect\"/>"))));
+        QCOMPARE(env.images.size(), 1);   // addImage was called once, for all 18
+        QCOMPARE(kept.size(), 1);
+    }
+
     // ---- DrawingML shapes: preset geometry
 
 private:
@@ -9689,23 +9888,23 @@ private Q_SLOTS:
         QVERIFY(read > 100);
     }
 
-    void textBodyStopsAtAHundredThousandParagraphsAndRuns()
+    void textBodyStopsAtTenThousandParagraphsAndTwentyThousandRuns()
     {
         {
             QString many;
-            many.reserve(100001 * 6);
-            for (int i = 0; i < 100001; ++i) many += QStringLiteral("<a:p/>");
+            many.reserve(10001 * 6);
+            for (int i = 0; i < 10001; ++i) many += QStringLiteral("<a:p/>");
             Body b(many);
-            QCOMPARE(b.doc.blockCount(), 100000);
+            QCOMPARE(b.doc.blockCount(), 10000);
         }
         {
             QString runs = QStringLiteral("<a:p>");
-            runs.reserve(100001 * 20);
-            for (int i = 0; i < 100001; ++i) runs += QStringLiteral("<a:r><a:t>x</a:t></a:r>");
+            runs.reserve(20001 * 20);
+            for (int i = 0; i < 20001; ++i) runs += QStringLiteral("<a:r><a:t>x</a:t></a:r>");
             runs += QStringLiteral("</a:p>");
             Body b(runs);
             QCOMPARE(b.doc.blockCount(), 1);
-            QCOMPARE(b.text().size(), 100000);
+            QCOMPARE(b.text().size(), 20000);
         }
     }
 };

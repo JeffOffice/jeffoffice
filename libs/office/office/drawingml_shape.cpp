@@ -287,7 +287,7 @@ private:
         sc.ctx = &m_ctx;
         sc.groupFill = m_groupFill;
         sc.frame = frame;
-        sc.images = &m_images;
+        sc.images = m_ctx.images ? m_ctx.images : &m_images;
         return sc;
     }
 
@@ -321,7 +321,13 @@ ItemPtr Reader::shape(const QDomElement &e, const QVector<QDomElement> &inherits
     const QString kind = e.localName();
     const bool isShape = kind == QLatin1String("sp") || kind == QLatin1String("wsp"), isGroup = kind == QLatin1String("grpSp") || kind == QLatin1String("wgp");
     const bool isConnector = kind == QLatin1String("cxnSp"), isPicture = kind == QLatin1String("pic");
-    if (!(isShape || isGroup || isConnector || isPicture) || m_count >= kMaxShapes) return nullptr;
+    if (!(isShape || isGroup || isConnector || isPicture)) return nullptr;
+    if (m_count >= kMaxShapes) {
+        if (m_ctx.budget) m_ctx.budget->ranOut[DrawingBudget::Objects] = true;
+        return nullptr;
+    }
+    // Every object of the import is one of its budget's, those of a group and the group itself.
+    if (m_ctx.budget && !m_ctx.budget->take(DrawingBudget::Objects)) return nullptr;
     ++m_count;
     if (isGroup) return group(e);
     if (isPicture) return pic(e, inheritsFrom);
@@ -539,6 +545,8 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     }
 
     if (!connector && plainRect && (textBox || !ph.isNull() || hasText(body))) {
+        // A text box is its text: past the import's stories it is left out.
+        if (m_ctx.newStory && m_ctx.budget && !m_ctx.budget->take(DrawingBudget::Stories)) return nullptr;
         auto t = std::make_shared<TextItem>();
         decorate(*t, cNvPr, frame, properties, style);
         t->hyphenate = false;
@@ -621,7 +629,8 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
             parts.push_back(s);
         }
     }
-    if (!body.isNull() && (hasText(body) || !ph.isNull() || textBox) && m_ctx.newStory) {
+    // A shape past the import's stories stays, without its text.
+    if (!body.isNull() && (hasText(body) || !ph.isNull() || textBox) && m_ctx.newStory && (!m_ctx.budget || m_ctx.budget->take(DrawingBudget::Stories))) {
         auto *first = static_cast<ShapeItem *>(parts[0].get());
         first->storyId = m_ctx.newStory();
         fillText(body, first->storyId, style);
@@ -776,11 +785,20 @@ void Reader::media(const QDomElement &nvPr, PictureItem &p)
             if (p.mediaLink.isEmpty()) p.mediaLink = r.target;
             continue;
         }
+        // The same movie on another picture is the one already kept.
+        QHash<QString, QString> &kept = m_ctx.images ? *m_ctx.images : m_images;
+        const QString key = QStringLiteral("media:") + r.target.toLower();
+        if (const auto known = kept.constFind(key); known != kept.constEnd()) {
+            p.mediaId = *known;
+            p.mediaLink.clear();
+            break;
+        }
         const QByteArray bytes = m_ctx.package->part(r.target);
         if (bytes.isEmpty() || !m_ctx.addMedia) continue;
         const qsizetype dot = r.target.lastIndexOf(QLatin1Char('.'));
         const QString extension = dot > r.target.lastIndexOf(QLatin1Char('/')) ? r.target.mid(dot + 1).toLower() : QString();
         p.mediaId = m_ctx.addMedia(bytes, m_ctx.package->contentType(r.target), extension);
+        if (!p.mediaId.isEmpty()) kept.insert(key, p.mediaId);
         p.mediaLink.clear();
         break;
     }
