@@ -1,6 +1,6 @@
 #include "app/editor.h"
 #include "app/settings.h"
-#include "app/appfuncs.h"
+#include "app/spelling.h"
 
 #include <algorithm>
 
@@ -1490,11 +1490,10 @@ void Editor::paste(bool textOnly)
 }
 
 // ---------- Change Template ----------
-void Editor::applyTemplate(std::unique_ptr<Document> design, ChangeReport *report)
+void Editor::replaceDocument(std::unique_ptr<Document> made, const QString &what)
 {
     endTextEdit();
-    std::unique_ptr<Document> made = applyDesign(*m_doc, std::move(design), report);
-    beginChange(tr("Change Template"));
+    beginChange(what);
     m_doc->images = std::move(made->images);
     m_doc->fromJson(made->toJson());
     m_cache.clear();
