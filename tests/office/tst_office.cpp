@@ -7,6 +7,7 @@
 #include "io/zip.h"
 
 #include <QFile>
+#include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QtEndian>
@@ -487,6 +488,30 @@ private Q_SLOTS:
         QCOMPARE(own[0].target, QStringLiteral("https://example.com/no-mode"));
         QCOMPARE(own[1].id, QStringLiteral("rId6"));
         QCOMPARE(own[1].target, QStringLiteral("/ppt/presentation.xml"));   // the first rId6
+    }
+
+    void packageSurvivesRandomDamage()
+    {
+        // Entries are stored, so the damage reaches the XML parsers (and not
+        // just the checksums).
+        const QByteArray good = zipOf(miniEntries(), false);
+        QRandomGenerator gen(2024);
+        int accepted = 0;
+        for (int i = 0; i < 500; ++i) {
+            QByteArray bad = good;
+            for (int k = 0, n = 1 + int(gen.bounded(3)); k < n; ++k) bad[int(gen.bounded(quint32(bad.size())))] = char(gen.bounded(256u));
+            Package p;
+            if (!p.read(bad)) continue;
+            ++accepted;
+            for (const QString &name : p.partNames()) {
+                p.part(name);
+                p.contentType(name);
+                p.relationships(name);
+            }
+            p.relationships(QStringLiteral("/"));
+            p.mainPart();
+        }
+        QVERIFY(accepted > 0);   // damage inside a part's data is no damage to the package
     }
 
     void packageReadReplacesOldContents()
@@ -1341,6 +1366,24 @@ private Q_SLOTS:
         QCOMPARE(hexOf(t.colors[Theme::Accent2]), QStringLiteral("FF0000"));
         QCOMPARE(hexOf(t.colors[Theme::Accent3]), QStringLiteral("404040"));
         QCOMPARE(hexOf(t.colors[Theme::Accent4]), QStringLiteral("FFC000"));   // the rest as before
+    }
+
+    void themeAndColorsSurviveRandomDamage()
+    {
+        const QByteArray good = handWrittenTheme();
+        const QByteArray color = QStringLiteral("<a:solidFill xmlns:a=\"%1\"><a:schemeClr val=\"accent1\"><a:lumMod val=\"60000\"/><a:hueOff val=\"3600000\"/>"
+                                                "<a:alpha val=\"50000\"/><a:tint val=\"40000\"/></a:schemeClr></a:solidFill>").arg(ns::A).toUtf8();
+        QRandomGenerator gen(77);
+        for (int i = 0; i < 500; ++i) {
+            for (const QByteArray *source : {&good, &color}) {
+                QByteArray bad = *source;
+                for (int k = 0, n = 1 + int(gen.bounded(3)); k < n; ++k) bad[int(gen.bounded(quint32(bad.size())))] = char(gen.bounded(256u));
+                Theme t;
+                readTheme(bad, &t);
+                QDomDocument doc;
+                if (parseXml(bad, &doc)) readColor(doc.documentElement(), colorTestTheme(), ColorMap(), QColor(Qt::red));
+            }
+        }
     }
 
     void writerRoundTrip()
