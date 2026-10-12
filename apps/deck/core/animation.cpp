@@ -286,6 +286,8 @@ Behavior behaviorOf(const QDomElement &e, double base)
     } else if (name == QLatin1String("animMotion")) {
         b.kind = Behavior::Kind::Motion;
         b.path = pathOf(attr(e, QStringLiteral("path")));
+        b.origin = attr(e, QStringLiteral("origin"));
+        b.pathEditMode = attr(e, QStringLiteral("pathEditMode"));
         if (b.path.isEmpty())
             if (const QDomElement by = pChild(e, "by"); !by.isNull()) {
                 const QPointF to = scaleOf(by, QPointF());
@@ -403,7 +405,10 @@ void readSequence(const QDomElement &seq, Timeline &tl)
             for (const QDomElement &cond : pChildren(pChild(stepNode, "stCondLst"), "cond"))
                 if (attr(cond, QStringLiteral("evt")) == QLatin1String("onBegin")) step.automatic = true;
             collectEffects(pChild(stepNode, "childTnLst"), 0, step.effects);
-            if (!step.effects.isEmpty()) tl.steps.push_back(step);
+            if (step.effects.isEmpty()) continue;
+            // With nothing before it, an effect that goes with or after the previous one goes by itself.
+            if (tl.steps.isEmpty() && step.effects.first().start != EffectStart::OnClick) step.automatic = true;
+            tl.steps.push_back(step);
         }
     } else if (nodeType == QLatin1String("interactiveSeq")) {
         Trigger trigger;

@@ -87,6 +87,7 @@ struct Behavior {
     QString filter;                  // Effect: "fade", "wipe(left)", ...
     bool entering = true;            // Effect: the shape comes in (false: it goes out)
     QPainterPath path;               // Motion: fractions of the slide, from where the shape is
+    QString origin, pathEditMode;    // Motion: as the file says ("layout", "relative", "fixed"); the path is played from where the shape is either way
     QPointF scaleFrom{1, 1}, scaleTo{1, 1};   // Scale: 1 is the size it has
     double rotateFrom = 0, rotateTo = 0;      // Rotate: degrees clockwise
     QString command;                 // Command
