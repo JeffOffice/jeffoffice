@@ -1963,7 +1963,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // Symbol bullet (as .pub lists have) is taller than most text.
             const QString mfam = bfont.isEmpty() ? requestedFamily(B->markerFont) : bfont;
             const double known = knownMetrics(mfam, B->markerFont.weight() >= QFont::DemiBold).line;
-            markerSingle = B->markerFont.pointSizeF() / fontPointFactor() * (env.slideLines ? 1.2 : known > 0 ? known : lineEmOf(B->markerFont, mfam));
+            // (A slide's bullet doesn't: its line is the text's, however big the bullet is drawn.)
+            markerSingle = env.slideLines ? 0.0 : B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
         }
 
         // Drop cap metrics: cap height spans dropLines lines.

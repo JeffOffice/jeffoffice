@@ -2378,6 +2378,28 @@ private Q_SLOTS:
             QVERIFY2(lines[0].baseline > 1.5 * 1.2 * 20 * 0.7, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].baseline)));
             QCOMPARE(lines[0].below, 0.0);
         }
+        // A bullet drawn bigger than its text (150 percent) leaves its line the text's.
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        lf.setProperty(tp::BulletSize, 30.0);
+        QTextCharFormat cf;
+        cf.setFontPointSize(20);
+        c.insertText(QStringLiteral("One"), cf);
+        c.createList(lf);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Two"), cf);
+        FrameSpec fs;
+        fs.size = QSizeF(300, 300);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        LayoutEnv env;
+        env.slideLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {fs}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(int(lines.size()), 2);
+        QVERIFY2(std::abs(lines[0].rect.height() - 1.2 * 20) < 0.01, qPrintable(QString::number(lines[0].rect.height())));
     }
 
     // Text the presentation program shrank to fit keeps the size and line spacing it was given (a:normAutofit's fontScale and

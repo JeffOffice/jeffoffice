@@ -89,9 +89,9 @@ int main(int argc, char **argv)
     initCore();
     const QStringList args = app.arguments();
     QTextStream out(stdout);
-    if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) || (args[1] == "steps" && args.size() < 5) ||
-        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps")) {
-        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280]\n";
+    if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) || (args[1] == "steps" && args.size() < 5) || (args[1] == "lines" && args.size() < 4) ||
+        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines")) {
+        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide>\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -169,6 +169,28 @@ int main(int argc, char **argv)
                 << (unreadFrames(p) ? QStringLiteral("\t%1 unread").arg(unreadFrames(p)) : QString())
                 << (deck::notesText(*doc, p).isEmpty() ? QString() : QStringLiteral("\tnotes")) << "\n";
         }
+        return 0;
+    }
+
+    // Each text box of a slide as laid out: its frame, then each line's place, baseline, size, and text.
+    if (cmd == "lines") {
+        const int slide = args[3].toInt() - 1;
+        if (slide < 0 || slide >= doc->pages.size()) {
+            out << "no slide " << args[3] << "\n";
+            return 1;
+        }
+        LayoutCache cache;
+        walkItems(doc->pages[slide]->items, [&](const ItemPtr &it) {
+            if (it->type() != ItemType::Text) return;
+            const auto &t = static_cast<const TextItem &>(*it);
+            const auto fl = cache.textFrame(*doc, t, slide + 1, RenderOptions());
+            out << "box\t" << t.name << "\t" << t.rect.x() << "," << t.rect.y() << " " << t.rect.width() << "x" << t.rect.height() << "\tfit " << fl.fitScale
+                << (fl.layout && fl.layout->overflow() ? "\toverflow" : "") << "\n";
+            if (!fl.layout) return;
+            for (const auto &l : fl.layout->lineInfo(0))
+                out << "  y " << l.rect.top() << "\th " << l.rect.height() << "\tbase " << l.baseline << "\tbelow " << l.below << "\t" << l.pointSize << " pt " << l.family
+                    << "\t" << l.text.left(40) << "\n";
+        });
         return 0;
     }
 
