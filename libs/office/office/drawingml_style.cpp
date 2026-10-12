@@ -4,6 +4,7 @@
 
 #include <QBuffer>
 #include <QImage>
+#include <QImageReader>
 #include <QtMath>
 #include <algorithm>
 #include <cmath>
@@ -15,6 +16,13 @@ namespace {
 
 constexpr int kMaxStops = 256;
 constexpr double kMaxLineWidth = 1584;   // points: the standard's 20,116,800 EMU
+// A blur, glow, or soft edge of more than 200 points is drawn as one of 200: the
+// reference presentations' largest are 20, 10, and 7, and one of 1,584 points
+// on a small shape makes a picture of gigabytes that takes most of a minute.
+constexpr double kMaxEffectRadius = 200;
+// A picture that a duotone recolors is decoded and drawn again as a copy; one of
+// more pixels than this is kept as it is (the reference presentations' largest has 9 million).
+constexpr qint64 kMaxDuotonePixels = 64LL * 1024 * 1024;
 
 ColorRef rgbRef(const QColor &c)
 {
@@ -294,7 +302,7 @@ void applyEffects(const QDomElement &list, const StyleContext &sc, Effects *fx)
         fx->shadow.inner = outer.isNull();
         fx->shadow.color = c.isValid() ? rgbRef(c) : ColorRef::rgb(Qt::black);
         fx->shadow.transparency = c.isValid() ? transparencyOf(c) : 0.0;
-        fx->shadow.blur = std::clamp(parseLength(attr(shadow, QStringLiteral("blurRad")), 0), 0.0, 1584.0);
+        fx->shadow.blur = std::clamp(parseLength(attr(shadow, QStringLiteral("blurRad")), 0), 0.0, kMaxEffectRadius);
         fx->shadow.distance = std::clamp(parseLength(attr(shadow, QStringLiteral("dist")), 0), 0.0, 1584.0);
         fx->shadow.angle = std::fmod(parseAngle(attr(shadow, QStringLiteral("dir")), 0), 360.0);
     }
@@ -302,14 +310,14 @@ void applyEffects(const QDomElement &list, const StyleContext &sc, Effects *fx)
     if (!glow.isNull()) {
         const QColor c = colorIn(glow, sc);
         fx->glow.on = true;
-        fx->glow.size = std::clamp(parseLength(attr(glow, QStringLiteral("rad")), 0), 0.0, 1584.0);
+        fx->glow.size = std::clamp(parseLength(attr(glow, QStringLiteral("rad")), 0), 0.0, kMaxEffectRadius);
         if (c.isValid()) {
             fx->glow.color = rgbRef(c);
             fx->glow.transparency = transparencyOf(c);
         }
     }
     const QDomElement soft = childNamed(list, "softEdge");
-    if (!soft.isNull()) fx->softEdge = std::clamp(parseLength(attr(soft, QStringLiteral("rad")), 0), 0.0, 1584.0);
+    if (!soft.isNull()) fx->softEdge = std::clamp(parseLength(attr(soft, QStringLiteral("rad")), 0), 0.0, kMaxEffectRadius);
 }
 
 } // namespace
@@ -360,7 +368,10 @@ QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QCol
             // a:duotone: the picture's lightness runs from the first color
             // (black) to the second (white).
             QImage img;
-            if (img.loadFromData(bytes) && img.width() * qint64(img.height()) <= 64LL * 1024 * 1024) {
+            QBuffer in(&bytes);
+            QImageReader reader(&in);
+            const QSize pixels = reader.size();
+            if (pixels.isValid() && pixels.width() * qint64(pixels.height()) <= kMaxDuotonePixels && reader.read(&img)) {
                 img = img.convertToFormat(QImage::Format_ARGB32);
                 const QColor dark = duotone[0], light = duotone[1];
                 for (int y = 0; y < img.height(); ++y) {
