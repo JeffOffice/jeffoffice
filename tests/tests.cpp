@@ -6283,6 +6283,12 @@ private Q_SLOTS:
         QCOMPARE(jp::symbolToUnicode(QStringLiteral("Wingdings"), 0xF0E8), QStringLiteral("\u2794"));   // the arrow
         QCOMPARE(jp::symbolToUnicode(QStringLiteral("Symbol"), 0xB7), QStringLiteral("\u2022"));
         QVERIFY(jp::symbolToUnicode(QStringLiteral("Arial"), 0x41).isEmpty());
+        // The second and third sets, whose bullets presentation themes use.
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Wingdings 2"), 0xF097), QStringLiteral("\u25CF"));   // a round bullet
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Wingdings 2"), 0xF0A8), QStringLiteral("\u25A3"));   // a square in a square
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Wingdings 3"), 0xF075), QStringLiteral("\u25B6"));   // a triangle
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Wingdings 3"), 0x7D), QStringLiteral("\u25BA"));     // a narrow one
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("wingdings 3"), 0xF0B4), QStringLiteral("\u2B53"));   // a tag
         QString font;
         QCOMPARE(jp::unicodeToSymbol(QChar(0x2714), &font), 0xF0FCu);
         QCOMPARE(font, QStringLiteral("Wingdings"));
@@ -19242,6 +19248,106 @@ private Q_SLOTS:
             for (int i = 0; i < d1->pages.size(); ++i)
                 QVERIFY2(jp::Renderer::renderToImage(p1, i, 0.5) == jp::Renderer::renderToImage(p2, i, 0.5), qPrintable(QStringLiteral("page %1 differs").arg(i + 1)));
         }
+    }
+
+    // A compound file with a root and the given streams, named s0, s1, ...
+    static jp::cfb::File cfbWith(const QVector<QByteArray> &streams)
+    {
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries << root;
+        for (int i = 0; i < streams.size(); ++i) {
+            jp::cfb::Entry e;
+            e.name = QStringLiteral("s%1").arg(i);
+            e.data = streams[i];
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+        }
+        return f;
+    }
+
+    // A damaged compound file can't make the reader loop, run out of memory,
+    // or run out of stack: each chain is read once, the streams together stay
+    // near the file's size, and storages stop 32 deep.
+    void cfbDamageIsBounded()
+    {
+        auto put32 = [](QByteArray &b, qsizetype o, quint32 v) { qToLittleEndian(v, b.data() + o); };
+        auto get32 = [](const QByteArray &b, qsizetype o) { return qFromLittleEndian<quint32>(b.constData() + o); };
+        jp::cfb::File out;
+        QElapsedTimer t;
+        t.start();
+
+        // A DIFAT sector that names itself as the next one, and a count of
+        // four billion of them.
+        {
+            QByteArray b = jp::cfb::write(cfbWith({QByteArray(5000, 'a')}));
+            const quint32 self = quint32(b.size() / 512 - 1);
+            QByteArray extra(512, '\xFF');
+            put32(extra, 508, self);
+            b += extra;
+            put32(b, 68, self);
+            put32(b, 72, 0xFFFFFFFF);
+            QVERIFY(jp::cfb::read(b, &out));
+            QCOMPARE(out.stream(QStringLiteral("s0")), QByteArray(5000, 'a'));
+        }
+        // The one FAT sector listed 109 times, and a stream whose first sector
+        // leads back to itself, claiming 4 GB.
+        {
+            QByteArray b = jp::cfb::write(cfbWith({QByteArray(5000, 'b')}));
+            const quint32 fatSector = get32(b, 76);
+            for (int i = 0; i < 109; ++i) put32(b, 76 + i * 4, fatSector);
+            put32(b, 44, 109);
+            const qsizetype entry = (qsizetype(get32(b, 48)) + 1) * 512 + 128;   // the stream, after the root
+            const quint32 first = get32(b, entry + 116);
+            put32(b, (qsizetype(fatSector) + 1) * 512 + qsizetype(first) * 4, first);
+            put32(b, entry + 120, 0xFFFFFFFF);
+            QVERIFY(jp::cfb::read(b, &out));
+            QVERIFY(out.stream(QStringLiteral("s0")).size() <= b.size());
+        }
+        // Three hundred streams pointed at one long chain.
+        {
+            QVector<QByteArray> streams{QByteArray(100000, 'c')};
+            for (int i = 0; i < 300; ++i) streams << QByteArray();
+            QByteArray b = jp::cfb::write(cfbWith(streams));
+            const qsizetype dir = (qsizetype(get32(b, 48)) + 1) * 512;
+            const quint32 start = get32(b, dir + 128 + 116);
+            for (int i = 2; i <= 301; ++i) {
+                put32(b, dir + i * 128 + 116, start);
+                put32(b, dir + i * 128 + 120, 100000);
+            }
+            QVERIFY(jp::cfb::read(b, &out));
+            qint64 total = 0;
+            for (const QString &p : out.streamPaths()) total += out.stream(p).size();
+            QVERIFY2(total <= 2 * b.size() + (1 << 20), qPrintable(QString::number(total)));
+            QCOMPARE(out.stream(QStringLiteral("s0")), QByteArray(100000, 'c'));
+        }
+        // Storages nested 50,000 deep.
+        {
+            jp::cfb::File f = cfbWith({});
+            for (int i = 1; i <= 50000; ++i) {
+                jp::cfb::Entry e;
+                e.type = jp::cfb::Entry::Storage;
+                e.name = QStringLiteral("d");
+                f.entries[i - 1].children << i;
+                f.entries << e;
+            }
+            jp::cfb::Entry leaf;
+            leaf.name = QStringLiteral("x");
+            leaf.data = "deep";
+            f.entries.last().children << int(f.entries.size());
+            f.entries << leaf;
+            jp::cfb::Entry near;
+            near.name = QStringLiteral("y");
+            near.data = "near";
+            f.entries[1].children << int(f.entries.size());
+            f.entries << near;
+            QVERIFY(jp::cfb::read(jp::cfb::write(f), &out));
+            QCOMPARE(out.stream(QStringLiteral("d/y")), QByteArray("near"));
+            QVERIFY(out.entries.size() < 100);
+        }
+        QVERIFY(t.elapsed() < 20000);
     }
 
     // Selecting text shows its size in the ribbon's size box, and the number

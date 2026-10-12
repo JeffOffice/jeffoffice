@@ -89,22 +89,37 @@ struct Reader {
     QVector<Raw> raw;
     QVector<quint32> rootChain;   // the regular sectors holding the mini stream
     quint64 miniStreamSize = 0;
+    quint32 sectors = 0;           // in the file, after the header
+    // What all the streams read may add up to. In a sound file each sector
+    // belongs to one stream, so the streams together are no bigger than the
+    // file; a damaged one can point many streams at the same long chain.
+    mutable qint64 budget = 0;
 
-    QVector<quint32> chain(quint32 start, const QVector<quint32> &table) const
+    // The sectors from `start`, each at most once: a chain that runs back
+    // into itself (a damaged file) ends where it would repeat.
+    QVector<quint32> chain(quint32 start, const QVector<quint32> &table, quint32 limit) const
     {
         QVector<quint32> c;
-        quint32 cur = start;
-        while (cur < quint32(table.size()) && c.size() <= table.size()) {
+        QVector<bool> seen(qsizetype(std::min<quint32>(limit, quint32(table.size()))), false);
+        for (quint32 cur = start; cur < quint32(seen.size()) && !seen[cur]; cur = table[cur]) {
+            seen[cur] = true;
             c << cur;
-            cur = table[cur];
         }
         return c;
     }
+    QVector<quint32> chain(quint32 start) const { return chain(start, fat, sectors); }
     QByteArray readChain(quint32 start) const
     {
         QByteArray r;
-        for (quint32 n : chain(start, fat)) r += sector(n);
+        for (quint32 n : chain(start)) r += sector(n);
         return r;
+    }
+    // Takes `bytes` from the budget; false once it's spent.
+    bool spend(qint64 bytes) const
+    {
+        if (bytes > budget) return false;
+        budget -= bytes;
+        return true;
     }
 
     bool open(const QByteArray &header, qsizetype sectorCount, QString *error)
@@ -121,17 +136,25 @@ struct Reader {
         cutoff = u32(header, 56);
         const quint32 firstMiniFat = u32(header, 60), firstDifat = u32(header, 68), numDifat = u32(header, 72);
 
-        // DIFAT: 109 entries in the header, the rest in a chain of DIFAT sectors.
+        sectors = quint32(std::clamp<qsizetype>(sectorCount, 0, FREESECT - 1));
+        // DIFAT: 109 entries in the header, the rest in a chain of DIFAT
+        // sectors, each read once (a chain that points back is damaged).
         QVector<quint32> difat;
         for (int i = 0; i < 109; ++i) difat << u32(header, 76 + i * 4);
+        QVector<bool> used(sectors, false);
         quint32 d = firstDifat;
-        for (quint32 k = 0; k < numDifat && d < quint32(sectorCount); ++k) {
+        for (quint32 k = 0; k < numDifat && d < sectors && !used[d]; ++k) {
+            used[d] = true;
             const QByteArray s = sector(d);
             for (qsizetype i = 0; i < ss / 4 - 1; ++i) difat << u32(s, i * 4);
             d = u32(s, ss - 4);
         }
+        // The FAT's sectors, each once: listing one again would only repeat
+        // its entries.
+        used.fill(false);
         for (quint32 i = 0, n = 0; i < quint32(difat.size()) && n < numFat; ++i) {
-            if (difat[i] == FREESECT || difat[i] >= quint32(sectorCount)) continue;
+            if (difat[i] >= sectors || used[difat[i]]) continue;
+            used[difat[i]] = true;
             const QByteArray s = sector(difat[i]);
             for (qsizetype k = 0; k < ss / 4; ++k) fat << u32(s, k * 4);
             ++n;
@@ -142,7 +165,7 @@ struct Reader {
             const QByteArray mf = readChain(firstMiniFat);
             for (qsizetype k = 0; k + 4 <= mf.size(); k += 4) miniFat << u32(mf, k);
         }
-        rootChain = chain(u32(dir, 116), fat);
+        rootChain = chain(u32(dir, 116));
         miniStreamSize = u64(dir, 120);
         for (qsizetype o = 0; o + 128 <= dir.size(); o += 128) {
             Raw r;
@@ -171,17 +194,24 @@ struct Reader {
         if (r.size < cutoff) {
             QByteArray out;
             QHash<quint32, QByteArray> cache;
-            for (quint32 m : chain(r.start, miniFat)) {
+            for (quint32 m : chain(r.start, miniFat, quint32(miniFat.size()))) {
                 const quint64 at = quint64(m) * quint64(mss);
                 if (at + quint64(mss) > miniStreamSize) break;
                 const qsizetype k = qsizetype(at / quint64(ss));
                 if (k >= rootChain.size()) break;
                 if (!cache.contains(rootChain[k])) cache.insert(rootChain[k], sector(rootChain[k]));
+                if (!spend(mss)) return {};
                 out += cache.value(rootChain[k]).mid(qsizetype(at % quint64(ss)), mss);
             }
             return out.left(qsizetype(r.size));
         }
-        return readChain(r.start).left(qsizetype(r.size));
+        QByteArray out;
+        for (quint32 n : chain(r.start)) {
+            if (quint64(out.size()) >= r.size) break;
+            if (!spend(ss)) return {};
+            out += sector(n);
+        }
+        return out.left(qsizetype(std::min<quint64>(r.size, quint64(out.size()))));
     }
 
     // The entries under a storage, in order. Each entry is visited once, so a
@@ -203,16 +233,21 @@ struct Reader {
 
 } // namespace
 
+// Storages inside storages: a presentation or publication nests one or two
+// deep; a damaged file can chain thousands.
+constexpr int kMaxDepth = 32;
+
 bool read(const QByteArray &bytes, File *out, QString *error)
 {
     Reader rd;
+    rd.budget = 2 * qint64(bytes.size()) + (1 << 20);
     const qsizetype ss0 = bytes.size() >= 32 ? qsizetype(1) << std::clamp(int(u16(bytes, 30)), 9, 12) : 512;
     rd.sector = [&bytes, ss0](quint32 n) { return bytes.mid((qsizetype(n) + 1) * ss0, ss0); };
     if (!rd.open(bytes.left(512), (bytes.size() - ss0 + ss0 - 1) / ss0, error)) return false;
     File f;
     QVector<int> map(rd.raw.size(), -1);
     QVector<bool> seen(rd.raw.size(), false);
-    std::function<int(quint32)> add = [&](quint32 n) -> int {
+    std::function<int(quint32, int)> add = [&](quint32 n, int depth) -> int {
         const Reader::Raw &r = rd.raw[n];
         Entry e;
         e.type = Entry::Type(r.type);
@@ -225,16 +260,16 @@ bool read(const QByteArray &bytes, File *out, QString *error)
         const int idx = int(f.entries.size());
         map[n] = idx;
         f.entries << e;
-        if (r.type == Entry::Storage || r.type == Entry::Root) {
+        if ((r.type == Entry::Storage || r.type == Entry::Root) && depth < kMaxDepth) {
             for (quint32 k : rd.children(n, seen)) {
                 if (map[k] >= 0 || (rd.raw[k].type != Entry::Storage && rd.raw[k].type != Entry::Stream)) continue;
-                const int ci = add(k);
+                const int ci = add(k, depth + 1);
                 f.entries[idx].children << ci;
             }
         }
         return idx;
     };
-    add(0);
+    add(0, 0);
     *out = f;
     return true;
 }
@@ -254,6 +289,7 @@ QByteArray readStream(const QString &filePath, const QString &streamPath, QStrin
         return file.read(ss);
     };
     if (!rd.open(header, (file.size() - ss + ss - 1) / ss, error)) return {};
+    rd.budget = 2 * file.size() + (1 << 20);
     QVector<bool> seen(rd.raw.size(), false);
     quint32 cur = 0;
     for (const QString &part : streamPath.split(QLatin1Char('/'), Qt::SkipEmptyParts)) {
