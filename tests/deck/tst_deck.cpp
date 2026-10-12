@@ -1890,6 +1890,26 @@ private Q_SLOTS:
     }
 
     // The theme's colors and fonts are the presentation's, and its part is kept to write back.
+    // A transition the file wraps for newer readers names a prefix in
+    // Requires; the kept copy declares that prefix where Requires is, or the
+    // presentation program refuses the saved file.
+    void importKeepsCompatibilityPrefixes()
+    {
+        Parts p = samplePptx();
+        const QString mc = QStringLiteral("http://schemas.openxmlformats.org/markup-compatibility/2006");
+        p.data["/ppt/slides/slide1.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"),
+            slideXml(QStringLiteral("xmlns:mc=\"%1\" xmlns:x14=\"urn:example:x14\"").arg(mc), QString(), QString(),
+                     QStringLiteral("<mc:AlternateContent><mc:Choice Requires=\"x14\"><p:transition spd=\"slow\" x14:dur=\"2000\"/></mc:Choice>"
+                                    "<mc:Fallback><p:transition spd=\"slow\"/></mc:Fallback></mc:AlternateContent>"))
+                .toUtf8()};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QString kept = d->pages[0]->props.value(QStringLiteral("transitionXml")).toString();
+        QVERIFY2(QRegularExpression(QStringLiteral("<mc:Choice[^>]*xmlns:x14=\"urn:example:x14\"[^>]*Requires=\"x14\"|<mc:Choice[^>]*Requires=\"x14\"[^>]*xmlns:x14=\"urn:example:x14\""))
+                     .match(kept).hasMatch(), qPrintable(kept));
+    }
+
     void importKeepsTheme()
     {
         const Parts p = samplePptx();

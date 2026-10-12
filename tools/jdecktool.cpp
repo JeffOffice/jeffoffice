@@ -1,11 +1,13 @@
 // Command-line helper for testing JeffDeck's reading of presentation files.
 //   jdecktool render <file.pptx> <outdir> [width=1280]   each slide to slide-001.png ...
 //   jdecktool info <file.pptx>                           the masters, layouts, and slides found
+//   jdecktool save <file> <out.pptx>                     read it and save it again, listing what was left out
 
 #include "app/deckinfo.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "io/pptxexport.h"
 #include "io/pptximport.h"
 #include "render/renderer.h"
 
@@ -56,8 +58,8 @@ int main(int argc, char **argv)
     initCore();
     const QStringList args = app.arguments();
     QTextStream out(stdout);
-    if (args.size() < 3 || (args[1] == "render" && args.size() < 4) || (args[1] != "render" && args[1] != "info")) {
-        out << "usage: jdecktool render <file.pptx> <outdir> [width=1280] | info <file.pptx>\n";
+    if (args.size() < 3 || ((args[1] == "render" || args[1] == "save") && args.size() < 4) || (args[1] != "render" && args[1] != "info" && args[1] != "save")) {
+        out << "usage: jdecktool render <file.pptx> <outdir> [width=1280] | info <file.pptx> | save <file> <out.pptx>\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -71,6 +73,15 @@ int main(int argc, char **argv)
     }
     out << "opened\t" << doc->pages.size() << " slides\t" << deck::layouts(*doc).size() << " layouts\t" << timer.elapsed() << " ms\n";
     if (!notes.isEmpty()) out << "notes:\n" << notes << "\n";
+
+    if (cmd == "save") {
+        QString error;
+        QStringList skipped;
+        const bool ok = deck::savePresentationFile(*doc, args[3], &error, &skipped);
+        for (const QString &s : skipped) out << "left out\t" << s << "\n";
+        out << (ok ? "saved\t" + args[3] : "cannot save: " + error) << "\t" << timer.elapsed() << " ms\n";
+        return ok ? 0 : 1;
+    }
 
     if (cmd == "info") {
         out << "size\t" << doc->pageSize().width() << " x " << doc->pageSize().height() << " pt\t" << doc->setup.sizeName << "\n";

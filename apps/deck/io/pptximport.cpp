@@ -134,9 +134,26 @@ QString escaped(const QString &text, bool attribute)
 
 QString qualified(const QString &prefix, const QString &local) { return prefix.isEmpty() ? local : prefix + QLatin1Char(':') + local; }
 
+// Every prefix the element and what is in it use, with its namespace.
+void collectPrefixes(const QDomElement &e, QHash<QString, QString> *known, int depth = 0)
+{
+    if (depth > 256) return;
+    if (!e.prefix().isEmpty()) known->insert(e.prefix(), e.namespaceURI());
+    const QDomNamedNodeMap attrs = e.attributes();
+    for (int i = 0; i < attrs.length(); ++i) {
+        const QDomAttr a = attrs.item(i).toAttr();
+        if (!a.prefix().isEmpty()) known->insert(a.prefix(), a.namespaceURI());
+    }
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collectPrefixes(c, known, depth + 1);
+}
+
 // Writes the element and what is in it, declaring each namespace where it is
-// first used (`scope`: the prefixes declared so far, "" the default).
-void writeElement(const QDomElement &e, QString *out, QHash<QString, QString> *scope)
+// first used (`scope`: the prefixes declared so far, "" the default). The
+// prefixes markup compatibility names in attribute values (mc:Choice's
+// Requires, mc:Ignorable) are declared on that element too, from `known`:
+// readers look them up there, and a file whose Requires names an undeclared
+// prefix is refused whole.
+void writeElement(const QDomElement &e, QString *out, QHash<QString, QString> *scope, const QHash<QString, QString> &known)
 {
     QVector<QPair<QString, QString>> declared;
     auto need = [&](const QString &prefix, const QString &uri) {
@@ -152,6 +169,12 @@ void writeElement(const QDomElement &e, QString *out, QHash<QString, QString> *s
     for (int i = 0; i < attrs.length(); ++i) {
         const QDomAttr a = attrs.item(i).toAttr();
         if (!a.prefix().isEmpty()) need(a.prefix(), a.namespaceURI());
+        const QString name = a.localName();
+        if (name == QLatin1String("Requires") || name == QLatin1String("Ignorable") || name == QLatin1String("ProcessContent") || name == QLatin1String("MustUnderstand"))
+            for (const QString &listed : a.value().split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                const QString prefix = listed.section(QLatin1Char(':'), 0, 0);   // ProcessContent names prefix:element
+                if (known.contains(prefix)) need(prefix, known.value(prefix));
+            }
     }
     *out += QLatin1Char('<') + qualified(e.prefix(), e.localName());
     struct Saved {
@@ -173,7 +196,7 @@ void writeElement(const QDomElement &e, QString *out, QHash<QString, QString> *s
     } else {
         *out += QLatin1Char('>');
         for (QDomNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
-            if (n.isElement()) writeElement(n.toElement(), out, scope);
+            if (n.isElement()) writeElement(n.toElement(), out, scope, known);
             else if (n.isCharacterData() && !n.isComment()) *out += escaped(n.toCharacterData().data(), false);
         }
         *out += QLatin1String("</") + qualified(e.prefix(), e.localName()) + QLatin1Char('>');
@@ -190,8 +213,9 @@ void writeElement(const QDomElement &e, QString *out, QHash<QString, QString> *s
 QString standaloneXml(const QDomElement &e)
 {
     QString out;
-    QHash<QString, QString> scope;
-    writeElement(e, &out, &scope);
+    QHash<QString, QString> scope, known;
+    collectPrefixes(e, &known);
+    writeElement(e, &out, &scope, known);
     return out;
 }
 
