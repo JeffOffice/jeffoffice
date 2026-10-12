@@ -32,6 +32,11 @@ appdir() {
   install -Dm644 "$src/README.md" "$dir/usr/share/doc/jeffoffice/README.md"
   # PDFium's license texts and those of the libraries built into it.
   cp "$src/third_party/pdfium/licenses/"* "$dir/usr/share/doc/jeffoffice/pdfium/"
+  # FFmpeg's notice and license go with JeffDeck, the only app that carries FFmpeg.
+  case " $* " in *" JeffDeck "*)
+    mkdir -p "$dir/usr/share/doc/jeffoffice/ffmpeg"
+    cp "$src/third_party/ffmpeg/licenses/"* "$dir/usr/share/doc/jeffoffice/ffmpeg/" ;;
+  esac
   for name in "$@"; do
     local lower
     lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
@@ -97,6 +102,9 @@ ln -s /opt/jeffoffice/bin/JeffDeck "$deb/usr/bin/jeffdeck"
 size=$(du -sk "$deb" | cut -f1)
 # The suite's package replaces JeffPub's own (jeffpub, through 0.6.11), and
 # that one's before it (jeffpub79, through 0.5.0).
+# JeffDeck's movies and sounds: Qt Multimedia needs PulseAudio's client library (libpulse0), and its FFmpeg plugin the X11 client
+# libraries it links (libxext6, libxrandr2, libxrender1) and libdrm2, which linuxdeploy leaves to the system (as it does the other X11
+# and graphics libraries above). FFmpeg's own libraries, Qt's Quick and Qml (the plugin links them), and the rest are bundled.
 cat > "$deb/DEBIAN/control" <<CONTROL
 Package: jeffoffice
 Version: $ver
@@ -104,7 +112,7 @@ Section: editors
 Priority: optional
 Architecture: $arch
 Installed-Size: $size
-Depends: libc6 (>= 2.35), libstdc++6, libgl1, libegl1, libfontconfig1, libfreetype6, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1, libglib2.0-0 | libglib2.0-0t64, libpulse0
+Depends: libc6 (>= 2.35), libstdc++6, libgl1, libegl1, libfontconfig1, libfreetype6, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1, libglib2.0-0 | libglib2.0-0t64, libpulse0, libxext6, libxrandr2, libxrender1, libdrm2
 Conflicts: jeffpub, jeffpub79
 Replaces: jeffpub, jeffpub79
 Provides: jeffpub, jeffpub79
