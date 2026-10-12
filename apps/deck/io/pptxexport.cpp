@@ -1,6 +1,7 @@
 #include "io/pptxexport.h"
 
 #include "core/deck.h"
+#include "core/sections.h"
 #include "office/chart.h"
 #include "office/drawingml_table.h"
 #include "office/drawingml_write.h"
@@ -1110,6 +1111,27 @@ void Exporter::writeProperties()
     if (!m_thumbnail.isEmpty()) m_pkg.addPart(QStringLiteral("/docProps/thumbnail.jpeg"), m_thumbnail, QStringLiteral("image/jpeg"));
 }
 
+// The sections, as the extension that lists each one's slides by their numbers in the slide list; nothing for a presentation without sections.
+QString sectionListXml(const Document &doc)
+{
+    const QVector<Section> sections = sectionsOf(doc);
+    if (sections.isEmpty()) return QString();
+    static const QRegularExpression guid(QStringLiteral("^\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}$"));
+    QString xml = QStringLiteral("<p:extLst><p:ext uri=\"{521415D9-36F7-43E2-AB2F-B90AF26B5E84}\"><p14:sectionLst xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\">");
+    int slide = 0;
+    for (const Section &s : sections) {
+        xml += QStringLiteral("<p14:section name=\"%1\" id=\"%2\">").arg(esc(s.name), guid.match(s.id).hasMatch() ? s.id : newSectionId());
+        if (s.count == 0) xml += QStringLiteral("<p14:sldIdLst/>");
+        else {
+            xml += QStringLiteral("<p14:sldIdLst>");
+            for (int i = 0; i < s.count; ++i) xml += QStringLiteral("<p14:sldId id=\"%1\"/>").arg(kFirstSlideId + slide++);
+            xml += QStringLiteral("</p14:sldIdLst>");
+        }
+        xml += QStringLiteral("</p14:section>");
+    }
+    return xml + QStringLiteral("</p14:sectionLst></p:ext></p:extLst>");
+}
+
 void Exporter::writePresentation()
 {
     const QSizeF size = m_doc.pageSize();
@@ -1133,7 +1155,7 @@ void Exporter::writePresentation()
         xml += QStringLiteral("<a:lvl%1pPr marL=\"%2\" algn=\"l\" defTabSz=\"914400\" rtl=\"0\" eaLnBrk=\"1\" latinLnBrk=\"0\" hangingPunct=\"1\"><a:defRPr sz=\"1800\" kern=\"1200\">"
                               "<a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/><a:ea typeface=\"+mn-ea\"/><a:cs typeface=\"+mn-cs\"/></a:defRPr></a:lvl%1pPr>")
                    .arg(i + 1).arg(457200 * i);
-    xml += QStringLiteral("</p:defaultTextStyle></p:presentation>");
+    xml += QStringLiteral("</p:defaultTextStyle>") + sectionListXml(m_doc) + QStringLiteral("</p:presentation>");
     const char *type_ = m_kind == PresentationKind::Template ? "template.main+xml" : m_kind == PresentationKind::Show ? "slideshow.main+xml" : "presentation.main+xml";
     add(kPresentationPart, kTypeBase + QLatin1String(type_), xml);
 }

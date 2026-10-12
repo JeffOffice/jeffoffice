@@ -5678,6 +5678,102 @@ private Q_SLOTS:
         QCOMPARE(deck::kindOfFileName(QStringLiteral("/tmp/a")), deck::PresentationKind::Presentation);
     }
 
+    // Sections are written as the extension that lists each section's slides
+    // by the numbers the slide list gives them, and read back the same (an
+    // empty section too); a presentation without sections writes no list. A
+    // file's slides that no section lists join the section before them, or
+    // the first.
+    void sectionsAreWrittenAndReadBack()
+    {
+        const QString ext = QStringLiteral("{521415D9-36F7-43E2-AB2F-B90AF26B5E84}");
+        const QString p14 = QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main");
+        auto d = lettered(5);
+        deck::addSection(*d, 2, QStringLiteral("Plan & Goals"));
+        deck::addSection(*d, 4, QStringLiteral("Budget"));
+        deck::addSection(*d, 4, QStringLiteral("Last"));   // leaves Budget with no slides
+        QCOMPARE(sectionCounts(*d), (QList<int>{2, 2, 0, 1}));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QDomDocument dom;
+        const QDomElement root = rootOf(e.zip.value(QStringLiteral("ppt/presentation.xml")), &dom);
+        QStringList slideIds;
+        for (const QDomElement &s : office::children(office::child(root, office::ns::P, QStringLiteral("sldIdLst")), office::ns::P, QStringLiteral("sldId"))) slideIds << office::attr(s, QStringLiteral("id"));
+        QCOMPARE(int(slideIds.size()), 5);
+        // After the default text style, as the schema has it: the extension list is the last child.
+        QCOMPARE(root.lastChildElement().localName(), QStringLiteral("extLst"));
+        const QDomElement extension = office::child(office::child(root, office::ns::P, QStringLiteral("extLst")), office::ns::P, QStringLiteral("ext"));
+        QCOMPARE(extension.attribute(QStringLiteral("uri")), ext);
+        const QVector<QDomElement> written = office::children(office::child(extension, p14, QStringLiteral("sectionLst")), p14, QStringLiteral("section"));
+        QCOMPARE(int(written.size()), 4);
+        const QVector<deck::Section> sections = deck::sectionsOf(*d);
+        int next = 0;
+        for (int i = 0; i < written.size(); ++i) {
+            QCOMPARE(office::attr(written[i], QStringLiteral("name")), sections[i].name);
+            QCOMPARE(office::attr(written[i], QStringLiteral("id")), sections[i].id);
+            QStringList listed;
+            for (const QDomElement &s : office::children(office::child(written[i], p14, QStringLiteral("sldIdLst")), p14, QStringLiteral("sldId"))) listed << office::attr(s, QStringLiteral("id"));
+            QCOMPARE(listed, slideIds.mid(next, sections[i].count));
+            next += sections[i].count;
+        }
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 5);
+        QCOMPARE(sectionNames(*back), (QStringList{"Default Section", "Plan & Goals", "Budget", "Last"}));
+        QCOMPARE(sectionCounts(*back), (QList<int>{2, 2, 0, 1}));
+        for (int i = 0; i < 4; ++i) QCOMPARE(deck::sectionsOf(*back)[i].id, sections[i].id);
+        // Saved again, they are the same.
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
+        QCOMPARE(again.zip.value(QStringLiteral("ppt/presentation.xml")), e.zip.value(QStringLiteral("ppt/presentation.xml")));
+
+        // Without sections nothing is written.
+        auto plain = lettered(3);
+        Exported none;
+        QVERIFY2(unpack(deck::exportPresentation(*plain, &err), &none, &err), qPrintable(err));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("sectionLst")));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("extLst")));
+        auto plainBack = deck::importPresentation(deck::exportPresentation(*plain, &err), &err);
+        QVERIFY2(plainBack, qPrintable(err));
+        QVERIFY(!deck::hasSections(*plainBack));
+
+        // A file's own lists: ids the file doesn't have are passed over, a slide in none joins the section before it.
+        auto edited = [&](const QString &sections) {
+            QMap<QString, QByteArray> zip = e.zip;
+            QString xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/presentation.xml")));
+            const qsizetype from = xml.indexOf(QStringLiteral("<p:extLst>")), to = xml.indexOf(QStringLiteral("</p:extLst>")) + 11;
+            xml.replace(from, to - from, sections.isEmpty() ? QString() : QStringLiteral("<p:extLst><p:ext uri=\"%1\"><p14:sectionLst xmlns:p14=\"%2\">%3</p14:sectionLst></p:ext></p:extLst>").arg(ext, p14, sections));
+            zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
+            ZipWriter z;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+            return deck::importPresentation(z.finish(), &err);
+        };
+        auto section = [&](const QString &name, const QStringList &ids) {
+            QString list;
+            for (const QString &id : ids) list += QStringLiteral("<p14:sldId id=\"%1\"/>").arg(id);
+            return QStringLiteral("<p14:section name=\"%1\" id=\"{00000000-0000-4000-8000-00000000000%2}\"><p14:sldIdLst>%3</p14:sldIdLst></p14:section>").arg(name).arg(name.size()).arg(list);
+        };
+        auto odd = edited(section(QStringLiteral("Opening"), {slideIds[0], QStringLiteral("999")}) + section(QStringLiteral("Middle"), {slideIds[2], slideIds[3]})
+                          + section(QStringLiteral("Closing"), {slideIds[4]}) + section(QStringLiteral("Epilogue"), {}));
+        QVERIFY2(odd, qPrintable(err));
+        QCOMPARE(sectionNames(*odd), (QStringList{"Opening", "Middle", "Closing", "Epilogue"}));
+        QCOMPARE(sectionCounts(*odd), (QList<int>{2, 2, 1, 0}));   // the second slide is in none: it joins Opening
+        QCOMPARE(deck::sectionsOf(*odd)[1].id, QStringLiteral("{00000000-0000-4000-8000-000000000006}"));
+        // The first slide in none goes to the first section.
+        auto late = edited(section(QStringLiteral("Only"), {slideIds[1], slideIds[2], slideIds[3], slideIds[4]}));
+        QVERIFY2(late, qPrintable(err));
+        QCOMPARE(sectionNames(*late), (QStringList{"Only"}));
+        QCOMPARE(sectionCounts(*late), (QList<int>{5}));
+        // A list with no sections, or no list, is no sections.
+        auto empty = edited(QString());
+        QVERIFY2(empty && !deck::hasSections(*empty), qPrintable(err));
+        auto emptyList = edited(QStringLiteral(" "));
+        QVERIFY2(emptyList && !deck::hasSections(*emptyList), qPrintable(err));
+    }
+
     // Saving a file replaces the old one only when the new one is whole: a
     // path that is no path, a folder that isn't there, or one that can't be
     // written leave the old file as it was.
