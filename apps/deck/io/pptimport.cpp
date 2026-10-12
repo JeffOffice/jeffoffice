@@ -44,6 +44,10 @@ namespace {
 constexpr int kMaxSlides = 10000, kMaxMasters = 1000;
 constexpr qint64 kMaxRecords = 1000000;   // read from one stream
 constexpr int kMaxEdits = 100000;
+// The shapes of every slide and master together (each is an item of a page, which takes about a kilobyte): a file that names one drawing
+// from thousands of slides, or has a large drawing for each, can't make memory grow with its slides. The real presentations here hold
+// 16 to 500 (91 slides at the most, 35 files), so this is six hundred times the most of them.
+constexpr qint64 kMaxTotalShapes = 300000;
 // What one text may hold, and all the texts together: more is left out.
 constexpr qint64 kMaxTextChars = 1 << 20, kMaxTotalChars = 20 << 20;
 constexpr int kMaxRuns = 20000, kMaxParagraphs = 10000;
@@ -534,6 +538,14 @@ struct WritersTheme {
     office::ColorMap colors;
 };
 
+// Where a master's placeholders are among its items: the first item of each type and of each kind, and the first place of each type that has
+// one. Looking for them through all the items, for each placeholder of each slide, takes as long as the items and the placeholders are
+// many, multiplied.
+struct PlaceholderIndex {
+    QHash<QString, const Item *> byType, byKind;
+    QHash<QString, QRectF> rectByType;
+};
+
 // A slide master: a main master, or a title master, which the title slides of a main master stand on.
 struct MasterInfo {
     quint32 persist = 0, slideId = 0;
@@ -548,6 +560,7 @@ struct MasterInfo {
     QMap<QString, QByteArray> shapeProps;   // the property records of its placeholder shapes, by type: what slides' placeholders take after
     std::shared_ptr<WritersTheme> theme;    // the theme its writer kept with it, if it did
     ItemList items;
+    mutable std::shared_ptr<const PlaceholderIndex> placeholderIndex;   // made when the masters are all read and a lookup first needs it
     Fill background;
     std::shared_ptr<MasterPage> page;               // the slide master, of a main master
     MasterInfo *main = nullptr;                     // itself, or the main master a title master is part of
@@ -608,6 +621,15 @@ bool isContentType(const QString &t) { return !t.isEmpty() && !isTitleType(t) &&
 
 // The kind of shape a placeholder takes after on a master: a title, a footer of its own kind, or the body.
 QString placeholderKind(const QString &t) { return isTitleType(t) ? QStringLiteral("title") : isFooterType(t) ? t : QStringLiteral("body"); }
+
+// The items an item is: itself, and for a group what is in it.
+qint64 itemCount(const Item &it, int depth = 0)
+{
+    qint64 n = 1;
+    if (it.type() == ItemType::Group && depth < 64)
+        for (const ItemPtr &c : static_cast<const GroupItem &>(it).children) n += itemCount(*c, depth + 1);
+    return n;
+}
 
 // The type of the placeholder a shape is, from the records of its client data (the contents of its client data record); none when it is no
 // placeholder.
@@ -866,6 +888,7 @@ private:
     Fill backgroundAt(const Fill &background, const QRectF &shape);
     void makeMasterPage(MasterInfo &m, int number);
     const Item *masterPlaceholder(const MasterInfo &m, const QString &type) const;
+    const PlaceholderIndex &placeholdersOf(const MasterInfo &m) const;
     QByteArray masterShapeProps(const MasterInfo &m, const QString &type) const;
     QRectF masterRect(const MasterInfo &m, const QString &type) const;
     std::shared_ptr<MasterPage> layoutFor(MasterInfo &main, const MasterInfo &source, int geom);
@@ -893,6 +916,7 @@ private:
     std::shared_ptr<WritersTheme> readWritersTheme(const QByteArray &themePackage, const QByteArray &colorMapping) const;
     void takeLookFromWritersXml(Item &item, const QByteArray &package);
     void note(const QString &text);
+    void noteShapeLimit();
 
     const QByteArray m_file;
     Document &m_doc;
@@ -901,6 +925,9 @@ private:
     QByteArray m_pictures;
     quint32 m_documentId = 0;
     QHash<quint32, quint32> m_persist;
+    QSet<qint64> m_directories;   // the persist directories read, by offset: one named by many edits is read once
+    qint64 m_persistRead = 0;
+    bool m_persistFull = false;
 
     // What the document says.
     QStringList m_fonts;
@@ -910,12 +937,19 @@ private:
     QHash<quint32, QString> m_links;
     QVector<office::OdrawStoreEntry> m_store;
     QByteArray m_defaults;   // the drawing group's default property records
+    QHash<int, int> m_storeAt;   // by the number a shape gives a picture, the store's entry
     QHash<int, QString> m_pictureIds;
+    QHash<quint32, QString> m_pictureAtOffset;   // by where it is in the pictures stream, the picture a store entry points to
     qint64 m_writersXmlBytes = 0;   // the XML of shapes read so far
     QHash<QString, QString> m_adjusted;   // pictures with brightness and contrast applied, by picture and the two
     QVector<SlideEntry> m_slides, m_masterList, m_notesList;
+    QSet<qint64> m_slidesRead, m_mastersRead;   // the containers read, by offset: one named by many entries is read once
+    office::OdrawBudget m_shapes{kMaxTotalShapes, false};
+    bool m_shapeLimitSaid = false;
     std::vector<std::unique_ptr<MasterInfo>> m_masters;
+    bool m_mastersBuilt = false;   // their items are as they will be: lookups of their placeholders can use the index
     QHash<quint32, quint32> m_notesOfSlide;   // by slide id, the id of its notes
+    QHash<quint32, int> m_notesBySlideId;   // by a notes page's slide id, its first place in m_notesList
     bool m_notesIndexed = false;
 
     PageState *m_state = nullptr;
@@ -939,6 +973,14 @@ void Importer::note(const QString &text)
 {
     if (m_notes.size() < kMaxNotes) m_notes << text;
     else ++m_extraNotes;
+}
+
+// Said once, when a drawing had more shapes than were left to read (its own limit, or the budget of all of them).
+void Importer::noteShapeLimit()
+{
+    if (!m_shapes.refused || m_shapeLimitSaid) return;
+    m_shapeLimitSaid = true;
+    note(say("The presentation holds more shapes than can be read; the rest are left out."));
 }
 
 // ---- The streams and the edits ----
@@ -1018,6 +1060,10 @@ bool Importer::readEdits(QString *why)
             *why = say("The presentation is cut short or damaged: the list of where its parts are can't be read.");
             return false;
         }
+        if (m_persistFull) {
+            note(say("The presentation lists more of its parts than can be read, so its older edits are left out."));
+            break;
+        }
         if (lastEdit == 0) break;
         offset = lastEdit;
     }
@@ -1025,18 +1071,26 @@ bool Importer::readEdits(QString *why)
 }
 
 // The persist directory at `offset`: where each persist id's record is. The newest edit is read first, and
-// the older keep their entries only where it has none.
+// the older keep their entries only where it has none. A directory read before has nothing more to give; and the
+// directories read all together have no more ids than the stream has bytes (each id takes four, and directories
+// that lie inside one another are what make more), after which m_persistFull says no more are read.
 bool Importer::readDirectory(qint64 offset)
 {
     const QByteArray &d = m_ppt.data();
     Rec r;
     if (!recAt(d, offset, d.size(), &r) || r.type != RT_PersistDirectoryAtom) return false;
+    if (m_directories.contains(offset)) return true;
+    m_directories.insert(offset);
     Cursor c(d, r.off, r.end());
     while (c.left() >= 4) {
         const quint32 v = c.u32();
         const quint32 first = v & 0xFFFFF, count = v >> 20;
         for (quint32 i = 0; i < count && c.left() >= 4; ++i) {
             const quint32 at = c.u32();
+            if (++m_persistRead > d.size()) {
+                m_persistFull = true;
+                return true;
+            }
             if (!m_persist.contains(first + i)) m_persist.insert(first + i, at);
         }
     }
@@ -1126,6 +1180,14 @@ void Importer::readDrawingGroup(const Rec &r)
             // A store given as the records inside the container.
             if (m_store.isEmpty()) m_store = office::odrawStore(view(b, 0));
         }
+    }
+    // The pictures are numbered from 1 in a shape's property, and the store counts from its own first entry.
+    m_storeAt.clear();
+    int first = INT_MAX;
+    for (const office::OdrawStoreEntry &e : std::as_const(m_store)) first = std::min(first, e.index);
+    for (int i = 0; i < m_store.size(); ++i) {
+        const qint64 number = qint64(m_store.at(i).index) - first + 1;
+        if (number <= INT_MAX && !m_storeAt.contains(int(number))) m_storeAt.insert(int(number), i);
     }
 }
 
@@ -1261,23 +1323,27 @@ TextGroup Importer::readTextGroup(Records &rs, const QVector<Rec> &recs)
 
 QString Importer::pictureId(int blipIndex)
 {
-    if (m_pictureIds.contains(blipIndex)) return m_pictureIds.value(blipIndex);
+    if (const auto done = m_pictureIds.constFind(blipIndex); done != m_pictureIds.constEnd()) return done.value();
+    // A number the store has no picture for costs no more than the look, and isn't kept.
+    const auto at = m_storeAt.constFind(blipIndex);
+    if (at == m_storeAt.constEnd()) return QString();
+    const office::OdrawStoreEntry &e = m_store.at(at.value());
     QString id;
-    // The pictures are numbered from 1 in a shape's property, and the store counts from its own first entry.
-    int first = INT_MAX;
-    for (const office::OdrawStoreEntry &e : std::as_const(m_store)) first = std::min(first, e.index);
-    for (const office::OdrawStoreEntry &e : std::as_const(m_store)) {
-        if (e.index - first + 1 != blipIndex) continue;
+    // The picture itself is in the pictures stream, where the store says, when it isn't in the store: entries that point to one place
+    // in it are one picture, made once.
+    const bool inStream = e.embedded.isEmpty();
+    if (const auto known = inStream ? m_pictureAtOffset.constFind(e.delayOffset) : m_pictureAtOffset.constEnd(); known != m_pictureAtOffset.constEnd()) {
+        id = known.value();
+    } else {
         QByteArray blip = e.embedded;
-        if (blip.isEmpty()) {
-            // The picture itself is in the pictures stream, where the store says.
+        if (inStream) {
             Rec r;
             if (recAt(m_pictures, e.delayOffset, m_pictures.size(), &r) && r.type >= 0xF018 && r.type <= 0xF117) blip = m_pictures.mid(e.delayOffset, qsizetype(r.len + 8));
         }
         QString format;
         const QByteArray bytes = blip.isEmpty() ? QByteArray() : office::odrawBlip(blip, &format);
         if (!bytes.isEmpty() && m_pictureIds.size() < 20000) id = m_doc.addImage(bytes, format);
-        break;
+        if (inStream) m_pictureAtOffset.insert(e.delayOffset, id);
     }
     m_pictureIds.insert(blipIndex, id);
     return id;
@@ -1413,6 +1479,11 @@ void Importer::readMasters()
             note(say("A slide master was left out: it can't be found in the file."));
             continue;
         }
+        if (m_mastersRead.contains(c.off)) {
+            note(say("A slide master was left out: it holds the same contents as an earlier one."));
+            continue;
+        }
+        m_mastersRead.insert(c.off);
         auto m = std::make_unique<MasterInfo>();
         m->persist = e.persist;
         m->slideId = e.slideId;
@@ -1484,12 +1555,14 @@ void Importer::readMasters()
         m_state = &st;
         m->background = office::odrawBackground(m->drawing, drawingContext());
         m_state = nullptr;
+        noteShapeLimit();
         if (m->background.isNone()) m->background = Fill::solid(ColorRef::rgb(m->scheme[0]));
     }
     for (auto &m : m_masters) buildMaster(*m);
     int number = 0;
     for (auto &m : m_masters)
         if (!m->title) makeMasterPage(*m, ++number);
+    m_mastersBuilt = true;
 }
 
 void Importer::buildMaster(MasterInfo &m)
@@ -1523,21 +1596,53 @@ void Importer::makeMasterPage(MasterInfo &m, int number)
     m.page = page;
 }
 
+const PlaceholderIndex &Importer::placeholdersOf(const MasterInfo &m) const
+{
+    if (!m.placeholderIndex) {
+        auto index = std::make_shared<PlaceholderIndex>();
+        for (const auto &it : m.items) {
+            const QString type = placeholderType(*it);
+            if (!index->byType.contains(type)) index->byType.insert(type, it.get());
+            if (!it->rect.isEmpty() && !index->rectByType.contains(type)) index->rectByType.insert(type, it->rect);
+            if (type.isEmpty()) continue;
+            const QString kind = placeholderKind(type);
+            if (!index->byKind.contains(kind)) index->byKind.insert(kind, it.get());
+        }
+        m.placeholderIndex = index;
+    }
+    return *m.placeholderIndex;
+}
+
 // The master's placeholder that holds what a layout's placeholder of `type` shows: the same type, else
-// the same kind (a title for a centered title, the body for the rest).
+// the same kind (a title for a centered title, the body for the rest). The first, in the order of the items.
 const Item *Importer::masterPlaceholder(const MasterInfo &m, const QString &type) const
 {
-    for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
-        if (!x) continue;
-        for (const auto &it : x->items)
-            if (placeholderType(*it) == type) return it.get();
+    if (!m_mastersBuilt) {
+        // The masters' items are still being made (a placeholder with no place of its own takes its master's, which may be one already made).
+        for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
+            if (!x) continue;
+            for (const auto &it : x->items)
+                if (placeholderType(*it) == type) return it.get();
+        }
+        for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
+            if (!x) continue;
+            for (const auto &it : x->items) {
+                const QString t = placeholderType(*it);
+                if (!t.isEmpty() && placeholderKind(t) == placeholderKind(type)) return it.get();
+            }
+        }
+        return nullptr;
     }
     for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
         if (!x) continue;
-        for (const auto &it : x->items) {
-            const QString t = placeholderType(*it);
-            if (!t.isEmpty() && placeholderKind(t) == placeholderKind(type)) return it.get();
-        }
+        const PlaceholderIndex &found = placeholdersOf(*x);
+        if (const auto it = found.byType.constFind(type); it != found.byType.constEnd()) return it.value();
+    }
+    const QString kind = placeholderKind(type);
+    for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
+        if (!x) continue;
+        const PlaceholderIndex &found = placeholdersOf(*x);
+        if (const auto it = found.byKind.constFind(kind); it != found.byKind.constEnd()) return it.value();
     }
     return nullptr;
 }
@@ -1559,6 +1664,11 @@ QRectF Importer::masterRect(const MasterInfo &m, const QString &type) const
 {
     for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
         if (!x) continue;
+        if (m_mastersBuilt) {
+            const PlaceholderIndex &found = placeholdersOf(*x);
+            if (const auto it = found.rectByType.constFind(type); it != found.rectByType.constEnd()) return it.value();
+            continue;
+        }
         for (const auto &it : x->items)
             if (placeholderType(*it) == type && !it->rect.isEmpty()) return it->rect;
     }
@@ -1584,8 +1694,18 @@ std::shared_ptr<MasterPage> Importer::layoutFor(MasterInfo &main, const MasterIn
     if (source.title) {
         page->showMasterItems = source.flags & 1;
         if (!(source.flags & 4)) page->background = source.background;
-        for (const auto &it : source.items)
-            if (it->role.isEmpty()) page->items.push_back(m_doc.cloneItem(*it));
+        // Each layout has its own copy of them: the shapes made so are among those the budget allows.
+        for (const auto &it : source.items) {
+            if (!it->role.isEmpty()) continue;
+            const qint64 count = itemCount(*it);
+            if (m_shapes.left < count) {
+                m_shapes.refused = true;
+                break;
+            }
+            m_shapes.left -= count;
+            page->items.push_back(m_doc.cloneItem(*it));
+        }
+        noteShapeLimit();
     }
     const QRectF body = masterRect(source, QStringLiteral("body"));
     auto placeholder = [&](const QString &type, int index, const QRectF &rect) {
@@ -1756,6 +1876,12 @@ void Importer::readSlide(int number, const SlideEntry &e)
         note(say("Slide %1 was left out: it can't be found in the file.").arg(number));
         return;
     }
+    // Entries of the list that name one slide would each have it read, and its drawing made, again.
+    if (m_slidesRead.contains(c.off)) {
+        note(say("Slide %1 was left out: it holds the same contents as an earlier slide.").arg(number));
+        return;
+    }
+    m_slidesRead.insert(c.off);
     const QByteArray &d = m_ppt.data();
     const QVector<Rec> kids = m_ppt.in(c);
     int geom = SlBlank, flags = 7;
@@ -1822,6 +1948,7 @@ void Importer::readSlide(int number, const SlideEntry &e)
         m_state = &st;
         bg = office::odrawBackground(drawing, drawingContext());
         m_state = nullptr;
+        noteShapeLimit();
         if (bg.isNone() && ownColors) bg = Fill::solid(ColorRef::rgb(own[0]));
         page->background = bg;
     }
@@ -1875,11 +2002,7 @@ QString Importer::readNotes(const SlideEntry &slide, quint32 notesRef, const Mas
     // The notes of a slide are named by the slide, or name it.
     const SlideEntry *entry = nullptr;
     if (notesRef)
-        for (const SlideEntry &n : std::as_const(m_notesList))
-            if (n.slideId == notesRef) {
-                entry = &n;
-                break;
-            }
+        if (const auto it = m_notesBySlideId.constFind(notesRef); it != m_notesBySlideId.constEnd()) entry = &m_notesList.at(it.value());
     if (!entry) {
         if (!m_notesIndexed) {
             m_notesIndexed = true;
@@ -1895,11 +2018,7 @@ QString Importer::readNotes(const SlideEntry &slide, quint32 notesRef, const Mas
         }
         const quint32 id = m_notesOfSlide.value(slide.slideId);
         if (id)
-            for (const SlideEntry &n : std::as_const(m_notesList))
-                if (n.slideId == id) {
-                    entry = &n;
-                    break;
-                }
+            if (const auto it = m_notesBySlideId.constFind(id); it != m_notesBySlideId.constEnd()) entry = &m_notesList.at(it.value());
     }
     if (!entry) return m_doc.createStory();
 
@@ -2230,6 +2349,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
 office::OdrawContext Importer::drawingContext()
 {
     office::OdrawContext ctx;
+    ctx.budget = &m_shapes;
     ctx.defaults = m_defaults;
     ctx.richLook = [this](Item &item, const QByteArray &package) { takeLookFromWritersXml(item, package); };
     ctx.background = [this](const QRectF &shape) { return m_state ? backgroundAt(m_state->background, shape) : Fill(); };
@@ -2268,6 +2388,7 @@ ItemList Importer::readShapes(const QByteArray &drawing, PageState &st)
     m_state = &st;
     ItemList items = office::readOdrawShapes(drawing, drawingContext());
     m_state = nullptr;
+    noteShapeLimit();
     leaveTextAlone(items);
     return items;
 }
@@ -2364,6 +2485,9 @@ bool Importer::run(QString *error)
         QVector<SlideEntry> &into = r.inst == 0 ? m_slides : r.inst == 1 ? m_masterList : m_notesList;
         if (r.inst <= 2) into += list;
     }
+    // (A scan of the list for each slide would take as long as the slides and the list are long, multiplied.)
+    for (int i = 0; i < m_notesList.size(); ++i)
+        if (!m_notesBySlideId.contains(m_notesList.at(i).slideId)) m_notesBySlideId.insert(m_notesList.at(i).slideId, i);
 
     readMasters();
     if (m_masters.empty()) {
