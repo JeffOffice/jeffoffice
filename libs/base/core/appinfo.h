@@ -12,7 +12,7 @@ struct AppInfo {
     QString name;           // shown to people: "JeffPub"
     QString fileName;       // in file, folder, and variable names, lower case: "jeffpub"
     QString organization;   // owns its settings and data folders: "JeffOffice"
-    QString repository;     // on GitHub: "JeffOffice/jeffpub"
+    QString repository;     // on GitHub: "JeffOffice/jeffoffice"
 };
 
 const AppInfo &appInfo();

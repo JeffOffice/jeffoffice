@@ -19619,15 +19619,15 @@ private Q_SLOTS:
         QVERIFY(jp::Updater::isNewer("v0.1.0-preview5", "v0.1.0-preview4"));
         // An installer runs only from this project's releases, with a plain
         // version tag and the SHA-256 GitHub publishes.
-        const QString url = QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/download/v0.1.17/JeffPub-Setup.exe");
+        const QString url = QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/download/v0.6.11/JeffOffice-Setup.exe");
         const QString digest = QStringLiteral("sha256:63e329c3c1a9aea0f90af5e2519c9315af365cb424a7bd00abb3ad9d201573e7");
-        QVERIFY(jp::Updater::trustedInstaller(url, QStringLiteral("v0.1.17"), digest));
-        // The project's name after it moves (JeffOffice/jeffoffice), and no other.
-        QVERIFY(jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/download/v0.7.0/JeffOffice-Setup.exe"), QStringLiteral("v0.7.0"), digest));
+        QVERIFY(jp::Updater::trustedInstaller(url, QStringLiteral("v0.6.11"), digest));
+        // Not under the old name (GitHub gives the new one), or any other.
+        QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffpub/releases/download/v0.6.11/JeffOffice-Setup.exe"), QStringLiteral("v0.6.11"), digest));
         QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://github.com/JeffOffice/jeffoffice-evil/releases/download/v0.7.0/x.exe"), QStringLiteral("v0.7.0"), digest));
         QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://github.com/someone/jeffoffice/releases/download/v0.7.0/x.exe"), QStringLiteral("v0.7.0"), digest));
         QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("https://example.com/JeffPub-Setup.exe"), QStringLiteral("v0.1.17"), digest));
-        QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("http://github.com/JeffOffice/jeffpub/releases/download/v0.1.17/x.exe"), QStringLiteral("v0.1.17"), digest));
+        QVERIFY(!jp::Updater::trustedInstaller(QStringLiteral("http://github.com/JeffOffice/jeffoffice/releases/download/v0.6.11/x.exe"), QStringLiteral("v0.6.11"), digest));
         QVERIFY(!jp::Updater::trustedInstaller(url, QStringLiteral("../../Startup/evil"), digest));   // the tag names the saved file
         QVERIFY(!jp::Updater::trustedInstaller(url, QStringLiteral("v0.1.17"), QString()));          // nothing to check against
         QVERIFY(jp::Updater::isNewer("0.1.10", "0.1.9"));
