@@ -3571,6 +3571,96 @@ private Q_SLOTS:
         QVERIFY2(read > 400, qPrintable(QString::number(read)));   // enough of the damage left XML to read
     }
 
+    void dmlReadsATreeAsTheProgramsWriteIt()
+    {
+        DmlEnv env;
+        env.useFormats();
+        env.usePackage();
+        // A slide's shape tree, written with the extra elements and attributes real files carry.
+        const QString tree = QStringLiteral(R"(<p:spTree>
+  <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+  <p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+  <p:sp>
+    <p:nvSpPr><p:cNvPr id="2" name="Title 1"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"/></a:extLst></p:cNvPr>
+      <p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr>
+    <p:spPr/>
+    <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" dirty="0"/><a:t>A title</a:t></a:r><a:endParaRPr lang="en-US" dirty="0"/></a:p></p:txBody>
+  </p:sp>
+  <p:sp>
+    <p:nvSpPr><p:cNvPr id="3" name="TextBox 2"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
+    <p:spPr><a:xfrm><a:off x="1143000" y="1524000"/><a:ext cx="2286000" cy="369332"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr>
+    <p:txBody><a:bodyPr wrap="none" rtlCol="0"><a:spAutoFit/></a:bodyPr><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" dirty="0"/><a:t>Some text</a:t></a:r></a:p></p:txBody>
+  </p:sp>
+  <p:sp>
+    <p:nvSpPr><p:cNvPr id="4" name="Rounded Rectangle 3"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+    <p:spPr><a:xfrm><a:off x="1143000" y="2286000"/><a:ext cx="2743200" cy="914400"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom></p:spPr>
+    <p:style><a:lnRef idx="2"><a:schemeClr val="accent1"><a:shade val="50000"/></a:schemeClr></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef>
+      <a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></p:style>
+    <p:txBody><a:bodyPr rtlCol="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-US" dirty="0"/><a:t>Shape</a:t></a:r></a:p></p:txBody>
+  </p:sp>
+  <p:pic>
+    <p:nvPicPr><p:cNvPr id="5" name="Picture 4" descr="A red square"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>
+    <p:blipFill><a:blip r:embed="rId1"><a:extLst><a:ext uri="{28A0092B-C50C-407E-A947-70E740481C1C}"/></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></p:blipFill>
+    <p:spPr><a:xfrm><a:off x="4572000" y="1524000"/><a:ext cx="1828800" cy="1371600"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+  </p:pic>
+  <p:grpSp>
+    <p:nvGrpSpPr><p:cNvPr id="10" name="Group 9"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+    <p:grpSpPr><a:xfrm><a:off x="6400800" y="1524000"/><a:ext cx="2286000" cy="1143000"/><a:chOff x="6400800" y="1524000"/><a:chExt cx="2286000" cy="1143000"/></a:xfrm></p:grpSpPr>
+    <p:sp><p:nvSpPr><p:cNvPr id="11" name="Oval 10"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="6400800" y="1524000"/><a:ext cx="914400" cy="1143000"/></a:xfrm><a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom></p:spPr>
+      <p:style><a:lnRef idx="2"><a:schemeClr val="accent1"/></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent2"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></p:style></p:sp>
+    <p:sp><p:nvSpPr><p:cNvPr id="12" name="Right Arrow 11"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="7543800" y="1752600"/><a:ext cx="1143000" cy="685800"/></a:xfrm><a:prstGeom prst="rightArrow"><a:avLst><a:gd name="adj1" fmla="val 50000"/><a:gd name="adj2" fmla="val 50000"/></a:avLst></a:prstGeom></p:spPr></p:sp>
+  </p:grpSp>
+  <p:cxnSp>
+    <p:nvCxnSpPr><p:cNvPr id="13" name="Elbow Connector 12"/><p:cNvCxnSpPr><a:stCxn id="4" idx="3"/><a:endCxn id="5" idx="1"/></p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr>
+    <p:spPr><a:xfrm><a:off x="3886200" y="2209800"/><a:ext cx="685800" cy="762000"/></a:xfrm><a:prstGeom prst="bentConnector3"><a:avLst><a:gd name="adj1" fmla="val 50000"/></a:avLst></a:prstGeom><a:ln w="19050"><a:tailEnd type="triangle"/></a:ln></p:spPr>
+    <p:style><a:lnRef idx="1"><a:schemeClr val="accent1"/></a:lnRef><a:fillRef idx="0"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="tx1"/></a:fontRef></p:style>
+  </p:cxnSp>
+  <p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="14" name="Table 13"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="0" y="0"/><a:ext cx="1" cy="1"/></p:xfrm></p:graphicFrame>
+</p:spTree>)");
+        const QString layoutTitle = dmlSp(dmlXfrm(100, 30, 760, 80), QString(), QString(), QString(), QStringLiteral("<p:ph type=\"title\"/>"));
+        QDomElement spTree = env.element(tree);
+        QVERIFY(!spTree.isNull());
+        // The tree reads in the order it is written, the table left for the caller to keep.
+        const ItemList list = readShapeTree(spTree, env.ctx);
+        QCOMPARE(int(list.size()), 6);
+        QVERIFY(dmlAs<TextItem>(list[0]));            // the title, with no place of its own (a placeholder read through a tree)
+        auto box = dmlAs<TextItem>(list[1]);
+        QVERIFY(box);
+        QVERIFY(dmlRectIs(box->rect, 90, 120, 180, 369332.0 / 12700, 1e-6));
+        QVERIFY(box->fill.isNone() && box->stroke.isNone());
+        QVERIFY(box->autofit == TextItem::GrowBox);
+        auto rounded = dmlAs<TextItem>(list[2]);      // a rectangle would be a text frame; this one is rounded, so a shape
+        QVERIFY(!rounded);
+        auto shape = dmlAs<ShapeItem>(list[2]);
+        QVERIFY(shape);
+        QCOMPARE(shape->shape, QStringLiteral("roundRect"));
+        QCOMPARE(dmlHex(shape->fill.color), QStringLiteral("4472C4"));
+        QVERIFY(near(shape->stroke.width, 1));
+        QVERIFY(shape->valign == VAlign::Middle);
+        QVERIFY(!shape->storyId.isEmpty());
+        auto picture = dmlAs<PictureItem>(list[3]);
+        QVERIFY(picture && !picture->imageId.isEmpty());
+        QCOMPARE(picture->altText, QStringLiteral("A red square"));
+        auto group = dmlAs<GroupItem>(list[4]);
+        QVERIFY(group && group->children.size() == 2);
+        QVERIFY(dmlRectIs(group->children[0]->rect, 504, 120, 72, 90));
+        QVERIFY(dmlRectIs(group->rect, 504, 120, 180, 90));
+        auto elbow = dmlAs<LineItem>(list[5]);
+        QVERIFY(elbow && elbow->route == LineItem::Elbow);
+        QVERIFY(elbow->stroke.endArrow == Arrow::Triangle);
+        QCOMPARE(elbow->start.id, list[2]->id);
+        QCOMPARE(elbow->start.site, 3);
+        QCOMPARE(elbow->end.id, list[3]->id);
+        QCOMPARE(elbow->end.site, 1);
+        // The same title as a placeholder with a layout to take its place from.
+        QDomElement titleElement = spTree.firstChildElement();
+        while (!titleElement.isNull() && titleElement.localName() != QLatin1String("sp")) titleElement = titleElement.nextSiblingElement();
+        QVERIFY(!titleElement.isNull());
+        const ItemPtr placed = readShape(titleElement, env.ctx, {}, {env.element(layoutTitle)});
+        QVERIFY2(dmlAs<TextItem>(placed), qPrintable(placed ? QString::number(int(placed->type())) : QStringLiteral("none")));
+        QVERIFY(dmlRectIs(placed->rect, 100, 30, 760, 80));
+    }
+
     void dmlReadShapesDrawWhereTheyAre()
     {
         DmlEnv env;
