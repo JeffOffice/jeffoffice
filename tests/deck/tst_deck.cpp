@@ -878,6 +878,62 @@ private Q_SLOTS:
             QCOMPARE(d->pages[0]->masterId, QStringLiteral("L2"));   // the slides' layouts are among the first
         }
     }
+
+    // File > Open: the window takes the presentation in place of an untouched new one.
+    void windowOpensFile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("quarterly.pptx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(pack(samplePptx()));
+        f.close();
+        const int windows = int(AppWindow::windows().size());
+        DeckWindow w;
+        QVERIFY(w.openFile(path));
+        QCOMPARE(int(AppWindow::windows().size()), windows + 1);   // this one, no more
+        Editor *ed = w.editor();
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        QCOMPARE(ed->currentPage(), 0);
+        QCOMPARE(ed->filePath(), path);
+        QVERIFY(!ed->isModified());
+        QTRY_COMPARE(w.slidesPane()->count(), 2);
+        QCOMPARE(w.windowTitle(), QStringLiteral("quarterly - JeffDeck"));
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("Say hello first\nThen the numbers"));
+        // Moves on to another slide, and opening it again starts over at the first.
+        ed->setCurrentPage(1);
+        // The window now holds a file, so another one opens in a window of its own.
+        QVERIFY(w.openFile(path));
+        QTRY_COMPARE(int(AppWindow::windows().size()), windows + 2);
+        QCOMPARE(ed->currentPage(), 1);
+        const QList<AppWindow *> all = AppWindow::windows();
+        for (AppWindow *other : all)
+            if (other != &w && other->objectName() == QLatin1String("deckWindow")) {
+                auto *opened = static_cast<DeckWindow *>(other);
+                QCOMPARE(int(opened->editor()->doc()->pages.size()), 2);
+                QCOMPARE(opened->editor()->currentPage(), 0);
+                opened->setAttribute(Qt::WA_DeleteOnClose);
+                opened->close();
+            }
+        // A file that can't be read says so, and changes nothing.
+        const QString bad = dir.filePath(QStringLiteral("bad.pptx"));
+        QFile b(bad);
+        QVERIFY(b.open(QIODevice::WriteOnly));
+        b.write("not a presentation");
+        b.close();
+        QString shown;
+        QTimer::singleShot(0, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                shown = box->text();
+                box->close();
+            }
+        });
+        QVERIFY(!w.openFile(bad));
+        QVERIFY2(shown.contains(QStringLiteral("bad.pptx")), qPrintable(shown));
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        ed->markSaved();
+    }
 };
 
 QTEST_MAIN(DeckTests)

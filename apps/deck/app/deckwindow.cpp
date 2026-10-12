@@ -5,6 +5,7 @@
 #include "app/notespane.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
+#include "app/settings.h"
 #include "app/slideshow.h"
 #include "app/slidespane.h"
 #include "canvas/canvas.h"
@@ -16,6 +17,8 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
@@ -23,6 +26,7 @@
 #include <QScreen>
 #include <QShortcut>
 #include <QSplitter>
+#include <QStandardPaths>
 #include <QStatusBar>
 #include <QWindow>
 
@@ -141,6 +145,13 @@ void DeckWindow::createActions()
         w->setAttribute(Qt::WA_DeleteOnClose);
         w->show();
     });
+    mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] {
+        const QString p = QFileDialog::getOpenFileName(this, tr("Open Presentation"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+                                                       tr("Presentations (*.pptx *.potx *.ppsx)") + QStringLiteral(";;") + tr("All Files (*)"));
+        if (p.isEmpty()) return;
+        Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
+        openFile(p);
+    });
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [ed] { ed->redo(); });
@@ -228,6 +239,7 @@ void DeckWindow::showFileMenu()
 {
     QMenu menu(this);
     menu.addAction(act("file.new"));
+    menu.addAction(act("file.open"));
     menu.addSeparator();
     menu.addAction(act("file.close"));
     menu.exec(m_ribbon->mapToGlobal(QPoint(0, m_ribbon->height() / 3)));
