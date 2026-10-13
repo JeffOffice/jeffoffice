@@ -209,6 +209,9 @@ protected:
     bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
+    // The ending of a presentation file as the usage statistics name its kind: one JeffDeck reads or writes ("pptx", "odp", ...),
+    // else "other". Never any part of the name.
+    static QString fileKind(const QString &path);
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
     void createShowActions();
