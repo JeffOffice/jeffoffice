@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QSet>
 
 namespace jp::deck {
 
@@ -26,9 +27,17 @@ QMutex g_mutex;
 QHash<const Document *, Carried> g_documents;
 QHash<QByteArray, Added> g_added;
 
-bool computerHasFamily(const QString &family)
+// The families the computer has: its own, not the ones this program added for presentations (the family of a font another presentation carries is
+// still the computer's to want).
+QSet<QString> computerFamilies()
 {
-    return !family.isEmpty() && QFontDatabase::families().contains(family, Qt::CaseInsensitive);
+    QSet<QString> added;
+    for (const Added &a : std::as_const(g_added))
+        for (const QString &family : a.families) added.insert(family.toLower());
+    QSet<QString> out;
+    for (const QString &family : QFontDatabase::families())
+        if (!added.contains(family.toLower())) out.insert(family.toLower());
+    return out;
 }
 
 } // namespace
@@ -39,13 +48,15 @@ void EmbeddedFonts::use(const Document *doc, QVector<EmbeddedFace> faces)
     Carried carried;
     {
         QMutexLocker lock(&g_mutex);
+        // Looked at once, before any face is added: the faces of one family are all added or none.
+        const QSet<QString> have = computerFamilies();
         for (EmbeddedFace &face : faces) {
             if (!face.font.isEmpty() && qGuiApp) {
                 const QByteArray hash = QCryptographicHash::hash(face.font, QCryptographicHash::Sha1);
                 if (auto known = g_added.find(hash); known != g_added.end()) {
                     ++known->users;
                     carried.fonts << hash;
-                } else if (!computerHasFamily(face.info.family) && !computerHasFamily(face.info.typographicFamily)) {
+                } else if (!have.contains(face.info.family.toLower()) && !have.contains(face.info.typographicFamily.toLower())) {
                     const int id = QFontDatabase::addApplicationFontFromData(face.font);
                     if (id >= 0) {
                         Added added;

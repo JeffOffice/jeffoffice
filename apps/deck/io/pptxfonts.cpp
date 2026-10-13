@@ -10,6 +10,7 @@
 #include <QFontDatabase>
 #include <QMap>
 #include <QXmlStreamReader>
+#include <QtEndian>
 #include <algorithm>
 
 namespace jp::deck {
@@ -169,6 +170,8 @@ FontsWritten writeEmbeddedFonts(office::PackageWriter &pkg, const QString &prese
                 for (const EmbeddedFace &k : kept)
                     if (k.slot == slot && k.typeface.compare(typeface, Qt::CaseInsensitive) == 0 && !k.part.isEmpty()) {
                         part = k.part;
+                        // A bare font file (as some programs write the part) is not read by the presentation program: it wants the wrapped form.
+                        if (part.size() > 4 && (qFromBigEndian<quint32>(part.constData()) == 0x00010000 || part.startsWith("true") || part.startsWith("OTTO"))) part = office::makeEot(part);
                         panose = k.panose;
                         pitch = k.pitchFamily;
                         charset = k.charset;
@@ -244,6 +247,50 @@ QVector<EmbeddedFace> readEmbeddedFonts(const office::Package &pkg, const QStrin
     if (notes) {
         if (unusable == 1) *notes << say("An embedded font in the file can't be used: %1").arg(firstReason);
         else if (unusable > 1) *notes << say("%1 embedded fonts in the file can't be used: %2").arg(unusable).arg(firstReason);
+        if (tooMany) *notes << say("Only the first %1 embedded fonts are read.").arg(kMaxEmbeddedFonts);
+        if (tooLarge) *notes << say("Some embedded fonts are left out: they are too large.");
+    }
+    return faces;
+}
+
+QVector<EmbeddedFace> readEmbeddedFontFiles(const office::Package &pkg, const QString &folder, QStringList *notes)
+{
+    QVector<EmbeddedFace> faces;
+    qint64 total = 0;
+    int unusable = 0;
+    bool tooMany = false, tooLarge = false;
+    const QString prefix = folder.endsWith(QLatin1Char('/')) ? folder : folder + QLatin1Char('/');
+    for (const QString &name : pkg.partNames()) {
+        if (!name.startsWith(prefix, Qt::CaseInsensitive)) continue;
+        const QString lower = name.toLower();
+        if (!lower.endsWith(QLatin1String(".ttf")) && !lower.endsWith(QLatin1String(".otf"))) continue;
+        if (faces.size() >= kMaxEmbeddedFonts) {
+            tooMany = true;
+            continue;
+        }
+        const QByteArray data = pkg.part(name);
+        if (data.size() > kMaxEmbeddedFontBytes || total + data.size() > kMaxEmbeddedFontsTotal) {
+            tooLarge = true;
+            continue;
+        }
+        total += data.size();
+        EmbeddedFace face;
+        QString why;
+        if (!office::readEmbeddedFont(data, &face.font, &face.info, &why) || face.info.family.isEmpty()) {
+            ++unusable;
+            continue;
+        }
+        face.typeface = face.info.family;
+        face.slot = fontSlot(face.info.bold, face.info.italic);
+        face.panose = QString();
+        face.pitchFamily = face.info.pitchFamily();
+        face.charset = face.info.charset();
+        // Kept for a presentation file, which the program reads only in the wrapped form.
+        face.part = office::makeEot(face.font);
+        faces << face;
+    }
+    if (notes) {
+        if (unusable) *notes << QCoreApplication::translate("PptxFonts", "%n embedded font(s) in the file can't be used.", nullptr, unusable);
         if (tooMany) *notes << say("Only the first %1 embedded fonts are read.").arg(kMaxEmbeddedFonts);
         if (tooLarge) *notes << say("Some embedded fonts are left out: they are too large.");
     }

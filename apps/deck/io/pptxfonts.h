@@ -74,4 +74,9 @@ FontsWritten writeEmbeddedFonts(office::PackageWriter &pkg, const QString &prese
 // gets what couldn't be used (a font the computer has already is not a loss).
 QVector<EmbeddedFace> readEmbeddedFonts(const office::Package &pkg, const QString &presentationPart, const QDomElement &presentation, QStringList *notes);
 
+// The fonts an open document presentation carries: its package holds font files (TrueType or OpenType, not wrapped)
+// in the folder "Fonts", which the styles' font faces point at (svg:font-face-uri). Each is a face of the family
+// and style its own tables say. The same limits as above.
+QVector<EmbeddedFace> readEmbeddedFontFiles(const office::Package &pkg, const QString &folder, QStringList *notes);
+
 } // namespace jp::deck

@@ -1,5 +1,5 @@
 # Open and save presentations
-<!-- keywords: open, save, save as, close, new, recent files, pinned, file types, pptx, potx, ppsx, ppt, odp, template, show, rename, Ctrl+S, backup, file formats, old files, open document, kept, not shown -->
+<!-- keywords: open, save, save as, close, new, recent files, pinned, file types, pptx, potx, ppsx, ppt, odp, template, show, rename, Ctrl+S, backup, file formats, old files, open document, kept, not shown, fonts, embed fonts, embedded fonts, missing font -->
 
 JeffDeck saves your work in .pptx files, and opens several kinds of presentation files.
 
@@ -34,6 +34,23 @@ Press Ctrl+O to pick a file at once. Or click **File > Open**, and then click **
 The file opens in this window if it holds a new presentation that nobody has touched. Otherwise, it opens in a window of its own.
 
 Right-click a name in the list to **Pin to list** (it stays at the top), **Unpin from list**, or **Remove from list**. A name in gray means JeffDeck can't find that file now.
+
+## Fonts in the file
+
+A font is the shape of the letters. Not every computer has every font. If a computer is missing a font your slides use, it draws the letters in another font. Then the slides can look different.
+
+JeffDeck can put the fonts your slides use inside the file. Then the slides look the same on any computer. This is called embedding. JeffDeck does it each time you save. To turn it off, click **File > Options**, open the **Save** tab, and clear **Embed fonts in the file**.
+
+- JeffDeck puts in only the fonts that come with it, such as Fraunces, Lato, and Open Sans. Other computers don't have those. It never puts in a font every computer has, such as Calibri or Arial. It leaves out a font whose license says it can't be copied into a file.
+- JeffDeck puts in each style the slides use: regular, bold, italic, and bold italic. If the slides use only the regular style, only that one goes in.
+- JeffDeck puts in every letter of each font, not only the ones you used. So a person who opens the file can still change the words.
+- The file gets bigger. Each style of a font adds about 40 to 700 KB (one KB is a thousand bytes). The file is squeezed when it is saved, so it grows by about half of that.
+
+When you open a file that has fonts inside, JeffDeck uses them while the presentation is open. The slides look as they did where they were made. JeffDeck doesn't install the fonts on your computer, and it doesn't copy them anywhere. They go away when you close the presentation. If your computer already has a font, JeffDeck uses your own copy.
+
+JeffDeck reads fonts from .pptx files made by other presentation programs, even when the program squeezed them. It reads fonts from .odp files too.
+
+A file can carry a font that JeffDeck doesn't have. When you save, JeffDeck puts that font back in the file, as long as the slides still use it. It does this whether or not **Embed fonts in the file** is on. If a font in a file is damaged or can't be read, the message you see when you open the file says so.
 
 ## Kinds of files JeffDeck reads
 
