@@ -5805,8 +5805,16 @@ private Q_SLOTS:
         turned->pages[1]->items.push_back(there);
         MorphFrames spinning(turned.get(), 0, 1, QStringLiteral("words"), size, 1.0);
         QVERIFY2(spinning.describe().join('\n').contains(QStringLiteral("2 of its words move")), qPrintable(spinning.describe().join('\n')));
-        QVERIFY(dark(spinning.frame(0)) > 100);
-        QVERIFY(dark(spinning.frame(0.5)) > dark(spinning.frame(0)) * 0.7);   // whole words on the way
+        // Turned text is smoothed into grays, more on macOS than elsewhere, so ink is
+        // counted at a lighter cut here; a word fading at half (lightness about 127) still isn't.
+        auto inked = [&](const QImage &img) {
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) n += img.pixelColor(x, y).lightness() < 110;
+            return n;
+        };
+        QVERIFY(inked(spinning.frame(0)) > 100);
+        QVERIFY2(inked(spinning.frame(0.5)) > inked(spinning.frame(0)) * 0.7, qPrintable(QStringLiteral("%1 of %2").arg(inked(spinning.frame(0.5))).arg(inked(spinning.frame(0)))));   // whole words on the way
         QVERIFY(morphDifference(spinning.frame(0.5), spinning.frame(0)) > 200);
         QVERIFY(morphDifference(spinning.frame(0.5), spinning.frame(1)) > 200);
         // Nothing in common: the texts fade, as they do by object.
