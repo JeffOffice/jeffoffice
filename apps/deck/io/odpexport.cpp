@@ -4,6 +4,7 @@
 
 #include "core/comments.h"
 #include "core/fonts.h"
+#include "core/media.h"
 #include "core/sections.h"
 #include "io/zip.h"
 #include "render/renderer.h"
@@ -321,16 +322,22 @@ QString Exporter::addPicture(const QString &imageId)
 }
 
 // A movie or sound kept in the presentation, as a part of the package under Media/; empty (a link to a file outside has none) if there are no bytes.
-QString Exporter::addMedia(const QString &mediaId, QString *mediaType)
+QString Exporter::addMedia(const QString &mediaId, QString *mediaType, const QString &kind)
 {
     const auto it = m_doc.media.constFind(mediaId);
     if (it == m_doc.media.cend() || it->bytes.isEmpty()) return QString();
     const QString key = QStringLiteral("media:") + mediaId;
-    if (mediaType) *mediaType = it->contentType.isEmpty() ? QStringLiteral("application/octet-stream") : it->contentType;
+    // The type the file says (a presentation's own parts often say "video/unknown", which the other suite takes for something it can't play):
+    // one that names the kind of file by its ending is what is written.
+    QString type = it->contentType;
+    if (type.isEmpty() || type.endsWith(QLatin1String("/unknown")) || type == QLatin1String("application/octet-stream"))
+        type = deck::mediaTypeOfFile(QStringLiteral("media.") + it->extension, kind);
+    if (type.isEmpty()) type = QStringLiteral("application/octet-stream");
+    if (mediaType) *mediaType = type;
     if (const auto known = m_pictureNames.constFind(key); known != m_pictureNames.cend()) return known.value();
     const QString name = QStringLiteral("Media/media%1.%2").arg(m_mediaCount + 1).arg(it->extension.isEmpty() ? QStringLiteral("bin") : it->extension);
     ++m_mediaCount;
-    addFile(name, it->bytes, it->contentType.isEmpty() ? QStringLiteral("application/octet-stream") : it->contentType, false);
+    addFile(name, it->bytes, type, false);
     m_pictureNames.insert(key, name);
     return name;
 }

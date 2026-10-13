@@ -441,10 +441,16 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
         return;
     }
     // A movie or sound the picture plays is kept in the package and played from the frame, with the picture as its poster.
+    // One that is linked, not kept in the presentation, keeps its address (the other suite plays it if it can).
     QString mediaPart, mediaType;
     if (!p.mediaKind.isEmpty()) {
-        mediaPart = addMedia(p.mediaId, &mediaType);
-        if (mediaPart.isEmpty()) sayOnce(QStringLiteral("media"), tr("A movie or sound that is linked from another file is saved as its picture."));
+        mediaPart = addMedia(p.mediaId, &mediaType, p.mediaKind);
+        if (mediaPart.isEmpty() && !p.mediaLink.isEmpty()) {
+            mediaPart = p.mediaLink;
+            mediaType = QStringLiteral("application/vnd.sun.star.media");
+        } else if (mediaPart.isEmpty()) {
+            sayOnce(QStringLiteral("media"), tr("A movie or sound that can't be read is saved as its picture."));
+        }
     }
 
     QString extra;

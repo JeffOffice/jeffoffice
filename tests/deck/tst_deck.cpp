@@ -4322,6 +4322,45 @@ private Q_SLOTS:
         QCOMPARE(pictures, 2);
     }
 
+    // A presentation's own parts call a movie "video/unknown", which the other suite doesn't take for a movie it can play: the type written
+    // is the one the file's ending gives. A movie that is linked, not kept in the presentation, keeps its address and its picture; one with
+    // neither says it was left out.
+    void odpWritesMoviesWhateverTheirTypeAndWherever()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        QImage poster(320, 180, QImage::Format_RGB32);
+        poster.fill(QColor(0, 0, 0));
+        auto kept = deck::newMediaPicture(*d, slide, QByteArray(1500, 'k'), QStringLiteral("Kept.mp4"), poster, 9000);
+        QVERIFY(kept);
+        slide.items.push_back(kept);
+        d->media[kept->mediaId].contentType = QStringLiteral("video/unknown");
+        auto linked = deck::newMediaPicture(*d, slide, QByteArray(10, 'l'), QStringLiteral("Linked.mp4"), poster, 9000);
+        QVERIFY(linked);
+        slide.items.push_back(linked);
+        linked->mediaId.clear();
+        linked->mediaLink = QStringLiteral("https://example.com/clip.mp4");
+        auto lost = deck::newMediaPicture(*d, slide, QByteArray(10, 'x'), QStringLiteral("Lost.mp4"), poster, 9000);
+        QVERIFY(lost);
+        slide.items.push_back(lost);
+        lost->mediaId.clear();
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY2(content.contains(QStringLiteral("xlink:href=\"Media/media1.mp4\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\" draw:mime-type=\"video/mp4\"")), qPrintable(content.left(3000)));
+        QVERIFY(QString::fromUtf8(zip.value(QStringLiteral("META-INF/manifest.xml"))).contains(QStringLiteral("manifest:full-path=\"Media/media1.mp4\" manifest:media-type=\"video/mp4\"")));
+        QVERIFY(content.contains(QStringLiteral("<draw:plugin xlink:href=\"https://example.com/clip.mp4\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\" draw:mime-type=\"application/vnd.sun.star.media\">")));
+        // All three keep their picture.
+        QCOMPARE(content.count(QStringLiteral("<draw:image ")), 3);
+        QCOMPARE(content.count(QStringLiteral("<draw:plugin ")), 2);
+        QCOMPARE(int(skipped.size()), 1);
+        QVERIFY2(skipped[0].contains(QStringLiteral("movie or sound")), qPrintable(skipped[0]));
+    }
+
     // The other suite reads a link's words as plain text: they are written straight in the link, the span that styles them around it.
     void odpWritesLinkWordsInsideTheLink()
     {

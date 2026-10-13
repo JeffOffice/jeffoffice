@@ -159,7 +159,7 @@ private:
     QString pageLayoutFor(const QSizeF &size);
     QByteArray thumbnail() const;
     QString addPicture(const QString &imageId);
-    QString addMedia(const QString &mediaId, QString *mediaType);
+    QString addMedia(const QString &mediaId, QString *mediaType, const QString &kind = QString());
     void addFile(const QString &path, const QByteArray &data, const QString &mediaType, bool compress);
     QString fontDecl(const QString &family);
     void writeFontDecls(X &x) const;
