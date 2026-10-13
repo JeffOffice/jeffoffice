@@ -172,6 +172,29 @@ QString relatePicture(DrawingWriteContext &ctx, const QString &imageId)
     return relate(ctx, QStringLiteral("image"), part);
 }
 
+QString relateSvg(DrawingWriteContext &ctx, const QString &imageId)
+{
+    if (!ctx.package || !ctx.mediaParts || !ctx.imageBytes || imageId.isEmpty()) return QString();
+    const QString key = QStringLiteral("svg:") + imageId;
+    QString part = ctx.mediaParts->value(key);
+    if (part.isEmpty()) {
+        QString format;
+        const QByteArray bytes = ctx.imageBytes(imageId, &format);
+        // What the bytes are, whatever the format named, else the name.
+        const QString sniffed = imageFormat(bytes);
+        if (bytes.isEmpty() || (sniffed.isEmpty() ? format.toLower() : sniffed) != QLatin1String("svg")) return QString();
+        int n = ctx.mediaParts->size() + 1;
+        const QStringList taken = ctx.mediaParts->values();
+        do {
+            part = QStringLiteral("/ppt/media/image%1.svg").arg(n++);
+        } while (taken.contains(part));
+        ctx.package->addDefault(QStringLiteral("svg"), QStringLiteral("image/svg+xml"));
+        ctx.package->addPart(part, bytes, QStringLiteral("image/svg+xml"));
+        ctx.mediaParts->insert(key, part);
+    }
+    return relate(ctx, QStringLiteral("image"), part);
+}
+
 QString relateAddress(DrawingWriteContext &ctx, const QString &address)
 {
     return relate(ctx, QStringLiteral("hyperlink"), address, true);
