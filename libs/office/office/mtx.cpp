@@ -385,7 +385,7 @@ bool readTriplet(Block &b, int index, int *dx, int *dy)
 }
 
 // The glyphs of a translated glyf table, as TrueType glyph data (each padded to an even number of bytes), with where each starts. A glyph is its
-// number of contours (0: none, and nothing else; -1: a composite; 0x7FFF: the box is written and the real number follows), then for a simple
+// number of contours (0: none, and nothing else; -1: a composite; 0x7FFF: the real number follows, and then the box), then for a simple
 // one the contours' point counts (the first's last point's number), a flag byte for each point (the high bit says off the curve), the
 // coordinates, and the push and code sizes of its program; for a composite the box and the components as TrueType writes them, and the program's
 // sizes if the last component has one.
@@ -434,9 +434,9 @@ bool readGlyphs(const Bytes &outlines, const Bytes &pushed, const Bytes &code, i
         } else {
             bool haveBox = false;
             if (contours == 0x7FFF) {
+                contours = r.s16();
                 if (!r.take(8, &box)) return fail("The embedded font is damaged.");
                 haveBox = true;
-                contours = r.s16();
             }
             if (contours < 1) return fail("The embedded font is damaged.");
             std::vector<quint16> ends;
