@@ -74,6 +74,7 @@ class LayoutCache;
 class PresenterView;
 class ShowMedia;
 class StepFrames;
+class MorphFrames;
 
 // A slide drawn to fill `size` device-independent pixels at `dpr`, centered
 // and as large as it goes, with `bars` around it. The image is opaque. With
@@ -271,6 +272,7 @@ private:
     void prefetch();
     void moveOn();
     void startTransition(int pos, const deck::Transition &t);
+    std::shared_ptr<MorphFrames> morphFor(int to, const deck::Transition &t);
     void endTransition();
     void settle();
     void startAutoAdvance();
@@ -322,6 +324,7 @@ private:
     qreal m_imageRatio = 1;
     QVariantAnimation m_anim;
     deck::Transition m_trans;
+    std::shared_ptr<MorphFrames> m_morph;   // a morph plays from the slides' objects (app/morph.h), not their images
     double m_painted = -1;     // the progress last asked to be painted; -1 before the first frame
     QTimer m_auto;
     mutable QHash<int, Play> m_plays;   // the slides' animations, read when first asked for
@@ -387,6 +390,7 @@ private:
     QVariantAnimation m_anim;
     deck::Transition m_trans;
     QImage m_from, m_to;
+    std::shared_ptr<MorphFrames> m_morph;
     QRect m_area;   // where the slide goes, in the widget
 };
 
