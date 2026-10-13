@@ -19,6 +19,7 @@
 #include "core/deck.h"
 #include "core/embeddedfonts.h"
 #include "core/sections.h"
+#include "core/texteffects.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
 
@@ -300,7 +301,7 @@ void DeckWindow::refreshUi()
     act("fmt.italic")->setChecked(cf.fontItalic());
     act("fmt.underline")->setChecked(cf.underlineStyle() != QTextCharFormat::NoUnderline);
     act("fmt.strike")->setChecked(cf.fontStrikeOut());
-    act("fmt.shadow")->setChecked(cf.boolProperty(tp::Shadow));
+    act("fmt.shadow")->setChecked(cf.boolProperty(tp::Shadow) || TextEffects::fromJson(cf.stringProperty(tp::TextFx)).outer.on);
     const Qt::Alignment al = bf.alignment() & Qt::AlignHorizontal_Mask;
     act("fmt.alignLeft")->setChecked(textish && (al == Qt::AlignLeft || al == 0 || al == Qt::AlignLeading));
     act("fmt.alignCenter")->setChecked(al == Qt::AlignHCenter);

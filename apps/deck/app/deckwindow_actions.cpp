@@ -14,6 +14,7 @@
 #include "app/settings.h"
 #include "canvas/canvas.h"
 #include "core/deck.h"
+#include "core/texteffects.h"
 #include "text/textprops.h"
 
 #include <QAction>
@@ -102,7 +103,16 @@ void DeckWindow::createFormatActions()
 
     // ---------------- Font ----------------
     mk("fmt.shadow", tr("Shadow"), "layers", QKeySequence(), [ed] {
-        ed->setCharProperty(tp::Shadow, !ed->currentCharFormat().boolProperty(tp::Shadow), tr("Text Shadow"));
+        // A shadow the file gave the words (an effect list) comes off; the button's own goes on and off.
+        const QTextCharFormat cf = ed->currentCharFormat();
+        TextEffects fx = TextEffects::fromJson(cf.stringProperty(tp::TextFx));
+        if (fx.outer.on) {
+            fx.outer.on = false;
+            fx.xml.clear();
+            ed->setCharProperty(tp::TextFx, fx.any() ? fx.toJson() : QString(), tr("Text Shadow"));
+            return;
+        }
+        ed->setCharProperty(tp::Shadow, !cf.boolProperty(tp::Shadow), tr("Text Shadow"));
     }, true);
     mk("fmt.grow", tr("Increase Font Size"), "a-arrow-up", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Greater), [ed] { ed->growFont(1); });
     mk("fmt.shrink", tr("Decrease Font Size"), "a-arrow-down", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Less), [ed] { ed->growFont(-1); });
