@@ -1,6 +1,8 @@
 #pragma once
-// Update check: asks GitHub's public releases list for a newer JeffPub and
-// offers to download and run its installer. Sends nothing about the user.
+// Update check: asks GitHub's public releases list for a newer JeffOffice
+// (the suite's releases: JeffPub's and JeffDeck's are the same) and offers to
+// download and run its installer on Windows, which installs every app, or
+// to open its release page. Sends nothing about the user.
 
 #include <QNetworkAccessManager>
 #include <QJsonArray>
@@ -27,6 +29,12 @@ public:
     // Stable, the default, offers only regular releases.
     static bool betaChannel();
     static void setBetaChannel(bool beta);
+
+    // With two apps open, each finds the same new version. The one that offers it first notes that in the suite's settings,
+    // and another app is quiet about that version for the rest of the day (an app that offered it offers it again at each
+    // start, as ever). "Check for Updates" always offers.
+    static bool offeredByAnotherAppToday(const QString &tag);
+    static void noteOffered(const QString &tag);
 
     // Version strings like "0.1.6" or tags like "v0.1.0-preview5", compared numerically.
     static bool isNewer(const QString &candidate, const QString &current);

@@ -42,17 +42,28 @@ bool moveDataFolder(const QString &from, const QString &to)
 bool suiteWide(const QString &key)
 {
     static const QStringList keys = {QStringLiteral("ui/theme"), QStringLiteral("ui/language"), QStringLiteral("user/name"),
-                                     QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled")};
+                                     QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled"), QStringLiteral("telemetry/install")};
     return key.startsWith(QLatin1String("updates/")) || keys.contains(key);
 }
 
 void moveToSuite(QSettings &app, QSettings &suite)
 {
     const QString marker = QStringLiteral("migration/suite");
-    if (app.value(marker).toBool()) return;
-    for (const QString &key : app.allKeys())
-        if (suiteWide(key) && !suite.contains(key)) suite.setValue(key, app.value(key));
-    app.setValue(marker, true);
+    if (!app.value(marker).toBool()) {
+        for (const QString &key : app.allKeys())
+            if (suiteWide(key) && !suite.contains(key)) suite.setValue(key, app.value(key));
+        app.setValue(marker, true);
+    }
+    // The statistics' install id joined the suite later (JeffDeck sends the same one), so an app that had moved its keys
+    // already brings its id over now. It moves rather than copies: turning statistics off clears the suite's, and no
+    // copy of the id stays where that can't reach it.
+    const QString install = QStringLiteral("telemetry/install"), idMarker = QStringLiteral("migration/suiteInstall");
+    if (app.value(idMarker).toBool()) return;
+    if (app.contains(install)) {
+        if (!suite.contains(install)) suite.setValue(install, app.value(install));
+        app.remove(install);
+    }
+    app.setValue(idMarker, true);
 }
 
 Unit defaultUnit(const QLocale &region)
