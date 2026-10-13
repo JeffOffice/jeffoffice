@@ -82,13 +82,18 @@ int currentVariant(const Document &d);
 ColorSet colorSetOf(const Document &d);
 FontSet fontSetOf(const Document &d);
 
+// Whether a presentation can give its theme: it needs a slide master, and that master needs layouts (a theme with none would leave the
+// presentation's slides with nothing to stand on).
+enum class ThemeSource { Fine, NoSlideMaster, NoLayouts };
+ThemeSource themeSourceProblem(const Document &source);
+
 // ---- changing a presentation (each is one step for the caller to record) ----
 
 // Gives every slide the theme of `source`: its first slide master and that
 // master's layouts replace the presentation's own, and each slide goes to the
 // layout of its kind (title to title, two content to two content...), its text
-// kept, and set in the new fonts and colors where it used the theme's. False
-// if `source` has no slide master.
+// kept, and set in the new fonts and colors where it used the theme's. False,
+// with nothing changed, if `source` can't give a theme (themeSourceProblem).
 bool applyThemeToAll(Document &d, const Document &source);
 // The same for the slides `slides` (indexes) only: they get a copy of the
 // source's slide master of their own (the other slides keep theirs, and the

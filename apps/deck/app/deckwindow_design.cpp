@@ -100,11 +100,17 @@ bool DeckWindow::applyThemeFile(const QString &path, bool allSlides)
         QMessageBox::warning(this, tr("Browse for Themes"), tr("%1 can't be read: %2").arg(QFileInfo(path).fileName(), why.isEmpty() ? tr("The file can't be read.") : why));
         return false;
     }
-    if (!applyThemeFrom(*source, allSlides)) {
-        QMessageBox::warning(this, tr("Browse for Themes"), tr("%1 has no slide master, so there is no theme to take from it.").arg(QFileInfo(path).fileName()));
+    const QString name = QFileInfo(path).fileName();
+    switch (deck::themeSourceProblem(*source)) {
+    case deck::ThemeSource::NoSlideMaster:
+        QMessageBox::warning(this, tr("Browse for Themes"), tr("%1 has no slide master, so there is no theme to take from it. Nothing was changed.").arg(name));
         return false;
+    case deck::ThemeSource::NoLayouts:
+        QMessageBox::warning(this, tr("Browse for Themes"), tr("%1 has a slide master but no slide layouts, so your slides would have nothing to stand on. Nothing was changed.").arg(name));
+        return false;
+    case deck::ThemeSource::Fine: break;
     }
-    return true;
+    return applyThemeFrom(*source, allSlides);
 }
 
 void DeckWindow::browseForTheme(bool allSlides)
