@@ -13022,6 +13022,33 @@ private Q_SLOTS:
         deck::EmbeddedFonts::release(bad.get());
     }
 
+    // A font whose license is the restricted one (no copy of it may be embedded) is not drawn with, though a file carries it; the license that
+    // says preview and print only is no bar to drawing it. What the file carries is kept as it is.
+    void aRestrictedFontInAFileIsNotUsed()
+    {
+        auto withLicense = [&](const QString &name, quint16 fsType) {
+            QByteArray font = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), name);
+            for (int i = 0, n = qFromBigEndian<quint16>(font.constData() + 4); i < n; ++i)
+                if (font.mid(12 + 16 * i, 4) == "OS/2") qToBigEndian<quint16>(fsType, font.data() + int(qFromBigEndian<quint32>(font.constData() + 12 + 16 * i + 8)) + 8);
+            return font;
+        };
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        QString err;
+        auto restricted = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Robster"), {{0, office::makeEot(withLicense(QStringLiteral("Robster"), 0x0002))}}}})), &err);
+        QVERIFY2(restricted, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Robster")));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(restricted.get()).size()), 1);
+        deck::EmbeddedFonts::release(restricted.get());
+        auto preview = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Pobster"), {{0, office::makeEot(withLicense(QStringLiteral("Pobster"), 0x0004))}}}})), &err);
+        QVERIFY2(preview, qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        QVERIFY(QFontDatabase::families().contains(QStringLiteral("Pobster")));
+        deck::EmbeddedFonts::release(preview.get());
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+    }
+
     // The window gives a presentation's fonts back when the presentation is replaced and when the window closes.
     void aWindowReleasesItsPresentationsFonts()
     {
