@@ -70,6 +70,8 @@ enum : int {
     BulletSize,                                  // double points: a list marker's own size (list format)
     TocLevel,                                    // int: a table of contents' paragraph (0 its title, 1-3 an entry), rebuilt by Update
     BulletTab,                                   // double points: the list's indent: its text starts this far from the text area's edge, or at the bullet's end (list format)
+    SpaceBeforeShare,                            // double: a slide paragraph's space before as a share of its line (0.2: 20 percent), where its file gave it so; the top margin holds what that came to
+    SpaceAfterShare,                             // double: the same for the space after (the bottom margin)
 };
 
 // Copies every property of `from` onto `to`. QTextFormat::properties()
