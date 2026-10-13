@@ -4624,8 +4624,8 @@ private Q_SLOTS:
         QMap<QString, QByteArray> zip;
         QVERIFY(readZip(bytes, zip, &err));
         const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
-        // 18 points at 62.5% (the lines 20 points closer is a share of 80% of the 100%).
-        QVERIFY2(content.contains(QStringLiteral("fo:font-size=\"11.25pt\"")), qPrintable(content.left(3000)));
+        // 18 points at 62.5% is 11.25, drawn in whole points as the program draws it (the lines 20 points closer is a share of 80% of the 100%).
+        QVERIFY2(content.contains(QStringLiteral("fo:font-size=\"11pt\"")), qPrintable(content.left(3000)));
         QVERIFY(content.contains(QStringLiteral("fo:line-height=\"80%\"")));
         const int shrinking = content.count(QStringLiteral("style:shrink-to-fit=\"true\""));
         QVERIFY(shrinking >= 1);
@@ -4646,6 +4646,48 @@ private Q_SLOTS:
         QMap<QString, QByteArray> zip2;
         QVERIFY(readZip(shortBox, zip2, &err));
         QCOMPARE(QString::fromUtf8(zip2.value(QStringLiteral("content.xml"))).count(QStringLiteral("style:shrink-to-fit=\"true\"")), shrinking - 1);
+    }
+
+    // The space around shrunk paragraphs goes into the other kind of file as it is drawn here: the points as written, the share of a line
+    // at the size the text was shrunk to; read back, the lines are where they were.
+    void odpWritesShrunkTextsSpaceAsItIsDrawn()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QString paras;
+        for (int i = 0; i < 5; ++i)
+            paras += QStringLiteral("<a:p><a:pPr marL=\"228600\" indent=\"-228600\"><a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc><a:spcBef><a:spcPct val=\"20000\"/></a:spcBef><a:spcAft><a:spcPts val=\"600\"/></a:spcAft>"
+                                    "<a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/></a:pPr><a:r><a:rPr lang=\"en-US\" sz=\"2800\"/><a:t>Paragraph %1</a:t></a:r></a:p>").arg(i + 1);
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Shrunk\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 3200000)
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr><a:normAutofit fontScale=\"85000\" lnSpcReduction=\"20000\"/></a:bodyPr><a:lstStyle/>")
+                                                       + paras + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto find = [](const Document &doc) -> TextItem * {
+            for (const auto &it : doc.pages[0]->items)
+                if (it->name == QLatin1String("Shrunk") && it->type() == ItemType::Text) return static_cast<TextItem *>(it.get());
+            return nullptr;
+        };
+        TextItem *t = find(*d);
+        QVERIFY(t && t->fitAsStored);
+        LayoutCache cacheA, cacheB;
+        const auto before = cacheA.textFrame(*d, *t, 1, RenderOptions()).layout->lineInfo(0);
+        QCOMPARE(int(before.size()), 5);
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        TextItem *again = find(*back);
+        QVERIFY(again);
+        const auto after = cacheB.textFrame(*back, *again, 1, RenderOptions()).layout->lineInfo(0);
+        QCOMPARE(int(after.size()), 5);
+        QVERIFY2(std::abs(after[0].pointSize - 24) < 0.01, qPrintable(QString::number(after[0].pointSize)));
+        for (int i = 1; i < 5; ++i)
+            QVERIFY2(std::abs((after[i].baseline - after[0].baseline) - (before[i].baseline - before[0].baseline)) < 0.1,
+                     qPrintable(QStringLiteral("%1: %2 vs %3").arg(i).arg(after[i].baseline - after[0].baseline).arg(before[i].baseline - before[0].baseline)));
     }
 
     // A gradient whose first color doesn't start at its beginning (the ends are padded with the colors) and one that fades in the middle keep
@@ -5460,13 +5502,13 @@ private Q_SLOTS:
         QVERIFY(t->fitAsStored);
         QCOMPARE(t->fitScale, 0.625);
         QCOMPARE(t->fitLineCut, 20.0);
-        // Drawn at that size, though it doesn't fit (the program's metrics are its own), the lines 20 points closer.
+        // Drawn at that size (18 points at 62.5 percent are 11), though it doesn't fit (the program's metrics are its own), the lines 20 points closer.
         LayoutCache cache;
         auto fl = cache.textFrame(*d, *t, 1, RenderOptions());
         QCOMPARE(fl.fitScale, 0.625);
         const auto stored = fl.layout->lineInfo(0);
         QCOMPARE(int(stored.size()), 12);
-        QVERIFY2(std::abs(stored[1].baseline - stored[0].baseline - 0.8 * 1.2 * 18 * 0.625) < 0.05, qPrintable(QString::number(stored[1].baseline - stored[0].baseline)));
+        QVERIFY2(std::abs(stored[1].baseline - stored[0].baseline - 0.8 * 1.2 * 11) < 0.05, qPrintable(QString::number(stored[1].baseline - stored[0].baseline)));
         // Written back so.
         Exported e;
         QByteArray bytes = deck::exportPresentation(*d, &err);
@@ -5489,6 +5531,240 @@ private Q_SLOTS:
         QVERIFY(box->fitAsStored);   // clicking into it changes nothing
         ed->insertText(QStringLiteral("x"));
         QVERIFY(!box->fitAsStored);
+    }
+
+    // Text the presentation program shrank to fit is drawn in whole points: each size times the scale, rounded to the nearest point
+    // (halves up, 1 at least), and a line is 1.2 times that size. Probed in the program: 28 pt at 85 percent is 24, not 23.8.
+    // Other layouts (JeffPub's) keep the exact product.
+    void shrunkTextIsDrawnInWholePoints()
+    {
+        struct Case { double size, scale, want; };
+        const QVector<Case> cases = {{28, 0.85, 24}, {18, 0.925, 17}, {10.5, 0.925, 10}, {12, 0.625, 8}, {10, 0.85, 9}, {24, 0.7, 17}, {2, 0.25, 1}, {6, 0.25, 2}, {10.5, 1.0, 10.5}};
+        for (const Case &c : cases) {
+            QTextDocument doc;
+            QTextCursor cur(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Liberation Serif")});
+            cf.setFontPointSize(c.size);
+            cur.insertText(QStringLiteral("Text"), cf);
+            FrameSpec fs;
+            fs.size = QSizeF(300, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            LayoutEnv env;
+            env.slideLines = true;
+            env.fontScale = c.scale;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            const auto lines = lay.lineInfo(0);
+            QCOMPARE(int(lines.size()), 1);
+            const QString what = QStringLiteral("%1 at %2: ").arg(c.size).arg(c.scale);
+            QVERIFY2(std::abs(lines[0].pointSize - c.want) < 0.01, qPrintable(what + QString::number(lines[0].pointSize)));
+            QVERIFY2(std::abs(lines[0].rect.height() - 1.2 * c.want) < 0.01, qPrintable(what + QString::number(lines[0].rect.height())));
+            env.slideLines = false;
+            StoryLayout other;
+            other.build(&doc, {fs}, env);
+            QVERIFY2(std::abs(other.lineInfo(0)[0].pointSize - std::max(1.0, c.size * c.scale)) < 0.01, qPrintable(what + QString::number(other.lineInfo(0)[0].pointSize)));
+        }
+    }
+
+    // What isn't text stays as written when the text shrinks (probed in the program at 100, 85, 70, and 55 percent): the indents, the
+    // space before and after in points, an exact line spacing, and the line spacing cut by lnSpcReduction counts off the percent.
+    void shrunkTextKeepsItsDistances()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(27);
+        bf.setTextIndent(-9);
+        bf.setTopMargin(10);
+        bf.setBottomMargin(6);
+        bf.setLineHeight(24, QTextBlockFormat::FixedHeight);
+        c.setBlockFormat(bf);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Liberation Serif")});
+        cf.setFontPointSize(20);
+        c.insertText(QStringLiteral("One"), cf);
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("Two"), cf);
+        FrameSpec fs;
+        fs.size = QSizeF(300, 300);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        LayoutEnv env;
+        env.slideLines = true;
+        env.fontScale = 0.5;
+        StoryLayout lay;
+        lay.build(&doc, {fs}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(int(lines.size()), 2);
+        QVERIFY2(std::abs(lines[0].rect.left() - 18) < 0.01, qPrintable(QString::number(lines[0].rect.left())));
+        QVERIFY2(std::abs(lines[0].rect.height() - 24) < 0.01, qPrintable(QString::number(lines[0].rect.height())));
+        QVERIFY2(std::abs(lines[1].rect.top() - lines[0].rect.bottom() - 16) < 0.01, qPrintable(QString::number(lines[1].rect.top() - lines[0].rect.bottom())));
+        // An exact spacing isn't cut by lnSpcReduction either.
+        env.lineCut = 20;
+        StoryLayout cut;
+        cut.build(&doc, {fs}, env);
+        QVERIFY2(std::abs(cut.lineInfo(0)[0].rect.height() - 24) < 0.01, qPrintable(QString::number(cut.lineInfo(0)[0].rect.height())));
+    }
+
+    // Space before or after a paragraph that a file gives as a share of the line follows the size the text shrank to, and the same
+    // space given in points stays (probed: 20 percent of a 14 point line is 3.36 points, 12 points stay 12 at 55 percent).
+    void shrunkTextSpaceByShareFollowsTheSize()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Liberation Serif")});
+        cf.setFontPointSize(28);
+        QTextBlockFormat share;
+        share.setTopMargin(0.2 * 1.2 * 28);
+        share.setBottomMargin(0.5 * 1.2 * 28);
+        share.setProperty(tp::SpaceBeforeShare, 0.2);
+        share.setProperty(tp::SpaceAfterShare, 0.5);
+        QTextBlockFormat points;
+        points.setTopMargin(6.72);
+        QTextBlockFormat edited = share;
+        edited.setTopMargin(9);   // changed since the file was read: that is in points now
+        c.setBlockFormat(share);
+        c.insertText(QStringLiteral("One"), cf);
+        c.insertBlock(share, cf);
+        c.insertText(QStringLiteral("Two"), cf);
+        c.insertBlock(points, cf);
+        c.insertText(QStringLiteral("Three"), cf);
+        c.insertBlock(edited, cf);
+        c.insertText(QStringLiteral("Four"), cf);
+        FrameSpec fs;
+        fs.size = QSizeF(300, 300);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        LayoutEnv env;
+        env.slideLines = true;
+        env.fontScale = 0.55;   // 28 points are 15
+        StoryLayout lay;
+        lay.build(&doc, {fs}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(int(lines.size()), 4);
+        auto gap = [&](int i) { return lines[i].rect.top() - lines[i - 1].rect.bottom(); };
+        QVERIFY2(std::abs(gap(1) - (0.5 * 1.2 * 15 + 0.2 * 1.2 * 15)) < 0.01, qPrintable(QString::number(gap(1))));
+        QVERIFY2(std::abs(gap(2) - (0.5 * 1.2 * 15 + 6.72)) < 0.01, qPrintable(QString::number(gap(2))));
+        QVERIFY2(std::abs(gap(3) - (0.0 + 9)) < 0.01, qPrintable(QString::number(gap(3))));
+    }
+
+    // Pair kerning follows the size the text is drawn at: a run kerned from 12 points is kerned at 15 points and not at 9 when shrunk
+    // from 28 (probed in the program). Other layouts count the size given.
+    void shrunkTextKernsAtTheSizeItIsDrawnAt()
+    {
+        auto kerned = [](double size, double scale, bool slide, double from) {
+            QTextCharFormat cf;
+            cf.setFontPointSize(size);
+            if (from > 0) cf.setProperty(tp::KernAbove, from);
+            LayoutEnv env;
+            env.slideLines = slide;
+            env.fontScale = scale;
+            return resolveCharFormat(cf, env).fontKerning();
+        };
+        QVERIFY(kerned(28, 1.0, true, 12));
+        QVERIFY(kerned(28, 0.55, true, 12));
+        QVERIFY(!kerned(28, 0.325, true, 12));
+        QVERIFY(kerned(28, 0.325, false, 12));
+        QVERIFY(!kerned(13, 1.0, false, 0));
+    }
+
+    // A slide's line that isn't single (a share of the line other than 100 percent, lnSpcReduction counted, or an exact height, shrunk or
+    // not): taller than a single line, its baseline is 3/4 of the way down it whatever the font (probed in 20 fonts); shorter, it keeps the
+    // font's descent below it but sits no higher than 3/4 down. The program's single line is the font's own.
+    void slideBaselinesOfSpacedLinesFollowTheProgram()
+    {
+        struct Case { QTextBlockFormat::LineHeightTypes type; double height, scale, cut, line; };
+        const QVector<Case> cases = {{QTextBlockFormat::ProportionalHeight, 150, 1.0, 0, 1.5 * 1.2 * 24}, {QTextBlockFormat::ProportionalHeight, 90, 1.0, 0, 0.9 * 1.2 * 24},
+                                     {QTextBlockFormat::ProportionalHeight, 90, 1.0, 20, 0.7 * 1.2 * 24}, {QTextBlockFormat::SingleHeight, 0, 1.0, 10, 0.9 * 1.2 * 24},
+                                     {QTextBlockFormat::ProportionalHeight, 110, 1.0, 10, 1.2 * 24}, {QTextBlockFormat::FixedHeight, 30, 1.0, 0, 30},
+                                     {QTextBlockFormat::FixedHeight, 30, 0.7, 20, 30}, {QTextBlockFormat::FixedHeight, 15, 1.0, 0, 15}};
+        for (const QString &family : {QStringLiteral("Liberation Serif"), QStringLiteral("DejaVu Sans")}) {
+            auto layout = [&](const Case &c) {
+                QTextDocument doc;
+                QTextCursor cur(&doc);
+                QTextBlockFormat bf;
+                if (c.type != QTextBlockFormat::SingleHeight) bf.setLineHeight(c.height, c.type);
+                cur.setBlockFormat(bf);
+                QTextCharFormat cf;
+                cf.setFontFamilies({family});
+                cf.setFontPointSize(c.scale < 1 ? 24 / c.scale : 24);   // 34.3 points shrunk to the 24 the case counts on (rounded)
+                cur.insertText(QStringLiteral("Text"), cf);
+                FrameSpec fs;
+                fs.size = QSizeF(300, 300);
+                fs.insets = QMarginsF(0, 0, 0, 0);
+                LayoutEnv env;
+                env.slideLines = true;
+                env.fontScale = c.scale;
+                env.lineCut = c.cut;
+                StoryLayout lay;
+                lay.build(&doc, {fs}, env);
+                const auto lines = lay.lineInfo(0);
+                return lines.size() == 1 ? lines[0] : StoryLayout::LineInfo();
+            };
+            // The font's descent: what a single line has below its baseline.
+            const auto single = layout({QTextBlockFormat::SingleHeight, 0, 1.0, 0, 1.2 * 24});
+            const double descent = single.rect.bottom() - single.baseline;
+            QVERIFY2(descent > 1 && descent < 10, qPrintable(family + QLatin1Char(' ') + QString::number(descent)));
+            for (const Case &c : cases) {
+                const auto line = layout(c);
+                const QString what = family + QLatin1Char(' ') + QString::number(c.height) + QLatin1Char(' ') + QString::number(c.cut) + QLatin1String(": ");
+                QVERIFY2(std::abs(line.rect.height() - c.line) < 0.01, qPrintable(what + QString::number(line.rect.height())));
+                const double wanted = c.line > 1.2 * 24 + 0.01 ? 0.75 * c.line : std::max(0.75 * c.line, c.line - descent);
+                QVERIFY2(std::abs(line.baseline - line.rect.top() - wanted) < 0.01, qPrintable(what + QString::number(line.baseline - line.rect.top()) + QStringLiteral(" vs ") + QString::number(wanted)));
+            }
+        }
+    }
+
+    // A box of text the program shrank, as a file gives it: the sizes, the cut line spacing, the space before as a share of the line
+    // and the space after in points, all as probed in the program (28 points at 85 percent are 24; 90 percent less 20 is 70).
+    void shrunkTextIsSetAsTheProgramSetsIt()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QString paras;
+        for (const char *word : {"Alpha", "Beta"})
+            paras += QStringLiteral("<a:p><a:pPr marL=\"342900\" indent=\"-342900\"><a:lnSpc><a:spcPct val=\"90000\"/></a:lnSpc><a:spcBef><a:spcPct val=\"20000\"/></a:spcBef>"
+                                    "<a:spcAft><a:spcPts val=\"600\"/></a:spcAft><a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/></a:pPr>"
+                                    "<a:r><a:rPr lang=\"en-US\" sz=\"2800\"><a:latin typeface=\"Liberation Serif\"/></a:rPr><a:t>%1</a:t></a:r></a:p>").arg(QLatin1String(word));
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Shrunk\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 2743200)
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\"><a:normAutofit fontScale=\"85000\" lnSpcReduction=\"20000\"/></a:bodyPr><a:lstStyle/>")
+                                                       + paras + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        TextItem *t = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Shrunk")) t = static_cast<TextItem *>(it.get());
+        QVERIFY(t && t->fitAsStored);
+        LayoutCache cache;
+        const auto lines = cache.textFrame(*d, *t, 1, RenderOptions()).layout->lineInfo(0);
+        QCOMPARE(int(lines.size()), 2);
+        QVERIFY2(std::abs(lines[0].pointSize - 24) < 0.01, qPrintable(QString::number(lines[0].pointSize)));
+        const double line = 1.2 * 24 * 0.70;
+        QVERIFY2(std::abs(lines[0].rect.height() - line) < 0.01, qPrintable(QString::number(lines[0].rect.height())));
+        // The line is shorter than a single one: it keeps the font's descent below the baseline, but sits no higher than 3/4 down.
+        QTextDocument one;
+        QTextCursor oneCursor(&one);
+        QTextCharFormat oneFormat;
+        oneFormat.setFontFamilies({QStringLiteral("Liberation Serif")});
+        oneFormat.setFontPointSize(24);
+        oneCursor.insertText(QStringLiteral("Text"), oneFormat);
+        FrameSpec oneSpec;
+        oneSpec.size = QSizeF(300, 300);
+        oneSpec.insets = QMarginsF(0, 0, 0, 0);
+        LayoutEnv oneEnv;
+        oneEnv.slideLines = true;
+        StoryLayout oneLayout;
+        oneLayout.build(&one, {oneSpec}, oneEnv);
+        const double descent = oneLayout.lineInfo(0)[0].rect.bottom() - oneLayout.lineInfo(0)[0].baseline;
+        const double wanted = std::max(0.75 * line, line - descent);
+        QVERIFY2(std::abs(lines[0].baseline - lines[0].rect.top() - wanted) < 0.01, qPrintable(QString::number(lines[0].baseline - lines[0].rect.top()) + QStringLiteral(" vs ") + QString::number(wanted)));
+        // 6 points after, then 20 percent of a 24 point line before: 6 + 5.76.
+        QVERIFY2(std::abs(lines[1].rect.top() - lines[0].rect.bottom() - (6 + 0.2 * 1.2 * 24)) < 0.01, qPrintable(QString::number(lines[1].rect.top() - lines[0].rect.bottom())));
+        // The text starts 27 points in, the hang being as written.
+        QVERIFY2(std::abs(lines[0].rect.left() - 27) < 0.01, qPrintable(QString::number(lines[0].rect.left())));
     }
 
     // A slide's empty placeholder shows the fill its layout gives it (a design's sample picture), whose picture is named by the
@@ -19547,7 +19823,7 @@ private Q_SLOTS:
         // A line of so many master units is that many points.
         QVERIFY(three.blockFormat().lineHeightType() == QTextBlockFormat::FixedHeight);
         QCOMPARE(three.blockFormat().lineHeight(), 500.0 / 8);
-        // Drawn: the first line at the top of the box; the second's baseline 80 percent of a line and the space before below it.
+        // Drawn: the first line at the top of the box; the second below it by the space before and its baseline in its own 80 percent line.
         const TextItem *body = nullptr;
         for (const auto &it : d->pages[0]->items)
             if (it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
@@ -19556,7 +19832,9 @@ private Q_SLOTS:
         const auto lines = cache.textFrame(*d, *body, 1, RenderOptions()).layout->lineInfo(0);
         QCOMPARE(int(lines.size()), 3);
         QVERIFY2(qAbs(lines[0].rect.top() - body->insets.top()) < 0.01, qPrintable(QString::number(lines[0].rect.top())));
-        QVERIFY2(qAbs(lines[1].baseline - lines[0].baseline - (0.8 + 0.2) * 1.2 * 28) < 0.05, qPrintable(QString::number(lines[1].baseline - lines[0].baseline)));
+        // (The single line has its baseline a font's descent above its bottom; the 80 percent line has it 3/4 of the way down, as probed.)
+        const double wanted = (lines[0].rect.bottom() - lines[0].baseline) + 0.2 * 1.2 * 28 + 0.75 * 0.8 * 1.2 * 28;
+        QVERIFY2(qAbs(lines[1].baseline - lines[0].baseline - wanted) < 0.05, qPrintable(QString::number(lines[1].baseline - lines[0].baseline) + QStringLiteral(" vs ") + QString::number(wanted)));
     }
 
     // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.

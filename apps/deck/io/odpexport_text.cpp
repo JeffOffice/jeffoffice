@@ -6,6 +6,7 @@
 #include "io/odpexport_p.h"
 
 #include "core/fonts.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -103,7 +104,9 @@ QString Exporter::charAttrs(const QTextCharFormat &cf, bool)
         if (families.size() > 1) out += attrOf("style:font-name-asian", fontDecl(families[1]));
         if (families.size() > 2) out += attrOf("style:font-name-complex", fontDecl(families[2]));
     }
-    const double size = std::clamp(std::max(1.0, std::clamp(cf.hasProperty(QTextFormat::FontPointSize) ? cf.fontPointSize() : 11.0, 1.0, 1638.0) * m_fitScale), 1.0, 1638.0);
+    // (Text the presentation program shrank is written at the whole-point size it draws it at, and only its size is shrunk.)
+    const double fileSize = std::clamp(cf.hasProperty(QTextFormat::FontPointSize) ? cf.fontPointSize() : 11.0, 1.0, 1638.0);
+    const double size = std::clamp(slideShrunkSize(fileSize, m_fitScale), 1.0, 1638.0);
     out += attrOf("fo:font-size", pt(size)) + attrOf("style:font-size-asian", pt(size)) + attrOf("style:font-size-complex", pt(size));
     // The weight: the two usual ones by name, the others (light, medium, semibold...) by their number.
     const int w = std::clamp(int(std::lround(cf.fontWeight() / 100.0)) * 100, 100, 900);
@@ -138,7 +141,7 @@ QString Exporter::charAttrs(const QTextCharFormat &cf, bool)
     else if (cf.fontCapitalization() == QFont::AllLowercase) out += attrOf("fo:text-transform", QStringLiteral("lowercase"));
     else if (cf.fontCapitalization() == QFont::SmallCaps || cf.boolProperty(tp::TrueSmallCaps)) out += attrOf("fo:font-variant", QStringLiteral("small-caps"));
     else out += attrOf("fo:text-transform", QStringLiteral("none"));
-    if (const double spacing = tp::kerningOf(cf); spacing != 0 && std::isfinite(spacing)) out += attrOf("fo:letter-spacing", cm(spacing * m_fitScale));
+    if (const double spacing = tp::kerningOf(cf); spacing != 0 && std::isfinite(spacing)) out += attrOf("fo:letter-spacing", cm(spacing));
     // Pairs of letters are kerned from a size up (14 points unless the text says otherwise), as the text is set here.
     {
         const double own = std::clamp(cf.hasProperty(QTextFormat::FontPointSize) ? cf.fontPointSize() : 11.0, 0.5, 1638.0);
@@ -195,13 +198,13 @@ QString Exporter::paraAttrs(const QTextBlockFormat &bf, bool inList)
         marL = 0;
         indent = 0;
     }
-    out += attrOf("fo:margin-left", cm(std::clamp(marL * m_fitScale, 0.0, 4000.0))) + attrOf("fo:margin-right", cm(std::clamp(bf.rightMargin() * m_fitScale, 0.0, 4000.0)));
-    out += attrOf("fo:text-indent", cm(std::clamp(indent * m_fitScale, -4000.0, 4000.0)));
+    out += attrOf("fo:margin-left", cm(std::clamp(marL, 0.0, 4000.0))) + attrOf("fo:margin-right", cm(std::clamp(bf.rightMargin(), 0.0, 4000.0)));
+    out += attrOf("fo:text-indent", cm(std::clamp(indent, -4000.0, 4000.0)));
     // (The first paragraph of a box has no space before it, on a slide, and so in the other suite.)
-    out += attrOf("fo:margin-top", cm(std::max(0.0, bf.topMargin() * m_fitScale))) + attrOf("fo:margin-bottom", cm(std::max(0.0, bf.bottomMargin() * m_fitScale)));
+    out += attrOf("fo:margin-top", cm(std::max(0.0, bf.topMargin()))) + attrOf("fo:margin-bottom", cm(std::max(0.0, bf.bottomMargin())));
     // A line is as tall as the paragraph's share of what a slide sets: 1.2 times the text (the frame's text style says so).
     if (bf.hasProperty(QTextFormat::LineHeight) && bf.lineHeight() > 0 && bf.lineHeightType() == QTextBlockFormat::FixedHeight)
-        out += attrOf("fo:line-height", cm(bf.lineHeight() * m_fitScale));
+        out += attrOf("fo:line-height", cm(bf.lineHeight()));
     else
         out += attrOf("fo:line-height", number(m_fitCut > 0 ? std::max(1.0, shareOf(bf) - m_fitCut) : shareOf(bf), 1) + QLatin1Char('%'));
     if (bf.boolProperty(tp::KeepTogether)) out += attrOf("fo:keep-together", QStringLiteral("always"));
@@ -219,7 +222,7 @@ QString Exporter::paraProps(const QTextBlockFormat &bf, bool inList)
     props += QStringLiteral("><style:tab-stops>");
     for (int i = 0; i < tabs.size() && i < 32; ++i) {
         const QString type = tabs[i].type == QTextOption::RightTab ? QStringLiteral("right") : tabs[i].type == QTextOption::CenterTab ? QStringLiteral("center") : tabs[i].type == QTextOption::DelimiterTab ? QStringLiteral("char") : QStringLiteral("left");
-        props += QStringLiteral("<style:tab-stop style:position=\"%1\" style:type=\"%2\"/>").arg(cm(std::clamp(tabs[i].position * m_fitScale, 0.0, 4000.0)), type);
+        props += QStringLiteral("<style:tab-stop style:position=\"%1\" style:type=\"%2\"/>").arg(cm(std::clamp(tabs[i].position, 0.0, 4000.0)), type);
     }
     return props + QStringLiteral("</style:tab-stops></style:paragraph-properties>");
 }
@@ -249,6 +252,9 @@ QString Exporter::paraStyleOf(Scope &sc, const QTextBlock &b, bool inList, const
 {
     // The format of the paragraph's mark says how tall an empty one is.
     QTextBlockFormat bf = b.blockFormat();
+    // The space before and after: points as written, a share of the line at the size the text was shrunk to (as it is laid out here).
+    bf.setTopMargin(slideSpaceOf(b, tp::SpaceBeforeShare, m_fitScale));
+    bf.setBottomMargin(slideSpaceOf(b, tp::SpaceAfterShare, m_fitScale));
     if (startsAtTheIndent(b, inList)) bf.setTextIndent(0);
     const QString props = paraProps(bf, inList) + QStringLiteral("<style:text-properties%1/>").arg(charAttrs(b.charFormat()));
     return sc.styles->style(QStringLiteral("paragraph"), sc.master ? QStringLiteral("MP") : QStringLiteral("P"), QString(), props);
@@ -265,8 +271,8 @@ QString Exporter::listLevelXml(int level, const QTextBlockFormat &bf, const QTex
         indent = marL + indent - stop;
         marL = stop;
     }
-    marL = std::clamp(marL * m_fitScale, 0.0, 4000.0);
-    indent = std::clamp(indent * m_fitScale, -4000.0, 4000.0);
+    marL = std::clamp(marL, 0.0, 4000.0);
+    indent = std::clamp(indent, -4000.0, 4000.0);
     if (outMarL) *outMarL = marL;
     if (outIndent) *outIndent = indent;
 
