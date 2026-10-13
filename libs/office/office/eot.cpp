@@ -34,13 +34,20 @@ void put32(QByteArray &b, quint32 v)
     b.append(c, 4);
 }
 
-// A name, as the header holds it: its size in bytes, then the letters in UTF-16, little-endian.
-void putName(QByteArray &b, const QString &name)
+// A name, as the header holds it: its size in bytes, then the letters in UTF-16, little-endian. The program ends the family and style
+// with a zero character that its size counts.
+void putName(QByteArray &b, const QString &name, bool terminated = false)
 {
     put16(b, 0);   // the padding before it
-    put16(b, quint16(2 * name.size()));
+    put16(b, quint16(2 * (name.size() + (terminated ? 1 : 0))));
     for (QChar c : name) put16(b, c.unicode());
+    if (terminated) put16(b, 0);
 }
+
+// What the header's checksum of the root string (the places the font may be used from) is when there is none: the program refuses a
+// font whose header has any other. It is the checksum of the string's bytes, which are none, plus this.
+constexpr quint32 kRootStringCheckSum = 0x50475342;
+constexpr quint32 kLatinCodePage = 1252;
 
 bool looksLikeFontFile(const QByteArray &data)
 {
@@ -71,14 +78,14 @@ QByteArray makeEot(const QByteArray &font)
     for (int i = 0; i < 2; ++i) put32(eot, info.codePageRange[i]);
     put32(eot, info.checkSumAdjustment);
     for (int i = 0; i < 4; ++i) put32(eot, 0);     // reserved
-    putName(eot, info.family);
-    putName(eot, info.subfamily);
+    putName(eot, info.family, true);
+    putName(eot, info.subfamily, true);
     putName(eot, info.versionName);
     putName(eot, info.fullName);
     put16(eot, 0);                                 // the padding before the root string
     put16(eot, 0);                                 // no root string (the places the font may be used from)
-    put32(eot, 0);                                 // its checksum
-    put32(eot, 0);                                 // the code page of the font's private characters
+    put32(eot, kRootStringCheckSum);
+    put32(eot, kLatinCodePage);                    // the code page of the font's private characters, which it has none of
     put16(eot, 0);
     put16(eot, 0);                                 // no signature
     put32(eot, 0);                                 // flags of the private-character font
