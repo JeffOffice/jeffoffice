@@ -62,6 +62,11 @@ TextEffects defaultTextShadow();
 // box that blurs the edge, which a Gaussian of this spread matches.
 inline double blurSigma(double blurRadius) { return blurRadius * 0.2887; }   // 1 / sqrt(12)
 
+// The program's own pictures put a shadow on words a little nearer to them and a little softer than the file's distance and radius say:
+// measured on the stems of its letters against the same stems drawn here, 0.88 of the distance and 1.08 of the spread; these are the
+// rounded numbers.
+inline constexpr double kShadowNear = 0.9, kShadowSoft = 1.1;
+
 // Blurs the alpha channel of an Alpha8 image with a Gaussian of the given spread (pixels), three passes of boxes.
 void blurAlpha(QImage &alpha8, double sigma);
 

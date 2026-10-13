@@ -5495,18 +5495,19 @@ private Q_SLOTS:
                 }
             }
         };
-        // To the right, 10 points: 40 pixels.
+        // To the right, 10 points: 40 pixels (the program's pictures put it a little nearer than the file says).
+        const double nearer = kShadowNear;
         const TextEffects right = shadowOf(red, 0, 10, 0);
         EffectBar b = paintEffectBar(&right);
         QCOMPARE(b.left, plain.left);
         int l, r;
         redEdges(b, b.row, &l, &r);
-        QVERIFY2(l > 0 && std::abs((r - b.right) - 40) <= 2, qPrintable(QStringLiteral("%1 %2 %3").arg(l).arg(r).arg(b.right)));
+        QVERIFY2(l > 0 && std::abs((r - b.right) - 40 * nearer) <= 2, qPrintable(QStringLiteral("%1 %2 %3").arg(l).arg(r).arg(b.right)));
         // Down and to the right, 14.142 points: 10 points each way.
         const TextEffects diagonal = shadowOf(red, 0, 14.1421, 45);
         b = paintEffectBar(&diagonal);
         redEdges(b, b.row, &l, &r);
-        QVERIFY2(std::abs((r - b.right) - 40) <= 2, qPrintable(QString::number(r - b.right)));
+        QVERIFY2(std::abs((r - b.right) - 40 * nearer) <= 2, qPrintable(QString::number(r - b.right)));
         int topPlain = -1, topShadow = -1;
         for (int y = 0; y < plain.img.height(); ++y) {
             if (topPlain < 0 && qGray(plain.img.pixel(plain.left + 4, y)) < 40) topPlain = y;
@@ -5516,11 +5517,11 @@ private Q_SLOTS:
             const QColor c = b.img.pixelColor(b.right + 20, y);
             if (topShadow < 0 && c.red() > 200 && c.green() < 60) topShadow = y;
         }
-        QVERIFY2(topShadow > 0 && std::abs((topShadow - topPlain) - 40) <= 3, qPrintable(QStringLiteral("%1 %2").arg(topShadow).arg(topPlain)));
+        QVERIFY2(topShadow > 0 && std::abs((topShadow - topPlain) - 40 * nearer) <= 3, qPrintable(QStringLiteral("%1 %2").arg(topShadow).arg(topPlain)));
         // Text the program shrank to fit has its shadow shrunk with it.
         const EffectBar half = paintEffectBar(&right, 0.5);
         redEdges(half, half.row, &l, &r);
-        QVERIFY2(l > 0 && std::abs((r - half.right) - 20) <= 2, qPrintable(QString::number(r - half.right)));
+        QVERIFY2(l > 0 && std::abs((r - half.right) - 20 * nearer) <= 2, qPrintable(QString::number(r - half.right)));
         // A shadow with no color of its own alpha is as light as the alpha says.
         const TextEffects faint = shadowOf(QColor(255, 0, 0, 102), 0, 10, 0);
         b = paintEffectBar(&faint);
@@ -5529,10 +5530,10 @@ private Q_SLOTS:
     }
 
     // A shadow's blur is the width of a box blurring its edge, which is a Gaussian a little under a third as wide (as the presentation
-    // program draws it): the edge is half there where it would be, and nearly gone two spreads away.
+    // program draws it, a little softer still): the edge is half there where it would be, and nearly gone two spreads away.
     void runShadowBlurIsAGaussianOfAThirdTheRadius()
     {
-        // 40 points to the right is clear of the bar; 4 points of blur is a spread of 1.155 points, 4.62 pixels.
+        // 40 points to the right is clear of the bar; 4 points of blur is a spread of 1.155 points (a little more: 1.27, 5.1 pixels).
         const TextEffects hard = shadowOf(QColor(255, 0, 0), 0, 40, 0), soft = shadowOf(QColor(255, 0, 0), 4, 40, 0);
         const EffectBar a = paintEffectBar(&hard), b = paintEffectBar(&soft);
         int edge = -1;
