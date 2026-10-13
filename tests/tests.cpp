@@ -5329,6 +5329,40 @@ private Q_SLOTS:
         QVERIFY(!plain->text.isEmpty());
     }
 
+    // Online Pictures tells a library which program asks, as Wikimedia asks programs to: the running app's name and version, and
+    // where it lives (JeffPub's is as it always was).
+    void onlinePicturesNameTheProgramThatAsks()
+    {
+        struct Restore {
+            ~Restore() { jp::setAppInfo(jp::pubAppInfo()); }
+        } restore;
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost));
+        QByteArray request;
+        connect(&server, &QTcpServer::newConnection, &server, [&] {
+            QTcpSocket *s = server.nextPendingConnection();
+            connect(s, &QTcpSocket::disconnected, s, &QObject::deleteLater);
+            connect(s, &QTcpSocket::readyRead, s, [&request, s] {
+                request += s->readAll();
+                if (request.contains("\r\n\r\n")) s->write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+            });
+        });
+        QNetworkAccessManager nam;
+        auto agent = [&] {
+            request.clear();
+            bool answered = false;
+            QObject context;
+            jp::online::download(&nam, QUrl(QStringLiteral("http://127.0.0.1:%1/p").arg(server.serverPort())), &context, [&](const QByteArray &, const QString &) { answered = true; }, 1000, 5000);
+            [&] { QTRY_VERIFY_WITH_TIMEOUT(answered, 10000); }();
+            for (const QByteArray &line : request.split('\n'))
+                if (line.toLower().startsWith("user-agent:")) return QString::fromLatin1(line.mid(11)).trimmed();
+            return QString();
+        };
+        QCOMPARE(agent(), QStringLiteral("JeffPub/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+        jp::setAppInfo({QStringLiteral("JeffDeck"), QStringLiteral("jeffdeck"), QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice/jeffoffice")});
+        QCOMPARE(agent(), QStringLiteral("JeffDeck/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+    }
+
     // A picture kept in a .jpub file is held to what any picture is: an SVG
     // that names a file to draw from (or has a script) is left out; the
     // others stay.
