@@ -4832,7 +4832,7 @@ private Q_SLOTS:
         QVERIFY(!slide.props.contains(QStringLiteral("transition")));
         QCOMPARE(slide.props.value("kind").toString(), QStringLiteral("other"));
         QCOMPARE(deck::transitionTypes(),
-                 (QStringList{"none", "fade", "push", "wipe", "split", "reveal", "cover", "uncover", "zoom", "cut"}));
+                 (QStringList{"none", "morph", "fade", "push", "wipe", "split", "reveal", "cover", "uncover", "zoom", "cut"}));
     }
 
     // Going forward onto a slide with a transition keeps the old slide on the
@@ -5206,6 +5206,217 @@ private Q_SLOTS:
         w.act("transition.none")->trigger();
         QVERIFY(deck::transitionOf(*ed->doc()->pages[2]) == deck::Transition());
         QVERIFY(!ed->doc()->pages[2]->props.contains(QStringLiteral("transition")));
+    }
+
+    // ---- Morph ----
+
+    // Morph is written as the presentation program writes it (a p159 choice holding p159:morph and a fade for programs that don't
+    // know it), and its three options read back; a file's own morph is read the same way.
+    void morphTransitionFile()
+    {
+        const QString p159 = QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2015/09/main");
+        deck::Transition t;
+        t.type = QStringLiteral("morph");
+        QVERIFY(t.isMorph());
+        QCOMPARE(t.by, QStringLiteral("objects"));
+        QCOMPARE(deck::Transition::morphUnits(), (QStringList{"objects", "words", "characters"}));
+        const QMap<QString, QString> options{{"objects", "byObject"}, {"words", "byWord"}, {"characters", "byChar"}};
+        for (const QString &by : deck::Transition::morphUnits()) {
+            t.by = by;
+            t.duration = 2.0;
+            const QString xml = deck::transitionXml(t);
+            QVERIFY2(xml.contains(QStringLiteral("<mc:Choice xmlns:p159=\"%1\"").arg(p159)), qPrintable(xml));
+            QVERIFY2(xml.contains(QStringLiteral("Requires=\"p159\"")), qPrintable(xml));
+            QVERIFY2(xml.contains(QStringLiteral("<p:transition spd=\"slow\" p14:dur=\"2000\"><p159:morph option=\"%1\"/></p:transition></mc:Choice>").arg(options[by])), qPrintable(xml));
+            QVERIFY2(xml.contains(QStringLiteral("<mc:Fallback><p:transition spd=\"slow\"><p:fade/></p:transition></mc:Fallback>")), qPrintable(xml));
+            // As a slide holds it: the slide's root declares the p: prefix.
+            QString held = xml;
+            held.insert(held.indexOf(QLatin1Char(' ')), QStringLiteral(" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""));
+            QDomDocument dom;
+            QVERIFY2(office::parseXml(held.toUtf8(), &dom), qPrintable(xml));
+            QVERIFY2(deck::transitionFromXml(held) == t, qPrintable(held));
+        }
+        // Other times, with the click and the seconds on both forms.
+        t.by = QStringLiteral("words");
+        t.duration = 0.5;
+        t.advanceOnClick = false;
+        t.advanceAfter = 3.0;
+        QString timed = deck::transitionXml(t);
+        QVERIFY2(timed.contains(QStringLiteral("<p:transition spd=\"fast\" advClick=\"0\" advTm=\"3000\" p14:dur=\"500\"><p159:morph")), qPrintable(timed));
+        QVERIFY2(timed.contains(QStringLiteral("<mc:Fallback><p:transition spd=\"fast\" advClick=\"0\" advTm=\"3000\"><p:fade/>")), qPrintable(timed));
+        timed.insert(timed.indexOf(QLatin1Char(' ')), QStringLiteral(" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""));
+        QVERIFY(deck::transitionFromXml(timed) == t);
+
+        // As the program writes it (p14 declared once above, the time of its own, three seconds).
+        const QString theirs =
+            QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""
+                           " xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\"><mc:Choice xmlns:p159=\"%1\" Requires=\"p159\">"
+                           "<p:transition spd=\"slow\" p14:dur=\"3000\"><p159:morph option=\"byChar\"/></p:transition></mc:Choice>"
+                           "<mc:Fallback><p:transition spd=\"slow\"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>")
+                .arg(p159);
+        const deck::Transition read = deck::transitionFromXml(theirs);
+        QCOMPARE(read.type, QStringLiteral("morph"));
+        QCOMPARE(read.by, QStringLiteral("characters"));
+        QCOMPARE(read.duration, 3.0);
+        // No option, or one this program doesn't know, is objects.
+        QString none = theirs;
+        none.replace(QStringLiteral(" option=\"byChar\""), QString());
+        QCOMPARE(deck::transitionFromXml(none).by, QStringLiteral("objects"));
+        QString odd = theirs;
+        odd.replace(QStringLiteral("byChar"), QStringLiteral("byParagraph"));
+        QCOMPARE(deck::transitionFromXml(odd).type, QStringLiteral("morph"));
+        QCOMPARE(deck::transitionFromXml(odd).by, QStringLiteral("objects"));
+        // A morph in another namespace isn't one; neither is another effect of the namespace: the fallback is read.
+        QString other = theirs;
+        other.replace(QStringLiteral("<p159:morph option=\"byChar\"/>"), QStringLiteral("<p159:spin/>"));
+        QCOMPARE(deck::transitionFromXml(other).type, QStringLiteral("fade"));
+        QString elsewhere = theirs;
+        elsewhere.replace(p159, QStringLiteral("urn:elsewhere"));
+        QCOMPARE(deck::transitionFromXml(elsewhere).type, QStringLiteral("fade"));
+        // The model: a by that means nothing to another type goes; one that isn't a unit takes the default.
+        QCOMPARE(deck::Transition::fromJson({{"type", "morph"}, {"by", "words"}}).by, QStringLiteral("words"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "morph"}, {"by", "letters"}}).by, QStringLiteral("objects"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "fade"}, {"by", "words"}}).by, QStringLiteral("objects"));
+        QVERIFY(!deck::Transition::fromJson({{"type", "fade"}}).toJson().contains(QStringLiteral("by")));
+        deck::Transition j;
+        j.type = QStringLiteral("morph");
+        j.by = QStringLiteral("characters");
+        j.duration = 2.0;
+        QVERIFY(deck::Transition::fromJson(j.toJson()) == j);
+        QVERIFY(j != deck::Transition::fromJson({{"type", "morph"}, {"duration", 2.0}}));
+    }
+
+    // A morph on a slide is saved as the program writes it and comes back; a file's own morph, saved unchanged, is written as it was.
+    void morphTransitionIsSavedAndKept()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        deck::Transition t;
+        t.type = QStringLiteral("morph");
+        t.by = QStringLiteral("words");
+        t.duration = 2.0;
+        t.advanceAfter = 4.0;
+        deck::setTransition(*d->pages[1], t);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString second = part(e, QStringLiteral("/ppt/slides/slide2.xml"));
+        QVERIFY(second.contains(QStringLiteral("Requires=\"p159\"")));
+        QVERIFY(second.contains(QStringLiteral("<p159:morph option=\"byWord\"/>")));
+        QVERIFY(second.contains(QStringLiteral("p14:dur=\"2000\"")));
+        QVERIFY(second.contains(QStringLiteral("<mc:Fallback><p:transition spd=\"slow\" advTm=\"4000\"><p:fade/>")));
+        QDomDocument dom;
+        QVERIFY(office::parseXml(second.toUtf8(), &dom));
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::transitionOf(*back->pages[1]) == t);
+        // What a file holds beyond what the show has a form for stays when it is not changed here.
+        const QString theirs =
+            QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""
+                           " xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" xmlns:zz=\"urn:kept\"><mc:Choice xmlns:p159=\"http://schemas.microsoft.com/office/powerpoint/2015/09/main\" Requires=\"p159\">"
+                           "<p:transition spd=\"slow\" p14:dur=\"2500\"><p159:morph option=\"byChar\" zz:mark=\"1\"/></p:transition></mc:Choice>"
+                           "<mc:Fallback><p:transition spd=\"slow\"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>");
+        d->pages[0]->props[QStringLiteral("transitionXml")] = theirs;
+        deck::setTransition(*d->pages[0], deck::transitionFromXml(theirs));
+        QCOMPARE(deck::transitionOf(*d->pages[0]).by, QStringLiteral("characters"));
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("zz:mark=\"1\"")));
+        // Changed here, it is written from what the show has.
+        deck::Transition changed = deck::transitionOf(*d->pages[0]);
+        changed.by = QStringLiteral("objects");
+        deck::setTransition(*d->pages[0], changed);
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        const QString first = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(!first.contains(QStringLiteral("zz:mark")));
+        QVERIFY(first.contains(QStringLiteral("<p159:morph option=\"byObject\"/>")));
+    }
+
+    // Morph is in the Transitions tab's gallery with an icon of its own, takes two seconds, and has Objects, Words, and Characters
+    // for its Effect Options; each change is one step.
+    void windowMorphOnTheTransitionsTab()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        auto current = [&] { return deck::transitionOf(*ed->doc()->pages[ed->currentPage()]); };
+        // In the gallery, second after None, with a picture.
+        auto *gallery = w.ribbon()->findChild<Gallery *>(QStringLiteral("transitionGallery"));
+        QVERIFY(gallery);
+        auto *list = gallery->findChild<QListWidget *>();
+        QVERIFY(list);
+        QCOMPARE(list->count(), int(deck::transitionTypes().size()));
+        QCOMPARE(list->item(1)->data(Qt::UserRole).toString(), QStringLiteral("morph"));
+        QCOMPARE(list->item(1)->toolTip(), w.act("transition.morph")->text());
+        QVERIFY(!list->item(1)->icon().isNull());
+        // Its picture is its own, not the fade's.
+        const QSize pic = list->iconSize();
+        QVERIFY(list->item(1)->icon().pixmap(pic).toImage() != list->item(2)->icon().pixmap(pic).toImage());
+        // The options mean nothing to the other types.
+        for (const QString &by : deck::Transition::morphUnits()) QVERIFY2(w.act("transition.by." + by), qPrintable(by));
+        w.act("transition.fade")->trigger();
+        for (const QString &by : deck::Transition::morphUnits()) QVERIFY(!w.act("transition.by." + by)->isEnabled());
+        // Choosing it gives two seconds, objects, and the Preview.
+        w.act("transition.morph")->trigger();
+        QCOMPARE(current().type, QStringLiteral("morph"));
+        QCOMPARE(current().duration, 2.0);
+        QCOMPARE(current().by, QStringLiteral("objects"));
+        QVERIFY(w.act("transition.morph")->isChecked());
+        QVERIFY(w.act("transition.by.objects")->isChecked());
+        QVERIFY(w.act("transition.by.words")->isEnabled() && !w.act("transition.by.words")->isChecked());
+        auto *duration = w.ribbon()->findChild<QDoubleSpinBox *>(QStringLiteral("transitionDuration"));
+        QVERIFY(duration);
+        QTRY_COMPARE(duration->value(), 2.0);
+        QVERIFY(w.act("transition.preview")->isEnabled());
+        // Effect Options.
+        w.act("transition.by.words")->trigger();
+        QCOMPARE(current().by, QStringLiteral("words"));
+        QVERIFY(w.act("transition.by.words")->isChecked() && !w.act("transition.by.objects")->isChecked());
+        w.act("transition.by.characters")->trigger();
+        QCOMPARE(current().by, QStringLiteral("characters"));
+        QCOMPARE(current().duration, 2.0);
+        ed->undo();
+        QCOMPARE(current().by, QStringLiteral("words"));
+        QVERIFY(w.act("transition.by.words")->isChecked());
+        // The menu lists the three and no directions.
+        QToolButton *effects = nullptr;
+        for (auto *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->menu() && b->text() == QStringLiteral("Effect Options")) effects = b;
+        QVERIFY(effects);
+        QStringList listed;
+        Q_EMIT effects->menu()->aboutToShow();
+        for (QAction *a : effects->menu()->actions()) listed << a->text();
+        QCOMPARE(listed, (QStringList{w.act("transition.by.objects")->text(), w.act("transition.by.words")->text(), w.act("transition.by.characters")->text()}));
+        // A time that was chosen stays; the usual one goes back with the type.
+        duration->setValue(3.0);
+        w.act("transition.push")->trigger();
+        QCOMPARE(current().duration, 3.0);
+        QCOMPARE(current().by, QStringLiteral("objects"));   // a morph's own option goes with it
+        w.act("transition.morph")->trigger();
+        QCOMPARE(current().duration, 3.0);
+        duration->setValue(2.0);
+        w.act("transition.fade")->trigger();
+        QCOMPARE(current().duration, 0.7);
+        // None takes a morph away whole.
+        w.act("transition.morph")->trigger();
+        w.act("transition.by.words")->trigger();
+        w.act("transition.none")->trigger();
+        QVERIFY(!ed->doc()->pages[ed->currentPage()]->props.contains(QStringLiteral("transition")));
+        // Apply To All carries it, and the Preview plays it over the slide area.
+        ed->setCurrentPage(1);
+        w.act("transition.morph")->trigger();
+        w.act("transition.by.characters")->trigger();
+        w.act("transition.applyToAll")->trigger();
+        for (int i = 0; i < 3; ++i) QCOMPARE(deck::transitionOf(*ed->doc()->pages[i]).by, QStringLiteral("characters"));
+        w.show();
+        w.act("transition.preview")->trigger();
+        auto *preview = w.findChild<TransitionPreview *>(QStringLiteral("transitionPreview"));
+        QVERIFY(preview);
+        QVERIFY(preview->isPlaying());
+        QTest::keyClick(preview, Qt::Key_Escape);
+        QVERIFY(!preview->isPlaying());
     }
 
     // Painting only the changed part of a frame over the last one gives the
