@@ -3090,7 +3090,7 @@ void StoryLayout::paintTextEffects(QPainter *p, int frame, bool over) const
             }
             if (fx.outer.on) {
                 const TextShadow &sh = fx.outer;
-                const QTransform t = castTransform(sh.sx, sh.sy, sh.kx, sh.ky, sh.distance * scale, sh.angle, g.box, sh.align);
+                const QTransform t = castTransform(sh.sx, sh.sy, sh.kx, sh.ky, sh.distance * scale * kShadowNear, sh.angle, g.box, sh.align);
                 p->save();
                 p->setTransform(t, true);
                 if (sh.blur <= 0) {
@@ -3102,7 +3102,7 @@ void StoryLayout::paintTextEffects(QPainter *p, int frame, bool over) const
                         p->restore();
                     }
                 } else {
-                    const double sigma = blurSigma(sh.blur * scale);
+                    const double sigma = blurSigma(sh.blur * scale) * kShadowSoft;
                     QRectF where;
                     const QImage mask = cast(g.box.adjusted(-3 * sigma - 1, -3 * sigma - 1, 3 * sigma + 1, 3 * sigma + 1), 0, sigma, &where);
                     p->setRenderHint(QPainter::SmoothPixmapTransform);
