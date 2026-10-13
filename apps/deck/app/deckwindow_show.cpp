@@ -84,6 +84,38 @@ void editShowSettings(Editor *ed, const QString &label, const std::function<void
     ed->endChange();
 }
 
+// A morph halfway between two sample slides: each bar of one on its way to where the other has it (slid over and changed in size), in
+// colors between the two slides' (a light copy of where each began and ended shows the way it goes).
+void paintMorphSample(QPainter *p, const QSize &size, const QColor &paperA, const QColor &paperB, const QColor &inkA, const QColor &inkB)
+{
+    const double w = size.width(), h = size.height();
+    p->fillRect(QRectF(0, 0, w, h), mix(paperA, paperB, 0.5));
+    p->setRenderHint(QPainter::Antialiasing);
+    p->setPen(Qt::NoPen);
+    struct Bar { QRectF from, to; };
+    const Bar bars[] = {
+        {QRectF(0.16, 0.20, 0.68, 0.20), QRectF(0.44, 0.14, 0.40, 0.16)},   // the title slides over and shrinks
+        {QRectF(0.16, 0.52, 0.50, 0.10), QRectF(0.30, 0.46, 0.54, 0.10)},   // a line slides over and grows
+        {QRectF(0.16, 0.70, 0.40, 0.10), QRectF(0.50, 0.66, 0.34, 0.14)},
+    };
+    auto at = [&](const QRectF &r) { return QRectF(w * r.x(), h * r.y(), w * r.width(), h * r.height()); };
+    for (const Bar &b : bars) {
+        QColor ghostA = inkA, ghostB = inkB;
+        ghostA.setAlpha(38);
+        ghostB.setAlpha(38);
+        p->setBrush(ghostA);
+        p->drawRoundedRect(at(b.from), 1.5, 1.5);
+        p->setBrush(ghostB);
+        p->drawRoundedRect(at(b.to), 1.5, 1.5);
+    }
+    for (const Bar &b : bars) {
+        const QRectF mid(b.from.x() + (b.to.x() - b.from.x()) / 2, b.from.y() + (b.to.y() - b.from.y()) / 2, b.from.width() + (b.to.width() - b.from.width()) / 2,
+                         b.from.height() + (b.to.height() - b.from.height()) / 2);
+        p->setBrush(mix(inkA, inkB, 0.5));
+        p->drawRoundedRect(at(mid), 1.5, 1.5);
+    }
+}
+
 // What a transition looks like halfway, between two sample slides: the real
 // drawing, so that the gallery shows what each one does.
 QIcon transitionIcon(const QString &type)
@@ -103,15 +135,17 @@ QIcon transitionIcon(const QString &type)
             q.drawRoundedRect(QRectF(size.width() * 0.16, size.height() * 0.7, size.width() * 0.4, size.height() * 0.1), 1.5, 1.5);
             return img;
         };
-        const QImage from = sample(QColor(0xDC, 0xE3, 0xEB), QColor(0x5B, 0x6B, 0x7D));
-        const QImage to = sample(QColor(0xF6, 0xDC, 0xCE), kStar);
+        const QColor paperA(0xDC, 0xE3, 0xEB), inkA(0x5B, 0x6B, 0x7D), paperB(0xF6, 0xDC, 0xCE);
+        const QImage from = sample(paperA, inkA);
+        const QImage to = sample(paperB, kStar);
         QImage frame(from.size(), QImage::Format_RGB32);
         frame.setDevicePixelRatio(dpr);
         {
             QPainter q(&frame);
             deck::Transition t;
             t.type = type;
-            paintTransition(&q, t, from, to, type == QLatin1String("none") ? 0 : 0.5);
+            if (type == QLatin1String("morph")) paintMorphSample(&q, size, paperA, paperB, inkA, kStar);
+            else paintTransition(&q, t, from, to, type == QLatin1String("none") ? 0 : 0.5);
         }
         p->drawImage(rc.topLeft(), frame);
         p->setPen(QPen(QColor(0x88, 0x88, 0x88), 1));
@@ -193,16 +227,21 @@ void DeckWindow::createShowActions()
 
     // The transitions, and the ways each goes.
     const struct { const char *type; QString text; } kinds[] = {
-        {"none", tr("None")},       {"fade", tr("Fade")},   {"push", tr("Push")},       {"wipe", tr("Wipe")}, {"split", tr("Split")},
+        {"none", tr("None")},       {"morph", tr("Morph")}, {"fade", tr("Fade")},       {"push", tr("Push")}, {"wipe", tr("Wipe")}, {"split", tr("Split")},
         {"reveal", tr("Reveal")},   {"cover", tr("Cover")}, {"uncover", tr("Uncover")}, {"zoom", tr("Zoom")}, {"cut", tr("Cut")},
     };
     for (const auto &k : kinds) {
         const QString type = QString::fromLatin1(k.type);
         mk(QStringLiteral("transition.") + type, k.text, QString(), QKeySequence(), [ed, type, label] {
             editTransition(ed, label, [&type](deck::Transition &t) {
+                const bool wasMorph = t.isMorph();
                 t.type = type;
                 // A direction that means nothing to the new type gives way to its own.
                 if (t.hasInOut() != (t.dir == QLatin1String("in") || t.dir == QLatin1String("out"))) t.dir = deck::Transition::defaultDirection(type);
+                // A morph takes two seconds, and the others seven tenths, unless the time was chosen.
+                const double usual = deck::Transition().duration;
+                if (t.isMorph() && !wasMorph && t.duration == usual) t.duration = deck::Transition::kMorphSeconds;
+                else if (wasMorph && !t.isMorph() && t.duration == deck::Transition::kMorphSeconds) t.duration = usual;
             });
         }, true);
     }
@@ -213,6 +252,15 @@ void DeckWindow::createShowActions()
         const QString dir = QString::fromLatin1(k.dir);
         mk(QStringLiteral("transition.dir.") + dir, k.text, QString(), QKeySequence(), [ed, dir, label] {
             editTransition(ed, label, [&dir](deck::Transition &t) { t.dir = dir; });
+        }, true);
+    }
+
+    // What a morph moves.
+    const struct { const char *by; QString text; } units[] = {{"objects", tr("Objects")}, {"words", tr("Words")}, {"characters", tr("Characters")}};
+    for (const auto &k : units) {
+        const QString by = QString::fromLatin1(k.by);
+        mk(QStringLiteral("transition.by.") + by, k.text, QString(), QKeySequence(), [ed, by, label] {
+            editTransition(ed, label, [&by](deck::Transition &t) { t.by = by; });
         }, true);
     }
 
@@ -244,6 +292,11 @@ void DeckWindow::createShowActions()
             QAction *a = act(QStringLiteral("transition.dir.") + dir);
             a->setEnabled(t.hasInOut());
             a->setChecked(t.hasInOut() && t.dir == dir);
+        }
+        for (const QString &by : deck::Transition::morphUnits()) {
+            QAction *a = act(QStringLiteral("transition.by.") + by);
+            a->setEnabled(t.isMorph());
+            a->setChecked(t.isMorph() && t.by == by);
         }
         act("transition.preview")->setEnabled(t.type != QLatin1String("none"));
     };
@@ -284,7 +337,7 @@ void DeckWindow::addShowParts(RibbonParts &parts)
         syncs->last()();
         return gallery;
     };
-    // Effect Options: the directions or in and out of the slide's transition type.
+    // Effect Options: the directions, in and out, or what a morph moves, of the slide's transition type.
     parts.menus[QStringLiteral("effectOptions")] = [this](QWidget *owner) {
         auto *menu = new QMenu(owner);
         auto fill = [this, menu] {
@@ -294,7 +347,9 @@ void DeckWindow::addShowParts(RibbonParts &parts)
             if (t.hasInOut()) ids = {QStringLiteral("out"), QStringLiteral("in")};
             else if (t.hasDirection()) ids = {QStringLiteral("l"), QStringLiteral("r"), QStringLiteral("u"), QStringLiteral("d")};
             for (const QString &id : ids) menu->addAction(act(QStringLiteral("transition.dir.") + id));
-            if (ids.isEmpty()) menu->addAction(tr("No Effect Options"))->setEnabled(false);
+            if (t.isMorph())
+                for (const QString &by : deck::Transition::morphUnits()) menu->addAction(act(QStringLiteral("transition.by.") + by));
+            if (ids.isEmpty() && !t.isMorph()) menu->addAction(tr("No Effect Options"))->setEnabled(false);
         };
         connect(menu, &QMenu::aboutToShow, menu, fill);
         fill();
