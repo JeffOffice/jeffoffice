@@ -72,7 +72,9 @@ class Document;
 struct Page;
 class LayoutCache;
 class PresenterView;
+class ShowMedia;
 class StepFrames;
+class MorphFrames;
 
 // A slide drawn to fill `size` device-independent pixels at `dpr`, centered
 // and as large as it goes, with `bars` around it. The image is opaque. With
@@ -132,6 +134,8 @@ public:
     const Document *document() const { return m_doc; }
     LayoutCache *cache() const { return m_cache; }
     PresenterView *presenterView() const;
+    // The movies and sounds of the slide on the screen.
+    ShowMedia *media() const { return m_media; }
 
     void next();
     void previous();
@@ -268,6 +272,7 @@ private:
     void prefetch();
     void moveOn();
     void startTransition(int pos, const deck::Transition &t);
+    std::shared_ptr<MorphFrames> morphFor(int to, const deck::Transition &t);
     void endTransition();
     void settle();
     void startAutoAdvance();
@@ -319,6 +324,7 @@ private:
     qreal m_imageRatio = 1;
     QVariantAnimation m_anim;
     deck::Transition m_trans;
+    std::shared_ptr<MorphFrames> m_morph;   // a morph plays from the slides' objects (app/morph.h), not their images
     double m_painted = -1;     // the progress last asked to be painted; -1 before the first frame
     QTimer m_auto;
     mutable QHash<int, Play> m_plays;   // the slides' animations, read when first asked for
@@ -333,6 +339,7 @@ private:
     qreal m_nowRatio = 1;
     bool m_nowValid = false;
     QPointer<PresenterView> m_presenter;
+    ShowMedia *m_media = nullptr;   // the movies and sounds (showmedia.h)
     // The pointer, and the ink the pen and highlighter left, by slide.
     Pointer m_pointer = Pointer::Arrow;
     QColor m_penColor, m_highlighterColor;
@@ -383,6 +390,7 @@ private:
     QVariantAnimation m_anim;
     deck::Transition m_trans;
     QImage m_from, m_to;
+    std::shared_ptr<MorphFrames> m_morph;
     QRect m_area;   // where the slide goes, in the widget
 };
 

@@ -40,7 +40,7 @@ jobs:
         if: steps.key.outputs.have == 'yes'
         with:
           version: '6.8.3'
-          modules: 'qtimageformats'
+          modules: 'qtimageformats qtmultimedia'
           cache: true
 
       - uses: actions/setup-python@v5

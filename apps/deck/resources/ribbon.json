@@ -394,7 +394,12 @@
           "items": [
             {
               "large": "insert.picture",
-              "keytip": "P"
+              "keytip": "P",
+              "split": true,
+              "menu": [
+                "insert.pictureDevice",
+                "insert.onlinePicture"
+              ]
             }
           ]
         },
@@ -405,6 +410,10 @@
             {
               "widget": "shapesButton",
               "keytip": "SH"
+            },
+            {
+              "large": "insert.icons",
+              "keytip": "IC"
             }
           ]
         },
@@ -419,6 +428,10 @@
             {
               "large": "insert.headerFooter",
               "keytip": "HF"
+            },
+            {
+              "widget": "textArtButton",
+              "keytip": "WA"
             },
             {
               "small": "insert.dateTime",
@@ -443,6 +456,34 @@
             {
               "large": "insert.symbol",
               "keytip": "SY"
+            }
+          ]
+        },
+        {
+          "name": "Media",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.video",
+                "text": "Video",
+                "icon": "video"
+              },
+              "keytip": "V",
+              "menu": [
+                "insert.video"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.audio",
+                "text": "Audio",
+                "icon": "volume-2"
+              },
+              "keytip": "U",
+              "menu": [
+                "insert.audio"
+              ]
             }
           ]
         }
@@ -892,6 +933,100 @@
             {
               "large": "view.fit",
               "keytip": "F"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Playback",
+      "keytip": "JB",
+      "context": "Media Tools",
+      "color": "playback",
+      "groups": [
+        {
+          "name": "Preview",
+          "keytip": "ZP",
+          "items": [
+            {
+              "large": "playback.play",
+              "keytip": "P"
+            }
+          ]
+        },
+        {
+          "name": "Editing",
+          "keytip": "ZE",
+          "items": [
+            {
+              "large": "playback.trim",
+              "keytip": "T"
+            }
+          ]
+        },
+        {
+          "name": "Media Options",
+          "keytip": "ZO",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Volume:"
+                },
+                {
+                  "widget": "mediaVolume",
+                  "keytip": "V"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Start:"
+                },
+                {
+                  "widget": "mediaStart",
+                  "keytip": "S"
+                }
+              ]
+            },
+            {
+              "column": true
+            },
+            {
+              "row": [
+                {
+                  "widget": "mediaFullScreen",
+                  "keytip": "F"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "mediaHide",
+                  "keytip": "H"
+                }
+              ]
+            },
+            {
+              "column": true
+            },
+            {
+              "row": [
+                {
+                  "widget": "mediaLoop",
+                  "keytip": "L"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "mediaRewind",
+                  "keytip": "R"
+                }
+              ]
             }
           ]
         }

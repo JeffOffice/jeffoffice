@@ -25,6 +25,7 @@
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QTextBlock>
+#include <QTextCursor>
 #include <QTextList>
 
 namespace jp {
@@ -196,6 +197,7 @@ void DeckWindow::createFormatActions()
 void DeckWindow::createInsertActions()
 {
     mk("insert.headerFooter", tr("Header and Footer"), "panel-bottom", QKeySequence(), [this] { showHeaderFooter(); });
+    createPictureActions();
 }
 
 void DeckWindow::createDesignActions()
@@ -314,7 +316,7 @@ void DeckWindow::showHeaderFooter()
     if (dlg.exec() == QDialog::Accepted) applyFooters(dlg.options(), dlg.applyToAll());
 }
 
-bool DeckWindow::insertPicture(const QString &path, const QPointF &at)
+bool DeckWindow::insertPicture(const QString &path, const QPointF &at, const QString &altText, const QString &credit)
 {
     QByteArray bytes = readPictureBytes(path);
     QString format;
@@ -330,10 +332,27 @@ bool DeckWindow::insertPicture(const QString &path, const QPointF &at)
     auto pic = std::make_shared<PictureItem>();
     pic->rect = QRectF(at.x() < 0 ? QPointF((ps.width() - size.width()) / 2, (ps.height() - size.height()) / 2) : at, size);
     pic->imgRect = QRectF(QPointF(0, 0), size);
+    pic->altText = altText;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Insert Picture"));
     pic->imageId = d->addImage(bytes, format, path);
     m_ed->surfaceItems().push_back(pic);
+    if (!credit.isEmpty()) {
+        // Under the picture, as wide as it is (but wide enough to read), kept on the slide.
+        const double width = std::min(ps.width() * 0.9, std::max(pic->rect.width(), 320.0));
+        const double left = std::clamp(pic->rect.center().x() - width / 2, 0.0, ps.width() - width);
+        auto line = std::static_pointer_cast<TextItem>(m_ed->newTextBox(QRectF(left, pic->rect.bottom() + 4, width, 28), credit));
+        QTextCursor c(d->storyDoc(line->storyId));
+        c.select(QTextCursor::Document);
+        QTextCharFormat creditText;
+        creditText.setFontPointSize(12);
+        c.mergeCharFormat(creditText);
+        QTextBlockFormat centered;
+        centered.setAlignment(Qt::AlignHCenter);
+        c.mergeBlockFormat(centered);
+        m_ed->surfaceItems().push_back(line);
+        pic->caption = line->id;
+    }
     m_ed->endChange();
     m_ed->select(pic->id);
     return true;

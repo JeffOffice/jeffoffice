@@ -1,0 +1,41 @@
+FFmpeg in JeffDeck
+==================
+
+What it is
+----------
+JeffDeck plays the movies and sounds in a presentation through Qt Multimedia.
+Qt Multimedia's FFmpeg backend reads and decodes the files with FFmpeg's
+libraries, which come with the program:
+
+  libavcodec, libavformat, libavutil, libswresample, and libswscale
+  (on Windows avcodec-*.dll and its kin; on macOS and Linux libavcodec and its
+  kin, with Qt's FFmpeg plugin, plugins/multimedia/ffmpegmediaplugin)
+
+They are FFmpeg 7.1, as built for Qt 6.8 by The Qt Company: a build under the
+GNU Lesser General Public License, version 2.1 or later (the libraries say so
+themselves: "libavcodec license: LGPL version 2.1 or later"). It holds no GPL
+or non-free parts. JeffDeck links to them as shared libraries, and has not
+changed them. JeffPub does not use them.
+
+FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
+JeffOffice is not connected to the FFmpeg project.
+
+The license
+-----------
+The text of the GNU Lesser General Public License, version 2.1, is in
+LGPL-2.1.txt, beside this file. You may use, copy, and share FFmpeg's
+libraries under it. You may replace the copies that come with JeffDeck with
+other builds of the same libraries (FFmpeg 7.1, the same version numbers),
+and JeffDeck will use them.
+
+Where the source is
+-------------------
+- FFmpeg 7.1 (the release tag n7.1): https://ffmpeg.org/download.html and
+  https://git.ffmpeg.org/ffmpeg.git
+- How Qt builds it, and Qt's own notes on it: Qt Multimedia's source is at
+  https://code.qt.io/cgit/qt/qtmultimedia.git (the FFmpeg backend is in
+  src/plugins/multimedia/ffmpeg), and Qt's documentation lists FFmpeg among
+  Qt Multimedia's third-party software.
+
+If you can't get the source from those places, ask at
+https://github.com/JeffOffice/jeffoffice and we will send it.

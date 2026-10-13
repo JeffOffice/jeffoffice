@@ -910,7 +910,22 @@ void Reader::media(const QDomElement &nvPr, PictureItem &p)
     QStringList ids;
     for (QDomElement ext = childNamed(childNamed(nvPr, "extLst"), "ext"); !ext.isNull(); ext = ext.nextSiblingElement()) {
         const QDomElement copy = childNamed(ext, "media");
-        if (!copy.isNull()) ids << attrNs(copy, ns::R, QStringLiteral("embed"));
+        if (copy.isNull()) continue;
+        ids << attrNs(copy, ns::R, QStringLiteral("embed"));
+        // Where it plays from and to, and how its volume rises and falls: milliseconds, which a file may write with a fraction.
+        auto millis = [](const QDomElement &e, const char *name) {
+            bool ok = false;
+            const double v = attr(e, QLatin1String(name)).toDouble(&ok);
+            return ok && v > 0 ? int(std::min(v, 86400000.0) + 0.5) : 0;
+        };
+        if (const QDomElement trim = childNamed(copy, "trim"); !trim.isNull()) {
+            p.mediaTrimStart = millis(trim, "st");
+            p.mediaTrimEnd = millis(trim, "end");
+        }
+        if (const QDomElement fade = childNamed(copy, "fade"); !fade.isNull()) {
+            p.mediaFadeIn = std::max(millis(fade, "in"), millis(fade, "inDur"));
+            p.mediaFadeOut = std::max(millis(fade, "out"), millis(fade, "outDur"));
+        }
     }
     ids << attrNs(file, ns::R, QStringLiteral("link")) << attrNs(file, ns::R, QStringLiteral("embed"));
     for (const QString &id : std::as_const(ids)) {

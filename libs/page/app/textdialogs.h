@@ -31,5 +31,6 @@ QImage proceduralTexture(const QString &name, int size);   // built-in texture f
 bool fillEffectsDialog(QWidget *p, Editor *ed, Fill &fill, const QString &title = QString());
 void wordCountDialog(QWidget *p, Editor *ed);
 void tintsDialog(QWidget *p, Editor *ed, const std::function<void(const ColorRef &)> &apply);
+void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId);
 
 } // namespace jp

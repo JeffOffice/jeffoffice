@@ -46,3 +46,4 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 ## Les onglets du ruban
 
 - [Accueil](tab-home), [Insertion](tab-insert), [Conception](tab-design), [Transitions](tab-transitions), [Animations](tab-animations), [Diaporama](tab-slide-show), [Révision](tab-review) et [Affichage](tab-view)
+- [Lecture](tab-playback) apparaît quand un film ou un son est sélectionné

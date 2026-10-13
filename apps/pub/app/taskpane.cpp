@@ -27,6 +27,7 @@
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <QToolButton>
 #include <QTreeWidget>
@@ -1038,6 +1039,29 @@ private:
     QPushButton *m_place, *m_discard;
 };
 
+// Online Pictures' picture, put on the page: its title is its alt text, and when asked it has a credit under it.
+static bool insertOnlinePicture(MainWindow *win, const QString &path, const online::Picture &p, bool withCredit)
+{
+    Editor *ed = win->editor();
+    const size_t before = ed->surfaceItems().size();
+    win->insertFiles({path}, QPointF(-1, -1));
+    auto *pic = ed->surfaceItems().size() > before ? dynamic_cast<PictureItem *>(ed->single()) : nullptr;
+    if (!pic) return false;
+    // Its title describes it for screen readers; the credit names its author and license.
+    ed->change(QCoreApplication::translate("jp::OnlinePicturesPane", "Picture Credit"), [&] {
+        pic->altText = p.title;
+        if (!withCredit) return;
+        auto t = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(pic->rect.left(), pic->rect.bottom() + 4, pic->rect.width(), 22), online::credit(p)));
+        QTextCursor c(ed->doc()->storyDoc(t->storyId));
+        c.select(QTextCursor::Document);
+        if (const TextStyle *s = ed->doc()->style(QStringLiteral("Caption"))) { c.mergeCharFormat(s->chr); c.mergeBlockFormat(s->blk); }
+        ed->surfaceItems().push_back(t);
+        pic->caption = t->id;
+    });
+    ed->select(pic->id);
+    return true;
+}
+
 QWidget *TaskPane::create(const QString &name)
 {
     if (name == "designchecker") return new DesignChecker(m_win);
@@ -1047,7 +1071,7 @@ QWidget *TaskPane::create(const QString &name)
     if (name == "catalog") return new CatalogPane(m_win);
     if (name == "research") return new ResearchPane(m_win);
     if (name == "help") return new HelpView(m_win);
-    if (name == "online") return new OnlinePicturesPane(m_win);
+    if (name == "online") return new OnlinePicturesPane([win = m_win](const QString &path, const online::Picture &p, bool withCredit) { return insertOnlinePicture(win, path, p, withCredit); });
     if (name == "extra") return new ExtraPane(m_win);
     return nullptr;
 }

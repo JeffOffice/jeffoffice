@@ -3,6 +3,7 @@
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/media.h"
 #include "core/sections.h"
 #include "core/themes.h"
 #include "io/pptxdiagram.h"
@@ -35,6 +36,7 @@
 #include <QTextList>
 #include <QXmlStreamWriter>
 #include <climits>
+#include <cstring>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -711,7 +713,9 @@ bool playsOnlyMedia(const QDomElement &e, const QSet<qint64> &mediaIds, bool aim
 QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds,
                                const QSet<qint64> &mediaIds, const QString *xmlGiven)
 {
-    const QString xml = xmlGiven ? *xmlGiven : slide.props.value(QLatin1String(key)).toString();
+    const QString given = xmlGiven ? *xmlGiven : slide.props.value(QLatin1String(key)).toString();
+    // The movie or sound of a picture that was deleted is taken out of the timing; the rest of it stays.
+    const QString xml = !given.isEmpty() && std::strcmp(key, "timingXml") == 0 ? deck::mediaTimingForShapes(given, frameIds) : given;
     if (xml.isEmpty()) return QString();
     QDomDocument dom;
     if (!parsesAlone(xml, &dom)) {

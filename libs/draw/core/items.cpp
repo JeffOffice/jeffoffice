@@ -287,6 +287,8 @@ QJsonObject PictureItem::toJson() const
         o["mediaKind"] = mediaKind;
         if (!mediaId.isEmpty()) o["media"] = mediaId;
         if (!mediaLink.isEmpty()) o["mediaLink"] = mediaLink;
+        if (mediaTrimStart || mediaTrimEnd) o["mediaTrim"] = QJsonArray{mediaTrimStart, mediaTrimEnd};
+        if (mediaFadeIn || mediaFadeOut) o["mediaFade"] = QJsonArray{mediaFadeIn, mediaFadeOut};
     }
     return o;
 }
@@ -309,6 +311,11 @@ void PictureItem::fromJson(const QJsonObject &o)
     mediaKind = o["mediaKind"].toString();
     mediaId = o["media"].toString();
     mediaLink = o["mediaLink"].toString();
+    const QJsonArray trim = o["mediaTrim"].toArray(), fade = o["mediaFade"].toArray();
+    mediaTrimStart = trim.at(0).toInt();
+    mediaTrimEnd = trim.at(1).toInt();
+    mediaFadeIn = fade.at(0).toInt();
+    mediaFadeOut = fade.at(1).toInt();
 }
 
 // ---------- ShapeItem ----------

@@ -32,6 +32,7 @@
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPainter>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRandomGenerator>
 #include <QRegularExpression>
@@ -1052,6 +1053,56 @@ void tintsDialog(QWidget *p, Editor *ed, const std::function<void(const ColorRef
     dlg.v->addLayout(form);
     if (!dlg.exec() || !list->currentItem()) return;
     apply(ColorRef::fromString(list->currentItem()->data(Qt::UserRole).toString()));
+}
+
+// ---------------- TextArt ----------------
+void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId)
+{
+    auto *w = dynamic_cast<TextArtItem *>(ed->doc()->item(itemId));
+    if (!w) return;
+    Dlg dlg(p, QCoreApplication::translate("Dialogs", "Edit Text Art Text"));
+    auto *row = new QHBoxLayout();
+    auto *font = new QComboBox(&dlg.d);
+    font->addItems(QFontDatabase::families());
+    font->setCurrentText(w->font);
+    auto *size = new QSpinBox(&dlg.d);
+    size->setRange(4, 400);
+    size->setValue(int(w->size));
+    auto *bold = new QCheckBox(QCoreApplication::translate("Dialogs", "Bold"), &dlg.d);
+    bold->setChecked(w->bold);
+    auto *italic = new QCheckBox(QCoreApplication::translate("Dialogs", "Italic"), &dlg.d);
+    italic->setChecked(w->italic);
+    row->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font:")));
+    row->addWidget(font, 1);
+    row->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Size:")));
+    row->addWidget(size);
+    row->addWidget(bold);
+    row->addWidget(italic);
+    dlg.v->addLayout(row);
+    auto *text = new QPlainTextEdit(w->text, &dlg.d);
+    text->setMinimumSize(420, 140);
+    QFont tf(w->font);
+    tf.setPointSize(16);
+    text->setFont(tf);
+    QObject::connect(font, &QComboBox::currentTextChanged, text, [text](const QString &f) { QFont x(f); x.setPointSize(16); text->setFont(x); });
+    dlg.v->addWidget(text);
+    text->selectAll();
+    if (!dlg.exec()) return;
+    ed->change(QCoreApplication::translate("Dialogs", "Edit Text Art Text"), [&] {
+        const double oldSize = w->size;
+        w->text = text->toPlainText().isEmpty() ? QStringLiteral(" ") : text->toPlainText();
+        w->font = font->currentText();
+        w->bold = bold->isChecked();
+        w->italic = italic->isChecked();
+        w->size = size->value();
+        // A new size scales the frame.
+        if (std::abs(oldSize - w->size) > 0.1 && oldSize > 0) {
+            const double k = w->size / oldSize;
+            const QPointF c = w->rect.center();
+            w->rect.setSize(w->rect.size() * k);
+            w->rect.moveCenter(c);
+        }
+    });
 }
 
 } // namespace jp
