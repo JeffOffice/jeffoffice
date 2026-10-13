@@ -205,6 +205,8 @@ QString Exporter::paraAttrs(const QTextBlockFormat &bf, bool inList)
     else
         out += attrOf("fo:line-height", number(m_fitCut > 0 ? std::max(1.0, shareOf(bf) - m_fitCut) : shareOf(bf), 1) + QLatin1Char('%'));
     if (bf.boolProperty(tp::KeepTogether)) out += attrOf("fo:keep-together", QStringLiteral("always"));
+    // How far a tab goes where there is no stop of its own.
+    if (m_doc.defaultTabStop >= 1) out += attrOf("loext:tab-stop-distance", cm(std::clamp(m_doc.defaultTabStop, 1.0, 4000.0)));
     return out;
 }
 
@@ -228,10 +230,27 @@ QString Exporter::slideLinesStyle(Scope &sc)
     return sc.styles->style(QStringLiteral("paragraph"), sc.master ? QStringLiteral("MPf") : QStringLiteral("Pf"), QString(), QStringLiteral("<style:paragraph-properties style:font-independent-line-spacing=\"true\"/>"));
 }
 
+// A paragraph that hangs (its first line stands out to the left of the rest) and starts with a tab: the tab goes to where the other lines
+// begin, so the first line begins there too. The other suite puts that tab on the next stop a whole step on, and has no stop at the indent
+// to put it on that this program reads as it is meant; so the tab is left out and the first line is not set out to the left.
+static bool startsAtTheIndent(const QTextBlock &b, bool inList)
+{
+    if (inList || b.blockFormat().textIndent() > -0.5) return false;
+    const QString text = b.text();
+    if (text.size() < 2 || text[0] != QLatin1Char('\t') || text[1] == QLatin1Char('\t')) return false;
+    // No stop of its own before the indent that the tab would go to.
+    const double indent = b.blockFormat().leftMargin();
+    for (const QTextOption::Tab &t : b.blockFormat().tabPositions())
+        if (t.position < indent - 0.01 && t.position > indent + b.blockFormat().textIndent() + 0.01) return false;
+    return true;
+}
+
 QString Exporter::paraStyleOf(Scope &sc, const QTextBlock &b, bool inList, const TextOpts &opts)
 {
     // The format of the paragraph's mark says how tall an empty one is.
-    const QString props = paraProps(b.blockFormat(), inList) + QStringLiteral("<style:text-properties%1/>").arg(charAttrs(b.charFormat()));
+    QTextBlockFormat bf = b.blockFormat();
+    if (startsAtTheIndent(b, inList)) bf.setTextIndent(0);
+    const QString props = paraProps(bf, inList) + QStringLiteral("<style:text-properties%1/>").arg(charAttrs(b.charFormat()));
     return sc.styles->style(QStringLiteral("paragraph"), sc.master ? QStringLiteral("MP") : QStringLiteral("P"), QString(), props);
 }
 
@@ -259,7 +278,8 @@ QString Exporter::listLevelXml(int level, const QTextBlockFormat &bf, const QTex
 
     // Where the label stands and how wide it is, as the other suite's slides have it: the label starts `space-before` in from the left of the
     // frame, and the text starts a label's width after that (a paragraph's own margins are none).
-    const double labelAt = indent < 0 ? marL + indent : marL, labelWidth = indent < 0 ? -indent : 0;
+    // (A first line set in from the rest has the label where it starts, with no width to hang in.)
+    const double labelAt = marL + indent, labelWidth = indent < 0 ? -indent : 0;
     const QString label = QStringLiteral("<style:list-level-properties text:space-before=\"%1\" text:min-label-width=\"%2\"/>").arg(cm(std::max(0.0, labelAt)), cm(labelWidth));
     QString textProps;
     if (const QString ref = lf.stringProperty(tp::BulletColor); !ref.isEmpty() && resolve(ColorRef::fromString(ref)).isValid())
@@ -389,6 +409,7 @@ void Exporter::writeParagraph(X &x, Scope &sc, const QTextBlock &b, bool inList,
     }
     x.attr("text:style-name", paraStyleOf(sc, b, inList, opts));
     Spacing sp;
+    bool skipTab = startsAtTheIndent(b, inList);
     for (auto it = b.begin(); !it.atEnd(); ++it) {
         const QTextFragment f = it.fragment();
         if (!f.isValid()) continue;
@@ -412,6 +433,10 @@ void Exporter::writeParagraph(X &x, Scope &sc, const QTextBlock &b, bool inList,
             pending.clear();
         };
         for (const QChar c : text) {
+            if (skipTab) {
+                skipTab = false;
+                if (c == QLatin1Char('\t')) continue;
+            }
             if (c != QChar(QChar::ObjectReplacementCharacter)) {
                 pending += c;
                 continue;
@@ -468,6 +493,13 @@ void Exporter::writeStory(X &x, Scope &sc, const QTextDocument *doc, const TextO
         if (!b.textList()) {
             closeTo(0);
             previousTop.clear();
+            writeParagraph(x, sc, b, false, here);
+            continue;
+        }
+        // A bullet in front of nothing isn't drawn here, and the other suite draws it: an empty paragraph is written outside the list, and the
+        // numbers go on after it.
+        if (b.length() <= 1) {
+            closeTo(0);
             writeParagraph(x, sc, b, false, here);
             continue;
         }

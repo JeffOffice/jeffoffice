@@ -4322,6 +4322,217 @@ private Q_SLOTS:
         QCOMPARE(pictures, 2);
     }
 
+    // A bullet in front of nothing is drawn by the other suite, and not here: an empty paragraph in a list is written outside the list, so it
+    // has no bullet there either, and the numbers of a numbered list go on after it.
+    void odpWritesEmptyListParagraphsOutsideTheList()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 200);
+        t->storyId = d->createStory();
+        QTextDocument *sd = d->storyDoc(t->storyId);
+        QTextCursor c(sd);
+        QTextBlockFormat level0;
+        level0.setLeftMargin(27);
+        level0.setTextIndent(-27);
+        level0.setProperty(tp::ListLevel, 0);
+        QTextListFormat numbers;
+        numbers.setStyle(QTextListFormat::ListDecimal);
+        c.setBlockFormat(level0);
+        c.createList(numbers);
+        c.insertBlock();   // the first paragraph stays empty
+        c.insertText(QStringLiteral("One"));
+        c.insertBlock();
+        c.insertBlock();   // an empty one in the middle
+        c.insertText(QStringLiteral("Two"));
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        const int at = content.indexOf(QStringLiteral("<draw:text-box"));
+        const QString box = content.mid(at, content.indexOf(QStringLiteral("</draw:text-box>"), at) - at);
+        QCOMPARE(box.count(QStringLiteral("<text:list-item>")), 2);
+        QCOMPARE(box.count(QRegularExpression(QStringLiteral("<text:p text:style-name=\"[^\"]*\"/>"))), 2);
+        // The empty paragraph in front of the first is not in a list; the second list carries on the numbers.
+        QVERIFY(box.indexOf(QStringLiteral("<text:p ")) < box.indexOf(QStringLiteral("<text:list ")));
+        QVERIFY(box.contains(QStringLiteral("text:continue-numbering=\"true\"")));
+    }
+
+    // A tab at the start of a paragraph that hangs (its first line stands out to the left of the rest) goes to where the rest begin. The
+    // other suite puts it a whole step on, so the first line is written to begin there without the tab; drawn again, it is the same.
+    void odpWritesAHangingParagraphThatStartsWithATabWithoutTheTab()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 200);
+        t->storyId = d->createStory();
+        QTextDocument *sd = d->storyDoc(t->storyId);
+        QTextCursor c(sd);
+        QTextBlockFormat hanging;
+        hanging.setLeftMargin(27);
+        hanging.setTextIndent(-27);
+        c.setBlockFormat(hanging);
+        c.insertText(QStringLiteral("\t(1) Hangs from the tab, and wraps onto a second line that starts at the indent"));
+        c.insertBlock(hanging);
+        c.insertText(QStringLiteral("\t\tTwo tabs stay as they are"));
+        c.insertBlock(hanging);
+        c.insertText(QStringLiteral("(3) No tab here, so it hangs"));
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        // Only the paragraph with two tabs keeps any: its two.
+        QCOMPARE(content.count(QStringLiteral("<text:tab/>")), 2);
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        LayoutCache cacheA, cacheB;
+        PaintContext ca, cb;
+        ca.doc = d.get();
+        ca.cache = &cacheA;
+        ca.opt.output = true;
+        cb.doc = back.get();
+        cb.cache = &cacheB;
+        cb.opt.output = true;
+        const QImage ia = Renderer::renderToImage(ca, 1, 1.0).convertToFormat(QImage::Format_Grayscale8), ib = Renderer::renderToImage(cb, 1, 1.0).convertToFormat(QImage::Format_Grayscale8);
+        QCOMPARE(ia.size(), ib.size());
+        qint64 total = 0;
+        for (int y = 0; y < ia.height(); ++y)
+            for (int x = 0; x < ia.width(); ++x) total += std::abs(int(ia.constScanLine(y)[x]) - int(ib.constScanLine(y)[x]));
+        QVERIFY2(double(total) / (ia.width() * ia.height()) < 0.5, qPrintable(QString::number(double(total) / (ia.width() * ia.height()))));
+    }
+
+    // How far a tab goes where the paragraph has no stops is the presentation's own (a presentation made elsewhere often says an inch, not
+    // half of one): it is written with each paragraph, and read back, a tab at the start of a line goes as far.
+    void odpKeepsHowFarATabGoes()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        d->defaultTabStop = 72;
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 400, 100);
+        t->storyId = d->createStory(QStringLiteral("\tTabbed in a whole inch, and then some more words to wrap onto a second line"));
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        QVERIFY(QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).contains(QStringLiteral("loext:tab-stop-distance=\"2.54cm\"")));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        LayoutCache cacheA, cacheB;
+        PaintContext ca, cb;
+        ca.doc = d.get();
+        ca.cache = &cacheA;
+        ca.opt.output = true;
+        cb.doc = back.get();
+        cb.cache = &cacheB;
+        cb.opt.output = true;
+        const QImage ia = Renderer::renderToImage(ca, 1, 1.0).convertToFormat(QImage::Format_Grayscale8), ib = Renderer::renderToImage(cb, 1, 1.0).convertToFormat(QImage::Format_Grayscale8);
+        QCOMPARE(ia.size(), ib.size());
+        qint64 total = 0;
+        for (int y = 0; y < ia.height(); ++y)
+            for (int x = 0; x < ia.width(); ++x) total += std::abs(int(ia.constScanLine(y)[x]) - int(ib.constScanLine(y)[x]));
+        QVERIFY2(double(total) / (ia.width() * ia.height()) < 0.5, qPrintable(QString::number(double(total) / (ia.width() * ia.height()))));
+    }
+
+    // A bullet of a paragraph whose first line is set in from the rest (a positive first line indent) stands where that line starts: the
+    // list's level says so, with no width for the label to hang in.
+    void odpPutsABulletWhereAnIndentedFirstLineStarts()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 100);
+        t->storyId = d->createStory();
+        QTextDocument *sd = d->storyDoc(t->storyId);
+        QTextCursor c(sd);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(10);
+        bf.setTextIndent(20);
+        bf.setProperty(tp::ListLevel, 0);
+        QTextListFormat bullets;
+        bullets.setStyle(QTextListFormat::ListDisc);
+        bullets.setProperty(tp::BulletChar, QStringLiteral("•"));
+        c.setBlockFormat(bf);
+        c.createList(bullets);
+        c.insertText(QStringLiteral("Set in"));
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        // 10 + 20 points in from the left, 1.0583 cm.
+        QVERIFY2(content.contains(QStringLiteral("text:space-before=\"1.0583cm\" text:min-label-width=\"0cm\"")), qPrintable(content.mid(content.indexOf(QStringLiteral("text:list-level-style-bullet")), 400)));
+    }
+
+    // The other suite mirrors a picture side to side only (a mirror from top to bottom is ignored): a picture turned over is written as turned
+    // half a turn and mirrored side to side, which is the same picture.
+    void odpWritesAPictureTurnedOverAsAHalfTurnAndAMirror()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        // Red at the top left, blue below, green on the right: no way to mistake one flip for another.
+        QImage image(60, 40, QImage::Format_RGB32);
+        image.fill(Qt::green);
+        for (int y = 0; y < 40; ++y)
+            for (int x = 0; x < 30; ++x) image.setPixelColor(x, y, y < 20 ? QColor(Qt::red) : QColor(Qt::blue));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        auto make = [&](bool flipH, bool flipV, double turn, const QRectF &where) {
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = d->addImage(png, QStringLiteral("png"));
+            pic->rect = where;
+            pic->imgRect = QRectF(QPointF(0, 0), where.size());
+            pic->flipH = flipH;
+            pic->flipV = flipV;
+            pic->rotation = turn;
+            d->pages[1]->items.push_back(pic);
+        };
+        make(false, true, 0, QRectF(20, 20, 120, 80));
+        make(true, true, 0, QRectF(160, 20, 120, 80));
+        make(false, true, 180, QRectF(300, 20, 120, 80));
+        make(true, false, 30, QRectF(20, 140, 120, 80));
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY(!content.contains(QStringLiteral("style:mirror=\"vertical")));
+        QVERIFY(!content.contains(QStringLiteral("horizontal vertical")));
+        QVERIFY(content.contains(QStringLiteral("style:mirror=\"horizontal\"")));
+        // Read back, and drawn, the slide is the same.
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        LayoutCache cacheA, cacheB;
+        PaintContext ca, cb;
+        ca.doc = d.get();
+        ca.cache = &cacheA;
+        ca.opt.output = true;
+        cb.doc = back.get();
+        cb.cache = &cacheB;
+        cb.opt.output = true;
+        const QImage ia = Renderer::renderToImage(ca, 1, 1.0).convertToFormat(QImage::Format_RGB32), ib = Renderer::renderToImage(cb, 1, 1.0).convertToFormat(QImage::Format_RGB32);
+        QCOMPARE(ia.size(), ib.size());
+        qint64 total = 0;
+        for (int y = 0; y < ia.height(); ++y)
+            for (int x = 0; x < ia.width(); ++x) total += std::abs(qRed(ia.pixel(x, y)) - qRed(ib.pixel(x, y))) + std::abs(qBlue(ia.pixel(x, y)) - qBlue(ib.pixel(x, y)));
+        QVERIFY2(double(total) / (ia.width() * ia.height()) < 1.0, qPrintable(QString::number(double(total) / (ia.width() * ia.height()))));
+    }
+
     // A presentation's own parts call a movie "video/unknown", which the other suite doesn't take for a movie it can play: the type written
     // is the one the file's ending gives. A movie that is linked, not kept in the presentation, keeps its address and its picture; one with
     // neither says it was left out.
