@@ -5381,6 +5381,135 @@ private Q_SLOTS:
         QVERIFY2(opened && opened->slideText, qPrintable(err));
     }
 
+private:
+    // One bold bar (the letter I, 60 points) with a run's effect list, painted at 4 pixels to the point: the picture and where the bar
+    // is on the middle row. `fx` is the run's effects (none when null).
+    struct EffectBar {
+        QImage img;
+        int left = 0, right = 0, row = 0;   // the bar's edges on its middle row, pixels
+        double top = 0, bottom = 0;         // the line's, in points
+    };
+    static EffectBar paintEffectBar(const TextEffects *fx, double fontScale = 1.0, QSizeF size = QSizeF(160, 150))
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("DejaVu Sans")});
+        cf.setFontWeight(QFont::Bold);
+        cf.setFontPointSize(60);
+        cf.setForeground(Qt::black);
+        if (fx) cf.setProperty(tp::TextFx, fx->toJson());
+        c.insertText(QStringLiteral("I"), cf);
+        FrameSpec fs;
+        fs.size = size;
+        fs.insets = QMarginsF(60, 20, 0, 0);
+        LayoutEnv env;
+        env.fontScale = fontScale;
+        StoryLayout lay;
+        lay.build(&doc, {fs}, env);
+        EffectBar b;
+        const auto lines = lay.lineInfo(0);
+        b.top = lines[0].rect.top();
+        b.bottom = lines[0].rect.bottom();
+        b.img = QImage((size * 4).toSize(), QImage::Format_ARGB32_Premultiplied);
+        b.img.fill(Qt::white);
+        QPainter p(&b.img);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::TextAntialiasing);
+        p.scale(4, 4);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        // The bar's middle row: a little above the baseline, where the letter is a plain stem.
+        b.row = int((lines[0].baseline - 12 * fontScale) * 4);
+        b.left = b.right = -1;
+        for (int x = 0; x < b.img.width(); ++x)
+            if (qGray(b.img.pixel(x, b.row)) < 40) {
+                if (b.left < 0) b.left = x;
+                b.right = x;
+            }
+        return b;
+    }
+
+    static TextEffects shadowOf(const QColor &color, double blur, double distance, double angle)
+    {
+        TextEffects fx;
+        fx.outer.on = true;
+        fx.outer.color = color;
+        fx.outer.blur = blur;
+        fx.outer.distance = distance;
+        fx.outer.angle = angle;
+        return fx;
+    }
+
+private Q_SLOTS:
+    // A shadow lands where the effect list says: this far from the letters (in points) in this direction (a:outerShdw's dist and dir).
+    void runShadowLandsWhereTheListSays()
+    {
+        const EffectBar plain = paintEffectBar(nullptr);
+        QVERIFY(plain.left > 0 && plain.right > plain.left);
+        const QColor red(255, 0, 0);
+        auto redEdges = [](const EffectBar &b, int row, int *left, int *right) {
+            *left = *right = -1;
+            for (int x = 0; x < b.img.width(); ++x) {
+                const QColor c = b.img.pixelColor(x, row);
+                if (c.red() > 200 && c.green() < 60 && c.blue() < 60) {
+                    if (*left < 0) *left = x;
+                    *right = x;
+                }
+            }
+        };
+        // To the right, 10 points: 40 pixels.
+        const TextEffects right = shadowOf(red, 0, 10, 0);
+        EffectBar b = paintEffectBar(&right);
+        QCOMPARE(b.left, plain.left);
+        int l, r;
+        redEdges(b, b.row, &l, &r);
+        QVERIFY2(l > 0 && std::abs((r - b.right) - 40) <= 2, qPrintable(QStringLiteral("%1 %2 %3").arg(l).arg(r).arg(b.right)));
+        // Down and to the right, 14.142 points: 10 points each way.
+        const TextEffects diagonal = shadowOf(red, 0, 14.1421, 45);
+        b = paintEffectBar(&diagonal);
+        redEdges(b, b.row, &l, &r);
+        QVERIFY2(std::abs((r - b.right) - 40) <= 2, qPrintable(QString::number(r - b.right)));
+        int topPlain = -1, topShadow = -1;
+        for (int y = 0; y < plain.img.height(); ++y) {
+            if (topPlain < 0 && qGray(plain.img.pixel(plain.left + 4, y)) < 40) topPlain = y;
+        }
+        // The shadow's top edge, down the column past the bar's right edge, is 10 points (40 pixels) under the bar's.
+        for (int y = 0; y < b.img.height(); ++y) {
+            const QColor c = b.img.pixelColor(b.right + 20, y);
+            if (topShadow < 0 && c.red() > 200 && c.green() < 60) topShadow = y;
+        }
+        QVERIFY2(topShadow > 0 && std::abs((topShadow - topPlain) - 40) <= 3, qPrintable(QStringLiteral("%1 %2").arg(topShadow).arg(topPlain)));
+        // Text the program shrank to fit has its shadow shrunk with it.
+        const EffectBar half = paintEffectBar(&right, 0.5);
+        redEdges(half, half.row, &l, &r);
+        QVERIFY2(l > 0 && std::abs((r - half.right) - 20) <= 2, qPrintable(QString::number(r - half.right)));
+        // A shadow with no color of its own alpha is as light as the alpha says.
+        const TextEffects faint = shadowOf(QColor(255, 0, 0, 102), 0, 10, 0);
+        b = paintEffectBar(&faint);
+        const QColor sample = b.img.pixelColor(b.right + 20, b.row);
+        QVERIFY2(std::abs(sample.green() - 153) <= 6 && sample.red() > 240, qPrintable(sample.name()));
+    }
+
+    // A shadow's blur is the width of a box blurring its edge, which is a Gaussian a little under a third as wide (as the presentation
+    // program draws it): the edge is half there where it would be, and nearly gone two spreads away.
+    void runShadowBlurIsAGaussianOfAThirdTheRadius()
+    {
+        // 40 points to the right is clear of the bar; 4 points of blur is a spread of 1.155 points, 4.62 pixels.
+        const TextEffects hard = shadowOf(QColor(255, 0, 0), 0, 40, 0), soft = shadowOf(QColor(255, 0, 0), 4, 40, 0);
+        const EffectBar a = paintEffectBar(&hard), b = paintEffectBar(&soft);
+        int edge = -1;
+        for (int x = b.right + 20; x < a.img.width() && edge < 0; ++x)
+            if (a.img.pixelColor(x, a.row).green() < 128) edge = x;
+        QVERIFY(edge > 0);
+        auto coverage = [&](int x) { return 1 - b.img.pixelColor(x, b.row).green() / 255.0; };
+        QVERIFY2(std::abs(coverage(edge) - 0.5) < 0.12, qPrintable(QString::number(coverage(edge))));
+        QVERIFY2(coverage(edge - 9) < 0.1 && coverage(edge - 9) > 0.005, qPrintable(QString::number(coverage(edge - 9))));
+        QVERIFY2(coverage(edge + 10) > 0.9, qPrintable(QString::number(coverage(edge + 10))));
+        // Not at all where the hard one has nothing and the blur doesn't reach.
+        QCOMPARE(b.img.pixelColor(edge - 24, b.row).green(), 255);
+    }
+
     // The same spread comes out of blurAlpha: an edge blurred by a spread of 3 rises from a sixth to five sixths of its height over twice 3 pixels.
     void blurAlphaSpreadsLikeAGaussian()
     {
@@ -5408,6 +5537,71 @@ private Q_SLOTS:
         QImage same = img;
         blurAlpha(same, 0.0);
         QCOMPARE(same, img);
+    }
+
+    // A glow is a halo around the letters, as far as its radius reaches.
+    void runGlowSurroundsTheLetters()
+    {
+        TextEffects fx;
+        fx.glow.on = true;
+        fx.glow.color = QColor(0, 0, 255, 200);
+        fx.glow.radius = 12;
+        const EffectBar plain = paintEffectBar(nullptr), glowing = paintEffectBar(&fx);
+        QCOMPARE(glowing.left, plain.left);
+        // Five points (20 pixels) left of the bar is tinted; thirty are not.
+        QVERIFY2(glowing.img.pixelColor(glowing.left - 20, glowing.row).red() < 200, qPrintable(glowing.img.pixelColor(glowing.left - 20, glowing.row).name()));
+        QCOMPARE(glowing.img.pixelColor(glowing.left - 120, glowing.row).red(), 255);
+        QCOMPARE(plain.img.pixelColor(plain.left - 20, plain.row).red(), 255);
+    }
+
+    // A reflection is the letters turned over under their line, fading out.
+    void runReflectionFallsBelowTheLine()
+    {
+        TextEffects fx;
+        fx.reflection.on = true;
+        fx.reflection.startAlpha = 0.5;
+        fx.reflection.endAlpha = 0;
+        fx.reflection.endPos = 0.5;
+        fx.reflection.sy = -1;
+        fx.reflection.angle = 90;
+        const EffectBar plain = paintEffectBar(nullptr, 1.0, QSizeF(160, 220)), mirrored = paintEffectBar(&fx, 1.0, QSizeF(160, 220));
+        const int x = plain.left + (plain.right - plain.left) / 2;
+        int darkest = 255, below = -1;
+        for (int y = int(mirrored.bottom * 4) + 1; y < mirrored.img.height(); ++y) {
+            QCOMPARE(plain.img.pixelColor(x, y).red(), 255);
+            const int v = mirrored.img.pixelColor(x, y).red();
+            if (v < 250 && below < 0) below = y;
+            darkest = std::min(darkest, v);
+        }
+        QVERIFY2(below > 0, "no reflection");
+        // Half as dark as the letters at the most, and no darker than the fade starts.
+        QVERIFY2(darkest > 100 && darkest < 200, qPrintable(QString::number(darkest)));
+    }
+
+    // An inner shadow darkens the inside of the letters from the side it comes from, and nothing outside them.
+    void runInnerShadowStaysInsideTheLetters()
+    {
+        TextEffects fx;
+        fx.inner.on = true;
+        fx.inner.color = QColor(255, 0, 0);
+        fx.inner.blur = 0;
+        fx.inner.distance = 3;
+        fx.inner.angle = 0;
+        const EffectBar plain = paintEffectBar(nullptr), shaded = paintEffectBar(&fx);
+        // (the bar's edges, whatever color it is inside: not white)
+        int left = -1, right = -1;
+        for (int x = 0; x < shaded.img.width(); ++x)
+            if (shaded.img.pixelColor(x, shaded.row).green() < 128) {
+                if (left < 0) left = x;
+                right = x;
+            }
+        QVERIFY2(std::abs(left - plain.left) <= 1 && std::abs(right - plain.right) <= 1, qPrintable(QStringLiteral("%1 %2 / %3 %4").arg(left).arg(right).arg(plain.left).arg(plain.right)));
+        // At the left edge, inside, red; further in, the letter's own black; outside, white.
+        const QColor edge = shaded.img.pixelColor(plain.left + 3, shaded.row), deep = shaded.img.pixelColor((plain.left + plain.right) / 2, shaded.row);
+        QVERIFY2(edge.red() > 150 && edge.green() < 60, qPrintable(edge.name()));
+        QVERIFY2(deep.red() < 40, qPrintable(deep.name()));
+        QCOMPARE(shaded.img.pixelColor(plain.left - 6, shaded.row).red(), 255);
+        QCOMPARE(shaded.img.pixelColor(plain.right + 6, shaded.row).red(), 255);
     }
 
     // A run's effect list is read from the file: a shadow, a glow, a reflection with an inner shadow, and a list in a text's list style
@@ -5513,6 +5707,67 @@ private Q_SLOTS:
         QCOMPARE(lists2["Shadowed"], lists["Shadowed"]);
         QCOMPARE(lists2["Glowing"], lists["Glowing"]);
         QCOMPARE(lists2["Mirrored"], lists["Mirrored"]);
+    }
+
+    // A file can give every run an effect list of its own: only so many different lists are drawn on a frame, a list of thousands of
+    // elements is read in a few, and a list too long to keep as it was is written from what was read.
+    void effectListsFromAStrangersFileAreHeldToLimits()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        for (int i = 0; i < 400; ++i) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("DejaVu Sans")});
+            cf.setFontPointSize(10);
+            cf.setForeground(Qt::black);
+            cf.setProperty(tp::TextFx, shadowOf(QColor(255, 0, 0), 1 + i * 0.01, 2 + (i % 7) * 0.1, i % 360).toJson());
+            c.insertText(QStringLiteral("word "), cf);
+        }
+        FrameSpec fs;
+        fs.size = QSizeF(500, 400);
+        StoryLayout lay;
+        lay.build(&doc, {fs}, LayoutEnv());
+        QImage img(2000, 1600, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(4, 4);
+        QElapsedTimer clock;
+        clock.start();
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        QVERIFY2(clock.elapsed() < 20000, qPrintable(QString::number(clock.elapsed())));
+        // The first lists have their shadows (red under the words), the rest are drawn plain.
+        int red = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) red += img.pixelColor(x, y).red() > 200 && img.pixelColor(x, y).green() < 120;
+        QVERIFY(red > 0);
+        // A list with thousands of elements.
+        QString many = QStringLiteral("<a:effectLst>");
+        for (int i = 0; i < 5000; ++i) many += QStringLiteral("<a:outerShdw blurRad=\"%1\" dist=\"38100\" dir=\"2700000\"><a:srgbClr val=\"000000\"/></a:outerShdw>").arg(i);
+        many += QStringLiteral("</a:effectLst>");
+        Parts parts = samplePptx();
+        QString xml = QString::fromUtf8(parts.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Many\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 914400) + QStringLiteral("</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\">") + many
+                                                       + QStringLiteral("</a:rPr><a:t>Words</a:t></a:r></a:p></p:txBody></p:sp></p:spTree>"));
+        parts.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        clock.restart();
+        auto d = deck::importPresentation(pack(parts), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(clock.elapsed() < 20000, qPrintable(QString::number(clock.elapsed())));
+        const TextItem *t = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Many")) t = static_cast<const TextItem *>(it.get());
+        QVERIFY(t);
+        const QTextDocument *story = d->storyDoc(t->storyId);
+        const QString list = story->begin().begin().fragment().charFormat().stringProperty(tp::TextFx);
+        QVERIFY(!list.isEmpty());
+        const TextEffects fx = TextEffects::fromJson(list);
+        QVERIFY(fx.outer.on);
+        QCOMPARE(fx.outer.blur, 0.0);   // the first of them
+        QVERIFY(fx.xml.isEmpty());      // too long to keep as it was
+        QVERIFY(list.size() < 2000);
     }
 
     // A shadow in a master's title style reaches the titles that follow it, and is saved in the master's title style again; a title the

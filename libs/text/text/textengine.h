@@ -186,6 +186,7 @@ public:
         QString dropText; QFont dropFont; QColor dropColor; int dropLines = 0; double dropWidth = 0;
         bool dropUp = false;   // a raised cap: on the first line, rising above it
         QVector<QTextLayout::FormatRange> effects;   // ranges with shadow/emboss/engrave/glow
+        bool textFx = false;                         // some of those ranges carry a:effectLst (tp::TextFx)
         bool directGlyphs = false;                   // drawn run by run (some letters drawn taller, shorter, or slanted)
         QVector<QPair<int, int>> fieldRanges;        // display ranges of fields
         QString leaders;                             // a leader character per tab stop (space = none)
@@ -228,6 +229,8 @@ public:
 private:
     const Block *blockAt(int pos, int *rel) const;
     double frameY(int frame) const;   // where a frame's lines start in the paragraph layouts (frameCount() for overflow)
+    // The effect lists of runs (tp::TextFx): under the letters (shadows beside them, glow, reflection) or over them (an inner shadow).
+    void paintTextEffects(QPainter *p, int frame, bool over) const;
     // One layout pass; returns how far each frame's text moved down for its
     // vertical alignment.
     QVector<double> buildOnce(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env);
