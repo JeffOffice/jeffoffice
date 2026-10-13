@@ -17,6 +17,7 @@
 #include "app/editormedia.h"
 #include "app/mediadialogs.h"
 #include "app/mediaplayer.h"
+#include "app/iconpicker.h"
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -14312,6 +14313,109 @@ private Q_SLOTS:
         QCOMPARE(second.items[3]->rect, QRectF(576, 96, 72, 72));
         QCOMPARE(static_cast<const PictureItem *>(second.items[3].get())->imageId, id);
         QCOMPARE(int(d->images.size()), 1);
+    }
+
+    // An SVG picture (an icon) is saved as the presentation program saves one: a PNG in the blip, for programs that don't draw SVG,
+    // and the SVG itself in the blip's extension list (asvg:svgBlip), last in the blip, after the picture's other settings. The
+    // pictures of one SVG share its two parts, and a picture of pixels has no extension.
+    void svgPictureIsSavedWithAPngAndTheSvg()
+    {
+        auto d = deck::newPresentation();
+        const QByteArray svg = iconSvg(QStringLiteral("heart"), QColor(0xCC, 0x11, 0x22));
+        const QString image = d->addImage(svg, QStringLiteral("svg"));
+        QVERIFY(!image.isEmpty());
+        QImage red(8, 8, QImage::Format_RGB32);
+        red.fill(Qt::red);
+        const QString raster = d->addImage(imageBytes(red), QStringLiteral("png"));
+        auto add = [&](const QString &name, const QString &id, double x, double transparency) {
+            auto pic = std::make_shared<PictureItem>();
+            pic->name = name;
+            pic->rect = QRectF(x, 100, 72, 72);
+            pic->imgRect = QRectF(0, 0, 72, 72);
+            pic->imageId = id;
+            pic->transparency = transparency;
+            d->pages[0]->items.push_back(pic);
+        };
+        add(QStringLiteral("One"), image, 100, 0);
+        add(QStringLiteral("Two"), image, 300, 0.5);
+        add(QStringLiteral("Plain"), raster, 500, 0);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join('\n')));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+
+        const QString slidePart = QStringLiteral("/ppt/slides/slide1.xml");
+        QDomDocument dom;
+        QVERIFY2(office::parseXml(e.zip.value(slidePart.mid(1)), &dom, &err), qPrintable(err));
+        const QString svgNs = QStringLiteral("http://schemas.microsoft.com/office/drawing/2016/SVG/main");
+        // The blip of the picture named `name`.
+        auto blipOf = [&](const QString &name) {
+            const QDomNodeList pics = dom.elementsByTagNameNS(office::ns::P, QStringLiteral("pic"));
+            for (int i = 0; i < pics.size(); ++i) {
+                const QDomElement pic = pics.at(i).toElement();
+                const QDomNodeList names = pic.elementsByTagNameNS(office::ns::P, QStringLiteral("cNvPr"));
+                if (names.isEmpty() || names.at(0).toElement().attribute(QStringLiteral("name")) != name) continue;
+                return pic.elementsByTagNameNS(office::ns::A, QStringLiteral("blip")).at(0).toElement();
+            }
+            return QDomElement();
+        };
+        auto embed = [](const QDomElement &e2) { return e2.attributeNS(office::ns::R, QStringLiteral("embed")); };
+        auto localNames = [](const QDomElement &blip) {
+            QStringList names;
+            for (QDomElement c = blip.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) names << c.localName();
+            return names;
+        };
+        const QDomElement one = blipOf(QStringLiteral("One")), two = blipOf(QStringLiteral("Two")), plain = blipOf(QStringLiteral("Plain"));
+        QVERIFY(!one.isNull() && !two.isNull() && !plain.isNull());
+        QCOMPARE(localNames(one), QStringList{QStringLiteral("extLst")});
+        QCOMPARE(localNames(two), (QStringList{QStringLiteral("alphaModFix"), QStringLiteral("extLst")}));   // the extension is last
+        QCOMPARE(localNames(plain), QStringList());
+        // Each extension is the one the presentation program reads for an SVG, linking the SVG's own part.
+        QStringList svgTargets;
+        for (const QDomElement &blip : {one, two}) {
+            const QDomElement list = blip.lastChildElement();
+            const QDomElement ext = list.firstChildElement();
+            QCOMPARE(list.childNodes().size(), 1);
+            QCOMPARE(ext.localName(), QStringLiteral("ext"));
+            QCOMPARE(ext.attribute(QStringLiteral("uri")), QStringLiteral("{96DAC541-7B7A-43D3-8B79-37D633B846F1}"));
+            const QDomElement link = ext.firstChildElement();
+            QCOMPARE(link.localName(), QStringLiteral("svgBlip"));
+            QCOMPARE(link.namespaceURI(), svgNs);
+            const office::Relationship r = e.pkg.relationship(slidePart, embed(link));
+            QCOMPARE(r.type, QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"));
+            QVERIFY2(r.target.endsWith(QLatin1String(".svg")), qPrintable(r.target));
+            QCOMPARE(e.zip.value(r.target.mid(1)), svg);
+            QCOMPARE(e.pkg.contentType(r.target), QStringLiteral("image/svg+xml"));
+            svgTargets << r.target;
+        }
+        QCOMPARE(svgTargets[0], svgTargets[1]);
+        // And its picture, as PNG, for the blip itself.
+        QCOMPARE(embed(one), embed(two));
+        const office::Relationship fallback = e.pkg.relationship(slidePart, embed(one));
+        QVERIFY2(fallback.target.endsWith(QLatin1String(".png")), qPrintable(fallback.target));
+        QVERIFY(e.zip.value(fallback.target.mid(1)).startsWith("\x89PNG"));
+        QCOMPARE(e.pkg.contentType(fallback.target), QStringLiteral("image/png"));
+        QVERIFY(e.pkg.relationship(slidePart, embed(plain)).target.endsWith(QLatin1String(".png")));
+        // Two parts for the SVG's pictures and one for the picture of pixels.
+        int svgParts = 0, pngParts = 0;
+        for (const QString &name : e.zip.keys()) {
+            if (!name.startsWith(QLatin1String("ppt/media/"))) continue;
+            svgParts += name.endsWith(QLatin1String(".svg"));
+            pngParts += name.endsWith(QLatin1String(".png"));
+        }
+        QCOMPARE(svgParts, 1);
+        QCOMPARE(pngParts, 2);
+
+        // Read again, the pictures are all there.
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        int pictures = 0;
+        for (const auto &it : back->pages[0]->items) pictures += it->type() == ItemType::Picture && !static_cast<const PictureItem *>(it.get())->imageId.isEmpty();
+        QCOMPARE(pictures, 3);
     }
 
     // A picture added is not decoded: only its size is read. The first time it
