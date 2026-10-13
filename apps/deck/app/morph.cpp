@@ -302,7 +302,7 @@ bool alike(const Item &a, const Item &b)
         const auto &x = static_cast<const PictureItem &>(a), &y = static_cast<const PictureItem &>(b);
         return !x.imageId.isEmpty() && x.imageId == y.imageId && x.maskShape == y.maskShape && x.brightness == y.brightness && x.contrast == y.contrast &&
                x.recolor == y.recolor && x.recolorColor == y.recolorColor && x.hasTransparentColor == y.hasTransparentColor &&
-               x.transparentColor == y.transparentColor && x.mediaKind == y.mediaKind;
+               x.transparentColor == y.transparentColor && x.blackWhiteLevel == y.blackWhiteLevel && x.blipEffects == y.blipEffects && x.mediaKind == y.mediaKind;
     }
     case ItemType::Line: {
         const auto &x = static_cast<const LineItem &>(a), &y = static_cast<const LineItem &>(b);

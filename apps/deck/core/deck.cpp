@@ -468,6 +468,7 @@ std::unique_ptr<Document> newPresentation()
 {
     auto d = std::make_unique<Document>();
     d->slideText = true;
+    d->slidePictures = true;
     d->masters.clear();
     d->setup.size = d->setup.sheet = QSizeF(kSlideWidth, kSlideHeight);
     d->setup.sizeName = QStringLiteral("Widescreen");

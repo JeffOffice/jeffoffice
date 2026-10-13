@@ -1828,6 +1828,7 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
 {
     auto doc = std::make_unique<Document>();
     doc->slideText = true;
+    doc->slidePictures = true;
     Importer importer(pkg, *doc);
     if (!importer.run(pkg.mainPart(), error)) return nullptr;
     // The presentation's own fonts are available for as long as it is open (see core/embeddedfonts.h).

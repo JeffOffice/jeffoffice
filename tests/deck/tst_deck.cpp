@@ -19785,6 +19785,141 @@ private Q_SLOTS:
         QCOMPARE(washed[0].red(), 255);
     }
 
+    // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
+    static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
+    {
+        Parts p = samplePptx();
+        p.data["/ppt/slides/slide1.xml"].xml.replace("<a:blip r:embed=\"rId2\"/>", blip.toUtf8());
+        return deck::importPresentation(pack(p), err);
+    }
+    // The color at the middle of that picture, as the slide is drawn.
+    static QColor colorOfSamplePicture(Document &d)
+    {
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = &d;
+        ctx.cache = &cache;
+        return Renderer::renderToImage(ctx, 0, 1.0).pixelColor(684, 432);
+    }
+    static bool colorsNear(const QColor &a, const QColor &b, int by = 1)
+    {
+        return qAbs(a.red() - b.red()) <= by && qAbs(a.green() - b.green()) <= by && qAbs(a.blue() - b.blue()) <= by;
+    }
+
+    // A slide's picture with a brightness and a contrast (a:lum) is drawn as the presentation program draws it: the contrast times 1 / (1 - it)
+    // the distance from the middle and the brightness moved by the mean of one and that (measured on the program's own pictures: a photo of a
+    // collar at 21% and 52% came darker than the program's by more than 40 gray levels with Publisher's), and the picture's bytes, and what
+    // the file says of it, are written back as they were. A publication's picture keeps Publisher's own.
+    void importPicturesAreDrawnWithTheirBrightnessAndContrast()
+    {
+        QString err;
+        auto d = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:lum bright=\"21000\" contrast=\"52000\"/></a:blip>"), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(d->slidePictures);
+        QVERIFY2(colorsNear(colorOfSamplePicture(*d), QColor(255, 82, 0)), qPrintable(colorOfSamplePicture(*d).name()));
+        // Brightness alone adds its share of the range to every color.
+        auto bright = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:lum bright=\"14000\"/></a:blip>"), &err);
+        QVERIFY2(bright, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*bright), QColor(218, 102, 51)), qPrintable(colorOfSamplePicture(*bright).name()));
+        // The picture is as the file has it, and is written as it was, with what is said of it.
+        QCOMPARE(d->images.size(), 1);
+        QCOMPARE(d->images.begin()->bytes, tinyPng());
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:lum bright=\"21000\" contrast=\"52000\"/>")), qPrintable(part(e, QStringLiteral("/ppt/slides/slide1.xml"))));
+        int media = 0;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it)
+            if (it.key().startsWith(QStringLiteral("ppt/media/"))) {
+                QCOMPARE(it.value(), tinyPng());
+                ++media;
+            }
+        QCOMPARE(media, 1);
+        // The same picture in a publication (a document that isn't a presentation) is drawn as Publisher draws it.
+        const auto firstPicture = [](Document &doc) {
+            PictureItem *found = nullptr;
+            for (const auto &it : doc.pages[0]->items)
+                if (it->type() == ItemType::Picture && !found) found = static_cast<PictureItem *>(it.get());
+            return found;
+        };
+        PictureItem *pic = firstPicture(*d);
+        QVERIFY(pic);
+        QVERIFY(qAbs(pic->brightness - 21) < 1e-6 && qAbs(pic->contrast - 52) < 1e-6);
+        d->slidePictures = false;
+        const QImage publisher = Renderer::processedImage(*d, *pic, QSizeF());
+        QCOMPARE(publisher.pixelColor(0, 0), QColor(255, 38, 0));
+        d->slidePictures = true;
+        QCOMPARE(Renderer::processedImage(*d, *pic, QSizeF()).pixelColor(0, 0), QColor(255, 82, 0));
+        // What the program writes of its newer corrections (a14:imgProps) has the changes in the picture's own pixels already: the picture
+        // is drawn as it is, not changed twice.
+        auto newer = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:extLst><a:ext uri=\"{BEBA8EAE-BF5A-486C-A8C5-ECC9F3942E4B}\">"
+                                                        "<a14:imgProps xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\"><a14:imgLayer r:embed=\"rId2\"><a14:imgEffect>"
+                                                        "<a14:brightnessContrast bright=\"15000\"/></a14:imgEffect></a14:imgLayer></a14:imgProps></a:ext></a:extLst></a:blip>"),
+                                         &err);
+        QVERIFY2(newer, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*newer), QColor(0xB6, 0x42, 0x0F)), qPrintable(colorOfSamplePicture(*newer).name()));
+    }
+
+    // The other changes a picture's blip lists (a duotone, a color replaced or changed, a hue turned, a tint) are drawn in their order after the
+    // settings, and written back as listed, with the picture's bytes as they were; a gray or black and white picture keeps its threshold.
+    void importPicturesAreDrawnWithTheirOtherEffects()
+    {
+        QString err;
+        const QString duotone = QStringLiteral("<a:duotone><a:srgbClr val=\"000080\"/><a:srgbClr val=\"FFFF00\"/></a:duotone>");
+        auto d = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\">%1</a:blip>").arg(duotone), &err);
+        QVERIFY2(d, qPrintable(err));
+        // 182, 66, 15 is 97 in gray, 38% of the way from the first color to the second.
+        QVERIFY2(colorsNear(colorOfSamplePicture(*d), QColor(97, 97, 79)), qPrintable(colorOfSamplePicture(*d).name()));
+        auto replaced = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:clrRepl><a:srgbClr val=\"00FF00\"/></a:clrRepl></a:blip>"), &err);
+        QVERIFY2(replaced, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*replaced), QColor(0, 255, 0)), qPrintable(colorOfSamplePicture(*replaced).name()));
+        auto changed = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:clrChange><a:clrFrom><a:srgbClr val=\"B6420F\"/></a:clrFrom><a:clrTo><a:srgbClr val=\"0000FF\"/></a:clrTo></a:clrChange></a:blip>"), &err);
+        QVERIFY2(changed, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*changed), QColor(0, 0, 255)), qPrintable(colorOfSamplePicture(*changed).name()));
+        // Black and white from a quarter of the range: 97 in gray is white; from half, it is black.
+        auto quarter = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:biLevel thresh=\"25000\"/></a:blip>"), &err);
+        auto half = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:biLevel thresh=\"50000\"/></a:blip>"), &err);
+        QVERIFY2(quarter && half, qPrintable(err));
+        QCOMPARE(colorOfSamplePicture(*quarter), QColor(255, 255, 255));
+        QCOMPARE(colorOfSamplePicture(*half), QColor(0, 0, 0));
+        // Written as listed, each with its colors and numbers, and read again as the same.
+        auto both = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:biLevel thresh=\"25000\"/>%1<a:hsl hue=\"5400000\" sat=\"-20000\" lum=\"10000\"/>"
+                                                       "<a:clrRepl><a:srgbClr val=\"FF0000\"/></a:clrRepl><a:tint hue=\"10800000\" amt=\"30000\"/></a:blip>")
+                                            .arg(duotone),
+                                        &err);
+        QVERIFY2(both, qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*both, &err), &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<a:biLevel thresh=\"25000\"/>")), qPrintable(slide));
+        const QString listed = QStringLiteral("%1<a:hsl hue=\"5400000\" sat=\"-20000\" lum=\"10000\"/><a:clrRepl><a:srgbClr val=\"FF0000\"/></a:clrRepl><a:tint hue=\"10800000\" amt=\"30000\"/>").arg(duotone);
+        QVERIFY2(slide.contains(listed), qPrintable(slide));
+        auto back = deck::importPresentation(deck::exportPresentation(*both, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        const auto picture = [](Document &doc) {
+            for (const auto &it : doc.pages[0]->items)
+                if (it->type() == ItemType::Picture) return std::static_pointer_cast<PictureItem>(it);
+            return std::shared_ptr<PictureItem>();
+        };
+        const auto before = picture(*both), after = picture(*back);
+        QVERIFY(before && after);
+        QCOMPARE(before->blipEffects.size(), 4);
+        QVERIFY(after->blipEffects == before->blipEffects);
+        QVERIFY(qAbs(after->blackWhiteLevel - 0.25) < 1e-6 && after->recolor == PictureItem::BlackWhite);
+        QCOMPARE(colorOfSamplePicture(*back), colorOfSamplePicture(*both));
+        // A background that is a picture with a brightness and contrast is drawn with them too.
+        Parts p = samplePptx();
+        p.data["/ppt/slides/slide2.xml"].xml.replace("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>",
+                                                     "<p:bg><p:bgPr><a:blipFill><a:blip r:embed=\"rId2\"><a:lum bright=\"14000\"/></a:blip><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>");
+        auto behind = deck::importPresentation(pack(p), &err);
+        QVERIFY2(behind, qPrintable(err));
+        QCOMPARE(behind->pages[1]->background.blipEffects.size(), 1);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = behind.get();
+        ctx.cache = &cache;
+        QVERIFY2(colorsNear(Renderer::renderToImage(ctx, 1, 0.5).pixelColor(10, 10), QColor(218, 102, 51)), qPrintable(Renderer::renderToImage(ctx, 1, 0.5).pixelColor(10, 10).name()));
+    }
+
     // A shape that shows a tiled background has the tiles where the page has them, not from the shape's own corner: the picture is moved
     // by the shape's place.
     void importBinaryShapesKeepTheBackgroundsTilesInPlace()
