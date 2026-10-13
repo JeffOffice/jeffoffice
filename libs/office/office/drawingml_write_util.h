@@ -6,6 +6,8 @@
 
 #include "office/drawingml_write.h"
 
+#include "core/texteffects.h"
+
 #include <QColor>
 #include <QString>
 
@@ -34,6 +36,10 @@ QColor resolve(const ColorRef &color, const DrawingWriteContext &ctx);
 // <a:srgbClr val="RRGGBB"/>, with <a:alpha> inside it where the color is not whole:
 // `transparency` is added to the color's own.
 void writeColor(QXmlStreamWriter &w, const QColor &color, double transparency = 0);
+
+// A run's a:effectLst: the list as the file had it when it still has it, else
+// written from the effects themselves. Nothing for effects with nothing in them.
+void writeTextEffects(QXmlStreamWriter &w, const TextEffects &fx);
 
 // The id of the relationship from the part being written to `target`, made
 // the first time. An internal target is a part name. `type` is the last word

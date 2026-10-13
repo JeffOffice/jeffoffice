@@ -6,6 +6,7 @@
 #include "office/drawingml.h"
 
 #include "core/color.h"
+#include "core/texteffects.h"
 #include "office/drawingml_props.h"
 #include "office/xml.h"
 #include "text/textprops.h"
@@ -128,6 +129,7 @@ struct RunProps {
     QString latin, ea, cs;            // typefaces as written
     enum Fill { FillUnset, FillNone, FillColor } fill = FillUnset;
     QColor color, highlight;
+    std::optional<QString> fx;        // a:effectLst as the engine keeps it (tp::TextFx); empty when the run says it has none
 };
 
 Spacing spacingOf(const QDomElement &e)
@@ -234,6 +236,118 @@ QColor firstStopOf(const QDomElement &grad, const DrawingContext &ctx)
     return readColor(firstChild(stops, QLatin1String("gs")), ctx.theme, ctx.colors);
 }
 
+// A shadow's place and look: a:outerShdw, a:innerShdw, or a:prstShdw (a preset's shadow is drawn as an offset one).
+TextShadow shadowOf(const QDomElement &e, const DrawingContext &ctx)
+{
+    TextShadow s;
+    s.on = true;
+    const QColor color = readColor(e, ctx.theme, ctx.colors);
+    s.color = color.isValid() ? color : QColor(Qt::black);
+    double v = 0;
+    if (lengthOf(e, QLatin1String("blurRad"), &v)) s.blur = std::clamp(v, 0.0, 1584.0);
+    if (lengthOf(e, QLatin1String("dist"), &v)) s.distance = std::clamp(v, 0.0, 1584.0);
+    if (const QString dir = at(e, QLatin1String("dir")); !dir.isEmpty()) s.angle = std::fmod(parseAngle(dir, 0), 360.0);
+    bool ok = false;
+    if (const QString sx = at(e, QLatin1String("sx")); !sx.isEmpty()) {
+        const double x = parsePercent(sx, 1, &ok);
+        if (ok && std::isfinite(x)) s.sx = std::clamp(x, -20.0, 20.0);
+    }
+    if (const QString sy = at(e, QLatin1String("sy")); !sy.isEmpty()) {
+        const double y = parsePercent(sy, 1, &ok);
+        if (ok && std::isfinite(y)) s.sy = std::clamp(y, -20.0, 20.0);
+    }
+    if (const QString kx = at(e, QLatin1String("kx")); !kx.isEmpty()) s.kx = std::clamp(std::fmod(parseAngle(kx, 0), 360.0), -89.0, 89.0);
+    if (const QString ky = at(e, QLatin1String("ky")); !ky.isEmpty()) s.ky = std::clamp(std::fmod(parseAngle(ky, 0), 360.0), -89.0, 89.0);
+    if (const QString al = at(e, QLatin1String("algn")); !al.isEmpty()) s.align = al;
+    return s;
+}
+
+// An element of the standard's drawing namespace and what it holds as it is written (a: prefix, its attributes, its elements); false for one that
+// holds anything else, or goes deeper than an effect list does.
+bool keptXml(const QDomElement &e, QString *out, int depth)
+{
+    if (depth > 6 || out->size() > 4096 || !sameNamespace(e.namespaceURI(), ns::A)) return false;
+    *out += QStringLiteral("<a:") + e.localName();
+    const QDomNamedNodeMap attrs = e.attributes();
+    for (int i = 0; i < attrs.length(); ++i) {
+        const QDomAttr a = attrs.item(i).toAttr();
+        if (a.nodeName().startsWith(QLatin1String("xmlns"))) continue;
+        if (!a.prefix().isEmpty()) return false;
+        *out += QLatin1Char(' ') + (a.localName().isEmpty() ? a.nodeName() : a.localName()) + QStringLiteral("=\"") + a.value().toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")) + QLatin1Char('"');
+    }
+    if (e.firstChildElement().isNull()) {
+        *out += QStringLiteral("/>");
+        return true;
+    }
+    *out += QLatin1Char('>');
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+        if (!keptXml(c, out, depth + 1)) return false;
+    *out += QStringLiteral("</a:") + e.localName() + QLatin1Char('>');
+    return true;
+}
+
+// What a run's a:effectLst says, in the form a run's format carries it: a string, empty for a list with no effect in it. Its own
+// elements are kept too (up to a few KB), to be written back as they were.
+QString textEffectsOf(const QDomElement &list, const DrawingContext &ctx)
+{
+    TextEffects fx;
+    // A list has at most eight kinds of effect (the schema's); a file that lists more is not read past the first sixteen.
+    int seen = 0;
+    for (QDomElement c = list.firstChildElement(); !c.isNull() && ++seen <= 16; c = c.nextSiblingElement()) {
+        const QString name = c.localName();
+        double v = 0;
+        if (name == QLatin1String("outerShdw") && !fx.outer.on) {
+            fx.outer = shadowOf(c, ctx);
+        } else if (name == QLatin1String("prstShdw") && !fx.outer.on) {
+            fx.outer = shadowOf(c, ctx);
+            fx.outer.blur = 0;
+            fx.outer.sx = fx.outer.sy = 1;
+            fx.outer.kx = fx.outer.ky = 0;
+        } else if (name == QLatin1String("innerShdw") && !fx.inner.on) {
+            fx.inner = shadowOf(c, ctx);
+        } else if (name == QLatin1String("glow") && !fx.glow.on) {
+            fx.glow.on = true;
+            const QColor color = readColor(c, ctx.theme, ctx.colors);
+            fx.glow.color = color.isValid() ? color : QColor(Qt::black);
+            if (lengthOf(c, QLatin1String("rad"), &v)) fx.glow.radius = std::clamp(v, 0.0, 1584.0);
+        } else if (name == QLatin1String("softEdge")) {
+            if (lengthOf(c, QLatin1String("rad"), &v)) fx.softEdge = std::clamp(v, 0.0, 1584.0);
+        } else if (name == QLatin1String("reflection") && !fx.reflection.on) {
+            TextReflection &r = fx.reflection;
+            r.on = true;
+            bool ok = false;
+            auto percent = [&](const char *attrName, double fallback) {
+                const QString s = at(c, QLatin1String(attrName));
+                const double x = s.isEmpty() ? fallback : parsePercent(s, fallback, &ok);
+                return std::isfinite(x) ? x : fallback;
+            };
+            auto angleOf = [&](const char *attrName, double fallback) {
+                const QString s = at(c, QLatin1String(attrName));
+                return s.isEmpty() ? fallback : std::fmod(parseAngle(s, fallback), 360.0);
+            };
+            if (lengthOf(c, QLatin1String("blurRad"), &v)) r.blur = std::clamp(v, 0.0, 1584.0);
+            if (lengthOf(c, QLatin1String("dist"), &v)) r.distance = std::clamp(v, 0.0, 1584.0);
+            r.startAlpha = std::clamp(percent("stA", 1), 0.0, 1.0);
+            r.endAlpha = std::clamp(percent("endA", 0), 0.0, 1.0);
+            r.startPos = std::clamp(percent("stPos", 0), 0.0, 1.0);
+            r.endPos = std::clamp(percent("endPos", 1), 0.0, 1.0);
+            r.sx = std::clamp(percent("sx", 1), -20.0, 20.0);
+            r.sy = std::clamp(percent("sy", 1), -20.0, 20.0);
+            r.angle = angleOf("dir", 0);
+            r.fadeAngle = angleOf("fadeDir", 90);
+            r.kx = std::clamp(angleOf("kx", 0), -89.0, 89.0);
+            r.ky = std::clamp(angleOf("ky", 0), -89.0, 89.0);
+            if (const QString al = at(c, QLatin1String("algn")); !al.isEmpty()) r.align = al;
+        }
+    }
+    if (!fx.any()) return QString();
+    // As the file had it, if it is the standard's own elements and no longer than a list of real effects is.
+    constexpr int kMaxKept = 4096;
+    QString xml;
+    if (keptXml(list, &xml, 0) && xml.size() <= kMaxKept) fx.xml = xml;
+    return fx.toJson();
+}
+
 void mergeRun(RunProps &r, const QDomElement &rPr, const DrawingContext &ctx)
 {
     if (rPr.isNull()) return;
@@ -264,6 +378,8 @@ void mergeRun(RunProps &r, const QDomElement &rPr, const DrawingContext &ctx)
             }
         } else if (name == QLatin1String("noFill")) {
             r.fill = RunProps::FillNone;
+        } else if (name == QLatin1String("effectLst")) {
+            r.fx = textEffectsOf(c, ctx);
         } else if (name == QLatin1String("highlight")) {
             const QColor color = readColor(c, ctx.theme, ctx.colors);
             if (color.isValid()) r.highlight = color;
@@ -336,6 +452,7 @@ QTextCharFormat charFormatOf(const RunProps &r)
         cf.setFontLetterSpacing(*r.spacing);
     }
     if (r.kern) cf.setProperty(tp::KernAbove, *r.kern);
+    if (r.fx && !r.fx->isEmpty()) cf.setProperty(tp::TextFx, *r.fx);
 
     // A theme font names no family (the engine takes the story's font
     // scheme); a family may be followed by the fonts of other scripts.

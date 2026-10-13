@@ -131,6 +131,82 @@ void writeColor(QXmlStreamWriter &w, const QColor &color, double transparency)
     w.writeEndElement();
 }
 
+void writeTextEffects(QXmlStreamWriter &w, const TextEffects &fx)
+{
+    if (!fx.any()) return;
+    // As the file had it: its tokens, with the prefixes it wrote them in (the part declares them).
+    if (!fx.xml.isEmpty()) {
+        QXmlStreamReader check(fx.xml);
+        check.setNamespaceProcessing(false);
+        while (!check.atEnd()) check.readNext();
+        if (!check.hasError()) {
+            QXmlStreamReader in(fx.xml);
+            in.setNamespaceProcessing(false);
+            // (token by token: with no namespaces processed, the reader's own copy would drop the prefix)
+            while (!in.atEnd()) {
+                in.readNext();
+                if (in.tokenType() == QXmlStreamReader::StartElement) {
+                    w.writeStartElement(in.qualifiedName().toString());
+                    for (const QXmlStreamAttribute &a : in.attributes()) w.writeAttribute(a.qualifiedName().toString(), a.value().toString());
+                } else if (in.tokenType() == QXmlStreamReader::EndElement) {
+                    w.writeEndElement();
+                }
+            }
+            return;
+        }
+    }
+    auto shadow = [&](const char *tag, const TextShadow &s, bool outer) {
+        w.writeStartElement(QLatin1String(tag));
+        w.writeAttribute(QStringLiteral("blurRad"), QString::number(extent(s.blur)));
+        w.writeAttribute(QStringLiteral("dist"), QString::number(extent(s.distance)));
+        w.writeAttribute(QStringLiteral("dir"), QString::number(angle(s.angle)));
+        if (s.sx != 1) w.writeAttribute(QStringLiteral("sx"), QString::number(percent(s.sx)));
+        if (s.sy != 1) w.writeAttribute(QStringLiteral("sy"), QString::number(percent(s.sy)));
+        if (s.kx != 0) w.writeAttribute(QStringLiteral("kx"), QString::number(angle(s.kx)));
+        if (s.ky != 0) w.writeAttribute(QStringLiteral("ky"), QString::number(angle(s.ky)));
+        if (outer) {
+            w.writeAttribute(QStringLiteral("algn"), s.align);
+            w.writeAttribute(QStringLiteral("rotWithShape"), QStringLiteral("0"));
+        }
+        writeColor(w, s.color);
+        w.writeEndElement();
+    };
+    w.writeStartElement(QStringLiteral("a:effectLst"));
+    if (fx.glow.on) {
+        w.writeStartElement(QStringLiteral("a:glow"));
+        w.writeAttribute(QStringLiteral("rad"), QString::number(extent(fx.glow.radius)));
+        writeColor(w, fx.glow.color);
+        w.writeEndElement();
+    }
+    if (fx.inner.on) shadow("a:innerShdw", fx.inner, false);
+    if (fx.outer.on) shadow("a:outerShdw", fx.outer, true);
+    if (fx.reflection.on) {
+        const TextReflection &r = fx.reflection;
+        w.writeStartElement(QStringLiteral("a:reflection"));
+        w.writeAttribute(QStringLiteral("blurRad"), QString::number(extent(r.blur)));
+        w.writeAttribute(QStringLiteral("stA"), QString::number(percent(r.startAlpha)));
+        w.writeAttribute(QStringLiteral("stPos"), QString::number(percent(r.startPos)));
+        w.writeAttribute(QStringLiteral("endA"), QString::number(percent(r.endAlpha)));
+        w.writeAttribute(QStringLiteral("endPos"), QString::number(percent(r.endPos)));
+        w.writeAttribute(QStringLiteral("dist"), QString::number(extent(r.distance)));
+        w.writeAttribute(QStringLiteral("dir"), QString::number(angle(r.angle)));
+        w.writeAttribute(QStringLiteral("fadeDir"), QString::number(angle(r.fadeAngle)));
+        w.writeAttribute(QStringLiteral("sx"), QString::number(percent(r.sx)));
+        w.writeAttribute(QStringLiteral("sy"), QString::number(percent(r.sy)));
+        if (r.kx != 0) w.writeAttribute(QStringLiteral("kx"), QString::number(angle(r.kx)));
+        if (r.ky != 0) w.writeAttribute(QStringLiteral("ky"), QString::number(angle(r.ky)));
+        w.writeAttribute(QStringLiteral("algn"), r.align);
+        w.writeAttribute(QStringLiteral("rotWithShape"), QStringLiteral("0"));
+        w.writeEndElement();
+    }
+    if (fx.softEdge > 0) {
+        w.writeStartElement(QStringLiteral("a:softEdge"));
+        w.writeAttribute(QStringLiteral("rad"), QString::number(extent(fx.softEdge)));
+        w.writeEndElement();
+    }
+    w.writeEndElement();
+}
+
 QString relate(DrawingWriteContext &ctx, const QString &type, const QString &target, bool external)
 {
     if (!ctx.package || ctx.part.isEmpty() || target.isEmpty()) return QString();
