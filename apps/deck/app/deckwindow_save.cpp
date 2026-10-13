@@ -11,6 +11,7 @@
 #include "app/outlineview.h"
 #include "app/recovery.h"
 #include "app/settings.h"
+#include "app/telemetry.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
 #include "io/pptxexport.h"
@@ -125,6 +126,7 @@ bool DeckWindow::saveTo(const QString &path)
     m_recoveredFrom.clear();
     m_templatePath = deck::kindOfFileName(path) == deck::PresentationKind::Template ? path : QString();
     Settings::get().addRecentFile(path);
+    telemetry::count(QStringLiteral("file.save.") + fileKind(path));
     updateTitle();
     if (skipped.isEmpty()) statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 4000);
     else statusBar()->showMessage(tr("Saved %1, but %n object(s) can't be saved in this kind of file yet.", nullptr, int(skipped.size())).arg(QFileInfo(path).fileName()), 8000);

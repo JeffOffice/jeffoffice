@@ -74,6 +74,24 @@ bool Updater::trustedInstaller(const QString &url, const QString &tag, const QSt
     return ours && tagChars.match(tag).hasMatch() && sha.match(digest).hasMatch();
 }
 
+bool Updater::offeredByAnotherAppToday(const QString &tag)
+{
+    Settings &st = Settings::get();
+    st.sync();   // the other app may have noted it just now
+    return !tag.isEmpty() && st.value(QStringLiteral("updates/offered")).toString() == tag &&
+           st.value(QStringLiteral("updates/offeredOn")).toDate() == QDate::currentDate() &&
+           st.value(QStringLiteral("updates/offeredBy")).toString() != appInfo().fileName;
+}
+
+void Updater::noteOffered(const QString &tag)
+{
+    Settings &st = Settings::get();
+    st.setValue(QStringLiteral("updates/offered"), tag);
+    st.setValue(QStringLiteral("updates/offeredOn"), QDate::currentDate());
+    st.setValue(QStringLiteral("updates/offeredBy"), appInfo().fileName);
+    st.sync();   // now, for an app that starts while the offer is up
+}
+
 bool Updater::checksOnStartup()
 {
     return Settings::get().value(QStringLiteral("updates/auto"), true).toBool();
@@ -121,6 +139,7 @@ void Updater::check(bool interactive)
         const QJsonObject newest = newer.value(0);
         if (!newest.isEmpty() && !interactive && Settings::get().value(QStringLiteral("updates/skip")).toString() == newest.value("tag_name").toString())
             return;
+        if (!newest.isEmpty() && !interactive && offeredByAnotherAppToday(newest.value("tag_name").toString())) return;
         QStringList notes;
         for (const QJsonObject &rel : newer)
             if (const QString h = releaseHighlights(rel.value("body").toString()); !h.isEmpty()) notes << h;
@@ -251,6 +270,7 @@ void Updater::offer(const QString &tag, const QString &notes, const QString &pag
 {
     QString version = tag;
     if (version.startsWith('v')) version.remove(0, 1);
+    noteOffered(tag);
 #ifdef Q_OS_WIN
     const bool canInstall = !setupUrl.isEmpty();
 #else
