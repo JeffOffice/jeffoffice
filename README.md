@@ -5,7 +5,7 @@
 JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**. It has two apps today:
 
 - **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
-- **JeffDeck** (a preview), for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`).
+- **JeffDeck** (a preview), for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
 
 More apps are on the way: JeffWrite for documents, JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
 
@@ -50,11 +50,11 @@ JeffDeck makes presentations and plays them as slide shows. It's a **preview**: 
 - **Movies and sounds** put on a slide (Insert > Media) play in place while you edit, with a control bar, and in the slide show as the file says: at a click, by themselves, or when clicked on, with their volume, trim, looping, and full screen. The Playback tab sets them.
 - **Comments** on slides, with replies, which other presentation programs show too.
 - **Print and export** slides, notes pages, handouts, and the outline, to paper or PDF, and slides as pictures.
-- **Presentation files.** Opens `.pptx`, `.potx`, `.ppsx`, and the older `.ppt` files from Microsoft PowerPoint, and OpenDocument presentations (`.odp`, `.otp`); saves `.pptx`, `.potx`, and `.ppsx`. What it can't show yet, such as SmartArt diagrams, is kept and saved back.
+- **Presentation files.** Opens `.pptx`, `.potx`, `.ppsx`, and the older `.ppt` files from Microsoft PowerPoint, and OpenDocument presentations (`.odp`, `.otp`); saves `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp`. What it can't show yet, such as SmartArt diagrams, is kept and saved back.
 
 ### Not yet in the preview
 
-Editing animations (the ones in a file play, but can't be changed yet), changing themes and their color variants, SmartArt diagrams and equations (kept, but not shown), and saving `.odp` files (an `.odp` is saved as a new `.pptx`). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
+Editing animations (the ones in a file play, but can't be changed yet), changing themes and their color variants, and SmartArt diagrams and equations (kept, but not shown; an `.odp` holds them as pictures). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
 
 ## Privacy
 
