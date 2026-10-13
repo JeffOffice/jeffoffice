@@ -521,6 +521,11 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     static QCache<QString, QImage> cache(256 * 1024);   // KB
     QImage src = doc.image(pic.imageId);
     if (src.isNull()) return src;
+    // A slide's picture is changed as the presentation program changes it (PictureItem::colorEffects), all at once and in the pixels of the
+    // picture itself, before it is made smaller: a color picked out is picked out where it is exact. A publication's, and the Sepia, Washout,
+    // and tint recolors only it has, are changed as Publisher changes them, below.
+    const bool slide = doc.slidePictures && (pic.recolor == PictureItem::NoRecolor || pic.recolor == PictureItem::Grayscale || pic.recolor == PictureItem::BlackWhite);
+    const QVector<BlipEffect> effects = slide ? pic.colorEffects() : pic.blipEffects;
     // Pick a resolution level: never more than ~1.5x what is shown (screen only).
     int level = 0;
     const QSizeF levelSize = deviceSize.isValid() && deviceSize.width() > 0 ? deviceSize : exactSize;
@@ -539,10 +544,12 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9x%10").arg(pic.imageId).arg(pic.brightness).arg(pic.contrast).arg(int(pic.recolor))
                             .arg(pic.recolorColor.resolve(doc.colors).name()).arg(pic.hasTransparentColor ? pic.transparentColor.name() : QString())
                             .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height());
-    if (QImage *c = cache.object(key)) return *c;
+    const QString effectsKey = effects.isEmpty() ? QString() : (slide ? QStringLiteral("s") : QStringLiteral("p")) + blipEffectsKey(effects);
+    if (QImage *c = cache.object(key + QLatin1Char('|') + effectsKey)) return *c;
+    if (slide) src = applyBlipEffects(src, effects);
     QImage img = level ? src.scaledToWidth(std::max(1, src.width() >> level), Qt::SmoothTransformation) : src;
     if (!shown.isEmpty()) img = img.scaled(shown, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    const bool adjust = pic.brightness || pic.contrast || pic.recolor || pic.hasTransparentColor;
+    const bool adjust = !slide && (pic.brightness || pic.contrast || pic.recolor || pic.hasTransparentColor);
     if (adjust) {
         img = img.convertToFormat(QImage::Format_ARGB32);
         const double bright = pic.brightness * 2.55;
@@ -564,7 +571,8 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
             }
         }
     }
-    cache.insert(key, new QImage(img), std::max<qsizetype>(1, img.sizeInBytes() / 1024));
+    if (!slide && !effects.isEmpty()) img = applyBlipEffects(img, effects);
+    cache.insert(key + QLatin1Char('|') + effectsKey, new QImage(img), std::max<qsizetype>(1, img.sizeInBytes() / 1024));
     return img;
 }
 
@@ -786,13 +794,13 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
         // Vector clip art and PDF pages print as vectors when they need no
         // color adjustment.
         const ImageData data = ctx.doc->images.value(pic.imageId);
-        const bool plain = !pic.brightness && !pic.contrast && !pic.recolor && !pic.hasTransparentColor;
+        const bool plain = !pic.brightness && !pic.contrast && !pic.recolor && !pic.hasTransparentColor && pic.blipEffects.isEmpty();
         Metafile mf;
         QSvgRenderer svg;
         // Recolored clip art (border art's tinted pieces among it) plays as
         // vectors too, every color changed as the picture's pixels would be:
         // made into a small picture first, its hairlines were lost.
-        const bool onlyRecolored = pic.recolor && !pic.brightness && !pic.contrast && !pic.hasTransparentColor;
+        const bool onlyRecolored = pic.recolor && !pic.brightness && !pic.contrast && !pic.hasTransparentColor && pic.blipEffects.isEmpty();
         const bool metafile = data.format == QLatin1String("wmf") || data.format == QLatin1String("emf");
         if (metafile && onlyRecolored && mf.load(data.bytes)) {
             const QColor tint = pic.recolorColor.resolve(cs);
@@ -1294,7 +1302,7 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
 bool Renderer::usesTransparency(const Document &doc, const Item &it)
 {
     if (it.fx.any()) return true;
-    if (it.fill.transparency > 0 || it.stroke.transparency > 0) return true;
+    if (it.fill.transparency > 0 || it.stroke.transparency > 0 || blipEffectsClear(it.fill.blipEffects)) return true;
     for (const GradientStop &st : it.fill.stops)
         if (st.transparency > 0) return true;
     switch (it.type()) {
@@ -1304,7 +1312,7 @@ bool Renderer::usesTransparency(const Document &doc, const Item &it)
         return false;
     case ItemType::Picture: {
         const auto &pic = static_cast<const PictureItem &>(it);
-        if (pic.transparency > 0 || pic.hasTransparentColor) return true;
+        if (pic.transparency > 0 || pic.hasTransparentColor || blipEffectsClear(pic.blipEffects)) return true;
         if (pic.imageId.isEmpty()) return false;
         // Cache per picture whether any pixel is see-through.
         static QHash<QString, bool> seeThrough;
