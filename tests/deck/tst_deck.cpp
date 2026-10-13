@@ -4484,6 +4484,40 @@ private Q_SLOTS:
         QVERIFY2(content.contains(QStringLiteral("text:space-before=\"1.0583cm\" text:min-label-width=\"0cm\"")), qPrintable(content.mid(content.indexOf(QStringLiteral("text:list-level-style-bullet")), 400)));
     }
 
+    // The presentation program makes a single line 1.2 em tall and shares it between above and below the baseline in the proportion of the
+    // font's Windows ascent to its descent (read from the fonts in its PDFs): the baseline is that share of 1.2 em below the top of the line,
+    // whichever font stands in for the original. Set closer, the line loses its top and keeps the descent.
+    void slideLinesPutTheBaselineWhereTheFontsWindowMetricsSayIt()
+    {
+        struct Case { QString family; double ascent, descent; };
+        const Case cases[] = {{QStringLiteral("Arial"), 1854, 434},          {QStringLiteral("Calibri"), 1950, 550},   {QStringLiteral("Times New Roman"), 1825, 443},
+                              {QStringLiteral("Book Antiqua"), 1967, 578},   {QStringLiteral("Gill Sans MT"), 1903, 472}, {QStringLiteral("Century Gothic"), 1989, 451}};
+        for (const Case &k : cases)
+            for (double spacing : {100.0, 90.0}) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextBlockFormat bf;
+                if (spacing < 100) bf.setLineHeight(spacing, QTextBlockFormat::ProportionalHeight);
+                c.setBlockFormat(bf);
+                QTextCharFormat cf;
+                cf.setFontFamilies({k.family});
+                cf.setFontPointSize(40);
+                c.insertText(QStringLiteral("Line"), cf);
+                FrameSpec fs;
+                fs.size = QSizeF(300, 300);
+                fs.insets = QMarginsF(0, 0, 0, 0);
+                LayoutEnv env;
+                env.slideLines = true;
+                StoryLayout lay;
+                lay.build(&doc, {fs}, env);
+                const auto lines = lay.lineInfo(0);
+                QCOMPARE(int(lines.size()), 1);
+                const double expected = 1.2 * 40 * spacing / 100 - 1.2 * 40 * k.descent / (k.ascent + k.descent);
+                const QString what = k.family + QLatin1Char(' ') + QString::number(spacing) + QLatin1Char(' ') + QString::number(lines[0].baseline);
+                QVERIFY2(std::abs(lines[0].baseline - expected) < 0.01, qPrintable(what + QStringLiteral(" expected ") + QString::number(expected)));
+            }
+    }
+
     // A slide's margins and indents stay where the file puts them when its text is shrunk to fit: only the text shrinks. A list's text starts one
     // hang in from its bullet at the same place whatever the fit, and a bullet with no font of its own is followed by its text at once.
     void slideIndentsDoNotShrinkWithTheirText()
