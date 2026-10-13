@@ -87,6 +87,13 @@ libs/base            colors, fonts, files, PDF
   extra space is above it, the paragraph at the top of a box takes no space
   before it, an empty paragraph shows no bullet, text doesn't wrap around
   objects, and what doesn't fit runs out of its box instead of hiding.
+  Text the presentation program shrank to fit (`a:normAutofit`) is drawn as
+  it draws it, as probed in that program: sizes are whole points (28 points at
+  85 percent are 24), a line is 1.2 times that size less `lnSpcReduction`
+  points of percent, the indents, tab stops, letter spacing, exact line
+  spacing, and space in points stay as written while space as a share of the
+  line follows the size, and a line taller than a single one sits its
+  baseline 3/4 of the way down it (the rules are on `LayoutEnv::slideLines`).
   Publications keep JeffPub's rules.
 - **Tests.** `tests/deck` (program `jdtests`) and `tests/office`
   (`officetests`), run on every push on Windows, macOS, and Linux.
