@@ -38,6 +38,10 @@ QString resolved(const QString &typeface, const QString &major, const QString &m
     return t;
 }
 
+// A font in a file is shown while the presentation is open unless its license is the restricted one (embedding any copy of it is not allowed):
+// preview and print, editable, and installable all let it be drawn.
+bool mayBeShown(const FontFileInfo &info) { return (info.fsType & 0x000E) != 0x0002; }
+
 QString hex(const quint8 *bytes, int n)
 {
     QString out;
@@ -179,7 +183,8 @@ FontsWritten writeEmbeddedFonts(office::PackageWriter &pkg, const QString &prese
                         break;
                     }
             }
-            if (part.isEmpty()) continue;
+            // No more than a file may carry (what is read back is held to the same).
+            if (part.isEmpty() || out.faces >= kMaxEmbeddedFonts) continue;
             const QString name = QStringLiteral("/ppt/fonts/font%1.fntdata").arg(++number);
             pkg.addDefault(QStringLiteral("fntdata"), kFontType);
             pkg.addPart(name, part, kFontType);
@@ -233,7 +238,9 @@ QVector<EmbeddedFace> readEmbeddedFonts(const office::Package &pkg, const QStrin
             face.slot = FontSlot(slot);
             face.part = data;
             QString why;
-            if (!office::readEmbeddedFont(data, &face.font, &face.info, &why)) {
+            if (office::readEmbeddedFont(data, &face.font, &face.info, &why) && !mayBeShown(face.info)) {
+                face.font.clear();   // kept as the file has it, not drawn with
+            } else if (face.font.isEmpty()) {
                 face.font.clear();
                 // A font the computer has costs nothing to lose.
                 if (!QFontDatabase::families().contains(typeface, Qt::CaseInsensitive)) {
@@ -287,6 +294,7 @@ QVector<EmbeddedFace> readEmbeddedFontFiles(const office::Package &pkg, const QS
         face.charset = face.info.charset();
         // Kept for a presentation file, which the program reads only in the wrapped form.
         face.part = office::makeEot(face.font);
+        if (!mayBeShown(face.info)) face.font.clear();
         faces << face;
     }
     if (notes) {
