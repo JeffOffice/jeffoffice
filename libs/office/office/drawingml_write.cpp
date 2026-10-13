@@ -94,6 +94,62 @@ void writeGradient(QXmlStreamWriter &w, const Fill &fill, const DrawingWriteCont
     w.writeEndElement();
 }
 
+// The color effects of a picture (the children of a:blip), as they were listed.
+void writeBlipEffects(QXmlStreamWriter &w, const QVector<BlipEffect> &effects)
+{
+    auto holding = [&](const char *name, const QColor &color) {
+        begin(w, name);
+        writeColor(w, color);
+        w.writeEndElement();
+    };
+    for (const BlipEffect &e : effects) {
+        switch (e.kind) {
+        case BlipEffect::Luminance:
+            begin(w, "a:lum");
+            if (e.brightness != 0) attribute(w, "bright", percent(std::clamp(e.brightness, -1.0, 1.0)));
+            if (e.contrast != 0) attribute(w, "contrast", percent(std::clamp(e.contrast, -1.0, 1.0)));
+            w.writeEndElement();
+            break;
+        case BlipEffect::Grayscale: leaf(w, "a:grayscl"); break;
+        case BlipEffect::BiLevel:
+            begin(w, "a:biLevel");
+            attribute(w, "thresh", std::clamp<qint64>(percent(e.threshold), 0, 100000));
+            w.writeEndElement();
+            break;
+        case BlipEffect::ColorChange:
+            begin(w, "a:clrChange");
+            holding("a:clrFrom", e.color);
+            holding("a:clrTo", e.color2);
+            w.writeEndElement();
+            break;
+        case BlipEffect::ColorReplace:
+            begin(w, "a:clrRepl");
+            writeColor(w, e.color);
+            w.writeEndElement();
+            break;
+        case BlipEffect::Duotone:
+            begin(w, "a:duotone");
+            writeColor(w, e.color);
+            writeColor(w, e.color2);
+            w.writeEndElement();
+            break;
+        case BlipEffect::Hsl:
+            begin(w, "a:hsl");
+            attribute(w, "hue", angle(e.hue));
+            attribute(w, "sat", percent(std::clamp(e.saturation, -1.0, 1.0)));
+            attribute(w, "lum", percent(std::clamp(e.lightness, -1.0, 1.0)));
+            w.writeEndElement();
+            break;
+        case BlipEffect::Tint:
+            begin(w, "a:tint");
+            attribute(w, "hue", angle(e.hue));
+            attribute(w, "amt", percent(std::clamp(e.amount, -1.0, 1.0)));
+            w.writeEndElement();
+            break;
+        }
+    }
+}
+
 // A picture fill (a:blipFill); false if the picture has no bytes to store.
 bool writePictureFill(QXmlStreamWriter &w, const Fill &fill, DrawingWriteContext &ctx, bool tiled)
 {
@@ -108,6 +164,7 @@ bool writePictureFill(QXmlStreamWriter &w, const Fill &fill, DrawingWriteContext
         attribute(w, "amt", std::clamp<qint64>(percent(1.0 - fill.transparency), 0, 100000));
         w.writeEndElement();
     }
+    writeBlipEffects(w, fill.blipEffects);
     w.writeEndElement();
     if (tiled) {
         const qint64 scale = std::clamp<qint64>(percent(fill.tileScale > 0 ? fill.tileScale : 1.0), 1000, 100000000);
@@ -749,7 +806,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         leaf(w, "a:grayscl");
     } else if (p.recolor == PictureItem::BlackWhite) {
         begin(w, "a:biLevel");
-        attribute(w, "thresh", QStringLiteral("50000"));
+        attribute(w, "thresh", std::clamp<qint64>(percent(p.blackWhiteLevel), 0, 100000));
         w.writeEndElement();
     }
     if (p.brightness != 0 || p.contrast != 0) {
@@ -768,6 +825,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         w.writeEndElement();
         w.writeEndElement();
     }
+    writeBlipEffects(w, p.blipEffects);
     // An SVG picture: the PNG above is for programs that don't draw SVG, and the SVG itself is linked here, as the presentation
     // program links it, last in the blip.
     if (const QString svgId = relateSvg(ctx, p.imageId); !svgId.isEmpty()) {

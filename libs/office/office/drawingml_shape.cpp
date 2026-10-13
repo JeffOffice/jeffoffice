@@ -873,20 +873,25 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     const QDomElement alpha = childNamed(blip, "alphaModFix");
     if (!alpha.isNull()) p->transparency = std::clamp(1.0 - parsePercent(attr(alpha, QStringLiteral("amt")), 1), 0.0, 1.0);
     if (!childNamed(blip, "grayscl").isNull()) p->recolor = PictureItem::Grayscale;
-    if (!childNamed(blip, "biLevel").isNull()) p->recolor = PictureItem::BlackWhite;
+    if (const QDomElement bilevel = childNamed(blip, "biLevel"); !bilevel.isNull()) {
+        p->recolor = PictureItem::BlackWhite;
+        p->blackWhiteLevel = std::clamp(parsePercent(attr(bilevel, QStringLiteral("thresh")), 0.5), 0.0, 1.0);
+    }
     const QDomElement lum = childNamed(blip, "lum");
     if (!lum.isNull()) {
         p->brightness = std::clamp(parsePercent(attr(lum, QStringLiteral("bright")), 0) * 100, -100.0, 100.0);
         p->contrast = std::clamp(parsePercent(attr(lum, QStringLiteral("contrast")), 0) * 100, -100.0, 100.0);
     }
+    // One color made clear is the picture's transparent color; any other change of a color, and the other effects, are kept as they are listed.
     const QDomElement change = childNamed(blip, "clrChange");
     if (!change.isNull()) {
-        const QColor from = readColor(childNamed(change, "clrFrom"), m_ctx.theme, m_ctx.colors);
-        if (from.isValid()) {
+        const QColor from = readColor(childNamed(change, "clrFrom"), m_ctx.theme, m_ctx.colors), to = readColor(childNamed(change, "clrTo"), m_ctx.theme, m_ctx.colors);
+        if (from.isValid() && (!to.isValid() || to.alpha() == 0)) {
             p->hasTransparentColor = true;
             p->transparentColor = QColor(from.red(), from.green(), from.blue());
         }
     }
+    p->blipEffects = readBlipEffects(blip, styleContext(), false);
     remember(cNvPr, p);
     return p;
 }
