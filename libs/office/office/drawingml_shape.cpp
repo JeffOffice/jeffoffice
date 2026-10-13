@@ -569,6 +569,7 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         // The letters' fill and outline (a:rPr holds them as a shape's properties do).
         a->fill = readFill(rPr, QDomElement(), m_ctx);
         a->stroke = readLine(rPr, QDomElement(), m_ctx);
+        if (!childNamed(rPr, "effectLst").isNull()) a->fx = readEffects(rPr, QDomElement(), m_ctx);
         remember(cNvPr, a);
         return a;
     }
