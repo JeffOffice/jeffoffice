@@ -12,7 +12,7 @@ constexpr double kMinSeconds = 0.01, kMaxSeconds = 59;
 
 QStringList transitionTypes()
 {
-    return {QStringLiteral("none"),   QStringLiteral("fade"),    QStringLiteral("push"),  QStringLiteral("wipe"), QStringLiteral("split"),
+    return {QStringLiteral("none"),   QStringLiteral("morph"),   QStringLiteral("fade"),    QStringLiteral("push"),    QStringLiteral("wipe"), QStringLiteral("split"),
             QStringLiteral("reveal"), QStringLiteral("cover"),   QStringLiteral("uncover"), QStringLiteral("zoom"), QStringLiteral("cut")};
 }
 
@@ -24,6 +24,10 @@ bool Transition::hasDirection() const
 
 bool Transition::hasInOut() const { return type == QLatin1String("split") || type == QLatin1String("zoom"); }
 
+bool Transition::isMorph() const { return type == QLatin1String("morph"); }
+
+QStringList Transition::morphUnits() { return {QStringLiteral("objects"), QStringLiteral("words"), QStringLiteral("characters")}; }
+
 QString Transition::defaultDirection(const QString &type)
 {
     if (type == QLatin1String("split")) return QStringLiteral("out");
@@ -33,7 +37,7 @@ QString Transition::defaultDirection(const QString &type)
 
 bool Transition::operator==(const Transition &o) const
 {
-    return type == o.type && dir == o.dir && duration == o.duration && advanceAfter == o.advanceAfter && advanceOnClick == o.advanceOnClick;
+    return type == o.type && dir == o.dir && by == o.by && duration == o.duration && advanceAfter == o.advanceAfter && advanceOnClick == o.advanceOnClick;
 }
 
 QJsonObject Transition::toJson() const
@@ -41,6 +45,7 @@ QJsonObject Transition::toJson() const
     QJsonObject o;
     o["type"] = type;
     o["dir"] = dir;
+    if (isMorph()) o["by"] = by;
     o["duration"] = duration;
     if (advanceAfter) o["advanceAfter"] = *advanceAfter;
     o["advanceOnClick"] = advanceOnClick;
@@ -58,6 +63,10 @@ Transition Transition::fromJson(const QJsonObject &o)
                                            : QStringList{QStringLiteral("l"), QStringLiteral("r"), QStringLiteral("u"), QStringLiteral("d")};
     if (valid.contains(dir)) t.dir = dir;
     if (!t.hasDirection() && !t.hasInOut()) t.dir = defaultDirection(t.type);   // the others have none
+    if (t.isMorph()) {
+        const QString by = o.value(QLatin1String("by")).toString();
+        if (morphUnits().contains(by)) t.by = by;
+    }
     const double seconds = o.value(QLatin1String("duration")).toDouble(t.duration);
     if (std::isfinite(seconds)) t.duration = std::clamp(seconds, kMinSeconds, kMaxSeconds);
     const QJsonValue after = o.value(QLatin1String("advanceAfter"));
