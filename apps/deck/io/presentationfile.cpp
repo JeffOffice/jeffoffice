@@ -1,5 +1,6 @@
 #include "io/presentationfile.h"
 
+#include "io/odpexport.h"
 #include "io/odpimport.h"
 #include "io/pptimport.h"
 #include "io/pptximport.h"
@@ -7,6 +8,7 @@
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QFileInfo>
 
 namespace jp::deck {
 
@@ -16,6 +18,29 @@ namespace {
 bool looksLikeCompoundFile(const QByteArray &head) { return head.startsWith(QByteArray::fromHex("D0CF11E0A1B11AE1")); }
 
 } // namespace
+
+FileFormat formatOfFileName(const QString &path)
+{
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    return suffix == QLatin1String("odp") || suffix == QLatin1String("otp") ? FileFormat::Odp : FileFormat::Pptx;
+}
+
+PresentationKind presentationKindOf(const QString &path)
+{
+    if (QFileInfo(path).suffix().compare(QLatin1String("otp"), Qt::CaseInsensitive) == 0) return PresentationKind::Template;
+    return kindOfFileName(path);
+}
+
+bool isWrittenEnding(const QString &path)
+{
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    return suffix == QLatin1String("pptx") || suffix == QLatin1String("potx") || suffix == QLatin1String("ppsx") || suffix == QLatin1String("odp") || suffix == QLatin1String("otp");
+}
+
+bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts)
+{
+    return formatOfFileName(path) == FileFormat::Odp ? saveOdpFile(doc, path, error, skipped) : savePresentationFile(doc, path, error, skipped, embedFonts);
+}
 
 QStringList leftOutNotes(int pictures, int parts)
 {
