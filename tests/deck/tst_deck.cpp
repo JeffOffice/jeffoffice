@@ -12969,6 +12969,59 @@ private Q_SLOTS:
         QCOMPARE(int(deck::EmbeddedFonts::facesOf(have.get()).size()), 0);
     }
 
+    // A family's styles are all available, not only the first: a font the computer lacks comes in a regular and a bold face, say.
+    void allTheStylesOfAnEmbeddedFamilyAreAvailable()
+    {
+        QMap<int, QByteArray> faces;
+        for (int slot = 0; slot < 4; ++slot) {
+            const QByteArray font = renamedFont(fontFileOf(QStringLiteral("Lato"), slot & 1, slot & 2), QStringLiteral("Lato"), QStringLiteral("Zato"));
+            QVERIFY(!font.isEmpty());
+            faces[slot] = office::makeEot(font);
+        }
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zato")));
+        QString err;
+        auto d = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Zato"), faces}})), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QStringList styles = QFontDatabase::styles(QStringLiteral("Zato"));
+        QVERIFY2(styles.contains(QStringLiteral("Regular")) && styles.contains(QStringLiteral("Bold")) && styles.contains(QStringLiteral("Italic")) && styles.contains(QStringLiteral("Bold Italic")),
+                 qPrintable(styles.join(QStringLiteral(", "))));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), 4);
+        // Bold asked for is the bold face's.
+        QFont bold(QStringLiteral("Zato"));
+        bold.setWeight(QFont::Bold);
+        QVERIFY(QFontInfo(bold).bold());
+        deck::EmbeddedFonts::release(d.get());
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zato")));
+    }
+
+    // An open document presentation carries its fonts as files in its Fonts folder: available while it is open, like a .pptx's.
+    void anOpenDocumentPresentationsFontsAreUsedWhileItIsOpen()
+    {
+        const QByteArray font = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), QStringLiteral("Zobster"));
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        QString err;
+        QStringList skipped;
+        auto d = deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {{QStringLiteral("Fonts/Zobster-Regular.ttf"), font}, {QStringLiteral("Fonts/notes.txt"), QByteArray("not a font")}}), &err, &skipped);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        // Kept for a .pptx to carry, in the form the presentation program reads.
+        const QVector<deck::EmbeddedFace> faces = deck::EmbeddedFonts::facesOf(d.get());
+        QCOMPARE(int(faces.size()), 1);
+        QCOMPARE(faces[0].typeface, QStringLiteral("Zobster"));
+        QByteArray inside;
+        QVERIFY(office::readEmbeddedFont(faces[0].part, &inside));
+        QCOMPARE(inside, font);
+        QVERIFY(faces[0].part != font);   // wrapped, not the bare font
+        deck::EmbeddedFonts::release(d.get());
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        // A part that isn't a font is said so.
+        auto bad = deck::importOdp(odptest::odpZip(odptest::sampleContent(), odptest::odpStyles(), {{QStringLiteral("Fonts/Broken.ttf"), QByteArray("not a font at all, nor a header .............")}}), &err, &skipped);
+        QVERIFY2(bad, qPrintable(err));
+        QVERIFY2(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("embedded font")), qPrintable(skipped.join(QLatin1Char('\n'))));
+        deck::EmbeddedFonts::release(bad.get());
+    }
+
     // The window gives a presentation's fonts back when the presentation is replaced and when the window closes.
     void aWindowReleasesItsPresentationsFonts()
     {

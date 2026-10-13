@@ -1,7 +1,7 @@
 # Change JeffDeck's settings
-<!-- keywords: options, settings, preferences, theme, dark mode, language, user name, initials, ruler, snap, spelling, autocorrect, quotes, updates, beta, usage statistics, about -->
+<!-- keywords: options, settings, preferences, theme, dark mode, language, user name, initials, ruler, snap, spelling, autocorrect, quotes, updates, beta, usage statistics, about, save, embed fonts, fonts -->
 
-Your settings are in the **JeffDeck Options** window. Click **File > Options** to open it. It has three tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
+Your settings are in the **JeffDeck Options** window. Click **File > Options** to open it. It has four tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
 ## General
 
@@ -27,6 +27,10 @@ These check boxes control spelling and typing help. See [Type and format text](t
 
 - **Show the ruler** shows the rulers along the edges of the slide. This is the same as **View > Show > Ruler**, and it applies to every window, now and when you open new ones.
 - **Snap objects to other objects** makes an object you drag line up with the other objects on the slide.
+
+## Save
+
+- **Embed fonts in the file** puts the fonts your slides use inside the file when you save, so the slides look the same on a computer that doesn't have those fonts. It is on until you clear it. It only puts in the fonts that come with JeffDeck, and it makes the file bigger. The topic Open and save presentations has the details, under "Fonts in the file".
 
 ## Related
 

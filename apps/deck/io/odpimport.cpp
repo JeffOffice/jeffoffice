@@ -4,7 +4,9 @@
 #include "io/presentationfile.h"
 
 #include "core/deck.h"
+#include "core/embeddedfonts.h"
 #include "core/transition.h"
+#include "io/pptxfonts.h"
 #include "office/drawingml_style.h"
 #include "office/theme.h"
 #include "text/textprops.h"
@@ -744,6 +746,8 @@ std::unique_ptr<Document> importOdp(const QByteArray &zip, QString *error, QStri
     QStringList notes;
     odp::Reader reader(pkg, *doc, &notes);
     if (!reader.run(error)) return nullptr;
+    // The fonts the package carries are available while the presentation is open (core/embeddedfonts.h).
+    EmbeddedFonts::use(doc.get(), readEmbeddedFontFiles(pkg, QStringLiteral("/Fonts"), &notes));
     doc->fromFile = true;   // what the file names outside itself is read only from beside it
     if (skipped) *skipped = notes;
     return doc;
