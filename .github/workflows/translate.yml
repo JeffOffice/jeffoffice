@@ -72,11 +72,15 @@ jobs:
           git checkout -- translations/jeffoffice.ts translations/jeffoffice_en.ts
           git add translations resources/help resources/resources.qrc
           if git diff --cached --quiet; then echo "Nothing new to translate."; exit 0; fi
-          git -c user.name="JeffOffice LLC" -c user.email="info@jeffoffice.com" commit -q -m "Translations of new and changed text"
+          # The identity for the commit and for replaying it onto a newer main.
+          git config user.name "JeffOffice LLC"
+          git config user.email "info@jeffoffice.com"
+          git commit -q -m "Translations of new and changed text"
           for i in 1 2 3 4 5; do
             # On a clash in a translation file, this run's version wins: it
             # holds lupdate's latest list and the new translations.
             git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
             sleep 20
           done
           echo "::error::Could not push the translations."
