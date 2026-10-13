@@ -227,10 +227,9 @@ void TextReadable::note(const PageBase &page, const MasterPage *base)
         // `cf` is the format of text, or null for a bullet.
         auto take = [&](QVector<Run> &into, int pos, const QColor &c, const QTextCharFormat *cf) {
             if (!c.isValid() || !behind.known) return;
-            const double asked = cf && !isLarge(*cf) ? kTextContrast : kLargeContrast;
             const QVector<QColor> &on = behind.middle.isEmpty() ? behind.colors : behind.middle;
             double had = 0;
-            if (behind.picture) had = asked;   // a picture's colors aren't told: it is taken to have read
+            if (behind.picture) had = cf ? kTextContrast : kLargeContrast;   // a picture's colors aren't told: it is taken to have read, and well
             else if (cf && readsOn(c, on, kTextContrast)) had = kTextContrast;
             else if (readsOn(c, on, kLargeContrast) && (!cf || isLarge(*cf))) had = kLargeContrast;
             into.push_back({pos, c, had});
