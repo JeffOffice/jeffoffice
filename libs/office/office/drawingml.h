@@ -80,7 +80,7 @@ struct DrawingContext {
     // Keeps a picture's bytes ("png", "jpeg", "gif", "bmp", "tiff", "emf",
     // "wmf", "svg"); returns its id for PictureItem::imageId or a picture fill.
     std::function<QString(const QByteArray &bytes, const QString &format)> addImage;
-    // The pictures kept so far, by part and relationship (and recoloring), and
+    // The pictures kept so far, by part and relationship, and
     // the movies and sounds by the part they are in. Kept by the caller across
     // every read of one file, so that a picture its shapes use again, on the
     // page or the next, is handed to addImage once. Unset, each read keeps its own.

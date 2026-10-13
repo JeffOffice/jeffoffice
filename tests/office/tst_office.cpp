@@ -6597,6 +6597,233 @@ private Q_SLOTS:
         QCOMPARE(other.images[0].format, QStringLiteral("jpeg"));
     }
 
+    // The changes a picture fill's blip lists are kept as listed, each with what it needs; the picture is kept as the file has it, with none
+    // made in its bytes (they are made where it is drawn), and a blip that lists more than the limit has the rest left out.
+    void dmlFillReadsPictureEffects()
+    {
+        DmlEnv env;
+        env.usePackage();
+        const QString clear = QStringLiteral("<a:clrChange><a:clrFrom><a:srgbClr val=\"9C8C7B\"/></a:clrFrom><a:clrTo><a:srgbClr val=\"9C8C7B\"><a:alpha val=\"0\"/></a:srgbClr></a:clrTo></a:clrChange>");
+        const Fill f = dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"><a:lum bright=\"21000\" contrast=\"52000\"/><a:grayscl/><a:biLevel thresh=\"25000\"/>%1"
+                                                     "<a:clrRepl><a:srgbClr val=\"FF0000\"><a:alpha val=\"50000\"/></a:srgbClr></a:clrRepl><a:duotone><a:srgbClr val=\"000080\"/><a:srgbClr val=\"FFFF00\"/></a:duotone>"
+                                                     "<a:hsl hue=\"5400000\" sat=\"-20000\" lum=\"10000\"/><a:tint hue=\"10800000\" amt=\"30000\"/></a:blip><a:stretch><a:fillRect/></a:stretch></a:blipFill>")
+                                              .arg(clear));
+        QVERIFY(f.type == Fill::Picture);
+        QCOMPARE(f.blipEffects.size(), 8);
+        const auto &fx = f.blipEffects;
+        QVERIFY(fx[0].kind == jp::BlipEffect::Luminance && near(fx[0].brightness, 0.21) && near(fx[0].contrast, 0.52));
+        QVERIFY(fx[1].kind == jp::BlipEffect::Grayscale);
+        QVERIFY(fx[2].kind == jp::BlipEffect::BiLevel && near(fx[2].threshold, 0.25));
+        QVERIFY(fx[3].kind == jp::BlipEffect::ColorChange && fx[3].color == QColor(0x9C, 0x8C, 0x7B) && fx[3].color2.alpha() == 0);
+        QVERIFY(fx[4].kind == jp::BlipEffect::ColorReplace && fx[4].color.red() == 255 && qAbs(fx[4].color.alpha() - 128) <= 1);
+        QVERIFY(fx[5].kind == jp::BlipEffect::Duotone && fx[5].color == QColor(0, 0, 0x80) && fx[5].color2 == QColor(255, 255, 0));
+        QVERIFY(fx[6].kind == jp::BlipEffect::Hsl && near(fx[6].hue, 90) && near(fx[6].saturation, -0.2) && near(fx[6].lightness, 0.1));
+        QVERIFY(fx[7].kind == jp::BlipEffect::Tint && near(fx[7].hue, 180) && near(fx[7].amount, 0.3));
+        QCOMPARE(env.images.size(), 1);
+        QCOMPARE(env.images[0].bytes, dmlPicture());
+        // What a fill is, it still is, with the changes: copied through its JSON.
+        QVERIFY(jp::Fill::fromJson(f.toJson()) == f);
+        QCOMPARE(jp::Fill::fromJson(f.toJson()).blipEffects.size(), 8);
+        // A blip with no changes has none, and one with more than a picture could be given (a hostile file's thousands) keeps the first.
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/></a:blipFill>")).blipEffects.isEmpty());
+        QString many;
+        for (int i = 0; i < 1000; ++i) many += QStringLiteral("<a:grayscl/>");
+        QCOMPARE(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\">%1</a:blip></a:blipFill>").arg(many)).blipEffects.size(), jp::kMaxBlipEffects);
+        // An effect that has nothing to work with (a duotone of one color, a color change from no color) is left out.
+        QVERIFY(dmlFillOf(env, QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"><a:duotone><a:srgbClr val=\"000080\"/></a:duotone><a:clrChange/><a:clrRepl/></a:blip></a:blipFill>"))
+                    .blipEffects.isEmpty());
+    }
+
+    // A picture keeps its brightness, contrast, gray or black and white (with its threshold), and one clear color as settings, and the rest
+    // of what its blip lists, in order, beside them.
+    void dmlPictureReadsTheEffectsItHasNoSettingFor()
+    {
+        DmlEnv env;
+        env.usePackage();
+        const QString frame = dmlXfrm(10, 20, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
+        const auto pic = [&](const QString &blip) { return dmlAs<PictureItem>(dmlOne(env, dmlPic(blip, frame))); };
+        auto p = pic(QStringLiteral("<a:biLevel thresh=\"25000\"/>"));
+        QVERIFY(p->recolor == PictureItem::BlackWhite && near(p->blackWhiteLevel, 0.25));
+        QVERIFY(p->blipEffects.isEmpty());
+        QVERIFY(near(pic(QStringLiteral("<a:biLevel/>"))->blackWhiteLevel, 0.5));
+        p = pic(QStringLiteral("<a:lum bright=\"21000\" contrast=\"52000\"/><a:duotone><a:srgbClr val=\"000080\"/><a:srgbClr val=\"FFFF00\"/></a:duotone>"
+                               "<a:clrRepl><a:srgbClr val=\"FF0000\"><a:alpha val=\"50000\"/></a:srgbClr></a:clrRepl><a:hsl hue=\"5400000\" sat=\"-20000\" lum=\"10000\"/>"
+                               "<a:tint hue=\"10800000\" amt=\"30000\"/>"));
+        QVERIFY(near(p->brightness, 21) && near(p->contrast, 52));
+        QCOMPARE(p->blipEffects.size(), 4);
+        QVERIFY(p->blipEffects[0].kind == jp::BlipEffect::Duotone && p->blipEffects[0].color == QColor(0, 0, 0x80) && p->blipEffects[0].color2 == QColor(255, 255, 0));
+        QVERIFY(p->blipEffects[1].kind == jp::BlipEffect::ColorReplace && p->blipEffects[1].color.red() == 255);
+        QVERIFY(p->blipEffects[2].kind == jp::BlipEffect::Hsl && near(p->blipEffects[2].hue, 90));
+        QVERIFY(p->blipEffects[3].kind == jp::BlipEffect::Tint && near(p->blipEffects[3].amount, 0.3));
+        // A color changed to another is an effect; a color made clear is the picture's transparent color.
+        p = pic(QStringLiteral("<a:clrChange><a:clrFrom><a:srgbClr val=\"FFFFFF\"/></a:clrFrom><a:clrTo><a:srgbClr val=\"FF0000\"/></a:clrTo></a:clrChange>"));
+        QVERIFY(!p->hasTransparentColor);
+        QCOMPARE(p->blipEffects.size(), 1);
+        QVERIFY(p->blipEffects[0].kind == jp::BlipEffect::ColorChange && p->blipEffects[0].color == QColor(255, 255, 255) && p->blipEffects[0].color2 == QColor(255, 0, 0));
+        p = pic(QStringLiteral("<a:clrChange><a:clrFrom><a:srgbClr val=\"FFFFFF\"/></a:clrFrom><a:clrTo><a:srgbClr val=\"FFFFFF\"><a:alpha val=\"0\"/></a:srgbClr></a:clrTo></a:clrChange>"));
+        QVERIFY(p->hasTransparentColor && p->blipEffects.isEmpty());
+        // The picture's settings, and what is beside them, come back through its JSON.
+        p = pic(QStringLiteral("<a:biLevel thresh=\"25000\"/><a:tint hue=\"10800000\" amt=\"30000\"/>"));
+        PictureItem back;
+        back.fromJson(p->toJson());
+        QVERIFY(near(back.blackWhiteLevel, 0.25) && back.blipEffects == p->blipEffects && back.blipEffects.size() == 1);
+    }
+
+    // What each effect does to a color (all of a:blip's, in order): a:lum as the presentation program draws it (fitted to its own pictures: a
+    // brightness of 14% adds 36 to each color; with 21% and a contrast of 52% a 100 comes to 153, and the contrast takes 1 / (1 - 0.52) times
+    // the distance from the middle), the clamps, the clear color, and that the picture itself is not changed.
+    void blipEffectsChangeColorsAsThePresentationProgramDoes()
+    {
+        const auto run = [](const QVector<QColor> &colors, const jp::BlipEffect &effect) {
+            QImage img(colors.size(), 1, QImage::Format_ARGB32);
+            for (int i = 0; i < colors.size(); ++i) img.setPixelColor(i, 0, colors[i]);
+            const QImage out = jp::applyBlipEffects(img, {effect});
+            QVector<QColor> result;
+            for (int i = 0; i < colors.size(); ++i) result << out.pixelColor(i, 0);
+            // The picture asked of is as it was.
+            for (int i = 0; i < colors.size(); ++i) if (img.pixelColor(i, 0) != colors[i]) result.clear();
+            return result;
+        };
+        jp::BlipEffect lum;
+        lum.kind = jp::BlipEffect::Luminance;
+        lum.brightness = 0.14;
+        QVector<QColor> got = run({QColor(100, 100, 100), QColor(0, 0, 0), QColor(250, 250, 250)}, lum);
+        QCOMPARE(got.value(0), QColor(136, 136, 136));
+        QCOMPARE(got.value(1), QColor(36, 36, 36));
+        QCOMPARE(got.value(2), QColor(255, 255, 255));
+        lum.brightness = 0.21;
+        lum.contrast = 0.52;
+        got = run({QColor(100, 100, 100), QColor(0, 0, 0), QColor(182, 66, 15)}, lum);
+        QCOMPARE(got.value(0), QColor(153, 153, 153));
+        QCOMPARE(got.value(1), QColor(0, 0, 0));
+        QCOMPARE(got.value(2), QColor(255, 82, 0));
+        // A contrast below 0 is 1 + it times the distance (a washed-out look, with the brightness above, comes to the top of the range).
+        lum.brightness = 0;
+        lum.contrast = -0.5;
+        got = run({QColor(0, 0, 0), QColor(255, 255, 255), QColor(128, 128, 128)}, lum);
+        QCOMPARE(got.value(0), QColor(64, 64, 64));
+        QCOMPARE(got.value(1), QColor(191, 191, 191));
+        lum.brightness = 0.7;
+        lum.contrast = -0.7;
+        got = run({QColor(0, 0, 0), QColor(255, 255, 255)}, lum);
+        QVERIFY(got.value(0).red() > 195 && got.value(0).red() < 215);
+        QCOMPARE(got.value(1).red(), 255);
+        // The same table the older files' pictures have: a factor of 1 / (1 - 0.52) (2.0833).
+        QCOMPARE(jp::luminanceTable(0.21, jp::contrastFactor(0.52))[100], uchar(153));
+        QVERIFY(near(jp::contrastFactor(0.52), 1 / 0.48) && near(jp::contrastFactor(-0.5), 0.5) && near(jp::contrastFactor(0), 1));
+        QVERIFY(std::isfinite(jp::contrastFactor(1)) && jp::contrastFactor(1) > 100);
+        // Gray (the weights JeffPub's recolor has), and black and white from the threshold.
+        jp::BlipEffect gray;
+        gray.kind = jp::BlipEffect::Grayscale;
+        got = run({QColor(255, 0, 0), QColor(0, 0, 255, 128)}, gray);
+        QCOMPARE(got.value(0), QColor(76, 76, 76));
+        QCOMPARE(got.value(1).alpha(), 128);
+        jp::BlipEffect bw;
+        bw.kind = jp::BlipEffect::BiLevel;
+        bw.threshold = 0.25;
+        got = run({QColor(70, 70, 70), QColor(60, 60, 60)}, bw);
+        QCOMPARE(got.value(0), QColor(255, 255, 255));
+        QCOMPARE(got.value(1), QColor(0, 0, 0));
+        bw.threshold = 0.5;
+        got = run({QColor(120, 120, 120), QColor(136, 136, 136)}, bw);
+        QCOMPARE(got.value(0), QColor(0, 0, 0));
+        QCOMPARE(got.value(1), QColor(255, 255, 255));
+        // A color changed: the one that is (and those within nine of it in each part) turns into the other, with its clearness.
+        jp::BlipEffect change;
+        change.kind = jp::BlipEffect::ColorChange;
+        change.color = QColor(0x9C, 0x8C, 0x7B);
+        change.color2 = QColor(0x9C, 0x8C, 0x7B, 0);
+        got = run({QColor(0x9C, 0x8C, 0x7B), QColor(0x95, 0x8C, 0x7B), QColor(0x80, 0x8C, 0x7B), QColor(0x9C, 0x8C, 0x7B, 100)}, change);
+        QCOMPARE(got.value(0).alpha(), 0);
+        QCOMPARE(got.value(1).alpha(), 0);
+        QCOMPARE(got.value(2), QColor(0x80, 0x8C, 0x7B));
+        QCOMPARE(got.value(3).alpha(), 0);
+        change.color2 = QColor(255, 0, 0);
+        got = run({QColor(0x9C, 0x8C, 0x7B, 100)}, change);
+        QCOMPARE(got.value(0), QColor(255, 0, 0, 100));
+        // All colors made one, with the pixels' own clearness; two colors that black and white go to.
+        jp::BlipEffect repl;
+        repl.kind = jp::BlipEffect::ColorReplace;
+        repl.color = QColor(255, 0, 0);
+        got = run({QColor(1, 2, 3, 77)}, repl);
+        QCOMPARE(got.value(0), QColor(255, 0, 0, 77));
+        jp::BlipEffect duo;
+        duo.kind = jp::BlipEffect::Duotone;
+        duo.color = QColor(0, 0, 0x80);
+        duo.color2 = QColor(255, 255, 0);
+        got = run({QColor(0, 0, 0), QColor(255, 255, 255)}, duo);
+        QCOMPARE(got.value(0), QColor(0, 0, 0x80));
+        QCOMPARE(got.value(1), QColor(255, 255, 0));
+        // The hue turned a third of a circle, the saturation and lightness moved, a tint's hue taken.
+        jp::BlipEffect hsl;
+        hsl.kind = jp::BlipEffect::Hsl;
+        hsl.hue = 120;
+        got = run({QColor(255, 0, 0)}, hsl);
+        QCOMPARE(got.value(0), QColor(0, 255, 0));
+        hsl.hue = 0;
+        hsl.lightness = -1;
+        QCOMPARE(run({QColor(255, 0, 0)}, hsl).value(0), QColor(0, 0, 0));
+        hsl.lightness = 1;
+        QCOMPARE(run({QColor(255, 0, 0)}, hsl).value(0), QColor(255, 255, 255));
+        hsl.lightness = 0;
+        hsl.saturation = -1;
+        got = run({QColor(255, 0, 0)}, hsl);
+        QVERIFY(got.value(0).red() == got.value(0).green() && got.value(0).green() == got.value(0).blue());
+        jp::BlipEffect tint;
+        tint.kind = jp::BlipEffect::Tint;
+        tint.hue = 0;
+        tint.amount = 1;
+        got = run({QColor(128, 128, 128)}, tint);
+        QVERIFY(got.value(0).red() > got.value(0).green() + 100 && got.value(0).green() == got.value(0).blue());
+        // Effects go one after the other, and none leaves the picture as it was (not even converted).
+        QImage plain(1, 1, QImage::Format_RGB32);
+        plain.fill(QColor(100, 100, 100));
+        QVERIFY(jp::applyBlipEffects(plain, {}).format() == QImage::Format_RGB32);
+        jp::BlipEffect nothing;   // a:lum with nothing in it, as the reference presentations' masters have
+        QVERIFY(jp::applyBlipEffects(plain, {nothing}).format() == QImage::Format_RGB32);
+        bw.threshold = 0.25;
+        QCOMPARE(jp::applyBlipEffects(plain, {gray, bw}).pixelColor(0, 0), QColor(255, 255, 255));
+        bw.threshold = 0.5;
+        QCOMPARE(jp::applyBlipEffects(plain, {gray, bw}).pixelColor(0, 0), QColor(0, 0, 0));
+        QCOMPARE(jp::applyBlipEffects(plain, {lum, bw}).pixelColor(0, 0), QColor(255, 255, 255));   // 100 is washed out to 235
+        QVERIFY(jp::applyBlipEffects(QImage(), {gray}).isNull());
+        // Held to what a picture's changes may cost (its pixels times its effects): 12 million pixels take a few of them, and not forty.
+        QImage large(4000, 3000, QImage::Format_ARGB32);
+        large.fill(QColor(100, 100, 100));
+        QVector<jp::BlipEffect> few(3, gray), crowd(40, gray);
+        QCOMPARE(jp::applyBlipEffects(large, few).pixelColor(7, 7), QColor(100, 100, 100));
+        QVERIFY(jp::applyBlipEffects(large, few).cacheKey() != large.cacheKey());
+        QCOMPARE(jp::applyBlipEffects(large, crowd).cacheKey(), large.cacheKey());
+        // Kept: the same picture with the same effects is made once, and with others it is made again.
+        const QImage a = jp::blipAdjusted(plain, {lum}), b = jp::blipAdjusted(plain, {lum});
+        QCOMPARE(a.cacheKey(), b.cacheKey());
+        QVERIFY(jp::blipAdjusted(plain, {gray}).cacheKey() != a.cacheKey());
+        QVERIFY(jp::blipEffectsKey({lum}) != jp::blipEffectsKey({gray}) && jp::blipEffectsKey({lum}) == jp::blipEffectsKey({lum}));
+    }
+
+    // A picture fill that has effects is drawn with them: the brush has the picture's colors changed (a:duotone's black to its first color).
+    void dmlFillWithEffectsPaintsChanged()
+    {
+        QImage source(2, 1, QImage::Format_RGB32);
+        source.setPixel(0, 0, qRgb(0, 0, 0));
+        source.setPixel(1, 0, qRgb(255, 255, 255));
+        jp::Fill f;
+        f.type = Fill::Picture;
+        f.imageId = QStringLiteral("a");
+        const auto lookup = [&](const QString &) { return source; };
+        jp::ColorScheme scheme;
+        QCOMPARE(f.brush(QRectF(0, 0, 2, 1), scheme, lookup).textureImage().pixelColor(0, 0), QColor(0, 0, 0));
+        jp::BlipEffect duo;
+        duo.kind = jp::BlipEffect::Duotone;
+        duo.color = QColor(0, 0, 0x80);
+        duo.color2 = QColor(255, 255, 0);
+        f.blipEffects = {duo};
+        const QImage got = f.brush(QRectF(0, 0, 2, 1), scheme, lookup).textureImage();
+        QCOMPARE(got.pixelColor(0, 0), QColor(0, 0, 0x80));
+        QCOMPARE(got.pixelColor(1, 0), QColor(255, 255, 0));
+        QCOMPARE(source.pixelColor(0, 0), QColor(0, 0, 0));   // the picture is as it was
+    }
+
     // A blur, glow, or soft edge is held to 200 points: real presentations use 20,
     // 10, and 7 at most, and one of the standard's 1,584 points makes a small
     // shape take most of a minute and gigabytes to draw.
@@ -6823,9 +7050,13 @@ private Q_SLOTS:
         QCOMPARE(env.images.size(), 1);
         QImage got;
         QVERIFY(got.loadFromData(env.images[0].bytes));
-        QCOMPARE(got.size(), QSize(2, 1));   // the theme's picture, not the master's
-        QCOMPARE(QColor(got.pixel(0, 0)), QColor(0x00, 0x00, 0x80));   // black takes the first color
-        QCOMPARE(QColor(got.pixel(1, 0)), QColor(0xFF, 0xFF, 0x00));   // white the second (here the reference's)
+        QCOMPARE(got.size(), QSize(2, 1));   // the theme's picture, not the master's, as it is
+        QCOMPARE(QColor(got.pixel(0, 0)), QColor(0, 0, 0));
+        // Where it is drawn: black takes the first color, white the second (here the reference's).
+        QCOMPARE(f.blipEffects.size(), 1);
+        const QImage drawn = f.brush(QRectF(0, 0, 2, 1), jp::ColorScheme(), [&](const QString &) { return got; }).textureImage();
+        QCOMPARE(QColor(drawn.pixel(0, 0)), QColor(0x00, 0x00, 0x80));
+        QCOMPARE(QColor(drawn.pixel(1, 0)), QColor(0xFF, 0xFF, 0x00));
     }
 
     // A shape of a diagram's drawing (dsp:sp) is a p:sp with one more element, dsp:txXfrm: the rectangle its text is
