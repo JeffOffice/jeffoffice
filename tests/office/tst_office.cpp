@@ -623,6 +623,46 @@ QByteArray fontWithWiderBox(QByteArray font, int glyph)
     return font;
 }
 
+// Where a glyph's data is in a font file (an absolute offset) and how long it is.
+QPair<int, int> glyphPlace(const QByteArray &font, int glyph)
+{
+    const auto tables = fontTables(font);
+    int glyfAt = 0;
+    for (int i = 0, n = qFromBigEndian<quint16>(font.constData() + 4); i < n; ++i)
+        if (font.mid(12 + 16 * i, 4) == "glyf") glyfAt = int(qFromBigEndian<quint32>(font.constData() + 12 + 16 * i + 8));
+    const QByteArray &loca = tables.at("loca");
+    const bool shortLoca = qFromBigEndian<qint16>(tables.at("head").constData() + 50) == 0;
+    auto offset = [&](int g) { return shortLoca ? 2 * qFromBigEndian<quint16>(loca.constData() + 2 * g) : int(qFromBigEndian<quint32>(loca.constData() + 4 * g)); };
+    return {glyfAt + offset(glyph), offset(glyph + 1) - offset(glyph)};
+}
+
+// The font with a composite glyph of these parts written over a glyph's data (which has room for it), or with the glyph's bytes made over.
+QByteArray fontWithComposite(QByteArray font, int glyph, const QVector<int> &parts)
+{
+    QByteArray record;
+    appendU16Be(&record, 0xFFFF);
+    record.append(QByteArray(8, '\0'));
+    for (int i = 0; i < parts.size(); ++i) {
+        appendU16Be(&record, quint16(0x0002 | (i + 1 < parts.size() ? 0x0020 : 0)));
+        appendU16Be(&record, quint16(parts[i]));
+        record.append(QByteArray(2, '\0'));
+    }
+    const QPair<int, int> place = glyphPlace(font, glyph);
+    if (record.size() > place.second) return QByteArray();
+    font.replace(place.first, record.size(), record);
+    return font;
+}
+
+// The font with maxp's maxComponentDepth set (0 says nothing).
+QByteArray fontWithComponentDepth(QByteArray font, int depth)
+{
+    int maxpAt = 0;
+    for (int i = 0, n = qFromBigEndian<quint16>(font.constData() + 4); i < n; ++i)
+        if (font.mid(12 + 16 * i, 4) == "maxp") maxpAt = int(qFromBigEndian<quint32>(font.constData() + 12 + 16 * i + 8));
+    qToBigEndian<quint16>(quint16(depth), font.data() + maxpAt + 30);
+    return font;
+}
+
 quint32 wordSum(const QByteArray &data)
 {
     quint32 sum = 0;
@@ -2030,6 +2070,168 @@ private Q_SLOTS:
         QCOMPARE(why, QStringLiteral("The embedded font is larger than 32 MB."));   // the budget, not what the data turned out to be
         QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
         if (before > 0) QVERIFY2(peakMemoryKb() - before < 160 * 1024, qPrintable(QString::number(peakMemoryKb() - before) + QLatin1String(" KB more at the peak")));
+    }
+
+    // Composite glyphs are checked before a font reaches the font engine: a part that is no glyph of the font, a glyph inside itself (straight
+    // or by way of others), parts nested deeper than 16 levels or than maxp says, and more than 256 parts, are all refused.
+    void fontInspectionRefusesCompositeGlyphsThatCannotBeDrawnSafely()
+    {
+        const QByteArray tinos = bundledFontBytes(QStringLiteral("Tinos"));
+        QVERIFY(!tinos.isEmpty());
+        QString why;
+        QVERIFY2(jp::inspectFont(tinos, nullptr, &why), qPrintable(why));
+        const int glyphs = fontGlyphs(tinos).size();
+        // Glyphs with room for a composite of a few parts, simple ones (not composite), and one with room for 257.
+        QVector<int> room, big;
+        const QVector<QByteArray> all = fontGlyphs(tinos);
+        for (int g = 1; g < glyphs; ++g)
+            if (all[g].size() >= 120 && qFromBigEndian<qint16>(all[g].constData()) > 0) {
+                room << g;
+                if (all[g].size() >= 1700) big << g;
+            }
+        QVERIFY(room.size() >= 30 && !big.isEmpty());
+        auto refused = [&](const QByteArray &font, const char *what) {
+            QVERIFY2(!font.isEmpty(), what);
+            why.clear();
+            QVERIFY2(!jp::inspectFont(font, nullptr, &why), what);
+            QVERIFY2(!why.isEmpty(), what);
+        };
+        auto accepted = [&](const QByteArray &font, const char *what) {
+            QVERIFY2(!font.isEmpty(), what);
+            QVERIFY2(jp::inspectFont(font, nullptr, &why), qPrintable(QLatin1String(what) + QLatin1String(": ") + why));
+        };
+        // Parts the font has, and one it doesn't.
+        accepted(fontWithComposite(tinos, room[0], {room[1], room[2]}), "a composite of glyphs the font has");
+        refused(fontWithComposite(tinos, room[0], {room[1], glyphs}), "a part past the last glyph");
+        refused(fontWithComposite(tinos, room[0], {65535}), "a part far past the last glyph");
+        // A glyph inside itself, and two glyphs inside each other.
+        refused(fontWithComposite(tinos, room[0], {room[0]}), "a glyph that is its own part");
+        refused(fontWithComposite(fontWithComposite(tinos, room[0], {room[1]}), room[1], {room[0]}), "two glyphs that are parts of each other");
+        // Depth: a chain of composites, each the part of the one before (maxp saying nothing, then what is true, then too little).
+        auto chain = [&](int levels) {
+            QByteArray font = fontWithComponentDepth(tinos, 0);
+            for (int i = 0; i < levels; ++i) font = fontWithComposite(font, room[i], {room[i + 1]});
+            return font;
+        };
+        accepted(chain(16), "composites nested 16 deep");
+        refused(chain(17), "composites nested 17 deep");
+        refused(fontWithComponentDepth(chain(2), 1), "nested 2 deep where maxp says 1");
+        accepted(fontWithComponentDepth(chain(2), 2), "nested 2 deep where maxp says 2");
+        accepted(fontWithComponentDepth(chain(1), 1), "nested 1 deep where maxp says 1");
+        // How many parts: 256 are the most.
+        accepted(fontWithComposite(fontWithComponentDepth(tinos, 0), big[0], QVector<int>(256, room[1])), "256 parts");
+        refused(fontWithComposite(fontWithComponentDepth(tinos, 0), big[0], QVector<int>(257, room[1])), "257 parts");
+    }
+
+    // Glyph data and the index to it are held to what a font engine can walk: entries in order and inside the table, contours in order, a
+    // program that fits.
+    void fontInspectionRefusesGlyphDataThatIsOutOfOrderOrCutShort()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        QString why;
+        auto refused = [&](const QByteArray &font, const char *what) {
+            QVERIFY2(!font.isEmpty(), what);
+            why.clear();
+            QVERIFY2(!jp::inspectFont(font, nullptr, &why), what);
+            QVERIFY2(!why.isEmpty(), what);
+        };
+        const QVector<QByteArray> glyphs = fontGlyphs(lato);
+        int simple = -1;
+        for (int g = 1; g < glyphs.size() && simple < 0; ++g)
+            if (glyphs[g].size() > 60 && qFromBigEndian<qint16>(glyphs[g].constData()) > 1) simple = g;
+        QVERIFY(simple > 0);
+        const int at = glyphPlace(lato, simple).first;
+        // Contours' last points out of order.
+        QByteArray bad = lato;
+        qToBigEndian<quint16>(5, bad.data() + at + 10);
+        qToBigEndian<quint16>(2, bad.data() + at + 12);
+        refused(bad, "contours that go backward");
+        // A program longer than the glyph.
+        bad = lato;
+        const int contours = qFromBigEndian<qint16>(lato.constData() + at);
+        qToBigEndian<quint16>(60000, bad.data() + at + 10 + 2 * contours);
+        refused(bad, "a program longer than its glyph");
+        // More contours than the glyph's data can hold the ends of.
+        bad = lato;
+        qToBigEndian<qint16>(qint16(glyphPlace(lato, simple).second), bad.data() + at);
+        refused(bad, "more contours than fit");
+        // The glyph index going back.
+        const auto tables = fontTables(lato);
+        int locaAt = 0;
+        for (int i = 0, n = qFromBigEndian<quint16>(lato.constData() + 4); i < n; ++i)
+            if (lato.mid(12 + 16 * i, 4) == "loca") locaAt = int(qFromBigEndian<quint32>(lato.constData() + 12 + 16 * i + 8));
+        QVERIFY(qFromBigEndian<qint16>(tables.at("head").constData() + 50) == 0);   // Lato's index is the short one
+        bad = lato;
+        qToBigEndian<quint16>(0, bad.data() + locaAt + 2 * (simple + 1));
+        refused(bad, "an entry that goes back");
+    }
+
+    // The character map must name only glyphs the font has, with each subtable inside the table.
+    void fontInspectionRefusesACharacterMapThatNamesMissingGlyphs()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        QString why;
+        QVERIFY2(jp::inspectFont(lato, nullptr, &why), qPrintable(why));
+        const auto tables = fontTables(lato);
+        int cmapAt = 0;
+        for (int i = 0, n = qFromBigEndian<quint16>(lato.constData() + 4); i < n; ++i)
+            if (lato.mid(12 + 16 * i, 4) == "cmap") cmapAt = int(qFromBigEndian<quint32>(lato.constData() + 12 + 16 * i + 8));
+        // Find the format 4 subtable.
+        const int subtables = qFromBigEndian<quint16>(lato.constData() + cmapAt + 2);
+        int at4 = -1;
+        for (int i = 0; i < subtables; ++i) {
+            const int offset = int(qFromBigEndian<quint32>(lato.constData() + cmapAt + 4 + 8 * i + 4));
+            if (qFromBigEndian<quint16>(lato.constData() + cmapAt + offset) == 4) at4 = cmapAt + offset;
+        }
+        QVERIFY(at4 > 0);
+        const int segments = qFromBigEndian<quint16>(lato.constData() + at4 + 6) / 2;
+        QVERIFY(segments > 2);
+        const int deltas = at4 + 14 + 2 * segments + 2 + 2 * segments;
+        // A segment whose change takes its characters past the last glyph.
+        QByteArray bad = lato;
+        qToBigEndian<quint16>(30000, bad.data() + deltas);
+        QVERIFY(!jp::inspectFont(bad, nullptr, &why));
+        QVERIFY(!why.isEmpty());
+        // A table whose length says it reaches past the cmap table.
+        bad = lato;
+        qToBigEndian<quint16>(65535, bad.data() + at4 + 2);
+        QVERIFY(!jp::inspectFont(bad, nullptr, &why));
+        // A count of segments the table can't hold.
+        bad = lato;
+        qToBigEndian<quint16>(60000, bad.data() + at4 + 6);
+        QVERIFY(!jp::inspectFont(bad, nullptr, &why));
+        // Characters out of order.
+        bad = lato;
+        const int starts = at4 + 14 + 2 * segments + 2;
+        qToBigEndian<quint16>(qFromBigEndian<quint16>(bad.constData() + starts + 2 * (segments - 2)) + 100, bad.data() + starts);
+        QVERIFY(!jp::inspectFont(bad, nullptr, &why));
+    }
+
+    // Tables that share bytes are refused (a font written out again would be larger than it was read), and every bundled font passes.
+    void fontInspectionRefusesTablesThatShareBytesAndPassesTheBundledFonts()
+    {
+        QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        // gasp's record points at hhea's data.
+        const int gasp = tableRecord(lato, "gasp"), hhea = tableRecord(lato, "hhea");
+        QVERIFY(gasp > 0 && hhea > 0);
+        QString why;
+        QByteArray bad = lato;
+        setBe32(bad, gasp + 8, beAt(bad, hhea + 8));
+        setBe32(bad, gasp + 12, 8);
+        QVERIFY(!jp::inspectFont(bad, nullptr, &why));
+        QVERIFY(!why.isEmpty());
+        for (const QString &dir : jp::bundledFontDirs()) {
+            const QDir d(dir);
+            if (!d.exists()) continue;
+            int n = 0;
+            for (const QString &name : d.entryList({QStringLiteral("*.ttf"), QStringLiteral("*.otf")}, QDir::Files)) {
+                QFile f(d.filePath(name));
+                QVERIFY(f.open(QIODevice::ReadOnly));
+                QVERIFY2(jp::inspectFont(f.readAll(), nullptr, &why), qPrintable(name + QLatin1String(": ") + why));
+                ++n;
+            }
+            if (n) break;
+        }
     }
 
     void xmlAcceptsDeepButReasonableNesting()

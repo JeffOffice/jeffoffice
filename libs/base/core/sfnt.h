@@ -43,9 +43,12 @@ struct FontFileInfo {
 
 // Whether `font` is a TrueType or OpenType file that is safe to hand to the
 // font engine. False, with the reason in `why`, if it is not: not a font,
-// larger than kMaxEmbeddedFontBytes, a collection, a variable font, a table
-// that runs past the end of the file, or a table too short for what the font
-// says it holds. `info` gets what the font says about itself.
+// larger than kMaxEmbeddedFontBytes, a collection, a variable font, tables
+// that share bytes or run past the end of the file, a table too short for what
+// the font says it holds, a glyph that is not inside the glyph data or whose
+// parts are not (a composite glyph naming a glyph the font lacks, inside
+// itself, or nested more than 16 levels or than maxp says), a character map
+// that names a glyph the font lacks. `info` gets what the font says about itself.
 bool inspectFont(const QByteArray &font, FontFileInfo *info = nullptr, QString *why = nullptr);
 // The same for font data in memory that is not a QByteArray (a mapped file).
 bool inspectFont(const uchar *data, qint64 size, FontFileInfo *info = nullptr, QString *why = nullptr);
