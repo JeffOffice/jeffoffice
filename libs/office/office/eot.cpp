@@ -1,5 +1,7 @@
 #include "office/eot.h"
 
+#include "office/mtx.h"
+
 #include <QCoreApplication>
 #include <QtEndian>
 
@@ -118,7 +120,11 @@ bool readEmbeddedFont(const QByteArray &data, QByteArray *font, FontFileInfo *in
         bytes = data.mid(total - fontSize, fontSize);
         if (flags & kFlagScrambled)
             for (char &c : bytes) c = char(c ^ 0x50);
-        if (flags & kFlagCompressed) return fail(say("The embedded font is compressed in a way that is not read."));
+        if (flags & kFlagCompressed) {
+            QByteArray uncompressed;
+            if (!mtxToTrueType(bytes, &uncompressed, why)) return false;
+            bytes = uncompressed;
+        }
     }
     if (!inspectFont(bytes, info, why)) return false;
     if (font) *font = bytes;
