@@ -141,12 +141,18 @@ set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscre
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 
 # JeffDeck, the presentation app: like JeffPub, everything except main() is a
-# library its tests link. Packaged beside JeffPub (a Preview in 0.7.0).
+# library its tests link. Packaged beside JeffPub (a Preview in 0.7.0). Its
+# movies and sounds play through Qt Multimedia (its FFmpeg backend), which
+# nothing else needs: -DJP_BUILD_DECK=OFF builds JeffPub and the shared
+# libraries without it.
+option(JP_BUILD_DECK "Build JeffDeck (it needs Qt Multimedia)" ON)
+if(JP_BUILD_DECK)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Multimedia)
 file(GLOB_RECURSE JD_SOURCES CONFIGURE_DEPENDS apps/deck/*.cpp apps/deck/*.h)
 list(REMOVE_ITEM JD_SOURCES ${CMAKE_SOURCE_DIR}/apps/deck/main.cpp)
 add_library(jdcore STATIC ${JD_SOURCES} apps/deck/resources/deck.qrc)
 target_include_directories(jdcore PUBLIC apps/deck)
-target_link_libraries(jdcore PUBLIC jo_page)
+target_link_libraries(jdcore PUBLIC jo_page Qt6::Multimedia)
 qt_add_executable(jeffdeck WIN32 MACOSX_BUNDLE apps/deck/main.cpp)
 if(APPLE)
   # As JeffPub's: an icon from its 256-pixel picture, document types (the
@@ -191,6 +197,7 @@ target_compile_definitions(jdtests PRIVATE JD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(jdtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME jdtests COMMAND jdtests)
 set_tests_properties(jdtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
 
 # Translations of the apps' own text, one set for the suite. `cmake --build
 # build --target jeffoffice_lupdate` gathers every string marked for
@@ -202,12 +209,16 @@ set_tests_properties(jdtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 # English needs one too, for plurals only: jeffoffice_en.ts gives "%n page(s)"
 # its singular and plural forms (lupdate adds new ones; fill in their forms).
 find_package(Qt6 QUIET COMPONENTS LinguistTools)
+set(JP_LUPDATE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jpcore jeffpub)
+if(JP_BUILD_DECK)
+  list(APPEND JP_LUPDATE_TARGETS jdcore jeffdeck)
+endif()
 if(Qt6LinguistTools_FOUND)
   file(GLOB JP_TRANSLATIONS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_*.ts)
   list(REMOVE_ITEM JP_TRANSLATIONS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts)
   qt_add_lupdate(TS_FILES ${CMAKE_SOURCE_DIR}/translations/jeffoffice.ts ${JP_TRANSLATIONS}
                  PLURALS_TS_FILE ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts
-                 SOURCE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jpcore jeffpub jdcore jeffdeck
+                 SOURCE_TARGETS ${JP_LUPDATE_TARGETS}
                  LUPDATE_TARGET jeffoffice_lupdate
                  OPTIONS -no-obsolete -locations relative)
   qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)
@@ -238,9 +249,11 @@ if(Qt6LinguistTools_FOUND)
 endif()
 
 # Developer tool for reading and rendering presentation files from the command line.
+if(JP_BUILD_DECK)
 qt_add_executable(jdecktool tools/jdecktool.cpp)
 target_link_libraries(jdecktool PRIVATE jdcore)
 set_target_properties(jdecktool PROPERTIES WIN32_EXECUTABLE OFF)
+endif()
 
 # Developer tool for rendering and converting publications from the command line.
 qt_add_executable(jpubtool tools/jpubtool.cpp)

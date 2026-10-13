@@ -47,13 +47,14 @@ JeffDeck makes presentations and plays them as slide shows. It's a **preview**: 
 - **Slides** with layouts and slide masters, backgrounds, slide size, headers and footers, sections, and speaker notes. Work in Normal view, the Outline, or the Slide Sorter, and reuse slides from another presentation.
 - **On a slide:** text, shapes, pictures, tables, Text Art, and charts (drawn from the numbers saved with them).
 - **Slide shows** full screen or with Presenter View on a second screen (your notes, the next slide, and a timer), with transitions between slides and animations that play click by click. A slide can move on by itself after the seconds you set, and Presenter View can be practiced in a window on one screen.
+- **Movies and sounds** put on a slide (Insert > Media) play in place while you edit, with a control bar, and in the slide show as the file says: at a click, by themselves, or when clicked on, with their volume, trim, looping, and full screen. The Playback tab sets them.
 - **Comments** on slides, with replies, which other presentation programs show too.
 - **Print and export** slides, notes pages, handouts, and the outline, to paper or PDF, and slides as pictures.
 - **Presentation files.** Opens `.pptx`, `.potx`, `.ppsx`, and the older `.ppt` files from Microsoft PowerPoint, and OpenDocument presentations (`.odp`, `.otp`); saves `.pptx`, `.potx`, and `.ppsx`. What it can't show yet, such as SmartArt diagrams, is kept and saved back.
 
 ### Not yet in the preview
 
-Editing animations (the ones in a file play, but can't be changed yet), changing themes and their color variants, SmartArt diagrams and equations (kept, but not shown), playing movies and sounds (kept, but not played), and saving `.odp` files (an `.odp` is saved as a new `.pptx`). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
+Editing animations (the ones in a file play, but can't be changed yet), changing themes and their color variants, SmartArt diagrams and equations (kept, but not shown), and saving `.odp` files (an `.odp` is saved as a new `.pptx`). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
 
 ## Privacy
 
@@ -118,6 +119,7 @@ JeffOffice includes or downloads these components, each under its own license:
 | Dutch dictionary and hyphenation patterns ([OpenTaal](https://www.opentaal.org/)) | Spelling, hyphenation | BSD (revised) or CC BY 3.0 |
 | Brazilian Portuguese dictionary and hyphenation patterns ([VERO](http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/)) | Spelling, hyphenation | LGPL-3.0 or MPL |
 | European Portuguese dictionary and hyphenation patterns | Spelling, hyphenation | GPL-2.0+ |
+| [FFmpeg](https://ffmpeg.org/) 7.1 libraries, as built for Qt Multimedia (JeffDeck's packages only) | Playing the movies and sounds in JeffDeck | LGPL-2.1+ |
 | [Lucide](https://lucide.dev/) icons and their search keywords | Interface icons and Insert > Icons | ISC |
 | Open fonts | Fonts and substitutes | SIL Open Font License, GUST Font License, Bitstream Vera, GPL v2 with font exceptions (Liberation Sans Narrow); see `resources/fonts/README.md` |
 | [zlib](https://zlib.net/) | Compression (when the system has none) | zlib license |
@@ -130,4 +132,4 @@ JeffOffice includes or downloads these components, each under its own license:
 | [PSO Coated v3](https://www.eci.org/) color profile, from the European Color Initiative | The printing condition in PDF/X-4 files; downloaded from ECI the first time you make one (after asking); not bundled | ECI's terms: free to use and embed in PDFs, not to pass on |
 | [International ISBN Agency](https://www.isbn-international.org/range_file_generation) range table | Placing the hyphens in ISBNs from every country; downloaded from the agency when you make an ISBN barcode, monthly at most; not bundled | The agency's terms (it doesn't allow republishing the table) |
 
-The dictionaries come unchanged from the [LibreOffice dictionaries project](https://github.com/LibreOffice/dictionaries); each language's authors, license, and license text are in [resources/dict](resources/dict/README.md). Changes made to libmspub and librevenge are listed in [third_party/README.md](third_party/README.md). PDFium's license texts, and those of the libraries built into it, are in [third_party/pdfium/licenses](third_party/pdfium/licenses) and ship with the program (in its `licenses/pdfium` folder; on Linux in `/usr/share/doc/jeffoffice/pdfium`).
+The dictionaries come unchanged from the [LibreOffice dictionaries project](https://github.com/LibreOffice/dictionaries); each language's authors, license, and license text are in [resources/dict](resources/dict/README.md). Changes made to libmspub and librevenge are listed in [third_party/README.md](third_party/README.md). PDFium's license texts, and those of the libraries built into it, are in [third_party/pdfium/licenses](third_party/pdfium/licenses) and ship with the program (in its `licenses/pdfium` folder; on Linux in `/usr/share/doc/jeffoffice/pdfium`). The same goes for FFmpeg, which JeffDeck's packages carry for its movies and sounds: its notice (what it is and where its source is) and the LGPL-2.1 text are in [third_party/ffmpeg/licenses](third_party/ffmpeg/licenses), and ship in `licenses/ffmpeg` (on Linux in `/usr/share/doc/jeffoffice/ffmpeg`).

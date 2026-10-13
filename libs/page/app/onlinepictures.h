@@ -20,8 +20,6 @@ class QPushButton;
 
 namespace jp {
 
-class MainWindow;
-
 namespace online {
 
 struct Picture {
@@ -60,7 +58,11 @@ void download(QNetworkAccessManager *net, const QUrl &url, QObject *context, con
 class OnlinePicturesPane : public QWidget {
     Q_OBJECT
 public:
-    explicit OnlinePicturesPane(MainWindow *win);
+    // What puts a downloaded picture on the page: given its file, the picture (its
+    // title and credit), and whether to add the credit; false when the file did
+    // not open as a picture.
+    using Inserter = std::function<bool(const QString &path, const online::Picture &picture, bool withCredit)>;
+    explicit OnlinePicturesPane(const Inserter &insert);
     ~OnlinePicturesPane() override;
     void search(const QString &query);   // as if typed and Enter pressed
     QListWidget *results() const { return m_results; }
@@ -70,7 +72,7 @@ public:
 private:
     void showDetails();
     void insertChosen();
-    MainWindow *m_win;
+    Inserter m_inserter;
     QComboBox *m_source;
     QLineEdit *m_query;
     QLabel *m_status, *m_details;

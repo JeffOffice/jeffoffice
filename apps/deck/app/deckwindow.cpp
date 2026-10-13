@@ -248,6 +248,7 @@ void DeckWindow::createActions()
     createSectionActions();
     createOutputActions();
     createHelpActions();
+    createMediaActions();
 }
 
 void DeckWindow::refreshUi()

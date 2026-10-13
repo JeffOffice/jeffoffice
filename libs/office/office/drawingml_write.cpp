@@ -436,6 +436,18 @@ void writeMedia(QXmlStreamWriter &w, const PictureItem &p, const MediaRelations 
     begin(w, "p14:media");
     w.writeAttribute(QStringLiteral("xmlns:p14"), QStringLiteral("http://schemas.microsoft.com/office/powerpoint/2010/main"));
     attribute(w, "r:embed", media.copy);
+    if (p.mediaTrimStart > 0 || p.mediaTrimEnd > 0) {
+        begin(w, "p14:trim");
+        if (p.mediaTrimStart > 0) attribute(w, "st", p.mediaTrimStart);
+        if (p.mediaTrimEnd > 0) attribute(w, "end", p.mediaTrimEnd);
+        w.writeEndElement();
+    }
+    if (p.mediaFadeIn > 0 || p.mediaFadeOut > 0) {
+        begin(w, "p14:fade");
+        if (p.mediaFadeIn > 0) attribute(w, "in", p.mediaFadeIn);
+        if (p.mediaFadeOut > 0) attribute(w, "out", p.mediaFadeOut);
+        w.writeEndElement();
+    }
     w.writeEndElement();
     w.writeEndElement();
     w.writeEndElement();
@@ -753,6 +765,19 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         w.writeEndElement();
         begin(w, "a:clrTo");
         writeColor(w, p.transparentColor, 1.0);
+        w.writeEndElement();
+        w.writeEndElement();
+    }
+    // An SVG picture: the PNG above is for programs that don't draw SVG, and the SVG itself is linked here, as the presentation
+    // program links it, last in the blip.
+    if (const QString svgId = relateSvg(ctx, p.imageId); !svgId.isEmpty()) {
+        begin(w, "a:extLst");
+        begin(w, "a:ext");
+        attribute(w, "uri", QStringLiteral("{96DAC541-7B7A-43D3-8B79-37D633B846F1}"));
+        begin(w, "asvg:svgBlip");
+        w.writeAttribute(QStringLiteral("xmlns:asvg"), QStringLiteral("http://schemas.microsoft.com/office/drawing/2016/SVG/main"));
+        attribute(w, "r:embed", svgId);
+        w.writeEndElement();
         w.writeEndElement();
         w.writeEndElement();
     }

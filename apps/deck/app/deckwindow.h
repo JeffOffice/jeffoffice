@@ -31,6 +31,7 @@ class FontCombo;
 class HelpView;
 class HelpWindow;
 class NotesPane;
+class OnlinePicturesPane;
 class OutlineView;
 class Ribbon;
 class ReusePane;
@@ -43,6 +44,7 @@ namespace deck {
 struct ColorSet;
 struct FontSet;
 struct FooterOptions;
+struct MediaPlay;
 struct OutputOptions;
 }
 namespace recovery {
@@ -128,10 +130,31 @@ public:
     void chooseBackgroundStyle(int style);
     // A picture from a file, centered on the slide (or with its corner at `at`
     // when that isn't negative) and selected. False when the file can't be
-    // read as a picture.
-    bool insertPicture(const QString &path, const QPointF &at = QPointF(-1, -1));
+    // read as a picture. With `altText` the picture has it for screen readers;
+    // with `credit` a line of small text under it names its author (all one step).
+    bool insertPicture(const QString &path, const QPointF &at = QPointF(-1, -1), const QString &altText = QString(), const QString &credit = QString());
+    // Icons by name (the bundled ones), each put on the slide as an SVG picture an inch square in the
+    // theme's text color, side by side across the middle, selected, as one step that undoes. A name that is
+    // no icon is left out. (deckwindow_insert.cpp)
+    void insertIcons(const QStringList &names);
+    // A Text Art in a style of the Text Art gallery, in the middle of the slide and selected, and the box that
+    // asks for its words, with the old ones selected so that typing replaces them. (deckwindow_insert.cpp)
+    void insertTextArt(const QString &styleId);
+    // The Online Pictures pane on the right (Insert > Pictures > Online Pictures), once it has been opened: a
+    // picture chosen in it is put on the slide, with its credit under it when asked.
+    OnlinePicturesPane *onlinePictures() const { return m_online; }
+    void showOnlinePictures();
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
+    // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
+    // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
+    // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
+    bool insertMedia(const QString &path, const QString &kind = QString());
+    // Changes how the selected movie or sound plays, as one step that undoes (the Playback tab's boxes).
+    // `fileLength` is how long the whole file lasts, in milliseconds, when the change knows it (a trim does).
+    void editMedia(const QString &label, const std::function<void(deck::MediaPlay &)> &change, qint64 fileLength = 0);
+    // Plays the selected movie or sound on the slide, or pauses it.
+    void playMedia();
     // Starts the slide show at `slide` (0 is the first), with every slide in
     // play from there; the rest of how it goes is what the presentation is set
     // up for (Set Up Slide Show).
@@ -240,6 +263,13 @@ private:
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
     void createHelpActions();     // deckwindow_help.cpp
+    void createMediaActions();    // deckwindow_media.cpp
+    void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
+    void addInsertParts(struct RibbonParts &parts);
+    void addMediaParts(struct RibbonParts &parts);
+    void insertMediaFromFile(const QString &kind);
+    void trimMedia();
+    void refreshMedia();
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
 
@@ -255,6 +285,8 @@ private:
     SlideSorter *m_sorter = nullptr;
     ReusePane *m_reuse = nullptr;
     QDockWidget *m_reuseDock = nullptr;
+    OnlinePicturesPane *m_online = nullptr;
+    QDockWidget *m_onlineDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
     AnimationPane *m_animPane = nullptr;

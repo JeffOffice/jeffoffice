@@ -42,6 +42,10 @@ QString relate(DrawingWriteContext &ctx, const QString &type, const QString &tar
 // The relationship to a picture (the part is stored once for an image id);
 // empty if the context has no package or the picture has no bytes.
 QString relatePicture(DrawingWriteContext &ctx, const QString &imageId);
+// The relationship to a picture's SVG (stored once for an image id, beside the
+// PNG relatePicture stores for it); empty when the picture is not an SVG, or
+// the context has no package.
+QString relateSvg(DrawingWriteContext &ctx, const QString &imageId);
 // The relationship to an address a hyperlink goes to.
 QString relateAddress(DrawingWriteContext &ctx, const QString &address);
 // The relationships of the movie or sound a picture plays: `link` for its

@@ -1,9 +1,12 @@
 #include "app/slideshow.h"
 
 #include "app/icons.h"
+#include "app/morph.h"
 #include "app/presenterview.h"
 #include "app/rehearsebar.h"
 #include "app/settings.h"
+#include "app/showmedia.h"
+#include "core/media.h"
 #include "core/document.h"
 #include "core/reuse.h"
 #include "render/renderer.h"
@@ -255,7 +258,7 @@ QImage paintSlide(const Document *doc, LayoutCache *cache, int slide, const QSiz
         PaintContext ctx;
         ctx.doc = doc;
         ctx.cache = cache;
-        ctx.opt.hidden = hidden;
+        ctx.opt.hidden = hidden | deck::mediaHiddenWhenStopped(*doc->pages[slide]);   // a movie or sound that shows only while it plays
         if (states) deck::animate(ctx, *doc, *states);
         Renderer::paintPage(&p, ctx, slide);
     }
@@ -370,7 +373,7 @@ void paintTransition(QPainter *p, const deck::Transition &t, const QImage &from,
 {
     using Draw = void (*)(const Frame &);
     static const QHash<QString, Draw> draws = {
-        {QStringLiteral("fade"), drawFade},     {QStringLiteral("push"), drawPush},   {QStringLiteral("wipe"), drawWipe},
+        {QStringLiteral("fade"), drawFade},     {QStringLiteral("morph"), drawFade}, {QStringLiteral("push"), drawPush},   {QStringLiteral("wipe"), drawWipe},
         {QStringLiteral("split"), drawSplit},   {QStringLiteral("reveal"), drawReveal}, {QStringLiteral("cover"), drawCover},
         {QStringLiteral("uncover"), drawUncover}, {QStringLiteral("zoom"), drawZoom}, {QStringLiteral("cut"), drawCut},
     };
@@ -394,6 +397,7 @@ SlideShow::SlideShow(const Document *doc, LayoutCache *cache, int startSlide, QW
     setFocusPolicy(Qt::StrongFocus);
     setCursor(Qt::BlankCursor);
     setMouseTracking(true);
+    m_media = new ShowMedia(doc, this);
     for (const auto &page : doc->pages) m_ids << page->id;
     m_startSlide = std::clamp(startSlide, 0, std::max(0, int(doc->pages.size()) - 1));
     m_pos = nextShown(m_startSlide, 1);
@@ -536,6 +540,7 @@ void SlideShow::documentChanged()
     m_anim.stop();
     m_animating = false;
     m_fromOverlay = m_toOverlay = QImage();
+    m_morph.reset();
     m_frame.stop();
     m_auto.stop();
     m_playing = -1;
@@ -589,6 +594,7 @@ void SlideShow::rebind(const Document *doc)
     m_anim.stop();
     m_animating = false;
     m_fromOverlay = m_toOverlay = QImage();
+    m_morph.reset();
     m_frame.stop();
     m_auto.stop();
     m_playing = -1;
@@ -639,6 +645,13 @@ void SlideShow::next()
         update();
         return;
     }
+    // A step of only a call to a movie or sound is a click of its own.
+    if (!m_atEnd && m_media->takeClick(m_slide, m_done)) {
+        m_auto.stop();
+        m_blank = QColor();
+        update();
+        return;
+    }
     if (!m_atEnd && m_done < stepCount()) {
         m_auto.stop();
         m_blank = QColor();
@@ -664,6 +677,7 @@ void SlideShow::moveOn()
     if (n < 0 && m_settings.looping()) n = nextShown(0, 1);
     if (n < 0) {
         m_atEnd = true;
+        m_media->end();
         timeSlide(-1);
         update();
         Q_EMIT changed();
@@ -717,6 +731,7 @@ void SlideShow::goToPosition(int pos)
 // The slide at a place in the order on the screen with `steps` of its steps played.
 void SlideShow::showSlide(int pos, int steps)
 {
+    m_media->leave();
     m_frame.stop();
     // A stroke being drawn stays on the slide it began on.
     m_drawing = m_erasing = false;
@@ -742,8 +757,11 @@ void SlideShow::startTransition(int pos, const deck::Transition &t)
 {
     // Both images are ready before the first frame, with the ink the slides hold.
     const int slide = slideAt(pos);
-    m_fromOverlay = withOverlay(nowImage(), m_slide);
-    m_toOverlay = withOverlay(imageOf(slide), slide);
+    m_media->leave();
+    // A morph moves the slides' objects: it needs no pictures of them.
+    m_morph = t.isMorph() ? morphFor(slide, t) : nullptr;
+    m_fromOverlay = m_morph ? QImage() : withOverlay(nowImage(), m_slide);
+    m_toOverlay = m_morph ? QImage() : withOverlay(imageOf(slide), slide);
     m_drawing = m_erasing = false;
     m_targetPos = pos;
     m_target = slide;
@@ -758,6 +776,17 @@ void SlideShow::startTransition(int pos, const deck::Transition &t)
     Q_EMIT changed();
 }
 
+// The morph from the slide on the screen, as it is (its steps played, or the one that plays), to a slide at its start.
+std::shared_ptr<MorphFrames> SlideShow::morphFor(int to, const deck::Transition &t)
+{
+    // Copies: asking for the second slide's animations can move the first's in their table.
+    const Play now = playOf(m_slide), next = playOf(to);
+    const deck::States before = now.timeline.isEmpty() ? deck::States()
+                                                       : deck::statesAt(now.timeline, now.geometry, m_playing >= 0 ? m_playing : m_done, m_playing >= 0 ? m_stepMs : -1);
+    const deck::States after = next.timeline.isEmpty() ? deck::States() : deck::statesAt(next.timeline, next.geometry, 0);
+    return std::make_shared<MorphFrames>(m_doc, m_slide, to, t.by, size(), devicePixelRatioF(), Qt::black, &before, &after);
+}
+
 void SlideShow::finishTransition()
 {
     if (m_animating) endTransition();
@@ -769,6 +798,7 @@ void SlideShow::endTransition()
     m_animating = false;
     m_anim.stop();
     m_fromOverlay = m_toOverlay = QImage();
+    m_morph.reset();
     m_drawing = m_erasing = false;
     m_slide = m_target;
     m_pos = m_targetPos;
@@ -781,6 +811,7 @@ void SlideShow::endTransition()
 // The slide is on the screen to stay, for now.
 void SlideShow::settle()
 {
+    m_media->arrive(m_slide, m_done);
     update();
     startAutomaticSteps();
     startAutoAdvance();
@@ -864,6 +895,7 @@ std::shared_ptr<StepFrames> SlideShow::framesOf(const View &view, const QSize &s
 // The step plays from its click, one frame after another, and ends at its last effect's end.
 void SlideShow::startStep(int step)
 {
+    m_media->stepStarted(m_slide, step);
     m_playing = step;
     m_stepLength = playOf(m_slide).timeline.steps[step].duration();
     m_stepMs = 0;
@@ -998,10 +1030,20 @@ void SlideShow::paintEvent(QPaintEvent *)
     }
     const QImage now = nowImage();
     if (now.deviceIndependentSize().toSize() != size()) p.fillRect(rect(), Qt::black);
-    if (m_animating) {
+    if (m_animating && m_morph) {
+        const double progress = m_anim.currentValue().toDouble();
+        m_morph->paint(&p, progress);
+        // The ink each slide holds fades out and in with it.
+        p.setOpacity(1 - progress);
+        paintInk(&p, m_slide, slideRect(), false);
+        p.setOpacity(progress);
+        paintInk(&p, m_target, slideRect(), false);
+        p.setOpacity(1);
+    } else if (m_animating) {
         paintTransition(&p, m_trans, m_fromOverlay.isNull() ? now : m_fromOverlay, m_toOverlay.isNull() ? imageOf(m_target) : m_toOverlay, m_anim.currentValue().toDouble());
     } else {
         p.drawImage(0, 0, now);
+        m_media->paint(&p);
         paintOverlay(&p, m_slide, slideRect());
     }
 }
@@ -1131,6 +1173,7 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
             pressAt(pageAt(e->position()));
             return;
         }
+        if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mousePress(e->position())) return;
         if (const QString link = linkAt(e->position()); !link.isEmpty()) {
             // A page, a mail address; not a file or a program a slide names.
             const QUrl url = QUrl::fromUserInput(link);
@@ -1164,6 +1207,10 @@ void SlideShow::mouseMoveEvent(QMouseEvent *e)
         return;
     }
     if (m_pointer != Pointer::Arrow) return;
+    if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mouseMove(e->position())) {
+        setCursor(Qt::ArrowCursor);
+        return;
+    }
     const bool link = !linkAt(e->position()).isEmpty();
     if (link) setCursor(Qt::PointingHandCursor);
     else if (showsCursor()) unsetCursor();
@@ -1653,6 +1700,7 @@ void SlideShow::showEvent(QShowEvent *e)
     QWidget::showEvent(e);
     if (m_started) return;
     m_started = true;
+    m_media->arrive(m_slide, m_done);
     // The time on the first slide counts from when it is on the screen.
     if (m_recording && !m_recId.isEmpty()) {
         m_recBase = 0;
@@ -1664,6 +1712,7 @@ void SlideShow::showEvent(QShowEvent *e)
 
 void SlideShow::closeEvent(QCloseEvent *e)
 {
+    m_media->end();
     m_anim.stop();
     m_frame.stop();
     m_auto.stop();
@@ -1758,6 +1807,16 @@ void TransitionPreview::play(int slide)
     };
     m_to = drawn(slide, false);
     m_from = drawn(slide - 1, true);
+    // A morph plays from the objects of the two slides (the first slide has none before it: it fades in).
+    m_morph.reset();
+    if (m_trans.isMorph() && slide > 0) {
+        auto statesOf = [&](int index, bool played) {
+            const deck::Timeline tl = deck::playableTimeline(*m_doc, *m_doc->pages[index]);
+            return tl.isEmpty() ? deck::States() : deck::statesAt(tl, deck::geometryOf(*m_doc, *m_doc->pages[index]), played ? int(tl.steps.size()) : 0);
+        };
+        const deck::States before = statesOf(slide - 1, true), after = statesOf(slide, false);
+        m_morph = std::make_shared<MorphFrames>(m_doc, slide - 1, slide, m_trans.by, m_area.size(), dpr, Qt::black, &before, &after);
+    }
     m_anim.stop();
     m_anim.setDuration(std::max(1, qRound(m_trans.duration * 1000)));
     show();
@@ -1769,6 +1828,7 @@ void TransitionPreview::play(int slide)
 void TransitionPreview::stop()
 {
     m_anim.stop();
+    m_morph.reset();
     hide();
 }
 
@@ -1785,7 +1845,8 @@ void TransitionPreview::paintEvent(QPaintEvent *)
     if (m_to.isNull()) return;
     p.translate(m_area.topLeft());
     p.setClipRect(QRectF(QPointF(0, 0), QSizeF(m_area.size())));
-    paintTransition(&p, m_trans, m_from, m_to, m_anim.currentValue().toDouble());
+    if (m_morph) m_morph->paint(&p, m_anim.currentValue().toDouble());
+    else paintTransition(&p, m_trans, m_from, m_to, m_anim.currentValue().toDouble());
 }
 
 } // namespace jp
