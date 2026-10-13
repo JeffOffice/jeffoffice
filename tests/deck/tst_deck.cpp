@@ -15649,6 +15649,11 @@ private Q_SLOTS:
         QString err;
         const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
         QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        // Kept beside the screenshots, for opening in the presentation program.
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            QFile kept(QDir(qEnvironmentVariable("JP_SHOT_DIR")).filePath(QStringLiteral("inserted-objects.pptx")));
+            if (kept.open(QIODevice::WriteOnly)) kept.write(bytes);
+        }
         Exported e;
         QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
         QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
@@ -21202,6 +21207,11 @@ private Q_SLOTS:
                 QString err;
                 const QByteArray bytes = deck::exportPresentation(*d, &err);
                 QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+                // Kept beside the screenshots, for opening the dark ones in the presentation program.
+                if (isDark && !qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+                    QFile kept(QDir(qEnvironmentVariable("JP_SHOT_DIR")).filePath(QStringLiteral("theme-%1-%2.pptx").arg(theme).arg(variant)));
+                    if (kept.open(QIODevice::WriteOnly)) kept.write(bytes);
+                }
                 Exported e;
                 QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
                 QVERIFY2(packageProblem(e).isEmpty(), qPrintable(what + ": " + packageProblem(e)));
