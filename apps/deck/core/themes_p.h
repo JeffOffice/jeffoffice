@@ -45,6 +45,19 @@ QVector<QColor> backgroundColors(const Fill &f);
 // `t` with its hyperlink colors made readable (4.5 to 1) on `background`, if they weren't.
 void keepLinksReadable(DeckTheme &t, const Fill &background);
 
+// The hyperlink colors (to follow, and followed) that read best for a slide master and its layouts, given the colors `t` has now. A link
+// can be typed in the text of any placeholder but the footers, so it should read over what is behind each (4.5 to 1 in small text, 3 to 1 in
+// large), and in a text box on the page itself (4.5 to 1). Where no color can do both, the page wins. The colors stay as they were when they
+// read; otherwise they move toward light or dark as little as will do.
+struct LinkColors {
+    QColor link, followed;
+};
+LinkColors linkColorsFor(const Document &d, const MasterPage &master, const DeckTheme &t);
+
+// Gives each slide master's theme the hyperlink colors that read best on it (linkColorsFor), and the links already set in its pages' text the
+// same colors.
+void fitLinkColors(Document &d, const MasterPage *only = nullptr);   // only that slide master, if given
+
 // The swap of one scheme's colors for another's. With `flip`, dark 1 and light 1 trade places, as do
 // dark 2 and light 2 (text turns light on a dark background and dark on a light one).
 struct ColorSwap {
@@ -106,7 +119,7 @@ private:
     struct Run {
         int pos = 0;
         QColor was;
-        bool read = false;
+        double had = 0;   // the contrast it was fit to read at before (4.5, or 3 for large text and bullets); 0 when it didn't read
     };
     struct Story {
         QVector<Run> runs, ends, bullets;
