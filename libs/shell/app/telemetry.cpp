@@ -37,6 +37,7 @@ const QString kLastSent = QStringLiteral("telemetry/lastSent");
 const QString kLastVersion = QStringLiteral("telemetry/lastVersion");
 const QString kLaunches = QStringLiteral("telemetry/launches");
 const QString kCounts = QStringLiteral("telemetry/counts");
+const QString kCollectedFor = QStringLiteral("telemetry/collectedFor");   // the install id the counts above were collected for
 constexpr int kMaxFeatures = 400;   // the collector takes no more
 
 QString installId()
@@ -49,12 +50,29 @@ QString installId()
     return id;
 }
 
+// The choice to share and the install id are the suite's (settings.h), the same in every app; the counts, the launches, and the
+// day of the last ping are each app's own, so an app's ping never carries another's. What an app collected is kept with the id it
+// was collected for: when another app turns statistics off and on, the suite gets a new id, and what this app kept for the old
+// one goes unsent. (What an app kept before it noted this is the current id's.)
+void keepForThisInstall()
+{
+    const QString id = installId();
+    const QVariant owner = Settings::get().value(kCollectedFor);
+    if (owner.toString() == id) return;
+    if (owner.isValid())
+        for (const QString &k : {kLaunches, kCounts, kLastSent, kLastVersion}) Settings::get().setValue(k, QVariant());
+    Settings::get().setValue(kCollectedFor, id);
+}
+
 // Only the characters the collector takes, cut to its length.
 QString clean(QString s, const QString &bad, int max)
 {
     s.replace(QRegularExpression(bad), QStringLiteral("-"));
     return s.left(max);
 }
+
+// Which app is sending: its file name, "jeffpub" or "jeffdeck", as the collector knows it.
+QString appName() { return clean(appInfo().fileName, QStringLiteral("[^a-z]"), 16); }
 
 QString osName()
 {
@@ -78,6 +96,7 @@ QNetworkRequest request(const char *url)
 
 void send(QNetworkAccessManager *net)
 {
+    Settings::get().sync();   // a choice made meanwhile in another app counts
     if (!due()) return;
     const QDate today = QDate::currentDate();
     QNetworkRequest req = request(kUrl);
@@ -109,6 +128,7 @@ void sendCrash(QNetworkAccessManager *net)
 {
     const QString path = crash::reportPath();
     if (!QFile::exists(path)) return;
+    Settings::get().sync();
     QJsonObject report = crashPayload(crash::readReport(path));
     if (report.isEmpty()) {
         QFile::remove(path);
@@ -122,7 +142,7 @@ void sendCrash(QNetworkAccessManager *net)
     });
 }
 
-// Asked once, when JeffPub first starts (unless setup already asked).
+// Asked once, when the first of the apps starts (unless setup already asked): the choice is the suite's.
 void ask(QWidget *window)
 {
     QDialog d(window);
@@ -160,12 +180,13 @@ void setEnabled(bool on)
     Settings::get().setValue(kEnabled, on);
     if (on) return;
     // Turned off: nothing kept to send, and a new id if it's turned on again.
-    for (const QString &k : {kInstall, kLaunches, kCounts, kLastSent, kLastVersion}) Settings::get().setValue(k, QVariant());
+    for (const QString &k : {kInstall, kLaunches, kCounts, kLastSent, kLastVersion, kCollectedFor}) Settings::get().setValue(k, QVariant());
 }
 
 bool due()
 {
     if (!enabled() || qEnvironmentVariableIsSet("JP_NO_TELEMETRY")) return false;
+    keepForThisInstall();
     // A new version reports at once, even on a day that already had a ping
     // (the collector adds it to the day's), so an update shows up the day
     // it's installed.
@@ -176,6 +197,7 @@ bool due()
 void count(const QString &feature)
 {
     if (!enabled()) return;
+    keepForThisInstall();
     const QString f = clean(feature.toLower(), QStringLiteral("[^a-z0-9._-]"), 48);
     if (f.isEmpty() || !f[0].isLetterOrNumber()) return;
     QVariantMap counts = Settings::get().value(kCounts).toMap();
@@ -190,6 +212,7 @@ QJsonObject crashPayload(const QJsonObject &report)
     const QDate today = QDateTime::currentDateTimeUtc().date();
     if (!enabled() || report.isEmpty() || !when.isValid() || when > today || when.daysTo(today) > 30) return {};
     QJsonObject sent = report;
+    sent.insert(QStringLiteral("app"), appName());
     sent.insert(QStringLiteral("install"), installId());
     sent.insert(QStringLiteral("os"), osName());
     return sent;
@@ -204,11 +227,13 @@ QJsonObject payload()
 #else
     const QString osVersion = QSysInfo::productType() + QLatin1Char(' ') + QSysInfo::productVersion();
 #endif
+    keepForThisInstall();
     QJsonObject counts;
     const QVariantMap stored = Settings::get().value(kCounts).toMap();
     for (auto it = stored.begin(); it != stored.end(); ++it)
         if (it.value().toInt() > 0) counts.insert(it.key(), std::min(it.value().toInt(), 100000));
-    return QJsonObject{{QStringLiteral("install"), installId()},
+    return QJsonObject{{QStringLiteral("app"), appName()},
+                       {QStringLiteral("install"), installId()},
                        {QStringLiteral("version"), clean(QStringLiteral(JP_VERSION), QStringLiteral("[^0-9A-Za-z.+-]"), 20)},
                        {QStringLiteral("os"), osName()},
                        {QStringLiteral("osVersion"), clean(osVersion, QStringLiteral("[^0-9A-Za-z .()_+-]"), 40)},
@@ -228,12 +253,15 @@ void start(QWidget *window)
     QTimer::singleShot(1500, window, [w, net] {
         if (!w) return;
         if (!decided()) ask(w);
-        if (enabled()) Settings::get().setValue(kLaunches, Settings::get().value(kLaunches).toInt() + 1);
+        if (enabled()) {
+            keepForThisInstall();
+            Settings::get().setValue(kLaunches, Settings::get().value(kLaunches).toInt() + 1);
+        }
         QTimer::singleShot(20000, net, [net] {
             send(net);
             sendCrash(net);
         });
-        // A day that turns over while JeffPub is open gets its ping too.
+        // A day that turns over while the app is open gets its ping too.
         auto *hourly = new QTimer(net);
         QObject::connect(hourly, &QTimer::timeout, net, [net] { send(net); });
         hourly->start(60 * 60 * 1000);

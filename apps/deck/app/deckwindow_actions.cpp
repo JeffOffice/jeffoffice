@@ -17,6 +17,7 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <climits>
 #include <QActionGroup>
 #include <QApplication>
 #include <QFileInfo>
@@ -49,6 +50,40 @@ bool inList(Editor *ed, bool bullets)
 {
     if (!ed->isEditingText() || !ed->cursor().block().textList()) return false;
     return isBulletList(ed->cursor().block().textList()->format().style()) == bullets;
+}
+
+// Increase and Decrease List Level: in a slide's placeholder whose layout has a list, a paragraph takes the layout's list, indent, and look for
+// its new level (one step that undoes); anywhere else the editor changes the level.
+void changeLevel(Editor *ed, int dir)
+{
+    Document *d = ed->doc();
+    struct Target {
+        const Item *item;
+        int first, last;
+    };
+    QVector<Target> targets;
+    bool placeholders = d != nullptr;
+    auto add = [&](const Item *it, int first, int last) {
+        if (!it || !deck::layoutHasList(*d, *it)) placeholders = false;
+        else targets << Target{it, first, last};
+    };
+    if (placeholders && ed->isEditingText()) {
+        const Editor::TextTarget &t = ed->textTarget();
+        const QTextDocument *sd = d->storyDoc(t.storyId);
+        if (t.row >= 0 || !sd) placeholders = false;
+        else add(d->item(t.itemId), sd->findBlock(ed->cursor().selectionStart()).blockNumber(), sd->findBlock(ed->cursor().selectionEnd()).blockNumber());
+    } else if (placeholders) {
+        for (const Item *it : ed->selectedItems()) add(it, 0, INT_MAX);
+        placeholders = placeholders && !targets.isEmpty();
+    }
+    if (!placeholders) {
+        ed->changeIndent(dir);
+        return;
+    }
+    ed->beginChange(dir > 0 ? QCoreApplication::translate("DeckWindow", "Increase List Level") : QCoreApplication::translate("DeckWindow", "Decrease List Level"));
+    for (const Target &t : std::as_const(targets)) deck::changeListLevel(*d, *t.item, t.first, t.last, dir);
+    ed->endChange();
+    Q_EMIT ed->textCursorChanged();
 }
 } // namespace
 
@@ -98,8 +133,8 @@ void DeckWindow::createFormatActions()
     const char *numNames[] = {"1. 2. 3.", "a. b. c.", "A. B. C.", "i. ii. iii.", "I. II. III.", "1) 2) 3)", "(1) (2) (3)"};
     for (int i = 0; i < 7; ++i) mk(QStringLiteral("number.%1").arg(i), QString::fromLatin1(numNames[i]), "", QKeySequence(), [ed, i] { ed->setList(2, i + 1); });
     mk("para.listNone", tr("None"), "", QKeySequence(), [ed] { ed->setList(0); });
-    mk("para.indentDec", tr("Decrease List Level"), "indent-decrease", QKeySequence(), [ed] { ed->changeIndent(-1); });
-    mk("para.indentInc", tr("Increase List Level"), "indent-increase", QKeySequence(), [ed] { ed->changeIndent(1); });
+    mk("para.indentDec", tr("Decrease List Level"), "indent-decrease", QKeySequence(), [ed] { changeLevel(ed, -1); });
+    mk("para.indentInc", tr("Increase List Level"), "indent-increase", QKeySequence(), [ed] { changeLevel(ed, 1); });
     for (double s : {1.0, 1.15, 1.5, 2.0, 2.5, 3.0})
         mk(QStringLiteral("ls.%1").arg(s), QString::number(s), "", QKeySequence(), [ed, s] { ed->setLineSpacing(QTextBlockFormat::ProportionalHeight, s * 100); });
 

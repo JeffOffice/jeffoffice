@@ -13,6 +13,7 @@
 #include "app/settings.h"
 #include "app/slideshow.h"
 #include "app/slidespane.h"
+#include "app/telemetry.h"
 #include "app/widgets.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
@@ -186,7 +187,11 @@ QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &i
         addAction(a);
     }
     a->setCheckable(checkable);
-    connect(a, &QAction::triggered, this, [fn] { fn(); });
+    // Each command counts by its id for the usage statistics (when they're on).
+    connect(a, &QAction::triggered, this, [fn, id] {
+        telemetry::count(id);
+        fn();
+    });
     m_actions.insert(id, a);
     return a;
 }

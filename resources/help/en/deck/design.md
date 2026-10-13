@@ -1,7 +1,7 @@
 # Slide size, background, and footers
-<!-- keywords: design, slide size, widescreen, 16:9, standard, 4:3, aspect ratio, ensure fit, background, background color, format background, header, footer, slide number, date, theme, colors, variants, apply to all, title slide -->
+<!-- keywords: design, theme, themes, variants, variant, colors, fonts, background styles, slide master, layouts, browse for themes, apply to all slides, apply to selected slides, slide size, widescreen, 16:9, standard, 4:3, aspect ratio, ensure fit, background, background color, format background, header, footer, slide number, date, title slide -->
 
-The **Design** tab changes how every slide looks: its shape, its background color, and the footer along its bottom edge. This topic also tells what the theme is and what you can't change about it yet.
+The **Design** tab changes how every slide looks: its theme, its shape, its background, and the footer along its bottom edge.
 
 ## Slide size
 
@@ -32,11 +32,58 @@ A footer is a line of small text along the bottom of a slide. It can hold the da
 
 The date and the slide number are fields, which keep themselves right: the date is today's, and the number follows the slide's place when you move it.
 
-## Theme
+## Themes
 
-A **theme** is a set of colors and fonts that a presentation's slides share. The shape and text color pickers show the theme's colors first, so what you pick follows the theme.
+A **theme** is the whole look of a presentation: its colors, its fonts, its backgrounds, and the **slide master** and **layouts** with what they draw. The slide master is the page behind all the slides. A layout is a plan for one kind of slide, such as a Title Slide or Two Content. Themes draw bands, lines, and shapes on them.
 
-**Design > Variants** shows the theme's twelve colors. Point at a color to see its name. In this Preview you can't pick another theme or change a theme's colors, and you can't edit slide masters or layouts. A presentation opened from a file keeps the theme and masters it came with.
+JeffDeck has nine themes of its own:
+
+- **JeffOffice** is the plain white one a new presentation starts with.
+- **Harbor** has a navy band across the top and a teal line under it.
+- **Ember** is dark, with a bar of amber down one edge and titles in capital letters.
+- **Almanac** looks like warm paper, with a small tab and a double line under each title.
+- **Confetti** is bright, with colored triangles in the corners.
+- **Granite** is dark and cool, with a slate band behind the title.
+- **Orchard** is soft green, with a rounded title panel and large circles.
+- **Marquee** is black and gold, with a thin double frame.
+- **Tideline** is pale blue, with bands of water along the top.
+
+### Choose a theme
+
+1. Click the **Design** tab. The **Themes** group shows a picture of each theme's title slide.
+2. Click a picture. The theme applies to every slide, in one step. Ctrl+Z takes it back.
+
+The up and down arrows beside the pictures show the next row of themes. The last button opens all nine at once. The theme your presentation has is outlined.
+
+Your slides keep what is on them. Each slide moves to the layout of its own kind, so a Title Slide stays a Title Slide and a Two Content slide stays a Two Content slide. The words stay, and the boxes move to the new layout's places. Text that used the old theme's fonts and colors takes the new theme's. Text you set yourself keeps its look: a red word, a bold line, or a font you chose. A change of theme or background also looks at what each piece of text stands on. Text in a table cell or a shape that has a color of its own, or on a picture, does not turn light or dark with the slide's background. And if a color you set would be hard to read on the new background (below 4.5 to 1), it moves toward light or dark, just far enough to read.
+
+A picture in a placeholder goes to the new layout's place for it and is never stretched. In a picture placeholder it is cropped to fill the place, from the middle. In a content placeholder the whole picture is fitted inside the place, so nothing is cut off. A picture that is not in a placeholder stays where you put it.
+
+### Right-click a theme
+
+Right-click a picture for three choices:
+
+- **Apply to All Slides** is the same as a click.
+- **Apply to Selected Slides** changes only the slides you selected (in Slide Sorter) or the slide you are on. Those slides get a slide master of their own, and the other slides keep theirs. Choose the same theme and variant for other slides later, and they go onto that same slide master instead of getting another copy of it.
+- **Browse for Themes…** lets you pick a presentation or template file (.pptx, .potx, .ppsx, .ppt, .pps, or .pot) and takes its theme for every slide. If the file has no slide master, or its master has no layouts, JeffDeck says so and changes nothing.
+
+A theme made for slides of another shape (wide, or 4 by 3) is stretched to fit yours. Circles and squares in its design stay round and square, and bands and rules still reach the edges.
+
+## Variants
+
+**Variants** are other looks of the same theme. The **Variants** group shows four small pictures. Each has a row of colored bars along the bottom: its colors. Click one to use it. It changes the colors, and where it fits, the background too.
+
+The arrow at the right of the group opens a menu:
+
+- **Colors** shows the twelve colors your theme has now. Below them is a list of color schemes. Click one, and every color of the old scheme turns into the matching color of the new one, wherever it was used. Colors you picked yourself stay.
+- **Fonts** lists pairs of fonts: one for headings and one for the body text. Click a pair, and text that used the old fonts takes the new ones.
+- **Background Styles** shows twelve swatches. Across are the theme's four colors: Light 1, Light 2, Dark 2, and Dark 1. Down are three kinds: flat, a soft gradient, and a stronger gradient. A gradient fades from one color to another. Click a swatch to use it for every slide. Backgrounds that slides and layouts had of their own give way. On a dark background text turns light, and on a light one it turns dark. Hyperlinks change too, so they stay easy to read: JeffDeck picks link colors that read on the background and, where it can, on the bands and panels some layouts draw behind their text.
+
+Each choice is one step that Ctrl+Z takes back.
+
+## Saving
+
+A presentation keeps its theme, slide master, and layouts when you save it. Other presentation programs read them, and JeffDeck reads them again just as they were. A theme or background style that is dark is saved the way other programs save their dark themes: the page counts as dark, so a text box you add to a slide there starts out light. You can't edit slide masters or layouts yet.
 
 ## Related
 

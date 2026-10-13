@@ -2,6 +2,7 @@
 // package they read is built in memory (never a real-world file).
 #include "office/chart.h"
 #include "office/drawingml.h"
+#include "office/drawingml_props.h"
 #include "office/drawingml_color.h"
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_style.h"
@@ -11288,6 +11289,22 @@ private Q_SLOTS:
         QVERIFY(b.block(0).textList());
         QVERIFY(!b.block(1).textList());
         QCOMPARE(b.block(2).textList()->itemText(b.block(2)), QStringLiteral("2."));
+    }
+
+    // An empty paragraph the file marks as having no bullet says so (so that saving can keep it); one that has text, one that says nothing,
+    // and one with a bullet in the file do not.
+    void textEmptyParagraphsMarkedNoBulletSaySo()
+    {
+        const QString none = QStringLiteral("<a:pPr><a:buNone/></a:pPr>");
+        const QString bullet = QStringLiteral("<a:pPr><a:buChar char=\"-\"/></a:pPr>");
+        const QString end = QStringLiteral("<a:endParaRPr sz=\"1800\"/></a:p>");
+        Body b(para(run(QStringLiteral("a")), none) + QStringLiteral("<a:p>") + none + end + QStringLiteral("<a:p>") + end + QStringLiteral("<a:p>") + bullet + end);
+        QCOMPARE(b.doc.blockCount(), 4);
+        QVERIFY(!b.block(0).blockFormat().boolProperty(jp::office::kNoBulletParagraph));
+        QVERIFY(b.block(1).blockFormat().boolProperty(jp::office::kNoBulletParagraph));
+        QVERIFY(!b.block(2).blockFormat().boolProperty(jp::office::kNoBulletParagraph));
+        QVERIFY(!b.block(3).blockFormat().boolProperty(jp::office::kNoBulletParagraph));
+        for (int i = 1; i < 4; ++i) QVERIFY(!b.block(i).textList());
     }
 
     void textAutonumberSchemesBecomeListStyles()

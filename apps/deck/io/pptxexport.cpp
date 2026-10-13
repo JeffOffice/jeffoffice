@@ -7,6 +7,7 @@
 #include "core/fonts.h"
 #include "core/media.h"
 #include "core/sections.h"
+#include "core/themes.h"
 #include "io/pptxdiagram.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
@@ -17,6 +18,7 @@
 #include "office/drawingml_write_util.h"
 #include "office/package.h"
 #include "office/theme.h"
+#include "core/fonts.h"
 #include "office/xml.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
@@ -140,18 +142,29 @@ bool isLayoutType(const QString &type)
     return types.contains(type);
 }
 
-// The theme color a color is, when it is one of the theme's.
-QString schemeName(const QColor &c, const office::Theme &theme)
+// The color map of a slide master: the usual one (the background is light 1, the text dark 1), or, for a master with a dark background, the
+// one the presentation program's own dark themes have (the background is dark 1, the text light 1, and likewise for the second pair).
+QString colorMapXml(bool dark)
+{
+    return QStringLiteral("<p:clrMap bg1=\"%1\" tx1=\"%2\" bg2=\"%3\" tx2=\"%4\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" "
+                          "accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>")
+        .arg(dark ? "dk1" : "lt1", dark ? "lt1" : "dk1", dark ? "dk2" : "lt2", dark ? "lt2" : "dk2");
+}
+
+// The theme color a color is, when it is one of the theme's, named as the master's color map reads it: on a dark master the text colors
+// (dark 1 and 2 are its backgrounds, light 1 and 2 its text) change places.
+QString schemeName(const QColor &c, const office::Theme &theme, bool dark)
 {
     static const char *const names[office::Theme::ColorCount] = {"tx1", "bg1", "tx2", "bg2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"};
+    static const char *const darkNames[4] = {"bg1", "tx1", "bg2", "tx2"};
     for (int i = 0; i < office::Theme::ColorCount; ++i)
-        if (theme.colors[i].isValid() && theme.colors[i].rgb() == c.rgb()) return QString::fromLatin1(names[i]);
+        if (theme.colors[i].isValid() && theme.colors[i].rgb() == c.rgb()) return QString::fromLatin1(dark && i < 4 ? darkNames[i] : names[i]);
     return QString();
 }
 
-QString solidFill(const QColor &c, const office::Theme &theme)
+QString solidFill(const QColor &c, const office::Theme &theme, bool dark)
 {
-    const QString scheme = schemeName(c, theme);
+    const QString scheme = schemeName(c, theme, dark);
     return scheme.isEmpty() ? QStringLiteral("<a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill>").arg(hex(c))
                             : QStringLiteral("<a:solidFill><a:schemeClr val=\"%1\"/></a:solidFill>").arg(scheme);
 }
@@ -169,6 +182,9 @@ struct Level {
     bool fixedHeight = false;
     bool bullet = false;
     QString bulletChar = QStringLiteral("\u2022");
+    QString bulletFont;            // a typeface of its own; empty for the text's
+    QColor bulletColor;            // a color of its own; invalid for the text's
+    double bulletSize = 0;         // points; 0 for the text's
 };
 
 QString alignName(Qt::Alignment a)
@@ -227,8 +243,12 @@ QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Th
         else if (bf.lineHeight() > 0 && bf.lineHeightType() == QTextBlockFormat::FixedHeight) l.lineHeight = bf.lineHeight(), l.fixedHeight = true;
         if (const QTextList *list = b.textList()) {
             l.bullet = true;
-            const QString c = list->format().stringProperty(tp::BulletChar);
+            const QTextListFormat lf = list->format();
+            const QString c = bf.stringProperty(tp::BulletChar).isEmpty() ? lf.stringProperty(tp::BulletChar) : bf.stringProperty(tp::BulletChar);
             if (!c.isEmpty()) l.bulletChar = c;
+            l.bulletFont = lf.stringProperty(tp::BulletFont);
+            if (const ColorRef color = ColorRef::fromString(lf.stringProperty(tp::BulletColor)); color.kind() == ColorRef::Rgb) l.bulletColor = color.rgbValue();
+            l.bulletSize = lf.property(tp::BulletSize).toDouble();
         }
     }
     // A level the placeholder has none of looks like the first, smaller the deeper it goes.
@@ -236,13 +256,16 @@ QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Th
     for (int i = 1; i < 9; ++i) {
         if (found[i]) continue;
         levels[i] = levels[0];
-        if (!heading && levels[0].size > 0) levels[i].size = levels[0].size * standard[i] / standard[0];
+        if (!heading && levels[0].size > 0) {
+            levels[i].size = levels[0].size * standard[i] / standard[0];
+            levels[i].bulletSize = levels[0].bulletSize * standard[i] / standard[0];
+        }
         levels[i].marL = -1;
     }
     return levels;
 }
 
-QString levelXml(int level, const Level &l, const office::Theme &theme, bool heading, bool body, double defaultSize)
+QString levelXml(int level, const Level &l, const office::Theme &theme, bool dark, bool heading, bool body, double defaultSize)
 {
     const double marL = l.marL >= 0 ? l.marL : body ? 18 + 36 * level : (heading ? 0 : 36 * level);
     const double indent = l.marL >= 0 || !body ? l.indent : -18;
@@ -253,14 +276,28 @@ QString levelXml(int level, const Level &l, const office::Theme &theme, bool hea
                              : QStringLiteral("<a:lnSpc><a:spcPct val=\"%1\"/></a:lnSpc>").arg(std::clamp(int(std::lround(l.lineHeight * 1000)), 0, 13200000));
     out += QStringLiteral("<a:spcBef><a:spcPts val=\"%1\"/></a:spcBef>").arg(std::clamp(int(std::lround(l.before * 100)), 0, 158400));
     if (l.after > 0) out += QStringLiteral("<a:spcAft><a:spcPts val=\"%1\"/></a:spcAft>").arg(std::clamp(int(std::lround(l.after * 100)), 0, 158400));
-    if (body && l.bullet)
-        out += QStringLiteral("<a:buFont typeface=\"Arial\" panose=\"020B0604020202020204\" pitchFamily=\"34\" charset=\"0\"/><a:buChar char=\"%1\"/>").arg(esc(l.bulletChar));
-    else
-        out += QStringLiteral("<a:buNone/>");
     const double size = l.size > 0 ? l.size : defaultSize;
+    if (body && l.bullet) {
+        // The marker's own color, size (a share of the text's), and typeface, where the list has them: what a paragraph with no bullet of its own takes.
+        if (l.bulletColor.isValid()) {
+            const QString scheme = schemeName(l.bulletColor, theme, dark);
+            out += QStringLiteral("<a:buClr>%1</a:buClr>")
+                       .arg(scheme.isEmpty() ? QStringLiteral("<a:srgbClr val=\"%1\"/>").arg(hex(l.bulletColor)) : QStringLiteral("<a:schemeClr val=\"%1\"/>").arg(scheme));
+        }
+        if (l.bulletSize > 0) out += QStringLiteral("<a:buSzPct val=\"%1\"/>").arg(std::clamp(int(std::lround(l.bulletSize / size * 100000)), 25000, 400000));
+        if (l.bulletFont.isEmpty())
+            out += QStringLiteral("<a:buFont typeface=\"Arial\" panose=\"020B0604020202020204\" pitchFamily=\"34\" charset=\"0\"/>");
+        else if (isSymbolFont(l.bulletFont))
+            out += QStringLiteral("<a:buFont typeface=\"%1\" pitchFamily=\"2\" charset=\"2\"/>").arg(esc(l.bulletFont));
+        else
+            out += QStringLiteral("<a:buFont typeface=\"%1\"/>").arg(esc(l.bulletFont));
+        out += QStringLiteral("<a:buChar char=\"%1\"/>").arg(esc(l.bulletChar));
+    } else {
+        out += QStringLiteral("<a:buNone/>");
+    }
     out += QStringLiteral("<a:defRPr sz=\"%1\"%2%3 kern=\"1200\">").arg(std::clamp(int(std::lround(size * 100)), 100, 400000)).arg(l.bold ? QStringLiteral(" b=\"1\"") : QString(),
                                                                                                                            l.italic ? QStringLiteral(" i=\"1\"") : QString());
-    out += l.color.isValid() ? solidFill(l.color, theme) : QStringLiteral("<a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill>");
+    out += l.color.isValid() ? solidFill(l.color, theme, dark) : QStringLiteral("<a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill>");
     const QString face = l.font.isEmpty() ? (heading ? QStringLiteral("+mj-lt") : QStringLiteral("+mn-lt")) : l.font;
     if (face.startsWith(QLatin1Char('+'))) {
         const QString kind = face.mid(1, 2);
@@ -978,6 +1015,7 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
         chartFrames.insert(it->id, xml);
         take(xml);
     }
+    ctx.emptyParagraphsInherit = frameIds != nullptr;   // a slide's (asked for the numbers of its frames), not a layout's or a master's
     ctx.nextShapeId = int(std::min<qint64>(highest + 1, 2000000000));
     // The tree's own number and the frames' are taken; the shapes read from a file keep theirs, which new ones leave alone.
     ctx.usedIds.insert(1);
@@ -1061,8 +1099,9 @@ QString Exporter::textStyles(const MasterOut &master)
     }
     const QVector<Level> title = levelsOf(titleDoc, true, master.theme), body = levelsOf(bodyDoc, false, master.theme);
     static const double bodySizes[9] = {28, 24, 20, 18, 18, 18, 18, 18, 18};
-    QString out = QStringLiteral("<p:txStyles><p:titleStyle>") + levelXml(0, title[0], master.theme, true, false, 44) + QStringLiteral("</p:titleStyle><p:bodyStyle>");
-    for (int i = 0; i < 9; ++i) out += levelXml(i, body[i], master.theme, false, true, bodySizes[i]);
+    const bool dark = isDarkBackground(master.page->background);
+    QString out = QStringLiteral("<p:txStyles><p:titleStyle>") + levelXml(0, title[0], master.theme, dark, true, false, 44) + QStringLiteral("</p:titleStyle><p:bodyStyle>");
+    for (int i = 0; i < 9; ++i) out += levelXml(i, body[i], master.theme, dark, false, true, bodySizes[i]);
     return out + QStringLiteral("</p:bodyStyle>") + plainLevels("p:otherStyle", 18) + QStringLiteral("</p:txStyles>");
 }
 
@@ -1129,8 +1168,7 @@ void Exporter::writeMaster(int i)
     QString xml = QStringLiteral("<p:sldMaster%1 preserve=\"1\"><p:cSld%2>").arg(kNamespaces, page.name.isEmpty() ? QString() : QStringLiteral(" name=\"%1\"").arg(esc(page.name)));
     const QString fill = background(page, master.part, true, where);
     xml += fill + tree(page, master.part, where, nullptr) + QStringLiteral("</p:cSld>");
-    xml += QStringLiteral("<p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" "
-                          "accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>");
+    xml += colorMapXml(isDarkBackground(page.background));
     xml += QStringLiteral("<p:sldLayoutIdLst>") + layoutIds + QStringLiteral("</p:sldLayoutIdLst>");
     xml += textStyles(master) + QStringLiteral("</p:sldMaster>");
     add(master.part, kTypeBase + QStringLiteral("slideMaster+xml"), xml);
