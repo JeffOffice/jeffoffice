@@ -1,7 +1,7 @@
 // Command-line helper for testing JeffDeck's reading of presentation files.
 //   jdecktool render <file.pptx|.ppt> <outdir> [width=1280]   each slide to slide-001.png ...
 //   jdecktool info <file.pptx|.ppt>                           the masters, layouts, and slides found
-//   jdecktool save <file> <out.pptx>                          read it and save it again, listing what was left out
+//   jdecktool save <file> <out.pptx|.odp|.otp>                read it and save it again, as the ending says, listing what was left out
 //   jdecktool pdf <file> <out.pdf> [slides|notes|handout6]   print it to a PDF (also handout1|2|3|4|9, outline; "hidden", "frame", "gray", "down" add options; "samplenotes" gives slides without notes
 //   jdecktool animate-demo <out.pptx> <out.tsv>               a presentation with every effect JeffDeck offers (each way of each kind, started on a click, with, and after the one before, and by paragraph), and a table of what is where
 //   jdecktool animations <file>                               each slide's effects as the animation pane lists them (the table animate-demo writes; "(custom)" for what JeffDeck keeps as it was)
@@ -159,7 +159,7 @@ int animateDemo(const QString &path, const QString &tablePath)
     // The first slide stays the title slide the presentation began with.
     QString error;
     QStringList skipped;
-    if (!deck::savePresentationFile(*doc, path, &error, &skipped)) {
+    if (!deck::saveAnyPresentationFile(*doc, path, &error, &skipped)) {
         QTextStream(stdout) << "cannot save: " << error << "\n";
         return 1;
     }
@@ -206,7 +206,7 @@ int main(int argc, char **argv)
     if (cmd == "save") {
         QString error;
         QStringList skipped;
-        const bool ok = deck::savePresentationFile(*doc, args[3], &error, &skipped);
+        const bool ok = deck::saveAnyPresentationFile(*doc, args[3], &error, &skipped);
         for (const QString &s : skipped) out << "left out\t" << s << "\n";
         out << (ok ? "saved\t" + args[3] : "cannot save: " + error) << "\t" << timer.elapsed() << " ms\n";
         return ok ? 0 : 1;
@@ -329,7 +329,7 @@ int main(int argc, char **argv)
         }
         QString error;
         QStringList skipped;
-        const bool ok = deck::savePresentationFile(*doc, args[3], &error, &skipped);
+        const bool ok = deck::saveAnyPresentationFile(*doc, args[3], &error, &skipped);
         for (const QString &s : skipped) out << "left out\t" << s << "\n";
         out << (ok ? "saved\t" + args[3] : "cannot save: " + error) << "\n";
         return ok ? 0 : 1;
