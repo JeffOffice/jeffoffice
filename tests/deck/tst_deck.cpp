@@ -53,6 +53,7 @@
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/deckoutput.h"
+#include "io/odpexport.h"
 #include "io/odpimport.h"
 #include "io/pptimport.h"
 #include "io/pptxexport.h"
@@ -414,6 +415,98 @@ QByteArray sampleOdp()
                                                  {QStringLiteral("ObjectReplacements/Object 1"), png(40, 30, QColor(30, 30, 200))},
                                                  {QStringLiteral("Object 2/content.xml"), sampleChart()},
                                                  {QStringLiteral("ObjectReplacements/Object 2"), QByteArray("VCLMTF\1\0 a metafile of the producer's own")}});
+}
+
+// What one object of a slide is, as the model keeps it: enough to tell that a presentation written and read again has the same slides.
+QString describeItem(const Document &d, const Item &it)
+{
+    QStringList s;
+    s << itemTypeName(it.type()) << QStringLiteral("%1,%2 %3x%4").arg(it.rect.x(), 0, 'f', 1).arg(it.rect.y(), 0, 'f', 1).arg(it.rect.width(), 0, 'f', 1).arg(it.rect.height(), 0, 'f', 1);
+    s << QStringLiteral("rot %1").arg(std::lround(it.rotation));
+    if (it.flipH || it.flipV) s << QStringLiteral("flip %1%2").arg(it.flipH).arg(it.flipV);
+    s << (it.role.isEmpty() ? QString() : it.role.section(QLatin1Char(':'), 0, 1));
+    if (it.type() != ItemType::Line && it.type() != ItemType::Table && it.type() != ItemType::Group) {
+        s << QStringLiteral("fill %1").arg(it.fill.type == Fill::Solid ? it.fill.color.toString() + QStringLiteral("/") + QString::number(it.fill.transparency, 'f', 2) : QString::number(int(it.fill.type)));
+    }
+    if (!it.stroke.isNone()) s << QStringLiteral("line %1 %2 %3 %4 %5").arg(it.stroke.width, 0, 'f', 2).arg(it.stroke.color.toString()).arg(int(it.stroke.dash)).arg(int(it.stroke.startArrow)).arg(int(it.stroke.endArrow));
+    if (it.fx.shadow.on) s << QStringLiteral("shadow");
+    if (it.type() == ItemType::Text) {
+        const auto &t = static_cast<const TextItem &>(it);
+        s << d.storyDoc(t.storyId)->toPlainText() << QStringLiteral("valign %1 autofit %2").arg(int(t.valign)).arg(int(t.autofit));
+    } else if (it.type() == ItemType::Shape) {
+        const auto &sh = static_cast<const ShapeItem &>(it);
+        s << sh.shape << (sh.storyId.isEmpty() ? QString() : d.storyDoc(sh.storyId)->toPlainText());
+    } else if (it.type() == ItemType::Picture) {
+        const auto &p = static_cast<const PictureItem &>(it);
+        s << QStringLiteral("image %1").arg(p.imageId.isEmpty() ? 0 : qHash(d.images.value(p.imageId).bytes)) << QStringLiteral("crop %1,%2 %3x%4").arg(p.imgRect.x(), 0, 'f', 1).arg(p.imgRect.y(), 0, 'f', 1).arg(p.imgRect.width(), 0, 'f', 1).arg(p.imgRect.height(), 0, 'f', 1);
+    } else if (it.type() == ItemType::Line) {
+        const auto &l = static_cast<const LineItem &>(it);
+        s << QStringLiteral("%1,%2 to %3,%4 route %5").arg(l.p1.x(), 0, 'f', 1).arg(l.p1.y(), 0, 'f', 1).arg(l.p2.x(), 0, 'f', 1).arg(l.p2.y(), 0, 'f', 1).arg(int(l.route));
+    } else if (it.type() == ItemType::Table) {
+        const auto &t = static_cast<const TableItem &>(it);
+        s << QStringLiteral("%1x%2").arg(t.rows).arg(t.cols);
+        for (int r = 0; r < t.rows; ++r)
+            for (int c = 0; c < t.cols; ++c) {
+                const TableCell &cell = t.cell(r, c);
+                s << QStringLiteral("[%1 %2 %3 %4 %5]").arg(cell.covered).arg(cell.rowSpan).arg(cell.colSpan).arg(d.storyDoc(cell.storyId)->toPlainText(), cell.fill.type == Fill::Solid ? cell.fill.color.toString() : QString());
+            }
+    } else if (it.type() == ItemType::Group) {
+        s << QStringLiteral("%1 children").arg(static_cast<const GroupItem &>(it).children.size());
+    }
+    return s.join(QLatin1Char('|'));
+}
+
+// The first difference between two presentations that should be alike (empty when there is none).
+QString odpDifference(const Document &a, const Document &b)
+{
+    if (a.pages.size() != b.pages.size()) return QStringLiteral("slides %1 and %2").arg(a.pages.size()).arg(b.pages.size());
+    if (a.pageSize() != b.pageSize()) return QStringLiteral("slide size");
+    for (int i = 0; i < a.pages.size(); ++i) {
+        const Page &x = *a.pages[i], &y = *b.pages[i];
+        const QString at = QStringLiteral("slide %1: ").arg(i + 1);
+        if (x.hidden != y.hidden) return at + QStringLiteral("hidden");
+        if (x.showMasterItems != y.showMasterItems) return at + QStringLiteral("master items");
+        if (x.title != y.title) return at + QStringLiteral("title \"%1\" and \"%2\"").arg(x.title, y.title);
+        if (!(deck::transitionOf(x) == deck::transitionOf(y))) return at + QStringLiteral("transition");
+        if (deck::notesText(a, x) != deck::notesText(b, y)) return at + QStringLiteral("notes");
+        if (x.background.toJson() != y.background.toJson()) return at + QStringLiteral("background");
+        QStringList da, db;
+        walkItems(x.items, [&](const ItemPtr &it) { da << describeItem(a, *it); });
+        walkItems(y.items, [&](const ItemPtr &it) { db << describeItem(b, *it); });
+        if (da.size() != db.size()) return at + QStringLiteral("%1 objects and %2:\n%3\n%4").arg(da.size()).arg(db.size()).arg(da.join(QLatin1Char('\n')), db.join(QLatin1Char('\n')));
+        for (int k = 0; k < da.size(); ++k)
+            if (da[k] != db[k]) return at + QStringLiteral("object %1:\n%2\n%3").arg(k + 1).arg(da[k], db[k]);
+    }
+    return QString();
+}
+
+// The elements of a part with a name as written there ("draw:page"), at any depth, in order.
+QList<QDomElement> byName(const QDomNode &from, const char *qualified)
+{
+    static const QHash<QString, QString> spaces = {
+        {QStringLiteral("office"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:office:1.0")}, {QStringLiteral("style"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:style:1.0")},
+        {QStringLiteral("text"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:text:1.0")}, {QStringLiteral("draw"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:drawing:1.0")},
+        {QStringLiteral("presentation"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:presentation:1.0")}, {QStringLiteral("anim"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:animation:1.0")},
+        {QStringLiteral("smil"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0")}, {QStringLiteral("officeooo"), QStringLiteral("http://openoffice.org/2009/office")},
+        {QStringLiteral("dc"), QStringLiteral("http://purl.org/dc/elements/1.1/")}, {QStringLiteral("meta"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:meta:1.0")},
+        {QStringLiteral("svg"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0")}, {QStringLiteral("table"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:table:1.0")}};
+    const QString q = QString::fromLatin1(qualified);
+    const QString uri = spaces.value(q.section(QLatin1Char(':'), 0, 0)), local = q.section(QLatin1Char(':'), 1);
+    const QDomNodeList list = from.isDocument() ? from.toDocument().elementsByTagNameNS(uri, local) : from.toElement().elementsByTagNameNS(uri, local);
+    QList<QDomElement> out;
+    for (int i = 0; i < list.size(); ++i) out << list.item(i).toElement();
+    return out;
+}
+
+// An attribute of an element by the name it has there ("draw:name").
+QString attrOf(const QDomElement &e, const char *qualified)
+{
+    static const QHash<QString, QString> spaces = {
+        {QStringLiteral("draw"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:drawing:1.0")}, {QStringLiteral("text"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:text:1.0")},
+        {QStringLiteral("presentation"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:presentation:1.0")}, {QStringLiteral("smil"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0")},
+        {QStringLiteral("office"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:office:1.0")}};
+    const QString q = QString::fromLatin1(qualified);
+    return e.attributeNS(spaces.value(q.section(QLatin1Char(':'), 0, 0)), q.section(QLatin1Char(':'), 1));
 }
 
 } // namespace odptest
@@ -3547,6 +3640,1081 @@ private Q_SLOTS:
         }
     }
 
+    // ---- Saving open document presentations (.odp, .otp) ----
+
+    // What the writer makes is an open document package of the standard form: the type stored first, a manifest that lists every part with its
+    // media type, parts that are well formed XML in the standard's namespaces, and the program's name and version in the metadata.
+    void odpWriterMakesAPackageOfTheStandardForm()
+    {
+        auto d = deck::newPresentation();
+        d->props.title = QStringLiteral("Quarterly <results> & plans");
+        d->props.author = QStringLiteral("Pat Doe");
+        d->props.keywords = QStringLiteral("sales, plan");
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY(skipped.isEmpty());
+        // The first entry is "mimetype", stored (method 0), and holds the type.
+        QVERIFY(deck::looksLikeOpenDocument(bytes.left(128)));
+        QCOMPARE(int(uchar(bytes[8])), 0);
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(bytes, zip, &err), qPrintable(err));
+        QCOMPARE(QString::fromUtf8(zip.value(QStringLiteral("mimetype"))), QStringLiteral("application/vnd.oasis.opendocument.presentation"));
+        auto parse = [&](const QString &name, QDomDocument *dom) {
+            QString why;
+            const bool ok = office::parseXml(zip.value(name), dom, &why);
+            if (!ok) qWarning("%s: %s", qPrintable(name), qPrintable(why));
+            return ok;
+        };
+        const QString officeNs = QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:office:1.0");
+        QDomDocument content, styles, meta, manifest;
+        QVERIFY(parse(QStringLiteral("content.xml"), &content));
+        QVERIFY(parse(QStringLiteral("styles.xml"), &styles));
+        QVERIFY(parse(QStringLiteral("meta.xml"), &meta));
+        QVERIFY(parse(QStringLiteral("META-INF/manifest.xml"), &manifest));
+        QCOMPARE(content.documentElement().namespaceURI(), officeNs);
+        QCOMPARE(content.documentElement().localName(), QStringLiteral("document-content"));
+        QCOMPARE(content.documentElement().attributeNS(officeNs, QStringLiteral("version")), QStringLiteral("1.3"));
+        QCOMPARE(styles.documentElement().localName(), QStringLiteral("document-styles"));
+        QCOMPARE(styles.documentElement().attributeNS(officeNs, QStringLiteral("version")), QStringLiteral("1.3"));
+        QCOMPARE(meta.documentElement().localName(), QStringLiteral("document-meta"));
+        // The body is a presentation with a page for each slide; the styles have the master pages and the page size.
+        QCOMPARE(int(odptest::byName(content, "draw:page").size()), 1);
+        QVERIFY(odptest::byName(styles, "style:master-page").size() >= 1);
+        QVERIFY(odptest::byName(styles, "style:page-layout-properties").size() >= 1);
+        // The manifest lists every part but the type and itself, with a media type.
+        const QString manifestNs = QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:manifest:1.0");
+        QCOMPARE(manifest.documentElement().namespaceURI(), manifestNs);
+        QHash<QString, QString> listed;
+        const QDomNodeList entries = manifest.documentElement().elementsByTagNameNS(manifestNs, QStringLiteral("file-entry"));
+        for (int i = 0; i < entries.size(); ++i) {
+            const QDomElement e = entries.item(i).toElement();
+            listed.insert(e.attributeNS(manifestNs, QStringLiteral("full-path")), e.attributeNS(manifestNs, QStringLiteral("media-type")));
+        }
+        QCOMPARE(listed.value(QStringLiteral("/")), QStringLiteral("application/vnd.oasis.opendocument.presentation"));
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) {
+            if (it.key() == QLatin1String("mimetype") || it.key() == QLatin1String("META-INF/manifest.xml")) continue;
+            QVERIFY2(listed.contains(it.key()), qPrintable(it.key()));
+            QVERIFY2(!listed.value(it.key()).isEmpty(), qPrintable(it.key()));
+        }
+        QCOMPARE(listed.value(QStringLiteral("content.xml")), QStringLiteral("text/xml"));
+        QCOMPARE(listed.value(QStringLiteral("styles.xml")), QStringLiteral("text/xml"));
+        QCOMPARE(listed.value(QStringLiteral("meta.xml")), QStringLiteral("text/xml"));
+        // The metadata names the program and its version, and holds what the presentation says of itself.
+        const QString metaText = QString::fromUtf8(zip.value(QStringLiteral("meta.xml")));
+        QVERIFY2(metaText.contains(QStringLiteral("<meta:generator>JeffDeck/") + QStringLiteral(JP_VERSION) + QStringLiteral("</meta:generator>")), qPrintable(metaText));
+        QVERIFY(metaText.contains(QStringLiteral("<dc:title>Quarterly &lt;results&gt; &amp; plans</dc:title>")));
+        QVERIFY(metaText.contains(QStringLiteral("<meta:initial-creator>Pat Doe</meta:initial-creator>")));
+        QCOMPARE(int(odptest::byName(meta, "meta:keyword").size()), 2);
+        // It reads back with what it said.
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(back->props.title, d->props.title);
+        QCOMPARE(back->props.author, QStringLiteral("Pat Doe"));
+        // A template differs in its type, and is read as a presentation.
+        const QByteArray tmpl = deck::exportOdp(*d, true, &err);
+        QVERIFY(!tmpl.isEmpty());
+        QVERIFY(deck::looksLikeOpenDocument(tmpl.left(128)));
+        QMap<QString, QByteArray> tz;
+        QVERIFY(readZip(tmpl, tz, &err));
+        QCOMPARE(QString::fromUtf8(tz.value(QStringLiteral("mimetype"))), QStringLiteral("application/vnd.oasis.opendocument.presentation-template"));
+        QVERIFY(deck::importOdp(tmpl, &err));
+        // A presentation with no slide can't be written.
+        auto none = deck::newPresentation();
+        none->pages.clear();
+        QVERIFY(deck::exportOdp(*none, false, &err).isEmpty());
+        QVERIFY(!err.isEmpty());
+    }
+
+    // The file's endings say how it is saved: .odp and .otp as open documents, the others as before; and the old binary endings are not written.
+    void savingGoesByTheEndingOfTheFileName()
+    {
+        QCOMPARE(int(deck::formatOfFileName(QStringLiteral("a.odp"))), int(deck::FileFormat::Odp));
+        QCOMPARE(int(deck::formatOfFileName(QStringLiteral("a.OTP"))), int(deck::FileFormat::Odp));
+        QCOMPARE(int(deck::formatOfFileName(QStringLiteral("a.pptx"))), int(deck::FileFormat::Pptx));
+        QCOMPARE(int(deck::formatOfFileName(QStringLiteral("a.ppt"))), int(deck::FileFormat::Pptx));
+        QCOMPARE(int(deck::presentationKindOf(QStringLiteral("a.otp"))), int(deck::PresentationKind::Template));
+        QCOMPARE(int(deck::presentationKindOf(QStringLiteral("a.potx"))), int(deck::PresentationKind::Template));
+        QCOMPARE(int(deck::presentationKindOf(QStringLiteral("a.odp"))), int(deck::PresentationKind::Presentation));
+        QCOMPARE(int(deck::presentationKindOf(QStringLiteral("a.ppsx"))), int(deck::PresentationKind::Show));
+        for (const char *ending : {"pptx", "potx", "ppsx", "odp", "otp"}) QVERIFY(deck::isWrittenEnding(QStringLiteral("a.") + QLatin1String(ending)));
+        for (const char *ending : {"ppt", "pps", "pot", "odt", "txt"}) QVERIFY(!deck::isWrittenEnding(QStringLiteral("a.") + QLatin1String(ending)));
+
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = deck::newPresentation();
+        QString err;
+        const QString odp = dir.filePath(QStringLiteral("talk.odp")), otp = dir.filePath(QStringLiteral("design.otp")), pptx = dir.filePath(QStringLiteral("talk.pptx"));
+        QVERIFY2(deck::saveAnyPresentationFile(*d, odp, &err), qPrintable(err));
+        QVERIFY2(deck::saveAnyPresentationFile(*d, otp, &err), qPrintable(err));
+        QVERIFY2(deck::saveAnyPresentationFile(*d, pptx, &err), qPrintable(err));
+        QVERIFY(deck::looksLikeOpenDocument(fileBytes(odp).left(128)));
+        QVERIFY(deck::looksLikeOpenDocument(fileBytes(otp).left(128)));
+        QVERIFY(!deck::looksLikeOpenDocument(fileBytes(pptx).left(128)));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(fileBytes(otp), zip, &err));
+        QVERIFY(zip.value(QStringLiteral("mimetype")).endsWith("presentation-template"));
+        QVERIFY(deck::importAnyPresentationFile(odp, &err));
+        // A save that can't be done leaves the old file whole.
+        const QByteArray before = fileBytes(odp);
+        QVERIFY(!deck::saveAnyPresentationFile(*d, dir.filePath(QStringLiteral("missing/talk.odp")), &err));
+        QVERIFY(!err.isEmpty());
+        QVERIFY(!deck::saveAnyPresentationFile(*d, QString(), &err));
+        QCOMPARE(fileBytes(odp), before);
+    }
+
+    // A presentation read from an .odp, written, and read again is the same slides: the sample presentation (a title with a link-less
+    // run of its own, an outline of two levels, a numbered list, links, a picture cropped and mirrored, shapes with fills and arrows, a
+    // line, a group, a table with merged cells, a turned rectangle, charts as pictures, a picture fill, a transition, the footer, and a
+    // hidden slide on a background of its own) comes back with every object where it was, with its text, fill, line, and picture.
+    void odpWrittenAndReadAgainIsTheSamePresentation()
+    {
+        QString err;
+        auto first = deck::importOdp(odptest::sampleOdp(), &err);
+        QVERIFY2(first, qPrintable(err));
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*first, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto second = deck::importOdp(bytes, &err);
+        QVERIFY2(second, qPrintable(err));
+        const QString difference = odptest::odpDifference(*first, *second);
+        QVERIFY2(difference.isEmpty(), qPrintable(difference));
+        // It is the same the second time round too: nothing is lost by writing what was written.
+        const QByteArray again = deck::exportOdp(*second, false, &err);
+        auto third = deck::importOdp(again, &err);
+        QVERIFY2(third, qPrintable(err));
+        QVERIFY2(odptest::odpDifference(*second, *third).isEmpty(), qPrintable(odptest::odpDifference(*second, *third)));
+        // The footer of the third slide (a footer text, the number) is the page's own setting and a declaration, not an object of the slide.
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY(content.contains(QStringLiteral("<presentation:footer-decl presentation:name=\"ftr1\">Confidential</presentation:footer-decl>")));
+        QVERIFY(content.contains(QStringLiteral("presentation:use-footer-name=\"ftr1\"")));
+        QVERIFY(content.contains(QStringLiteral("presentation:display-page-number=\"true\"")));
+        // The pictures are in the file once each, under Pictures/, with their media type in the manifest.
+        int pictureParts = 0;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) pictureParts += it.key().startsWith(QLatin1String("Pictures/"));
+        QVERIFY(pictureParts >= 1);
+        QVERIFY(zip.value(QStringLiteral("META-INF/manifest.xml")).contains("media-type=\"image/png\""));
+    }
+
+    // A presentation built here keeps what it says through an .odp: its text with the formatting of each run (a face, a size, bold,
+    // italic, underline, a color, superscript), the paragraphs' alignment, bullets and numbers with their levels, the slide's
+    // look (fill, outline, dash, arrows, shadow), and its pictures, and renders the same as it did.
+    void odpKeepsTextAndLooksOfAPresentationBuiltHere()
+    {
+        auto d = deck::newPresentation();
+        const int second = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        Page &slide = *d->pages[second];
+        TextItem *title = nullptr, *body = nullptr;
+        for (const ItemPtr &it : slide.items) {
+            if (deck::placeholderType(*it) == QLatin1String("title")) title = static_cast<TextItem *>(it.get());
+            else if (deck::placeholderType(*it) == QLatin1String("obj")) body = static_cast<TextItem *>(it.get());
+        }
+        QVERIFY(title && body);
+        d->storyDoc(title->storyId)->setPlainText(QStringLiteral("Plans & <numbers>"));
+        QTextDocument *sd = d->storyDoc(body->storyId);
+        sd->clear();
+        QTextCursor c(sd);
+        QTextCharFormat bold;
+        bold.setFontFamilies({QStringLiteral("Arial")});
+        bold.setFontPointSize(24);
+        bold.setFontWeight(QFont::Bold);
+        bold.setProperty(tp::ColorRefP, ColorRef::rgb(QColor(0x33, 0x66, 0x99)).toString());
+        QTextCharFormat plain = bold;
+        plain.setFontWeight(QFont::Normal);
+        plain.setProperty(tp::ColorRefP, ColorRef::rgb(QColor(0, 0, 0)).toString());
+        QTextCharFormat fancy = plain;
+        fancy.setFontItalic(true);
+        fancy.setFontUnderline(true);
+        fancy.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+        QTextBlockFormat level0;
+        level0.setLeftMargin(27);
+        level0.setTextIndent(-27);
+        level0.setProperty(tp::ListLevel, 0);
+        QTextListFormat bullets;
+        bullets.setStyle(QTextListFormat::ListDisc);
+        bullets.setProperty(tp::BulletChar, QStringLiteral("•"));
+        c.setBlockFormat(level0);
+        c.createList(bullets);
+        c.insertText(QStringLiteral("First  point"), bold);
+        QTextBlockFormat level1 = level0;
+        level1.setLeftMargin(54);
+        level1.setProperty(tp::ListLevel, 1);
+        level1.setAlignment(Qt::AlignRight);
+        c.insertBlock(level1);
+        c.createList(bullets);
+        c.insertText(QStringLiteral("Second "), plain);
+        c.insertText(QStringLiteral("fancy"), fancy);
+        QTextBlockFormat numbered = level0;
+        c.insertBlock(numbered);
+        QTextListFormat numbers;
+        numbers.setStyle(QTextListFormat::ListDecimal);
+        numbers.setNumberSuffix(QStringLiteral("."));
+        c.createList(numbers);
+        c.insertText(QStringLiteral("Numbered"), plain);
+        QTextBlockFormat none;
+        none.setTopMargin(6);
+        c.insertBlock(none, plain);
+        c.insertText(QStringLiteral("Plain\tpart"), plain);
+        // A shape with the look: fill, dashed line with an arrow, and a shadow.
+        auto shape = std::make_shared<ShapeItem>();
+        shape->shape = QStringLiteral("roundRect");
+        shape->adj = {0.2};
+        shape->rect = QRectF(100, 380, 200, 80);
+        shape->fill = Fill::solid(ColorRef::rgb(QColor(0xcc, 0x66, 0x00)), 0.25);
+        shape->stroke = Stroke::line(ColorRef::rgb(QColor(0, 0x33, 0)), 3);
+        shape->stroke.dash = Stroke::DashLine;
+        shape->stroke.endArrow = Arrow::Triangle;
+        shape->fx.shadow.on = true;
+        shape->storyId = d->createStory(QStringLiteral("Shape text"));
+        slide.items.push_back(shape);
+        auto bar = std::make_shared<ShapeItem>();
+        bar->shape = QStringLiteral("rect");
+        bar->rect = QRectF(320, 380, 100, 60);
+        bar->fill = Fill::gradient(ColorRef::rgb(QColor(255, 0, 0)), ColorRef::rgb(QColor(0, 0, 255)), 0);
+        bar->rotation = 30;
+        slide.items.push_back(bar);
+        // A picture, cropped, mirrored, and brighter.
+        auto picture = std::make_shared<PictureItem>();
+        picture->imageId = d->addImage(odptest::png(60, 40, QColor(10, 160, 60)), QStringLiteral("png"));
+        picture->rect = QRectF(450, 380, 90, 60);
+        picture->imgRect = QRectF(-15, -10, 120, 80);
+        picture->flipH = true;
+        picture->brightness = 20;
+        slide.items.push_back(picture);
+        d->pages[second]->hidden = false;
+
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 2);
+        Page &page = *back->pages[1];
+        QCOMPARE(textOf(*back, *page.items[0]), QStringLiteral("Plans & <numbers>"));
+        const auto *bodyBack = static_cast<const TextItem *>(page.items[1].get());
+        const QTextDocument *text = back->storyDoc(bodyBack->storyId);
+        QCOMPARE(text->toPlainText(), sd->toPlainText());
+        // The runs: bold blue Arial, then plain, then italic underlined superscript.
+        QTextBlock b = text->begin();
+        QCOMPARE(b.textList() != nullptr, true);
+        QTextCharFormat cf = b.begin().fragment().charFormat();
+        QCOMPARE(cf.fontPointSize(), 24.0);
+        QVERIFY(cf.fontWeight() >= QFont::DemiBold);
+        QCOMPARE(cf.fontFamilies().toStringList().value(0), QStringLiteral("Arial"));
+        QCOMPARE(ColorRef::fromString(cf.stringProperty(tp::ColorRefP)).rgbValue().name(), QStringLiteral("#336699"));
+        b = b.next();
+        QVERIFY(b.textList() != nullptr);
+        QCOMPARE(int(b.blockFormat().alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignRight));
+        QCOMPARE(b.blockFormat().intProperty(tp::ListLevel), 1);
+        auto it = b.begin();
+        QVERIFY(it.fragment().charFormat().fontWeight() < QFont::DemiBold);
+        ++it;
+        QVERIFY(!it.atEnd());
+        QVERIFY(it.fragment().charFormat().fontItalic());
+        QVERIFY(it.fragment().charFormat().underlineStyle() != QTextCharFormat::NoUnderline);
+        QCOMPARE(int(it.fragment().charFormat().verticalAlignment()), int(QTextCharFormat::AlignSuperScript));
+        b = b.next();
+        QVERIFY(b.textList() != nullptr);
+        QCOMPARE(int(b.textList()->format().style()), int(QTextListFormat::ListDecimal));
+        b = b.next();
+        QVERIFY(b.textList() == nullptr);
+        QCOMPARE(b.blockFormat().topMargin(), 6.0);
+        QVERIFY(b.text().contains(QLatin1Char('\t')));
+        // The shape's look.
+        const auto *shapeBack = static_cast<const ShapeItem *>(page.items[2].get());
+        QCOMPARE(shapeBack->shape, QStringLiteral("roundRect"));
+        QVERIFY(std::abs(shapeBack->adj.value(0) - 0.2) < 0.01);
+        QCOMPARE(shapeBack->fill.type, Fill::Solid);
+        QCOMPARE(shapeBack->fill.color.rgbValue().name(), QStringLiteral("#cc6600"));
+        QVERIFY(std::abs(shapeBack->fill.transparency - 0.25) < 0.01);
+        QVERIFY(std::abs(shapeBack->stroke.width - 3) < 0.05);
+        QCOMPARE(int(shapeBack->stroke.dash), int(Stroke::DashLine));
+        QCOMPARE(int(shapeBack->stroke.endArrow), int(Arrow::Triangle));
+        QVERIFY(shapeBack->fx.shadow.on);
+        QCOMPARE(back->storyDoc(shapeBack->storyId)->toPlainText(), QStringLiteral("Shape text"));
+        const auto *barBack = static_cast<const ShapeItem *>(page.items[3].get());
+        QCOMPARE(barBack->fill.type, Fill::Gradient);
+        QVERIFY(std::abs(barBack->rotation - 30) < 0.1);
+        QVERIFY(barBack->rect.size().width() > 99.9 && barBack->rect.size().width() < 100.1);
+        const auto *pictureBack = static_cast<const PictureItem *>(page.items[4].get());
+        QCOMPARE(back->images.value(pictureBack->imageId).bytes, d->images.value(picture->imageId).bytes);
+        QVERIFY(pictureBack->flipH);
+        QVERIFY(std::abs(pictureBack->brightness - 20) < 1);
+        QVERIFY(std::abs(pictureBack->imgRect.x() - (-15)) < 0.5 && std::abs(pictureBack->imgRect.width() - 120) < 0.5);
+        // Drawn, the slide is the same: the mean difference of the two pictures is under a gray level.
+        LayoutCache cacheA, cacheB;
+        PaintContext ca, cb;
+        ca.doc = d.get();
+        ca.cache = &cacheA;
+        ca.opt.output = true;
+        cb.doc = back.get();
+        cb.cache = &cacheB;
+        cb.opt.output = true;
+        const QImage ia = Renderer::renderToImage(ca, second, 1.0).convertToFormat(QImage::Format_Grayscale8), ib = Renderer::renderToImage(cb, 1, 1.0).convertToFormat(QImage::Format_Grayscale8);
+        QCOMPARE(ia.size(), ib.size());
+        qint64 total = 0;
+        for (int y = 0; y < ia.height(); ++y)
+            for (int x = 0; x < ia.width(); ++x) total += std::abs(int(ia.constScanLine(y)[x]) - int(ib.constScanLine(y)[x]));
+        const double mean = double(total) / (ia.width() * ia.height());
+        QVERIFY2(mean < 1.0, qPrintable(QString::number(mean)));
+    }
+
+    // Each transition JeffDeck has is written as the standard names it, and read back as the one it was (a cut, which the standard has
+    // as a fade through black, and a reveal, which is an uncover, are read as those); how long it takes and when it moves on go with it.
+    void odpTransitionsComeBackAsTheyWere()
+    {
+        auto d = deck::newPresentation();
+        struct Case {
+            const char *type, *dir;
+            const char *readAs;
+        };
+        const Case cases[] = {{"fade", "l", "fade"},   {"push", "l", "push"},   {"push", "r", "push"},   {"push", "u", "push"},     {"push", "d", "push"},     {"wipe", "l", "wipe"},
+                              {"wipe", "r", "wipe"},   {"wipe", "u", "wipe"},   {"wipe", "d", "wipe"},   {"split", "in", "split"},  {"split", "out", "split"}, {"cover", "u", "cover"},
+                              {"cover", "r", "cover"}, {"uncover", "l", "uncover"}, {"uncover", "d", "uncover"}, {"zoom", "in", "zoom"}, {"zoom", "out", "zoom"}, {"cut", "l", "fade"},
+                              {"reveal", "r", "uncover"}, {"none", "l", "none"}};
+        // One slide for each case, after the first.
+        for (size_t i = 0; i < std::size(cases); ++i) deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        for (size_t i = 0; i < std::size(cases); ++i) {
+            deck::Transition t;
+            t.type = QString::fromLatin1(cases[i].type);
+            t.dir = QString::fromLatin1(cases[i].dir);
+            t.duration = i % 3 == 0 ? 0.4 : i % 3 == 1 ? 0.7 : 1.0;
+            if (i % 4 == 1) {
+                t.advanceAfter = 3.0;
+                t.advanceOnClick = i % 8 == 1;
+            }
+            deck::setTransition(*d->pages[i + 1], t);
+        }
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), int(d->pages.size()));
+        for (size_t i = 0; i < std::size(cases); ++i) {
+            const deck::Transition was = deck::transitionOf(*d->pages[i + 1]), now = deck::transitionOf(*back->pages[i + 1]);
+            const QString what = QStringLiteral("%1 %2").arg(QLatin1String(cases[i].type), QLatin1String(cases[i].dir));
+            QCOMPARE(now.type, QString::fromLatin1(cases[i].readAs));
+            if (was.hasDirection() || was.hasInOut()) QVERIFY2(now.dir == was.dir, qPrintable(what + QLatin1String(" went ") + now.dir));
+            QVERIFY2(std::abs(now.duration - was.duration) < 0.31, qPrintable(what));
+            QCOMPARE(now.advanceAfter.has_value(), was.advanceAfter.has_value());
+            if (was.advanceAfter) {
+                QCOMPARE(*now.advanceAfter, *was.advanceAfter);
+                QCOMPARE(now.advanceOnClick, was.advanceOnClick);
+            }
+        }
+    }
+
+    // The animations are written as the other suite writes them: a timing root with the main sequence, a step for each click, the effects that
+    // start with or after the one before in the groups of that step, each effect as the standard names it with the parts that do it (show,
+    // fade, fly, wipe, zoom, spin, grow), aimed at objects by the ids they have, and at the paragraphs of a list by those they have.
+    void odpWritesAnimationsAsTheOtherSuiteDoes()
+    {
+        auto d = deck::newPresentation();
+        const int at = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        Page &slide = *d->pages[at];
+        auto shape = [&](const char *name, double x) {
+            auto s = std::make_shared<ShapeItem>();
+            s->name = QString::fromLatin1(name);
+            s->rect = QRectF(x, 400, 60, 40);
+            s->fill = Fill::solid(ColorRef::rgb(Qt::red));
+            slide.items.push_back(s);
+            return s->id;
+        };
+        const QString a = shape("A", 20), b = shape("B", 100), c = shape("C", 180), e = shape("E", 260), f = shape("F", 340), g = shape("G", 420);
+        TextItem *body = nullptr;
+        for (const ItemPtr &it : slide.items)
+            if (deck::placeholderType(*it) == QLatin1String("obj")) body = static_cast<TextItem *>(it.get());
+        QVERIFY(body);
+        d->storyDoc(body->storyId)->setPlainText(QStringLiteral("one\ntwo\nthree"));
+        deck::AnimSequence seq;
+        auto add = [&](const char *kind, const QString &id, deck::EffectStart start, const QString &variant = QString()) {
+            deck::Anim an = deck::makeAnim(QString::fromLatin1(kind), deck::shapeNumber(slide, id));
+            an.start = start;
+            if (!variant.isEmpty()) an.variant = variant;
+            seq.add(an);
+        };
+        add("entr.fade", a, deck::EffectStart::OnClick);
+        add("entr.fly", b, deck::EffectStart::WithPrevious, QStringLiteral("bottom"));
+        add("entr.wipe", c, deck::EffectStart::AfterPrevious, QStringLiteral("left"));
+        add("emph.spin", e, deck::EffectStart::OnClick);
+        add("emph.growshrink", f, deck::EffectStart::OnClick);
+        add("entr.zoom", g, deck::EffectStart::OnClick);
+        add("exit.fade", a, deck::EffectStart::OnClick);
+        // The text of the body, one click for each paragraph.
+        deck::Anim paragraph = deck::makeAnim(QStringLiteral("entr.appear"), deck::shapeNumber(slide, body->id));
+        seq.add(paragraph);
+        deck::setByParagraph(seq, int(seq.effects.size()) - 1, true, *d, slide);
+        deck::setAnimations(*d, slide, seq);
+        QVERIFY(!deck::timelineOf(slide).isEmpty());
+
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join(QLatin1Char('\n'))));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QDomDocument dom;
+        QVERIFY(office::parseXml(zip.value(QStringLiteral("content.xml")), &dom, &err));
+        const QDomElement page = odptest::byName(dom, "draw:page").value(1);
+        QVERIFY(!page.isNull());
+        const QList<QDomElement> pars = odptest::byName(page, "anim:par");
+        QVERIFY(pars.size() > 5);
+        // The root and the main sequence.
+        QVERIFY(content.contains(QStringLiteral("presentation:node-type=\"timing-root\"")));
+        QVERIFY(content.contains(QStringLiteral("<anim:seq smil:dur=\"indefinite\" presentation:node-type=\"main-sequence\">")));
+        // A step for each click: fade A; spin E; grow F; zoom G; fade-out A; and three paragraphs.
+        int steps = 0;
+        QStringList types;
+        for (const QDomElement &p : pars) {
+            if (odptest::attrOf(p, "smil:begin") == QLatin1String("next")) ++steps;
+            const QString type = odptest::attrOf(p, "presentation:node-type");
+            if (type == QLatin1String("on-click") || type == QLatin1String("with-previous") || type == QLatin1String("after-previous"))
+                types << type + QLatin1Char(' ') + odptest::attrOf(p, "presentation:preset-id");
+        }
+        QCOMPARE(steps, 8);
+        QCOMPARE(types.mid(0, 3), (QStringList{QStringLiteral("on-click ooo-entrance-fade-in"), QStringLiteral("with-previous ooo-entrance-fly-in"), QStringLiteral("after-previous ooo-entrance-wipe")}));
+        QVERIFY(types.contains(QStringLiteral("on-click ooo-emphasis-spin")));
+        QVERIFY(types.contains(QStringLiteral("on-click ooo-emphasis-grow-and-shrink")));
+        QVERIFY(types.contains(QStringLiteral("on-click ooo-entrance-fade-in-and-zoom")));
+        QVERIFY(types.contains(QStringLiteral("on-click ooo-exit-fade-out")));
+        // The parts that do it, as the other suite writes them.
+        QVERIFY(content.contains(QStringLiteral("smil:attributeName=\"visibility\" smil:to=\"visible\"")));
+        QVERIFY(content.contains(QStringLiteral("smil:type=\"fade\" smil:subtype=\"crossfade\"")));
+        QVERIFY(content.contains(QStringLiteral("smil:attributeName=\"y\" smil:values=\"1+height/2;y\"")));
+        QVERIFY(content.contains(QStringLiteral("smil:type=\"barWipe\" smil:subtype=\"leftToRight\"")));
+        QVERIFY(content.contains(QStringLiteral("smil:attributeName=\"width\" smil:values=\"0;width\"")));
+        QVERIFY(content.contains(QStringLiteral("smil:by=\"360\" smil:attributeName=\"transform\" svg:type=\"rotate\"")) || content.contains(QStringLiteral("svg:type=\"rotate\"")));
+        QVERIFY(content.contains(QStringLiteral("svg:type=\"scale\"")));
+        QVERIFY(content.contains(QStringLiteral("smil:mode=\"out\"")));
+        // What the effects aim at is in the page, by its id: the six shapes, and the three paragraphs of the body.
+        QSet<QString> ids;
+        QList<QDomElement> all;
+        for (QDomNode n = page.firstChild(); !n.isNull(); n = n.nextSibling()) all << n.toElement();
+        // Every element of the page, at any depth.
+        QList<QDomElement> queue = all;
+        all.clear();
+        while (!queue.isEmpty()) {
+            const QDomElement el = queue.takeFirst();
+            if (el.isNull()) continue;
+            all << el;
+            for (QDomNode n = el.firstChild(); !n.isNull(); n = n.nextSibling()) queue << n.toElement();
+        }
+        for (const QDomElement &el : std::as_const(all)) {
+            if (const QString id = odptest::attrOf(el, "draw:id"); !id.isEmpty()) ids.insert(id);
+            if (const QString tid = odptest::attrOf(el, "text:id"); !tid.isEmpty()) ids.insert(tid);
+        }
+        QVERIFY(ids.size() >= 9);
+        for (const QDomElement &el : std::as_const(all)) {
+            const QString target = odptest::attrOf(el, "smil:targetElement");
+            if (!target.isEmpty()) QVERIFY2(ids.contains(target), qPrintable(target));
+        }
+        // The page still reads (its animations are left out of the model, as before).
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 2);
+    }
+
+    // What no animation form here has is left out and said so: effects that wait for a click on an object, and the colors that change.
+    void odpSaysWhichAnimationsItLeftOut()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = QRectF(20, 20, 60, 40);
+        s->fill = Fill::solid(ColorRef::rgb(Qt::red));
+        slide.items.push_back(s);
+        const int number = deck::shapeNumber(slide, s->id);
+        // A hand-made timing with an effect that changes a color (no form here), beside one that fades.
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), number));
+        deck::setAnimations(*d, slide, seq);
+        QString timing = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(!timing.isEmpty());
+        QString err;
+        QStringList skipped;
+        QVERIFY(!deck::exportOdp(*d, false, &err, &skipped).isEmpty());
+        QVERIFY(skipped.isEmpty());
+        // An effect whose parts are all colors can't be written.
+        const QString colorsOnly = QStringLiteral("<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>"
+            "<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst><p:par><p:cTn id=\"3\" fill=\"hold\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst><p:childTnLst>"
+            "<p:par><p:cTn id=\"4\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst><p:par><p:cTn id=\"5\" presetID=\"3\" presetClass=\"emph\" presetSubtype=\"0\" fill=\"hold\" nodeType=\"clickEffect\">"
+            "<p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr><p:cTn id=\"6\" dur=\"500\" fill=\"hold\"/><p:tgtEl><p:spTgt spid=\"%1\"/></p:tgtEl>"
+            "<p:attrNameLst><p:attrName>fillcolor</p:attrName></p:attrNameLst></p:cBhvr><p:to><a:srgbClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" val=\"0000FF\"/></p:to></p:animClr>"
+            "</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>").arg(number);
+        slide.props[QStringLiteral("timingXml")] = colorsOnly;
+        skipped.clear();
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY(!bytes.isEmpty());
+        QCOMPARE(int(skipped.size()), 1);
+        QVERIFY2(skipped[0].contains(QStringLiteral("Slide 1")) && skipped[0].contains(QStringLiteral("animation")), qPrintable(skipped[0]));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        QVERIFY(!zip.value(QStringLiteral("content.xml")).contains("anim:par"));
+    }
+
+    // Comments are written as the other suite writes them (a note of the page for each, with its author, initials, date, and text; a reply
+    // another note), the date and footer of a slide as the page's settings and the declarations, and how the show plays with the custom shows.
+    void odpWritesCommentsFootersAndTheShow()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Sam Lee"), QStringLiteral("SL")};
+        const QDateTime noon(QDate(2026, 10, 1), QTime(12, 0), QTimeZone::utc());
+        const QString first = deck::addComment(*d->pages[1], pat, QStringLiteral("Check\nthe numbers & <more>"), QPointF(100, 40), noon);
+        deck::addReply(*d->pages[1], first, lee, QStringLiteral("Done"), noon.addSecs(3600));
+        deck::addComment(*d->pages[1], lee, QStringLiteral("Second"), QPointF(300, 200), noon.addDays(1));
+        // The footer: a date, the number, and a text.
+        deck::FooterOptions footers;
+        footers.date = footers.slideNumber = footers.footer = true;
+        footers.footerText = QStringLiteral("Confidential <draft>");
+        deck::applyFooters(*d, footers);
+        // How the show plays, and a custom show of two slides.
+        deck::ShowSettings settings;
+        settings.type = deck::ShowSettings::Type::Individual;
+        settings.loop = true;
+        settings.animation = false;
+        settings.useTimings = false;
+        QVector<deck::CustomShow> shows;
+        shows.append({0, QStringLiteral("Short <one>"), {d->pages[2]->id, d->pages[0]->id}});
+        deck::setCustomShows(*d, shows);
+        settings.slides = deck::ShowSettings::Slides::Custom;
+        settings.customShow = 0;
+        deck::setShowSettings(*d, settings);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QDomDocument dom;
+        QVERIFY(office::parseXml(zip.value(QStringLiteral("content.xml")), &dom, &err));
+        // The comments, in the second page, after its notes.
+        const QList<QDomElement> drawPages = odptest::byName(dom, "draw:page");
+        const QDomElement page = drawPages.value(1);
+        const QList<QDomElement> notes = odptest::byName(page, "officeooo:annotation");
+        QCOMPARE(int(notes.size()), 3);
+        QCOMPARE(odptest::byName(notes[0], "dc:creator").value(0).text(), QStringLiteral("Pat Doe"));
+        QCOMPARE(odptest::byName(notes[0], "meta:creator-initials").value(0).text(), QStringLiteral("PD"));
+        QCOMPARE(odptest::byName(notes[0], "dc:date").value(0).text(), QStringLiteral("2026-10-01T12:00:00"));
+        const QList<QDomElement> lines = odptest::byName(notes[0], "text:p");
+        QCOMPARE(int(lines.size()), 2);
+        QCOMPARE(lines[1].text(), QStringLiteral("the numbers & <more>"));
+        QCOMPARE(odptest::byName(notes[1], "dc:creator").value(0).text(), QStringLiteral("Sam Lee"));
+        QCOMPARE(int(odptest::byName(drawPages[0], "officeooo:annotation").size()), 0);
+        // The footer, the number, and the date: the page's settings, the footer text declared once.
+        QCOMPARE(content.count(QStringLiteral("<presentation:footer-decl")), 1);
+        QVERIFY(content.contains(QStringLiteral(">Confidential &lt;draft&gt;</presentation:footer-decl>")));
+        QCOMPARE(content.count(QStringLiteral("presentation:use-footer-name=\"ftr1\"")), 3);
+        // All three slides take the one page style that says so.
+        QString style = odptest::attrOf(drawPages[0], "draw:style-name");
+        QVERIFY(content.contains(QStringLiteral("presentation:display-footer=\"true\" presentation:display-page-number=\"true\" presentation:display-date-time=\"true\"")));
+        QCOMPARE(odptest::attrOf(drawPages[1], "draw:style-name"), style);
+        QCOMPARE(odptest::attrOf(drawPages[2], "draw:style-name"), style);
+        QVERIFY(content.contains(QStringLiteral("<presentation:date-time-decl presentation:name=\"dtd1\" presentation:source=\"current-date\"")));
+        // How the show plays.
+        const QList<QDomElement> settingsList = odptest::byName(dom, "presentation:settings");
+        QCOMPARE(int(settingsList.size()), 1);
+        const QDomElement st = settingsList[0];
+        auto presentationAttr = [&](const char *name) { return odptest::attrOf(st, (QByteArray("presentation:") + name).constData()); };
+        QCOMPARE(presentationAttr("full-screen"), QStringLiteral("false"));
+        QCOMPARE(presentationAttr("endless"), QStringLiteral("true"));
+        QCOMPARE(presentationAttr("animations"), QStringLiteral("disabled"));
+        QCOMPARE(presentationAttr("force-manual"), QStringLiteral("true"));
+        QCOMPARE(presentationAttr("show"), QStringLiteral("Short <one>"));
+        const QList<QDomElement> shownPages = odptest::byName(st, "presentation:show");
+        QCOMPARE(int(shownPages.size()), 1);
+        const QStringList names = odptest::attrOf(shownPages[0], "presentation:pages").split(QLatin1Char(','));
+        QCOMPARE(int(names.size()), 2);
+        // The names it lists are those of the slides it plays, the third and then the first.
+        auto pageName = [&](int i) { return odptest::attrOf(drawPages[i], "draw:name"); };
+        QCOMPARE(names[0], pageName(2));
+        QCOMPARE(names[1], pageName(0));
+        // Read back, the footer is on the slides again and the notes are left to the standard.
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        for (const auto &readPage : back->pages) {
+            QSet<QString> kinds;
+            for (const ItemPtr &it : readPage->items) {
+                kinds.insert(deck::placeholderType(*it));
+                if (deck::placeholderType(*it) == QLatin1String("ftr")) QCOMPARE(textOf(*back, *it), QStringLiteral("Confidential <draft>"));
+            }
+            QVERIFY(kinds.contains(QStringLiteral("ftr")) && kinds.contains(QStringLiteral("sldNum")) && kinds.contains(QStringLiteral("dt")));
+        }
+    }
+
+    // What an .odp has no form for is said when the presentation is written: the sections, an inner shadow, and a reflection.
+    void odpSaysWhatItLeavesOut()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        deck::addSection(*d, 0, QStringLiteral("Opening"));
+        deck::addSection(*d, 1, QStringLiteral("Middle"));
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = QRectF(20, 20, 60, 40);
+        s->fill = Fill::solid(ColorRef::rgb(Qt::red));
+        s->fx.shadow.on = true;
+        s->fx.shadow.inner = true;
+        s->fx.reflection.on = true;
+        d->pages[1]->items.push_back(s);
+        QString err;
+        QStringList skipped;
+        QVERIFY(!deck::exportOdp(*d, false, &err, &skipped).isEmpty());
+        const QString all = skipped.join(QLatin1Char('\n'));
+        QVERIFY2(all.contains(QStringLiteral("Sections")), qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("Inner shadows")), qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("Reflections")), qPrintable(all));
+        // A presentation with nothing of that kind says nothing.
+        skipped.clear();
+        QVERIFY(!deck::exportOdp(*deck::newPresentation(), false, &err, &skipped).isEmpty());
+        QVERIFY(skipped.isEmpty());
+    }
+
+    // A movie or sound is written the way the other suite writes one: a frame whose plug-in plays the file (kept in the package under
+    // Media/, with its type in the manifest) and whose picture is the poster; read back, the poster is still there.
+    void odpWritesMoviesAndSoundsAsPlugIns()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        QImage poster(320, 180, QImage::Format_RGB32);
+        poster.fill(QColor(30, 90, 160));
+        const QByteArray movie(2000, 'v'), sound(900, 's');
+        auto video = deck::newMediaPicture(*d, slide, movie, QStringLiteral("Clip.mp4"), poster, 12345);
+        QVERIFY(video);
+        slide.items.push_back(video);
+        auto audio = deck::newMediaPicture(*d, slide, sound, QStringLiteral("Tune.wav"), QImage(), 5000);
+        QVERIFY(audio);
+        slide.items.push_back(audio);
+        QVERIFY(video->sourceId != audio->sourceId);
+        // The movie plays when it is clicked on, the sound with the slide's clicks.
+        deck::MediaPlay onClick;
+        onClick.start = deck::MediaStart::WhenClickedOn;
+        deck::setMediaPlay(slide, *video, onClick, 12345);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join(QLatin1Char('\n'))));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        QCOMPARE(zip.value(QStringLiteral("Media/media1.mp4")), movie);
+        QCOMPARE(zip.value(QStringLiteral("Media/media2.wav")), sound);
+        const QString manifest = QString::fromUtf8(zip.value(QStringLiteral("META-INF/manifest.xml")));
+        QVERIFY(manifest.contains(QStringLiteral("manifest:full-path=\"Media/media1.mp4\" manifest:media-type=\"video/mp4\"")));
+        QVERIFY(manifest.contains(QStringLiteral("manifest:full-path=\"Media/media2.wav\" manifest:media-type=\"audio/wav\"")));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY(content.contains(QStringLiteral("<draw:plugin xlink:href=\"Media/media1.mp4\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\" draw:mime-type=\"video/mp4\">")));
+        QVERIFY(content.contains(QStringLiteral("<draw:param draw:name=\"Loop\" draw:value=\"false\"/>")));
+        QVERIFY(content.contains(QStringLiteral("draw:mime-type=\"audio/wav\"")));
+        // What starts them is written as the other suite writes it: the call to play, and a click on a movie that pauses it.
+        QVERIFY(content.contains(QStringLiteral("presentation:preset-class=\"media-call\"")));
+        QVERIFY(content.contains(QStringLiteral("anim:command=\"play\"")));
+        QVERIFY(content.contains(QStringLiteral("presentation:node-type=\"interactive-sequence\"")));
+        QVERIFY(content.contains(QStringLiteral("anim:command=\"toggle-pause\"")));
+        QVERIFY(content.contains(QStringLiteral(".click+0s\"")));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        int pictures = 0;
+        for (const ItemPtr &it : back->pages[0]->items) pictures += it->type() == ItemType::Picture;
+        QCOMPARE(pictures, 2);
+    }
+
+    // A bullet in front of nothing is drawn by the other suite, and not here: an empty paragraph in a list is written outside the list, so it
+    // has no bullet there either, and the numbers of a numbered list go on after it.
+    void odpWritesEmptyListParagraphsOutsideTheList()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 200);
+        t->storyId = d->createStory();
+        QTextDocument *sd = d->storyDoc(t->storyId);
+        QTextCursor c(sd);
+        QTextBlockFormat level0;
+        level0.setLeftMargin(27);
+        level0.setTextIndent(-27);
+        level0.setProperty(tp::ListLevel, 0);
+        QTextListFormat numbers;
+        numbers.setStyle(QTextListFormat::ListDecimal);
+        c.setBlockFormat(level0);
+        c.createList(numbers);
+        c.insertBlock();   // the first paragraph stays empty
+        c.insertText(QStringLiteral("One"));
+        c.insertBlock();
+        c.insertBlock();   // an empty one in the middle
+        c.insertText(QStringLiteral("Two"));
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        const int at = content.indexOf(QStringLiteral("<draw:text-box"));
+        const QString box = content.mid(at, content.indexOf(QStringLiteral("</draw:text-box>"), at) - at);
+        QCOMPARE(box.count(QStringLiteral("<text:list-item>")), 2);
+        QCOMPARE(box.count(QRegularExpression(QStringLiteral("<text:p text:style-name=\"[^\"]*\"/>"))), 2);
+        // The empty paragraph in front of the first is not in a list; the second list carries on the numbers.
+        QVERIFY(box.indexOf(QStringLiteral("<text:p ")) < box.indexOf(QStringLiteral("<text:list ")));
+        QVERIFY(box.contains(QStringLiteral("text:continue-numbering=\"true\"")));
+    }
+
+    // A tab at the start of a paragraph that hangs (its first line stands out to the left of the rest) goes to where the rest begin. The
+    // other suite puts it a whole step on, so the first line is written to begin there without the tab; drawn again, it is the same.
+    void odpWritesAHangingParagraphThatStartsWithATabWithoutTheTab()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 200);
+        t->storyId = d->createStory();
+        QTextDocument *sd = d->storyDoc(t->storyId);
+        QTextCursor c(sd);
+        QTextBlockFormat hanging;
+        hanging.setLeftMargin(27);
+        hanging.setTextIndent(-27);
+        c.setBlockFormat(hanging);
+        c.insertText(QStringLiteral("\t(1) Hangs from the tab, and wraps onto a second line that starts at the indent"));
+        c.insertBlock(hanging);
+        c.insertText(QStringLiteral("\t\tTwo tabs stay as they are"));
+        c.insertBlock(hanging);
+        c.insertText(QStringLiteral("(3) No tab here, so it hangs"));
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        // Only the paragraph with two tabs keeps any: its two.
+        QCOMPARE(content.count(QStringLiteral("<text:tab/>")), 2);
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        LayoutCache cacheA, cacheB;
+        PaintContext ca, cb;
+        ca.doc = d.get();
+        ca.cache = &cacheA;
+        ca.opt.output = true;
+        cb.doc = back.get();
+        cb.cache = &cacheB;
+        cb.opt.output = true;
+        const QImage ia = Renderer::renderToImage(ca, 1, 1.0).convertToFormat(QImage::Format_Grayscale8), ib = Renderer::renderToImage(cb, 1, 1.0).convertToFormat(QImage::Format_Grayscale8);
+        QCOMPARE(ia.size(), ib.size());
+        qint64 total = 0;
+        for (int y = 0; y < ia.height(); ++y)
+            for (int x = 0; x < ia.width(); ++x) total += std::abs(int(ia.constScanLine(y)[x]) - int(ib.constScanLine(y)[x]));
+        QVERIFY2(double(total) / (ia.width() * ia.height()) < 0.5, qPrintable(QString::number(double(total) / (ia.width() * ia.height()))));
+    }
+
+    // How far a tab goes where the paragraph has no stops is the presentation's own (a presentation made elsewhere often says an inch, not
+    // half of one): it is written with each paragraph, and read back, a tab at the start of a line goes as far.
+    void odpKeepsHowFarATabGoes()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        d->defaultTabStop = 72;
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 400, 100);
+        t->storyId = d->createStory(QStringLiteral("\tTabbed in a whole inch, and then some more words to wrap onto a second line"));
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        QVERIFY(QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).contains(QStringLiteral("loext:tab-stop-distance=\"2.54cm\"")));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        LayoutCache cacheA, cacheB;
+        PaintContext ca, cb;
+        ca.doc = d.get();
+        ca.cache = &cacheA;
+        ca.opt.output = true;
+        cb.doc = back.get();
+        cb.cache = &cacheB;
+        cb.opt.output = true;
+        const QImage ia = Renderer::renderToImage(ca, 1, 1.0).convertToFormat(QImage::Format_Grayscale8), ib = Renderer::renderToImage(cb, 1, 1.0).convertToFormat(QImage::Format_Grayscale8);
+        QCOMPARE(ia.size(), ib.size());
+        qint64 total = 0;
+        for (int y = 0; y < ia.height(); ++y)
+            for (int x = 0; x < ia.width(); ++x) total += std::abs(int(ia.constScanLine(y)[x]) - int(ib.constScanLine(y)[x]));
+        QVERIFY2(double(total) / (ia.width() * ia.height()) < 0.5, qPrintable(QString::number(double(total) / (ia.width() * ia.height()))));
+    }
+
+    // A bullet of a paragraph whose first line is set in from the rest (a positive first line indent) stands where that line starts: the
+    // list's level says so, with no width for the label to hang in.
+    void odpPutsABulletWhereAnIndentedFirstLineStarts()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 100);
+        t->storyId = d->createStory();
+        QTextDocument *sd = d->storyDoc(t->storyId);
+        QTextCursor c(sd);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(10);
+        bf.setTextIndent(20);
+        bf.setProperty(tp::ListLevel, 0);
+        QTextListFormat bullets;
+        bullets.setStyle(QTextListFormat::ListDisc);
+        bullets.setProperty(tp::BulletChar, QStringLiteral("•"));
+        c.setBlockFormat(bf);
+        c.createList(bullets);
+        c.insertText(QStringLiteral("Set in"));
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        // 10 + 20 points in from the left, 1.0583 cm.
+        QVERIFY2(content.contains(QStringLiteral("text:space-before=\"1.0583cm\" text:min-label-width=\"0cm\"")), qPrintable(content.mid(content.indexOf(QStringLiteral("text:list-level-style-bullet")), 400)));
+    }
+
+    // The other suite mirrors a picture side to side only (a mirror from top to bottom is ignored): a picture turned over is written as turned
+    // half a turn and mirrored side to side, which is the same picture.
+    void odpWritesAPictureTurnedOverAsAHalfTurnAndAMirror()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        // Red at the top left, blue below, green on the right: no way to mistake one flip for another.
+        QImage image(60, 40, QImage::Format_RGB32);
+        image.fill(Qt::green);
+        for (int y = 0; y < 40; ++y)
+            for (int x = 0; x < 30; ++x) image.setPixelColor(x, y, y < 20 ? QColor(Qt::red) : QColor(Qt::blue));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        auto make = [&](bool flipH, bool flipV, double turn, const QRectF &where) {
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = d->addImage(png, QStringLiteral("png"));
+            pic->rect = where;
+            pic->imgRect = QRectF(QPointF(0, 0), where.size());
+            pic->flipH = flipH;
+            pic->flipV = flipV;
+            pic->rotation = turn;
+            d->pages[1]->items.push_back(pic);
+        };
+        make(false, true, 0, QRectF(20, 20, 120, 80));
+        make(true, true, 0, QRectF(160, 20, 120, 80));
+        make(false, true, 180, QRectF(300, 20, 120, 80));
+        make(true, false, 30, QRectF(20, 140, 120, 80));
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY(!content.contains(QStringLiteral("style:mirror=\"vertical")));
+        QVERIFY(!content.contains(QStringLiteral("horizontal vertical")));
+        QVERIFY(content.contains(QStringLiteral("style:mirror=\"horizontal\"")));
+        // Read back, and drawn, the slide is the same.
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        LayoutCache cacheA, cacheB;
+        PaintContext ca, cb;
+        ca.doc = d.get();
+        ca.cache = &cacheA;
+        ca.opt.output = true;
+        cb.doc = back.get();
+        cb.cache = &cacheB;
+        cb.opt.output = true;
+        const QImage ia = Renderer::renderToImage(ca, 1, 1.0).convertToFormat(QImage::Format_RGB32), ib = Renderer::renderToImage(cb, 1, 1.0).convertToFormat(QImage::Format_RGB32);
+        QCOMPARE(ia.size(), ib.size());
+        qint64 total = 0;
+        for (int y = 0; y < ia.height(); ++y)
+            for (int x = 0; x < ia.width(); ++x) total += std::abs(qRed(ia.pixel(x, y)) - qRed(ib.pixel(x, y))) + std::abs(qBlue(ia.pixel(x, y)) - qBlue(ib.pixel(x, y)));
+        QVERIFY2(double(total) / (ia.width() * ia.height()) < 1.0, qPrintable(QString::number(double(total) / (ia.width() * ia.height()))));
+    }
+
+    // A presentation's own parts call a movie "video/unknown", which the other suite doesn't take for a movie it can play: the type written
+    // is the one the file's ending gives. A movie that is linked, not kept in the presentation, keeps its address and its picture; one with
+    // neither says it was left out.
+    void odpWritesMoviesWhateverTheirTypeAndWherever()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        QImage poster(320, 180, QImage::Format_RGB32);
+        poster.fill(QColor(0, 0, 0));
+        auto kept = deck::newMediaPicture(*d, slide, QByteArray(1500, 'k'), QStringLiteral("Kept.mp4"), poster, 9000);
+        QVERIFY(kept);
+        slide.items.push_back(kept);
+        d->media[kept->mediaId].contentType = QStringLiteral("video/unknown");
+        auto linked = deck::newMediaPicture(*d, slide, QByteArray(10, 'l'), QStringLiteral("Linked.mp4"), poster, 9000);
+        QVERIFY(linked);
+        slide.items.push_back(linked);
+        linked->mediaId.clear();
+        linked->mediaLink = QStringLiteral("https://example.com/clip.mp4");
+        auto lost = deck::newMediaPicture(*d, slide, QByteArray(10, 'x'), QStringLiteral("Lost.mp4"), poster, 9000);
+        QVERIFY(lost);
+        slide.items.push_back(lost);
+        lost->mediaId.clear();
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY2(content.contains(QStringLiteral("xlink:href=\"Media/media1.mp4\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\" draw:mime-type=\"video/mp4\"")), qPrintable(content.left(3000)));
+        QVERIFY(QString::fromUtf8(zip.value(QStringLiteral("META-INF/manifest.xml"))).contains(QStringLiteral("manifest:full-path=\"Media/media1.mp4\" manifest:media-type=\"video/mp4\"")));
+        QVERIFY(content.contains(QStringLiteral("<draw:plugin xlink:href=\"https://example.com/clip.mp4\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\" draw:mime-type=\"application/vnd.sun.star.media\">")));
+        // All three keep their picture.
+        QCOMPARE(content.count(QStringLiteral("<draw:image ")), 3);
+        QCOMPARE(content.count(QStringLiteral("<draw:plugin ")), 2);
+        QCOMPARE(int(skipped.size()), 1);
+        QVERIFY2(skipped[0].contains(QStringLiteral("movie or sound")), qPrintable(skipped[0]));
+    }
+
+    // The other suite reads a link's words as plain text: they are written straight in the link, the span that styles them around it.
+    void odpWritesLinkWordsInsideTheLink()
+    {
+        QString err;
+        auto d = deck::importOdp(odptest::sampleOdp(), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY(content.contains(QStringLiteral("<text:a xlink:type=\"simple\" xlink:href=\"https://example.com/a?b=1&amp;c=2\">the site</text:a>")));
+        QVERIFY(!content.contains(QStringLiteral("xlink:type=\"simple\" xlink:href=\"https://example.com/a?b=1&amp;c=2\"><text:span")));
+    }
+
+    // Text the presentation program shrank to fit (a:normAutofit's fontScale and lnSpcReduction) can't keep that scale in this kind of file:
+    // it is written at the size it was shrunk to, with the margins and the line spacing so, and read back it looks as it did.
+    void odpWritesShrunkTextAtTheSizeItWasShrunkTo()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QString lines;
+        for (int i = 0; i < 12; ++i) lines += para(QStringLiteral("Line %1 of a long list").arg(i + 1));
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Shrunk\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 2540000)
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr><a:normAutofit fontScale=\"62500\" lnSpcReduction=\"20000\"/></a:bodyPr><a:lstStyle/>")
+                                                       + lines + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto find = [](const Document &doc, const QString &name) -> TextItem * {
+            for (const auto &it : doc.pages[0]->items)
+                if (it->name == name && it->type() == ItemType::Text) return static_cast<TextItem *>(it.get());
+            return nullptr;
+        };
+        TextItem *t = find(*d, QStringLiteral("Shrunk"));
+        QVERIFY(t && t->fitAsStored);
+        LayoutCache cacheA, cacheB;
+        const auto original = cacheA.textFrame(*d, *t, 1, RenderOptions());
+        const auto before = original.layout->lineInfo(0);
+        QCOMPARE(int(before.size()), 12);
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        // 18 points at 62.5% (the lines 20 points closer is a share of 80% of the 100%).
+        QVERIFY2(content.contains(QStringLiteral("fo:font-size=\"11.25pt\"")), qPrintable(content.left(3000)));
+        QVERIFY(content.contains(QStringLiteral("fo:line-height=\"80%\"")));
+        const int shrinking = content.count(QStringLiteral("style:shrink-to-fit=\"true\""));
+        QVERIFY(shrinking >= 1);
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        TextItem *again = find(*back, QStringLiteral("Shrunk"));
+        QVERIFY(again);
+        const auto reread = cacheB.textFrame(*back, *again, 1, RenderOptions());
+        const auto after = reread.layout->lineInfo(0);
+        QCOMPARE(int(after.size()), 12);
+        QVERIFY2(std::abs(after[1].baseline - after[0].baseline - (before[1].baseline - before[0].baseline)) < 0.1,
+                 qPrintable(QStringLiteral("%1 vs %2").arg(after[1].baseline - after[0].baseline).arg(before[1].baseline - before[0].baseline)));
+        // In a box too short for it at that size (as a design's sample text often is), the program left it as it was and shows it so: it isn't
+        // set to shrink here, or the other suite would shrink it the moment the file is opened.
+        t->rect.setHeight(60);
+        const QByteArray shortBox = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!shortBox.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip2;
+        QVERIFY(readZip(shortBox, zip2, &err));
+        QCOMPARE(QString::fromUtf8(zip2.value(QStringLiteral("content.xml"))).count(QStringLiteral("style:shrink-to-fit=\"true\"")), shrinking - 1);
+    }
+
+    // A gradient whose first color doesn't start at its beginning (the ends are padded with the colors) and one that fades in the middle keep
+    // their stops: written with stops of their own, as the other suite writes them, beside the two ends a program without stops reads.
+    void odpWritesGradientsWithStopsOfTheirOwn()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto make = [&](const QVector<GradientStop> &stops) {
+            auto s = std::make_shared<ShapeItem>();
+            s->rect = QRectF(20, 20, 200, 100);
+            s->fill.type = Fill::Gradient;
+            s->fill.stops = stops;
+            s->fill.color = stops.first().color;
+            s->fill.color2 = stops.last().color;
+            s->fill.angle = 90;
+            d->pages[1]->items.push_back(s);
+        };
+        make({{0.1, ColorRef::rgb(Qt::red), 0}, {1.0, ColorRef::rgb(Qt::blue), 0}});
+        make({{0.0, ColorRef::rgb(Qt::red), 0}, {0.5, ColorRef::rgb(Qt::green), 0.8}, {1.0, ColorRef::rgb(Qt::blue), 0}});
+        make({{0.0, ColorRef::rgb(Qt::red), 0}, {1.0, ColorRef::rgb(Qt::blue), 0}});
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml"))) + QString::fromUtf8(zip.value(QStringLiteral("styles.xml")));
+        // The padded one has two stops, the fading one three, and the plain one none.
+        QCOMPARE(content.count(QStringLiteral("<loext:gradient-stop svg:offset=\"0.1\"")), 1);
+        QCOMPARE(content.count(QStringLiteral("<loext:gradient-stop")), 5);
+        QCOMPARE(content.count(QStringLiteral("<loext:opacity-stop")), 3);
+        QVERIFY(content.contains(QStringLiteral("<loext:opacity-stop svg:offset=\"0.5\" svg:stop-opacity=\"0.2\"/>")));
+    }
+
+    // Pairs of letters are kerned from the size the text says (14 points when it says none), as the text is set here, so another program sets the
+    // lines the same way.
+    void odpSaysWhichTextIsKerned()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 100);
+        t->storyId = d->createStory();
+        QTextDocument *sd = d->storyDoc(t->storyId);
+        QTextCursor c(sd);
+        QTextCharFormat big, small, early;
+        big.setFontPointSize(20);
+        small.setFontPointSize(10);
+        early.setFontPointSize(12);
+        early.setProperty(tp::KernAbove, 12.0);
+        c.insertText(QStringLiteral("Big"), big);
+        c.insertText(QStringLiteral("Small"), small);
+        c.insertText(QStringLiteral("Early"), early);
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        auto kerned = [&](const char *size) {
+            const int at = content.indexOf(QStringLiteral("fo:font-size=\"%1pt\"").arg(QLatin1String(size)));
+            return at < 0 ? QString() : content.mid(at, 1500).section(QStringLiteral("style:letter-kerning=\""), 1).section(QLatin1Char('"'), 0, 0);
+        };
+        QCOMPARE(kerned("20"), QStringLiteral("true"));
+        QCOMPARE(kerned("10"), QStringLiteral("false"));
+        QCOMPARE(kerned("12"), QStringLiteral("true"));
+    }
+
 private:
     // The first table of the first slide of an open document presentation, in `d`.
     static const TableItem *odpFirstTable(const Document &d)
@@ -3692,9 +4860,9 @@ private Q_SLOTS:
         QVERIFY(!skipped.isEmpty());
     }
 
-    // An open document presentation opens in a window, and saves as a new .pptx, never over the file it came from; what
-    // it holds is written as a presentation file and read back.
-    void windowSavesAnOpenDocumentPresentationAsANewOne()
+    // An open document presentation opens in a window and saves as itself, an .odp again: what it holds is written and read back. A
+    // template of that kind (.otp) opened here is saved under a new name; one this window wrote is saved over.
+    void windowSavesAnOpenDocumentPresentationAsItself()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
@@ -3719,20 +4887,20 @@ private Q_SLOTS:
         QCOMPARE(w.editor()->filePath(), path);
         QVERIFY(!w.editor()->isModified());
         w.newSlide();
-        // Save asks where, and suggests a .pptx beside the original; cancelled, nothing is written.
-        QStringList asked;
-        w.setSavePathChooser([&](const QString &suggested, const QString &) {
-            asked << suggested;
+        // Save writes to the file it came from without asking.
+        bool asked = false;
+        w.setSavePathChooser([&](const QString &, const QString &) {
+            asked = true;
             return QString();
         });
-        QVERIFY(!w.save());
-        QCOMPARE(asked, QStringList{dir.filePath(QStringLiteral("talk.pptx"))});
-        QCOMPARE(fileBytes(path), before);
-        const QString out = dir.filePath(QStringLiteral("talk.pptx"));
-        QVERIFY(w.saveTo(out));
-        QCOMPARE(fileBytes(path), before);
+        QVERIFY(w.save());
+        QVERIFY(!asked);
+        QVERIFY(!w.editor()->isModified());
+        QCOMPARE(w.editor()->filePath(), path);
+        QVERIFY(fileBytes(path) != before);
+        QVERIFY(deck::looksLikeOpenDocument(fileBytes(path).left(128)));
         QString err;
-        auto back = deck::importAnyPresentationFile(out, &err);
+        auto back = deck::importAnyPresentationFile(path, &err);
         QVERIFY2(back, qPrintable(err));
         QCOMPARE(int(back->pages.size()), 5);
         QCOMPARE(textOf(*back, *back->pages[0]->items[0]), QStringLiteral("Quarterly results"));
@@ -3748,11 +4916,76 @@ private Q_SLOTS:
         QCOMPARE(tables, 1);
         QCOMPARE(pictures, 3);
         QVERIFY(shapes >= 4);
-        QCOMPARE(w.editor()->filePath(), out);
+        // Save As offers the open document types beside the others, and suggests an .odp for this file.
+        QStringList suggestions, filters;
+        w.setSavePathChooser([&](const QString &suggested, const QString &filter) {
+            suggestions << suggested;
+            filters << filter;
+            return QString();
+        });
+        QVERIFY(!w.saveAs());
+        QCOMPARE(suggestions, QStringList{path});
+        QVERIFY2(filters[0].contains(QStringLiteral("*.odp")), qPrintable(filters[0]));
+        // A name typed without an ending gets the one the chosen type has.
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("typed")); });
+        QVERIFY(w.saveAs());
+        QCOMPARE(w.editor()->filePath(), dir.filePath(QStringLiteral("typed.odp")));
+        QVERIFY(deck::looksLikeOpenDocument(fileBytes(w.editor()->filePath()).left(128)));
+        // A template this window wrote is saved over when saved again; the one it came from is not.
+        const QString mine = dir.filePath(QStringLiteral("mine.otp"));
+        QVERIFY(w.saveTo(mine));
+        w.newSlide();
+        QVERIFY(w.save());
+        QVERIFY(!w.editor()->isModified());
+        QCOMPARE(int(deck::importAnyPresentationFile(mine, &err)->pages.size()), 6);
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(fileBytes(mine), zip, &err));
+        QVERIFY(zip.value(QStringLiteral("mimetype")).endsWith("presentation-template"));
+        DeckWindow v;
+        QVERIFY(v.openFile(mine));
+        v.newSlide();
+        const QByteArray templateBytes = fileBytes(mine);
+        QStringList asks;
+        v.setSavePathChooser([&](const QString &suggested, const QString &) {
+            asks << suggested;
+            return QString();
+        });
+        QVERIFY(!v.save());
+        QCOMPARE(asks, QStringList{dir.filePath(QStringLiteral("mine.odp"))});
+        QCOMPARE(fileBytes(mine), templateBytes);
+        v.editor()->markSaved();
         w.editor()->markSaved();
         // The files are gone with the folder; the list of recent ones doesn't keep them for the tests after this.
+        for (const QString &name : {QStringLiteral("talk.odp"), QStringLiteral("typed.odp"), QStringLiteral("mine.otp")}) Settings::get().removeRecentFile(dir.filePath(name));
+    }
+
+    // An old binary presentation (.ppt) is read, never written over: it is saved under a new name, a .pptx.
+    void windowSavesAnOldBinaryPresentationAsANewOne()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.ppt"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(buildPpt());
+        f.close();
+        const QByteArray before = fileBytes(path);
+        DeckWindow w;
+        QTimer::singleShot(0, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) box->close();
+        });
+        QVERIFY(w.openFile(path));
+        w.newSlide();
+        QStringList asked;
+        w.setSavePathChooser([&](const QString &suggested, const QString &) {
+            asked << suggested;
+            return QString();
+        });
+        QVERIFY(!w.save());
+        QCOMPARE(asked, QStringList{dir.filePath(QStringLiteral("talk.pptx"))});
+        QCOMPARE(fileBytes(path), before);
+        w.editor()->markSaved();
         Settings::get().removeRecentFile(path);
-        Settings::get().removeRecentFile(out);
     }
 
     // A new layout moves the placeholders to its places, by kind, and keeps

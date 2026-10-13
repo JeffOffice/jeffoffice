@@ -16,6 +16,7 @@
 #include "core/appinfo.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
+#include "io/presentationfile.h"
 
 #include <QCoreApplication>
 #include <QDialog>
@@ -36,14 +37,10 @@ namespace jp {
 
 namespace {
 
-// The endings JeffDeck writes. A file with another (an open document
-// presentation, an old binary one) is read, never written over: it is saved
+// The endings JeffDeck writes (.pptx, .potx, .ppsx, .odp, .otp). A file with
+// another (an old binary presentation) is read, never written over: it is saved
 // under a new name.
-bool isKnownEnding(const QString &path)
-{
-    const QString suffix = QFileInfo(path).suffix().toLower();
-    return suffix == QLatin1String("pptx") || suffix == QLatin1String("potx") || suffix == QLatin1String("ppsx");
-}
+bool isKnownEnding(const QString &path) { return deck::isWrittenEnding(path); }
 
 } // namespace
 
@@ -75,7 +72,7 @@ bool DeckWindow::save()
     // A presentation opened from a template is saved as a new presentation:
     // the template stays as it is, unless this window wrote it. So is one
     // opened from a file of a kind JeffDeck doesn't write.
-    const bool isTemplate = deck::kindOfFileName(path) == deck::PresentationKind::Template && path != m_templatePath;
+    const bool isTemplate = deck::presentationKindOf(path) == deck::PresentationKind::Template && path != m_templatePath;
     if (path.isEmpty() || isTemplate || !isKnownEnding(path)) return saveAs();
     return saveTo(path);
 }
@@ -88,14 +85,24 @@ bool DeckWindow::saveAs()
     // The dialog hands back the filter text it showed, so the choice is
     // recognized by comparing with these same (translated) texts.
     const QString pptxFilter = tr("Presentation (*.pptx)"), potxFilter = tr("Template (*.potx)"), ppsxFilter = tr("Show (*.ppsx)");
-    const deck::PresentationKind was = deck::kindOfFileName(from);
-    QString selected = was == deck::PresentationKind::Show ? ppsxFilter : was == deck::PresentationKind::Template && from == m_templatePath ? potxFilter : pptxFilter;
-    const QString ending = selected == ppsxFilter ? QStringLiteral(".ppsx") : selected == potxFilter ? QStringLiteral(".potx") : QStringLiteral(".pptx");
-    const QString suggested = dir + QLatin1Char('/') + name + ending;
+    const QString odpFilter = tr("OpenDocument Presentation (*.odp)"), otpFilter = tr("OpenDocument Presentation Template (*.otp)");
+    const deck::PresentationKind was = deck::presentationKindOf(from);
+    const bool ownTemplate = was == deck::PresentationKind::Template && from == m_templatePath;
+    // A file of an open document kind is saved as one again; a template only when this window wrote it.
+    const bool odf = deck::formatOfFileName(from) == deck::FileFormat::Odp;
+    QString selected = was == deck::PresentationKind::Show ? ppsxFilter
+                       : ownTemplate                       ? (odf ? otpFilter : potxFilter)
+                       : odf                               ? odpFilter
+                                                           : pptxFilter;
+    auto endingOf = [&](const QString &filter) {
+        return filter == ppsxFilter ? QStringLiteral(".ppsx") : filter == potxFilter ? QStringLiteral(".potx") : filter == odpFilter ? QStringLiteral(".odp") : filter == otpFilter ? QStringLiteral(".otp") : QStringLiteral(".pptx");
+    };
+    const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
-                                 : askSavePath(this, tr("Save As"), suggested, pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter, &selected);
+                                 : askSavePath(this, tr("Save As"), suggested,
+                                               pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter + QStringLiteral(";;") + odpFilter + QStringLiteral(";;") + otpFilter, &selected);
     if (path.isEmpty()) return false;
-    if (!isKnownEnding(path)) path += selected == ppsxFilter ? QStringLiteral(".ppsx") : selected == potxFilter ? QStringLiteral(".potx") : QStringLiteral(".pptx");
+    if (!isKnownEnding(path)) path += endingOf(selected);
     return saveTo(path);
 }
 
@@ -117,18 +124,19 @@ bool DeckWindow::saveTo(const QString &path)
     if (doc->props.author.isEmpty()) doc->props.author = Settings::get().userName();
     QString err;
     QStringList skipped;
-    if (!deck::savePresentationFile(*doc, path, &err, &skipped, embedFontsOnSave())) {
+    if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave())) {
         QMessageBox::warning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
     m_ed->setFilePath(path);
     m_ed->markSaved();
     m_recoveredFrom.clear();
-    m_templatePath = deck::kindOfFileName(path) == deck::PresentationKind::Template ? path : QString();
+    m_templatePath = deck::presentationKindOf(path) == deck::PresentationKind::Template ? path : QString();
     Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.save.") + fileKind(path));
     updateTitle();
     if (skipped.isEmpty()) statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 4000);
+    else if (deck::formatOfFileName(path) == deck::FileFormat::Odp) statusBar()->showMessage(tr("Saved %1. Left out, as this kind of file can't hold it: %2").arg(QFileInfo(path).fileName(), skipped.join(QLatin1Char(' '))), 15000);
     else statusBar()->showMessage(tr("Saved %1, but %n object(s) can't be saved in this kind of file yet.", nullptr, int(skipped.size())).arg(QFileInfo(path).fileName()), 8000);
     return true;
 }
