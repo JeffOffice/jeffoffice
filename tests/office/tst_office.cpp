@@ -1109,8 +1109,13 @@ private Q_SLOTS:
         QCOMPARE(eot.right(lato.size()), lato);              // the font is the last thing in it
         // The family name, in UTF-16, follows the 82-byte header and its size.
         const int nameSize = qFromLittleEndian<quint16>(eot.constData() + 82);
-        QCOMPARE(nameSize, 8);
-        QCOMPARE(QString::fromUtf16(reinterpret_cast<const char16_t *>(eot.constData() + 84), nameSize / 2), QStringLiteral("Lato"));
+        QCOMPARE(nameSize, 10);   // as the program has it, the name's zero character counted
+        QCOMPARE(QString::fromUtf16(reinterpret_cast<const char16_t *>(eot.constData() + 84), 4), QStringLiteral("Lato"));
+        // The program refuses a header whose checksum of the (empty) root string is any other than this, and then draws its text in a stand-in.
+        const int start = eot.size() - lato.size();
+        QCOMPARE(leAt(eot, start - 20), 0x50475342u);
+        QCOMPARE(int(leAt(eot, start - 16)), 1252);
+        QCOMPARE(int(leAt(eot, start - 4)), 0);   // no private-character font
 
         const QByteArray italic = makeEot(bundledFontBytes(QStringLiteral("Lato"), true, true));
         QCOMPARE(int(uchar(italic[27])), 1);
