@@ -467,7 +467,14 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
             extra += attrOf("fo:clip", QStringLiteral("rect(%1, %2, %3, %4)").arg(cm(t * naturalH), cm(r * naturalW), cm(b * naturalH), cm(l * naturalW)));
         }
     }
-    if (p.flipH || p.flipV) extra += attrOf("style:mirror", p.flipH && p.flipV ? QStringLiteral("horizontal vertical") : p.flipH ? QStringLiteral("horizontal") : QStringLiteral("vertical"));
+    // The other suite mirrors a picture side to side and ignores a mirror from top to bottom: turned over is half a turn and a mirror side to side.
+    bool mirror = p.flipH;
+    double turn = p.rotation;
+    if (p.flipV) {
+        mirror = !mirror;
+        turn += 180;
+    }
+    if (mirror) extra += attrOf("style:mirror", QStringLiteral("horizontal"));
     extra += attrOf("draw:color-mode", p.recolor == PictureItem::Grayscale ? QStringLiteral("greyscale") : p.recolor == PictureItem::BlackWhite ? QStringLiteral("mono") : p.recolor == PictureItem::Washout ? QStringLiteral("watermark") : QStringLiteral("standard"));
     if (p.brightness != 0) extra += attrOf("draw:luminance", percent(std::clamp(p.brightness, -100.0, 100.0) / 100));
     if (p.contrast != 0) extra += attrOf("draw:contrast", percent(std::clamp(p.contrast, -100.0, 100.0) / 100));
@@ -478,7 +485,7 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
     x.attr(cls.isEmpty() ? "draw:style-name" : "presentation:style-name", style);
     writeCommon(x, p);
     x.attr("draw:layer", sc.layer);
-    writePlace(x, p.rect, p.rotation);
+    writePlace(x, p.rect, turn);
     if (!cls.isEmpty()) x.attr("presentation:class", cls).attr("presentation:user-transformed", "true");
     if (!mediaPart.isEmpty()) {
         const deck::MediaPlay play = m_page ? deck::mediaPlayOf(*m_page, p) : deck::MediaPlay();
