@@ -53,7 +53,6 @@ int changeTemplateDialog(QWidget *p);
 void colorSchemeDialog(QWidget *p, Editor *ed);
 void fontSchemeDialog(QWidget *p, Editor *ed);
 void shadowDialog(QWidget *p, Editor *ed);
-void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId);
 void calendarDialog(QWidget *p, Editor *ed);
 void styleDialog(QWidget *p, Editor *ed, const QString &styleName = QString());
 void optionsDialog(QWidget *p, Editor *ed);

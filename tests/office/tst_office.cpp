@@ -7710,7 +7710,7 @@ private Q_SLOTS:
         const QMap<QString, QPair<QString, QString>> want = {   // part's extension, type
             {"png", {"png", "image/png"}}, {"jpg", {"jpeg", "image/jpeg"}}, {"bmp", {"bmp", "image/bmp"}}, {"vector", {"png", "image/png"}},
             {"metafile", {"emf", "image/x-emf"}}, {"unnamed", {"png", "image/png"}}};
-        QCOMPARE(r.media.size(), int(want.size()));
+        QCOMPARE(r.media.size(), int(want.size()) + 1);   // and the vector picture's SVG, beside its pixels
         for (auto it = want.cbegin(); it != want.cend(); ++it) {
             const QString part = r.media.value(it.key());
             QVERIFY2(part.endsWith(QLatin1Char('.') + it.value().first), qPrintable(it.key() + ": " + part));
@@ -7722,6 +7722,12 @@ private Q_SLOTS:
         QVERIFY(drawn.loadFromData(r.env.package.part(r.media.value(QStringLiteral("vector")))));
         QCOMPARE(QColor(drawn.pixel(drawn.width() / 2, drawn.height() / 2)), QColor(Qt::red));
         QCOMPARE(drawn.width() * 20, drawn.height() * 40);
+        // And the SVG itself is linked from the blip, as the presentation program does, in a part of its own.
+        const QString svgPart = r.media.value(QStringLiteral("svg:vector"));
+        QVERIFY2(svgPart.endsWith(QLatin1String(".svg")), qPrintable(svgPart));
+        QCOMPARE(r.env.package.contentType(svgPart), QStringLiteral("image/svg+xml"));
+        QCOMPARE(r.env.package.part(svgPart), files.value(QStringLiteral("vector")).second);
+        QCOMPARE(int(elementsNamed(r.spTree, "svgBlip").size()), 1);
         QSet<QString> parts;
         for (const QString &part : std::as_const(r.media)) parts << part;
         QCOMPARE(int(parts.size()), int(r.media.size()));   // every picture its own part

@@ -4,6 +4,8 @@
 
 #include "core/items.h"
 
+#include <QByteArray>
+#include <QColor>
 #include <QPair>
 #include <QStringList>
 #include <QVector>
@@ -21,6 +23,9 @@ QStringList pickIcons(QWidget *parent);
 // An icon as an editable shape `size` points square centered at `center`,
 // its lines drawn in `color` and as heavy as the icon's own at that size.
 ItemPtr iconItem(const QString &name, const QPointF &center, double size, const ColorRef &color);
+// An icon as the bytes of an SVG picture, its lines drawn in `color` (nothing
+// when `name` is no icon).
+QByteArray iconSvg(const QString &name, const QColor &color);
 // Puts icons on the current page, an inch square each, in rows across its middle.
 void insertIcons(Editor *ed, const QStringList &names);
 
