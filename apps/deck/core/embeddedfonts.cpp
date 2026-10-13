@@ -1,5 +1,8 @@
 #include "core/embeddedfonts.h"
 
+#include "core/fontfiles.h"
+#include "core/sfnt.h"
+
 #include <QCryptographicHash>
 #include <QFontDatabase>
 #include <QGuiApplication>
@@ -42,32 +45,60 @@ QSet<QString> computerFamilies()
 
 } // namespace
 
-void EmbeddedFonts::use(const Document *doc, QVector<EmbeddedFace> faces)
+void EmbeddedFonts::use(Document *doc, QVector<EmbeddedFace> faces)
 {
     release(doc);   // whatever a document that stood at this address carried
+    doc->fontAliases.clear();
     Carried carried;
     {
         QMutexLocker lock(&g_mutex);
         // Looked at once, before any face is added: the faces of one family are all added or none.
         const QSet<QString> have = computerFamilies();
-        for (EmbeddedFace &face : faces) {
-            if (!face.font.isEmpty() && qGuiApp) {
-                const QByteArray hash = QCryptographicHash::hash(face.font, QCryptographicHash::Sha1);
+        // The families the faces are of, in the order they come (a family is the typeface the file names).
+        QStringList order;
+        QHash<QString, QVector<int>> byFamily;
+        for (int i = 0; i < faces.size(); ++i) {
+            const QString key = faces[i].typeface.toLower();
+            if (!byFamily.contains(key)) order << key;
+            byFamily[key] << i;
+        }
+        for (const QString &key : std::as_const(order)) {
+            const QVector<int> &members = byFamily[key];
+            bool computerHasIt = have.contains(key);
+            for (int i : members) computerHasIt = computerHasIt || have.contains(faces[i].info.family.toLower()) || have.contains(faces[i].info.typographicFamily.toLower());
+            // The private name: one for the family (so its faces are styles of one), made from the fonts themselves (so the same fonts in two
+            // presentations are one font to the database).
+            QByteArray all;
+            for (int slot = 0; slot < 4; ++slot)
+                for (int i : members)
+                    if (int(faces[i].slot) == slot) all += faces[i].font;
+            if (computerHasIt || !qGuiApp || all.isEmpty()) continue;
+            const QString original = faces[members.first()].info.family.isEmpty() ? faces[members.first()].typeface : faces[members.first()].info.family;
+            const QString privateFamily = QString(kEmbeddedFamilyPrefix) + QString::fromLatin1(QCryptographicHash::hash(all, QCryptographicHash::Sha1).toHex().left(8)) + QLatin1Char('-') + original;
+            bool any = false;
+            for (int i : members) {
+                const QByteArray renamed = faces[i].font.isEmpty() ? QByteArray() : fontWithFamilyName(faces[i].font, privateFamily);
+                if (renamed.isEmpty()) continue;
+                const QByteArray hash = QCryptographicHash::hash(renamed, QCryptographicHash::Sha1);
                 if (auto known = g_added.find(hash); known != g_added.end()) {
                     ++known->users;
                     carried.fonts << hash;
-                } else if (!have.contains(face.info.family.toLower()) && !have.contains(face.info.typographicFamily.toLower())) {
-                    const int id = QFontDatabase::addApplicationFontFromData(face.font);
-                    if (id >= 0) {
-                        Added added;
-                        added.id = id;
-                        added.users = 1;
-                        added.families = QFontDatabase::applicationFontFamilies(id);
-                        g_added.insert(hash, added);
-                        carried.fonts << hash;
-                    }
+                    any = true;
+                    continue;
                 }
+                const int id = QFontDatabase::addApplicationFontFromData(renamed);
+                if (id < 0) continue;
+                Added added;
+                added.id = id;
+                added.users = 1;
+                added.families = QFontDatabase::applicationFontFamilies(id);
+                g_added.insert(hash, added);
+                carried.fonts << hash;
+                any = true;
             }
+            if (any) doc->fontAliases.insert(key, privateFamily);
+        }
+        for (EmbeddedFace &face : faces) {
             face.font.clear();
             carried.faces << face;
         }

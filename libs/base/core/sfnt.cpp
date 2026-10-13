@@ -64,6 +64,119 @@ QString nameOf(const Bytes &b, const Table &name, int id)
 
 } // namespace
 
+QByteArray fontWithFamilyName(const QByteArray &font, const QString &family)
+{
+    FontFileInfo info;
+    if (family.isEmpty() || family.size() > 120 || !inspectFont(font, &info)) return QByteArray();
+    const Bytes b{reinterpret_cast<const uchar *>(font.constData()), font.size()};
+    const int count = b.u16(4);
+    struct Entry {
+        quint32 tag;
+        QByteArray data;
+    };
+    QVector<Entry> tables;
+    qint64 nameAt = -1;
+    for (int i = 0; i < count; ++i) {
+        const qint64 r = 12 + 16 * qint64(i);
+        Entry e{b.u32(r), font.mid(int(b.u32(r + 8)), int(b.u32(r + 12)))};
+        if (e.tag == 0x6E616D65) nameAt = tables.size();   // "name"
+        tables.push_back(e);
+    }
+    if (nameAt < 0) return QByteArray();
+    // The name records the font has, but for those that are replaced.
+    const QByteArray &old = tables[int(nameAt)].data;
+    struct Record {
+        quint16 platform, encoding, language, id;
+        QByteArray text;
+    };
+    QVector<Record> records;
+    QSet<int> replaced{1, 4, 6, 16, 21, 25}, had;
+    const int oldCount = qFromBigEndian<quint16>(old.constData() + 2), storage = qFromBigEndian<quint16>(old.constData() + 4);
+    const bool formatOne = qFromBigEndian<quint16>(old.constData()) == 1;
+    for (int i = 0; i < oldCount; ++i) {
+        const char *r = old.constData() + 6 + 12 * i;
+        const quint16 platform = qFromBigEndian<quint16>(r), encoding = qFromBigEndian<quint16>(r + 2), language = qFromBigEndian<quint16>(r + 4), id = qFromBigEndian<quint16>(r + 6);
+        const int length = qFromBigEndian<quint16>(r + 8), offset = storage + qFromBigEndian<quint16>(r + 10);
+        if (replaced.contains(id)) had.insert(id);
+        if (replaced.contains(id) || (formatOne && language >= 0x8000) || offset + length > old.size()) continue;
+        records.push_back({platform, encoding, language, id, old.mid(offset, length)});
+    }
+    auto utf16 = [](const QString &text) {
+        QByteArray out;
+        for (QChar c : text) {
+            out.append(char(c.unicode() >> 8));
+            out.append(char(c.unicode() & 0xff));
+        }
+        return out;
+    };
+    QString style = info.subfamily.isEmpty() ? QStringLiteral("Regular") : info.subfamily;
+    QString postScript;
+    for (QChar c : family + QLatin1Char('-') + style)
+        if (c.unicode() > 32 && c.unicode() < 127 && c != QLatin1Char('[') && c != QLatin1Char(']') && c != QLatin1Char('(') && c != QLatin1Char(')') && c != QLatin1Char('{') && c != QLatin1Char('}') && c != QLatin1Char('<') && c != QLatin1Char('>') && c != QLatin1Char('/') && c != QLatin1Char('%')) postScript += c;
+    postScript = postScript.left(63);
+    const QString full = style == QLatin1String("Regular") ? family : family + QLatin1Char(' ') + style;
+    records.push_back({3, 1, 0x409, 1, utf16(family)});
+    records.push_back({3, 1, 0x409, 4, utf16(full)});
+    records.push_back({3, 1, 0x409, 6, utf16(postScript)});
+    for (int id : {16, 21})
+        if (had.contains(id)) records.push_back({3, 1, 0x409, quint16(id), utf16(family)});
+    if (had.contains(25)) records.push_back({3, 1, 0x409, 25, utf16(postScript.section(QLatin1Char('-'), 0, 0))});
+    std::sort(records.begin(), records.end(), [](const Record &a, const Record &c) {
+        return std::make_tuple(a.platform, a.encoding, a.language, a.id) < std::make_tuple(c.platform, c.encoding, c.language, c.id);
+    });
+    QByteArray strings, name;
+    auto put16 = [](QByteArray *out, quint16 v) {
+        out->append(char(v >> 8));
+        out->append(char(v & 0xff));
+    };
+    put16(&name, 0);
+    put16(&name, quint16(records.size()));
+    put16(&name, quint16(6 + 12 * records.size()));
+    for (const Record &r : std::as_const(records)) {
+        if (strings.size() + r.text.size() > 0xFFFF) return QByteArray();
+        put16(&name, r.platform), put16(&name, r.encoding), put16(&name, r.language), put16(&name, r.id);
+        put16(&name, quint16(r.text.size())), put16(&name, quint16(strings.size()));
+        strings.append(r.text);
+    }
+    name.append(strings);
+    tables[int(nameAt)].data = name;
+
+    // The file again: the directory as it was, each table on a four-byte boundary, the checksums made right.
+    auto sum = [](const QByteArray &data) {
+        quint32 total = 0;
+        const qsizetype n = data.size();
+        for (qsizetype i = 0; i < n; i += 4) {
+            quint32 word = 0;
+            for (qsizetype k = 0; k < 4; ++k) word = word << 8 | (i + k < n ? quint8(data[i + k]) : 0);
+            total += word;
+        }
+        return total;
+    };
+    QByteArray out = font.left(12);
+    qint64 offset = 12 + 16 * qint64(count), headAt = -1;
+    for (const Entry &e : std::as_const(tables)) {
+        QByteArray data = e.data;
+        if (e.tag == 0x68656164) {   // "head": its adjustment is counted as zero in its own checksum
+            headAt = offset;
+            if (data.size() >= 12) data.replace(8, 4, QByteArray(4, '\0'));
+        }
+        for (quint32 v : {e.tag, sum(data), quint32(offset), quint32(data.size())}) {
+            out.append(char(v >> 24)).append(char(v >> 16)).append(char(v >> 8)).append(char(v));
+        }
+        offset += (data.size() + 3) & ~qsizetype(3);
+    }
+    for (const Entry &e : std::as_const(tables)) {
+        QByteArray data = e.data;
+        if (e.tag == 0x68656164 && data.size() >= 12) data.replace(8, 4, QByteArray(4, '\0'));
+        out.append(data);
+        out.append(QByteArray((4 - data.size() % 4) % 4, '\0'));
+    }
+    if (headAt < 0 || out.size() > kMaxEmbeddedFontBytes) return QByteArray();
+    const quint32 adjustment = 0xB1B0AFBAu - sum(out);
+    for (int i = 0; i < 4; ++i) out[qsizetype(headAt) + 8 + i] = char(adjustment >> (24 - 8 * i));
+    return out;
+}
+
 bool fontAllowsEmbedding(quint16 fsType)
 {
     if (fsType & 0x0200) return false;                // bitmap embedding only

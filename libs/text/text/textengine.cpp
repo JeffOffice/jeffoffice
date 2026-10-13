@@ -154,6 +154,7 @@ QString LayoutEnv::key() const
 {
     QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
+    for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (int i = 0; i < SlotCount; ++i) k += colors.c[i].name();
     return k;
 }
@@ -601,8 +602,22 @@ static double standInSpaceEm(QFont f)
     return em;
 }
 
-QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env)
+QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env)
 {
+    // A family the document carries a font of is that font's private name from here on, before the stand-ins are looked for.
+    QTextCharFormat f = original;
+    if (!env.familyAliases.isEmpty()) {
+        QStringList families;
+        if (f.hasProperty(QTextFormat::FontFamilies)) families = f.fontFamilies().toStringList();
+        else families << (f.stringProperty(tp::ThemeFont) == QLatin1String("major") ? env.fonts.heading : env.fonts.body);
+        bool changed = false;
+        for (QString &family : families)
+            if (const QString own = env.aliasOf(family); own != family) {
+                family = own;
+                changed = true;
+            }
+        if (changed) f.setFontFamilies(families);
+    }
     QTextCharFormat r = f;
     // A run that doesn't say it's bold isn't: a paragraph's text layout
     // fills what a run leaves unsaid from its own font, the first run's, so
@@ -1941,7 +1956,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     const QString uni = symbolToUnicode(bfont, custom.at(0).unicode());
                     B->marker = uni.isEmpty() ? QStringLiteral("•") : uni;
                 } else {
-                    B->markerFont.setFamily(bfont);
+                    B->markerFont.setFamily(env.aliasOf(bfont));
                     // Symbol fonts find their pictures at 0xF020-0xF0FF.
                     if (isSymbolFont(bfont) && custom.size() == 1 && custom.at(0).unicode() >= 0x20 && custom.at(0).unicode() <= 0xFF)
                         B->marker = QString(QChar(char16_t(0xF000 + custom.at(0).unicode())));

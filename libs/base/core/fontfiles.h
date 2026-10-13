@@ -2,7 +2,9 @@
 // The font files that ship with the program, found by the family and style a
 // document names, for putting a copy in a file that others open.
 
+#include <QLatin1String>
 #include <QString>
+#include <QStringList>
 
 namespace jp {
 
@@ -21,5 +23,10 @@ struct BundledFontFile {
 BundledFontFile bundledFontFile(const QString &family, bool bold, bool italic);
 // Whether the family is one of those files' (in any style).
 bool isBundledFontFamily(const QString &family);
+
+// A font that comes in a document is added to the font database under a private family name that starts with this, so that only that document
+// draws with it. The font lists of menus and dialogs leave those out: visibleFontFamilies() is QFontDatabase::families() without them.
+inline constexpr QLatin1String kEmbeddedFamilyPrefix("JO-embedded-");
+QStringList visibleFontFamilies();
 
 } // namespace jp
