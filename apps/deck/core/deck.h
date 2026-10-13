@@ -19,6 +19,10 @@
 
 namespace jp::deck {
 
+// The gray of a new presentation's footers (date, footer text, slide number): its dark 1 this many percent toward white; the gray of the text of a
+// Section Header is `kSectionTint`. Files made before footers were darkened to read (4.5 to 1 on white) have them at 45 percent.
+constexpr int kFooterTint = 30, kSectionTint = 40, kOldFooterTint = 45;
+
 // 16:9 slides, 13.333 by 7.5 inches.
 constexpr double kSlideWidth = 960, kSlideHeight = 540;
 // 4:3 slides, 10 by 7.5 inches.

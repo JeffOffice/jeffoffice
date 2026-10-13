@@ -105,9 +105,9 @@ ColorSwap colorSwap(const DeckTheme &from, const DeckTheme &toTheme, bool flip)
     // Dark 1, light 1, dark 2, light 2 trade places when the background turns dark or light.
     const int target[12] = {flip ? 1 : 0, flip ? 0 : 1, flip ? 3 : 2, flip ? 2 : 3, 4, 5, 6, 7, 8, 9, 10, 11};
     for (int i = 0; i < 12; ++i) add(from.colors[i], toTheme.colors[target[i]]);
-    // The grays of a new presentation's footers and section text are its dark 1 toward white (45 and 40 percent): the new dark 1 toward white
-    // again, or its light 2 on a dark background.
-    for (double toward : {0.45, 0.40}) add(mix(from.colors[0], Qt::white, toward), flip ? toTheme.colors[3] : QColor(mix(toTheme.colors[0], Qt::white, toward).rgb()));
+    // The grays of a new presentation's footers and section text are its dark 1 toward white (30 and 40 percent; 45 for footers in files made
+    // earlier): the new dark 1 toward white again, or its light 2 on a dark background.
+    for (double toward : {kFooterTint / 100.0, kSectionTint / 100.0, kOldFooterTint / 100.0}) add(mix(from.colors[0], Qt::white, toward), flip ? toTheme.colors[3] : QColor(mix(toTheme.colors[0], Qt::white, toward).rgb()));
     return s;
 }
 
@@ -255,6 +255,53 @@ QHash<QString, Family> familiesOf(Document &d)
         if (out.contains(owner)) out[owner].slides << p.get();
     }
     return out;
+}
+
+
+namespace {
+
+// Gives the anchors in the text of a family's pages that are set in `from` the color `to`.
+void recolorLinks(Document &d, const Family &f, const QColor &from, const QColor &to)
+{
+    if (from.rgb() == to.rgb()) return;
+    QVector<PageBase *> pages{f.master};
+    for (MasterPage *l : f.layouts) pages << l;
+    for (Page *p : f.slides) pages << p;
+    QSet<QString> done;
+    for (PageBase *page : std::as_const(pages))
+        walkItems(page->items, [&](const ItemPtr &it) {
+            QString story;
+            if (it->type() == ItemType::Text) story = static_cast<TextItem &>(*it).storyId;
+            else if (it->type() == ItemType::Shape) story = static_cast<ShapeItem &>(*it).storyId;
+            if (story.isEmpty() || done.contains(story) || !d.storyDoc(story)) return;
+            done.insert(story);
+            editRuns(d.storyDoc(story), [&](QTextCharFormat &cf) {
+                const QColor c = runColor(cf);
+                if (!cf.isAnchor() || !c.isValid() || c.rgb() != from.rgb()) return false;
+                setRunColor(cf, to);
+                return true;
+            });
+        });
+}
+
+} // namespace
+
+void fitLinkColors(Document &d, const MasterPage *only)
+{
+    const QHash<QString, Family> families = familiesOf(d);
+    for (const auto &m : d.masters) {
+        if (!isSlideMaster(*m) || (only && m.get() != only)) continue;
+        const DeckTheme t = masterTheme(d, *m);
+        const LinkColors fit = linkColorsFor(d, *m, t);
+        if (fit.link.rgb() == t.colors[10].rgb() && fit.followed.rgb() == t.colors[11].rgb()) continue;
+        DeckTheme out = t;
+        out.colors[10] = fit.link;
+        out.colors[11] = fit.followed;
+        const Family family = families.value(m->id);
+        recolorLinks(d, family, t.colors[10], fit.link);
+        recolorLinks(d, family, t.colors[11], fit.followed);
+        storeMasterTheme(d, *m, out);
+    }
 }
 
 } // namespace detail
@@ -654,6 +701,7 @@ bool applyThemeToAll(Document &d, const Document &source)
     for (const auto &m : olds) dropMaster(d, m);
     storeMasterTheme(d, *made.master, target, targetXml.isEmpty() ? QByteArray() : patchThemePart(targetXml, target));
     for (int i = 0; i < d.pages.size(); ++i) readable.keep(*d.pages[i], d.masterFor(*d.pages[i]), swapFor(was[i], target, dark).plain);
+    fitLinkColors(d, made.master);
     return true;
 }
 
@@ -686,6 +734,7 @@ bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &s
     }
     storeMasterTheme(d, *made.master, target, targetXml.isEmpty() ? QByteArray() : patchThemePart(targetXml, target));
     for (int i : chosen) readable.keep(*d.pages[i], d.masterFor(*d.pages[i]), swapFor(was[i], target, dark).plain);
+    fitLinkColors(d, made.master);
     dropUnusedThemeMasters(d, made.master);
     return true;
 }
@@ -716,6 +765,7 @@ void applyColors(Document &d, const ColorSet &colors)
         storeMasterTheme(d, *m, to);
         eachPageOf(d, family, [&](PageBase &p, const MasterPage *base) { readable.keep(p, base, swap.plain); });
     }
+    fitLinkColors(d);
 }
 
 void applyFonts(Document &d, const FontSet &fonts)
@@ -755,6 +805,7 @@ void applyBackgroundStyle(Document &d, int style)
         storeMasterTheme(d, *m, to);
         eachPageOf(d, family, [&](PageBase &p, const MasterPage *base) { readable.keep(p, base, swap.plain); });
     }
+    fitLinkColors(d);
 }
 
 void keepTextReadable(Document &d)

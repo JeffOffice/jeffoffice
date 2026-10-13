@@ -75,7 +75,7 @@ The arrow at the right of the group opens a menu:
 
 - **Colors** shows the twelve colors your theme has now. Below them is a list of color schemes. Click one, and every color of the old scheme turns into the matching color of the new one, wherever it was used. Colors you picked yourself stay.
 - **Fonts** lists pairs of fonts: one for headings and one for the body text. Click a pair, and text that used the old fonts takes the new ones.
-- **Background Styles** shows twelve swatches. Across are the theme's four colors: Light 1, Light 2, Dark 2, and Dark 1. Down are three kinds: flat, a soft gradient, and a stronger gradient. A gradient fades from one color to another. Click a swatch to use it for every slide. Backgrounds that slides and layouts had of their own give way. On a dark background text turns light, and on a light one it turns dark. Hyperlinks change too, so they stay easy to read.
+- **Background Styles** shows twelve swatches. Across are the theme's four colors: Light 1, Light 2, Dark 2, and Dark 1. Down are three kinds: flat, a soft gradient, and a stronger gradient. A gradient fades from one color to another. Click a swatch to use it for every slide. Backgrounds that slides and layouts had of their own give way. On a dark background text turns light, and on a light one it turns dark. Hyperlinks change too, so they stay easy to read: JeffDeck picks link colors that read on the background and, where it can, on the bands and panels some layouts draw behind their text.
 
 Each choice is one step that Ctrl+Z takes back.
 

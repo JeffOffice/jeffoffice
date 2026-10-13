@@ -128,7 +128,7 @@ ItemPtr placeholder(Document &d, const Place &pl, const DeckTheme &theme)
 
 Look titleLook() { Look l; l.size = 44; l.heading = true; return l; }
 Look bodyLook(double size = 28) { Look l; l.size = size; return l; }
-Look smallLook(Qt::Alignment a) { Look l; l.size = 12; l.color = 0; l.tint = 45; l.align = a; return l; }
+Look smallLook(Qt::Alignment a) { Look l; l.size = 12; l.color = 0; l.tint = kFooterTint; l.align = a; return l; }
 
 const QString kTitleSample = QStringLiteral("Click to edit Master title style");
 const QString kBodySample = QStringLiteral("Click to edit Master text styles\nSecond level\nThird level\nFourth level\nFifth level");
@@ -161,7 +161,7 @@ QVector<LayoutDef> layoutDefs()
     Look note = bodyLook(16);
     Look sectionText = bodyLook(24);
     sectionText.color = 0;
-    sectionText.tint = 40;
+    sectionText.tint = kSectionTint;
     const QString t = QStringLiteral("title"), b = QStringLiteral("body"), o = QStringLiteral("obj");
     return {
         {QStringLiteral("title"), QStringLiteral("Title Slide"),

@@ -56,8 +56,8 @@ const ThemeSpec kThemes[] = {
      {"JeffOffice", {"#1F2937", "#FFFFFF", "#24364F", "#E8ECF2", "#1D55C4", "#B6420F", "#13773A", "#9E1F63", "#0A6C8C", "#5E2CA5", "#1D55C4", "#5E2CA5"}},
      {"Spice Market", {"#1E1B16", "#FFFFFF", "#3B2F2F", "#F3EDE4", "#C2410C", "#0F766E", "#4D7C0F", "#A21CAF", "#1D4ED8", "#B45309", "#0F5CC0", "#7E22CE"}}, 0, 6},
     {"Harbor", "Libre Baskerville", "Open Sans",
-     {"Harbor", {"#1B2A3A", "#FFFFFF", "#12304F", "#EEF3F7", "#0E7C86", "#D9822B", "#2F6DB5", "#7A8B99", "#C0504D", "#5B8C5A", "#1A5FA8", "#6B4E9B"}},
-     {"Harbor Sand", {"#2B2620", "#FFFFFF", "#3A2F25", "#F5EFE6", "#B5651D", "#4F7A5A", "#8C3B2E", "#C9A227", "#5E6B73", "#3F6C8F", "#1F5C99", "#6B4E7A"}}, 0, 7},
+     {"Harbor", {"#1B2A3A", "#FFFFFF", "#102B47", "#EEF3F7", "#0E7C86", "#D9822B", "#2F6DB5", "#7A8B99", "#C0504D", "#5B8C5A", "#1A5FA8", "#6B4E9B"}},
+     {"Harbor Sand", {"#2B2620", "#FFFFFF", "#30261D", "#F5EFE6", "#B5651D", "#4F7A5A", "#8C3B2E", "#C9A227", "#5E6B73", "#3F6C8F", "#1F5C99", "#6B4E7A"}}, 0, 7},
     {"Ember", "Oswald", "Lato",
      {"Ember", {"#1A1614", "#FFFFFF", "#2A2320", "#F4EEE8", "#F59E0B", "#EF4444", "#FB923C", "#FACC15", "#2DD4BF", "#A78BFA", "#FBBF24", "#C4B5FD"}},
      {"Ember Ice", {"#14181F", "#FFFFFF", "#1F2A3A", "#E9EEF5", "#38BDF8", "#F472B6", "#34D399", "#FDE047", "#FB923C", "#A78BFA", "#7DD3FC", "#D8B4FE"}}, 10, 0},
@@ -473,7 +473,7 @@ bool spotFor(const Design &g, const QString &kind, const QString &role, Spot *sp
     head.valign = VAlign::Bottom;
     Text captionTitle = txt(30, g.captionTitle, L, VAlign::Bottom, true, g.titleText.bold);
     captionTitle.caps = g.titleText.caps;
-    Text captionText = txt(16, g.captionText, L, VAlign::Top, false);
+    Text captionText = txt(18, g.captionText, L, VAlign::Top, false);   // large text: a link in it reads at 3 to 1
     Text captionContent = g.bodyText;
     captionContent.size = std::max(20.0, g.bodyText.size);
     auto set = [&](const QRectF &r, const Text &t, bool bullets = false) {
@@ -758,6 +758,7 @@ std::unique_ptr<Document> themePresentation(int theme, int variant)
     detail::syncSchemeColors(*d);
     const QVector<Variant> variants = builtinThemeVariants(theme);
     if (variant > 0 && variant < variants.size()) applyVariant(*d, variants[variant]);
+    detail::fitLinkColors(*d);
     return d;
 }
 

@@ -16049,30 +16049,105 @@ private Q_SLOTS:
         return ref.isEmpty() ? cf.foreground().color() : ColorRef::fromString(ref).resolve(d.colors);
     }
 
-    // Every placeholder of the slide master and the layouts, and the hyperlink colors, readable (WCAG AA, 4.5 to 1) over all they can sit on.
+    // Every run and every bullet of every placeholder of the slide master and the layouts, and the hyperlink colors in each of them, readable
+    // over what can be behind them (WCAG AA): text at 4.5 to 1, large text (18 points, or 14 and bold) and bullets at 3 to 1, links at 4.5.
+    // What is behind is looked at in nine places in each placeholder, on the background and the shapes the master and layout draw.
     static QStringList unreadableText(const Document &d, const QString &what)
     {
         QStringList problems;
+        const deck::DeckTheme theme = deck::themeOf(d);
         for (const auto &m : d.masters) {
             if (!deck::isLayout(*m) && !deck::isSlideMaster(*m)) continue;
             for (const auto &it : m->items) {
                 const QString type = deck::placeholderType(*it);
                 if (type.isEmpty() || type == QLatin1String("pic") || it->type() != ItemType::Text) continue;
-                const QColor fg = textColorOf(d, static_cast<const TextItem &>(*it));
+                QVector<QColor> behind;
                 const QRectF r = it->rect;
                 for (double fx : {0.1, 0.5, 0.9})
                     for (double fy : {0.1, 0.5, 0.9})
-                        for (const QColor &bg : colorsUnder(d, *m, QPointF(r.left() + r.width() * fx, r.top() + r.height() * fy))) {
-                            const double c = deck::contrastRatio(fg, bg);
-                            if (c < 4.5) problems << QStringLiteral("%1, %2, %3: %4 on %5 is %6").arg(what, m->name, it->role, fg.name(), bg.name()).arg(c, 0, 'f', 1);
-                        }
+                        for (const QColor &c : colorsUnder(d, *m, QPointF(r.left() + r.width() * fx, r.top() + r.height() * fy)))
+                            if (!behind.contains(c)) behind << c;
+                auto check = [&](const QString &kind, const QColor &fg, double need) {
+                    for (const QColor &bg : std::as_const(behind)) {
+                        const double c = deck::contrastRatio(fg, bg);
+                        if (c < need) problems << QStringLiteral("%1, %2, %3: %4 %5 on %6 is %7 (needs %8)").arg(what, m->name, it->role, kind, fg.name(), bg.name()).arg(c, 0, 'f', 2).arg(need);
+                    }
+                };
+                const QTextDocument *sd = d.storyDoc(static_cast<const TextItem &>(*it).storyId);
+                QSet<const QTextList *> seen;
+                for (QTextBlock b = sd ? sd->begin() : QTextBlock(); b.isValid(); b = b.next()) {
+                    QVector<QTextCharFormat> formats;
+                    formats << b.charFormat();   // the mark at the end of the paragraph: what is typed next
+                    for (auto f = b.begin(); !f.atEnd(); ++f) formats << f.fragment().charFormat();
+                    for (const QTextCharFormat &cf : std::as_const(formats)) {
+                        const QColor fg = colorOfRun(d, cf);
+                        if (!fg.isValid()) continue;
+                        const double size = cf.fontPointSize();
+                        const bool large = size >= 18 || (size >= 14 && cf.fontWeight() >= QFont::Bold);
+                        check(QStringLiteral("text"), fg, large ? 3.0 : 4.5);
+                    }
+                    if (const QTextList *list = b.textList(); list && !seen.contains(list)) {
+                        seen.insert(list);
+                        const ColorRef bullet = ColorRef::fromString(list->format().stringProperty(tp::BulletColor));
+                        if (bullet.kind() != ColorRef::None) check(QStringLiteral("bullet"), bullet.resolve(d.colors), 3.0);
+                    }
+                }
             }
         }
-        const deck::DeckTheme theme = deck::themeOf(d);
-        const MasterPage *master = deck::layoutOfType(d, QStringLiteral("obj"));
-        for (const QColor &bg : colorsUnder(d, *master, QPointF(480, 300)))
-            for (int slot : {10, 11})
-                if (deck::contrastRatio(theme.colors[slot], bg) < 4.5) problems << QStringLiteral("%1: hyperlink color %2 on %3").arg(what, theme.colors[slot].name(), bg.name());
+        // Hyperlinks: in a text box on the page they read at 4.5 to 1 on the background; typed into a placeholder they read over what is behind it
+        // (4.5 in small text, 3 in large; not in the footers), whenever one color can read on all of that and the page; where none can (a band
+        // that is dark on a light page, a gradient's middle), the page is what they read on.
+        struct Need {
+            QColor behind;
+            double need;
+        };
+        QVector<Need> page, placed;
+        for (const auto &m : d.masters) {
+            if (!deck::isLayout(*m) && !deck::isSlideMaster(*m)) continue;
+            Fill background;
+            for (const MasterPage *c : d.masterChain(m.get())) background = c->background.type == Fill::NoFill ? background : c->background;
+            for (const QColor &c : fillColors(background, d.colors).isEmpty() ? QVector<QColor>{QColor(Qt::white)} : fillColors(background, d.colors)) page.push_back({c, 4.5});
+            for (const auto &it : m->items) {
+                const QString type = deck::placeholderType(*it);
+                if (type.isEmpty() || it->type() != ItemType::Text || type == QLatin1String("pic") || type == QLatin1String("dt") || type == QLatin1String("ftr") || type == QLatin1String("sldNum")) continue;
+                const QTextDocument *sd = d.storyDoc(static_cast<const TextItem &>(*it).storyId);
+                QTextCharFormat cf = sd ? sd->begin().charFormat() : QTextCharFormat();
+                for (QTextBlock b = sd ? sd->begin() : QTextBlock(); b.isValid(); b = b.next())
+                    if (!b.begin().atEnd()) {
+                        cf = b.begin().fragment().charFormat();
+                        break;
+                    }
+                const bool large = cf.fontPointSize() >= 18 || (cf.fontPointSize() >= 14 && cf.fontWeight() >= QFont::Bold);
+                for (double fx : {0.1, 0.5, 0.9})
+                    for (double fy : {0.1, 0.5, 0.9})
+                        for (const QColor &c : colorsUnder(d, *m, QPointF(it->rect.left() + it->rect.width() * fx, it->rect.top() + it->rect.height() * fy))) placed.push_back({c, large ? 3.0 : 4.5});
+            }
+        }
+        auto luminance = [](const QColor &c) {
+            auto channel = [](double v) { return v <= 0.03928 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4); };
+            return 0.2126 * channel(c.redF()) + 0.7152 * channel(c.greenF()) + 0.0722 * channel(c.blueF());
+        };
+        auto anyColorReads = [&](const QVector<Need> &needs) {
+            for (int step = 0; step <= 800; ++step) {
+                const double l = step / 800.0;
+                bool all = true;
+                for (const Need &n : needs) {
+                    const double b = luminance(n.behind);
+                    all = all && ((l + 0.05) / (b + 0.05) >= n.need || (b + 0.05) / (l + 0.05) >= n.need);
+                }
+                if (all) return true;
+            }
+            return false;
+        };
+        QVector<Need> every = page;
+        every += placed;
+        const bool pageReads = anyColorReads(page), everythingReads = anyColorReads(every);
+        for (int slot : {10, 11}) {
+            const QColor link = theme.colors[slot];
+            for (const Need &n : pageReads ? (everythingReads ? every : page) : QVector<Need>())
+                if (deck::contrastRatio(link, n.behind) < n.need)
+                    problems << QStringLiteral("%1: hyperlink color %2 on %3 is %4 (needs %5)").arg(what, link.name(), n.behind.name()).arg(deck::contrastRatio(link, n.behind), 0, 'f', 2).arg(n.need);
+        }
         problems.removeDuplicates();
         return problems;
     }
@@ -16309,33 +16384,23 @@ private Q_SLOTS:
         }
     }
 
-    // The text of every placeholder reads against what is under it (WCAG AA, 4.5 to 1), in every theme and variant and on each of the
-    // twelve background styles: the text turns light on a dark background and dark on a light one, and so do hyperlinks.
+    // The text of every placeholder reads against what is under it (WCAG AA: every run and bullet, links against every placeholder), in every
+    // theme (the first one's footers and section text included) and variant, and on each of the twelve background styles in every variant's
+    // colors: the text turns light on a dark background and dark on a light one, and so do hyperlinks.
     void themesAreReadable()
     {
-        for (int i = 1; i < deck::builtinThemeCount(); ++i) {
+        QStringList bad;
+        for (int i = 0; i < deck::builtinThemeCount(); ++i)
             for (int v = 0; v < 4; ++v) {
-                auto d = deck::themePresentation(i, v);
-                const QStringList bad = unreadableText(*d, QStringLiteral("%1, variant %2").arg(deck::builtinThemeName(i)).arg(v + 1));
-                QVERIFY2(bad.isEmpty(), qPrintable(bad.mid(0, 6).join('\n')));
+                bad << unreadableText(*deck::themePresentation(i, v), QStringLiteral("%1, variant %2").arg(deck::builtinThemeName(i)).arg(v + 1));
+                for (int style = 0; style < deck::kBackgroundStyles; ++style) {
+                    auto d = deck::themePresentation(i, v);
+                    deck::applyBackgroundStyle(*d, style);
+                    bad << unreadableText(*d, QStringLiteral("%1, variant %2 on background style %3").arg(deck::builtinThemeName(i)).arg(v + 1).arg(style + 1));
+                }
             }
-            for (int style = 0; style < deck::kBackgroundStyles; ++style) {
-                auto d = deck::themePresentation(i);
-                deck::applyBackgroundStyle(*d, style);
-                const QStringList bad = unreadableText(*d, QStringLiteral("%1, background style %2").arg(deck::builtinThemeName(i)).arg(style + 1));
-                QVERIFY2(bad.isEmpty(), qPrintable(bad.mid(0, 6).join('\n')));
-            }
-        }
-        // The same of the first theme's own backgrounds (its footers and the text of its Section Header are the grays they always were: not
-        // looked at).
-        for (int style = 0; style < deck::kBackgroundStyles; ++style) {
-            auto d = deck::themePresentation(0);
-            deck::applyBackgroundStyle(*d, style);
-            for (const QString &problem : unreadableText(*d, QStringLiteral("style %1").arg(style + 1)))
-                QVERIFY2(problem.contains(QStringLiteral("ph:dt")) || problem.contains(QStringLiteral("ph:ftr")) || problem.contains(QStringLiteral("ph:sldNum"))
-                             || (problem.contains(QStringLiteral("Section Header")) && problem.contains(QStringLiteral("ph:body"))),
-                         qPrintable(problem));
-        }
+        bad.removeDuplicates();
+        QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 problems:\n").arg(bad.size()) + bad.mid(0, 12).join('\n')));
     }
 
     // Nine themes that look like nine: the title slides differ from each other, and a theme's variants differ from it.
@@ -16629,14 +16694,8 @@ private Q_SLOTS:
             QVERIFY(red.hslHue() <= 5 || red.hslHue() >= 355);
             for (const QColor &bg : colorsUnder(*d, *d->masterFor(*d->pages[1]), placeholderOn(*d->pages[1], QStringLiteral("obj"))->rect.center())) QVERIFY(deck::contrastRatio(red, bg) >= 4.5);
         }
-        QStringList bad = unreadableText(*d, QStringLiteral("dark"));
-        bad.erase(std::remove_if(bad.begin(), bad.end(),
-                                 [](const QString &s) {
-                                     return s.contains(QStringLiteral("ph:dt")) || s.contains(QStringLiteral("ph:ftr")) || s.contains(QStringLiteral("ph:sldNum"))
-                                         || (s.contains(QStringLiteral("Section Header")) && s.contains(QStringLiteral("ph:body")));
-                                 }),
-                  bad.end());
-        QVERIFY2(bad.isEmpty(), qPrintable(bad.join('\n')));
+        const QStringList bad = unreadableText(*d, QStringLiteral("dark"));
+        QVERIFY2(bad.isEmpty(), qPrintable(bad.mid(0, 8).join('\n')));
         // And back to a light one.
         deck::applyBackgroundStyle(*d, 0);
         QCOMPARE(colorOfRun(*d, firstRunOf(*d, *placeholderOn(*d->pages[1], QStringLiteral("obj")))), deck::themeOf(*d).colors[0]);
