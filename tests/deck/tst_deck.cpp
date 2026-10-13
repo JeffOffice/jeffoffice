@@ -5849,6 +5849,33 @@ private Q_SLOTS:
         QVERIFY(none.frame(0.5).isNull());
     }
 
+    // The show plays a morph between two slides and lands on the second.
+    void showMorphPlays()
+    {
+        auto d = showDeck(3);
+        deck::Transition t = showTransition("morph", 0.4);
+        deck::setTransition(*d->pages[1], t);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        show.show();
+        show.next();
+        QVERIFY(show.isAnimating());
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.targetSlide(), 1);
+        const QImage during = show.grab().toImage();   // a frame is painted
+        QVERIFY(!during.isNull());
+        QTRY_VERIFY(!show.isAnimating());
+        QCOMPARE(show.currentSlide(), 1);
+        // The transition's own settings play it to the end at once too.
+        t.by = QStringLiteral("words");
+        deck::setTransition(*d->pages[2], t);
+        show.next();
+        QVERIFY(show.isAnimating());
+        show.finishTransition();
+        QCOMPARE(show.currentSlide(), 2);
+    }
+
     // Painting only the changed part of a frame over the last one gives the
     // next frame, for every type and direction.
     void transitionChangeRegionIsComplete()
