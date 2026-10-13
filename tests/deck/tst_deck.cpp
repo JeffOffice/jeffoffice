@@ -4717,6 +4717,42 @@ private Q_SLOTS:
         QCOMPARE(kerned("12"), QStringLiteral("true"));
     }
 
+    // A shadow on words is kept in an .odp (its offset); the effects that kind of file has no form for on words (a glow, a reflection, an inner
+    // shadow) are listed after the save.
+    void odpKeepsAShadowOnWordsAndListsTheRest()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 100);
+        t->storyId = d->createStory();
+        QTextCursor c(d->storyDoc(t->storyId));
+        QTextCharFormat shaded, glowing;
+        shaded.setFontPointSize(20);
+        shaded.setProperty(tp::TextFx, shadowOf(QColor(0, 0, 0), 3, 4, 90).toJson());
+        TextEffects rest;
+        rest.glow.on = true;
+        rest.glow.radius = 6;
+        rest.reflection.on = true;
+        rest.inner.on = true;
+        glowing.setFontPointSize(20);
+        glowing.setProperty(tp::TextFx, rest.toJson());
+        c.insertText(QStringLiteral("Shaded"), shaded);
+        c.insertText(QStringLiteral("Other"), glowing);
+        d->pages[1]->items.push_back(t);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        // 4 points down: no distance across, 4 along.
+        QVERIFY2(content.contains(QStringLiteral("fo:text-shadow=\"0.00pt 4.00pt\"")), qPrintable(content.left(3000)));
+        const QString notes = skipped.join(QLatin1Char('\n'));
+        QVERIFY2(notes.contains(QStringLiteral("Reflections")) && notes.contains(QStringLiteral("Inner shadows")) && notes.contains(QStringLiteral("Glows")), qPrintable(notes));
+    }
+
 private:
     // The first table of the first slide of an open document presentation, in `d`.
     static const TableItem *odpFirstTable(const Document &d)
@@ -5769,6 +5805,75 @@ private Q_SLOTS:
         QCOMPARE(fx.outer.blur, 0.0);   // the first of them
         QVERIFY(fx.xml.isEmpty());      // too long to keep as it was
         QVERIFY(list.size() < 2000);
+    }
+
+    // The Shadow button gives words the shadow the presentation program gives them (a soft one, 3 points down and to the right) and takes
+    // it off again; it takes off the shadow a file gave them too. A slide's words with it on are drawn with that shadow.
+    void shadowButtonPutsOnAndTakesOffTheProgramsShadow()
+    {
+        DeckWindow w;
+        editTitle(w, QStringLiteral("Hello"), 0, 5);
+        QAction *button = w.act(QStringLiteral("fmt.shadow"));
+        QVERIFY(button);
+        QTRY_VERIFY(button->isEnabled());
+        QVERIFY(!button->isChecked());
+        button->trigger();
+        QVERIFY(w.editor()->currentCharFormat().boolProperty(tp::Shadow));
+        QTRY_VERIFY(button->isChecked());
+        button->trigger();
+        QVERIFY(!w.editor()->currentCharFormat().boolProperty(tp::Shadow));
+        // A shadow from a file's effect list: the button shows it, and a click takes it off (the glow it came with stays).
+        TextEffects fx = shadowOf(QColor(0, 0, 0), 3, 3, 45);
+        fx.glow.on = true;
+        fx.glow.color = QColor(0, 0, 255);
+        fx.glow.radius = 5;
+        w.editor()->setCharProperty(tp::TextFx, fx.toJson(), QStringLiteral("Effects"));
+        QTRY_VERIFY(button->isChecked());
+        button->trigger();
+        const TextEffects left = TextEffects::fromJson(w.editor()->currentCharFormat().stringProperty(tp::TextFx));
+        QVERIFY(!left.outer.on && left.glow.on);
+        QTRY_VERIFY(!button->isChecked());
+        // On a slide, the button's shadow is drawn as the program draws it: the same as the effect list it writes.
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("DejaVu Sans")});
+        cf.setFontWeight(QFont::Bold);
+        cf.setFontPointSize(60);
+        cf.setForeground(Qt::black);
+        cf.setProperty(tp::Shadow, true);
+        QTextDocument doc;
+        QTextCursor(&doc).insertText(QStringLiteral("I"), cf);
+        auto paint = [&](bool slideLines) {
+            FrameSpec fs;
+            fs.size = QSizeF(160, 150);
+            fs.insets = QMarginsF(60, 20, 0, 0);
+            LayoutEnv env;
+            env.slideLines = slideLines;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            QImage img(QSize(640, 600), QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.setRenderHint(QPainter::Antialiasing);
+            p.setRenderHint(QPainter::TextAntialiasing);
+            p.scale(4, 4);
+            lay.paint(&p, 0, PaintOptions());
+            p.end();
+            return img;
+        };
+        const QImage slide = paint(true), publication = paint(false);
+        EffectBar plain = paintEffectBar(nullptr);
+        const TextEffects shadow = defaultTextShadow();
+        const EffectBar listed = paintEffectBar(&shadow);
+        // The slide's matches the effect list's; the publication's keeps its own (nearer, 1.2 points).
+        int differs = 0, same = 0;
+        for (int y = 0; y < 600; ++y)
+            for (int x = 0; x < 640; ++x) {
+                if (slide.pixel(x, y) != publication.pixel(x, y)) ++differs;
+                if (y < listed.img.height() && x < listed.img.width() && qAbs(qGray(slide.pixel(x, y)) - qGray(listed.img.pixel(x, y))) <= 3) ++same;
+            }
+        QVERIFY(differs > 100);
+        QVERIFY2(same > 640 * 560, qPrintable(QString::number(same)));
+        QVERIFY(plain.left > 0);
     }
 
     // A shadow in a master's title style reaches the titles that follow it, and is saved in the master's title style again; a title the
@@ -20194,6 +20299,38 @@ private Q_SLOTS:
         const int read = greens(*d);
         QVERIFY2(read > 90 && read < 120, qPrintable(QString::number(read)));
         QVERIFY(t.elapsed() < 30000);
+    }
+
+    // The shadow flag of an old file's words is a shadow in the words' effect list, as the presentation program draws it for them (light
+    // and near); saved as a .pptx, it is written as one.
+    void importBinaryShadowedWordsHaveAShadow()
+    {
+        const QByteArray body = pptText(1, QStringLiteral("Plain Shaded"), pfRun(13, 0, 0) + cfRun(6, 0) + cfRun(7, 0x10, le(0x10, 2)));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        QString plain, shaded;
+        for (QTextBlock::iterator it = story->begin().begin(); !it.atEnd(); ++it) {
+            const QString list = it.fragment().charFormat().stringProperty(tp::TextFx);
+            if (it.fragment().text().contains(QStringLiteral("Plain"))) plain = list;
+            if (it.fragment().text().contains(QStringLiteral("Shaded"))) shaded = list;
+        }
+        QVERIFY(plain.isEmpty());
+        QVERIFY(!shaded.isEmpty());
+        const TextEffects fx = TextEffects::fromJson(shaded);
+        QVERIFY(fx.outer.on && !fx.inner.on && !fx.glow.on);
+        QCOMPARE(fx.outer.angle, 45.0);
+        QVERIFY(fx.outer.distance > 0.5 && fx.outer.distance < 3);
+        QVERIFY(fx.outer.color.alpha() > 40 && fx.outer.color.alpha() < 130);
+        QCOMPARE(fx.outer.color.rgb(), QColor(Qt::black).rgb());
+        Exported e;
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("<a:outerShdw")));
+        QVERIFY(slide.contains(QStringLiteral("dir=\"2700000\"")));
     }
 
     // A blank paragraph keeps its bullet as the file has it (text typed in it shows one), and shows none, as in the program.
