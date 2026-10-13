@@ -6,6 +6,7 @@
 #include "app/settings.h"
 #include "core/fonts.h"
 
+#include "core/fontfiles.h"
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
@@ -869,7 +870,7 @@ void FontCombo::populate()
     add(m_heading.isEmpty() ? QStringLiteral("+Headings") : m_heading + QStringLiteral(" (Headings)"), QStringLiteral("+Heading"), m_heading);
     add(m_body.isEmpty() ? QStringLiteral("+Body") : m_body + QStringLiteral(" (Body)"), QStringLiteral("+Body"), m_body);
     add(tr("All Fonts"), QString(), QString(), true);
-    QStringList fams = QFontDatabase::families();
+    QStringList fams = visibleFontFamilies();
     fams.removeDuplicates();
     for (const QString &f : fams) {
         if (QFontDatabase::isPrivateFamily(f) || f.startsWith('.')) continue;

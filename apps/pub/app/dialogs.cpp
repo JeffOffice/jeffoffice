@@ -12,6 +12,7 @@
 #include "templates/templates.h"
 #include "text/textprops.h"
 
+#include "core/fontfiles.h"
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCalendarWidget>
@@ -1111,8 +1112,8 @@ void fontSchemeDialog(QWidget *p, Editor *ed)
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Create New Font Scheme"));
     auto *form = new QFormLayout();
     auto *heading = new QComboBox(&dlg.d), *body = new QComboBox(&dlg.d);
-    heading->addItems(QFontDatabase::families());
-    body->addItems(QFontDatabase::families());
+    heading->addItems(visibleFontFamilies());
+    body->addItems(visibleFontFamilies());
     heading->setCurrentText(s.heading);
     body->setCurrentText(s.body);
     auto *name = new QLineEdit(QCoreApplication::translate("Dialogs", "Custom 1"), &dlg.d);
@@ -1232,7 +1233,7 @@ void styleDialog(QWidget *p, Editor *ed, const QString &styleName)
     charOnly->setChecked(s.charOnly);
     auto *font = new QComboBox(&dlg.d);
     font->addItem(QCoreApplication::translate("Dialogs", "(scheme font)"));
-    font->addItems(QFontDatabase::families());
+    font->addItems(visibleFontFamilies());
     if (s.chr.hasProperty(QTextFormat::FontFamilies)) font->setCurrentText(s.chr.fontFamilies().toStringList().value(0));
     auto *size = new DecimalSpin(&dlg.d);
     size->setRange(1, 999);
