@@ -61,6 +61,7 @@
 #include "app/toc.h"
 #include "app/notes.h"
 #include "app/iconpicker.h"
+#include "app/textartgallery.h"
 #include "app/widgets.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
@@ -76,6 +77,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QDialogButtonBox>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QComboBox>
 #include <QCheckBox>
@@ -5251,6 +5253,139 @@ private Q_SLOTS:
         zip[dir + 29] = char(0xFF);
         QMap<QString, QByteArray> bad;
         QVERIFY(!jp::readZip(zip, bad));
+    }
+
+    // Insert > Text > Text Art lists every style, each drawn as "Aa". Chosen, a style makes a Text Art in that style, in the middle of the
+    // page a third of the way down, and asks for its words with the old ones selected.
+    void textArtFromTheRibbonIsPlacedAndAsksForItsWords()
+    {
+        jp::MainWindow w;
+        jp::GalleryButton *gallery = nullptr;
+        for (auto *g : w.findChildren<jp::GalleryButton *>())
+            if (g->text() == QStringLiteral("Text Art")) gallery = g;
+        QVERIFY(gallery);
+        const auto &styles = jp::textArtStyles();
+        const QVector<jp::GalleryItem> items = gallery->items();
+        QCOMPARE(items.size(), styles.size());
+        QCOMPARE(items[3].id, styles[3].id);
+        QCOMPARE(items[3].tip, styles[3].name);
+        QVERIFY(!items[3].icon.pixmap(QSize(64, 40)).toImage().isNull());
+        QString asked, selected;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            asked = d->windowTitle();
+            if (auto *edit = d->findChild<QPlainTextEdit *>()) selected = edit->textCursor().selectedText();
+            d->reject();
+        });
+        Q_EMIT gallery->activated(styles[3].id);
+        QCOMPARE(asked, QStringLiteral("Edit Text Art Text"));
+        auto *art = dynamic_cast<jp::TextArtItem *>(w.editor()->single());
+        QVERIFY(art);
+        QCOMPARE(art->styleId, styles[3].id);
+        QCOMPARE(art->font, styles[3].font);
+        const QSizeF ps = w.editor()->doc()->pageSize();
+        QCOMPARE(art->rect, QRectF(ps.width() / 2 - 144, ps.height() / 3, 288, 72));
+        QCOMPARE(selected, art->text);
+        QVERIFY(!art->text.isEmpty());
+        w.editor()->undo();
+        QVERIFY(!w.editor()->doc()->item(art->id));
+    }
+
+    // The Text Art gallery every app with pages shares: an item for each style, drawn as "Aa" in the document's colors, and a new
+    // Text Art in the style an item names (the plain style for a name no style has).
+    void textArtGalleryItemsAndNewTextArt()
+    {
+        jp::Editor ed;
+        ed.setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const auto &styles = jp::textArtStyles();
+        const QVector<jp::GalleryItem> items = jp::textArtGalleryItems(&ed);
+        QCOMPARE(items.size(), styles.size());
+        QSet<QString> seen;
+        for (int i = 0; i < items.size(); ++i) {
+            QCOMPARE(items[i].id, styles[i].id);
+            QCOMPARE(items[i].tip, styles[i].name);
+            QVERIFY(!seen.contains(items[i].id));
+            seen.insert(items[i].id);
+            QImage shown = items[i].icon.pixmap(QSize(64, 40)).toImage().convertToFormat(QImage::Format_ARGB32);
+            bool drawn = false;
+            for (int y = 0; y < shown.height() && !drawn; ++y)
+                for (int x = 0; x < shown.width() && !drawn; ++x) drawn = qAlpha(shown.pixel(x, y)) > 0;
+            QVERIFY2(drawn, qPrintable(items[i].id));
+        }
+        for (const auto &style : styles) {
+            const std::shared_ptr<jp::TextArtItem> art = jp::newTextArt(style.id);
+            QVERIFY(art);
+            QCOMPARE(art->styleId, style.id);
+            QCOMPARE(art->font, style.font);
+            QCOMPARE(art->bold, style.bold);
+            QCOMPARE(art->transform_, style.transform);
+            QCOMPARE(int(art->fill.type), int(style.fill.type));
+        }
+        const std::shared_ptr<jp::TextArtItem> plain = jp::newTextArt(QStringLiteral("no such style"));
+        QVERIFY(plain);
+        QVERIFY(plain->styleId.isEmpty());
+        QCOMPARE(plain->transform_, QStringLiteral("plain"));
+        QVERIFY(!plain->text.isEmpty());
+    }
+
+    // Online Pictures tells a library which program asks, as Wikimedia asks programs to: the running app's name and version, and
+    // where it lives (JeffPub's is as it always was).
+    void onlinePicturesNameTheProgramThatAsks()
+    {
+        struct Restore {
+            ~Restore() { jp::setAppInfo(jp::pubAppInfo()); }
+        } restore;
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost));
+        QByteArray request;
+        connect(&server, &QTcpServer::newConnection, &server, [&] {
+            QTcpSocket *s = server.nextPendingConnection();
+            connect(s, &QTcpSocket::disconnected, s, &QObject::deleteLater);
+            connect(s, &QTcpSocket::readyRead, s, [&request, s] {
+                request += s->readAll();
+                if (request.contains("\r\n\r\n")) s->write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+            });
+        });
+        QNetworkAccessManager nam;
+        auto agent = [&] {
+            request.clear();
+            bool answered = false;
+            QObject context;
+            jp::online::download(&nam, QUrl(QStringLiteral("http://127.0.0.1:%1/p").arg(server.serverPort())), &context, [&](const QByteArray &, const QString &) { answered = true; }, 1000, 5000);
+            [&] { QTRY_VERIFY_WITH_TIMEOUT(answered, 10000); }();
+            for (const QByteArray &line : request.split('\n'))
+                if (line.toLower().startsWith("user-agent:")) return QString::fromLatin1(line.mid(11)).trimmed();
+            return QString();
+        };
+        QCOMPARE(agent(), QStringLiteral("JeffPub/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+        jp::setAppInfo({QStringLiteral("JeffDeck"), QStringLiteral("jeffdeck"), QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice/jeffoffice")});
+        QCOMPARE(agent(), QStringLiteral("JeffDeck/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+    }
+
+    // An icon as an SVG picture (what JeffDeck inserts): the bundled icon's own file, drawn in the color asked for instead of the
+    // color of the text around it, and safe to keep in a presentation. A name that is no icon gives nothing.
+    void iconSvgIsTheIconInOneColor()
+    {
+        const QByteArray svg = jp::iconSvg(QStringLiteral("heart"), QColor(0x22, 0x66, 0xCC));
+        QVERIFY(!svg.isEmpty());
+        QVERIFY(!svg.contains("currentColor"));
+        QVERIFY(svg.contains("#2266cc"));
+        QVERIFY(jp::svgIsSafe(svg));
+        QSvgRenderer renderer(svg);
+        QVERIFY(renderer.isValid());
+        QCOMPARE(renderer.defaultSize(), QSize(24, 24));
+        QImage shown(48, 48, QImage::Format_ARGB32);
+        shown.fill(Qt::transparent);
+        QPainter painter(&shown);
+        renderer.render(&painter);
+        painter.end();
+        QSet<QRgb> colors;
+        for (int y = 0; y < shown.height(); ++y)
+            for (int x = 0; x < shown.width(); ++x)
+                if (qAlpha(shown.pixel(x, y)) == 255) colors.insert(shown.pixel(x, y));
+        QVERIFY(colors.contains(qRgb(0x22, 0x66, 0xCC)));
+        QVERIFY(jp::iconSvg(QStringLiteral("no-such-icon"), Qt::black).isEmpty());
     }
 
     // A picture kept in a .jpub file is held to what any picture is: an SVG

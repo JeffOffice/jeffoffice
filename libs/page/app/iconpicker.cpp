@@ -172,6 +172,13 @@ ItemPtr iconItem(const QString &name, const QPointF &center, double size, const 
     return it;
 }
 
+QByteArray iconSvg(const QString &name, const QColor &color)
+{
+    QFile f(QStringLiteral(":/icons/%1.svg").arg(name));
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    return f.readAll().replace("currentColor", color.name(QColor::HexRgb).toLatin1());
+}
+
 void insertIcons(Editor *ed, const QStringList &names)
 {
     if (names.isEmpty()) return;
