@@ -7,8 +7,11 @@
 //   jdecktool animations <file>                               each slide's effects as the animation pane lists them (the table animate-demo writes; "(custom)" for what JeffDeck keeps as it was)
 //   jdecktool animate-edit <file> <out.pptx>                  adds a Fade on the first shape of each slide that has animations, as the animation pane does, and saves it (to see that what the file had survives an edit)
 //   jdecktool steps <file> <slide> <outdir> [width=1280]       a slide's click steps listed, and the slide as the show has it at the start (step-00-start.png), halfway through each step (step-01-mid.png), and after it (step-01-end.png)
+//   jdecktool morph <file> <from> <to> <outdir> [width=1280] [objects|words|characters]   the Morph transition from slide <from> to slide <to> at 0, 25, 50, 75, and 100% (morph-000.png ... morph-100.png), and its pairs listed
+//   jdecktool morph-demo <out.pptx>                           a presentation of slides that morph into one another, by object, by word, and by character
 
 #include "app/deckinfo.h"
+#include "app/morph.h"
 #include "app/slideshow.h"
 #include "core/animation.h"
 #include "core/appinfo.h"
@@ -18,13 +21,17 @@
 #include "io/pptxexport.h"
 #include "io/presentationfile.h"
 #include "render/renderer.h"
+#include "text/textprops.h"
 
+#include <QBuffer>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QGuiApplication>
 #include <QHash>
 #include <QJsonArray>
+#include <QPainter>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <QTextStream>
 
@@ -171,6 +178,132 @@ int animateDemo(const QString &path, const QString &tablePath)
     return 0;
 }
 
+// A text box with its text at a size and in a color.
+ItemPtr demoText(Document &doc, const QString &name, const QString &text, const QRectF &rect, double points, const QColor &color, bool bold = false)
+{
+    auto t = std::make_shared<TextItem>();
+    t->name = name;
+    t->rect = rect;
+    t->storyId = doc.createStory(text);
+    t->hyphenate = false;
+    QTextDocument *story = doc.storyDoc(t->storyId);
+    QTextCharFormat cf;
+    cf.setFontPointSize(points);
+    cf.setFontWeight(bold ? QFont::Bold : QFont::Normal);
+    cf.setForeground(color);
+    cf.setProperty(tp::ColorRefP, ColorRef::rgb(color).toString());
+    QTextCursor c(story);
+    c.select(QTextCursor::Document);
+    c.mergeCharFormat(cf);
+    QTextCursor start(story);
+    start.mergeBlockCharFormat(cf);
+    return t;
+}
+
+ItemPtr demoShape(const QString &name, const QString &preset, const QRectF &rect, const QColor &color, double turn = 0)
+{
+    auto s = std::make_shared<ShapeItem>();
+    s->name = name;
+    s->shape = preset;
+    s->rect = rect;
+    s->rotation = turn;
+    s->fill = Fill::solid(ColorRef::rgb(color));
+    s->stroke = Stroke::none();
+    return s;
+}
+
+// A presentation whose slides morph into one another: the first has a card, a dot, a square that goes, a photo, and a line of
+// text; the second moves, grows, turns, and recolors the card and the dot, crops the photo another way (renamed, so that it is
+// paired by its picture), brings a star, and moves the text by object; the third moves the words of a sentence (by word); the
+// fourth moves the letters of a sentence and of a word (by character), and makes a pair of a circle and a star that share a name starting with !!.
+int morphDemo(const QString &path)
+{
+    std::unique_ptr<Document> doc = deck::newPresentation();
+    const MasterPage &layout = *deck::layoutOfType(*doc, QStringLiteral("titleOnly"));
+    doc->pages.erase(doc->pages.begin());
+    for (int i = 0; i < 4; ++i) deck::addSlide(*doc, layout);
+    // A picture of bands of color, so that a crop and a move can be seen.
+    QImage img(240, 160, QImage::Format_RGB32);
+    {
+        QPainter p(&img);
+        for (int x = 0; x < img.width(); x += 20) p.fillRect(x, 0, 20, img.height(), QColor::fromHsv((x * 360 / img.width()) % 360, 140, 235));
+        p.setPen(QPen(Qt::white, 8));
+        p.drawEllipse(QRectF(70, 30, 100, 100));
+    }
+    QByteArray bytes;
+    {
+        QBuffer b(&bytes);
+        b.open(QIODevice::WriteOnly);
+        img.save(&b, "PNG");
+    }
+    const QString imageId = doc->addImage(bytes, QStringLiteral("png"));
+    auto photo = [&](const QString &name, const QRectF &rect, const QRectF &crop) {
+        auto p = std::make_shared<PictureItem>();
+        p->name = name;
+        p->imageId = imageId;
+        p->rect = rect;
+        p->imgRect = crop;
+        return p;
+    };
+    const QColor ink(0x20, 0x2A, 0x3A), blue(0x2E, 0x75, 0xB6), orange(0xE0, 0x7B, 0x1B), green(0x2E, 0x9E, 0x5B), plum(0x8A, 0x3F, 0xA8), gray(0xA0, 0xA8, 0xB0);
+    // The title's text, in the look the layout gave it.
+    auto title = [&](int slide, const QString &text) {
+        QTextCursor c(doc->storyDoc(static_cast<TextItem *>(doc->pages[slide]->items[0].get())->storyId));
+        c.select(QTextCursor::Document);
+        c.insertText(text);
+    };
+    auto put = [&](int slide, const ItemPtr &item) { doc->pages[slide]->items.push_back(item); };
+    auto morph = [&](int slide, const char *by, double seconds) {
+        deck::Transition t;
+        t.type = QStringLiteral("morph");
+        t.by = QString::fromLatin1(by);
+        t.duration = seconds;
+        deck::setTransition(*doc->pages[slide], t);
+    };
+
+    title(0, QStringLiteral("Morph: objects"));
+    put(0, demoShape(QStringLiteral("Card"), QStringLiteral("roundRect"), QRectF(70, 170, 230, 130), blue));
+    put(0, demoShape(QStringLiteral("Dot"), QStringLiteral("ellipse"), QRectF(360, 400, 90, 90), orange));
+    put(0, demoShape(QStringLiteral("Square that goes"), QStringLiteral("rect"), QRectF(520, 400, 100, 90), gray));
+    put(0, photo(QStringLiteral("Photo"), QRectF(660, 160, 240, 160), QRectF(0, 0, 240, 160)));
+    put(0, demoText(*doc, QStringLiteral("Note"), QStringLiteral("What both slides have moves."), QRectF(70, 330, 520, 50), 24, ink));
+    put(0, demoText(*doc, QStringLiteral("Sentence"), QStringLiteral("The lazy dog jumps over the quick brown fox."), QRectF(70, 430, 400, 90), 20, ink));
+
+    title(1, QStringLiteral("Objects move, turn, and change color"));
+    morph(1, "objects", 2);
+    put(1, demoShape(QStringLiteral("Card"), QStringLiteral("roundRect"), QRectF(560, 330, 320, 170), green, 12));
+    put(1, demoShape(QStringLiteral("Dot"), QStringLiteral("ellipse"), QRectF(90, 340, 160, 160), plum));
+    put(1, demoShape(QStringLiteral("Spark"), QStringLiteral("star5"), QRectF(430, 170, 110, 110), orange));
+    put(1, photo(QStringLiteral("Picture 7"), QRectF(70, 160, 200, 140), QRectF(-80, -50, 360, 240)));
+    put(1, demoText(*doc, QStringLiteral("Note"), QStringLiteral("The ones not on both fade."), QRectF(300, 330, 520, 50), 24, ink));
+    put(1, demoText(*doc, QStringLiteral("Sentence"), QStringLiteral("The lazy dog jumps over the quick brown fox."), QRectF(70, 430, 400, 90), 20, ink));
+
+    title(2, QStringLiteral("Words move"));
+    morph(2, "words", 2);
+    put(2, demoShape(QStringLiteral("Card"), QStringLiteral("roundRect"), QRectF(70, 380, 200, 110), blue));
+    put(2, demoShape(QStringLiteral("Dot"), QStringLiteral("ellipse"), QRectF(830, 330, 70, 70), orange));
+    put(2, demoShape(QStringLiteral("!!pin"), QStringLiteral("ellipse"), QRectF(830, 430, 60, 60), plum));
+    put(2, demoText(*doc, QStringLiteral("Sentence"), QStringLiteral("The quick brown fox jumps over the lazy dog."), QRectF(70, 160, 760, 150), 44, ink, true));
+    put(2, demoText(*doc, QStringLiteral("Letters"), QStringLiteral("STONE"), QRectF(330, 390, 330, 100), 60, green, true));
+
+    title(3, QStringLiteral("Characters move"));
+    morph(3, "characters", 2);
+    put(3, demoShape(QStringLiteral("Card"), QStringLiteral("roundRect"), QRectF(70, 380, 200, 110), blue));
+    put(3, demoShape(QStringLiteral("!!pin"), QStringLiteral("star5"), QRectF(790, 300, 110, 110), orange));
+    put(3, demoText(*doc, QStringLiteral("Sentence"), QStringLiteral("The quick brown fox jumps over the lazy dog."), QRectF(70, 160, 760, 60), 24, ink));
+    put(3, demoText(*doc, QStringLiteral("Letters"), QStringLiteral("NOTES"), QRectF(420, 260, 330, 100), 80, plum, true));
+
+    QString error;
+    QStringList skipped;
+    if (!deck::savePresentationFile(*doc, path, &error, &skipped)) {
+        QTextStream(stdout) << "cannot save: " << error << "\n";
+        return 1;
+    }
+    for (const QString &s : skipped) QTextStream(stdout) << "left out\t" << s << "\n";
+    QTextStream(stdout) << "saved\t" << path << "\t" << doc->pages.size() << " slides\n";
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -185,10 +318,11 @@ int main(int argc, char **argv)
     const QStringList args = app.arguments();
     QTextStream out(stdout);
     if (args.size() >= 4 && args[1] == "animate-demo") return animateDemo(args[2], args[3]);
+    if (args.size() >= 3 && args[1] == "morph-demo") return morphDemo(args[2]);
     if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) || (args[1] == "steps" && args.size() < 5) || (args[1] == "lines" && args.size() < 4) ||
-        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines" && args[1] != "animations" && args[1] != "animate-edit") ||
-        (args[1] == "animate-edit" && args.size() < 4)) {
-        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-edit <file> <out.pptx> | animate-demo <out.pptx> <out.tsv>\n";
+        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines" && args[1] != "animations" && args[1] != "animate-edit" && args[1] != "morph") ||
+        (args[1] == "animate-edit" && args.size() < 4) || (args[1] == "morph" && args.size() < 6)) {
+        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-edit <file> <out.pptx> | animate-demo <out.pptx> <out.tsv> | morph <file> <from> <to> <outdir> [width=1280] [objects|words|characters] | morph-demo <out.pptx>\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -370,6 +504,39 @@ int main(int argc, char **argv)
             }
             save(QStringLiteral("step-%1-mid.png").arg(k + 1, 2, 10, QLatin1Char('0')), k, step.duration() / 2);
             save(QStringLiteral("step-%1-end.png").arg(k + 1, 2, 10, QLatin1Char('0')), k + 1, -1);
+        }
+        return 0;
+    }
+
+    if (cmd == "morph") {
+        const int from = args[3].toInt() - 1, to = args[4].toInt() - 1;
+        if (from < 0 || to < 0 || from >= doc->pages.size() || to >= doc->pages.size()) {
+            out << "no such slide: " << args[3] << " or " << args[4] << " (the file has " << doc->pages.size() << ")\n";
+            return 2;
+        }
+        const double width = args.size() > 6 ? std::max(16.0, QString(args[6]).remove(QStringLiteral("width=")).toDouble()) : 1280;
+        const QSize size(qRound(width), qRound(width * doc->pageSize().height() / doc->pageSize().width()));
+        // What the slide's own transition says to move, unless asked.
+        const deck::Transition own = deck::transitionOf(*doc->pages[to]);
+        const QString unit = args.size() > 7 ? args[7] : own.isMorph() ? own.by : QStringLiteral("objects");
+        // The slides as the show has them: the first with its steps played, the second at its start.
+        auto statesOf = [&](int slide, bool played) {
+            const deck::Timeline tl = deck::playableTimeline(*doc, *doc->pages[slide]);
+            return tl.isEmpty() ? deck::States() : deck::statesAt(tl, deck::geometryOf(*doc, *doc->pages[slide]), played ? int(tl.steps.size()) : 0);
+        };
+        const deck::States fromStates = statesOf(from, true), toStates = statesOf(to, false);
+        timer.restart();
+        MorphFrames morph(doc.get(), from, to, unit, size, 1.0, Qt::black, &fromStates, &toStates);
+        out << "morph\tslide " << from + 1 << " to " << to + 1 << "\tby " << unit << "\t" << (morph.isUsable() ? "" : "too many objects: a fade\t") << timer.elapsed() << " ms to plan\n";
+        for (const QString &line : morph.describe()) out << line << "\n";
+        QDir().mkpath(args[5]);
+        for (const int percent : {0, 25, 50, 75, 100}) {
+            timer.restart();
+            const QImage img = morph.frame(percent / 100.0);
+            const qint64 ms = timer.elapsed();
+            const QString name = QStringLiteral("morph-%1.png").arg(percent, 3, 10, QLatin1Char('0'));
+            img.save(QDir(args[5]).filePath(name));
+            out << name << "\t" << ms << " ms to draw\n";
         }
         return 0;
     }
