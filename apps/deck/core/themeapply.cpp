@@ -623,10 +623,17 @@ Swap swapFor(const Standing &was, const DeckTheme &to, bool toDark)
 
 } // namespace
 
-bool applyThemeToAll(Document &d, const Document &source)
+ThemeSource themeSourceProblem(const Document &source)
 {
     const MasterPage *src = firstSlideMaster(source);
-    if (!src) return false;
+    if (!src) return ThemeSource::NoSlideMaster;
+    return layouts(source, src->id).isEmpty() ? ThemeSource::NoLayouts : ThemeSource::Fine;
+}
+
+bool applyThemeToAll(Document &d, const Document &source)
+{
+    if (themeSourceProblem(source) != ThemeSource::Fine) return false;
+    const MasterPage *src = firstSlideMaster(source);
     DeckTheme target = masterTheme(source, *src);
     const QByteArray targetXml = masterThemeXml(source, *src);
     QVector<Standing> was;
@@ -652,8 +659,8 @@ bool applyThemeToAll(Document &d, const Document &source)
 
 bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &slides)
 {
+    if (themeSourceProblem(source) != ThemeSource::Fine) return false;
     const MasterPage *src = firstSlideMaster(source);
-    if (!src) return false;
     QSet<int> chosen;
     for (int i : slides)
         if (i >= 0 && i < d.pages.size()) chosen.insert(i);

@@ -17055,6 +17055,69 @@ private Q_SLOTS:
         QCOMPARE(deck::themeOf(*ed->doc()).name, deck::defaultTheme().name);
     }
 
+    // A theme taken from a presentation whose slide master has no layouts is refused before anything changes: the presentation keeps its
+    // layouts and slides, whether the theme is for all slides or some, from a document or from a file (which says why, in a message).
+    void aThemeWithoutLayoutsIsRefused()
+    {
+        auto source = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Harbor")));
+        auto bare = std::make_unique<Document>();
+        bare->fromJson(source->toJson());
+        QVERIFY(deck::layouts(*bare).size() > 0);
+        for (auto it = bare->masters.begin(); it != bare->masters.end();)
+            it = deck::isLayout(**it) ? bare->masters.erase(it) : it + 1;
+        QCOMPARE(deck::layouts(*bare).size(), 0);
+        QVERIFY(deck::isSlideMaster(firstMasterOf(*bare)));
+        // Nothing of the presentation changes.
+        auto d = deckToRestyle();
+        const QByteArray before = QJsonDocument(d->toJson()).toJson(QJsonDocument::Compact);
+        QVERIFY(!deck::applyThemeToAll(*d, *bare));
+        QCOMPARE(QJsonDocument(d->toJson()).toJson(QJsonDocument::Compact), before);
+        QVERIFY(!deck::applyThemeToSlides(*d, *bare, {1, 2}));
+        QCOMPARE(QJsonDocument(d->toJson()).toJson(QJsonDocument::Compact), before);
+        QVERIFY(deck::layouts(*d).size() >= 9);
+        // From a file, the window says why and keeps the undo stack as it was.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*source, &err), &e, &err), qPrintable(err));
+        QString master = part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml"));
+        master.remove(QRegularExpression(QStringLiteral("<p:sldLayoutIdLst>.*?</p:sldLayoutIdLst>"), QRegularExpression::DotMatchesEverythingOption));
+        QString presentation = part(e, QStringLiteral("/ppt/presentation.xml"));
+        presentation.remove(QRegularExpression(QStringLiteral("<p:sldIdLst>.*?</p:sldIdLst>"), QRegularExpression::DotMatchesEverythingOption));
+        QMap<QString, QByteArray> changes;
+        changes[QStringLiteral("ppt/slideMasters/slideMaster1.xml")] = master.toUtf8();
+        changes[QStringLiteral("ppt/presentation.xml")] = presentation.toUtf8();
+        QFile file(dir.filePath(QStringLiteral("bare.potx")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(repack(e, changes));
+        file.close();
+        auto read = deck::importAnyPresentationFile(file.fileName(), &err);
+        QVERIFY2(read, qPrintable(err));
+        QCOMPARE(deck::layouts(*read).size(), 0);   // the file has a master and no layouts
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        const int layoutsBefore = int(deck::layouts(*ed->doc()).size());
+        const int undoBefore = ed->undoStack()->count();
+        QString said;
+        QTimer::singleShot(0, [&said] {
+            for (int tries = 0; tries < 200 && said.isEmpty(); ++tries) {
+                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    said = box->text();
+                    box->button(QMessageBox::Ok)->click();
+                    return;
+                }
+                QTest::qWait(10);
+            }
+        });
+        QVERIFY(!w.applyThemeFile(file.fileName(), true));
+        QVERIFY2(said.contains(QStringLiteral("bare.potx")) && said.contains(QStringLiteral("layout")), qPrintable(said));
+        QCOMPARE(int(deck::layouts(*ed->doc()).size()), layoutsBefore);
+        QCOMPARE(ed->undoStack()->count(), undoBefore);
+        QCOMPARE(deck::themeOf(*ed->doc()).name, deck::defaultTheme().name);
+    }
+
     // The Variants group shows the four variants of the theme with the one it has marked; a click applies one; its menu offers colors,
     // fonts, and the twelve background styles, each a step that undoes.
     void designTabVariantsAndTheirMenu()
