@@ -52,7 +52,8 @@ struct ThemeSpec {
 // Dark 1 and dark 2 read on light 1 and light 2 (and the other way round) at 7 to 1 or better; every hyperlink color
 // reads on the theme's own backgrounds, and applying another background makes it read again (keepLinksReadable).
 const ThemeSpec kThemes[] = {
-    {"JeffOffice", "Carlito", "Carlito",
+    // (Calibri, which is drawn in Carlito: the first theme is the one a new presentation starts from, and it is laid out as the file it is saved to.)
+    {"JeffOffice", "Calibri", "Calibri",
      {"JeffOffice", {"#1F2937", "#FFFFFF", "#24364F", "#E8ECF2", "#1D55C4", "#B6420F", "#13773A", "#9E1F63", "#0A6C8C", "#5E2CA5", "#1D55C4", "#5E2CA5"}},
      {"Spice Market", {"#1E1B16", "#FFFFFF", "#3B2F2F", "#F3EDE4", "#C2410C", "#0F766E", "#4D7C0F", "#A21CAF", "#1D4ED8", "#B45309", "#0F5CC0", "#7E22CE"}}, 0, 6},
     {"Harbor", "Libre Baskerville", "Open Sans",

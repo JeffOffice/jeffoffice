@@ -10,6 +10,7 @@
 #include "text/textengine.h"
 #include "text/textprops.h"
 
+#include "core/fontfiles.h"
 #include <QBuffer>
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -585,7 +586,7 @@ void symbolDialog(QWidget *p, Editor *ed)
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Symbol"), QDialogButtonBox::Close);
     auto *font = new QComboBox(&dlg.d);
     font->addItem(QCoreApplication::translate("Dialogs", "(normal text)"));
-    font->addItems(QFontDatabase::families());
+    font->addItems(visibleFontFamilies());
     auto *subset = new QComboBox(&dlg.d);
     const QVector<QPair<QString, QPair<int, int>>> ranges = {{QCoreApplication::translate("Dialogs", "Basic Latin"), {0x20, 0x7E}}, {QCoreApplication::translate("Dialogs", "Latin-1 Supplement"), {0xA0, 0xFF}}, {QCoreApplication::translate("Dialogs", "Latin Extended-A"), {0x100, 0x17F}},
                                                             {QCoreApplication::translate("Dialogs", "Greek"), {0x370, 0x3FF}}, {QCoreApplication::translate("Dialogs", "Cyrillic"), {0x400, 0x4FF}}, {QCoreApplication::translate("Dialogs", "General Punctuation"), {0x2000, 0x206F}},
@@ -1063,7 +1064,7 @@ void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId)
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Edit Text Art Text"));
     auto *row = new QHBoxLayout();
     auto *font = new QComboBox(&dlg.d);
-    font->addItems(QFontDatabase::families());
+    font->addItems(visibleFontFamilies());
     font->setCurrentText(w->font);
     auto *size = new QSpinBox(&dlg.d);
     size->setRange(4, 400);

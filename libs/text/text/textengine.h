@@ -10,6 +10,7 @@
 
 #include <QDateTime>
 #include <QFont>
+#include <QHash>
 #include <QLineF>
 #include <QPolygonF>
 #include <QSizeF>
@@ -92,6 +93,11 @@ struct LayoutEnv {
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;
+    // The fonts a document carries of its own (a presentation's embedded fonts): each family it names (lower-cased) and the private family the
+    // font was added to the font database under. A run that names one of these is drawn with that font, whatever the computer has under the
+    // name; no other document, and no menu, sees them.
+    QHash<QString, QString> familyAliases;
+    QString aliasOf(const QString &family) const { return familyAliases.isEmpty() ? family : familyAliases.value(family.toLower(), family); }
     QString key() const;
 };
 

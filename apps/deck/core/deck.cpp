@@ -410,7 +410,8 @@ DeckTheme defaultTheme()
     const char *hex[12] = {"#1F2937", "#FFFFFF", "#24364F", "#E8ECF2", "#1D55C4", "#B6420F",
                            "#13773A", "#9E1F63", "#0A6C8C", "#5E2CA5", "#1D55C4", "#5E2CA5"};
     for (int i = 0; i < 12; ++i) t.colors[i] = QColor(QLatin1String(hex[i]));
-    t.headingFont = t.bodyFont = QStringLiteral("Carlito");
+    // The standard font whose widths Carlito is drawn to: a presentation is laid out and written as the file will be read (core/fonts.h interchangeFontName).
+    t.headingFont = t.bodyFont = QStringLiteral("Calibri");
     return t;
 }
 
