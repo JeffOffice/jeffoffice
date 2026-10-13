@@ -5363,6 +5363,31 @@ private Q_SLOTS:
         QCOMPARE(agent(), QStringLiteral("JeffDeck/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
     }
 
+    // An icon as an SVG picture (what JeffDeck inserts): the bundled icon's own file, drawn in the color asked for instead of the
+    // color of the text around it, and safe to keep in a presentation. A name that is no icon gives nothing.
+    void iconSvgIsTheIconInOneColor()
+    {
+        const QByteArray svg = jp::iconSvg(QStringLiteral("heart"), QColor(0x22, 0x66, 0xCC));
+        QVERIFY(!svg.isEmpty());
+        QVERIFY(!svg.contains("currentColor"));
+        QVERIFY(svg.contains("#2266cc"));
+        QVERIFY(jp::svgIsSafe(svg));
+        QSvgRenderer renderer(svg);
+        QVERIFY(renderer.isValid());
+        QCOMPARE(renderer.defaultSize(), QSize(24, 24));
+        QImage shown(48, 48, QImage::Format_ARGB32);
+        shown.fill(Qt::transparent);
+        QPainter painter(&shown);
+        renderer.render(&painter);
+        painter.end();
+        QSet<QRgb> colors;
+        for (int y = 0; y < shown.height(); ++y)
+            for (int x = 0; x < shown.width(); ++x)
+                if (qAlpha(shown.pixel(x, y)) == 255) colors.insert(shown.pixel(x, y));
+        QVERIFY(colors.contains(qRgb(0x22, 0x66, 0xCC)));
+        QVERIFY(jp::iconSvg(QStringLiteral("no-such-icon"), Qt::black).isEmpty());
+    }
+
     // A picture kept in a .jpub file is held to what any picture is: an SVG
     // that names a file to draw from (or has a script) is left out; the
     // others stay.
