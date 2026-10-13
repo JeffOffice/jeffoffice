@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QFontDatabase>
 #include <QMap>
+#include <QRegularExpression>
 #include <QXmlStreamReader>
 #include <QtEndian>
 #include <algorithm>
@@ -51,8 +52,39 @@ QString hex(const quint8 *bytes, int n)
 
 } // namespace
 
-void FontUse::add(const QString &typeface, bool bold, bool italic)
+QString withStandardFontNames(const QString &xml)
 {
+    // The names are in the XML as UTF-8 and plain ASCII; a part that holds none of them is as it was.
+    static const QStringList open{QStringLiteral("Arimo"), QStringLiteral("Tinos"), QStringLiteral("Cousine"), QStringLiteral("Carlito"), QStringLiteral("Caladea"),
+                                  QStringLiteral("Gelasio"), QStringLiteral("Comic Relief"), QStringLiteral("Selawik"), QStringLiteral("Liberation Sans Narrow")};
+    bool any = false;
+    for (const QString &name : open)
+        if (xml.contains(name)) {
+            any = true;
+            break;
+        }
+    if (!any) return xml;
+    static const QRegularExpression typeface(QStringLiteral("typeface=([\"'])([^\"']*)\\1"));
+    QString out;
+    out.reserve(xml.size());
+    qsizetype last = 0;
+    for (QRegularExpressionMatchIterator it = typeface.globalMatch(xml); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        const QString standard = interchangeFontName(m.captured(2));
+        if (standard == m.captured(2)) continue;
+        out += QStringView(xml).mid(last, m.capturedStart(2) - last);
+        out += standard;
+        last = m.capturedEnd(2);
+    }
+    out += QStringView(xml).mid(last);
+    return out;
+}
+
+QByteArray withStandardFontNames(const QByteArray &xml) { return withStandardFontNames(QString::fromUtf8(xml)).toUtf8(); }
+
+void FontUse::add(const QString &name, bool bold, bool italic)
+{
+    const QString typeface = interchangeFontName(name);   // never the open font that stands for a standard one
     if (typeface.isEmpty()) return;
     const QString key = typeface.toLower();
     if (!m_names.contains(key)) m_names.insert(key, typeface);

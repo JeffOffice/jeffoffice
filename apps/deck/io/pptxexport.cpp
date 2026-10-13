@@ -4,6 +4,7 @@
 #include "core/comments.h"
 #include "core/deck.h"
 #include "core/embeddedfonts.h"
+#include "core/fonts.h"
 #include "core/media.h"
 #include "core/sections.h"
 #include "io/pptxdiagram.h"
@@ -804,7 +805,10 @@ void Exporter::writeKeptParts(const QJsonObject &parts, const QHash<QString, QSt
         if (!renumbered.isEmpty()) data = withRenumberedLinks(QString::fromUtf8(data), renumbered).toUtf8();
         if (rewrite) data = rewrite(key, data);
         const QString type = part.value(QStringLiteral("type")).toString();
-        if (type.endsWith(QLatin1String("xml"))) scanFonts(name, data);
+        if (type.endsWith(QLatin1String("xml"))) {
+            data = withStandardFontNames(data);
+            scanFonts(name, data);
+        }
         m_pkg.addPart(name, data, type.isEmpty() ? QStringLiteral("application/octet-stream") : type);
     }
 }
@@ -1095,7 +1099,7 @@ QByteArray Exporter::thumbnail() const
 
 void Exporter::add(const QString &part, const QString &type, const QString &xml)
 {
-    const QByteArray bytes = (kDeclaration + xml).toUtf8();
+    const QByteArray bytes = (kDeclaration + withStandardFontNames(xml)).toUtf8();
     scanFonts(part, bytes);
     m_pkg.addPart(part, bytes, type);
 }
@@ -1120,7 +1124,7 @@ void Exporter::writeMaster(int i)
         layoutIds += QStringLiteral("<p:sldLayoutId id=\"%1\" r:id=\"%2\"/>").arg(m_layouts[l].id).arg(rel);
     }
     m_pkg.addRelationship(master.part, kRelBase + QStringLiteral("theme"), master.themePart);
-    m_pkg.addPart(master.themePart, master.themeXml, QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+    m_pkg.addPart(master.themePart, withStandardFontNames(master.themeXml), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
 
     QString xml = QStringLiteral("<p:sldMaster%1 preserve=\"1\"><p:cSld%2>").arg(kNamespaces, page.name.isEmpty() ? QString() : QStringLiteral(" name=\"%1\"").arg(esc(page.name)));
     const QString fill = background(page, master.part, true, where);
@@ -1217,7 +1221,7 @@ void Exporter::writeNotesSlide(int slide, int number)
 void Exporter::writeNotesMaster()
 {
     m_pkg.addRelationship(kNotesMasterPart, kRelBase + QStringLiteral("theme"), m_notesThemePart);
-    m_pkg.addPart(m_notesThemePart, m_themeXml, QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+    m_pkg.addPart(m_notesThemePart, withStandardFontNames(m_themeXml), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
     // The places on the notes page, in the standard's proportions for the page's size.
     const qint64 nw = office::pointsToEmu(m_notesSize.width()), nh = office::pointsToEmu(m_notesSize.height());
     auto x = [&](qint64 v) { return v * nw / kNotesWidth; };
@@ -1296,7 +1300,7 @@ void Exporter::writeProperties()
     // The program's own properties: what the presentation holds, counted and listed.
     QStringList fonts, themes, titles;
     for (const MasterOut &m : m_masters) {
-        for (const QString &f : {m.theme.minorLatin, m.theme.majorLatin})
+        for (const QString &f : {interchangeFontName(m.theme.minorLatin), interchangeFontName(m.theme.majorLatin)})
             if (!f.isEmpty() && !fonts.contains(f)) fonts << f;
         themes << (m.theme.name.isEmpty() ? QStringLiteral("Theme") : m.theme.name);
     }

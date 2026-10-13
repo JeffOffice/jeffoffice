@@ -13881,7 +13881,13 @@ private Q_SLOTS:
         QVERIFY(found);
         QVERIFY(checked);
 
-        // Save puts the fonts in: the default theme's own font ships with the program.
+        // Save puts the fonts in (a font that ships with the program and has no standard equivalent).
+        {
+            auto *title = static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get());
+            QTextCharFormat f;
+            f.setFontFamilies({QStringLiteral("Fraunces")});
+            QTextCursor(w.editor()->doc()->storyDoc(title->storyId)).insertText(QStringLiteral("Set in Fraunces"), f);
+        }
         QTemporaryDir dir;
         const QString on = dir.filePath(QStringLiteral("on.pptx")), off = dir.filePath(QStringLiteral("off.pptx"));
         QVERIFY(w.saveTo(on));
@@ -13903,6 +13909,205 @@ private Q_SLOTS:
         QVERIFY2(unpack(f2.readAll(), &without, &err), qPrintable(err));
         QVERIFY(part(withFonts, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("<p:embeddedFontLst>")));
         QVERIFY(!part(without, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("<p:embeddedFontLst>")));
+    }
+
+    // The open fonts that are drawn to a standard font's character widths (Carlito for Calibri, Arimo for Arial...) are written under the
+    // standard name wherever a font is named, and never embedded: a computer that has the standard font uses it, and one that has not
+    // gets the look-alike drawn for it, laid out the same. A new presentation names Calibri, as it is drawn; one whose font is Carlito
+    // (a theme set to it, or text in it) is written as Calibri too. Neither embeds anything.
+    void aDefaultPresentationNamesCalibriAndEmbedsNothing()
+    {
+        for (bool carlito : {false, true}) {
+            auto d = deck::newPresentation();
+            QCOMPARE(deck::themeOf(*d).headingFont, QStringLiteral("Calibri"));
+            if (carlito) {
+                deck::DeckTheme theme = deck::themeOf(*d);
+                theme.headingFont = theme.bodyFont = QStringLiteral("Carlito");
+                deck::setTheme(*d, theme);
+            }
+            auto *title = static_cast<TextItem *>(d->pages[0]->items[0].get());
+            auto *subtitle = static_cast<TextItem *>(d->pages[0]->items[1].get());
+            QTextCharFormat family;
+            if (carlito) family.setFontFamilies({QStringLiteral("Carlito")});
+            QTextCursor(d->storyDoc(title->storyId)).insertText(QStringLiteral("Quarterly results"), family);
+            QTextCursor c(d->storyDoc(subtitle->storyId));
+            QTextCharFormat bold = family;
+            bold.setFontWeight(QFont::Bold);
+            c.insertText(QStringLiteral("Bold "), bold);
+            c.insertText(QStringLiteral("and plain"), family);
+            d->pages[0]->notesStoryId = d->createStory(QStringLiteral("Speaker notes"));
+            QString err;
+            const QByteArray bytes = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, true);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            Exported e;
+            QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+            // No part names the open font, and the theme, a run, and the master's text style name the standard one.
+            for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it)
+                if (it.key().endsWith(QLatin1String(".xml")) || it.key().endsWith(QLatin1String(".rels")))
+                    QVERIFY2(!QString::fromUtf8(it.value()).contains(QStringLiteral("Carlito")), qPrintable(it.key()));
+            const QString theme = part(e, QStringLiteral("/ppt/theme/theme1.xml"));
+            QVERIFY2(theme.contains(QStringLiteral("<a:majorFont><a:latin typeface=\"Calibri\"/>")) && theme.contains(QStringLiteral("<a:minorFont><a:latin typeface=\"Calibri\"/>")), qPrintable(theme.left(1500)));
+            if (carlito) QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:latin typeface=\"Calibri\"/>")));
+            // The layouts' prompts name it in their runs.
+            QVERIFY(part(e, QStringLiteral("/ppt/slideLayouts/slideLayout1.xml")).contains(QStringLiteral("<a:latin typeface=\"Calibri\"/>")));
+            QVERIFY(part(e, QStringLiteral("/docProps/app.xml")).contains(QStringLiteral("<vt:lpstr>Calibri</vt:lpstr>")));
+            // Nothing is embedded: no list, no parts, and no claim to embed.
+            const QString pres = part(e, QStringLiteral("/ppt/presentation.xml"));
+            QVERIFY2(!pres.contains(QStringLiteral("embeddedFont")) && !pres.contains(QStringLiteral("embedTrueTypeFonts")), qPrintable(pres.left(600)));
+            for (const QString &name : e.pkg.partNames()) QVERIFY2(!name.startsWith(QLatin1String("/ppt/fonts/")), qPrintable(name));
+            QVERIFY(embeddedFontsOf(e).isEmpty());
+            // Saved again after it is opened, it is the same.
+            auto back = deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            QCOMPARE(deck::themeOf(*back).headingFont, QStringLiteral("Calibri"));
+            const QByteArray again = deck::exportPresentation(*back, &err, nullptr, deck::PresentationKind::Presentation, true);
+            Exported f;
+            QVERIFY2(unpack(again, &f, &err), qPrintable(err));
+            QVERIFY(embeddedFontsOf(f).isEmpty());
+            QVERIFY(part(f, QStringLiteral("/ppt/theme/theme1.xml")).contains(QStringLiteral("<a:minorFont><a:latin typeface=\"Calibri\"/>")));
+            QVERIFY(!part(f, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("Carlito")));
+        }
+    }
+
+    // Each of the nine (and no other) is written as the standard font, in runs, a master's text, a table's cells, and the list of fonts used;
+    // a bundled font that has no standard equivalent is still named as it is, and embedded.
+    void bundledFontsWithAStandardEquivalentAreWrittenAsTheStandardFont()
+    {
+        const QVector<QPair<QString, QString>> pairs{{"Arimo", "Arial"}, {"Tinos", "Times New Roman"}, {"Cousine", "Courier New"}, {"Carlito", "Calibri"}, {"Caladea", "Cambria"},
+                                                    {"Gelasio", "Georgia"}, {"Comic Relief", "Comic Sans MS"}, {"Selawik", "Segoe UI"}, {"Liberation Sans Narrow", "Arial Narrow"}};
+        for (const auto &pair : pairs) QCOMPARE(interchangeFontName(pair.first), pair.second);   // the table this follows (core/fonts.h)
+        auto d = deck::newPresentation();
+        auto *title = static_cast<TextItem *>(d->pages[0]->items[0].get());
+        QTextCursor c(d->storyDoc(title->storyId));
+        for (const auto &pair : pairs) {
+            QTextCharFormat f;
+            f.setFontFamilies({pair.first});
+            c.insertText(pair.first + QLatin1Char(' '), f);
+        }
+        QTextCharFormat fraunces;
+        fraunces.setFontFamilies({QStringLiteral("Fraunces")});
+        c.insertText(QStringLiteral("Fraunces"), fraunces);
+        // A master's prompt, and the notes.
+        TextItem *prompt = nullptr;
+        for (const auto &it : d->masters[0]->items)
+            if (it->type() == ItemType::Text) {
+                prompt = static_cast<TextItem *>(it.get());
+                break;
+            }
+        QVERIFY(prompt);
+        {
+            QTextCursor all(d->storyDoc(prompt->storyId));
+            all.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies({QStringLiteral("Arimo")});
+            all.mergeCharFormat(f);
+        }
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, true);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        for (const auto &pair : pairs) {
+            QVERIFY2(slide.contains(QStringLiteral("<a:latin typeface=\"%1\"/>").arg(pair.second)), qPrintable(pair.second));
+            for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it)
+                if (it.key().endsWith(QLatin1String(".xml")) || it.key().endsWith(QLatin1String(".rels")))
+                    QVERIFY2(!QString::fromUtf8(it.value()).contains(QLatin1Char('"') + pair.first + QLatin1Char('"')), qPrintable(it.key() + QLatin1Char(' ') + pair.first));
+        }
+        QVERIFY(part(e, QStringLiteral("/ppt/slideLayouts/slideLayout1.xml")).contains(QStringLiteral("typeface=\"Arial\"")) ||
+                part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml")).contains(QStringLiteral("typeface=\"Arial\"")));
+        const QString app = part(e, QStringLiteral("/docProps/app.xml"));
+        QVERIFY(app.contains(QStringLiteral("<vt:lpstr>Calibri</vt:lpstr>")) && !app.contains(QStringLiteral("<vt:lpstr>Carlito</vt:lpstr>")));
+        // Only the one without a standard equivalent is embedded.
+        const auto fonts = embeddedFontsOf(e);
+        QCOMPARE(fonts.keys(), (QStringList{"Fraunces"}));
+        QVERIFY(slide.contains(QStringLiteral("<a:latin typeface=\"Fraunces\"/>")));
+    }
+
+    // A table's cells and a chart's text are written as the standard font too.
+    void standardFontNamesReachTablesAndKeptParts()
+    {
+        const QString id = QStringLiteral("{11111111-2222-3333-4444-555555555555}");
+        Parts p = samplePptx();
+        const QString cell = QStringLiteral("<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"><a:latin typeface=\"Tinos\"/></a:rPr><a:t>Quarter</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc>");
+        const QString table = QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Results\"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp=\"1\"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr>"
+                                             "<p:xfrm><a:off x=\"914400\" y=\"1828800\"/><a:ext cx=\"1828800\" cy=\"370840\"/></p:xfrm>"
+                                             "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr/>"
+                                             "<a:tblGrid><a:gridCol w=\"1828800\"/></a:tblGrid><a:tr h=\"370840\">%1</a:tr></a:tbl></a:graphicData></a:graphic></p:graphicFrame>")
+                                     .arg(cell);
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QVERIFY(xml.contains(unknownFrame(8)));
+        xml.replace(unknownFrame(8), table);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        // A theme that names one of the open fonts (as the files older versions wrote do).
+        QString theme = QString::fromUtf8(p.data["/ppt/theme/theme1.xml"].xml);
+        theme.replace(QRegularExpression(QStringLiteral("<a:latin typeface=\"[^\"]*\"/>")), QStringLiteral("<a:latin typeface=\"Carlito\"/>"));
+        p.data["/ppt/theme/theme1.xml"].xml = theme.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, true);
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<a:latin typeface=\"Times New Roman\"/>")) && !slide.contains(QStringLiteral("\"Tinos\"")), qPrintable(slide.left(2000)));
+        QVERIFY(!part(e, QStringLiteral("/ppt/theme/theme1.xml")).contains(QStringLiteral("Carlito")));
+        QVERIFY(embeddedFontsOf(e).isEmpty());
+    }
+
+    // A presentation made with the default theme, saved and opened again, draws the same.
+    void aDefaultPresentationSavedAndOpenedAgainDrawsTheSame()
+    {
+        auto d = deck::newPresentation();
+        auto *title = static_cast<TextItem *>(d->pages[0]->items[0].get());
+        auto *subtitle = static_cast<TextItem *>(d->pages[0]->items[1].get());
+        QTextCursor(d->storyDoc(title->storyId)).insertText(QStringLiteral("Quarterly results: Hamburgefonstiv"));
+        QTextCursor c(d->storyDoc(subtitle->storyId));
+        QTextCharFormat bold, italic;
+        bold.setFontWeight(QFont::Bold);
+        italic.setFontItalic(true);
+        c.insertText(QStringLiteral("Bold, "), bold);
+        c.insertText(QStringLiteral("italic, "), italic);
+        c.insertText(QStringLiteral("and plain text that is long enough to be set on more than one line, so that its widths matter."));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, true);
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        LayoutCache cacheA, cacheB;
+        PaintContext a, b;
+        a.doc = d.get();
+        a.cache = &cacheA;
+        b.doc = back.get();
+        b.cache = &cacheB;
+        // The text is set the same: the same lines in the same places (the baselines, which the standard font's own metrics decide, too).
+        for (int i = 0; i < 2; ++i) {
+            const auto &was = *static_cast<TextItem *>(d->pages[0]->items[i].get());
+            const auto &now = *static_cast<TextItem *>(back->pages[0]->items[i].get());
+            const auto linesWas = cacheA.textFrame(*d, was, 1, RenderOptions()).layout->lineInfo(0), linesNow = cacheB.textFrame(*back, now, 1, RenderOptions()).layout->lineInfo(0);
+            QCOMPARE(int(linesNow.size()), int(linesWas.size()));
+            for (size_t k = 0; k < linesWas.size(); ++k) {
+                QVERIFY2(std::abs(linesNow[k].baseline - linesWas[k].baseline) < 0.01, qPrintable(QString::number(linesNow[k].baseline - linesWas[k].baseline)));
+                QVERIFY(std::abs(linesNow[k].rect.left() - linesWas[k].rect.left()) < 0.01 && std::abs(linesNow[k].rect.right() - linesWas[k].rect.right()) < 0.01);
+            }
+        }
+        // And the same picture: the shrink to fit of the long line is kept in thousandths of a percent, so a letter may stand a hair
+        // differently, never more than a few levels of gray.
+        const QImage was = Renderer::renderToImage(a, 0, 1.0), now = Renderer::renderToImage(b, 0, 1.0);
+        QCOMPARE(now.size(), was.size());
+        int worst = 0;
+        for (int y = 0; y < was.height(); ++y)
+            for (int x = 0; x < was.width(); ++x) {
+                const QColor p = was.pixelColor(x, y), q = now.pixelColor(x, y);
+                worst = std::max({worst, std::abs(p.red() - q.red()), std::abs(p.green() - q.green()), std::abs(p.blue() - q.blue())});
+            }
+        QVERIFY2(worst <= 8, qPrintable(QStringLiteral("the picture differs by %1 levels once it has been saved and opened").arg(worst)));
+        // And it does draw something.
+        bool inked = false;
+        for (int y = 0; y < was.height() && !inked; y += 3)
+            for (int x = 0; x < was.width() && !inked; x += 3) inked = was.pixelColor(x, y) != QColor(Qt::white);
+        QVERIFY(inked);
     }
 
     // Review > Spelling (F7) goes through the slides to a misspelled word and
@@ -19289,8 +19494,9 @@ private Q_SLOTS:
         QCOMPARE(backLayoutTypes, layoutTypes);
         QCOMPARE(deck::themeOf(*back).name, QStringLiteral("JeffOffice"));
         for (int i = 0; i < 12; ++i) QCOMPARE(deck::themeOf(*back).colors[i], deck::themeOf(*d).colors[i]);
-        QCOMPARE(deck::themeOf(*back).headingFont, QStringLiteral("Carlito"));
-        QCOMPARE(deck::themeOf(*back).bodyFont, QStringLiteral("Carlito"));
+        // The theme's font is the standard font a new presentation is drawn to (Calibri).
+        QCOMPARE(deck::themeOf(*back).headingFont, QStringLiteral("Calibri"));
+        QCOMPARE(deck::themeOf(*back).bodyFont, QStringLiteral("Calibri"));
         QCOMPARE(int(back->pages[0]->items.size()), 2);
         QCOMPARE(deck::notesText(*back, *back->pages[2]), QStringLiteral("Third slide"));
     }
