@@ -44,6 +44,7 @@
 #include "core/embeddedfonts.h"
 #include "core/fontfiles.h"
 #include "core/fonts.h"
+#include "core/texteffects.h"
 #include "core/ink.h"
 #include "core/media.h"
 #include "core/reuse.h"
@@ -5378,6 +5379,177 @@ private Q_SLOTS:
         QString err;
         auto opened = deck::importPresentation(pack(samplePptx()), &err);
         QVERIFY2(opened && opened->slideText, qPrintable(err));
+    }
+
+    // The same spread comes out of blurAlpha: an edge blurred by a spread of 3 rises from a sixth to five sixths of its height over twice 3 pixels.
+    void blurAlphaSpreadsLikeAGaussian()
+    {
+        QImage img(240, 20, QImage::Format_Alpha8);
+        img.fill(0);
+        for (int y = 0; y < 20; ++y)
+            for (int x = 0; x < 120; ++x) img.scanLine(y)[x] = 255;
+        blurAlpha(img, 3.0);
+        const uchar *row = img.constScanLine(10);
+        auto crossing = [&](double level) {
+            for (int x = 100; x < 140; ++x)
+                if (row[x] <= level * 255 && row[x - 1] > level * 255) return x - 1 + (row[x - 1] - level * 255) / double(row[x - 1] - row[x]);
+            return -1.0;
+        };
+        const double high = crossing(0.8413), low = crossing(0.1587);
+        QVERIFY(high > 0 && low > 0);
+        QVERIFY2(std::abs((low - high) / 2 - 3.0) < 0.35, qPrintable(QString::number((low - high) / 2)));
+        // Half way is where the edge was, and the far side is untouched.
+        QVERIFY2(std::abs(crossing(0.5) - 119.5) < 0.7, qPrintable(QString::number(crossing(0.5))));
+        QCOMPARE(int(row[40]), 255);
+        QCOMPARE(int(row[239]), 0);
+        // (the edge of the picture counts as clear, so a border of the shape blurs toward nothing)
+        QVERIFY(row[0] < 255);
+        // Nothing changes for a spread of nothing.
+        QImage same = img;
+        blurAlpha(same, 0.0);
+        QCOMPARE(same, img);
+    }
+
+    // A run's effect list is read from the file: a shadow, a glow, a reflection with an inner shadow, and a list in a text's list style
+    // that a run's own empty list turns off. Written back, each list is the one the file had.
+    void runEffectListsAreReadAndWrittenBack()
+    {
+        const QString shadow = QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"38100\" dist=\"38100\" dir=\"2700000\" algn=\"tl\"><a:srgbClr val=\"000000\"/></a:outerShdw></a:effectLst>");
+        const QString glow = QStringLiteral("<a:effectLst><a:glow rad=\"101600\"><a:schemeClr val=\"accent1\"><a:satMod val=\"175000\"/><a:alpha val=\"40000\"/></a:schemeClr></a:glow></a:effectLst>");
+        const QString both = QStringLiteral("<a:effectLst><a:innerShdw blurRad=\"63500\" dist=\"50800\" dir=\"13500000\"><a:prstClr val=\"black\"><a:alpha val=\"50000\"/></a:prstClr></a:innerShdw>"
+                                            "<a:reflection blurRad=\"6350\" stA=\"50000\" endA=\"300\" endPos=\"35000\" dist=\"12700\" dir=\"5400000\" sy=\"-100000\" algn=\"bl\" rotWithShape=\"0\"/></a:effectLst>");
+        auto run = [](const QString &text, const QString &list) {
+            return QStringLiteral("<a:r><a:rPr lang=\"en-US\"><a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>%1</a:rPr><a:t>%2</a:t></a:r>").arg(list, text);
+        };
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const QString body = QStringLiteral("<a:p>") + run(QStringLiteral("Shadowed"), shadow) + run(QStringLiteral("Glowing"), glow) + run(QStringLiteral("Mirrored"), both)
+                           + run(QStringLiteral("Plain"), QString()) + QStringLiteral("</a:p><a:p>") + run(QStringLiteral("Own"), QStringLiteral("<a:effectLst/>"))
+                           + QStringLiteral("<a:r><a:rPr lang=\"en-US\"/><a:t>Inherited</a:t></a:r></a:p>");
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Effects\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 914400) + QStringLiteral("</p:spPr><p:txBody><a:bodyPr/><a:lstStyle><a:lvl1pPr>")
+                                                       + QStringLiteral("<a:defRPr>") + shadow + QStringLiteral("</a:defRPr></a:lvl1pPr></a:lstStyle>") + body + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *t = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Effects")) t = static_cast<const TextItem *>(it.get());
+        QVERIFY(t);
+        QMap<QString, QString> lists;   // run text -> its effects
+        const QTextDocument *story = d->storyDoc(t->storyId);
+        QVERIFY(story);
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) lists[it.fragment().text()] = it.fragment().charFormat().stringProperty(tp::TextFx);
+        // The list style's shadow reaches a run that says nothing; a run's own empty list says none; the others say their own.
+        QVERIFY(!lists["Inherited"].isEmpty());
+        const TextEffects inherited = TextEffects::fromJson(lists["Inherited"]);
+        QVERIFY(inherited.outer.on);
+        QVERIFY(lists["Own"].isEmpty());
+        const TextEffects s = TextEffects::fromJson(lists["Shadowed"]);
+        QVERIFY(s.outer.on && !s.inner.on && !s.glow.on && !s.reflection.on);
+        QCOMPARE(s.outer.blur, 3.0);
+        QCOMPARE(s.outer.distance, 3.0);
+        QCOMPARE(s.outer.angle, 45.0);
+        QCOMPARE(s.outer.color, QColor(0, 0, 0));
+        QCOMPARE(s.outer.align, QStringLiteral("tl"));
+        const TextEffects g = TextEffects::fromJson(lists["Glowing"]);
+        QVERIFY(g.glow.on && !g.outer.on);
+        QCOMPARE(g.glow.radius, 8.0);
+        QCOMPARE(g.glow.color.alpha(), 102);   // 40% of the color
+        const TextEffects m = TextEffects::fromJson(lists["Mirrored"]);
+        QVERIFY(m.inner.on && m.reflection.on && !m.outer.on);
+        QCOMPARE(m.inner.angle, 225.0);
+        QCOMPARE(m.inner.distance, 4.0);
+        QCOMPARE(m.inner.color.alpha(), 128);
+        QCOMPARE(m.reflection.startAlpha, 0.5);
+        QCOMPARE(m.reflection.endPos, 0.35);
+        QCOMPARE(m.reflection.sy, -1.0);
+        QCOMPARE(m.reflection.angle, 90.0);
+        QCOMPARE(m.reflection.align, QStringLiteral("bl"));
+        QVERIFY(TextEffects::fromJson(lists["Plain"]).outer.on);   // (the list style's, as the one that says nothing has it)
+        // Written back as the file had them.
+        Exported e;
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        // (each element with its attributes in order of name, as a document parsed again holds them)
+        auto canonical = [](const QString &xml) {
+            QDomDocument dom;
+            if (!dom.setContent(QStringLiteral("<root xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">") + xml + QStringLiteral("</root>"))) return QStringLiteral("not XML: ") + xml;
+            std::function<QString(const QDomElement &)> walk = [&](const QDomElement &el) {
+                QStringList attrs;
+                const QDomNamedNodeMap named = el.attributes();
+                for (int i = 0; i < named.length(); ++i) attrs << named.item(i).nodeName() + QLatin1Char('=') + named.item(i).nodeValue();
+                attrs.sort();
+                QString out = QLatin1Char('<') + el.nodeName() + QLatin1Char(' ') + attrs.join(QLatin1Char(' ')) + QLatin1Char('>');
+                for (QDomElement c = el.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) out += walk(c);
+                return out + QStringLiteral("</>");
+            };
+            return walk(dom.documentElement().firstChildElement());
+        };
+        for (const QString &list : {shadow, glow, both}) {
+            bool found = false;
+            for (int at = slide.indexOf(QStringLiteral("<a:effectLst>")); at >= 0 && !found; at = slide.indexOf(QStringLiteral("<a:effectLst>"), at + 1)) {
+                const QString written = slide.mid(at, slide.indexOf(QStringLiteral("</a:effectLst>"), at) + 14 - at);
+                found = canonical(written) == canonical(list);
+            }
+            QVERIFY2(found, qPrintable(list));
+        }
+        // After the run's fill, before anything that follows it in the schema (a:latin).
+        QVERIFY(slide.contains(QStringLiteral("<a:srgbClr val=\"336699\"/></a:solidFill><a:effectLst>")));
+        // Read again, the same effects.
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        const TextItem *t2 = nullptr;
+        for (const auto &it : again->pages[0]->items)
+            if (it->name == QLatin1String("Effects")) t2 = static_cast<const TextItem *>(it.get());
+        QVERIFY(t2);
+        const QTextDocument *story2 = again->storyDoc(t2->storyId);
+        QMap<QString, QString> lists2;
+        for (QTextBlock b = story2->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) lists2[it.fragment().text()] = it.fragment().charFormat().stringProperty(tp::TextFx);
+        QCOMPARE(lists2["Shadowed"], lists["Shadowed"]);
+        QCOMPARE(lists2["Glowing"], lists["Glowing"]);
+        QCOMPARE(lists2["Mirrored"], lists["Mirrored"]);
+    }
+
+    // A shadow in a master's title style reaches the titles that follow it, and is saved in the master's title style again; a title the
+    // file has no list for takes it.
+    void titleStyleEffectsReachTitlesAndAreSavedInTheMaster()
+    {
+        const QString shadow = QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"114300\" dist=\"101600\" dir=\"2700000\" algn=\"tl\" rotWithShape=\"0\"><a:srgbClr val=\"000000\"><a:alpha val=\"40000\"/></a:srgbClr></a:outerShdw></a:effectLst>");
+        Parts p = samplePptx();
+        QString master = QString::fromUtf8(p.data["/ppt/slideMasters/slideMaster1.xml"].xml);
+        const QString before = QStringLiteral("<a:defRPr sz=\"4400\"><a:latin typeface=\"+mj-lt\"/></a:defRPr></a:lvl1pPr></p:titleStyle>");
+        QVERIFY(master.contains(before));
+        master.replace(before, QStringLiteral("<a:defRPr sz=\"4400\">") + shadow + QStringLiteral("<a:latin typeface=\"+mj-lt\"/></a:defRPr></a:lvl1pPr></p:titleStyle>"));
+        p.data["/ppt/slideMasters/slideMaster1.xml"].xml = master.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        // The first slide's title ("Quarterly results") has the master's shadow.
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:title"));
+        QVERIFY(story);
+        const QString list = story->begin().begin().fragment().charFormat().stringProperty(tp::TextFx);
+        QVERIFY(!list.isEmpty());
+        const TextEffects fx = TextEffects::fromJson(list);
+        QVERIFY(fx.outer.on);
+        QCOMPARE(fx.outer.blur, 9.0);
+        QCOMPARE(fx.outer.distance, 8.0);
+        QCOMPARE(fx.outer.angle, 45.0);
+        QCOMPARE(fx.outer.color.alpha(), 102);
+        // The master's title style says it again when the file is saved.
+        Exported e;
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString saved = part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml"));
+        const int style = saved.indexOf(QStringLiteral("<p:titleStyle>"));
+        QVERIFY(style >= 0);
+        const QString titleStyle = saved.mid(style, saved.indexOf(QStringLiteral("</p:titleStyle>")) - style);
+        QVERIFY2(titleStyle.contains(QStringLiteral("<a:outerShdw")), qPrintable(titleStyle));
+        QVERIFY(titleStyle.indexOf(QStringLiteral("<a:effectLst>")) < titleStyle.indexOf(QStringLiteral("<a:latin")));
     }
 
     // A slide's lines are the presentation program's: a single line is 1.2 times the text size whatever the font, a wider line's
