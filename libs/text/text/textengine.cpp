@@ -2784,6 +2784,7 @@ QVector<StoryLayout::LineInfo> StoryLayout::lineInfo(int frame) const
             li.rect = B->lines[i].rect;
             li.below = B->lines[i].below;
             li.baseline = l.y() - frameY(B->lines[i].frame) + l.ascent();
+            if (i == 0 && !B->marker.isEmpty()) li.markerX = B->markerX;
             li.text = B->disp.mid(l.textStart(), l.textLength());
             li.docStart = B->docStart;
             for (const auto &r : B->tl->formats())

@@ -180,7 +180,7 @@ public:
     int lineEnd(int pos) const;
     QVector<QRectF> rangeRects(int frame, int from, int to) const;
     QVector<QRectF> lineRects(int frame) const;   // every line box in the frame, frame-local
-    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; };   // below: line spacing under the text
+    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; };   // below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
     QVector<LineInfo> lineInfo(int frame) const;  // for diagnostics (jpubtool layout)
 
     // An object set in the text (tp::InlineObject): where it's drawn,
