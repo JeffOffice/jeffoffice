@@ -54,6 +54,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Tables"),
     QT_TRANSLATE_NOOP("Ribbon", "Text"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Direction"),
+    QT_TRANSLATE_NOOP("Ribbon", "Themes"),
     QT_TRANSLATE_NOOP("Ribbon", "Timing"),
     QT_TRANSLATE_NOOP("Ribbon", "Transition to This Slide"),
     QT_TRANSLATE_NOOP("Ribbon", "Transitions"),

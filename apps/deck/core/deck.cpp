@@ -2,6 +2,7 @@
 
 #include "core/color.h"
 #include "core/sections.h"
+#include "office/drawingml_props.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -11,6 +12,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextList>
 
 namespace jp::deck {
 
@@ -61,18 +63,52 @@ void styleStory(Document &d, const QString &storyId, const Look &look, const Dec
     start.mergeBlockCharFormat(cf);
 }
 
-// The text cleared, its formatting kept for what is typed next.
+// How a placeholder sets a paragraph: the paragraph's own format, the characters it starts with, and the list it is in (bullet, font, color,
+// size, and level).
+struct ParaLook {
+    bool valid = false;
+    QTextBlockFormat block;
+    QTextCharFormat chars;
+    bool listed = false;
+    QTextListFormat list;
+};
+
+// The look of paragraph `b`; its characters are those of its first letter (the block's own when it has none).
+ParaLook paraLook(const QTextBlock &b)
+{
+    ParaLook p;
+    if (!b.isValid()) return p;
+    p.valid = true;
+    p.block = b.blockFormat();
+    p.block.clearProperty(QTextFormat::ObjectIndex);   // the list it is in is another story's
+    p.chars = b.begin().atEnd() ? b.charFormat() : b.begin().fragment().charFormat();
+    if (const QTextList *l = b.textList()) {
+        p.listed = true;
+        p.list = l->format();
+    }
+    return p;
+}
+
+// The first paragraph of a story takes the look, as what is typed in it will have it.
+void givePara(QTextDocument *sd, const ParaLook &look)
+{
+    if (!look.valid) return;
+    QTextBlock first = sd->begin();
+    if (QTextList *l = first.textList()) l->remove(first);
+    QTextCursor c(sd);
+    c.setBlockFormat(look.block);
+    c.setBlockCharFormat(look.chars);
+    if (look.listed) c.createList(look.list);
+}
+
+// The text cleared, its formatting kept for what is typed next: the first paragraph's, with its list.
 void clearStory(Document &d, const QString &storyId)
 {
     QTextDocument *sd = d.storyDoc(storyId);
     if (!sd || sd->isEmpty()) return;
-    QTextCursor first(sd);
-    const QTextCharFormat cf = first.charFormat();
-    const QTextBlockFormat bf = first.blockFormat();
+    const ParaLook first = paraLook(sd->begin());
     sd->clear();
-    QTextCursor c(sd);
-    c.setBlockFormat(bf);
-    c.setBlockCharFormat(cf);
+    givePara(sd, first);
 }
 
 ItemPtr placeholder(Document &d, const Place &pl, const DeckTheme &theme)
@@ -92,7 +128,7 @@ ItemPtr placeholder(Document &d, const Place &pl, const DeckTheme &theme)
 
 Look titleLook() { Look l; l.size = 44; l.heading = true; return l; }
 Look bodyLook(double size = 28) { Look l; l.size = size; return l; }
-Look smallLook(Qt::Alignment a) { Look l; l.size = 12; l.color = 0; l.tint = 45; l.align = a; return l; }
+Look smallLook(Qt::Alignment a) { Look l; l.size = 12; l.color = 0; l.tint = kFooterTint; l.align = a; return l; }
 
 const QString kTitleSample = QStringLiteral("Click to edit Master title style");
 const QString kBodySample = QStringLiteral("Click to edit Master text styles\nSecond level\nThird level\nFourth level\nFifth level");
@@ -125,7 +161,7 @@ QVector<LayoutDef> layoutDefs()
     Look note = bodyLook(16);
     Look sectionText = bodyLook(24);
     sectionText.color = 0;
-    sectionText.tint = 40;
+    sectionText.tint = kSectionTint;
     const QString t = QStringLiteral("title"), b = QStringLiteral("body"), o = QStringLiteral("obj");
     return {
         {QStringLiteral("title"), QStringLiteral("Title Slide"),
@@ -191,6 +227,29 @@ Item *matchIn(const MasterPage &layout, const Item &it, QSet<const Item *> &take
     for (const auto &l : layout.items)
         if (!taken.contains(l.get()) && !placeholderType(*l).isEmpty() && family(placeholderType(*l)) == fam) { taken.insert(l.get()); return l.get(); }
     return nullptr;
+}
+
+// Puts a picture that stands in a placeholder in the place `to` of a layout (page coordinates), showing the part of the picture it showed, in
+// its proportions. A picture placeholder crops it to fill the place, centered; any other placeholder (a content one) fits that part inside the
+// place, centered, so that nothing is cut off.
+void fitPictureToPlace(PictureItem &pic, const QRectF &to, bool cropToFill)
+{
+    const QRectF frame(QPointF(0, 0), pic.rect.size());
+    QRectF shown = frame.intersected(pic.imgRect);
+    if (shown.isEmpty()) shown = pic.imgRect;
+    if (pic.imgRect.isEmpty() || shown.isEmpty()) {
+        pic.rect = to;
+        pic.imgRect = QRectF(QPointF(0, 0), to.size());
+        return;
+    }
+    const double kx = to.width() / shown.width(), ky = to.height() / shown.height();
+    const double k = cropToFill ? std::max(kx, ky) : std::min(kx, ky);
+    const QSizeF size = cropToFill ? to.size() : QSizeF(shown.width() * k, shown.height() * k);
+    pic.rect = cropToFill ? to : QRectF(to.center() - QPointF(size.width() / 2, size.height() / 2), size);
+    // The part shown sits in the middle of the new frame.
+    const QPointF middle(size.width() / 2, size.height() / 2);
+    const QPointF topLeft = middle - (shown.center() - pic.imgRect.topLeft()) * k;
+    pic.imgRect = QRectF(topLeft, QSizeF(pic.imgRect.width() * k, pic.imgRect.height() * k));
 }
 
 ItemPtr slidePlaceholder(Document &d, const Item &fromLayout)
@@ -267,9 +326,33 @@ void scaleStoryText(QTextDocument *sd, double k)
 // shape (`whole`), or, on a slide, objects that aren't placeholders kept in
 // shape, scaled by `k` and centered (`fitted`). Text sizes and outline
 // weights go by `k`.
-void scaleItems(Document &d, ItemList &items, const QRectF &from, const QRectF &whole, const QRectF &fitted, double k, bool onSlide, QSet<QString> &stories)
+// A square shape of a master (a circle, a square, a corner triangle) that stretching has made a rectangle: made square again, scaled by `k`
+// about the middle of where it is, and kept at the same distance (scaled) from the edge of the slide it was on, touching or past.
+void keepSquare(Item &it, const QRectF &was, const QSizeF &from, const QSizeF &to, double k)
 {
-    for (const auto &it : items) it->scaleInto(from, onSlide && placeholderType(*it).isEmpty() ? fitted : whole);
+    constexpr double near = 1.0;   // points from an edge that count as on it
+    const QSizeF size(was.width() * k, was.height() * k);
+    QRectF u(QPointF(it.rect.center().x() - size.width() / 2, it.rect.center().y() - size.height() / 2), size);
+    if (was.left() <= near) u.moveLeft(was.left() * k);
+    else if (was.right() >= from.width() - near) u.moveRight(to.width() + (was.right() - from.width()) * k);
+    if (was.top() <= near) u.moveTop(was.top() * k);
+    else if (was.bottom() >= from.height() - near) u.moveBottom(to.height() + (was.bottom() - from.height()) * k);
+    it.rect = u;
+}
+
+bool isSquareShape(const Item &it)
+{
+    return it.type() == ItemType::Shape && placeholderType(it).isEmpty() && it.rect.width() > 4 && std::abs(it.rect.width() - it.rect.height()) <= 0.02 * std::max(it.rect.width(), it.rect.height());
+}
+
+void scaleItems(Document &d, ItemList &items, const QRectF &from, const QRectF &whole, const QRectF &fitted, double k, bool onSlide, QSet<QString> &stories, bool keepSquares = false)
+{
+    for (const auto &it : items) {
+        const bool square = keepSquares && !onSlide && isSquareShape(*it);
+        const QRectF was = it->rect;
+        it->scaleInto(from, onSlide && placeholderType(*it).isEmpty() ? fitted : whole);
+        if (square) keepSquare(*it, was, from.size(), whole.size(), k);
+    }
     walkItems(items, [&](const ItemPtr &it) {
         if (!it->stroke.isNone()) it->stroke.width *= k;
         QStringList ids;
@@ -496,7 +579,8 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
     for (const auto &it : slide.items) {
         if (placeholderType(*it).isEmpty()) continue;
         if (Item *place = matchIn(layout, *it, taken)) {
-            it->rect = place->rect;
+            if (it->type() == ItemType::Picture) fitPictureToPlace(static_cast<PictureItem &>(*it), place->rect, placeholderType(*place) == QLatin1String("pic"));
+            else it->rect = place->rect;
             it->rotation = place->rotation;
             it->role = place->role;
             if (it->type() == ItemType::Text && place->type() == ItemType::Text) {
@@ -505,6 +589,10 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
                 t->valign = p->valign;
                 t->insets = p->insets;
                 t->prompt = promptFor(placeholderType(*place));
+                // With nothing in it, what is typed next has the new layout's look: its bullet, indent, and text.
+                QTextDocument *sd = d.storyDoc(t->storyId);
+                if (const QTextDocument *ls = d.storyDoc(p->storyId); sd && sd->isEmpty() && ls && !sd->begin().blockFormat().boolProperty(office::kNoBulletParagraph))
+                    givePara(sd, paraLook(ls->begin()));
             }
         }
     }
@@ -517,6 +605,271 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
         slide.items.push_back(slidePlaceholder(d, *l));
         if (chosen && isFooterType(type)) fillFooter(d, *slide.items.back(), type, footers);
     }
+}
+
+namespace {
+
+// The plain color a run is set in, or invalid (not set, or a color of the presentation's scheme).
+QColor runColorOf(const QTextCharFormat &cf)
+{
+    const QString ref = cf.stringProperty(tp::ColorRefP);
+    if (!ref.isEmpty()) {
+        const ColorRef r = ColorRef::fromString(ref);
+        return r.kind() == ColorRef::Rgb ? r.rgbValue() : QColor();
+    }
+    if (cf.hasProperty(QTextFormat::ForegroundBrush) && cf.foreground().style() == Qt::SolidPattern) return cf.foreground().color();
+    return QColor();
+}
+
+// The placeholder with that role on a layout (its own, else its slide master's); null for none.
+const Item *placeByRole(const Document &d, const MasterPage &layout, const QString &role)
+{
+    if (role.isEmpty()) return nullptr;
+    const QVector<MasterPage *> chain = d.masterChain(&layout);
+    for (int i = int(chain.size()) - 1; i >= 0; --i)
+        for (const auto &it : chain[i]->items)
+            if (it->role == role && it->type() == ItemType::Text) return it.get();
+    return nullptr;
+}
+
+// The layout's placeholder that a placeholder of a slide stands for, found by its role; null for none.
+const Item *layoutPlaceFor(const Document &d, const Item &placeholder)
+{
+    if (placeholder.type() != ItemType::Text) return nullptr;
+    const Document::Loc where = d.find(placeholder.id);
+    if (where.page < 0 || where.page >= d.pages.size()) return nullptr;
+    const MasterPage *layout = d.masterFor(*d.pages[where.page]);
+    return layout ? placeByRole(d, *layout, placeholder.role) : nullptr;
+}
+
+// The level of a paragraph of a slide's text: 0 is the first.
+int levelOfBlock(const QTextBlock &b)
+{
+    const QTextBlockFormat bf = b.blockFormat();
+    int level = bf.intProperty(tp::ListLevel);
+    if (!bf.hasProperty(tp::ListLevel))
+        if (const QTextList *list = b.textList()) level = list->format().intProperty(tp::ListLevel);
+    return std::clamp(level, 0, 8);
+}
+
+// The paragraph of a layout's placeholder that says how `level` looks: the one of that level, else the deepest above it, which is `past` levels
+// short of it.
+ParaLook levelLook(const QTextDocument *story, int level, int *past)
+{
+    QTextBlock best;
+    int bestLevel = -1;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const int l = levelOfBlock(b);
+        if (l <= level && l > bestLevel) {
+            best = b;
+            bestLevel = l;
+        }
+    }
+    if (!best.isValid()) best = story->begin();
+    *past = bestLevel >= 0 ? level - bestLevel : 0;
+    return paraLook(best);
+}
+
+constexpr double kLevelPoints = 36;   // a level the layout has no paragraph for is indented this much further
+
+// Whether a paragraph is set as `was` says (a layout's paragraph): the same list, indent, and spacing.
+bool sameList(const QTextListFormat &a, const QTextListFormat &b)
+{
+    return a.style() == b.style() && a.indent() == b.indent() && a.numberPrefix() == b.numberPrefix() && a.numberSuffix() == b.numberSuffix() && a.start() == b.start()
+           && a.intProperty(tp::ListLevel) == b.intProperty(tp::ListLevel) && a.stringProperty(tp::BulletChar) == b.stringProperty(tp::BulletChar)
+           && a.stringProperty(tp::BulletFont) == b.stringProperty(tp::BulletFont) && a.stringProperty(tp::BulletColor) == b.stringProperty(tp::BulletColor)
+           && a.property(tp::BulletSize).toDouble() == b.property(tp::BulletSize).toDouble() && a.intProperty(tp::NumberFormat) == b.intProperty(tp::NumberFormat);
+}
+
+bool blockFollows(const QTextBlock &b, const ParaLook &was)
+{
+    const QTextBlockFormat bf = b.blockFormat();
+    for (int prop : {int(QTextFormat::BlockLeftMargin), int(QTextFormat::TextIndent), int(QTextFormat::BlockIndent), int(QTextFormat::BlockTopMargin),
+                     int(QTextFormat::BlockBottomMargin), int(QTextFormat::LineHeight), int(QTextFormat::LineHeightType), int(tp::ListLevel)}) {
+        const bool has = bf.hasProperty(prop);
+        if (has != was.block.hasProperty(prop) || (has && bf.property(prop) != was.block.property(prop))) return false;
+    }
+    const QTextList *list = b.textList();
+    if ((list != nullptr) != was.listed) return false;
+    return !list || sameList(list->format(), was.list);
+}
+
+using Rest = std::function<bool(QTextCharFormat &, const Following &)>;
+
+// Paragraph `number` of a story takes the look of the layout's paragraph `now` for `level` (`past` levels short of it) where it had `was`'s: its
+// text (with `rest` called on what didn't follow), and, when `take` says so (it is set as `was` says, or it has moved to the level), its list, indent,
+// and spacing; with `alignment`, its alignment where that was `was`'s. The indent is the level's, the spacing the layout's where it was.
+void restyleParagraph(QTextDocument *sd, int number, const ParaLook &was, const ParaLook &now, int level, int past, bool take, bool alignment, const Rest &rest)
+{
+    const QTextBlock b = sd->findBlockByNumber(number);
+    const bool both = was.valid && now.valid;
+    struct Run {
+        int from, to;
+        QTextCharFormat format;
+    };
+    QVector<Run> runs;
+    auto restyle = [&](QTextCharFormat &cf) {
+        const QTextCharFormat before = cf;
+        const Following followed = both ? followLook(cf, was.chars, now.chars) : Following();
+        if (rest) rest(cf, followed);
+        return cf != before;
+    };
+    for (auto it = b.begin(); !it.atEnd(); ++it) {
+        QTextCharFormat cf = it.fragment().charFormat();
+        if (restyle(cf)) runs << Run{it.fragment().position(), it.fragment().position() + it.fragment().length(), cf};
+    }
+    QTextCursor c(b);
+    QTextCharFormat chars = c.blockCharFormat();
+    const bool charsChanged = restyle(chars);
+    if (take && both) {
+        if (QTextList *list = b.textList()) list->remove(b);
+        QTextBlockFormat bf = c.blockFormat();
+        bf.clearProperty(QTextFormat::ObjectIndex);
+        for (int prop : {int(QTextFormat::BlockLeftMargin), int(QTextFormat::TextIndent), int(QTextFormat::BlockIndent)}) {
+            if (now.block.hasProperty(prop)) bf.setProperty(prop, now.block.property(prop));
+            else bf.clearProperty(prop);
+        }
+        if (past > 0) bf.setLeftMargin(bf.leftMargin() + past * kLevelPoints);
+        for (int prop : {int(QTextFormat::BlockTopMargin), int(QTextFormat::BlockBottomMargin), int(QTextFormat::LineHeight), int(QTextFormat::LineHeightType)}) {
+            const bool has = bf.hasProperty(prop);
+            if (has != was.block.hasProperty(prop) || (has && bf.property(prop) != was.block.property(prop))) continue;
+            if (now.block.hasProperty(prop)) bf.setProperty(prop, now.block.property(prop));
+            else bf.clearProperty(prop);
+        }
+        if (level > 0) bf.setProperty(tp::ListLevel, level);
+        else bf.clearProperty(tp::ListLevel);
+        c.setBlockFormat(bf);
+        if (now.listed) {
+            QTextListFormat lf = now.list;
+            if (past > 0) lf.setProperty(tp::ListLevel, level);
+            // Numbers go on in the list of that level just above, if there is one.
+            QTextList *join = nullptr;
+            if (!isBulletList(lf.style()) && lf.style() != QTextListFormat::ListStyleUndefined) {
+                for (QTextBlock p = b.previous(); p.isValid(); p = p.previous()) {
+                    QTextList *above = p.textList();
+                    if (!above) break;
+                    const int aboveLevel = above->format().intProperty(tp::ListLevel);
+                    if (aboveLevel == level && above->format().style() == lf.style()) {
+                        join = above;
+                        break;
+                    }
+                    if (aboveLevel < level) break;
+                }
+            }
+            if (join) join->add(b);
+            else c.createList(lf);
+        }
+    }
+    if (alignment && both) {
+        QTextBlockFormat bf = c.blockFormat();
+        if (bf.alignment() == was.block.alignment() && now.block.alignment() != was.block.alignment()) {
+            bf.setAlignment(now.block.alignment());
+            c.setBlockFormat(bf);
+        }
+    }
+    if (charsChanged) c.setBlockCharFormat(chars);
+    for (const Run &r : runs) {
+        QTextCursor run(sd);
+        run.setPosition(r.from);
+        run.setPosition(r.to, QTextCursor::KeepAnchor);
+        run.setCharFormat(r.format);
+    }
+}
+
+void putOnLevel(QTextDocument *sd, int number, const ParaLook &was, const ParaLook &now, int level, int past)
+{
+    restyleParagraph(sd, number, was, now, level, past, true, false, Rest());
+}
+
+} // namespace
+
+Following followLook(QTextCharFormat &cf, const QTextCharFormat &was, const QTextCharFormat &now)
+{
+    static const int props[] = {QTextFormat::FontFamilies, QTextFormat::FontPointSize, QTextFormat::FontWeight, QTextFormat::FontItalic,
+                                QTextFormat::FontCapitalization, tp::ThemeFont};
+    Following done;
+    const QTextCharFormat before = cf;
+    for (int p : props) {
+        const bool has = before.hasProperty(p);
+        if (has != was.hasProperty(p) || (has && before.property(p) != was.property(p))) continue;
+        if (now.hasProperty(p)) cf.setProperty(p, now.property(p));
+        else cf.clearProperty(p);
+        if (p == QTextFormat::FontFamilies) done.family = true;
+    }
+    if (runColorOf(before) == runColorOf(was)) {
+        const QColor c = runColorOf(now);
+        if (c.isValid()) {
+            cf.setForeground(QBrush(c));
+            cf.setProperty(tp::ColorRefP, ColorRef::rgb(c).toString());
+        } else {
+            cf.clearProperty(tp::ColorRefP);
+            cf.clearProperty(QTextFormat::ForegroundBrush);
+        }
+        done.color = true;
+    }
+    return done;
+}
+
+void inheritLayoutLists(Document &d)
+{
+    for (const auto &page : d.pages) {
+        const MasterPage *layout = d.masterFor(*page);
+        if (!layout) continue;
+        for (const auto &it : page->items) {
+            if (it->type() != ItemType::Text || placeholderType(*it).isEmpty()) continue;
+            QTextDocument *sd = d.storyDoc(static_cast<const TextItem *>(it.get())->storyId);
+            const Item *place = placeByRole(d, *layout, it->role);
+            const QTextDocument *ls = place ? d.storyDoc(static_cast<const TextItem *>(place)->storyId) : nullptr;
+            // (A paragraph the file marks as having no bullet keeps none.)
+            if (!sd || !ls || !sd->isEmpty() || sd->begin().textList() || sd->begin().blockFormat().boolProperty(office::kNoBulletParagraph)) continue;
+            int past = 0;
+            const ParaLook look = levelLook(ls, levelOfBlock(sd->begin()), &past);
+            if (!look.listed) continue;
+            QTextListFormat lf = look.list;
+            if (past > 0) lf.setProperty(tp::ListLevel, levelOfBlock(sd->begin()));
+            QTextCursor(sd).createList(lf);
+        }
+    }
+}
+
+void followLayout(Document &d, TextItem &t, const Item *from, const Item *to, const std::function<bool(QTextCharFormat &, const Following &)> &rest)
+{
+    QTextDocument *sd = d.storyDoc(t.storyId);
+    if (!sd) return;
+    const QTextDocument *fs = from && from->type() == ItemType::Text ? d.storyDoc(static_cast<const TextItem *>(from)->storyId) : nullptr;
+    const QTextDocument *ts = to && to->type() == ItemType::Text ? d.storyDoc(static_cast<const TextItem *>(to)->storyId) : nullptr;
+    for (int n = 0; n < sd->blockCount(); ++n) {
+        const int level = levelOfBlock(sd->findBlockByNumber(n));
+        int wasPast = 0, past = 0;
+        const ParaLook was = fs ? levelLook(fs, level, &wasPast) : ParaLook(), now = ts ? levelLook(ts, level, &past) : ParaLook();
+        restyleParagraph(sd, n, was, now, level, past, was.valid && now.valid && blockFollows(sd->findBlockByNumber(n), was), true, rest);
+    }
+}
+
+bool layoutHasList(const Document &d, const Item &placeholder)
+{
+    const Item *place = layoutPlaceFor(d, placeholder);
+    const QTextDocument *ls = place ? d.storyDoc(static_cast<const TextItem *>(place)->storyId) : nullptr;
+    if (!ls) return false;
+    for (QTextBlock b = ls->begin(); b.isValid(); b = b.next())
+        if (b.textList()) return true;
+    return false;
+}
+
+bool changeListLevel(Document &d, const Item &placeholder, int first, int last, int dir)
+{
+    if (!layoutHasList(d, placeholder)) return false;
+    const QTextDocument *ls = d.storyDoc(static_cast<const TextItem *>(layoutPlaceFor(d, placeholder))->storyId);
+    QTextDocument *sd = d.storyDoc(static_cast<const TextItem &>(placeholder).storyId);
+    if (!sd) return false;
+    for (int n = std::max(0, first); n <= last && n < sd->blockCount(); ++n) {
+        const int level = levelOfBlock(sd->findBlockByNumber(n)), to = std::clamp(level + dir, 0, 8);
+        if (to == level) continue;
+        int past = 0, wasPast = 0;
+        const ParaLook was = levelLook(ls, level, &wasPast), now = levelLook(ls, to, &past);
+        putOnLevel(sd, n, was, now, to, past);
+    }
+    return true;
 }
 
 void resetSlide(Document &d, Page &slide)
@@ -570,14 +923,14 @@ void setSlideSize(Document &d, const QSizeF &size)
     d.setup.sizeName = slideSizeName(size);
 }
 
-void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide)
+void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide, bool keepSquares)
 {
     if (from.isEmpty() || to.isEmpty() || from == to) return;
     const double sx = to.width() / from.width(), sy = to.height() / from.height(), k = std::min(sx, sy);
     const QRectF was(QPointF(0, 0), from), whole(QPointF(0, 0), to);
     const QRectF fitted((to.width() - from.width() * k) / 2, (to.height() - from.height() * k) / 2, from.width() * k, from.height() * k);
     QSet<QString> stories;
-    scaleItems(d, page.items, was, whole, fitted, k, slide, stories);
+    scaleItems(d, page.items, was, whole, fitted, k, slide, stories, keepSquares);
     scaleGuides(page.guides, sx, sy);
 }
 
