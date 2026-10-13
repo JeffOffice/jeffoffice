@@ -16,7 +16,9 @@
 #include "app/icons.h"
 #include "app/recovery.h"
 #include "app/settings.h"
+#include "app/telemetry.h"
 #include "app/theme.h"
+#include "app/updater.h"
 #include "core/fonts.h"
 
 #include <QApplication>
@@ -68,7 +70,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
-    jp::crash::install(jp::crash::reportPath());
+    jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
     jp::recovery::setCopySuffix(QStringLiteral(".pptx"));   // AutoRecover keeps presentations
     jp::installTranslations();   // before the command line and any window build their text
 
@@ -130,5 +132,9 @@ int main(int argc, char **argv)
     // crashed run left are offered once the window is up.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, [] { jp::recovery::endSession(); });
     QTimer::singleShot(0, w, [w] { w->offerRecovery(); });
+    auto *up = new jp::Updater(w);
+    jp::setUpdater(up);
+    up->checkOnStartup();
+    jp::telemetry::start(w);
     return app.exec();
 }
