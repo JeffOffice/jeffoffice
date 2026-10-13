@@ -73,7 +73,7 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     gf->addRow(QCoreApplication::translate("Dialogs", "Display language:"), uiLang);
     // The choice the first start offered, which its message says is here,
     // and the update check: only in an app that sends and checks (the
-    // choices are the suite's, so JeffPub's Options keep them for JeffDeck).
+    // choices are the suite's, the same in each app's Options).
     const bool online = appInfo().online;
     auto *stats = new QCheckBox(QCoreApplication::translate("Dialogs", "Send anonymous usage statistics"), gen);
     stats->setObjectName(QStringLiteral("stats"));

@@ -12,6 +12,7 @@
   "pane:notes": "notes",
   "pane:comments": "comments",
   "pane:reuse": "reuse",
+  "pane:online": "objects",
   "pane:animation": "animations",
   "pane:help": "index",
   "view:outline": "views",

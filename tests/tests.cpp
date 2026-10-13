@@ -61,6 +61,7 @@
 #include "app/toc.h"
 #include "app/notes.h"
 #include "app/iconpicker.h"
+#include "app/textartgallery.h"
 #include "app/widgets.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
@@ -76,6 +77,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QDialogButtonBox>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QComboBox>
 #include <QCheckBox>
@@ -5251,6 +5253,139 @@ private Q_SLOTS:
         zip[dir + 29] = char(0xFF);
         QMap<QString, QByteArray> bad;
         QVERIFY(!jp::readZip(zip, bad));
+    }
+
+    // Insert > Text > Text Art lists every style, each drawn as "Aa". Chosen, a style makes a Text Art in that style, in the middle of the
+    // page a third of the way down, and asks for its words with the old ones selected.
+    void textArtFromTheRibbonIsPlacedAndAsksForItsWords()
+    {
+        jp::MainWindow w;
+        jp::GalleryButton *gallery = nullptr;
+        for (auto *g : w.findChildren<jp::GalleryButton *>())
+            if (g->text() == QStringLiteral("Text Art")) gallery = g;
+        QVERIFY(gallery);
+        const auto &styles = jp::textArtStyles();
+        const QVector<jp::GalleryItem> items = gallery->items();
+        QCOMPARE(items.size(), styles.size());
+        QCOMPARE(items[3].id, styles[3].id);
+        QCOMPARE(items[3].tip, styles[3].name);
+        QVERIFY(!items[3].icon.pixmap(QSize(64, 40)).toImage().isNull());
+        QString asked, selected;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            asked = d->windowTitle();
+            if (auto *edit = d->findChild<QPlainTextEdit *>()) selected = edit->textCursor().selectedText();
+            d->reject();
+        });
+        Q_EMIT gallery->activated(styles[3].id);
+        QCOMPARE(asked, QStringLiteral("Edit Text Art Text"));
+        auto *art = dynamic_cast<jp::TextArtItem *>(w.editor()->single());
+        QVERIFY(art);
+        QCOMPARE(art->styleId, styles[3].id);
+        QCOMPARE(art->font, styles[3].font);
+        const QSizeF ps = w.editor()->doc()->pageSize();
+        QCOMPARE(art->rect, QRectF(ps.width() / 2 - 144, ps.height() / 3, 288, 72));
+        QCOMPARE(selected, art->text);
+        QVERIFY(!art->text.isEmpty());
+        w.editor()->undo();
+        QVERIFY(!w.editor()->doc()->item(art->id));
+    }
+
+    // The Text Art gallery every app with pages shares: an item for each style, drawn as "Aa" in the document's colors, and a new
+    // Text Art in the style an item names (the plain style for a name no style has).
+    void textArtGalleryItemsAndNewTextArt()
+    {
+        jp::Editor ed;
+        ed.setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const auto &styles = jp::textArtStyles();
+        const QVector<jp::GalleryItem> items = jp::textArtGalleryItems(&ed);
+        QCOMPARE(items.size(), styles.size());
+        QSet<QString> seen;
+        for (int i = 0; i < items.size(); ++i) {
+            QCOMPARE(items[i].id, styles[i].id);
+            QCOMPARE(items[i].tip, styles[i].name);
+            QVERIFY(!seen.contains(items[i].id));
+            seen.insert(items[i].id);
+            QImage shown = items[i].icon.pixmap(QSize(64, 40)).toImage().convertToFormat(QImage::Format_ARGB32);
+            bool drawn = false;
+            for (int y = 0; y < shown.height() && !drawn; ++y)
+                for (int x = 0; x < shown.width() && !drawn; ++x) drawn = qAlpha(shown.pixel(x, y)) > 0;
+            QVERIFY2(drawn, qPrintable(items[i].id));
+        }
+        for (const auto &style : styles) {
+            const std::shared_ptr<jp::TextArtItem> art = jp::newTextArt(style.id);
+            QVERIFY(art);
+            QCOMPARE(art->styleId, style.id);
+            QCOMPARE(art->font, style.font);
+            QCOMPARE(art->bold, style.bold);
+            QCOMPARE(art->transform_, style.transform);
+            QCOMPARE(int(art->fill.type), int(style.fill.type));
+        }
+        const std::shared_ptr<jp::TextArtItem> plain = jp::newTextArt(QStringLiteral("no such style"));
+        QVERIFY(plain);
+        QVERIFY(plain->styleId.isEmpty());
+        QCOMPARE(plain->transform_, QStringLiteral("plain"));
+        QVERIFY(!plain->text.isEmpty());
+    }
+
+    // Online Pictures tells a library which program asks, as Wikimedia asks programs to: the running app's name and version, and
+    // where it lives (JeffPub's is as it always was).
+    void onlinePicturesNameTheProgramThatAsks()
+    {
+        struct Restore {
+            ~Restore() { jp::setAppInfo(jp::pubAppInfo()); }
+        } restore;
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost));
+        QByteArray request;
+        connect(&server, &QTcpServer::newConnection, &server, [&] {
+            QTcpSocket *s = server.nextPendingConnection();
+            connect(s, &QTcpSocket::disconnected, s, &QObject::deleteLater);
+            connect(s, &QTcpSocket::readyRead, s, [&request, s] {
+                request += s->readAll();
+                if (request.contains("\r\n\r\n")) s->write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+            });
+        });
+        QNetworkAccessManager nam;
+        auto agent = [&] {
+            request.clear();
+            bool answered = false;
+            QObject context;
+            jp::online::download(&nam, QUrl(QStringLiteral("http://127.0.0.1:%1/p").arg(server.serverPort())), &context, [&](const QByteArray &, const QString &) { answered = true; }, 1000, 5000);
+            [&] { QTRY_VERIFY_WITH_TIMEOUT(answered, 10000); }();
+            for (const QByteArray &line : request.split('\n'))
+                if (line.toLower().startsWith("user-agent:")) return QString::fromLatin1(line.mid(11)).trimmed();
+            return QString();
+        };
+        QCOMPARE(agent(), QStringLiteral("JeffPub/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+        jp::setAppInfo({QStringLiteral("JeffDeck"), QStringLiteral("jeffdeck"), QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice/jeffoffice")});
+        QCOMPARE(agent(), QStringLiteral("JeffDeck/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+    }
+
+    // An icon as an SVG picture (what JeffDeck inserts): the bundled icon's own file, drawn in the color asked for instead of the
+    // color of the text around it, and safe to keep in a presentation. A name that is no icon gives nothing.
+    void iconSvgIsTheIconInOneColor()
+    {
+        const QByteArray svg = jp::iconSvg(QStringLiteral("heart"), QColor(0x22, 0x66, 0xCC));
+        QVERIFY(!svg.isEmpty());
+        QVERIFY(!svg.contains("currentColor"));
+        QVERIFY(svg.contains("#2266cc"));
+        QVERIFY(jp::svgIsSafe(svg));
+        QSvgRenderer renderer(svg);
+        QVERIFY(renderer.isValid());
+        QCOMPARE(renderer.defaultSize(), QSize(24, 24));
+        QImage shown(48, 48, QImage::Format_ARGB32);
+        shown.fill(Qt::transparent);
+        QPainter painter(&shown);
+        renderer.render(&painter);
+        painter.end();
+        QSet<QRgb> colors;
+        for (int y = 0; y < shown.height(); ++y)
+            for (int x = 0; x < shown.width(); ++x)
+                if (qAlpha(shown.pixel(x, y)) == 255) colors.insert(shown.pixel(x, y));
+        QVERIFY(colors.contains(qRgb(0x22, 0x66, 0xCC)));
+        QVERIFY(jp::iconSvg(QStringLiteral("no-such-icon"), Qt::black).isEmpty());
     }
 
     // A picture kept in a .jpub file is held to what any picture is: an SVG
@@ -11884,7 +12019,9 @@ private Q_SLOTS:
         QCOMPARE(counts[QStringLiteral("wrap.topbottom")].toInt(), 1);
         QStringList keys = p.keys();
         keys.sort();
-        QCOMPARE(keys, (QStringList{"counts", "install", "lang", "launches", "os", "osVersion", "version"}));
+        QCOMPARE(keys, (QStringList{"app", "counts", "install", "lang", "launches", "os", "osVersion", "version"}));
+        QCOMPARE(p[QStringLiteral("app")].toString(), QStringLiteral("jeffpub"));
+        QVERIFY(QRegularExpression(QStringLiteral("^[a-z]{1,16}$")).match(p[QStringLiteral("app")].toString()).hasMatch());   // as the collector checks
         const QString id = p[QStringLiteral("install")].toString();
         QVERIFY(!QUuid::fromString(id).isNull());
         // What the collector checks (server/telemetry/main.py).
@@ -11912,6 +12049,154 @@ private Q_SLOTS:
         QVERIFY(telemetry::payload()[QStringLiteral("counts")].toObject().isEmpty());
         QVERIFY(telemetry::payload()[QStringLiteral("install")].toString() != id);
         telemetry::setEnabled(false);
+    }
+
+    // A ping says which app sent it. The choice to share and the install id are the suite's, the same in every app; the counts, the
+    // launches, and the day last sent are each app's own, so JeffPub's ping never carries what JeffDeck counted.
+    void telemetryPingsNameTheirAppAndKeepOwnCounts()
+    {
+        using namespace jp;
+        telemetry::setEnabled(false);   // from nothing counted
+        telemetry::setEnabled(true);
+        telemetry::count(QStringLiteral("file.open.pub"));
+        Settings::get().sync();
+        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), pub(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub")),
+            deck(QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
+        const QJsonObject p = telemetry::payload();
+        QCOMPARE(p[QStringLiteral("app")].toString(), QStringLiteral("jeffpub"));
+        QVERIFY(suite.value(QStringLiteral("telemetry/enabled")).toBool());
+        QCOMPARE(suite.value(QStringLiteral("telemetry/install")).toString(), p[QStringLiteral("install")].toString());
+        QVERIFY(!pub.contains(QStringLiteral("telemetry/install")));
+        QCOMPARE(pub.value(QStringLiteral("telemetry/counts")).toMap().value(QStringLiteral("file.open.pub")).toInt(), 1);
+        QVERIFY(!suite.contains(QStringLiteral("telemetry/counts")));
+        // What JeffDeck counted, in its own settings, is not in JeffPub's ping.
+        deck.setValue(QStringLiteral("telemetry/counts"), QVariantMap{{QStringLiteral("file.open.pptx"), 5}});
+        deck.setValue(QStringLiteral("telemetry/launches"), 7);
+        deck.sync();
+        Settings::get().sync();
+        const QJsonObject again = telemetry::payload();
+        QCOMPARE(again[QStringLiteral("counts")].toObject().keys(), QStringList{QStringLiteral("file.open.pub")});
+        QCOMPARE(again[QStringLiteral("launches")].toInt(), 0);
+        telemetry::setEnabled(false);
+        deck.remove(QStringLiteral("telemetry"));
+    }
+
+    // Another app turning statistics off and on again gives the suite a new install id. What this app kept for the old id
+    // is not sent under the new one.
+    void statisticsKeptForAnOldInstallAreNotSentUnderANewOne()
+    {
+        using namespace jp;
+        Settings &st = Settings::get();
+        telemetry::setEnabled(false);
+        telemetry::setEnabled(true);
+        telemetry::count(QStringLiteral("file.open.pub"));
+        st.setValue(QStringLiteral("telemetry/launches"), 2);
+        st.setValue(QStringLiteral("telemetry/lastSent"), QDate::currentDate());
+        const QJsonObject before = telemetry::payload();
+        QCOMPARE(before[QStringLiteral("counts")].toObject()[QStringLiteral("file.open.pub")].toInt(), 1);
+        QCOMPARE(before[QStringLiteral("launches")].toInt(), 2);
+        // What the other app's setEnabled does to the suite's settings, which this app's own can't be reached by.
+        st.setValue(QStringLiteral("telemetry/install"), QVariant());
+        const QJsonObject after = telemetry::payload();
+        QVERIFY(after[QStringLiteral("install")].toString() != before[QStringLiteral("install")].toString());
+        QVERIFY(after[QStringLiteral("counts")].toObject().isEmpty());
+        QCOMPARE(after[QStringLiteral("launches")].toInt(), 0);
+        QVERIFY(!st.value(QStringLiteral("telemetry/lastSent")).isValid());   // the new install has not sent today
+        telemetry::count(QStringLiteral("wrap.topbottom"));
+        QCOMPARE(telemetry::payload()[QStringLiteral("counts")].toObject().keys(), QStringList{QStringLiteral("wrap.topbottom")});
+        // The same install keeps what it counted.
+        telemetry::count(QStringLiteral("wrap.topbottom"));
+        QCOMPARE(telemetry::payload()[QStringLiteral("counts")].toObject()[QStringLiteral("wrap.topbottom")].toInt(), 2);
+        telemetry::setEnabled(false);
+    }
+
+    // A JeffPub from before JeffDeck sent statistics kept its counts without noting whose they were: they are the current
+    // install's, kept, and sent once.
+    void countsKeptBeforeTheyWereTiedToAnInstallAreKept()
+    {
+        using namespace jp;
+        telemetry::setEnabled(false);
+        telemetry::setEnabled(true);
+        Settings::get().setValue(QStringLiteral("telemetry/counts"), QVariantMap{{QStringLiteral("file.open.pub"), 3}});
+        Settings::get().setValue(QStringLiteral("telemetry/launches"), 4);
+        Settings::get().setValue(QStringLiteral("telemetry/collectedFor"), QVariant());
+        const QJsonObject p = telemetry::payload();
+        QCOMPARE(p[QStringLiteral("counts")].toObject()[QStringLiteral("file.open.pub")].toInt(), 3);
+        QCOMPARE(p[QStringLiteral("launches")].toInt(), 4);
+        QCOMPARE(Settings::get().value(QStringLiteral("telemetry/collectedFor")).toString(), p[QStringLiteral("install")].toString());
+        QCOMPARE(telemetry::payload()[QStringLiteral("counts")].toObject()[QStringLiteral("file.open.pub")].toInt(), 3);
+        telemetry::setEnabled(false);
+        QVERIFY(!Settings::get().value(QStringLiteral("telemetry/collectedFor")).isValid());   // turned off: nothing kept
+    }
+
+    // The install id was each app's own until JeffDeck sent statistics too. It moves to the suite's settings, once, and
+    // leaves the app's: turning statistics off clears the suite's, and no copy stays where that can't reach it.
+    void theInstallIdMovesToTheSuite()
+    {
+        const QString first = QStringLiteral("0f8fad5b-d9cb-469f-a165-70867728950e"), second = QStringLiteral("5b0a1c9e-3c4e-4f60-9d6b-0d9f4c4f7a11");
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        {
+            // JeffPub 0.7.0 had moved its other keys already, and kept its id and its counts itself.
+            QSettings mine(dir.filePath("app.ini"), QSettings::IniFormat), all(dir.filePath("suite.ini"), QSettings::IniFormat);
+            mine.setValue("migration/suite", true);
+            mine.setValue("telemetry/install", first);
+            mine.setValue("telemetry/counts", QVariantMap{{"file.open.pub", 3}});
+            all.setValue("telemetry/enabled", true);
+            jp::moveToSuite(mine, all);
+            QCOMPARE(all.value("telemetry/install").toString(), first);
+            QVERIFY(!mine.contains("telemetry/install"));
+            QCOMPARE(mine.value("telemetry/counts").toMap().value("file.open.pub").toInt(), 3);   // the app's own, left alone
+            QVERIFY(!all.contains("telemetry/counts"));
+            // Once: an id the app makes later is not moved, and the suite's own is never replaced.
+            mine.setValue("telemetry/install", second);
+            all.setValue("telemetry/install", first);
+            jp::moveToSuite(mine, all);
+            QCOMPARE(all.value("telemetry/install").toString(), first);
+            QCOMPARE(mine.value("telemetry/install").toString(), second);
+        }
+        {
+            // An app that never moved anything brings the id with the rest; the suite's id (another app's, first) stays.
+            QSettings mine(dir.filePath("new.ini"), QSettings::IniFormat), all(dir.filePath("both.ini"), QSettings::IniFormat);
+            mine.setValue("telemetry/install", first);
+            mine.setValue("ui/theme", 2);
+            jp::moveToSuite(mine, all);
+            QCOMPARE(all.value("telemetry/install").toString(), first);
+            QCOMPARE(all.value("ui/theme").toInt(), 2);
+            QVERIFY(!mine.contains("telemetry/install"));
+            QSettings third(dir.filePath("third.ini"), QSettings::IniFormat);
+            third.setValue("telemetry/install", second);
+            jp::moveToSuite(third, all);
+            QCOMPARE(all.value("telemetry/install").toString(), first);
+            QVERIFY(!third.contains("telemetry/install"));
+        }
+    }
+
+    // With JeffPub and JeffDeck both open, the suite offers a version once a day: what one app offered, the other leaves for
+    // tomorrow. The app that offered it offers it at each start, as ever.
+    void anUpdateIsOfferedOnceADayAcrossTheApps()
+    {
+        using namespace jp;
+        Settings &st = Settings::get();
+        const QString tag = QStringLiteral("v0.8.0");
+        for (const char *k : {"offered", "offeredOn", "offeredBy"}) st.setValue(QStringLiteral("updates/") + QString::fromLatin1(k), QVariant());
+        QVERIFY(!Updater::offeredByAnotherAppToday(tag));
+        Updater::noteOffered(tag);
+        QVERIFY(!Updater::offeredByAnotherAppToday(tag));
+        st.sync();
+        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice"));
+        QCOMPARE(suite.value(QStringLiteral("updates/offered")).toString(), tag);
+        QCOMPARE(suite.value(QStringLiteral("updates/offeredBy")).toString(), QStringLiteral("jeffpub"));
+        QCOMPARE(suite.value(QStringLiteral("updates/offeredOn")).toDate(), QDate::currentDate());
+        // JeffDeck offered it today.
+        st.setValue(QStringLiteral("updates/offeredBy"), QStringLiteral("jeffdeck"));
+        QVERIFY(Updater::offeredByAnotherAppToday(tag));
+        QVERIFY(!Updater::offeredByAnotherAppToday(QStringLiteral("v0.8.1")));   // a newer version is a new offer
+        QVERIFY(!Updater::offeredByAnotherAppToday(QString()));
+        // A day later, it is offered again.
+        st.setValue(QStringLiteral("updates/offeredOn"), QDate::currentDate().addDays(-1));
+        QVERIFY(!Updater::offeredByAnotherAppToday(tag));
+        for (const char *k : {"offered", "offeredOn", "offeredBy"}) st.setValue(QStringLiteral("updates/") + QString::fromLatin1(k), QVariant());
     }
 
     // A crash leaves a report of where it stopped: the module and offset of
@@ -12004,7 +12289,8 @@ private Q_SLOTS:
         const QJsonObject sent = telemetry::crashPayload(r);
         QStringList keys = sent.keys();
         keys.sort();
-        QCOMPARE(keys, (QStringList{"code", "frames", "install", "kind", "os", "version", "when"}));
+        QCOMPARE(keys, (QStringList{"app", "code", "frames", "install", "kind", "os", "version", "when"}));
+        QCOMPARE(sent[QStringLiteral("app")].toString(), QStringLiteral("jeffpub"));
         QCOMPARE(sent[QStringLiteral("install")].toString(), telemetry::payload()[QStringLiteral("install")].toString());
         r[QStringLiteral("when")] = QDateTime::currentDateTimeUtc().date().addDays(-31).toString(Qt::ISODate);
         QVERIFY(telemetry::crashPayload(r).isEmpty());
@@ -19983,9 +20269,12 @@ private Q_SLOTS:
     {
         // The look, the person, updates, and the statistics choice are the
         // suite's; everything else stays with the app.
-        for (const char *k : {"ui/theme", "ui/language", "user/name", "user/initials", "updates/auto", "updates/channel", "telemetry/enabled"})
+        // (The statistics' counts, launches, and day last sent are each app's own: a ping never carries another app's.)
+        for (const char *k : {"ui/theme", "ui/language", "user/name", "user/initials", "updates/auto", "updates/channel", "updates/offeredBy", "telemetry/enabled",
+                              "telemetry/install"})
             QVERIFY2(jp::suiteWide(QString::fromLatin1(k)), k);
-        for (const char *k : {"units", "recent", "edit/nudge", "ui/windowGeometry", "telemetry/install", "telemetry/counts", "migration/suite"})
+        for (const char *k : {"units", "recent", "edit/nudge", "ui/windowGeometry", "telemetry/counts", "telemetry/launches", "telemetry/lastSent",
+                              "telemetry/lastVersion", "telemetry/collectedFor", "migration/suite", "migration/suiteInstall"})
             QVERIFY2(!jp::suiteWide(QString::fromLatin1(k)), k);
 
         // A choice made in one app is kept in the suite's store, where every app reads it.

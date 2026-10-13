@@ -1,5 +1,5 @@
 # Shapes, pictures, tables, and Text Art
-<!-- keywords: shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, table, grid, rows, columns, text art, chart, smartart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop -->
+<!-- keywords: shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, online pictures, openverse, wikimedia commons, credit, license, alt text, icons, svg, table, grid, rows, columns, text art, chart, smartart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop -->
 
 Besides text, a slide can hold shapes, pictures, and tables. This topic shows how to add them and what JeffDeck does with other kinds of objects.
 
@@ -18,6 +18,40 @@ Click **Insert > Images > Pictures**, pick one or more files, and click **Open**
 You can also drag picture files from your file manager onto a slide. A picture lands where you drop it.
 
 JeffDeck reads PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, WMF, EMF, ICO, and PDF pictures.
+
+## Add a picture from the web
+
+**Online Pictures** finds free pictures. They come from two open libraries: Openverse, which searches many collections, and Wikimedia Commons, the library of Wikipedia's pictures.
+
+1. Click the arrow under **Insert > Images > Pictures** and choose **Online Pictures…**. A pane opens on the right.
+2. Choose a library, type what you are looking for, and click **Search** (or press Enter).
+3. Click a picture to see who made it and what license it has. A **license** says how you may use a picture. Click the license's name to read it.
+4. Click **Insert** (or double-click the picture).
+
+**What JeffDeck sends.** Your search words go to the library you choose, and only when you click **Search** or press Enter. JeffDeck then asks the library for the small previews of what it found, and for the one picture you insert. Like any web page, the library can see your computer's internet address, and it is told that JeffDeck is asking. Nothing from your presentation is sent.
+
+The picture goes in the middle of the slide. It is no larger than most of the slide. The picture's title is saved as its **alt text**, which is words that a screen reader says aloud for people who can't see it. Most licenses ask you to name the author. When **Add a credit under the picture** is checked, JeffDeck adds a small line of text under the picture with its title, its author, and its license. It is a text box you can move or change. Check that the license fits how you will use the picture.
+
+## Add an icon
+
+An **icon** is a simple picture, like a heart, an arrow, or an envelope. JeffDeck has more than 1,500.
+
+1. Click **Insert > Illustrations > Icons**.
+2. Type a word in the search box, like **arrow** or **mail**. The icons that match stay.
+3. Click an icon. To pick several, hold **Ctrl** or **Shift** while you click.
+4. Click **Insert** (or double-click an icon).
+
+Each icon goes on the slide as a picture one inch square, in the middle. Several icons go side by side. They are drawn in the theme's text color. Icons are SVG pictures. That means they stay sharp when you make them bigger. You can move, resize, and turn them like any picture. When you save, each icon is saved as a picture and as an SVG, so other programs that draw SVG keep it sharp too.
+
+## Add Text Art
+
+**Text Art** is fancy words: letters with color, an outline, a shadow, or a curved shape.
+
+1. Click **Insert > Text > Text Art**. A gallery of styles opens.
+2. Click a style. The Text Art goes in the middle of the slide, and a box opens with its words all selected.
+3. Type your words. They take the place of the old ones. Pick a font, a size, **Bold**, or **Italic** if you like. Click **OK**.
+
+To change the words later, double-click the Text Art, or select it and press Enter. You can move, resize, turn, and delete it like any object. The letters stretch to fill the box, so drag its handles to make it wider or taller.
 
 ## Add a table
 
@@ -83,7 +117,7 @@ Turn on **View > Show > Ruler**, **Gridlines**, or **Guides** for help placing o
 
 A presentation made elsewhere can hold things JeffDeck has no tools for yet. It shows them as well as it can, and it keeps them when you save.
 
-- **Text Art** from an older file is shown and saved. You can move, resize, turn, and delete it, but you can't add new Text Art or change its words yet.
+- **Text Art** from an older file is shown and saved, and you can change its words, as with Text Art you add. JeffDeck has no tools yet to change its style or shape once it is on the slide. To try another style, add new Text Art.
 - **Charts** are drawn from the values saved in the file, and saved whole. You can't edit them yet.
 - **SmartArt diagrams** are drawn the way they were saved. A SmartArt diagram is a set of shapes that work together, like a row of boxes or a chain of steps. JeffDeck treats the whole diagram as one object. You can select it, move it, resize it, copy it, and delete it. The drawing grows and shrinks with it. You can't change its words yet. When you save, the diagram goes back into the file whole, so the program that made it can still edit it. A copy you paste is only a picture of the diagram. A duplicated slide keeps the whole diagram.
 - **Equations** are shown as the picture the file keeps of them. An equation is math set in special type, like a fraction or a square root. You can move, resize, turn, copy, and delete the picture, but you can't change the math yet. When you save, the math goes back into the file as it was. This works for a text box that has other words around an equation too.

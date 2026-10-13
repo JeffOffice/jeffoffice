@@ -7,6 +7,7 @@
 #include "app/notespane.h"
 #include "app/outlineview.h"
 #include "app/settings.h"
+#include "app/telemetry.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
 #include "io/presentationfile.h"
@@ -16,6 +17,14 @@
 #include <QMessageBox>
 
 namespace jp {
+
+QString DeckWindow::fileKind(const QString &path)
+{
+    static const QStringList kinds = {QStringLiteral("pptx"), QStringLiteral("potx"), QStringLiteral("ppsx"), QStringLiteral("ppt"),
+                                      QStringLiteral("pot"), QStringLiteral("pps"), QStringLiteral("odp"), QStringLiteral("otp")};
+    const QString ending = QFileInfo(path).suffix().toLower();
+    return kinds.contains(ending) ? ending : QStringLiteral("other");
+}
 
 bool DeckWindow::openFile(const QString &path)
 {
@@ -42,6 +51,7 @@ bool DeckWindow::openFile(const QString &path)
     // The panes follow the new presentation (documentReplaced); its slides may be another size.
     target->m_canvas->zoomToFit(Canvas::Fit::WholePage);
     Settings::get().addRecentFile(path);
+    telemetry::count(QStringLiteral("file.open.") + fileKind(path));
     hideFileScreen();
     if (!notes.isEmpty())
         QMessageBox::warning(target, tr("Open"), tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes));

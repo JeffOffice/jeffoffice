@@ -17,6 +17,7 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <climits>
 #include <QActionGroup>
 #include <QApplication>
 #include <QFileInfo>
@@ -24,6 +25,7 @@
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QTextBlock>
+#include <QTextCursor>
 #include <QTextList>
 
 namespace jp {
@@ -48,6 +50,40 @@ bool inList(Editor *ed, bool bullets)
 {
     if (!ed->isEditingText() || !ed->cursor().block().textList()) return false;
     return isBulletList(ed->cursor().block().textList()->format().style()) == bullets;
+}
+
+// Increase and Decrease List Level: in a slide's placeholder whose layout has a list, a paragraph takes the layout's list, indent, and look for
+// its new level (one step that undoes); anywhere else the editor changes the level.
+void changeLevel(Editor *ed, int dir)
+{
+    Document *d = ed->doc();
+    struct Target {
+        const Item *item;
+        int first, last;
+    };
+    QVector<Target> targets;
+    bool placeholders = d != nullptr;
+    auto add = [&](const Item *it, int first, int last) {
+        if (!it || !deck::layoutHasList(*d, *it)) placeholders = false;
+        else targets << Target{it, first, last};
+    };
+    if (placeholders && ed->isEditingText()) {
+        const Editor::TextTarget &t = ed->textTarget();
+        const QTextDocument *sd = d->storyDoc(t.storyId);
+        if (t.row >= 0 || !sd) placeholders = false;
+        else add(d->item(t.itemId), sd->findBlock(ed->cursor().selectionStart()).blockNumber(), sd->findBlock(ed->cursor().selectionEnd()).blockNumber());
+    } else if (placeholders) {
+        for (const Item *it : ed->selectedItems()) add(it, 0, INT_MAX);
+        placeholders = placeholders && !targets.isEmpty();
+    }
+    if (!placeholders) {
+        ed->changeIndent(dir);
+        return;
+    }
+    ed->beginChange(dir > 0 ? QCoreApplication::translate("DeckWindow", "Increase List Level") : QCoreApplication::translate("DeckWindow", "Decrease List Level"));
+    for (const Target &t : std::as_const(targets)) deck::changeListLevel(*d, *t.item, t.first, t.last, dir);
+    ed->endChange();
+    Q_EMIT ed->textCursorChanged();
 }
 } // namespace
 
@@ -97,8 +133,8 @@ void DeckWindow::createFormatActions()
     const char *numNames[] = {"1. 2. 3.", "a. b. c.", "A. B. C.", "i. ii. iii.", "I. II. III.", "1) 2) 3)", "(1) (2) (3)"};
     for (int i = 0; i < 7; ++i) mk(QStringLiteral("number.%1").arg(i), QString::fromLatin1(numNames[i]), "", QKeySequence(), [ed, i] { ed->setList(2, i + 1); });
     mk("para.listNone", tr("None"), "", QKeySequence(), [ed] { ed->setList(0); });
-    mk("para.indentDec", tr("Decrease List Level"), "indent-decrease", QKeySequence(), [ed] { ed->changeIndent(-1); });
-    mk("para.indentInc", tr("Increase List Level"), "indent-increase", QKeySequence(), [ed] { ed->changeIndent(1); });
+    mk("para.indentDec", tr("Decrease List Level"), "indent-decrease", QKeySequence(), [ed] { changeLevel(ed, -1); });
+    mk("para.indentInc", tr("Increase List Level"), "indent-increase", QKeySequence(), [ed] { changeLevel(ed, 1); });
     for (double s : {1.0, 1.15, 1.5, 2.0, 2.5, 3.0})
         mk(QStringLiteral("ls.%1").arg(s), QString::number(s), "", QKeySequence(), [ed, s] { ed->setLineSpacing(QTextBlockFormat::ProportionalHeight, s * 100); });
 
@@ -161,6 +197,7 @@ void DeckWindow::createFormatActions()
 void DeckWindow::createInsertActions()
 {
     mk("insert.headerFooter", tr("Header and Footer"), "panel-bottom", QKeySequence(), [this] { showHeaderFooter(); });
+    createPictureActions();
 }
 
 void DeckWindow::createDesignActions()
@@ -279,7 +316,7 @@ void DeckWindow::showHeaderFooter()
     if (dlg.exec() == QDialog::Accepted) applyFooters(dlg.options(), dlg.applyToAll());
 }
 
-bool DeckWindow::insertPicture(const QString &path, const QPointF &at)
+bool DeckWindow::insertPicture(const QString &path, const QPointF &at, const QString &altText, const QString &credit)
 {
     QByteArray bytes = readPictureBytes(path);
     QString format;
@@ -295,10 +332,27 @@ bool DeckWindow::insertPicture(const QString &path, const QPointF &at)
     auto pic = std::make_shared<PictureItem>();
     pic->rect = QRectF(at.x() < 0 ? QPointF((ps.width() - size.width()) / 2, (ps.height() - size.height()) / 2) : at, size);
     pic->imgRect = QRectF(QPointF(0, 0), size);
+    pic->altText = altText;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Insert Picture"));
     pic->imageId = d->addImage(bytes, format, path);
     m_ed->surfaceItems().push_back(pic);
+    if (!credit.isEmpty()) {
+        // Under the picture, as wide as it is (but wide enough to read), kept on the slide.
+        const double width = std::min(ps.width() * 0.9, std::max(pic->rect.width(), 320.0));
+        const double left = std::clamp(pic->rect.center().x() - width / 2, 0.0, ps.width() - width);
+        auto line = std::static_pointer_cast<TextItem>(m_ed->newTextBox(QRectF(left, pic->rect.bottom() + 4, width, 28), credit));
+        QTextCursor c(d->storyDoc(line->storyId));
+        c.select(QTextCursor::Document);
+        QTextCharFormat creditText;
+        creditText.setFontPointSize(12);
+        c.mergeCharFormat(creditText);
+        QTextBlockFormat centered;
+        centered.setAlignment(Qt::AlignHCenter);
+        c.mergeBlockFormat(centered);
+        m_ed->surfaceItems().push_back(line);
+        pic->caption = line->id;
+    }
     m_ed->endChange();
     m_ed->select(pic->id);
     return true;

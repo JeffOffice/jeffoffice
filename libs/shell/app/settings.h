@@ -22,9 +22,10 @@ bool moveDataFolder(const QString &from, const QString &to);
 
 // Whether a setting belongs to the whole suite rather than one app: the
 // theme, the language, the name and initials of the person using it, the
-// updates (setup installs every app at once), and whether to send
-// statistics. Those are kept in the suite's own store, so a choice made in
-// one app holds in all of them; everything else stays with the app.
+// updates (setup installs every app at once), whether to send statistics,
+// and the random id those statistics are sent under. Those are kept in the
+// suite's own store, so a choice made in one app holds in all of them;
+// everything else stays with the app (the statistics' counts too).
 bool suiteWide(const QString &key);
 // Copies the suite-wide settings an app kept itself (before there was a
 // suite store) that the suite store doesn't have yet (setup may already have
@@ -57,6 +58,10 @@ public:
     // From the app's store, or the suite's for a suite-wide key.
     QVariant value(const QString &key, const QVariant &def = QVariant()) const { return store(key).value(key, def); }
     void setValue(const QString &key, const QVariant &v) { store(key).setValue(key, v); }
+
+    // Writes what's pending and reads what another app changed meanwhile
+    // (a choice made in one stays unseen by a running other until then).
+    void sync() { m_s.sync(); m_suite.sync(); }
 
     QString userName() const;
     int autoRecoverMinutes() const { return m_s.value("save/autoRecoverMinutes", 10).toInt(); }
