@@ -17321,6 +17321,47 @@ private Q_SLOTS:
         QVERIFY(!QGuiApplication::overrideCursor());
     }
 
+    // The pictures a theme file brings stay in the presentation's store after the change is undone (so that redo has them), and the saved file
+    // carries only the pictures something uses: none of them while the change is undone, and the picture once it is done again.
+    void picturesOfAThemeFileAreNotSavedOnceItIsUndone()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto source = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Orchard")));
+        MasterPage &master = *source->masters.first();
+        auto logo = std::make_shared<PictureItem>();
+        logo->name = QStringLiteral("logo");
+        logo->rect = QRectF(860, 20, 60, 60);
+        logo->imageId = source->addImage(odptest::png(8, 8, QColor(0x20, 0x80, 0x40)), QStringLiteral("png"));
+        logo->imgRect = QRectF(0, 0, 60, 60);
+        master.items.push_back(logo);
+        QString err;
+        QFile file(dir.filePath(QStringLiteral("logo.potx")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(deck::exportPresentation(*source, &err));
+        file.close();
+        auto mediaIn = [&](const Document &doc) {
+            Exported e;
+            if (!unpack(deck::exportPresentation(doc, &err), &e, &err)) return -1;
+            int n = 0;
+            for (const QString &name : e.pkg.partNames()) n += name.startsWith(QLatin1String("/ppt/media/"));
+            return n;
+        };
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        const int imagesBefore = int(ed->doc()->images.size());
+        QCOMPARE(mediaIn(*ed->doc()), 0);
+        QVERIFY(w.applyThemeFile(file.fileName(), true));
+        QCOMPARE(int(ed->doc()->images.size()), imagesBefore + 1);
+        QCOMPARE(mediaIn(*ed->doc()), 1);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->images.size()), imagesBefore + 1);   // kept for redo
+        QCOMPARE(mediaIn(*ed->doc()), 0);                            // but not saved
+        ed->redo();
+        QCOMPARE(mediaIn(*ed->doc()), 1);
+    }
+
     // The Variants group shows the four variants of the theme with the one it has marked; a click applies one; its menu offers colors,
     // fonts, and the twelve background styles, each a step that undoes.
     void designTabVariantsAndTheirMenu()
