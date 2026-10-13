@@ -6,6 +6,7 @@
 #include "render/textart.h"
 #include "core/fonts.h"
 #include "core/svg.h"
+#include "core/texteffects.h"
 
 #include <QCache>
 #include <QDateTime>
@@ -1062,7 +1063,14 @@ void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
         }
         if (fx.shadow.on) {
             QImage s = img;
-            boxBlur(s, std::max(0, int(fx.shadow.blur * sc / 2)));
+            if (ctx.doc->slideText) {
+                // As the presentation program blurs it: the radius is the width of a box over the edge, a Gaussian of a third of it.
+                QImage a = s.convertToFormat(QImage::Format_Alpha8);
+                blurAlpha(a, blurSigma(fx.shadow.blur) * sc);
+                s = a.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            } else {
+                boxBlur(s, std::max(0, int(fx.shadow.blur * sc / 2)));
+            }
             QColor c = fx.shadow.color.resolve(cs);
             c.setAlphaF(float(1 - fx.shadow.transparency));
             // Keep the shadow direction fixed on the page regardless of rotation/flip.

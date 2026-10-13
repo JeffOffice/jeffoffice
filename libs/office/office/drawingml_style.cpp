@@ -492,6 +492,13 @@ Stroke readLine(const QDomElement &spPr, const QDomElement &style, const Drawing
     return resolveLine({spPr}, style, sc);
 }
 
+Effects readEffects(const QDomElement &spPr, const QDomElement &style, const DrawingContext &ctx)
+{
+    StyleContext sc;
+    sc.ctx = &ctx;
+    return resolveEffects({spPr}, style, sc);
+}
+
 Fill readBackground(const QDomElement &bg, const DrawingContext &ctx)
 {
     StyleContext sc;

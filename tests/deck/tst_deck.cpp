@@ -34,6 +34,7 @@
 #include "app/showmedia.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
+#include "app/textartgallery.h"
 #include "app/themegallery.h"
 #include "app/telemetry.h"
 #include "app/updater.h"
@@ -5805,6 +5806,83 @@ private Q_SLOTS:
         const QString titleStyle = saved.mid(style, saved.indexOf(QStringLiteral("</p:titleStyle>")) - style);
         QVERIFY2(titleStyle.contains(QStringLiteral("<a:outerShdw")), qPrintable(titleStyle));
         QVERIFY(titleStyle.indexOf(QStringLiteral("<a:effectLst>")) < titleStyle.indexOf(QStringLiteral("<a:latin")));
+    }
+
+    // A shape's shadow is blurred as the presentation program blurs it on a slide: the radius is a box over the edge, a Gaussian of
+    // about a third of it (a publication's shadows keep their own blur).
+    void shapeShadowBlursAsTheProgramBlursIt()
+    {
+        for (const bool slide : {true, false}) {
+            std::shared_ptr<Document> d = slide ? std::shared_ptr<Document>(deck::newPresentation()) : std::make_shared<Document>();
+            if (!slide) d->pages.push_back(std::make_shared<Page>());
+            auto box = std::make_shared<ShapeItem>();
+            box->shape = QStringLiteral("rect");
+            box->rect = QRectF(100, 100, 200, 100);
+            box->fill = Fill::solid(ColorRef::rgb(Qt::white));
+            box->stroke = Stroke::none();
+            box->fx.shadow.on = true;
+            box->fx.shadow.color = ColorRef::rgb(Qt::black);
+            box->fx.shadow.transparency = 0;
+            box->fx.shadow.blur = 6;
+            box->fx.shadow.distance = 40;
+            box->fx.shadow.angle = 0;
+            d->pages[0]->items.push_back(box);
+            LayoutCache cache;
+            const QImage img = paintedSlide(d.get(), &cache, 0);
+            // Along a row through the box, from the shadow's solid part out to the white: a Gaussian's edge goes from 84 to 16 percent of its
+            // height over two spreads.
+            auto crossing = [&](double level) {
+                for (int x = 305; x < 400; ++x) {
+                    const double now = qGray(img.pixel(x, 150)) / 255.0, before = qGray(img.pixel(x - 1, 150)) / 255.0;
+                    if (now >= level && before < level) return x - 1 + (level - before) / (now - before);
+                }
+                return -1.0;
+            };
+            const double half = crossing(0.5), wide = crossing(0.8413) - crossing(0.1587);
+            QVERIFY2(half > 0, qPrintable(QString::number(half)));
+            QVERIFY2(std::abs(half - 340) < 1.0, qPrintable(QString::number(half)));
+            if (slide) QVERIFY2(std::abs(wide - 2 * 0.2887 * 6) < 1.0, qPrintable(QString::number(wide)));
+            else QVERIFY2(wide > 2 * 0.2887 * 6 + 1.0, qPrintable(QString::number(wide)));   // the older, wider blur
+        }
+    }
+
+    // Text Art's shadow (the gallery's styles have one) is saved with its letters and read back, and drawn on the slide.
+    void textArtShadowIsSavedReadAndDrawn()
+    {
+        auto d = deck::newPresentation();
+        auto art = newTextArt(QStringLiteral("fill-a1-shadow"));
+        art->name = QStringLiteral("Art");
+        art->rect = QRectF(100, 100, 400, 150);
+        art->text = QStringLiteral("HI");
+        QVERIFY(art->fx.shadow.on);
+        d->pages[0]->items.push_back(art);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:outerShdw")));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        TextArtItem *read = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->name == QLatin1String("Art") && it->type() == ItemType::TextArt) read = static_cast<TextArtItem *>(it.get());
+        QVERIFY(read);
+        QVERIFY(read->fx.shadow.on);
+        QVERIFY2(std::abs(read->fx.shadow.blur - art->fx.shadow.blur) < 0.01 && std::abs(read->fx.shadow.distance - art->fx.shadow.distance) < 0.01, "blur and distance");
+        QVERIFY(std::abs(read->fx.shadow.angle - art->fx.shadow.angle) < 0.01);
+        QVERIFY(std::abs(read->fx.shadow.transparency - art->fx.shadow.transparency) < 0.01);
+        // The shadow shows on the slide: letters with it have gray where the same letters without it have the page.
+        LayoutCache cache;
+        const QImage with = paintedSlide(back.get(), &cache, 0);
+        read->fx.shadow.on = false;
+        LayoutCache bare;
+        const QImage without = paintedSlide(back.get(), &bare, 0);
+        int darker = 0;
+        for (int y = 0; y < with.height(); ++y)
+            for (int x = 0; x < with.width(); ++x)
+                if (qGray(with.pixel(x, y)) + 20 < qGray(without.pixel(x, y))) ++darker;
+        QVERIFY2(darker > 500, qPrintable(QString::number(darker)));
     }
 
     // A slide's lines are the presentation program's: a single line is 1.2 times the text size whatever the font, a wider line's
