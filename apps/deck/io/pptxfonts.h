@@ -30,6 +30,13 @@
 
 namespace jp::deck {
 
+// The XML of a part with every typeface it names under the name other programs know it by. The open fonts that are drawn to a standard
+// font's character widths (Carlito for Calibri, Arimo for Arial, and the others interchangeFontName lists) are written as the standard
+// font, wherever a font is named: a computer that has the standard font draws with it, and JeffOffice draws its look-alike for it, laid
+// out the same. The same names are what the lists of fonts used and of embedded fonts hold, and those fonts are never embedded.
+QString withStandardFontNames(const QString &xml);
+QByteArray withStandardFontNames(const QByteArray &xml);
+
 // The families and styles a presentation's text uses, found in the XML of the
 // parts that are written: every run's, paragraph end's, and list level's text
 // properties (a:rPr, a:endParaRPr, a:defRPr), and bullet fonts. A typeface
