@@ -13,6 +13,7 @@
 #include "office/theme.h"
 #include "office/xml.h"
 #include "core/fontfiles.h"
+#include "core/fonts.h"
 #include "core/sfnt.h"
 #include "io/zip.h"
 #include "render/metafile.h"
@@ -23,6 +24,7 @@
 #include <QBuffer>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFontDatabase>
 #include <QImage>
 #include <QPainter>
 #include <QTextDocument>
@@ -176,8 +178,8 @@ private:
 };
 
 // One LZCOMP block of `data`, with copies (of at least 3 bytes) and the one-byte copies from 2, 4, and 6 back. With `runLength` the data is
-// first run-length coded (the least used byte value is the marker).
-QByteArray mtxCompress(QByteArray data, bool runLength = false)
+// first run-length coded (the least used byte value is the marker). With `quick` the search for copies is cut short, for blocks of millions of bytes.
+QByteArray mtxCompress(QByteArray data, bool runLength = false, bool quick = false)
 {
     if (runLength) {
         int counts[256] = {};
@@ -219,10 +221,13 @@ QByteArray mtxCompress(QByteArray data, bool runLength = false)
     for (qsizetype at = 0; at < data.size();) {
         const qsizetype remaining = data.size() - at;
         qsizetype bestLength = 0, bestBack = 0;
-        for (qsizetype back = 1; back <= std::min<qsizetype>(900, prefix + at); ++back) {
+        // `quick`: only the copy from a multiple of 270 back, a few thousand bytes into the data, is looked for (enough for data that repeats
+        // with a period that divides 270 after a short head, and a copy may be as long as what is made so far), so millions of bytes go at once.
+        const qsizetype quickBack = at >= 4000 ? std::min<qsizetype>((at - 3000) / 270 * 270, qsizetype(1) << 22) : 0;
+        for (qsizetype back = quick ? quickBack : 1; back <= (quick ? quickBack : std::min<qsizetype>(900, prefix + at)) && back > 0; ++back) {
             if (window[prefix + at - back] != window[prefix + at]) continue;
             qsizetype n = 1;
-            while (n < std::min<qsizetype>({back, remaining, 270}) && window[prefix + at - back + n] == window[prefix + at + n]) ++n;
+            while (n < std::min<qsizetype>({back, remaining, quick ? (qsizetype(1) << 23) : 270}) && window[prefix + at - back + n] == window[prefix + at + n]) ++n;
             const qsizetype distance = back - n + 1;
             if (n >= 3 && n > bestLength && distance - 1 < (qint64(1) << (3 * ranges)) && n - 2 - (distance > 0x1ff ? 1 : 0) >= 0) bestLength = n, bestBack = back;
         }
@@ -627,6 +632,26 @@ quint32 wordSum(const QByteArray &data)
         sum += word;
     }
     return sum;
+}
+
+// The most memory this process has had in use, in KB, and a way to start counting again (Linux only; 0 elsewhere, where a test of it is skipped).
+qint64 peakMemoryKb()
+{
+#ifdef Q_OS_LINUX
+    QFile f(QStringLiteral("/proc/self/status"));
+    if (f.open(QIODevice::ReadOnly))
+        for (const QByteArray &line : f.readAll().split('\n'))
+            if (line.startsWith("VmHWM:")) return line.mid(6).trimmed().split(' ').value(0).toLongLong();
+#endif
+    return 0;
+}
+
+void resetPeakMemory()
+{
+#ifdef Q_OS_LINUX
+    QFile f(QStringLiteral("/proc/self/clear_refs"));
+    if (f.open(QIODevice::WriteOnly)) f.write("5");
+#endif
 }
 
 QByteArray zipOf(const Entries &entries, bool compress = true)
@@ -1916,6 +1941,95 @@ private Q_SLOTS:
         }
         QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
         QVERIFY(refusedCount > 50);
+    }
+
+    // What a block decompresses to is counted against the cap before anything is copied: a tiny file whose first block is as large as a block
+    // can be (16 MB) and whose directory points a hundred tables at all of it is refused as damaged at once, not after a hundred copies.
+    void microTypeExpressTablesThatShareABlockAreRefusedBeforeTheyAreCopied()
+    {
+        const int tables = 100, headerEnd = 12 + 16 * tables, tableLength = 16000000;
+        QByteArray directory;
+        directory.append(char(0)).append(char(1)).append(char(0)).append(char(0));
+        appendU16Be(&directory, quint16(tables));
+        appendU16Be(&directory, 0), appendU16Be(&directory, 0), appendU16Be(&directory, 0);
+        const QByteArray names[] = {"head", "maxp", "glyf"};
+        for (int i = 0; i < tables; ++i) {
+            directory.append(i < 3 ? names[i] : QByteArray("T") + QByteArray::number(1000 + i));
+            directory.append(QByteArray(4, '\0'));
+            for (quint32 v : {quint32(headerEnd), quint32(tableLength)}) appendU16Be(&directory, quint16(v >> 16)), appendU16Be(&directory, quint16(v & 0xFFFF));
+        }
+        QByteArray block = directory;
+        block.append(QByteArray(16700000 - headerEnd, '\0'));
+        const QByteArray first = mtxCompress(block, false, true);
+        QVERIFY2(first.size() < 3000, qPrintable(QString::number(first.size())));
+        QByteArray mtx;
+        mtx.append(char(3)).append(char(0)).append(char(0)).append(char(0));
+        const qint64 second = 10 + first.size(), third = second + 4;
+        for (qint64 v : {second, third}) mtx.append(char(v >> 16)).append(char(v >> 8)).append(char(v));
+        mtx += first + mtxCompress(QByteArray()) + mtxCompress(QByteArray());
+        const QByteArray font = bundledFontBytes(QStringLiteral("Lato"));
+        const QByteArray eot = eotWithMtx(font, mtx);
+        QVERIFY2(eot.size() < 4000, qPrintable(QString::number(eot.size())));   // the whole file: a few thousand bytes
+        QByteArray read;
+        QString why;
+        resetPeakMemory();
+        const qint64 before = peakMemoryKb();
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!readEmbeddedFont(eot, &read, nullptr, &why));
+        const qint64 ms = timer.elapsed();
+        QVERIFY2(!why.isEmpty() && read.isEmpty(), qPrintable(why));
+        QCOMPARE(why, QStringLiteral("The embedded font is damaged."));   // the directory's tables overlap, which no copy is made to find out
+        QVERIFY2(ms < 3000, qPrintable(QString::number(ms)));
+        if (before > 0) QVERIFY2(peakMemoryKb() - before < 120 * 1024, qPrintable(QString::number(peakMemoryKb() - before) + QLatin1String(" KB more at the peak")));
+        // Tables that overlap, or reach past the data, are refused whatever their size.
+        for (int i = 0; i < 2; ++i) {
+            QByteArray small = directory.left(12 + 16 * 3);
+            qToBigEndian<quint16>(3, small.data() + 4);
+            const qint64 at = 12 + 16 * 3;
+            for (int t = 0; t < 3; ++t) {
+                qToBigEndian<quint32>(quint32(at + (i == 0 ? 0 : 8 * t)), small.data() + 12 + 16 * t + 8);   // all at the same place; or each 8 bytes on from the one before
+                qToBigEndian<quint32>(i == 0 ? 16u : 40u, small.data() + 12 + 16 * t + 12);                   // 16 bytes each; or reaching past the end
+            }
+            small.append(QByteArray(32, '\0'));
+            QByteArray m2;
+            m2.append(char(3)).append(char(0)).append(char(0)).append(char(0));
+            const QByteArray b1 = mtxCompress(small);
+            const qint64 s2 = 10 + b1.size();
+            for (qint64 v : {s2, s2 + 4}) m2.append(char(v >> 16)).append(char(v >> 8)).append(char(v));
+            m2 += b1 + mtxCompress(QByteArray()) + mtxCompress(QByteArray());
+            QVERIFY2(!readEmbeddedFont(eotWithMtx(font, m2), &read, nullptr, &why), qPrintable(QString::number(i)));
+            QVERIFY(!why.isEmpty());
+        }
+    }
+
+    // The three blocks together are held to a budget too: each under the limit, and all three over what a font may take once made, are refused.
+    void microTypeExpressBlocksAreHeldToOneBudget()
+    {
+        // Run-length data: marker, 255, byte, over and over (117,000 times is 30 MB once expanded).
+        QByteArray runs;
+        runs.append(char(7));
+        for (int i = 0; i < 117000; ++i) runs.append(char(7)).append(char(255)).append('a');
+        QByteArray block = mtxCompress(runs, false, true);
+        block[0] = char(quint8(block[0]) | 0x80);
+        QVERIFY2(block.size() < 20000, qPrintable(QString::number(block.size())));
+        QByteArray mtx;
+        mtx.append(char(3)).append(char(0)).append(char(0)).append(char(0));
+        const qint64 second = 10 + block.size(), third = second + block.size();
+        for (qint64 v : {second, third}) mtx.append(char(v >> 16)).append(char(v >> 8)).append(char(v));
+        mtx += block + block + block;
+        const QByteArray font = bundledFontBytes(QStringLiteral("Lato"));
+        QByteArray read;
+        QString why;
+        resetPeakMemory();
+        const qint64 before = peakMemoryKb();
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!readEmbeddedFont(eotWithMtx(font, mtx), &read, nullptr, &why));
+        QVERIFY2(!why.isEmpty() && read.isEmpty(), qPrintable(why));
+        QCOMPARE(why, QStringLiteral("The embedded font is larger than 32 MB."));   // the budget, not what the data turned out to be
+        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+        if (before > 0) QVERIFY2(peakMemoryKb() - before < 160 * 1024, qPrintable(QString::number(peakMemoryKb() - before) + QLatin1String(" KB more at the peak")));
     }
 
     void xmlAcceptsDeepButReasonableNesting()
