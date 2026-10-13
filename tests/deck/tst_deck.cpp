@@ -17,6 +17,7 @@
 #include "app/editormedia.h"
 #include "app/mediadialogs.h"
 #include "app/mediaplayer.h"
+#include "app/onlinepictures.h"
 #include "app/iconpicker.h"
 #include "app/icons.h"
 #include "app/notespane.h"
@@ -59,6 +60,7 @@
 #include "office/package.h"
 #include "office/xml.h"
 #include "render/renderer.h"
+#include "render/textart.h"
 #include "text/textprops.h"
 
 #include <QAbstractButton>
@@ -96,6 +98,7 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <QTcpServer>
+#include <QScopeGuard>
 #include <QTcpSocket>
 #include <QSignalSpy>
 #include <QSlider>
@@ -1079,6 +1082,31 @@ private:
     {
         if (poll() || tries <= 0) return;
         QTimer::singleShot(10, [poll, tries] { untilDone(poll, tries - 1); });
+    }
+    // The online libraries answered from here (nothing goes online): a search finds one picture, "Red barn" by Pat Lee, whose file is
+    // `picture`. The real fetch comes back when this goes.
+    struct CannedLibraries {
+        QStringList asked;
+        std::function<void(const QUrl &, QObject *, const online::Done &, qint64)> kept = online::fetch;
+        explicit CannedLibraries(const QByteArray &picture)
+        {
+            const QByteArray openverse = QJsonDocument(QJsonObject{{"results", QJsonArray{QJsonObject{
+                {"id", "a1"}, {"title", "Red barn"}, {"creator", "Pat Lee"}, {"license", "by"}, {"license_version", "2.0"},
+                {"license_url", "https://creativecommons.org/licenses/by/2.0/"}, {"foreign_landing_url", "https://example.org/page/a1"},
+                {"url", "https://example.org/barn.png"}, {"thumbnail", "https://example.org/barn.thumb"}}}}}).toJson();
+            online::fetch = [this, openverse, picture](const QUrl &u, QObject *, const online::Done &done, qint64) {
+                asked << u.toString();
+                done(u.host() == QLatin1String("api.openverse.org") ? openverse : picture, QString());
+            };
+        }
+        ~CannedLibraries() { online::fetch = kept; }
+    };
+    // Saves a picture of a widget in the folder JP_SHOT_DIR names, when it is set (for looking at the new controls).
+    static void shot(QWidget *w, const QString &name)
+    {
+        if (qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) return;
+        QDir().mkpath(qEnvironmentVariable("JP_SHOT_DIR"));
+        w->grab().save(qEnvironmentVariable("JP_SHOT_DIR") + QLatin1Char('/') + name + QStringLiteral(".png"));
     }
     // Opens the right-click menu of a widget at `pos` and, while it is open, tells `inspect` about it; it closes after.
     static void rightClick(QWidget *viewport, const QPoint &pos, const std::function<void(QMenu *)> &inspect)
@@ -14416,6 +14444,419 @@ private Q_SLOTS:
         int pictures = 0;
         for (const auto &it : back->pages[0]->items) pictures += it->type() == ItemType::Picture && !static_cast<const PictureItem *>(it.get())->imageId.isEmpty();
         QCOMPARE(pictures, 3);
+    }
+
+    // The Insert tab has what JeffPub's has, in the groups the presentation program puts them in: Pictures is a split button (This Device,
+    // Online Pictures), Icons is beside Shapes, and Text Art is a gallery in the Text group, between Header & Footer and Date & Time.
+    void insertTabHasPicturesIconsAndTextArt()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        for (const char *id : {"insert.picture", "insert.pictureDevice", "insert.onlinePicture", "insert.icons"}) QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QCOMPARE(w.act(QStringLiteral("insert.pictureDevice"))->text(), QStringLiteral("This Device…"));
+        QCOMPARE(w.act(QStringLiteral("insert.onlinePicture"))->text(), QStringLiteral("Online Pictures…"));
+        QCOMPARE(w.act(QStringLiteral("insert.icons"))->text(), QStringLiteral("Icons"));
+        QCOMPARE(w.act(QStringLiteral("insert.picture"))->text(), QStringLiteral("Pictures"));   // the face, as it was
+        for (const char *id : {"insert.pictureDevice", "insert.onlinePicture", "insert.icons"}) QVERIFY2(!w.act(QString::fromLatin1(id))->icon().isNull(), id);
+        // The tab as built: from "tab Insert" to the next tab.
+        const QStringList lines = w.ribbon()->describe().split(QLatin1Char('\n'));
+        const qsizetype from = lines.indexOf(QStringLiteral("tab Insert"));
+        QVERIFY(from >= 0);
+        QStringList insert;
+        for (qsizetype i = from + 1; i < lines.size() && lines[i].startsWith(QLatin1Char(' ')); ++i) insert << lines[i].trimmed();
+        auto line = [&](const QString &needle) {
+            for (qsizetype i = 0; i < insert.size(); ++i)
+                if (insert[i].contains(needle)) return int(i);
+            return -1;
+        };
+        const int images = line(QStringLiteral("group Images")), illustrations = line(QStringLiteral("group Illustrations")), text = line(QStringLiteral("group Text"));
+        const int pictures = line(QStringLiteral("insert.picture "));
+        QVERIFY(images >= 0 && illustrations > images && text > illustrations);
+        QVERIFY2(pictures > images && pictures < illustrations, qPrintable(insert.join('\n')));
+        QVERIFY2(insert[pictures].contains(QStringLiteral("popup=split menu=[insert.pictureDevice, insert.onlinePicture]")), qPrintable(insert[pictures]));
+        const int icons = line(QStringLiteral("insert.icons"));
+        QVERIFY(icons > illustrations && icons < text);
+        QVERIFY(line(QStringLiteral("GalleryButton")) > illustrations);   // Shapes
+        // Text: Text Box, Header & Footer, the Text Art gallery, then Date & Time.
+        const int box = line(QStringLiteral("insert.textBox")), footer = line(QStringLiteral("insert.headerFooter")), date = line(QStringLiteral("insert.dateTime"));
+        int art = -1;
+        for (int i = int(insert.size()) - 1; i > text; --i)
+            if (insert[i].startsWith(QStringLiteral("jp::GalleryButton"))) art = i;
+        QVERIFY2(box > text && footer > box && art > footer && date > art, qPrintable(insert.join('\n')));
+        // The gallery offers every Text Art style.
+        QWidget *tab = w.ribbon()->tab(QStringLiteral("Insert"));
+        GalleryButton *gallery = nullptr;
+        for (GalleryButton *g : tab->findChildren<GalleryButton *>())
+            if (g->text() == QStringLiteral("Text Art")) gallery = g;
+        QVERIFY(gallery);
+        QCOMPARE(int(gallery->items().size()), int(textArtStyles().size()));
+        // Every control has a KeyTip of its own.
+        QStringList seen;
+        for (const QWidget *c : tab->findChildren<QWidget *>()) {
+            const QString k = keytip(c);
+            if (k.isEmpty()) continue;
+            QVERIFY2(!seen.contains(k), qPrintable(k));
+            seen << k;
+        }
+        QVERIFY(seen.contains(QStringLiteral("IC")) && seen.contains(QStringLiteral("WA")));
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            w.resize(1440, 900);
+            w.show();
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Insert")));
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            shot(&w, QStringLiteral("insert-tab"));
+            // The two controls that open: the Text Art gallery, and the Pictures menu.
+            gallery->click();
+            QTRY_VERIFY(QApplication::activePopupWidget());
+            shot(QApplication::activePopupWidget(), QStringLiteral("text-art-gallery"));
+            QApplication::activePopupWidget()->close();
+            QTRY_VERIFY(!QApplication::activePopupWidget());
+            QTimer::singleShot(0, [] {
+                untilDone([] {
+                    QWidget *popup = QApplication::activePopupWidget();
+                    if (!popup) return false;
+                    shot(popup, QStringLiteral("pictures-menu"));
+                    popup->close();
+                    return true;
+                });
+            });
+            for (QToolButton *b : tab->findChildren<QToolButton *>())
+                if (b->defaultAction() == w.act(QStringLiteral("insert.picture"))) b->showMenu();
+        }
+    }
+
+    // Insert > Icons asks which (the picker JeffPub has), and puts each on the slide as an SVG picture an inch square, in the theme's text
+    // color, side by side across the middle: one step that undoes, all of them selected, and saved with the SVG itself.
+    void insertingIconsPutsSvgPicturesOnTheSlide()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        const int before = int(ed->doc()->pages[0]->items.size());
+        w.insertIcons(QStringList{QStringLiteral("heart")});
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        const auto *pic = dynamic_cast<const PictureItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(pic);
+        QCOMPARE(pic->rect, QRectF(480 - 36, 270 - 36, 72, 72));
+        QCOMPARE(pic->imgRect, QRectF(0, 0, 72, 72));
+        QCOMPARE(ed->doc()->images.value(pic->imageId).format, QStringLiteral("svg"));
+        QCOMPARE(pic->altText, QStringLiteral("heart"));
+        QCOMPARE(pic->name, QStringLiteral("heart icon"));
+        QCOMPARE(ed->selection(), QStringList{pic->id});
+        // In the theme's text color, not the color of the text around it.
+        const QByteArray svg = ed->doc()->images.value(pic->imageId).bytes;
+        QVERIFY(svg.contains(ed->doc()->colors.c[Main].name(QColor::HexRgb).toLatin1()));
+        QVERIFY(!svg.contains("currentColor"));
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+
+        // Several at once: side by side, centered, one step.
+        w.insertIcons(QStringList{QStringLiteral("heart"), QStringLiteral("star"), QStringLiteral("no-such-icon"), QStringLiteral("tag")});
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 3);   // the one that is no icon is left out
+        QCOMPARE(int(ed->selection().size()), 3);
+        const QRectF a = ed->doc()->pages[0]->items[before]->rect, b = ed->doc()->pages[0]->items[before + 1]->rect, c = ed->doc()->pages[0]->items[before + 2]->rect;
+        QCOMPARE(a.size(), QSizeF(72, 72));
+        QCOMPARE(b.center().x(), 480.0);
+        QCOMPARE(a.center().y(), 270.0);
+        QCOMPARE(a.center().x() + c.center().x(), 960.0);
+        QVERIFY(a.right() < b.left() && b.right() < c.left());
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        w.insertIcons(QStringList());
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+
+        // The command asks which, in the picker.
+        QString shown;
+        QTimer::singleShot(0, [&shown] {
+            untilDone([&shown] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return false;
+                shown = dlg->windowTitle();
+                if (auto *search = dlg->findChild<QLineEdit *>()) search->setText(QStringLiteral("heart"));
+                auto *list = dlg->findChild<QListWidget *>(QStringLiteral("iconList"));
+                for (int i = 0; list && i < list->count(); ++i)
+                    if (!list->item(i)->isHidden() && list->item(i)->data(Qt::UserRole).toString() == QLatin1String("heart")) list->item(i)->setSelected(true);
+                if (auto *search = dlg->findChild<QLineEdit *>()) {
+                    search->setText(QString());
+                    shot(dlg, QStringLiteral("icon-picker"));
+                    search->setText(QStringLiteral("heart"));
+                }
+                dlg->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+                return true;
+            });
+        });
+        w.act(QStringLiteral("insert.icons"))->trigger();
+        QCOMPARE(shown, QStringLiteral("Insert Icons"));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        QCOMPARE(ed->doc()->images.value(static_cast<const PictureItem *>(ed->doc()->pages[0]->items.back().get())->imageId).format, QStringLiteral("svg"));
+        // And cancelling puts nothing.
+        QTimer::singleShot(0, [] {
+            untilDone([] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return false;
+                dlg->reject();
+                return true;
+            });
+        });
+        w.act(QStringLiteral("insert.icons"))->trigger();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+
+        // Saved, the icon has its PNG and its SVG.
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<asvg:svgBlip ")));
+    }
+
+    // Insert > Text Art lists the styles and makes a Text Art in the one chosen, in the middle of the slide, and asks for its words with
+    // the old ones selected, so that typing replaces them; a double click on it asks again. Cancelling leaves the art with its words.
+    void insertingTextArtMakesStyledArtAndAsksForItsWords()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        const auto &styles = textArtStyles();
+        QVERIFY(styles.size() > 3);
+        const int before = int(ed->doc()->pages[0]->items.size());
+        QString asked, selected;
+        auto answer = [&](const QString &typed) {
+            QTimer::singleShot(0, [&asked, &selected, typed] {
+                untilDone([&asked, &selected, typed] {
+                    auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                    if (!dlg) return false;
+                    asked = dlg->windowTitle();
+                    auto *edit = dlg->findChild<QPlainTextEdit *>();
+                    selected = edit ? edit->textCursor().selectedText() : QString();
+                    shot(dlg, QStringLiteral("text-art-words"));
+                    if (typed.isEmpty()) {
+                        dlg->reject();
+                    } else {
+                        QTest::keyClicks(edit, typed);   // typing replaces the selected words
+                        dlg->accept();
+                    }
+                    return true;
+                });
+            });
+        };
+        answer(QString());
+        w.insertTextArt(styles[3].id);
+        QCOMPARE(asked, QStringLiteral("Edit Text Art Text"));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        auto *art = dynamic_cast<TextArtItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(art);
+        QCOMPARE(art->styleId, styles[3].id);
+        QCOMPARE(art->font, styles[3].font);
+        QVERIFY(!art->text.isEmpty());
+        QCOMPARE(selected, art->text);   // all of its words are selected
+        QCOMPARE(art->rect.center(), QPointF(480, 270));
+        QVERIFY(art->rect.width() >= 300 && art->rect.width() <= 960 * 0.8 && art->rect.height() >= 60);
+        QCOMPARE(ed->selection(), QStringList{art->id});
+        const QString words = art->text, artId = art->id;
+        // Typing replaces the words, and is one step that undoes.
+        answer(QStringLiteral("Big sale"));
+        w.insertTextArt(styles[0].id);
+        auto *second = dynamic_cast<TextArtItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(second && second->id != artId);
+        QCOMPARE(second->text, QStringLiteral("Big sale"));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 2);
+        ed->undo();   // the words
+        QCOMPARE(dynamic_cast<TextArtItem *>(ed->doc()->pages[0]->items.back().get())->text, words);
+        ed->undo();   // the art
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+
+        // A double click on it, or Enter with it selected, asks for the words again.
+        asked.clear();
+        answer(QStringLiteral("New words"));
+        Q_EMIT w.canvas()->editTextArtWanted(artId);
+        QCOMPARE(asked, QStringLiteral("Edit Text Art Text"));
+        QCOMPARE(static_cast<TextArtItem *>(ed->doc()->item(artId))->text, QStringLiteral("New words"));
+        asked.clear();
+        answer(QString());
+        ed->select(artId);
+        QTest::keyClick(w.canvas(), Qt::Key_Return);
+        QCOMPARE(asked, QStringLiteral("Edit Text Art Text"));
+        // The ribbon's gallery makes the same.
+        GalleryButton *gallery = nullptr;
+        for (GalleryButton *g : w.ribbon()->tab(QStringLiteral("Insert"))->findChildren<GalleryButton *>())
+            if (g->text() == QStringLiteral("Text Art")) gallery = g;
+        QVERIFY(gallery);
+        answer(QString());
+        Q_EMIT gallery->activated(styles[5].id);
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 2);
+        QCOMPARE(static_cast<TextArtItem *>(ed->doc()->pages[0]->items.back().get())->styleId, styles[5].id);
+        // Saved, it is Text Art still.
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        int arts = 0;
+        for (const auto &it : back->pages[0]->items) arts += it->type() == ItemType::TextArt;
+        QCOMPARE(arts, 2);
+    }
+
+    // Insert > Pictures > Online Pictures opens the pane on the right (the one JeffPub has) that says what it sends and where; searching and
+    // inserting puts the picture in the middle of the slide, inside it, with its title as alt text and, as asked, the credit under it, as
+    // one step that undoes. Offline: the libraries' answers are canned.
+    void onlinePicturesPaneInsertsAPictureWithItsCredit()
+    {
+        // A picture much bigger than the slide.
+        QImage big(2400, 1200, QImage::Format_RGB32);
+        big.fill(Qt::red);
+        CannedLibraries libraries(imageBytes(big));
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        QVERIFY(!w.onlinePictures());
+        const int before = int(ed->doc()->pages[0]->items.size());
+        w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        OnlinePicturesPane *pane = w.onlinePictures();
+        QVERIFY(pane);
+        QVERIFY(pane->isVisible());
+        QVERIFY(pane->window() == &w);
+        // It says what it sends.
+        QStringList words;
+        for (const QLabel *l : pane->findChildren<QLabel *>()) words << l->text();
+        QVERIFY2(words.join(' ').contains(QStringLiteral("Your search words go to the library you choose.")), qPrintable(words.join('\n')));
+        // Asking again shows the same pane.
+        w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        QCOMPARE(w.onlinePictures(), pane);
+
+        pane->search(QStringLiteral("barn"));
+        QCOMPARE(pane->results()->count(), 1);
+        QVERIFY(pane->creditBox()->isChecked());   // this license asks for the author to be named
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            w.resize(1440, 900);
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Insert")));
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            shot(&w, QStringLiteral("online-pictures"));
+        }
+        pane->insertButton()->click();
+        QVERIFY(libraries.asked.contains(QStringLiteral("https://example.org/barn.png")));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 2);   // the picture and its credit
+        const auto *pic = dynamic_cast<const PictureItem *>(ed->single());
+        QVERIFY(pic);
+        QCOMPARE(pic->altText, QStringLiteral("Red barn"));
+        QCOMPARE(ed->doc()->imageSize(pic->imageId), QSize(2400, 1200));
+        // Inside the slide with room for the credit, in the middle, in proportion.
+        const QRectF slide(0, 0, 960, 540);
+        QVERIFY(slide.contains(pic->rect));
+        QVERIFY(pic->rect.width() <= 960 * 0.8 + 0.01 && pic->rect.height() <= 540 * 0.8 + 0.01);
+        QVERIFY(std::abs(pic->rect.width() / pic->rect.height() - 2.0) < 0.01);
+        QVERIFY(std::abs(pic->rect.center().x() - 480) < 0.01);
+        const auto *credit = dynamic_cast<const TextItem *>(ed->doc()->item(pic->caption));
+        QVERIFY(credit);
+        QCOMPARE(ed->doc()->storyDoc(credit->storyId)->toPlainText(), QStringLiteral("“Red barn” by Pat Lee, CC BY 2.0"));
+        QVERIFY(slide.contains(credit->rect));
+        QVERIFY(credit->rect.top() >= pic->rect.bottom());
+        QVERIFY(credit->rect.top() - pic->rect.bottom() < 20);
+        QCOMPARE(ed->selection(), QStringList{pic->id});
+        // The picture and its credit go together.
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        ed->redo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 2);
+        ed->undo();
+
+        // Without the credit, only the picture.
+        pane->creditBox()->setChecked(false);
+        pane->insertButton()->click();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        const auto *alone = dynamic_cast<const PictureItem *>(ed->single());
+        QVERIFY(alone);
+        QCOMPARE(alone->altText, QStringLiteral("Red barn"));
+        QVERIFY(alone->caption.isEmpty());
+        // Saved, the picture has its alt text.
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("descr=\"Red barn\"")));
+        // F1 in the pane opens the topic that explains it.
+        QCOMPARE(help::contextTopic(QStringLiteral("pane:online")), QStringLiteral("objects"));
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        pane->findChild<QLineEdit *>()->setFocus();
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_F1);
+        QVERIFY(w.helpView());
+        QCOMPARE(w.helpView()->currentTopic(), QStringLiteral("objects"));
+    }
+
+    // A slide with a picture from the web, an icon, and Text Art on it, each moved to a place of its own: saved and opened again, all three
+    // are there, inside the slide.
+    void onlinePictureIconAndTextArtSaveAndReopen()
+    {
+        QImage landscape(480, 320, QImage::Format_RGB32);
+        landscape.fill(QColor(0xB0, 0x40, 0x30));
+        CannedLibraries libraries(imageBytes(landscape));
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        w.onlinePictures()->search(QStringLiteral("barn"));
+        w.onlinePictures()->insertButton()->click();
+        // As the user drags: the selected object to a new place, with its credit when it has one.
+        auto place = [&](const QPointF &center) {
+            ed->change(QStringLiteral("Move"), [&] {
+                Item *it = ed->single();
+                const QPointF by = center - it->rect.center();
+                it->rect.translate(by);
+                if (it->type() == ItemType::Picture)
+                    if (Item *credit = ed->doc()->item(static_cast<PictureItem *>(it)->caption)) credit->rect.translate(by);
+            });
+        };
+        place(QPointF(240, 220));
+        w.insertIcons(QStringList{QStringLiteral("rocket")});
+        place(QPointF(720, 160));
+        QTimer::singleShot(0, [] {
+            untilDone([] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return false;
+                dlg->reject();
+                return true;
+            });
+        });
+        w.insertTextArt(textArtStyles()[2].id);
+        place(QPointF(700, 420));
+        int pictures = 0, arts = 0, texts = 0;
+        for (const auto &it : ed->doc()->pages[0]->items) {
+            pictures += it->type() == ItemType::Picture;
+            arts += it->type() == ItemType::TextArt;
+            texts += it->type() == ItemType::Text && it->role.isEmpty();
+        }
+        QCOMPARE(pictures, 2);   // the picture from the web and the icon
+        QCOMPARE(arts, 1);
+        QCOMPARE(texts, 1);      // the credit
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            w.resize(1440, 900);
+            w.show();
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Insert")));
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            ed->select(QStringList());
+            shot(&w, QStringLiteral("slide-with-each"));
+        }
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QRectF slide(0, 0, 960, 540);
+        int backPictures = 0, backArts = 0;
+        QStringList alt;
+        for (const auto &it : back->pages[0]->items) {
+            if (it->type() != ItemType::Picture && it->type() != ItemType::TextArt && it->type() != ItemType::Text) continue;
+            QVERIFY2(slide.contains(it->rect), qPrintable(it->name));
+            backPictures += it->type() == ItemType::Picture;
+            backArts += it->type() == ItemType::TextArt;
+            if (it->type() == ItemType::Picture) alt << it->altText;
+        }
+        alt.sort();
+        QCOMPARE(backPictures, 2);
+        QCOMPARE(backArts, 1);
+        QCOMPARE(alt, (QStringList{QStringLiteral("Red barn"), QStringLiteral("rocket")}));
     }
 
     // A picture added is not decoded: only its size is read. The first time it

@@ -394,7 +394,12 @@
           "items": [
             {
               "large": "insert.picture",
-              "keytip": "P"
+              "keytip": "P",
+              "split": true,
+              "menu": [
+                "insert.pictureDevice",
+                "insert.onlinePicture"
+              ]
             }
           ]
         },
@@ -405,6 +410,10 @@
             {
               "widget": "shapesButton",
               "keytip": "SH"
+            },
+            {
+              "large": "insert.icons",
+              "keytip": "IC"
             }
           ]
         },
@@ -419,6 +428,10 @@
             {
               "large": "insert.headerFooter",
               "keytip": "HF"
+            },
+            {
+              "widget": "textArtButton",
+              "keytip": "WA"
             },
             {
               "small": "insert.dateTime",
