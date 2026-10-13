@@ -44,23 +44,24 @@ JeffDeck makes presentations and plays them as slide shows. It's a **preview**: 
 
 ### What it does
 
-- **Slides** with layouts and slide masters, backgrounds, slide size, headers and footers, sections, and speaker notes. Work in Normal view, the Outline, or the Slide Sorter, and reuse slides from another presentation.
-- **On a slide:** text, shapes, pictures, tables, Text Art, and charts (drawn from the numbers saved with them).
-- **Slide shows** full screen or with Presenter View on a second screen (your notes, the next slide, and a timer), with transitions between slides and animations that play click by click. A slide can move on by itself after the seconds you set, and Presenter View can be practiced in a window on one screen.
+- **Slides** with layouts and slide masters, themes and their color variants (nine built in, or the theme of another presentation), backgrounds, slide size, headers and footers, sections, and speaker notes. Work in Normal view, the Outline, or the Slide Sorter, and reuse slides from another presentation.
+- **On a slide:** text, shapes, pictures (from your computer or the open Online Pictures libraries), icons, tables, Text Art, charts (drawn from the numbers saved with them), and SmartArt diagrams and equations (shown as the presentation program drew them, and saved back whole).
+- **Animations** made and changed on the Animations tab and in the Animation Pane: entrance, emphasis, and exit effects and motion paths, with their directions, timing, and order, saved so the presentation program lists each by name.
+- **Slide shows** full screen or with Presenter View on a second screen (your notes, the next slide, and a timer), with transitions between slides (Morph among them) and animations that play click by click. Draw on slides with a pen or highlighter, point with a laser pointer, make custom shows, run a show at a kiosk that loops by itself, and rehearse to record how long each slide stays up.
 - **Movies and sounds** put on a slide (Insert > Media) play in place while you edit, with a control bar, and in the slide show as the file says: at a click, by themselves, or when clicked on, with their volume, trim, looping, and full screen. The Playback tab sets them.
 - **Comments** on slides, with replies, which other presentation programs show too.
 - **Print and export** slides, notes pages, handouts, and the outline, to paper or PDF, and slides as pictures.
-- **Presentation files.** Opens `.pptx`, `.potx`, `.ppsx`, and the older `.ppt` files from Microsoft PowerPoint, and OpenDocument presentations (`.odp`, `.otp`); saves `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp`. What it can't show yet, such as SmartArt diagrams, is kept and saved back.
+- **Presentation files.** Opens `.pptx`, `.potx`, `.ppsx`, and the older `.ppt` files from Microsoft PowerPoint, and OpenDocument presentations (`.odp`, `.otp`); saves `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp`. A saved `.pptx` carries the fonts JeffOffice brings that others may not have, so it looks the same on their computers.
 
 ### Not yet in the preview
 
-Editing animations (the ones in a file play, but can't be changed yet), changing themes and their color variants, and SmartArt diagrams and equations (kept, but not shown; an `.odp` holds them as pictures). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
+Slides drawn a little differently from the presentation program's in places (most often text it shrank to fit its box, a picture's brightness and contrast, and some text shadows); editing SmartArt diagrams, equations, and charts (they're shown and kept); and animation triggers, sounds, and color effects (kept as the file has them). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
 
 ## Privacy
 
 JeffPub and JeffDeck each check GitHub for new versions when they start (you can turn that off in File > Options, for both); on Windows, the update installs the whole suite, and elsewhere it opens the release page. With both open, one of them tells you about a new version each day.
 
-Online Pictures (in JeffPub, Insert > Online Pictures) sends the words you search for to the library you choose, Openverse or Wikimedia Commons, and nothing else.
+Online Pictures (Insert > Online Pictures, in JeffPub and JeffDeck) sends the words you search for to the library you choose, Openverse or Wikimedia Commons, and nothing else.
 
 Unless you turn them off, JeffPub and JeffDeck each send anonymous usage statistics once a day while in use (and once more the day they're updated): a random number made up when JeffOffice was installed (it says nothing about you or your computer, and both apps send the same one), which app it is, its version, your operating system and its version, the language it's set to, how many times it was started, and how many times each of its commands was used. JeffDeck also says which kinds of files it opened and saved (for example, `.pptx`). They never send your files, their names, or anything in them, and the server doesn't keep IP addresses. It's one choice for all the JeffOffice apps: you make it in Windows setup or the first time one of them starts (the other doesn't ask again), and can change it anytime in File > Options in either. The collector's code is in [server/telemetry](server/telemetry).
 
