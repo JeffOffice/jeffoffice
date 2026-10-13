@@ -35,6 +35,8 @@
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
 #include "app/themegallery.h"
+#include "app/telemetry.h"
+#include "app/updater.h"
 #include "app/widgets.h"
 #include "core/animation.h"
 #include "core/comments.h"
@@ -14498,7 +14500,10 @@ private Q_SLOTS:
         QCOMPARE(tabNames, (QStringList{"General", "Proofing", "View"}));
         QCOMPARE(shown, QStringLiteral("General"));
         QCOMPARE(userName, Settings::get().userName());
-        QVERIFY2(online.isEmpty(), qPrintable(online.join(QStringLiteral(", "))));
+        // JeffDeck checks for updates and sends statistics (when chosen) like JeffPub, so the choices are here, in its own words.
+        QVERIFY(deckAppInfo().online);
+        QCOMPARE(online, (QStringList{QStringLiteral("Check for updates when JeffDeck starts"), QStringLiteral("Send anonymous usage statistics"),
+                                      QStringLiteral("Get beta versions (early builds for testing)")}));
         // The View page: the ruler and snapping, in this window now and in new ones.
         QVERIFY(!w.editor()->view.rulers);
         QVERIFY(w.editor()->view.snapObjects);
@@ -14520,6 +14525,134 @@ private Q_SLOTS:
         }
         Settings::get().setValue(QStringLiteral("view/rulers"), false);
         Settings::get().setValue(QStringLiteral("view/snapObjects"), true);
+    }
+
+    // A ping and a crash report from JeffDeck say so, and carry nothing else JeffPub's don't.
+    void deckPingsAndCrashReportsNameJeffDeck()
+    {
+        telemetry::setEnabled(true);
+        const QJsonObject p = telemetry::payload();
+        QCOMPARE(p[QStringLiteral("app")].toString(), QStringLiteral("jeffdeck"));
+        QStringList keys = p.keys();
+        keys.sort();
+        QCOMPARE(keys, (QStringList{"app", "counts", "install", "lang", "launches", "os", "osVersion", "version"}));
+        QJsonObject report;
+        report[QStringLiteral("version")] = QStringLiteral(JP_VERSION);
+        report[QStringLiteral("when")] = QDateTime::currentDateTimeUtc().date().toString(Qt::ISODate);
+        report[QStringLiteral("kind")] = QStringLiteral("signal");
+        report[QStringLiteral("code")] = 11;
+        report[QStringLiteral("frames")] = QJsonArray{QJsonObject{{QStringLiteral("module"), QStringLiteral("JeffDeck.exe")}, {QStringLiteral("offset"), 6699}}};
+        const QJsonObject sent = telemetry::crashPayload(report);
+        keys = sent.keys();
+        keys.sort();
+        QCOMPARE(keys, (QStringList{"app", "code", "frames", "install", "kind", "os", "version", "when"}));
+        QCOMPARE(sent[QStringLiteral("app")].toString(), QStringLiteral("jeffdeck"));
+        QCOMPARE(sent[QStringLiteral("install")].toString(), p[QStringLiteral("install")].toString());
+        telemetry::setEnabled(false);
+        QVERIFY(telemetry::crashPayload(report).isEmpty());   // not sent when sharing is off (and the report is deleted either way)
+    }
+
+    // The choice to share and the install id are the suite's: made in JeffPub, they hold here, and JeffDeck doesn't ask. The counts
+    // are JeffDeck's own, and JeffPub's never reach its ping.
+    void deckSharesTheChoiceAndTheInstallButKeepsItsOwnCounts()
+    {
+        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), pub(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub")),
+            deck(QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
+        QVERIFY(!telemetry::enabled());
+        suite.setValue(QStringLiteral("telemetry/enabled"), true);
+        suite.setValue(QStringLiteral("telemetry/install"), QStringLiteral("0f8fad5b-d9cb-469f-a165-70867728950e"));
+        suite.sync();
+        pub.setValue(QStringLiteral("telemetry/counts"), QVariantMap{{QStringLiteral("file.open.pub"), 4}});
+        pub.setValue(QStringLiteral("telemetry/launches"), 6);
+        pub.sync();
+        Settings::get().sync();
+        QVERIFY(telemetry::decided());   // so JeffDeck's first start has no question to ask
+        QVERIFY(telemetry::enabled());
+        QJsonObject p = telemetry::payload();
+        QCOMPARE(p[QStringLiteral("install")].toString(), QStringLiteral("0f8fad5b-d9cb-469f-a165-70867728950e"));
+        QVERIFY(p[QStringLiteral("counts")].toObject().isEmpty());
+        QCOMPARE(p[QStringLiteral("launches")].toInt(), 0);
+        telemetry::count(QStringLiteral("file.open.pptx"));
+        Settings::get().sync();
+        QCOMPARE(telemetry::payload()[QStringLiteral("counts")].toObject().keys(), QStringList{QStringLiteral("file.open.pptx")});
+        deck.sync();
+        QCOMPARE(deck.value(QStringLiteral("telemetry/counts")).toMap().value(QStringLiteral("file.open.pptx")).toInt(), 1);
+        QVERIFY(!deck.contains(QStringLiteral("telemetry/install")));   // the suite's, not its own
+        pub.sync();
+        QCOMPARE(pub.value(QStringLiteral("telemetry/counts")).toMap().keys(), QStringList{QStringLiteral("file.open.pub")});   // JeffPub's, untouched
+        // Turned off here, it is off for the suite, and its id is gone.
+        telemetry::setEnabled(false);
+        Settings::get().sync();
+        suite.sync();
+        QVERIFY(!suite.value(QStringLiteral("telemetry/enabled")).toBool());
+        QVERIFY(suite.value(QStringLiteral("telemetry/install")).toString().isEmpty());
+        QVERIFY(telemetry::decided());
+        pub.remove(QStringLiteral("telemetry"));
+        pub.sync();
+    }
+
+    // JeffDeck counts each command by its id, and a file opened or saved by its kind, never by its name.
+    void deckCountsCommandsAndFileKindsButNeverNames()
+    {
+        telemetry::setEnabled(false);
+        {
+            DeckWindow quiet;
+            quiet.act(QStringLiteral("view.gridlines"))->trigger();
+            quiet.act(QStringLiteral("view.gridlines"))->trigger();
+            QVERIFY(telemetry::payload()[QStringLiteral("counts")].toObject().isEmpty());   // sharing is off: nothing counted
+        }
+        telemetry::setEnabled(true);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString secret = QStringLiteral("quarterly-numbers-for-Pat");
+        const QString pptx = dir.filePath(secret + QStringLiteral(".pptx"));
+        {
+            DeckWindow w;
+            w.act(QStringLiteral("view.gridlines"))->trigger();
+            w.act(QStringLiteral("view.gridlines"))->trigger();
+            QVERIFY(w.saveTo(pptx));
+            QVERIFY(w.saveTo(dir.filePath(secret + QStringLiteral(".POTX"))));
+            QVERIFY(w.saveTo(dir.filePath(secret + QStringLiteral(".ppsx"))));
+            QVERIFY(w.saveTo(dir.filePath(secret + QStringLiteral(".dat"))));   // an ending JeffDeck has no kind for
+            answerDialogs({QMessageBox::Ok});
+            QVERIFY(!w.saveTo(dir.filePath(QStringLiteral("missing/") + secret + QStringLiteral(".pptx"))));   // a save that failed is not counted
+        }
+        // Read by what a file is and not what it is called; counted by the ending, among the kinds JeffDeck knows.
+        for (const QString &name : {secret + QStringLiteral(".pptx"), secret + QStringLiteral(".odp"), secret + QStringLiteral(".PPT"), secret + QStringLiteral(".dat")}) {
+            const QString copy = dir.filePath(QStringLiteral("copy-") + name);
+            QVERIFY(QFile::copy(pptx, copy));
+            DeckWindow w;
+            QVERIFY(w.openFile(copy));
+        }
+        const QJsonObject counts = telemetry::payload()[QStringLiteral("counts")].toObject();
+        QCOMPARE(counts[QStringLiteral("view.gridlines")].toInt(), 2);
+        QCOMPARE(counts[QStringLiteral("file.save.pptx")].toInt(), 1);
+        QCOMPARE(counts[QStringLiteral("file.save.potx")].toInt(), 1);
+        QCOMPARE(counts[QStringLiteral("file.save.ppsx")].toInt(), 1);
+        QCOMPARE(counts[QStringLiteral("file.save.other")].toInt(), 1);
+        QCOMPARE(counts[QStringLiteral("file.open.pptx")].toInt(), 1);
+        QCOMPARE(counts[QStringLiteral("file.open.odp")].toInt(), 1);
+        QCOMPARE(counts[QStringLiteral("file.open.ppt")].toInt(), 1);
+        QCOMPARE(counts[QStringLiteral("file.open.other")].toInt(), 1);
+        QCOMPARE(counts.size(), 9);
+        for (const QString &k : counts.keys()) {
+            QVERIFY2(QRegularExpression(QStringLiteral("^[a-z0-9][a-z0-9._-]{0,47}$")).match(k).hasMatch(), qPrintable(k));   // what the collector takes
+            QVERIFY2(!k.contains(QStringLiteral("quarterly"), Qt::CaseInsensitive) && !k.contains(QStringLiteral("pat")) && !k.contains(QStringLiteral("dat")), qPrintable(k));
+        }
+        telemetry::setEnabled(false);
+    }
+
+    // JeffDeck says which version it offers once a day with JeffPub: the note is the suite's, written under JeffDeck's name.
+    void deckNotesWhatItOffered()
+    {
+        for (const char *k : {"offered", "offeredOn", "offeredBy"}) Settings::get().setValue(QStringLiteral("updates/") + QString::fromLatin1(k), QVariant());
+        Updater::noteOffered(QStringLiteral("v0.8.0"));
+        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice"));
+        QCOMPARE(suite.value(QStringLiteral("updates/offeredBy")).toString(), QStringLiteral("jeffdeck"));
+        QVERIFY(!Updater::offeredByAnotherAppToday(QStringLiteral("v0.8.0")));
+        Settings::get().setValue(QStringLiteral("updates/offeredBy"), QStringLiteral("jeffpub"));   // JeffPub offered it first today
+        QVERIFY(Updater::offeredByAnotherAppToday(QStringLiteral("v0.8.0")));
+        for (const char *k : {"offered", "offeredOn", "offeredBy"}) Settings::get().setValue(QStringLiteral("updates/") + QString::fromLatin1(k), QVariant());
     }
 
 private:
