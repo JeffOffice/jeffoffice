@@ -442,8 +442,8 @@ QByteArray mtxCompressFont(const QByteArray &font, bool runLengthOnTables = fals
             appendU16Be(&outlines, quint16(contours));
         } else {
             appendU16Be(&outlines, 0x7FFF);
-            outlines.append(glyph.mid(2, 8));
             appendU16Be(&outlines, quint16(contours));
+            outlines.append(glyph.mid(2, 8));
         }
         mtxPut255(&outlines, ends[0]);
         for (int c = 1; c < contours; ++c) mtxPut255(&outlines, ends[c] - ends[c - 1]);
@@ -601,6 +601,21 @@ QVector<QByteArray> fontGlyphs(const QByteArray &font)
         out.append(glyf.mid(from, to - from));
     }
     return out;
+}
+
+// The font with one glyph's box a little wider than its points (so the box has to be written out, and is not made from the points).
+QByteArray fontWithWiderBox(QByteArray font, int glyph)
+{
+    const auto tables = fontTables(font);
+    int glyfAt = 0;
+    for (int i = 0, n = qFromBigEndian<quint16>(font.constData() + 4); i < n; ++i)
+        if (font.mid(12 + 16 * i, 4) == "glyf") glyfAt = int(qFromBigEndian<quint32>(font.constData() + 12 + 16 * i + 8));
+    const QByteArray &loca = tables.at("loca");
+    const bool shortLoca = qFromBigEndian<qint16>(tables.at("head").constData() + 50) == 0;
+    const int at = glyfAt + (shortLoca ? 2 * qFromBigEndian<quint16>(loca.constData() + 2 * glyph) : int(qFromBigEndian<quint32>(loca.constData() + 4 * glyph)));
+    char *xMax = font.data() + at + 6;
+    qToBigEndian<qint16>(qint16(qFromBigEndian<qint16>(xMax) + 5), xMax);
+    return font;
 }
 
 quint32 wordSum(const QByteArray &data)
@@ -1784,6 +1799,24 @@ private Q_SLOTS:
                     QCOMPARE(int(qFromBigEndian<quint32>(record + 8)) % 4, 0);
                 }
             }
+        }
+        // A box that is not the extremes of the points is written out with the glyph, and kept.
+        {
+            const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+            const QVector<QByteArray> glyphs = fontGlyphs(lato);
+            int target = -1;
+            for (int g = 0; g < glyphs.size() && target < 0; ++g)
+                if (!glyphs[g].isEmpty() && qFromBigEndian<qint16>(glyphs[g].constData()) > 0) target = g;
+            QVERIFY(target >= 0);
+            const QByteArray wider = fontWithWiderBox(lato, target);
+            QVERIFY(fontGlyphs(wider)[target] != glyphs[target]);
+            QByteArray read;
+            QString why;
+            QVERIFY2(readEmbeddedFont(eotWithMtx(wider, mtxCompressFont(wider)), &read, nullptr, &why), qPrintable(why));
+            const QVector<QByteArray> now = fontGlyphs(read);
+            QCOMPARE(parseGlyph(now[target]).box, parseGlyph(fontGlyphs(wider)[target]).box);
+            QVERIFY(parseGlyph(now[target]).box != parseGlyph(glyphs[target]).box);
+            QVERIFY(parseGlyph(now[target]) == parseGlyph(fontGlyphs(wider)[target]));
         }
         // Scrambled as well as compressed (the scrambling is undone first).
         const QByteArray font = bundledFontBytes(QStringLiteral("Lato"));
