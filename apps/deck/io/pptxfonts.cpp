@@ -207,7 +207,7 @@ QVector<EmbeddedFace> readEmbeddedFonts(const office::Package &pkg, const QStrin
     QVector<EmbeddedFace> faces;
     const QDomElement list = office::child(presentation, office::ns::P, QStringLiteral("embeddedFontLst"));
     if (list.isNull()) return faces;
-    qint64 total = 0;
+    qint64 total = 0, decoded = 0;   // the parts as the file has them, and the fonts as they are used (a compressed font is several times its part)
     int unusable = 0;
     QString firstReason;
     bool tooMany = false, tooLarge = false;
@@ -240,6 +240,9 @@ QVector<EmbeddedFace> readEmbeddedFonts(const office::Package &pkg, const QStrin
             QString why;
             if (office::readEmbeddedFont(data, &face.font, &face.info, &why) && !mayBeShown(face.info)) {
                 face.font.clear();   // kept as the file has it, not drawn with
+            } else if (!face.font.isEmpty() && decoded + face.font.size() > kMaxEmbeddedFontsTotal) {
+                face.font.clear();   // more fonts than a file may hold, once they are made whole
+                tooLarge = true;
             } else if (face.font.isEmpty()) {
                 face.font.clear();
                 // A font the computer has costs nothing to lose.
@@ -248,6 +251,7 @@ QVector<EmbeddedFace> readEmbeddedFonts(const office::Package &pkg, const QStrin
                     if (firstReason.isEmpty()) firstReason = why;
                 }
             }
+            decoded += face.font.size();
             faces << face;
         }
     }
