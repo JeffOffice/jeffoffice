@@ -1,6 +1,7 @@
 #include "text/textengine.h"
 
 #include "core/fonts.h"
+#include "core/texteffects.h"
 #include "text/hyphenation.h"
 #include "text/textprops.h"
 
@@ -12,6 +13,7 @@
 #include <QLinearGradient>
 #include <QtMath>
 #include <QGlyphRun>
+#include <QPaintEngine>
 #include <QPainter>
 #include <QPainterPath>
 #include <QRegularExpression>
@@ -19,6 +21,7 @@
 #include <QTextDocument>
 #include <QTextList>
 #include <cmath>
+#include <cstring>
 
 namespace jp {
 
@@ -1855,10 +1858,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 } else {
                     ranges << fr;
                 }
+                // A slide's text with the Shadow button on has the shadow the presentation program gives it.
+                const bool programShadow = env.slideLines && cf.boolProperty(tp::Shadow) && cf.stringProperty(tp::TextFx).isEmpty();
                 if (cf.boolProperty(tp::Shadow) || cf.boolProperty(tp::Emboss) || cf.boolProperty(tp::Engrave) ||
-                    !cf.stringProperty(tp::GlowRef).isEmpty()) {
+                    !cf.stringProperty(tp::GlowRef).isEmpty() || !cf.stringProperty(tp::TextFx).isEmpty()) {
                     QTextLayout::FormatRange er = fr;
                     er.format = cf;   // keep raw props for the effect pass
+                    static const QString kProgramShadow = defaultTextShadow().toJson();
+                    if (programShadow) er.format.setProperty(tp::TextFx, kProgramShadow);
+                    if (!er.format.stringProperty(tp::TextFx).isEmpty()) B->textFx = true;
                     er.format.setForeground(rf.foreground());
                     er.format.setFontPointSize(rf.fontPointSize());
                     if (rf.hasProperty(tp::GlyphScaleY)) er.format.setProperty(tp::GlyphScaleY, rf.property(tp::GlyphScaleY));
@@ -2805,6 +2813,356 @@ QVector<QRectF> StoryLayout::rangeRects(int frame, int from, int to) const
     return out;
 }
 
+namespace {
+
+// The letters of one run on one line, as an effect needs them.
+struct FxPart {
+    QList<QGlyphRun> runs;
+    QTransform draw;   // the run's own taller, shorter, or slanted drawing, in frame units
+    QColor color;
+};
+
+// Every run that carries the same effect list.
+struct FxGroup {
+    QString json;
+    QVector<FxPart> parts;
+    QRectF box;        // its letters and the lines they stand on, frame-local
+};
+
+// A stranger's file can give every run an effect list of its own, each a picture to draw: no more than this many different lists on a
+// frame, and this many pixels of pictures in a painting. A slide has one to three lists (the most of any in the sample decks is two), and
+// a picture of the biggest text frame at a screen's resolution is two million pixels; these are over ten times that.
+constexpr int kMaxEffectLists = 32;
+constexpr qint64 kEffectPixels = 120000000;
+
+// Pixels to a unit of the page that effects are drawn at: the device's, up to what a PDF's picture needs (300 dpi, a point being the unit).
+double effectResolution(const QPainter *p)
+{
+    constexpr double kPdf = 300.0 / 72;
+    const QTransform t = p->deviceTransform();
+    const double ds = std::sqrt(std::abs(t.determinant()));
+    const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
+    if (!pixels) return kPdf;
+    return std::clamp(ds, 0.25, 6.0);
+}
+
+// The letters in an image covering `area`, `s` pixels to the unit: black (what an effect is cast from) or in their own colors. `grow` is how far
+// each letter's outline is thickened (a glow's reach).
+QImage drawLetters(const QVector<FxPart> &parts, const QPointF &off, const QRectF &area, double s, bool colored, double grow)
+{
+    const QSize px(std::max(1, int(std::ceil(area.width() * s))), std::max(1, int(std::ceil(area.height() * s))));
+    QImage img(px, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+    QPainter q(&img);
+    q.setRenderHint(QPainter::Antialiasing);
+    q.setRenderHint(QPainter::TextAntialiasing);
+    q.scale(s, s);
+    q.translate(-area.topLeft());
+    for (const FxPart &part : parts) {
+        q.save();
+        q.setTransform(part.draw, true);
+        const QColor c = colored ? part.color : QColor(Qt::black);
+        if (grow <= 0) {
+            q.setPen(c);
+            drawFine(&q, off, part.runs);
+        } else {
+            q.translate(off);
+            q.scale(1 / kFine, 1 / kFine);
+            QPen pen(c, 2 * grow * kFine);
+            pen.setJoinStyle(Qt::RoundJoin);
+            pen.setCapStyle(Qt::RoundCap);
+            q.setPen(pen);
+            q.setBrush(c);
+            for (const QGlyphRun &g : part.runs) {
+                const QRawFont raw = g.rawFont();
+                const QList<quint32> glyphs = g.glyphIndexes();
+                const QList<QPointF> where = g.positions();
+                for (int k = 0; k < glyphs.size() && k < where.size(); ++k) {
+                    QPainterPath path = raw.pathForGlyph(glyphs[k]);
+                    path.translate(where[k]);
+                    q.drawPath(path);
+                }
+            }
+        }
+        q.restore();
+    }
+    q.end();
+    return img;
+}
+
+// An alpha image in a color (its own alpha counting too), ready to draw.
+QImage tinted(const QImage &alpha8, const QColor &c)
+{
+    QImage out(alpha8.size(), QImage::Format_ARGB32_Premultiplied);
+    const int ca = c.alpha();
+    for (int y = 0; y < alpha8.height(); ++y) {
+        const uchar *in = alpha8.constScanLine(y);
+        QRgb *o = reinterpret_cast<QRgb *>(out.scanLine(y));
+        for (int x = 0; x < alpha8.width(); ++x) {
+            const int a = (in[x] * ca + 127) / 255;
+            o[x] = qRgba((c.red() * a + 127) / 255, (c.green() * a + 127) / 255, (c.blue() * a + 127) / 255, a);
+        }
+    }
+    return out;
+}
+
+// The point of a box a letter says (algn: tl, t, tr, l, ctr, r, bl, b, br).
+QPointF anchorOf(const QRectF &r, const QString &algn)
+{
+    const double x = algn.endsWith(QLatin1Char('l')) ? r.left() : algn.endsWith(QLatin1Char('r')) ? r.right() : r.center().x();
+    const double y = algn.startsWith(QLatin1Char('t')) ? r.top() : algn.startsWith(QLatin1Char('b')) ? r.bottom() : r.center().y();
+    return QPointF(x, y);
+}
+
+// Where a shadow or reflection lands: the letters scaled and skewed about their anchor, then moved `distance` along `angle`.
+QTransform castTransform(double sx, double sy, double kx, double ky, double distance, double angle, const QRectF &box, const QString &algn)
+{
+    const double a = qDegreesToRadians(angle);
+    const QPointF at = anchorOf(box, algn);
+    QTransform t;
+    t.translate(distance * std::cos(a), distance * std::sin(a));
+    t.translate(at.x(), at.y());
+    if (kx != 0 || ky != 0) t.shear(std::tan(qDegreesToRadians(kx)), std::tan(qDegreesToRadians(ky)));
+    if (sx != 1 || sy != 1) t.scale(sx, sy);
+    t.translate(-at.x(), -at.y());
+    return t;
+}
+
+// A premultiplied picture blurred as the Gaussian of the given spread (pixels): each of its four channels is blurred alike.
+void blurPicture(QImage &img, double sigma)
+{
+    if (!(sigma >= 0.3)) return;
+    img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    QImage channels[4];
+    for (int c = 0; c < 4; ++c) {
+        channels[c] = QImage(img.size(), QImage::Format_Alpha8);
+        for (int y = 0; y < img.height(); ++y) {
+            const QRgb *in = reinterpret_cast<const QRgb *>(img.constScanLine(y));
+            uchar *o = channels[c].scanLine(y);
+            for (int x = 0; x < img.width(); ++x) o[x] = uchar(c == 0 ? qAlpha(in[x]) : c == 1 ? qRed(in[x]) : c == 2 ? qGreen(in[x]) : qBlue(in[x]));
+        }
+        blurAlpha(channels[c], sigma);
+    }
+    for (int y = 0; y < img.height(); ++y) {
+        QRgb *o = reinterpret_cast<QRgb *>(img.scanLine(y));
+        const uchar *a = channels[0].constScanLine(y), *r = channels[1].constScanLine(y), *g = channels[2].constScanLine(y), *b = channels[3].constScanLine(y);
+        // (a premultiplied channel never goes over the alpha)
+        for (int x = 0; x < img.width(); ++x) o[x] = qRgba(std::min(r[x], a[x]), std::min(g[x], a[x]), std::min(b[x], a[x]), a[x]);
+    }
+}
+
+QImage alphaOf(const QImage &img)
+{
+    return img.convertToFormat(QImage::Format_Alpha8);
+}
+
+} // namespace
+
+void StoryLayout::paintTextEffects(QPainter *p, int frame, bool over) const
+{
+    bool any = false;
+    for (const auto &B : m_blocks) any |= B->textFx;
+    if (!any) return;
+    const QPointF off(0, -frameY(frame));
+    // The letters of each effect list (a run's, the same string for every run that has it).
+    QVector<FxGroup> groups;
+    for (const auto &B : m_blocks) {
+        if (!B->textFx) continue;
+        for (const auto &er : B->effects) {
+            const QString json = er.format.stringProperty(tp::TextFx);
+            if (json.isEmpty()) continue;
+            const TextEffects &fx = TextEffects::cached(json);
+            if (over ? !fx.inner.on : !(fx.outer.on || fx.glow.on || fx.reflection.on)) continue;
+            int gi = 0;
+            while (gi < groups.size() && groups[gi].json != json) ++gi;
+            if (gi == groups.size()) {
+                if (groups.size() >= kMaxEffectLists) continue;
+                groups.push_back(FxGroup{json, {}, QRectF()});
+            }
+            for (int i = 0; i < B->lines.size(); ++i) {
+                if (B->lines[i].frame != frame) continue;
+                const PtLine l(B->tl->lineAt(i));
+                const int s = std::max(er.start, l.textStart()), e = std::min(er.start + er.length, l.textStart() + l.textLength());
+                if (s >= e) continue;
+                FxPart part;
+                part.runs = l.glyphRuns(s, e - s);
+                const double ys = er.format.hasProperty(tp::GlyphScaleY) ? er.format.property(tp::GlyphScaleY).toDouble() : 1;
+                const double shear = er.format.hasProperty(tp::SyntheticItalic) ? er.format.property(tp::SyntheticItalic).toDouble() : 0;
+                const double base = l.y() + l.ascent() + off.y();
+                if (ys != 1 || shear != 0) {
+                    part.draw.translate(0, base);
+                    part.draw.shear(-shear, 0);
+                    part.draw.scale(1, ys);
+                    part.draw.translate(0, -base);
+                }
+                part.color = er.format.foreground().style() != Qt::NoBrush ? er.format.foreground().color() : QColor(Qt::black);
+                QRectF box;
+                for (const QGlyphRun &g : part.runs) box |= g.boundingRect();
+                box = part.draw.mapRect(QRectF(box.topLeft() / kFine, box.bottomRight() / kFine).translated(off));
+                // The line stands from its top to the foot of its text, whatever the letters reach.
+                const QRectF line = B->lines[i].rect;
+                box |= QRectF(box.left(), line.top(), box.width(), std::max(0.0, line.height() - B->lines[i].below));
+                FxGroup &g = groups[gi];
+                g.box = g.box.isNull() ? box : g.box | box;
+                g.parts << part;
+            }
+        }
+    }
+    const double scale = m_env.fontScale;   // the effects of text the presentation program shrank are shrunk with it
+    const double res = effectResolution(p);
+    qint64 pixels = kEffectPixels;
+    // Whether a picture of this size is still in the painting's share (and takes it).
+    auto afford = [&](const QRectF &area, double s) {
+        const qint64 n = qint64(std::ceil(area.width() * s)) * qint64(std::ceil(area.height() * s));
+        if (n > pixels) return false;
+        pixels -= n;
+        return true;
+    };
+    for (const FxGroup &g : groups) {
+        if (g.parts.isEmpty() || g.box.isNull()) continue;
+        const TextEffects &fx = TextEffects::cached(g.json);
+        // An image of the letters in `area`, blurred, and the area it covers (the image is whole pixels).
+        auto cast = [&](const QRectF &area, double grow, double sigma, QRectF *where) {
+            const double s = std::min(res, 4096.0 / std::max(1.0, std::max(area.width(), area.height())));
+            if (!afford(area, s)) return QImage();
+            QImage letters = alphaOf(drawLetters(g.parts, off, area, s, false, grow));
+            blurAlpha(letters, sigma * s);
+            *where = QRectF(area.topLeft(), QSizeF(letters.width() / s, letters.height() / s));
+            return letters;
+        };
+        if (!over) {
+            if (fx.reflection.on) {
+                const TextReflection &r = fx.reflection;
+                const double pad = 3 * blurSigma(r.blur * scale) + 1;
+                const QTransform t = castTransform(r.sx, r.sy, r.kx, r.ky, r.distance * scale, r.angle, g.box, r.align);
+                const QRectF area = t.mapRect(g.box.adjusted(-pad, -pad, pad, pad));
+                const double s = std::min(res, 4096.0 / std::max(1.0, std::max(area.width(), area.height())));
+                if (!afford(area, s)) continue;
+                // The letters as they look, turned over, then faded.
+                QImage img(QSize(std::max(1, int(std::ceil(area.width() * s))), std::max(1, int(std::ceil(area.height() * s)))), QImage::Format_ARGB32_Premultiplied);
+                img.fill(Qt::transparent);
+                {
+                    QPainter q(&img);
+                    q.setRenderHint(QPainter::Antialiasing);
+                    q.setRenderHint(QPainter::TextAntialiasing);
+                    q.scale(s, s);
+                    q.translate(-area.topLeft());
+                    q.setTransform(t, true);
+                    for (const FxPart &part : g.parts) {
+                        q.save();
+                        q.setTransform(part.draw, true);
+                        q.setPen(part.color);
+                        drawFine(&q, off, part.runs);
+                        q.restore();
+                    }
+                    q.end();
+                }
+                if (r.blur > 0) blurPicture(img, blurSigma(r.blur * scale) * s);
+                // The fade runs along fadeAngle across the reflection.
+                const QRectF shown(area.topLeft(), QSizeF(img.width() / s, img.height() / s));
+                const double fa = qDegreesToRadians(r.fadeAngle);
+                const QPointF dir(std::cos(fa), std::sin(fa));
+                double lo = 1e300, hi = -1e300;
+                for (const QPointF &c : {shown.topLeft(), shown.topRight(), shown.bottomLeft(), shown.bottomRight()}) {
+                    const double d = c.x() * dir.x() + c.y() * dir.y();
+                    lo = std::min(lo, d);
+                    hi = std::max(hi, d);
+                }
+                if (hi - lo > 1e-6) {
+                    const QPointF c = shown.center();
+                    const double mid = c.x() * dir.x() + c.y() * dir.y();
+                    const QPointF from = c + dir * (lo - mid), to = c + dir * (hi - mid);
+                    QLinearGradient grad((from - shown.topLeft()) * s, (to - shown.topLeft()) * s);
+                    const double sp = std::clamp(r.startPos, 0.0, 1.0), ep = std::clamp(std::max(r.endPos, r.startPos + 1e-4), 0.0, 1.0);
+                    grad.setColorAt(0, QColor(0, 0, 0, int(std::lround(r.startAlpha * 255))));
+                    grad.setColorAt(sp, QColor(0, 0, 0, int(std::lround(r.startAlpha * 255))));
+                    grad.setColorAt(ep, QColor(0, 0, 0, int(std::lround(r.endAlpha * 255))));
+                    grad.setColorAt(1, QColor(0, 0, 0, int(std::lround(r.endAlpha * 255))));
+                    QPainter q(&img);
+                    q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+                    q.fillRect(img.rect(), grad);
+                    q.end();
+                }
+                p->save();
+                p->setRenderHint(QPainter::SmoothPixmapTransform);
+                p->drawImage(shown, img);
+                p->restore();
+            }
+            if (fx.outer.on) {
+                const TextShadow &sh = fx.outer;
+                const QTransform t = castTransform(sh.sx, sh.sy, sh.kx, sh.ky, sh.distance * scale, sh.angle, g.box, sh.align);
+                p->save();
+                p->setTransform(t, true);
+                if (sh.blur <= 0) {
+                    p->setPen(sh.color);
+                    for (const FxPart &part : g.parts) {
+                        p->save();
+                        p->setTransform(part.draw, true);
+                        drawFine(p, off, part.runs);
+                        p->restore();
+                    }
+                } else {
+                    const double sigma = blurSigma(sh.blur * scale);
+                    QRectF where;
+                    const QImage mask = cast(g.box.adjusted(-3 * sigma - 1, -3 * sigma - 1, 3 * sigma + 1, 3 * sigma + 1), 0, sigma, &where);
+                    p->setRenderHint(QPainter::SmoothPixmapTransform);
+                    if (!mask.isNull()) p->drawImage(where, tinted(mask, sh.color));
+                }
+                p->restore();
+            }
+            if (fx.glow.on && fx.glow.radius > 0) {
+                // The glow reaches as far as its radius: the letters thickened by half of it, and blurred by a quarter.
+                const double reach = fx.glow.radius * scale;
+                const double grow = reach / 2, sigma = reach / 4;
+                QRectF where;
+                const QImage mask = cast(g.box.adjusted(-grow - 3 * sigma - 1, -grow - 3 * sigma - 1, grow + 3 * sigma + 1, grow + 3 * sigma + 1), grow, sigma, &where);
+                p->save();
+                p->setRenderHint(QPainter::SmoothPixmapTransform);
+                if (!mask.isNull()) p->drawImage(where, tinted(mask, fx.glow.color));
+                p->restore();
+            }
+        } else if (fx.inner.on) {
+            // The inside of the letters, darkened from the side the shadow comes from: the outside, moved in and blurred.
+            const TextShadow &sh = fx.inner;
+            const double sigma = blurSigma(sh.blur * scale);
+            const double a = qDegreesToRadians(sh.angle);
+            const QPointF d(sh.distance * scale * std::cos(a), sh.distance * scale * std::sin(a));
+            const double pad = 3 * sigma + 1 + std::max(std::abs(d.x()), std::abs(d.y()));
+            const QRectF area = g.box.adjusted(-pad, -pad, pad, pad);
+            const double s = std::min(res, 4096.0 / std::max(1.0, std::max(area.width(), area.height())));
+            if (!afford(area, s)) continue;
+            const QImage letters = alphaOf(drawLetters(g.parts, off, area, s, false, 0));
+            QImage outside(letters.size(), QImage::Format_Alpha8);
+            for (int y = 0; y < letters.height(); ++y) {
+                const uchar *in = letters.constScanLine(y);
+                uchar *o = outside.scanLine(y);
+                for (int x = 0; x < letters.width(); ++x) o[x] = uchar(255 - in[x]);
+            }
+            QImage cover(letters.size(), QImage::Format_ARGB32_Premultiplied);
+            cover.fill(Qt::transparent);
+            {
+                // Blurred inside a frame of clear pixels, so the edge of the image doesn't pull the shadow down.
+                QImage wide(letters.width() + 2 * int(std::ceil(3 * sigma * s)) + 2, letters.height() + 2 * int(std::ceil(3 * sigma * s)) + 2, QImage::Format_Alpha8);
+                wide.fill(255);
+                const int m = int(std::ceil(3 * sigma * s)) + 1;
+                for (int y = 0; y < outside.height(); ++y) std::memcpy(wide.scanLine(y + m) + m, outside.constScanLine(y), size_t(outside.width()));
+                blurAlpha(wide, sigma * s);
+                QImage blurred = wide.copy(m, m, outside.width(), outside.height());
+                QPainter q(&cover);
+                q.setRenderHint(QPainter::SmoothPixmapTransform);
+                q.drawImage(QPointF(d.x() * s, d.y() * s), tinted(blurred, sh.color));
+                q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+                q.drawImage(0, 0, letters);
+                q.end();
+            }
+            p->save();
+            p->setRenderHint(QPainter::SmoothPixmapTransform);
+            p->drawImage(QRectF(area.topLeft(), QSizeF(cover.width() / s, cover.height() / s)), cover);
+            p->restore();
+        }
+    }
+}
+
 void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
 {
     if (frame < 0 || frame >= m_frames.size()) return;
@@ -2814,6 +3172,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
     // below the frames before it (frameY), not from the frame's top.
     const QRectF clip(-1e5, frameY(frame) - 1e3, 2e5, fs.size.height() + 2e3);
     p->save();
+    paintTextEffects(p, frame, false);
     for (const auto &B : m_blocks) {
         bool any = false;
         for (const Line &l : B->lines) any |= (l.frame == frame);
@@ -2866,7 +3225,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                         drawRuns(QPointF(std::cos(ang), std::sin(ang)) * 1.6 * k, gc);
                     }
                 }
-                if (shadow) drawRuns(QPointF(1.2, 1.2) * k, QColor(0, 0, 0, 110));
+                if (shadow && er.format.stringProperty(tp::TextFx).isEmpty()) drawRuns(QPointF(1.2, 1.2) * k, QColor(0, 0, 0, 110));
                 if (emboss) { drawRuns(QPointF(-0.7, -0.7) * k, QColor(255, 255, 255, 220)); drawRuns(QPointF(0.7, 0.7) * k, QColor(0, 0, 0, 140)); }
                 if (engrave) { drawRuns(QPointF(-0.7, -0.7) * k, QColor(0, 0, 0, 140)); drawRuns(QPointF(0.7, 0.7) * k, QColor(255, 255, 255, 220)); }
             }
@@ -3056,6 +3415,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             }
         }
     }
+    paintTextEffects(p, frame, true);
     // Notes: their rules, the endnotes' heading, each number and text.
     for (const Rule &r : m_noteRules)
         if (r.frame == frame) {
