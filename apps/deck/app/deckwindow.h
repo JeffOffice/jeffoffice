@@ -270,6 +270,7 @@ private:
     QList<ColorButton *> m_colorButtons;
     QSizeF m_shownSize;   // the slide size the view was last fitted to
     QPointer<SlideShow> m_show;
+    const Document *m_fontsOf = nullptr;   // the presentation whose embedded fonts this window holds open (core/embeddedfonts.h)
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QTimer m_refreshTimer, m_recoverTimer;

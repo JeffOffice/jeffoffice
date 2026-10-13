@@ -36,11 +36,15 @@ PresentationKind kindOfFileName(const QString &path);
 // it can't be written. `skipped` gets one entry for each thing left out:
 // the id of an object the drawing writer has no form for yet, or a line
 // saying which slide's transition, animation, or frame was left out and why.
+// With `embedFonts` the file carries the program's own fonts that the text
+// uses (the styles it uses, each with all its characters: "Embed fonts in the
+// file"), as io/pptxfonts.h says; the fonts the file this came from carried
+// are written back whatever it is, while the presentation uses them.
 QByteArray exportPresentation(const Document &doc, QString *error = nullptr, QStringList *skipped = nullptr,
-                              PresentationKind kind = PresentationKind::Presentation);
+                              PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false);
 // Writes the file at `path`, as its ending asks (kindOfFileName). The old
 // file stays whole until the new one is complete: a full disk, a folder that
 // can't be written, or a path that isn't one leave it as it was.
-bool savePresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr);
+bool savePresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool embedFonts = false);
 
 } // namespace jp::deck

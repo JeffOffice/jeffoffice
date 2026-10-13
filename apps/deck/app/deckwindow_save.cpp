@@ -98,6 +98,13 @@ bool DeckWindow::saveAs()
     return saveTo(path);
 }
 
+namespace {
+
+// Options > Save > "Embed fonts in the file": on unless it was turned off.
+bool embedFontsOnSave() { return Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(); }
+
+} // namespace
+
 bool DeckWindow::saveTo(const QString &path)
 {
     // What was typed in the notes or a slide's text goes into the file.
@@ -109,7 +116,7 @@ bool DeckWindow::saveTo(const QString &path)
     if (doc->props.author.isEmpty()) doc->props.author = Settings::get().userName();
     QString err;
     QStringList skipped;
-    if (!deck::savePresentationFile(*doc, path, &err, &skipped)) {
+    if (!deck::savePresentationFile(*doc, path, &err, &skipped, embedFontsOnSave())) {
         QMessageBox::warning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
@@ -137,7 +144,7 @@ void DeckWindow::autoRecover()
     const QString copy = recovery::copyPath(m_ed->filePath(), m_ed->displayName(), m_serial);
     if (copy != m_recoveryCopy) dropRecoveryCopy();
     const QString source = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
-    const bool written = recovery::write([this](const QString &file, QString *error) { return deck::savePresentationFile(*m_ed->doc(), file, error); },
+    const bool written = recovery::write([this](const QString &file, QString *error) { return deck::savePresentationFile(*m_ed->doc(), file, error, nullptr, embedFontsOnSave()); },
                                          copy, source, m_ed->displayName());
     if (written) m_recoveryCopy = copy;
 }

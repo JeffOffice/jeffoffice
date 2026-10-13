@@ -35,6 +35,8 @@
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/embeddedfonts.h"
+#include "core/fontfiles.h"
 #include "core/fonts.h"
 #include "core/ink.h"
 #include "core/media.h"
@@ -55,6 +57,7 @@
 #include "office/chart.h"
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
+#include "office/eot.h"
 #include "office/package.h"
 #include "office/xml.h"
 #include "render/renderer.h"
@@ -78,6 +81,8 @@
 #include <QFile>
 #include <QFrame>
 #include <QFileInfo>
+#include <QFontDatabase>
+#include <QFontInfo>
 #include <QImageWriter>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -12759,6 +12764,370 @@ private Q_SLOTS:
         QVERIFY(c.charFormat().fontPointSize() != 40.0);
     }
 
+    // ----- Fonts in the file: embedded on save, and used while the presentation is open -----
+
+    // A saved file with the program's own fonts embedded: the fonts its text uses, in the styles it uses, each as a part
+    // of its own (an EOT of the whole font) that the presentation lists after its sizes, and says it embeds.
+    void savedPresentationEmbedsTheBundledFontsItUses()
+    {
+        auto d = deck::newPresentation();
+        deck::DeckTheme theme = deck::themeOf(*d);
+        theme.headingFont = QStringLiteral("Fraunces");
+        theme.bodyFont = QStringLiteral("Source Serif 4");
+        deck::setTheme(*d, theme);
+        auto *title = static_cast<TextItem *>(d->pages[0]->items[0].get());
+        auto *subtitle = static_cast<TextItem *>(d->pages[0]->items[1].get());
+        auto run = [&](TextItem *box, const QString &text, const QString &family, bool bold, bool italic) {
+            QTextCursor c(d->storyDoc(box->storyId));
+            c.movePosition(QTextCursor::End);
+            QTextCharFormat f;
+            f.setFontFamilies({family});
+            f.setFontWeight(bold ? QFont::Bold : QFont::Normal);
+            f.setFontItalic(italic);
+            c.insertText(text, f);
+        };
+        run(title, QStringLiteral("Heading"), QStringLiteral("Fraunces"), false, false);
+        run(subtitle, QStringLiteral("body "), QStringLiteral("Source Serif 4"), false, false);
+        run(subtitle, QStringLiteral("bold "), QStringLiteral("Source Serif 4"), true, false);
+        run(subtitle, QStringLiteral("italic "), QStringLiteral("Source Serif 4"), false, true);
+        // Fonts every computer has are never embedded.
+        run(subtitle, QStringLiteral("system "), QStringLiteral("Calibri"), true, false);
+        run(subtitle, QStringLiteral("system "), QStringLiteral("Arial"), false, false);
+
+        QString err;
+        const QByteArray plain = deck::exportPresentation(*d, &err);
+        const QByteArray bytes = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, true);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString pres = part(e, QStringLiteral("/ppt/presentation.xml"));
+        // The file says it embeds (without that the program doesn't look), and the list is where the schema puts it.
+        QVERIFY2(pres.contains(QStringLiteral(" embedTrueTypeFonts=\"1\"")), qPrintable(pres.left(500)));
+        QVERIFY(!pres.contains(QStringLiteral("saveSubsetFonts")));   // all the characters are in
+        const int sizes = pres.indexOf(QStringLiteral("<p:notesSz")), list = pres.indexOf(QStringLiteral("<p:embeddedFontLst>")), text = pres.indexOf(QStringLiteral("<p:defaultTextStyle>"));
+        QVERIFY(sizes > 0 && list > sizes && text > list);
+        const auto fonts = embeddedFontsOf(e);
+        QVERIFY2(fonts.contains(QStringLiteral("Fraunces")) && fonts.contains(QStringLiteral("Source Serif 4")), qPrintable(fonts.keys().join(QStringLiteral(", "))));
+        QVERIFY(!fonts.contains(QStringLiteral("Calibri")) && !fonts.contains(QStringLiteral("Arial")));
+        // Only the styles the text uses: the heading font regular; the body font regular, bold, and italic, but not both.
+        QCOMPARE(QStringList(fonts.value(QStringLiteral("Fraunces")).keys()), (QStringList{"regular"}));
+        QCOMPARE(QStringList(fonts.value(QStringLiteral("Source Serif 4")).keys()), (QStringList{"bold", "italic", "regular"}));
+        for (auto family = fonts.cbegin(); family != fonts.cend(); ++family)
+            for (auto face = family->cbegin(); face != family->cend(); ++face) {
+                QByteArray font;
+                FontFileInfo info;
+                QString why;
+                QVERIFY2(office::readEmbeddedFont(face.value(), &font, &info, &why), qPrintable(family.key() + QLatin1Char(' ') + face.key() + QLatin1String(": ") + why));
+                if (family.key() != QLatin1String("Fraunces") && family.key() != QLatin1String("Source Serif 4")) continue;
+                QCOMPARE(info.family, family.key());
+                QCOMPARE(info.bold, face.key() == QLatin1String("bold"));
+                QCOMPARE(info.italic, face.key() == QLatin1String("italic"));
+                // The font's own file, whole: the characters are all there so the text can be edited.
+                QCOMPARE(font, fontFileOf(family.key(), info.bold, info.italic));
+            }
+        // The part's name, type, and link are the program's own.
+        const QString rId = [&] {
+            const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("<p:embeddedFont><p:font typeface=\"Fraunces\"[^>]*/><p:regular r:id=\"(rId\\d+)\"/>")).match(pres);
+            return m.captured(1);
+        }();
+        QVERIFY2(!rId.isEmpty(), qPrintable(pres));
+        const office::Relationship link = e.pkg.relationship(QStringLiteral("/ppt/presentation.xml"), rId);
+        QVERIFY(link.type.endsWith(QLatin1String("/relationships/font")));
+        QVERIFY2(link.target.startsWith(QLatin1String("/ppt/fonts/font")) && link.target.endsWith(QLatin1String(".fntdata")), qPrintable(link.target));
+        QCOMPARE(e.pkg.contentType(link.target), QStringLiteral("application/x-fontdata"));
+        // Saved without them, the file is as it was before there were any.
+        QVERIFY(!QString::fromUtf8(plain).isEmpty());
+        QVERIFY(deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, false) == plain);
+        Exported none;
+        QVERIFY2(unpack(plain, &none, &err), qPrintable(err));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("embedded")));
+        QVERIFY(!part(none, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("embedTrueTypeFonts")));
+        for (const QString &name : none.pkg.partNames()) QVERIFY2(!name.startsWith(QLatin1String("/ppt/fonts/")), qPrintable(name));
+    }
+
+    // Wherever the text is: the theme's fonts (used by any text that follows it), a master's prompts, a notes page, and a table's cells.
+    void fontsInMastersNotesAndTablesAreEmbeddedToo()
+    {
+        const QString id = QStringLiteral("{11111111-2222-3333-4444-555555555555}");
+        Parts p = samplePptx();
+        p.data["/ppt/tableStyles.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml"),
+            QStringLiteral("<a:tblStyleLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" def=\"%1\"><a:tblStyle styleId=\"%1\" styleName=\"Test\"><a:wholeTbl><a:tcTxStyle><a:fontRef idx=\"minor\"/>"
+                           "<a:srgbClr val=\"202020\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/></a:tcStyle></a:wholeTbl></a:tblStyle></a:tblStyleLst>").arg(id).toUtf8()};
+        p.rels << Rel{"/ppt/presentation.xml", "tableStyles", "/ppt/tableStyles.xml"};
+        const QString cell = QStringLiteral("<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\" b=\"1\"><a:latin typeface=\"Raleway\"/></a:rPr><a:t>Quarter</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc>");
+        const QString table = QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Results\"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp=\"1\"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr>"
+                                             "<p:xfrm><a:off x=\"914400\" y=\"1828800\"/><a:ext cx=\"1828800\" cy=\"370840\"/></p:xfrm>"
+                                             "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr firstRow=\"1\"><a:tableStyleId>%1</a:tableStyleId></a:tblPr>"
+                                             "<a:tblGrid><a:gridCol w=\"1828800\"/></a:tblGrid><a:tr h=\"370840\">%2</a:tr></a:tbl></a:graphicData></a:graphic></p:graphicFrame>")
+                                     .arg(id, cell);
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QVERIFY(xml.contains(unknownFrame(8)));
+        xml.replace(unknownFrame(8), table);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        // A master's prompt, and the notes of a slide, set in other families.
+        auto setFamily = [&](const QString &storyId, const QString &family, bool italic) {
+            QTextCursor c(d->storyDoc(storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies({family});
+            f.setFontItalic(italic);
+            c.mergeCharFormat(f);
+        };
+        TextItem *prompt = nullptr;
+        for (const auto &it : d->masters[0]->items)
+            if (it->type() == ItemType::Text) {
+                prompt = static_cast<TextItem *>(it.get());
+                break;
+            }
+        QVERIFY(prompt);
+        setFamily(prompt->storyId, QStringLiteral("Oswald"), false);
+        const QString notes = d->createStory(QStringLiteral("Speaker notes"));
+        d->pages[0]->notesStoryId = notes;
+        setFamily(notes, QStringLiteral("Lato"), true);
+
+        const QByteArray bytes = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, true);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const auto fonts = embeddedFontsOf(e);
+        QVERIFY2(fonts.value(QStringLiteral("Raleway")).contains(QStringLiteral("bold")), qPrintable(fonts.keys().join(QStringLiteral(", "))));   // a table cell's
+        QVERIFY2(fonts.contains(QStringLiteral("Oswald")), qPrintable(fonts.keys().join(QStringLiteral(", "))));                                      // a master's
+        QVERIFY2(fonts.value(QStringLiteral("Lato")).contains(QStringLiteral("italic")), qPrintable(fonts.keys().join(QStringLiteral(", "))));       // a notes page's
+        // The theme's own fonts: the sample's theme names the font scheme "Calibri", which no one needs from the file.
+        QVERIFY(!fonts.contains(QStringLiteral("Calibri")));
+    }
+
+    // A font whose license says it may not travel, or that is not one the program ships, is never embedded.
+    void fontsThatMayNotTravelOrAreNotTheProgramsAreLeftOut()
+    {
+        auto d = deck::newPresentation();
+        auto *title = static_cast<TextItem *>(d->pages[0]->items[0].get());
+        QTextCursor c(d->storyDoc(title->storyId));
+        auto run = [&](const QString &family, bool bold, bool italic) {
+            QTextCharFormat f;
+            f.setFontFamilies({family});
+            f.setFontWeight(bold ? QFont::Bold : QFont::Normal);
+            f.setFontItalic(italic);
+            c.insertText(QStringLiteral("x "), f);
+        };
+        // Zilla Slab Bold Italic says "preview and print only"; the family's other styles say editable.
+        run(QStringLiteral("Zilla Slab"), false, false);
+        run(QStringLiteral("Zilla Slab"), true, true);
+        // The TeX Gyre fonts say "preview and print, and editable": the freest applies.
+        run(QStringLiteral("TeX Gyre Bonum"), false, false);
+        run(QStringLiteral("Not A Font Anyone Has"), false, false);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, true);
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const auto fonts = embeddedFontsOf(e);
+        QCOMPARE(QStringList(fonts.value(QStringLiteral("Zilla Slab")).keys()), (QStringList{"regular"}));
+        QVERIFY(fonts.value(QStringLiteral("TeX Gyre Bonum")).contains(QStringLiteral("regular")));
+        QVERIFY(!fonts.contains(QStringLiteral("Not A Font Anyone Has")));
+    }
+
+    // What a file's embedded fonts do on opening: a font the computer lacks is available while the presentation is open
+    // (never installed, never written to disk) and goes with the last presentation that carries it; a font the computer
+    // already has is not added.
+    void embeddedFontsAreUsedWhileThePresentationIsOpen()
+    {
+        const QByteArray font = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), QStringLiteral("Zobster"));
+        QVERIFY(!font.isEmpty());
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        QString err;
+        auto first = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Zobster"), {{0, office::makeEot(font)}}}})), &err);
+        QVERIFY2(first, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        QVERIFY(QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        QCOMPARE(QFontInfo(QFont(QStringLiteral("Zobster"))).family(), QStringLiteral("Zobster"));
+        // Another presentation with the same font shares it.
+        auto second = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Zobster"), {{0, office::makeEot(font)}}}})), &err);
+        QVERIFY(second);
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        deck::EmbeddedFonts::release(first.get());
+        QVERIFY(QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        deck::EmbeddedFonts::release(second.get());
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        deck::EmbeddedFonts::release(second.get());   // twice is nothing
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+
+        // A font the computer has (Lato, which ships with the program) is not added again; the file's part is still kept for writing back.
+        const int lato = deck::EmbeddedFonts::addedFontCount();
+        auto have = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Lato"), {{0, office::makeEot(fontFileOf(QStringLiteral("Lato"), false, false))}}}})), &err);
+        QVERIFY2(have, qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), lato);
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(have.get()).size()), 1);
+        deck::EmbeddedFonts::release(have.get());
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(have.get()).size()), 0);
+    }
+
+    // The window gives a presentation's fonts back when the presentation is replaced and when the window closes.
+    void aWindowReleasesItsPresentationsFonts()
+    {
+        const QByteArray font = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), QStringLiteral("Zobster"));
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        QString err;
+        auto doc = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Zobster"), {{0, office::makeEot(font)}}}})), &err);
+        QVERIFY2(doc, qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        {
+            DeckWindow w;
+            w.editor()->setDocument(std::move(doc));
+            QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+            w.editor()->setDocument(deck::newPresentation());   // the presentation is replaced
+            QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+            auto again = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Zobster"), {{0, office::makeEot(font)}}}})), &err);
+            QVERIFY(again);
+            w.editor()->setDocument(std::move(again));
+            QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        }
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);   // the window closed
+    }
+
+    // Fonts a file carries are read under limits: a part that isn't a font, or is too big, costs that font and nothing else;
+    // at most 64 faces are read.
+    void embeddedFontsAreReadUnderLimits()
+    {
+        const QByteArray lobster = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), QStringLiteral("Zobster"));
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        QString err;
+        // One part is damaged and its family is not one the computer has: said so; the font after it is read.
+        QMap<int, QByteArray> broken{{0, QByteArray("not a font at all, and long enough to be read as a header ...............................................")}};
+        auto d = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Nofont Sans"), broken}, {QStringLiteral("Zobster"), {{0, office::makeEot(lobster)}}}})), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("embedded font")), qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        deck::EmbeddedFonts::release(d.get());
+
+        // A damaged part of a family the computer has is no loss to say anything about.
+        auto have = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Lato"), broken}})), &err);
+        QVERIFY2(have, qPrintable(err));
+        QVERIFY2(!err.contains(QStringLiteral("embedded font")), qPrintable(err));
+        deck::EmbeddedFonts::release(have.get());
+
+        // More than 64 faces: the first 64 are read.
+        QVector<QPair<QString, QMap<int, QByteArray>>> many;
+        for (int i = 0; i < 70; ++i) many.append({QStringLiteral("Family %1").arg(i), {{0, office::makeEot(lobster)}}});
+        auto crowded = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), many)), &err);
+        QVERIFY2(crowded, qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("first 64")), qPrintable(err));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(crowded.get()).size()), 64);
+        deck::EmbeddedFonts::release(crowded.get());
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+
+        // A part past 32 MB is not read at all.
+        QByteArray big = office::makeEot(lobster);
+        big.append(QByteArray(jp::kMaxEmbeddedFontBytes + 100000, '\0'));
+        auto large = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Zobster"), {{0, big}}}})), &err);
+        QVERIFY2(large, qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("too large")), qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+        deck::EmbeddedFonts::release(large.get());
+    }
+
+    // A font a file carries that the program doesn't have is written back as the part was, while the text uses it; the file
+    // that used it no more drops it. The setting that embeds the program's own fonts has no say over it.
+    void fontsAFileCarriesAreWrittenBackWhileUsed()
+    {
+        const QByteArray lobster = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), QStringLiteral("Zobster"));
+        const QByteArray eot = office::makeEot(lobster);
+        Parts p = samplePptx();
+        QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        slide.replace(QStringLiteral("<a:t>Plain text</a:t>"), QStringLiteral("<a:t>Plain text</a:t>"));
+        const QString plainRun = QStringLiteral("<a:r><a:rPr lang=\"en-US\"/><a:t>Plain text</a:t></a:r>");
+        QVERIFY(slide.contains(plainRun));
+        slide.replace(plainRun, QStringLiteral("<a:r><a:rPr lang=\"en-US\"><a:latin typeface=\"Zobster\"/></a:rPr><a:t>Plain text</a:t></a:r>"));
+        p.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(withEmbeddedFonts(p, {{QStringLiteral("Zobster"), {{0, eot}}}})), &err);
+        QVERIFY2(d, qPrintable(err));
+        for (bool embed : {false, true}) {
+            const QByteArray bytes = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, embed);
+            Exported e;
+            QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+            const auto fonts = embeddedFontsOf(e);
+            QVERIFY2(fonts.contains(QStringLiteral("Zobster")), qPrintable(QString::number(embed)));
+            QCOMPARE(fonts.value(QStringLiteral("Zobster")).value(QStringLiteral("regular")), eot);   // byte for byte
+            QVERIFY(part(e, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral(" embedTrueTypeFonts=\"1\"")));
+            // And it opens again with the font.
+            auto again = deck::importPresentation(bytes, &err);
+            QVERIFY2(again, qPrintable(err));
+            QCOMPARE(int(deck::EmbeddedFonts::facesOf(again.get()).size()), 1);
+            deck::EmbeddedFonts::release(again.get());
+        }
+        // The text no longer uses it: it is not written.
+        auto *box = static_cast<TextItem *>(d->pages[0]->items[3].get());
+        QCOMPARE(box->name, QStringLiteral("TextBox 4"));
+        QTextCursor c(d->storyDoc(box->storyId));
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setFontFamilies({QStringLiteral("Lato")});
+        c.mergeCharFormat(f);
+        const QByteArray gone = deck::exportPresentation(*d, &err, nullptr, deck::PresentationKind::Presentation, false);
+        Exported e;
+        QVERIFY2(unpack(gone, &e, &err), qPrintable(err));
+        QVERIFY(!embeddedFontsOf(e).contains(QStringLiteral("Zobster")));
+        QVERIFY(!part(e, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("embedTrueTypeFonts")));
+        deck::EmbeddedFonts::release(d.get());
+    }
+
+    // Options > Save has "Embed fonts in the file", on unless turned off, and Save follows it.
+    void optionsSaveEmbedsFontsUnlessTurnedOff()
+    {
+        Settings::get().setValue(QStringLiteral("save/embedFonts"), true);
+        DeckWindow w;
+        QStringList tabs;
+        bool checked = false, found = false;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            if (auto *t = d->findChild<QTabWidget *>())
+                for (int i = 0; i < t->count(); ++i) tabs << t->tabText(i);
+            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("embedFonts"))) {
+                found = true;
+                checked = box->isChecked();
+                QCOMPARE(box->text(), QStringLiteral("Embed fonts in the file"));
+            }
+            d->reject();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(tabs.contains(QStringLiteral("Save")));
+        QVERIFY(found);
+        QVERIFY(checked);
+
+        // Save puts the fonts in: the default theme's own font ships with the program.
+        QTemporaryDir dir;
+        const QString on = dir.filePath(QStringLiteral("on.pptx")), off = dir.filePath(QStringLiteral("off.pptx"));
+        QVERIFY(w.saveTo(on));
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            if (auto *box = d->findChild<QCheckBox *>(QStringLiteral("embedFonts"))) box->setChecked(false);
+            d->accept();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(!Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool());
+        QVERIFY(w.saveTo(off));
+        Settings::get().setValue(QStringLiteral("save/embedFonts"), true);
+        QString err;
+        Exported withFonts, without;
+        QFile f1(on), f2(off);
+        QVERIFY(f1.open(QIODevice::ReadOnly) && f2.open(QIODevice::ReadOnly));
+        QVERIFY2(unpack(f1.readAll(), &withFonts, &err), qPrintable(err));
+        QVERIFY2(unpack(f2.readAll(), &without, &err), qPrintable(err));
+        QVERIFY(part(withFonts, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("<p:embeddedFontLst>")));
+        QVERIFY(!part(without, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("<p:embeddedFontLst>")));
+    }
+
     // Review > Spelling (F7) goes through the slides to a misspelled word and
     // selects it; Thesaurus is Shift+F7.
     void spellingChecksTheSlides()
@@ -13788,7 +14157,7 @@ private Q_SLOTS:
         });
         w.act(QStringLiteral("file.options"))->trigger();
         QCOMPARE(title, QStringLiteral("JeffDeck Options"));
-        QCOMPARE(tabNames, (QStringList{"General", "Proofing", "View"}));
+        QCOMPARE(tabNames, (QStringList{"General", "Proofing", "View", "Save"}));
         QCOMPARE(shown, QStringLiteral("General"));
         QCOMPARE(userName, Settings::get().userName());
         QVERIFY2(online.isEmpty(), qPrintable(online.join(QStringLiteral(", "))));
@@ -17138,6 +17507,102 @@ private:
         return readZip(bytes, out->zip, why) && out->pkg.read(bytes, why);
     }
     static QString part(const Exported &e, const QString &name) { return QString::fromUtf8(e.zip.value(name.mid(1))); }
+
+    // The fonts an exported file embeds: the family, then each style ("regular", "bold", "italic", "boldItalic") and the part it points at.
+    static QMap<QString, QMap<QString, QByteArray>> embeddedFontsOf(const Exported &e)
+    {
+        QMap<QString, QMap<QString, QByteArray>> out;
+        QDomDocument dom;
+        if (!office::parseXml(e.zip.value(QStringLiteral("ppt/presentation.xml")), &dom)) return out;
+        const QDomElement list = office::child(dom.documentElement(), office::ns::P, QStringLiteral("embeddedFontLst"));
+        for (const QDomElement &entry : office::children(list, office::ns::P, QStringLiteral("embeddedFont"))) {
+            const QString typeface = office::attr(office::child(entry, office::ns::P, QStringLiteral("font")), QStringLiteral("typeface"));
+            for (const char *style : {"regular", "bold", "italic", "boldItalic"}) {
+                const QDomElement face = office::child(entry, office::ns::P, QLatin1String(style));
+                if (face.isNull()) continue;
+                const office::Relationship link = e.pkg.relationship(QStringLiteral("/ppt/presentation.xml"), office::attrNs(face, office::ns::R, QStringLiteral("id")));
+                out[typeface][QLatin1String(style)] = e.pkg.part(link.target);
+            }
+        }
+        return out;
+    }
+    // A bundled font's file.
+    static QByteArray fontFileOf(const QString &family, bool bold, bool italic)
+    {
+        QFile f(bundledFontFile(family, bold, italic).path);
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    }
+    // The same font under another family name of the same length (in its name table, with the checksums made right), for a font
+    // the computer doesn't have.
+    static QByteArray renamedFont(QByteArray font, const QString &from, const QString &to)
+    {
+        if (from.size() != to.size() || font.size() < 12) return QByteArray();
+        auto u16 = [&](int at) { return quint16(uchar(font[at]) << 8 | uchar(font[at + 1])); };
+        auto u32 = [&](int at) { return quint32(u16(at)) << 16 | u16(at + 2); };
+        auto set32 = [&](int at, quint32 v) {
+            font[at] = char(v >> 24);
+            font[at + 1] = char(v >> 16);
+            font[at + 2] = char(v >> 8);
+            font[at + 3] = char(v);
+        };
+        auto sum = [&](int at, int length) {
+            quint32 total = 0;
+            for (int i = 0; i < length; i += 4) {
+                quint32 word = 0;
+                for (int k = 0; k < 4; ++k) word = word << 8 | (i + k < length ? uchar(font[at + i + k]) : 0);
+                total += word;
+            }
+            return total;
+        };
+        int nameRecord = -1, headRecord = -1;
+        for (int i = 0, n = u16(4); i < n; ++i) {
+            const QByteArray tag = font.mid(12 + 16 * i, 4);
+            if (tag == "name") nameRecord = 12 + 16 * i;
+            if (tag == "head") headRecord = 12 + 16 * i;
+        }
+        if (nameRecord < 0 || headRecord < 0) return QByteArray();
+        const int nameAt = int(u32(nameRecord + 8)), nameLength = int(u32(nameRecord + 12)), headAt = int(u32(headRecord + 8));
+        QByteArray names = font.mid(nameAt, nameLength);
+        QByteArray wide;
+        for (QChar c : from) wide.append(char(0)).append(char(c.unicode()));
+        QByteArray wideTo;
+        for (QChar c : to) wideTo.append(char(0)).append(char(c.unicode()));
+        names.replace(wide, wideTo);
+        names.replace(from.toLatin1(), to.toLatin1());
+        font.replace(nameAt, nameLength, names);
+        set32(nameRecord + 4, sum(nameAt, nameLength));
+        set32(headAt + 8, 0);
+        set32(headRecord + 4, sum(headAt, int(u32(headRecord + 12))));
+        set32(headAt + 8, 0xB1B0AFBAu - sum(0, int(font.size())));
+        return font;
+    }
+    // A presentation file's parts with fonts embedded: for each family, the EOT (or other bytes) for each style (0 regular, 1 bold, 2 italic, 3 bold italic).
+    static Parts withEmbeddedFonts(Parts p, const QVector<QPair<QString, QMap<int, QByteArray>>> &fonts)
+    {
+        QString list = QStringLiteral("<p:embeddedFontLst>");
+        int number = 0;
+        // The package writer numbers a part's links in the order they are added.
+        int links = 0;
+        for (const Rel &r : std::as_const(p.rels))
+            if (r.source == QLatin1String("/ppt/presentation.xml")) ++links;
+        for (const auto &family : fonts) {
+            list += QStringLiteral("<p:embeddedFont><p:font typeface=\"%1\" pitchFamily=\"2\" charset=\"0\"/>").arg(family.first);
+            for (auto face = family.second.cbegin(); face != family.second.cend(); ++face) {
+                const QString name = QStringLiteral("/ppt/fonts/font%1.fntdata").arg(++number);
+                const QString id = QStringLiteral("rId%1").arg(++links);
+                p.data[name] = {QStringLiteral("application/x-fontdata"), face.value()};
+                p.rels << Rel{QStringLiteral("/ppt/presentation.xml"), QStringLiteral("font"), name};
+                list += QStringLiteral("<p:%1 r:id=\"%2\"/>").arg(QLatin1String(face.key() == 0 ? "regular" : face.key() == 1 ? "bold" : face.key() == 2 ? "italic" : "boldItalic"), id);
+            }
+            list += QStringLiteral("</p:embeddedFont>");
+        }
+        list += QStringLiteral("</p:embeddedFontLst>");
+        QString xml = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+        xml.replace(QStringLiteral("<p:presentation "), QStringLiteral("<p:presentation embedTrueTypeFonts=\"1\" "));
+        xml.replace(QRegularExpression(QStringLiteral("(<p:notesSz [^>]*/>)")), QStringLiteral("\\1") + list);
+        p.data["/ppt/presentation.xml"].xml = xml.toUtf8();
+        return p;
+    }
 
     // The first thing wrong with a package, as a reader that stops at the first
     // damage would find it; empty when it is sound: every part has a content

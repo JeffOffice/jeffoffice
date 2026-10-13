@@ -188,7 +188,7 @@ int main(int argc, char **argv)
     if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) || (args[1] == "steps" && args.size() < 5) || (args[1] == "lines" && args.size() < 4) ||
         (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines" && args[1] != "animations" && args[1] != "animate-edit") ||
         (args[1] == "animate-edit" && args.size() < 4)) {
-        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-edit <file> <out.pptx> | animate-demo <out.pptx> <out.tsv>\n";
+        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> [embed-fonts] | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-edit <file> <out.pptx> | animate-demo <out.pptx> <out.tsv>\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -206,7 +206,8 @@ int main(int argc, char **argv)
     if (cmd == "save") {
         QString error;
         QStringList skipped;
-        const bool ok = deck::savePresentationFile(*doc, args[3], &error, &skipped);
+        // With "embed-fonts" after the name, the program's own fonts the text uses go in the file (as the window's Save does by default).
+        const bool ok = deck::savePresentationFile(*doc, args[3], &error, &skipped, args.value(4) == QLatin1String("embed-fonts"));
         for (const QString &s : skipped) out << "left out\t" << s << "\n";
         out << (ok ? "saved\t" + args[3] : "cannot save: " + error) << "\t" << timer.elapsed() << " ms\n";
         return ok ? 0 : 1;

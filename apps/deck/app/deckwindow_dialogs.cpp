@@ -80,7 +80,7 @@ void DeckWindow::createDialogActions()
     // sets how every window opens (and the open ones, now).
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         struct Fields {
-            QCheckBox *ruler = nullptr, *snap = nullptr;
+            QCheckBox *ruler = nullptr, *snap = nullptr, *embedFonts = nullptr;
         };
         auto f = std::make_shared<Fields>();
         QVector<OptionsPage> pages;
@@ -108,6 +108,23 @@ void DeckWindow::createDialogActions()
                     deck->refreshUi();
                 }
         }};
+        // Save: what goes in the file besides the slides. The fonts are the ones that come with the program, which other computers lack;
+        // the ones every computer has (Calibri, Arial) are never put in.
+        pages << OptionsPage{tr("Save"), [f] {
+            auto *page = new QWidget();
+            auto *column = new QVBoxLayout(page);
+            f->embedFonts = new QCheckBox(tr("Embed fonts in the file"), page);
+            f->embedFonts->setObjectName(QStringLiteral("embedFonts"));
+            const QString about = tr("Puts the fonts that come with the program, and that the slides use, in the file, so the slides look the same on a computer that doesn't have them. "
+                                     "It makes the file larger. Fonts every computer has, such as Calibri and Arial, are never put in.");
+            f->embedFonts->setToolTip(about);
+            f->embedFonts->setWhatsThis(about);
+            f->embedFonts->setAccessibleDescription(about);
+            f->embedFonts->setChecked(Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool());
+            column->addWidget(f->embedFonts);
+            column->addStretch(1);
+            return page;
+        }, [f] { Settings::get().setValue(QStringLiteral("save/embedFonts"), f->embedFonts->isChecked()); }};
         optionsDialog(this, m_ed, pages);
     });
 
