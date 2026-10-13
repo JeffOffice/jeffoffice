@@ -11,20 +11,20 @@ As Sugestões de Teclas são pequenas letras que aparecem no friso. Permitem che
 2. Prima a letra do separador pretendido. Os separadores utilizam **H** para **Base**, **N** para **Inserir**, **G** para **Estrutura**, **K** para **Transições**, **S** para **Apresentação de Diapositivos**, **R** para **Rever** e **W** para **Ver**. Aparecem as letras dos botões desse separador.
 3. Escreva as letras do botão pretendido. Por exemplo, prima **Alt**, depois **S** e depois **B** para reproduzir a apresentação de diapositivos **Do Início**.
 
-Também pode manter Alt premida e premir a letra de um separador de uma só vez. **Alt+H** abre o separador **Base**. **Alt+F** abre o ecrã Ficheiro.
+Também pode manter premida a tecla Alt e premir a letra de um separador num só gesto. **Alt+H** abre o separador **Base**. **Alt+F** abre o ecrã Ficheiro.
 
-Prima **Esc** para recuar um passo. Prima qualquer outra tecla para ocultar as letras. As letras esbatidas pertencem a um botão que não pode utilizar nesse momento.
+Prima **Esc** para recuar um passo. Prima qualquer outra tecla para ocultar as letras. As letras que parecem esbatidas pertencem a um botão que não pode utilizar neste momento.
 
-Prima **Ctrl+F1** para ocultar os botões do friso e mostrar apenas os nomes dos separadores, para ter mais espaço no diapositivo. Prima novamente para os voltar a mostrar.
+Prima **Ctrl+F1** para ocultar os botões do friso e mostrar apenas os nomes dos separadores, de forma a ter mais espaço no diapositivo. Prima novamente para os voltar a mostrar.
 
 ## Trabalhar no diapositivo
 
 Clique no diapositivo. Em seguida:
 
-- **Ctrl+Page Down** passa para o diapositivo seguinte e **Ctrl+Page Up** para o anterior.
+- **Ctrl+Page Down** vai para o diapositivo seguinte e **Ctrl+Page Up** para o anterior.
 - **Tab** seleciona o objeto seguinte. **Shift+Tab** seleciona o anterior.
-- As **teclas de seta** deslocam o objeto selecionado um pequeno passo. Mantenha **Alt** premida para o passo mais pequeno.
-- **Enter** ou **F2** edita o texto da caixa de texto, marcador de posição, forma ou tabela selecionada. Também pode simplesmente começar a escrever.
+- As **teclas de seta** deslocam o objeto selecionado um pequeno passo. Mantenha premida a tecla **Alt** para o passo mais pequeno.
+- **Enter** ou **F2** edita o texto da caixa de texto, do marcador de posição, da forma ou da tabela selecionada. Também pode simplesmente começar a escrever.
 - **Delete** remove o objeto selecionado.
 - **Esc** termina a edição do texto. A caixa continua selecionada. Prima Esc novamente para limpar a seleção.
 
@@ -34,13 +34,13 @@ Enquanto escreve numa tabela, **Tab** passa para a célula seguinte. Tab na últ
 
 Clique no painel e, em seguida:
 
-- **Seta para cima** e **Seta para baixo** passam para o diapositivo anterior ou seguinte. **Home** e **End** passam para o primeiro e para o último diapositivo.
+- **Seta para cima** e **Seta para baixo** vão para o diapositivo anterior ou seguinte. **Home** e **End** vão para o primeiro e para o último diapositivo.
 - **Enter** adiciona um novo diapositivo a seguir ao atual.
 - **Delete** elimina o diapositivo atual.
 
 ## Na Organização de Diapositivos
 
-- As **teclas de seta**, **Home**, **End**, **Page Up** e **Page Down** percorrem a grelha. Mantenha **Shift** premida para ir selecionando.
+- As **teclas de seta**, **Home**, **End**, **Page Up** e **Page Down** permitem percorrer a grelha. Mantenha premida a tecla **Shift** para ir selecionando.
 - **Ctrl+A** seleciona todos os diapositivos. **Ctrl+D** duplica os diapositivos selecionados. **Delete** elimina-os.
 - **Enter** abre o diapositivo na Vista normal.
 
@@ -53,19 +53,20 @@ Clique no painel e, em seguida:
 
 - **Seta para a direita**, **Seta para baixo**, **Espaço**, **Enter**, **Page Down** ou **N** avançam.
 - **Seta para a esquerda**, **Seta para cima**, **Retrocesso**, **Page Up** ou **P** recuam.
-- **Home** e **End** passam para o primeiro e para o último diapositivo. O número de um diapositivo seguido de **Enter** passa para esse diapositivo.
-- **B** ou a tecla de ponto final escurece o ecrã. **W** ou a tecla de vírgula torna-o branco. Prima novamente a mesma tecla para voltar a mostrar o diapositivo.
-- **Esc** termina a apresentação.
+- **Home** e **End** vão para o primeiro e para o último diapositivo. O número de um diapositivo seguido de **Enter** vai para esse diapositivo.
+- **B** ou a tecla do ponto escurece o ecrã. **W** ou a tecla da vírgula torna-o branco. Prima a mesma tecla novamente para voltar a mostrar o diapositivo.
+- **Ctrl+P** ativa a caneta, **Ctrl+I** o marcador de texto, **Ctrl+L** o ponteiro laser e **Ctrl+E** a borracha. **E** apaga a tinta do diapositivo. **Ctrl+A** volta a mostrar a seta.
+- **Esc** volta a mostrar a seta quando está escolhida a caneta, o marcador de texto, o ponteiro laser ou a borracha. Caso contrário, termina a apresentação.
 
 Prima **F1** para obter Ajuda sobre o que está a fazer.
 
 ## Todos os atalhos
 
-Estes são os comandos que têm uma tecla de atalho, pela ordem em que surgem no friso. Uma célula vazia na última coluna significa que o comando não está no friso.
+Estes são os comandos que têm tecla de atalho, pela ordem em que aparecem no friso. Uma célula vazia na última coluna significa que o comando não está no friso.
 
 <!-- shortcuts -->
 
-## Relacionados
+## Tópicos relacionados
 
 - [Orientar-se na janela](window)
 - [Reproduzir a apresentação de diapositivos e utilizar a Vista de Apresentador](show)

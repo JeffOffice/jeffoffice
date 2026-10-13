@@ -1,41 +1,41 @@
 # Usar o JeffDeck com o teclado
-<!-- keywords: teclado, atalhos, teclas de atalho, atalhos de teclado, dicas de tecla, keytips, tecla alt, tecla tab, teclas de direção, setas, sem mouse, navegar, navegação, teclas de acesso, teclas da apresentação de slides, f5, esc -->
+<!-- keywords: teclado, atalhos, teclas de atalho, atalhos de teclado, dicas de tecla, keytips, tecla alt, tecla tab, teclas de direção, setas, sem mouse, navegar, teclas de acesso, teclas da apresentação de slides, f5, esc -->
 
 Você pode fazer quase tudo no JeffDeck sem mouse. Há teclas de atalho para os comandos mais comuns, Dicas de Tecla para a faixa de opções e teclas que funcionam no slide, no painel de slides, na Classificação de Slides, no Modo de Exibição de Estrutura de Tópicos e na apresentação de slides.
 
 ## Usar as Dicas de Tecla na faixa de opções
 
-As Dicas de Tecla são pequenas letras que aparecem na faixa de opções. Com elas, você chega a qualquer botão sem o mouse.
+As Dicas de Tecla são pequenas letras que aparecem na faixa de opções. Com elas, você chega a qualquer botão sem usar o mouse.
 
 1. Pressione e solte **Alt**. Aparecem letras no botão **Arquivo**, em cada guia e na Barra de Ferramentas de Acesso Rápido. Os botões da Barra de Ferramentas de Acesso Rápido usam os números de 1 a 3.
 2. Pressione a letra da guia desejada. As guias usam **H** para **Página Inicial**, **N** para **Inserir**, **G** para **Design**, **K** para **Transições**, **S** para **Apresentação de Slides**, **R** para **Revisão** e **W** para **Exibir**. Aparecem as letras dos botões dessa guia.
-3. Digite as letras do botão desejado. Por exemplo, pressione **Alt**, depois **S** e depois **B** para iniciar a apresentação de slides **Do Começo**.
+3. Digite as letras do botão desejado. Por exemplo, pressione **Alt**, depois **S** e depois **B** para reproduzir a apresentação de slides **Do Começo**.
 
-Você também pode manter Alt pressionada e pressionar a letra de uma guia de uma só vez. **Alt+H** abre a guia **Página Inicial**. **Alt+F** abre a tela Arquivo.
+Você também pode manter Alt pressionada e pressionar a letra da guia de uma só vez. **Alt+H** abre a guia **Página Inicial**. **Alt+F** abre a tela Arquivo.
 
 Pressione **Esc** para voltar uma etapa. Pressione qualquer outra tecla para ocultar as letras. Letras esmaecidas pertencem a um botão que não pode ser usado no momento.
 
-Pressione **Ctrl+F1** para ocultar os botões da faixa de opções e mostrar só os nomes das guias, deixando mais espaço para o slide. Pressione novamente para exibi-los de volta.
+Pressione **Ctrl+F1** para ocultar os botões da faixa de opções e mostrar apenas os nomes das guias, deixando mais espaço para o slide. Pressione de novo para mostrá-los outra vez.
 
 ## Trabalhar no slide
 
 Clique no slide. Depois:
 
-- **Ctrl+Page Down** vai para o próximo slide, e **Ctrl+Page Up** para o anterior.
+- **Ctrl+Page Down** vai para o próximo slide, e **Ctrl+Page Up**, para o anterior.
 - **Tab** seleciona o próximo objeto. **Shift+Tab** seleciona o anterior.
-- As **teclas de direção** deslocam o objeto selecionado um pouco. Mantenha **Alt** pressionada para o menor deslocamento.
+- As **teclas de direção** movem o objeto selecionado um pouco. Mantenha **Alt** pressionada para o menor deslocamento.
 - **Enter** ou **F2** edita o texto da caixa de texto, do espaço reservado, da forma ou da tabela selecionada. Você também pode simplesmente começar a digitar.
 - **Delete** remove o objeto selecionado.
-- **Esc** encerra a edição do texto. A caixa continua selecionada. Pressione Esc novamente para limpar a seleção.
+- **Esc** para de editar o texto. A caixa continua selecionada. Pressione Esc de novo para limpar a seleção.
 
-Enquanto você digita em uma tabela, **Tab** vai para a próxima célula. Tab na última célula adiciona uma linha.
+Enquanto você digita em uma tabela, **Tab** passa para a próxima célula. Tab na última célula adiciona uma linha.
 
 ## No painel de slides
 
-Clique no painel e então:
+Clique no painel e depois:
 
-- **Seta para cima** e **Seta para baixo** vão para o slide anterior ou o seguinte. **Home** e **End** vão para o primeiro e o último slide.
-- **Enter** adiciona um novo slide depois do slide atual.
+- **Seta para cima** e **Seta para baixo** vão para o slide anterior ou seguinte. **Home** e **End** vão para o primeiro e o último slide.
+- **Enter** adiciona um novo slide depois do atual.
 - **Delete** exclui o slide atual.
 
 ## Na Classificação de Slides
@@ -47,15 +47,16 @@ Clique no painel e então:
 ## No Modo de Exibição de Estrutura de Tópicos
 
 - **Enter** no final de um título inicia um novo slide.
-- **Tab** recua uma linha um nível. **Shift+Tab** a move um nível para fora.
+- **Tab** recua uma linha em um nível. **Shift+Tab** a move um nível para fora.
 
 ## Na apresentação de slides
 
 - **Seta para a direita**, **Seta para baixo**, **Espaço**, **Enter**, **Page Down** ou **N** avançam.
 - **Seta para a esquerda**, **Seta para cima**, **Backspace**, **Page Up** ou **P** voltam.
 - **Home** e **End** vão para o primeiro e o último slide. O número de um slide seguido de **Enter** vai para esse slide.
-- **B** ou a tecla de ponto deixa a tela preta. **W** ou a tecla de vírgula deixa a tela branca. Pressione a mesma tecla novamente para trazer o slide de volta.
-- **Esc** encerra a apresentação.
+- **B** ou a tecla de ponto deixa a tela preta. **W** ou a tecla de vírgula deixa a tela branca. Pressione a mesma tecla de novo para mostrar o slide outra vez.
+- **Ctrl+P** é a caneta, **Ctrl+I** o marca-texto, **Ctrl+L** o apontador laser e **Ctrl+E** a borracha. **E** apaga a tinta do slide. **Ctrl+A** traz a seta de volta.
+- **Esc** traz a seta de volta quando a caneta, o marca-texto, o apontador laser ou a borracha está escolhido. Caso contrário, encerra a apresentação.
 
 Pressione **F1** para obter Ajuda sobre o que você está fazendo.
 
@@ -68,5 +69,5 @@ Estes são os comandos que têm tecla de atalho, na ordem em que aparecem na fai
 ## Relacionados
 
 - [Conhecer a janela](window)
-- [Executar a apresentação de slides e usar o Modo de Exibição do Apresentador](show)
-- [Bem-vindo ao JeffDeck](start)
+- [Reproduzir a apresentação de slides e usar o Modo de Exibição do Apresentador](show)
+- [Boas-vindas ao JeffDeck](start)
