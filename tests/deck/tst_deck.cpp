@@ -17177,6 +17177,53 @@ private Q_SLOTS:
         QCOMPARE(deck::themeOf(*ed->doc()).name, deck::defaultTheme().name);
     }
 
+    // Applying the same theme and variant to selected slides again goes onto the slide master a first time made, not onto a copy of it; another
+    // theme or variant, and a theme whose colors were changed since, make their own.
+    void repeatedApplyToSelectedReusesTheMaster()
+    {
+        auto slideMasters = [](const Document &doc) {
+            int n = 0;
+            for (const auto &m : doc.masters) n += deck::isSlideMaster(*m);
+            return n;
+        };
+        auto d = deckToRestyle();
+        const int tideline = deck::builtinThemeIndex(QStringLiteral("Tideline"));
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(tideline), {1}));
+        QCOMPARE(slideMasters(*d), 2);
+        const QString made = deck::slideMasterOf(*d, 1);
+        const int layoutsBefore = int(deck::layouts(*d).size());
+        // The same theme again, from another copy of it, for other slides: the same master, and no more layouts.
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(tideline), {2}));
+        QCOMPARE(slideMasters(*d), 2);
+        QCOMPARE(int(deck::layouts(*d).size()), layoutsBefore);
+        QCOMPARE(deck::slideMasterOf(*d, 2), made);
+        QCOMPARE(deck::slideMasterOf(*d, 1), made);
+        QCOMPARE(layoutTypes(*d), layoutTypes(*deckToRestyle()));
+        // And for the slide that has it, nothing moves.
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(tideline), {1, 2}));
+        QCOMPARE(slideMasters(*d), 2);
+        QCOMPARE(deck::slideMasterOf(*d, 1), made);
+        // The presentation's own theme taken again for all slides, then for some: its master is the one they go to.
+        auto all = deckToRestyle();
+        QVERIFY(deck::applyThemeToAll(*all, *deck::themePresentation(tideline)));
+        QVERIFY(deck::applyThemeToSlides(*all, *deck::themePresentation(tideline), {1}));
+        QCOMPARE(slideMasters(*all), 1);
+        // Another variant of it is another master; so is another theme.
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(tideline, 2), {3}));
+        QCOMPARE(slideMasters(*d), 3);
+        QVERIFY(deck::slideMasterOf(*d, 3) != made);
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Ember"))), {0}));
+        QCOMPARE(slideMasters(*d), 4);
+        // A master whose colors were changed since is no longer that theme: the next time makes a new one.
+        deck::ColorSet set = deck::colorSetOf(*d);
+        set.colors[4] = QColor(0x12, 0x34, 0x56);
+        deck::applyColors(*d, set);
+        const int before = slideMasters(*d);
+        QVERIFY(deck::applyThemeToSlides(*d, *deck::themePresentation(tideline), {4}));
+        QCOMPARE(slideMasters(*d), before + 1);
+        QVERIFY(deck::slideMasterOf(*d, 4) != made);
+    }
+
     // The Variants group shows the four variants of the theme with the one it has marked; a click applies one; its menu offers colors,
     // fonts, and the twelve background styles, each a step that undoes.
     void designTabVariantsAndTheirMenu()
