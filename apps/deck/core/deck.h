@@ -13,10 +13,15 @@
 #include "core/document.h"
 
 #include <QColor>
+#include <functional>
 #include <QString>
 #include <QVector>
 
 namespace jp::deck {
+
+// The gray of a new presentation's footers (date, footer text, slide number): its dark 1 this many percent toward white; the gray of the text of a
+// Section Header is `kSectionTint`. Files made before footers were darkened to read (4.5 to 1 on white) have them at 45 percent.
+constexpr int kFooterTint = 30, kSectionTint = 40, kOldFooterTint = 45;
 
 // 16:9 slides, 13.333 by 7.5 inches.
 constexpr double kSlideWidth = 960, kSlideHeight = 540;
@@ -73,6 +78,31 @@ int duplicateSlide(Document &d, int index);
 // places and formatting by type (title to title, body to body...), the text
 // staying; placeholders the new layout has no place for stay where they were.
 void applyLayout(Document &d, Page &slide, const MasterPage &layout);
+// What followLook set from the other look.
+struct Following {
+    bool color = false, family = false;
+};
+// Text that looked as one placeholder's text said looks as another's says: of the font, size, weight, slant, capitals, and color of `cf`, each
+// that was as `was` has it (or as it has none) becomes as `now` has it (or none). `cf` says which of the colors and fonts it set.
+Following followLook(QTextCharFormat &cf, const QTextCharFormat &was, const QTextCharFormat &now);
+
+// The text of a slide's placeholder `t` takes the look of the layout `to` has for it where it had that of the layout `from` had (either may be
+// null: then nothing is followed): paragraph by paragraph, by their levels, each one's list (bullet, font, color, size), indent, spacing, and
+// alignment where they were the old paragraph's, and its text's font, size, weight, slant, capitals, and color that were. After each run
+// (and each paragraph's end) has what it followed, `rest` is called with the run's format and what was followed, to change what wasn't; it says
+// whether it changed anything.
+void followLayout(Document &d, TextItem &t, const Item *from, const Item *to, const std::function<bool(QTextCharFormat &, const Following &)> &rest);
+// A slide's placeholders that have nothing in them take the list of their layout's paragraph for their level, as a new slide's do (a file
+// leaves an empty paragraph out of its list), so that what is typed in them has its bullets. Nothing else about them changes.
+void inheritLayoutLists(Document &d);
+// Whether the layout of the slide that `placeholder` is on has a list in the place it has for it: the levels of a slide's text then have bullets
+// of their own to take (changeListLevel).
+bool layoutHasList(const Document &d, const Item &placeholder);
+// The paragraphs `first` to `last` (counted from 0) of the text of `placeholder`, a placeholder on a slide, go `dir` levels in (or out, when
+// negative): each takes the layout's paragraph of its new level (the deepest the layout has, indented as far again for each level past it): its
+// list (bullet character, font, color, and size), indent, and spacing, and its text that looked as the old level's does the same. Nothing
+// changes, and it says so, when the layout has no list for the placeholder.
+bool changeListLevel(Document &d, const Item &placeholder, int first, int last, int dir);
 // Puts the slide's placeholders back where its layout has them.
 void resetSlide(Document &d, Page &slide);
 
@@ -91,8 +121,11 @@ void setSlideSize(Document &d, const QSizeF &size);
 // The same for one slide, layout, or slide master that was made for slides of
 // size `from` and now stands in a presentation of size `to` (a copy brought
 // from another one): `slide` for a slide, whose other objects keep their
-// shape, else everything stretches to the new shape.
-void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide);
+// shape, else everything stretches to the new shape. With `keepSquares`, what
+// is a square on a master (a circle, a square, a corner triangle) is not
+// stretched: it scales by the smaller ratio about the middle of where
+// stretching puts it, and keeps to the edge of the slide it was on.
+void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide, bool keepSquares = false);
 
 // What Header & Footer shows on slides: the date (as the field that keeps
 // it current), the slide number, and a line of footer text, each in the
