@@ -40,6 +40,7 @@ void DeckWindow::buildRibbon()
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
     addShowParts(parts);
     addMediaParts(parts);
+    addInsertParts(parts);
     addAnimationParts(parts);
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };

@@ -1,7 +1,6 @@
 #include "app/onlinepictures.h"
 
-#include "app/editor.h"
-#include "app/mainwindow.h"
+#include "core/appinfo.h"
 
 #include <QBuffer>
 #include <QCheckBox>
@@ -22,7 +21,6 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QFontMetrics>
-#include <QTextCursor>
 #include <QTextDocument>
 #include <QTextDocumentFragment>
 #include <QTimer>
@@ -60,7 +58,7 @@ void download(QNetworkAccessManager *net, const QUrl &url, QObject *context, con
 {
     QNetworkRequest req(url);
     // Wikimedia asks programs to say who they are.
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("JeffPub/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/" JP_VERSION " (https://github.com/") + appInfo().repository + QLatin1Char(')'));
     req.setTransferTimeout(30000);   // no data at all for this long
     QNetworkReply *r = net->get(req);
     // Past the size or the time allowed, the download stops and says why.
@@ -194,7 +192,7 @@ QString credit(const Picture &p)
 
 } // namespace online
 
-OnlinePicturesPane::OnlinePicturesPane(MainWindow *win) : m_win(win)
+OnlinePicturesPane::OnlinePicturesPane(const Inserter &insert) : m_inserter(insert)
 {
     setObjectName(QStringLiteral("jpOnlinePictures"));
     auto *v = new QVBoxLayout(this);
@@ -348,27 +346,10 @@ void OnlinePicturesPane::insertChosen()
             return;
         }
         f.close();
-        MainWindow *win = self->m_win;
-        Editor *ed = win->editor();
-        const size_t before = ed->surfaceItems().size();
-        win->insertFiles({path}, QPointF(-1, -1));
-        auto *pic = ed->surfaceItems().size() > before ? dynamic_cast<PictureItem *>(ed->single()) : nullptr;
-        if (!pic) {   // the file did not open as a picture
+        if (!self->m_inserter(path, p, withCredit)) {   // the file did not open as a picture
             self->m_status->setText(tr("That picture couldn't be loaded."));
             return;
         }
-        // Its title describes it for screen readers; the credit names its author and license.
-        ed->change(tr("Picture Credit"), [&] {
-            pic->altText = p.title;
-            if (!withCredit) return;
-            auto t = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(pic->rect.left(), pic->rect.bottom() + 4, pic->rect.width(), 22), online::credit(p)));
-            QTextCursor c(ed->doc()->storyDoc(t->storyId));
-            c.select(QTextCursor::Document);
-            if (const TextStyle *s = ed->doc()->style(QStringLiteral("Caption"))) { c.mergeCharFormat(s->chr); c.mergeBlockFormat(s->blk); }
-            ed->surfaceItems().push_back(t);
-            pic->caption = t->id;
-        });
-        ed->select(pic->id);
         self->m_status->setText(tr("Inserted. Check that its license fits how you'll use it."));
     }, online::kMaxPictureBytes);
 }
