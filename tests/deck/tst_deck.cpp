@@ -4551,6 +4551,9 @@ private Q_SLOTS:
             QVERIFY(lines.size() >= 2);
             QVERIFY2(std::abs(lines[0].rect.left() - 27) < 0.01, qPrintable(QString::number(fit) + QLatin1Char(' ') + QString::number(lines[0].rect.left())));
             QVERIFY2(std::abs(lines[1].rect.left() - 27) < 0.01, qPrintable(QString::number(fit) + QLatin1Char(' ') + QString::number(lines[1].rect.left())));
+            // The bullet is a hang before it, at the left edge.
+            QVERIFY2(std::abs(lines[0].markerX) < 0.01, qPrintable(QString::number(fit) + QLatin1Char(' ') + QString::number(lines[0].markerX)));
+            QCOMPARE(lines[1].markerX, -1.0);
         }
         // No hang and no font for the bullet: the text follows the bullet's own width (JeffPub's own lists leave a little room, a slide's don't).
         auto firstLeft = [](bool slide) {
