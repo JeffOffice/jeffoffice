@@ -20557,7 +20557,8 @@ private Q_SLOTS:
                                     QStringLiteral("frame"), QStringLiteral("main event"), QStringLiteral("mesh"), QStringLiteral("metropolitan"), QStringLiteral("parallax"),
                                     QStringLiteral("parcel"), QStringLiteral("quotable"), QStringLiteral("savon"), QStringLiteral("slate"), QStringLiteral("view"),
                                     QStringLiteral("vapor trail"), QStringLiteral("wood type")};
-        const QStringList families = bundledFamilies();
+        QStringList families = bundledFamilies();
+        for (const QString &f : bundledFamilies()) families << interchangeFontName(f);   // (a font drawn to a standard font's widths goes by that name)
         QSet<QString> names, fontPairs;
         for (int i = 0; i < deck::builtinThemeCount(); ++i) {
             const QString name = deck::builtinThemeName(i);
