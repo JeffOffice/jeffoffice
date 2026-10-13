@@ -1,25 +1,25 @@
 # Usare JeffDeck con la tastiera
-<!-- keywords: tastiera, scelta rapida, tasti di scelta rapida, scorciatoie, combinazioni di tasti, suggerimenti tasti, keytips, tasto alt, tasto tab, tasti di direzione, frecce, senza mouse, spostarsi, navigare, tasti di accesso, tasti presentazione, f5, esc -->
+<!-- keywords: tastiera, scelte rapide, tasti di scelta rapida, combinazioni di tasti, scorciatoie, suggerimenti tasti, keytips, tasto ALT, tasto TAB, tasti di direzione, frecce, senza mouse, spostarsi, navigare, tasti di accesso, tasti presentazione, f5, esc -->
 
-In JeffDeck è possibile eseguire la maggior parte delle operazioni senza mouse. Sono disponibili tasti di scelta rapida per i comandi più comuni, Suggerimenti tasti per la barra multifunzione e tasti che funzionano nella diapositiva, nel riquadro delle diapositive, in Sequenza diapositive, in Visualizzazione struttura e durante la presentazione.
+In JeffDeck è possibile eseguire quasi tutte le operazioni senza mouse. Sono disponibili tasti di scelta rapida per i comandi più comuni, Suggerimenti tasti per la barra multifunzione e tasti che funzionano nella diapositiva, nel riquadro delle diapositive, in Sequenza diapositive, in Visualizzazione struttura e durante la presentazione.
 
 ## Usare i Suggerimenti tasti sulla barra multifunzione
 
-I Suggerimenti tasti sono piccole lettere che compaiono sulla barra multifunzione. Consentono di raggiungere qualsiasi pulsante senza mouse.
+I Suggerimenti tasti sono piccole lettere che compaiono sulla barra multifunzione e consentono di raggiungere qualsiasi pulsante senza mouse.
 
-1. Premere e rilasciare **ALT**. Le lettere compaiono sul pulsante **File**, su ogni scheda e sulla barra di accesso rapido. I pulsanti della barra di accesso rapido usano i numeri da 1 a 3.
+1. Premere e rilasciare **ALT**. Compaiono delle lettere sul pulsante **File**, su ogni scheda e sulla Barra di accesso rapido. I pulsanti della Barra di accesso rapido usano i numeri da 1 a 3.
 2. Premere la lettera della scheda desiderata. Le schede usano **H** per **Home**, **N** per **Inserisci**, **G** per **Struttura**, **K** per **Transizioni**, **S** per **Presentazione**, **R** per **Revisione** e **W** per **Visualizza**. Compaiono le lettere dei pulsanti di quella scheda.
-3. Digitare le lettere del pulsante desiderato. Ad esempio, premere **ALT**, quindi **S**, quindi **B** per avviare la presentazione **Dall'inizio**.
+3. Digitare le lettere del pulsante desiderato. Ad esempio, premere **ALT**, quindi **S** e infine **B** per avviare la presentazione **Dall'inizio**.
 
 È anche possibile tenere premuto ALT e premere la lettera di una scheda in un solo passaggio. **ALT+H** apre la scheda **Home**. **ALT+F** apre la schermata File.
 
-Premere **ESC** per tornare indietro di un passaggio. Premere qualsiasi altro tasto per nascondere le lettere. Le lettere sbiadite appartengono a un pulsante che al momento non è disponibile.
+Premere **ESC** per tornare indietro di un passaggio. Premere qualsiasi altro tasto per nascondere le lettere. Le lettere sbiadite appartengono a pulsanti non utilizzabili in quel momento.
 
-Premere **CTRL+F1** per nascondere i pulsanti della barra multifunzione e mostrare solo i nomi delle schede, così da avere più spazio per la diapositiva. Premerlo di nuovo per visualizzarli.
+Premere **CTRL+F1** per nascondere i pulsanti della barra multifunzione e mostrare solo i nomi delle schede, in modo da avere più spazio per la diapositiva. Premerlo di nuovo per visualizzarli nuovamente.
 
 ## Lavorare nella diapositiva
 
-Fare clic sulla diapositiva. Quindi:
+Fare clic sulla diapositiva, quindi:
 
 - **CTRL+PGGIÙ** passa alla diapositiva successiva e **CTRL+PGSU** a quella precedente.
 - **TAB** seleziona l'oggetto successivo. **MAIUSC+TAB** seleziona quello precedente.
@@ -51,17 +51,18 @@ Fare clic sul riquadro, quindi:
 
 ## Durante la presentazione
 
-- **DESTRA**, **GIÙ**, **BARRA SPAZIATRICE**, **INVIO**, **PGGIÙ** o **N** consentono di andare avanti.
-- **SINISTRA**, **SU**, **BACKSPACE**, **PGSU** o **P** consentono di tornare indietro.
+- **DESTRA**, **GIÙ**, **BARRA SPAZIATRICE**, **INVIO**, **PGGIÙ** o **N** fanno avanzare.
+- **SINISTRA**, **SU**, **BACKSPACE**, **PGSU** o **P** fanno tornare indietro.
 - **HOME** e **FINE** passano alla prima e all'ultima diapositiva. Il numero di una diapositiva seguito da **INVIO** passa a quella diapositiva.
-- **B** o il tasto del punto oscurano lo schermo. **W** o il tasto della virgola lo rendono bianco. Premere di nuovo lo stesso tasto per tornare alla diapositiva.
-- **ESC** termina la presentazione.
+- **B** o il tasto punto oscurano lo schermo. **W** o il tasto virgola lo rendono bianco. Premere di nuovo lo stesso tasto per tornare alla diapositiva.
+- **CTRL+P** attiva la penna, **CTRL+I** l'evidenziatore, **CTRL+L** il puntatore laser e **CTRL+E** la gomma. **E** cancella l'inchiostro dalla diapositiva. **CTRL+A** ripristina la freccia.
+- **ESC** ripristina la freccia quando è selezionata la penna, l'evidenziatore, il puntatore laser o la gomma. In caso contrario termina la presentazione.
 
 Premere **F1** per visualizzare la Guida relativa all'operazione in corso.
 
 ## Tutti i tasti di scelta rapida
 
-Questi sono i comandi associati a un tasto di scelta rapida, nell'ordine in cui compaiono sulla barra multifunzione. Se l'ultima colonna è vuota, il comando non si trova sulla barra multifunzione.
+Questi sono i comandi che hanno un tasto di scelta rapida, nell'ordine in cui compaiono sulla barra multifunzione. Se l'ultima colonna è vuota, il comando non si trova sulla barra multifunzione.
 
 <!-- shortcuts -->
 
