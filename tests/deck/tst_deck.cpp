@@ -21111,6 +21111,34 @@ private Q_SLOTS:
         QVERIFY(part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml")).contains(light));
     }
 
+    // A slide whose own background is a picture loses it to a background style; text that stood on the picture (taken to have read there) is
+    // made to read on what replaces it, large text too (4.5 to 1).
+    void textOnAPictureBackgroundReadsOnTheStyleThatReplacesIt()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        Page &slide = *d->pages.last();
+        slide.background.type = Fill::Picture;
+        slide.background.imageId = d->addImage(odptest::png(8, 8, QColor(0xE0, 0xE8, 0xD0)), QStringLiteral("png"));
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(60, 60, 600, 120);
+        box->storyId = d->createStory(QStringLiteral("Big words"));
+        setStoryColor(*d, box->storyId, QColor(0x20, 0x20, 0x20));
+        {
+            QTextCursor c(d->storyDoc(box->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontPointSize(44);
+            c.mergeCharFormat(f);
+        }
+        slide.items.push_back(box);
+        deck::applyBackgroundStyle(*d, 10);
+        QVERIFY(slide.background.type == Fill::NoFill);
+        const MasterPage &layout = *d->masterFor(slide);
+        for (const QColor &bg : colorsUnder(*d, layout, box->rect.center()))
+            for (const QColor &c : runColorsOf(*d, box->storyId)) QVERIFY2(deck::contrastRatio(c, bg) >= 4.5, qPrintable(QStringLiteral("%1 on %2").arg(c.name(), bg.name())));
+    }
+
     // A presentation that isn't in a built-in theme has variants too: its own colors on four backgrounds.
     void variantsOfAnotherThemeAreItsColorsOnFourBackgrounds()
     {
