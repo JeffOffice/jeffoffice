@@ -19,6 +19,9 @@ using Bytes = std::vector<quint8>;
 
 // What one block may come to once decompressed (the font may not be larger either), so that no number in the data can ask for more.
 constexpr qint64 kMaxBlock = kMaxEmbeddedFontBytes;
+// What the three blocks may come to together once decompressed (a font is mostly one block, the glyph programs the others); every byte a
+// block asks to be made or kept is counted against it before it is.
+constexpr qint64 kMaxDecoded = 2 * kMaxEmbeddedFontBytes;
 
 // Bits are read from the most significant end of each byte.
 struct BitReader {
@@ -159,7 +162,7 @@ void fillHistoryPrefix(quint8 *p)
 // 24 bits give the length of what is decoded; each symbol is a byte, a copy of one byte from 2, 4, or 6 back, or a copy command: its number says
 // how many distance symbols (3 bits each) follow and starts the length (2 bits a symbol, more symbols while the 3rd bit of each is set, plus 2);
 // the distance counts back to the last byte copied, so the bytes come from that far plus the length less one back.
-bool lzDecompress(const quint8 *data, qint64 size, Bytes *out, QString *why)
+bool lzDecompress(const quint8 *data, qint64 size, qint64 *budget, Bytes *out, QString *why)
 {
     out->clear();
     auto fail = [&](const char *reason) {
@@ -171,7 +174,7 @@ bool lzDecompress(const quint8 *data, qint64 size, Bytes *out, QString *why)
     const bool runLength = bits.bit();
     const qint64 length = bits.value(24);
     if (bits.failed) return fail("The embedded font's data is cut off.");
-    if (length > kMaxBlock) return fail("The embedded font is larger than 32 MB.");
+    if (length > kMaxBlock || length > *budget) return fail("The embedded font is larger than 32 MB.");
     int distanceRanges = 1;
     if (length > 8)
         for (distanceRanges = 2; length > (qint64(1) << (3 * distanceRanges)); ++distanceRanges) {}
@@ -217,6 +220,7 @@ bool lzDecompress(const quint8 *data, qint64 size, Bytes *out, QString *why)
     }
     if (!runLength) {
         out->assign(window, window + length);
+        *budget -= length;
         return true;
     }
     if (length < 1) return fail("The embedded font is damaged.");
@@ -235,8 +239,9 @@ bool lzDecompress(const quint8 *data, qint64 size, Bytes *out, QString *why)
                 out->insert(out->end(), size_t(count), window[i++]);
             }
         }
-        if (qint64(out->size()) > kMaxBlock) return fail("The embedded font is larger than 32 MB.");
+        if (qint64(out->size()) > kMaxBlock || qint64(out->size()) > *budget) return fail("The embedded font is larger than 32 MB.");
     }
+    *budget -= qint64(out->size());
     return true;
 }
 
@@ -560,25 +565,47 @@ bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why)
     if (quint8(mtx[0]) != 3) return fail(say("The embedded font is compressed in a way that is not read."));
     const qint64 second = u24(4), third = u24(7);
     if (second < 10 || third < second || third > mtx.size()) return damaged();
+    qint64 budget = kMaxDecoded;
     const auto block = [&](qint64 from, qint64 to, Bytes *out) {
-        return lzDecompress(reinterpret_cast<const quint8 *>(mtx.constData()) + from, to - from, out, why);
+        return lzDecompress(reinterpret_cast<const quint8 *>(mtx.constData()) + from, to - from, &budget, out, why);
     };
     Bytes tables, pushed, code;
     if (!block(10, second, &tables) || !block(second, third, &pushed) || !block(third, mtx.size(), &code)) return false;
 
     // The table directory of block one, as a TrueType file has it.
-    const QByteArray b1(reinterpret_cast<const char *>(tables.data()), qsizetype(tables.size()));
+    // The block as it is, not copied: the tables are taken from it below, each counted before it is.
+    const QByteArray b1 = QByteArray::fromRawData(reinterpret_cast<const char *>(tables.data()), qsizetype(tables.size()));
     if (b1.size() < 12 || qFromBigEndian<quint32>(b1.constData()) != 0x00010000) return damaged();
     const int count = qFromBigEndian<quint16>(b1.constData() + 4);
     if (count < 1 || count > kMaxFontTables || 12 + 16 * qint64(count) > b1.size()) return damaged();
-    std::map<QByteArray, QByteArray> out;
+    // The tables the directory lists lie apart, inside the block and after the directory, and together are no more than the block: so no byte
+    // of it is taken twice, and what is taken is counted against the cap before it is copied.
+    struct Record {
+        QByteArray tag;
+        qint64 offset, length;
+    };
+    std::vector<Record> records;
+    qint64 taken = 0;
     for (int i = 0; i < count; ++i) {
         const char *record = b1.constData() + 12 + 16 * i;
-        const QByteArray tag(record, 4);
         const qint64 offset = qFromBigEndian<quint32>(record + 8), length = qFromBigEndian<quint32>(record + 12);
-        if (offset + length > b1.size() || (length > 0 && offset < 12 + 16 * qint64(count)) || out.count(tag)) return damaged();
-        out[tag] = b1.mid(offset, length);
+        if (offset + length > b1.size() || (length > 0 && offset < 12 + 16 * qint64(count))) return damaged();
+        taken += length;
+        if (taken > b1.size() || taken > kMaxEmbeddedFontBytes) return damaged();
+        records.push_back({QByteArray(record, 4), offset, length});
     }
+    std::vector<Record> byOffset;
+    for (const Record &r : records)
+        if (r.length > 0) byOffset.push_back(r);
+    std::sort(byOffset.begin(), byOffset.end(), [](const Record &a, const Record &b) { return a.offset < b.offset; });
+    for (size_t i = 1; i < byOffset.size(); ++i)
+        if (byOffset[i].offset < byOffset[i - 1].offset + byOffset[i - 1].length) return damaged();
+    std::map<QByteArray, QByteArray> out;
+    for (const Record &r : records) {
+        if (out.count(r.tag)) return damaged();
+        out[r.tag] = b1.mid(r.offset, r.length);
+    }
+    Bytes().swap(tables);   // what the block held is in the tables now
     for (const char *needed : {"head", "maxp", "glyf"})
         if (!out.count(needed)) return damaged();
     if (out["head"].size() < 54 || out["maxp"].size() < 6) return damaged();
@@ -587,8 +614,13 @@ bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why)
     // The translated tables: the control values and the glyphs are made again, the glyph index too; the device metrics are left out.
     QByteArray glyf;
     std::vector<quint32> starts;
-    const Bytes outlines(out["glyf"].begin(), out["glyf"].end());
-    if (!readGlyphs(outlines, pushed, code, glyphCount, &glyf, &starts, why)) return false;
+    {
+        Bytes outlines(out["glyf"].begin(), out["glyf"].end());
+        out["glyf"].clear();
+        if (!readGlyphs(outlines, pushed, code, glyphCount, &glyf, &starts, why)) return false;
+    }
+    Bytes().swap(pushed);
+    Bytes().swap(code);
     starts.push_back(quint32(glyf.size()));
     out.erase("hdmx");
     out.erase("VDMX");
@@ -629,7 +661,6 @@ bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why)
     qint64 offset = 12 + 16 * qint64(n), total = offset;
     for (const auto &table : out) total += (table.second.size() + 3) & ~qsizetype(3);
     if (total > kMaxEmbeddedFontBytes) return fail(say("The embedded font is larger than 32 MB."));
-    QByteArray body;
     qint64 headAt = 0;
     for (const auto &table : out) {
         if (table.first == "head") headAt = offset;
@@ -638,11 +669,12 @@ bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why)
             appendU16(&file, quint16(v >> 16));
             appendU16(&file, quint16(v & 0xFFFF));
         }
-        body.append(table.second);
-        body.append(QByteArray((4 - table.second.size() % 4) % 4, '\0'));
         offset += (table.second.size() + 3) & ~qsizetype(3);
     }
-    file.append(body);
+    for (const auto &table : out) {
+        file.append(table.second);
+        file.append(QByteArray((4 - table.second.size() % 4) % 4, '\0'));
+    }
     const quint32 adjustment = 0xB1B0AFBAu - checkSum(file);
     for (int i = 0; i < 4; ++i) file[qsizetype(headAt) + 8 + i] = char(adjustment >> (24 - 8 * i));
     if (font) *font = file;
