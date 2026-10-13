@@ -64,7 +64,7 @@ A picture in a placeholder goes to the new layout's place for it and is never st
 Right-click a picture for three choices:
 
 - **Apply to All Slides** is the same as a click.
-- **Apply to Selected Slides** changes only the slides you selected (in Slide Sorter) or the slide you are on. Those slides get a slide master of their own, and the other slides keep theirs.
+- **Apply to Selected Slides** changes only the slides you selected (in Slide Sorter) or the slide you are on. Those slides get a slide master of their own, and the other slides keep theirs. Choose the same theme and variant for other slides later, and they go onto that same slide master instead of getting another copy of it.
 - **Browse for Themes…** lets you pick a presentation or template file (.pptx, .potx, .ppsx, .ppt, .pps, or .pot) and takes its theme for every slide. If the file has no slide master, or its master has no layouts, JeffDeck says so and changes nothing.
 
 ## Variants

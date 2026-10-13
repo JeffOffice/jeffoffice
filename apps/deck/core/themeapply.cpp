@@ -5,7 +5,9 @@
 #include "text/storyio.h"
 #include "text/textprops.h"
 
+#include <QCryptographicHash>
 #include <QHash>
+#include <QJsonDocument>
 #include <QSet>
 #include <algorithm>
 #include <QTextBlock>
@@ -338,6 +340,37 @@ void eachPageOf(const Document &d, const Family &f, F &&fn)
 
 // What marks a slide master that a change of theme made for some slides: one that no slide stands on any more goes the next time.
 const QString kMadeByTheme = QStringLiteral("madeByTheme");
+// What says which theme (and variant) a slide master was made from, so that the same one chosen again for other slides goes onto it: a hash
+// of the theme's colors and fonts and of what its master and layouts hold. A change of colors or fonts afterwards takes it away.
+const QString kThemeKey = QStringLiteral("themeKey");
+
+QString themeKeyOf(const Document &source, const MasterPage &src, const DeckTheme &theme)
+{
+    QCryptographicHash h(QCryptographicHash::Sha1);
+    auto add = [&h](const QString &text) {
+        h.addData(text.toUtf8());
+        h.addData("|", 1);
+    };
+    add(theme.name);
+    for (const QColor &c : theme.colors) add(c.name(QColor::HexArgb));
+    add(theme.headingFont);
+    add(theme.bodyFont);
+    auto page = [&](const MasterPage &m) {
+        add(m.name);
+        add(layoutType(m));
+        add(QString::number(m.showMasterItems));
+        add(QString::fromLatin1(QJsonDocument(m.background.toJson()).toJson(QJsonDocument::Compact)));
+        walkItems(m.items, [&](const ItemPtr &it) {
+            add(it->role);
+            add(QString::number(int(it->type())));
+            add(QStringLiteral("%1,%2,%3,%4").arg(it->rect.x()).arg(it->rect.y()).arg(it->rect.width()).arg(it->rect.height()));
+            add(QString::fromLatin1(QJsonDocument(it->fill.toJson()).toJson(QJsonDocument::Compact)));
+        });
+    };
+    page(src);
+    for (const MasterPage *l : layouts(source, src.id)) page(*l);
+    return QString::fromLatin1(h.result().toHex());
+}
 
 // Copies of a slide master and its layouts of another presentation, and of what they hold: the text, pictures, and movies they use are
 // copied once each.
@@ -462,6 +495,7 @@ Copy copyMaster(Document &to, const Document &from, const MasterPage &src)
         p->props.remove(QStringLiteral("themeXml"));
         p->props.remove(QStringLiteral("reuseKey"));
         p->props.remove(kMadeByTheme);
+        p->props.remove(kThemeKey);
         p->background = s.background;
         copy.fill(p->background);
         p->items = copy.items(s.items);
@@ -682,6 +716,7 @@ bool applyThemeToAll(Document &d, const Document &source)
     if (themeSourceProblem(source) != ThemeSource::Fine) return false;
     const MasterPage *src = firstSlideMaster(source);
     DeckTheme target = masterTheme(source, *src);
+    const QString key = themeKeyOf(source, *src, target);
     const QByteArray targetXml = masterThemeXml(source, *src);
     QVector<Standing> was;
     Standings standings(d);
@@ -690,6 +725,7 @@ bool applyThemeToAll(Document &d, const Document &source)
     for (int i = 0; i < d.pages.size(); ++i) readable.note(*d.pages[i], was[i].layout);
     const QVector<std::shared_ptr<MasterPage>> olds = d.masters;
     const Copy made = copyMaster(d, source, *src);
+    made.master->props[kThemeKey] = key;
     keepLinksReadable(target, made.master->background);
     const bool dark = isDarkBackground(made.master->background);
     Places places(d);
@@ -715,15 +751,31 @@ bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &s
     if (chosen.isEmpty()) return true;
     if (chosen.size() == d.pages.size()) return applyThemeToAll(d, source);
     DeckTheme target = masterTheme(source, *src);
+    const QString key = themeKeyOf(source, *src, target);
     const QByteArray targetXml = masterThemeXml(source, *src);
     QVector<Standing> was;
     Standings standings(d);
     for (const auto &p : d.pages) was << standings.of(*p);
     TextReadable readable(d);
     for (int i : chosen) readable.note(*d.pages[i], was[i].layout);
-    const Copy made = copyMaster(d, source, *src);
-    made.master->props[kMadeByTheme] = true;
-    keepLinksReadable(target, made.master->background);
+    // A slide master that this theme and variant made earlier takes the slides, as it is.
+    MasterPage *reused = nullptr;
+    for (const auto &m : d.masters)
+        if (isSlideMaster(*m) && m->props.value(kThemeKey).toString() == key) {
+            reused = m.get();
+            break;
+        }
+    Copy made;
+    if (reused) {
+        made.master = reused;
+        made.layouts = layouts(d, reused->id);
+        target = masterTheme(d, *reused);
+    } else {
+        made = copyMaster(d, source, *src);
+        made.master->props[kMadeByTheme] = true;
+        made.master->props[kThemeKey] = key;
+        keepLinksReadable(target, made.master->background);
+    }
     const bool dark = isDarkBackground(made.master->background);
     Places places(d);
     for (int i = 0; i < d.pages.size(); ++i) {
@@ -732,9 +784,9 @@ bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &s
         const MasterPage *layout = targetLayout(d, was[i].layout, slide, made.master->id);
         if (layout) moveSlide(d, slide, was[i].layout, *layout, swapFor(was[i], target, dark), places);
     }
-    storeMasterTheme(d, *made.master, target, targetXml.isEmpty() ? QByteArray() : patchThemePart(targetXml, target));
+    if (!reused) storeMasterTheme(d, *made.master, target, targetXml.isEmpty() ? QByteArray() : patchThemePart(targetXml, target));
     for (int i : chosen) readable.keep(*d.pages[i], d.masterFor(*d.pages[i]), swapFor(was[i], target, dark).plain);
-    fitLinkColors(d, made.master);
+    if (!reused) fitLinkColors(d, made.master);
     dropUnusedThemeMasters(d, made.master);
     return true;
 }
@@ -757,6 +809,7 @@ void applyColors(Document &d, const ColorSet &colors)
         keepLinksReadable(to, background);
         Swap swap;
         swap.colors = swap.plain = colorSwap(from, to, false);
+        m->props.remove(kThemeKey);
         const Family family = families.value(m->id);
         TextReadable readable(d);
         eachPageOf(d, family, [&](PageBase &p, const MasterPage *base) { readable.note(p, base); });
@@ -778,6 +831,7 @@ void applyFonts(Document &d, const FontSet &fonts)
         to.bodyFont = fonts.body;
         Swap swap;
         swap.fonts = FontSwap{from.headingFont, from.bodyFont, to.headingFont, to.bodyFont};
+        m->props.remove(kThemeKey);
         swapFamily(d, families.value(m->id), swap);
         storeMasterTheme(d, *m, to);
     }
@@ -795,6 +849,7 @@ void applyBackgroundStyle(Document &d, int style)
         Swap swap;
         swap.colors = colorSwap(from, to, isDarkBackground(m->background) != backgroundStyleIsDark(style));
         swap.plain = colorSwap(from, to, false);
+        m->props.remove(kThemeKey);
         const Family family = families.value(m->id);
         TextReadable readable(d);
         eachPageOf(d, family, [&](PageBase &p, const MasterPage *base) { readable.note(p, base); });
