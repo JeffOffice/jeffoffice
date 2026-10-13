@@ -121,8 +121,11 @@ void setSlideSize(Document &d, const QSizeF &size);
 // The same for one slide, layout, or slide master that was made for slides of
 // size `from` and now stands in a presentation of size `to` (a copy brought
 // from another one): `slide` for a slide, whose other objects keep their
-// shape, else everything stretches to the new shape.
-void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide);
+// shape, else everything stretches to the new shape. With `keepSquares`, what
+// is a square on a master (a circle, a square, a corner triangle) is not
+// stretched: it scales by the smaller ratio about the middle of where
+// stretching puts it, and keeps to the edge of the slide it was on.
+void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide, bool keepSquares = false);
 
 // What Header & Footer shows on slides: the date (as the field that keeps
 // it current), the slide number, and a line of footer text, each in the

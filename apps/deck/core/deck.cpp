@@ -326,9 +326,33 @@ void scaleStoryText(QTextDocument *sd, double k)
 // shape (`whole`), or, on a slide, objects that aren't placeholders kept in
 // shape, scaled by `k` and centered (`fitted`). Text sizes and outline
 // weights go by `k`.
-void scaleItems(Document &d, ItemList &items, const QRectF &from, const QRectF &whole, const QRectF &fitted, double k, bool onSlide, QSet<QString> &stories)
+// A square shape of a master (a circle, a square, a corner triangle) that stretching has made a rectangle: made square again, scaled by `k`
+// about the middle of where it is, and kept at the same distance (scaled) from the edge of the slide it was on, touching or past.
+void keepSquare(Item &it, const QRectF &was, const QSizeF &from, const QSizeF &to, double k)
 {
-    for (const auto &it : items) it->scaleInto(from, onSlide && placeholderType(*it).isEmpty() ? fitted : whole);
+    constexpr double near = 1.0;   // points from an edge that count as on it
+    const QSizeF size(was.width() * k, was.height() * k);
+    QRectF u(QPointF(it.rect.center().x() - size.width() / 2, it.rect.center().y() - size.height() / 2), size);
+    if (was.left() <= near) u.moveLeft(was.left() * k);
+    else if (was.right() >= from.width() - near) u.moveRight(to.width() + (was.right() - from.width()) * k);
+    if (was.top() <= near) u.moveTop(was.top() * k);
+    else if (was.bottom() >= from.height() - near) u.moveBottom(to.height() + (was.bottom() - from.height()) * k);
+    it.rect = u;
+}
+
+bool isSquareShape(const Item &it)
+{
+    return it.type() == ItemType::Shape && placeholderType(it).isEmpty() && it.rect.width() > 4 && std::abs(it.rect.width() - it.rect.height()) <= 0.02 * std::max(it.rect.width(), it.rect.height());
+}
+
+void scaleItems(Document &d, ItemList &items, const QRectF &from, const QRectF &whole, const QRectF &fitted, double k, bool onSlide, QSet<QString> &stories, bool keepSquares = false)
+{
+    for (const auto &it : items) {
+        const bool square = keepSquares && !onSlide && isSquareShape(*it);
+        const QRectF was = it->rect;
+        it->scaleInto(from, onSlide && placeholderType(*it).isEmpty() ? fitted : whole);
+        if (square) keepSquare(*it, was, from.size(), whole.size(), k);
+    }
     walkItems(items, [&](const ItemPtr &it) {
         if (!it->stroke.isNone()) it->stroke.width *= k;
         QStringList ids;
@@ -899,14 +923,14 @@ void setSlideSize(Document &d, const QSizeF &size)
     d.setup.sizeName = slideSizeName(size);
 }
 
-void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide)
+void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF &to, bool slide, bool keepSquares)
 {
     if (from.isEmpty() || to.isEmpty() || from == to) return;
     const double sx = to.width() / from.width(), sy = to.height() / from.height(), k = std::min(sx, sy);
     const QRectF was(QPointF(0, 0), from), whole(QPointF(0, 0), to);
     const QRectF fitted((to.width() - from.width() * k) / 2, (to.height() - from.height() * k) / 2, from.width() * k, from.height() * k);
     QSet<QString> stories;
-    scaleItems(d, page.items, was, whole, fitted, k, slide, stories);
+    scaleItems(d, page.items, was, whole, fitted, k, slide, stories, keepSquares);
     scaleGuides(page.guides, sx, sy);
 }
 

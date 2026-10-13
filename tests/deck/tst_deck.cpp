@@ -17224,6 +17224,103 @@ private Q_SLOTS:
         QVERIFY(deck::slideMasterOf(*d, 4) != made);
     }
 
+    // A theme made for slides of one shape put on slides of another (16:9 on a 4:3 presentation, or the reverse) is stretched to fit, as masters
+    // are when the slide size changes, except that a thing that is a square on the master (a circle, a square, a corner triangle) stays a
+    // square: it is scaled by the smaller of the two ratios about the middle of where stretching puts it, and keeps to the edge of the slide it
+    // was on. Bands and rules still reach the edges.
+    void aThemeOfAnotherSlideShapeKeepsItsCirclesRound()
+    {
+        const QSizeF wide(deck::kSlideWidth, deck::kSlideHeight), standard(deck::kStandardWidth, deck::kStandardHeight);
+        int squares = 0, stretched = 0;
+        // Checks the copy of `source`'s masters in `d`, whose slides are of size `to` (the source's are of size `from`).
+        auto check = [&](const Document &source, const Document &d, const QSizeF &from, const QSizeF &to, const QString &name) {
+            QCOMPARE(d.pageSize(), to);
+            QCOMPARE(source.pageSize(), from);
+            QVector<const MasterPage *> was, now;
+            for (const auto &m : source.masters) was << m.get();
+            for (const auto &m : d.masters) now << m.get();
+            QCOMPARE(now.size(), was.size());
+            const double k = std::min(to.width() / from.width(), to.height() / from.height());
+            for (int i = 0; i < was.size(); ++i) {
+                QCOMPARE(now[i]->items.size(), was[i]->items.size());
+                for (size_t n = 0; n < was[i]->items.size(); ++n) {
+                    const Item &a = *was[i]->items[n], &b = *now[i]->items[n];
+                    if (!a.role.isEmpty() || a.type() != ItemType::Shape) continue;
+                    const bool square = std::abs(a.rect.width() - a.rect.height()) <= 0.02 * std::max(a.rect.width(), a.rect.height());
+                    if (square) {
+                        ++squares;
+                        QVERIFY2(std::abs(b.rect.width() - b.rect.height()) < 0.05, qPrintable(QStringLiteral("%1 %2: %3 by %4").arg(name, was[i]->name).arg(b.rect.width()).arg(b.rect.height())));
+                        QVERIFY(std::abs(b.rect.width() - a.rect.width() * k) < 0.05);
+                        // On an edge of the slide, still on it (and as far past it as it was, scaled).
+                        if (a.rect.right() >= from.width() - 1 && a.rect.bottom() >= from.height() - 1) {
+                            QVERIFY(std::abs(b.rect.right() - (to.width() + (a.rect.right() - from.width()) * k)) < 0.05);
+                            QVERIFY(std::abs(b.rect.bottom() - (to.height() + (a.rect.bottom() - from.height()) * k)) < 0.05);
+                        }
+                    } else if (a.rect.left() <= 0 && a.rect.right() >= from.width()) {
+                        ++stretched;   // a band across the slide still reaches both edges
+                        QVERIFY(std::abs(b.rect.left()) < 0.05 && std::abs(b.rect.right() - to.width()) < 0.05);
+                    }
+                }
+            }
+        };
+        for (const QString &name : {QStringLiteral("Orchard"), QStringLiteral("Confetti"), QStringLiteral("Ember"), QStringLiteral("Granite"), QStringLiteral("Harbor")}) {
+            // A 16:9 theme on a 4:3 presentation, then that presentation's theme on a 16:9 one.
+            auto source = deck::themePresentation(deck::builtinThemeIndex(name));
+            auto standardDeck = deckToRestyle();
+            deck::setSlideSize(*standardDeck, standard);
+            QVERIFY(deck::applyThemeToAll(*standardDeck, *source));
+            check(*source, *standardDeck, wide, standard, name);
+            auto wideDeck = deckToRestyle();
+            QVERIFY(deck::applyThemeToAll(*wideDeck, *standardDeck));
+            check(*standardDeck, *wideDeck, standard, wide, name);
+        }
+        QVERIFY(squares >= 16);
+        QVERIFY(stretched >= 4);
+    }
+
+    // Taking the theme of a file is slow enough (the file is read, copied, and its slides set again) to show the wait cursor, and the cursor
+    // is back when it is done, whether the file gave a theme or not.
+    void takingAThemeFromAFileShowsTheWaitCursor()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Granite"))), &err);
+        QFile file(dir.filePath(QStringLiteral("granite.potx")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(bytes);
+        file.close();
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        QVERIFY(!QGuiApplication::overrideCursor());
+        bool waiting = false;
+        const QMetaObject::Connection watch = connect(ed, &Editor::changed, this, [&] { waiting = waiting || (QGuiApplication::overrideCursor() && QGuiApplication::overrideCursor()->shape() == Qt::WaitCursor); });
+        QVERIFY(w.applyThemeFile(file.fileName(), true));
+        QObject::disconnect(watch);
+        QVERIFY2(waiting, "no wait cursor while the theme was taken");
+        QVERIFY(!QGuiApplication::overrideCursor());
+        // A file that can't be read: the message is not shown under a wait cursor, and nothing is left on.
+        QFile bad(dir.filePath(QStringLiteral("bad.potx")));
+        QVERIFY(bad.open(QIODevice::WriteOnly));
+        bad.write("not a presentation");
+        bad.close();
+        bool cursorUnderMessage = true;
+        QTimer::singleShot(0, [&cursorUnderMessage] {
+            for (int tries = 0; tries < 200; ++tries) {
+                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    cursorUnderMessage = QGuiApplication::overrideCursor() != nullptr;
+                    box->button(QMessageBox::Ok)->click();
+                    return;
+                }
+                QTest::qWait(10);
+            }
+        });
+        QVERIFY(!w.applyThemeFile(bad.fileName(), true));
+        QVERIFY(!cursorUnderMessage);
+        QVERIFY(!QGuiApplication::overrideCursor());
+    }
+
     // The Variants group shows the four variants of the theme with the one it has marked; a click applies one; its menu offers colors,
     // fonts, and the twelve background styles, each a step that undoes.
     void designTabVariantsAndTheirMenu()

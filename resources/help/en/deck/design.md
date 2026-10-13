@@ -67,6 +67,8 @@ Right-click a picture for three choices:
 - **Apply to Selected Slides** changes only the slides you selected (in Slide Sorter) or the slide you are on. Those slides get a slide master of their own, and the other slides keep theirs. Choose the same theme and variant for other slides later, and they go onto that same slide master instead of getting another copy of it.
 - **Browse for Themes…** lets you pick a presentation or template file (.pptx, .potx, .ppsx, .ppt, .pps, or .pot) and takes its theme for every slide. If the file has no slide master, or its master has no layouts, JeffDeck says so and changes nothing.
 
+A theme made for slides of another shape (wide, or 4 by 3) is stretched to fit yours. Circles and squares in its design stay round and square, and bands and rules still reach the edges.
+
 ## Variants
 
 **Variants** are other looks of the same theme. The **Variants** group shows four small pictures. Each has a row of colored bars along the bottom: its colors. Click one to use it. It changes the colors, and where it fits, the background too.

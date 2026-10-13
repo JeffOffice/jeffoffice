@@ -499,7 +499,7 @@ Copy copyMaster(Document &to, const Document &from, const MasterPage &src)
         p->background = s.background;
         copy.fill(p->background);
         p->items = copy.items(s.items);
-        fitPageToSize(to, *p, from.pageSize(), to.pageSize(), false);
+        fitPageToSize(to, *p, from.pageSize(), to.pageSize(), false, true);
         return p;
     };
     Copy out;
