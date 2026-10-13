@@ -40,8 +40,10 @@
 #include <QtEndian>
 #include <QtTest>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -92,6 +94,525 @@ quint32 beAt(const QByteArray &b, int at) { return qFromBigEndian<quint32>(b.con
 void setBe32(QByteArray &b, int at, quint32 v) { qToBigEndian<quint32>(v, b.data() + at); }
 void setBe16(QByteArray &b, int at, quint16 v) { qToBigEndian<quint16>(v, b.data() + at); }
 quint32 leAt(const QByteArray &b, int at) { return qFromLittleEndian<quint32>(b.constData() + at); }
+
+void appendU16Be(QByteArray *out, quint16 v)
+{
+    out->append(char(v >> 8));
+    out->append(char(v & 0xff));
+}
+
+// ----- A writer of MicroType Express, for the tests: the program only reads it, so this makes the data the reader is shown.
+
+struct MtxBits {
+    QByteArray bytes;
+    int used = 0;   // bits of the last byte
+    void put(int bit)
+    {
+        if (used == 0) bytes.append('\0');
+        if (bit) bytes[bytes.size() - 1] = char(quint8(bytes[bytes.size() - 1]) | (0x80 >> used));
+        used = (used + 1) % 8;
+    }
+    void put(quint32 v, int n)
+    {
+        for (int i = n - 1; i >= 0; --i) put(int((v >> i) & 1));
+    }
+};
+
+// The adaptive Huffman tree as the reader keeps it, writing symbols.
+class MtxTree {
+public:
+    explicit MtxTree(int range) : m_range(range)
+    {
+        const int nodes = 2 * range;
+        up.assign(nodes, 0), left.assign(nodes, 0), right.assign(nodes, 0), code.assign(nodes, 0), weight.assign(nodes, 0), where.assign(range, 0);
+        for (int i = 2; i < nodes; ++i) up[i] = i / 2, weight[i] = 1;
+        for (int i = 1; i < range; ++i) left[i] = 2 * i, right[i] = 2 * i + 1;
+        for (int i = 0; i < range; ++i) code[i] = -1, code[range + i] = i, left[range + i] = right[range + i] = -1, where[i] = range + i;
+        for (int i = range - 1; i > 0; --i) weight[i] = weight[2 * i] + weight[2 * i + 1];
+        if (range >= 0x101 && range <= 0x1ff) {
+            const int seen[4][2] = {{256, 1}, {257, 1}, {range - 3, 12}, {range - 2, 6}};
+            for (const auto &each : seen)
+                for (int i = 0; i < each[1]; ++i) update(where[each[0]]);
+        } else {
+            for (int pass = 0; pass < 2; ++pass)
+                for (int s = 0; s < range; ++s) update(where[s]);
+        }
+    }
+    void write(int symbol, MtxBits *bits)
+    {
+        std::vector<int> path;
+        for (int n = where[symbol]; n != 1; n = up[n]) path.push_back(right[up[n]] == n ? 1 : 0);
+        for (auto it = path.rbegin(); it != path.rend(); ++it) bits->put(*it);
+        update(where[symbol]);
+    }
+
+private:
+    void update(int node)
+    {
+        for (; node != 1; node = up[node]) {
+            const long long w = weight[node];
+            int first = node - 1;
+            if (weight[first] == w) {
+                do {
+                    --first;
+                } while (weight[first] == w);
+                ++first;
+                if (first > 1) {
+                    std::swap(left[node], left[first]), std::swap(right[node], right[first]), std::swap(code[node], code[first]), std::swap(weight[node], weight[first]);
+                    for (const int n : {node, first}) {
+                        if (code[n] < 0) up[left[n]] = n, up[right[n]] = n;
+                        else where[code[n]] = n;
+                    }
+                    node = first;
+                }
+            }
+            weight[node] = w + 1;
+        }
+        ++weight[1];
+    }
+    int m_range;
+    std::vector<int> up, left, right, code, where;
+    std::vector<long long> weight;
+};
+
+// One LZCOMP block of `data`, with copies (of at least 3 bytes) and the one-byte copies from 2, 4, and 6 back. With `runLength` the data is
+// first run-length coded (the least used byte value is the marker).
+QByteArray mtxCompress(QByteArray data, bool runLength = false)
+{
+    if (runLength) {
+        int counts[256] = {};
+        for (char c : data) ++counts[quint8(c)];
+        const int marker = int(std::min_element(counts, counts + 256) - counts);
+        QByteArray coded(1, char(marker));
+        for (qsizetype i = 0; i < data.size();) {
+            qsizetype run = 1;
+            while (i + run < data.size() && data[i + run] == data[i] && run < 255) ++run;
+            if (run >= 4 || quint8(data[i]) == marker) {
+                if (quint8(data[i]) == marker && run == 1) coded.append(char(marker)).append('\0');
+                else coded.append(char(marker)).append(char(run)).append(data[i]);
+                i += run;
+            } else {
+                coded.append(data[i++]);
+            }
+        }
+        data = coded;
+    }
+    MtxBits out;
+    out.put(runLength ? 1 : 0);
+    out.put(quint32(data.size()), 24);
+    if (data.isEmpty()) return out.bytes;
+    int ranges = 1;
+    if (data.size() > 8)
+        for (ranges = 2; data.size() > (qint64(1) << (3 * ranges)); ++ranges) {}
+    const int dup2 = 256 + 8 * ranges;
+    MtxTree symbols(dup2 + 3), lengths(8), distances(8);
+    QByteArray window(0x1c00, '\0');
+    {
+        int k = 0;
+        for (int row = 0; row < 32; ++row)
+            for (int column = 0; column < 96; ++column) window[k++] = char(row), window[k++] = char(column);
+        for (int b = 0; b < 256; ++b)
+            for (int j = 0; j < 4; ++j) window[k++] = char(b);
+    }
+    window.append(data);
+    const int prefix = 0x1c00;
+    for (qsizetype at = 0; at < data.size();) {
+        const qsizetype remaining = data.size() - at;
+        qsizetype bestLength = 0, bestBack = 0;
+        for (qsizetype back = 1; back <= std::min<qsizetype>(900, prefix + at); ++back) {
+            if (window[prefix + at - back] != window[prefix + at]) continue;
+            qsizetype n = 1;
+            while (n < std::min<qsizetype>({back, remaining, 270}) && window[prefix + at - back + n] == window[prefix + at + n]) ++n;
+            const qsizetype distance = back - n + 1;
+            if (n >= 3 && n > bestLength && distance - 1 < (qint64(1) << (3 * ranges)) && n - 2 - (distance > 0x1ff ? 1 : 0) >= 0) bestLength = n, bestBack = back;
+        }
+        if (bestLength >= 3) {
+            const qint64 distance = bestBack - bestLength + 1;
+            qint64 coded = bestLength - 2 - (distance > 0x1ff ? 1 : 0);
+            std::vector<int> chunks;
+            for (qint64 v = coded; ; v >>= 2) {
+                chunks.insert(chunks.begin(), int(v & 3));
+                if (v < 4) break;
+            }
+            std::vector<int> digits;
+            for (qint64 v = distance - 1; ; v >>= 3) {
+                digits.insert(digits.begin(), int(v & 7));
+                if (v < 8) break;
+            }
+            const int first = chunks[0] | (chunks.size() > 1 ? 4 : 0);
+            symbols.write(256 + 8 * int(digits.size() - 1) + first, &out);
+            for (size_t i = 1; i < chunks.size(); ++i) lengths.write(chunks[i] | (i + 1 < chunks.size() ? 4 : 0), &out);
+            for (int d : digits) distances.write(d, &out);
+            at += bestLength;
+            continue;
+        }
+        int symbol = quint8(window[prefix + at]);
+        for (int back : {2, 4, 6})
+            if (at + prefix >= back && window[prefix + at - back] == window[prefix + at]) {
+                symbol = dup2 + back / 2 - 1;
+                break;
+            }
+        symbols.write(symbol, &out);
+        ++at;
+    }
+    return out.bytes;
+}
+
+// A glyph's program split into the values of its first pushes and what comes after them.
+void mtxSplitProgram(const QByteArray &program, std::vector<int> *values, QByteArray *rest)
+{
+    qsizetype i = 0;
+    while (i < program.size()) {
+        const quint8 op = quint8(program[i]);
+        int n = 0;
+        bool words = false;
+        qsizetype at = i + 1;
+        if (op == 0x40 || op == 0x41) {
+            if (at >= program.size()) break;
+            n = quint8(program[at++]);
+            words = op == 0x41;
+        } else if (op >= 0xB0 && op <= 0xB7) {
+            n = op - 0xB0 + 1;
+        } else if (op >= 0xB8 && op <= 0xBF) {
+            n = op - 0xB8 + 1;
+            words = true;
+        } else {
+            break;
+        }
+        if (at + (words ? 2 : 1) * n > program.size()) break;
+        for (int k = 0; k < n; ++k) {
+            if (words) values->push_back(qint16(quint8(program[at]) << 8 | quint8(program[at + 1]))), at += 2;
+            else values->push_back(quint8(program[at++]));
+        }
+        i = at;
+    }
+    *rest = program.mid(i);
+}
+
+void mtxPut255(QByteArray *out, int v)
+{
+    if (v < 253) out->append(char(v));
+    else if (v < 506) out->append(char(255)).append(char(v - 253));
+    else if (v < 759) out->append(char(254)).append(char(v - 506));
+    else out->append(char(253)).append(char(v >> 8)).append(char(v & 255));
+}
+
+void mtxPutValue(QByteArray *out, int v)
+{
+    auto magnitude = [&](int m) {
+        if (m < 250) out->append(char(m));
+        else if (m < 500) out->append(char(255)).append(char(m - 250));
+        else out->append(char(254)).append(char(m - 500));
+    };
+    if (v >= -754 && v <= 754) {
+        if (v < 0) out->append(char(250));
+        magnitude(std::abs(v));
+    } else {
+        out->append(char(253)).append(char(v >> 8)).append(char(v & 255));
+    }
+}
+
+// The values written with the hop codes where the pattern comes (A, x, A, y, A and A, x, A, y, A, z, A).
+void mtxPutValues(QByteArray *out, const std::vector<int> &v)
+{
+    for (size_t i = 0; i < v.size();) {
+        if (i + 6 < v.size() && v[i + 2] == v[i] && v[i + 4] == v[i] && v[i + 6] == v[i]) {
+            mtxPutValue(out, v[i]), mtxPutValue(out, v[i + 1]);
+            out->append(char(252));
+            mtxPutValue(out, v[i + 3]), mtxPutValue(out, v[i + 5]);
+            i += 7;
+        } else if (i + 4 < v.size() && v[i + 2] == v[i] && v[i + 4] == v[i]) {
+            mtxPutValue(out, v[i]), mtxPutValue(out, v[i + 1]);
+            out->append(char(251));
+            mtxPutValue(out, v[i + 3]);
+            i += 5;
+        } else {
+            mtxPutValue(out, v[i++]);
+        }
+    }
+}
+
+// One change of a point as a flag byte and the bytes after it (the inverse of the reader's table).
+void mtxPutTriplet(int dx, int dy, bool onCurve, QByteArray *flags, QByteArray *data)
+{
+    const int ax = std::abs(dx), ay = std::abs(dy), xs = dx > 0 ? 1 : 0, ys = dy > 0 ? 1 : 0;
+    int index;
+    QByteArray bytes;
+    if (dx == 0 && ay < 1280) {
+        index = ((ay >> 8) << 1) + ys;
+        bytes.append(char(ay & 255));
+    } else if (dy == 0 && ax < 1280) {
+        index = 10 + ((ax >> 8) << 1) + xs;
+        bytes.append(char(ax & 255));
+    } else if (ax >= 1 && ax <= 64 && ay >= 1 && ay <= 64) {
+        index = 20 + (((ax - 1) & 0x30) | (((ay - 1) & 0x30) >> 2)) + xs + 2 * ys;
+        bytes.append(char((((ax - 1) & 15) << 4) | ((ay - 1) & 15)));
+    } else if (ax >= 1 && ax <= 768 && ay >= 1 && ay <= 768) {
+        index = 84 + 12 * ((ax - 1) >> 8) + 4 * ((ay - 1) >> 8) + xs + 2 * ys;
+        bytes.append(char((ax - 1) & 255)).append(char((ay - 1) & 255));
+    } else if (ax < 4096 && ay < 4096) {
+        index = 120 + xs + 2 * ys;
+        bytes.append(char(ax >> 4)).append(char(((ax & 15) << 4) | (ay >> 8))).append(char(ay & 255));
+    } else {
+        index = 124 + xs + 2 * ys;
+        bytes.append(char(ax >> 8)).append(char(ax & 255)).append(char(ay >> 8)).append(char(ay & 255));
+    }
+    flags->append(char(index | (onCurve ? 0 : 0x80)));
+    data->append(bytes);
+}
+
+// A TrueType font's tables, as MicroType Express holds them: the glyphs translated, the control values packed, the glyph index left out.
+QByteArray mtxCompressFont(const QByteArray &font, bool runLengthOnTables = false, int extraGlyphsClaimed = 0)
+{
+    auto u16 = [&](qsizetype at) { return quint16(quint8(font[at]) << 8 | quint8(font[at + 1])); };
+    auto u32 = [&](qsizetype at) { return quint32(u16(at)) << 16 | u16(at + 2); };
+    std::map<QByteArray, QByteArray> tables;
+    for (int i = 0, n = u16(4); i < n; ++i) tables[font.mid(12 + 16 * i, 4)] = font.mid(int(u32(12 + 16 * i + 8)), int(u32(12 + 16 * i + 12)));
+    const QByteArray head = tables["head"], loca = tables["loca"], glyf = tables["glyf"];
+    const int glyphs = qFromBigEndian<quint16>(tables["maxp"].constData() + 4);
+    const bool shortLoca = qFromBigEndian<qint16>(head.constData() + 50) == 0;
+    auto offsetOf = [&](int g) { return shortLoca ? 2 * qFromBigEndian<quint16>(loca.constData() + 2 * g) : int(qFromBigEndian<quint32>(loca.constData() + 4 * g)); };
+    QByteArray outlines, pushes, code;
+    for (int g = 0; g < glyphs; ++g) {
+        const QByteArray glyph = glyf.mid(offsetOf(g), offsetOf(g + 1) - offsetOf(g));
+        if (glyph.isEmpty()) {
+            outlines.append(char(0)).append(char(0));
+            continue;
+        }
+        const int contours = qFromBigEndian<qint16>(glyph.constData());
+        if (contours < 0) {
+            outlines.append(char(0xFF)).append(char(0xFF)).append(glyph.mid(2, 8));
+            qsizetype at = 10;
+            int flags;
+            do {
+                flags = qFromBigEndian<quint16>(glyph.constData() + at);
+                const qsizetype size = 4 + ((flags & 1) ? 4 : 2) + ((flags & 8) ? 2 : (flags & 0x40) ? 4 : (flags & 0x80) ? 8 : 0);
+                outlines.append(glyph.mid(at, size));
+                at += size;
+            } while (flags & 0x20);
+            if (flags & 0x100) {
+                const int length = qFromBigEndian<quint16>(glyph.constData() + at);
+                std::vector<int> values;
+                QByteArray rest;
+                mtxSplitProgram(glyph.mid(at + 2, length), &values, &rest);
+                mtxPut255(&outlines, int(values.size()));
+                mtxPut255(&outlines, int(rest.size()));
+                mtxPutValues(&pushes, values);
+                code.append(rest);
+            }
+            continue;
+        }
+        const char *p = glyph.constData();
+        std::vector<int> ends;
+        for (int c = 0; c < contours; ++c) ends.push_back(qFromBigEndian<quint16>(p + 10 + 2 * c));
+        qsizetype at = 10 + 2 * contours;
+        const int instructionLength = qFromBigEndian<quint16>(p + at);
+        const QByteArray program = glyph.mid(at + 2, instructionLength);
+        at += 2 + instructionLength;
+        const int points = ends.back() + 1;
+        QByteArray flags;
+        for (int i = 0; i < points; ++i) {
+            const quint8 f = quint8(glyph[at++]);
+            flags.append(char(f));
+            if (f & 8) {
+                const int repeat = quint8(glyph[at++]);
+                for (int k = 0; k < repeat; ++k) flags.append(char(f));
+                i += repeat;
+            }
+        }
+        std::vector<int> xs(points), ys(points);
+        int v = 0;
+        for (int i = 0; i < points; ++i) {
+            const quint8 f = quint8(flags[i]);
+            if (f & 2) v += (f & 16) ? quint8(glyph[at]) : -int(quint8(glyph[at])), ++at;
+            else if (!(f & 16)) v += qFromBigEndian<qint16>(p + at), at += 2;
+            xs[i] = v;
+        }
+        v = 0;
+        for (int i = 0; i < points; ++i) {
+            const quint8 f = quint8(flags[i]);
+            if (f & 4) v += (f & 32) ? quint8(glyph[at]) : -int(quint8(glyph[at])), ++at;
+            else if (!(f & 32)) v += qFromBigEndian<qint16>(p + at), at += 2;
+            ys[i] = v;
+        }
+        const int xMin = *std::min_element(xs.begin(), xs.end()), yMin = *std::min_element(ys.begin(), ys.end());
+        const int xMax = *std::max_element(xs.begin(), xs.end()), yMax = *std::max_element(ys.begin(), ys.end());
+        const bool boxIsExtremes = qFromBigEndian<qint16>(p + 2) == xMin && qFromBigEndian<qint16>(p + 4) == yMin && qFromBigEndian<qint16>(p + 6) == xMax && qFromBigEndian<qint16>(p + 8) == yMax;
+        if (boxIsExtremes) {
+            appendU16Be(&outlines, quint16(contours));
+        } else {
+            appendU16Be(&outlines, 0x7FFF);
+            outlines.append(glyph.mid(2, 8));
+            appendU16Be(&outlines, quint16(contours));
+        }
+        mtxPut255(&outlines, ends[0]);
+        for (int c = 1; c < contours; ++c) mtxPut255(&outlines, ends[c] - ends[c - 1]);
+        QByteArray flagBytes, coordinates;
+        int px = 0, py = 0;
+        for (int i = 0; i < points; ++i) {
+            mtxPutTriplet(xs[i] - px, ys[i] - py, quint8(flags[i]) & 1, &flagBytes, &coordinates);
+            px = xs[i];
+            py = ys[i];
+        }
+        outlines.append(flagBytes).append(coordinates);
+        std::vector<int> values;
+        QByteArray rest;
+        mtxSplitProgram(program, &values, &rest);
+        mtxPut255(&outlines, int(values.size()));
+        mtxPut255(&outlines, int(rest.size()));
+        mtxPutValues(&pushes, values);
+        code.append(rest);
+    }
+    QByteArray cvt = tables["cvt "];
+    if (!cvt.isEmpty()) {
+        QByteArray packed;
+        appendU16Be(&packed, quint16(cvt.size() / 2));
+        int previous = 0;
+        for (int i = 0; i + 1 < cvt.size(); i += 2) {
+            const int value = qFromBigEndian<qint16>(cvt.constData() + i);
+            const int d = value - previous;
+            previous = value;
+            if (d >= 0 && d < 238) packed.append(char(d));
+            else if (d < 0 && -d <= 238 * 9 - 1) packed.append(char(239 + (-d) / 238)).append(char((-d) % 238));
+            else if (d >= 238 && d <= 238 * 9 - 1) packed.append(char(247 + d / 238)).append(char(d % 238));
+            else packed.append(char(238)).append(char(qint16(d) >> 8)).append(char(qint16(d) & 255));
+        }
+        tables["cvt "] = packed;
+    }
+    tables["glyf"] = outlines;
+    tables["loca"] = QByteArray();
+    if (extraGlyphsClaimed) qToBigEndian<quint16>(quint16(glyphs + extraGlyphsClaimed), tables["maxp"].data() + 4);
+    tables.erase("hdmx");
+    tables.erase("VDMX");
+    QByteArray first;
+    appendU16Be(&first, 1), appendU16Be(&first, 0);
+    appendU16Be(&first, quint16(tables.size()));
+    appendU16Be(&first, 0), appendU16Be(&first, 0), appendU16Be(&first, 0);
+    qsizetype offset = 12 + 16 * qsizetype(tables.size());
+    QByteArray body;
+    for (const auto &table : tables) {
+        first.append(table.first).append(QByteArray(4, '\0'));
+        appendU16Be(&first, quint16(table.second.isEmpty() ? 0 : offset >> 16)), appendU16Be(&first, quint16(table.second.isEmpty() ? 0 : offset & 0xFFFF));
+        appendU16Be(&first, quint16(table.second.size() >> 16)), appendU16Be(&first, quint16(table.second.size() & 0xFFFF));
+        body.append(table.second);
+        if (!table.second.isEmpty()) offset += table.second.size();
+    }
+    const QByteArray b1 = mtxCompress(first + body, runLengthOnTables), b2 = mtxCompress(pushes), b3 = mtxCompress(code);
+    QByteArray out;
+    out.append(char(3)).append(char(0)).append(char(0xAE)).append(char(0xE0));
+    const qint64 second = 10 + b1.size(), third = second + b2.size();
+    for (qint64 v : {second, third}) out.append(char(v >> 16)).append(char(v >> 8)).append(char(v));
+    return out + b1 + b2 + b3;
+}
+
+// An EOT around MicroType Express data, flagged as the program writes it.
+QByteArray eotWithMtx(const QByteArray &font, const QByteArray &mtx, quint32 flags = 5)
+{
+    QByteArray eot = makeEot(font);
+    eot.truncate(eot.size() - font.size());
+    eot.append(mtx);
+    qToLittleEndian<quint32>(quint32(eot.size()), eot.data());
+    qToLittleEndian<quint32>(quint32(mtx.size()), eot.data() + 4);
+    qToLittleEndian<quint32>(flags, eot.data() + 12);
+    return eot;
+}
+
+
+// A TrueType glyph as the tests compare it: what it draws and what its program is, not how the bytes are written (flags may repeat or not, a push
+// may be a byte or a word run).
+struct ParsedGlyph {
+    int contours = 0;
+    QByteArray box, components;
+    std::vector<int> ends, pushed, points;   // points: x, y, on-curve, for each
+    QByteArray rest;
+    bool operator==(const ParsedGlyph &o) const { return contours == o.contours && box == o.box && components == o.components && ends == o.ends && pushed == o.pushed && points == o.points && rest == o.rest; }
+};
+
+ParsedGlyph parseGlyph(const QByteArray &glyph)
+{
+    ParsedGlyph g;
+    if (glyph.isEmpty()) return g;
+    const char *p = glyph.constData();
+    g.contours = qFromBigEndian<qint16>(p);
+    g.box = glyph.mid(2, 8);
+    if (g.contours < 0) {
+        qsizetype at = 10;
+        int flags;
+        do {
+            flags = qFromBigEndian<quint16>(p + at);
+            const qsizetype size = 4 + ((flags & 1) ? 4 : 2) + ((flags & 8) ? 2 : (flags & 0x40) ? 4 : (flags & 0x80) ? 8 : 0);
+            g.components += glyph.mid(at, size);
+            at += size;
+        } while (flags & 0x20);
+        if (flags & 0x100) mtxSplitProgram(glyph.mid(at + 2, qFromBigEndian<quint16>(p + at)), &g.pushed, &g.rest);
+        return g;
+    }
+    for (int c = 0; c < g.contours; ++c) g.ends.push_back(qFromBigEndian<quint16>(p + 10 + 2 * c));
+    qsizetype at = 10 + 2 * g.contours;
+    const int length = qFromBigEndian<quint16>(p + at);
+    mtxSplitProgram(glyph.mid(at + 2, length), &g.pushed, &g.rest);
+    at += 2 + length;
+    const int points = g.ends.back() + 1;
+    QByteArray flags;
+    for (int i = 0; i < points; ++i) {
+        const quint8 f = quint8(glyph[at++]);
+        flags.append(char(f));
+        if (f & 8)
+            for (int k = quint8(glyph[at++]); k > 0; --k, ++i) flags.append(char(f));
+    }
+    std::vector<int> xs(points), ys(points);
+    int v = 0;
+    for (int i = 0; i < points; ++i) {
+        const quint8 f = quint8(flags[i]);
+        if (f & 2) v += (f & 16) ? quint8(glyph[at]) : -int(quint8(glyph[at])), ++at;
+        else if (!(f & 16)) v += qFromBigEndian<qint16>(p + at), at += 2;
+        xs[i] = v;
+    }
+    v = 0;
+    for (int i = 0; i < points; ++i) {
+        const quint8 f = quint8(flags[i]);
+        if (f & 4) v += (f & 32) ? quint8(glyph[at]) : -int(quint8(glyph[at])), ++at;
+        else if (!(f & 32)) v += qFromBigEndian<qint16>(p + at), at += 2;
+        ys[i] = v;
+        g.points.insert(g.points.end(), {xs[i], ys[i], quint8(flags[i]) & 1});
+    }
+    return g;
+}
+
+// A font's tables by name, and each glyph's bytes.
+std::map<QByteArray, QByteArray> fontTables(const QByteArray &font)
+{
+    std::map<QByteArray, QByteArray> out;
+    for (int i = 0, n = qFromBigEndian<quint16>(font.constData() + 4); i < n; ++i)
+        out[font.mid(12 + 16 * i, 4)] = font.mid(int(qFromBigEndian<quint32>(font.constData() + 12 + 16 * i + 8)), int(qFromBigEndian<quint32>(font.constData() + 12 + 16 * i + 12)));
+    return out;
+}
+
+QVector<QByteArray> fontGlyphs(const QByteArray &font)
+{
+    const auto tables = fontTables(font);
+    const QByteArray &head = tables.at("head"), &loca = tables.at("loca"), &glyf = tables.at("glyf");
+    const int n = qFromBigEndian<quint16>(tables.at("maxp").constData() + 4);
+    const bool shortLoca = qFromBigEndian<qint16>(head.constData() + 50) == 0;
+    QVector<QByteArray> out;
+    for (int g = 0; g < n; ++g) {
+        const int from = shortLoca ? 2 * qFromBigEndian<quint16>(loca.constData() + 2 * g) : int(qFromBigEndian<quint32>(loca.constData() + 4 * g));
+        const int to = shortLoca ? 2 * qFromBigEndian<quint16>(loca.constData() + 2 * g + 2) : int(qFromBigEndian<quint32>(loca.constData() + 4 * g + 4));
+        out.append(glyf.mid(from, to - from));
+    }
+    return out;
+}
+
+quint32 wordSum(const QByteArray &data)
+{
+    quint32 sum = 0;
+    for (qsizetype i = 0; i < data.size(); i += 4) {
+        quint32 word = 0;
+        for (qsizetype k = 0; k < 4; ++k) word = word << 8 | (i + k < data.size() ? quint8(data[i + k]) : 0);
+        sum += word;
+    }
+    return sum;
+}
 
 QByteArray zipOf(const Entries &entries, bool compress = true)
 {
@@ -1213,6 +1734,155 @@ private Q_SLOTS:
         wrapped.append(damaged);
         refused(wrapped, "a damaged font inside");
         refused(damaged, "a damaged font on its own");
+    }
+
+    // MicroType Express, the form the presentation program embeds fonts in. A font translated and compressed as the program does (here by a
+    // writer made for these tests, from a bundled font) is read back as the font it was: the same tables, the same glyphs (what they draw and
+    // their programs; the bytes are written as the reader writes them), sizes that agree, and checksums that are right.
+    void microTypeExpressFontsAreReadBack()
+    {
+        for (const QString &family : {QStringLiteral("Lato"), QStringLiteral("Fraunces"), QStringLiteral("Open Sans")}) {
+            const QByteArray font = bundledFontBytes(family);
+            QVERIFY(!font.isEmpty());
+            auto original = fontTables(font);
+            // Hinted fonts have a push burst and control values; Fraunces has composite glyphs.
+            for (bool runLength : {false, true}) {
+                const QByteArray eot = eotWithMtx(font, mtxCompressFont(font, runLength));
+                QByteArray read;
+                FontFileInfo info;
+                QString why;
+                QVERIFY2(readEmbeddedFont(eot, &read, &info, &why), qPrintable(family + QLatin1String(": ") + why));
+                QCOMPARE(info.family, family);
+                QVERIFY2(read.size() > font.size() / 4, qPrintable(family));
+                const auto tables = fontTables(read);
+                for (const auto &table : original) {
+                    if (table.first == "glyf" || table.first == "loca" || table.first == "head" || table.first == "hdmx" || table.first == "VDMX" || table.first == "DSIG") continue;
+                    QVERIFY2(tables.count(table.first) && tables.at(table.first) == table.second, qPrintable(family + QLatin1Char(' ') + QString::fromLatin1(table.first)));
+                }
+                QVERIFY(!tables.count("hdmx") && !tables.count("VDMX"));
+                // The glyphs.
+                const QVector<QByteArray> was = fontGlyphs(font), now = fontGlyphs(read);
+                QCOMPARE(now.size(), was.size());
+                int composites = 0, withPrograms = 0;
+                for (int g = 0; g < was.size(); ++g) {
+                    QVERIFY2(parseGlyph(was[g]) == parseGlyph(now[g]), qPrintable(family + QLatin1String(" glyph ") + QString::number(g)));
+                    QVERIFY(now[g].size() % 2 == 0);
+                    if (!was[g].isEmpty() && qFromBigEndian<qint16>(was[g].constData()) < 0) ++composites;
+                    if (!parseGlyph(was[g]).pushed.empty()) ++withPrograms;
+                }
+                if (family == QLatin1String("Fraunces")) QVERIFY(composites > 0);
+                if (family == QLatin1String("Lato")) QVERIFY(withPrograms > 0);
+                // The header: the sizes, the index format the glyph data fits, and the checksums.
+                const QByteArray &head = tables.at("head");
+                QCOMPARE(int(qFromBigEndian<qint16>(head.constData() + 50)), int(tables.at("glyf").size() <= 0x1FFFE ? 0 : 1));
+                QCOMPARE(wordSum(read), 0xB1B0AFBAu);
+                for (int i = 0, n = qFromBigEndian<quint16>(read.constData() + 4); i < n; ++i) {
+                    const char *record = read.constData() + 12 + 16 * i;
+                    QByteArray data = read.mid(int(qFromBigEndian<quint32>(record + 8)), int(qFromBigEndian<quint32>(record + 12)));
+                    if (QByteArray(record, 4) == "head") data.replace(8, 4, QByteArray(4, '\0'));
+                    QCOMPARE(qFromBigEndian<quint32>(record + 4), wordSum(data));
+                    QCOMPARE(int(qFromBigEndian<quint32>(record + 8)) % 4, 0);
+                }
+            }
+        }
+        // Scrambled as well as compressed (the scrambling is undone first).
+        const QByteArray font = bundledFontBytes(QStringLiteral("Lato"));
+        QByteArray eot = eotWithMtx(font, mtxCompressFont(font), 0x10000005);
+        const int start = eot.size() - int(leAt(eot, 4));
+        for (int i = start; i < eot.size(); ++i) eot[i] = char(eot[i] ^ 0x50);
+        QByteArray read;
+        QString why;
+        QVERIFY2(readEmbeddedFont(eot, &read, nullptr, &why), qPrintable(why));
+        QCOMPARE(int(fontGlyphs(read).size()), int(fontGlyphs(font).size()));
+    }
+
+    // Damaged or hostile MicroType Express is refused, never read past its end or into more than a font may be.
+    void microTypeExpressThatIsDamagedOrHostileIsRefused()
+    {
+        const QByteArray font = bundledFontBytes(QStringLiteral("Lato"));
+        const QByteArray mtx = mtxCompressFont(font);
+        QByteArray read;
+        QString why;
+        QVERIFY2(readEmbeddedFont(eotWithMtx(font, mtx), &read, nullptr, &why), qPrintable(why));
+        auto refused = [&](const QByteArray &data, const char *what) {
+            read = "left over";
+            why.clear();
+            QVERIFY2(!readEmbeddedFont(eotWithMtx(font, data), &read, nullptr, &why), what);
+            QVERIFY2(!why.isEmpty(), what);
+            QVERIFY2(read.isEmpty(), what);
+        };
+        refused(QByteArray(), "nothing");
+        refused(mtx.left(9), "less than the header");
+        refused(mtx.left(mtx.size() / 2), "cut in half");
+        refused(mtx.left(mtx.size() - 40), "cut short");
+        QByteArray bad = mtx;
+        for (char version : {char(0), char(1), char(2), char(4), char(255)}) {
+            bad[0] = version;
+            refused(bad, "a version that is not read");
+        }
+        bad = mtx;
+        bad[4] = char(0x7f);
+        refused(bad, "the second block starting past the end");
+        bad = mtx;
+        bad[7] = char(0x00), bad[8] = char(0x00), bad[9] = char(0x20);
+        refused(bad, "the third block starting inside the header");
+        bad = mtx;
+        bad[4] = bad[5] = bad[6] = char(0);
+        refused(bad, "the second block starting at the start");
+
+        // Every block's length is a number in the data: a block that says 16 MB but holds a few bytes runs out of them.
+        bad = mtx;
+        bad[10] = char(0x7f), bad[11] = char(0xff), bad[12] = char(0xff);
+        refused(bad, "a block that says it is larger than it is");
+
+        // A glyph count the glyph data doesn't make: five more glyphs than it holds.
+        refused(mtxCompressFont(font, false, 5), "more glyphs than the glyph data holds");
+
+        // A run-length block that grows past what a font may be: marker, 255, byte, over and over (1 MB of it is 90 MB).
+        QByteArray runs;
+        runs.append(char(7));
+        for (int i = 0; i < 350000; ++i) runs.append(char(7)).append(char(255)).append('a');
+        QByteArray block = mtxCompress(runs);
+        block[0] = char(quint8(block[0]) | 0x80);   // the flag that says the data is run-length coded
+        QByteArray all = mtx.left(4);   // the version and the copy limit
+        const qint64 secondRuns = 10 + block.size();
+        for (qint64 v : {secondRuns, secondRuns + 4}) all.append(char(v >> 16)).append(char(v >> 8)).append(char(v));
+        all.append(block).append(mtxCompress(QByteArray())).append(mtxCompress(QByteArray()));
+        refused(all, "run-length data that expands to more than a font may be");
+
+        // A copy that reaches back before the start of what has been made: 5 distance symbols is 32,768 back, past the 7 KB the copies may reach.
+        MtxBits bits;
+        bits.put(0);
+        bits.put(5000, 24);
+        MtxTree symbols(256 + 8 * 5 + 3), lengths(8), distances(8);
+        symbols.write(256 + 8 * 4, &bits);
+        for (int i = 0; i < 5; ++i) distances.write(7, &bits);
+        QByteArray crafted = bits.bytes;
+        crafted.append(QByteArray(64, '\0'));
+        QByteArray header;
+        header.append(char(3)).append(char(0)).append(char(0)).append(char(0));
+        const qint64 secondAt = 10 + crafted.size();
+        for (qint64 v : {secondAt, secondAt + 4}) header.append(char(v >> 16)).append(char(v >> 8)).append(char(v));
+        refused(header + crafted + mtxCompress(QByteArray()) + mtxCompress(QByteArray()), "a copy from before the start");
+
+        // Corrupt data: a byte changed anywhere is read as a font or refused, in a moment, and what is read is a sound font.
+        QElapsedTimer timer;
+        timer.start();
+        QRandomGenerator rng(20261012);
+        int refusedCount = 0, readCount = 0;
+        for (int i = 0; i < 300; ++i) {
+            QByteArray damaged = mtx;
+            damaged[int(rng.bounded(quint32(mtx.size())))] = char(rng.bounded(256u));
+            if (readEmbeddedFont(eotWithMtx(font, damaged), &read, nullptr, &why)) {
+                ++readCount;
+                QVERIFY(jp::inspectFont(read));
+            } else {
+                ++refusedCount;
+                QVERIFY(!why.isEmpty());
+            }
+        }
+        QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY(refusedCount > 50);
     }
 
     void xmlAcceptsDeepButReasonableNesting()
