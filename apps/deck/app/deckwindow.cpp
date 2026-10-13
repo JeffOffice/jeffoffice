@@ -16,6 +16,7 @@
 #include "app/widgets.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
+#include "core/embeddedfonts.h"
 #include "core/sections.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
@@ -58,6 +59,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     m_ed = new Editor(this);
     m_ed->setNewDocumentName(tr("Presentation1"));
     m_ed->setDocument(deck::newPresentation());
+    m_fontsOf = m_ed->doc();
     // A presentation's view: no rulers, guides, or boundaries until they are asked for (the canvas outlines empty placeholders itself).
     m_ed->view.guides = false;
     m_ed->view.boundaries = false;
@@ -139,7 +141,15 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
         m_slides->followCurrent();   // drawn again only when something changed (Editor::changed)
         queue();
     });
-    connect(m_ed, &Editor::documentReplaced, this, [this] { m_slides->refresh(); m_notes->reload(); updateTitle(); refreshUi(); });
+    connect(m_ed, &Editor::documentReplaced, this, [this] {
+        // The fonts the presentation before it carried go (the new one's were added as it was read).
+        deck::EmbeddedFonts::release(m_fontsOf);
+        m_fontsOf = m_ed->doc();
+        m_slides->refresh();
+        m_notes->reload();
+        updateTitle();
+        refreshUi();
+    });
     connect(m_ed, &Editor::modifiedChanged, this, &DeckWindow::updateTitle);
     connect(m_slides, &SlidesPane::newSlideWanted, this, [this] { newSlide(); });
     connect(m_slides, &SlidesPane::duplicateWanted, this, &DeckWindow::duplicateSlide);
@@ -160,6 +170,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
 DeckWindow::~DeckWindow()
 {
     if (m_show) m_show->close();
+    deck::EmbeddedFonts::release(m_fontsOf);
 }
 
 QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,

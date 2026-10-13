@@ -3,9 +3,11 @@
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/embeddedfonts.h"
 #include "core/media.h"
 #include "core/sections.h"
 #include "io/pptxdiagram.h"
+#include "io/pptxfonts.h"
 #include "io/pptxshow.h"
 #include "io/pptxtransition.h"
 #include "office/chart.h"
@@ -418,7 +420,8 @@ QString withFrameNames(const QString &frame, const QString &name, const QString 
 
 class Exporter {
 public:
-    Exporter(const Document &doc, PresentationKind kind, QStringList *skipped) : m_doc(doc), m_kind(kind), m_callerSkipped(skipped) {}
+    Exporter(const Document &doc, PresentationKind kind, QStringList *skipped, bool embedFonts)
+        : m_doc(doc), m_kind(kind), m_callerSkipped(skipped), m_embedFonts(embedFonts), m_keptFonts(EmbeddedFonts::facesOf(&doc)) {}
     QByteArray run(QString *error);
 
 private:
@@ -470,10 +473,16 @@ private:
     void writeCommentAuthors();
     void writeComments(int slide, const QString &slidePart);
     void add(const QString &part, const QString &type, const QString &xml);
+    void scanFonts(const QString &part, const QByteArray &xml);
 
     const Document &m_doc;
     PresentationKind m_kind;
     QStringList *m_callerSkipped;
+    bool m_embedFonts;                           // the program's own fonts that the text uses go in the file
+    QVector<EmbeddedFace> m_keptFonts;           // the fonts the file this came from carried
+    FontUse m_fontUse;                           // what the parts written use
+    QHash<QString, QPair<QString, QString>> m_partFonts;   // part -> the heading and body font of the theme it follows (others follow the presentation's)
+    FontsWritten m_fonts;
     QStringList m_skipped;
     office::PackageWriter m_pkg;
     QHash<QString, QString> m_media;
@@ -609,6 +618,21 @@ void Exporter::prepareThemes()
             master.themeXml = keptThemePart(kept, &theme);
             master.theme = theme;
         }
+    }
+    // The fonts of each theme, and which theme each master, layout, and slide follows.
+    if (!m_embedFonts && m_keptFonts.isEmpty()) return;
+    m_fontUse.addThemeFonts(m_theme.majorLatin, m_theme.minorLatin);
+    for (const MasterOut &master : m_masters) {
+        m_fontUse.addThemeFonts(master.theme.majorLatin, master.theme.minorLatin);
+        m_partFonts.insert(master.part, qMakePair(master.theme.majorLatin, master.theme.minorLatin));
+    }
+    for (const LayoutOut &layout : m_layouts) {
+        const office::Theme &theme = m_masters[layout.master].theme;
+        m_partFonts.insert(layout.part, qMakePair(theme.majorLatin, theme.minorLatin));
+    }
+    for (int i = 0; i < int(m_doc.pages.size()); ++i) {
+        const office::Theme &theme = m_masters[m_layouts[m_slideLayout[i]].master].theme;
+        m_partFonts.insert(QStringLiteral("/ppt/slides/slide%1.xml").arg(i + 1), qMakePair(theme.majorLatin, theme.minorLatin));
     }
 }
 
@@ -780,6 +804,7 @@ void Exporter::writeKeptParts(const QJsonObject &parts, const QHash<QString, QSt
         if (!renumbered.isEmpty()) data = withRenumberedLinks(QString::fromUtf8(data), renumbered).toUtf8();
         if (rewrite) data = rewrite(key, data);
         const QString type = part.value(QStringLiteral("type")).toString();
+        if (type.endsWith(QLatin1String("xml"))) scanFonts(name, data);
         m_pkg.addPart(name, data, type.isEmpty() ? QStringLiteral("application/octet-stream") : type);
     }
 }
@@ -1070,7 +1095,17 @@ QByteArray Exporter::thumbnail() const
 
 void Exporter::add(const QString &part, const QString &type, const QString &xml)
 {
-    m_pkg.addPart(part, (kDeclaration + xml).toUtf8(), type);
+    const QByteArray bytes = (kDeclaration + xml).toUtf8();
+    scanFonts(part, bytes);
+    m_pkg.addPart(part, bytes, type);
+}
+
+// What a part's text is set in, for the fonts the file will carry: only when something is to be carried.
+void Exporter::scanFonts(const QString &part, const QByteArray &xml)
+{
+    if (!m_embedFonts && m_keptFonts.isEmpty()) return;
+    const auto fonts = m_partFonts.value(part, qMakePair(m_theme.majorLatin, m_theme.minorLatin));
+    m_fontUse.scan(xml, fonts.first, fonts.second);
 }
 
 void Exporter::writeMaster(int i)
@@ -1325,6 +1360,8 @@ void Exporter::writePresentation()
     QString xml = QStringLiteral("<p:presentation%1").arg(kNamespaces);
     if (footers.skipTitleSlide) xml += QStringLiteral(" showSpecialPlsOnTitleSld=\"0\"");
     if (m_doc.setup.firstPageNumber != 1) xml += QStringLiteral(" firstSlideNum=\"%1\"").arg(std::clamp(m_doc.setup.firstPageNumber, 0, 9999));
+    // Without this the presentation program does not look at the fonts the file carries.
+    if (!m_fonts.listXml.isEmpty()) xml += QStringLiteral(" embedTrueTypeFonts=\"1\"");
     xml += QStringLiteral("><p:sldMasterIdLst>");
     for (const MasterOut &m : m_masters) xml += QStringLiteral("<p:sldMasterId id=\"%1\" r:id=\"%2\"/>").arg(m.id).arg(m.rel);
     xml += QStringLiteral("</p:sldMasterIdLst><p:notesMasterIdLst><p:notesMasterId r:id=\"%1\"/></p:notesMasterIdLst>").arg(m_notesMasterRel);
@@ -1336,6 +1373,7 @@ void Exporter::writePresentation()
     const QString type = sizeType(m_doc.setup.sizeName);
     xml += QStringLiteral("<p:sldSz cx=\"%1\" cy=\"%2\"%3/>").arg(emu(size.width()), emu(size.height()), type.isEmpty() ? QString() : QStringLiteral(" type=\"%1\"").arg(type));
     xml += QStringLiteral("<p:notesSz cx=\"%1\" cy=\"%2\"/>").arg(emu(m_notesSize.width()), emu(m_notesSize.height()));
+    xml += m_fonts.listXml;
     xml += deck::customShowListXml(m_doc, m_slideRel);
     xml += QStringLiteral("<p:defaultTextStyle><a:defPPr><a:defRPr lang=\"en-US\"/></a:defPPr>");
     for (int i = 0; i < 9; ++i)
@@ -1485,6 +1523,9 @@ QByteArray Exporter::run(QString *error)
     }
     writeNotesMaster();
     writeProperties();
+    if (m_embedFonts || !m_keptFonts.isEmpty()) {
+        m_fonts = writeEmbeddedFonts(m_pkg, kPresentationPart, m_fontUse, m_keptFonts, m_embedFonts);
+    }
     writePresentation();
 
     const QByteArray bytes = m_pkg.finish();
@@ -1505,18 +1546,18 @@ PresentationKind kindOfFileName(const QString &path)
     return PresentationKind::Presentation;
 }
 
-QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind)
+QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts)
 {
-    return Exporter(doc, kind, skipped).run(error);
+    return Exporter(doc, kind, skipped, embedFonts).run(error);
 }
 
-bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped)
+bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
         return false;
     };
-    const QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path));
+    const QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts);
     if (bytes.isEmpty()) return false;
     if (path.isEmpty()) return fail(say("There's no file name to save to."));
     // The old file stays whole until the new one is complete.

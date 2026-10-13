@@ -3,8 +3,10 @@
 #include "core/appinfo.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/embeddedfonts.h"
 #include "core/sections.h"
 #include "io/pptxdiagram.h"
+#include "io/pptxfonts.h"
 #include "io/pptxshow.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
@@ -33,6 +35,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
 
 namespace jp::deck {
 
@@ -678,6 +681,8 @@ public:
         m_budget.left[B::Letters] = kMaxLetters;
     }
     bool run(const QString &mainPart, QString *error);
+    // The fonts the file carried, once, for EmbeddedFonts to take.
+    QVector<EmbeddedFace> takeFonts() { return std::exchange(m_fonts, QVector<EmbeddedFace>()); }
 
 private:
     enum class Kind { Master, Layout, Slide };
@@ -762,6 +767,7 @@ private:
     Document &m_doc;
     std::deque<QDomDocument> m_doms;
     QStringList m_notes;
+    QVector<EmbeddedFace> m_fonts;
     int m_extraNotes = 0;
     bool m_layoutLimitSaid = false;
     QDomElement m_defaultStyle;
@@ -1760,6 +1766,9 @@ bool Importer::run(const QString &mainPart, QString *error)
     m_mainPart = mainPart;
     readSize(root);
     m_defaultStyle = pChild(root, "defaultTextStyle");
+    QStringList fontNotes;
+    m_fonts = readEmbeddedFonts(m_pkg, mainPart, root, &fontNotes);
+    for (const QString &text : std::as_const(fontNotes)) note(text);
 
     for (const QDomElement &id : office::children(pChild(root, "sldMasterIdLst"), office::ns::P, QStringLiteral("sldMasterId"))) {
         const office::Relationship rel = m_pkg.relationship(mainPart, office::attrNs(id, office::ns::R, QStringLiteral("id")));
@@ -1821,6 +1830,8 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
     doc->slideText = true;
     Importer importer(pkg, *doc);
     if (!importer.run(pkg.mainPart(), error)) return nullptr;
+    // The presentation's own fonts are available for as long as it is open (see core/embeddedfonts.h).
+    EmbeddedFonts::use(doc.get(), importer.takeFonts());
     doc->fromFile = true;   // what the file names outside itself is read only from beside it
     return doc;
 }
