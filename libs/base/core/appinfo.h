@@ -20,7 +20,7 @@ struct AppInfo {
     QColor highlight;       // the dark interface's selection color, under white text (invalid: accentDark darkened)
     QColor link;            // the dark interface's link color (invalid: accentDark lightened)
     QString helpFolder;     // where its Help topics are under each language ("deck": resources/help/en/deck/); empty: the language's own folder
-    bool online = true;     // checks for updates and sends usage statistics (when chosen); JeffDeck's preview does neither
+    bool online = true;     // checks for updates and sends usage statistics (when chosen); false for an app that does neither
 };
 
 const AppInfo &appInfo();

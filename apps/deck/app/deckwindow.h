@@ -22,6 +22,7 @@ namespace jp {
 
 class AnimationPane;
 class ColorButton;
+class Document;
 class CommentsPane;
 class DeckCanvas;
 class DeckFileScreen;
@@ -30,6 +31,7 @@ class FontCombo;
 class HelpView;
 class HelpWindow;
 class NotesPane;
+class OnlinePicturesPane;
 class OutlineView;
 class Ribbon;
 class ReusePane;
@@ -39,6 +41,8 @@ class SlideSorter;
 class SlidesPane;
 
 namespace deck {
+struct ColorSet;
+struct FontSet;
 struct FooterOptions;
 struct MediaPlay;
 struct OutputOptions;
@@ -113,10 +117,33 @@ public:
     void setBackground(const QColor &color, bool all);
     // Header & Footer for the slide being edited, or for all of them.
     void applyFooters(const deck::FooterOptions &options, bool all);
+    // Design > Themes and Variants (deckwindow_design.cpp), each one step that undoes. A theme is one of the built-in ones (by number) or
+    // the one a presentation file has, for every slide or for the selected ones (the slides selected in the Slide Sorter, else the slide
+    // being edited, who get a slide master of their own). The file is any the program opens; false, with the reason shown, if it can't
+    // be used. A variant (by number, in variantsOf), colors, fonts, and background styles apply to the whole presentation.
+    void applyTheme(int theme, bool allSlides);
+    bool applyThemeFile(const QString &path, bool allSlides);
+    void browseForTheme(bool allSlides = true);
+    void chooseVariant(int variant);
+    void chooseColors(const deck::ColorSet &colors);
+    void chooseFonts(const deck::FontSet &fonts);
+    void chooseBackgroundStyle(int style);
     // A picture from a file, centered on the slide (or with its corner at `at`
     // when that isn't negative) and selected. False when the file can't be
-    // read as a picture.
-    bool insertPicture(const QString &path, const QPointF &at = QPointF(-1, -1));
+    // read as a picture. With `altText` the picture has it for screen readers;
+    // with `credit` a line of small text under it names its author (all one step).
+    bool insertPicture(const QString &path, const QPointF &at = QPointF(-1, -1), const QString &altText = QString(), const QString &credit = QString());
+    // Icons by name (the bundled ones), each put on the slide as an SVG picture an inch square in the
+    // theme's text color, side by side across the middle, selected, as one step that undoes. A name that is
+    // no icon is left out. (deckwindow_insert.cpp)
+    void insertIcons(const QStringList &names);
+    // A Text Art in a style of the Text Art gallery, in the middle of the slide and selected, and the box that
+    // asks for its words, with the old ones selected so that typing replaces them. (deckwindow_insert.cpp)
+    void insertTextArt(const QString &styleId);
+    // The Online Pictures pane on the right (Insert > Pictures > Online Pictures), once it has been opened: a
+    // picture chosen in it is put on the slide, with its credit under it when asked.
+    OnlinePicturesPane *onlinePictures() const { return m_online; }
+    void showOnlinePictures();
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
     // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
@@ -196,6 +223,9 @@ protected:
     bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
+    // The ending of a presentation file as the usage statistics name its kind: one JeffDeck reads or writes ("pptx", "odp", ...),
+    // else "other". Never any part of the name.
+    static QString fileKind(const QString &path);
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
                 bool checkable = false);
     void createShowActions();
@@ -206,6 +236,9 @@ private:
     void tellAboutShow(const QString &text);
     void createViewModeActions();   // deckwindow_views.cpp
     void addShowParts(struct RibbonParts &parts);
+    void addDesignParts(struct RibbonParts &parts);   // deckwindow_design.cpp
+    bool applyThemeFrom(const Document &source, bool allSlides);
+    void changeDesign(const QString &label, const std::function<void(Document &)> &fn);
     void createActions();
     void createSaveActions();     // deckwindow_save.cpp
     void createDialogActions();   // deckwindow_dialogs.cpp
@@ -234,6 +267,8 @@ private:
     void dropRecoveryCopy();      // deckwindow_save.cpp
     void createHelpActions();     // deckwindow_help.cpp
     void createMediaActions();    // deckwindow_media.cpp
+    void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
+    void addInsertParts(struct RibbonParts &parts);
     void addMediaParts(struct RibbonParts &parts);
     void insertMediaFromFile(const QString &kind);
     void trimMedia();
@@ -253,6 +288,8 @@ private:
     SlideSorter *m_sorter = nullptr;
     ReusePane *m_reuse = nullptr;
     QDockWidget *m_reuseDock = nullptr;
+    OnlinePicturesPane *m_online = nullptr;
+    QDockWidget *m_onlineDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
     AnimationPane *m_animPane = nullptr;

@@ -40,7 +40,9 @@ void DeckWindow::buildRibbon()
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
     addShowParts(parts);
     addMediaParts(parts);
+    addInsertParts(parts);
     addAnimationParts(parts);
+    addDesignParts(parts);
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
@@ -143,9 +145,6 @@ void DeckWindow::ribbonControlParts(RibbonParts &parts)
         tableBtn->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
         return tableBtn;
     };
-
-    // Design > Variants: the theme's colors.
-    parts.widgets[QStringLiteral("themeColors")] = [this]() -> QWidget * { return new ThemeColors(m_ed); };
 }
 
 // Galleries: the button that opens the grid of shapes.

@@ -8,9 +8,11 @@ Your settings are in the **JeffDeck Options** window. Click **File > Options** t
 - **User name** and **Initials** are shown on the comments you write. See [Comments](comments).
 - **Theme** is **Use system setting**, **Light**, or **Dark**. The change shows at once.
 - **Display language** is the language of JeffDeck's own words. **Use system language** follows your computer. Other languages appear in this list when translations are available. A new language starts the next time you open JeffDeck.
-- Usage statistics and update checks aren't here. In this Preview, JeffDeck doesn't send statistics or look for updates. Those choices are in JeffPub's Options, and they apply to all the JeffOffice apps.
+- **Check for updates when JeffDeck starts** makes JeffDeck look for a newer version each time it starts. If there is one, an **Update Available** window shows what is new. Choose **Update Now**, **Later**, or **Skip This Version**. On Windows, **Update Now** downloads the setup program. It installs the new version of every JeffOffice app, and it asks you to close any that are open. On other computers, the button is **Open Download Page**. It opens the page where you can get the new version. If JeffPub is open too, only one of the two tells you about a new version each day.
+- **Get beta versions (early builds for testing)** makes JeffDeck offer beta versions too. These come out before the regular ones. They may have rough edges.
+- **Send anonymous usage statistics** lets you share facts about how JeffDeck is used. Anonymous means the facts say nothing about who you are. When this is on, JeffDeck sends these facts once a day, and on the day you update: that it is JeffDeck, its version, your operating system and language, how many times it was started, how often each command is used, and what kind of file you opened or saved (for example, .pptx). If JeffDeck ever closes by surprise, it also sends a crash report the next time it starts. The report says where in the program it stopped, so the problem can be found and fixed. JeffDeck never sends your files, their names, or anything in them, and nothing you typed. If this is off, no crash report is sent either. JeffDeck asks about this the first time it starts, in a window called **Help improve JeffDeck**. It does not ask if you already chose in JeffPub or in setup.
 
-**User name**, **Initials**, **Theme**, and **Display language** belong to all the JeffOffice apps: change one here and it changes in each of them.
+**User name**, **Initials**, **Theme**, and **Display language**, and the update and statistics choices, belong to all the JeffOffice apps: change one here and it changes in each of them.
 
 ## Proofing
 
