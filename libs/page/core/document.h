@@ -318,6 +318,10 @@ public:
     // What an app keeps about the whole document besides its pages (a
     // presentation's theme and sections); saved and undone with it.
     QJsonObject appData;
+    // The fonts the file this came from carries (a presentation's embedded fonts): each family they are for (lower-cased) and the private family
+    // the font was added to the font database under, so that this document draws with them and nothing else does (LayoutEnv::familyAliases).
+    // Never saved; set by the reader that adds the fonts.
+    QHash<QString, QString> fontAliases;
     // Text is set as the presentation program sets a slide's (LayoutEnv::
     // slideLines), and what doesn't fit its box runs out of it, shown
     // (FrameSpec::runsOver), instead of waiting for the next box in the chain

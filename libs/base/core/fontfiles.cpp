@@ -5,6 +5,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFontDatabase>
 #include <QHash>
 #include <QSet>
 
@@ -58,5 +59,12 @@ const Index &index()
 BundledFontFile bundledFontFile(const QString &family, bool bold, bool italic) { return index().files.value(keyOf(family, bold, italic)); }
 
 bool isBundledFontFamily(const QString &family) { return index().families.contains(family.toLower()); }
+
+QStringList visibleFontFamilies()
+{
+    QStringList out = QFontDatabase::families();
+    out.removeIf([](const QString &family) { return family.startsWith(kEmbeddedFamilyPrefix); });
+    return out;
+}
 
 } // namespace jp

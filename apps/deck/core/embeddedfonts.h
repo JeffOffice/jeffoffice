@@ -2,11 +2,17 @@
 // The fonts a presentation file carries. A file may hold the fonts its text
 // is set in (ppt/fonts, listed in the presentation's p:embeddedFontLst) so it
 // looks the same on a computer that lacks them. Reading one makes its font
-// available to the program while the presentation is open, and only then:
-// the font is added to the font database from memory (never installed, never
-// written to disk) and taken out when the last presentation that carries it
-// goes. A font the computer already has is not added; the computer's own is
-// used, as the presentation program does.
+// available to that presentation while it is open, and to nothing else: the
+// font is added to the font database from memory (never installed, never
+// written to disk) under a private family name of its own, and the
+// presentation's `fontAliases` say which family each of its runs that names
+// the font is to be drawn with (LayoutEnv::familyAliases). Another
+// presentation, a menu, or the program's own text never meets the font, so a
+// file's embedded "Arial" can't be what every request for Arial gets, and two
+// presentations that carry different fonts under one name don't clash. The
+// font goes when the last presentation that carries it does. A font the
+// computer already has under that name is left be (the computer's own is
+// used, as the presentation program does).
 //
 // What a file carries that the program can't write itself (a font it has no
 // copy of) is kept with the presentation, as the part's own bytes, and
@@ -39,10 +45,10 @@ struct EmbeddedFace {
 
 class EmbeddedFonts {
 public:
-    // Makes the fonts of the faces that were read available, for `doc` (a presentation that was just read; a
-    // pointer, not kept alive: release it when the document goes) and keeps the faces for writing back. A face
-    // whose family the computer has is kept but not added.
-    static void use(const Document *doc, QVector<EmbeddedFace> faces);
+    // Adds the fonts of the faces that were read, under private family names, and sets `doc`'s fontAliases (a presentation that was just read;
+    // not kept alive: release it when the document goes), and keeps the faces for writing back. The faces of a family the computer has are
+    // kept but not added.
+    static void use(Document *doc, QVector<EmbeddedFace> faces);
     // The document has been closed or replaced: its fonts go, unless another document carries the same font.
     static void release(const Document *doc);
     // The faces a document was read with, for writing back (without the fonts' data).

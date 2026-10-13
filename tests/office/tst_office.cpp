@@ -2234,6 +2234,61 @@ private Q_SLOTS:
         }
     }
 
+    // A font is made over under a family name of its own (for adding it to the font database so that it is only its document's): the names
+    // change, nothing else does, and the font is sound.
+    void fontsAreMadeOverUnderAFamilyNameOfTheirOwn()
+    {
+        const QString family = QStringLiteral("JO-embedded-1234abcd-Test Family");
+        struct Case {
+            QString family;
+            bool bold, italic;
+        };
+        for (const Case &c : {Case{QStringLiteral("Lato"), false, false}, Case{QStringLiteral("Lato"), true, true}, Case{QStringLiteral("Selawik Light"), false, false},
+                              Case{QStringLiteral("TeX Gyre Schola"), true, false}, Case{QStringLiteral("Open Sans"), false, true}}) {
+            const QByteArray font = bundledFontBytes(c.family, c.bold, c.italic);
+            QVERIFY2(!font.isEmpty(), qPrintable(c.family));
+            const QByteArray made = jp::fontWithFamilyName(font, family);
+            QVERIFY2(!made.isEmpty(), qPrintable(c.family));
+            FontFileInfo was, now;
+            QString why;
+            QVERIFY2(jp::inspectFont(font, &was, &why), qPrintable(why));
+            QVERIFY2(jp::inspectFont(made, &now, &why), qPrintable(c.family + QLatin1String(": ") + why));
+            QCOMPARE(now.family, family);
+            QVERIFY2(now.fullName.startsWith(family), qPrintable(now.fullName));
+            QVERIFY(now.typographicFamily.isEmpty() || now.typographicFamily == family);   // the same name as the family is no other family
+            QCOMPARE(now.subfamily, was.subfamily);
+            QCOMPARE(now.bold, was.bold);
+            QCOMPARE(now.italic, was.italic);
+            QCOMPARE(int(now.weight), int(was.weight));
+            QCOMPARE(now.glyphs, was.glyphs);
+            QCOMPARE(int(now.fsType), int(was.fsType));
+            // Every table but the names (and the header's checksum adjustment) is as it was; the checksums are right.
+            const auto before = fontTables(font), after = fontTables(made);
+            QCOMPARE(after.size(), before.size());
+            for (const auto &table : before) {
+                if (table.first == "name" || table.first == "head") continue;
+                QVERIFY2(after.count(table.first) && after.at(table.first) == table.second, qPrintable(c.family + QLatin1Char(' ') + QString::fromLatin1(table.first)));
+            }
+            QCOMPARE(after.at("head").left(8), before.at("head").left(8));
+            QCOMPARE(after.at("head").mid(12), before.at("head").mid(12));
+            QCOMPARE(wordSum(made), 0xB1B0AFBAu);
+            for (int i = 0, n = qFromBigEndian<quint16>(made.constData() + 4); i < n; ++i) {
+                const char *record = made.constData() + 12 + 16 * i;
+                QByteArray data = made.mid(int(qFromBigEndian<quint32>(record + 8)), int(qFromBigEndian<quint32>(record + 12)));
+                if (QByteArray(record, 4) == "head") data.replace(8, 4, QByteArray(4, '\0'));
+                QCOMPARE(qFromBigEndian<quint32>(record + 4), wordSum(data));
+            }
+            // The font database takes it as that family, and no other.
+            const int id = QFontDatabase::addApplicationFontFromData(made);
+            QVERIFY2(id >= 0, qPrintable(c.family));
+            QCOMPARE(QFontDatabase::applicationFontFamilies(id), QStringList{family});
+            QVERIFY(QFontDatabase::removeApplicationFont(id));
+        }
+        // A font that is not one is not made over; nor is one to be called nothing.
+        QVERIFY(jp::fontWithFamilyName(QByteArray("not a font"), family).isEmpty());
+        QVERIFY(jp::fontWithFamilyName(bundledFontBytes(QStringLiteral("Lato")), QString()).isEmpty());
+    }
+
     void xmlAcceptsDeepButReasonableNesting()
     {
         QDomDocument doc;

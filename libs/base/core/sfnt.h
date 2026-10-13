@@ -53,6 +53,12 @@ bool inspectFont(const QByteArray &font, FontFileInfo *info = nullptr, QString *
 // The same for font data in memory that is not a QByteArray (a mapped file).
 bool inspectFont(const uchar *data, qint64 size, FontFileInfo *info = nullptr, QString *why = nullptr);
 
+// The font with the family names in its name table (IDs 1, 4, 6, 16, 21, and 25, where it has them) made over to `family`: the family, the full
+// name ("<family> Bold"), and the PostScript name, all in English for Windows; the style names and everything else stay as they were, and
+// every table but the name table is the same (the file is written out again with its checksums made right). For adding a font to the font
+// database under a name of its own. Empty if the font is not one inspectFont accepts.
+QByteArray fontWithFamilyName(const QByteArray &font, const QString &family);
+
 // Whether a font's embedding permissions (OS/2 fsType) let its file travel in
 // a document that others open and edit: installable (0) and editable (8)
 // do. Restricted licenses (2), preview-and-print (4) when nothing freer is
