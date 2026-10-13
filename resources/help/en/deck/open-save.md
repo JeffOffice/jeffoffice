@@ -46,7 +46,7 @@ JeffDeck can put the fonts your slides use inside the file. Then the slides look
 - JeffDeck puts in every letter of each font, not only the ones you used. So a person who opens the file can still change the words.
 - The file gets bigger. Each style of a font adds about 40 to 700 KB (one KB is a thousand bytes). The file is squeezed when it is saved, so it grows by about half of that.
 
-When you open a file that has fonts inside, JeffDeck uses them while the presentation is open. The slides look as they did where they were made. JeffDeck doesn't install the fonts on your computer, and it doesn't copy them anywhere. They go away when you close the presentation. If your computer already has a font, JeffDeck uses your own copy.
+When you open a file that has fonts inside, JeffDeck uses them while the presentation is open. The slides look as they did where they were made. JeffDeck doesn't install the fonts on your computer, and it doesn't copy them anywhere. They belong to that presentation only: they don't show in your font lists, and no other presentation uses them. They go away when you close the presentation. If your computer already has a font, JeffDeck uses your own copy.
 
 JeffDeck reads fonts from .pptx files made by other presentation programs, even when the program squeezed them. It reads fonts from .odp files too.
 
