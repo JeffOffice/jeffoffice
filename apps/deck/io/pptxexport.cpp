@@ -175,6 +175,7 @@ struct Level {
     QString font;                  // a typeface, or "+mj-lt" or "+mn-lt" for the theme's
     bool bold = false, italic = false;
     QColor color;
+    QString fx;                    // the effects of its letters (tp::TextFx), a shadow or a glow; empty for none
     QString align = QStringLiteral("l");
     double marL = -1, indent = 0;  // points; marL < 0 for none said
     double before = 0, after = 0;  // space above and below, points
@@ -233,6 +234,7 @@ QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Th
         l.italic = cf.fontItalic();
         const QBrush brush = cf.foreground();
         if (brush.style() != Qt::NoBrush && brush.color().isValid()) l.color = brush.color();
+        l.fx = cf.stringProperty(tp::TextFx);
         const QTextBlockFormat bf = b.blockFormat();
         l.align = alignName(bf.alignment());
         if (bf.leftMargin() > 0) l.marL = bf.leftMargin();
@@ -298,6 +300,7 @@ QString levelXml(int level, const Level &l, const office::Theme &theme, bool dar
     out += QStringLiteral("<a:defRPr sz=\"%1\"%2%3 kern=\"1200\">").arg(std::clamp(int(std::lround(size * 100)), 100, 400000)).arg(l.bold ? QStringLiteral(" b=\"1\"") : QString(),
                                                                                                                            l.italic ? QStringLiteral(" i=\"1\"") : QString());
     out += l.color.isValid() ? solidFill(l.color, theme, dark) : QStringLiteral("<a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill>");
+    if (!l.fx.isEmpty()) out += QString::fromUtf8(fragment([&](QXmlStreamWriter &w) { office::dmlwrite::writeTextEffects(w, TextEffects::fromJson(l.fx)); }));
     const QString face = l.font.isEmpty() ? (heading ? QStringLiteral("+mj-lt") : QStringLiteral("+mn-lt")) : l.font;
     if (face.startsWith(QLatin1Char('+'))) {
         const QString kind = face.mid(1, 2);

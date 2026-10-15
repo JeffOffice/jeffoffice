@@ -47,6 +47,7 @@ enum : int {
     UnderlineKind,                               // int flags beside the underline's style: 1 double, 2 words only (not under spaces), 4 thick
     SyntheticItalic,                             // double: layout only, the upright letters are drawn slanted this much (a stand-in for a font with no italic)
     HandBold,                                    // int: layout only, the letters are bold drawn by hand (a font with no bold face): 1 when bold is set, 2 whether or not (Arial Black, Rockwell Extra Bold)
+    TextFx,                                      // QString TextEffects JSON: a:effectLst of a run (shadows, glow, reflection), drawn under the letters
 
     // block
     StyleName = QTextFormat::UserProperty + 100, // QString paragraph style

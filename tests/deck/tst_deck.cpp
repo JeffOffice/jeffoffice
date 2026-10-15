@@ -34,6 +34,8 @@
 #include "app/showmedia.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
+#include "app/textartgallery.h"
+#include "app/textdialogs.h"
 #include "app/themegallery.h"
 #include "app/telemetry.h"
 #include "app/updater.h"
@@ -44,6 +46,7 @@
 #include "core/embeddedfonts.h"
 #include "core/fontfiles.h"
 #include "core/fonts.h"
+#include "core/texteffects.h"
 #include "core/ink.h"
 #include "core/media.h"
 #include "core/reuse.h"
@@ -4797,6 +4800,42 @@ private Q_SLOTS:
         QCOMPARE(kerned("12"), QStringLiteral("true"));
     }
 
+    // A shadow on words is kept in an .odp (its offset); the effects that kind of file has no form for on words (a glow, a reflection, an inner
+    // shadow) are listed after the save.
+    void odpKeepsAShadowOnWordsAndListsTheRest()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 100);
+        t->storyId = d->createStory();
+        QTextCursor c(d->storyDoc(t->storyId));
+        QTextCharFormat shaded, glowing;
+        shaded.setFontPointSize(20);
+        shaded.setProperty(tp::TextFx, shadowOf(QColor(0, 0, 0), 3, 4, 90).toJson());
+        TextEffects rest;
+        rest.glow.on = true;
+        rest.glow.radius = 6;
+        rest.reflection.on = true;
+        rest.inner.on = true;
+        glowing.setFontPointSize(20);
+        glowing.setProperty(tp::TextFx, rest.toJson());
+        c.insertText(QStringLiteral("Shaded"), shaded);
+        c.insertText(QStringLiteral("Other"), glowing);
+        d->pages[1]->items.push_back(t);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        // 4 points down: no distance across, 4 along.
+        QVERIFY2(content.contains(QStringLiteral("fo:text-shadow=\"0.00pt 4.00pt\"")), qPrintable(content.left(3000)));
+        const QString notes = skipped.join(QLatin1Char('\n'));
+        QVERIFY2(notes.contains(QStringLiteral("Reflections")) && notes.contains(QStringLiteral("Inner shadows")) && notes.contains(QStringLiteral("Glows")), qPrintable(notes));
+    }
+
 private:
     // The first table of the first slide of an open document presentation, in `d`.
     static const TableItem *odpFirstTable(const Document &d)
@@ -5460,6 +5499,995 @@ private Q_SLOTS:
         QString err;
         auto opened = deck::importPresentation(pack(samplePptx()), &err);
         QVERIFY2(opened && opened->slideText, qPrintable(err));
+    }
+
+private:
+    // One bold bar (the letter I, 60 points) with a run's effect list, painted at 4 pixels to the point: the picture and where the bar
+    // is on the middle row. `fx` is the run's effects (none when null).
+    struct EffectBar {
+        QImage img;
+        int left = 0, right = 0, row = 0;   // the bar's edges on its middle row, pixels
+        double top = 0, bottom = 0;         // the line's, in points
+    };
+    static EffectBar paintEffectBar(const TextEffects *fx, double fontScale = 1.0, QSizeF size = QSizeF(160, 150))
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("DejaVu Sans")});
+        cf.setFontWeight(QFont::Bold);
+        cf.setFontPointSize(60);
+        cf.setForeground(Qt::black);
+        if (fx) cf.setProperty(tp::TextFx, fx->toJson());
+        c.insertText(QStringLiteral("I"), cf);
+        FrameSpec fs;
+        fs.size = size;
+        fs.insets = QMarginsF(60, 20, 0, 0);
+        LayoutEnv env;
+        env.fontScale = fontScale;
+        StoryLayout lay;
+        lay.build(&doc, {fs}, env);
+        EffectBar b;
+        const auto lines = lay.lineInfo(0);
+        b.top = lines[0].rect.top();
+        b.bottom = lines[0].rect.bottom();
+        b.img = QImage((size * 4).toSize(), QImage::Format_ARGB32_Premultiplied);
+        b.img.fill(Qt::white);
+        QPainter p(&b.img);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::TextAntialiasing);
+        p.scale(4, 4);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        // The bar's middle row: a little above the baseline, where the letter is a plain stem.
+        b.row = int((lines[0].baseline - 12 * fontScale) * 4);
+        b.left = b.right = -1;
+        for (int x = 0; x < b.img.width(); ++x)
+            if (qGray(b.img.pixel(x, b.row)) < 40) {
+                if (b.left < 0) b.left = x;
+                b.right = x;
+            }
+        return b;
+    }
+
+    static TextEffects shadowOf(const QColor &color, double blur, double distance, double angle)
+    {
+        TextEffects fx;
+        fx.outer.on = true;
+        fx.outer.color = color;
+        fx.outer.blur = blur;
+        fx.outer.distance = distance;
+        fx.outer.angle = angle;
+        return fx;
+    }
+
+    // A frame of black words ("word word ...", 10 points unless said) with one effect list on every run, laid out; painted at `scale` pixels to the
+    // point, and again when asked (the layout stays).
+    struct EffectSample {
+        std::unique_ptr<QTextDocument> doc = std::make_unique<QTextDocument>();
+        std::unique_ptr<StoryLayout> layout = std::make_unique<StoryLayout>();
+        QSizeF size;
+        void build(const TextEffects &fx, int words, QSizeF frame, double pointSize = 10)
+        {
+            size = frame;
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("DejaVu Sans")});
+            cf.setFontPointSize(pointSize);
+            cf.setForeground(Qt::black);
+            cf.setProperty(tp::TextFx, fx.toJson());
+            for (int i = 0; i < words; ++i) c.insertText(QStringLiteral("word "), cf);
+            FrameSpec fs;
+            fs.size = frame;
+            fs.insets = QMarginsF(20, 20, 20, 20);
+            layout->build(doc.get(), {fs}, LayoutEnv());
+        }
+        QImage paint(double scale) const
+        {
+            QImage img((size * scale).toSize(), QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.setRenderHint(QPainter::Antialiasing);
+            p.setRenderHint(QPainter::TextAntialiasing);
+            p.scale(scale, scale);
+            layout->paint(&p, 0, PaintOptions());
+            p.end();
+            return img;
+        }
+    };
+    static int countColored(const QImage &img, const std::function<bool(const QColor &)> &test)
+    {
+        int n = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) n += test(img.pixelColor(x, y));
+        return n;
+    }
+    static QString runListOf(const QTextDocument *story, const QString &text)
+    {
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().text().contains(text)) return it.fragment().charFormat().stringProperty(tp::TextFx);
+        return QStringLiteral("(no such run)");
+    }
+
+private Q_SLOTS:
+    // A shadow lands where the effect list says: this far from the letters (in points) in this direction (a:outerShdw's dist and dir).
+    void runShadowLandsWhereTheListSays()
+    {
+        const EffectBar plain = paintEffectBar(nullptr);
+        QVERIFY(plain.left > 0 && plain.right > plain.left);
+        const QColor red(255, 0, 0);
+        auto redEdges = [](const EffectBar &b, int row, int *left, int *right) {
+            *left = *right = -1;
+            for (int x = 0; x < b.img.width(); ++x) {
+                const QColor c = b.img.pixelColor(x, row);
+                if (c.red() > 200 && c.green() < 60 && c.blue() < 60) {
+                    if (*left < 0) *left = x;
+                    *right = x;
+                }
+            }
+        };
+        // To the right, 10 points: 40 pixels (the program's pictures put it a little nearer than the file says).
+        const double nearer = kShadowNear;
+        const TextEffects right = shadowOf(red, 0, 10, 0);
+        EffectBar b = paintEffectBar(&right);
+        QCOMPARE(b.left, plain.left);
+        int l, r;
+        redEdges(b, b.row, &l, &r);
+        QVERIFY2(l > 0 && std::abs((r - b.right) - 40 * nearer) <= 5, qPrintable(QStringLiteral("%1 %2 %3").arg(l).arg(r).arg(b.right)));
+        // Down and to the right, 14.142 points: 10 points each way.
+        const TextEffects diagonal = shadowOf(red, 0, 14.1421, 45);
+        b = paintEffectBar(&diagonal);
+        redEdges(b, b.row, &l, &r);
+        QVERIFY2(std::abs((r - b.right) - 40 * nearer) <= 5, qPrintable(QString::number(r - b.right)));
+        int topPlain = -1, topShadow = -1;
+        for (int y = 0; y < plain.img.height(); ++y) {
+            if (topPlain < 0 && qGray(plain.img.pixel(plain.left + 4, y)) < 40) topPlain = y;
+        }
+        // The shadow's top edge, down the column past the bar's right edge, is 10 points (40 pixels) under the bar's.
+        for (int y = 0; y < b.img.height(); ++y) {
+            const QColor c = b.img.pixelColor(b.right + 20, y);
+            if (topShadow < 0 && c.red() > 200 && c.green() < 60) topShadow = y;
+        }
+        QVERIFY2(topShadow > 0 && std::abs((topShadow - topPlain) - 40 * nearer) <= 6, qPrintable(QStringLiteral("%1 %2").arg(topShadow).arg(topPlain)));
+        // Text the program shrank to fit has its shadow shrunk with it.
+        const EffectBar half = paintEffectBar(&right, 0.5);
+        redEdges(half, half.row, &l, &r);
+        QVERIFY2(l > 0 && std::abs((r - half.right) - 20 * nearer) <= 5, qPrintable(QString::number(r - half.right)));
+        // A shadow with no color of its own alpha is as light as the alpha says.
+        const TextEffects faint = shadowOf(QColor(255, 0, 0, 102), 0, 10, 0);
+        b = paintEffectBar(&faint);
+        const QColor sample = b.img.pixelColor(b.right + 20, b.row);
+        QVERIFY2(std::abs(sample.green() - 153) <= 16 && sample.red() > 230, qPrintable(sample.name()));
+    }
+
+    // A shadow's blur is the width of a box blurring its edge, which is a Gaussian a little under a third as wide (as the presentation
+    // program draws it, a little softer still): the edge is half there where it would be, and nearly gone two spreads away.
+    void runShadowBlurIsAGaussianOfAThirdTheRadius()
+    {
+        // 40 points to the right is clear of the bar; 4 points of blur is a spread of 1.155 points (a little more: 1.27, 5.1 pixels).
+        const TextEffects hard = shadowOf(QColor(255, 0, 0), 0, 40, 0), soft = shadowOf(QColor(255, 0, 0), 4, 40, 0);
+        const EffectBar a = paintEffectBar(&hard), b = paintEffectBar(&soft);
+        int edge = -1;
+        for (int x = b.right + 20; x < a.img.width() && edge < 0; ++x)
+            if (a.img.pixelColor(x, a.row).green() < 128) edge = x;
+        QVERIFY(edge > 0);
+        auto coverage = [&](int x) { return 1 - b.img.pixelColor(x, b.row).green() / 255.0; };
+        QVERIFY2(std::abs(coverage(edge) - 0.5) < 0.2, qPrintable(QString::number(coverage(edge))));
+        QVERIFY2(coverage(edge - 9) < 0.2 && coverage(edge - 9) > 0.0, qPrintable(QString::number(coverage(edge - 9))));
+        QVERIFY2(coverage(edge + 10) > 0.8, qPrintable(QString::number(coverage(edge + 10))));
+        // Not at all where the hard one has nothing and the blur doesn't reach.
+        QVERIFY(b.img.pixelColor(edge - 24, b.row).green() >= 250);
+    }
+
+    // The same spread comes out of blurAlpha: an edge blurred by a spread of 3 rises from a sixth to five sixths of its height over twice 3 pixels.
+    void blurAlphaSpreadsLikeAGaussian()
+    {
+        QImage img(240, 20, QImage::Format_Alpha8);
+        img.fill(0);
+        for (int y = 0; y < 20; ++y)
+            for (int x = 0; x < 120; ++x) img.scanLine(y)[x] = 255;
+        blurAlpha(img, 3.0);
+        const uchar *row = img.constScanLine(10);
+        auto crossing = [&](double level) {
+            for (int x = 100; x < 140; ++x)
+                if (row[x] <= level * 255 && row[x - 1] > level * 255) return x - 1 + (row[x - 1] - level * 255) / double(row[x - 1] - row[x]);
+            return -1.0;
+        };
+        const double high = crossing(0.8413), low = crossing(0.1587);
+        QVERIFY(high > 0 && low > 0);
+        QVERIFY2(std::abs((low - high) / 2 - 3.0) < 0.35, qPrintable(QString::number((low - high) / 2)));
+        // Half way is where the edge was, and the far side is untouched.
+        QVERIFY2(std::abs(crossing(0.5) - 119.5) < 0.7, qPrintable(QString::number(crossing(0.5))));
+        QCOMPARE(int(row[40]), 255);
+        QCOMPARE(int(row[239]), 0);
+        // (the edge of the picture counts as clear, so a border of the shape blurs toward nothing)
+        QVERIFY(row[0] < 255);
+        // Nothing changes for a spread of nothing.
+        QImage same = img;
+        blurAlpha(same, 0.0);
+        QCOMPARE(same, img);
+    }
+
+    // A glow is a halo around the letters, as far as its radius reaches.
+    void runGlowSurroundsTheLetters()
+    {
+        TextEffects fx;
+        fx.glow.on = true;
+        fx.glow.color = QColor(0, 0, 255, 200);
+        fx.glow.radius = 12;
+        const EffectBar plain = paintEffectBar(nullptr), glowing = paintEffectBar(&fx);
+        QCOMPARE(glowing.left, plain.left);
+        // Five points (20 pixels) left of the bar is tinted; thirty are not.
+        QVERIFY2(glowing.img.pixelColor(glowing.left - 20, glowing.row).red() < 200, qPrintable(glowing.img.pixelColor(glowing.left - 20, glowing.row).name()));
+        QVERIFY(glowing.img.pixelColor(glowing.left - 120, glowing.row).red() >= 250);
+        QVERIFY(plain.img.pixelColor(plain.left - 20, plain.row).red() >= 250);
+    }
+
+    // A reflection is the letters turned over under their line, fading out.
+    void runReflectionFallsBelowTheLine()
+    {
+        TextEffects fx;
+        fx.reflection.on = true;
+        fx.reflection.startAlpha = 0.5;
+        fx.reflection.endAlpha = 0;
+        fx.reflection.endPos = 0.5;
+        fx.reflection.sy = -1;
+        fx.reflection.angle = 90;
+        const EffectBar plain = paintEffectBar(nullptr, 1.0, QSizeF(160, 220)), mirrored = paintEffectBar(&fx, 1.0, QSizeF(160, 220));
+        const int x = plain.left + (plain.right - plain.left) / 2;
+        int darkest = 255, below = -1;
+        for (int y = int(mirrored.bottom * 4) + 1; y < mirrored.img.height(); ++y) {
+            QVERIFY(plain.img.pixelColor(x, y).red() >= 250);
+            const int v = mirrored.img.pixelColor(x, y).red();
+            if (v < 250 && below < 0) below = y;
+            darkest = std::min(darkest, v);
+        }
+        QVERIFY2(below > 0, "no reflection");
+        // Half as dark as the letters at the most, and no darker than the fade starts.
+        QVERIFY2(darkest > 100 && darkest < 200, qPrintable(QString::number(darkest)));
+    }
+
+    // An inner shadow darkens the inside of the letters from the side it comes from, and nothing outside them.
+    void runInnerShadowStaysInsideTheLetters()
+    {
+        TextEffects fx;
+        fx.inner.on = true;
+        fx.inner.color = QColor(255, 0, 0);
+        fx.inner.blur = 0;
+        fx.inner.distance = 3;
+        fx.inner.angle = 0;
+        const EffectBar plain = paintEffectBar(nullptr), shaded = paintEffectBar(&fx);
+        // (the bar's edges, whatever color it is inside: not white)
+        int left = -1, right = -1;
+        for (int x = 0; x < shaded.img.width(); ++x)
+            if (shaded.img.pixelColor(x, shaded.row).green() < 128) {
+                if (left < 0) left = x;
+                right = x;
+            }
+        QVERIFY2(std::abs(left - plain.left) <= 1 && std::abs(right - plain.right) <= 1, qPrintable(QStringLiteral("%1 %2 / %3 %4").arg(left).arg(right).arg(plain.left).arg(plain.right)));
+        // At the left edge, inside, red; further in, the letter's own black; outside, white.
+        const QColor edge = shaded.img.pixelColor(plain.left + 3, shaded.row), deep = shaded.img.pixelColor((plain.left + plain.right) / 2, shaded.row);
+        QVERIFY2(edge.red() > 150 && edge.green() < 60, qPrintable(edge.name()));
+        QVERIFY2(deep.red() < 40, qPrintable(deep.name()));
+        QVERIFY(shaded.img.pixelColor(plain.left - 6, shaded.row).red() >= 250);
+        QVERIFY(shaded.img.pixelColor(plain.right + 6, shaded.row).red() >= 250);
+    }
+
+    // A run's effect list is read from the file: a shadow, a glow, a reflection with an inner shadow, and a list in a text's list style
+    // that a run's own empty list turns off. Written back, each list is the one the file had.
+    void runEffectListsAreReadAndWrittenBack()
+    {
+        const QString shadow = QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"38100\" dist=\"38100\" dir=\"2700000\" algn=\"tl\"><a:srgbClr val=\"000000\"/></a:outerShdw></a:effectLst>");
+        const QString glow = QStringLiteral("<a:effectLst><a:glow rad=\"101600\"><a:schemeClr val=\"accent1\"><a:satMod val=\"175000\"/><a:alpha val=\"40000\"/></a:schemeClr></a:glow></a:effectLst>");
+        const QString both = QStringLiteral("<a:effectLst><a:innerShdw blurRad=\"63500\" dist=\"50800\" dir=\"13500000\"><a:prstClr val=\"black\"><a:alpha val=\"50000\"/></a:prstClr></a:innerShdw>"
+                                            "<a:reflection blurRad=\"6350\" stA=\"50000\" endA=\"300\" endPos=\"35000\" dist=\"12700\" dir=\"5400000\" sy=\"-100000\" algn=\"bl\" rotWithShape=\"0\"/></a:effectLst>");
+        auto run = [](const QString &text, const QString &list) {
+            return QStringLiteral("<a:r><a:rPr lang=\"en-US\"><a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>%1</a:rPr><a:t>%2</a:t></a:r>").arg(list, text);
+        };
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const QString body = QStringLiteral("<a:p>") + run(QStringLiteral("Shadowed"), shadow) + run(QStringLiteral("Glowing"), glow) + run(QStringLiteral("Mirrored"), both)
+                           + run(QStringLiteral("Plain"), QString()) + QStringLiteral("</a:p><a:p>") + run(QStringLiteral("Own"), QStringLiteral("<a:effectLst/>"))
+                           + QStringLiteral("<a:r><a:rPr lang=\"en-US\"/><a:t>Inherited</a:t></a:r></a:p>");
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Effects\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 914400) + QStringLiteral("</p:spPr><p:txBody><a:bodyPr/><a:lstStyle><a:lvl1pPr>")
+                                                       + QStringLiteral("<a:defRPr>") + shadow + QStringLiteral("</a:defRPr></a:lvl1pPr></a:lstStyle>") + body + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *t = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Effects")) t = static_cast<const TextItem *>(it.get());
+        QVERIFY(t);
+        QMap<QString, QString> lists;   // run text -> its effects
+        const QTextDocument *story = d->storyDoc(t->storyId);
+        QVERIFY(story);
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) lists[it.fragment().text()] = it.fragment().charFormat().stringProperty(tp::TextFx);
+        // The list style's shadow reaches a run that says nothing; a run's own empty list says none; the others say their own.
+        QVERIFY(!lists["Inherited"].isEmpty());
+        const TextEffects inherited = TextEffects::fromJson(lists["Inherited"]);
+        QVERIFY(inherited.outer.on);
+        QCOMPARE(lists["Own"], TextEffects::noneJson());   // (a list that says there are none, not no list)
+        const TextEffects s = TextEffects::fromJson(lists["Shadowed"]);
+        QVERIFY(s.outer.on && !s.inner.on && !s.glow.on && !s.reflection.on);
+        QCOMPARE(s.outer.blur, 3.0);
+        QCOMPARE(s.outer.distance, 3.0);
+        QCOMPARE(s.outer.angle, 45.0);
+        QCOMPARE(s.outer.color, QColor(0, 0, 0));
+        QCOMPARE(s.outer.align, QStringLiteral("tl"));
+        const TextEffects g = TextEffects::fromJson(lists["Glowing"]);
+        QVERIFY(g.glow.on && !g.outer.on);
+        QCOMPARE(g.glow.radius, 8.0);
+        QCOMPARE(g.glow.color.alpha(), 102);   // 40% of the color
+        const TextEffects m = TextEffects::fromJson(lists["Mirrored"]);
+        QVERIFY(m.inner.on && m.reflection.on && !m.outer.on);
+        QCOMPARE(m.inner.angle, 225.0);
+        QCOMPARE(m.inner.distance, 4.0);
+        QCOMPARE(m.inner.color.alpha(), 128);
+        QCOMPARE(m.reflection.startAlpha, 0.5);
+        QCOMPARE(m.reflection.endPos, 0.35);
+        QCOMPARE(m.reflection.sy, -1.0);
+        QCOMPARE(m.reflection.angle, 90.0);
+        QCOMPARE(m.reflection.align, QStringLiteral("bl"));
+        QVERIFY(TextEffects::fromJson(lists["Plain"]).outer.on);   // (the list style's, as the one that says nothing has it)
+        // Written back as the file had them.
+        Exported e;
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        // (each element with its attributes in order of name, as a document parsed again holds them)
+        auto canonical = [](const QString &xml) {
+            QDomDocument dom;
+            if (!dom.setContent(QStringLiteral("<root xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">") + xml + QStringLiteral("</root>"))) return QStringLiteral("not XML: ") + xml;
+            std::function<QString(const QDomElement &)> walk = [&](const QDomElement &el) {
+                QStringList attrs;
+                const QDomNamedNodeMap named = el.attributes();
+                for (int i = 0; i < named.length(); ++i) attrs << named.item(i).nodeName() + QLatin1Char('=') + named.item(i).nodeValue();
+                attrs.sort();
+                QString out = QLatin1Char('<') + el.nodeName() + QLatin1Char(' ') + attrs.join(QLatin1Char(' ')) + QLatin1Char('>');
+                for (QDomElement c = el.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) out += walk(c);
+                return out + QStringLiteral("</>");
+            };
+            return walk(dom.documentElement().firstChildElement());
+        };
+        for (const QString &list : {shadow, glow, both}) {
+            bool found = false;
+            for (int at = slide.indexOf(QStringLiteral("<a:effectLst>")); at >= 0 && !found; at = slide.indexOf(QStringLiteral("<a:effectLst>"), at + 1)) {
+                const QString written = slide.mid(at, slide.indexOf(QStringLiteral("</a:effectLst>"), at) + 14 - at);
+                found = canonical(written) == canonical(list);
+            }
+            QVERIFY2(found, qPrintable(list));
+        }
+        // After the run's fill, before anything that follows it in the schema (a:latin).
+        QVERIFY(slide.contains(QStringLiteral("<a:srgbClr val=\"336699\"/></a:solidFill><a:effectLst>")));
+        // Read again, the same effects.
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        const TextItem *t2 = nullptr;
+        for (const auto &it : again->pages[0]->items)
+            if (it->name == QLatin1String("Effects")) t2 = static_cast<const TextItem *>(it.get());
+        QVERIFY(t2);
+        const QTextDocument *story2 = again->storyDoc(t2->storyId);
+        QMap<QString, QString> lists2;
+        for (QTextBlock b = story2->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) lists2[it.fragment().text()] = it.fragment().charFormat().stringProperty(tp::TextFx);
+        QCOMPARE(lists2["Shadowed"], lists["Shadowed"]);
+        QCOMPARE(lists2["Glowing"], lists["Glowing"]);
+        QCOMPARE(lists2["Mirrored"], lists["Mirrored"]);
+    }
+
+    // A file can give every run an effect list of its own: only so many different lists are drawn on a frame, a list of thousands of
+    // elements is read in a few and kept as only its first of each kind.
+    void effectListsFromAStrangersFileAreHeldToLimits()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        for (int i = 0; i < 400; ++i) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("DejaVu Sans")});
+            cf.setFontPointSize(10);
+            cf.setForeground(Qt::black);
+            cf.setProperty(tp::TextFx, shadowOf(QColor(255, 0, 0), 1 + i * 0.01, 2 + (i % 7) * 0.1, i % 360).toJson());
+            c.insertText(QStringLiteral("word "), cf);
+        }
+        FrameSpec fs;
+        fs.size = QSizeF(500, 400);
+        StoryLayout lay;
+        lay.build(&doc, {fs}, LayoutEnv());
+        QImage img(2000, 1600, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(4, 4);
+        QElapsedTimer clock;
+        clock.start();
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        QVERIFY2(clock.elapsed() < 20000, qPrintable(QString::number(clock.elapsed())));
+        // The first lists have their shadows (red under the words), the rest are drawn plain.
+        int red = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) red += img.pixelColor(x, y).red() > 200 && img.pixelColor(x, y).green() < 120;
+        QVERIFY(red > 0);
+        // A list with thousands of elements.
+        QString many = QStringLiteral("<a:effectLst>");
+        for (int i = 0; i < 5000; ++i) many += QStringLiteral("<a:outerShdw blurRad=\"%1\" dist=\"38100\" dir=\"2700000\"><a:srgbClr val=\"000000\"/></a:outerShdw>").arg(i);
+        many += QStringLiteral("</a:effectLst>");
+        Parts parts = samplePptx();
+        QString xml = QString::fromUtf8(parts.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Many\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 914400) + QStringLiteral("</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\">") + many
+                                                       + QStringLiteral("</a:rPr><a:t>Words</a:t></a:r></a:p></p:txBody></p:sp></p:spTree>"));
+        parts.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        clock.restart();
+        auto d = deck::importPresentation(pack(parts), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(clock.elapsed() < 20000, qPrintable(QString::number(clock.elapsed())));
+        const TextItem *t = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("Many")) t = static_cast<const TextItem *>(it.get());
+        QVERIFY(t);
+        const QTextDocument *story = d->storyDoc(t->storyId);
+        const QString list = story->begin().begin().fragment().charFormat().stringProperty(tp::TextFx);
+        QVERIFY(!list.isEmpty());
+        const TextEffects fx = TextEffects::fromJson(list);
+        QVERIFY(fx.outer.on);
+        QCOMPARE(fx.outer.blur, 0.0);   // the first of them
+        QVERIFY(fx.xml.size() < 1000);  // (only the first of each kind is kept)
+        QVERIFY(list.size() < 3000);
+    }
+
+    // The Shadow button gives words the shadow the presentation program gives them (a soft one, 3 points down and to the right) and takes
+    // it off again; it takes off the shadow a file gave them too. A slide's words with it on are drawn with that shadow.
+    void shadowButtonPutsOnAndTakesOffTheProgramsShadow()
+    {
+        DeckWindow w;
+        editTitle(w, QStringLiteral("Hello"), 0, 5);
+        QAction *button = w.act(QStringLiteral("fmt.shadow"));
+        QVERIFY(button);
+        QTRY_VERIFY(button->isEnabled());
+        QVERIFY(!button->isChecked());
+        button->trigger();
+        // (the shadow is in the run's effect list, where it is saved, and not in the older property)
+        QVERIFY(Editor::hasTextShadow(w.editor()->currentCharFormat()));
+        QVERIFY(!w.editor()->currentCharFormat().boolProperty(tp::Shadow));
+        QTRY_VERIFY(button->isChecked());
+        button->trigger();
+        QVERIFY(!Editor::hasTextShadow(w.editor()->currentCharFormat()));
+        // A shadow from a file's effect list: the button shows it, and a click takes it off (the glow it came with stays).
+        TextEffects fx = shadowOf(QColor(0, 0, 0), 3, 3, 45);
+        fx.glow.on = true;
+        fx.glow.color = QColor(0, 0, 255);
+        fx.glow.radius = 5;
+        w.editor()->setCharProperty(tp::TextFx, fx.toJson(), QStringLiteral("Effects"));
+        QTRY_VERIFY(button->isChecked());
+        button->trigger();
+        const TextEffects left = TextEffects::fromJson(w.editor()->currentCharFormat().stringProperty(tp::TextFx));
+        QVERIFY(!left.outer.on && left.glow.on);
+        QTRY_VERIFY(!button->isChecked());
+        // On a slide, the button's shadow is drawn as the program draws it: the same as the effect list it writes.
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("DejaVu Sans")});
+        cf.setFontWeight(QFont::Bold);
+        cf.setFontPointSize(60);
+        cf.setForeground(Qt::black);
+        cf.setProperty(tp::Shadow, true);
+        QTextDocument doc;
+        QTextCursor(&doc).insertText(QStringLiteral("I"), cf);
+        auto paint = [&](bool slideLines) {
+            FrameSpec fs;
+            fs.size = QSizeF(160, 150);
+            fs.insets = QMarginsF(60, 20, 0, 0);
+            LayoutEnv env;
+            env.slideLines = slideLines;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            QImage img(QSize(640, 600), QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.setRenderHint(QPainter::Antialiasing);
+            p.setRenderHint(QPainter::TextAntialiasing);
+            p.scale(4, 4);
+            lay.paint(&p, 0, PaintOptions());
+            p.end();
+            return img;
+        };
+        const QImage slide = paint(true), publication = paint(false);
+        EffectBar plain = paintEffectBar(nullptr);
+        const TextEffects shadow = defaultTextShadow();
+        const EffectBar listed = paintEffectBar(&shadow);
+        // The slide's matches the effect list's; the publication's keeps its own (nearer, 1.2 points).
+        int differs = 0, same = 0;
+        for (int y = 0; y < 600; ++y)
+            for (int x = 0; x < 640; ++x) {
+                if (slide.pixel(x, y) != publication.pixel(x, y)) ++differs;
+                if (y < listed.img.height() && x < listed.img.width() && qAbs(qGray(slide.pixel(x, y)) - qGray(listed.img.pixel(x, y))) <= 3) ++same;
+            }
+        QVERIFY(differs > 30);
+        QVERIFY2(same > 640 * 560, qPrintable(QString::number(same)));
+        QVERIFY(plain.left > 0);
+    }
+
+    // A shadow in a master's title style reaches the titles that follow it, and is saved in the master's title style again; a title the
+    // file has no list for takes it.
+    void titleStyleEffectsReachTitlesAndAreSavedInTheMaster()
+    {
+        const QString shadow = QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"114300\" dist=\"101600\" dir=\"2700000\" algn=\"tl\" rotWithShape=\"0\"><a:srgbClr val=\"000000\"><a:alpha val=\"40000\"/></a:srgbClr></a:outerShdw></a:effectLst>");
+        Parts p = samplePptx();
+        QString master = QString::fromUtf8(p.data["/ppt/slideMasters/slideMaster1.xml"].xml);
+        const QString before = QStringLiteral("<a:defRPr sz=\"4400\"><a:latin typeface=\"+mj-lt\"/></a:defRPr></a:lvl1pPr></p:titleStyle>");
+        QVERIFY(master.contains(before));
+        master.replace(before, QStringLiteral("<a:defRPr sz=\"4400\">") + shadow + QStringLiteral("<a:latin typeface=\"+mj-lt\"/></a:defRPr></a:lvl1pPr></p:titleStyle>"));
+        p.data["/ppt/slideMasters/slideMaster1.xml"].xml = master.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        // The first slide's title ("Quarterly results") has the master's shadow.
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:title"));
+        QVERIFY(story);
+        const QString list = story->begin().begin().fragment().charFormat().stringProperty(tp::TextFx);
+        QVERIFY(!list.isEmpty());
+        const TextEffects fx = TextEffects::fromJson(list);
+        QVERIFY(fx.outer.on);
+        QCOMPARE(fx.outer.blur, 9.0);
+        QCOMPARE(fx.outer.distance, 8.0);
+        QCOMPARE(fx.outer.angle, 45.0);
+        QCOMPARE(fx.outer.color.alpha(), 102);
+        // The master's title style says it again when the file is saved.
+        Exported e;
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString saved = part(e, QStringLiteral("/ppt/slideMasters/slideMaster1.xml"));
+        const int style = saved.indexOf(QStringLiteral("<p:titleStyle>"));
+        QVERIFY(style >= 0);
+        const QString titleStyle = saved.mid(style, saved.indexOf(QStringLiteral("</p:titleStyle>")) - style);
+        QVERIFY2(titleStyle.contains(QStringLiteral("<a:outerShdw")), qPrintable(titleStyle));
+        QVERIFY(titleStyle.indexOf(QStringLiteral("<a:effectLst>")) < titleStyle.indexOf(QStringLiteral("<a:latin")));
+    }
+
+    // The budget for a page's effects covers the whole painting: layouts painted in one scope share it, so what a later one needs past it is
+    // drawn without the effect (the words are drawn all the same); and a picture too big for it takes nothing else with it: a shadow that needs
+    // no picture is still there when a reflection can't be afforded.
+    void effectPicturesShareOneBudgetForAPainting()
+    {
+        const TextEffects blurred = shadowOf(QColor(255, 0, 0), 6, 4, 45);
+        EffectSample first, second, third;
+        first.build(blurred, 60, QSizeF(300, 100));
+        second.build(blurred, 60, QSizeF(300, 100));
+        third.build(blurred, 60, QSizeF(300, 100));
+        const auto red = [](const QColor &c) { return c.red() > 200 && c.green() < 200 && c.blue() < 200; };
+        qint64 used = 0;
+        {
+            EffectBudget scope(nullptr, 1000000000);
+            QVERIFY(countColored(first.paint(2), red) > 20);
+            used = 1000000000 - scope.left();
+        }
+        QVERIFY(used > 1000);
+        // Room for a picture and a half: the first layout painted in the scope has its shadow, the next does not (and the words are there).
+        {
+            EffectBudget scope(nullptr, used * 3 / 2);
+            const QImage a = second.paint(2), b = third.paint(2);
+            QVERIFY(countColored(a, red) > 20);
+            QCOMPARE(countColored(b, red), 0);
+            QVERIFY(countColored(b, [](const QColor &c) { return c.red() < 60 && c.green() < 60; }) > 100);
+        }
+        // Nothing at all: a hard shadow is vector, so a reflection that can't be had leaves it as it is.
+        TextEffects hard = shadowOf(QColor(255, 0, 0), 0, 4, 45), both = hard;
+        both.reflection.on = true;
+        both.reflection.sy = -1;
+        both.reflection.startAlpha = 0.5;
+        EffectSample plain, mirrored;
+        plain.build(hard, 20, QSizeF(300, 100));
+        mirrored.build(both, 20, QSizeF(300, 100));
+        EffectBudget none(nullptr, 0);
+        const QImage a = plain.paint(2), b = mirrored.paint(2);
+        QVERIFY(countColored(a, red) > 20);
+        QCOMPARE(a, b);
+    }
+
+    // A file's effect numbers are held to 200 points, and a frame of effects at that size, many of them, paints in a few seconds: a glow on
+    // thousands of letters costs no more than one on a few (it is made of the picture of the letters), and what the painting's pixels can't
+    // pay for is left out.
+    void effectsAtTheCapsPaintWithinTheBudget()
+    {
+        QCOMPARE(TextEffects::fromJson(QStringLiteral("{\"o\":{\"b\":1584,\"d\":1584},\"g\":{\"r\":1584},\"s\":1584}")).outer.blur, 200.0);
+        QCOMPARE(TextEffects::fromJson(QStringLiteral("{\"o\":{\"b\":1584,\"d\":1584},\"g\":{\"r\":1584}}")).glow.radius, 200.0);
+        // Read from a file: 1,584 points of blur, distance, and glow.
+        Parts parts = samplePptx();
+        QString xml = QString::fromUtf8(parts.data["/ppt/slides/slide1.xml"].xml);
+        const QString list = QStringLiteral("<a:effectLst><a:glow rad=\"20116800\"><a:srgbClr val=\"0000FF\"/></a:glow><a:outerShdw blurRad=\"20116800\" dist=\"20116800\" dir=\"2700000\"><a:srgbClr val=\"FF0000\"/></a:outerShdw>"
+                                             "<a:reflection blurRad=\"20116800\" dist=\"20116800\"/></a:effectLst>");
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Big\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>") + xfrm(0, 0, 4572000, 914400)
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\">") + list + QStringLiteral("</a:rPr><a:t>Words</a:t></a:r></a:p></p:txBody></p:sp></p:spTree>"));
+        parts.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto read = deck::importPresentation(pack(parts), &err);
+        QVERIFY2(read, qPrintable(err));
+        const TextItem *big = nullptr;
+        for (const auto &it : read->pages[0]->items)
+            if (it->name == QLatin1String("Big")) big = static_cast<const TextItem *>(it.get());
+        QVERIFY(big);
+        const TextEffects got = TextEffects::fromJson(runListOf(read->storyDoc(big->storyId), QStringLiteral("Words")));
+        QCOMPARE(got.outer.blur, 200.0);
+        QCOMPARE(got.outer.distance, 200.0);
+        QCOMPARE(got.glow.radius, 200.0);
+        QCOMPARE(got.reflection.blur, 200.0);
+        // Twenty text boxes the size of a slide, each with its own list of every effect at the caps, on a slide.
+        auto d = deck::newPresentation();
+        for (int i = 0; i < 20; ++i) {
+            auto box = std::make_shared<TextItem>();
+            box->rect = QRectF(10 + i * 4, 10 + i * 4, 800, 440);
+            box->storyId = d->createStory();
+            QTextCursor c(d->storyDoc(box->storyId));
+            TextEffects fx = shadowOf(QColor(255, 0, 0, 255 - i * 3), 1584, 1584, 45);
+            fx.glow.on = true;
+            fx.glow.color = QColor(0, 0, 255, 200 - i);
+            fx.glow.radius = 1584;
+            fx.inner = fx.outer;
+            fx.reflection.on = true;
+            fx.reflection.blur = 1584;
+            fx.reflection.sy = -1;
+            QTextCharFormat cf;
+            cf.setFontPointSize(10);
+            cf.setProperty(tp::TextFx, TextEffects::fromJson(fx.toJson()).toJson());
+            for (int w = 0; w < 300; ++w) c.insertText(QStringLiteral("word "), cf);
+            d->pages[0]->items.push_back(box);
+        }
+        LayoutCache cache;
+        const int before = effectPicturesBuiltForTest();
+        QElapsedTimer clock;
+        clock.start();
+        const QImage slide = paintedSlide(d.get(), &cache, 0);
+        QVERIFY2(clock.elapsed() < 10000, qPrintable(QString::number(clock.elapsed())));
+        // Some pictures were made, not the 100 (20 boxes, five effects) the lists ask for.
+        QVERIFY(effectPicturesBuiltForTest() - before > 0);
+        QVERIFY2(effectPicturesBuiltForTest() - before < 100, qPrintable(QString::number(effectPicturesBuiltForTest() - before)));
+        QVERIFY(!slide.isNull());
+        // Three thousand letters with a glow of 200 points.
+        EffectSample many;
+        TextEffects glow;
+        glow.glow.on = true;
+        glow.glow.color = QColor(0, 0, 255, 200);
+        glow.glow.radius = 1584;
+        many.build(glow, 660, QSizeF(500, 400), 6);
+        clock.restart();
+        const QImage glowing = many.paint(2);
+        QVERIFY2(clock.elapsed() < 10000, qPrintable(QString::number(clock.elapsed())));
+        QVERIFY(countColored(glowing, [](const QColor &c) { return c.blue() > 200 && c.red() < 200; }) > 100);
+    }
+
+    // A picture of an effect is kept for the layout it was made of, at the size it was painted: painting again (a caret that blinks, a window
+    // that scrolls, the show's next animation step) makes none; another size, or a layout built again, makes new ones.
+    void effectPicturesAreKeptForTheNextPaint()
+    {
+        TextEffects fx = shadowOf(QColor(255, 0, 0), 6, 4, 45);
+        fx.glow.on = true;
+        fx.glow.color = QColor(0, 0, 255, 160);
+        fx.glow.radius = 8;
+        fx.inner.on = true;
+        fx.inner.blur = 2;
+        fx.inner.distance = 2;
+        fx.reflection.on = true;
+        fx.reflection.sy = -1;
+        EffectSample sample;
+        sample.build(fx, 30, QSizeF(300, 150));
+        const int start = effectPicturesBuiltForTest();
+        const QImage first = sample.paint(2);
+        const int made = effectPicturesBuiltForTest() - start;
+        QVERIFY2(made >= 4, qPrintable(QString::number(made)));
+        const QImage again = sample.paint(2);
+        QCOMPARE(effectPicturesBuiltForTest() - start, made);
+        QCOMPARE(again, first);
+        sample.paint(3);
+        QVERIFY(effectPicturesBuiltForTest() - start > made);
+        const int now = effectPicturesBuiltForTest();
+        EffectSample rebuilt;
+        rebuilt.build(fx, 30, QSizeF(300, 150));
+        rebuilt.paint(2);
+        QVERIFY(effectPicturesBuiltForTest() > now);
+    }
+
+    // A file's effect list that says there are none (an empty a:effectLst) is a list of its own: a run that has it takes off what its style
+    // gives, which holds when the file is saved and read again; a run that says nothing has the style's.
+    void aRunsEmptyEffectListSurvivesSaving()
+    {
+        const QString shadow = QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"114300\" dist=\"101600\" dir=\"2700000\"><a:srgbClr val=\"000000\"/></a:outerShdw></a:effectLst>");
+        Parts p = samplePptx();
+        QString master = QString::fromUtf8(p.data["/ppt/slideMasters/slideMaster1.xml"].xml);
+        const QString before = QStringLiteral("<a:defRPr sz=\"4400\"><a:latin typeface=\"+mj-lt\"/></a:defRPr></a:lvl1pPr></p:titleStyle>");
+        QVERIFY(master.contains(before));
+        master.replace(before, QStringLiteral("<a:defRPr sz=\"4400\">") + shadow + QStringLiteral("<a:latin typeface=\"+mj-lt\"/></a:defRPr></a:lvl1pPr></p:titleStyle>"));
+        p.data["/ppt/slideMasters/slideMaster1.xml"].xml = master.toUtf8();
+        QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const QString run = QStringLiteral("<a:rPr lang=\"en-US\"/><a:t>Quarterly results</a:t>");
+        QVERIFY(slide.contains(run));
+        slide.replace(run, QStringLiteral("<a:rPr lang=\"en-US\"><a:effectLst/></a:rPr><a:t>Quarterly results</a:t>"));
+        p.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto titles = [&](const Document &doc, QString *first, QString *second) {
+            *first = runListOf(placeholderStory(doc, *doc.pages[0], QStringLiteral("ph:title")), QStringLiteral("Quarterly"));
+            *second = runListOf(placeholderStory(doc, *doc.pages[1], QStringLiteral("ph:ctrTitle")), QStringLiteral("Second"));
+        };
+        QString first, second;
+        titles(*d, &first, &second);
+        QCOMPARE(first, TextEffects::noneJson());
+        QVERIFY(TextEffects::fromJson(second).outer.on);
+        Exported e;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString saved = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        const int at = saved.indexOf(QStringLiteral("Quarterly results"));
+        QVERIFY(at > 0);
+        const QString props = saved.mid(saved.lastIndexOf(QStringLiteral("<a:rPr"), at), at - saved.lastIndexOf(QStringLiteral("<a:rPr"), at));
+        QVERIFY2(props.contains(QStringLiteral("<a:effectLst/>")) || props.contains(QStringLiteral("<a:effectLst></a:effectLst>")), qPrintable(props));
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        titles(*again, &first, &second);
+        QCOMPARE(first, TextEffects::noneJson());
+        QVERIFY(TextEffects::fromJson(second).outer.on);
+    }
+
+    // The Shadow button's shadow is saved (in the run's effect list, as the program writes it) and read again; and it works on each run by
+    // itself: a mixed selection gets the shadow where it has none and keeps every run's other effects, and takes it off the same way.
+    void shadowButtonSavesItsShadowAndWorksRunByRun()
+    {
+        DeckWindow w;
+        QTextDocument *story = editTitle(w, QStringLiteral("AAAA BBBB CCCC"), 0, 14);
+        QAction *button = w.act(QStringLiteral("fmt.shadow"));
+        QTRY_VERIFY(button->isEnabled());
+        TextEffects glowing, both;
+        glowing.glow.on = true;
+        glowing.glow.color = QColor(0, 0, 255);
+        glowing.glow.radius = 5;
+        both = glowing;
+        both.outer = defaultTextShadow().outer;
+        auto format = [&](int from, int to, const TextEffects *fx) {
+            QTextCursor c(story);
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            QTextCharFormat cf;
+            if (fx) cf.setProperty(tp::TextFx, fx->toJson());
+            c.mergeCharFormat(cf);
+        };
+        format(0, 5, &glowing);   // "AAAA ": a glow, no shadow
+        format(10, 14, &both);    // "CCCC": a shadow and a glow
+        QVERIFY(!Editor::hasTextShadow(w.editor()->currentCharFormat()));   // (the first run's)
+        button->trigger();
+        auto of = [&](const QString &text) { return TextEffects::fromJson(runListOf(story, text)); };
+        for (const QString &text : {QStringLiteral("AAAA"), QStringLiteral("BBBB"), QStringLiteral("CCCC")}) QVERIFY2(of(text).outer.on, qPrintable(text));
+        QVERIFY(of(QStringLiteral("AAAA")).glow.on && of(QStringLiteral("CCCC")).glow.on);
+        QVERIFY2(!of(QStringLiteral("BBBB")).glow.on, qPrintable(runListOf(story, QStringLiteral("BBBB")) + QStringLiteral(" | ") + story->toPlainText()));
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) QVERIFY(!it.fragment().charFormat().boolProperty(tp::Shadow));
+        // Saved, the shadow is the program's own, and read again it is still there.
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*w.editor()->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<a:outerShdw blurRad=\"38100\" dist=\"38100\" dir=\"2700000\"")), qPrintable(slide.left(4000)));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(back->pages[0]->items[0]->type() == ItemType::Text);
+        const QTextDocument *read = back->storyDoc(static_cast<const TextItem *>(back->pages[0]->items[0].get())->storyId);
+        QVERIFY(read);
+        QVERIFY2(TextEffects::fromJson(runListOf(read, QStringLiteral("BBBB"))).outer.on, qPrintable(read->toPlainText()));
+        // Off again: from every run, the glows stay, and a run with nothing left says so (a style's shadow would not come back).
+        QTRY_VERIFY(button->isChecked());
+        button->trigger();
+        for (const QString &text : {QStringLiteral("AAAA"), QStringLiteral("BBBB"), QStringLiteral("CCCC")}) QVERIFY2(!of(text).outer.on, qPrintable(text));
+        QVERIFY(of(QStringLiteral("AAAA")).glow.on && of(QStringLiteral("CCCC")).glow.on);
+        QCOMPARE(runListOf(story, QStringLiteral("BBBB")), TextEffects::noneJson());
+    }
+
+    // A run with the older Shadow property and an effect list with a shadow has its .odp text shadow once: the file is well formed.
+    void odpWritesATextShadowOnceAndIsWellFormed()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 100);
+        t->storyId = d->createStory();
+        QTextCursor c(d->storyDoc(t->storyId));
+        QTextCharFormat cf;
+        cf.setFontPointSize(20);
+        cf.setProperty(tp::Shadow, true);
+        cf.setProperty(tp::TextFx, shadowOf(QColor(0, 0, 0), 3, 4, 90).toJson());
+        c.insertText(QStringLiteral("Both"), cf);
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        QDomDocument dom;
+        QString why;
+        QVERIFY2(office::parseXml(zip.value(QStringLiteral("content.xml")), &dom, &why), qPrintable(why));
+        QVERIFY2(QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).count(QStringLiteral("fo:text-shadow=\"0.00pt 4.00pt\"")) >= 1, "the list's shadow");
+        QVERIFY(!QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).contains(QStringLiteral("fo:text-shadow=\"1pt 1pt\"")));
+    }
+
+    // The Font window's Shadow box, on a slide, shows and edits the words' effect list as the Shadow button does; in a publication it is the
+    // Shadow property as it was.
+    void fontWindowShadowBoxFollowsTheEffectListOnASlide()
+    {
+        for (const bool slide : {true, false}) {
+            DeckWindow w;
+            w.editor()->doc()->slideText = slide;
+            QTextDocument *story = editTitle(w, QStringLiteral("Hello"), 0, 5);
+            QTimer::singleShot(0, [] {
+                untilDone([] {
+                    auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                    if (!dlg) return false;
+                    for (QCheckBox *b : dlg->findChildren<QCheckBox *>())
+                        if (b->text() == QStringLiteral("Shadow")) b->setChecked(!b->isChecked());
+                    dlg->accept();
+                    return true;
+                });
+            });
+            fontDialog(&w, w.editor());
+            const QTextCharFormat cf = w.editor()->currentCharFormat();
+            if (slide) {
+                QVERIFY(Editor::hasTextShadow(cf));
+                QVERIFY(!cf.boolProperty(tp::Shadow));
+                QVERIFY(TextEffects::fromJson(runListOf(story, QStringLiteral("Hello"))).outer.on);
+            } else {
+                QVERIFY(cf.boolProperty(tp::Shadow));
+                QVERIFY(runListOf(story, QStringLiteral("Hello")).isEmpty());
+            }
+        }
+    }
+
+    // The effect lists written here follow the schema's order (glow, inner shadow, outer shadow, reflection, soft edges); one a file had is
+    // written in that order with only the elements the schema has for a list, and a list of effects not drawn here (blur) is kept.
+    void effectListsAreWrittenInTheSchemasOrder()
+    {
+        auto saved = [&](const QString &list, QString *slideXml) {
+            Parts p = samplePptx();
+            QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+            xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Listed\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>") + xfrm(0, 0, 4572000, 914400)
+                                                           + QStringLiteral("</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\">") + list
+                                                           + QStringLiteral("</a:rPr><a:t>Words</a:t></a:r></a:p></p:txBody></p:sp></p:spTree>"));
+            p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            if (!d) return false;
+            Exported e;
+            const QByteArray bytes = deck::exportPresentation(*d, &err);
+            if (!unpack(bytes, &e, &err)) return false;
+            *slideXml = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+            return true;
+        };
+        auto listIn = [](const QString &xml) {
+            const int at = xml.indexOf(QStringLiteral("<a:effectLst"), xml.indexOf(QStringLiteral("name=\"Listed\"")));
+            const int end = xml.indexOf(QStringLiteral("</a:effectLst>"), at);
+            return at < 0 ? QString() : xml.mid(at, end < 0 ? 40 : end - at);
+        };
+        auto order = [](const QString &list, const QStringList &names) {
+            int last = -1;
+            for (const QString &n : names) {
+                const int at = list.indexOf(QStringLiteral("<a:") + n);
+                if (at < 0 || at < last) return false;
+                last = at;
+            }
+            return true;
+        };
+        QString xml;
+        // As a file had them, out of order and with a stranger: in order, and without it.
+        QVERIFY(saved(QStringLiteral("<a:effectLst><a:softEdge rad=\"12700\"/><a:outerShdw blurRad=\"38100\" dist=\"38100\" dir=\"2700000\"><a:srgbClr val=\"000000\"/></a:outerShdw>"
+                                     "<a:glow rad=\"63500\"><a:srgbClr val=\"FF0000\"/></a:glow><a:stranger/><a:blur rad=\"6350\"/></a:effectLst>"), &xml));
+        QString list = listIn(xml);
+        QVERIFY2(order(list, {QStringLiteral("blur"), QStringLiteral("glow"), QStringLiteral("outerShdw"), QStringLiteral("softEdge")}), qPrintable(list));
+        QVERIFY2(!list.contains(QStringLiteral("stranger")), qPrintable(list));
+        // A list of effects that aren't drawn here is kept.
+        QVERIFY(saved(QStringLiteral("<a:effectLst><a:blur rad=\"63500\"/></a:effectLst>"), &xml));
+        QVERIFY2(listIn(xml).contains(QStringLiteral("<a:blur rad=\"63500\"")), qPrintable(listIn(xml)));
+        // Made here, with everything: in order.
+        auto d = deck::newPresentation();
+        auto box = std::make_shared<TextItem>();
+        box->name = QStringLiteral("Listed");
+        box->rect = QRectF(20, 20, 300, 100);
+        box->storyId = d->createStory();
+        TextEffects fx = shadowOf(QColor(0, 0, 0), 3, 3, 45);
+        fx.glow.on = true;
+        fx.glow.color = QColor(255, 0, 0);
+        fx.glow.radius = 5;
+        fx.inner = fx.outer;
+        fx.reflection.on = true;
+        fx.reflection.sy = -1;
+        fx.softEdge = 2;
+        QTextCharFormat cf;
+        cf.setProperty(tp::TextFx, fx.toJson());
+        QTextCursor(d->storyDoc(box->storyId)).insertText(QStringLiteral("Words"), cf);
+        d->pages[0]->items.push_back(box);
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        list = listIn(part(e, QStringLiteral("/ppt/slides/slide1.xml")));
+        QVERIFY2(order(list, {QStringLiteral("glow"), QStringLiteral("innerShdw"), QStringLiteral("outerShdw"), QStringLiteral("reflection"), QStringLiteral("softEdge")}), qPrintable(list));
+    }
+
+    // A shape's shadow is blurred as the presentation program blurs it on a slide: the radius is a box over the edge, a Gaussian of
+    // about a third of it (a publication's shadows keep their own blur).
+    void shapeShadowBlursAsTheProgramBlursIt()
+    {
+        for (const bool slide : {true, false}) {
+            std::shared_ptr<Document> d = slide ? std::shared_ptr<Document>(deck::newPresentation()) : std::make_shared<Document>();
+            if (!slide) d->pages.push_back(std::make_shared<Page>());
+            auto box = std::make_shared<ShapeItem>();
+            box->shape = QStringLiteral("rect");
+            box->rect = QRectF(100, 100, 200, 100);
+            box->fill = Fill::solid(ColorRef::rgb(Qt::white));
+            box->stroke = Stroke::none();
+            box->fx.shadow.on = true;
+            box->fx.shadow.color = ColorRef::rgb(Qt::black);
+            box->fx.shadow.transparency = 0;
+            box->fx.shadow.blur = 6;
+            box->fx.shadow.distance = 40;
+            box->fx.shadow.angle = 0;
+            d->pages[0]->items.push_back(box);
+            LayoutCache cache;
+            const QImage img = paintedSlide(d.get(), &cache, 0);
+            // Along a row through the box, from the shadow's solid part out to the white: a Gaussian's edge goes from 84 to 16 percent of its
+            // height over two spreads.
+            auto crossing = [&](double level) {
+                for (int x = 305; x < 400; ++x) {
+                    const double now = qGray(img.pixel(x, 150)) / 255.0, before = qGray(img.pixel(x - 1, 150)) / 255.0;
+                    if (now >= level && before < level) return x - 1 + (level - before) / (now - before);
+                }
+                return -1.0;
+            };
+            const double half = crossing(0.5), wide = crossing(0.8413) - crossing(0.1587);
+            QVERIFY2(half > 0, qPrintable(QString::number(half)));
+            QVERIFY2(std::abs(half - 340) < 2.0, qPrintable(QString::number(half)));
+            if (slide) QVERIFY2(std::abs(wide - 2 * 0.2887 * 6) < 1.5, qPrintable(QString::number(wide)));
+            else QVERIFY2(wide > 2 * 0.2887 * 6 + 1.0, qPrintable(QString::number(wide)));   // the older, wider blur
+        }
+    }
+
+    // Text Art's shadow (the gallery's styles have one) is saved with its letters and read back, and drawn on the slide.
+    void textArtShadowIsSavedReadAndDrawn()
+    {
+        auto d = deck::newPresentation();
+        auto art = newTextArt(QStringLiteral("fill-a1-shadow"));
+        art->name = QStringLiteral("Art");
+        art->rect = QRectF(100, 100, 400, 150);
+        art->text = QStringLiteral("HI");
+        QVERIFY(art->fx.shadow.on);
+        d->pages[0]->items.push_back(art);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:outerShdw")));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        TextArtItem *read = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->name == QLatin1String("Art") && it->type() == ItemType::TextArt) read = static_cast<TextArtItem *>(it.get());
+        QVERIFY(read);
+        QVERIFY(read->fx.shadow.on);
+        QVERIFY2(std::abs(read->fx.shadow.blur - art->fx.shadow.blur) < 0.01 && std::abs(read->fx.shadow.distance - art->fx.shadow.distance) < 0.01, "blur and distance");
+        QVERIFY(std::abs(read->fx.shadow.angle - art->fx.shadow.angle) < 0.01);
+        QVERIFY(std::abs(read->fx.shadow.transparency - art->fx.shadow.transparency) < 0.01);
+        // The shadow shows on the slide: letters with it have gray where the same letters without it have the page.
+        LayoutCache cache;
+        const QImage with = paintedSlide(back.get(), &cache, 0);
+        read->fx.shadow.on = false;
+        LayoutCache bare;
+        const QImage without = paintedSlide(back.get(), &bare, 0);
+        int darker = 0;
+        for (int y = 0; y < with.height(); ++y)
+            for (int x = 0; x < with.width(); ++x)
+                if (qGray(with.pixel(x, y)) + 20 < qGray(without.pixel(x, y))) ++darker;
+        QVERIFY2(darker > 100, qPrintable(QString::number(darker)));
     }
 
     // A slide's lines are the presentation program's: a single line is 1.2 times the text size whatever the font, a wider line's
@@ -20226,6 +21254,38 @@ private Q_SLOTS:
         const int read = greens(*d);
         QVERIFY2(read > 90 && read < 120, qPrintable(QString::number(read)));
         QVERIFY(t.elapsed() < 30000);
+    }
+
+    // The shadow flag of an old file's words is a shadow in the words' effect list, as the presentation program draws it for them (light
+    // and near); saved as a .pptx, it is written as one.
+    void importBinaryShadowedWordsHaveAShadow()
+    {
+        const QByteArray body = pptText(1, QStringLiteral("Plain Shaded"), pfRun(13, 0, 0) + cfRun(6, 0) + cfRun(7, 0x10, le(0x10, 2)));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        QString plain, shaded;
+        for (QTextBlock::iterator it = story->begin().begin(); !it.atEnd(); ++it) {
+            const QString list = it.fragment().charFormat().stringProperty(tp::TextFx);
+            if (it.fragment().text().contains(QStringLiteral("Plain"))) plain = list;
+            if (it.fragment().text().contains(QStringLiteral("Shaded"))) shaded = list;
+        }
+        QVERIFY(plain.isEmpty());
+        QVERIFY(!shaded.isEmpty());
+        const TextEffects fx = TextEffects::fromJson(shaded);
+        QVERIFY(fx.outer.on && !fx.inner.on && !fx.glow.on);
+        QCOMPARE(fx.outer.angle, 45.0);
+        QVERIFY(fx.outer.distance > 0.5 && fx.outer.distance < 3);
+        QVERIFY(fx.outer.color.alpha() > 40 && fx.outer.color.alpha() < 130);
+        QCOMPARE(fx.outer.color.rgb(), QColor(Qt::black).rgb());
+        Exported e;
+        QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("<a:outerShdw")));
+        QVERIFY(slide.contains(QStringLiteral("dir=\"2700000\"")));
     }
 
     // A blank paragraph keeps its bullet as the file has it (text typed in it shows one), and shows none, as in the program.

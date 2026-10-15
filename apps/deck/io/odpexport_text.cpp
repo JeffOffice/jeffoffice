@@ -6,6 +6,7 @@
 #include "io/odpexport_p.h"
 
 #include "core/fonts.h"
+#include "core/texteffects.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -18,6 +19,7 @@
 #include <QTextFragment>
 #include <QTextList>
 #include <QTextOption>
+#include <QtMath>
 #include <algorithm>
 #include <cmath>
 
@@ -157,7 +159,20 @@ QString Exporter::charAttrs(const QTextCharFormat &cf, bool)
         const QColor mark = resolve(ColorRef::fromString(ref));
         if (mark.isValid()) out += attrOf("fo:background-color", hexOf(mark));
     }
-    if (cf.boolProperty(tp::Shadow)) out += attrOf("fo:text-shadow", QStringLiteral("1pt 1pt"));
+    // A text shadow has its place and no blur (once: the effect list's, else the older property's); the other effects of a run have no
+    // form in this kind of file.
+    if (const QString list = cf.stringProperty(tp::TextFx); !list.isEmpty()) {
+        const TextEffects &fx = TextEffects::cached(list);
+        if (fx.outer.on) {
+            const double a = qDegreesToRadians(fx.outer.angle);
+            out += attrOf("fo:text-shadow", QStringLiteral("%1pt %2pt").arg(QString::number(fx.outer.distance * std::cos(a), 'f', 2), QString::number(fx.outer.distance * std::sin(a), 'f', 2)));
+        }
+        if (fx.inner.on) sayOnce(QStringLiteral("innershadow"), QCoreApplication::translate("OdpExport", "Inner shadows can't be saved in this kind of file."));
+        if (fx.reflection.on) sayOnce(QStringLiteral("reflection"), QCoreApplication::translate("OdpExport", "Reflections can't be saved in this kind of file."));
+        if (fx.glow.on) sayOnce(QStringLiteral("textglow"), QCoreApplication::translate("OdpExport", "Glows on text can't be saved in this kind of file."));
+    } else if (cf.boolProperty(tp::Shadow)) {
+        out += attrOf("fo:text-shadow", QStringLiteral("1pt 1pt"));
+    }
     if (cf.boolProperty(tp::Emboss)) out += attrOf("style:font-relief", QStringLiteral("embossed"));
     else if (cf.boolProperty(tp::Engrave)) out += attrOf("style:font-relief", QStringLiteral("engraved"));
     if (cf.boolProperty(tp::NoProof)) {

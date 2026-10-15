@@ -102,7 +102,8 @@ void DeckWindow::createFormatActions()
 
     // ---------------- Font ----------------
     mk("fmt.shadow", tr("Shadow"), "layers", QKeySequence(), [ed] {
-        ed->setCharProperty(tp::Shadow, !ed->currentCharFormat().boolProperty(tp::Shadow), tr("Text Shadow"));
+        // Each run gets or loses the shadow by itself, in its own effect list, so that it is saved and the run's other effects stay.
+        ed->setTextShadow(!Editor::hasTextShadow(ed->currentCharFormat()), tr("Text Shadow"));
     }, true);
     mk("fmt.grow", tr("Increase Font Size"), "a-arrow-up", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Greater), [ed] { ed->growFont(1); });
     mk("fmt.shrink", tr("Decrease Font Size"), "a-arrow-down", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Less), [ed] { ed->growFont(-1); });
