@@ -447,8 +447,15 @@ void writeParagraphProperties(QXmlStreamWriter &w, const QTextBlock &b, DrawingW
     for (const auto &gap : {qMakePair("a:spcBef", QTextFormat::BlockTopMargin), qMakePair("a:spcAft", QTextFormat::BlockBottomMargin)}) {
         if (!bf.hasProperty(gap.second) && !inherits) continue;
         begin(w, gap.first);
-        begin(w, "a:spcPts");
-        attribute(w, "val", std::clamp<qint64>(rounded(bf.doubleProperty(gap.second) * 100), 0, 158400));
+        // A share of the line a file gave stays one (the margin holds what it came to at the size the text was written at, and the program
+        // takes points as they are where it takes a share at the size the text is drawn at).
+        if (const double share = tp::spaceShareOf(bf, gap.second == QTextFormat::BlockTopMargin); share > 0) {
+            begin(w, "a:spcPct");
+            attribute(w, "val", std::clamp<qint64>(rounded(share * 100000), 0, 13200000));
+        } else {
+            begin(w, "a:spcPts");
+            attribute(w, "val", std::clamp<qint64>(rounded(bf.doubleProperty(gap.second) * 100), 0, 158400));
+        }
         w.writeEndElement();
         w.writeEndElement();
     }

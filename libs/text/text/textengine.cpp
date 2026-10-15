@@ -808,13 +808,15 @@ static double rawLargestSize(const QTextBlock &b)
 }
 
 // A slide paragraph's space before (tp::SpaceBeforeShare) or after (tp::SpaceAfterShare), in points, with its text shrunk by `scale`: the
-// share of a line of the largest text at the size it is drawn at where the file gave it as one (while the margin still is what the share
-// came to: one set since is in points), the margin itself, unscaled, otherwise.
+// share of a line of the largest text at the size it is drawn at where the file gave it as one (and the margin hasn't been set to points
+// since: tp::spaceShareOf), the margin itself, unscaled, otherwise. A share follows the text's size, as in the program, whether the size
+// came from shrinking or from being changed.
 double slideSpaceOf(const QTextBlock &b, int shareProperty, double scale)
 {
     const QTextBlockFormat bf = b.blockFormat();
-    const double points = shareProperty == tp::SpaceBeforeShare ? bf.topMargin() : bf.bottomMargin(), share = bf.doubleProperty(shareProperty), largest = rawLargestSize(b);
-    return share > 0 && std::abs(points - share * 1.2 * largest) < 0.06 ? share * 1.2 * slideShrunkSize(largest, scale) : points;
+    const bool before = shareProperty == tp::SpaceBeforeShare;
+    if (const double share = tp::spaceShareOf(bf, before); share > 0) return std::clamp(share * 1.2 * slideShrunkSize(rawLargestSize(b), scale), 0.0, 4000.0);
+    return before ? bf.topMargin() : bf.bottomMargin();
 }
 static double rawFirstSize(const QTextBlock &b)
 {
