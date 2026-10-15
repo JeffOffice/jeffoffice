@@ -2041,7 +2041,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // PDFs: the text starts at the glyph's advance) unless the list's
             // indent, measured from the text area's edge, is further; one of
             // JeffPub's own has a little room.
-            B->markerGap = bfont.isEmpty() ? 4 * scale : 0;
+            B->markerGap = bfont.isEmpty() && !env.slideLines ? 4 * scale : 0;
             markerW = B->markerAdv + B->markerGap;
             if (lf.hasProperty(tp::BulletTab)) markerW = std::max(markerW, lf.property(tp::BulletTab).toDouble() * scale - (leftM + textIndent));
             B->markerOff = markerW;
