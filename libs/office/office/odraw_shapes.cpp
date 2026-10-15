@@ -3,6 +3,7 @@
 
 #include "office/odraw.h"
 
+#include "core/blipeffects.h"
 #include "core/shapetypes.h"
 #include "office/odraw_path.h"
 #include "office/odraw_props.h"
@@ -416,6 +417,9 @@ private:
                 pic->brightness = pic->contrast = 0;
             }
         }
+        // Left to the item, they are drawn as a slide's picture is, where a contrast is a share (see blipeffects.h), not the factor the file
+        // has: so as to look as the picture the host would have made, it is the share that makes the same factor.
+        if (pic->contrast != 0) pic->contrast = contrastOfFactor((100 + pic->contrast) / 100) * 100;
         if (p.flag(0x013F, 0x04, false)) pic->recolor = PictureItem::Grayscale;
         else if (p.flag(0x013F, 0x02, false)) pic->recolor = PictureItem::BlackWhite;
         if (p.has(0x0107)) {

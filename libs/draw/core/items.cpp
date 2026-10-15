@@ -271,6 +271,71 @@ void PictureItem::scaleInto(const QRectF &from, const QRectF &to)
     imgRect = QRectF(imgRect.x() * kx, imgRect.y() * ky, imgRect.width() * kx, imgRect.height() * ky);
 }
 
+QVector<BlipEffect> PictureItem::colorEffects() const
+{
+    QVector<BlipEffect> out;
+    // The color that is clear is the one the picture has, before the others change it.
+    if (hasTransparentColor && transparentColor.isValid()) {
+        BlipEffect e;
+        e.kind = BlipEffect::ColorChange;
+        e.color = QColor(transparentColor.red(), transparentColor.green(), transparentColor.blue());
+        e.color2 = e.color;
+        e.color2.setAlpha(0);
+        out.append(e);
+    }
+    if (brightness != 0 || contrast != 0) {
+        BlipEffect e;
+        e.kind = BlipEffect::Luminance;
+        e.brightness = std::clamp(brightness, -100.0, 100.0) / 100;
+        e.contrast = std::clamp(contrast, -100.0, 100.0) / 100;
+        out.append(e);
+    }
+    if (recolor == Grayscale) {
+        BlipEffect e;
+        e.kind = BlipEffect::Grayscale;
+        out.append(e);
+    } else if (recolor == BlackWhite) {
+        BlipEffect e;
+        e.kind = BlipEffect::BiLevel;
+        e.threshold = blackWhiteLevel;
+        out.append(e);
+    }
+    return out + blipEffects;
+}
+
+void PictureItem::takeEffects(const QVector<BlipEffect> &listed)
+{
+    int rank = -1, held = 0;
+    for (const BlipEffect &e : listed) {
+        int at = -1;
+        if (e.kind == BlipEffect::ColorChange && e.useAlpha && e.color2.alpha() == 0 && e.color2.rgb() == e.color.rgb()) at = 0;
+        else if (e.kind == BlipEffect::Luminance && (e.brightness != 0 || e.contrast != 0)) at = 1;
+        else if (e.kind == BlipEffect::Grayscale || e.kind == BlipEffect::BiLevel) at = 2;
+        if (at <= rank) break;
+        rank = at;
+        ++held;
+    }
+    for (int i = 0; i < held; ++i) {
+        const BlipEffect &e = listed[i];
+        switch (e.kind) {
+        case BlipEffect::ColorChange:
+            hasTransparentColor = true;
+            transparentColor = QColor(e.color.red(), e.color.green(), e.color.blue());
+            break;
+        case BlipEffect::Luminance:
+            brightness = std::clamp(e.brightness, -1.0, 1.0) * 100;
+            contrast = std::clamp(e.contrast, -1.0, 1.0) * 100;
+            break;
+        case BlipEffect::Grayscale: recolor = Grayscale; break;
+        default:
+            recolor = BlackWhite;
+            blackWhiteLevel = e.threshold;
+            break;
+        }
+    }
+    blipEffects = listed.mid(held);
+}
+
 QJsonObject PictureItem::toJson() const
 {
     QJsonObject o = Item::toJson();
@@ -282,6 +347,8 @@ QJsonObject PictureItem::toJson() const
     if (recolor) { o["recolor"] = int(recolor); o["recolorColor"] = recolorColor.toString(); }
     if (hasTransparentColor) o["transparentColor"] = transparentColor.name();
     if (transparency) o["transparency"] = transparency;
+    if (blackWhiteLevel != 0.5) o["bwLevel"] = blackWhiteLevel;
+    if (!blipEffects.isEmpty()) o["effects"] = blipEffectsToJson(blipEffects);
     if (!caption.isEmpty()) o["caption"] = caption;
     if (!mediaKind.isEmpty()) {
         o["mediaKind"] = mediaKind;
@@ -307,6 +374,8 @@ void PictureItem::fromJson(const QJsonObject &o)
     hasTransparentColor = o.contains("transparentColor");
     transparentColor = QColor(o["transparentColor"].toString());
     transparency = o["transparency"].toDouble();
+    blackWhiteLevel = o["bwLevel"].toDouble(0.5);
+    blipEffects = blipEffectsFromJson(o["effects"].toArray());
     caption = o["caption"].toString();
     mediaKind = o["mediaKind"].toString();
     mediaId = o["media"].toString();

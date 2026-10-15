@@ -781,6 +781,7 @@ ItemPtr Reader::withCutPicture(const ItemPtr &item, const QDomElement &spPr)
     pic->wrap.mode = Wrap::None;
     pic->imageId = shape->fill.imageId;
     pic->transparency = shape->fill.transparency;
+    pic->blipEffects = shape->fill.blipEffects;
     pic->maskShape = mask;
     pic->imgRect = pictureRect(blipFill, shape->rect.size());
     shape->fill = Fill();
@@ -872,21 +873,7 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     // What is done to its colors.
     const QDomElement alpha = childNamed(blip, "alphaModFix");
     if (!alpha.isNull()) p->transparency = std::clamp(1.0 - parsePercent(attr(alpha, QStringLiteral("amt")), 1), 0.0, 1.0);
-    if (!childNamed(blip, "grayscl").isNull()) p->recolor = PictureItem::Grayscale;
-    if (!childNamed(blip, "biLevel").isNull()) p->recolor = PictureItem::BlackWhite;
-    const QDomElement lum = childNamed(blip, "lum");
-    if (!lum.isNull()) {
-        p->brightness = std::clamp(parsePercent(attr(lum, QStringLiteral("bright")), 0) * 100, -100.0, 100.0);
-        p->contrast = std::clamp(parsePercent(attr(lum, QStringLiteral("contrast")), 0) * 100, -100.0, 100.0);
-    }
-    const QDomElement change = childNamed(blip, "clrChange");
-    if (!change.isNull()) {
-        const QColor from = readColor(childNamed(change, "clrFrom"), m_ctx.theme, m_ctx.colors);
-        if (from.isValid()) {
-            p->hasTransparentColor = true;
-            p->transparentColor = QColor(from.red(), from.green(), from.blue());
-        }
-    }
+    p->takeEffects(readBlipEffects(blip, styleContext()));
     remember(cNvPr, p);
     return p;
 }

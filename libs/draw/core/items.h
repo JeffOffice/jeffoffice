@@ -124,6 +124,17 @@ public:
     bool hasTransparentColor = false;
     QColor transparentColor;
     double transparency = 0;
+    // A presentation's picture (Document::slidePictures) is changed as the presentation program changes it: the brightness and contrast above
+    // as a:lum has them, black and white from this share of the range, a transparent color turned clear, and then the effects below, which
+    // have no setting of their own (see core/blipeffects.h). In order, what the picture's colors go through.
+    double blackWhiteLevel = 0.5;
+    QVector<BlipEffect> blipEffects;
+    // Every change of the picture's colors, in the order they are drawn: the settings, then blipEffects.
+    QVector<BlipEffect> colorEffects() const;
+    // Takes the changes a blip lists, in the order it lists them. The settings hold those that come first, if they come in the order the
+    // settings are drawn (a clear color, the brightness and contrast, gray or black and white) and each only once; blipEffects holds the rest,
+    // so that what is drawn and what is written follows the file whatever its order.
+    void takeEffects(const QVector<BlipEffect> &listed);
     QString caption;            // caption style id when inserted from Caption gallery
     // A movie or sound the picture plays, as a slide's video does (the
     // picture shows until it plays): "video" or "audio", and the media's id in

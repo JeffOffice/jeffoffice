@@ -1501,6 +1501,7 @@ ItemPtr pictureFilling(const Item &shape)
     pic->fx = shape.fx;
     pic->wrap.mode = Wrap::None;
     pic->imageId = shape.fill.imageId;
+    pic->blipEffects = shape.fill.blipEffects;
     pic->imgRect = QRectF(QPointF(0, 0), shape.rect.size());
     return pic;
 }
@@ -1828,6 +1829,7 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
 {
     auto doc = std::make_unique<Document>();
     doc->slideText = true;
+    doc->slidePictures = true;
     Importer importer(pkg, *doc);
     if (!importer.run(pkg.mainPart(), error)) return nullptr;
     // The presentation's own fonts are available for as long as it is open (see core/embeddedfonts.h).

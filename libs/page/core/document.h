@@ -328,6 +328,9 @@ public:
     // or hiding as a publication's does. Set by the app that makes the
     // document; not saved.
     bool slideText = false;
+    // A picture's brightness, contrast, black and white, and transparent color change its colors as the presentation program changes a
+    // slide's pictures (PictureItem::colorEffects), not as Publisher changes a publication's. Set by the app that makes the document; not saved.
+    bool slidePictures = false;
 
     // pages
     QSizeF pageSize() const { return setup.size; }

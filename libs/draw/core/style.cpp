@@ -84,6 +84,7 @@ QBrush Fill::brush(const QRectF &r, const ColorScheme &s, const ImageLookup &img
         if (!img || imageId.isEmpty()) return QBrush(withTransparency(QColor(220, 220, 220), transparency));
         QImage im = img(imageId);
         if (im.isNull()) return Qt::NoBrush;
+        if (!blipEffects.isEmpty()) im = blipAdjusted(im, blipEffects);
         QBrush b;
         QTransform t;
         if (type == Texture || tile) {
@@ -135,6 +136,7 @@ QJsonObject Fill::toJson() const
         o["image"] = imageId;
         o["tile"] = tile;
         o["tileScale"] = tileScale;
+        if (!blipEffects.isEmpty()) o["effects"] = blipEffectsToJson(blipEffects);
     }
     if (type == Pattern) {
         o["pattern"] = pattern;
@@ -162,6 +164,7 @@ Fill Fill::fromJson(const QJsonObject &o)
     f.imageId = o["image"].toString();
     f.tile = o["tile"].toBool();
     f.tileScale = o["tileScale"].toDouble(1.0);
+    f.blipEffects = blipEffectsFromJson(o["effects"].toArray());
     f.pattern = o["pattern"].toInt();
     return f;
 }

@@ -1,6 +1,7 @@
 #pragma once
 // Fill, outline, effects and text-wrap settings shared by all frame types.
 
+#include "core/blipeffects.h"
 #include "core/color.h"
 
 #include <QBrush>
@@ -38,6 +39,8 @@ struct Fill {
 
     ColorRef color2;               // gradient end, pattern background
     QString imageId;               // picture and texture fills
+    // What a picture fill's colors go through as it is drawn (see core/blipeffects.h): the picture's bytes stay as they are.
+    QVector<BlipEffect> blipEffects;
     bool tile = false;
     double tileScale = 1.0;
     int pattern = 0;               // index into patternBrushes()
