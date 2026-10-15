@@ -705,9 +705,16 @@ void Reader::paragraph(const QDomElement &p)
     };
     if (para.spcBef.kind != Spacing::Unset) bf.setTopMargin(distance(para.spcBef));
     if (para.spcAft.kind != Spacing::Unset) bf.setBottomMargin(distance(para.spcAft));
-    // A share of the line is kept as one too: a slide's text the presentation program shrank takes that space down with its size, not points.
-    if (para.spcBef.kind == Spacing::Percent) bf.setProperty(tp::SpaceBeforeShare, para.spcBef.value);
-    if (para.spcAft.kind == Spacing::Percent) bf.setProperty(tp::SpaceAfterShare, para.spcAft.value);
+    // A share of the line is kept as one too (with the points it came to, which end it when the margin is set to something else): in the
+    // program that space follows the size the text is drawn at, shrunk or changed, where space in points does not.
+    if (para.spcBef.kind == Spacing::Percent && std::isfinite(para.spcBef.value)) {
+        bf.setProperty(tp::SpaceBeforeShare, para.spcBef.value);
+        bf.setProperty(tp::SpaceBeforeFrom, bf.topMargin());
+    }
+    if (para.spcAft.kind == Spacing::Percent && std::isfinite(para.spcAft.value)) {
+        bf.setProperty(tp::SpaceAfterShare, para.spcAft.value);
+        bf.setProperty(tp::SpaceAfterFrom, bf.bottomMargin());
+    }
     if (para.lnSpc.kind == Spacing::Percent && para.lnSpc.value > 0) bf.setLineHeight(std::clamp(para.lnSpc.value * 100, 1.0, 1000.0), QTextBlockFormat::ProportionalHeight);
     else if (para.lnSpc.kind == Spacing::Points && para.lnSpc.value > 0) bf.setLineHeight(std::max(para.lnSpc.value, 0.1), QTextBlockFormat::FixedHeight);
     if (level > 0) bf.setProperty(tp::ListLevel, level);
