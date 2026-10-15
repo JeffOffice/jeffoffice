@@ -142,9 +142,10 @@ QString Exporter::charAttrs(const QTextCharFormat &cf, bool)
     else if (cf.fontCapitalization() == QFont::SmallCaps || cf.boolProperty(tp::TrueSmallCaps)) out += attrOf("fo:font-variant", QStringLiteral("small-caps"));
     else out += attrOf("fo:text-transform", QStringLiteral("none"));
     if (const double spacing = tp::kerningOf(cf); spacing != 0 && std::isfinite(spacing)) out += attrOf("fo:letter-spacing", cm(spacing));
-    // Pairs of letters are kerned from a size up (14 points unless the text says otherwise), as the text is set here.
+    // Pairs of letters are kerned from a size up (14 points unless the text says otherwise), as the text is set here: by the size it is
+    // drawn at, which is the size it is written at.
     {
-        const double own = std::clamp(cf.hasProperty(QTextFormat::FontPointSize) ? cf.fontPointSize() : 11.0, 0.5, 1638.0);
+        const double own = slideShrunkSize(std::clamp(cf.hasProperty(QTextFormat::FontPointSize) ? cf.fontPointSize() : 11.0, 0.5, 1638.0), m_fitScale);
         const double kernFrom = cf.hasProperty(tp::KernAbove) ? cf.property(tp::KernAbove).toDouble() : 14.0;
         const bool kerned = (!cf.hasProperty(QTextFormat::FontKerning) || cf.fontKerning()) && own >= kernFrom;
         out += attrOf("style:letter-kerning", kerned ? QStringLiteral("true") : QStringLiteral("false"));

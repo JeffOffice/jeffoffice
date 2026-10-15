@@ -4648,6 +4648,46 @@ private Q_SLOTS:
         QCOMPARE(QString::fromUtf8(zip2.value(QStringLiteral("content.xml"))).count(QStringLiteral("style:shrink-to-fit=\"true\"")), shrinking - 1);
     }
 
+    // A run is kerned in the other kind of file by the size it is drawn at, as it is laid out here (the program: a 37 point run kerned from 14
+    // is kerned at 20 points and not at 11 when shrunk), not by the size it was written at.
+    void odpKernsShrunkTextByTheSizeItIsDrawnAt()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QString boxes;
+        int id = 30;
+        for (const char *scale : {"30000", "55000"}) {
+            boxes += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"Box%1\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id) + xfrm(0, (id - 30) * 1500000, 4572000, 1000000)
+                     + QStringLiteral("</p:spPr><p:txBody><a:bodyPr><a:normAutofit fontScale=\"%1\"/></a:bodyPr><a:lstStyle/>").arg(QLatin1String(scale))
+                     + QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\" sz=\"3700\" kern=\"1400\"/><a:t>AVAVAV</a:t></a:r></a:p></p:txBody></p:sp>");
+            ++id;
+        }
+        xml.replace(QStringLiteral("</p:spTree>"), boxes + QStringLiteral("</p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        // 37 points at 30 percent are 11 (below 14: not kerned); at 55 percent are 20 (kerned).
+        QRegularExpression styleRe(QStringLiteral("<style:text-properties[^>]*fo:font-size=\"(\\d+)pt\"[^>]*>"));
+        int small = 0, large = 0;
+        for (auto it = styleRe.globalMatch(content); it.hasNext();) {
+            const auto m = it.next();
+            if (m.captured(1) == QLatin1String("11")) {
+                ++small;
+                QVERIFY2(m.captured(0).contains(QStringLiteral("style:letter-kerning=\"false\"")), qPrintable(m.captured(0)));
+            } else if (m.captured(1) == QLatin1String("20")) {
+                ++large;
+                QVERIFY2(m.captured(0).contains(QStringLiteral("style:letter-kerning=\"true\"")), qPrintable(m.captured(0)));
+            }
+        }
+        QVERIFY(small >= 1 && large >= 1);
+    }
+
     // The space around shrunk paragraphs goes into the other kind of file as it is drawn here: the points as written, the share of a line
     // at the size the text was shrunk to; read back, the lines are where they were.
     void odpWritesShrunkTextsSpaceAsItIsDrawn()
