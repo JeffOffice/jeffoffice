@@ -38,7 +38,8 @@ QColor resolve(const ColorRef &color, const DrawingWriteContext &ctx);
 void writeColor(QXmlStreamWriter &w, const QColor &color, double transparency = 0);
 
 // A run's a:effectLst: the list as the file had it when it still has it, else
-// written from the effects themselves. Nothing for effects with nothing in them.
+// written from the effects themselves in the schema's order (an empty list for
+// effects that say there are none).
 void writeTextEffects(QXmlStreamWriter &w, const TextEffects &fx);
 
 // The id of the relationship from the part being written to `target`, made

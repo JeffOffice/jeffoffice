@@ -6106,6 +6106,117 @@ private Q_SLOTS:
         QVERIFY(effectPicturesBuiltForTest() > now);
     }
 
+    // A file's effect list that says there are none (an empty a:effectLst) is a list of its own: a run that has it takes off what its style
+    // gives, which holds when the file is saved and read again; a run that says nothing has the style's.
+    void aRunsEmptyEffectListSurvivesSaving()
+    {
+        const QString shadow = QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"114300\" dist=\"101600\" dir=\"2700000\"><a:srgbClr val=\"000000\"/></a:outerShdw></a:effectLst>");
+        Parts p = samplePptx();
+        QString master = QString::fromUtf8(p.data["/ppt/slideMasters/slideMaster1.xml"].xml);
+        const QString before = QStringLiteral("<a:defRPr sz=\"4400\"><a:latin typeface=\"+mj-lt\"/></a:defRPr></a:lvl1pPr></p:titleStyle>");
+        QVERIFY(master.contains(before));
+        master.replace(before, QStringLiteral("<a:defRPr sz=\"4400\">") + shadow + QStringLiteral("<a:latin typeface=\"+mj-lt\"/></a:defRPr></a:lvl1pPr></p:titleStyle>"));
+        p.data["/ppt/slideMasters/slideMaster1.xml"].xml = master.toUtf8();
+        QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const QString run = QStringLiteral("<a:rPr lang=\"en-US\"/><a:t>Quarterly results</a:t>");
+        QVERIFY(slide.contains(run));
+        slide.replace(run, QStringLiteral("<a:rPr lang=\"en-US\"><a:effectLst/></a:rPr><a:t>Quarterly results</a:t>"));
+        p.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto titles = [&](const Document &doc, QString *first, QString *second) {
+            *first = runListOf(placeholderStory(doc, *doc.pages[0], QStringLiteral("ph:title")), QStringLiteral("Quarterly"));
+            *second = runListOf(placeholderStory(doc, *doc.pages[1], QStringLiteral("ph:ctrTitle")), QStringLiteral("Second"));
+        };
+        QString first, second;
+        titles(*d, &first, &second);
+        QCOMPARE(first, TextEffects::noneJson());
+        QVERIFY(TextEffects::fromJson(second).outer.on);
+        Exported e;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString saved = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        const int at = saved.indexOf(QStringLiteral("Quarterly results"));
+        QVERIFY(at > 0);
+        const QString props = saved.mid(saved.lastIndexOf(QStringLiteral("<a:rPr"), at), at - saved.lastIndexOf(QStringLiteral("<a:rPr"), at));
+        QVERIFY2(props.contains(QStringLiteral("<a:effectLst/>")) || props.contains(QStringLiteral("<a:effectLst></a:effectLst>")), qPrintable(props));
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        titles(*again, &first, &second);
+        QCOMPARE(first, TextEffects::noneJson());
+        QVERIFY(TextEffects::fromJson(second).outer.on);
+    }
+
+    // The effect lists written here follow the schema's order (glow, inner shadow, outer shadow, reflection, soft edges); one a file had is
+    // written in that order with only the elements the schema has for a list, and a list of effects not drawn here (blur) is kept.
+    void effectListsAreWrittenInTheSchemasOrder()
+    {
+        auto saved = [&](const QString &list, QString *slideXml) {
+            Parts p = samplePptx();
+            QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+            xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Listed\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>") + xfrm(0, 0, 4572000, 914400)
+                                                           + QStringLiteral("</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\">") + list
+                                                           + QStringLiteral("</a:rPr><a:t>Words</a:t></a:r></a:p></p:txBody></p:sp></p:spTree>"));
+            p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            if (!d) return false;
+            Exported e;
+            const QByteArray bytes = deck::exportPresentation(*d, &err);
+            if (!unpack(bytes, &e, &err)) return false;
+            *slideXml = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+            return true;
+        };
+        auto listIn = [](const QString &xml) {
+            const int at = xml.indexOf(QStringLiteral("<a:effectLst"), xml.indexOf(QStringLiteral("name=\"Listed\"")));
+            const int end = xml.indexOf(QStringLiteral("</a:effectLst>"), at);
+            return at < 0 ? QString() : xml.mid(at, end < 0 ? 40 : end - at);
+        };
+        auto order = [](const QString &list, const QStringList &names) {
+            int last = -1;
+            for (const QString &n : names) {
+                const int at = list.indexOf(QStringLiteral("<a:") + n);
+                if (at < 0 || at < last) return false;
+                last = at;
+            }
+            return true;
+        };
+        QString xml;
+        // As a file had them, out of order and with a stranger: in order, and without it.
+        QVERIFY(saved(QStringLiteral("<a:effectLst><a:softEdge rad=\"12700\"/><a:outerShdw blurRad=\"38100\" dist=\"38100\" dir=\"2700000\"><a:srgbClr val=\"000000\"/></a:outerShdw>"
+                                     "<a:glow rad=\"63500\"><a:srgbClr val=\"FF0000\"/></a:glow><a:stranger/><a:blur rad=\"6350\"/></a:effectLst>"), &xml));
+        QString list = listIn(xml);
+        QVERIFY2(order(list, {QStringLiteral("blur"), QStringLiteral("glow"), QStringLiteral("outerShdw"), QStringLiteral("softEdge")}), qPrintable(list));
+        QVERIFY2(!list.contains(QStringLiteral("stranger")), qPrintable(list));
+        // A list of effects that aren't drawn here is kept.
+        QVERIFY(saved(QStringLiteral("<a:effectLst><a:blur rad=\"63500\"/></a:effectLst>"), &xml));
+        QVERIFY2(listIn(xml).contains(QStringLiteral("<a:blur rad=\"63500\"")), qPrintable(listIn(xml)));
+        // Made here, with everything: in order.
+        auto d = deck::newPresentation();
+        auto box = std::make_shared<TextItem>();
+        box->name = QStringLiteral("Listed");
+        box->rect = QRectF(20, 20, 300, 100);
+        box->storyId = d->createStory();
+        TextEffects fx = shadowOf(QColor(0, 0, 0), 3, 3, 45);
+        fx.glow.on = true;
+        fx.glow.color = QColor(255, 0, 0);
+        fx.glow.radius = 5;
+        fx.inner = fx.outer;
+        fx.reflection.on = true;
+        fx.reflection.sy = -1;
+        fx.softEdge = 2;
+        QTextCharFormat cf;
+        cf.setProperty(tp::TextFx, fx.toJson());
+        QTextCursor(d->storyDoc(box->storyId)).insertText(QStringLiteral("Words"), cf);
+        d->pages[0]->items.push_back(box);
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        list = listIn(part(e, QStringLiteral("/ppt/slides/slide1.xml")));
+        QVERIFY2(order(list, {QStringLiteral("glow"), QStringLiteral("innerShdw"), QStringLiteral("outerShdw"), QStringLiteral("reflection"), QStringLiteral("softEdge")}), qPrintable(list));
+    }
+
     // A shape's shadow is blurred as the presentation program blurs it on a slide: the radius is a box over the edge, a Gaussian of
     // about a third of it (a publication's shadows keep their own blur).
     void shapeShadowBlursAsTheProgramBlursIt()

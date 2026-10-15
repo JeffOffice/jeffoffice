@@ -133,7 +133,6 @@ void writeColor(QXmlStreamWriter &w, const QColor &color, double transparency)
 
 void writeTextEffects(QXmlStreamWriter &w, const TextEffects &fx)
 {
-    if (!fx.any()) return;
     // As the file had it: its tokens, with the prefixes it wrote them in (the part declares them).
     if (!fx.xml.isEmpty()) {
         QXmlStreamReader check(fx.xml);
@@ -154,6 +153,12 @@ void writeTextEffects(QXmlStreamWriter &w, const TextEffects &fx)
             }
             return;
         }
+    }
+    // Effects that say there are none: a list with nothing in it, so that a run takes off what its style gives.
+    if (!fx.any()) {
+        w.writeStartElement(QStringLiteral("a:effectLst"));
+        w.writeEndElement();
+        return;
     }
     auto shadow = [&](const char *tag, const TextShadow &s, bool outer) {
         w.writeStartElement(QLatin1String(tag));
