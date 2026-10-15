@@ -250,6 +250,12 @@ public:
     void mergeBlockFormat(const QTextBlockFormat &f, const QString &label);
     void setCharProperty(int prop, const QVariant &v, const QString &label);
     void clearCharProperty(int prop, const QString &label);
+    // Changes the format of each run of the selection by itself: `change` gets a run's format and sets what the run should have.
+    void editCharFormats(const std::function<void(QTextCharFormat &)> &change, const QString &label);
+    // A shadow on a slide's words: whether a format has one (an outer shadow in its effect list; else the older Shadow property when it has
+    // no list), and giving every run of the selection the program's own shadow or taking it off, each run keeping the rest of its effects.
+    static bool hasTextShadow(const QTextCharFormat &cf);
+    void setTextShadow(bool on, const QString &label);
     void toggleBold();
     void toggleItalic();
     // kind: tp::UnderlineKind flags (double, words only, thick).

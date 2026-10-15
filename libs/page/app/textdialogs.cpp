@@ -165,7 +165,9 @@ void fontDialog(QWidget *p, Editor *ed)
     strike->setChecked(cur.fontStrikeOut());
     smallcaps->setChecked(cur.fontCapitalization() == QFont::SmallCaps);
     allcaps->setChecked(cur.fontCapitalization() == QFont::AllUppercase);
-    shadow->setChecked(cur.boolProperty(tp::Shadow));
+    // A slide's words have their shadow in their effect list (as the Shadow button gives it); a publication's in its own property.
+    const bool slide = ed->doc()->slideText, shadowWas = slide ? Editor::hasTextShadow(cur) : cur.boolProperty(tp::Shadow);
+    shadow->setChecked(shadowWas);
     outline->setChecked(!cur.stringProperty(tp::OutlineRef).isEmpty());
     emboss->setChecked(cur.boolProperty(tp::Emboss));
     engrave->setChecked(cur.boolProperty(tp::Engrave));
@@ -205,12 +207,13 @@ void fontDialog(QWidget *p, Editor *ed)
     cf.setFontStrikeOut(strike->isChecked());
     cf.setVerticalAlignment(sup->isChecked() ? QTextCharFormat::AlignSuperScript : sub->isChecked() ? QTextCharFormat::AlignSubScript : QTextCharFormat::AlignNormal);
     cf.setFontCapitalization(smallcaps->isChecked() ? QFont::SmallCaps : allcaps->isChecked() ? QFont::AllUppercase : QFont::MixedCase);
-    cf.setProperty(tp::Shadow, shadow->isChecked());
+    if (!slide) cf.setProperty(tp::Shadow, shadow->isChecked());
     cf.setProperty(tp::Emboss, emboss->isChecked());
     cf.setProperty(tp::Engrave, engrave->isChecked());
     if (outline->isChecked()) cf.setProperty(tp::OutlineRef, color->current().toString());
     cf.setProperty(tp::ColorRefP, color->current().toString());
     ed->mergeCharFormat(cf, QCoreApplication::translate("Dialogs", "Font"));
+    if (slide && shadow->isChecked() != shadowWas) ed->setTextShadow(shadow->isChecked(), QCoreApplication::translate("Dialogs", "Font"));
     if (!outline->isChecked()) ed->clearCharProperty(tp::OutlineRef, QCoreApplication::translate("Dialogs", "Font"));
     ed->endChange();
 }
