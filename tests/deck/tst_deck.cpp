@@ -4484,6 +4484,103 @@ private Q_SLOTS:
         QVERIFY2(content.contains(QStringLiteral("text:space-before=\"1.0583cm\" text:min-label-width=\"0cm\"")), qPrintable(content.mid(content.indexOf(QStringLiteral("text:list-level-style-bullet")), 400)));
     }
 
+    // The presentation program makes a single line 1.2 em tall and shares it between above and below the baseline in the proportion of the
+    // font's Windows ascent to its descent (read from the fonts in its PDFs): the baseline is that share of 1.2 em below the top of the line,
+    // whichever font stands in for the original. Set closer, the line loses its top and keeps the descent, but its baseline is no higher than
+    // three quarters of the way down it; set wider, its baseline is three quarters of the way down.
+    void slideLinesPutTheBaselineWhereTheFontsWindowMetricsSayIt()
+    {
+        struct Case { QString family; double ascent, descent; };
+        const Case cases[] = {{QStringLiteral("Arial"), 1854, 434},          {QStringLiteral("Calibri"), 1950, 550},   {QStringLiteral("Times New Roman"), 1825, 443},
+                              {QStringLiteral("Book Antiqua"), 1967, 578},   {QStringLiteral("Gill Sans MT"), 1903, 472}, {QStringLiteral("Century Gothic"), 1989, 451}};
+        for (const Case &k : cases)
+            for (double spacing : {100.0, 90.0, 150.0}) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextBlockFormat bf;
+                if (spacing != 100) bf.setLineHeight(spacing, QTextBlockFormat::ProportionalHeight);
+                c.setBlockFormat(bf);
+                QTextCharFormat cf;
+                cf.setFontFamilies({k.family});
+                cf.setFontPointSize(40);
+                c.insertText(QStringLiteral("Line"), cf);
+                FrameSpec fs;
+                fs.size = QSizeF(300, 300);
+                fs.insets = QMarginsF(0, 0, 0, 0);
+                LayoutEnv env;
+                env.slideLines = true;
+                StoryLayout lay;
+                lay.build(&doc, {fs}, env);
+                const auto lines = lay.lineInfo(0);
+                QCOMPARE(int(lines.size()), 1);
+                const double h = 1.2 * 40 * spacing / 100, descent = 1.2 * 40 * k.descent / (k.ascent + k.descent);
+                const double expected = spacing > 100 ? 0.75 * h : spacing < 100 ? std::max(0.75 * h, h - descent) : h - descent;
+                const QString what = k.family + QLatin1Char(' ') + QString::number(spacing) + QLatin1Char(' ') + QString::number(lines[0].baseline);
+                QVERIFY2(std::abs(lines[0].baseline - expected) < 0.01, qPrintable(what + QStringLiteral(" expected ") + QString::number(expected)));
+            }
+    }
+
+    // A slide's margins and indents stay where the file puts them when its text is shrunk to fit: only the text shrinks. A list's text starts one
+    // hang in from its bullet at the same place whatever the fit, and a bullet with no font of its own is followed by its text at once.
+    void slideIndentsDoNotShrinkWithTheirText()
+    {
+        for (double fit : {1.0, 0.5}) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(27);
+            bf.setTextIndent(-27);
+            c.setBlockFormat(bf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setProperty(tp::BulletChar, QStringLiteral("•"));
+            lf.setProperty(tp::BulletFont, QStringLiteral("Arial"));
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arial")});
+            cf.setFontPointSize(20);
+            c.createList(lf);
+            c.insertText(QStringLiteral("A list item long enough to run over to a second line of this narrow text box"), cf);
+            FrameSpec fs;
+            fs.size = QSizeF(200, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            LayoutEnv env;
+            env.slideLines = true;
+            env.fontScale = fit;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            const auto lines = lay.lineInfo(0);
+            QVERIFY(lines.size() >= 2);
+            QVERIFY2(std::abs(lines[0].rect.left() - 27) < 0.01, qPrintable(QString::number(fit) + QLatin1Char(' ') + QString::number(lines[0].rect.left())));
+            QVERIFY2(std::abs(lines[1].rect.left() - 27) < 0.01, qPrintable(QString::number(fit) + QLatin1Char(' ') + QString::number(lines[1].rect.left())));
+            // The bullet is a hang before it, at the left edge.
+            QVERIFY2(std::abs(lines[0].markerX) < 0.01, qPrintable(QString::number(fit) + QLatin1Char(' ') + QString::number(lines[0].markerX)));
+            QCOMPARE(lines[1].markerX, -1.0);
+        }
+        // No hang and no font for the bullet: the text follows the bullet's own width (JeffPub's own lists leave a little room, a slide's don't).
+        auto firstLeft = [](bool slide) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setProperty(tp::BulletChar, QStringLiteral("•"));
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arial")});
+            cf.setFontPointSize(20);
+            c.createList(lf);
+            c.insertText(QStringLiteral("Text"), cf);
+            FrameSpec fs;
+            fs.size = QSizeF(300, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            LayoutEnv env;
+            env.slideLines = slide;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            return lay.lineInfo(0).value(0).rect.left();
+        };
+        QVERIFY2(std::abs(firstLeft(false) - firstLeft(true) - 4) < 0.01, qPrintable(QString::number(firstLeft(false)) + QLatin1Char(' ') + QString::number(firstLeft(true))));
+        QVERIFY(firstLeft(true) > 5);
+    }
+
     // The other suite mirrors a picture side to side only (a mirror from top to bottom is ignored): a picture turned over is written as turned
     // half a turn and mirrored side to side, which is the same picture.
     void odpWritesAPictureTurnedOverAsAHalfTurnAndAMirror()
@@ -6518,7 +6615,7 @@ private Q_SLOTS:
             QCOMPARE(int(lines.size()), 2);
             QVERIFY2(std::abs(lines[0].rect.top()) < 0.01, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].rect.top())));
             QVERIFY2(std::abs(lines[1].baseline - lines[0].baseline - 1.5 * 1.2 * 20) < 0.01, qPrintable(family + QLatin1Char(' ') + QString::number(lines[1].baseline - lines[0].baseline)));
-            // The extra space is above the text: the first baseline is a whole line down, less the text's descent.
+            // The extra space is mostly above the text: the first baseline is three quarters of the way down the line.
             QVERIFY2(lines[0].baseline > 1.5 * 1.2 * 20 * 0.7, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].baseline)));
             QCOMPARE(lines[0].below, 0.0);
         }
