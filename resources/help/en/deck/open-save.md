@@ -72,7 +72,7 @@ An .odp file has no place for a few things. JeffDeck lists them after the save, 
 
 - **Charts, SmartArt diagrams, and equations** are saved as pictures. You can see them, but you can't edit their numbers or parts in the .odp file.
 - **Sections** are not saved.
-- **Reflections, bevels, and inner shadows** are left out.
+- **Reflections, bevels, and inner shadows** are left out, and so are glows and reflections on words. A shadow on words is kept.
 - **Animation effects** that start when you click an object, and effects that change a color, are left out. A click on a movie, to pause it or play it again, is kept.
 - **A movie or sound that is linked** from another file, not kept in the presentation, keeps its address and its picture in the .odp file. LibreOffice plays it if it can find the file. Movies and sounds that are in the presentation are kept in the .odp file and play.
 

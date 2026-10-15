@@ -4,6 +4,7 @@
 #include "core/blipeffects.h"
 #include "core/color.h"
 #include "core/deck.h"
+#include "core/texteffects.h"
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/presentationfile.h"
@@ -2097,7 +2098,21 @@ QTextCharFormat Importer::charFormat(const Cf &cf, const TextCtx &ctx) const
     if (cf.style & StyleBold) f.setFontWeight(QFont::Bold);
     if (cf.style & StyleItalic) f.setFontItalic(true);
     if (cf.style & StyleUnderline) f.setUnderlineStyle(QTextCharFormat::SingleUnderline);
-    if (cf.style & StyleShadow) f.setProperty(tp::Shadow, true);
+    if (cf.style & StyleShadow) {
+        // The shadow of an old file's words, as the presentation program draws it (fitted to its pictures of the old presentations among
+        // the reference files): lighter and nearer than the one it gives the button.
+        static const QString kShadow = [] {
+            TextEffects fx;
+            fx.outer.on = true;
+            fx.outer.color = QColor(0, 0, 0, 76);   // 30 percent
+            fx.outer.blur = 2;
+            fx.outer.distance = 1.25;
+            fx.outer.angle = 45;
+            fx.outer.align = QStringLiteral("tl");
+            return fx.toJson();
+        }();
+        f.setProperty(tp::TextFx, kShadow);
+    }
     if (cf.style & StyleEmboss) f.setProperty(tp::Emboss, true);
     if (cf.position > 0) f.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
     else if (cf.position < 0) f.setVerticalAlignment(QTextCharFormat::AlignSubScript);

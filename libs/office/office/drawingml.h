@@ -129,6 +129,8 @@ void readTextBody(const QDomElement &txBody, QTextDocument *doc, const DrawingCo
 // (p:style) for what spPr leaves out.
 Fill readFill(const QDomElement &spPr, const QDomElement &style, const DrawingContext &ctx);
 Stroke readLine(const QDomElement &spPr, const QDomElement &style, const DrawingContext &ctx);
+// The effects an a:effectLst in `spPr` (or the run properties of Text Art) names: a shadow, a glow, soft edges.
+Effects readEffects(const QDomElement &spPr, const QDomElement &style, const DrawingContext &ctx);
 // A background (p:bg: its p:bgPr fill, or a p:bgRef into the theme's
 // background fills) as a fill.
 Fill readBackground(const QDomElement &bg, const DrawingContext &ctx);

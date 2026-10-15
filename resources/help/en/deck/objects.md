@@ -51,7 +51,7 @@ Each icon goes on the slide as a picture one inch square, in the middle. Several
 2. Click a style. The Text Art goes in the middle of the slide, and a box opens with its words all selected.
 3. Type your words. They take the place of the old ones. Pick a font, a size, **Bold**, or **Italic** if you like. Click **OK**.
 
-To change the words later, double-click the Text Art, or select it and press Enter. You can move, resize, turn, and delete it like any object. The letters stretch to fill the box, so drag its handles to make it wider or taller.
+Text Art keeps its shadow when you save the presentation and open it again. To change the words later, double-click the Text Art, or select it and press Enter. You can move, resize, turn, and delete it like any object. The letters stretch to fill the box, so drag its handles to make it wider or taller.
 
 ## Add a table
 

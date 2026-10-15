@@ -102,6 +102,7 @@ void writeRunProperties(QXmlStreamWriter &w, const char *tag, const QTextCharFor
             w.writeEndElement();
         }
     }
+    if (const QString fx = cf.stringProperty(tp::TextFx); !fx.isEmpty()) writeTextEffects(w, TextEffects::fromJson(fx));
     if (const QString ref = cf.stringProperty(tp::HighlightRefP); !ref.isEmpty()) {
         const QColor mark = resolve(ColorRef::fromString(ref), ctx);
         if (mark.isValid()) {
