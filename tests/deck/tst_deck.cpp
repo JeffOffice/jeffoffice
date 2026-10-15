@@ -20089,8 +20089,10 @@ private Q_SLOTS:
         const auto lines = cache.textFrame(*d, *body, 1, RenderOptions()).layout->lineInfo(0);
         QCOMPARE(int(lines.size()), 3);
         QVERIFY2(qAbs(lines[0].rect.top() - body->insets.top()) < 0.01, qPrintable(QString::number(lines[0].rect.top())));
-        // (The single line has its baseline a font's descent above its bottom; the 80 percent line has it 3/4 of the way down, as probed.)
-        const double wanted = (lines[0].rect.bottom() - lines[0].baseline) + 0.2 * 1.2 * 28 + 0.75 * 0.8 * 1.2 * 28;
+        // (The single line has its baseline a font's descent above its bottom; the 80 percent line keeps that descent but no higher than 3/4 of
+        // the way down, as probed. Which of the two wins depends on the font's descent, which differs where the machine stands in another font.)
+        const double descent = lines[0].rect.bottom() - lines[0].baseline, shorter = 0.8 * 1.2 * 28;
+        const double wanted = descent + 0.2 * 1.2 * 28 + std::max(0.75 * shorter, shorter - descent);
         QVERIFY2(qAbs(lines[1].baseline - lines[0].baseline - wanted) < 0.05, qPrintable(QString::number(lines[1].baseline - lines[0].baseline) + QStringLiteral(" vs ") + QString::number(wanted)));
     }
 
