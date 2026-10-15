@@ -49,11 +49,18 @@ struct TextEffects {
     QString xml;
 
     bool any() const { return outer.on || inner.on || glow.on || softEdge > 0 || reflection.on; }
+    // An effect list that says there are none (a:effectLst with nothing in it): a run that has it takes the shadows of its style off.
+    // Default-made effects are such a list; a run with none of its own has no list at all.
+    static QString noneJson() { return QStringLiteral("{}"); }
     QString toJson() const;
     static TextEffects fromJson(const QString &json);
     // Parsed, and kept by its string for the next time.
     static const TextEffects &cached(const QString &json);
 };
+
+// A radius, a distance, or a blur of an effect on words: no more than this many points, as a shape's effects are (real files use up to
+// 18; a file's number past this is the file's mistake, and a picture of it would be larger than a slide).
+inline constexpr double kMaxTextEffectPoints = 200;
 
 // The text effects every shape and Text Art made here has until it says otherwise: a soft gray shadow.
 TextEffects defaultTextShadow();
@@ -66,6 +73,9 @@ inline double blurSigma(double blurRadius) { return blurRadius * 0.2887; }   // 
 // measured on the stems of its letters against the same stems drawn here, 0.88 of the distance and 1.08 of the spread; these are the
 // rounded numbers.
 inline constexpr double kShadowNear = 0.9, kShadowSoft = 1.1;
+
+// Grows what an Alpha8 image holds by `radius` pixels in each direction (a square, in two passes whose cost does not depend on the radius).
+void dilateAlpha(QImage &alpha8, int radius);
 
 // Blurs the alpha channel of an Alpha8 image with a Gaussian of the given spread (pixels), three passes of boxes.
 void blurAlpha(QImage &alpha8, double sigma);

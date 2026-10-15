@@ -29,8 +29,8 @@ TextShadow shadowFrom(const QJsonObject &o)
     s.on = true;
     s.color = QColor(o["c"].toString());
     if (!s.color.isValid()) s.color = Qt::black;
-    s.blur = std::clamp(o["b"].toDouble(), 0.0, 1584.0);
-    s.distance = std::clamp(o["d"].toDouble(), 0.0, 1584.0);
+    s.blur = std::clamp(o["b"].toDouble(), 0.0, kMaxTextEffectPoints);
+    s.distance = std::clamp(o["d"].toDouble(), 0.0, kMaxTextEffectPoints);
     s.angle = o["a"].toDouble();
     s.sx = std::clamp(o["sx"].toDouble(1), -20.0, 20.0);
     s.sy = std::clamp(o["sy"].toDouble(1), -20.0, 20.0);
@@ -73,19 +73,19 @@ TextEffects TextEffects::fromJson(const QString &json)
         e.glow.on = true;
         e.glow.color = QColor(g["c"].toString());
         if (!e.glow.color.isValid()) e.glow.color = Qt::black;
-        e.glow.radius = std::clamp(g["r"].toDouble(), 0.0, 1584.0);
+        e.glow.radius = std::clamp(g["r"].toDouble(), 0.0, kMaxTextEffectPoints);
     }
-    e.softEdge = std::clamp(o["s"].toDouble(), 0.0, 1584.0);
+    e.softEdge = std::clamp(o["s"].toDouble(), 0.0, kMaxTextEffectPoints);
     if (o.contains("r")) {
         const QJsonObject r = o["r"].toObject();
         TextReflection &t = e.reflection;
         t.on = true;
-        t.blur = std::clamp(r["b"].toDouble(), 0.0, 1584.0);
+        t.blur = std::clamp(r["b"].toDouble(), 0.0, kMaxTextEffectPoints);
         t.startAlpha = std::clamp(r["sa"].toDouble(1), 0.0, 1.0);
         t.endAlpha = std::clamp(r["ea"].toDouble(0), 0.0, 1.0);
         t.startPos = std::clamp(r["sp"].toDouble(0), 0.0, 1.0);
         t.endPos = std::clamp(r["ep"].toDouble(1), 0.0, 1.0);
-        t.distance = std::clamp(r["d"].toDouble(), 0.0, 1584.0);
+        t.distance = std::clamp(r["d"].toDouble(), 0.0, kMaxTextEffectPoints);
         t.angle = r["a"].toDouble(90);
         t.fadeAngle = r["fa"].toDouble(90);
         t.sx = std::clamp(r["sx"].toDouble(1), -20.0, 20.0);
@@ -150,6 +150,41 @@ void boxPass(QImage &img, int radius, bool horizontal)
 }
 
 } // namespace
+
+void dilateAlpha(QImage &img, int radius)
+{
+    if (img.isNull() || img.format() != QImage::Format_Alpha8 || radius < 1) return;
+    const int w = img.width(), h = img.height();
+    const int step = int(img.bytesPerLine());
+    const int longest = std::max(w, h);
+    std::vector<uchar> in(static_cast<size_t>(longest));
+    std::vector<int> queue(static_cast<size_t>(longest));
+    // The biggest value in a window of 2r + 1 about each pixel, from a queue of the candidates that are still in it.
+    auto pass = [&](bool horizontal) {
+        const int n = horizontal ? w : h, lines = horizontal ? h : w;
+        const int stride = horizontal ? 1 : step;
+        for (int l = 0; l < lines; ++l) {
+            uchar *base = horizontal ? img.scanLine(l) : img.scanLine(0) + l;
+            bool any = false;
+            for (int i = 0; i < n; ++i) {
+                in[static_cast<size_t>(i)] = base[i * stride];
+                any |= in[static_cast<size_t>(i)] != 0;
+            }
+            if (!any) continue;
+            int head = 0, tail = 0, next = 0;
+            for (int i = 0; i < n; ++i) {
+                for (; next <= std::min(n - 1, i + radius); ++next) {
+                    while (tail > head && in[static_cast<size_t>(queue[static_cast<size_t>(tail - 1)])] <= in[static_cast<size_t>(next)]) --tail;
+                    queue[static_cast<size_t>(tail++)] = next;
+                }
+                while (queue[static_cast<size_t>(head)] < i - radius) ++head;
+                base[i * stride] = in[static_cast<size_t>(queue[static_cast<size_t>(head)])];
+            }
+        }
+    };
+    pass(true);
+    pass(false);
+}
 
 void blurAlpha(QImage &alpha8, double sigma)
 {
