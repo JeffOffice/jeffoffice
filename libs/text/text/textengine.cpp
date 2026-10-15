@@ -15,6 +15,7 @@
 #include <QLinearGradient>
 #include <QtMath>
 #include <QGlyphRun>
+#include <QHash>
 #include <QPaintEngine>
 #include <QPainter>
 #include <QPainterPath>
@@ -2828,20 +2829,29 @@ struct FxPart {
     QColor color;
 };
 
+// A stretch of one line that carries an effect list: runs side by side with the same look are one.
+struct FxRange {
+    const void *block;
+    int line, from, to;
+    double ys, shear;
+    QColor color;
+};
+
 // Every run that carries the same effect list.
 struct FxGroup {
     QString json;
     QVector<FxPart> parts;
+    QVector<FxRange> ranges;
     QRectF box;        // its letters and the lines they stand on, frame-local
 };
 
 // A stranger's file can give every run an effect list of its own, each a picture to draw: no more than this many different lists on a
-// frame. A slide has one to three lists (the most of any in the sample decks is two); this is over ten times that.
-constexpr int kMaxEffectLists = 32;
-// The pictures of one painting's effects together (every frame, both passes): four times the device's pixels, but at least 24 million and
-// at most 96 million (about a second at 50 nanoseconds a pixel, as measured). The words of a slide with a shadow on all of them make one to
-// two million pixels on a screen and about ten at 4K. A device that is not pixels (a PDF) has 64 million.
-constexpr qint64 kEffectPixelsLeast = 24000000, kEffectPixelsMost = 96000000, kEffectPixelsVector = 64000000;
+// frame (and this many, 128, looked at). A slide has one to three lists (the most of any in the sample decks is two); this is over ten times that.
+constexpr int kMaxEffectLists = 32, kMaxEffectListsSeen = 128;
+// The pictures of one painting's effects together (every frame, both passes): four times the device's pixels, but at least 16 million and
+// at most 64 million (a second or less at 50 nanoseconds a pixel, as measured). The words of a slide with a shadow on all of them make one
+// to two million pixels on a screen and about ten at 4K. A device that is not pixels (a PDF) has 48 million.
+constexpr qint64 kEffectPixelsLeast = 16000000, kEffectPixelsMost = 64000000, kEffectPixelsVector = 48000000;
 // Cached pictures of effects, in bytes, for every layout together.
 constexpr qint64 kEffectCacheBytes = 192LL * 1024 * 1024;
 
@@ -2997,46 +3007,70 @@ void StoryLayout::paintTextEffects(QPainter *p, int frame, bool over) const
     const QPointF off(0, -frameY(frame));
     // The letters of each effect list (a run's, the same string for every run that has it).
     QVector<FxGroup> groups;
+    QHash<QString, int> seen;   // each list met: its group, or -1
     for (const auto &B : m_blocks) {
         if (!B->textFx) continue;
         for (const auto &er : B->effects) {
             const QString json = er.format.stringProperty(tp::TextFx);
             if (json.isEmpty()) continue;
-            const TextEffects &fx = TextEffects::cached(json);
-            if (over ? !fx.inner.on : !(fx.outer.on || fx.glow.on || fx.reflection.on)) continue;
-            int gi = 0;
-            while (gi < groups.size() && groups[gi].json != json) ++gi;
-            if (gi == groups.size()) {
-                if (groups.size() >= kMaxEffectLists) continue;
-                groups.push_back(FxGroup{json, {}, QRectF()});
+            // Each different list is looked at once (to see whether it has an effect for this pass); only so many are.
+            int gi = -1;
+            const auto known = seen.constFind(json);
+            if (known != seen.constEnd()) {
+                gi = *known;
+            } else {
+                if (seen.size() >= kMaxEffectListsSeen) continue;
+                const TextEffects &fx = TextEffects::cached(json);
+                if ((over ? fx.inner.on : (fx.outer.on || fx.glow.on || fx.reflection.on)) && groups.size() < kMaxEffectLists) {
+                    gi = int(groups.size());
+                    groups.push_back(FxGroup{json, {}, {}, QRectF()});
+                }
+                seen.insert(json, gi);
             }
+            if (gi < 0) continue;
+            const double ys = er.format.hasProperty(tp::GlyphScaleY) ? er.format.property(tp::GlyphScaleY).toDouble() : 1;
+            const double shear = er.format.hasProperty(tp::SyntheticItalic) ? er.format.property(tp::SyntheticItalic).toDouble() : 0;
+            const QColor color = er.format.foreground().style() != Qt::NoBrush ? er.format.foreground().color() : QColor(Qt::black);
             for (int i = 0; i < B->lines.size(); ++i) {
                 if (B->lines[i].frame != frame) continue;
                 const PtLine l(B->tl->lineAt(i));
-                const int s = std::max(er.start, l.textStart()), e = std::min(er.start + er.length, l.textStart() + l.textLength());
-                if (s >= e) continue;
-                FxPart part;
-                part.runs = l.glyphRuns(s, e - s);
-                const double ys = er.format.hasProperty(tp::GlyphScaleY) ? er.format.property(tp::GlyphScaleY).toDouble() : 1;
-                const double shear = er.format.hasProperty(tp::SyntheticItalic) ? er.format.property(tp::SyntheticItalic).toDouble() : 0;
-                const double base = l.y() + l.ascent() + off.y();
-                if (ys != 1 || shear != 0) {
-                    part.draw.translate(0, base);
-                    part.draw.shear(-shear, 0);
-                    part.draw.scale(1, ys);
-                    part.draw.translate(0, -base);
-                }
-                part.color = er.format.foreground().style() != Qt::NoBrush ? er.format.foreground().color() : QColor(Qt::black);
-                QRectF box;
-                for (const QGlyphRun &g : part.runs) box |= g.boundingRect();
-                box = part.draw.mapRect(QRectF(box.topLeft() / kFine, box.bottomRight() / kFine).translated(off));
-                // The line stands from its top to the foot of its text, whatever the letters reach.
-                const QRectF line = B->lines[i].rect;
-                box |= QRectF(box.left(), line.top(), box.width(), std::max(0.0, line.height() - B->lines[i].below));
+                const int from = std::max(er.start, l.textStart()), to = std::min(er.start + er.length, l.textStart() + l.textLength());
+                if (from >= to) continue;
                 FxGroup &g = groups[gi];
-                g.box = g.box.isNull() ? box : g.box | box;
-                g.parts << part;
+                if (!g.ranges.isEmpty()) {
+                    FxRange &last = g.ranges.last();
+                    if (last.block == B.get() && last.line == i && last.to == from && last.ys == ys && last.shear == shear && last.color == color) {
+                        last.to = to;
+                        continue;
+                    }
+                }
+                g.ranges.push_back(FxRange{B.get(), i, from, to, ys, shear, color});
             }
+        }
+    }
+    // The letters of each stretch, and the box they and their lines fill.
+    for (FxGroup &g : groups) {
+        for (const FxRange &r : g.ranges) {
+            const Block *B = static_cast<const Block *>(r.block);
+            const PtLine l(B->tl->lineAt(r.line));
+            FxPart part;
+            part.runs = l.glyphRuns(r.from, r.to - r.from);
+            const double base = l.y() + l.ascent() + off.y();
+            if (r.ys != 1 || r.shear != 0) {
+                part.draw.translate(0, base);
+                part.draw.shear(-r.shear, 0);
+                part.draw.scale(1, r.ys);
+                part.draw.translate(0, -base);
+            }
+            part.color = r.color;
+            QRectF box;
+            for (const QGlyphRun &gr : part.runs) box |= gr.boundingRect();
+            box = part.draw.mapRect(QRectF(box.topLeft() / kFine, box.bottomRight() / kFine).translated(off));
+            // The line stands from its top to the foot of its text, whatever the letters reach.
+            const QRectF line = B->lines[r.line].rect;
+            box |= QRectF(box.left(), line.top(), box.width(), std::max(0.0, line.height() - B->lines[r.line].below));
+            g.box = g.box.isNull() ? box : g.box | box;
+            g.parts << part;
         }
     }
     const double scale = m_env.fontScale;   // the effects of text the presentation program shrank are shrunk with it
