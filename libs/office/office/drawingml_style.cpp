@@ -133,7 +133,7 @@ bool fillFromElement(const QDomElement &e, const StyleContext &sc, Fill *out)
         if (!id.isEmpty()) {
             f.type = Fill::Picture;
             f.imageId = id;
-            f.blipEffects = readBlipEffects(blip, sc, true);
+            f.blipEffects = readBlipEffects(blip, sc);
             const QDomElement alpha = childNamed(blip, "alphaModFix");
             if (!alpha.isNull()) f.transparency = std::clamp(1.0 - parsePercent(attr(alpha, QStringLiteral("amt")), 1), 0.0, 1.0);
             const QDomElement tile = childNamed(e, "tile");
@@ -331,22 +331,19 @@ QString imageFormat(const QByteArray &bytes)
     return QString();
 }
 
-QVector<BlipEffect> readBlipEffects(const QDomElement &blip, const StyleContext &sc, bool all)
+QVector<BlipEffect> readBlipEffects(const QDomElement &blip, const StyleContext &sc)
 {
     QVector<BlipEffect> out;
     for (QDomElement c = blip.firstChildElement(); !c.isNull() && out.size() < kMaxBlipEffects; c = c.nextSiblingElement()) {
         const QString name = c.localName();
         BlipEffect e;
         if (name == QLatin1String("lum")) {
-            if (!all) continue;
             e.kind = BlipEffect::Luminance;
             e.brightness = std::clamp(parsePercent(attr(c, QStringLiteral("bright")), 0), -1.0, 1.0);
             e.contrast = std::clamp(parsePercent(attr(c, QStringLiteral("contrast")), 0), -1.0, 1.0);
         } else if (name == QLatin1String("grayscl")) {
-            if (!all) continue;
             e.kind = BlipEffect::Grayscale;
         } else if (name == QLatin1String("biLevel")) {
-            if (!all) continue;
             e.kind = BlipEffect::BiLevel;
             e.threshold = std::clamp(parsePercent(attr(c, QStringLiteral("thresh")), 0.5), 0.0, 1.0);
         } else if (name == QLatin1String("clrChange")) {
@@ -354,12 +351,12 @@ QVector<BlipEffect> readBlipEffects(const QDomElement &blip, const StyleContext 
             e.color = colorIn(childNamed(c, "clrFrom"), sc);
             e.color2 = colorIn(childNamed(c, "clrTo"), sc);
             if (!e.color.isValid()) continue;
-            // A color made clear is a picture's own setting (its transparent color), unless the effect is asked for whole.
+            // (A change to no color is to a clear one, as a picture's transparent color has always been read.)
             if (!e.color2.isValid()) {
                 e.color2 = e.color;
                 e.color2.setAlpha(0);
             }
-            if (!all && e.color2.alpha() == 0) continue;
+            e.useAlpha = parseBool(attr(c, QStringLiteral("useA")), true);
         } else if (name == QLatin1String("clrRepl")) {
             e.kind = BlipEffect::ColorReplace;
             e.color = colorIn(c, sc);

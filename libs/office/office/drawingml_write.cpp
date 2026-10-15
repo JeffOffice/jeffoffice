@@ -118,6 +118,7 @@ void writeBlipEffects(QXmlStreamWriter &w, const QVector<BlipEffect> &effects)
             break;
         case BlipEffect::ColorChange:
             begin(w, "a:clrChange");
+            if (!e.useAlpha) attribute(w, "useA", QStringLiteral("0"));
             holding("a:clrFrom", e.color);
             holding("a:clrTo", e.color2);
             w.writeEndElement();
@@ -802,30 +803,8 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         attribute(w, "amt", std::clamp<qint64>(percent(1.0 - p.transparency), 0, 100000));
         w.writeEndElement();
     }
-    if (p.recolor == PictureItem::Grayscale) {
-        leaf(w, "a:grayscl");
-    } else if (p.recolor == PictureItem::BlackWhite) {
-        begin(w, "a:biLevel");
-        attribute(w, "thresh", std::clamp<qint64>(percent(p.blackWhiteLevel), 0, 100000));
-        w.writeEndElement();
-    }
-    if (p.brightness != 0 || p.contrast != 0) {
-        begin(w, "a:lum");
-        if (p.brightness != 0) attribute(w, "bright", percent(std::clamp(p.brightness, -100.0, 100.0) / 100));
-        if (p.contrast != 0) attribute(w, "contrast", percent(std::clamp(p.contrast, -100.0, 100.0) / 100));
-        w.writeEndElement();
-    }
-    if (p.hasTransparentColor && p.transparentColor.isValid()) {
-        begin(w, "a:clrChange");
-        begin(w, "a:clrFrom");
-        writeColor(w, p.transparentColor);
-        w.writeEndElement();
-        begin(w, "a:clrTo");
-        writeColor(w, p.transparentColor, 1.0);
-        w.writeEndElement();
-        w.writeEndElement();
-    }
-    writeBlipEffects(w, p.blipEffects);
+    // The settings in the order they are drawn, then what is beside them (colorEffects), so that the file lists them as they are drawn.
+    writeBlipEffects(w, p.colorEffects());
     // An SVG picture: the PNG above is for programs that don't draw SVG, and the SVG itself is linked here, as the presentation
     // program links it, last in the blip.
     if (const QString svgId = relateSvg(ctx, p.imageId); !svgId.isEmpty()) {

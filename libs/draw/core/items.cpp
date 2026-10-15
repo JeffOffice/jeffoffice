@@ -303,6 +303,39 @@ QVector<BlipEffect> PictureItem::colorEffects() const
     return out + blipEffects;
 }
 
+void PictureItem::takeEffects(const QVector<BlipEffect> &listed)
+{
+    int rank = -1, held = 0;
+    for (const BlipEffect &e : listed) {
+        int at = -1;
+        if (e.kind == BlipEffect::ColorChange && e.useAlpha && e.color2.alpha() == 0 && e.color2.rgb() == e.color.rgb()) at = 0;
+        else if (e.kind == BlipEffect::Luminance && (e.brightness != 0 || e.contrast != 0)) at = 1;
+        else if (e.kind == BlipEffect::Grayscale || e.kind == BlipEffect::BiLevel) at = 2;
+        if (at <= rank) break;
+        rank = at;
+        ++held;
+    }
+    for (int i = 0; i < held; ++i) {
+        const BlipEffect &e = listed[i];
+        switch (e.kind) {
+        case BlipEffect::ColorChange:
+            hasTransparentColor = true;
+            transparentColor = QColor(e.color.red(), e.color.green(), e.color.blue());
+            break;
+        case BlipEffect::Luminance:
+            brightness = std::clamp(e.brightness, -1.0, 1.0) * 100;
+            contrast = std::clamp(e.contrast, -1.0, 1.0) * 100;
+            break;
+        case BlipEffect::Grayscale: recolor = Grayscale; break;
+        default:
+            recolor = BlackWhite;
+            blackWhiteLevel = e.threshold;
+            break;
+        }
+    }
+    blipEffects = listed.mid(held);
+}
+
 QJsonObject PictureItem::toJson() const
 {
     QJsonObject o = Item::toJson();
