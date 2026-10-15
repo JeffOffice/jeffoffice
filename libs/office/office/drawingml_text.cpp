@@ -244,8 +244,8 @@ TextShadow shadowOf(const QDomElement &e, const DrawingContext &ctx)
     const QColor color = readColor(e, ctx.theme, ctx.colors);
     s.color = color.isValid() ? color : QColor(Qt::black);
     double v = 0;
-    if (lengthOf(e, QLatin1String("blurRad"), &v)) s.blur = std::clamp(v, 0.0, 1584.0);
-    if (lengthOf(e, QLatin1String("dist"), &v)) s.distance = std::clamp(v, 0.0, 1584.0);
+    if (lengthOf(e, QLatin1String("blurRad"), &v)) s.blur = std::clamp(v, 0.0, kMaxTextEffectPoints);
+    if (lengthOf(e, QLatin1String("dist"), &v)) s.distance = std::clamp(v, 0.0, kMaxTextEffectPoints);
     if (const QString dir = at(e, QLatin1String("dir")); !dir.isEmpty()) s.angle = std::fmod(parseAngle(dir, 0), 360.0);
     bool ok = false;
     if (const QString sx = at(e, QLatin1String("sx")); !sx.isEmpty()) {
@@ -286,6 +286,26 @@ bool keptXml(const QDomElement &e, QString *out, int depth)
     return true;
 }
 
+// The elements an effect list may hold, in the schema's order (CT_EffectList): the file's own, each kind once and in that order, and
+// none the schema has no place for. False when nothing is left.
+bool keptList(const QDomElement &list, QString *out)
+{
+    static const char *const order[] = {"blur", "fillOverlay", "glow", "innerShdw", "outerShdw", "prstShdw", "reflection", "softEdge"};
+    QString parts[8];
+    int seen = 0;
+    for (QDomElement c = list.firstChildElement(); !c.isNull() && ++seen <= 16; c = c.nextSiblingElement())
+        for (int k = 0; k < 8; ++k) {
+            if (c.localName() != QLatin1String(order[k]) || !parts[k].isEmpty()) continue;
+            QString one;
+            if (keptXml(c, &one, 1)) parts[k] = one;
+        }
+    QString body;
+    for (const QString &part : parts) body += part;
+    if (body.isEmpty()) return false;
+    *out = QStringLiteral("<a:effectLst>") + body + QStringLiteral("</a:effectLst>");
+    return true;
+}
+
 // What a run's a:effectLst says, in the form a run's format carries it: a string, empty for a list with no effect in it. Its own
 // elements are kept too (up to a few KB), to be written back as they were.
 QString textEffectsOf(const QDomElement &list, const DrawingContext &ctx)
@@ -309,9 +329,9 @@ QString textEffectsOf(const QDomElement &list, const DrawingContext &ctx)
             fx.glow.on = true;
             const QColor color = readColor(c, ctx.theme, ctx.colors);
             fx.glow.color = color.isValid() ? color : QColor(Qt::black);
-            if (lengthOf(c, QLatin1String("rad"), &v)) fx.glow.radius = std::clamp(v, 0.0, 1584.0);
+            if (lengthOf(c, QLatin1String("rad"), &v)) fx.glow.radius = std::clamp(v, 0.0, kMaxTextEffectPoints);
         } else if (name == QLatin1String("softEdge")) {
-            if (lengthOf(c, QLatin1String("rad"), &v)) fx.softEdge = std::clamp(v, 0.0, 1584.0);
+            if (lengthOf(c, QLatin1String("rad"), &v)) fx.softEdge = std::clamp(v, 0.0, kMaxTextEffectPoints);
         } else if (name == QLatin1String("reflection") && !fx.reflection.on) {
             TextReflection &r = fx.reflection;
             r.on = true;
@@ -325,8 +345,8 @@ QString textEffectsOf(const QDomElement &list, const DrawingContext &ctx)
                 const QString s = at(c, QLatin1String(attrName));
                 return s.isEmpty() ? fallback : std::fmod(parseAngle(s, fallback), 360.0);
             };
-            if (lengthOf(c, QLatin1String("blurRad"), &v)) r.blur = std::clamp(v, 0.0, 1584.0);
-            if (lengthOf(c, QLatin1String("dist"), &v)) r.distance = std::clamp(v, 0.0, 1584.0);
+            if (lengthOf(c, QLatin1String("blurRad"), &v)) r.blur = std::clamp(v, 0.0, kMaxTextEffectPoints);
+            if (lengthOf(c, QLatin1String("dist"), &v)) r.distance = std::clamp(v, 0.0, kMaxTextEffectPoints);
             r.startAlpha = std::clamp(percent("stA", 1), 0.0, 1.0);
             r.endAlpha = std::clamp(percent("endA", 0), 0.0, 1.0);
             r.startPos = std::clamp(percent("stPos", 0), 0.0, 1.0);
@@ -340,11 +360,12 @@ QString textEffectsOf(const QDomElement &list, const DrawingContext &ctx)
             if (const QString al = at(c, QLatin1String("algn")); !al.isEmpty()) r.align = al;
         }
     }
-    if (!fx.any()) return QString();
-    // As the file had it, if it is the standard's own elements and no longer than a list of real effects is.
+    // As the file had it (the list's own elements, in the schema's order, up to a few KB): a list of effects not drawn here (blur, fill
+    // overlay) is kept too; a list with nothing in it says there are none, which is a list of its own (a run's takes its style's off).
     constexpr int kMaxKept = 4096;
     QString xml;
-    if (keptXml(list, &xml, 0) && xml.size() <= kMaxKept) fx.xml = xml;
+    if (keptList(list, &xml) && xml.size() <= kMaxKept) fx.xml = xml;
+    if (!fx.any() && fx.xml.isEmpty()) return TextEffects::noneJson();
     return fx.toJson();
 }
 
