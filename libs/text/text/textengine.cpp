@@ -1280,6 +1280,97 @@ double fontDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, in
     return d;
 }
 
+// A font's ascent and descent in ems by its Windows metrics (OS/2 usWinAscent and usWinDescent; the hhea ones where it has no OS/2 table).
+struct WinMetrics { double ascent = 0, descent = 0; };
+
+// Those of the fonts the presentation program drew with in reference PDFs (read from the OS/2 tables of the fonts embedded in them), for a
+// stand-in whose own differ: a style is the regular face's unless named.
+static WinMetrics presentationMetrics(const QString &family, bool bold, bool italic)
+{
+    struct Entry { const char *family; double regular[2], bold[2], boldItalic[2]; };   // ascent, descent (units of 2048; 0: as the regular face)
+    static const Entry table[] = {
+        {"arial", {1854, 434}, {0, 0}, {0, 0}},
+        {"arial black", {2254, 634}, {0, 0}, {0, 0}},
+        {"arial narrow", {1888, 431}, {1910, 431}, {0, 0}},
+        {"book antiqua", {1967, 578}, {1891, 543}, {1888, 575}},
+        {"bookman old style", {1831, 473}, {0, 0}, {0, 0}},
+        {"calibri", {1950, 550}, {0, 0}, {0, 0}},
+        {"calibri light", {1950, 550}, {0, 0}, {0, 0}},
+        {"century gothic", {1989, 451}, {2032, 451}, {0, 0}},
+        {"consolas", {1884, 514}, {0, 0}, {0, 0}},
+        {"corbel", {1950, 550}, {0, 0}, {0, 0}},
+        {"franklin gothic book", {1877, 445}, {0, 0}, {0, 0}},
+        {"garamond", {1765, 539}, {0, 0}, {0, 0}},
+        {"gill sans mt", {1903, 472}, {0, 0}, {0, 0}},
+        {"impact", {2066, 432}, {0, 0}, {0, 0}},
+        {"perpetua", {1679, 668}, {0, 0}, {0, 0}},
+        {"script mt bold", {1950, 516}, {0, 0}, {0, 0}},
+        {"times", {1825, 443}, {0, 0}, {0, 0}},
+        {"times new roman", {1825, 443}, {0, 0}, {0, 0}},
+        {"trebuchet ms", {1923, 455}, {0, 0}, {0, 0}},
+        {"tw cen mt", {1753, 477}, {0, 0}, {0, 0}},
+        {"tw cen mt condensed", {1694, 494}, {0, 0}, {0, 0}},
+        {"verdana", {2059, 430}, {0, 0}, {0, 0}},
+    };
+    for (const Entry &e : table)
+        if (family.compare(QLatin1String(e.family), Qt::CaseInsensitive) == 0) {
+            const double *v = bold && italic && e.boldItalic[0] > 0 ? e.boldItalic : bold && e.bold[0] > 0 ? e.bold : e.regular;
+            return {v[0] / 2048, v[1] / 2048};
+        }
+    return {};
+}
+
+static WinMetrics drawnMetrics(const QFont &f)
+{
+    static QHash<QString, WinMetrics> cache;   // main thread only, like all layout
+    const QString key = emKey(f);
+    auto it = cache.constFind(key);
+    if (it != cache.constEnd()) return *it;
+    WinMetrics m;
+    const QRawFont raw = QRawFont::fromFont(f);
+    auto be16 = [](const QByteArray &t, int off) { return off + 2 <= t.size() ? (uchar(t[off]) << 8) | uchar(t[off + 1]) : 0; };
+    const QByteArray head = raw.fontTable("head"), os2 = raw.fontTable("OS/2"), hhea = raw.fontTable("hhea");
+    const int upm = head.size() >= 20 ? be16(head, 18) : 0;
+    if (upm > 0) {
+        if (os2.size() >= 78 && be16(os2, 74) + be16(os2, 76) > 0) m = {double(be16(os2, 74)) / upm, double(be16(os2, 76)) / upm};
+        else if (hhea.size() >= 8) m = {double(qint16(be16(hhea, 4))) / upm, -double(qint16(be16(hhea, 6))) / upm};
+    }
+    if (!(m.ascent > 0 && m.descent > 0 && m.ascent + m.descent < 3.0)) m = {};
+    cache.insert(key, m);
+    return m;
+}
+
+// A slide's line: the presentation program makes a single line 1.2 em tall and
+// shares that between above and below the baseline in the proportion of the
+// font's Windows ascent to its descent (checked in 1,000 first lines of its
+// PDFs: Arial 0.974 em from the top of a line to the baseline, Times New Roman
+// 0.966, Calibri 0.936, Book Antiqua 0.928, Gill Sans MT 0.961). This is the
+// largest descent, below the baseline, among the line's text.
+double slideDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
+{
+    static QHash<QString, WinMetrics> cache;   // main thread only, like all layout
+    auto descentOf = [](const QFont &f, double size) {
+        const QString family = requestedFamily(f);
+        const bool bold = f.weight() >= QFont::DemiBold;
+        const QString key = emKey(f) + QLatin1Char('|') + family;
+        auto it = cache.constFind(key);
+        if (it == cache.constEnd()) {
+            WinMetrics m = presentationMetrics(family, bold, f.italic());
+            // A font on the computer is its own; a stand-in's tables are not the original's (its line is as before).
+            if (m.ascent <= 0 && QFontDatabase::hasFamily(family)) m = drawnMetrics(f);
+            it = cache.insert(key, m);
+        }
+        return it->ascent > 0 ? size / fontPointFactor() * 1.2 * it->descent / (it->ascent + it->descent) : 0.0;
+    };
+    double d = 0;
+    for (const auto &r : ranges)
+        if (r.start < from + len && r.start + r.length > from) {
+            const QFont f = r.format.font();
+            d = std::max(d, descentOf(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF()));
+        }
+    return d > 0 ? d : descentOf(fallback, fallback.pointSizeF());
+}
+
 // Line spacing in "spaces" (sp) scales the single spacing; points are absolute.
 double lineHeightFor(const QTextBlockFormat &bf, double scale, double single)
 {
@@ -2041,7 +2132,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // PDFs: the text starts at the glyph's advance) unless the list's
             // indent, measured from the text area's edge, is further; one of
             // JeffPub's own has a little room.
-            B->markerGap = bfont.isEmpty() ? 4 * scale : 0;
+            B->markerGap = bfont.isEmpty() && !env.slideLines ? 4 * scale : 0;
             markerW = B->markerAdv + B->markerGap;
             if (lf.hasProperty(tp::BulletTab)) markerW = std::max(markerW, lf.property(tp::BulletTab).toDouble() * scale - (leftM + textIndent));
             B->markerOff = markerW;
@@ -2296,7 +2387,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // line of a column sits one ascent below the top, and a
                     // paragraph after one with wider spacing starts that much
                     // lower. Whether a line fits counts its text, not that space.
-                    // (A slide's goes above it.)
+                    // (A slide's goes mostly above it.)
                     double below = !env.slideLines && h > single && bf.lineHeightType() == QTextBlockFormat::ProportionalHeight ? h - single : 0;
                     double textH = h - below;
                     // Baseline one descent above the text's bottom (for a substituted
@@ -2312,7 +2403,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     const double kd = knownDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer,
                                                    bf.lineHeightType() != QTextBlockFormat::FixedHeight && std::abs(h - single) < 0.01);
                     const double fd = kd > 0 ? 0 : fontDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer);
-                    const double descent = kd > 0 ? kd : fd > 0 ? fd : line.height() - line.ascent();
+                    const double sd = env.slideLines ? slideDescent(ranges, line.textStart(), std::max(1, line.textLength()), base) : 0;
+                    const double descent = sd > 0 ? sd : kd > 0 ? kd : fd > 0 ? fd : line.height() - line.ascent();
                     double baseDown = closer && !(env.slideLines && bf.lineHeightType() != QTextBlockFormat::FixedHeight) ? h / single * (single - descent) : textH - descent;
                     // A slide's line that isn't single (a share of the line other than 100 percent, lnSpcReduction counted, or an exact height)
                     // has its baseline 3/4 of the way down it when it is taller than a single line, whatever the font (shares of 110 to
@@ -2692,6 +2784,7 @@ QVector<StoryLayout::LineInfo> StoryLayout::lineInfo(int frame) const
             li.rect = B->lines[i].rect;
             li.below = B->lines[i].below;
             li.baseline = l.y() - frameY(B->lines[i].frame) + l.ascent();
+            if (i == 0 && !B->marker.isEmpty()) li.markerX = B->markerX;
             li.text = B->disp.mid(l.textStart(), l.textLength());
             li.docStart = B->docStart;
             for (const auto &r : B->tl->formats())

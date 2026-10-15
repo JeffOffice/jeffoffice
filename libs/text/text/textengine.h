@@ -89,13 +89,19 @@ struct LayoutEnv {
     // model and the pictures it draws; 20 fonts, text shrunk to fit and not):
     //  - A single line is 1.2 times the largest text on it whatever the font, a line's extra spacing goes above it, the paragraph at the top
     //    of a box takes no space before it, and an empty paragraph shows no bullet.
-    //  - A line's baseline: a single line sits a font's descent above its bottom; a line taller than that (a share over 100 percent, an exact
-    //    height over 1.2 times the size) has it 3/4 of the way down, whatever the font; a shorter one keeps the descent but no higher than
-    //    3/4 down. Text that isn't shrunk is set so too (a:noAutofit text in six fonts, shares of 80 to 150 percent and an exact 20 points:
-    //    0.2 points off the program on average, where the single line's rule for all of them was 1.9 off).
+    //  - A line's baseline: a single line, 1.2 em tall, is shared between above and below the baseline in the proportion of the font's Windows
+    //    ascent to its Windows descent (OS/2 usWinAscent and usWinDescent, not hhea or typo): 0.974 of the line is above it in Arial, 0.966 in
+    //    Times New Roman, 0.936 in Calibri, 0.928 in Book Antiqua (the fonts the program drew with, read from the tables embedded in its PDFs
+    //    of 64 presentations; a font on the computer is its own, and any other stand-in keeps the descent it had). A line taller than that
+    //    (a share over 100 percent, an exact height over 1.2 times the size) has it 3/4 of the way down, whatever the font; a shorter one keeps
+    //    that descent but no higher than 3/4 down. Text that isn't shrunk is set so too. Against the probes (shares of 80 to 150 percent
+    //    and an exact 20 points, 20 fonts) and 1,500 lines of the PDFs it is 0.1 points off on average and 0.5 at worst, where the single
+    //    line's rule with a stand-in's descent was 0.6 off on average and 2.4 at worst.
     //  - Space before or after given as a share of the line (spcPct) is that share of 1.2 times the size the text is drawn at, so it follows
     //    that size however the size came about (shrunk, or changed); given in points it is as written.
     //  - Pair kerning counts the size the text is drawn at.
+    //  - A list item's text follows its bullet at the bullet's advance when the bullet has no font of its own and no hang (no gap, unlike
+    //    JeffPub's own lists); with a hang (marL, indent) it starts at marL.
     //
     // And text it shrank to fit (a:normAutofit, fontScale below 1 here; fontScale 25 to 100 percent, lnSpcReduction of 0, 10, and 20, sizes of
     // 1 to 60 points), drawn so here:
@@ -180,7 +186,7 @@ public:
     int lineEnd(int pos) const;
     QVector<QRectF> rangeRects(int frame, int from, int to) const;
     QVector<QRectF> lineRects(int frame) const;   // every line box in the frame, frame-local
-    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; };   // below: line spacing under the text
+    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; };   // below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
     QVector<LineInfo> lineInfo(int frame) const;  // for diagnostics (jpubtool layout)
 
     // An object set in the text (tp::InlineObject): where it's drawn,
