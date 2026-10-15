@@ -1241,6 +1241,8 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
 {
     const Document &doc = *ctx.doc;
     if (pageIndex < 0 || pageIndex >= doc.pages.size()) return;
+    // The pictures of the page's text effects, all together, are held to one budget.
+    EffectBudget effectPixels(p);
     const Page &pg = *doc.pages[pageIndex];
     PaintContext c = ctx;
     c.pageNumber = pageIndex + 1;

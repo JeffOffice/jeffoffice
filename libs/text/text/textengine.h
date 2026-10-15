@@ -245,6 +245,7 @@ private:
     struct Heading { int frame = -1; QPointF baseline; QFont font; QColor color; };
     Heading m_notesHeading;            // above the endnotes
     QVector<InlineObject> m_inline;
+    quint64 m_serial = 0;              // this build's number, to keep what is made of it (pictures of effects) apart from another's
 };
 
 // Resolve a character format for display: scheme colors, scheme fonts, scaling.
@@ -267,6 +268,24 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
 // in Qt's letters: a .pub date field's format number is the place here plus 1.
 const QStringList &dateTimeFormats();
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env);
+// While one page is painted, the pictures its text effects make (blurred shadows, glows, reflections) share a budget of pixels, all
+// frames and both passes together, so that a file with many or large effects can't stall the painting: past it, the words are drawn
+// without the effect. A scope inside another is part of it. With `pixels` below zero the budget is the painter's device's.
+class EffectBudget {
+public:
+    explicit EffectBudget(const QPainter *p, qint64 pixels = -1);
+    ~EffectBudget();
+    qint64 left() const { return m_left; }   // what is left of this scope's own budget (nothing for one inside another)
+    EffectBudget(const EffectBudget &) = delete;
+    EffectBudget &operator=(const EffectBudget &) = delete;
+
+private:
+    qint64 m_left = 0;
+    bool m_owner = false;
+};
+// How many pictures of effects have been made (not taken from those kept), for tests.
+int effectPicturesBuiltForTest();
+
 // How many outlines of fitted bullets (a missing symbol font's stand-in glyph
 // scaled to Publisher's box) have been made, for the test that shows they are
 // kept between paints.
