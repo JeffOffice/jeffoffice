@@ -159,6 +159,8 @@ private:
     QString pageLayoutFor(const QSizeF &size);
     QByteArray thumbnail() const;
     QString addPicture(const QString &imageId);
+    // The same, with the changes of a picture fill's colors made in it (the other suite has no way to say them); the picture as it is if there are none.
+    QString addPictureChanged(const QString &imageId, const QVector<BlipEffect> &effects);
     QString addMedia(const QString &mediaId, QString *mediaType, const QString &kind = QString());
     void addFile(const QString &path, const QByteArray &data, const QString &mediaType, bool compress);
     QString fontDecl(const QString &family);
