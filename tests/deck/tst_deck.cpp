@@ -4486,8 +4486,8 @@ private Q_SLOTS:
 
     // The presentation program makes a single line 1.2 em tall and shares it between above and below the baseline in the proportion of the
     // font's Windows ascent to its descent (read from the fonts in its PDFs): the baseline is that share of 1.2 em below the top of the line,
-    // whichever font stands in for the original. Set closer, the line loses its top and keeps the descent; set wider, its baseline is three
-    // quarters of the way down it.
+    // whichever font stands in for the original. Set closer, the line loses its top and keeps the descent, but its baseline is no higher than
+    // three quarters of the way down it; set wider, its baseline is three quarters of the way down.
     void slideLinesPutTheBaselineWhereTheFontsWindowMetricsSayIt()
     {
         struct Case { QString family; double ascent, descent; };
@@ -4513,7 +4513,8 @@ private Q_SLOTS:
                 lay.build(&doc, {fs}, env);
                 const auto lines = lay.lineInfo(0);
                 QCOMPARE(int(lines.size()), 1);
-                const double expected = spacing > 100 ? 0.75 * 1.2 * 40 * spacing / 100 : 1.2 * 40 * spacing / 100 - 1.2 * 40 * k.descent / (k.ascent + k.descent);
+                const double h = 1.2 * 40 * spacing / 100, descent = 1.2 * 40 * k.descent / (k.ascent + k.descent);
+                const double expected = spacing > 100 ? 0.75 * h : spacing < 100 ? std::max(0.75 * h, h - descent) : h - descent;
                 const QString what = k.family + QLatin1Char(' ') + QString::number(spacing) + QLatin1Char(' ') + QString::number(lines[0].baseline);
                 QVERIFY2(std::abs(lines[0].baseline - expected) < 0.01, qPrintable(what + QStringLiteral(" expected ") + QString::number(expected)));
             }
