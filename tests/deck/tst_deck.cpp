@@ -4484,6 +4484,64 @@ private Q_SLOTS:
         QVERIFY2(content.contains(QStringLiteral("text:space-before=\"1.0583cm\" text:min-label-width=\"0cm\"")), qPrintable(content.mid(content.indexOf(QStringLiteral("text:list-level-style-bullet")), 400)));
     }
 
+    // A slide's margins and indents stay where the file puts them when its text is shrunk to fit: only the text shrinks. A list's text starts one
+    // hang in from its bullet at the same place whatever the fit, and a bullet with no font of its own is followed by its text at once.
+    void slideIndentsDoNotShrinkWithTheirText()
+    {
+        for (double fit : {1.0, 0.5}) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(27);
+            bf.setTextIndent(-27);
+            c.setBlockFormat(bf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setProperty(tp::BulletChar, QStringLiteral("•"));
+            lf.setProperty(tp::BulletFont, QStringLiteral("Arial"));
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arial")});
+            cf.setFontPointSize(20);
+            c.createList(lf);
+            c.insertText(QStringLiteral("A list item long enough to run over to a second line of this narrow text box"), cf);
+            FrameSpec fs;
+            fs.size = QSizeF(200, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            LayoutEnv env;
+            env.slideLines = true;
+            env.fontScale = fit;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            const auto lines = lay.lineInfo(0);
+            QVERIFY(lines.size() >= 2);
+            QVERIFY2(std::abs(lines[0].rect.left() - 27) < 0.01, qPrintable(QString::number(fit) + QLatin1Char(' ') + QString::number(lines[0].rect.left())));
+            QVERIFY2(std::abs(lines[1].rect.left() - 27) < 0.01, qPrintable(QString::number(fit) + QLatin1Char(' ') + QString::number(lines[1].rect.left())));
+        }
+        // No hang and no font for the bullet: the text follows the bullet's own width (JeffPub's own lists leave a little room, a slide's don't).
+        auto firstLeft = [](bool slide) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setProperty(tp::BulletChar, QStringLiteral("•"));
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arial")});
+            cf.setFontPointSize(20);
+            c.createList(lf);
+            c.insertText(QStringLiteral("Text"), cf);
+            FrameSpec fs;
+            fs.size = QSizeF(300, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            LayoutEnv env;
+            env.slideLines = slide;
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            return lay.lineInfo(0).value(0).rect.left();
+        };
+        QVERIFY2(std::abs(firstLeft(false) - firstLeft(true) - 4) < 0.01, qPrintable(QString::number(firstLeft(false)) + QLatin1Char(' ') + QString::number(firstLeft(true))));
+        QVERIFY(firstLeft(true) > 5);
+    }
+
     // The other suite mirrors a picture side to side only (a mirror from top to bottom is ignored): a picture turned over is written as turned
     // half a turn and mirrored side to side, which is the same picture.
     void odpWritesAPictureTurnedOverAsAHalfTurnAndAMirror()
