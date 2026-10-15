@@ -4,6 +4,8 @@
 #include <QTextFormat>
 #include <QTextListFormat>
 
+#include <cmath>
+
 namespace jp {
 // Qt's list styles are all negative; these three are bullets, the rest numbers.
 inline bool isBulletList(QTextListFormat::Style s)
@@ -70,7 +72,21 @@ enum : int {
     BulletSize,                                  // double points: a list marker's own size (list format)
     TocLevel,                                    // int: a table of contents' paragraph (0 its title, 1-3 an entry), rebuilt by Update
     BulletTab,                                   // double points: the list's indent: its text starts this far from the text area's edge, or at the bullet's end (list format)
+    SpaceBeforeShare,                            // double: a slide paragraph's space before as a share of its line (0.2: 20 percent), where its file gave it so; the top margin holds what that came to
+    SpaceAfterShare,                             // double: the same for the space after (the bottom margin)
+    SpaceBeforeFrom,                             // double: the top margin (points) the share came to when it was set; the share counts only while the margin still is that
+    SpaceAfterFrom,                              // double: the same for the bottom margin
 };
+
+// A slide paragraph's space before (or after) as a share of its line, 0 when it has none in force. The share a file gave counts while the
+// margin is still the points it came to (to the hundredth of a point that the Paragraph dialog shows it in, so pressing OK there changes
+// nothing): a margin set to something else since ends it, and the text changing size doesn't.
+inline double spaceShareOf(const QTextBlockFormat &bf, bool before)
+{
+    const double share = bf.doubleProperty(before ? SpaceBeforeShare : SpaceAfterShare);
+    const double margin = before ? bf.topMargin() : bf.bottomMargin(), from = bf.doubleProperty(before ? SpaceBeforeFrom : SpaceAfterFrom);
+    return share > 0 && std::isfinite(share) && std::abs(margin - from) < 0.0051 ? share : 0.0;
+}
 
 // Copies every property of `from` onto `to`. QTextFormat::properties()
 // builds a new map on each call, so a loop must walk one copy of it: begin()

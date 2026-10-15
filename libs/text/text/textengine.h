@@ -85,10 +85,29 @@ struct LayoutEnv {
     double fontScale = 1.0;
     double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
-    // Lines as the presentation program sets a slide's text: a single line is
-    // 1.2 times the largest text on it whatever the font, a line's extra
-    // spacing goes above it, the paragraph at the top of a box takes no space
-    // before it, and an empty paragraph shows no bullet.
+    // Lines as the presentation program sets a slide's text, as probed in it (a text box per case, line positions read back through its object
+    // model and the pictures it draws; 20 fonts, text shrunk to fit and not):
+    //  - A single line is 1.2 times the largest text on it whatever the font, a line's extra spacing goes above it, the paragraph at the top
+    //    of a box takes no space before it, and an empty paragraph shows no bullet.
+    //  - A line's baseline: a single line sits a font's descent above its bottom; a line taller than that (a share over 100 percent, an exact
+    //    height over 1.2 times the size) has it 3/4 of the way down, whatever the font; a shorter one keeps the descent but no higher than
+    //    3/4 down. Text that isn't shrunk is set so too (a:noAutofit text in six fonts, shares of 80 to 150 percent and an exact 20 points:
+    //    0.2 points off the program on average, where the single line's rule for all of them was 1.9 off).
+    //  - Space before or after given as a share of the line (spcPct) is that share of 1.2 times the size the text is drawn at, so it follows
+    //    that size however the size came about (shrunk, or changed); given in points it is as written.
+    //  - Pair kerning counts the size the text is drawn at.
+    //
+    // And text it shrank to fit (a:normAutofit, fontScale below 1 here; fontScale 25 to 100 percent, lnSpcReduction of 0, 10, and 20, sizes of
+    // 1 to 60 points), drawn so here:
+    //  - A run's size is its size times the scale, rounded to the nearest whole point (halves up, 1 at least): 28 points at 85 percent are 24.
+    //    The line is 1.2 times that rounded size. A size at 100 percent isn't rounded, and a size can come out bigger than the text's own
+    //    (10.6 points at 99.99 percent are 11). Bullets and numbers follow: a bullet that is a share of its text is that share of the
+    //    rounded size, the text's own size otherwise.
+    //  - Only the text shrinks. Indents (marL, indent), tab stops, space before and after given in points, an exact line spacing (spcPts),
+    //    and the space added between letters stay as written; lnSpcReduction doesn't touch space.
+    //  - lnSpcReduction is points of percent taken off a share-of-line spacing (single counts as 100, so 90 percent less 10 is 80 percent of
+    //    a 1.2 em line), not a share of it. An exact spacing isn't reduced.
+    //  - What is stored (fontScale, lnSpcReduction) is drawn as it is on opening: the program doesn't fit it again until the text is edited.
     bool slideLines = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
@@ -255,6 +274,11 @@ void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, cons
 double naturalLineEm(const QFont &f, const QString &requestedFamily);
 
 QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env);
+
+// A slide's text shrunk to fit by `scale` (a:normAutofit's fontScale), as the presentation program draws it (see LayoutEnv::slideLines): a
+// run's size in whole points, and a paragraph's space before or after (tp::SpaceBeforeShare, tp::SpaceAfterShare) in points.
+double slideShrunkSize(double size, double scale);
+double slideSpaceOf(const QTextBlock &b, int shareProperty, double scale);
 // The format ranges of a paragraph's display text with the letters of runs in
 // a missing, measured stock font cut into pieces that take the original's
 // widths (resolveCharFormat marks those runs); the layout does this itself.
