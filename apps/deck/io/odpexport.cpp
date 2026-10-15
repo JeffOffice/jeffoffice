@@ -321,6 +321,27 @@ QString Exporter::addPicture(const QString &imageId)
     return name;
 }
 
+QString Exporter::addPictureChanged(const QString &imageId, const QVector<BlipEffect> &effects)
+{
+    if (imageId.isEmpty() || !blipEffectsChange(effects)) return addPicture(imageId);
+    const QString key = QStringLiteral("fx:") + imageId + QLatin1Char('|') + blipEffectsKey(effects);
+    if (const auto it = m_pictureNames.constFind(key); it != m_pictureNames.cend()) return it.value();
+    const QImage source = m_doc.image(imageId), changed = applyBlipEffects(source, effects);
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    // A picture that can't be changed (too big) is as it is.
+    if (changed.isNull() || changed.cacheKey() == source.cacheKey() || !changed.save(&buffer, "PNG")) {
+        const QString plain = addPicture(imageId);
+        m_pictureNames.insert(key, plain);
+        return plain;
+    }
+    const QString name = QStringLiteral("Pictures/image%1.png").arg(m_pictureNames.size() + 1);
+    addFile(name, png, QStringLiteral("image/png"), false);
+    m_pictureNames.insert(key, name);
+    return name;
+}
+
 // A movie or sound kept in the presentation, as a part of the package under Media/; empty (a link to a file outside has none) if there are no bytes.
 QString Exporter::addMedia(const QString &mediaId, QString *mediaType, const QString &kind)
 {

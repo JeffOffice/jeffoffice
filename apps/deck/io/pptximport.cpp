@@ -1501,6 +1501,7 @@ ItemPtr pictureFilling(const Item &shape)
     pic->fx = shape.fx;
     pic->wrap.mode = Wrap::None;
     pic->imageId = shape.fill.imageId;
+    pic->blipEffects = shape.fill.blipEffects;
     pic->imgRect = QRectF(QPointF(0, 0), shape.rect.size());
     return pic;
 }

@@ -743,6 +743,7 @@ std::unique_ptr<Document> importOdp(const QByteArray &zip, QString *error, QStri
     if (!pkg.readOpenDocument(zip, error)) return nullptr;
     auto doc = std::make_unique<Document>();
     doc->slideText = true;
+    doc->slidePictures = true;
     QStringList notes;
     odp::Reader reader(pkg, *doc, &notes);
     if (!reader.run(error)) return nullptr;

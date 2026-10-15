@@ -19902,8 +19902,15 @@ private Q_SLOTS:
         };
         const auto before = picture(*both), after = picture(*back);
         QVERIFY(before && after);
-        QCOMPARE(before->blipEffects.size(), 4);
-        QVERIFY(after->blipEffects == before->blipEffects);
+        // The threshold is the picture's setting, and the four others are listed, in the order the file had them.
+        for (const PictureItem *pic : {before.get(), after.get()}) {
+            QCOMPARE(pic->blipEffects.size(), 4);
+            QVERIFY(pic->blipEffects[0].kind == BlipEffect::Duotone && pic->blipEffects[0].color == QColor(0, 0, 0x80) && pic->blipEffects[0].color2 == QColor(255, 255, 0));
+            QVERIFY(pic->blipEffects[1].kind == BlipEffect::Hsl && qAbs(pic->blipEffects[1].hue - 90) < 1e-6 && qAbs(pic->blipEffects[1].saturation + 0.2) < 1e-6 &&
+                    qAbs(pic->blipEffects[1].lightness - 0.1) < 1e-6);
+            QVERIFY(pic->blipEffects[2].kind == BlipEffect::ColorReplace && pic->blipEffects[2].color == QColor(255, 0, 0));
+            QVERIFY(pic->blipEffects[3].kind == BlipEffect::Tint && qAbs(pic->blipEffects[3].hue - 180) < 1e-6 && qAbs(pic->blipEffects[3].amount - 0.3) < 1e-6);
+        }
         QVERIFY(qAbs(after->blackWhiteLevel - 0.25) < 1e-6 && after->recolor == PictureItem::BlackWhite);
         QCOMPARE(colorOfSamplePicture(*back), colorOfSamplePicture(*both));
         // A background that is a picture with a brightness and contrast is drawn with them too.
@@ -19918,6 +19925,295 @@ private Q_SLOTS:
         ctx.doc = behind.get();
         ctx.cache = &cache;
         QVERIFY2(colorsNear(Renderer::renderToImage(ctx, 1, 0.5).pixelColor(10, 10), QColor(218, 102, 51)), qPrintable(Renderer::renderToImage(ctx, 1, 0.5).pixelColor(10, 10).name()));
+    }
+
+    // The color effects a blip lists come out of the file as the file lists them, in any order, however many of a kind: drawn in that order
+    // (a duotone before the brightness is not the brightness before it), none lost (a second color changed, a clear color after another change),
+    // and written back as listed, with their own words (a color change that doesn't count the clearness).
+    void importPictureEffectsInAnyOrderAreDrawnAndSavedAsListed()
+    {
+        QString err;
+        const QString duotone = QStringLiteral("<a:duotone><a:srgbClr val=\"000080\"/><a:srgbClr val=\"FFFF00\"/></a:duotone>");
+        const QString lum = QStringLiteral("<a:lum bright=\"30000\"/>");
+        const auto change = [](const QString &from, const QString &to, const QString &toAlpha = QString(), const QString &attrs = QString()) {
+            const QString target = toAlpha.isEmpty() ? QStringLiteral("<a:srgbClr val=\"%1\"/>").arg(to) : QStringLiteral("<a:srgbClr val=\"%1\">%2</a:srgbClr>").arg(to, toAlpha);
+            return QStringLiteral("<a:clrChange%1><a:clrFrom><a:srgbClr val=\"%2\"/></a:clrFrom><a:clrTo>%3</a:clrTo></a:clrChange>").arg(attrs, from, target);
+        };
+        const QString clear = QStringLiteral("<a:alpha val=\"0\"/>");
+        // The color of the sample's picture (182, 66, 15) after the same effects, made by hand in the order the file lists them.
+        const auto byHand = [](const QVector<BlipEffect> &effects) {
+            QImage one(1, 1, QImage::Format_ARGB32);
+            one.setPixelColor(0, 0, QColor(0xB6, 0x42, 0x0F));
+            return applyBlipEffects(one, effects).pixelColor(0, 0);
+        };
+        BlipEffect lumEffect, duotoneEffect;
+        lumEffect.kind = BlipEffect::Luminance;
+        lumEffect.brightness = 0.3;
+        duotoneEffect.kind = BlipEffect::Duotone;
+        duotoneEffect.color = QColor(0, 0, 0x80);
+        duotoneEffect.color2 = QColor(255, 255, 0);
+        const QColor duotoneThenLum = byHand({duotoneEffect, lumEffect}), lumThenDuotone = byHand({lumEffect, duotoneEffect});
+        QVERIFY2(qAbs(duotoneThenLum.blue() - lumThenDuotone.blue()) > 20, qPrintable(duotoneThenLum.name() + " " + lumThenDuotone.name()));   // the order shows
+        const auto exportedBlip = [&](Document &doc) {
+            Exported e;
+            if (!unpack(deck::exportPresentation(doc, &err), &e, &err)) return QString();
+            const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+            const int at = int(slide.indexOf(QStringLiteral("<a:blip ")));
+            const int end = int(slide.indexOf(QStringLiteral("</a:blip>"), at));
+            return at < 0 || end < 0 ? QString() : slide.mid(slide.indexOf(QLatin1Char('>'), at) + 1, end - slide.indexOf(QLatin1Char('>'), at) - 1);
+        };
+        // A duotone before the brightness is drawn first, and written first.
+        auto d = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\">%1%2</a:blip>").arg(duotone, lum), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*d), duotoneThenLum), qPrintable(colorOfSamplePicture(*d).name() + " not " + duotoneThenLum.name()));
+        QCOMPARE(exportedBlip(*d), duotone + lum);
+        auto other = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\">%1%2</a:blip>").arg(lum, duotone), &err);
+        QVERIFY2(other, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*other), lumThenDuotone), qPrintable(colorOfSamplePicture(*other).name() + " not " + lumThenDuotone.name()));
+        QCOMPARE(exportedBlip(*other), lum + duotone);
+        // Two changes of a color: the sample's color becomes blue, and blue is then made clear, so the picture is not there (the slide shows).
+        const QString both = change(QStringLiteral("B6420F"), QStringLiteral("0000FF")) + change(QStringLiteral("0000FF"), QStringLiteral("0000FF"), clear);
+        auto two = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\">%1</a:blip>").arg(both), &err);
+        QVERIFY2(two, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*two), QColor(255, 255, 255)), qPrintable(colorOfSamplePicture(*two).name()));
+        QCOMPARE(exportedBlip(*two), both);
+        // In the other order the clear one finds nothing, and the picture is blue.
+        const QString reversed = change(QStringLiteral("0000FF"), QStringLiteral("0000FF"), clear) + change(QStringLiteral("B6420F"), QStringLiteral("0000FF"));
+        auto blue = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\">%1</a:blip>").arg(reversed), &err);
+        QVERIFY2(blue, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*blue), QColor(0, 0, 255)), qPrintable(colorOfSamplePicture(*blue).name()));
+        QCOMPARE(exportedBlip(*blue), reversed);
+        // A color change that doesn't count the clearness (useA) is written with it; one made clear is the picture's transparent color, and the
+        // brightness after it is a setting, written as before.
+        const QString noAlpha = change(QStringLiteral("B6420F"), QStringLiteral("B6420F"), clear, QStringLiteral(" useA=\"0\""));
+        auto kept = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\">%1</a:blip>").arg(noAlpha), &err);
+        QVERIFY2(kept, qPrintable(err));
+        QCOMPARE(exportedBlip(*kept), noAlpha);
+        QVERIFY2(colorsNear(colorOfSamplePicture(*kept), QColor(255, 255, 255)), qPrintable(colorOfSamplePicture(*kept).name()));
+        const QString ordinary = change(QStringLiteral("B6420F"), QStringLiteral("B6420F"), clear) + lum + QStringLiteral("<a:grayscl/>");
+        auto settings = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\">%1</a:blip>").arg(ordinary), &err);
+        QVERIFY2(settings, qPrintable(err));
+        QCOMPARE(exportedBlip(*settings), ordinary);
+    }
+
+    // The contrast at its most (100 percent) cuts each color at the middle, end to end: read, drawn, and written as the file says.
+    void importAContrastOfAllIsDrawnAndSaved()
+    {
+        QString err;
+        auto d = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:lum contrast=\"100000\"/></a:blip>"), &err);
+        QVERIFY2(d, qPrintable(err));
+        // 182, 66, 15: the red is above the middle, the others below.
+        QVERIFY2(colorsNear(colorOfSamplePicture(*d), QColor(255, 0, 0)), qPrintable(colorOfSamplePicture(*d).name()));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:lum contrast=\"100000\"/>")), qPrintable(part(e, QStringLiteral("/ppt/slides/slide1.xml"))));
+        // Below the least (past -100 percent, which the standard does not have) is the least: a flat gray, not a crash.
+        auto flat = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:lum contrast=\"-100000\"/></a:blip>"), &err);
+        QVERIFY2(flat, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*flat), QColor(128, 128, 128)), qPrintable(colorOfSamplePicture(*flat).name()));
+    }
+
+    // The picture an equation falls back to has the changes of its fill (a shape filled with the picture, and a duotone on the fill: it is
+    // made a picture, which has its own place for them).
+    void importAnEquationsPictureKeepsItsEffects()
+    {
+        Parts p = equationPptx(QStringLiteral("shape"));
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const int fallback = int(xml.indexOf(QStringLiteral("<mc:Fallback>")));
+        QVERIFY(fallback > 0);
+        const QRegularExpression blip(QStringLiteral("<a:blip r:embed=\"(rId\\d+)\"/>"));
+        QString tail = xml.mid(fallback);
+        tail.replace(blip, QStringLiteral("<a:blip r:embed=\"\\1\"><a:lum bright=\"21000\" contrast=\"52000\"/><a:duotone><a:srgbClr val=\"000080\"/><a:srgbClr val=\"FFFF00\"/></a:duotone></a:blip>"));
+        QVERIFY(tail != xml.mid(fallback));
+        p.data["/ppt/slides/slide1.xml"].xml = (xml.left(fallback) + tail).toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("equation"));
+        QVERIFY(pic);
+        QCOMPARE(d->images.value(pic->imageId).bytes, equationPicture());   // the picture is as the file has it
+        QCOMPARE(pic->blipEffects.size(), 2);
+        QVERIFY(pic->blipEffects[0].kind == BlipEffect::Luminance && qAbs(pic->blipEffects[0].brightness - 0.21) < 1e-6 && qAbs(pic->blipEffects[0].contrast - 0.52) < 1e-6);
+        QVERIFY(pic->blipEffects[1].kind == BlipEffect::Duotone && pic->blipEffects[1].color == QColor(0, 0, 0x80) && pic->blipEffects[1].color2 == QColor(255, 255, 0));
+        // It is drawn with them: the brightness and contrast take 192, 48, 48 to 255, 44, 44, and the duotone (97 of 255 in gray, 45 between)
+        // to 116, 116, 70.
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        const QPointF at = pic->rect.center();
+        const QColor drawn = Renderer::renderToImage(ctx, 0, 1.0).pixelColor(int(at.x()), int(at.y()));
+        QVERIFY2(colorsNear(drawn, QColor(116, 116, 70), 2), qPrintable(drawn.name()));
+    }
+
+    // A picture of a presentation drawn at one size and another is changed once (not for each size, as a zoom or a thumbnail asks), and one a
+    // file asks too much of (thirty-two turns of the hue) is drawn as it is, at once, at every size.
+    void renderChangesAPictureOnceAndRefusesWhatCostsTooMuch()
+    {
+        QImage source(2000, 1500, QImage::Format_RGB32);
+        source.fill(QColor(100, 150, 200));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        source.save(&buffer, "PNG");
+        auto make = [&](Document &doc, const QVector<BlipEffect> &effects) {
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = doc.addImage(png, QStringLiteral("png"));
+            pic->rect = QRectF(0, 0, 400, 300);
+            pic->imgRect = pic->rect;
+            pic->blipEffects = effects;
+            return pic;
+        };
+        BlipEffect turn;
+        turn.kind = BlipEffect::Hsl;
+        turn.hue = 120;
+        Document doc;
+        doc.slidePictures = true;
+        auto once = make(doc, {turn});
+        const int before = blipAdjustedMade();
+        const QImage big = Renderer::processedImage(doc, *once, QSizeF(800, 600), QSizeF());
+        const QImage small = Renderer::processedImage(doc, *once, QSizeF(100, 75), QSizeF());
+        const QImage exact = Renderer::processedImage(doc, *once, QSizeF(), QSizeF(333, 250));
+        QCOMPARE(blipAdjustedMade(), before + 1);
+        QVERIFY(big.width() != small.width());
+        for (const QImage &img : {big, small, exact}) {
+            const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
+            QVERIFY2(qAbs(c.red() - 200) <= 2 && qAbs(c.green() - 100) <= 2 && qAbs(c.blue() - 150) <= 2, qPrintable(c.name()));
+        }
+        // Thirty-two of them: 3 million pixels each; the picture is drawn as it is, and at once.
+        auto crowd = make(doc, QVector<BlipEffect>(32, turn));
+        QElapsedTimer timer;
+        timer.start();
+        const int made = blipAdjustedMade();
+        for (const QSizeF &size : {QSizeF(800, 600), QSizeF(100, 75), QSizeF(333, 250)}) {
+            const QImage img = Renderer::processedImage(doc, *crowd, size, QSizeF());
+            const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
+            QVERIFY2(qAbs(c.red() - 100) <= 2 && qAbs(c.green() - 150) <= 2 && qAbs(c.blue() - 200) <= 2, qPrintable(c.name()));
+        }
+        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        QCOMPARE(blipAdjustedMade(), made);
+    }
+
+    // The other suite can't say a picture fill's changes of colors, so a fill with them is written as the picture those changes make (not as the
+    // picture they were made to), and so is a picture with them: bytes, not words, are what it can keep. A fill with none is the picture as it is.
+    void odpWritesWhatTheEffectsOfAPictureMake()
+    {
+        QString err;
+        // A background with a duotone, and a picture with one.
+        Parts p = samplePptx();
+        const QString duotone = QStringLiteral("<a:duotone><a:srgbClr val=\"000080\"/><a:srgbClr val=\"FFFF00\"/></a:duotone>");
+        p.data["/ppt/slides/slide2.xml"].xml.replace("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>",
+                                                     QStringLiteral("<p:bg><p:bgPr><a:blipFill><a:blip r:embed=\"rId2\">%1</a:blip><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>").arg(duotone).toUtf8());
+        p.data["/ppt/slides/slide1.xml"].xml.replace("<a:blip r:embed=\"rId2\"/>", QStringLiteral("<a:blip r:embed=\"rId2\"><a:tint hue=\"10800000\" amt=\"100000\"/></a:blip>").toUtf8());
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QStringList skipped;
+        const QByteArray odp = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(odp, zip, &err));
+        // The pictures the package holds: the background's after the duotone (97 of 255 in gray, between the two colors), and the picture's
+        // (as a picture of what it looks like) after the tint, which turns every color to cyan: a picture with a change the other suite
+        // can't say is a picture of itself, as one with a transparent color is.
+        bool duotoned = false, tinted = false;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) {
+            if (!it.key().startsWith(QStringLiteral("Pictures/"))) continue;
+            QImage img;
+            if (!img.loadFromData(it.value())) continue;
+            const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
+            if (it.key().startsWith(QStringLiteral("Pictures/object"))) tinted = tinted || (c.red() < 20 && c.blue() > 150 && c.green() > 150);
+            else duotoned = duotoned || colorsNear(c, QColor(97, 97, 79), 2);
+        }
+        QVERIFY2(duotoned, "the background is the picture the duotone makes");
+        QVERIFY2(tinted, "the picture is the picture the tint makes");
+        // The same deck with no effects writes the picture it has, as it is.
+        Parts plain = samplePptx();
+        auto asIs = deck::importPresentation(pack(plain), &err);
+        QVERIFY2(asIs, qPrintable(err));
+        QMap<QString, QByteArray> plainZip;
+        QVERIFY(readZip(deck::exportOdp(*asIs, false, &err), plainZip, &err));
+        bool kept = false;
+        for (auto it = plainZip.cbegin(); it != plainZip.cend(); ++it) kept = kept || (it.key().startsWith(QStringLiteral("Pictures/image")) && it.value() == tinyPng());
+        QVERIFY(kept);
+    }
+
+    // The documents of the other suite are drawn as a presentation's are (brightness and contrast as the presentation program has them), so a
+    // deck looks the same after it is saved as an .odp and opened again, and after it goes on to a .pptx.
+    void odpImportDrawsPicturesAsAPresentationDoes()
+    {
+        QString err;
+        auto d = deckWithPictureBlip(QStringLiteral("<a:blip r:embed=\"rId2\"><a:lum bright=\"21000\" contrast=\"52000\"/></a:blip>"), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QColor first = colorOfSamplePicture(*d);
+        QVERIFY2(colorsNear(first, QColor(255, 82, 0)), qPrintable(first.name()));
+        const QByteArray odp = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        auto again = deck::importOdp(odp, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(again->slidePictures);
+        QVERIFY2(colorsNear(colorOfSamplePicture(*again), first, 2), qPrintable(colorOfSamplePicture(*again).name()));
+        // And through a .pptx after it.
+        auto third = deck::importPresentation(deck::exportPresentation(*again, &err), &err);
+        QVERIFY2(third, qPrintable(err));
+        QVERIFY2(colorsNear(colorOfSamplePicture(*third), first, 2), qPrintable(colorOfSamplePicture(*third).name()));
+    }
+
+    // A metafile (clip art) drawn in black and white takes the picture's own threshold, not half: the same box of gray 100 is black from half
+    // the range and white from a quarter.
+    void renderBlackAndWhiteOfAMetafileFromThePicturesThreshold()
+    {
+        auto le16 = [](QByteArray &b, int v) { b.append(char(v & 0xFF)); b.append(char((v >> 8) & 0xFF)); };
+        auto le32 = [](QByteArray &b, quint32 v) { for (int i = 0; i < 4; ++i) b.append(char((v >> (8 * i)) & 0xFF)); };
+        auto words = [&](std::initializer_list<int> v) { QByteArray b; for (int w : v) le16(b, w); return b; };
+        auto record = [&](int fn, const QByteArray &params) {
+            QByteArray b;
+            le32(b, quint32((6 + params.size() + (params.size() & 1)) / 2));
+            le16(b, fn);
+            b += params;
+            if (params.size() & 1) b.append('\0');
+            return b;
+        };
+        // A 400 by 300 drawing of one box over all of it, in a gray of 100 and with no outline.
+        QByteArray brush = words({0}), pen = words({5, 0, 0});
+        le32(brush, 0x00646464);
+        le16(brush, 0);
+        le32(pen, 0);
+        QByteArray body = record(0x020B, words({0, 0})) + record(0x020C, words({300, 400})) + record(0x02FC, brush) + record(0x02FA, pen);
+        body += record(0x012D, words({1})) + record(0x012D, words({0})) + record(0x041B, words({300, 400, 0, 0})) + record(0x0000, QByteArray());
+        QByteArray head, standard;
+        le32(head, 0x9AC6CDD7u);
+        le16(head, 0);
+        for (int v : {0, 0, 400, 300, 72}) le16(head, v);
+        le32(head, 0);
+        quint16 sum = 0;
+        for (int i = 0; i < 20; i += 2) sum ^= quint16(quint8(head[i]) | (quint8(head[i + 1]) << 8));
+        le16(head, sum);
+        for (int v : {1, 9, 0x300}) le16(standard, v);
+        le32(standard, quint32((18 + body.size()) / 2));
+        le16(standard, 2);
+        le32(standard, 60);
+        le16(standard, 0);
+        const QByteArray wmf = head + standard + body;
+        for (const auto &want : {std::pair<double, QColor>{0.5, QColor(0, 0, 0)}, std::pair<double, QColor>{0.25, QColor(255, 255, 255)}}) {
+            Document doc;
+            doc.slidePictures = true;
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = doc.addImage(wmf, QStringLiteral("wmf"));
+            QVERIFY(!pic->imageId.isEmpty());
+            pic->rect = QRectF(0, 0, 200, 150);
+            pic->imgRect = pic->rect;
+            pic->recolor = PictureItem::BlackWhite;
+            pic->blackWhiteLevel = want.first;
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = &doc;
+            ctx.cache = &cache;
+            const ItemList one{pic};
+            const QImage img = Renderer::renderItemsToImage(ctx, one, 1.0);
+            QVERIFY(!img.isNull());
+            const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
+            QVERIFY2(c == want.second, qPrintable(QString::number(want.first) + ": " + c.name()));
+        }
     }
 
     // A shape that shows a tiled background has the tiles where the page has them, not from the shape's own corner: the picture is moved

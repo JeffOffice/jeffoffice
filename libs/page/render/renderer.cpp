@@ -499,14 +499,14 @@ QPainterPath Renderer::silhouette(const Document &doc, const Item &it)
 // ---------- pictures ----------
 // A picture's recoloring of one color (0-255 a channel), as the picture
 // settings dialog offers it.
-static void recolorRgb(PictureItem::Recolor kind, const QColor &tint, double &r, double &g, double &b)
+static void recolorRgb(PictureItem::Recolor kind, const QColor &tint, double &r, double &g, double &b, double whiteFrom = 0.5)
 {
     const double lum = 0.299 * r + 0.587 * g + 0.114 * b;
     switch (kind) {
     case PictureItem::Grayscale: r = g = b = lum; break;
     case PictureItem::Sepia: { const double tr = 0.393 * r + 0.769 * g + 0.189 * b, tg = 0.349 * r + 0.686 * g + 0.168 * b, tb = 0.272 * r + 0.534 * g + 0.131 * b; r = tr; g = tg; b = tb; break; }
     case PictureItem::Washout: r = 255 - (255 - r) * 0.25 + 30; g = 255 - (255 - g) * 0.25 + 30; b = 255 - (255 - b) * 0.25 + 30; break;
-    case PictureItem::BlackWhite: r = g = b = lum >= 128 ? 255 : 0; break;
+    case PictureItem::BlackWhite: r = g = b = lum >= whiteFrom * 256 ? 255 : 0; break;
     case PictureItem::ColorTint: {
         const double k = 1 - std::clamp(lum, 0.0, 255.0) / 255.0;
         r = 255 + (tint.red() - 255) * k; g = 255 + (tint.green() - 255) * k; b = 255 + (tint.blue() - 255) * k;
@@ -522,7 +522,8 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     QImage src = doc.image(pic.imageId);
     if (src.isNull()) return src;
     // A slide's picture is changed as the presentation program changes it (PictureItem::colorEffects), all at once and in the pixels of the
-    // picture itself, before it is made smaller: a color picked out is picked out where it is exact. A publication's, and the Sepia, Washout,
+    // picture itself, before it is made smaller (a color picked out is picked out where it is exact), and once for the picture and its changes,
+    // however many sizes it is shown at. A publication's, and the Sepia, Washout,
     // and tint recolors only it has, are changed as Publisher changes them, below.
     const bool slide = doc.slidePictures && (pic.recolor == PictureItem::NoRecolor || pic.recolor == PictureItem::Grayscale || pic.recolor == PictureItem::BlackWhite);
     const QVector<BlipEffect> effects = slide ? pic.colorEffects() : pic.blipEffects;
@@ -546,7 +547,7 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
                             .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height());
     const QString effectsKey = effects.isEmpty() ? QString() : (slide ? QStringLiteral("s") : QStringLiteral("p")) + blipEffectsKey(effects);
     if (QImage *c = cache.object(key + QLatin1Char('|') + effectsKey)) return *c;
-    if (slide) src = applyBlipEffects(src, effects);
+    if (slide) src = blipAdjusted(src, effects);
     QImage img = level ? src.scaledToWidth(std::max(1, src.width() >> level), Qt::SmoothTransformation) : src;
     if (!shown.isEmpty()) img = img.scaled(shown, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     const bool adjust = !slide && (pic.brightness || pic.contrast || pic.recolor || pic.hasTransparentColor);
@@ -804,9 +805,9 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
         const bool metafile = data.format == QLatin1String("wmf") || data.format == QLatin1String("emf");
         if (metafile && onlyRecolored && mf.load(data.bytes)) {
             const QColor tint = pic.recolorColor.resolve(cs);
-            mf.play(p, pic.imgRect, [kind = pic.recolor, tint](const QColor &c) {
+            mf.play(p, pic.imgRect, [kind = pic.recolor, tint, whiteFrom = pic.blackWhiteLevel](const QColor &c) {
                 double r = c.red(), g = c.green(), b = c.blue();
-                recolorRgb(kind, tint, r, g, b);
+                recolorRgb(kind, tint, r, g, b, whiteFrom);
                 return QColor(std::clamp(int(r), 0, 255), std::clamp(int(g), 0, 255), std::clamp(int(b), 0, 255), c.alpha());
             });
         } else if (ctx.opt.output && plain && metafile && mf.load(data.bytes)) {
