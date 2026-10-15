@@ -6148,6 +6148,118 @@ private Q_SLOTS:
         QVERIFY(TextEffects::fromJson(second).outer.on);
     }
 
+    // The Shadow button's shadow is saved (in the run's effect list, as the program writes it) and read again; and it works on each run by
+    // itself: a mixed selection gets the shadow where it has none and keeps every run's other effects, and takes it off the same way.
+    void shadowButtonSavesItsShadowAndWorksRunByRun()
+    {
+        DeckWindow w;
+        QTextDocument *story = editTitle(w, QStringLiteral("AAAA BBBB CCCC"), 0, 14);
+        QAction *button = w.act(QStringLiteral("fmt.shadow"));
+        QTRY_VERIFY(button->isEnabled());
+        TextEffects glowing, both;
+        glowing.glow.on = true;
+        glowing.glow.color = QColor(0, 0, 255);
+        glowing.glow.radius = 5;
+        both = glowing;
+        both.outer = defaultTextShadow().outer;
+        auto format = [&](int from, int to, const TextEffects *fx) {
+            QTextCursor c(story);
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            QTextCharFormat cf;
+            if (fx) cf.setProperty(tp::TextFx, fx->toJson());
+            c.mergeCharFormat(cf);
+        };
+        format(0, 5, &glowing);   // "AAAA ": a glow, no shadow
+        format(10, 14, &both);    // "CCCC": a shadow and a glow
+        QVERIFY(!Editor::hasTextShadow(w.editor()->currentCharFormat()));   // (the first run's)
+        button->trigger();
+        auto of = [&](const QString &text) { return TextEffects::fromJson(runListOf(story, text)); };
+        for (const QString &text : {QStringLiteral("AAAA"), QStringLiteral("BBBB"), QStringLiteral("CCCC")}) QVERIFY2(of(text).outer.on, qPrintable(text));
+        QVERIFY(of(QStringLiteral("AAAA")).glow.on && of(QStringLiteral("CCCC")).glow.on);
+        QVERIFY2(!of(QStringLiteral("BBBB")).glow.on, qPrintable(runListOf(story, QStringLiteral("BBBB")) + QStringLiteral(" | ") + story->toPlainText()));
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) QVERIFY(!it.fragment().charFormat().boolProperty(tp::Shadow));
+        // Saved, the shadow is the program's own, and read again it is still there.
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*w.editor()->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("<a:outerShdw blurRad=\"38100\" dist=\"38100\" dir=\"2700000\"")), qPrintable(slide.left(4000)));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(back->pages[0]->items[0]->type() == ItemType::Text);
+        const QTextDocument *read = back->storyDoc(static_cast<const TextItem *>(back->pages[0]->items[0].get())->storyId);
+        QVERIFY(read);
+        QVERIFY2(TextEffects::fromJson(runListOf(read, QStringLiteral("BBBB"))).outer.on, qPrintable(read->toPlainText()));
+        // Off again: from every run, the glows stay, and a run with nothing left says so (a style's shadow would not come back).
+        QTRY_VERIFY(button->isChecked());
+        button->trigger();
+        for (const QString &text : {QStringLiteral("AAAA"), QStringLiteral("BBBB"), QStringLiteral("CCCC")}) QVERIFY2(!of(text).outer.on, qPrintable(text));
+        QVERIFY(of(QStringLiteral("AAAA")).glow.on && of(QStringLiteral("CCCC")).glow.on);
+        QCOMPARE(runListOf(story, QStringLiteral("BBBB")), TextEffects::noneJson());
+    }
+
+    // A run with the older Shadow property and an effect list with a shadow has its .odp text shadow once: the file is well formed.
+    void odpWritesATextShadowOnceAndIsWellFormed()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(20, 20, 300, 100);
+        t->storyId = d->createStory();
+        QTextCursor c(d->storyDoc(t->storyId));
+        QTextCharFormat cf;
+        cf.setFontPointSize(20);
+        cf.setProperty(tp::Shadow, true);
+        cf.setProperty(tp::TextFx, shadowOf(QColor(0, 0, 0), 3, 4, 90).toJson());
+        c.insertText(QStringLiteral("Both"), cf);
+        d->pages[1]->items.push_back(t);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        QDomDocument dom;
+        QString why;
+        QVERIFY2(office::parseXml(zip.value(QStringLiteral("content.xml")), &dom, &why), qPrintable(why));
+        QVERIFY2(QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).count(QStringLiteral("fo:text-shadow=\"0.00pt 4.00pt\"")) >= 1, "the list's shadow");
+        QVERIFY(!QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).contains(QStringLiteral("fo:text-shadow=\"1pt 1pt\"")));
+    }
+
+    // The Font window's Shadow box, on a slide, shows and edits the words' effect list as the Shadow button does; in a publication it is the
+    // Shadow property as it was.
+    void fontWindowShadowBoxFollowsTheEffectListOnASlide()
+    {
+        for (const bool slide : {true, false}) {
+            DeckWindow w;
+            w.editor()->doc()->slideText = slide;
+            QTextDocument *story = editTitle(w, QStringLiteral("Hello"), 0, 5);
+            QTimer::singleShot(0, [] {
+                untilDone([] {
+                    auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                    if (!dlg) return false;
+                    for (QCheckBox *b : dlg->findChildren<QCheckBox *>())
+                        if (b->text() == QStringLiteral("Shadow")) b->setChecked(!b->isChecked());
+                    dlg->accept();
+                    return true;
+                });
+            });
+            fontDialog(&w, w.editor());
+            const QTextCharFormat cf = w.editor()->currentCharFormat();
+            if (slide) {
+                QVERIFY(Editor::hasTextShadow(cf));
+                QVERIFY(!cf.boolProperty(tp::Shadow));
+                QVERIFY(TextEffects::fromJson(runListOf(story, QStringLiteral("Hello"))).outer.on);
+            } else {
+                QVERIFY(cf.boolProperty(tp::Shadow));
+                QVERIFY(runListOf(story, QStringLiteral("Hello")).isEmpty());
+            }
+        }
+    }
+
     // The effect lists written here follow the schema's order (glow, inner shadow, outer shadow, reflection, soft edges); one a file had is
     // written in that order with only the elements the schema has for a list, and a list of effects not drawn here (blur) is kept.
     void effectListsAreWrittenInTheSchemasOrder()

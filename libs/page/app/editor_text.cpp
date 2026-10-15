@@ -5,6 +5,7 @@
 #include "app/editor.h"
 #include "app/settings.h"
 
+#include "core/texteffects.h"
 #include "text/textprops.h"
 
 #include <QRegularExpression>
@@ -165,6 +166,68 @@ void Editor::clearCharProperty(int prop, const QString &label)
     }
     endChange();
     Q_EMIT textCursorChanged();
+}
+
+void Editor::editCharFormats(const std::function<void(QTextCharFormat &)> &change, const QString &label)
+{
+    auto targets = formatTargets();
+    if (targets.isEmpty()) return;
+    beginChange(label);
+    for (QTextCursor c : targets) {
+        if (isEditingText()) selectWordIfCollapsed(c);
+        const int s = c.selectionStart(), e = c.selectionEnd();
+        QTextDocument *d = c.document();
+        for (QTextBlock b = d->findBlock(s); b.isValid() && b.position() <= e; b = b.next()) {
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment fr = it.fragment();
+                const int fs = std::max(s, fr.position()), fe = std::min(e, fr.position() + fr.length());
+                if (fs >= fe) continue;
+                QTextCursor fc(d);
+                fc.setPosition(fs);
+                fc.setPosition(fe, QTextCursor::KeepAnchor);
+                QTextCharFormat cf = fr.charFormat();
+                change(cf);
+                fc.setCharFormat(cf);
+            }
+            QTextCursor bc(b);
+            QTextCharFormat bcf = b.charFormat();
+            change(bcf);
+            bc.setBlockCharFormat(bcf);
+        }
+    }
+    // (What is typed next, with no selection: a selection's runs are done, each by itself, and a cursor's format would set them all alike.)
+    if (isEditingText() && !m_cursor.hasSelection()) {
+        QTextCharFormat cf = m_cursor.charFormat();
+        change(cf);
+        m_cursor.setCharFormat(cf);
+    }
+    endChange();
+    Q_EMIT textCursorChanged();
+}
+
+bool Editor::hasTextShadow(const QTextCharFormat &cf)
+{
+    const QString list = cf.stringProperty(tp::TextFx);
+    return list.isEmpty() ? cf.boolProperty(tp::Shadow) : TextEffects::fromJson(list).outer.on;
+}
+
+void Editor::setTextShadow(bool on, const QString &label)
+{
+    editCharFormats([on](QTextCharFormat &cf) {
+        const QString list = cf.stringProperty(tp::TextFx);
+        TextEffects fx = list.isEmpty() ? TextEffects() : TextEffects::fromJson(list);
+        if (on && !fx.outer.on) {
+            fx.outer = defaultTextShadow().outer;
+            fx.xml.clear();
+            cf.setProperty(tp::TextFx, fx.toJson());
+        } else if (!on && fx.outer.on) {
+            // Off, in a list that says so (if nothing else is left in it): the shadow a style gives the run stays off too.
+            fx.outer.on = false;
+            fx.xml.clear();
+            cf.setProperty(tp::TextFx, fx.any() ? fx.toJson() : TextEffects::noneJson());
+        }
+        cf.clearProperty(tp::Shadow);
+    }, label);
 }
 
 void Editor::toggleBold()
