@@ -4486,18 +4486,19 @@ private Q_SLOTS:
 
     // The presentation program makes a single line 1.2 em tall and shares it between above and below the baseline in the proportion of the
     // font's Windows ascent to its descent (read from the fonts in its PDFs): the baseline is that share of 1.2 em below the top of the line,
-    // whichever font stands in for the original. Set closer, the line loses its top and keeps the descent.
+    // whichever font stands in for the original. Set closer, the line loses its top and keeps the descent; set wider, its baseline is three
+    // quarters of the way down it.
     void slideLinesPutTheBaselineWhereTheFontsWindowMetricsSayIt()
     {
         struct Case { QString family; double ascent, descent; };
         const Case cases[] = {{QStringLiteral("Arial"), 1854, 434},          {QStringLiteral("Calibri"), 1950, 550},   {QStringLiteral("Times New Roman"), 1825, 443},
                               {QStringLiteral("Book Antiqua"), 1967, 578},   {QStringLiteral("Gill Sans MT"), 1903, 472}, {QStringLiteral("Century Gothic"), 1989, 451}};
         for (const Case &k : cases)
-            for (double spacing : {100.0, 90.0}) {
+            for (double spacing : {100.0, 90.0, 150.0}) {
                 QTextDocument doc;
                 QTextCursor c(&doc);
                 QTextBlockFormat bf;
-                if (spacing < 100) bf.setLineHeight(spacing, QTextBlockFormat::ProportionalHeight);
+                if (spacing != 100) bf.setLineHeight(spacing, QTextBlockFormat::ProportionalHeight);
                 c.setBlockFormat(bf);
                 QTextCharFormat cf;
                 cf.setFontFamilies({k.family});
@@ -4512,7 +4513,7 @@ private Q_SLOTS:
                 lay.build(&doc, {fs}, env);
                 const auto lines = lay.lineInfo(0);
                 QCOMPARE(int(lines.size()), 1);
-                const double expected = 1.2 * 40 * spacing / 100 - 1.2 * 40 * k.descent / (k.ascent + k.descent);
+                const double expected = spacing > 100 ? 0.75 * 1.2 * 40 * spacing / 100 : 1.2 * 40 * spacing / 100 - 1.2 * 40 * k.descent / (k.ascent + k.descent);
                 const QString what = k.family + QLatin1Char(' ') + QString::number(spacing) + QLatin1Char(' ') + QString::number(lines[0].baseline);
                 QVERIFY2(std::abs(lines[0].baseline - expected) < 0.01, qPrintable(what + QStringLiteral(" expected ") + QString::number(expected)));
             }
@@ -6610,7 +6611,7 @@ private Q_SLOTS:
             QCOMPARE(int(lines.size()), 2);
             QVERIFY2(std::abs(lines[0].rect.top()) < 0.01, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].rect.top())));
             QVERIFY2(std::abs(lines[1].baseline - lines[0].baseline - 1.5 * 1.2 * 20) < 0.01, qPrintable(family + QLatin1Char(' ') + QString::number(lines[1].baseline - lines[0].baseline)));
-            // The extra space is above the text: the first baseline is a whole line down, less the text's descent.
+            // The extra space is mostly above the text: the first baseline is three quarters of the way down the line.
             QVERIFY2(lines[0].baseline > 1.5 * 1.2 * 20 * 0.7, qPrintable(family + QLatin1Char(' ') + QString::number(lines[0].baseline)));
             QCOMPARE(lines[0].below, 0.0);
         }
