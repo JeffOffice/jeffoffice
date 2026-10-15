@@ -6009,8 +6009,8 @@ private Q_SLOTS:
     // pay for is left out.
     void effectsAtTheCapsPaintWithinTheBudget()
     {
-        QCOMPARE(TextEffects::fromJson(QStringLiteral("{\"o\":{\"b\":1584,\"d\":1584},\"g\":{\"r\":1584},\"s\":1584}")).outer.blur, kMaxTextEffectPoints);
-        QCOMPARE(TextEffects::fromJson(QStringLiteral("{\"o\":{\"b\":1584,\"d\":1584},\"g\":{\"r\":1584}}")).glow.radius, kMaxTextEffectPoints);
+        QCOMPARE(TextEffects::fromJson(QStringLiteral("{\"o\":{\"b\":1584,\"d\":1584},\"g\":{\"r\":1584},\"s\":1584}")).outer.blur, 200.0);
+        QCOMPARE(TextEffects::fromJson(QStringLiteral("{\"o\":{\"b\":1584,\"d\":1584},\"g\":{\"r\":1584}}")).glow.radius, 200.0);
         // Read from a file: 1,584 points of blur, distance, and glow.
         Parts parts = samplePptx();
         QString xml = QString::fromUtf8(parts.data["/ppt/slides/slide1.xml"].xml);
@@ -6027,10 +6027,10 @@ private Q_SLOTS:
             if (it->name == QLatin1String("Big")) big = static_cast<const TextItem *>(it.get());
         QVERIFY(big);
         const TextEffects got = TextEffects::fromJson(runListOf(read->storyDoc(big->storyId), QStringLiteral("Words")));
-        QCOMPARE(got.outer.blur, kMaxTextEffectPoints);
-        QCOMPARE(got.outer.distance, kMaxTextEffectPoints);
-        QCOMPARE(got.glow.radius, kMaxTextEffectPoints);
-        QCOMPARE(got.reflection.blur, kMaxTextEffectPoints);
+        QCOMPARE(got.outer.blur, 200.0);
+        QCOMPARE(got.outer.distance, 200.0);
+        QCOMPARE(got.glow.radius, 200.0);
+        QCOMPARE(got.reflection.blur, 200.0);
         // Twenty text boxes the size of a slide, each with its own list of every effect at the caps, on a slide.
         auto d = deck::newPresentation();
         for (int i = 0; i < 20; ++i) {
@@ -6057,7 +6057,7 @@ private Q_SLOTS:
         QElapsedTimer clock;
         clock.start();
         const QImage slide = paintedSlide(d.get(), &cache, 0);
-        QVERIFY2(clock.elapsed() < 15000, qPrintable(QString::number(clock.elapsed())));
+        QVERIFY2(clock.elapsed() < 10000, qPrintable(QString::number(clock.elapsed())));
         // Some pictures were made, not the 100 (20 boxes, five effects) the lists ask for.
         QVERIFY(effectPicturesBuiltForTest() - before > 0);
         QVERIFY2(effectPicturesBuiltForTest() - before < 100, qPrintable(QString::number(effectPicturesBuiltForTest() - before)));
