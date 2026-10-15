@@ -5728,7 +5728,7 @@ private Q_SLOTS:
         QVERIFY(!lists["Inherited"].isEmpty());
         const TextEffects inherited = TextEffects::fromJson(lists["Inherited"]);
         QVERIFY(inherited.outer.on);
-        QVERIFY(lists["Own"].isEmpty());
+        QCOMPARE(lists["Own"], TextEffects::noneJson());   // (a list that says there are none, not no list)
         const TextEffects s = TextEffects::fromJson(lists["Shadowed"]);
         QVERIFY(s.outer.on && !s.inner.on && !s.glow.on && !s.reflection.on);
         QCOMPARE(s.outer.blur, 3.0);
@@ -5798,7 +5798,7 @@ private Q_SLOTS:
     }
 
     // A file can give every run an effect list of its own: only so many different lists are drawn on a frame, a list of thousands of
-    // elements is read in a few, and a list too long to keep as it was is written from what was read.
+    // elements is read in a few and kept as only its first of each kind.
     void effectListsFromAStrangersFileAreHeldToLimits()
     {
         QTextDocument doc;
@@ -5854,8 +5854,8 @@ private Q_SLOTS:
         const TextEffects fx = TextEffects::fromJson(list);
         QVERIFY(fx.outer.on);
         QCOMPARE(fx.outer.blur, 0.0);   // the first of them
-        QVERIFY(fx.xml.isEmpty());      // too long to keep as it was
-        QVERIFY(list.size() < 2000);
+        QVERIFY(fx.xml.size() < 1000);  // (only the first of each kind is kept)
+        QVERIFY(list.size() < 3000);
     }
 
     // The Shadow button gives words the shadow the presentation program gives them (a soft one, 3 points down and to the right) and takes
@@ -5869,10 +5869,12 @@ private Q_SLOTS:
         QTRY_VERIFY(button->isEnabled());
         QVERIFY(!button->isChecked());
         button->trigger();
-        QVERIFY(w.editor()->currentCharFormat().boolProperty(tp::Shadow));
+        // (the shadow is in the run's effect list, where it is saved, and not in the older property)
+        QVERIFY(Editor::hasTextShadow(w.editor()->currentCharFormat()));
+        QVERIFY(!w.editor()->currentCharFormat().boolProperty(tp::Shadow));
         QTRY_VERIFY(button->isChecked());
         button->trigger();
-        QVERIFY(!w.editor()->currentCharFormat().boolProperty(tp::Shadow));
+        QVERIFY(!Editor::hasTextShadow(w.editor()->currentCharFormat()));
         // A shadow from a file's effect list: the button shows it, and a click takes it off (the glow it came with stays).
         TextEffects fx = shadowOf(QColor(0, 0, 0), 3, 3, 45);
         fx.glow.on = true;
