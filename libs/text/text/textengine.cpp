@@ -602,6 +602,21 @@ static double standInSpaceEm(QFont f)
     return em;
 }
 
+// A run's size once the text is scaled. A slide's text the presentation program shrank to fit (a:normAutofit's fontScale) is drawn in
+// whole points there: the size times the scale, rounded to the nearest point (halves up), 1 point at least. Probed in the program
+// over sizes of 1 to 60 points and scales of 25 to 92.5 percent: 28 points at 85 percent are 24, not 23.8; 10.5 points at 92.5 are
+// 10. A text's own fractional size (10.5 points at 100 percent) stays. Everything else keeps the exact product.
+double slideShrunkSize(double size, double scale)
+{
+    if (scale < 1.0) return std::max(1.0, std::floor(size * scale + 0.5 + 1e-9));
+    return std::max(1.0, size * scale);
+}
+
+static double scaledSize(double size, const LayoutEnv &env)
+{
+    return env.slideLines ? slideShrunkSize(size, env.fontScale) : std::max(1.0, size * env.fontScale);
+}
+
 QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env)
 {
     // A family the document carries a font of is that font's private name from here on, before the stand-ins are looked for.
@@ -689,20 +704,21 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     // Sizes within the other program's range (to 1,638 pt): a file can claim
     // anything, and a huge size makes drawing a single glyph very costly.
     const double sz = std::clamp(f.hasProperty(QTextFormat::FontPointSize) ? f.fontPointSize() : 11.0, 0.5, 1638.0);
-    r.setFontPointSize(std::max(1.0, sz * env.fontScale) * fontPointFactor());
+    r.setFontPointSize(scaledSize(sz, env) * fontPointFactor());
     // Automatic pair kerning applies from a size up, 14 pt unless the text
     // says otherwise (smaller text keeps the font's plain widths, as .pub
     // files are laid out); text can also turn kerning off.
+    // (A slide's counts the size the text is drawn at, shrunk or not: 28 points kerned from 12 are kerned at 15 and not at 9, as probed.)
     {
         const double kernFrom = f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : 14.0;
-        r.setFontKerning((!f.hasProperty(QTextFormat::FontKerning) || f.fontKerning()) && sz >= kernFrom);
+        r.setFontKerning((!f.hasProperty(QTextFormat::FontKerning) || f.fontKerning()) && (env.slideLines ? scaledSize(sz, env) : sz) >= kernFrom);
     }
     // Unhinted design widths: hinting differs between Windows and Linux and
     // would move line breaks; publications must lay out the same everywhere.
     r.setFontHintingPreference(QFont::PreferNoHinting);
     // Kerning and tracking both become space after each letter.
     {
-        const double kern = tp::kerningOf(f) * env.fontScale, track = trackingSpace(f, r.font());
+        const double kern = tp::kerningOf(f) * (env.slideLines ? 1.0 : env.fontScale), track = trackingSpace(f, r.font());   // (a slide's letter spacing isn't shrunk)
         if (kern != 0 || track != 0 || f.hasProperty(QTextFormat::FontLetterSpacing)) {
             r.setFontLetterSpacingType(QFont::AbsoluteSpacing);
             r.setFontLetterSpacing(kern + track);
@@ -777,6 +793,35 @@ static bool hasTrueSmallCaps(const QTextBlock &b)
         any = true;
     }
     return any;
+}
+
+// The sizes (before any scale) of a paragraph's text: the largest, and the first run's. An empty paragraph has its mark's.
+static double fileSize(const QTextCharFormat &cf)
+{
+    return cf.hasProperty(QTextFormat::FontPointSize) ? cf.fontPointSize() : 11.0;
+}
+static double rawLargestSize(const QTextBlock &b)
+{
+    double m = 0;
+    for (auto it = b.begin(); !it.atEnd(); ++it) m = std::max(m, fileSize(it.fragment().charFormat()));
+    return m > 0 ? m : fileSize(b.charFormat());
+}
+
+// A slide paragraph's space before (tp::SpaceBeforeShare) or after (tp::SpaceAfterShare), in points, with its text shrunk by `scale`: the
+// share of a line of the largest text at the size it is drawn at where the file gave it as one (and the margin hasn't been set to points
+// since: tp::spaceShareOf), the margin itself, unscaled, otherwise. A share follows the text's size, as in the program, whether the size
+// came from shrinking or from being changed.
+double slideSpaceOf(const QTextBlock &b, int shareProperty, double scale)
+{
+    const QTextBlockFormat bf = b.blockFormat();
+    const bool before = shareProperty == tp::SpaceBeforeShare;
+    if (const double share = tp::spaceShareOf(bf, before); share > 0) return std::clamp(share * 1.2 * slideShrunkSize(rawLargestSize(b), scale), 0.0, 4000.0);
+    return before ? bf.topMargin() : bf.bottomMargin();
+}
+static double rawFirstSize(const QTextBlock &b)
+{
+    auto it = b.begin();
+    return std::max(0.5, it.atEnd() ? fileSize(b.charFormat()) : fileSize(it.fragment().charFormat()));
 }
 
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
@@ -1499,7 +1544,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_env = env;
     m_overflow = false;
     m_used = QVector<double>(frames.size(), 0.0);
-    const double scale = env.fontScale;
+    // The distances in the text (indents, tab stops, space before and after, an exact line spacing) shrink with its size, except a slide's
+    // (see LayoutEnv::slideLines): there only the text itself does.
+    const double scale = env.slideLines ? 1.0 : env.fontScale;
     const int nF = frames.size();
     auto singleOf = [&](const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback) {
         return env.slideLines ? slideSingle(ranges, from, len, fallback) : singleSpacing(ranges, from, len, fallback);
@@ -1909,7 +1956,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl->setCacheEnabled(true);
 
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = bf.textIndent() * scale;
-        const double before = bf.topMargin() * scale, after = bf.bottomMargin() * scale;
+        // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
+        double before = bf.topMargin() * scale, after = bf.bottomMargin() * scale;
+        if (env.slideLines) {
+            before = slideSpaceOf(b, tp::SpaceBeforeShare, env.fontScale);
+            after = slideSpaceOf(b, tp::SpaceAfterShare, env.fontScale);
+        }
 
         // List marker.
         double markerW = 0, markerSingle = 0;
@@ -1924,8 +1976,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             else B->marker = list->itemText(b);
             QTextCharFormat mf = ranges.isEmpty() ? resolveCharFormat(b.charFormat(), env) : ranges.first().format;
             B->markerFont = mf.font();
-            if (lf.hasProperty(tp::BulletSize))
-                B->markerFont.setPointSizeF(std::max(1.0, lf.property(tp::BulletSize).toDouble() * env.fontScale) * fontPointFactor());
+            if (lf.hasProperty(tp::BulletSize)) {
+                // (A slide's bullet, a share of its text, follows the whole-point size the text was shrunk to.)
+                const double first = rawFirstSize(b);
+                const double grow = env.slideLines && env.fontScale < 1.0 ? scaledSize(first, env) / first : env.fontScale;
+                B->markerFont.setPointSizeF(std::max(1.0, lf.property(tp::BulletSize).toDouble() * grow) * fontPointFactor());
+            }
             const QString bfont = lf.stringProperty(tp::BulletFont);
             // A Symbol or Wingdings bullet whose glyph Publisher's PDFs measured
             // is drawn to that glyph's size and advance: its own font's, or a
@@ -2243,6 +2299,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     const double fd = kd > 0 ? 0 : fontDescent(ranges, line.textStart(), std::max(1, line.textLength()), closer);
                     const double descent = kd > 0 ? kd : fd > 0 ? fd : line.height() - line.ascent();
                     double baseDown = closer && !(env.slideLines && bf.lineHeightType() != QTextBlockFormat::FixedHeight) ? h / single * (single - descent) : textH - descent;
+                    // A slide's line that isn't single (a share of the line other than 100 percent, lnSpcReduction counted, or an exact height)
+                    // has its baseline 3/4 of the way down it when it is taller than a single line, whatever the font (shares of 110 to
+                    // 150 percent and exact heights of 30 and 40 points, 20 fonts). A shorter one keeps its descent, the font's, below the
+                    // baseline, but not above 3/4 down (shares of 60 to 90 percent and exact heights of 15 and 24 points: a Calibri line at
+                    // 70 percent sits at 3/4, an Arial one at 90 percent a descent above its bottom). The program's single line sits a
+                    // descent above its bottom.
+                    if (env.slideLines && (bf.lineHeightType() == QTextBlockFormat::FixedHeight ||
+                                           ((bf.lineHeightType() == QTextBlockFormat::ProportionalHeight || bf.lineHeightType() == QTextBlockFormat::SingleHeight) && std::abs(h - single) >= 0.01)))
+                        baseDown = h > single ? 0.75 * h : std::max(0.75 * h, h - descent);
                     // An object set in the line sits on the baseline with its wrap
                     // distances around it; one reaching above the text's ascent
                     // lowers the baseline, and the line, by the difference. The
