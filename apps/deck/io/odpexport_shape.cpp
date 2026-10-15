@@ -430,7 +430,8 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
     }
     // Looks this kind of file can't give a picture are in the picture itself.
     const bool masked = !p.maskShape.isEmpty() && p.maskShape != QLatin1String("rect");
-    const bool baked = masked || p.recolor == PictureItem::Sepia || p.recolor == PictureItem::ColorTint || (p.hasTransparentColor && p.transparentColor.isValid());
+    const bool baked = masked || p.recolor == PictureItem::Sepia || p.recolor == PictureItem::ColorTint || (p.hasTransparentColor && p.transparentColor.isValid()) ||
+                       blipEffectsChange(p.blipEffects);
     if (baked) {
         writeAsPicture(x, sc, p);
         return;

@@ -1,6 +1,7 @@
 #include "io/pptimport.h"
 
 #include "core/appinfo.h"
+#include "core/blipeffects.h"
 #include "core/color.h"
 #include "core/deck.h"
 #include "core/transition.h"
@@ -1354,9 +1355,8 @@ QString Importer::pictureId(int blipIndex)
     return id;
 }
 
-// A picture with a brightness and a contrast (a percent each way) in its pixels, as the presentation program draws it: each color is
-// scaled by the contrast about the middle, and moved by the brightness times the mean of one and that scale (fitted to what the program
-// makes of pictures and of washed-out textures). The picture itself when it can't be read.
+// A picture with a brightness and a contrast (a percent each way) in its pixels, as the presentation program draws it (luminanceTable: fitted to
+// what the program makes of pictures and of washed-out textures, and of a:lum's). The picture itself when it can't be read.
 QString Importer::adjustedPicture(const QString &id, double brightness, double contrast)
 {
     const QString key = QStringLiteral("%1|%2|%3").arg(id).arg(brightness).arg(contrast);
@@ -1365,11 +1365,10 @@ QString Importer::adjustedPicture(const QString &id, double brightness, double c
     QImage img = m_doc.image(id);
     if (!img.isNull() && qint64(img.width()) * img.height() <= kMaxAdjustedPixels && m_adjusted.size() < 200) {
         img = img.convertToFormat(QImage::Format_ARGB32);
-        const double bright = brightness / 100.0, factor = (100.0 + contrast) / 100.0;
-        auto level = [&](int v) { return std::clamp(int(std::lround(((v / 255.0 - 0.5) * factor + 0.5 + bright * (1 + factor) / 2) * 255)), 0, 255); };
+        const QVector<uchar> level = luminanceTable(brightness / 100.0, (100.0 + contrast) / 100.0);
         for (int y = 0; y < img.height(); ++y) {
             QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
-            for (int x = 0; x < img.width(); ++x) line[x] = qRgba(level(qRed(line[x])), level(qGreen(line[x])), level(qBlue(line[x])), qAlpha(line[x]));
+            for (int x = 0; x < img.width(); ++x) line[x] = qRgba(level[qRed(line[x])], level[qGreen(line[x])], level[qBlue(line[x])], qAlpha(line[x]));
         }
         QByteArray png;
         QBuffer buffer(&png);
@@ -2550,6 +2549,7 @@ std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QStr
 {
     auto doc = std::make_unique<Document>();
     doc->slideText = true;
+    doc->slidePictures = true;
     Importer importer(bytes, *doc);
     QString why;
     bool ok = false;

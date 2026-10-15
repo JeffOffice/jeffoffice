@@ -151,6 +151,7 @@ QByteArray diagramSvg(const QDomElement &spTree, const office::DrawingContext &b
     Document scratch;
     scratch.masters.clear();
     scratch.slideText = true;
+    scratch.slidePictures = true;
     scratch.colors = like.colors;
     scratch.fonts = like.fonts;
     scratch.styles = like.styles;

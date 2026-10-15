@@ -172,7 +172,7 @@ QString Exporter::namedHatch(const Fill &fill)
 
 QString Exporter::namedBitmap(const Fill &fill)
 {
-    const QString part = addPicture(fill.imageId);
+    const QString part = addPictureChanged(fill.imageId, fill.blipEffects);
     if (part.isEmpty()) return QString();
     return m_common.add(QStringLiteral("Bitmap"), QStringLiteral("<draw:fill-image draw:name=\""),
                         QStringLiteral("\"") + attrOf("xlink:href", part) + QStringLiteral(" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>"));

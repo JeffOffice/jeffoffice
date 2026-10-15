@@ -2,9 +2,6 @@
 
 #include "office/xml.h"
 
-#include <QBuffer>
-#include <QImage>
-#include <QImageReader>
 #include <QtMath>
 #include <algorithm>
 #include <cmath>
@@ -20,9 +17,6 @@ constexpr double kMaxLineWidth = 1584;   // points: the standard's 20,116,800 EM
 // reference presentations' largest are 20, 10, and 7, and one of 1,584 points
 // on a small shape makes a picture of gigabytes that takes most of a minute.
 constexpr double kMaxEffectRadius = 200;
-// A picture that a duotone recolors is decoded and drawn again as a copy; one of
-// more pixels than this is kept as it is (the reference presentations' largest has 9 million).
-constexpr qint64 kMaxDuotonePixels = 64LL * 1024 * 1024;
 
 ColorRef rgbRef(const QColor &c)
 {
@@ -39,21 +33,14 @@ QColor colorIn(const QDomElement &e, const StyleContext &sc)
     return readColor(e, sc.ctx->theme, sc.ctx->colors, sc.placeholder);
 }
 
-// The two colors of a picture's a:duotone (dark, then light), or none.
-QVector<QColor> duotoneOf(const QDomElement &blip, const StyleContext &sc)
+// The color an element of a:blip holds as a child of its own, read as a color on its own (readColor reads the first a parent holds).
+QColor childColorIn(const QDomElement &child, const StyleContext &sc)
 {
-    QVector<QColor> out;
-    const QDomElement duo = childNamed(blip, "duotone");
-    for (QDomElement c = duo.firstChildElement(); !c.isNull() && out.size() < 2; c = c.nextSiblingElement()) {
-        // readColor reads the color a parent holds: give each one its own.
-        QDomDocument holder;
-        QDomElement wrap = holder.createElement(QStringLiteral("holder"));
-        holder.appendChild(wrap);
-        wrap.appendChild(holder.importNode(c, true));
-        const QColor color = colorIn(wrap, sc);
-        if (color.isValid()) out << color;
-    }
-    return out.size() == 2 ? out : QVector<QColor>();
+    QDomDocument holder;
+    QDomElement wrap = holder.createElement(QStringLiteral("holder"));
+    holder.appendChild(wrap);
+    wrap.appendChild(holder.importNode(child, true));
+    return colorIn(wrap, sc);
 }
 
 bool isFillElement(const QDomElement &e)
@@ -141,11 +128,12 @@ bool fillFromElement(const QDomElement &e, const StyleContext &sc, Fill *out)
     }
     if (kind == QLatin1String("blipFill")) {
         const QDomElement blip = childNamed(e, "blip");
-        const QString id = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), sc, duotoneOf(blip, sc), blip);
+        const QString id = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), sc, blip);
         Fill f;
         if (!id.isEmpty()) {
             f.type = Fill::Picture;
             f.imageId = id;
+            f.blipEffects = readBlipEffects(blip, sc);
             const QDomElement alpha = childNamed(blip, "alphaModFix");
             if (!alpha.isNull()) f.transparency = std::clamp(1.0 - parsePercent(attr(alpha, QStringLiteral("amt")), 1), 0.0, 1.0);
             const QDomElement tile = childNamed(e, "tile");
@@ -343,7 +331,64 @@ QString imageFormat(const QByteArray &bytes)
     return QString();
 }
 
-QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QColor> &duotone, const QDomElement &from)
+QVector<BlipEffect> readBlipEffects(const QDomElement &blip, const StyleContext &sc)
+{
+    QVector<BlipEffect> out;
+    for (QDomElement c = blip.firstChildElement(); !c.isNull() && out.size() < kMaxBlipEffects; c = c.nextSiblingElement()) {
+        const QString name = c.localName();
+        BlipEffect e;
+        if (name == QLatin1String("lum")) {
+            e.kind = BlipEffect::Luminance;
+            e.brightness = std::clamp(parsePercent(attr(c, QStringLiteral("bright")), 0), -1.0, 1.0);
+            e.contrast = std::clamp(parsePercent(attr(c, QStringLiteral("contrast")), 0), -1.0, 1.0);
+        } else if (name == QLatin1String("grayscl")) {
+            e.kind = BlipEffect::Grayscale;
+        } else if (name == QLatin1String("biLevel")) {
+            e.kind = BlipEffect::BiLevel;
+            e.threshold = std::clamp(parsePercent(attr(c, QStringLiteral("thresh")), 0.5), 0.0, 1.0);
+        } else if (name == QLatin1String("clrChange")) {
+            e.kind = BlipEffect::ColorChange;
+            e.color = colorIn(childNamed(c, "clrFrom"), sc);
+            e.color2 = colorIn(childNamed(c, "clrTo"), sc);
+            if (!e.color.isValid()) continue;
+            // (A change to no color is to a clear one, as a picture's transparent color has always been read.)
+            if (!e.color2.isValid()) {
+                e.color2 = e.color;
+                e.color2.setAlpha(0);
+            }
+            e.useAlpha = parseBool(attr(c, QStringLiteral("useA")), true);
+        } else if (name == QLatin1String("clrRepl")) {
+            e.kind = BlipEffect::ColorReplace;
+            e.color = colorIn(c, sc);
+            if (!e.color.isValid()) continue;
+        } else if (name == QLatin1String("duotone")) {
+            QVector<QColor> colors;
+            for (QDomElement k = c.firstChildElement(); !k.isNull() && colors.size() < 2; k = k.nextSiblingElement()) {
+                const QColor color = childColorIn(k, sc);
+                if (color.isValid()) colors << color;
+            }
+            if (colors.size() != 2) continue;
+            e.kind = BlipEffect::Duotone;
+            e.color = colors[0];
+            e.color2 = colors[1];
+        } else if (name == QLatin1String("hsl")) {
+            e.kind = BlipEffect::Hsl;
+            e.hue = std::fmod(parseAngle(attr(c, QStringLiteral("hue")), 0), 360.0);
+            e.saturation = std::clamp(parsePercent(attr(c, QStringLiteral("sat")), 0), -1.0, 1.0);
+            e.lightness = std::clamp(parsePercent(attr(c, QStringLiteral("lum")), 0), -1.0, 1.0);
+        } else if (name == QLatin1String("tint")) {
+            e.kind = BlipEffect::Tint;
+            e.hue = std::fmod(parseAngle(attr(c, QStringLiteral("hue")), 0), 360.0);
+            e.amount = std::clamp(parsePercent(attr(c, QStringLiteral("amt")), 0), -1.0, 1.0);
+        } else {
+            continue;
+        }
+        out.append(e);
+    }
+    return out;
+}
+
+QString loadImage(const QString &rId, const StyleContext &sc, const QDomElement &from)
 {
     const DrawingContext &ctx = *sc.ctx;
     // A theme style's picture is named by the theme part's relationships, one
@@ -353,8 +398,7 @@ QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QCol
         for (const auto &inherited : ctx.inheritedParts)
             if (inherited.first == from.ownerDocument()) part = inherited.second;
     if (rId.isEmpty() || !ctx.package || !ctx.addImage || part.isEmpty()) return QString();
-    QString key = part + QLatin1Char('#') + rId;
-    for (const QColor &c : duotone) key += QLatin1Char('/') + c.name(QColor::HexArgb);
+    const QString key = part + QLatin1Char('#') + rId;
     // The read's own pictures, else the whole import's (a background's or a
     // table cell's picture fill is read without a shape's).
     QHash<QString, QString> *images = sc.images ? sc.images : ctx.images;
@@ -365,33 +409,8 @@ QString loadImage(const QString &rId, const StyleContext &sc, const QVector<QCol
     QString id;
     const Relationship rel = ctx.package->relationship(part, rId);
     if (!rel.id.isEmpty() && !rel.external) {
-        QByteArray bytes = ctx.package->part(rel.target);
-        QString format = imageFormat(bytes);
-        if (duotone.size() == 2 && !bytes.isEmpty()) {
-            // a:duotone: the picture's lightness runs from the first color
-            // (black) to the second (white).
-            QImage img;
-            QBuffer in(&bytes);
-            QImageReader reader(&in);
-            const QSize pixels = reader.size();
-            if (pixels.isValid() && pixels.width() * qint64(pixels.height()) <= kMaxDuotonePixels && reader.read(&img)) {
-                img = img.convertToFormat(QImage::Format_ARGB32);
-                const QColor dark = duotone[0], light = duotone[1];
-                for (int y = 0; y < img.height(); ++y) {
-                    auto *row = reinterpret_cast<QRgb *>(img.scanLine(y));
-                    for (int x = 0; x < img.width(); ++x) {
-                        const double t = qGray(row[x]) / 255.0;
-                        row[x] = qRgba(int(dark.red() + (light.red() - dark.red()) * t + 0.5), int(dark.green() + (light.green() - dark.green()) * t + 0.5),
-                                       int(dark.blue() + (light.blue() - dark.blue()) * t + 0.5), qAlpha(row[x]));
-                    }
-                }
-                QBuffer out(&bytes);
-                bytes.clear();
-                out.open(QIODevice::WriteOnly);
-                img.save(&out, "PNG");
-                format = QStringLiteral("png");
-            }
-        }
+        const QByteArray bytes = ctx.package->part(rel.target);
+        const QString format = imageFormat(bytes);
         if (!bytes.isEmpty() && !format.isEmpty()) id = ctx.addImage(bytes, format);
     }
     if (images) images->insert(key, id);
