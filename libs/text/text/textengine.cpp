@@ -2387,7 +2387,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // line of a column sits one ascent below the top, and a
                     // paragraph after one with wider spacing starts that much
                     // lower. Whether a line fits counts its text, not that space.
-                    // (A slide's goes above it.)
+                    // (A slide's goes mostly above it.)
                     double below = !env.slideLines && h > single && bf.lineHeightType() == QTextBlockFormat::ProportionalHeight ? h - single : 0;
                     double textH = h - below;
                     // Baseline one descent above the text's bottom (for a substituted
