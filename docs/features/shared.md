@@ -126,7 +126,7 @@ These stay in `apps/<app>` until a second app asks for them.
 
 Where the six lists disagree with each other, or with the code. Each item gives what the lists say (by app and item), and a recommended answer.
 
-**Decided October 16, 2026:** every recommended answer below is adopted, except D3 (where the flowing-page engine lives and what it's called), which waits for the flowing-page design, made when JeffWrite's building starts. Where a feature list disagrees with this page, this page holds; each list is brought in line as its app is built.
+**Decided October 16, 2026:** every recommended answer below is adopted, except D3: the flowing-page engine lives in a new library, **libs/flow**, above libs/page (layers: base < draw < text < office < shell < page < flow < apps), and drives the text engine page by page without changing it; JeffWrite builds it, and JeffBase's reports and JeffMail's composer use it. The reasons and measurements are in [docs/jeffwrite.md](../jeffwrite.md). Where a feature list disagrees with this page, this page holds; each list is brought in line as its app is built.
 
 **Names.** The same piece is called different things. This page uses the left-hand name.
 
