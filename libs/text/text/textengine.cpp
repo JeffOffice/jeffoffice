@@ -1363,15 +1363,8 @@ static WordLine wordFaceOf(const QFont &f)
     return line;
 }
 
-// Two runs on one line: the tallest ascent and the deepest descent, and the leading of the taller run (a Symbol bullet's line is Symbol's own).
-static WordLine mergeWord(const WordLine &a, const WordLine &b)
-{
-    WordLine m;
-    m.ascent = std::max(a.ascent, b.ascent);
-    m.descent = std::max(a.descent, b.descent);
-    m.leading = a.total() >= b.total() ? a.leading : b.leading;
-    return m;
-}
+// Two runs on one line: the line is that of the taller (a Symbol bullet's line is Symbol's own; a Courier bullet beside Times text makes none taller).
+static WordLine mergeWord(const WordLine &a, const WordLine &b) { return a.total() >= b.total() ? a : b; }
 
 // The line a stretch of text sets, from its runs.
 static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
