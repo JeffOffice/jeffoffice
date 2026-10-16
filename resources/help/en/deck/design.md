@@ -83,7 +83,7 @@ Each choice is one step that Ctrl+Z takes back.
 
 ## Saving
 
-A presentation keeps its theme, slide master, and layouts when you save it. Other presentation programs read them, and JeffDeck reads them again just as they were. A theme or background style that is dark is saved the way other programs save their dark themes: the page counts as dark, so a text box you add to a slide there starts out light. You can't edit slide masters or layouts yet.
+A presentation keeps its theme, slide master, and layouts when you save it. Other presentation programs read them, and JeffDeck reads them again just as they were. A theme or background style that is dark is saved the way other programs save their dark themes: the page counts as dark, so a text box you add to a slide there starts out light. To change the slide master or a layout, use Slide Master view, on the **View** tab.
 
 ## Related
 

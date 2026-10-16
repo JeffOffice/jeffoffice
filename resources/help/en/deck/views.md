@@ -1,7 +1,7 @@
-# Outline view and the Slide Sorter
-<!-- keywords: outline view, outline, slide sorter, sorter, views, normal view, thumbnails, grid, reorder slides, move slides, select slides, promote, demote, tab, titles, text only, zoom, thumbnails size -->
+# Outline view, the Slide Sorter, and Slide Master view
+<!-- keywords: outline view, outline, slide sorter, sorter, views, normal view, slide master, slide master view, master view, layout, layouts, insert layout, insert slide master, master layout, insert placeholder, placeholder, preserve, rename layout, delete layout, close master view, hide background graphics, footers, title, thumbnails, grid, reorder slides, move slides, select slides, promote, demote, tab, titles, text only, zoom, thumbnails size -->
 
-Normal view is where you edit one slide at a time. Two other views help when you work on the whole presentation: **Outline View** for the words, and **Slide Sorter** for the order of the slides. Switch on the **View** tab, in **Presentation Views**, or with the buttons on the status bar.
+Normal view is where you edit one slide at a time. Two other views help when you work on the whole presentation: **Outline View** for the words, and **Slide Sorter** for the order of the slides. **Slide Master view** is for the look that all your slides share. Switch on the **View** tab, in **Presentation Views** and **Master Views**, or with the buttons on the status bar.
 
 ## Outline view
 
@@ -34,9 +34,41 @@ Slide Sorter shows every slide as a picture in a grid, as many across as fit the
 
 **Change the size of the pictures.** Hold Ctrl and turn the mouse wheel, or use the zoom controls on the status bar. The slider, **Zoom Out**, **Zoom In**, and the **Zoom** menu on the **View** tab all change the size of the pictures while the sorter is open.
 
+## Slide Master view
+
+A **slide master** is the page behind all your slides. It holds the title style, the text style, the footers, and any pictures or shapes you want on every slide. A **layout** is a plan for one kind of slide, such as Title Slide or Two Content. Each layout stands on a slide master. Slide Master view lets you change them.
+
+**Open and close it.** Click **View > Master Views > Slide Master**. It opens on the layout of the slide you were on. The thumbnails now show each slide master with its layouts under it, pushed in a little. Click one to edit it on the big picture. A new tab, **Slide Master**, comes up at the left of the ribbon. When you are done, click **Close Master View**. You are back on your slide.
+
+**Edit it like a slide.** Type in a placeholder, change its font, size, or color, drag it, or resize it. Add a picture, a shape, or a line, such as a logo or a band along the bottom. A picture or shape on a slide master shows on every slide. One on a layout shows on the slides that use that layout. **Format Background** changes the background of the page you are editing.
+
+**Slides follow.** When you change a placeholder on a slide master or a layout, the slides below it change at once. A slide follows when its text looked the way the layout's text did before. Change the title font of the slide master, and every title that had the old font takes the new one. A word or a box you changed by hand on a slide keeps your change.
+
+**Edit Master**
+
+- **Insert Slide Master** adds a new slide master with the nine standard layouts, after the one you are editing.
+- **Insert Layout** adds a layout, named **Custom Layout**, to the slide master you are editing. It starts with a title and the date, footer, and slide number.
+- **Delete** takes away the slide master or layout you are editing. It works only when no slide uses it. When slides do, JeffDeck tells you how many, so you can give them another layout first. A presentation keeps at least one slide master, and a slide master keeps at least one layout.
+- **Rename** changes its name.
+- **Preserve** keeps a slide master or layout in the file even when no slide uses it.
+
+**Master Layout**
+
+- **Master Layout**, on a slide master, chooses which places it has: **Title**, **Text**, **Date**, **Slide number**, and **Footer**. The layouts keep their own.
+- **Insert Placeholder**, on a layout, adds a box for **Content**, **Text**, **Picture**, **Chart**, **Table**, **Media**, or **Online Image**. The new box is selected. Drag it to where you want it. A slide that uses the layout gets the same box, empty.
+- The **Title** and **Footers** check boxes, on a layout, put its title and its date, footer, and slide number in, or take them out.
+
+**Edit Theme, Background, and Size**
+
+- **Themes**, **Colors**, **Fonts**, and **Background Styles** work as they do on the **Design** tab, and change the whole presentation. **Effects** is not available yet.
+- **Hide Background Graphics** stops the pictures and shapes of the slide master from showing on the slides of the layout you are editing.
+- **Slide Size** changes the size of the slides.
+
+Each change is one step that Ctrl+Z takes back. A .pptx file keeps every slide master and layout, and so do other presentation programs that read it. An .odp file keeps the master pages and the layouts that slides use.
+
 ## Back to Normal view
 
-Click **View > Presentation Views > Normal**, or the **Normal** button on the status bar.
+Click **View > Presentation Views > Normal**, or the **Normal** button on the status bar. In Slide Master view, click **Close Master View**.
 
 ## Related
 
