@@ -6,12 +6,14 @@
 #include "text/textengine.h"
 
 #include <QMarginsF>
+#include <QChar>
 #include <QRectF>
 #include <QSizeF>
 #include <QString>
 #include <QTextFormat>
 #include <QVector>
 #include <memory>
+#include <optional>
 
 class QTextDocument;
 
@@ -33,6 +35,12 @@ struct HeaderFooter {
     std::shared_ptr<QTextDocument> first, odd, even;
 };
 
+// The character in a story that ends the page. A paragraph that holds one is still one block: the text engine ends the line with it (as it does
+// with U+2028), and the paginator ends the page after that line, so the rest of the paragraph is the first lines of the next page (that it
+// "continues" is only that its next line is its line 1, never stored). A paragraph that ends with one leaves the next paragraph at the top of the
+// next page, with no empty line before it; one at the end of the last paragraph makes no page of its own.
+constexpr QChar kPageBreak = QChar(0x000C);
+
 // The most columns a page has (a section that asks for more has this many).
 constexpr int kMostColumns = 32;
 
@@ -49,7 +57,7 @@ struct Section {
     double headerDistance = 36, footerDistance = 36;   // from the page's edge
     bool differentFirstPage = false;         // the first page uses the header and footer's first slot
     bool differentOddEven = false;           // odd and even pages use their own slots
-    int firstPageNumber = 0;                 // the number the section's first page has (0: it goes on from the section before)
+    std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
 
     int columnCount() const;                 // `columns`, from 1 to kMostColumns

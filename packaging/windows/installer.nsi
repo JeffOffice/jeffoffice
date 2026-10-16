@@ -2,6 +2,9 @@
 ; Installs the suite's apps that are ready (JeffPub, and JeffDeck as a
 ; preview) into one folder, per user: no administrator rights needed. The
 ; apps still being built are listed as coming soon and can't be chosen yet.
+; JeffWrite is one of those until the owner decides it ships: building with
+; /DWITH_WRITE (the workflow does, when its SHIP_WRITE is "true") makes it a
+; preview that is not ticked by default.
 Unicode true
 ManifestDPIAware true
 !include "MUI2.nsh"
@@ -17,6 +20,14 @@ ManifestDPIAware true
 !define EXE "JeffPub.exe"
 !define DECK "JeffDeck"
 !define DECKEXE "JeffDeck.exe"
+!ifdef WITH_WRITE
+  !define WRITE "JeffWrite"
+  !define WRITEEXE "JeffWrite.exe"
+  ; The folder dist\JeffOffice then holds JeffWrite.exe, which only its own section installs.
+  !define NOTWRITE '/x "${WRITEEXE}"'
+!else
+  !define NOTWRITE ""
+!endif
 !define UNKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\JeffOffice"
 ; Through 0.6.10, setup installed JeffPub on its own; this setup moves it in.
 !define PUBKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\JeffPub"
@@ -27,6 +38,9 @@ ManifestDPIAware true
 !define SUITEKEY "Software\JeffOffice\JeffOffice"
 !define PUBSETKEY "Software\JeffOffice\JeffPub"
 !define DECKSETKEY "Software\JeffOffice\JeffDeck"
+!ifdef WITH_WRITE
+  !define WRITESETKEY "Software\JeffOffice\JeffWrite"
+!endif
 ; Taskbar pins are shortcuts kept here.
 !define PINS "$APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 
@@ -99,6 +113,13 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
       System::Call 'kernel32::CloseHandle(p r1)'
       StrCpy $R9 1
   no_deck_mutex:
+!ifdef WITH_WRITE
+    System::Call 'kernel32::OpenMutexW(i 0x00100000, i 0, w "JeffWriteRunning") p .r1'
+    IntCmp $1 0 no_write_mutex
+      System::Call 'kernel32::CloseHandle(p r1)'
+      StrCpy $R9 1
+  no_write_mutex:
+!endif
     ; A virus scanner can hold the program for a moment after it closes,
     ; so a locked file is checked again for up to 5 seconds (unless a mutex
     ; already said it's running).
@@ -131,7 +152,11 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
       StrCpy $R9 1
   decide:
     IntCmp $R9 0 not_running
+!ifdef WITH_WRITE
+      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "${APP}, ${DECK}, or ${WRITE} is running.$\r$\n$\r$\nSave your work and close it, then click OK to continue. Click Cancel to stop." IDOK check_running
+!else
       MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "${APP} or ${DECK} is running.$\r$\n$\r$\nSave your work and close it, then click OK to continue. Click Cancel to stop." IDOK check_running
+!endif
       Abort
   not_running:
 !macroend
@@ -145,6 +170,17 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !macro un.DeckOpensWith ext
   DeleteRegValue HKCU "Software\Classes\${ext}\OpenWithProgids" "JeffDeck.Presentation"
 !macroend
+
+!ifdef WITH_WRITE
+; A document type lists JeffWrite under "Open with", never as its default; uninstalling takes both away again.
+!macro WriteOpensWith ext
+  WriteRegStr HKCU "Software\Classes\${ext}\OpenWithProgids" "JeffWrite.Document" ""
+  WriteRegStr HKCU "Software\Classes\Applications\${WRITEEXE}\SupportedTypes" "${ext}" ""
+!macroend
+!macro un.WriteOpensWith ext
+  DeleteRegValue HKCU "Software\Classes\${ext}\OpenWithProgids" "JeffWrite.Document"
+!macroend
+!endif
 
 Function .onInit
   !insertmacro WaitForAppToClose
@@ -163,7 +199,7 @@ Section "${APP}: publications" SecMain
   Call MoveFromJeffPub
   Call RemoveJeffPub79
   SetOutPath "$INSTDIR"
-  File /r /x "${DECKEXE}" "..\..\dist\JeffOffice\*.*"
+  File /r /x "${DECKEXE}" ${NOTWRITE} "..\..\dist\JeffOffice\*.*"
   File "jeffoffice.ico"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateShortcut "$SMPROGRAMS\${APP}.lnk" "$INSTDIR\${EXE}"
@@ -228,8 +264,28 @@ Section "${DECK}: presentations (preview)" SecDeck
 SectionEnd
 
 ; Coming soon: listed so people see what's ahead (ComingSoon makes them read-only).
+!ifdef WITH_WRITE
+; A preview, not ticked until the person ticks it.
+Section /o "${WRITE}: documents (preview)" SecWrite
+  SetOutPath "$INSTDIR"
+  File "..\..\dist\JeffOffice\${WRITEEXE}"
+  CreateShortcut "$SMPROGRAMS\${WRITE}.lnk" "$INSTDIR\${WRITEEXE}"
+  IfFileExists "${PINS}\${WRITE}.lnk" 0 +2
+    CreateShortcut "${PINS}\${WRITE}.lnk" "$INSTDIR\${WRITEEXE}"
+  ; Documents list JeffWrite under "Open with" without it becoming their default.
+  WriteRegStr HKCU "Software\Classes\JeffWrite.Document" "" "Document"
+  WriteRegStr HKCU "Software\Classes\JeffWrite.Document\DefaultIcon" "" "$INSTDIR\${WRITEEXE},0"
+  WriteRegStr HKCU "Software\Classes\JeffWrite.Document\shell\open\command" "" '"$INSTDIR\${WRITEEXE}" "%1"'
+  !insertmacro WriteOpensWith ".docx"
+  !insertmacro WriteOpensWith ".docm"
+  !insertmacro WriteOpensWith ".dotx"
+  !insertmacro WriteOpensWith ".dotm"
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+SectionEnd
+!else
 Section /o "JeffWrite: documents (coming soon)" SecWrite
 SectionEnd
+!endif
 Section /o "JeffCrunch: spreadsheets (coming soon)" SecCrunch
 SectionEnd
 Section /o "JeffMail: email and calendar (coming soon)" SecMail
@@ -246,6 +302,11 @@ Section "Desktop shortcuts" SecDesktop
   ${If} ${SectionIsSelected} ${SecDeck}
     CreateShortcut "$DESKTOP\${DECK}.lnk" "$INSTDIR\${DECKEXE}"
   ${EndIf}
+!ifdef WITH_WRITE
+  ${If} ${SectionIsSelected} ${SecWrite}
+    CreateShortcut "$DESKTOP\${WRITE}.lnk" "$INSTDIR\${WRITEEXE}"
+  ${EndIf}
+!endif
 SectionEnd
 
 Section "Open JeffPub publications (.jpub) with ${APP}" SecJpub
@@ -271,7 +332,9 @@ SectionGroupEnd
 ; The apps not ready yet are listed, unticked, and can't be ticked.
 ; (After the sections: their ids are defined there.)
 Function ComingSoon
+!ifndef WITH_WRITE
   SectionSetFlags ${SecWrite} ${SF_RO}
+!endif
   SectionSetFlags ${SecCrunch} ${SF_RO}
   SectionSetFlags ${SecMail} ${SF_RO}
   SectionSetFlags ${SecBase} ${SF_RO}
@@ -360,7 +423,11 @@ FunctionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} is ready now and ${DECK} is a preview; the others are coming soon."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, cards, and more. Opens .pub files. Comes with its fonts and spelling dictionaries."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. A preview: it opens .pptx, .ppt, and .odp files, plays slide shows with their transitions and animations, and saves .pptx files. Some features are still being built."
+!ifdef WITH_WRITE
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. A preview: it opens and saves .docx files, and keeps what it can't show yet. Some features are still being built."
+!else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. Coming soon: it can't be installed yet."
+!endif
   !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMail} "Email and calendars. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecBase} "Databases. Coming soon: it can't be installed yet."
@@ -376,6 +443,17 @@ Section "Uninstall"
   Delete "$DESKTOP\${APP}.lnk"
   Delete "$SMPROGRAMS\${DECK}.lnk"
   Delete "$DESKTOP\${DECK}.lnk"
+!ifdef WITH_WRITE
+  Delete "$SMPROGRAMS\${WRITE}.lnk"
+  Delete "$DESKTOP\${WRITE}.lnk"
+  !insertmacro un.WriteOpensWith ".docx"
+  !insertmacro un.WriteOpensWith ".docm"
+  !insertmacro un.WriteOpensWith ".dotx"
+  !insertmacro un.WriteOpensWith ".dotm"
+  DeleteRegKey HKCU "Software\Classes\JeffWrite.Document"
+  DeleteRegKey HKCU "Software\Classes\Applications\${WRITEEXE}"
+  DeleteRegKey HKCU "${WRITESETKEY}"
+!endif
   !insertmacro un.DeckOpensWith ".pptx"
   !insertmacro un.DeckOpensWith ".potx"
   !insertmacro un.DeckOpensWith ".ppsx"

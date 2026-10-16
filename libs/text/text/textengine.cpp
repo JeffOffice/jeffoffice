@@ -138,6 +138,8 @@ QString FieldContext::resolve(const QString &code) const
         if (!country.isEmpty()) lines << country;
         return lines.join(QChar(QChar::LineSeparator));
     }
+    // Text that a word processing document keeps as XML and shows as it is (a footnote's mark, a stand-in for a table), or nothing.
+    if (kind == "raw") return arg;
     if (kind == "conton") return continuedOnPage > 0 ? QCoreApplication::translate("Text", "(Continued on page %1)").arg(continuedOnPage) : QString();
     if (kind == "contfrom") return continuedFromPage > 0 ? QCoreApplication::translate("Text", "(Continued from page %1)").arg(continuedFromPage) : QString();
     return QStringLiteral("[%1]").arg(code);
@@ -2093,6 +2095,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 const int n = int(raw.size()) - piece;
                 B->map << Seg{rel + start + piece, n, int(B->disp.size() + shown.size()), n};
                 shown += raw.mid(piece);
+                // A form feed ends the line as U+2028 does (a word processor's page break: the paginator ends the page after that line). One for
+                // one, so positions still map.
+                if (shown.contains(QChar(0x000C))) shown.replace(QChar(0x000C), QChar(QChar::LineSeparator));
                 // All capitals (or all lowercase): Qt ignores these in a
                 // layout's format ranges, so the letters are changed here, one
                 // for one so positions still map. That is deliberate: a letter

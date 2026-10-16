@@ -1,0 +1,12 @@
+{
+  "tab:Home": "start",
+  "tab:Insert": "start",
+  "tab:Layout": "start",
+  "tab:View": "start",
+  "pane:help": "index",
+  "file:new": "open-save",
+  "file:open": "open-save",
+  "file:print": "open-save",
+  "file:export": "open-save",
+  "file:about": "start"
+}

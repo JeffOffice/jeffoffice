@@ -420,9 +420,18 @@ QString builtinDefault(const QString &extension)
     return {};
 }
 
+// A part name (decoded, as it is here) as the package writes it: each segment escaped as a URI needs, a space as %20 and a % as %25 (the names
+// of the ZIP's items, the Overrides', and a link's target are those of URIs).
+QString encodedName(const QString &name)
+{
+    QStringList segments = name.split(QLatin1Char('/'));
+    for (QString &s : segments) s = QString::fromLatin1(QUrl::toPercentEncoding(s, "!$&'()*+,;=@"));
+    return segments.join(QLatin1Char('/'));
+}
+
 bool usableWriterName(const QString &name)
 {
-    return name.startsWith(QLatin1Char('/')) && !name.contains(QLatin1Char('%')) && resolvePartName(QStringLiteral("/"), name) == name
+    return name.startsWith(QLatin1Char('/')) && resolvePartName(QStringLiteral("/"), encodedName(name)) == name
         && !isRelationshipPart(name) && name.compare(QLatin1Char('/') + kContentTypesItem, Qt::CaseInsensitive) != 0;
 }
 
@@ -477,11 +486,13 @@ void PackageWriter::addPart(const QString &name, const QByteArray &data, const Q
         qWarning("PackageWriter: \"%s\" is not a usable part name; the part was left out", qPrintable(name));
         return;
     }
-    for (Part &p : m_parts)
-        if (p.name.compare(name, Qt::CaseInsensitive) == 0) {
-            p = Part{name, data, contentType};
-            return;
-        }
+    const QString key = name.toLower();
+    const auto at = m_partAt.constFind(key);
+    if (at != m_partAt.cend()) {
+        m_parts[*at] = Part{name, data, contentType};
+        return;
+    }
+    m_partAt.insert(key, int(m_parts.size()));
     m_parts.append(Part{name, data, contentType});
 }
 
@@ -494,13 +505,40 @@ QString PackageWriter::addRelationship(const QString &source, const QString &typ
 {
     const QString from = source.isEmpty() ? QStringLiteral("/") : source;
     QVector<Relationship> &links = m_rels[from];
+    QSet<QString> &ids = m_relIds[from];
     Relationship r;
-    r.id = QStringLiteral("rId%1").arg(links.size() + 1);
+    // (The next number no link of the source has, which is the count plus one unless links came with Ids of their own; where the last was found
+    // is where to look from, so that adding links takes time in proportion to how many there are.)
+    int &next = m_nextRelId[from];
+    for (int n = std::max(next, int(links.size()) + 1);; ++n) {
+        r.id = QStringLiteral("rId%1").arg(n);
+        if (!ids.contains(r.id)) {
+            next = n + 1;
+            break;
+        }
+    }
+    ids.insert(r.id);
     r.type = type;
     r.target = external ? target : relativeTarget(from, target);
     r.external = external;
     links.append(r);
     return r.id;
+}
+
+bool PackageWriter::addRelationshipWithId(const QString &source, const QString &id, const QString &type, const QString &target, bool external)
+{
+    const QString from = source.isEmpty() ? QStringLiteral("/") : source;
+    QVector<Relationship> &links = m_rels[from];
+    QSet<QString> &ids = m_relIds[from];
+    if (ids.contains(id)) return false;
+    ids.insert(id);
+    Relationship r;
+    r.id = id;
+    r.type = type;
+    r.target = external ? target : relativeTarget(from, target);
+    r.external = external;
+    links.append(r);
+    return true;
 }
 
 QByteArray PackageWriter::finish()
@@ -525,7 +563,7 @@ QByteArray PackageWriter::finish()
     for (const Part &p : m_parts) {
         if (defaults.value(extensionOf(p.name).toLower()) == p.contentType) continue;
         w.writeEmptyElement(QStringLiteral("Override"));
-        w.writeAttribute(QStringLiteral("PartName"), p.name);
+        w.writeAttribute(QStringLiteral("PartName"), encodedName(p.name));
         w.writeAttribute(QStringLiteral("ContentType"), p.contentType);
     }
     w.writeEndElement();
@@ -533,9 +571,9 @@ QByteArray PackageWriter::finish()
     zip.add(kContentTypesItem, types, true);
 
     if (m_rels.contains(QStringLiteral("/"))) zip.add(relationshipPartName(QStringLiteral("/")).mid(1), relationshipsXml(m_rels.value(QStringLiteral("/"))), true);
-    for (const Part &p : m_parts) zip.add(p.name.mid(1), p.data, true);
+    for (const Part &p : m_parts) zip.add(encodedName(p.name).mid(1), p.data, true);
     for (auto it = m_rels.cbegin(); it != m_rels.cend(); ++it)
-        if (it.key() != QLatin1String("/")) zip.add(relationshipPartName(it.key()).mid(1), relationshipsXml(it.value()), true);
+        if (it.key() != QLatin1String("/")) zip.add(encodedName(relationshipPartName(it.key())).mid(1), relationshipsXml(it.value()), true);
     return zip.finish();
 }
 

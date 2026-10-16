@@ -143,6 +143,13 @@ set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME officetests COMMAND officetests)
 set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# The tests of the word processing XML (libs/office/wml): the tree it is read into, and reading and writing a .docx.
+qt_add_executable(wmltests tests/office/tst_wml.cpp)
+target_link_libraries(wmltests PRIVATE jo_office Qt6::Test)
+set_target_properties(wmltests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME wmltests COMMAND wmltests)
+set_tests_properties(wmltests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # The tests of libs/flow and of the changes below it that it needs.
 qt_add_executable(flowtests tests/flow/tst_flow.cpp)
 target_link_libraries(flowtests PRIVATE jo_flow Qt6::Test)
@@ -211,6 +218,60 @@ add_test(NAME jdtests COMMAND jdtests)
 set_tests_properties(jdtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 
+# JeffWrite, the word processor: like JeffDeck, everything except main() is a library its tests link. It reads and writes the
+# word processing XML in libs/office/wml and flows its text through the pages of libs/flow. -DJP_BUILD_WRITE=OFF builds the rest without it.
+option(JP_BUILD_WRITE "Build JeffWrite" ON)
+if(JP_BUILD_WRITE)
+file(GLOB_RECURSE JW_SOURCES CONFIGURE_DEPENDS apps/write/*.cpp apps/write/*.h)
+list(REMOVE_ITEM JW_SOURCES ${CMAKE_SOURCE_DIR}/apps/write/main.cpp)
+add_library(jwcore STATIC ${JW_SOURCES} apps/write/resources/write.qrc)
+target_include_directories(jwcore PUBLIC apps/write)
+target_link_libraries(jwcore PUBLIC jo_flow)
+qt_add_executable(jeffwrite WIN32 MACOSX_BUNDLE apps/write/main.cpp)
+if(APPLE)
+  # As JeffDeck's: an icon from its 256-pixel picture, document types (the formats it opens, never as their default), and the fonts
+  # and dictionaries in Contents/Resources.
+  set(JW_ICONSET ${CMAKE_BINARY_DIR}/JeffWrite.iconset)
+  set(JW_ICNS ${CMAKE_BINARY_DIR}/JeffWrite.icns)
+  set(JW_PNG ${CMAKE_SOURCE_DIR}/apps/write/resources/app.png)
+  add_custom_command(OUTPUT ${JW_ICNS}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${JW_ICONSET}
+    COMMAND sips -z 16 16 ${JW_PNG} --out ${JW_ICONSET}/icon_16x16.png
+    COMMAND sips -z 32 32 ${JW_PNG} --out ${JW_ICONSET}/icon_16x16@2x.png
+    COMMAND sips -z 32 32 ${JW_PNG} --out ${JW_ICONSET}/icon_32x32.png
+    COMMAND sips -z 64 64 ${JW_PNG} --out ${JW_ICONSET}/icon_32x32@2x.png
+    COMMAND sips -z 128 128 ${JW_PNG} --out ${JW_ICONSET}/icon_128x128.png
+    COMMAND sips -z 256 256 ${JW_PNG} --out ${JW_ICONSET}/icon_128x128@2x.png
+    COMMAND sips -z 256 256 ${JW_PNG} --out ${JW_ICONSET}/icon_256x256.png
+    COMMAND iconutil -c icns ${JW_ICONSET} -o ${JW_ICNS}
+    DEPENDS ${JW_PNG}
+    VERBATIM)
+  set_source_files_properties(${JW_ICNS} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  target_sources(jeffwrite PRIVATE ${JW_ICNS})
+  set_target_properties(jeffwrite PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/packaging/macos/JeffWrite-Info.plist.in
+    MACOSX_BUNDLE_GUI_IDENTIFIER com.jeffoffice.jeffwrite
+    MACOSX_BUNDLE_ICON_FILE JeffWrite.icns
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+  add_custom_command(TARGET jeffwrite POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffwrite>/Resources/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffwrite>/Resources/dict
+    VERBATIM)
+endif()
+if(WIN32)
+  target_sources(jeffwrite PRIVATE apps/write/resources/app.rc)
+endif()
+target_link_libraries(jeffwrite PRIVATE jwcore)
+set_target_properties(jeffwrite PROPERTIES OUTPUT_NAME JeffWrite)
+qt_add_executable(writetests tests/write/tst_write.cpp)
+target_link_libraries(writetests PRIVATE jwcore Qt6::Test)
+target_compile_definitions(writetests PRIVATE JW_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+set_target_properties(writetests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME writetests COMMAND writetests)
+set_tests_properties(writetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
 # Translations of the apps' own text, one set for the suite. `cmake --build
 # build --target jeffoffice_lupdate` gathers every string marked for
 # translation (tr(), QCoreApplication::translate()) in the shared libraries,
@@ -224,6 +285,9 @@ find_package(Qt6 QUIET COMPONENTS LinguistTools)
 set(JP_LUPDATE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jo_flow jpcore jeffpub)
 if(JP_BUILD_DECK)
   list(APPEND JP_LUPDATE_TARGETS jdcore jeffdeck)
+endif()
+if(JP_BUILD_WRITE)
+  list(APPEND JP_LUPDATE_TARGETS jwcore jeffwrite)
 endif()
 if(Qt6LinguistTools_FOUND)
   file(GLOB JP_TRANSLATIONS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_*.ts)
@@ -270,6 +334,11 @@ endif()
 # Developer tool for laying a text out in pages (the flowing document) from the command line, and for measuring that.
 qt_add_executable(writetool tools/writetool.cpp)
 target_link_libraries(writetool PRIVATE jo_flow)
+if(JP_BUILD_WRITE)
+  # With JeffWrite, it also lays out and draws a .docx as JeffWrite does (for measuring it against the pages Word makes).
+  target_link_libraries(writetool PRIVATE jwcore)
+  target_compile_definitions(writetool PRIVATE JW_DOCX=1)
+endif()
 set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for rendering and converting publications from the command line.
