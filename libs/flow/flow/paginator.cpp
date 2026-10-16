@@ -121,7 +121,8 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     for (bool space = st.hard;; space = false) {
         span.spaceBeforeFirst = space;
         QVector<StoryLayout::LineBrief> all;
-        for (int window = kWindow;; window *= 4) {
+        // (A paragraph that is laid out whole from its start, with the lines before the page, needs room for those too.)
+        for (int window = kWindow + (tail ? 0 : st.skip * 160);; window *= 4) {
             span.window = window;
             StoryLayout layout;
             layout.build(m_doc->story(), frames, m_doc->env, span);
