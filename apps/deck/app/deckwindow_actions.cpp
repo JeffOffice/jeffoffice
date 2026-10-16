@@ -385,7 +385,7 @@ void DeckWindow::insertTable(int rows, int columns)
     columns = std::clamp(columns, 1, 30);
     const QSizeF ps = m_ed->doc()->pageSize();
     const double w = ps.width() * 0.8, h = std::min(ps.height() * 0.8, 36.0 * rows);
-    auto table = m_ed->newTable(QRectF((ps.width() - w) / 2, (ps.height() - h) / 2, w, h), rows, columns);
+    auto table = m_ed->newTable(QRectF((ps.width() - w) / 2, (ps.height() - h) / 2, w, h), rows, columns, QStringLiteral("None"));
     // Text that reads on a slide.
     for (const TableCell &cell : static_cast<TableItem *>(table.get())->cells) {
         QTextCursor c(m_ed->doc()->storyDoc(cell.storyId));
@@ -393,6 +393,7 @@ void DeckWindow::insertTable(int rows, int columns)
         f.setFontPointSize(18);
         c.mergeBlockCharFormat(f);
     }
+    styleNewTable(static_cast<TableItem *>(table.get()));
     m_ed->endTextEdit();
     m_ed->addItem(table);
 }
