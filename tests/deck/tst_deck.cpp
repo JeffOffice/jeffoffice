@@ -31891,6 +31891,63 @@ private Q_SLOTS:
         QVERIFY2(!text.contains(QStringLiteral("Outside")), qPrintable(text));
     }
 
+    // The text of a metafile picture (a chart pasted as a picture, an embedded object's preview), in either kind of metafile, is in the PDF as text.
+    void exportPdfCarriesTheTextOfAMetafilePicture()
+    {
+        auto words = [](std::initializer_list<int> v) { return wmfWords(v); };
+        auto ints = [](std::initializer_list<qint32> v) {
+            QByteArray b;
+            for (qint32 w : v) b += le(quint32(w), 4);
+            return b;
+        };
+        const QString text = QStringLiteral("Axis 2.5");
+        // A metafile of the older kind: a window, a font (24 units tall, Arimo), the text color, and the string at 20 across and 60 down.
+        QByteArray font = words({-24, 0, 0, 0, 400});
+        font.append(char(0)).append(char(0)).append(char(0)).append(char(0));
+        font += QByteArray(4, '\0') + QByteArray("Arimo") + '\0';
+        QByteArray line = words({int(text.size())}) + text.toLatin1();
+        line += words({60, 20});   // y, then x
+        QByteArray body = wmfRecord(0x020B, words({0, 0})) + wmfRecord(0x020C, words({300, 400})) + wmfRecord(0x0102, words({1})) + wmfRecord(0x02FB, font) + wmfRecord(0x012D, words({0}))
+                          + wmfRecord(0x0209, QByteArray(4, '\0')) + wmfRecord(0x0521, line) + wmfRecord(0x0000, QByteArray());
+        QByteArray head = wmfDword(0x9AC6CDD7u) + wmfWords({0, 0, 0, 400, 300, 72}) + wmfDword(0);
+        quint16 sum = 0;
+        for (int i = 0; i < 20; i += 2) sum ^= quint16(quint8(head[i]) | (quint8(head[i + 1]) << 8));
+        head += wmfWords({int(sum)});
+        const QByteArray standard = wmfWords({1, 9, 0x300}) + wmfDword(quint32((18 + body.size()) / 2)) + wmfWords({2}) + wmfDword(60) + wmfWords({0});
+        const QByteArray older = head + standard + body;
+        // The same in the newer kind: records with a type and their length in bytes, the text in UTF-16.
+        auto record = [&](quint32 type, const QByteArray &payload) {
+            QByteArray pad = payload;
+            while (pad.size() % 4) pad.append('\0');
+            return le(type, 4) + le(quint32(8 + pad.size()), 4) + pad;
+        };
+        QByteArray lf = ints({1, -24, 0, 0, 0, 400});
+        lf.append(char(0)).append(char(0)).append(char(0)).append(char(0));
+        lf += QByteArray(4, '\0');
+        QByteArray name(64, '\0');
+        const QString face = QStringLiteral("Arimo");
+        for (int i = 0; i < face.size(); ++i) name[2 * i] = char(face[i].unicode());
+        QByteArray chars;
+        for (QChar c : text) chars += le(c.unicode(), 2);
+        while (chars.size() % 4) chars.append('\0');
+        const int fixed = 8 + 16 + 12 + 40;
+        // (No widths for the letters: the string is drawn whole.)
+        const QByteArray run = ints({0, 0, 0, 0, 1}) + QByteArray(8, '\0') + ints({20, 60, int(text.size()), fixed, 0, 0, 0, 0, 0, 0}) + chars;
+        QByteArray newer = record(1, ints({0, 0, 399, 299, 0, 0, 10583, 7937, qint32(0x464D4520u), 0x10000, 0, 1, 1, 0, 0, 0, 3840, 2880, 1016, 762}))
+                           + record(18, ints({1})) + record(82, lf + name) + record(37, ints({1})) + record(24, ints({0})) + record(84, run) + record(14, ints({0, 16, 20}));
+        qToLittleEndian<quint32>(quint32(newer.size()), newer.data() + 48);
+        for (const auto &kind : {qMakePair(older, QStringLiteral("wmf")), qMakePair(newer, QStringLiteral("emf"))}) {
+            auto d = deck::newPresentation();
+            const QString id = d->addImage(kind.first, kind.second);
+            QVERIFY2(!id.isEmpty(), qPrintable(kind.second));
+            addPicture(*d->pages[0], id, QRectF(100, 100, 400, 300));
+            QString err;
+            const QByteArray pdf = pdfOf(*d, &err);
+            QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+            QVERIFY2(pdfText(pdf).contains(text), qPrintable(kind.second + QLatin1Char(' ') + pdfText(pdf)));
+        }
+    }
+
     // A notes page has the slide framed in its upper half and the speaker
     // notes under it; a page without notes has nothing there.
     void notesPagePaintsTheSlideAboveItsNotes()
