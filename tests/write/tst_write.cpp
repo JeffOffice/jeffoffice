@@ -1295,6 +1295,21 @@ private Q_SLOTS:
         QVERIFY2(!y.contains("distribute") && int(y.count("<w:jc w:val=\"both\"/>")) == 2, y.constData());
     }
 
+    void aParagraphMarkThatSaysItsSizeKeepsSayingItUnderACharacterStyle()
+    {
+        // An empty paragraph's mark has a character style that is small, and says its size is the paragraph's own: the size stays, or the
+        // empty line gets as short as the style.
+        const QByteArray styles = kStyles + "<w:style w:type=\"character\" w:styleId=\"Small\"><w:name w:val=\"Small\"/><w:rPr><w:sz w:val=\"16\"/></w:rPr></w:style>";
+        auto doc = open(makeDocx("<w:p><w:pPr><w:rPr><w:rStyle w:val=\"Small\"/><w:sz w:val=\"23\"/></w:rPr></w:pPr></w:p><w:p><w:r><w:t>text</w:t></w:r></w:p>", styles));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:rPr><w:rStyle w:val=\"Small\"/><w:sz w:val=\"23\"/></w:rPr>"), x.constData());
+        QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), x);
+        // A mark that says only the style is left as that, and is as small as the style on the page.
+        auto plain = open(makeDocx("<w:p><w:pPr><w:rPr><w:rStyle w:val=\"Small\"/></w:rPr></w:pPr></w:p><w:p><w:r><w:t>text</w:t></w:r></w:p>", styles));
+        QVERIFY2(documentXml(plain->toDocx()).contains("<w:rPr><w:rStyle w:val=\"Small\"/></w:rPr></w:pPr>"), documentXml(plain->toDocx()).constData());
+        QCOMPARE(plain->story()->findBlockByNumber(0).charFormat().fontPointSize(), 8.0);
+    }
+
     void aParagraphThatSaysNoFirstLineIndentKeepsSayingIt()
     {
         // The style indents the first line; the paragraph says "hanging" by nothing, which takes that indent away.

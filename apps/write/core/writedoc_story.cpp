@@ -160,7 +160,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
             bf.setProperty(prop::RawBefore, packBlocks(pending));
             pending.clear();
         }
-        RunProps mark = sheet.run(styleId, QString());
+        RunProps mark = sheet.run(styleId, direct.markRun ? direct.markRun->style : QString());   // (a character style on the mark counts)
         if (direct.markRun) {
             mark.overlay(*direct.markRun);
             mark.extra = direct.markRun->extra;
