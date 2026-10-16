@@ -858,6 +858,7 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
             mf.play(p, pic.imgRect);
         } else if (ctx.opt.output && plain && data.format == QLatin1String("svg") && svg.load(data.bytes)) {
             svg::paint(svg, data.bytes, p, pic.imgRect);
+            if (ctx.opt.textOutput == TextOutput::Pdf) svg::paintText(data.bytes, p, pic.imgRect, r);
         } else if (ctx.opt.output && plain && data.format == QLatin1String("pdf") && PdfDocument::shared(data.bytes)->isValid()) {
             PdfDocument::shared(data.bytes)->play(p, 0, pic.imgRect);
         } else {

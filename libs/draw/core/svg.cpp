@@ -1,5 +1,7 @@
 #include "core/svg.h"
 
+#include "core/drawnwords.h"
+
 #include <QHash>
 #include <QPainter>
 #include <QPainterPathStroker>
