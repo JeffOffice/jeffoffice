@@ -898,6 +898,16 @@
           ]
         },
         {
+          "name": "Master Views",
+          "keytip": "ZM",
+          "items": [
+            {
+              "large": "view.master",
+              "keytip": "SM"
+            }
+          ]
+        },
+        {
           "name": "Show",
           "keytip": "ZS",
           "items": [
@@ -959,6 +969,168 @@
             {
               "large": "view.fit",
               "keytip": "F"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Slide Master",
+      "keytip": "JS",
+      "context": "Slide Master",
+      "color": "slideMaster",
+      "groups": [
+        {
+          "name": "Edit Master",
+          "keytip": "ZE",
+          "items": [
+            {
+              "large": "master.insertMaster",
+              "keytip": "IM"
+            },
+            {
+              "large": "master.insertLayout",
+              "keytip": "IL"
+            },
+            {
+              "small": "master.delete",
+              "keytip": "DE"
+            },
+            {
+              "small": "master.rename",
+              "keytip": "RN"
+            },
+            {
+              "small": "master.preserve",
+              "keytip": "PR"
+            }
+          ]
+        },
+        {
+          "name": "Master Layout",
+          "keytip": "ZL",
+          "items": [
+            {
+              "large": "master.layout",
+              "keytip": "ML"
+            },
+            {
+              "large": {
+                "id": "ribbon.insertPlaceholder",
+                "text": "Insert Placeholder",
+                "icon": "square-dashed"
+              },
+              "keytip": "IP",
+              "menu": [
+                "master.placeholder.content",
+                "master.placeholder.text",
+                "master.placeholder.picture",
+                "master.placeholder.chart",
+                "master.placeholder.table",
+                "master.placeholder.media",
+                "master.placeholder.online"
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "masterTitleCheck",
+                  "keytip": "TI"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "masterFootersCheck",
+                  "keytip": "FO"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Edit Theme",
+          "keytip": "ZT",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.masterThemes",
+                "text": "Themes",
+                "icon": "swatch-book"
+              },
+              "keytip": "TH",
+              "menu": "@masterThemes"
+            },
+            {
+              "large": {
+                "id": "ribbon.masterColors",
+                "text": "Colors",
+                "icon": "palette"
+              },
+              "keytip": "CL",
+              "menu": "@masterColors"
+            },
+            {
+              "large": {
+                "id": "ribbon.masterFonts",
+                "text": "Fonts",
+                "icon": "type"
+              },
+              "keytip": "FN",
+              "menu": "@masterFonts"
+            },
+            {
+              "large": "master.effects",
+              "keytip": "EF"
+            }
+          ]
+        },
+        {
+          "name": "Background",
+          "keytip": "ZB",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.masterBackgrounds",
+                "text": "Background Styles",
+                "icon": "swatch-book"
+              },
+              "keytip": "BG",
+              "menu": "@masterBackgrounds"
+            },
+            {
+              "row": [
+                {
+                  "widget": "masterHideCheck",
+                  "keytip": "HB"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZZ",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.masterSlideSize",
+                "text": "Slide Size",
+                "icon": "ratio"
+              },
+              "keytip": "SZ",
+              "menu": "@slideSizes"
+            }
+          ]
+        },
+        {
+          "name": "Close",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": "master.close",
+              "keytip": "CM"
             }
           ]
         }

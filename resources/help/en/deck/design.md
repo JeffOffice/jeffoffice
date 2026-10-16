@@ -21,6 +21,8 @@ Click **Design > Customize > Format Background**. Choose a **Solid fill color** 
 - **Apply** to change only the slide you are on.
 - **Apply to All** to change every slide. Slides and layouts that had a background of their own now follow the new one.
 
+Check **Hide background graphics** to stop the pictures and shapes of the slide master from showing on the slide you are on. The background color stays. In Slide Master view the box is for the layout you are editing.
+
 ## Header and footer
 
 A footer is a line of small text along the bottom of a slide. It can hold the date, the slide number, and a line of your own words. It shows on the slide, and so it prints and plays.
@@ -83,7 +85,7 @@ Each choice is one step that Ctrl+Z takes back.
 
 ## Saving
 
-A presentation keeps its theme, slide master, and layouts when you save it. Other presentation programs read them, and JeffDeck reads them again just as they were. A theme or background style that is dark is saved the way other programs save their dark themes: the page counts as dark, so a text box you add to a slide there starts out light. You can't edit slide masters or layouts yet.
+A presentation keeps its theme, slide master, and layouts when you save it. Other presentation programs read them, and JeffDeck reads them again just as they were. A theme or background style that is dark is saved the way other programs save their dark themes: the page counts as dark, so a text box you add to a slide there starts out light. To change the slide master or a layout, use Slide Master view, on the **View** tab.
 
 ## Related
 

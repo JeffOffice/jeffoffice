@@ -259,6 +259,7 @@ void DeckWindow::setSlideSize(const QSizeF &size)
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
+    const OwnEdit own(this);
     m_ed->beginChange(tr("Slide Size"));
     deck::setSlideSize(*m_ed->doc(), size);
     m_ed->endChange();
@@ -284,10 +285,13 @@ void DeckWindow::setBackground(const QColor &color, bool all)
 {
     Document *d = m_ed->doc();
     const int i = m_ed->currentPage();
-    if (!color.isValid() || (!all && (i < 0 || i >= d->pages.size()))) return;
+    // In Slide Master view the page is the slide master or layout being edited.
+    MasterPage *open = m_view == View::Master ? d->master(m_ed->masterView()) : nullptr;
+    if (!color.isValid() || (!all && !open && (i < 0 || i >= d->pages.size()))) return;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Format Background"));
     if (all) deck::setAllBackgrounds(*d, color);
+    else if (open) open->background = Fill::solid(ColorRef::rgb(color));
     else deck::setSlideBackground(*d->pages[i], color);
     m_ed->endChange();
 }
@@ -296,15 +300,22 @@ void DeckWindow::showFormatBackground()
 {
     const Document *d = m_ed->doc();
     const int i = m_ed->currentPage();
-    if (i < 0 || i >= d->pages.size()) return;
-    // The color the slide shows now: its own, else its layout's, else the master's.
-    const Page &slide = *d->pages[i];
-    Fill fill = slide.background;
-    const QVector<MasterPage *> chain = d->masterChain(d->masterFor(slide));
+    const MasterPage *open = m_view == View::Master ? d->master(m_ed->masterView()) : nullptr;
+    if (!open && (i < 0 || i >= d->pages.size())) return;
+    // The color the page shows now: its own, else its layout's, else the master's.
+    Fill fill = open ? Fill() : d->pages[i]->background;
+    const QVector<MasterPage *> chain = d->masterChain(open ? open : d->masterFor(*d->pages[i]));
     for (int k = int(chain.size()) - 1; k >= 0 && fill.type == Fill::NoFill; --k) fill = chain[k]->background;
     const QColor now = fill.type == Fill::Solid ? fill.color.resolve(d->colors) : QColor(Qt::white);
     BackgroundDialog dlg(now, d->colors, this);
-    if (dlg.exec() == QDialog::Accepted) setBackground(dlg.color(), dlg.applyToAll());
+    const bool hidden = open ? !open->showMasterItems : !d->pages[i]->showMasterItems;
+    dlg.setHideGraphics(hidden);
+    if (dlg.exec() != QDialog::Accepted) return;
+    // The color and the box are one step.
+    m_ed->beginChange(tr("Format Background"));
+    setBackground(dlg.color(), dlg.applyToAll());
+    if (dlg.hideGraphics() != hidden) hideBackgroundGraphics(dlg.hideGraphics());
+    m_ed->endChange();
 }
 
 void DeckWindow::applyFooters(const deck::FooterOptions &options, bool all)

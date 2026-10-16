@@ -45,6 +45,7 @@ void DeckWindow::buildRibbon()
     addInsertParts(parts);
     addAnimationParts(parts);
     addDesignParts(parts);
+    addMasterParts(parts);
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
@@ -110,18 +111,7 @@ void DeckWindow::ribbonControlParts(RibbonParts &parts)
     };
 
     // The View tab's check boxes, each one a command's.
-    auto check = [this](const QString &id) -> QWidget * {
-        QAction *a = act(id);
-        auto *box = new QCheckBox(a->text());
-        box->setToolTip(a->toolTip());
-        box->setChecked(a->isChecked());
-        connect(box, &QCheckBox::clicked, a, [a] { a->trigger(); });
-        connect(a, &QAction::toggled, box, [box](bool on) {
-            const QSignalBlocker block(box);
-            box->setChecked(on);
-        });
-        return box;
-    };
+    auto check = [this](const QString &id) -> QWidget * { return actionCheckBox(id); };
     parts.widgets[QStringLiteral("rulerCheck")] = [check]() -> QWidget * { return check(QStringLiteral("view.rulers")); };
     parts.widgets[QStringLiteral("gridlinesCheck")] = [check]() -> QWidget * { return check(QStringLiteral("view.gridlines")); };
     parts.widgets[QStringLiteral("guidesCheck")] = [check]() -> QWidget * { return check(QStringLiteral("view.guides")); };
@@ -147,6 +137,23 @@ void DeckWindow::ribbonControlParts(RibbonParts &parts)
         tableBtn->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
         return tableBtn;
     };
+}
+
+// A check box for a command that can be checked: it shows the command's name and state, and clicking it triggers the command.
+QWidget *DeckWindow::actionCheckBox(const QString &id)
+{
+    QAction *a = act(id);
+    auto *box = new QCheckBox(a->text());
+    box->setToolTip(a->toolTip());
+    box->setChecked(a->isChecked());
+    box->setEnabled(a->isEnabled());
+    connect(box, &QCheckBox::clicked, a, [a] { a->trigger(); });
+    connect(a, &QAction::toggled, box, [box](bool on) {
+        const QSignalBlocker block(box);
+        box->setChecked(on);
+    });
+    connect(a, &QAction::changed, box, [box, a] { box->setEnabled(a->isEnabled()); });
+    return box;
 }
 
 // Galleries: the button that opens the grid of shapes.
