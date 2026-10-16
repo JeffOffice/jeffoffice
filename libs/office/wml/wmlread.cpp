@@ -360,6 +360,313 @@ public:
         return p;
     }
 
+    // ---- tables
+
+    int tableDepth = 0;               // the tables being read into (a table in a cell is one deeper)
+    int tableCells = 0;               // the cells of the tables read so far
+
+    TableWidth widthOf(int n) const
+    {
+        TableWidth w;
+        w.type = t.attr(n, "type");
+        QString v = t.attr(n, "w");
+        if (v.endsWith(QLatin1Char('%'))) {
+            v.chop(1);
+            w.type = QStringLiteral("pct");
+            w.w = clampTwips(qlonglong(v.toDouble() * 50));
+            return w;
+        }
+        if (!v.isEmpty()) {
+            bool ok = false;
+            const double d = v.toDouble(&ok);
+            if (ok) w.w = clampTwips(qlonglong(d));
+            if (w.type.isEmpty()) w.type = QStringLiteral("dxa");
+        }
+        return w;
+    }
+
+    TableBorder borderOf(int n) const
+    {
+        TableBorder b;
+        b.val = t.attr(n, "val");
+        b.size = std::clamp(intOf(t, n, "sz").value_or(0), 0, 96);
+        b.space = std::clamp(intOf(t, n, "space").value_or(0), 0, 31);
+        b.color = t.attr(n, "color");
+        return b;
+    }
+
+    // The sides of a w:tblBorders or a w:tcBorders (the strict form's start and end are the left and the right).
+    void bordersOf(int n, TableMark *m) const
+    {
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            const QByteArray name = t.localName(c);
+            if (name == "top") m->top = borderOf(c);
+            else if (name == "left" || name == "start") m->left = borderOf(c);
+            else if (name == "bottom") m->bottom = borderOf(c);
+            else if (name == "right" || name == "end") m->right = borderOf(c);
+            else if (name == "insideH") m->insideH = borderOf(c);
+            else if (name == "insideV") m->insideV = borderOf(c);
+            else if (name == "tl2br") m->diagDown = borderOf(c);
+            else if (name == "tr2bl") m->diagUp = borderOf(c);
+        }
+    }
+
+    void marginsOf(int n, std::optional<TableWidth> *top, std::optional<TableWidth> *left, std::optional<TableWidth> *bottom, std::optional<TableWidth> *right) const
+    {
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            const QByteArray name = t.localName(c);
+            if (name == "top") *top = widthOf(c);
+            else if (name == "left" || name == "start") *left = widthOf(c);
+            else if (name == "bottom") *bottom = widthOf(c);
+            else if (name == "right" || name == "end") *right = widthOf(c);
+        }
+    }
+
+    void tblPr(int n, TableMark *m) const
+    {
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            const QByteArray name = t.localName(c);
+            if (t.ns(c) != NsW) continue;
+            if (name == "tblStyle") {
+                m->style = t.val(c);
+            } else if (name == "tblW") {
+                m->width = widthOf(c);
+            } else if (name == "tblInd") {
+                m->indent = widthOf(c);
+            } else if (name == "tblCellSpacing") {
+                m->spacing = widthOf(c);
+            } else if (name == "jc") {
+                m->jc = t.val(c);
+            } else if (name == "tblLayout") {
+                m->layout = t.attr(c, "type");
+            } else if (name == "tblCellMar") {
+                marginsOf(c, &m->marTop, &m->marLeft, &m->marBottom, &m->marRight);
+            } else if (name == "tblBorders") {
+                bordersOf(c, m);
+            } else if (name == "shd") {
+                m->shdVal = t.val(c);
+                m->shdFill = t.attr(c, "fill");
+                m->shdColor = t.attr(c, "color");
+            } else if (name == "tblLook") {
+                int look = 0;
+                bool any = false;
+                bool ok = false;
+                const int hex = t.attr(c, "val").toInt(&ok, 16);
+                if (ok) {
+                    look = hex;
+                    any = true;
+                }
+                static const struct { const char *name; int bit; } bits[] = {{"firstRow", 0x20}, {"lastRow", 0x40}, {"firstColumn", 0x80}, {"lastColumn", 0x100}, {"noHBand", 0x200}, {"noVBand", 0x400}};
+                for (const auto &b : bits)
+                    if (t.has(c, b.name)) {
+                        any = true;
+                        if (onOffString(t.attr(c, b.name).toLower())) look |= b.bit;
+                        else look &= ~b.bit;
+                    }
+                if (any) m->look = look;
+            } else if (name == "tblStyleRowBandSize") {
+                m->rowBand = std::clamp(intOf(t, c).value_or(1), 1, 100);
+            } else if (name == "tblStyleColBandSize") {
+                m->colBand = std::clamp(intOf(t, c).value_or(1), 1, 100);
+            } else if (name == "tblpPr") {
+                m->floating = true;
+            } else if (name == "bidiVisual") {
+                m->bidi = onOffOf(t, c).value_or(true);
+            }
+        }
+    }
+
+    void tblGrid(int n, TableMark *m) const
+    {
+        for (int c = t.firstChild(n); c >= 0 && m->grid.size() < kMaxTableColumns; c = t.next(c))
+            if (t.is(c, "gridCol")) m->grid.push_back(std::clamp(intOf(t, c, "w").value_or(0), 0, kMostTwips));
+    }
+
+    void trPr(int n, TableMark *m) const
+    {
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            const QByteArray name = t.localName(c);
+            if (t.ns(c) != NsW) continue;
+            if (name == "gridBefore") {
+                m->gridBefore = std::clamp(intOf(t, c).value_or(0), 0, kMaxTableColumns);
+            } else if (name == "gridAfter") {
+                m->gridAfter = std::clamp(intOf(t, c).value_or(0), 0, kMaxTableColumns);
+            } else if (name == "wBefore") {
+                m->widthBefore = widthOf(c);
+            } else if (name == "wAfter") {
+                m->widthAfter = widthOf(c);
+            } else if (name == "cantSplit") {
+                m->cantSplit = onOffOf(t, c).value_or(true);
+            } else if (name == "tblHeader") {
+                m->header = onOffOf(t, c).value_or(true);
+            } else if (name == "trHeight") {
+                m->height = std::clamp(intOf(t, c).value_or(0), 0, kMostTwips);
+                m->heightRule = t.attr(c, "hRule");
+            } else if (name == "tblCellSpacing") {
+                m->spacing = widthOf(c);
+            } else if (name == "jc") {
+                m->jc = t.val(c);
+            }
+        }
+    }
+
+    void tcPr(int n, TableMark *m) const
+    {
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            const QByteArray name = t.localName(c);
+            if (t.ns(c) != NsW) continue;
+            if (name == "tcW") {
+                m->cellWidth = widthOf(c);
+            } else if (name == "gridSpan") {
+                m->span = std::clamp(intOf(t, c).value_or(1), 1, kMaxTableColumns);
+            } else if (name == "vMerge") {
+                m->vMerge = t.val(c).isEmpty() || t.val(c) == QLatin1String("continue") ? QStringLiteral("continue") : t.val(c);
+            } else if (name == "tcBorders") {
+                bordersOf(c, m);
+            } else if (name == "shd") {
+                m->shdVal = t.val(c);
+                m->shdFill = t.attr(c, "fill");
+                m->shdColor = t.attr(c, "color");
+            } else if (name == "tcMar") {
+                marginsOf(c, &m->cMarTop, &m->cMarLeft, &m->cMarBottom, &m->cMarRight);
+            } else if (name == "vAlign") {
+                m->vAlign = t.val(c);
+            } else if (name == "noWrap") {
+                m->noWrap = onOffOf(t, c).value_or(true);
+            } else if (name == "textDirection") {
+                m->textDirection = t.val(c);
+            }
+        }
+    }
+
+    // Whether a w:tbl is read as a table: it has rows and cells, no more than the limits (wml.h) hold, and is not nested deeper than they say.
+    bool tableFits(int tbl) const
+    {
+        if (tableDepth >= kMaxTableDepth) return false;
+        int rows = 0, cells = 0;
+        for (int r = t.firstChild(tbl); r >= 0; r = t.next(r)) {
+            if (!t.is(r, "tr")) continue;
+            if (++rows > kMaxTableRows) return false;
+            int inRow = 0;
+            for (int cell = t.firstChild(r); cell >= 0; cell = t.next(cell))
+                if (t.is(cell, "tc")) ++inRow;
+            if (inRow == 0 || inRow > kMaxTableColumns) return false;
+            cells += inRow;
+            if (cells > kMaxTableCellsEach) return false;
+        }
+        const int grid = t.child(tbl, "tblGrid");
+        if (grid >= 0) {
+            int cols = 0;
+            for (int c = t.firstChild(grid); c >= 0; c = t.next(c)) cols += t.is(c, "gridCol");
+            if (cols > kMaxTableColumns) return false;
+        }
+        return rows > 0 && tableCells + cells <= kMaxTableCells;
+    }
+
+    static Block closeOf(const Block &open, const QByteArray &raw)
+    {
+        Block b;
+        b.isRaw = true;
+        b.role = Inline::Close;
+        b.tag = open.tag;
+        b.raw = raw;
+        return b;
+    }
+
+    void cellBlocks(int tc, QVector<Block> *out, int depth)
+    {
+        Block open;
+        open.isRaw = true;
+        open.role = Inline::Open;
+        open.tag = QStringLiteral("tc");
+        open.raw = t.startTag(tc);
+        auto mark = std::make_shared<TableMark>();
+        mark->kind = TableMark::Cell;
+        const int first = t.firstChild(tc);
+        if (first >= 0 && t.is(first, "tcPr")) {
+            tcPr(first, mark.get());
+            open.raw += t.raw(first);
+        }
+        open.table = mark;
+        out->push_back(open);
+        const qsizetype from = out->size();
+        ++tableDepth;
+        bodyContent(tc, out, depth + 1, nullptr, nullptr, true);
+        --tableDepth;
+        // A cell holds a paragraph, or a table that is followed by one; one with neither (a damaged file's) is given an empty one, as a cell can't be shown without.
+        bool content = false;
+        for (qsizetype i = from; i < out->size() && !content; ++i) content = !(*out)[i].isRaw || ((*out)[i].role == Inline::Open && (*out)[i].tag == QLatin1String("tbl"));
+        if (!content) {
+            ++paragraphs;
+            out->push_back(Block());
+        }
+        out->push_back(closeOf(open, t.endTag(tc)));
+    }
+
+    void rowBlocks(int tr, QVector<Block> *out, int depth)
+    {
+        Block open;
+        open.isRaw = true;
+        open.role = Inline::Open;
+        open.tag = QStringLiteral("tr");
+        open.raw = t.startTag(tr);
+        auto mark = std::make_shared<TableMark>();
+        mark->kind = TableMark::Row;
+        int c = t.firstChild(tr);
+        for (; c >= 0 && !t.is(c, "tc"); c = t.next(c)) {
+            if (t.is(c, "trPr")) trPr(c, mark.get());
+            open.raw += t.raw(c);
+        }
+        open.table = mark;
+        out->push_back(open);
+        for (; c >= 0; c = t.next(c)) {
+            if (t.is(c, "tc")) {
+                ++tableCells;
+                cellBlocks(c, out, depth);
+            } else {
+                out->push_back(rawBlock(c));
+            }
+        }
+        out->push_back(closeOf(open, t.endTag(tr)));
+    }
+
+    // A table as the blocks of its parts (see Block): false, with nothing added, when it is to be kept whole instead.
+    bool tableBlocks(int tbl, QVector<Block> *out, int depth)
+    {
+        if (!tableFits(tbl)) return false;
+        const qsizetype openAt = out->size();
+        Block open;
+        open.isRaw = true;
+        open.role = Inline::Open;
+        open.tag = QStringLiteral("tbl");
+        open.raw = t.startTag(tbl);
+        auto mark = std::make_shared<TableMark>();
+        mark->kind = TableMark::Table;
+        int c = t.firstChild(tbl);
+        for (; c >= 0 && !t.is(c, "tr"); c = t.next(c)) {
+            if (t.is(c, "tblPr")) tblPr(c, mark.get());
+            if (t.is(c, "tblGrid")) {
+                tblGrid(c, mark.get());
+                mark->gridBegin = open.raw.size();
+                open.raw += t.raw(c);
+                mark->gridEnd = open.raw.size();
+                continue;
+            }
+            open.raw += t.raw(c);
+        }
+        open.table = mark;
+        out->push_back(open);
+        for (; c >= 0; c = t.next(c)) {
+            if (t.is(c, "tr")) rowBlocks(c, out, depth);
+            else out->push_back(rawBlock(c));
+        }
+        out->push_back(closeOf(open, t.endTag(tbl)));
+        // (What a table that nothing changes is written as, and how to tell.)
+        mark->original = t.raw(tbl);
+        mark->fingerprint = blocksFingerprint(*out, openAt, out->size());
+        return true;
+    }
+
     // ---- the body
 
     Block rawBlock(int c, const QString &display = QString())
@@ -373,9 +680,10 @@ public:
         return b;
     }
 
-    void bodyContent(int n, QVector<Block> *out, int depth, SectionProps *last, bool *lastStated)
+    void bodyContent(int n, QVector<Block> *out, int depth, SectionProps *last, bool *lastStated, bool inCell = false)
     {
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            if (inCell && t.is(c, "tcPr")) continue;   // (the cell's properties are in its Open block)
             if (paragraphs >= kMaxParagraphs || inlines >= kMaxInlines) {
                 truncated = true;
                 return;
@@ -394,14 +702,16 @@ public:
                     if (lastStated) *lastStated = true;
                 }
             } else if (name == "tbl") {
-                int rows = 0, cols = 0;
-                for (int r = t.firstChild(c); r >= 0; r = t.next(r)) {
-                    if (!t.is(r, "tr")) continue;
-                    if (++rows == 1)
-                        for (int cell = t.firstChild(r); cell >= 0; cell = t.next(cell))
-                            if (t.is(cell, "tc")) ++cols;
+                if (!tableBlocks(c, out, depth)) {
+                    int rows = 0, cols = 0;
+                    for (int r = t.firstChild(c); r >= 0; r = t.next(r)) {
+                        if (!t.is(r, "tr")) continue;
+                        if (++rows == 1)
+                            for (int cell = t.firstChild(r); cell >= 0; cell = t.next(cell))
+                                if (t.is(cell, "tc")) ++cols;
+                    }
+                    out->push_back(rawBlock(c, QCoreApplication::translate("jp::office::wml", "[Table: %1 rows by %2 columns]").arg(rows).arg(cols)));
                 }
-                out->push_back(rawBlock(c, QCoreApplication::translate("jp::office::wml", "[Table: %1 rows by %2 columns]").arg(rows).arg(cols)));
             } else if (name == "sdt" && depth < kMaxContainerDepth && t.child(c, "sdtContent") >= 0) {
                 const int content = t.child(c, "sdtContent");
                 Block open;
@@ -758,6 +1068,10 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
             for (int c = settings.firstChild(settings.root()); c >= 0; c = settings.next(c)) {
                 if (settings.is(c, "defaultTabStop")) doc->defaultTabStop = std::clamp(intOf(settings, c).value_or(720), 1, 20000);
                 else if (settings.is(c, "evenAndOddHeaders")) doc->evenAndOddHeaders = onOffOf(settings, c).value_or(true);
+                else if (settings.is(c, "compat"))
+                    for (int k = settings.firstChild(c); k >= 0; k = settings.next(k))
+                        if (settings.is(k, "compatSetting") && settings.attr(k, "name") == QLatin1String("compatibilityMode"))
+                            doc->compatMode = std::clamp(settings.attr(k, "val").toInt(), 8, 99);
             }
         }
     }

@@ -1921,6 +1921,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
     bool stoppedEarly = false;
     for (QTextBlock b = m_span.from > 0 ? doc->findBlock(m_span.from) : doc->begin(); b.isValid(); b = b.next()) {
+        if (m_span.end >= 0 && b.position() >= m_span.end) {
+            stoppedEarly = true;
+            break;
+        }
         const bool first = m_blocks.empty();   // the first paragraph laid out
         const bool tail = first && m_span.continued && m_span.from > b.position();   // the rest of one that began before
         auto B = std::make_unique<Block>();

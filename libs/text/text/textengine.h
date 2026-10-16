@@ -214,6 +214,9 @@ public:
         // Laying out ends after the paragraph in which a line first lands in this frame or a later one (-1: it
         // runs to the story's end). The lines of that paragraph are all laid out.
         int stopAtFrame = -1;
+        // Laying out ends before the first paragraph that starts at this document position or after it (-1: it runs to the
+        // story's end): for a stretch that is laid out apart from what follows it (the cells of a table).
+        int end = -1;
         // Widow and orphan control, keeping lines together, and keeping with the next paragraph: false leaves
         // them to the caller, which then decides where the frames end.
         bool keepRules = true;

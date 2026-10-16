@@ -268,6 +268,179 @@ private Q_SLOTS:
         QCOMPARE(writeDocx(d2), out);
     }
 
+    // A table is the blocks of its parts: an Open block of the table with its properties and grid as written, one for each row and each cell with the cell's paragraphs
+    // after it, and a Close block of each; what the table says is read into the Open blocks' marks, and what is written is the bytes.
+    void aTableIsReadAsItsPartsAndWrittenBackAsItWas()
+    {
+        const QByteArray nested = R"(<w:tbl><w:tblPr><w:tblW w:w="1000" w:type="dxa"/></w:tblPr><w:tblGrid><w:gridCol w:w="1000"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>deep</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
+        const QByteArray table =
+            R"(<w:tbl><w:tblPr><w:tblStyle w:val="Grid"/><w:tblW w:w="5000" w:type="pct"/><w:jc w:val="center"/><w:tblInd w:w="115" w:type="dxa"/>)"
+            R"(<w:tblBorders><w:top w:val="single" w:sz="8" w:space="0" w:color="FF0000"/><w:left w:val="double" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="dotted" w:sz="2" w:space="0" w:color="0000FF"/></w:tblBorders>)"
+            R"(<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="10" w:type="dxa"/><w:left w:w="100" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr>)"
+            R"(<w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="3000"/><w:gridCol w:w="4000"/></w:tblGrid>)"
+            R"(<w:tr w:rsidR="00AA"><w:trPr><w:cantSplit/><w:trHeight w:val="500" w:hRule="exact"/><w:tblHeader/></w:trPr>)"
+            R"(<w:tc><w:tcPr><w:tcW w:w="5000" w:type="dxa"/><w:gridSpan w:val="2"/><w:vMerge w:val="restart"/><w:tcBorders><w:bottom w:val="single" w:sz="12" w:space="0" w:color="00FF00"/></w:tcBorders><w:shd w:val="clear" w:color="auto" w:fill="FFFF00"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:t>A</w:t></w:r></w:p>)" + nested + R"(<w:p/></w:tc>)"
+            R"(<w:tc><w:tcPr><w:tcW w:w="4000" w:type="dxa"/><w:tcMar><w:left w:w="50" w:type="dxa"/></w:tcMar><w:noWrap/></w:tcPr><w:p><w:r><w:t>B</w:t></w:r></w:p><w:p><w:r><w:t>B2</w:t></w:r></w:p></w:tc></w:tr>)"
+            R"(<w:bookmarkStart w:id="3" w:name="between"/><w:bookmarkEnd w:id="3"/>)"
+            R"(<w:tr><w:trPr><w:gridBefore w:val="1"/><w:wBefore w:w="2000" w:type="dxa"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:vMerge/></w:tcPr><w:p/></w:tc><w:tc><w:p><w:r><w:t>C</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
+        Made m;
+        m.body = "<w:p><w:r><w:t>before</w:t></w:r></w:p>" + table + R"(<w:p><w:r><w:t>after</w:t></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        // before, the table, after.
+        QCOMPARE(d.body.size(), 31);   // before; the table's start; row 1 (start, cell A: start, a paragraph, the nested table's 7, a paragraph, end; cell B: start, two paragraphs, end; end);
+                                       // the two kept bookmark pieces; row 2 (start, two cells of three, end); the table's end; after
+        int tables = 0, rows = 0, cells = 0, raws = 0;
+        const TableMark *first = nullptr, *firstRow = nullptr, *firstCell = nullptr, *secondCell = nullptr, *vContinue = nullptr, *secondRow = nullptr;
+        int rowNumber = 0, cellNumber = 0;
+        for (const Block &b : d.body) {
+            if (!b.isRaw) continue;
+            if (b.role == Inline::Open && b.table) {
+                tables += b.tag == QLatin1String("tbl");
+                rows += b.tag == QLatin1String("tr");
+                cells += b.tag == QLatin1String("tc");
+                if (b.tag == QLatin1String("tbl") && !first) first = b.table.get();
+                if (b.tag == QLatin1String("tr")) {
+                    ++rowNumber;   // (the file's second row comes after the nested table's)
+                    if (rowNumber == 1) firstRow = b.table.get();
+                    else if (rowNumber == 3) secondRow = b.table.get();
+                }
+                if (b.tag == QLatin1String("tc")) {
+                    ++cellNumber;   // (A, the nested table's, B, then the second row's two)
+                    if (cellNumber == 1) firstCell = b.table.get();
+                    else if (cellNumber == 3) secondCell = b.table.get();
+                    else if (cellNumber == 4) vContinue = b.table.get();
+                }
+            } else if (b.role == Inline::Single) {
+                ++raws;
+            }
+        }
+        QCOMPARE(tables, 2);   // (one of them in a cell)
+        QCOMPARE(rows, 3);
+        QCOMPARE(cells, 5);
+        QCOMPARE(raws, 2);     // (the bookmark between the rows, and its end)
+        QVERIFY(first && firstRow && firstCell && secondCell && vContinue && secondRow);
+        QCOMPARE(vContinue->vMerge, QStringLiteral("continue"));
+        QCOMPARE(first->grid, (QVector<int>{2000, 3000, 4000}));
+        QCOMPARE(first->style, QStringLiteral("Grid"));
+        QCOMPARE(first->width.type, QStringLiteral("pct"));
+        QCOMPARE(first->width.w, 5000);
+        QCOMPARE(first->jc, QStringLiteral("center"));
+        QCOMPARE(first->indent.w, 115);
+        QCOMPARE(first->layout, QStringLiteral("fixed"));
+        QCOMPARE(first->top.val, QStringLiteral("single"));
+        QCOMPARE(first->top.size, 8);
+        QCOMPARE(first->top.color, QStringLiteral("FF0000"));
+        QCOMPARE(first->left.val, QStringLiteral("double"));
+        QCOMPARE(first->insideH.val, QStringLiteral("dotted"));
+        QVERIFY(!first->bottom.stated());
+        QVERIFY(first->marTop && first->marTop->w == 10 && first->marLeft && first->marLeft->w == 100 && !first->marRight);
+        QCOMPARE(first->look, 0x04A0);   // (the first row and column, no column bands)
+        QVERIFY(firstRow->cantSplit && firstRow->header);
+        QCOMPARE(firstRow->height, 500);
+        QCOMPARE(firstRow->heightRule, QStringLiteral("exact"));
+        QCOMPARE(secondRow->gridBefore, 1);
+        QCOMPARE(secondRow->widthBefore.w, 2000);
+        QCOMPARE(firstCell->span, 2);
+        QCOMPARE(firstCell->vMerge, QStringLiteral("restart"));
+        QCOMPARE(firstCell->cellWidth.w, 5000);
+        QCOMPARE(firstCell->bottom.color, QStringLiteral("00FF00"));
+        QCOMPARE(firstCell->shdFill, QStringLiteral("FFFF00"));
+        QCOMPARE(firstCell->vAlign, QStringLiteral("center"));
+        QVERIFY(secondCell->noWrap && secondCell->cMarLeft && secondCell->cMarLeft->w == 50);
+        // Written, the table is what it was.
+        QVERIFY(documentXmlOf(writeDocx(d)).contains(table));
+        Document again;
+        QVERIFY(readDocx(writeDocx(d), &again));
+        QCOMPARE(writeDocx(again), writeDocx(d));
+    }
+
+    // A table is written as it was read while its blocks are as they were; one whose text, formatting, or structure changed is written from its blocks (with the
+    // nested table in it, which did not change, still as it was).
+    void aTableThatChangedIsWrittenFromItsBlocksAndOneThatDidNotAsItWas()
+    {
+        const QByteArray inner = R"(<w:tbl><w:tblGrid><w:gridCol w:w="1000"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>inner</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
+        // (Spaces and new lines between the elements, runs that a writer would join, and a text without xml:space: all kept while nothing changes.)
+        const QByteArray table = "<w:tbl>\n  <w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid>\n  <w:tr>\n    <w:tc><w:p><w:r><w:t>one</w:t></w:r><w:r><w:t>two</w:t></w:r></w:p>" + inner +
+                                 "<w:p/></w:tc>\n  </w:tr>\n</w:tbl>";
+        Made m;
+        m.body = "<w:p><w:r><w:t>x</w:t></w:r></w:p>" + table;
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QVERIFY(documentXmlOf(writeDocx(d)).contains(table));
+        // The paragraph in the outer cell is changed: that table is written from its blocks, and the inner one as it was.
+        int changed = -1;
+        for (int i = 0; i < d.body.size(); ++i)
+            if (!d.body[i].isRaw && !d.body[i].para.content.isEmpty() && d.body[i].para.content[0].text == QLatin1String("one")) changed = i;
+        QVERIFY(changed > 0);
+        d.body[changed].para.content[0].text = QStringLiteral("uno");
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QVERIFY(!out.contains(table));
+        QVERIFY(out.contains("uno"));
+        QVERIFY(out.contains(inner));
+        QVERIFY(out.contains("<w:tc>"));
+        // And a damaged block structure (a row that is not closed) leaves nothing half written: the pieces without partners are not written.
+        Document d2;
+        QVERIFY(readDocx(m.build(), &d2));
+        for (int i = d2.body.size() - 1; i >= 0; --i)
+            if (d2.body[i].isRaw && d2.body[i].role == Inline::Close && d2.body[i].tag == QLatin1String("tr")) {
+                d2.body.removeAt(i);
+                break;
+            }
+        XmlTree t;
+        QVERIFY2(t.parse(documentXmlOf(writeDocx(d2))), "the document is well formed");
+    }
+
+    // A cell with no paragraph in a damaged file is given one, and a table past a limit (columns, depth) is kept whole as XML and shown as a stand-in, as before.
+    void tablesPastTheLimitsAreKeptWholeAndCellsWithNothingGetAParagraph()
+    {
+        Document d;
+        QVERIFY(readDocx(Made{R"(<w:tbl><w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid><w:tr><w:tc/></w:tr></w:tbl>)", {}, {}, {}}.build(), &d));
+        int paragraphs = 0;
+        for (const Block &b : d.body) paragraphs += !b.isRaw;
+        QCOMPARE(paragraphs, 1);
+        // Too many columns in a row: the table is one stand-in block, written as it was.
+        QByteArray wide = "<w:tbl><w:tr>";
+        for (int i = 0; i < kMaxTableColumns + 1; ++i) wide += "<w:tc><w:p/></w:tc>";
+        wide += "</w:tr></w:tbl>";
+        QVERIFY(readDocx(Made{wide, {}, {}, {}}.build(), &d));
+        QCOMPARE(d.body.size(), 1);
+        QVERIFY(d.body[0].isRaw && d.body[0].role == Inline::Single && !d.body[0].display.isEmpty());
+        QCOMPARE(d.body[0].raw, wide);
+        // A table with no row is kept whole too.
+        QVERIFY(readDocx(Made{"<w:tbl><w:tblPr/></w:tbl>", {}, {}, {}}.build(), &d));
+        QCOMPARE(d.body.size(), 1);
+        QVERIFY(d.body[0].isRaw && !d.body[0].display.isEmpty());
+        // Nested more deeply than the limit: the tables down to it are read, the one below is a stand-in in a cell.
+        QByteArray deep;
+        for (int i = 0; i < kMaxTableDepth + 3; ++i) deep += "<w:tbl><w:tr><w:tc><w:p><w:r><w:t>level " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        for (int i = 0; i < kMaxTableDepth + 3; ++i) deep += "</w:tc></w:tr></w:tbl><w:p/>";
+        QVERIFY(readDocx(Made{deep, {}, {}, {}}.build(), &d));
+        int open = 0, standIns = 0;
+        for (const Block &b : d.body) {
+            open += b.isRaw && b.role == Inline::Open && b.tag == QLatin1String("tbl");
+            standIns += b.isRaw && b.role == Inline::Single && !b.display.isEmpty();
+        }
+        QCOMPARE(open, kMaxTableDepth);
+        QCOMPARE(standIns, 1);
+        QVERIFY(documentXmlOf(writeDocx(d)).contains("level " + QByteArray::number(kMaxTableDepth + 2) + "<"));
+    }
+
+    void theCompatibilityModeIsReadFromTheSettings()
+    {
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xmlDoc(QByteArray("<w:document ") + kW + "><w:body><w:p/></w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/settings.xml"), xmlDoc(QByteArray("<w:settings ") + kW + "><w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"15\"/></w:compat></w:settings>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings"), QStringLiteral("/word/settings.xml"));
+        Document d;
+        QVERIFY(readDocx(w.finish(), &d));
+        QCOMPARE(d.compatMode, 15);
+        QVERIFY(readDocx(Made{"<w:p/>", {}, {}, {}}.build(), &d));
+        QCOMPARE(d.compatMode, 12);
+    }
+
     void roundTripKeepsWhatItDoesNotUnderstandWhereItWas()
     {
         const QByteArray table = R"(<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr><w:tblGrid><w:gridCol w:w="4680"/><w:gridCol w:w="4680"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>B</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
@@ -281,13 +454,11 @@ private Q_SLOTS:
                  R"(<w:sectPr w:rsidR="00B2"><w:headerReference w:type="default" r:id="rId8"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:docGrid w:linePitch="360"/></w:sectPr>)";
         Document d;
         QVERIFY(readDocx(m.build(), &d));
-        // The table is a block of its own, shown as a stand-in; the paragraph holds the atoms.
-        QCOMPARE(d.body.size(), 5);   // paragraph, table, sdt start, paragraph, sdt end
-        QVERIFY(d.body[1].isRaw);
-        QCOMPARE(d.body[1].raw, table);
-        QVERIFY(d.body[1].display.contains(QLatin1String("2")));
-        QCOMPARE(d.body[2].role, Inline::Open);
-        QCOMPARE(d.body[4].role, Inline::Close);
+        // The table is the blocks of its parts; the paragraph holds the atoms.
+        QCOMPARE(d.body.size(), 14);   // paragraph, table (start, row start, two cells of start, paragraph, end, then row end and table end), sdt start, paragraph, sdt end
+        QVERIFY(d.body[1].isRaw && d.body[1].tag == QLatin1String("tbl") && d.body[1].role == Inline::Open);
+        QCOMPARE(d.body[11].role, Inline::Open);
+        QCOMPARE(d.body[13].role, Inline::Close);
         const QByteArray out = documentXmlOf(writeDocx(d));
         QVERIFY(out.contains(table));
         QVERIFY(out.contains(drawing));
@@ -312,7 +483,7 @@ private Q_SLOTS:
         Document again;
         QVERIFY(readDocx(writeDocx(d), &again));
         QCOMPARE(again.body.size(), d.body.size());
-        QCOMPARE(again.body[1].raw, table);
+        QVERIFY(again.body[1].isRaw && again.body[1].tag == QLatin1String("tbl"));
         QCOMPARE(documentXmlOf(writeDocx(again)), out);
     }
 

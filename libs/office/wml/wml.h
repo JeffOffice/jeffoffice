@@ -161,7 +161,70 @@ struct Paragraph {
     QVector<Inline> content;
 };
 
-// An element of the body: a paragraph, or an element that is kept as written (a table; the start or end of a content control).
+// A width a table says of itself, of a column, or of a cell: dxa is twentieths of a point, pct fiftieths of a percent, auto and nil have none.
+struct TableWidth {
+    QString type;                     // dxa, pct, auto, nil; empty when not stated
+    int w = 0;
+    bool stated() const { return !type.isEmpty(); }
+    bool isDxa() const { return type == QLatin1String("dxa") || type.isEmpty(); }
+    bool operator==(const TableWidth &o) const { return type == o.type && w == o.w; }
+};
+
+// A border of a table or a cell as w:top, w:left... state it.
+struct TableBorder {
+    QString val;                      // single, double, dotted, dashed, thick, nil, none... (empty when not stated)
+    int size = 0;                     // eighths of a point
+    int space = 0;                    // points
+    QString color;                    // "RRGGBB", "auto", or empty
+    bool stated() const { return !val.isEmpty(); }
+    bool operator==(const TableBorder &o) const { return val == o.val && size == o.size && space == o.space && color == o.color; }
+};
+
+// What a w:tbl, w:tr, or w:tc says, read for the program that lays tables out (the element is written from the raw bytes of its block, which
+// are what the file had, so what is not read here is kept).
+struct TableMark {
+    enum Kind : quint8 { Table, Row, Cell };
+    Kind kind = Table;
+    // ---- a table (tblPr and tblGrid)
+    QVector<int> grid;                // the columns' widths, twentieths of a point
+    qsizetype gridBegin = -1, gridEnd = -1;   // where w:tblGrid is in the raw bytes of the block
+    QString style;                    // tblStyle
+    TableWidth width, indent, spacing;        // tblW, tblInd, tblCellSpacing
+    QString jc;                       // left, center, right, start, end
+    QString layout;                   // fixed or autofit (empty when not stated)
+    std::optional<TableWidth> marTop, marLeft, marBottom, marRight;   // tblCellMar
+    TableBorder top, left, bottom, right, insideH, insideV;           // tblBorders (also tcBorders for a cell)
+    QString shdFill;                  // shd: "RRGGBB", "auto", or empty (also a cell's)
+    QString shdVal, shdColor;         // its pattern (clear, solid, pct25...) and the color of the pattern
+    int look = 0x04A0;                // tblLook as the bit field (0x20 first row, 0x40 last row, 0x80 first column, 0x100 last column, 0x200 no row bands, 0x400 no column bands)
+    int rowBand = 1, colBand = 1;     // tblStyleRowBandSize and tblStyleColBandSize
+    bool floating = false;            // tblpPr
+    bool bidi = false;
+    // ---- a row (trPr)
+    int gridBefore = 0, gridAfter = 0;
+    TableWidth widthBefore, widthAfter;
+    int height = 0;                   // trHeight, twentieths of a point (0: not stated)
+    QString heightRule;               // atLeast (when empty), exact, auto
+    bool cantSplit = false, header = false;
+    // ---- a cell (tcPr)
+    TableWidth cellWidth;             // tcW
+    int span = 1;                     // gridSpan
+    QString vMerge;                   // "", restart, or continue
+    TableBorder diagDown, diagUp;     // tl2br, tr2bl
+    std::optional<TableWidth> cMarTop, cMarLeft, cMarBottom, cMarRight;   // tcMar
+    QString vAlign;                   // top, center, bottom, both
+    bool noWrap = false;
+    QString textDirection;
+    // ---- a table, for writing it as it was
+    // The whole element as it was read, and a fingerprint of the blocks it was read into as the writer would write them: when the table's blocks come to
+    // the same fingerprint as they are written (nothing in the table changed), the table is written as these bytes, not from its blocks.
+    QByteArray original, fingerprint;
+};
+
+// An element of the body: a paragraph, or an element that is kept as written (a table's parts that are not read, the start or end of a
+// content control). A table is a run of blocks: an Open block (tag "tbl", with the table's start tag, properties, and grid as raw bytes), the
+// rows in it (an Open block with tag "tr", a block of tag "tc" for each cell with the cell's content after it, and a Close block of each),
+// and a Close block. Anything else in a table that is not understood (a bookmark between rows) is a raw block between them.
 struct Block {
     bool isRaw = false;
     Paragraph para;
@@ -169,6 +232,7 @@ struct Block {
     QString display;                  // a raw block: the text shown in its place
     Inline::Role role = Inline::Single;
     QString tag, key;
+    std::shared_ptr<const TableMark> table;   // the Open block of a table, a row, or a cell: what it says
 };
 
 struct Style {
@@ -285,6 +349,7 @@ struct Document {
     bool hasTheme = false;
     int defaultTabStop = 720;         // settings.xml's, twentieths of a point
     bool evenAndOddHeaders = false;
+    int compatMode = 12;              // compatibilityMode of settings.xml (11 for the 2003 programs' files, 12 for 2007's, 15 for 2013's and after); 12 when it says nothing
 
     // The package.
     QString mainName = QStringLiteral("/word/document.xml");
@@ -314,6 +379,15 @@ struct ReadNotes {
 constexpr qint64 kMaxInflatedBytes = qint64(1) << 30;
 constexpr int kMaxParagraphs = 500000;
 constexpr int kMaxInlines = 1500000;
+// A table is read as one of at most this many rows and columns (a word processor's own largest has 63 columns), of at most this many cells, nested at
+// most this deep, and all the tables of a document hold at most the last number of cells; a table that goes past any of them is kept whole as XML and
+// shown as a stand-in, as every table was before. (The dev half of the document collection has a table of 598 rows, which the suite's 256 would have
+// left out.)
+constexpr int kMaxTableRows = 20000;
+constexpr int kMaxTableColumns = 256;
+constexpr int kMaxTableCellsEach = 100000;
+constexpr int kMaxTableDepth = 8;
+constexpr int kMaxTableCells = 200000;
 bool readDocx(const QByteArray &zip, Document *doc, QString *error = nullptr, ReadNotes *notes = nullptr);
 // The package of a document. Empty, with a message, if it can't be made (an Id or a part name that can't be written).
 QByteArray writeDocx(const Document &doc, QString *error = nullptr);
@@ -324,6 +398,9 @@ Document newDocument();
 // Paragraph...); used to add one a document lacks. The id is the style's name without spaces ("Heading1"). Empty id when unknown.
 Style builtinStyle(const QString &id);
 QStringList builtinStyleIds();
+
+// A fingerprint of blocks [from, to) of a body as they are written (every piece kept, as nothing says otherwise), for telling a table that has not changed.
+QByteArray blocksFingerprint(const QVector<Block> &body, qsizetype from, qsizetype to);
 
 // The place the schema gives each child of pPr, rPr, and sectPr (children are written in this order; unknown ones sort last).
 int paraChildRank(const QByteArray &name);
