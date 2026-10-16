@@ -9778,6 +9778,35 @@ private Q_SLOTS:
         QCOMPARE(static_cast<GroupItem *>(copy.get())->children[0]->sourceId, 0);
     }
 
+    // A shape that holds no text keeps its text insets and anchor through its own data (undo, copies): they were written only for a shape
+    // with a story, so a shape made with insets of its own (a drawing's, with the text to come) came back with the defaults.
+    void shapesWithoutTextKeepTheirInsetsAndAnchorInJson()
+    {
+        auto s = std::make_shared<ShapeItem>();
+        // As made, with the defaults: nothing more is written than before.
+        QVERIFY(!s->toJson().contains(QStringLiteral("insets")));
+        QVERIFY(!s->toJson().contains(QStringLiteral("valign")));
+        s->insets = QMarginsF(1, 2, 3, 4);
+        s->valign = VAlign::Bottom;
+        QVERIFY(s->storyId.isEmpty());
+        const ItemPtr back = jp::Item::fromJsonAny(s->toJson());
+        QVERIFY(back && back->type() == ItemType::Shape);
+        const auto &b = static_cast<const ShapeItem &>(*back);
+        QCOMPARE(b.insets, QMarginsF(1, 2, 3, 4));
+        QCOMPARE(int(b.valign), int(VAlign::Bottom));
+        // An anchor alone, and with a story.
+        auto top = std::make_shared<ShapeItem>();
+        top->valign = VAlign::Top;
+        QCOMPARE(int(static_cast<const ShapeItem &>(*jp::Item::fromJsonAny(top->toJson())).valign), int(VAlign::Top));
+        auto withStory = std::make_shared<ShapeItem>();
+        withStory->storyId = QStringLiteral("s1");
+        withStory->insets = QMarginsF(5, 6, 7, 8);
+        withStory->valign = VAlign::Top;
+        const auto &w = static_cast<const ShapeItem &>(*jp::Item::fromJsonAny(withStory->toJson()));
+        QCOMPARE(w.insets, QMarginsF(5, 6, 7, 8));
+        QCOMPARE(int(w.valign), int(VAlign::Top));
+    }
+
     // A text frame, and a shape that holds text, that don't wrap their text keep that through their own data and copies; the default is
     // not written.
     void framesThatDoNotWrapKeepThatInJson()

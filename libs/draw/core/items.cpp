@@ -459,8 +459,11 @@ QJsonObject ShapeItem::toJson() const
     if (!customPath.isEmpty()) o["path"] = pathJson(customPath);
     // Overlapping outlines fill by winding (as SVG does by default).
     if (!customPath.isEmpty() && customPath.fillRule() == Qt::WindingFill) o["winding"] = true;
-    if (!storyId.isEmpty()) {
-        o["story"] = storyId;
+    if (noWrap) o["noWrap"] = true;
+    if (!storyId.isEmpty()) o["story"] = storyId;
+    // A shape with no text yet keeps where its text will sit, when that isn't where a new shape's goes.
+    static const ShapeItem plain;
+    if (!storyId.isEmpty() || insets != plain.insets || valign != plain.valign) {
         o["insets"] = marginsJson(insets);
         o["valign"] = int(valign);
     }
