@@ -2468,7 +2468,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         B->lines << Line{-1, 0, QRectF(indL + lead, overflowY, line.naturalTextWidth(), line.height())};
                         // Blank paragraphs past the end don't count as overflow
                         // (as in .pub layouts): a box doesn't shrink or warn for them.
-                        if (!B->disp.trimmed().isEmpty()) m_overflow = true;
+                        // (In a slide's text box that runs over, they do: the presentation program counts the empty paragraph that ends a text
+                        // in the height it centers.)
+                        if (!B->disp.trimmed().isEmpty() || (nF == 1 && frames[0].runsOver)) m_overflow = true;
                         placed = true;
                         break;
                     }
