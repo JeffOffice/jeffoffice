@@ -14,6 +14,7 @@
 #include <QElapsedTimer>
 #include <QImage>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -1229,6 +1230,39 @@ private Q_SLOTS:
         QCOMPARE(after->storyFrom, 13);
     }
 
+    // The text after a page break inside a paragraph is at the top of the next page with the paragraph's space before again (as a word processor sets it),
+    // and a paragraph that goes on onto a page for want of room has none there.
+    void aBreakInsideAParagraphKeepsItsSpaceBeforeOnTheNextPage()
+    {
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        QTextBlockFormat bf;
+        bf.setTopMargin(20);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("first words ") + flow::kPageBreak + QStringLiteral("second words"));
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("a paragraph after"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        QVERIFY(std::abs(pg.lines(0)[0].rect.top() - 20) < 0.01);
+        const auto second = pg.lines(1);
+        QCOMPARE(second[0].line, 1);
+        QVERIFY2(std::abs(second[0].rect.top() - 20) < 0.01, qPrintable(QString::number(second[0].rect.top())));
+        QVERIFY(std::abs(second[1].rect.top() - (second[0].rect.bottom() + 20)) < 0.01);
+        // The page made for painting has the same lines.
+        LayoutCache cache;
+        QVERIFY2(materializedDiffers(fd, pg, 1, cache).isEmpty(), qPrintable(materializedDiffers(fd, pg, 1, cache)));
+        // A page that a paragraph runs onto for want of room has no space before its rest.
+        FlowDocument run;
+        QTextCursor r(run.story());
+        r.setBlockFormat(bf);
+        r.insertText(QString(12000, QLatin1Char('x')).replace(QRegularExpression(QStringLiteral("(x{7})")), QStringLiteral("\\1 ")));
+        Paginator rp(&run);
+        QVERIFY(rp.pageCount() > 1);
+        QVERIFY(!rp.page(1).start.hard);
+        QVERIFY(std::abs(rp.lines(1)[0].rect.top()) < 0.01);
+    }
+
     // A break at the end of a paragraph leaves the next paragraph the top of the next page, with no empty line before it; at the end of the
     // last paragraph, it makes no page of its own.
     void aPageBreakAtTheEndOfAParagraphMakesNoEmptyLine()
@@ -1468,6 +1502,153 @@ private Q_SLOTS:
         QVERIFY2(std::abs(plain[0].rect.height() - single) < 0.01, qPrintable(QString::number(plain[0].rect.height())));
         QVERIFY2(std::abs(symbol[0].rect.height() - symbolLine) < 0.01, qPrintable(QString::number(symbol[0].rect.height())));
         QVERIFY(std::abs(symbol[1].rect.height() - single) < 0.01);   // (the lines after it are the text's)
+    }
+
+    // A paragraph's borders take room: the top one and its distance from the text above the first line, the bottom one below the last, and none between
+    // paragraphs with the same borders but the line between them; the side borders take none. The room is added to the space before and after.
+    void paragraphBordersTakeRoom()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        tp::ParaBox box;
+        box.top = {QStringLiteral("single"), 8, 3, QColor()};
+        box.bottom = {QStringLiteral("double"), 4, 2, QColor()};
+        box.left = {QStringLiteral("single"), 4, 4, QColor()};
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        auto lines = [&](const std::function<void(int, QTextBlockFormat &)> &shape) { return wordLinesOf({{tnr, 12}, {tnr, 12}, {tnr, 12}, {tnr, 12}}, shape); };
+        // The second paragraph alone has the borders.
+        const auto one = lines([&](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(2);
+            bf.setBottomMargin(2);
+            if (i == 1) bf.setProperty(tp::Borders, box.spec());
+        });
+        const auto none = lines([&](int, QTextBlockFormat &bf) {
+            bf.setTopMargin(2);
+            bf.setBottomMargin(2);
+        });
+        const double topRoom = 1 + 3, bottomRoom = 4 / 8.0 * 3 + 2;   // (a double border of half point lines is three times that wide)
+        QVERIFY(std::abs(one[1].rect.top() - (none[1].rect.top() + topRoom)) < 0.01);
+        QVERIFY(std::abs(one[2].rect.top() - (none[2].rect.top() + topRoom + bottomRoom)) < 0.01);
+        QVERIFY(std::abs(one[0].rect.top() - none[0].rect.top()) < 0.01);
+        QVERIFY(std::abs(one[1].rect.height() - single) < 0.01);
+        // Two paragraphs with the same borders are one box: the top is above the first, the bottom below the second, and nothing between them
+        // but their space (the larger of the first's after and the second's before).
+        const auto pair = lines([&](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(2);
+            bf.setBottomMargin(2);
+            if (i == 1 || i == 2) bf.setProperty(tp::Borders, box.spec());
+        });
+        QVERIFY(std::abs(pair[1].rect.top() - (none[1].rect.top() + topRoom)) < 0.01);
+        QVERIFY(std::abs((pair[2].rect.top() - pair[1].rect.bottom()) - 2) < 0.01);
+        QVERIFY(std::abs(pair[3].rect.top() - (none[3].rect.top() + topRoom + bottomRoom)) < 0.01);
+        // (A line between them takes the room its width and distance ask.)
+        tp::ParaBox ruled = box;
+        ruled.between = {QStringLiteral("single"), 8, 1, QColor()};
+        const auto between = lines([&](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(2);
+            bf.setBottomMargin(2);
+            if (i == 1 || i == 2) bf.setProperty(tp::Borders, ruled.spec());
+        });
+        QVERIFY(std::abs((between[2].rect.top() - between[1].rect.bottom()) - (2 + 2)) < 0.01);
+        // The spec reads back as it was written.
+        QVERIFY(tp::ParaBox::parse(ruled.spec()) == ruled);
+    }
+
+    // The borders are drawn at the paragraph's edges, a distance from the text and outside its indents, and the shading fills the box.
+    void paragraphBordersAndShadingAreDrawn()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(30);
+        bf.setRightMargin(30);
+        bf.setTopMargin(20);
+        tp::ParaBox box;
+        box.top = {QStringLiteral("single"), 16, 3, QColor(Qt::black)};
+        box.bottom = {QStringLiteral("single"), 16, 3, QColor(Qt::black)};
+        box.left = {QStringLiteral("single"), 16, 4, QColor(Qt::black)};
+        box.right = {QStringLiteral("single"), 16, 4, QColor(Qt::black)};
+        box.fill = QColor(200, 200, 255);
+        bf.setProperty(tp::Borders, box.spec());
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("boxed"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(200, 100)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        const double scale = 8;
+        QImage img(int(200 * scale), int(100 * scale), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(scale, scale);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        auto at = [&](double x, double y) { return QColor(img.pixel(int(x * scale), int(y * scale))); };
+        const QRectF text = lines[0].rect;
+        const double top = text.top(), bottom = text.bottom();
+        // The box's edges: the borders 2 points wide, 3 and 4 points from the text, outside the indents (30 points).
+        QVERIFY(at(100, top - 3 - 1).lightness() < 40);                    // the top line, 3 points above the text
+        QVERIFY(at(100, bottom + 3 + 1).lightness() < 40);                  // the bottom line
+        QVERIFY(at(30 - 4 - 1, (top + bottom) / 2).lightness() < 40);      // the left line, 4 points left of the indent
+        QVERIFY(at(200 - 30 + 4 + 1, (top + bottom) / 2).lightness() < 40);   // the right line
+        QCOMPARE(at(100, top - 3 - 2 - 6).lightness(), 255);               // outside it, nothing
+        QCOMPARE(at(15, (top + bottom) / 2).lightness(), 255);
+        const QColor inside = at(31 + 100, bottom + 1);                     // between the text and the bottom line, filled
+        QVERIFY2(std::abs(inside.red() - 200) < 4 && std::abs(inside.blue() - 255) < 4, qPrintable(inside.name()));
+        const QColor gap = at(30 - 2, (top + bottom) / 2);                 // between the left line and the indent, filled
+        QVERIFY2(std::abs(gap.red() - 200) < 4, qPrintable(gap.name()));
+    }
+
+    // A line of text that is as wide as the room it has, to what rounding leaves, fits on one line.
+    void aLineAsWideAsItsRoomFits()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        c.insertText(QString(36, QLatin1Char('_')), run);   // (half an em each: 216 points)
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(216, 200)}, env);
+        QCOMPARE(lay.lineInfo(0).size(), 1);
+        StoryLayout narrower;
+        narrower.build(&doc, {plainFrame(215, 200)}, env);
+        QCOMPARE(narrower.lineInfo(0).size(), 2);
+    }
+
+    // Hidden text takes no room and shows nothing: a line's text is what is left, and a paragraph of nothing else is an empty line.
+    void hiddenTextIsLeftOut()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextCharFormat hidden = run;
+        hidden.setProperty(tp::HiddenText, true);
+        c.insertText(QStringLiteral("seen "), run);
+        c.insertText(QStringLiteral("<@33><i>hidden codes "), hidden);
+        c.insertText(QStringLiteral("and seen again"), run);
+        c.insertBlock();
+        c.insertText(QStringLiteral("only hidden"), hidden);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 2);
+        QCOMPARE(lines[0].text, QStringLiteral("seen and seen again"));
+        QCOMPARE(lines[1].text, QString());
+        // (As before, for a text that isn't a word processor's: the characters are shown.)
+        StoryLayout plain;
+        plain.build(&doc, {plainFrame(400, 700)}, LayoutEnv());
+        QVERIFY(plain.lineInfo(0)[0].text.contains(QStringLiteral("hidden codes")));
     }
 
     // The space between two paragraphs is the larger of the first's space after and the second's space before, not their sum; a paragraph that asks

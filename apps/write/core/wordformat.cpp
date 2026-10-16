@@ -314,7 +314,7 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         cf.setFontLetterSpacing(*r.spacing / 20.0);
     }
     if (r.position && *r.position != 0) cf.setProperty(prop::Raised, *r.position);
-    if (r.vanish.value_or(false)) cf.setProperty(prop::Hidden, true);
+    if (r.vanish.value_or(false)) cf.setProperty(tp::HiddenText, true);
     if (r.noProof.value_or(false)) cf.setProperty(tp::NoProof, true);
     if (!r.style.isEmpty()) cf.setProperty(tp::CharStyle, r.style);
 
@@ -392,7 +392,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
     r.dstrike = strike && dstrike;
     r.caps = f.fontCapitalization() == QFont::AllUppercase;
     r.smallCaps = f.fontCapitalization() == QFont::SmallCaps;
-    r.vanish = f.boolProperty(prop::Hidden);
+    r.vanish = f.boolProperty(tp::HiddenText);
     r.noProof = f.boolProperty(tp::NoProof);
     r.vertAlign = f.verticalAlignment() == QTextCharFormat::AlignSuperScript ? QStringLiteral("superscript")
                   : f.verticalAlignment() == QTextCharFormat::AlignSubScript ? QStringLiteral("subscript")
@@ -422,6 +422,51 @@ RunProps runPropsOf(const QTextCharFormat &f)
 
 // ---- paragraphs
 
+namespace {
+
+// A color the file writes as six hexadecimal digits; invalid for "auto" and anything else.
+QColor hexColor(const QString &v)
+{
+    static const QRegularExpression six(QStringLiteral("^[0-9A-Fa-f]{6}$"));
+    return six.match(v).hasMatch() ? QColor(QLatin1Char('#') + v) : QColor();
+}
+
+// One side of a paragraph's borders as the text engine draws it: the style, as one of the few it has.
+tp::BoxSide sideOf(const std::optional<Border> &b)
+{
+    tp::BoxSide s;
+    if (!b || !b->visible()) return s;
+    const QString v = b->val;
+    s.style = v == QLatin1String("double") || v == QLatin1String("triple") || v.startsWith(QLatin1String("thinThick")) || v.startsWith(QLatin1String("thickThin")) ? QStringLiteral("double")
+              : v == QLatin1String("dotted") ? QStringLiteral("dotted")
+              : v.startsWith(QLatin1String("dash")) || v.startsWith(QLatin1String("dot")) ? QStringLiteral("dashed")
+                                                                                         : QStringLiteral("single");
+    s.eighths = std::clamp(b->size, 1, 96);
+    s.space = std::clamp(b->space, 0, 31);
+    s.color = hexColor(b->color);
+    return s;
+}
+
+// The color a paragraph is filled with by its shading (a pattern's two colors blended by its share), invalid for none.
+QColor fillOf(const std::optional<Shading> &shd)
+{
+    if (!shd) return QColor();
+    const QString v = shd->val;
+    const QColor fore = hexColor(shd->color).isValid() ? hexColor(shd->color) : QColor(Qt::black), back = hexColor(shd->fill).isValid() ? hexColor(shd->fill) : QColor(Qt::white);
+    if (v == QLatin1String("solid")) return fore;
+    if (v == QLatin1String("clear") || v.isEmpty() || v == QLatin1String("nil")) return hexColor(shd->fill);
+    if (v.startsWith(QLatin1String("pct"))) {
+        bool ok = false;
+        const int share = v.mid(3).toInt(&ok);
+        if (!ok || share <= 0 || share >= 100) return QColor();
+        auto mix = [&](int a, int b) { return int(std::lround(b + (a - b) * share / 100.0)); };
+        return QColor(mix(fore.red(), back.red()), mix(fore.green(), back.green()), mix(fore.blue(), back.blue()));
+    }
+    return QColor();
+}
+
+} // namespace
+
 QTextBlockFormat blockFormatOf(const ParaProps &p)
 {
     QTextBlockFormat bf;
@@ -446,6 +491,18 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (p.widowControl.value_or(true)) bf.setProperty(tp::WidowControl, true);
     if (p.pageBreakBefore.value_or(false)) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
     if (p.contextualSpacing.value_or(false)) bf.setProperty(tp::ContextualSpacing, true);
+    {
+        tp::ParaBox box;
+        if (p.borders) {
+            box.top = sideOf(p.borders->top);
+            box.left = sideOf(p.borders->left);
+            box.bottom = sideOf(p.borders->bottom);
+            box.right = sideOf(p.borders->right);
+            box.between = sideOf(p.borders->between);
+        }
+        box.fill = fillOf(p.shading);
+        if (box.any()) bf.setProperty(tp::Borders, box.spec());
+    }
     if (p.outlineLvl) bf.setProperty(prop::Outline, *p.outlineLvl);
     if (!p.style.isEmpty()) bf.setProperty(tp::StyleName, p.style);
     if (p.numId && *p.numId > 0) {

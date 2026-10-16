@@ -38,6 +38,7 @@ struct Paginator::Run {
     bool blank = false;        // the page the pages end with after a break at the end of the text: it has nothing on it
     bool firstSpace = true;    // space before the first paragraph is kept (it isn't if the page starts without it, or it was as tall as the page)
     bool hasNext = false;
+    bool keepsSpace = false;   // the first paragraph is the rest of one after a break, and has its space before
     PageStart next;            // where the page after starts
 };
 
@@ -84,6 +85,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     }
     const Section &sec = m_doc->section(st.section);
     run.columns = sec.columnCount();
+    run.keepsSpace = st.hard && st.skip > 0;
     const double colW = sec.columnWidth();
     const int number = numberOf(index);
     const double colH = furnitureOf(index, st, number).body.height();
@@ -102,7 +104,9 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     // The page is a frame for each column, and one more for the text that runs over. If the first paragraph began on the page before, either
     // a frame before them is where its lines that went there are put (the paragraph is laid out whole and so is as the text sets it), or, if
     // it has many lines, the page lays out the rest of it as a paragraph of its own.
-    const bool tail = st.skip > std::max(0, m_doc->exactLines);
+    // A page that a break inside a paragraph opens has the rest of the paragraph with its space before again, as the paragraph of its own it is laid out as.
+    const bool afterBreak = st.hard && st.skip > 0;
+    const bool tail = afterBreak || st.skip > std::max(0, m_doc->exactLines);
     QVector<FrameSpec> frames;
     if (st.skip > 0 && !tail) frames << frame(std::max(kTall, st.skip * 5000.0));
     run.firstFrame = int(frames.size());
@@ -114,6 +118,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     span.from = st.pos;
     span.firstBreakAfter = st.skip > 0 && !tail ? st.skip : -1;
     span.continued = tail;
+    span.spaceBeforeContinued = afterBreak;
     span.stopAtFrame = over;
     // A paragraph that runs on after the page is laid out as far as the lines wanted need (its window): the lines the rules look at past the page,
     // a line more, and the last, which is cut short.
@@ -477,7 +482,16 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom
         bf.clearProperty(tp::WidowControl);
         bf.clearProperty(tp::KeepTogether);
         bf.clearProperty(tp::KeepWithNext);
-        if (b == firstBlock && (tail || !run.firstSpace)) bf.setTopMargin(0);
+        if (b == firstBlock && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
+        // A paragraph's box that began on the page before, or goes on to the next, is open at that end.
+        auto sameBox = [](const QTextBlock &x, const QTextBlock &y) {
+            if (!x.isValid() || !y.isValid()) return false;
+            const QTextBlockFormat xf = x.blockFormat(), yf = y.blockFormat();
+            return xf.hasProperty(tp::Borders) && xf.stringProperty(tp::Borders) == yf.stringProperty(tp::Borders) &&
+                   std::abs(xf.leftMargin() - yf.leftMargin()) < 0.01 && std::abs(xf.rightMargin() - yf.rightMargin()) < 0.01;
+        };
+        if (b == firstBlock && (tail || sameBox(b.previous(), b))) bf.setProperty(tp::BorderTopOff, true);
+        if (b == lastBlock && ((run.kept < L.size() && L[run.kept].block == L[run.kept - 1].block) || sameBox(b, b.next()))) bf.setProperty(tp::BorderBottomOff, true);
         if (tail) {
             bf.setTextIndent(0);
             bf.clearProperty(tp::DropCapLines);

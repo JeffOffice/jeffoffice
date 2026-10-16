@@ -1,6 +1,9 @@
 #pragma once
 // Custom QTextFormat properties JeffPub stores alongside Qt's own.
 
+#include <QColor>
+#include <QString>
+#include <QStringList>
 #include <QTextFormat>
 #include <QTextListFormat>
 
@@ -48,6 +51,7 @@ enum : int {
     SyntheticItalic,                             // double: layout only, the upright letters are drawn slanted this much (a stand-in for a font with no italic)
     HandBold,                                    // int: layout only, the letters are bold drawn by hand (a font with no bold face): 1 when bold is set, 2 whether or not (Arial Black, Rockwell Extra Bold)
     TextFx,                                      // QString TextEffects JSON: a:effectLst of a run (shadows, glow, reflection), drawn under the letters
+    HiddenText,                                  // bool: the run is not shown or counted (LayoutEnv::wordLines)
 
     // block
     StyleName = QTextFormat::UserProperty + 100, // QString paragraph style
@@ -79,6 +83,70 @@ enum : int {
     SpaceAfterFrom,                              // double: the same for the bottom margin
     ContextualSpacing,                           // bool: no space before or after between paragraphs of this style (LayoutEnv::wordLines)
     OutOfFlow,                                   // bool: a paragraph set where the next one begins and taking no room (a word processor's frame beside the text); LayoutEnv::wordLines
+    Borders,                                     // QString: the paragraph's borders and shading (ParaBox::spec), drawn by LayoutEnv::wordLines text
+    BorderTopOff,                                // bool: the paragraph is the rest of one a page began, or one whose box the page before began (no top border)
+    BorderBottomOff,                             // bool: the paragraph's box goes on after it, on the next page (no bottom border)
+};
+
+// A paragraph's borders and shading as a word processor draws them (LayoutEnv::wordLines): each side's line style, width in eighths of a point, and its
+// distance from the text in points, and the color the paragraph is filled with. Kept in a block's tp::Borders as text, ParaBox::spec.
+struct BoxSide {
+    QString style;                 // "single", "double", "dotted", "dashed", "thick"; empty for none
+    int eighths = 0;
+    int space = 0;
+    QColor color;                  // invalid: automatic (black)
+    bool visible() const { return !style.isEmpty() && eighths > 0; }
+    // The width of the line or lines in points (a double border is three times a line: two lines and the gap between).
+    double width() const { return eighths / 8.0 * (style == QLatin1String("double") ? 3 : 1); }
+    // The room it takes above or below the text: its width and the space.
+    double reserve() const { return visible() ? width() + space : 0.0; }
+    bool operator==(const BoxSide &o) const { return style == o.style && eighths == o.eighths && space == o.space && color == o.color; }
+};
+struct ParaBox {
+    BoxSide top, left, bottom, right, between;
+    QColor fill;                   // invalid: none
+    bool any() const { return top.visible() || left.visible() || bottom.visible() || right.visible() || between.visible() || fill.isValid(); }
+    bool operator==(const ParaBox &o) const { return top == o.top && left == o.left && bottom == o.bottom && right == o.right && between == o.between && fill == o.fill; }
+    // "T=single,4,1,FF0000;L=...;B=...;R=...;I=...;S=C0C0C0": a side by its letter (I: between), its style, width, space, and color (none for automatic).
+    QString spec() const
+    {
+        QStringList parts;
+        auto add = [&](const char *letter, const BoxSide &s) {
+            if (s.visible())
+                parts << QStringLiteral("%1=%2,%3,%4,%5").arg(QLatin1String(letter), s.style).arg(s.eighths).arg(s.space).arg(s.color.isValid() ? s.color.name().mid(1) : QStringLiteral("none"));
+        };
+        add("T", top);
+        add("L", left);
+        add("B", bottom);
+        add("R", right);
+        add("I", between);
+        if (fill.isValid()) parts << QStringLiteral("S=") + fill.name().mid(1);
+        return parts.join(QLatin1Char(';'));
+    }
+    static ParaBox parse(const QString &spec)
+    {
+        ParaBox b;
+        for (const QString &part : spec.split(QLatin1Char(';'), Qt::SkipEmptyParts)) {
+            const QString key = part.section(QLatin1Char('='), 0, 0), value = part.section(QLatin1Char('='), 1);
+            if (key == QLatin1String("S")) {
+                b.fill = QColor(QLatin1Char('#') + value);
+                continue;
+            }
+            const QStringList f = value.split(QLatin1Char(','));
+            if (f.size() < 4) continue;
+            BoxSide s;
+            s.style = f[0];
+            s.eighths = f[1].toInt();
+            s.space = f[2].toInt();
+            if (f[3] != QLatin1String("none")) s.color = QColor(QLatin1Char('#') + f[3]);
+            if (key == QLatin1String("T")) b.top = s;
+            else if (key == QLatin1String("L")) b.left = s;
+            else if (key == QLatin1String("B")) b.bottom = s;
+            else if (key == QLatin1String("R")) b.right = s;
+            else if (key == QLatin1String("I")) b.between = s;
+        }
+        return b;
+    }
 };
 
 // A slide paragraph's space before (or after) as a share of its line, 0 when it has none in force. The share a file gave counts while the
