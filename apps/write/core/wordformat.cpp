@@ -301,6 +301,7 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         if (kind) cf.setProperty(tp::UnderlineKind, kind);
         const QString uc = r.underline->color;
         if (uc.size() == 6) cf.setUnderlineColor(QColor(QLatin1Char('#') + uc));
+        if (!r.underline->attrs.isEmpty()) cf.setProperty(prop::UnderlineAttrs, QString::fromUtf8(r.underline->attrs));
     }
     if (r.strike.value_or(false) || r.dstrike.value_or(false)) cf.setFontStrikeOut(true);
     if (r.dstrike.value_or(false)) cf.setProperty(prop::DoubleStrike, true);
@@ -384,6 +385,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
     default: u.val = (kind & 1) ? QStringLiteral("double") : (kind & 2) ? QStringLiteral("words") : (kind & 4) ? QStringLiteral("thick") : QStringLiteral("single"); break;
     }
     if (us != QTextCharFormat::NoUnderline && f.hasProperty(QTextFormat::TextUnderlineColor)) u.color = hex(f.underlineColor());
+    if (us != QTextCharFormat::NoUnderline && f.hasProperty(prop::UnderlineAttrs)) u.attrs = f.stringProperty(prop::UnderlineAttrs).toUtf8();
     r.underline = u;
     const bool strike = f.fontStrikeOut(), dstrike = f.boolProperty(prop::DoubleStrike);
     r.strike = strike && !dstrike;

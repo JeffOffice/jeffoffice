@@ -256,7 +256,10 @@ inline void walkInline(const Node &n, ParaSig *sig)
         const bool marker = isWordNs(k.name) && isMarker(local);
         if (marker) {
             QString s = QLatin1Char('<') + local;
-            for (const auto &a : k.attrs) s += QLatin1Char(' ') + shortName(a.first) + QLatin1Char('=') + a.second;
+            // (A bookmark is told by its name: an Id used by two bookmarks is given to the second afresh.)
+            const bool bookmark = local == QLatin1String("bookmarkStart") || local == QLatin1String("bookmarkEnd");
+            for (const auto &a : k.attrs)
+                if (!bookmark || !a.first.endsWith(QLatin1String("}id"))) s += QLatin1Char(' ') + shortName(a.first) + QLatin1Char('=') + a.second;
             if (local == QLatin1String("instrText")) s += QLatin1Char(' ') + k.text.trimmed();
             sig->markers.push_back(s);
         }
@@ -458,7 +461,18 @@ inline QTextFormat resolvedFormat(const jp::write::WriteDoc &doc, QTextFormat f)
     const QMap<int, QVariant> props = f.properties();
     for (auto it = props.cbegin(); it != props.cend(); ++it) {
         if (it.key() == QTextFormat::ObjectIndex) f.clearProperty(it.key());
-        else if (jp::write::isStoredProperty(it.key())) f.setProperty(it.key(), jp::write::resolveStored(doc, it.value(), it.key()));
+        else if (it.key() == jp::write::prop::Atom) {
+            // (A bookmark is told by its name: an Id used by two bookmarks is given to the second afresh.)
+            jp::office::wml::Inline a = jp::write::unpackAtom(jp::write::storedBytesOf(it.value().toInt()));
+            if (a.tag == QLatin1String("bookmarkStart") || a.tag == QLatin1String("bookmarkEnd")) {
+                a.key.clear();
+                const qsizetype at = a.raw.indexOf(":id=\"");
+                if (at >= 0) a.raw = a.raw.left(at - 1) + a.raw.mid(a.raw.indexOf('"', at + 5) + 1);
+            }
+            f.setProperty(it.key(), jp::write::packAtom(a));
+        } else if (jp::write::isStoredProperty(it.key())) {
+            f.setProperty(it.key(), jp::write::resolveStored(doc, it.value(), it.key()));
+        }
     }
     return f;
 }

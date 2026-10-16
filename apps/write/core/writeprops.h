@@ -18,6 +18,7 @@ enum : int {
     RawRPr,                                   // QByteArray: run properties kept as written (packRaw)
     ColorAttrs,                               // QString: "themeColor;themeTint;themeShade" of the color while it is ColorAttrsRgb
     ColorAttrsRgb,                            // QString: the color those attributes gave, "RRGGBB"
+    UnderlineAttrs,                           // QString: the attributes of w:u beside its val and color (themeColor...), as written
     DoubleStrike,                             // bool
     Hidden,                                   // bool: hidden text
     Raised,                                   // int: half-points raised

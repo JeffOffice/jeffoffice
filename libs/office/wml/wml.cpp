@@ -506,7 +506,7 @@ QByteArray runPropsXml(const RunProps &p, bool)
     if (p.underline) {
         QByteArray e = "<w:u" + valAttr("val", p.underline->val);
         if (!p.underline->color.isEmpty()) e += valAttr("color", p.underline->color);
-        parts.add(runChildRank("u"), e + "/>");
+        parts.add(runChildRank("u"), e + p.underline->attrs + "/>");
     }
     if (!p.vertAlign.isEmpty()) parts.add(runChildRank("vertAlign"), valEl("vertAlign", p.vertAlign));
     for (const RawChild &c : p.extra) parts.add(c.rank, c.xml);
@@ -574,14 +574,14 @@ QByteArray sectionPropsXml(const SectionProps &s)
     if (!s.type.isEmpty()) parts.add(sectionChildRank("type"), valEl("type", s.type));
     QByteArray sz = "<w:pgSz" + intAttr("w", s.pageW) + intAttr("h", s.pageH);
     if (s.orient == QLatin1String("landscape")) sz += valAttr("orient", s.orient);
-    parts.add(sectionChildRank("pgSz"), sz + "/>");
+    parts.add(sectionChildRank("pgSz"), sz + s.pgSzAttrs + "/>");
     parts.add(sectionChildRank("pgMar"), "<w:pgMar" + intAttr("top", s.top) + intAttr("right", s.right) + intAttr("bottom", s.bottom) + intAttr("left", s.left) +
-                                             intAttr("header", s.header) + intAttr("footer", s.footer) + intAttr("gutter", s.gutter) + "/>");
+                                             intAttr("header", s.header) + intAttr("footer", s.footer) + intAttr("gutter", s.gutter) + s.pgMarAttrs + "/>");
     if (s.pageStart || !s.pageFormat.isEmpty()) {
         QByteArray e = "<w:pgNumType";
         if (!s.pageFormat.isEmpty()) e += valAttr("fmt", s.pageFormat);
         if (s.pageStart) e += intAttr("start", *s.pageStart);
-        parts.add(sectionChildRank("pgNumType"), e + "/>");
+        parts.add(sectionChildRank("pgNumType"), e + s.pgNumAttrs + "/>");
     }
     if (s.cols > 1 || s.hasCols || !s.colDefs.isEmpty()) {
         QByteArray e = "<w:cols";
@@ -589,6 +589,7 @@ QByteArray sectionPropsXml(const SectionProps &s)
         e += intAttr("space", s.colSpace);
         if (!s.colEqual) e += " w:equalWidth=\"0\"";
         if (s.colSep) e += " w:sep=\"1\"";
+        e += s.colsAttrs;
         if (!s.colDefs.isEmpty()) {
             e += ">";
             for (const ColumnDef &c : s.colDefs) e += "<w:col" + intAttr("w", c.width) + intAttr("space", c.space) + "/>";

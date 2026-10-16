@@ -105,7 +105,7 @@ public:
             } else if (name == "highlight") {
                 p.highlight = t.val(c);
             } else if (name == "u") {
-                p.underline = Underline{t.val(c).isEmpty() ? QStringLiteral("single") : t.val(c), t.attr(c, "color")};
+                p.underline = Underline{t.val(c).isEmpty() ? QStringLiteral("single") : t.val(c), t.attr(c, "color"), t.otherAttributes(c, {"val", "color"})};
             } else if (name == "vertAlign") {
                 p.vertAlign = t.val(c);
             } else {
@@ -130,6 +130,7 @@ public:
                 s.pageW = std::clamp(intOf(t, c, "w").value_or(12240), 720, 63360);
                 s.pageH = std::clamp(intOf(t, c, "h").value_or(15840), 720, 63360);
                 s.orient = t.attr(c, "orient");
+                s.pgSzAttrs = t.otherAttributes(c, {"w", "h", "orient"});
             } else if (name == "pgMar") {
                 s.hasPgMar = true;
                 auto m = [&](const char *a, int def) { return std::clamp(intOf(t, c, a).value_or(def), 0, 63360); };
@@ -140,8 +141,10 @@ public:
                 s.header = m("header", 720);
                 s.footer = m("footer", 720);
                 s.gutter = m("gutter", 0);
+                s.pgMarAttrs = t.otherAttributes(c, {"top", "bottom", "left", "right", "header", "footer", "gutter"});
             } else if (name == "pgNumType") {
                 s.pageFormat = t.attr(c, "fmt");
+                s.pgNumAttrs = t.otherAttributes(c, {"fmt", "start"});
                 if (const std::optional<int> start = intOf(t, c, "start")) s.pageStart = std::clamp(*start, 0, 100000);
             } else if (name == "cols") {
                 s.hasCols = true;
@@ -149,6 +152,7 @@ public:
                 s.colSpace = std::clamp(intOf(t, c, "space").value_or(720), 0, 63360);
                 s.colSep = onOffString(t.attr(c, "sep"));
                 s.colEqual = !t.has(c, "equalWidth") || onOffString(t.attr(c, "equalWidth"));
+                s.colsAttrs = t.otherAttributes(c, {"num", "space", "sep", "equalWidth"});
                 for (int k = t.firstChild(c); k >= 0 && s.colDefs.size() < 45; k = t.next(k))
                     if (t.is(k, "col")) s.colDefs.push_back({std::clamp(intOf(t, k, "w").value_or(0), 0, 63360), std::clamp(intOf(t, k, "space").value_or(0), 0, 63360)});
             } else if (name == "titlePg") {

@@ -56,7 +56,8 @@ struct Color {
 struct Underline {
     QString val;                      // single, double, thick, dotted, dash, wave... or none
     QString color;                    // "RRGGBB", "auto", or empty
-    bool operator==(const Underline &o) const { return val == o.val && color == o.color; }
+    QByteArray attrs;                 // the other attributes of w:u (themeColor, themeTint, themeShade...), as written
+    bool operator==(const Underline &o) const { return val == o.val && color == o.color && attrs == o.attrs; }
     bool operator!=(const Underline &o) const { return !(*this == o); }
 };
 
@@ -132,6 +133,8 @@ struct SectionProps {
     bool titlePg = false;
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file
     QByteArray attrs;                 // the attributes of w:sectPr (revision marks), as written
+    // The attributes of w:pgSz (code...), w:pgMar, w:pgNumType (chapStyle, chapSep...), and w:cols that have no field here, as written.
+    QByteArray pgSzAttrs, pgMarAttrs, pgNumAttrs, colsAttrs;
     QVector<RawChild> extra;          // header and footer references, borders, line numbers, grid... as written
 };
 
