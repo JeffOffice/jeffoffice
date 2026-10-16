@@ -587,6 +587,17 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
     }
     doc->mainName = main;
     doc->mainContentType = pkg.contentType(main);
+    if (notes) {
+        notes->hadMacros = doc->mainContentType.contains(QLatin1String("macroEnabled"));
+        for (const QString &name : pkg.partNames()) {
+            const QString type = pkg.contentType(name);
+            notes->hadMacros = notes->hadMacros || type.startsWith(QLatin1String("application/vnd.ms-office.vba")) || type.contains(QLatin1String("macroEnabled")) || type.contains(QLatin1String("vbaData"));
+        }
+        if (pkg.skippedCount() > 0) {
+            notes->leftOut = true;
+            notes->notes << QCoreApplication::translate("jp::office::wml", "%n part or link of the file had a name that could not be used, and was left out.", nullptr, pkg.skippedCount());
+        }
+    }
 
     QString stylesName = firstTarget(pkg, main, "/styles"), numberingName = firstTarget(pkg, main, "/numbering");
     QString themeName = firstTarget(pkg, main, "/theme"), settingsName = firstTarget(pkg, main, "/settings");
@@ -640,7 +651,10 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
         }
     }
     reader.bodyContent(body, &doc->body, 0, &doc->lastSection, &doc->lastSectionStated);
-    if (reader.truncated) noteIt(QCoreApplication::translate("jp::office::wml", "The document is longer than this program can open: the end of it was left out."));
+    if (reader.truncated) {
+        noteIt(QCoreApplication::translate("jp::office::wml", "The document is longer than this program can open: the end of it was left out."));
+        if (notes) notes->leftOut = true;
+    }
 
     // The package: every relationship as read, and every part but the ones above.
     doc->packageRelationships = pkg.relationships(QStringLiteral("/"));

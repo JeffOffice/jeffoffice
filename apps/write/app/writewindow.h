@@ -70,6 +70,9 @@ public:
     // What Save As asks for a name with: the file dialog, unless this stands in for it (tests): the name to suggest and the filter to
     // start on in, the path chosen out (empty for none).
     void setSavePathChooser(const std::function<QString(const QString &suggested, const QString &filter)> &chooser) { m_pathChooser = chooser; }
+    // What a short message to the person (a sentence said at Save, or on a refusal to write over a file) is shown with: a message box, unless this stands in for it
+    // (tests): the title and the sentence.
+    void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
     // AutoRecover: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
     void autoRecover();
     QString recoveryCopy() const { return m_recoveryCopy; }
@@ -106,6 +109,7 @@ private:
     void refreshUi();
     void updateTitle();
     bool maybeSave();
+    void notice(const QString &title, const QString &text, bool warning = false);
     void dropRecoveryCopy();
     void changeSection(const std::function<void(flow::Section &)> &change);
     void applyIndentFields();
@@ -139,6 +143,9 @@ private:
     quint64 m_serial = 0;
     bool m_updatingFields = false;
     std::function<QString(const QString &, const QString &)> m_pathChooser;
+    std::function<void(const QString &, const QString &)> m_notifier;
+    bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
+    QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };
 
 } // namespace jp

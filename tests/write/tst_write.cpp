@@ -14,6 +14,7 @@
 #include "office/package.h"
 #include "rtcheck.h"
 #include "text/textprops.h"
+#include "io/zip.h"
 #include "wml/wml.h"
 
 #include <QApplication>
@@ -1933,6 +1934,152 @@ private Q_SLOTS:
         const QMap<QString, int> now = rt::keptCountsOf(saved);
         QCOMPARE(now.value(QStringLiteral("w:hyperlink")), before.value(QStringLiteral("w:hyperlink")));
         QCOMPARE(now.value(QStringLiteral("w:sdt")), before.value(QStringLiteral("w:sdt")));
+    }
+
+    // A file with macros is saved without them, all of them (the project, its signature, the data it keeps, and the links), and the person is told
+    // once, in a sentence, at the save.
+    void savingADocumentWithMacrosLeavesThemOutAndSaysSo()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + QByteArray(kNs) + "><w:body><w:p><w:r><w:t>with macros</w:t></w:r></w:p></w:body></w:document>"),
+                  QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml"));
+        w.addPart(QStringLiteral("/word/vbaProject.bin"), QByteArray("VBA-project"), QStringLiteral("application/vnd.ms-office.vbaProject"));
+        w.addPart(QStringLiteral("/word/vbaData.xml"), xml("<wne:vbaSuppData xmlns:wne=\"http://schemas.microsoft.com/office/word/2006/wordml\"/>"), QStringLiteral("application/vnd.ms-word.vbaData+xml"));
+        w.addPart(QStringLiteral("/word/customizations.xml"), xml("<x/>"), QStringLiteral("application/vnd.ms-word.keyMapCustomizations+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdVba"), QStringLiteral("http://schemas.microsoft.com/office/2006/relationships/vbaProject"), QStringLiteral("/word/vbaProject.bin"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdKeys"), QStringLiteral("http://schemas.microsoft.com/office/2006/relationships/keyMapCustomizations"), QStringLiteral("/word/customizations.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/vbaProject.bin"), QStringLiteral("rIdData"), QStringLiteral("http://schemas.microsoft.com/office/2006/relationships/wordVbaData"), QStringLiteral("/word/vbaData.xml"));
+        const QByteArray original = w.finish();
+        auto doc = open(original);
+        QVERIFY(doc);
+        QVERIFY(doc->hadMacros());
+        const QByteArray saved = doc->toDocx();
+        office::Package p;
+        QVERIFY(p.read(saved));
+        QVERIFY(!p.hasPart(QStringLiteral("/word/vbaProject.bin")) && !p.hasPart(QStringLiteral("/word/vbaData.xml")));
+        QVERIFY(p.hasPart(QStringLiteral("/word/customizations.xml")));   // (not a macro: kept)
+        for (const office::Relationship &r : p.relationships(p.mainPart())) QVERIFY2(!r.type.contains(QLatin1String("vba")), qPrintable(r.type));
+        QCOMPARE(p.contentType(p.mainPart()), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        for (const QString &n : p.partNames())
+            for (const office::Relationship &r : p.relationships(n)) QVERIFY2(r.external || p.hasPart(r.target), qPrintable(n + QStringLiteral(" -> ") + r.target));
+        // Saved from the window: one sentence, once.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("macros.docm")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(original);
+        f.close();
+        WriteWindow win;
+        QStringList said;
+        win.setNotifier([&](const QString &, const QString &text) { said << text; });
+        QVERIFY(win.openFile(f.fileName()));
+        QVERIFY(win.document()->hadMacros());
+        QVERIFY(said.isEmpty());
+        QVERIFY(win.saveTo(dir.filePath(QStringLiteral("plain.docx"))));
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QLatin1String("macros")) && said[0].contains(QLatin1String(".docx")) && said[0].count(QLatin1Char('.')) <= 2, qPrintable(said[0]));
+        QVERIFY(win.saveTo(dir.filePath(QStringLiteral("again.docx"))));
+        QCOMPARE(said.size(), 1);
+    }
+
+    // A file that could not be read whole (here, a part named so that it can't be one) says so on opening, and is not written over: Save asks
+    // for a new name, with a sentence on why, and the original stays as it was.
+    void aFileThatCouldNotBeReadWholeIsNotSavedOverItsOriginal()
+    {
+        QMap<QString, QByteArray> items;
+        QVERIFY(jp::readZip(makeDocx("<w:p><w:r><w:t>whole enough</w:t></w:r></w:p>", kStyles), items));
+        jp::ZipWriter z;
+        for (auto it = items.cbegin(); it != items.cend(); ++it) z.add(it.key(), it.value(), true);
+        z.add(QStringLiteral("word/../../evil.xml"), "x", true);
+        const QByteArray original = z.finish();
+        QStringList notes;
+        QString err;
+        auto doc = WriteDoc::fromDocx(original, &err, &notes);
+        QVERIFY2(doc, qPrintable(err));
+        QVERIFY(doc->leftSomethingOut());
+        QVERIFY2(!notes.isEmpty() && notes.join(QLatin1Char(' ')).contains(QLatin1String("left out")), qPrintable(notes.join(QLatin1Char(' '))));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("original.docx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(original);
+        f.close();
+        WriteWindow win;
+        QStringList said;
+        win.setNotifier([&](const QString &, const QString &text) { said << text; });
+        const QString copy = dir.filePath(QStringLiteral("copy.docx"));
+        QStringList asked;
+        win.setSavePathChooser([&](const QString &suggested, const QString &) { asked << suggested; return copy; });
+        QVERIFY(win.openFile(path));
+        QCOMPARE(said.size(), 1);   // (what was left out)
+        win.view()->insertText(QStringLiteral("edited "));
+        QVERIFY(win.save());
+        QCOMPARE(asked.size(), 1);
+        QCOMPARE(said.size(), 2);
+        QVERIFY2(said[1].contains(QLatin1String("new name")), qPrintable(said[1]));
+        QVERIFY(QFileInfo::exists(copy));
+        QFile again(path);
+        QVERIFY(again.open(QIODevice::ReadOnly));
+        QCOMPARE(again.readAll(), original);   // (the original is as it was)
+        // Save As onto the original is refused, too.
+        QVERIFY(!win.saveTo(path));
+        QCOMPARE(said.size(), 3);
+        QFile once(path);
+        QVERIFY(once.open(QIODevice::ReadOnly));
+        QCOMPARE(once.readAll(), original);
+        // And a document whole is saved where it was, as before.
+        const QString whole = dir.filePath(QStringLiteral("whole.docx"));
+        QFile wf(whole);
+        QVERIFY(wf.open(QIODevice::WriteOnly));
+        wf.write(makeDocx("<w:p><w:r><w:t>fine</w:t></w:r></w:p>", kStyles));
+        wf.close();
+        WriteWindow other;
+        QStringList otherSaid;
+        other.setNotifier([&](const QString &, const QString &text) { otherSaid << text; });
+        QVERIFY(other.openFile(whole));
+        other.view()->insertText(QStringLiteral("x"));
+        QVERIFY(other.save());
+        QVERIFY(otherSaid.isEmpty());
+    }
+
+    // A part with a % (or a space, or a letter outside ASCII) in its name is legal in a package, and stays: with its bytes, its content type, and
+    // the link that names it.
+    void partsWithPercentSignsAndSpacesInTheirNamesAreKept()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + QByteArray(kNs) + "><w:body><w:p><w:r><w:t>pictures</w:t></w:r></w:p></w:body></w:document>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        const QStringList names = {QStringLiteral("/word/media/a%b.png"), QStringLiteral("/word/media/my image.png"), QStringLiteral("/word/media/\u00fc.png"), QStringLiteral("/word/media/50%25.png")};
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        for (int i = 0; i < names.size(); ++i) {
+            w.addPart(names[i], QByteArray("png-") + QByteArray::number(i), QStringLiteral("image/png"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdP%1").arg(i), rel + QStringLiteral("image"), names[i]);
+        }
+        const QByteArray original = w.finish();
+        office::Package check;
+        QVERIFY(check.read(original));
+        for (int i = 0; i < names.size(); ++i) QCOMPARE(check.part(names[i]), QByteArray("png-") + QByteArray::number(i));
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        office::Package p;
+        QVERIFY(p.read(saved));
+        for (int i = 0; i < names.size(); ++i) {
+            QVERIFY2(p.hasPart(names[i]), qPrintable(names[i]));
+            QCOMPARE(p.part(names[i]), QByteArray("png-") + QByteArray::number(i));
+            QCOMPARE(p.contentType(names[i]), QStringLiteral("image/png"));
+            QCOMPARE(p.relationship(p.mainPart(), QStringLiteral("rIdP%1").arg(i)).target, names[i]);
+        }
+        const QStringList loss = rt::lossProblems(original, saved);
+        for (const QString &l : loss) QVERIFY2(!l.startsWith(QLatin1String("part")) && !l.startsWith(QLatin1String("relationships")) && !l.startsWith(QLatin1String("content type")), qPrintable(l));
+        // The names in the ZIP are the escaped ones.
+        QMap<QString, QByteArray> items;
+        QVERIFY(jp::readZip(saved, items));
+        QVERIFY(items.contains(QStringLiteral("word/media/a%25b.png")) && items.contains(QStringLiteral("word/media/my%20image.png")));
     }
 
     void aRichDocumentComesBackFaithfulAndWellFormed()

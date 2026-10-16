@@ -104,9 +104,11 @@ public:
     // The part gets an Override for its content type unless the Default for
     // its extension is that type already (decided when the package is
     // finished, so the order of calls doesn't matter). Part names are
-    // absolute and plain: letters, digits, and "._-" are safe, and a space is
-    // fine, but no "..", "%", or backslash; one that isn't usable is left out,
-    // with a warning. Adding a name again (in any case) replaces the part.
+    // absolute and decoded, as the package reads them: any character may be
+    // in one (a space, a "%"; the package writes each escaped as a URI needs),
+    // but no "." or ".." or empty segment, control character, or "/" inside
+    // a segment; one that isn't usable is left out, with a warning. Adding a
+    // name again (in any case) replaces the part.
     void addPart(const QString &name, const QByteArray &data, const QString &contentType);
     // "xml" and "rels" have theirs from the start; this adds more (or
     // replaces one), such as ("png", "image/png"), which parts of that type

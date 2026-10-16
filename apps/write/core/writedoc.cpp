@@ -175,6 +175,8 @@ std::unique_ptr<WriteDoc> WriteDoc::fromDocx(const QByteArray &zip, QString *err
     if (!readDocx(zip, &d, error, &rn)) return nullptr;
     std::unique_ptr<WriteDoc> doc(new WriteDoc());
     doc->readNotes = rn.notes;
+    doc->m_hadMacros = rn.hadMacros;
+    doc->m_leftOut = rn.leftOut;
     if (notes) *notes = rn.notes;
     doc->build(std::move(d));
     return doc;

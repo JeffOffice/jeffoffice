@@ -420,9 +420,18 @@ QString builtinDefault(const QString &extension)
     return {};
 }
 
+// A part name (decoded, as it is here) as the package writes it: each segment escaped as a URI needs, a space as %20 and a % as %25 (the names
+// of the ZIP's items, the Overrides', and a link's target are those of URIs).
+QString encodedName(const QString &name)
+{
+    QStringList segments = name.split(QLatin1Char('/'));
+    for (QString &s : segments) s = QString::fromLatin1(QUrl::toPercentEncoding(s, "!$&'()*+,;=@"));
+    return segments.join(QLatin1Char('/'));
+}
+
 bool usableWriterName(const QString &name)
 {
-    return name.startsWith(QLatin1Char('/')) && !name.contains(QLatin1Char('%')) && resolvePartName(QStringLiteral("/"), name) == name
+    return name.startsWith(QLatin1Char('/')) && resolvePartName(QStringLiteral("/"), encodedName(name)) == name
         && !isRelationshipPart(name) && name.compare(QLatin1Char('/') + kContentTypesItem, Qt::CaseInsensitive) != 0;
 }
 
@@ -554,7 +563,7 @@ QByteArray PackageWriter::finish()
     for (const Part &p : m_parts) {
         if (defaults.value(extensionOf(p.name).toLower()) == p.contentType) continue;
         w.writeEmptyElement(QStringLiteral("Override"));
-        w.writeAttribute(QStringLiteral("PartName"), p.name);
+        w.writeAttribute(QStringLiteral("PartName"), encodedName(p.name));
         w.writeAttribute(QStringLiteral("ContentType"), p.contentType);
     }
     w.writeEndElement();
@@ -562,9 +571,9 @@ QByteArray PackageWriter::finish()
     zip.add(kContentTypesItem, types, true);
 
     if (m_rels.contains(QStringLiteral("/"))) zip.add(relationshipPartName(QStringLiteral("/")).mid(1), relationshipsXml(m_rels.value(QStringLiteral("/"))), true);
-    for (const Part &p : m_parts) zip.add(p.name.mid(1), p.data, true);
+    for (const Part &p : m_parts) zip.add(encodedName(p.name).mid(1), p.data, true);
     for (auto it = m_rels.cbegin(); it != m_rels.cend(); ++it)
-        if (it.key() != QLatin1String("/")) zip.add(relationshipPartName(it.key()).mid(1), relationshipsXml(it.value()), true);
+        if (it.key() != QLatin1String("/")) zip.add(encodedName(relationshipPartName(it.key())).mid(1), relationshipsXml(it.value()), true);
     return zip.finish();
 }
 

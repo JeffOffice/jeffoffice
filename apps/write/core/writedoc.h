@@ -107,6 +107,10 @@ public:
     bool isTemplate() const { return m_wml.mainContentType.contains(QLatin1String("template")); }
     // What the file had that its reading left out, for the person.
     QStringList readNotes;
+    // The file had macros, which are not kept: written, it is the plain kind (.docx).
+    bool hadMacros() const { return m_hadMacros; }
+    // Something of the file is not in the document (see office::wml::ReadNotes::leftOut): saving over the original would lose it.
+    bool leftSomethingOut() const { return m_leftOut; }
 
 Q_SIGNALS:
     void sectionsChanged();
@@ -123,6 +127,7 @@ private:
     office::wml::SectionProps lastSectionProps() const;
 
     quint64 m_id = 0;
+    bool m_hadMacros = false, m_leftOut = false;
     std::unique_ptr<flow::FlowDocument> m_flow;
     std::unique_ptr<flow::Paginator> m_pager;
     office::wml::Document m_wml;                   // everything of the file but the body

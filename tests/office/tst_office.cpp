@@ -11211,7 +11211,7 @@ private Q_SLOTS:
         PackageWriter w;
         w.addPart(QStringLiteral("/ok.xml"), "<a/>", QStringLiteral("application/xml"));
         for (const QString &bad : {QStringLiteral("/ppt/../evil.xml"), QStringLiteral("ppt/relative.xml"), QStringLiteral("/a\\b.xml"),
-                                   QStringLiteral("/a//b.xml"), QStringLiteral("/100%.xml"), QStringLiteral("/[Content_Types].xml"),
+                                   QStringLiteral("/a//b.xml"), QStringLiteral("/[Content_Types].xml"),
                                    QStringLiteral("/_rels/.rels")}) {
             QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("PackageWriter")));
             w.addPart(bad, "x", QStringLiteral("application/xml"));
@@ -11219,6 +11219,31 @@ private Q_SLOTS:
         Package p;
         QVERIFY(p.read(w.finish()));
         QCOMPARE(p.partNames(), QStringList({QStringLiteral("/ok.xml")}));
+    }
+
+    // A "%" (or a space, or a letter outside ASCII) is a character a part's name may have: the package writes it escaped, as the names of ZIP items,
+    // Overrides, and targets are URIs, and reads it back as it was.
+    void writerKeepsPartsWithEscapedCharactersInTheirNames()
+    {
+        PackageWriter w;
+        const QStringList names = {QStringLiteral("/100%.xml"), QStringLiteral("/a b.png"), QStringLiteral("/\u00fc/\u00e9.bin"), QStringLiteral("/x%41.bin")};
+        for (const QString &n : names) {
+            w.addPart(n, "x", QStringLiteral("application/octet-stream"));
+            w.addRelationship(QStringLiteral("/"), QStringLiteral("http://x/part"), n);
+        }
+        QMap<QString, QByteArray> items;
+        const QByteArray zip = w.finish();
+        QVERIFY(jp::readZip(zip, items));
+        QVERIFY(items.contains(QStringLiteral("100%25.xml")) && items.contains(QStringLiteral("a%20b.png")) && items.contains(QStringLiteral("x%2541.bin")));
+        Package p;
+        QVERIFY(p.read(zip));
+        QCOMPARE(p.skippedCount(), 0);
+        for (const QString &n : names) {
+            QVERIFY2(p.hasPart(n), qPrintable(n));
+            QCOMPARE(p.contentType(n), QStringLiteral("application/octet-stream"));
+        }
+        QCOMPARE(p.relationships(QStringLiteral("/")).size(), 4);
+        for (const Relationship &r : p.relationships(QStringLiteral("/"))) QVERIFY2(names.contains(r.target), qPrintable(r.target));
     }
 
     void writerDefaultsCanBeReplaced()

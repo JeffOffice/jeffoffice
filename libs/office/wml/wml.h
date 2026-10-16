@@ -296,6 +296,11 @@ struct Document {
 // What reading may leave out, one note a kind (for the reader's caller to tell the person); empty when nothing was.
 struct ReadNotes {
     QStringList notes;
+    // The file has macros (they are not read, and are left out when the document is written as the plain kind).
+    bool hadMacros = false;
+    // Something of the file is not in the document: the end of a body past the limits, text deeper than the nesting limit made plain, a part or a
+    // link that could not be read. Written over the original, it would lose that.
+    bool leftOut = false;
 };
 
 // Reads a .docx (or .docm, .dotx) package. False, with a message, if it isn't a word processing document or is damaged beyond reading.
