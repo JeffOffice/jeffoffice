@@ -1,14 +1,20 @@
 # JeffWrite feature list
 
-JeffWrite is the word processor of JeffOffice, modeled on the one in Office 2021: it saves `.docx` by default and opens and saves `.doc`, `.rtf`, and `.odt` too. This list is the whole job, laid out the way the original is (File, then each ribbon tab, then what sits under the ribbon), so the work can be planned and tracked. Nothing is built yet except what the suite already does for every app. Last reviewed October 15, 2026.
+JeffWrite is the word processor of JeffOffice, modeled on Word in Office 2021: it saves `.docx` by default and opens and saves `.doc`, `.rtf`, and `.odt` too. It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that. This list is the whole job, laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Legend: `[x]` done (the suite already does it for JeffWrite's purpose) · `[ ]` not built yet · `[~]` partly there because a shared JeffOffice part already does it (the note says which) · **(alt)** the usual way to do this depends on a proprietary online service, so JeffWrite offers an open replacement.
+Last reviewed October 16, 2026.
+
+Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
 Every item carries a tier:
 
-- **first release**: the first public build (a preview, as JeffDeck 0.7.0 is). It must open, edit, print, and save the kinds of documents in the samples below without damaging them, and be good enough for a letter, a report, a brief, or a book chapter.
-- **1.0**: what someone coming from Word 2021 expects to find day to day. Version 1.0 is ready to ship when Word opens every file JeffWrite saves and JeffWrite's pages match Word's own PDFs about as closely as JeffPub's match Publisher's.
-- **later**: used by few documents, needs a piece the suite doesn't have yet, or depends on something outside the program.
+- **first release**: needed in JeffWrite's first public release.
+- **1.0**: needed before JeffWrite is called finished (version 1.0).
+- **later**: wanted, but not before 1.0.
+
+## How the tiers were chosen
+
+**First release** is the first public build (a preview, as JeffDeck 0.7.0 is). It must open, edit, print, and save the kinds of documents in our collection and the public collections without damaging them, and be good enough for a letter, a report, a brief, or a book chapter. **1.0** is what someone coming from Word 2021 expects to find day to day; version 1.0 is ready to ship when Word opens every file JeffWrite saves and JeffWrite's pages match Word's own PDFs about as closely as JeffPub's match Publisher's. An item is **later** when few documents use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
 
 How the evidence reads. Where the counts measure a feature, its item carries how many real documents use it, as "ours" and "public": **ours** is the share of our own collection of 2,082 working documents (1,056 `.docx`, plus 1,026 old `.doc` and `.rtf` files, about 3% of them `.rtf`), and **public** is the share of 1,527 U.S. government `.doc` files. The old files were converted to `.docx` to be counted. Where the two kinds of our files differ a lot, the item says so. Four cautions:
 
@@ -366,7 +372,16 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **first release** Keyboard Shortcuts (a table made from the commands themselves), What's New, Feedback (a GitHub page with the version filled in), and About with Check for Updates *(shared: libs/shell)*
 - [~] **1.0** A search box on the ribbon that finds a command by what it does and runs it *(shared: the help search)*
 
-## Table Design and Layout tabs
+## Outline view and master documents
+
+- [ ] **1.0** Outline view: promote, demote, promote to heading, demote to body text, move up and down, expand and collapse, show a level (1 to 9 or all), show text formatting, show first line only, and drag a heading's symbol to move its section
+- [ ] **later** Master Document: show subdocuments, create, insert, unlink, merge, split, lock, and expand or collapse them; a file that has them opens as a single document with its parts kept
+
+## Contextual tabs
+
+The tabs that appear only while something is selected or being edited: a table, a picture, a shape or text box, a header or footer, an equation, and a chart or diagram.
+
+### Table Design and Layout tabs
 
 - [~] **first release** Table styles gallery (grid, list, and plain styles), the style options (header row, total row, banded rows, first and last column, banded columns), Modify Table Style, New Table Style, and Clear *(table styles: ours 12% (.docx 23%, .doc and .rtf 0%), public 0%; shared: JeffPub's Table Formats gallery)*
 - [~] **first release** Shading and borders: every border style, width, and color on any side or inside, the border painter, the Borders and Shading dialog, and View Gridlines *(shading: ours 6%, public 17%)*
@@ -381,7 +396,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Table handles: a move handle at the corner, a resize handle, and dragging borders
 - [ ] **later** Floating tables that text wraps around, and diagonal borders in a cell
 
-## Picture Format tab
+### Picture Format tab
 
 - [~] **first release** Crop (to a shape, to an aspect ratio, fill, fit), size (height and width, locked aspect, scale), rotate, and Reset Picture; Compress Pictures (resolution, delete cropped areas) *(shared: JeffPub's picture formatting)*
 - [~] **first release** Alt text (the pane) and Mark as Decorative, for pictures, shapes, charts, and tables
@@ -390,7 +405,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Change Picture (from a file, online, or the clipboard) and the Format Picture pane
 - [ ] **later** Remove Background by marking areas to keep and remove, and Picture Layout (turn pictures into SmartArt)
 
-## Shape Format, Text Box, and WordArt tabs
+### Shape Format, Text Box, and WordArt tabs
 
 - [~] **first release** Shape styles gallery; fill (solid, gradient, picture, texture, pattern); outline (color, weight, dashes, arrow ends); effects (shadow, reflection, glow, soft edges, bevel, 3-D rotation); and the Format Shape pane *(shared: libs/draw)*
 - [~] **first release** Text in shapes and text boxes: direction, alignment, margins, wrap, autofit, columns, and Create and Break Link between text boxes *(shared: JeffPub)*
@@ -398,7 +413,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **1.0** WordArt styles on text: fill, outline, effects, and warps *(shared: libs/draw text art)*
 - [ ] **later** The older text box and WordArt tabs (3-D extrusion with tilt, depth, and lighting, shadow nudges), for documents made in older versions *(shared: libs/draw)*
 
-## Header & Footer tab
+### Header & Footer tab
 
 - [~] **first release** Header and Footer: Edit, Remove, and the gallery of built-in designs (blank, three columns, and the others); Page Number at the top, bottom, in the margins, or at the cursor *(shared: JeffPub's master page header and footer)*
 - [~] **first release** Format Page Numbers: 1 2 3, a b c, A B C, i ii iii, I II III, dashed, with the chapter number (heading style and separator), continue from the previous section, or start at *(page number formats: 38% of our `.docx`, the only trustworthy count; PAGE field: ours 38% (.docx 64%, .doc and .rtf 11%), public 54%; NUMPAGES: ours 5%, public 8%)*
@@ -407,7 +422,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **first release** Insert in a header or footer: Date and Time, Document Info (author, file name, path, title), Quick Parts and fields, **STYLEREF so a running head shows the current chapter or heading**, and pictures *(STYLEREF: ours 15% (.docx 29%, .doc and .rtf <1%), public <1%)*
 - [ ] **first release** Header from top and Footer from bottom distances, Insert Alignment Tab (left, center, right, relative to the margin or the indents, with a leader), and Show Document Text
 
-## Equation tab
+### Equation tab
 
 - [ ] **1.0** Insert Equation (Alt+=): the built-in equations, writing by typing (`\alpha` and the rest turn into symbols), and saving to the gallery *(equations: ours 0%, public 2%; shared: an equation engine to build for JeffDeck and JeffCrunch)*
 - [ ] **1.0** Structures: fractions, scripts, radicals, integrals, large operators, brackets, functions, accents, limits, operators, and matrices; and the symbol galleries (basic math, Greek, letter-like, operators, arrows, negated, scripts, geometry)
@@ -415,17 +430,23 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Equations read and saved as Office Math in `.docx` and `.doc`, and as MathML in `.odt`, drawn on screen, in print, and in PDF
 - [ ] **later** Ink Equation
 
-## Chart, SmartArt, and graphics tabs
+### Chart, SmartArt, and graphics tabs
 
 - [~] **1.0** Chart Design and Format: add or remove elements (axes, titles, data labels, data table, error bars, gridlines, legend, lines, trendline, up/down bars), quick layouts, colors, styles, switch row and column, select and edit data, change chart type, and format each part *(shared: libs/office chart)*
 - [~] **1.0** Graphics tab for SVG pictures: change the graphic, Convert to Shape, styles, fill, outline, and effects *(shared: JeffPub's SVG to shapes)*
 - [ ] **later** SmartArt Design and Format: add shapes, promote and demote, the text pane, layouts, colors, styles, reset, and organization charts *(shared: JeffDeck's SmartArt drawing)*
 - [ ] **later** 3-D Model tab: scene views and reset
 
-## Outline view and master documents
+## Shortcut menus (right-click)
 
-- [ ] **1.0** Outline view: promote, demote, promote to heading, demote to body text, move up and down, expand and collapse, show a level (1 to 9 or all), show text formatting, show first line only, and drag a heading's symbol to move its section
-- [ ] **later** Master Document: show subdocuments, create, insert, unlink, merge, split, lock, and expand or collapse them; a file that has them opens as a single document with its parts kept
+What a right-click offers depends on what is under the pointer. The commands are the ones the ribbon already holds, put where the original puts them.
+
+- [ ] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment
+- [ ] **first release** On a word the spelling check flags: suggestions, Ignore All, Add to Dictionary, and the AutoCorrect options
+- [ ] **first release** In a table: Insert and Delete for rows, columns, and cells, Select, Merge Cells, Split Cells, Borders and Shading, AutoFit, and Table Properties
+- [ ] **1.0** On a picture, shape, or text box: Cut, Copy, Paste, Wrap Text, Bring to Front and Send to Back, Group, Edit Alt Text, Size and Position, and Format
+- [ ] **1.0** On a field, a link, a footnote, or a tracked change: Update Field, Edit Field, and Toggle Field Codes; Open, Edit, and Remove Hyperlink; Go to a note; and Accept or Reject a change
+- [ ] **1.0** On a comment: Reply, Resolve, and Delete
 
 ## Under the ribbon: the text and page engine
 
@@ -488,9 +509,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **first release** Each run carries its language; spelling and hyphenation follow it, and "no proofing" is kept *(shared: libs/base/text)*
 - [ ] **later** East Asian line breaking (kinsoku), ruby, vertical text, and half- and full-width forms
 
-### Safety and speed
-- [~] **first release** A damaged or hostile file (a zip bomb, deep nesting, a huge table, a loop of linked parts) is opened within limits on time and memory, or refused with a clear message; a sweep of hostile files runs before each release *(shared: the hostile-file sweep of the suite)*
-- [ ] **first release** Opening a file never changes it; saving writes a new file beside the old and replaces it only when complete
+### Speed
 - [ ] **1.0** Large pictures and many of them are decoded as needed, and scaled copies are cached, so scrolling stays smooth
 
 ### Platform and accessibility
@@ -502,6 +521,26 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **first release** File associations for `.docx`, `.doc`, `.rtf`, `.odt`, `.dotx`, and `.ott`, and installers for Windows, Linux (`.deb` and AppImage), and macOS *(shared: the suite's packaging)*
 - [ ] **1.0** Touch and pen input, and high-DPI scaling on every system
 - [ ] **later** A right-to-left interface for Arabic and Hebrew
+
+## Fidelity and testing
+
+JeffWrite will be checked against Word, not against a guess. The Windows test machine has Office 2021 (Word, Excel, PowerPoint, Outlook, Access, and Publisher), so Word makes the reference PDFs and pictures that JeffWrite's pages are scored against, on the scale JeffPub's comparison uses (a page drawn small, blurred, and compared in gray, where 0 is identical). Reference pictures stay on the build machine and never go in the repository.
+
+- [ ] **first release** Every file JeffWrite saves (`.docx`, and `.doc`, `.rtf`, and `.odt` too) opens in Word on the Windows test machine without a repair message, checked on a large collection
+- [ ] **first release** Our own collection of 2,082 working documents is the main test set: each document is opened, drawn, saved, and opened again, and its pages are scored against Word's own PDF of it
+- [ ] **first release** Documents held out from tuning are scored apart from the ones used for tuning, so the numbers are not flattered by the files the layout was fitted to
+- [ ] **1.0** The public test collections: Govdocs1's government `.doc` files and Apache POI's Word test files (edge cases and damaged files) run through the readers and the save-and-reopen check, each file that does not open or does not save back listed with its cause
+- [ ] **1.0** A repeatable comparison anyone can run, made from `jwritetool` and Word's own PDFs, with the numbers written into each release's notes
+
+## Safety and limits
+
+Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs or reaches out until the person allows it, every file reader is fuzzed and held to limits on memory and time, and a damaged file opens as far as it can without crashing.
+
+- [~] **first release** A damaged or hostile file (a zip bomb, deep nesting, a huge table, a loop of linked parts) is opened within limits on time and memory, or refused with a clear message; a sweep of hostile files runs before each release *(shared: the hostile-file sweep of the suite)*
+- [ ] **first release** Opening a file never changes it; saving writes a new file beside the old and replaces it only when complete
+- [~] **first release** Nothing in a document runs or reaches out until the person allows it: macros, external links, linked pictures, remote templates, and remote content *(the rule is decided for the whole suite; macros are kept and never run, see the Developer tab)*
+- [~] **first release** Every file reader (`.docx`, `.doc`, `.rtf`, `.odt`, and the pictures inside them) is fuzzed and held to limits on memory and time *(the rule is decided and the suite's hostile-file sweep exists; JeffWrite's readers are not built yet)*
+- [ ] **first release** A damaged file opens as far as it can, lists what it left out, and never crashes the program
 
 ## File formats
 

@@ -1,14 +1,20 @@
 # JeffCrunch feature list
 
-JeffCrunch is the spreadsheet app of JeffOffice, modeled on the one in Office 2021: it saves `.xlsx` by default. Its first release also opens `.xls` (Excel 5 to 2003), `.ods`, and `.csv`; saving in `.xls` and `.ods` follows once `.xlsx` is solid (decided October 11, 2026). This list is the whole job, laid out the way the original is (File, then each ribbon tab, then what sits under the ribbon), so the work can be planned and tracked. Nothing is built yet except what the suite already does for every app. Last reviewed October 15, 2026.
+JeffCrunch is the spreadsheet app of JeffOffice, modeled on Excel in Office 2021: it saves `.xlsx` by default. Its first release also opens `.xls` (Excel 5 to 2003), `.ods`, and `.csv`; saving in `.xls` and `.ods` follows once `.xlsx` is solid (decided October 11, 2026). It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that. This list is the whole job, laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Legend: `[x]` done (the suite already does it for JeffCrunch's purpose) · `[ ]` not built yet · `[~]` partly there because a shared JeffOffice part already does it (the note says which) · **(alt)** the usual way to do this depends on a proprietary online service, so JeffCrunch offers an open replacement.
+Last reviewed October 16, 2026.
+
+Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
 Every item carries a tier:
 
-- **first release**: the first public build (a preview, as JeffDeck 0.7.0 is). It must open, edit, print, and save the kinds of workbooks in the samples below without damaging them, and its formulas must come out with the numbers the original gets. It should be good enough for a budget, a ledger, a price list, a report, or a small model. For the advanced objects (pivot tables, slicers, charts the editor can't draw yet, query definitions), "first release" means open, show, keep, and write back unchanged; building and editing them is 1.0.
-- **1.0**: what someone coming from Excel 2021 expects day to day. Version 1.0 is ready to ship when Excel opens every file JeffCrunch saves, JeffCrunch's recalculated numbers equal the numbers the original stored in the public workbooks, and JeffCrunch's printed pages match Excel's own PDFs about as closely as JeffPub's match Publisher's.
-- **later**: used by few workbooks, needs a piece the suite doesn't have yet, or depends on something outside the program.
+- **first release**: needed in JeffCrunch's first public release.
+- **1.0**: needed before JeffCrunch is called finished (version 1.0).
+- **later**: wanted, but not before 1.0.
+
+## How the tiers were chosen
+
+**First release** is the first public build (a preview, as JeffDeck 0.7.0 is). It must open, edit, print, and save the kinds of workbooks in our collection and the public collections without damaging them, and its formulas must come out with the numbers the original gets. It should be good enough for a budget, a ledger, a price list, a report, or a small model. For the advanced objects (pivot tables, slicers, charts the editor can't draw yet, query definitions), "first release" means open, show, keep, and write back unchanged; building and editing them is 1.0. **1.0** is what someone coming from Excel 2021 expects day to day. Version 1.0 is ready to ship when Excel opens every file JeffCrunch saves, JeffCrunch's recalculated numbers equal the numbers the original stored in the public workbooks, and JeffCrunch's printed pages match Excel's own PDFs about as closely as JeffPub's match Publisher's. An item is **later** when it is used by few workbooks, needs a piece the suite doesn't have yet, or depends on something outside the program.
 
 How the evidence reads. Where the counts measure a feature, its item carries how many real workbooks use it, as "ours" and "public". **Ours** is the share of our own 1,481 working spreadsheets (1,335 `.xlsx` and 146 `.xls`); we also hold 1,267 `.csv` files, described under File formats. **Public** is the average of three public collections, each counted alone and then averaged so that the biggest doesn't drown the others: **Enron** (15,871 `.xlsx` business models and reports; the figure for one collection reads "Enron 18%"), **EUSES** (4,648 `.xls` of many kinds, from schools to labs), and **government** (1,304 `.xls` from U.S. government sites). Edge cases count lightly and are named when quoted: Apache POI's 366 test `.xlsx` ("POI") and LibreOffice's 364 test `.xlsx` ("LibreOffice"). The old `.xls` files were converted to `.xlsx` by LibreOffice to be counted. A count is "how many workbooks use it", so 3% means about 1 in 33. Five cautions:
 
@@ -30,7 +36,7 @@ What JeffCrunch offers that the original doesn't, then the plans that go past Ex
 - [ ] **first release** OpenDocument spreadsheets (`.ods`, `.ots`) are opened with the same care as `.xlsx`, not as an afterthought, and saved once `.xlsx` is solid (details under File formats)
 - [ ] **first release** Nothing in a file is lost: whatever JeffCrunch can't edit yet (pivot caches, slicers, timelines, the data model, query definitions, custom XML, the macro project, ActiveX controls, 3-D models, and unknown elements) is kept with the workbook and written back as it was
 - [ ] **first release** Every formula keeps its last result: a function JeffCrunch doesn't have yet still shows the number the file stored and is written back as it was, never turned into a `#NAME?` error
-- [ ] **first release** Numbers match the original's. The calculation engine is checked by recalculating tens of thousands of public workbooks and comparing every formula with the answer the original stored (see Testing)
+- [ ] **first release** Numbers match the original's. The calculation engine is checked by recalculating tens of thousands of public workbooks and comparing every formula with the answer the original stored (see Fidelity and testing)
 - [x] **first release** Bundled open fonts, with stand-ins that keep the widths of Calibri, Cambria, Arial, Times New Roman, and Courier New, so column widths and wrapped text fall where the original puts them on a computer without Microsoft's fonts
 - [~] **first release** Spelling works offline, in 12 languages, with no cloud service *(shared: the bundled dictionaries in libs/base/text)*
 - [ ] **first release** Text and CSV files without surprises: the import preview shows every column's type before anything changes, and the original's habits that damage data are off unless you ask. A part number like `00123` keeps its zeros, a 16-digit account number keeps its last digits, and `1-2` or a gene name like `MARCH1` is not turned into a date. The window remembers the file's separator and quote choices, and a `.csv` you didn't edit is written back as it was read *(ours: 1,267 `.csv` files)*
@@ -384,7 +390,11 @@ What JeffCrunch offers that the original doesn't, then the plans that go past Ex
 - [~] **1.0** A search box on the ribbon that finds a command by what it does and runs it *(shared: the help search)*
 - [ ] **1.0** Function help from the formula bar: the function you are typing opens its page (the same pages as the Insert Function dialog)
 
-## Table Design tab (while a table is selected)
+## Contextual tabs
+
+The tabs that appear only while something is selected or being edited: a table, a pivot table, a chart, a sparkline, a slicer, a picture, a shape, a header or footer, an equation, a diagram, a 3-D model, or ink.
+
+### Table Design tab (while a table is selected)
 
 - [ ] **first release** A table in a file is opened with its name, range, header row, totals row, banded rows and columns, first and last column marks, filter buttons, and style, drawn as the style says (the built-in light, medium, and dark styles and your own), and kept; its calculated columns and structured references work *(tables: ours 1%, public 0% (they came after the Enron files), POI 11%, LibreOffice 8%)*
 - [ ] **1.0** Table Name and Resize Table (change the range), Header Row, Total Row (with a function for each column), First Column, Last Column, Banded Rows, Banded Columns, and Filter Button
@@ -393,7 +403,7 @@ What JeffCrunch offers that the original doesn't, then the plans that go past Ex
 - [ ] **1.0** A table grows when you type under it or beside it, a formula typed in one cell of a column fills the whole column (a calculated column), and a formula can point at a table's column by name (`=SUM(Sales[Amount])`, `[@Price]*[@Qty]`)
 - [ ] **later** External Table Data: Export to a SharePoint list or Visio is not offered; Refresh and Unlink for a table loaded by a query (see Data)
 
-## PivotTable Analyze and Design tabs (while a pivot table is selected)
+### PivotTable Analyze and Design tabs (while a pivot table is selected)
 
 A pivot table is a report that groups and totals a list for you: put a list of sales in it, drag "Region" to the rows and "Month" to the columns and "Amount" to the values, and it fills in the total for each region and month. *(pivot tables: ours 0%, public <1%, Enron 2% (250 workbooks), EUSES <1% (17), government <1% (9); POI 2% and LibreOffice 19% are test files)*
 
@@ -411,12 +421,12 @@ A pivot table is a report that groups and totals a list for you: put a list of s
 - [ ] **1.0** Slicers and timelines connected to a pivot table; Filter Connections (see Slicer and Timeline)
 - [ ] **later** Pivot tables over the data model (several related tables), measures in DAX, named sets, and OLAP cubes: kept as saved, not built *(data model: ours 0%, public 0%)*
 
-## PivotChart tabs (while a pivot chart is selected)
+### PivotChart tabs (while a pivot chart is selected)
 
 - [ ] **1.0** PivotChart Analyze: show or hide field buttons (axis, legend, report filter, value), expand and collapse buttons, and the field list, plus the pivot table's refresh, change source, and clear commands; the PivotChart changes with its pivot table, and its formatting stays after a refresh
 - [ ] **1.0** PivotChart Design and Format: the same as Chart Design and Chart Format (below)
 
-## Chart Design and Chart Format tabs (while a chart is selected)
+### Chart Design and Chart Format tabs (while a chart is selected)
 
 - [ ] **first release** Chart elements for the common kinds: Chart Title, Axis Titles, Legend (top, bottom, left, right, or overlay), Data Labels, Axes (primary and secondary, horizontal and vertical), and Gridlines (major and minor), shown, kept, and changed; the Chart Elements, Chart Styles, and Chart Filters buttons beside a selected chart
 - [ ] **first release** Select Data: the list of series (each with a name, values, and X values from cells), the horizontal axis labels, Switch Row/Column, Edit and Add and Remove series, and Hidden and Empty Cells (show gaps, zero, or connect with a line; show data from hidden rows and columns)
@@ -432,48 +442,43 @@ A pivot table is a report that groups and totals a list for you: put a list of s
 - [ ] **1.0** A chart scales and moves with its cells as the file says (move and size with cells, move but don't size, or don't move or size with cells), and prints or hides as set
 - [~] **first release** A chart's look comes from its style, theme colors, and fonts as saved; the same chart draws the same way in JeffCrunch, JeffDeck, and JeffWrite *(shared: libs/office chart)*
 
-## Sparkline tab (while a sparkline is selected)
+### Sparkline tab (while a sparkline is selected)
 
 - [ ] **1.0** Edit Data (the location and the source range of one sparkline or a group), Type (Line, Column, or Win/Loss), and Show (High Point, Low Point, Negative Points, First Point, Last Point, and Markers)
 - [ ] **1.0** Style and Sparkline Color, Marker Color (for each kind of point), and line weight
 - [ ] **1.0** Axis: date axis, show axis, plot data right to left, minimum and maximum (automatic, the same for all, or custom), and Hidden and Empty Cells; Group, Ungroup, and Clear
 
-## Slicer and Timeline tabs
+### Slicer and Timeline tabs
 
 - [ ] **1.0** Slicer tab: caption, Report Connections (the tables and pivot tables it filters), settings (sort ascending or descending or by a custom list, hide items with no data, show items deleted from the source), Slicer Styles and New Slicer Style, the number of columns, and button and slicer sizes
 - [ ] **1.0** Timeline tab: caption, Report Connections, Timeline Styles, and what shows (header, scroll bar, selection label, time level) with a level of years, quarters, months, or days
 
-## Picture Format tab (while a picture is selected)
+### Picture Format tab (while a picture is selected)
 
 - [~] **1.0** Corrections (sharpen and soften, brightness and contrast), Color (saturation, tone, recolor), Artistic Effects, Transparency, Compress Pictures, Change Picture, Reset Picture, and Remove Background *(shared: libs/draw picture effects, JeffPub's Picture Tools)*
 - [~] **1.0** Picture Styles, Picture Border, Picture Effects (shadow, reflection, glow, soft edges, bevel, 3-D rotation), and Picture Layout *(shared: JeffPub's Picture Tools)*
 - [~] **1.0** Crop (to a shape, to an aspect ratio, fill, and fit), Size, Arrange, and Alt Text *(shared: JeffPub's Picture Tools)*
 - [ ] **1.0** A picture's properties: move and size with cells, move but don't size, or don't move or size with cells; locked; print object; the picture as a cell's fill or as the sheet's background
 
-## Shape Format, Text Box, and WordArt tabs
+### Shape Format, Text Box, and WordArt tabs
 
 - [~] **1.0** Insert Shapes, Edit Shape (change shape, edit points, reroute connectors), Shape Styles, Shape Fill, Shape Outline, and Shape Effects *(shared: JeffPub's Drawing Tools)*
 - [~] **1.0** WordArt Styles, Text Fill, Text Outline, and Text Effects; Align, Group, Rotate, Bring Forward, Send Backward, and the Selection Pane *(shared: JeffPub's Text Art Tools and Arrange group)*
 - [~] **1.0** Text in a shape or text box: margins, vertical alignment, autofit and wrap, columns, text direction, and alt text *(shared: JeffPub's Text Box Tools)*
 - [ ] **1.0** A shape can show a cell's value: type `=A1` in the formula bar with a shape selected (and in a text box), and the text follows the cell
 
-## Header & Footer tab (while editing a header or footer)
+### Header & Footer tab (while editing a header or footer)
 
 - [ ] **first release** The header and footer each have a left, a center, and a right part, edited in the Page Layout view or in the Page Setup dialog, with the codes the original saves (`&P` page, `&N` pages, `&D` date, `&T` time, `&F` file, `&Z` path, `&A` sheet name, `&G` picture, `&B` bold, `&I` italic, `&U` underline, `&"font"`, `&12` size, `&K` color, and `&&` for an ampersand) *(headers and footers: Enron 95%, ours <1% (.xlsx); the converted collections read 100%, not real)*
 - [ ] **1.0** Header and Footer galleries of built-in forms (Page 1, Page 1 of ?, the sheet name, the file name, the author and date, and others); the insert buttons (Page Number, Number of Pages, Current Date, Current Time, File Path, File Name, Sheet Name, Picture) with Format Picture; Go to Header and Go to Footer
 - [ ] **1.0** Different First Page, Different Odd & Even Pages, Scale with Document, and Align with Page Margins
 
-## Equation, SmartArt, 3-D Model, and Ink tabs
+### Equation, SmartArt, 3-D Model, and Ink tabs
 
 - [ ] **1.0** Equation tab: structures (fraction, script, radical, integral, large operator, bracket, function, accent, limit, operator, matrix), symbols, professional and linear forms, and ink equations *(shared: the equation engine to build for JeffWrite and JeffDeck)*
 - [~] **later** SmartArt Design and Format: choose a layout, change colors and styles, add and demote shapes, and edit text in the text pane *(shared: JeffDeck's SmartArt)*
 - [ ] **later** 3-D Model Format: views, rotate, and scene; a model is kept as saved and drawn as its stored picture
 - [ ] **later** Ink Tools and Background Removal tabs (see Draw and Picture Format)
-
-## Shortcut menus (right-click)
-
-- [ ] **first release** Shortcut menus for a cell, a row heading, a column heading, a sheet tab, a selected object, a chart and each of its parts, a table, and a pivot table, with the commands the original offers there
-- [ ] **1.0** The Mini toolbar that floats beside a selected cell's text, and the Quick Analysis button that appears under a selected range (formatting, charts, totals, tables, and sparklines in one pane)
 
 ## Functions
 
@@ -532,13 +537,20 @@ The evidence for a function reads "of formula workbooks": the share of workbooks
 - [ ] **1.0** Function names in the language of the interface (SUMME, SOMME, SUMA, SOMMA, SOM, and SOMA, and the rest, for the seven languages of the interface), with the English names always stored in the file; argument separators follow the language (`;` where the comma is the decimal mark)
 - [ ] **1.0** Calling a function that does not exist in this version shows `#NAME?`, keeps the typed text, and (for an unknown function in a file) keeps the stored result and writes the formula back as it was
 
+## Shortcut menus (right-click)
+
+What a right-click offers depends on what is under the pointer.
+
+- [ ] **first release** Shortcut menus for a cell, a row heading, a column heading, a sheet tab, a selected object, a chart and each of its parts, a table, and a pivot table, with the commands the original offers there
+- [ ] **1.0** The Mini toolbar that floats beside a selected cell's text, and the Quick Analysis button that appears under a selected range (formatting, charts, totals, tables, and sparklines in one pane)
+
 ## Under the ribbon: the calculation engine
 
 How big workbooks are: the middle one in each public collection holds about 1,000 cells (government 1,700); one in ten holds more than 27,000 (Enron), 6,900 (EUSES), or 63,000 (government); the largest holds 2.0 million (Enron), 3.3 million (EUSES), or 2.2 million cells (government), and one government workbook has 163 sheets. The Enron `.xlsx` alone hold 20.7 million formulas, EUSES 1.1 million, and the government files 1.9 million.
 
 ### Dependency tracking and recalculation
 - [ ] **first release** A dependency graph of what each formula reads (cells, ranges, names, table columns, other sheets, and other workbooks), so a change recalculates only the formulas that depend on it, in an order that gives the original's answers, with a big range tracked as a range rather than as a million cells
-- [ ] **first release** Calculation on open: formulas keep the results the file stored, and are recalculated only when the file asks (it was saved by an older version or by another program, or it is flagged to calculate fully on load) or when a volatile function is in it; the same recalculation runs when you press F9 (see the Testing section) *(in 600 Enron workbooks picked at random, all written by Excel, 19% carry the "calculate fully on load" flag)*
+- [ ] **first release** Calculation on open: formulas keep the results the file stored, and are recalculated only when the file asks (it was saved by an older version or by another program, or it is flagged to calculate fully on load) or when a volatile function is in it; the same recalculation runs when you press F9 (see Fidelity and testing) *(in 600 Enron workbooks picked at random, all written by Excel, 19% carry the "calculate fully on load" flag)*
 - [ ] **first release** Volatile functions (NOW, TODAY, RAND, RANDBETWEEN, OFFSET, INDIRECT, CELL, and INFO) recalculate at every change, and anything that depends on them with them; a workbook holding one is marked as changed *(NOW and TODAY: public 6% and 3% of formula workbooks, Enron 16% and 6%; OFFSET: public 1%; INDIRECT: public <1%)*
 - [ ] **first release** Calculation modes (automatic, automatic except data tables, manual) and Calculate Before Save, kept as saved; in manual mode the status bar says "Calculate" when results are out of date *(manual: ours 0%, public 4%, Enron 11% (1,804 workbooks))*
 - [ ] **first release** Iterative calculation: when switched on, a circular reference (a formula that depends on itself) repeats up to the chosen number of times (100 by default) until the change is under the chosen limit (0.001), and gives the same result as the original; when off, a warning names the cell and the formula shows the last value or 0 as the original does *(iterative calculation: ours 0%, public 2%, Enron 5% (736 workbooks))*
@@ -565,12 +577,6 @@ How big workbooks are: the middle one in each public collection holds about 1,00
 - [ ] **first release** Shared formulas (one formula stored once for a block of cells, in the file) are read as one formula for each cell, and written as the original writes them *(shared formulas: ours 2%, Enron 35% (5,622 of 15,871); the converted collections read 0%, not real)*
 - [ ] **first release** The Name Box, defined names, and tables resolve when sheets are renamed, moved, or deleted, and a formula that points to a deleted sheet shows `#REF!` as the original does
 - [ ] **later** Python in the sheet, the 365 feature, is not planned (see Left out on purpose)
-
-### Safety and limits
-- [ ] **first release** The grid holds 1,048,576 rows by 16,384 columns (A1 to XFD1048576), stored sparsely, so memory follows the cells that hold something; a workbook of 3 million cells opens in the background while the first screen shows, and scrolling and typing never wait for the rest
-- [~] **first release** A file that lies about itself (a part that inflates to gigabytes, a shared-strings table with a billion entries, a sheet with a dimension of millions of rows, a formula nested 10,000 deep) is stopped with a message, never a crash or a frozen window *(shared: the zip reader in libs/base/io)*
-- [ ] **first release** External links do not update, data connections do not run, and macros do not run when a file opens, unless the person says so; a cell in an opened `.csv` that starts with `=`, `+`, `-`, or `@` is kept as text unless the person asks for formulas, so a hostile file can't run a formula or a command (the original runs them) *(cells starting with `=` in our `.csv`: 1 file of 1,267)*
-- [ ] **first release** Recalculation and sorting of a large range can be cancelled with Esc, and a function that fails inside a formula (running out of memory, a bad argument) gives an error value, not a crash
 
 ## Under the ribbon: grid and editing
 
@@ -612,6 +618,36 @@ The format a cell shows its value in. Workbooks keep their own: the middle one i
 - [ ] **first release** Gridlines, row and column headings, notes (at the end of the sheet or as displayed), errors as blank, black and white, and draft quality, printed as chosen
 - [ ] **first release** Charts, pictures, and shapes print in place with their cells, or not, as each one's "print object" says
 - [ ] **1.0** Print the pages a pivot table needs (repeat item labels, a page for each filter value), and print a selected table or chart alone
+
+## Fidelity and testing
+
+The collections are tests as well as evidence. Every workbook the original saves stores the last result of each formula next to the formula, so opening a workbook, recalculating every formula, and comparing with what the file stored checks the calculation engine against the original's own answers, with no one needing to work out the right answer by hand. Together the collections hold about 23.7 million formulas (Enron's `.xlsx` 20.7 million, EUSES 1.1 million, government 1.9 million).
+
+- [ ] **first release** Recalculate-and-compare: for each workbook, load it, recalculate every formula from the cells, and compare each result with the stored one: numbers to 15 significant digits, text and true or false exactly, and error values exactly (which error, not just "an error"). The report counts mismatches by function, by workbook, and by cell, and `jcrunchtool` runs it on a folder. Cells that depend on a volatile function (NOW, TODAY, RAND), on another workbook, or on a data connection are compared only where the stored result can still be reproduced; they are listed apart
+- [ ] **first release** Compare against the originals, not the conversions: the stored results in the converted EUSES and government files are LibreOffice's, not Excel's, so those tests read the `.xls` files themselves through the new `.xls` reader (which keeps Excel's own stored results); the Enron `.xlsx` were all written by Excel, so they test directly *(600 sampled Enron workbooks: all name Excel as the program that wrote them)*
+- [ ] **first release** Errors are tested as results: 9% of the formula results in the Enron files are errors (1.5 million formulas in 1,500 workbooks picked at random: `#NAME?` more than half, then `#N/A`, `#REF!`, `#DIV/0!`, and `#VALUE!`), so the kind of error and the way it passes through functions are checked as often as the numbers
+- [ ] **first release** LibreOffice's function files: 509 files, one for each function, each self-checking (a cell reads TRUE when all its test rows agree); every one is opened and its result cell is checked. They cover 447 of Excel 2021's 482 functions and 23 of the 36 in Microsoft 365, and test odd cases (text where a number goes, errors in arguments, arrays, empty cells, wildcards). Where LibreOffice and Excel disagree, Excel 2021 on the Windows test machine decides, and the test notes it *(the 35 Excel 2021 functions without a file: the volatile ones, the cube functions, WEBSERVICE, FILTERXML, PHONETIC, and about 20 more, each needing a test of our own)*
+- [ ] **first release** Reference answers from Excel 2021 on the Windows test machine (Office LTSC Professional Plus 2021): recalculated values and the "as shown" text of every cell (Save As CSV writes the cell as shown), saved from the original with its COM automation, give the answers for number formats, rounding, dates, and anything the stored results don't settle
+- [ ] **first release** Round trip: open, save, and open again in JeffCrunch and compare the model; open the saved `.xlsx` in Excel 2021 on the test machine and check that it opens without a repair message and that every cell matches. Run over all `.xlsx` (Enron 15,871, ours 1,335, POI 366, LibreOffice 364) and over the `.xls` and `.ods` files after conversion to `.xlsx`
+- [ ] **first release** LibreOffice's Calc test folder as format tests: 312 `.xlsx`, 305 `.ods`, 80 `.xls`, 8 `.xlsb`, 6 `.xlsm`, 9 `.csv`, 18 `.fods`, and the Lotus, Quattro Pro, Works, SYLK, DIF, dBASE, and Gnumeric files for the later formats; each opens and shows what the test file's name says it holds
+- [ ] **first release** Pages against Excel's own PDFs: Excel 2021 prints a set of workbooks to PDF on the test machine; JeffCrunch's pages are compared page by page (page breaks, column widths, wrapped text, fills, borders, headers and footers, charts) with the same tools used for JeffPub and JeffDeck. The set is picked from the collections by features: print areas, titles, scale to fit, merged cells, wrapped text, charts, and notes
+- [ ] **1.0** Charts: the 1,685 Enron, 340 EUSES, 81 government, and 28 POI workbooks with charts are drawn and compared with Excel's picture of each, as JeffDeck's charts are
+- [ ] **1.0** Pivot tables: the 250 Enron, 17 EUSES, 9 government, and 70 LibreOffice workbooks with pivot tables. First release: round trip keeps the table and its cache whole. 1.0: refresh each pivot table and compare its cells with the stored ones
+- [ ] **1.0** Number formats: every format in the collections applied to its cell's stored value, compared with Excel's "as shown" text from the test machine
+- [ ] **first release** Speed and memory: the largest workbooks (3.3, 2.2, and 2.0 million cells) open, scroll, recalculate, sort, and save within a memory cap (large jobs run under a cap) and a time limit that is recorded for each release
+- [ ] **first release** CSV: all 1,267 of our `.csv` files and LibreOffice's 9 open, and save back the same bytes when unedited; the dialect guesser is scored on them
+- [ ] **first release** Workbooks held out from tuning are scored apart from the ones used for tuning, so the numbers are not flattered by the files the engine and the layout were fitted to
+
+## Safety and limits
+
+Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs or reaches out until the person allows it, every file reader is fuzzed and held to limits on memory and time, and a damaged file opens as far as it can without crashing.
+
+- [ ] **first release** The grid holds 1,048,576 rows by 16,384 columns (A1 to XFD1048576), stored sparsely, so memory follows the cells that hold something; a workbook of 3 million cells opens in the background while the first screen shows, and scrolling and typing never wait for the rest
+- [~] **first release** A file that lies about itself (a part that inflates to gigabytes, a shared-strings table with a billion entries, a sheet with a dimension of millions of rows, a formula nested 10,000 deep) is stopped with a message, never a crash or a frozen window *(shared: the zip reader in libs/base/io)*
+- [ ] **first release** External links do not update, data connections do not run, and macros do not run when a file opens, unless the person says so; a cell in an opened `.csv` that starts with `=`, `+`, `-`, or `@` is kept as text unless the person asks for formulas, so a hostile file can't run a formula or a command (the original runs them) *(cells starting with `=` in our `.csv`: 1 file of 1,267)*
+- [ ] **first release** Recalculation and sorting of a large range can be cancelled with Esc, and a function that fails inside a formula (running out of memory, a bad argument) gives an error value, not a crash
+- [ ] **first release** Damaged and unusual files: Apache POI's test files (366 `.xlsx`, of which 16 (4%) can't be opened as a zip package, being damaged or encrypted, and 417 `.xls`) and LibreOffice's (364 `.xlsx` and 304 `.xls`) must never crash the program; each opens with what can be read, or says why not. A hostile-file sweep (truncated, bomb-sized, and mutated files from these collections) runs before each release with a time and memory cap, as it does for JeffDeck
+- [ ] **later** Fuzzing: files from the collections with random bytes changed, run against the readers
 
 ## File formats
 
@@ -665,26 +701,6 @@ What our own `.csv` files look like, to set the defaults (counts only): 1,267 fi
 
 ### What must survive a round trip
 - [ ] **first release** A checklist for every format that JeffCrunch saves: formulas as written, stored results with their types, number formats, styles and theme colors, column widths and row heights, merged cells, hidden rows, columns, and sheets, defined names and their scopes, print setup with headers and footers, notes (text, size, and position), data validation and conditional formats, tables and their styles, pivot tables, charts (series formulas and formatting, extension elements included), drawings and their anchors (move and size with cells, or not), hyperlinks, outline levels, sheet views, protection, workbook settings (calculation, iteration, date system), external-link caches, and custom properties; anything JeffCrunch can't hold in a format is named by Check Compatibility before the file is written
-
-## Testing
-
-The collections are tests as well as evidence. Every workbook the original saves stores the last result of each formula next to the formula, so opening a workbook, recalculating every formula, and comparing with what the file stored checks the calculation engine against the original's own answers, with no one needing to work out the right answer by hand. Together the collections hold about 23.7 million formulas (Enron's `.xlsx` 20.7 million, EUSES 1.1 million, government 1.9 million).
-
-- [ ] **first release** Recalculate-and-compare: for each workbook, load it, recalculate every formula from the cells, and compare each result with the stored one: numbers to 15 significant digits, text and true or false exactly, and error values exactly (which error, not just "an error"). The report counts mismatches by function, by workbook, and by cell, and `jcrunchtool` runs it on a folder. Cells that depend on a volatile function (NOW, TODAY, RAND), on another workbook, or on a data connection are compared only where the stored result can still be reproduced; they are listed apart
-- [ ] **first release** Compare against the originals, not the conversions: the stored results in the converted EUSES and government files are LibreOffice's, not Excel's, so those tests read the `.xls` files themselves through the new `.xls` reader (which keeps Excel's own stored results); the Enron `.xlsx` were all written by Excel, so they test directly *(600 sampled Enron workbooks: all name Excel as the program that wrote them)*
-- [ ] **first release** Errors are tested as results: 9% of the formula results in the Enron files are errors (1.5 million formulas in 1,500 workbooks picked at random: `#NAME?` more than half, then `#N/A`, `#REF!`, `#DIV/0!`, and `#VALUE!`), so the kind of error and the way it passes through functions are checked as often as the numbers
-- [ ] **first release** LibreOffice's function files: 509 files, one for each function, each self-checking (a cell reads TRUE when all its test rows agree); every one is opened and its result cell is checked. They cover 447 of Excel 2021's 482 functions and 23 of the 36 in Microsoft 365, and test odd cases (text where a number goes, errors in arguments, arrays, empty cells, wildcards). Where LibreOffice and Excel disagree, Excel 2021 on the Windows test machine decides, and the test notes it *(the 35 Excel 2021 functions without a file: the volatile ones, the cube functions, WEBSERVICE, FILTERXML, PHONETIC, and about 20 more, each needing a test of our own)*
-- [ ] **first release** Reference answers from Excel 2021 on the Windows test machine (Office LTSC Professional Plus 2021): recalculated values and the "as shown" text of every cell (Save As CSV writes the cell as shown), saved from the original with its COM automation, give the answers for number formats, rounding, dates, and anything the stored results don't settle
-- [ ] **first release** Round trip: open, save, and open again in JeffCrunch and compare the model; open the saved `.xlsx` in Excel 2021 on the test machine and check that it opens without a repair message and that every cell matches. Run over all `.xlsx` (Enron 15,871, ours 1,335, POI 366, LibreOffice 364) and over the `.xls` and `.ods` files after conversion to `.xlsx`
-- [ ] **first release** Damaged and unusual files: Apache POI's test files (366 `.xlsx`, of which 16 (4%) can't be opened as a zip package, being damaged or encrypted, and 417 `.xls`) and LibreOffice's (364 `.xlsx` and 304 `.xls`) must never crash the program; each opens with what can be read, or says why not. A hostile-file sweep (truncated, bomb-sized, and mutated files from these collections) runs before each release with a time and memory cap, as it does for JeffDeck
-- [ ] **first release** LibreOffice's Calc test folder as format tests: 312 `.xlsx`, 305 `.ods`, 80 `.xls`, 8 `.xlsb`, 6 `.xlsm`, 9 `.csv`, 18 `.fods`, and the Lotus, Quattro Pro, Works, SYLK, DIF, dBASE, and Gnumeric files for the later formats; each opens and shows what the test file's name says it holds
-- [ ] **first release** Pages against Excel's own PDFs: Excel 2021 prints a set of workbooks to PDF on the test machine; JeffCrunch's pages are compared page by page (page breaks, column widths, wrapped text, fills, borders, headers and footers, charts) with the same tools used for JeffPub and JeffDeck. The set is picked from the collections by features: print areas, titles, scale to fit, merged cells, wrapped text, charts, and notes
-- [ ] **1.0** Charts: the 1,685 Enron, 340 EUSES, 81 government, and 28 POI workbooks with charts are drawn and compared with Excel's picture of each, as JeffDeck's charts are
-- [ ] **1.0** Pivot tables: the 250 Enron, 17 EUSES, 9 government, and 70 LibreOffice workbooks with pivot tables. First release: round trip keeps the table and its cache whole. 1.0: refresh each pivot table and compare its cells with the stored ones
-- [ ] **1.0** Number formats: every format in the collections applied to its cell's stored value, compared with Excel's "as shown" text from the test machine
-- [ ] **first release** Speed and memory: the largest workbooks (3.3, 2.2, and 2.0 million cells) open, scroll, recalculate, sort, and save within a memory cap (large jobs run under a cap) and a time limit that is recorded for each release
-- [ ] **first release** CSV: all 1,267 of our `.csv` files and LibreOffice's 9 open, and save back the same bytes when unedited; the dialect guesser is scored on them
-- [ ] **later** Fuzzing: files from the collections with random bytes changed, run against the readers
 
 ## Shared with other JeffOffice apps
 

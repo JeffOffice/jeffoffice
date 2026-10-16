@@ -1,17 +1,19 @@
 # JeffPub feature list
 
-JeffPub is the desktop publishing app of JeffOffice, modeled on Publisher 2021: it opens and saves Publisher's `.pub` files, and it has its own open format, `.jpub`. It is in beta (version 0.8.0). Unlike the lists for JeffWrite, JeffCrunch, JeffMail, and JeffBase, this one describes a program that exists, so a box is checked only when the feature works in JeffPub, and every status was checked on October 16, 2026 against the code, the tests, the ribbon file (`resources/ribbon.json`), and the built-in Help. It is laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), and it was compared control by control with Microsoft's published list of Publisher's ribbon controls (Office 2019), so that the work can be planned and tracked and so that it can settle one question: when does JeffPub stop being a beta? Last reviewed October 16, 2026.
+JeffPub is the desktop publishing app of JeffOffice, modeled on Publisher 2021: it opens and saves Publisher's `.pub` files, and it has its own open format, `.jpub`. It is in beta (version 0.8.0). Unlike the lists for the apps not built yet, this one describes a program that exists, so a box is checked only when the feature works in JeffPub, and every status was checked on October 16, 2026 against the code, the tests, the ribbon file (`resources/ribbon.json`), and the built-in Help. It is laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), and it was compared control by control with Microsoft's published list of Publisher's ribbon controls (Office 2019), so that the work can be planned and tracked and so that it can settle one question: when does JeffPub stop being a beta?
 
-Legend: `[x]` works in JeffPub today · `[~]` partly there (the note says exactly what is missing, or what could not be confirmed) · `[ ]` not yet · **(alt)** the usual way to do this depends on a proprietary online service, so JeffPub provides an open replacement with the same purpose.
+Last reviewed October 16, 2026.
 
-Every item carries a tier, measured against dropping the Beta label:
+Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
-- **1.0**: needed before JeffPub leaves beta. A finished item is usually **1.0** too, since it counts toward the bar. The label comes off when every **1.0** item below is `[x]`, or has been moved to **later** by a decision written under Decided.
-- **later**: used by few publications, needs a piece the suite doesn't have yet, or depends on something outside the program.
+Every item carries a tier:
 
-There is no "first release" tier here, because JeffPub already shipped. Version 1.0 is ready when Publisher opens every file JeffPub saves (met so far for all 284 publications of the owner's collection) and JeffPub's pages match Publisher's own pictures of them closely enough (the scores are under File, in Open, Save, and Close, and the bar is an open question).
+- **1.0**: needed before JeffPub is called finished (for JeffPub, leaving beta).
+- **later**: wanted, but not before 1.0.
 
 ## How the tiers were chosen
+
+JeffPub already shipped, so there is no **first release** tier in this list. Version 1.0 is ready when Publisher opens every file JeffPub saves (met so far for all 284 publications of the owner's collection) and JeffPub's pages match Publisher's own pictures of them closely enough (the scores are under Fidelity and testing, and the bar is an open question). A finished item is usually **1.0** too, since it counts toward the bar. The beta label comes off when every **1.0** item below is `[x]`, or has been moved to **later** by a decision written under Decided. An item is **later** when few publications use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
 
 There are no usage counts for Publisher files yet. The owner's collection is 284 real publications (375 pages), and the fidelity scores are measured on it and on 78 template pages. The only public `.pub` files are 26 small test files from other open-source projects (in `tests/data/pub`); they exercise the reader and say nothing about how often a feature is used. So the tiers rest on what the collection shows through those checks, on what a person moving from Publisher meets in daily work, and on what a replacement must do. Four cautions:
 
@@ -60,7 +62,6 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Open JeffPub publications (`.jpub`) and recent publications, with pinning
 - [~] **1.0** Open `.pub` files (every version since 1998), including linked text boxes, pictures, shapes, and tables *(partial: text, pictures, shapes, and tables open; Publisher's shapes come back as JeffPub's own where they match, and picture crops, transparency, brightness, contrast, and recoloring are kept; checked against PDFs of the same files, most covers and pages now match closely; fonts stored inside the file and the page numbering of any section after the first are not brought in, and opening a file says so; see File formats)*
 - [x] **1.0** Save as `.pub` *(each part checked by opening the saved file in another .pub program. Saved: pages and master pages, text boxes and linked text boxes, character formatting (font, size, bold, italic, underline, strikethrough, small and all caps, superscript and subscript, color, letter spacing, and tracking), paragraphs (alignment, indents, spacing, line spacing, tab stops with leaders, bullets and numbering with their fonts, right-to-left direction), every shape (as Publisher's own where it matches, otherwise an exact outline), lines with dashes and arrowheads, text in shapes, rotation and flips, pictures with cropping, transparency, brightness, contrast, recoloring, and a clear color, pictures cut to a shape, tables with merged cells, fills (solid, gradient, picture, texture, and pattern) with transparency, borders with transparency, shadows, Text Art, named paragraph styles (each paragraph keeps its style), process (CMYK) colors. Saving reports objects it leaves out)*
-- [~] **1.0** Checked against Publisher itself: Publisher opened and exported all 284 publications of a real collection, and opened every one of them after JeffPub saved it as `.pub`. Against Publisher's own pictures of the 375 pages of those publications, JeffPub's pages differ by a median blurred-pixel difference of 0.96 and a mean of 1.74, with 73% under 2 (0 is identical; measured with pages scaled to 40 dots per inch, the scale used to compare every JeffOffice app with its original, so these figures differ a little from earlier ones taken at another scale); on 78 template pages the median is 0.62 and 79% are under 2; and 95% of their text boxes break into the same words *(the rest differ by a word or two at a box's end; the text-box figure was measured earlier and not repeated for this review; the bar for leaving beta is an open question)*
 - [x] **1.0** Booklets, folded cards, and envelopes in `.pub`: saved as Publisher saves them (a booklet's or folded card's spreads and two-page masters, and each layout type), and Publisher's own open with all their pages *(Publisher read JeffPub's booklets as booklets, with the same spreads and masters, and pictured them the same; it kept JeffPub's folded cards and envelopes as folded cards and envelopes when saving them again)*
 - [x] **1.0** Objects in text (Publisher's "inline" pictures, shapes, and text boxes): Wrap Text > In Line with Text moves an object over a text box into its text, and choosing another wrap with the object selected in the text moves it back out; opened from and saved to `.pub`, and kept in `.jpub`; each sits on its line's baseline inside its wrap distances and a tall one makes its line taller (a line with nothing but objects is exactly as tall as they are, with no text above or below), as in Publisher *(measured against Publisher to the pixel; Publisher showed a JeffPub-saved copy of its sample exactly as its own file)*
 - [x] **1.0** Fields and hyperlinks in `.pub` text: page numbers (this page's, and the next or previous linked box's), dates and times in Publisher's 17 formats (they update, as in Publisher), and hyperlinks are read and saved as Publisher's own *(Publisher counted the same fields and links in JeffPub's copies of its samples as in its own files, and pictured them the same)*
@@ -167,12 +168,25 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Feedback **(alt: a JeffPub GitHub page for reporting a problem or suggesting an idea, with the version filled in)**
 - [x] **1.0** Keyboard Shortcuts (a table of every command's keys, made from the commands themselves) and What's New (this version's release notes)
 
-## Master Page tab (while editing master pages)
+## Web tab (Publisher's web page tools)
+
+Publisher 2019 still has a Web tab for making a web page from a publication. JeffPub exports a single HTML file of page pictures, and none of these exist yet; whether to build them is an open question.
+
+- [ ] **later** Hotspots and a Navigation Bar: clickable areas on a picture and a bar of links across pages
+- [ ] **later** Web form controls: text box, text area, check box, option button, list box, and Submit button
+- [ ] **later** HTML Code Fragment (a piece of your own HTML placed in a page), Background Sound, and Web Page Options
+- [ ] **later** Web Page Preview in the browser
+
+## Contextual tabs
+
+The tabs that appear only while something is selected or being edited: master pages, shapes and lines, text boxes, pictures, tables, and Text Art.
+
+### Master Page tab (while editing master pages)
 - [x] **1.0** Add Master Page, Duplicate, Rename, Delete, Two-Page Master, Apply To, Close Master Page
 - [x] **1.0** Header and footer editing with Show Header/Footer, Insert Page Number, Insert Date, and Insert Time (Alt+Shift+P, D, and T); the Mailings tab hides while a master page is open, as there
 - [x] **1.0** The Master Page tab comes first, right after File, and is the one showing when master view opens; the other contextual tabs keep their places after Help
 
-## Drawing Tools / Shape Format tab
+### Drawing Tools / Shape Format tab
 - [x] **1.0** Insert Shapes gallery, Edit Shape (Change Shape and Edit Points), Draw Text Box
 - [x] **1.0** Curve, Freeform: Shape, and Freeform: Scribble (Shapes > Lines): click points for a smooth curve or straight-sided freeform (drag to draw by hand), double-click or Enter to end, click the first point to close it into a filled shape; a scribble is one stroke. Each becomes a shape whose points can be edited
 - [x] **1.0** Connectors (Shapes > Lines): elbow and curved connectors, plain or with one or two arrowheads; any line's ends attach to the middle of a side of a shape, text box, picture, or table (the sites show as you draw) and follow it when it moves, resizes, or turns; a yellow handle moves an elbow's bend; dragging a connector away on its own detaches it. Opened from and saved to `.pub` attached, as Publisher's own connectors *(checked by moving a shape in Publisher: the connectors followed it)*
@@ -184,7 +198,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Shape adjustment handles (yellow diamonds)
 - [ ] **later** Reroute Connectors: choose the shortest path for connectors attached to a shape
 
-## Text Box Tools Format tab
+### Text Box Tools Format tab
 - [x] **1.0** Text: Text Fit (Best Fit, Shrink Text On Overflow, Grow Text Box to Fit, Do Not Autofit), Text Direction (vertical), Hyphenation (automatic and manual)
 - [x] **1.0** Alignment: nine-way alignment, Columns (count and spacing), Margins (presets and custom)
 - [x] **1.0** Linking: Create Link (pitcher cursor), Break, Previous, Next, overflow indicator, autoflow
@@ -195,7 +209,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [ ] **later** Reflection and Bevel for letters (the Text Effects menu), as shapes already have
 - [ ] **later** A Text Styles gallery: ready-made combinations of fill, outline, and effects for letters
 
-## Picture Tools Format tab
+### Picture Tools Format tab
 - [x] **1.0** Insert: Change Picture, Remove Picture, Swap (between picture frames), Arrange Thumbnails
 - [x] **1.0** Adjust: Corrections (brightness and contrast presets), Recolor (presets, more variations, set transparent color), Compress Pictures, Reset Picture
 - [x] **1.0** Picture Styles gallery, Picture Border, Picture Effects, Caption gallery, Picture Shape (any closed shape)
@@ -205,7 +219,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Scratch-area picture tray behavior (pictures parked on the scratch area): inserting several pictures at once puts them beside the page as thumbnails, Arrange Thumbnails tidies them, and Swap trades two pictures
 - [x] **1.0** Graphics Manager pane (every picture with its page, format, size, original file, status, and resolution; go to it, save a copy, replace it) and pictures linked to their files *(Insert Picture offers Insert, Link to File, and Insert and Link. A link keeps the file's full and relative paths, a SHA-1 of its bytes (Modified means other contents, not another date), and a preview of at most 512 pixels, the relative path winning when the publication and its pictures are moved together; the page draws from the file, print, PDF, and e-book use it in full, and a missing file leaves the preview. Only a regular file of up to 256 MB is read, never a pipe or a device. When a publication opens, a link is followed only if its file is in the publication's own folder or below it (`..` and symbolic links resolved); any other, including network and device paths, is never touched, shows its stored copy or preview as Not updated, and is followed only by Update Link or Change Link on that picture, for that session, with the saved path unchanged; the mail merge's picture files follow the same rule, until the recipient list is chosen again in the session, which allows the pictures in its folder and below for that session only; a recovered AutoRecover copy is read as if in its original file's folder; jpubtool and the command line never follow outside links. Insert and Link keeps the whole picture and refreshes it from a changed file when the publication opens. The pane shows Embedded, Linked, Missing, Modified, or Not updated with Update Link, Change Link, and Embed Picture; the Design Checker reports "Picture is linked, not embedded", "Linked picture is missing", and "Linked picture shows only its preview until Update Link". Saving as .pub, Pack and Go, and e-mail store each picture whole, from what the publication holds. Saved in `.jpub`; a `.pub` file opens with embedded pictures, since the .pub reader reports no link paths. A file changed on disk while the publication is open shows as Modified (by size and date) but is read again only by Update Link)*
 
-## Table Tools Design and Layout tabs
+### Table Tools Design and Layout tabs
 - [x] **1.0** Table Formats gallery, Fill, Borders (style, weight, color, which borders), Diagonals *(.pub files keep a diagonal's line as Publisher's diagonal border; see Merge Cells, Split Cells, Diagonals)*
 - [x] **1.0** Insert rows and columns above, below, left, and right; Delete rows, columns, and table; Select cell, row, column, and table, or several cells at once (drag across them, or Shift+click; a merged cell is always whole) so that fills, borders, diagonals, alignment, margins, text formatting, Merge Cells, and Delete Rows and Columns act on all of them in one undo step; View Gridlines
 - [x] **1.0** Merge Cells, Split Cells, Diagonals *(a cell divided by a diagonal has separate text in each half, as in Publisher: the text wraps inside its triangle, a click or Tab goes to the half it reaches, and No Division joins the second half's text to the first's; .pub files keep both halves' text, the direction, and the line along it, or none, as Publisher prints a line only for a cell with a diagonal border. Middle and bottom alignment of a long text in a half only approximate Publisher's)*
@@ -213,13 +227,24 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Size: Height and Width boxes for the whole table (typed in your units; the columns or rows scale in proportion), Grow to Fit Text as a check box, Format Table (Colors and Lines, Size with Lock aspect ratio, Layout, Cell Properties: vertical alignment, margins, and turned text for the selected cells; from the Alignment group's launcher and the right-click menu), column widths and row heights by dragging, and Distribute Rows and Columns *(Lock aspect ratio is saved in JeffPub files; .pub files don't carry it yet)*
 - [x] **1.0** Tab moves between cells, and Tab in the last cell adds a row
 
-## Text Art Tools Format tab
+### Text Art Tools Format tab
 - [x] **1.0** Edit Text dialog (text, font, size, bold, italic)
 - [x] **1.0** Spacing, Even Height, Vertical Text, Align Text
 - [x] **1.0** Text Art Styles gallery (30 classic plus modern styles), Shape Fill, Shape Outline, Change Shape (Text Art transforms: arch, circle, button, wave, slant, inflate, deflate, fade, triangle, chevron, cascade, can, and others)
 - [x] **1.0** Shadow Effects (presets and Shadow Options) and 3-D Effects (rotations and bevels) *(menus of presets; no nudge buttons were found)*
 
-## Object behavior and canvas
+## Shortcut menus (right-click)
+
+What a right-click offers depends on what is under the pointer: text being edited, a selected object, or the bare page.
+
+- [x] **1.0** Context menus for every object type
+- [x] **1.0** On text being edited: spelling suggestions, Ignore All, and Add to Dictionary; Cut, Copy, Paste, and paste as plain text; the Font, Paragraph, and Bullets dialogs; Hyperlink; Thesaurus; Text Fit; and Format Object (Format Table in a table)
+- [x] **1.0** On a selected object: Cut, Copy, Paste, Duplicate, and Delete; Group, Ungroup, and Regroup; the Order and Wrap Text menus; Lock; Save in Building Blocks; Format Object (Format Table for a table); and Hyperlink; with Change Picture, Crop, Save as Picture, Caption, and Convert to Shapes for a picture, Link, Break Link, and Text Fit for a text box, Add Text for a shape, and Edit Text for Text Art
+- [x] **1.0** On the page itself: Paste, Insert Page, Insert Duplicate Page, Delete Page, Page Setup, Guides, and Zoom (Whole Page, Page Width, and 100%)
+- [x] **1.0** A recent or pinned publication in the Open list: Pin to list or Unpin from list, and Remove from list
+- [ ] **later** The mini toolbar that floats by selected text, with the font, size, bold, italic, color, alignment, and bullet buttons
+
+## Under the ribbon: object behavior and canvas
 - [x] **1.0** Frames: text box, picture, shape, line, arrow, table, Text Art, group, embedded object
 - [x] **1.0** Select (click, Shift or Ctrl-click, marquee, Tab cycling, select through groups)
 - [x] **1.0** Move, resize (aspect lock with Shift, from center with Ctrl), rotate (15° steps with Shift), flip, nudge with arrows and Alt+arrows, and Ctrl-drag to copy
@@ -231,12 +256,11 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Measurements to three decimal places in every unit (8.125", 1.234 cm, 10.125 pt), shown without trailing zeros and kept without rounding
 - [x] **1.0** Scratch area shared across pages
 - [x] **1.0** Rulers in in, cm, mm, pt, and pica, with drag-out guides and a zero point you can move: Shift and the right mouse button on a ruler, or a drag from the box where the rulers meet; double-click a ruler (or the box) to put it back. The rulers and the status bar count from it, and it is saved with the publication *(in `.jpub`; `.pub` files open with it at the page's corner)*
-- [x] **1.0** Context menus for every object type
 - [x] **1.0** Undo and redo with full history
 - [x] **1.0** Two-page spreads and facing pages
 - [x] **1.0** The window: a Pages list (drag to move a page, right-click to add, copy, delete, rename, or move), a status bar (page buttons, pointer position, selected size, view buttons, and zoom), and task panes on the right (Find and Replace, Design Checker, Mail Merge, Research, Graphics Manager, Online Pictures, Catalog Merge, and Help)
 
-## Text engine
+## Under the ribbon: the text engine
 - [x] **1.0** Rich text: fonts, sizes, color (scheme-aware), highlight, underline styles, strike, sub and superscript, all caps, small caps, tracking (a percentage, with Publisher's Very Tight to Very Loose presets) and kerning (points) together, automatic pair kerning (for fonts 14 pt and above unless set otherwise), and scaling
 - [x] **1.0** Paragraphs: alignment, indents (left, right, first line, hanging), spacing before and after, line spacing (single, multiple, exact, at least), keep with next, keep lines together, widow and orphan control, start in next text box
 - [x] **1.0** Tabs with leaders (left, center, right, decimal) *(a publication's default tab stops, 0.5 in unless it says otherwise, are set in the Tabs dialog, from 1 to 1,584 pt, as one undo step, and are read from and saved to .pub files and kept in JeffPub's own)*
@@ -251,13 +275,13 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Right-to-left and complex script text via Qt's shaping engine, with a right-to-left paragraph direction (Home tab and the Paragraph dialog)
 - [x] **1.0** Align text to baseline guides, a paragraph choice that sits lines on the page's baseline guides
 
-## Color and graphics
+## Under the ribbon: color and graphics
 - [x] **1.0** Color schemes with 8 slots (Main, Accents 1–5, Hyperlink, Followed Hyperlink) and tints and shades of every scheme color
 - [x] **1.0** Custom colors (RGB, HSL, CMYK, PANTONE-style spot color entry), recent colors, eyedropper, and transparency on fills, lines, and text *(spot colors are entered by name and value, since the PANTONE library itself is proprietary; colors entered as CMYK keep their exact ink amounts)*
 - [x] **1.0** Fill effects: gradient (linear, radial, rectangular, path, with presets), texture, pattern, picture (stretch or tile), and tint
 - [x] **1.0** Picture formats: PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, and EMF/WMF **(JeffPub plays EMF and WMF itself, so they look the same on every system, except that text in Wingdings or Webdings shows only some of its symbols on a computer without those fonts, which Linux is; EMF drawing that exists only as EMF+ records, gradient fills, and see-through bitmaps are not drawn)**
 
-## Platform and packaging
+## Under the ribbon: platform and packaging
 - [x] **1.0** Builds and runs on Linux (x86_64) and Windows 10/11 (x86_64)
 - [x] **1.0** Windows installer and portable zip
 - [x] **1.0** Linux packages: `.deb` (Debian, Ubuntu) and AppImage
@@ -273,14 +297,23 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Bundled open fonts, including metric-compatible replacements for Calibri, Cambria, Arial, Times New Roman, and Courier New; a missing stock Windows or Office font (336 faces measured) keeps each letter's own width, and from 14 pt its own pair kerning (none where the original has none), on its stand-in, so lines break where they do in Microsoft Publisher; where such a font has no italic face (Impact, Garamond's bold, Script MT Bold), its upright stand-in is slanted by a third, and bold on a font with no bold face (Franklin Gothic Demi, Forte) is drawn by hand as Publisher does, each place its own way: widened 0.017 em on the screen and in pictures (a whole pixel for small letters at 96 to 216 dpi), stroked 1/35 em in a PDF export and 0.01 em on paper (Arial Black and Rockwell Extra Bold are stroked in a PDF and on paper, bold or not, and plain on the screen), from 216 pt as outlines
 - [x] **1.0** The Quick Access Toolbar: Save, Undo, Redo, and Print, with KeyTips 1 to 4
 
-## Web tab (Publisher's web page tools)
+## Fidelity and testing
 
-Publisher 2019 still has a Web tab for making a web page from a publication. JeffPub exports a single HTML file of page pictures, and none of these exist yet; whether to build them is an open question.
+JeffPub is measured against the original's own output. Publisher is installed on the Windows test machine (Office 2021), so every reference PDF and picture comes from Publisher itself, never from a guess. The scale is the one every JeffOffice app uses to compare itself with its original: a page drawn at 40 dots per inch, blurred, and compared in gray, where 0 is identical. The owner's collection of publications stays on the build machine and never goes in the repository (see Decided).
 
-- [ ] **later** Hotspots and a Navigation Bar: clickable areas on a picture and a bar of links across pages
-- [ ] **later** Web form controls: text box, text area, check box, option button, list box, and Submit button
-- [ ] **later** HTML Code Fragment (a piece of your own HTML placed in a page), Background Sound, and Web Page Options
-- [ ] **later** Web Page Preview in the browser
+- [~] **1.0** Checked against Publisher itself: Publisher opened and exported all 284 publications of a real collection, and opened every one of them after JeffPub saved it as `.pub`. Against Publisher's own pictures of the 375 pages of those publications, JeffPub's pages differ by a median blurred-pixel difference of 0.96 and a mean of 1.74, with 73% under 2 (0 is identical; measured with pages scaled to 40 dots per inch, the scale used to compare every JeffOffice app with its original, so these figures differ a little from earlier ones taken at another scale); on 78 template pages the median is 0.62 and 79% are under 2; and 95% of their text boxes break into the same words *(the rest differ by a word or two at a box's end; the text-box figure was measured earlier and not repeated for this review; the bar for leaving beta is an open question)*
+- [ ] **1.0** Score `.pub` files JeffPub was never tuned on (a held-out set, drawn from the same kinds of publications), so the bar for leaving beta is measured on fresh files *(see the open questions)*
+- [x] **1.0** A repeatable page comparison: `tools/fidelity.py` draws page 1 of each `.pub` that has a PDF of the same publication beside it (one JeffPub did not make), scores the difference from that PDF, and lists the worst first, so a release's numbers can be measured again
+- [x] **1.0** The 26 small public `.pub` test files from other open-source projects (in `tests/data/pub`) are read by the tests; they exercise the reader and say nothing about how often a feature is used
+
+## Safety and limits
+
+Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs or reaches out until the person allows it, every file reader is fuzzed and held to limits on memory and time, and a damaged file opens as far as it can without crashing.
+
+- [~] **1.0** Nothing in a publication runs or reaches out until the person allows it: macros, linked pictures, and any other link or remote content *(macros are never run, and linked pictures follow the rule below; whether every other kind of link in a file is held back could not be confirmed)*
+- [x] **1.0** A publication opened from a file follows a picture link only if the picture is in the publication's own folder or below it; any other link, network paths and devices included, is never touched, and shows its stored copy as Not updated until the person runs Update Link or Change Link on it
+- [~] **1.0** Every file reader is fuzzed and held to limits on memory and time *(the `.pub` reader is tested with damaged and fuzzed files, and a picture is limited to 256 MB a file; the other readers could not be confirmed)*
+- [~] **1.0** A damaged file opens as far as it can, without crashing, and says what it left out *(opening a `.pub` says what is not brought in; random damage on every reader could not be confirmed)*
 
 ## File formats
 
@@ -290,7 +323,6 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [~] **1.0** Open `.pub` files from Publisher 98 on: pages, master pages, text and its formats, fields, linked text boxes, shapes, lines, pictures, tables, booklets, folded cards, envelopes, and objects in text *(Help says every version since 1998; all 284 publications of the owner's collection open and save again; the 26 public test files are read in the tests, three of them damaged on purpose; fonts stored inside a file, any section's page numbering after the first, and pictures the program cannot draw are reported when opening)*
 - [x] **1.0** Save `.pub` as a complete file in the Publisher 2003-and-later layout, with the parts listed under Open, Save, and Close; Publisher opened all 284 saved copies and pictured them as it pictured the originals
 - [x] **1.0** Save reports what it leaves out, and those objects stay in the publication and are kept in `.jpub`
-- [ ] **1.0** Score `.pub` files JeffPub was never tuned on (a held-out set, drawn from the same kinds of publications), so the bar for leaving beta is measured on fresh files *(see the open questions)*
 - [ ] **later** Read the fonts stored inside a `.pub` file, and use them while that publication is open
 - [ ] **later** Save the earlier Publisher file versions (98, 2000, and 2002 to 2003) that Publisher's Change File Type offers *(which versions it can write could not be confirmed; JeffPub writes the 2003-and-later layout only)*
 - [ ] **later** Keep a `.pub` file's macro project untouched on save, and never run it *(the writer adds an empty macro storage; whether a macro project in an opened file is kept could not be confirmed)*
