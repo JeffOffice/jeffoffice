@@ -3079,7 +3079,8 @@ private Q_SLOTS:
                     int firstRow = 0;
                     while (lines[firstRow].pos != rows[0].pos) ++firstRow;
                     // The text before the table ends, with the space after its last paragraph, where the table begins.
-                    const double after = formatAt(fd, lines[firstRow - 1].pos).bottomMargin();
+                    // (A paragraph with a border below has the room of the border's lower edge under its last line, before the space after it.)
+                    const double after = formatAt(fd, lines[firstRow - 1].pos).bottomMargin() + (cs.bordered ? box.bottom.reserve() : 0.0);
                     QVERIFY2(std::abs(lines[firstRow - 1].rect.bottom() + std::max(0.0, after) - rows[0].rect.top()) < 0.05, qPrintable(what + ": the table's top and the end of the text before it"));
                     const auto page = pg.materialize(0);
                     QVERIFY(page && page->tables.size() == 1);

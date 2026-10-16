@@ -52,13 +52,20 @@ struct Facts {
     QStringList boxes;          // everything else: the text boxes of the body, and the objects
 };
 
+inline QString pieceAtText(const flow::Paginator::PageStart &s)
+{
+    QStringList l;
+    for (const double d : s.pieceAt) l << num(d);
+    return l.join(QLatin1Char(','));
+}
+
 inline Facts factsOf(flow::Paginator &pg, int k, bool made = true)
 {
     Facts f;
     const flow::Paginator::Page page = pg.page(k);
     const flow::Paginator::PageStart &s = page.start;
     f.start = QStringLiteral("pos %1 skip %2 hard %3 section %4 first-of-section %5 piece %6/%7 foot %8 end %9 carried [%10] number %11 area %12 columns %13")
-                  .arg(s.pos).arg(s.skip).arg(s.hard).arg(s.section).arg(s.firstOfSection).arg(s.piece).arg(s.pieceRoom).arg(s.foot).arg(s.end)
+                  .arg(s.pos).arg(s.skip).arg(s.hard).arg(s.section).arg(s.firstOfSection).arg(s.piece).arg(pieceAtText(s)).arg(s.foot).arg(s.end)
                   .arg(s.carried.join(QLatin1Char(','))).arg(page.number).arg(rectText(page.content)).arg(page.columns);
     for (const auto &l : pg.lines(k))
         f.lines << QStringLiteral("%1-%2 line %3/%4 block %5 frame %6 at %7 below %8").arg(l.pos).arg(l.end).arg(l.line).arg(l.lines).arg(l.block).arg(l.frame).arg(rectText(l.rect), num(l.below));
