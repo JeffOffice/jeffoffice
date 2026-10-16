@@ -391,11 +391,13 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     return out;
 }
 
-const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key)
+const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double fitScale, double lineCut)
 {
     Story *story = doc.story(storyId);
     if (!story) return nullptr;
     LayoutEnv env = Renderer::layoutEnv(doc);
+    env.fontScale = fitScale;
+    env.lineCut = lineCut;
     const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec, false) + fieldsKey(doc, *story, spec.ctx) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {
@@ -933,7 +935,9 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.ctx.pageCount = ctx.pageCount;
     spec.ctx.mergeRecord = ctx.opt.mergeRecord;
     if (origin) *origin = tr.topLeft();
-    return ctx.cache->storyBox(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber));
+    // A shape that says its text shrinks to fit has it at the scale the file gives (and the spacing taken off), as a text box's does.
+    const bool shrunk = ctx.doc->slideText && s.shrinks;
+    return ctx.cache->storyBox(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber), shrunk ? std::clamp(s.fitScale, 0.01, 1.0) : 1.0, shrunk ? std::clamp(s.fitLineCut, 0.0, 99.0) : 0.0);
 }
 
 const StoryLayout *Renderer::cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin, int half)

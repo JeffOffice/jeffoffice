@@ -594,6 +594,10 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     base.valign = props.valign;
     base.noWrap = props.noWrap;
     base.centerBlock = props.centerBlock;
+    // Text the program shrank to fit keeps the scale it was given (a:normAutofit's fontScale and lnSpcReduction).
+    base.shrinks = props.autofit == TextItem::ShrinkOnOverflow;
+    base.fitScale = props.fitScale;
+    base.fitLineCut = props.fitLineCut;
     base.shape = QStringLiteral("rect");
     const QString libraryShape = shapeForPreset(prst);
     Geometry geometry;

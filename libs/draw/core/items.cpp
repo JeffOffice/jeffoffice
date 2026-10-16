@@ -463,6 +463,11 @@ QJsonObject ShapeItem::toJson() const
     if (!customPath.isEmpty() && customPath.fillRule() == Qt::WindingFill) o["winding"] = true;
     if (noWrap) o["noWrap"] = true;
     if (centerBlock) o["ctrBlock"] = true;
+    if (shrinks) {
+        o["shrinks"] = true;
+        if (fitScale != 1.0) o["fitScale"] = fitScale;
+        if (fitLineCut != 0) o["fitLineCut"] = fitLineCut;
+    }
     if (!storyId.isEmpty()) o["story"] = storyId;
     // A shape with no text yet keeps where its text will sit, when that isn't where a new shape's goes.
     static const ShapeItem plain;
@@ -486,6 +491,9 @@ void ShapeItem::fromJson(const QJsonObject &o)
     valign = VAlign(o["valign"].toInt(int(VAlign::Middle)));
     noWrap = o["noWrap"].toBool();
     centerBlock = o["ctrBlock"].toBool();
+    shrinks = o["shrinks"].toBool();
+    fitScale = o["fitScale"].toDouble(1.0);
+    fitLineCut = o["fitLineCut"].toDouble();
 }
 
 // ---------- LineItem ----------

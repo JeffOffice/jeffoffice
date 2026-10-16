@@ -10770,6 +10770,26 @@ private Q_SLOTS:
         QVERIFY(it->fill.isNone() && it->stroke.isNone());
     }
 
+    // A shape that says its text shrinks to fit (a:normAutofit) keeps the scale and the line spacing taken off, as a text box does; one that says no
+    // fit, or none, doesn't shrink.
+    void dmlShapeReadsNormAutofit()
+    {
+        DmlEnv env;
+        auto shape = [&](const QString &prst, const QString &bodyPr) {
+            return dmlAs<ShapeItem>(dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 40) + QStringLiteral("<a:prstGeom prst=\"%1\"/>").arg(prst), dmlBody(QStringLiteral("Hello"), bodyPr))));
+        };
+        auto round = shape(QStringLiteral("roundRect"), QStringLiteral("<a:bodyPr><a:normAutofit fontScale=\"62500\" lnSpcReduction=\"20000\"/></a:bodyPr>"));
+        QVERIFY(round);
+        QVERIFY(round->shrinks);
+        QVERIFY(near(round->fitScale, 0.625, 1e-6) && near(round->fitLineCut, 20, 1e-6));
+        auto oval = shape(QStringLiteral("ellipse"), QStringLiteral("<a:bodyPr><a:normAutofit/></a:bodyPr>"));
+        QVERIFY(oval && oval->shrinks && near(oval->fitScale, 1.0, 1e-6) && near(oval->fitLineCut, 0, 1e-6));
+        auto none = shape(QStringLiteral("roundRect"), QStringLiteral("<a:bodyPr><a:noAutofit/></a:bodyPr>"));
+        QVERIFY(none && !none->shrinks);
+        auto plain = shape(QStringLiteral("roundRect"), QStringLiteral("<a:bodyPr/>"));
+        QVERIFY(plain && !plain->shrinks && near(plain->fitScale, 1.0, 1e-6));
+    }
+
     void dmlTextTakesTheStylesFontReference()
     {
         DmlEnv env;

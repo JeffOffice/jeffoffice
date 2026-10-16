@@ -173,6 +173,10 @@ public:
     VAlign valign = VAlign::Middle;
     bool noWrap = false;        // the text isn't broken to the shape's width (see TextItem::noWrap)
     bool centerBlock = false;   // the block of text is centered in the shape (see TextItem::centerBlock)
+    // The text shrinks to fit the shape (a slide's, as a text box's does: TextItem::ShrinkOnOverflow), drawn at fitScale of its size with fitLineCut
+    // percent taken off its line spacing, as the presentation program stored them.
+    bool shrinks = false;
+    double fitScale = 1.0, fitLineCut = 0;
 
     // Artwork (shape "art": an icon, or an SVG picture turned into shapes)
     // scales like a picture: its line weight grows and shrinks with it, and
