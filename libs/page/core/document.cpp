@@ -1230,13 +1230,13 @@ Document::Loc Document::findScan(const QString &itemId, ItemSpot *spot) const
     for (int p = 0; p < pages.size(); ++p)
         if (scan(pages[p]->items, nullptr)) {
             out.page = p;
-            if (spot) spot->page = p;
+            if (spot) { spot->page = p; spot->owner = pages[p]; }
             return out;
         }
     for (int m = 0; m < masters.size(); ++m)
         if (scan(masters[m]->items, nullptr)) {
             out.masterId = masters[m]->id;
-            if (spot) spot->master = m;
+            if (spot) { spot->master = m; spot->owner = masters[m]; }
             return out;
         }
     if (scan(const_cast<ItemList &>(scratch), nullptr)) {
@@ -1255,20 +1255,24 @@ bool Document::spotHolds(const QString &itemId, const ItemSpot &spot, Loc *out, 
     if (!item || item->id != itemId) return false;
     ItemList *list = nullptr;
     GroupItem *group = nullptr;
-    if (const ItemPtr up = spot.parent.lock()) {
-        if (depth > 256 || up->type() != ItemType::Group) return false;
-        const auto above = m_itemSpots.constFind(up->id);
-        if (above == m_itemSpots.constEnd() || above->item.lock() != up || !spotHolds(up->id, *above, nullptr, depth + 1)) return false;
-        group = static_cast<GroupItem *>(up.get());
+    Loc up;   // where the group is: an item in one is where it is
+    if (const ItemPtr gp = spot.parent.lock()) {
+        if (depth > 256 || gp->type() != ItemType::Group) return false;
+        const auto above = m_itemSpots.constFind(gp->id);
+        if (above == m_itemSpots.constEnd() || above->item.lock() != gp || !spotHolds(gp->id, *above, &up, depth + 1)) return false;
+        group = static_cast<GroupItem *>(gp.get());
         list = &group->children;
     } else if (spot.page >= 0) {
         if (spot.page >= pages.size()) return false;
         list = &pages[spot.page]->items;
+        up.page = spot.page;
     } else if (spot.master >= 0) {
         if (spot.master >= masters.size()) return false;
         list = &masters[spot.master]->items;
+        up.masterId = masters[spot.master]->id;
     } else if (spot.scratch) {
         list = const_cast<ItemList *>(&scratch);
+        up.scratch = true;
     } else {
         return false;
     }
@@ -1278,33 +1282,80 @@ bool Document::spotHolds(const QString &itemId, const ItemSpot &spot, Loc *out, 
         out->list = list;
         out->index = spot.index;
         out->parent = group;
-        out->page = spot.page;
-        out->masterId = spot.master >= 0 ? masters[spot.master]->id : QString();
-        out->scratch = spot.scratch;
+        out->page = up.page;
+        out->masterId = up.masterId;
+        out->scratch = up.scratch;
     }
     return true;
+}
+
+bool Document::respot(const QString &itemId, ItemSpot *spot, Loc *out, int depth) const
+{
+    const ItemPtr item = spot->item.lock();
+    if (!item || item->id != itemId) return false;
+    ItemList *list = nullptr;
+    if (const ItemPtr gp = spot->parent.lock()) {
+        if (depth > 256 || gp->type() != ItemType::Group) return false;
+        const auto above = m_itemSpots.find(gp->id);
+        Loc up;
+        if (above == m_itemSpots.end() || above->item.lock() != gp) return false;
+        if (!spotHolds(gp->id, *above, &up, depth + 1) && !respot(gp->id, &*above, &up, depth + 1)) return false;
+        list = &static_cast<GroupItem *>(gp.get())->children;
+    } else if (const auto owner = spot->owner.lock()) {
+        // The page or master is where it was, or has moved among the others.
+        if (spot->page >= 0) {
+            int p = spot->page < pages.size() && pages[spot->page].get() == owner.get() ? spot->page : -1;
+            for (int i = 0; p < 0 && i < pages.size(); ++i)
+                if (pages[i].get() == owner.get()) p = i;
+            if (p < 0) return false;
+            spot->page = p;
+            list = &pages[p]->items;
+        } else if (spot->master >= 0) {
+            int m = spot->master < masters.size() && masters[spot->master].get() == owner.get() ? spot->master : -1;
+            for (int i = 0; m < 0 && i < masters.size(); ++i)
+                if (masters[i].get() == owner.get()) m = i;
+            if (m < 0) return false;
+            spot->master = m;
+            list = &masters[m]->items;
+        } else {
+            return false;
+        }
+    } else if (spot->scratch) {
+        list = const_cast<ItemList *>(&scratch);
+    } else {
+        return false;
+    }
+    for (int i = 0; i < int(list->size()); ++i)
+        if ((*list)[i] == item) {
+            spot->index = i;
+            return spotHolds(itemId, *spot, out, 0);
+        }
+    return false;
 }
 
 // Notes where every item is (of two with one id, the one looking through everything finds first).
 void Document::indexItems() const
 {
+    ++m_indexings;
     m_itemSpots.clear();
-    std::function<void(ItemList &, const ItemPtr &, int, int, bool)> walk = [&](ItemList &l, const ItemPtr &parent, int page, int master, bool inScratch) {
-        for (int i = 0; i < int(l.size()); ++i) {
-            ItemSpot spot;
-            spot.item = l[i];
-            spot.parent = parent;
-            spot.page = page;
-            spot.master = master;
-            spot.scratch = inScratch;
-            spot.index = i;
-            if (!m_itemSpots.contains(l[i]->id)) m_itemSpots.insert(l[i]->id, spot);
-            if (l[i]->type() == ItemType::Group) walk(static_cast<GroupItem *>(l[i].get())->children, l[i], page, master, inScratch);
-        }
-    };
-    for (int p = 0; p < pages.size(); ++p) walk(pages[p]->items, nullptr, p, -1, false);
-    for (int m = 0; m < masters.size(); ++m) walk(masters[m]->items, nullptr, -1, m, false);
-    walk(const_cast<ItemList &>(scratch), nullptr, -1, -1, true);
+    std::function<void(ItemList &, const ItemPtr &, const std::shared_ptr<PageBase> &, int, int, bool)> walk =
+        [&](ItemList &l, const ItemPtr &parent, const std::shared_ptr<PageBase> &owner, int page, int master, bool inScratch) {
+            for (int i = 0; i < int(l.size()); ++i) {
+                ItemSpot spot;
+                spot.item = l[i];
+                spot.parent = parent;
+                spot.owner = owner;
+                spot.page = page;
+                spot.master = master;
+                spot.scratch = inScratch;
+                spot.index = i;
+                if (!m_itemSpots.contains(l[i]->id)) m_itemSpots.insert(l[i]->id, spot);
+                if (l[i]->type() == ItemType::Group) walk(static_cast<GroupItem *>(l[i].get())->children, l[i], owner, page, master, inScratch);
+            }
+        };
+    for (int p = 0; p < pages.size(); ++p) walk(pages[p]->items, nullptr, pages[p], p, -1, false);
+    for (int m = 0; m < masters.size(); ++m) walk(masters[m]->items, nullptr, masters[m], -1, m, false);
+    walk(const_cast<ItemList &>(scratch), nullptr, nullptr, -1, -1, true);
     m_spotsMade = m_itemSpots.size();
 }
 
@@ -1312,16 +1363,22 @@ Document::Loc Document::find(const QString &itemId) const
 {
     QMutexLocker lock(&m_spotsLock);
     Loc out;
-    const auto at = m_itemSpots.constFind(itemId);
-    const bool seen = at != m_itemSpots.constEnd();
-    if (seen && spotHolds(itemId, *at, &out, 0)) return out;
+    auto at = m_itemSpots.find(itemId);
+    const bool seen = at != m_itemSpots.end();
+    if (seen && (spotHolds(itemId, *at, &out, 0) || respot(itemId, &*at, &out, 0))) return out;
     ItemSpot spot;
     const Loc found = findScan(itemId, &spot);
     if (!found.item) return found;
-    // An item that had moved means others have, too; the first look at an item that isn't in a group is noted alone
-    // (unless the index has grown past twice what it was made for, with items gone), and any other makes the index again.
-    if (seen || m_itemSpots.isEmpty() || spot.parent.lock() || m_itemSpots.size() > 2 * m_spotsMade + 1024) indexItems();
-    else m_itemSpots.insert(itemId, spot);
+    // Noted where it is, alone: unless there is no index yet, it has grown past twice what it was made for (with items gone), or the item is in
+    // a group that isn't noted where it is.
+    bool alone = !m_itemSpots.isEmpty() && m_itemSpots.size() <= 2 * m_spotsMade + 1024;
+    if (alone)
+        if (const ItemPtr gp = spot.parent.lock()) {
+            const auto above = m_itemSpots.constFind(gp->id);
+            alone = above != m_itemSpots.constEnd() && above->item.lock() == gp && spotHolds(gp->id, *above, nullptr, 0);
+        }
+    if (alone) m_itemSpots.insert(itemId, spot);
+    else indexItems();
     return found;
 }
 
