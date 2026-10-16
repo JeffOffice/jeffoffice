@@ -972,6 +972,37 @@ private Q_SLOTS:
         QVERIFY(!documentXml(back->toDocx()).contains("w:br"));
     }
 
+    void aSectionThatEndsTheFileLeavesABlankLastPageThatIsDrawn()
+    {
+        // The only paragraph ends a next-page section and nothing follows: the second section has no text, so its page has no lines.
+        const QByteArray one = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocx("<w:p><w:pPr>" + one + "</w:pPr><w:r><w:t>the only words</w:t></w:r></w:p>", kStyles, QByteArray(), one));
+        doc->pager().complete();
+        QCOMPARE(doc->pager().pageCount(), 2);
+        PageView view;
+        view.resize(1000, 900);
+        view.setDocument(doc.get());
+        view.show();
+        view.setZoomMode(PageView::ZoomMode::ManyPages, 2, 1);
+        const QImage img = view.grab().toImage();
+        const QRect blank = view.pageRect(1);
+        QVERIFY(blank.width() > 100 && blank.right() < img.width());
+        int ink = 0, white = 0;
+        for (int y = blank.top() + 4; y < std::min(blank.bottom() - 4, img.height()); ++y)   // (inside the sheet, clear of its shadow)
+            for (int x = blank.left() + 4; x < blank.right() - 4; ++x) (img.pixelColor(x, y).lightness() > 250 ? white : ink) += 1;
+        QVERIFY2(ink == 0 && white > 0, "the last page is a blank sheet");
+        // The caret ends the text, on the first page, and the keys that cross pages leave it there.
+        QTextCursor c(doc->story());
+        c.movePosition(QTextCursor::End);
+        view.setCursor(c);
+        QCOMPARE(view.currentPage(), 0);
+        view.typeKey(Qt::Key_PageDown, Qt::NoModifier);
+        view.typeKey(Qt::Key_Down, Qt::NoModifier);
+        QVERIFY(view.cursor().position() <= doc->story()->characterCount() - 1);
+        // Saving keeps the two sections.
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:sectPr")), 2);
+    }
+
     void sectionsHaveTheirOwnPages()
     {
         auto doc = WriteDoc::blank();
