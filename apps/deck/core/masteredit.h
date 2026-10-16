@@ -33,7 +33,14 @@ void renameMasterPage(Document &d, const QString &id, const QString &name);
 // Preserve: a slide master or layout that stays in the file whether or not a slide stands on it. A page made or read as preserved is; a slide
 // master a change of theme made for some slides is not, until it is.
 bool isPreserved(const MasterPage &page);
-void setPreserved(MasterPage &page, bool on);
+// Whether the page stays when no slide stands on it: Preserve is on, and, for a slide master a change of theme made for some slides, it has been
+// kept (changed in Slide Master view, or given Preserve). That is what the Preserve box shows.
+bool isKept(const Document &d, const MasterPage &page);
+// Turning it on keeps the slide master it stands on.
+void setPreserved(Document &d, MasterPage &page, bool on);
+// Makes the slide master that the page is (or stands on) the user's own, as any change made to it in Slide Master view does.
+// It says whether that changed anything.
+bool keepMasterOf(Document &d, const QString &pageId);
 
 // A new placeholder of that kind on the layout, below the title: its text styles are the body's of the slide master. It has the next number
 // the layout's placeholders have. Returns it, or null if `layout` is no layout.
@@ -57,7 +64,8 @@ void setMasterParts(Document &d, MasterPage &master, const MasterParts &parts);
 
 // Carries what changed in the slide masters and layouts of `now` since `before` (the same presentation, earlier) to what stands on them,
 // in `now`: a slide master's change to its layouts, and a layout's change (with the slide master's) to its slides. Changes of anything but
-// the masters and layouts are not looked at. A master edited this way is kept (a change of theme won't take it away).
-void carryMasterEdits(Document &now, const Document &before);
+// the masters and layouts are not looked at. A master edited this way is kept (a change of theme won't take it away). It says whether it
+// changed anything.
+bool carryMasterEdits(Document &now, const Document &before);
 
 } // namespace jp::deck

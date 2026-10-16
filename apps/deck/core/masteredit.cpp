@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QSet>
 #include <QTextCursor>
@@ -175,14 +176,32 @@ void renameMasterPage(Document &d, const QString &id, const QString &name)
 
 bool isPreserved(const MasterPage &page) { return page.props.value(kPreserve).toBool(true); }
 
-void setPreserved(MasterPage &page, bool on)
+bool isKept(const Document &d, const MasterPage &page)
+{
+    if (!isPreserved(page)) return false;
+    const MasterPage *master = isLayout(page) ? d.master(page.baseId) : &page;
+    return !(master && isSlideMaster(*master) && isThemeMade(*master));
+}
+
+bool keepMasterOf(Document &d, const QString &id)
+{
+    const MasterPage *page = d.master(id);
+    if (page && isLayout(*page)) page = d.master(page->baseId);
+    if (!page || !isSlideMaster(*page)) return false;
+    MasterPage *master = d.master(page->id);
+    const QJsonObject was = master->props;
+    keepSlideMaster(*master);
+    return master->props != was;
+}
+
+void setPreserved(Document &d, MasterPage &page, bool on)
 {
     if (!on) {
         page.props[kPreserve] = false;
         return;
     }
     page.props.remove(kPreserve);
-    if (isSlideMaster(page)) keepSlideMaster(page);
+    keepMasterOf(d, page.id);
 }
 
 Item *insertPlaceholder(Document &d, MasterPage &layout, PlaceholderKind kind)
@@ -208,9 +227,12 @@ Item *insertPlaceholder(Document &d, MasterPage &layout, PlaceholderKind kind)
             c.removeSelectedText();
         }
     }
-    qint64 number = 0;
-    for (const auto &it : layout.items) number = std::max(number, numberOf(*it));
-    t->role = placeholderRole(type, int(number + 1));
+    // The smallest number from 1 that no place of the layout has (a file may number a place 4294967295).
+    QSet<qint64> used;
+    for (const auto &it : layout.items) used.insert(numberOf(*it));
+    qint64 number = 1;
+    while (used.contains(number)) ++number;
+    t->role = placeholderRole(type, number);
     const QString label = placeholderLabel(type);
     t->name = QCoreApplication::translate("Deck", "%1 Placeholder").arg(label.isEmpty() ? (kind == PlaceholderKind::Text ? say("Text") : say("Content")) : label);
     t->prompt.clear();
@@ -268,6 +290,42 @@ MasterParts masterParts(const MasterPage &master)
     return p;
 }
 
+namespace {
+
+const QString kHeld = QStringLiteral("heldParts");
+
+// A place taken off the slide master is kept in its properties (its object and its text), so that it comes back as it was.
+void holdPart(Document &d, MasterPage &master, const QString &type)
+{
+    const Item *it = placeholderOn(master, [&](const QString &t) { return t == type; });
+    if (!it) return;
+    QJsonObject kept = master.props.value(kHeld).toObject();
+    QJsonObject entry{{"item", it->toJson()}};
+    if (const QTextDocument *sd = d.storyDoc(static_cast<const TextItem *>(it)->storyId)) entry.insert(QStringLiteral("story"), storyToJson(sd));
+    kept.insert(type, entry);
+    master.props[kHeld] = kept;
+}
+
+// The place as it was held (a new object with a story of its own), else null.
+ItemPtr heldPart(Document &d, MasterPage &master, const QString &type)
+{
+    QJsonObject kept = master.props.value(kHeld).toObject();
+    const QJsonObject entry = kept.value(type).toObject();
+    if (entry.isEmpty()) return nullptr;
+    kept.remove(type);
+    if (kept.isEmpty()) master.props.remove(kHeld);
+    else master.props[kHeld] = kept;
+    ItemPtr made = Item::fromJsonAny(entry.value(QStringLiteral("item")).toObject());
+    if (!made || made->type() != ItemType::Text) return nullptr;
+    made = made->clone();   // with an id of its own
+    auto *t = static_cast<TextItem *>(made.get());
+    t->storyId = d.createStory();
+    if (QTextDocument *sd = d.storyDoc(t->storyId)) storyFromJson(sd, entry.value(QStringLiteral("story")).toObject());
+    return made;
+}
+
+} // namespace
+
 void setMasterParts(Document &d, MasterPage &master, const MasterParts &parts)
 {
     if (!isSlideMaster(master)) return;
@@ -277,8 +335,12 @@ void setMasterParts(Document &d, MasterPage &master, const MasterParts &parts)
         const bool has = placeholderOn(master, [&](const QString &t) { return t == type; }) != nullptr;
         if (has == part.wanted) continue;
         if (!part.wanted) {
+            holdPart(d, master, type);
             removePlaceholders(d, master, [&](const QString &t) { return t == type; });
-        } else if (ItemPtr made = standardPlaceholder(d, type)) {
+        } else {
+            ItemPtr made = heldPart(d, master, type);
+            if (!made) made = standardPlaceholder(d, type);
+            if (!made) continue;
             if (type == QLatin1String("title")) master.items.insert(master.items.begin(), made);
             else master.items.push_back(made);
         }
@@ -289,19 +351,71 @@ void setMasterParts(Document &d, MasterPage &master, const MasterParts &parts)
 
 namespace {
 
-// What a page looks like, as bytes that are equal when it looks the same: its background, whether the pages under it show, its objects,
-// and their text.
+QByteArray compact(const QJsonObject &o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); }
+
+// The stories of an object.
+QStringList storiesOf(const Item &it)
+{
+    QStringList stories;
+    if (it.type() == ItemType::Text) stories << static_cast<const TextItem &>(it).storyId;
+    else if (it.type() == ItemType::Shape) stories << static_cast<const ShapeItem &>(it).storyId;
+    return stories;
+}
+
+// A story as JSON without the numbers Qt gives the lists in it (each list object has one, which differs between a text and its copy read
+// from JSON), so that the same text compares equal.
+QJsonObject storyLook(const QTextDocument *story)
+{
+    const QString key = QString::number(int(QTextFormat::ObjectIndex));
+    QJsonObject o = storyToJson(story);
+    QJsonArray blocks = o.value(QStringLiteral("blocks")).toArray();
+    for (int i = 0; i < blocks.size(); ++i) {
+        QJsonObject b = blocks[i].toObject();
+        QJsonObject f = b.value(QStringLiteral("f")).toObject();
+        if (f.contains(key)) {
+            f.remove(key);
+            b.insert(QStringLiteral("f"), f);
+            blocks[i] = b;
+        }
+    }
+    o.insert(QStringLiteral("blocks"), blocks);
+    QJsonArray lists = o.value(QStringLiteral("lists")).toArray();
+    for (int i = 0; i < lists.size(); ++i) {
+        QJsonObject f = lists[i].toObject();
+        if (f.contains(key)) {
+            f.remove(key);
+            lists[i] = f;
+        }
+    }
+    if (!lists.isEmpty()) o.insert(QStringLiteral("lists"), lists);
+    return o;
+}
+
+// What an object looks like, as bytes that are equal when it looks the same: its own properties (not which story it has), and its text.
+QByteArray lookOfItem(const Document &d, const Item &it)
+{
+    QJsonObject o = it.toJson();
+    o.remove(QStringLiteral("story"));
+    QByteArray out = compact(o);
+    for (const QString &id : storiesOf(it))
+        if (const QTextDocument *story = id.isEmpty() ? nullptr : d.storyDoc(id)) out += compact(storyLook(story));
+    return out;
+}
+
+// What a page looks like: its background, whether the pages under it show, and its objects.
 QByteArray lookOf(const Document &d, const MasterPage &page)
 {
-    QByteArray out = QJsonDocument(page.background.toJson()).toJson(QJsonDocument::Compact) + (page.showMasterItems ? "m1" : "m0");
-    walkItems(page.items, [&](const ItemPtr &it) {
-        out += QJsonDocument(it->toJson()).toJson(QJsonDocument::Compact);
-        QStringList stories;
-        if (it->type() == ItemType::Text) stories << static_cast<const TextItem &>(*it).storyId;
-        else if (it->type() == ItemType::Shape) stories << static_cast<const ShapeItem &>(*it).storyId;
-        for (const QString &id : stories)
-            if (const QTextDocument *story = id.isEmpty() ? nullptr : d.storyDoc(id)) out += QJsonDocument(storyToJson(story)).toJson(QJsonDocument::Compact);
-    });
+    QByteArray out = compact(page.background.toJson()) + (page.showMasterItems ? "m1" : "m0");
+    walkItems(page.items, [&](const ItemPtr &it) { out += lookOfItem(d, *it); });
+    return out;
+}
+
+// What the placeholders of a page look like (the places a slide takes its look from).
+QByteArray holdersOf(const Document &d, const MasterPage &page)
+{
+    QByteArray out;
+    for (const auto &it : page.items)
+        if (it->type() == ItemType::Text && !placeholderType(*it).isEmpty()) out += it->id.toUtf8() + lookOfItem(d, *it);
     return out;
 }
 
@@ -310,14 +424,10 @@ bool near(const QRectF &a, const QRectF &b)
     return std::abs(a.x() - b.x()) < 0.01 && std::abs(a.y() - b.y()) < 0.01 && std::abs(a.width() - b.width()) < 0.01 && std::abs(a.height() - b.height()) < 0.01;
 }
 
-// The placeholder of a page that a slide's (or layout's) `role` stands for: the same role, else the first of its type.
-const Item *placeFor(const PageBase &page, const Item &holder)
+const Item *itemWithId(const PageBase &page, const QString &id)
 {
-    const QString type = placeholderType(holder);
     for (const auto &it : page.items)
-        if (it->type() == ItemType::Text && it->role == holder.role) return it.get();
-    for (const auto &it : page.items)
-        if (it->type() == ItemType::Text && placeholderType(*it) == type) return it.get();
+        if (it->id == id) return it.get();
     return nullptr;
 }
 
@@ -350,18 +460,16 @@ void follow(Document &d, TextItem &t, const Item &from, const Item &to)
 
 } // namespace
 
-void carryMasterEdits(Document &now, const Document &before)
+bool carryMasterEdits(Document &now, const Document &before)
 {
     // The pages edited: those of the same id whose look differs.
     QSet<QString> edited;
     for (const auto &m : now.masters)
         if (const MasterPage *was = before.master(m->id); was && lookOf(now, *m) != lookOf(before, *was)) edited.insert(m->id);
-    if (edited.isEmpty()) return;
-    for (const auto &m : now.masters) {
-        if (!edited.contains(m->id)) continue;
-        if (isSlideMaster(*m)) keepSlideMaster(*m);
-        else if (MasterPage *base = now.master(m->baseId); base && isSlideMaster(*base)) keepSlideMaster(*base);
-    }
+    if (edited.isEmpty()) return false;
+    bool changed = false;
+    for (const auto &m : now.masters)
+        if (edited.contains(m->id)) changed = keepMasterOf(now, m->id) || changed;
 
     // What the old placeholder looked like, as a placeholder of `now` (its text copied into a story of its own, taken away at the end).
     QStringList borrowed;
@@ -379,39 +487,47 @@ void carryMasterEdits(Document &now, const Document &before)
         lent.insert(&old, copy);
         return copy;
     };
+    // Only a placeholder that changed is followed: setting text that did not change would set it again (its lists regroup).
+    auto differs = [&](const Item &to, const Item &from) { return lookOfItem(now, to) != lookOfItem(before, from); };
 
     // A slide master's change reaches its layouts' placeholders.
     for (const auto &m : now.masters) {
         const MasterPage *was = isSlideMaster(*m) && edited.contains(m->id) ? before.master(m->id) : nullptr;
-        if (!was) continue;
+        if (!was || holdersOf(now, *m) == holdersOf(before, *was)) continue;
         for (const auto &l : now.masters) {
             if (!isLayout(*l) || l->baseId != m->id) continue;
             for (const auto &p : l->items) {
                 if (p->type() != ItemType::Text || placeholderType(*p).isEmpty()) continue;
                 const Item *to = masterPlaceFor(*m, *p), *from = masterPlaceFor(*was, *p);
-                if (!to || !from) continue;
+                if (!to || !from || !differs(*to, *from)) continue;
                 const ItemPtr old = lend(*from);
                 follow(now, static_cast<TextItem &>(*p), *old, *to);
+                changed = true;
             }
         }
     }
 
-    // A layout's change (or its slide master's, as the layout now has it) reaches the slides that stand on it.
+    // A layout's change (or its slide master's, as the layout now has it) reaches the slides that stand on it: those whose placeholders it
+    // changed, each placeholder in the place the layout has for it (a "text" place stands over a "content" place).
     for (const auto &l : now.masters) {
         const MasterPage *was = before.master(l->id);
-        if (!was || (!isLayout(*l) && !isSlideMaster(*l)) || lookOf(now, *l) == lookOf(before, *was)) continue;
+        if (!was || (!isLayout(*l) && !isSlideMaster(*l)) || holdersOf(now, *l) == holdersOf(before, *was)) continue;
         for (const auto &slide : now.pages) {
             if (slide->masterId != l->id) continue;
+            QSet<const Item *> taken;
             for (const auto &p : slide->items) {
                 if (p->type() != ItemType::Text || placeholderType(*p).isEmpty()) continue;
-                const Item *to = placeFor(*l, *p), *from = placeFor(*was, *p);
-                if (!to || !from) continue;
+                const Item *to = matchPlaceholder(*l, *p, taken);
+                const Item *from = to ? itemWithId(*was, to->id) : nullptr;
+                if (!to || !from || !differs(*to, *from)) continue;
                 const ItemPtr old = lend(*from);
                 follow(now, static_cast<TextItem &>(*p), *old, *to);
+                changed = true;
             }
         }
     }
     for (const QString &id : borrowed) now.removeStory(id);
+    return changed;
 }
 
 } // namespace jp::deck
