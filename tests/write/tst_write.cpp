@@ -200,6 +200,50 @@ QByteArray richDocx()
     return w.finish();
 }
 
+
+// A document with headers and footers: `parts` are word/header1.xml and the like (by their part name), each related to the document by the Id
+// its name gives ("rId" and the file's name without its extension), as `sect` (a section's properties, with the references) names them.
+QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, const QMap<QString, QByteArray> &parts, const QByteArray &settings = QByteArray())
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + sect + "</w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), xml(QByteArray("<w:styles ") + kNs + ">" + kStyles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    if (!settings.isEmpty()) {
+        w.addPart(QStringLiteral("/word/settings.xml"), xml(QByteArray("<w:settings ") + kNs + ">" + settings + "</w:settings>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+    }
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+        const QString id = QStringLiteral("rId") + QFileInfo(it.key()).completeBaseName();
+        const QString kind = it.key().contains(QLatin1String("footnotes")) ? QStringLiteral("footnotes") : it.key().contains(QLatin1String("fontTable")) ? QStringLiteral("fontTable")
+                             : it.key().contains(QLatin1String("footer")) ? QStringLiteral("footer") : QStringLiteral("header");
+        w.addPart(it.key(), xml(it.value()), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.") + kind + "+xml");
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), id, rel + kind, it.key());
+    }
+    return w.finish();
+}
+
+// A header or footer part of the paragraphs given (each the XML of a paragraph's contents).
+QByteArray headerPart(const QByteArray &root, const QList<QByteArray> &paragraphs)
+{
+    QByteArray out = "<w:" + root + " " + kNs + ">";
+    for (const QByteArray &p : paragraphs) out += "<w:p>" + p + "</w:p>";
+    return out + "</w:" + root + ">";
+}
+
+// A text box of a materialized page by what its story says, for the header's and the footer's.
+const TextItem *boxWithText(const flow::MaterializedPage &page, const QString &text)
+{
+    for (const auto &item : page.doc->pages[0]->items)
+        if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+            if (const Story *s = page.doc->story(t->storyId))
+                if (s->doc->toPlainText().contains(text)) return t;
+    return nullptr;
+}
+
 } // namespace
 
 class WriteTests : public QObject {
@@ -482,6 +526,28 @@ private Q_SLOTS:
         QVERIFY(view.pageCount() > 100);
         // The page count grew as pages were laid out, and the scroll range with it.
         QVERIFY(view.verticalScrollBar()->maximum() > 100 * 700);
+    }
+
+    // A page in the view that shows the number of pages is made again when that number changes: the first page, drawn while the rest is laid out, doesn't
+    // keep saying there are a few.
+    void aPageShowingTheTotalIsMadeAgainWhenTheTotalChanges()
+    {
+        const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray footer = headerPart("ftr", {"<w:r><w:t xml:space=\"preserve\">of </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> NUMPAGES </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"});
+        auto doc = open(makeDocxWithParts(paragraphs(2000), sect, {{QStringLiteral("/word/footer1.xml"), footer}}));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.grab();   // (the first page is made when only a few pages are known)
+        QVERIFY(!view.pagesComplete());
+        const int early = view.shownTotal(0);
+        QVERIFY2(early > 0 && early < 100, qPrintable(QString::number(early)));
+        QTRY_VERIFY_WITH_TIMEOUT(view.pagesComplete(), 60000);
+        QVERIFY(view.pageCount() > 100);
+        const int now = view.shownTotal(0);
+        QVERIFY2(now < 0 || now == view.pageCount(), qPrintable(QStringLiteral("page 1 says %1 pages of %2").arg(now).arg(view.pageCount())));
     }
 
     void onlyThePagesInViewAreMade()
@@ -1331,6 +1397,379 @@ private Q_SLOTS:
         toggleUnderline(*doc, c);
         QVERIFY(!documentXml(doc->toDocx()).contains("themeColor"));
         QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), documentXml(doc->toDocx()));
+    }
+
+    // A file's headers and footers are drawn on its pages: the first-page, even-page, and ordinary ones by the section's titlePg and the file's
+    // evenAndOddHeaders, the page's number and the page counts live; and saving keeps their parts as they were.
+    void aFilesHeadersAndFootersAreDrawnAndKept()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:headerReference w:type=\"first\" r:id=\"rIdheader2\"/>"
+                                "<w:headerReference w:type=\"even\" r:id=\"rIdheader3\"/><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/>"
+                                "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"500\" w:footer=\"600\" w:gutter=\"0\"/>"
+                                "<w:pgNumType w:start=\"4\"/><w:titlePg/></w:sectPr>";
+        const QByteArray footer = headerPart("ftr", {"<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> PAGE \\* ROMAN </w:instrText></w:r>"
+                                                       "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>IV</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r><w:r><w:t xml:space=\"preserve\"> of </w:t></w:r>"
+                                                       "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>1</w:t></w:r></w:fldSimple><w:r><w:t xml:space=\"preserve\"> or </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>"
+                                                       "<w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>4</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"});
+        const QMap<QString, QByteArray> parts{
+            {QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>ORDINARY HEADER</w:t></w:r>"})},
+            {QStringLiteral("/word/header2.xml"), headerPart("hdr", {"<w:r><w:t>FIRST HEADER</w:t></w:r>"})},
+            {QStringLiteral("/word/header3.xml"), headerPart("hdr", {"<w:r><w:t>EVEN HEADER</w:t></w:r>"})},
+            {QStringLiteral("/word/footer1.xml"), footer}};
+        const QByteArray zip = makeDocxWithParts(paragraphs(60, 40), sect, parts, "<w:evenAndOddHeaders/>");
+        auto doc = open(zip);
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY(pages >= 4);
+        // (The numbers go 4, 5, 6, 7: the first page is the section's, the sixth is the even one.)
+        const QStringList want{QStringLiteral("FIRST HEADER"), QStringLiteral("ORDINARY HEADER"), QStringLiteral("EVEN HEADER"), QStringLiteral("ORDINARY HEADER")};
+        for (int k = 0; k < 4; ++k) {
+            const auto page = doc->pager().materialize(k);
+            QVERIFY(page);
+            QCOMPARE(page->number, 4 + k);
+            const TextItem *h = boxWithText(*page, want[k]);
+            QVERIFY2(h, qPrintable(QStringLiteral("page %1 has no header %2").arg(k).arg(want[k])));
+            QVERIFY(std::abs(h->rect.top() - 25) < 0.01);   // the header distance, 500 twentieths of a point
+            // (The footer is the odd pages' only: the first page and the even pages have none.)
+            const TextItem *f = boxWithText(*page, QStringLiteral("Page "));
+            if (k != 1 && k != 3) {
+                QVERIFY(!f);
+                continue;
+            }
+            QVERIFY(f);
+            QVERIFY(std::abs(f->rect.bottom() - (792 - 30)) < 0.02);   // the footer distance
+            // The page's number and the count of the pages are fields the page's document answers.
+            const QString shown = page->doc->story(f->storyId)->doc->toPlainText();
+            QCOMPARE(int(shown.count(QChar::ObjectReplacementCharacter)), 3);
+            FieldContext ctx;
+            ctx.doc = page->doc.get();
+            QCOMPARE(ctx.resolve(QStringLiteral("page:ROMAN")), QStringLiteral("IV|V|VI|VII").split(QLatin1Char('|'))[k]);
+            QCOMPARE(ctx.resolve(QStringLiteral("page")), QString::number(4 + k));
+            QCOMPARE(ctx.resolve(QStringLiteral("pages")), QString::number(pages));
+        }
+        // The parts and the references are kept as they were.
+        const QByteArray saved = doc->toDocx();
+        office::Package before, after;
+        before.read(zip);
+        after.read(saved);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) QCOMPARE(after.part(it.key()), before.part(it.key()));
+        const QByteArray x = documentXml(saved);
+        QCOMPARE(int(x.count("headerReference")), 3);
+        QCOMPARE(int(x.count("footerReference")), 1);
+    }
+
+    // A section that names no header or footer has the section before's; one that names its own has it.
+    void sectionsTakeTheHeadersOfTheSectionBefore()
+    {
+        const QByteArray one = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray two = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray three = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader2\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray body = "<w:p><w:pPr>" + one + "</w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr>" + two + "</w:pPr><w:r><w:t>two</w:t></w:r></w:p><w:p><w:r><w:t>three</w:t></w:r></w:p>";
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>FIRST HEADER</w:t></w:r>"})},
+                                              {QStringLiteral("/word/header2.xml"), headerPart("hdr", {"<w:r><w:t>THIRD HEADER</w:t></w:r>"})}};
+        auto doc = open(makeDocxWithParts(body, three, parts));
+        QVERIFY(doc);
+        QCOMPARE(doc->pager().pageCount(), 3);
+        const QStringList want{QStringLiteral("FIRST HEADER"), QStringLiteral("FIRST HEADER"), QStringLiteral("THIRD HEADER")};
+        for (int k = 0; k < 3; ++k) {
+            const auto page = doc->pager().materialize(k);
+            QVERIFY2(page && boxWithText(*page, want[k]), qPrintable(QString::number(k)));
+        }
+    }
+
+    // The file's font table says what a font it names is set in where the machine lacks it: its alternate, or by its kind a serif face or a fixed-width one.
+    void theFontTableGivesTheStandIns()
+    {
+        const QByteArray table = "<w:fonts " + QByteArray(kNs) + "><w:font w:name=\"Palatino\"><w:altName w:val=\"Book Antiqua\"/><w:family w:val=\"roman\"/></w:font>"
+                                 "<w:font w:name=\"Old Serif\"><w:family w:val=\"roman\"/></w:font><w:font w:name=\"Typewriter\"><w:family w:val=\"modern\"/></w:font>"
+                                 "<w:font w:name=\"Sans\"><w:family w:val=\"swiss\"/></w:font></w:fonts>";
+        auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}}));
+        QVERIFY(doc);
+        const auto &standIns = doc->flow().env.standIns;
+        QCOMPARE(standIns.value(QStringLiteral("palatino")), QStringLiteral("Book Antiqua"));
+        QCOMPARE(standIns.value(QStringLiteral("old serif")), QStringLiteral("Times New Roman"));
+        QCOMPARE(standIns.value(QStringLiteral("typewriter")), QStringLiteral("Courier New"));
+        QVERIFY(!standIns.contains(QStringLiteral("sans")));
+    }
+
+    // A font table of thousands of fonts that say nothing is read in step with its size.
+    void aLongFontTableCostsInStepWithItsSize()
+    {
+        auto seconds = [&](int count) {
+            QByteArray table = "<w:fonts " + QByteArray(kNs) + ">";
+            for (int i = 0; i < count; ++i) table += "<w:font w:name=\"F" + QByteArray::number(i) + "\"/>";
+            table += "</w:fonts>";
+            const QByteArray zip = makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}});
+            double best = 1e9;
+            for (int k = 0; k < 2; ++k) {
+                QElapsedTimer t;
+                t.start();
+                auto doc = open(zip);
+                best = std::min(best, t.nsecsElapsed() / 1e9);
+            }
+            return best;
+        };
+        const double small = seconds(5000), large = seconds(20000);
+        QVERIFY2(large < 0.2 + small * 8, qPrintable(QStringLiteral("5000 fonts %1 s, 20000 fonts %2 s").arg(small).arg(large)));
+    }
+
+    // The notes' numbers restart in each section when the settings say so of the footnotes (not of the endnotes).
+    void footnoteNumbersRestartWhenTheSettingsSaySo()
+    {
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>Note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto restarts = [&](const QByteArray &settings) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}, settings));
+            return doc && doc->flow().restartNotesInSections;
+        };
+        QVERIFY(restarts("<w:footnotePr><w:numRestart w:val=\"eachSect\"/></w:footnotePr>"));
+        QVERIFY(!restarts("<w:footnotePr><w:numRestart w:val=\"continuous\"/></w:footnotePr>"));
+        QVERIFY(!restarts("<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr><w:endnotePr><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"));
+        QVERIFY(!restarts(QByteArray()));
+    }
+
+    // A section's page number format, as the file names it and as the pages count with it, each way: dashes too.
+    void pageNumberFormatsMapBothWays()
+    {
+        const QPair<QString, QString> pairs[] = {{"lowerRoman", "roman"}, {"upperRoman", "ROMAN"}, {"lowerLetter", "alpha"}, {"upperLetter", "ALPHA"}, {"numberInDash", "dash"}, {"decimal", ""}};
+        for (const auto &pair : pairs) {
+            office::wml::SectionProps props;
+            props.pageFormat = pair.first;
+            flow::Section section = flowSectionOf(props, false);
+            QCOMPARE(section.pageNumberFormat, pair.second);
+            // (Back: a section changed to the format has the file's name for it.)
+            office::wml::SectionProps blank;
+            section.pageNumberFormat = pair.second;
+            flow::Section plain = flowSectionOf(blank, false);
+            if (pair.second != plain.pageNumberFormat) {
+                updateSectionProps(&blank, section);
+                QCOMPARE(blank.pageFormat, pair.first == QLatin1String("decimal") ? QString() : pair.first);
+            }
+        }
+        // The pages show it: the page's own number is in dashes.
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgNumType w:fmt=\"numberInDash\" w:start=\"7\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(paragraphs(1, 5), sect, {}));
+        QVERIFY(doc);
+        QCOMPARE(doc->flow().sections[0].pageNumberFormat, QStringLiteral("dash"));
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        FieldContext ctx;
+        ctx.doc = page->doc.get();
+        ctx.pageNumber = 1;
+        QCOMPARE(ctx.resolve(QStringLiteral("page")), QStringLiteral("- 7 -"));
+        QVERIFY(documentXml(doc->toDocx()).contains("numberInDash"));
+    }
+
+    // The option that no punctuation hangs past the margin is read by its value: stated off, it is off.
+    void noHangingPunctuationIsReadByItsValue()
+    {
+        auto hangs = [&](const QByteArray &option) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
+            return doc && !doc->flow().env.wordNoHang;
+        };
+        QVERIFY(!hangs("<w:doNotWrapTextWithPunct/>"));
+        QVERIFY(!hangs("<w:doNotWrapTextWithPunct w:val=\"1\"/>"));
+        QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"0\"/>"));
+        QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"false\"/>"));
+        QVERIFY(hangs(""));
+    }
+
+    // Spacing a person sets on paragraphs that have automatic spacing is the spacing they have: the automatic gap goes, on the page and in the file.
+    void spacingSetOnAutomaticSpacingReplacesIt()
+    {
+        auto para = [](const char *text) { return QByteArray("<w:p><w:pPr><w:spacing w:beforeAutospacing=\"1\" w:afterAutospacing=\"1\"/></w:pPr><w:r><w:t>") + text + "</w:t></w:r></w:p>"; };
+        // (A file whose styles give spacing of their own, so that none set on a paragraph is written.)
+        const QByteArray styles = "<w:docDefaults><w:pPrDefault><w:pPr><w:spacing w:before=\"100\" w:after=\"200\"/></w:pPr></w:pPrDefault></w:docDefaults>"
+                                  "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>";
+        auto doc = open(makeDocx(para("one") + para("two") + para("three"), styles));
+        QVERIFY(doc);
+        auto pitch = [&] {
+            const auto lines = doc->pager().lines(0);
+            return lines.size() >= 2 ? lines[1].rect.top() - lines[0].rect.top() : -1.0;
+        };
+        const double automatic = pitch();
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        setSpacing(*doc, c, 0, 0);
+        const double none = pitch();
+        QVERIFY2(automatic - none > 10, qPrintable(QStringLiteral("automatic %1, set to none %2").arg(automatic).arg(none)));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(!x.contains("Autospacing"), x.constData());
+        QVERIFY2(x.contains("w:before=\"0\"") && x.contains("w:after=\"0\""), x.constData());
+        // (Spacing before alone, as the paragraph fields of the ribbon and the dialog set it, takes the automatic spacing before and keeps the one after.)
+        auto again = open(makeDocx(para("one") + para("two"), styles));
+        QTextCursor c2(again->story());
+        c2.select(QTextCursor::Document);
+        changeBlockFormat(*again, c2, [](QTextBlockFormat &bf) { setSpaceBefore(bf, 3); });
+        const QByteArray y = documentXml(again->toDocx());
+        QVERIFY2(!y.contains("beforeAutospacing") && y.contains("afterAutospacing=\"1\""), y.constData());
+        QVERIFY2(y.contains("w:before=\"60\""), y.constData());
+    }
+
+    // What a paste from another document brings that points into the first's notes and objects points at nothing of the second's: a reference to a note is
+    // left out (its text isn't there), and an object's place on the page isn't carried (the object isn't there); the rest of what was copied is.
+    void aPasteFromAnotherDocumentLeavesNoDanglingNoteOrObject()
+    {
+        const QByteArray ns = "xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        const QByteArray body = "<w:p " + ns + "><w:r><w:t xml:space=\"preserve\">Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:pict><v:rect id=\"r\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:50pt;height:20pt\" fillcolor=\"red\"/></w:pict></w:r><w:r><w:t> end.</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>The note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto source = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(source);
+        auto has = [](const QTextDocument *d, auto test) {
+            for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it)
+                    if (test(it.fragment().charFormat())) return true;
+            return false;
+        };
+        QVERIFY(has(source->story(), [](const QTextCharFormat &f) { return f.stringProperty(tp::Field).startsWith(QLatin1String("footnote:")); }));
+        QVERIFY(has(source->story(), [](const QTextCharFormat &f) { return f.hasProperty(flow::fp::AnchorId); }));
+        QTextCursor sel(source->story());
+        sel.select(QTextCursor::Document);
+        const Clip clip = copySelection(*source, sel);
+        auto target = open(makeDocx("<w:p><w:r><w:t>Target.</w:t></w:r></w:p>", kStyles));
+        QVERIFY(target);
+        QTextCursor t(target->story());
+        t.movePosition(QTextCursor::End);
+        pasteClip(*target, t, clip);
+        QVERIFY2(!has(target->story(), [](const QTextCharFormat &f) { return f.stringProperty(tp::Field).startsWith(QLatin1String("footnote:")); }), "a reference to a note of the other document");
+        QVERIFY2(!has(target->story(), [](const QTextCharFormat &f) { return f.hasProperty(flow::fp::AnchorId); }), "an object's place from the other document");
+        const QByteArray saved = target->toDocx();
+        office::Package p;
+        QVERIFY(p.read(saved));
+        const QByteArray x = p.part(p.mainPart());
+        QVERIFY2(!x.contains("footnoteReference"), x.constData());
+        QVERIFY(x.contains("Cited") && x.contains(" end."));
+        QVERIFY2(rt::danglingReferences(saved).isEmpty(), qPrintable(rt::danglingReferences(saved).join(QLatin1Char(' '))));
+    }
+
+    // A symbol of a font the machine lacks is set in a stand-in on the page only: what is saved of a file nobody touched has the run as it was.
+    void aSymbolOfAMissingFontIsSavedAsItWas()
+    {
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r><w:r><w:sym w:font=\"No Such Face Anywhere\" w:char=\"0047\"/></w:r><w:r><w:t xml:space=\"preserve\"> after</w:t></w:r></w:p>";
+        // (A file whose styles say what font the text is in, as files do.)
+        const QByteArray styles = "<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"24\"/></w:rPr></w:rPrDefault></w:docDefaults>"
+                                  "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>";
+        const QByteArray original = makeDocx(body, styles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        const QStringList loss = rt::lossProblems(original, saved);
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1String("; "))));
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        const QString main = QString::fromUtf8(pkg.part(pkg.mainPart()));
+        QVERIFY2(!main.contains(QLatin1String("rFonts")), qPrintable(main.mid(main.indexOf(QLatin1String("<w:body")), 600)));
+    }
+
+    // The round-trip check itself: a run that gains a property the file never had is a difference, though what it adds is one the program understands.
+    void theRoundTripCheckSeesAGainedRunProperty()
+    {
+        auto withRun = [&](const QByteArray &props) { return makeDocx("<w:p><w:r>" + props + "<w:t>text</w:t></w:r></w:p>"); };
+        const QByteArray plain = withRun(QByteArray()), gained = withRun("<w:rPr><w:rFonts w:ascii=\"Foo\"/></w:rPr>");
+        QVERIFY(rt::lossProblems(plain, plain).isEmpty());
+        QVERIFY(rt::lossProblems(gained, plain).isEmpty());   // (one left out is normalizing)
+        const QStringList added = rt::lossProblems(plain, gained);
+        QVERIFY2(!added.isEmpty() && added.first().contains(QLatin1String("gains run properties")), qPrintable(added.join(QLatin1String("; "))));
+    }
+
+    // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.
+    void anEmptyBreakParagraphBeforeAContinuousSectionTakesNoRoom()
+    {
+        auto linesWith = [&](const QByteArray &type) {
+            const QByteArray first = "<w:p><w:r><w:t>First</w:t></w:r></w:p><w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr></w:p>";
+            const QByteArray second = "<w:p><w:r><w:t>Second</w:t></w:r></w:p>";
+            const QByteArray last = "<w:sectPr>" + type + "<w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(first + second, last, {}));
+            return doc ? doc->pager().lines(0) : QVector<StoryLayout::LineBrief>();
+        };
+        const auto joined = linesWith("<w:type w:val=\"continuous\"/>");
+        QVERIFY(joined.size() >= 3);
+        // (The second paragraph is where it would be with no break paragraph between.)
+        const QByteArray plain = "<w:p><w:r><w:t>First</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r></w:p>";
+        auto alone = open(makeDocxWithParts(plain, "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>", {}));
+        QVERIFY(alone);
+        const auto direct = alone->pager().lines(0);
+        QVERIFY(direct.size() >= 2);
+        QVERIFY2(std::abs(joined[2].rect.top() - direct[1].rect.top()) < 0.01, qPrintable(QString::number(joined[2].rect.top() - direct[1].rect.top())));
+        // (Before a section on a page of its own the empty paragraph keeps its line: the section after starts on the next page.)
+        const auto apart = linesWith(QByteArray());
+        QCOMPARE(int(apart.size()), 2);
+    }
+
+    // A symbol of a font that isn't there is its character in the stand-in (Calibri): the line it is on is Calibri's, taller than Times New Roman's.
+    void aSymbolOfAMissingFontMakesItsLineTheStandIns()
+    {
+        auto run = [](const QByteArray &inner) { return "<w:r><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"24\"/></w:rPr>" + inner + "</w:r>"; };
+        auto para = [&](const QByteArray &inner) { return "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>" + run(inner) + "</w:p>"; };
+        const QByteArray body = para("<w:t>Plain words</w:t>") + para("<w:t>Words </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"24\"/></w:rPr><w:sym w:font=\"No Such Face Anywhere\" w:char=\"0047\"/>");
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() >= 2);
+        QVERIFY2(std::abs(lines[0].rect.height() - 12 * (1825 + 443 + 87) / 2048.0) < 0.02, qPrintable(QString::number(lines[0].rect.height())));
+        QVERIFY2(std::abs(lines[1].rect.height() - 12 * (1950 + 550) / 2048.0) < 0.02, qPrintable(QString::number(lines[1].rect.height())));
+    }
+
+    // A page number in a frame (set in the middle or at the side, anchored to the text) takes no room: a footer of it and an empty paragraph is
+    // one line tall, and the number is set as the frame says.
+    void aFrameParagraphInAFooterTakesNoRoom()
+    {
+        const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1080\" w:right=\"1440\" w:bottom=\"1080\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto footerWith = [](const QByteArray &frame) {
+            return headerPart("ftr", {"<w:pPr>" + frame + "</w:pPr><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>", QByteArray()});
+        };
+        auto bottomOf = [&](const QByteArray &frame) {
+            auto doc = open(makeDocxWithParts(paragraphs(60, 40), sect, {{QStringLiteral("/word/footer1.xml"), footerWith(frame)}}));
+            return std::make_pair(doc->pager().page(0).content.bottom(), doc->pager().materialize(0)->doc->pages[0]->items.size());
+        };
+        const auto framed = bottomOf("<w:framePr w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"center\" w:y=\"1\"/>");
+        const auto plain = bottomOf(QByteArray());
+        // As one line (the empty paragraph's), the footer leaves the text its bottom margin; as two it takes more.
+        QVERIFY2(std::abs(framed.first - (792 - 54)) < 0.01, qPrintable(QString::number(framed.first)));
+        QVERIFY2(plain.first < framed.first - 5, qPrintable(QString::number(plain.first)));
+    }
+
+    // A file's footnotes are at the foot of the pages that cite them: the note in a box at the bottom of the text area with a rule above it, its mark
+    // the note's number, and the reference in the text showing the same number; saving keeps the part and the reference as they were.
+    void aFilesFootnotesAreAtTheFootOfItsPages()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First paragraph with a note</w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:t xml:space=\"preserve\"> and more words after it.</w:t></w:r></w:p>" + paragraphs(40, 40);
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> FOOTNOTE TWO says something.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}});
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 2);
+        const auto page = doc->pager().materialize(0);
+        const TextItem *note = boxWithText(*page, QStringLiteral("FOOTNOTE TWO"));
+        QVERIFY(note);
+        const double bottom = 792 - 72;
+        QVERIFY2(std::abs(note->rect.bottom() - bottom) < 0.1, qPrintable(QString::number(note->rect.bottom())));
+        // The mark that begins the note and the reference in the text show the number.
+        auto showsOne = [&](const QString &text) {
+            const TextItem *box = boxWithText(*page, text);
+            if (!box) return false;
+            for (QTextBlock b = page->doc->story(box->storyId)->doc->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it)
+                    if (it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("raw:1")) return true;
+            return false;
+        };
+        QVERIFY(showsOne(QStringLiteral("FOOTNOTE TWO")));
+        QVERIFY(showsOne(QStringLiteral("First paragraph")));
+        bool rule = false;
+        for (const auto &item : page->doc->pages[0]->items) rule |= dynamic_cast<const LineItem *>(item.get()) != nullptr;
+        QVERIFY(rule);
+        // Kept as it was: the part, and the reference in the paragraph.
+        const QByteArray saved = doc->toDocx();
+        office::Package before, after;
+        before.read(zip);
+        after.read(saved);
+        QCOMPARE(after.part(QStringLiteral("/word/footnotes.xml")), before.part(QStringLiteral("/word/footnotes.xml")));
+        QCOMPARE(int(documentXml(saved).count("footnoteReference")), 1);
+        // A page without the reference has no note.
+        const auto next = doc->pager().materialize(1);
+        QVERIFY(!boxWithText(*next, QStringLiteral("FOOTNOTE TWO")));
     }
 
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty

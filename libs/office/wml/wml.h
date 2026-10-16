@@ -95,12 +95,36 @@ struct TabStop {
 
 struct SectionProps;
 
+// One side of a paragraph's borders (w:pBdr), as the paragraph or its style states it.
+struct Border {
+    QString val;                      // single, double, dashed, dotted, thick, nil or none (no border)...
+    int size = 0;                     // eighths of a point
+    int space = 0;                    // points between the border and the text
+    QString color;                    // "RRGGBB", or auto
+    bool operator==(const Border &o) const { return val == o.val && size == o.size && space == o.space && color == o.color; }
+    bool visible() const { return !val.isEmpty() && val != QLatin1String("nil") && val != QLatin1String("none") && size > 0; }
+};
+struct ParaBorders {
+    std::optional<Border> top, left, bottom, right, between;
+    bool operator==(const ParaBorders &o) const { return top == o.top && left == o.left && bottom == o.bottom && right == o.right && between == o.between; }
+};
+
+// A paragraph's shading (w:shd).
+struct Shading {
+    QString val;                      // clear, solid, pct10...
+    QString color, fill;              // "RRGGBB" or auto
+    bool operator==(const Shading &o) const { return val == o.val && color == o.color && fill == o.fill; }
+};
+
 struct ParaProps {
     QString style;                    // pStyle
     std::optional<bool> keepNext, keepLines, pageBreakBefore, widowControl, contextualSpacing;
     std::optional<int> numId, ilvl;   // numPr
     std::optional<QVector<TabStop>> tabs;
     std::optional<int> before, after; // twentieths of a point
+    // The space before or after is "automatic" (w:beforeAutospacing, w:afterAutospacing): the word processor's own for a paragraph that came from a web
+    // page, which is not what `before` and `after` say. Stated with them: a paragraph that gives its space overrides its style's automatic one.
+    std::optional<bool> beforeAuto, afterAuto;
     std::optional<int> line;          // 240ths of a line, or twentieths of a point (see lineRule)
     QString lineRule;                 // auto, exact, atLeast
     std::optional<int> indLeft, indRight;   // twentieths of a point
@@ -108,6 +132,10 @@ struct ParaProps {
     QString jc;                       // left, center, right, both, distribute... as written
     std::optional<int> outlineLvl;    // 0 to 8, 9 for body text
     QByteArray spacingAttrs, indAttrs;   // attributes of w:spacing and w:ind that aren't fields here, as written
+    // The borders and shading the paragraph states, read from w:pBdr and w:shd (which are kept as written in `extra` too, and are what is written): a
+    // side a style states and the paragraph doesn't is the style's.
+    std::optional<ParaBorders> borders;
+    std::optional<Shading> shading;
     std::optional<RunProps> markRun;  // the paragraph mark's own run properties
     std::shared_ptr<SectionProps> section;   // sectPr: this paragraph ends a section
     QVector<RawChild> extra;
@@ -397,6 +425,81 @@ struct ReadNotes {
     // link that could not be read. Written over the original, it would lose that.
     bool leftOut = false;
 };
+
+// The relationship Ids a section's headers and footers have, empty where it states none: index 0 is the ordinary (default) page's, 1 the first
+// page's (used when the section has titlePg), and 2 the even pages' (used when the document has evenAndOddHeaders). A section that names
+// none of a kind takes the section before's.
+struct HeaderRefs {
+    QString header[3], footer[3];
+    bool any() const;
+};
+HeaderRefs headerRefsOf(const SectionProps &section);
+
+// The paragraphs of a header, footer, or note part, and the elements kept as written (a table, a content control's ends), read as the body
+// is. False, with nothing read, when the part isn't XML.
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks);
+
+// A drawn object of a run: a picture, a rule, a box, or a text box, read from the VML of a w:pict (or an object) or the DrawingML of a w:drawing. Sizes are
+// points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.
+struct Shape {
+    enum Kind { Picture, Rect, Oval, Line, TextBox };
+    enum Rel { Margin, Page, Column, Paragraph, LineOf, Character };
+    enum Align { NoAlign, Start, Center, End };
+    enum Wrap { WrapNone, Square, Tight, TopBottom };
+    Kind kind = Rect;
+    bool floating = false;
+    double width = 0, height = 0;
+    double left = 0, top = 0;             // from the reference, when the object is not aligned
+    double x1 = 0, y1 = 0, x2 = 0, y2 = 0;   // a line's ends from the anchor
+    Rel hRel = Column, vRel = Paragraph;
+    Align hAlign = NoAlign, vAlign = NoAlign;
+    bool behind = false;                  // set behind the text
+    int z = 0;
+    Wrap wrap = WrapNone;
+    double gapLeft = 9, gapRight = 9, gapTop = 0, gapBottom = 0;   // room the wrapping text leaves
+    bool filled = false, stroked = false;
+    QString fillColor, strokeColor;       // "RRGGBB", or empty
+    double strokeWeight = 0.75;
+    double rotation = 0;
+    bool flipH = false, flipV = false;
+    bool arrowEnd = false, arrowStart = false;
+    QString embed;                        // a picture's relationship Id
+    QString alt;                          // its description
+    QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
+    double inset[4] = {7.2, 3.6, 7.2, 3.6};   // left, top, right, bottom
+};
+// The objects of a w:pict, w:drawing, or mc:AlternateContent element kept as written (a run's atom): in order, nested ones (a group's members) after it.
+// A VML shape that is only a template (a shape type) is none.
+QVector<Shape> readShapes(const QByteArray &xml);
+
+// A footnote or endnote of footnotes.xml or endnotes.xml: its Id, its type (empty for an ordinary note; "separator", "continuationSeparator", and
+// "continuationNotice" for the paragraphs the program sets between the text and the notes), and what it holds.
+struct NotePart {
+    int id = 0;
+    QString type;
+    QVector<Block> blocks;
+};
+// The most notes of one part that are read (a file with more has the rest left out).
+constexpr int kMaxNotes = 20000;
+// Reads the notes of a footnotes or endnotes part. False, with nothing read, when the part isn't XML.
+bool readNotes(const QByteArray &xml, QVector<NotePart> *notes);
+
+// A font of a font table: its name, the alternate it names (a family to set it in where it is missing), and its kind (roman, swiss, modern, script,
+// decorative, or auto), each empty when it says none.
+struct FontEntry {
+    QString name, alternate, family;
+};
+// The most fonts of a table that are read.
+constexpr int kMaxFonts = 4000;
+// Reads the fonts of a font table part. False, with nothing read, when the part isn't XML.
+bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts);
+
+// How the numbers of the notes begin again, from the settings part's w:footnotePr or w:endnotePr (`group`): the value of its w:numRestart (continuous, eachSect, or
+// eachPage), empty if it says none.
+QString noteNumberRestart(const QByteArray &settings, const char *group);
+
+// Whether a compatibility option of the settings part (an element of w:compat) is on: stated, and not turned off (w:val 0, false, or off).
+bool compatOption(const QByteArray &settings, const char *name);
 
 // Reads a .docx (or .docm, .dotx) package. False, with a message, if it isn't a word processing document or is damaged beyond reading.
 // A file is held to limits: of parts together inflated, of the XML of a part (xmltree.h), and of what the body holds, past which the rest is

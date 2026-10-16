@@ -2,6 +2,8 @@
 
 #include <QAbstractTextDocumentLayout>
 #include <QFont>
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <algorithm>
 
@@ -26,6 +28,22 @@ protected:
 };
 
 } // namespace
+
+static const QTextDocument *slotFor(const HeaderFooter &hf, bool firstPage, bool evenPage)
+{
+    if (firstPage) return hf.first.get();
+    return evenPage ? hf.even.get() : hf.odd.get();
+}
+
+const QTextDocument *Section::headerFor(bool firstOfSection, int pageNumber) const
+{
+    return slotFor(header, differentFirstPage && firstOfSection, differentOddEven && pageNumber % 2 == 0);
+}
+
+const QTextDocument *Section::footerFor(bool firstOfSection, int pageNumber) const
+{
+    return slotFor(footer, differentFirstPage && firstOfSection, differentOddEven && pageNumber % 2 == 0);
+}
 
 int Section::columnCount() const { return std::clamp(columns, 1, kMostColumns); }
 
@@ -75,6 +93,19 @@ const Section &FlowDocument::section(int index) const
 {
     static const Section none;   // (a document whose sections were all taken out is laid out as if it had one)
     return sections.isEmpty() ? none : sections[std::clamp(index, 0, int(sections.size()) - 1)];
+}
+
+std::unique_ptr<QTextDocument> cloneStory(const QTextDocument *story)
+{
+    std::unique_ptr<QTextDocument> copy(story->clone());
+    const QTextBlock first = story->begin();
+    if (first.isValid() && first.length() <= 1) {
+        QTextCursor c(copy.get());
+        c.setPosition(0);
+        c.setBlockFormat(first.blockFormat());
+        c.setBlockCharFormat(first.charFormat());
+    }
+    return copy;
 }
 
 } // namespace jp::flow

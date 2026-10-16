@@ -12,9 +12,13 @@
 #include "text/textprops.h"
 
 #include <QApplication>
+#include <QBuffer>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -22,10 +26,15 @@
 #include <QTextList>
 #include <functional>
 #include <numeric>
+#include <map>
+#include <memory>
+#include <tuple>
 #include <random>
 
 using namespace jp;
 using jp::flow::FlowDocument;
+using jp::flow::FloatingObject;
+namespace fp = jp::flow::fp;
 using jp::flow::MaterializedPage;
 using jp::flow::Paginator;
 using jp::flow::Section;
@@ -126,7 +135,9 @@ struct TestNotes : FieldSource {
 
 bool sameBrief(const StoryLayout::LineBrief &a, const StoryLayout::LineBrief &b, int frameShift = 0, int posShift = 0)
 {
-    return a.frame == b.frame + frameShift && a.block == b.block + posShift && a.line == b.line && a.lines == b.lines && a.pos == b.pos + posShift &&
+    // (A paragraph that goes on past the page by more lines than the page asks for is cut there: how many lines it has isn't known.)
+    const bool sameCount = a.lines == b.lines || a.lines == (1 << 28) || b.lines == (1 << 28);
+    return a.frame == b.frame + frameShift && a.block == b.block + posShift && a.line == b.line && sameCount && a.pos == b.pos + posShift &&
            a.end == b.end + posShift && std::abs(a.rect.top() - b.rect.top()) < 0.001 && std::abs(a.rect.left() - b.rect.left()) < 0.001 &&
            std::abs(a.rect.width() - b.rect.width()) < 0.001 && std::abs(a.rect.height() - b.rect.height()) < 0.001 && std::abs(a.below - b.below) < 0.001;
 }
@@ -241,6 +252,59 @@ QString differenceFromOneShot(FlowDocument &fd, Paginator &pg)
             if (!sameBrief(mine[i], want[i])) return QStringLiteral("line %1 of page %2 differs").arg(i).arg(k);
     }
     if (!whole[pages].isEmpty()) return QStringLiteral("the one-shot layout has more pages than %1").arg(pages);
+    return QString();
+}
+
+// A page's starts, lines, and (made) items as text, to say whether two paginators of the same document agree.
+QString pageSignature(Paginator &pg, int k, bool made)
+{
+    auto r2 = [](double v) { return QString::number(std::round(v * 100) / 100); };
+    QString s;
+    const auto page = pg.page(k);
+    s += QStringLiteral("P%1 %2/%3/%4/%5/%6/%7/[%8] number %9 area %10,%11,%12,%13\n").arg(k).arg(page.start.pos).arg(page.start.skip).arg(page.start.hard).arg(page.start.section).arg(page.start.foot)
+             .arg(page.start.end).arg(page.start.carried.join(QLatin1Char(','))).arg(page.number).arg(r2(page.content.left())).arg(r2(page.content.top())).arg(r2(page.content.width())).arg(r2(page.content.height()));
+    for (const auto &l : pg.lines(k))
+        s += QStringLiteral(" L%1/%2 b%3 %4-%5 f%6 %7,%8,%9,%10\n").arg(l.line).arg(l.lines).arg(l.block).arg(l.pos).arg(l.end).arg(l.frame).arg(r2(l.rect.left())).arg(r2(l.rect.top())).arg(r2(l.rect.width())).arg(r2(l.rect.height()));
+    if (!made) return s;
+    if (const auto m = pg.materialize(k))
+        for (const auto &item : m->doc->pages[0]->items) {
+            QString what;
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *st = m->doc->story(t->storyId)) what = st->doc->toPlainText().left(24);
+            s += QStringLiteral(" I%1 %2,%3,%4,%5 %6\n").arg(int(item->type())).arg(r2(item->rect.left())).arg(r2(item->rect.top())).arg(r2(item->rect.width())).arg(r2(item->rect.height())).arg(what);
+        }
+    else s += QStringLiteral(" (not made)\n");
+    return s;
+}
+
+// The places the pages begin at, for a message.
+QString startsText(Paginator &p)
+{
+    QStringList l;
+    const int n = p.pageCount();
+    for (int k = 0; k < n; ++k) {
+        const auto s = p.page(k).start;
+        l << QStringLiteral("%1/%2/%3/%4/%5/%6[%7]").arg(s.pos).arg(s.skip).arg(s.hard).arg(s.section).arg(s.foot).arg(s.end).arg(s.carried.join(QLatin1Char(',')));
+    }
+    return l.join(QLatin1Char(' '));
+}
+
+// The first page where `incremental` (a paginator that was laid out before the story was edited) differs from a paginator made after, or nothing.
+QString differenceFromFresh(FlowDocument &fd, Paginator &incremental, bool made = true)
+{
+    Paginator fresh(&fd);
+    const int pages = incremental.pageCount(), want = fresh.pageCount();
+    if (pages != want) {
+        return QStringLiteral("%1 pages after the edits, %2 when made afresh; starts [%3] and [%4]").arg(pages).arg(want).arg(startsText(incremental), startsText(fresh));
+    }
+    for (int k = 0; k < pages; ++k) {
+        const QString a = pageSignature(incremental, k, made), b = pageSignature(fresh, k, made);
+        if (a != b) {
+            const QStringList la = a.split(QLatin1Char('\n')), lb = b.split(QLatin1Char('\n'));
+            for (int i = 0; i < std::max(la.size(), lb.size()); ++i)
+                if (la.value(i) != lb.value(i)) return QStringLiteral("page %1 differs at its line %2: [%3] and [%4] afresh").arg(k).arg(i).arg(la.value(i), lb.value(i));
+        }
+    }
     return QString();
 }
 
@@ -465,6 +529,140 @@ QString differsFromFresh(FlowDocument &fd, Paginator &pg)
         }
     }
     return QString();
+}
+
+// Paragraphs set the way a word processor sets lines (LayoutEnv::wordLines), each a line of text in the family and size given: the lines of
+// the story, in a frame of one page. `shape` sets a paragraph's format (spacing, line height, style).
+QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, double>> &fonts, const std::function<void(int, QTextBlockFormat &)> &shape = {}, bool word = true)
+{
+    auto doc = std::make_unique<QTextDocument>();
+    QTextCursor c(doc.get());
+    for (int i = 0; i < fonts.size(); ++i) {
+        QTextBlockFormat bf;
+        if (shape) shape(i, bf);
+        QTextCharFormat cf;
+        cf.setFontFamilies({fonts[i].first});
+        cf.setFontPointSize(fonts[i].second);
+        if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+        c.setBlockCharFormat(cf);
+        c.insertText(QStringLiteral("Line %1").arg(i), cf);
+    }
+    LayoutEnv env;
+    env.wordLines = word;
+    StoryLayout lay;
+    lay.build(doc.get(), {plainFrame(400, 700)}, env);
+    return lay.lineInfo(0);
+}
+
+
+// A header or footer story of the lines given, a paragraph each.
+std::shared_ptr<QTextDocument> furnitureStory(const QStringList &lines)
+{
+    auto doc = std::make_shared<QTextDocument>();
+    doc->setDocumentMargin(0);
+    QTextCursor c(doc.get());
+    QTextCharFormat cf;
+    cf.setFontPointSize(10);
+    for (int i = 0; i < lines.size(); ++i) {
+        if (i) c.insertBlock();
+        c.insertText(lines[i], cf);
+    }
+    return doc;
+}
+
+// How tall a story is where the paginator lays it out (its lines from the top to the bottom of the last), measured on its own.
+double storyHeightOf(const QTextDocument *story, double width, const FlowDocument &fd)
+{
+    StoryLayout lay;
+    lay.build(story, {plainFrame(width, 100000)}, fd.env);
+    return lay.usedHeight(0);
+}
+
+// The text boxes of a materialized page by the text of their stories: the header's, the footer's, the body's (the story longest).
+QMap<QString, TextItem *> boxesByText(const MaterializedPage &page)
+{
+    QMap<QString, TextItem *> out;
+    for (const auto &item : page.doc->pages[0]->items)
+        if (auto *t = dynamic_cast<TextItem *>(item.get()))
+            if (const Story *story = page.doc->story(t->storyId)) out.insert(story->doc->toPlainText(), t);
+    return out;
+}
+
+
+// Notes for a flowing document: each a paragraph that begins with its mark and says `words` more.
+void addNote(TestNotes *notes, const QString &id, int words, const QString &name)
+{
+    auto doc = std::make_unique<QTextDocument>();
+    doc->setDocumentMargin(0);
+    QTextCursor c(doc.get());
+    QTextCharFormat mark, text;
+    mark.setFontPointSize(10);
+    mark.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+    mark.setProperty(tp::Field, QStringLiteral("notemark"));
+    text.setFontPointSize(10);
+    c.insertText(QString(QChar(0xFFFC)), mark);
+    QString t = QStringLiteral(" ") + name;
+    for (int i = 0; i < words; ++i) t += QStringLiteral(" word%1").arg(i);
+    c.insertText(t, text);
+    notes->docs[id] = std::move(doc);
+}
+
+// A reference to a note, put into the story at a position.
+void addReference(QTextDocument *story, int position, const QString &id)
+{
+    QTextCursor c(story);
+    c.setPosition(position);
+    QTextCharFormat ref;
+    ref.setFontPointSize(11);
+    ref.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+    ref.setProperty(tp::Field, QStringLiteral("footnote:") + id);
+    c.insertText(QString(QChar(0xFFFC)), ref);
+}
+
+// The story of a materialized page's text box that holds `text` (its plain text).
+const TextItem *boxHolding(const MaterializedPage &page, const QString &text, QString *story = nullptr)
+{
+    for (const auto &item : page.doc->pages[0]->items)
+        if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+            if (const Story *st = page.doc->story(t->storyId))
+                if (st->doc->toPlainText().contains(text)) {
+                    if (story) *story = st->doc->toPlainText();
+                    return t;
+                }
+    return nullptr;
+}
+
+
+// A small picture's bytes, as a file.
+QByteArray tinyPng(int w, int h, const QColor &color)
+{
+    QImage img(w, h, QImage::Format_RGB32);
+    img.fill(color);
+    QByteArray bytes;
+    QBuffer buf(&bytes);
+    buf.open(QIODevice::WriteOnly);
+    img.save(&buf, "PNG");
+    return bytes;
+}
+
+// An object to set at a place, with the item given, anchored by a character put into the story at `position`.
+int addObject(FlowDocument *fd, ItemPtr item, int position, FloatingObject::Rel hRel, FloatingObject::Rel vRel, double dx = 0, double dy = 0)
+{
+    FloatingObject o;
+    o.item = std::move(item);
+    o.hRel = hRel;
+    o.vRel = vRel;
+    o.dx = dx;
+    o.dy = dy;
+    fd->objects.push_back(o);
+    const int id = int(fd->objects.size());
+    QTextCursor c(fd->story());
+    c.setPosition(position);
+    QTextCharFormat anchor;
+    anchor.setFontPointSize(11);
+    anchor.setProperty(fp::AnchorId, id);
+    c.insertText(QString(QChar(0xFFFC)), anchor);
+    return id;
 }
 
 } // namespace
@@ -1327,6 +1525,95 @@ private Q_SLOTS:
         QCOMPARE(after->storyFrom, 13);
     }
 
+    // A paragraph that begins with a page break goes on at the next page because of the break, not for want of room: no rule of widows or orphans moves
+    // its first line (the break's) to the next frame, though it is left alone there.
+    void aBreakAtTheStartOfAParagraphIsNotAnOrphan()
+    {
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        auto lines = [&](bool withBreak) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setProperty(tp::WidowControl, true);
+            for (int i = 0; i < 4; ++i) {
+                if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+                c.insertText(QStringLiteral("filler %1").arg(i), run);
+            }
+            c.insertBlock(bf);
+            c.insertText(QString(withBreak ? flow::kPageBreak : QChar(0x2028)) + QStringLiteral("after the break"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            // Room for the four lines and a few points: none for a line of the paragraph, but the break's takes none.
+            lay.build(&doc, {plainFrame(300, 4 * single + 3), plainFrame(300, 500)}, env);
+            return lay.lineBriefs();
+        };
+        const auto broken = lines(true), line = lines(false);
+        QCOMPARE(broken.size(), 6);
+        QCOMPARE(broken[4].frame, 0);   // the break's line stays where it is
+        QCOMPARE(broken[5].frame, 1);
+        // (A line break that is only a line break leaves a paragraph's one line at the foot of a page as an orphan.)
+        QCOMPARE(line[4].frame, 1);
+        QCOMPARE(line[5].frame, 1);
+        // The break's line takes no room, so that it is at the foot of the page even where a line would not fit there.
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setTopMargin(6);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("filler"), run);
+        c.insertBlock(bf);
+        c.insertText(QString(flow::kPageBreak) + QStringLiteral("after the break"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, single + 9), plainFrame(300, 500)}, env);
+        const auto tight = lay.lineBriefs();
+        QCOMPARE(tight.size(), 3);
+        QCOMPARE(tight[1].frame, 0);
+        QVERIFY(tight[1].rect.height() < 0.01);
+        QCOMPARE(tight[2].frame, 1);
+    }
+
+    // The text after a page break inside a paragraph is at the top of the next page with the paragraph's space before again (as a word processor sets it),
+    // and a paragraph that goes on onto a page for want of room has none there.
+    void aBreakInsideAParagraphKeepsItsSpaceBeforeOnTheNextPage()
+    {
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        QTextBlockFormat bf;
+        bf.setTopMargin(20);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("first words ") + flow::kPageBreak + QStringLiteral("second words"));
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("a paragraph after"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        QVERIFY(std::abs(pg.lines(0)[0].rect.top() - 20) < 0.01);
+        const auto second = pg.lines(1);
+        QCOMPARE(second[0].line, 1);
+        QVERIFY2(std::abs(second[0].rect.top() - 20) < 0.01, qPrintable(QString::number(second[0].rect.top())));
+        QVERIFY(std::abs(second[1].rect.top() - (second[0].rect.bottom() + 20)) < 0.01);
+        // The page made for painting has the same lines.
+        LayoutCache cache;
+        QVERIFY2(materializedDiffers(fd, pg, 1, cache).isEmpty(), qPrintable(materializedDiffers(fd, pg, 1, cache)));
+        // A page that a paragraph runs onto for want of room has no space before its rest.
+        FlowDocument run;
+        QTextCursor r(run.story());
+        r.setBlockFormat(bf);
+        r.insertText(QString(12000, QLatin1Char('x')).replace(QRegularExpression(QStringLiteral("(x{7})")), QStringLiteral("\\1 ")));
+        Paginator rp(&run);
+        QVERIFY(rp.pageCount() > 1);
+        QVERIFY(!rp.page(1).start.hard);
+        QVERIFY(std::abs(rp.lines(1)[0].rect.top()) < 0.01);
+    }
+
     // A break at the end of a paragraph leaves the next paragraph the top of the next page, with no empty line before it; at the end of the
     // last paragraph, it makes no page of its own.
     void aPageBreakAtTheEndOfAParagraphMakesNoEmptyLine()
@@ -1467,6 +1754,1329 @@ private Q_SLOTS:
             asked |= hard;
         }
         QVERIFY(natural && asked);
+    }
+
+    // A word processor's single line is its font's Windows ascent and descent plus the leading the font's tables ask for, whatever font stands in
+    // for it: 1.15 em for Times New Roman and Arial, 1.22 em for Calibri, with the baseline one ascent below the line's top.
+    void wordLinesAreTheFontsWindowsMetrics()
+    {
+        const auto lines = wordLinesOf({{QStringLiteral("Times New Roman"), 12}, {QStringLiteral("Arial"), 11}, {QStringLiteral("Calibri"), 11}, {QStringLiteral("Courier New"), 10}});
+        QCOMPARE(lines.size(), 4);
+        const double heights[] = {(1825 + 443 + 87) / 2048.0 * 12, (1854 + 434 + 67) / 2048.0 * 11, (1950 + 550) / 2048.0 * 11, (1705 + 615) / 2048.0 * 10};
+        const double ascents[] = {1825 / 2048.0 * 12, 1854 / 2048.0 * 11, 1950 / 2048.0 * 11, 1705 / 2048.0 * 10};
+        double top = 0;
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY2(std::abs(lines[i].rect.top() - top) < 0.01, qPrintable(QStringLiteral("line %1 starts at %2, not %3").arg(i).arg(lines[i].rect.top()).arg(top)));
+            QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
+            QVERIFY2(std::abs(lines[i].baseline - (top + ascents[i])) < 0.02, qPrintable(QStringLiteral("line %1's baseline is at %2, not %3").arg(i).arg(lines[i].baseline).arg(top + ascents[i])));
+            top += heights[i];
+        }
+        // (Without it, a text's lines are as before: a Publisher's, 1.06 em for Times New Roman.)
+        const auto old = wordLinesOf({{QStringLiteral("Times New Roman"), 12}}, {}, false);
+        QVERIFY(std::abs(old[0].rect.height() - heights[0]) > 0.5);
+    }
+
+    // A family that isn't on the machine is set as its stand-in is, Calibri's line; Times and Helvetica are the names of Times New Roman and Arial.
+    void wordLinesOfMissingFamiliesAreTheStandIns()
+    {
+        const auto lines = wordLinesOf({{QStringLiteral("No Such Typeface Anywhere"), 12}, {QStringLiteral("Times"), 12}, {QStringLiteral("Helvetica"), 11}});
+        QCOMPARE(lines.size(), 3);
+        const double heights[] = {(1950 + 550) / 2048.0 * 12, (1825 + 443 + 87) / 2048.0 * 12, (1854 + 434 + 67) / 2048.0 * 11};
+        for (int i = 0; i < 3; ++i)
+            QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
+    }
+
+    // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.
+    void missingFamilyStandsInAsTheFileSays()
+    {
+        auto height = [&](const QString &family, const QHash<QString, QString> &standIns) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            c.insertText(QStringLiteral("Line"), cf);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.standIns = standIns;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(400, 700)}, env);
+            return lay.lineInfo(0).first().rect.height();
+        };
+        const QString missing = QStringLiteral("No Such Typeface Anywhere");
+        const double calibri = (1950 + 550) / 2048.0 * 12, times = (1825 + 443 + 87) / 2048.0 * 12, arial = (1854 + 434 + 67) / 2048.0 * 12, courier = (1705 + 615) / 2048.0 * 12;
+        // Each stand-in the table names is the line it is set in (none of them is the Calibri that a family with no entry gets).
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Times New Roman")}}) - times) < 0.01);
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Arial")}}) - arial) < 0.01);
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Courier New")}}) - courier) < 0.01);
+        QVERIFY(std::abs(times - calibri) > 0.5 && std::abs(arial - calibri) > 0.1 && std::abs(courier - calibri) > 0.5);
+        // A family with no entry, or an entry that names another family that isn't there, is set in Calibri.
+        QVERIFY(std::abs(height(missing, {}) - calibri) < 0.01);
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Another Missing Typeface")}}) - calibri) < 0.01);
+    }
+
+    // A section's page numbers in dashes are the number between two hyphens, a space each side.
+    void pageNumbersInDashes()
+    {
+        struct Dashed : TestNotes {
+            QString pageNumberFormat() const override { return QStringLiteral("dash"); }
+        } source;
+        FieldContext ctx;
+        ctx.doc = &source;
+        ctx.pageNumber = 3;
+        QCOMPARE(ctx.resolve(QStringLiteral("page")), QStringLiteral("- 3 -"));
+    }
+
+    // A number that isn't hanging is followed by a tab: the text begins at the next stop past the number, the paragraph's own or the default ones.
+    void numberIsFollowedByATab()
+    {
+        auto textStart = [&](double indent, double left, const QList<QTextOption::Tab> &tabs) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            QTextBlockFormat bf;
+            bf.setTextIndent(indent);
+            bf.setLeftMargin(left);
+            if (!tabs.isEmpty()) bf.setTabPositions(tabs);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            c.insertText(QStringLiteral("Text of the item"), cf);
+            c.createList(lf);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.defaultTab = 36;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(400, 700)}, env);
+            return lay.lineInfo(0).first().rect.left();
+        };
+        // A number set in at 36 points ends before the stop at 72; one that ends past a stop goes to the next.
+        QVERIFY2(std::abs(textStart(36, 0, {}) - 72) < 0.01, qPrintable(QString::number(textStart(36, 0, {}))));
+        QVERIFY2(std::abs(textStart(60, 0, {}) - 72) < 0.01, qPrintable(QString::number(textStart(60, 0, {}))));
+        // A stop of the paragraph's own is the one it goes to, and the default stops begin past the last of them.
+        QVERIFY2(std::abs(textStart(36, 0, {QTextOption::Tab(100, QTextOption::LeftTab)}) - 100) < 0.01, qPrintable(QString::number(textStart(36, 0, {QTextOption::Tab(100, QTextOption::LeftTab)}))));
+        QVERIFY2(std::abs(textStart(36, 0, {QTextOption::Tab(40, QTextOption::LeftTab)}) - 72) < 0.01, "a stop before the number's end is passed");
+        // A hanging number leaves the text at the paragraph's indent.
+        QVERIFY2(std::abs(textStart(-36, 36, {}) - 36) < 0.01, qPrintable(QString::number(textStart(-36, 36, {}))));
+    }
+
+    // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline a descent
+    // above its bottom (the text's top is cut off where there is less room than the font's ascent); an at-least height does the same when it is
+    // more than a single line, and is a single line when it is less.
+    void wordLineHeightsFollowTheirRules()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        const double single = (1825 + 443 + 87) / 2048.0 * 12, ascent = 1825 / 2048.0 * 12, descent = 443 / 2048.0 * 12;
+        auto one = [&](QTextBlockFormat::LineHeightTypes type, double value) {
+            return wordLinesOf({{tnr, 12}}, [&](int, QTextBlockFormat &bf) { bf.setLineHeight(value, type); }).first();
+        };
+        auto twice = one(QTextBlockFormat::ProportionalHeight, 200);
+        QVERIFY(std::abs(twice.rect.height() - 2 * single) < 0.01);
+        QVERIFY(std::abs(twice.baseline - ascent) < 0.02);
+        auto exact = one(QTextBlockFormat::FixedHeight, 20);
+        QVERIFY(std::abs(exact.rect.height() - 20) < 0.01);
+        QVERIFY(std::abs(exact.baseline - (20 - descent)) < 0.02);
+        auto tight = one(QTextBlockFormat::FixedHeight, 9);
+        QVERIFY(std::abs(tight.rect.height() - 9) < 0.01);
+        QVERIFY(std::abs(tight.baseline - (9 - descent)) < 0.02);
+        auto most = one(QTextBlockFormat::MinimumHeight, 24);
+        QVERIFY(std::abs(most.rect.height() - 24) < 0.01);
+        QVERIFY(std::abs(most.baseline - (24 - descent)) < 0.02);
+        auto least = one(QTextBlockFormat::MinimumHeight, 10);
+        QVERIFY(std::abs(least.rect.height() - single) < 0.01);
+        QVERIFY(std::abs(least.baseline - ascent) < 0.02);
+    }
+
+    // A mark that shows nothing in a line (a tag's or a bookmark's, kept as a character that shows no text) is no run of it: it doesn't make the line taller.
+    void aMarkThatShowsNothingIsNoRunOfTheLine()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat plainRun;
+        plainRun.setFontFamilies({QStringLiteral("Times New Roman")});
+        plainRun.setFontPointSize(12);
+        QTextCharFormat mark = plainRun;
+        mark.setFontPointSize(40);
+        mark.setProperty(tp::Field, QStringLiteral("raw:"));
+        c.insertText(QStringLiteral("some words "), plainRun);
+        c.insertText(QString(QChar::ObjectReplacementCharacter), mark);
+        c.insertText(QStringLiteral(" and more"), plainRun);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        QVERIFY2(std::abs(lines[0].rect.height() - (1825 + 443 + 87) / 2048.0 * 12) < 0.01, qPrintable(QString::number(lines[0].rect.height())));
+    }
+
+    // A list item's number or bullet is a run of its own font on the item's first line, which has room for it: a Symbol bullet's line is Symbol's.
+    void aBulletInItsOwnFontHasRoomInTheFirstLine()
+    {
+        auto first = [](const QString &bulletFont) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.insertText(QStringLiteral("an item of the list that is long enough to take two lines of the frame when it is set in it, at twelve points"), run);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setIndent(1);
+            if (!bulletFont.isEmpty()) lf.setProperty(tp::BulletFont, bulletFont);
+            c.createList(lf);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 700)}, env);
+            return lay.lineInfo(0);
+        };
+        const auto plain = first(QString()), symbol = first(QStringLiteral("Symbol"));
+        QVERIFY(plain.size() >= 2 && symbol.size() >= 2);
+        const double single = (1825 + 443 + 87) / 2048.0 * 12, symbolLine = (2059 + 450) / 2048.0 * 12;
+        QVERIFY2(std::abs(plain[0].rect.height() - single) < 0.01, qPrintable(QString::number(plain[0].rect.height())));
+        QVERIFY2(std::abs(symbol[0].rect.height() - symbolLine) < 0.01, qPrintable(QString::number(symbol[0].rect.height())));
+        QVERIFY(std::abs(symbol[1].rect.height() - single) < 0.01);   // (the lines after it are the text's)
+        // A bullet whose own line is shorter than the text's (Courier's) makes it no taller.
+        const auto courier = first(QStringLiteral("Courier New"));
+        QVERIFY2(std::abs(courier[0].rect.height() - single) < 0.01, qPrintable(QString::number(courier[0].rect.height())));
+    }
+
+    // A paragraph's borders take room: the top one and its distance from the text above the first line, the bottom one below the last, and none between
+    // paragraphs with the same borders but the line between them; the side borders take none. The room is added to the space before and after.
+    void paragraphBordersTakeRoom()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        tp::ParaBox box;
+        box.top = {QStringLiteral("single"), 8, 3, QColor()};
+        box.bottom = {QStringLiteral("double"), 4, 2, QColor()};
+        box.left = {QStringLiteral("single"), 4, 4, QColor()};
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        auto lines = [&](const std::function<void(int, QTextBlockFormat &)> &shape) { return wordLinesOf({{tnr, 12}, {tnr, 12}, {tnr, 12}, {tnr, 12}}, shape); };
+        // The second paragraph alone has the borders.
+        const auto one = lines([&](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(2);
+            bf.setBottomMargin(2);
+            if (i == 1) bf.setProperty(tp::Borders, box.spec());
+        });
+        const auto none = lines([&](int, QTextBlockFormat &bf) {
+            bf.setTopMargin(2);
+            bf.setBottomMargin(2);
+        });
+        const double topRoom = 1 + 3, bottomRoom = 4 / 8.0 * 3 + 2;   // (a double border of half point lines is three times that wide)
+        QVERIFY(std::abs(one[1].rect.top() - (none[1].rect.top() + topRoom)) < 0.01);
+        QVERIFY(std::abs(one[2].rect.top() - (none[2].rect.top() + topRoom + bottomRoom)) < 0.01);
+        QVERIFY(std::abs(one[0].rect.top() - none[0].rect.top()) < 0.01);
+        QVERIFY(std::abs(one[1].rect.height() - single) < 0.01);
+        // Two paragraphs with the same borders are one box: the top is above the first, the bottom below the second, and nothing between them
+        // but their space (the larger of the first's after and the second's before).
+        const auto pair = lines([&](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(2);
+            bf.setBottomMargin(2);
+            if (i == 1 || i == 2) bf.setProperty(tp::Borders, box.spec());
+        });
+        QVERIFY(std::abs(pair[1].rect.top() - (none[1].rect.top() + topRoom)) < 0.01);
+        QVERIFY(std::abs((pair[2].rect.top() - pair[1].rect.bottom()) - 2) < 0.01);
+        QVERIFY(std::abs(pair[3].rect.top() - (none[3].rect.top() + topRoom + bottomRoom)) < 0.01);
+        // (A line between them takes the room its width and distance ask.)
+        tp::ParaBox ruled = box;
+        ruled.between = {QStringLiteral("single"), 8, 1, QColor()};
+        const auto between = lines([&](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(2);
+            bf.setBottomMargin(2);
+            if (i == 1 || i == 2) bf.setProperty(tp::Borders, ruled.spec());
+        });
+        QVERIFY(std::abs((between[2].rect.top() - between[1].rect.bottom()) - (2 + 2)) < 0.01);
+        // The spec reads back as it was written.
+        QVERIFY(tp::ParaBox::parse(ruled.spec()) == ruled);
+    }
+
+    // The borders are drawn at the paragraph's edges, a distance from the text and outside its indents, and the shading fills the box.
+    void paragraphBordersAndShadingAreDrawn()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(30);
+        bf.setRightMargin(30);
+        bf.setTopMargin(20);
+        tp::ParaBox box;
+        box.top = {QStringLiteral("single"), 16, 3, QColor(Qt::black)};
+        box.bottom = {QStringLiteral("single"), 16, 3, QColor(Qt::black)};
+        box.left = {QStringLiteral("single"), 16, 4, QColor(Qt::black)};
+        box.right = {QStringLiteral("single"), 16, 4, QColor(Qt::black)};
+        box.fill = QColor(200, 200, 255);
+        bf.setProperty(tp::Borders, box.spec());
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("boxed"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(200, 100)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        const double scale = 8;
+        QImage img(int(200 * scale), int(100 * scale), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(scale, scale);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        auto at = [&](double x, double y) { return QColor(img.pixel(int(x * scale), int(y * scale))); };
+        const QRectF text = lines[0].rect;
+        const double top = text.top(), bottom = text.bottom();
+        // The box's edges: the borders 2 points wide, 3 and 4 points from the text, outside the indents (30 points).
+        QVERIFY(at(100, top - 3 - 1).lightness() < 40);                    // the top line, 3 points above the text
+        QVERIFY(at(100, bottom + 3 + 1).lightness() < 40);                  // the bottom line
+        QVERIFY(at(30 - 4 - 1, (top + bottom) / 2).lightness() < 40);      // the left line, 4 points left of the indent
+        QVERIFY(at(200 - 30 + 4 + 1, (top + bottom) / 2).lightness() < 40);   // the right line
+        QCOMPARE(at(100, top - 3 - 2 - 6).lightness(), 255);               // outside it, nothing
+        QCOMPARE(at(15, (top + bottom) / 2).lightness(), 255);
+        const QColor inside = at(31 + 100, bottom + 1);                     // between the text and the bottom line, filled
+        QVERIFY2(std::abs(inside.red() - 200) < 4 && std::abs(inside.blue() - 255) < 4, qPrintable(inside.name()));
+        const QColor gap = at(30 - 2, (top + bottom) / 2);                 // between the left line and the indent, filled
+        QVERIFY2(std::abs(gap.red() - 200) < 4, qPrintable(gap.name()));
+    }
+
+    // A line of text that is as wide as the room it has, to what rounding leaves, fits on one line.
+    void aLineAsWideAsItsRoomFits()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        c.insertText(QString(36, QLatin1Char('_')), run);   // (half an em each: 216 points)
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(216, 200)}, env);
+        QCOMPARE(lay.lineInfo(0).size(), 1);
+        StoryLayout narrower;
+        narrower.build(&doc, {plainFrame(215, 200)}, env);
+        QCOMPARE(narrower.lineInfo(0).size(), 2);
+    }
+
+    // Hidden text takes no room and shows nothing: a line's text is what is left, and a paragraph of nothing else is an empty line.
+    void hiddenTextIsLeftOut()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextCharFormat hidden = run;
+        hidden.setProperty(tp::HiddenText, true);
+        c.insertText(QStringLiteral("seen "), run);
+        c.insertText(QStringLiteral("<@33><i>hidden codes "), hidden);
+        c.insertText(QStringLiteral("and seen again"), run);
+        c.insertBlock();
+        c.insertText(QStringLiteral("only hidden"), hidden);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 2);
+        QCOMPARE(lines[0].text, QStringLiteral("seen and seen again"));
+        QCOMPARE(lines[1].text, QString());
+        // (As before, for a text that isn't a word processor's: the characters are shown.)
+        StoryLayout plain;
+        plain.build(&doc, {plainFrame(400, 700)}, LayoutEnv());
+        QVERIFY(plain.lineInfo(0)[0].text.contains(QStringLiteral("hidden codes")));
+    }
+
+    // Automatic space before and after (a paragraph from a web page) is 14 points, whatever the margins say.
+    void automaticSpaceIsFourteenPoints()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}, {tnr, 12}}, [](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(5);
+            bf.setBottomMargin(5);
+            if (i == 1) {
+                bf.setProperty(tp::SpaceBeforeAuto, true);
+                bf.setProperty(tp::SpaceAfterAuto, true);
+            }
+        });
+        // The first's space after (5) and the second's automatic before (14): the larger; then its automatic after and the third's before (5).
+        QVERIFY(std::abs((lines[1].rect.top() - lines[0].rect.bottom()) - 14) < 0.01);
+        QVERIFY(std::abs((lines[2].rect.top() - lines[1].rect.bottom()) - 14) < 0.01);
+        // Between two items of a list, none; before the first and after the last, the automatic space.
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({tnr});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setProperty(tp::SpaceBeforeAuto, true);
+        bf.setProperty(tp::SpaceAfterAuto, true);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("intro"), run);
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        QTextList *list = nullptr;
+        for (int i = 0; i < 3; ++i) {
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("item"), run);
+            if (i == 0) list = c.createList(lf); else list->add(c.block());
+        }
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("outro"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 700)}, env);
+        const auto all = lay.lineInfo(0);
+        QCOMPARE(all.size(), 5);
+        QVERIFY(std::abs((all[1].rect.top() - all[0].rect.bottom()) - 14) < 0.01);
+        QVERIFY(std::abs((all[2].rect.top() - all[1].rect.bottom())) < 0.01);
+        QVERIFY(std::abs((all[3].rect.top() - all[2].rect.bottom())) < 0.01);
+        QVERIFY(std::abs((all[4].rect.top() - all[3].rect.bottom()) - 14) < 0.01);
+    }
+
+    // A word processor's tab stops are measured from the text area's edge, not from the paragraph's indent, and the default stops go on after the last
+    // of the paragraph's own.
+    void tabStopsAreFromTheEdgeAndTheDefaultOnesFollowTheLast()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(20);
+        QTextOption::Tab stop;
+        stop.position = 100;
+        stop.type = QTextOption::LeftTab;
+        bf.setTabPositions({stop});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("ab\tcd\tef"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        env.defaultTab = 36;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 100)}, env);
+        auto xOf = [&](int from) { return lay.rangeRects(0, from, from + 1).first().left(); };
+        QVERIFY2(std::abs(xOf(3) - 100) < 0.05, qPrintable(QString::number(xOf(3))));   // "cd": at the stop, from the edge
+        QVERIFY2(std::abs(xOf(6) - 144) < 0.05, qPrintable(QString::number(xOf(6))));   // "ef": the next default stop past "cd" (4 times 36)
+        QVERIFY(xOf(0) > 19.9 && xOf(0) < 20.1);                                         // (the text begins at the indent)
+    }
+
+    // A mark of punctuation at the end of a line may hang past the margin in a word processor's text: a word that fits but for its period is the last
+    // of the line, unless the file says no punctuation hangs; a word that is itself too long, or a mark that isn't one that hangs, is not let.
+    void punctuationAtTheEndOfALineHangsPastTheMargin()
+    {
+        auto lineCount = [&](const QString &text, double room, bool noHang, bool word = true) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = word;
+            env.wordNoHang = noHang;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 300)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        // The room: the width the text takes up to its last mark.
+        const QString text = QStringLiteral("alpha beta gamma delta epsilon.");
+        QTextDocument measure;
+        QTextCursor mc(&measure);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        mc.insertText(text, run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout wide;
+        wide.build(&measure, {plainFrame(1000, 100)}, env);
+        const double upToMark = wide.rangeRects(0, text.size() - 1, text.size()).first().left();
+        const double room = upToMark + 0.5;   // (half a point past the word, not the room the period needs)
+        QCOMPARE(lineCount(text, room, false), 1);                // it hangs
+        QCOMPARE(lineCount(text, room, true), 2);                 // (not where the file says no punctuation hangs)
+        QCOMPARE(lineCount(text, room, false, false), 2);         // (nor in a publication's text)
+        QCOMPARE(lineCount(QStringLiteral("alpha beta gamma delta epsilon-"), room, false), 2);   // (a hyphen is no mark that hangs)
+        QCOMPARE(lineCount(text, upToMark - 5, false), 2);        // (the word itself doesn't fit)
+    }
+
+    // The text after a page break that begins a paragraph is its first line, with the paragraph's first-line indent (here a hanging one); after a break in
+    // the middle of a paragraph the text is a line that follows.
+    void textAfterABreakThatBeginsAParagraphHasItsFirstLineIndent()
+    {
+        auto lefts = [&](const QString &text, bool paginated) {
+            QVector<double> out;
+            QTextBlockFormat bf;
+            bf.setLeftMargin(40);
+            bf.setTextIndent(-40);
+            const QString words = QStringLiteral("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon phi chi psi omega alpha beta gamma delta");
+            if (paginated) {
+                FlowDocument fd;
+                fd.env.wordLines = true;
+                QTextCursor c(fd.story());
+                c.setBlockFormat(bf);
+                c.insertText(text + words);
+                Paginator pg(&fd);
+                for (int k = 0; k < pg.pageCount(); ++k)
+                    for (const auto &l : pg.lines(k)) out << l.rect.left();
+                return out;
+            }
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            c.setBlockFormat(bf);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.insertText(text + words, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(200, 300)}, env);
+            for (const auto &l : lay.lineInfo(0)) out << l.rect.left();
+            return out;
+        };
+        for (bool paginated : {false, true}) {
+            const auto begin = lefts(QString(flow::kPageBreak), paginated), middle = lefts(QStringLiteral("some words ") + flow::kPageBreak, paginated);
+            QVERIFY(begin.size() >= 3 && middle.size() >= 3);
+            // The paragraph that begins with the break: its break's line, then the first line (at the margin), then the others (at the indent).
+            QVERIFY2(std::abs(begin[1]) < 0.01 && std::abs(begin[2] - 40) < 0.01, qPrintable(QStringLiteral("%1 %2 %3").arg(begin[0]).arg(begin[1]).arg(begin[2])));
+            // The break in the middle: the text after it is at the indent.
+            QVERIFY2(std::abs(middle[1] - 40) < 0.01, qPrintable(QString::number(middle[1])));
+        }
+    }
+
+    // A paragraph whose text and mark are both hidden takes no room (not a line, not its space); one whose mark is not hidden is an empty line.
+    void aParagraphThatIsAllHiddenTakesNoRoom()
+    {
+        auto tops = [&](bool markHidden) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextCharFormat hidden = run;
+            hidden.setProperty(tp::HiddenText, true);
+            QTextBlockFormat bf;
+            bf.setTopMargin(10);
+            bf.setBottomMargin(10);
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("before"), run);
+            c.insertBlock(bf, markHidden ? hidden : run);
+            c.insertText(QStringLiteral("Top of Form"), hidden);
+            c.insertBlock(bf, run);
+            c.insertText(QStringLiteral("after"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 300)}, env);
+            const auto lines = lay.lineInfo(0);
+            return std::make_pair(int(lines.size()), lines.last().rect.top() - lines.first().rect.bottom());
+        };
+        const auto gone = tops(true), line = tops(false);
+        QCOMPARE(gone.first, 2);
+        QVERIFY(std::abs(gone.second - 10) < 0.01);
+        QCOMPARE(line.first, 3);
+        QVERIFY(line.second > 20);
+    }
+
+    // The space between two paragraphs is the larger of the first's space after and the second's space before, not their sum; a paragraph that asks
+    // for contextual spacing has none between it and a paragraph of its own style.
+    void wordSpaceBetweenParagraphsIsTheLarger()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        auto gap = [&](double after, double before, bool word = true) {
+            const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}}, [&](int i, QTextBlockFormat &bf) {
+                if (i == 0) bf.setBottomMargin(after);
+                else bf.setTopMargin(before);
+            }, word);
+            return lines[1].rect.top() - lines[0].rect.bottom();
+        };
+        QVERIFY(std::abs(gap(6, 12) - 12) < 0.01);
+        QVERIFY(std::abs(gap(12, 6) - 12) < 0.01);
+        QVERIFY(std::abs(gap(6, 6) - 6) < 0.01);
+        QVERIFY(std::abs(gap(0, 9) - 9) < 0.01);
+        QVERIFY(std::abs(gap(6, 12, false) - 18) < 0.01);   // (as a publication's are added)
+        auto contextual = [&](const QString &second) {
+            const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}}, [&](int i, QTextBlockFormat &bf) {
+                bf.setTopMargin(10);
+                bf.setBottomMargin(10);
+                bf.setProperty(tp::StyleName, i == 0 ? QStringLiteral("Body") : second);
+                bf.setProperty(tp::ContextualSpacing, true);
+            });
+            return lines[1].rect.top() - lines[0].rect.bottom();
+        };
+        QVERIFY(std::abs(contextual(QStringLiteral("Body"))) < 0.01);
+        QVERIFY(std::abs(contextual(QStringLiteral("Other")) - 10) < 0.01);
+        Q_UNUSED(single);
+    }
+
+    // A paragraph out of the flow (a frame's, in a word processor) is set where the next paragraph begins and takes none of the room.
+    void aParagraphOutOfTheFlowTakesNoRoom()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        auto lines = [&](bool out) {
+            return wordLinesOf({{tnr, 12}, {tnr, 12}, {tnr, 12}}, [&](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(5);
+                if (i == 1 && out) bf.setProperty(tp::OutOfFlow, true);
+            });
+        };
+        const auto flowing = lines(false), floating = lines(true);
+        QCOMPARE(floating.size(), 3);
+        QVERIFY(std::abs(floating[1].rect.top() - floating[2].rect.top()) < 0.01);
+        QVERIFY(std::abs(floating[2].rect.top() - flowing[1].rect.top()) < 0.01);
+        QVERIFY(std::abs(floating[0].rect.top() - flowing[0].rect.top()) < 0.01);
+        QVERIFY(floating[2].rect.top() < flowing[2].rect.top() - 10);
+    }
+
+    // A section's header and footer are drawn on its pages at the header and footer distances from the page's edge, the width of the text.
+    void pagesDrawTheirHeaderAndFooter()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 60, 4);
+        Section &s = fd.sections[0];
+        s.headerDistance = 30;
+        s.footerDistance = 20;
+        const auto header = furnitureStory({QStringLiteral("HEADER ONE")}), footer = furnitureStory({QStringLiteral("FOOTER ONE"), QStringLiteral("FOOTER TWO")});
+        s.header.odd = header;
+        s.footer.odd = footer;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() > 1);
+        for (int k = 0; k < 2; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const auto boxes = boxesByText(*page);
+            QVERIFY(boxes.contains(QStringLiteral("HEADER ONE")));
+            QVERIFY(boxes.contains(QStringLiteral("FOOTER ONE\nFOOTER TWO")));
+            const TextItem *h = boxes[QStringLiteral("HEADER ONE")];
+            QVERIFY(std::abs(h->rect.top() - 30) < 0.01);
+            QVERIFY(std::abs(h->rect.left() - s.content().left()) < 0.01 && std::abs(h->rect.width() - s.content().width()) < 0.01);
+            const double footerHeight = storyHeightOf(footer.get(), s.content().width(), fd);
+            const TextItem *f = boxes[QStringLiteral("FOOTER ONE\nFOOTER TWO")];
+            QVERIFY2(std::abs(f->rect.bottom() - (s.pageSize().height() - 20)) < 0.02, qPrintable(QString::number(f->rect.bottom())));
+            QVERIFY2(std::abs(f->rect.height() - footerHeight) < 0.02, qPrintable(QStringLiteral("%1 vs %2").arg(f->rect.height()).arg(footerHeight)));
+        }
+        // (A page of a section with neither has no such boxes.)
+        FlowDocument bare;
+        fillStory(bare.story(), 5, 4);
+        Paginator bp(&bare);
+        const auto plain = bp.materialize(0);
+        QCOMPARE(int(plain->doc->pages[0]->items.size()), 1);
+    }
+
+    // A header's first paragraph, when it is empty, keeps its line height and the size of its mark on the page: the empty line is as tall as the paginator measured it.
+    void anEmptyFirstParagraphOfAHeaderKeepsItsMark()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 20, 4);
+        auto header = std::make_shared<QTextDocument>();
+        header->setDocumentMargin(0);
+        {
+            QTextCursor c(header.get());
+            QTextCharFormat big, small;
+            big.setFontPointSize(30);
+            small.setFontPointSize(10);
+            QTextBlockFormat tight;
+            tight.setLineHeight(80, QTextBlockFormat::ProportionalHeight);
+            c.setBlockFormat(tight);
+            c.setBlockCharFormat(big);
+            c.insertBlock(QTextBlockFormat(), small);
+            c.insertText(QStringLiteral("HEADER TEXT"), small);
+        }
+        fd.sections[0].header.odd = header;
+        fd.sections[0].headerDistance = 10;
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const TextItem *box = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *st = page->doc->story(t->storyId))
+                    if (st->doc->toPlainText().contains(QStringLiteral("HEADER TEXT"))) {
+                        box = t;
+                        QCOMPARE(st->doc->begin().charFormat().fontPointSize(), 30.0);
+                        QCOMPARE(st->doc->begin().blockFormat().lineHeight(), 80.0);
+                    }
+        QVERIFY(box);
+    }
+
+    // Pages that an edit moves down by a page change from odd to even, and where odd and even pages have headers of other heights they are laid out again:
+    // the pages after the edit are the ones a fresh paginator makes.
+    void evenAndOddHeadersOfOtherHeightsSettleAfterAnEdit()
+    {
+        for (bool sameHeights : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 6 * 25, 7, [](int i, QTextBlockFormat &bf) { if (i % 25 == 0 && i > 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 40, 40);
+            Section &s = fd.sections[0];
+            s.differentOddEven = true;
+            s.header.odd = furnitureStory({QStringLiteral("ODD")});
+            s.header.even = sameHeights ? furnitureStory({QStringLiteral("EVEN")})
+                                        : furnitureStory({QStringLiteral("EVEN 1"), QStringLiteral("EVEN 2"), QStringLiteral("EVEN 3"), QStringLiteral("EVEN 4"), QStringLiteral("EVEN 5"), QStringLiteral("EVEN 6")});
+            Paginator pg(&fd);
+            const int before = pg.pageCount();
+            QTextCursor c(fd.story());
+            c.setPosition(fd.story()->findBlockByNumber(2).position());
+            QTextCharFormat cf;
+            cf.setFontPointSize(11);
+            for (int i = 0; i < 14; ++i) {
+                c.insertText(QStringLiteral("An added paragraph that is long enough to take two or three lines of the page when it is set at eleven points in this frame. "), cf);
+                c.insertBlock();
+            }
+            QVERIFY(pg.pageCount() > before);
+            const QString bad = differenceFromFresh(fd, pg, false);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 headers: %2").arg(sameHeights ? "same-height" : "different-height", bad)));
+        }
+    }
+
+    // Edits of every kind to a document with headers for the first, odd, and even pages of other heights, notes (one of them longer than a page), sections that
+    // are continuous and that are on pages of their own (with other columns), and page breaks: after each, the paginator that laid the document out before is
+    // the paginator a fresh one is, in its page count, the lines of each page, and where the notes and boxes of each page are.
+    void incrementalPaginationMatchesAFreshOneAfterRandomEdits()
+    {
+        int compared = 0;
+        for (bool restart : {false, true})
+            for (unsigned seed = 1; seed <= (qEnvironmentVariableIsSet("JP_FUZZ") ? qEnvironmentVariable("JP_FUZZ").toUInt() : 4u); ++seed) {   // (JP_FUZZ=n: seeds 1 to n, for a longer run)
+                std::mt19937 rng(seed * 7919u + (restart ? 1u : 0u));
+                TestNotes notes;
+                const int words[] = {3, 12, 60, 900, 4, 30};
+                QStringList ids;
+                for (int i = 0; i < 6; ++i) {
+                    ids << QStringLiteral("n%1").arg(i);
+                    addNote(&notes, ids.last(), words[i], QStringLiteral("NOTE%1").arg(i));
+                }
+                FlowDocument fd;
+                fd.env.wordLines = true;
+                fd.fields = &notes;
+                fd.restartNotesInSections = restart;
+                fillStory(fd.story(), 44, seed, [](int i, QTextBlockFormat &bf) {
+                    bf.setBottomMargin(6);
+                    if (i == 7 || i == 24 || i == 38) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
+                    if (i == 15 || i == 30) bf.setProperty(flow::fp::SectionBreakAfter, true);
+                    if (i % 3 == 0) bf.setProperty(tp::WidowControl, true);
+                }, 20, 70);
+                Section &a = fd.sections[0];
+                a.differentFirstPage = a.differentOddEven = true;
+                a.header.first = furnitureStory({QStringLiteral("FIRST")});
+                a.header.odd = furnitureStory({QStringLiteral("ODD")});
+                a.header.even = furnitureStory({QStringLiteral("EVEN 1"), QStringLiteral("EVEN 2"), QStringLiteral("EVEN 3"), QStringLiteral("EVEN 4")});
+                a.footer.odd = furnitureStory({QStringLiteral("FOOT ODD")});
+                a.footer.even = furnitureStory({QStringLiteral("FOOT EVEN 1"), QStringLiteral("FOOT EVEN 2")});
+                Section b = a;
+                b.continuous = true;
+                b.columns = 2;
+                b.columnGap = 20;
+                Section c = a;
+                c.columns = 1;
+                c.differentFirstPage = false;
+                c.margins = QMarginsF(90, 60, 54, 80);
+                c.header.even = furnitureStory({QStringLiteral("C EVEN 1"), QStringLiteral("C EVEN 2"), QStringLiteral("C EVEN 3"), QStringLiteral("C EVEN 4"), QStringLiteral("C EVEN 5")});
+                fd.sections << b << c;
+                for (const int block : {40, 22, 5, 33, 12}) addReference(fd.story(), fd.story()->findBlockByNumber(block).position() + 4, ids[rng() % 6]);
+                Paginator pg(&fd);
+                QVERIFY(pg.pageCount() > 4);
+                QString trace;
+                for (int step = 0; step < 12; ++step) {
+                    QTextCursor cur(fd.story());
+                    const QString was = startsText(pg);
+                    const int last = std::max(1, fd.story()->characterCount() - 1);
+                    const int at = int(rng() % unsigned(last));
+                    const QTextBlock blk = fd.story()->findBlock(at);
+                    const bool flagged = blk.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+                    QTextCharFormat cf;
+                    cf.setFontPointSize(11);
+                    const unsigned what = rng() % 6;
+                    cur.setPosition(at);
+                    if (what == 0 || what == 1) {
+                        QString text;
+                        for (unsigned w = 0, n = 3 + rng() % 60; w < n; ++w) text += QStringLiteral("word%1 ").arg(rng() % 100);
+                        cur.insertText(text, cf);
+                        trace += QStringLiteral("text@%1 ").arg(at);
+                    } else if (what == 2) {
+                        const int len = std::min<int>(int(rng() % 400), blk.position() + blk.length() - 1 - at);
+                        if (len > 0) {
+                            cur.setPosition(at + len, QTextCursor::KeepAnchor);
+                            cur.removeSelectedText();
+                        }
+                        trace += QStringLiteral("cut@%1+%2 ").arg(at).arg(len);
+                    } else if (what == 3 && !flagged) {
+                        cur.setPosition(blk.position() + blk.length() - 1);
+                        QTextBlockFormat nf;
+                        nf.setBottomMargin(6);
+                        cur.insertBlock(nf, cf);
+                        QString text;
+                        for (unsigned w = 0, n = 10 + rng() % 70; w < n; ++w) text += QStringLiteral("para%1 ").arg(rng() % 100);
+                        cur.insertText(text, cf);
+                        trace += QStringLiteral("para@%1 ").arg(blk.position());
+                    } else if (what == 4 && blk.position() > 0 && !flagged) {
+                        QTextBlockFormat bf = blk.blockFormat();
+                        bf.setPageBreakPolicy(bf.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore ? QTextFormat::PageBreak_Auto : QTextFormat::PageBreak_AlwaysBefore);
+                        cur.setPosition(blk.position());
+                        cur.setBlockFormat(bf);
+                        trace += QStringLiteral("break@%1 ").arg(blk.position());
+                    } else {
+                        addReference(fd.story(), at, ids[rng() % 6]);
+                        trace += QStringLiteral("note@%1 ").arg(at);
+                    }
+                    if (rng() % 3 == 0) pg.paginate(int(rng() % 4));   // (some of it, now)
+                    QString refsText;
+                    for (QTextBlock rb = fd.story()->begin(); rb.isValid(); rb = rb.next())
+                        for (auto rit = rb.begin(); !rit.atEnd(); ++rit)
+                            if (rit.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("footnote:"))) refsText += QStringLiteral("%1:%2 ").arg(rit.fragment().position()).arg(rit.fragment().charFormat().stringProperty(tp::Field).mid(9));
+                    const QString bad0 = differenceFromFresh(fd, pg, step % 3 == 2);
+                    const QString bad = bad0.isEmpty() ? bad0 : bad0 + QStringLiteral(" refs [") + refsText + QLatin1Char(']');
+                    QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("restart %1, seed %2, step %3 (%4): %5 (before the last edit: %6)").arg(restart).arg(seed).arg(step).arg(trace, bad, was)));
+                    ++compared;
+                }
+            }
+        QVERIFY(compared >= 90);
+    }
+
+    // Margins that leave a page no text area (and a header and footer beside them) give it the least text area every page has, not a negative one.
+    void marginsLargerThanThePageLeaveTheLeastTextArea()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 30, 3);
+        Section &s = fd.sections[0];
+        s.margins = QMarginsF(72, 5000, 72, 5000);
+        s.header.odd = furnitureStory({QStringLiteral("HEADER")});
+        s.footer.odd = furnitureStory({QStringLiteral("FOOTER")});
+        Paginator pg(&fd);
+        const auto page = pg.page(0);
+        const QRectF plain = s.content();
+        QVERIFY2(page.content.height() >= 35.9, qPrintable(QString::number(page.content.height())));
+        QVERIFY2(std::abs(page.content.height() - plain.height()) < 0.01, qPrintable(QStringLiteral("%1 vs %2").arg(page.content.height()).arg(plain.height())));
+        QVERIFY(pg.pageCount() >= 1 && pg.pageCount() < 100000);
+    }
+
+    // A header or footer taller than the margin leaves room for moves the text away from it, so the page holds fewer lines.
+    void aTallHeaderAndFooterTakeRoomFromTheText()
+    {
+        auto lines = [](bool tall) {
+            FlowDocument fd;
+            fillStory(fd.story(), 80, 9);
+            Section &s = fd.sections[0];
+            s.headerDistance = 36;
+            s.footerDistance = 36;
+            if (tall) {
+                s.header.odd = furnitureStory({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d"), QStringLiteral("e"), QStringLiteral("f"), QStringLiteral("g")});
+                s.footer.odd = furnitureStory({QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("z"), QStringLiteral("w"), QStringLiteral("v"), QStringLiteral("u")});
+            }
+            Paginator pg(&fd);
+            const auto first = pg.lines(0);
+            return std::make_tuple(int(first.size()), first.last().rect.bottom(), pg.page(0).content, pg.pageCount());
+        };
+        const auto bare = lines(false), tall = lines(true);
+        QVERIFY(std::get<0>(tall) < std::get<0>(bare));
+        QVERIFY(std::get<3>(tall) > std::get<3>(bare));
+        // The text area starts below the header and ends above the footer, each at its distance from the edge plus its own height.
+        FlowDocument probe;
+        const double width = probe.sections[0].content().width();
+        const double headerH = storyHeightOf(furnitureStory({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d"), QStringLiteral("e"), QStringLiteral("f"), QStringLiteral("g")}).get(), width, probe);
+        const double footerH = storyHeightOf(furnitureStory({QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("z"), QStringLiteral("w"), QStringLiteral("v"), QStringLiteral("u")}).get(), width, probe);
+        const QRectF body = std::get<2>(tall);
+        QVERIFY(std::abs(body.top() - (36 + headerH)) < 0.02);
+        QVERIFY(std::abs(body.bottom() - (792 - 36 - footerH)) < 0.02);
+        QVERIFY(headerH + 36 > 72 && footerH + 36 > 72);
+        QVERIFY(std::get<1>(tall) <= body.height() + 0.01);
+    }
+
+    // The first page of a section, the even pages, and the rest each have their own story, as the section asks.
+    void firstAndEvenPagesUseTheirOwnHeaders()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 120, 6, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(10);
+            if (i == 59) bf.setProperty(flow::fp::SectionBreakAfter, true);
+        });
+        Section &s = fd.sections[0];
+        s.differentFirstPage = true;
+        s.differentOddEven = true;
+        s.header.first = furnitureStory({QStringLiteral("first")});
+        s.header.odd = furnitureStory({QStringLiteral("odd")});
+        s.header.even = furnitureStory({QStringLiteral("even")});
+        Section second = s;
+        second.header.first = furnitureStory({QStringLiteral("second first")});
+        second.differentOddEven = false;
+        fd.sections << second;
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 6);
+        QStringList seen;
+        int firstOfSecond = -1;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QString header;
+            const auto boxes = boxesByText(*page);
+            for (auto it = boxes.cbegin(); it != boxes.cend(); ++it)
+                if (std::abs(it.value()->rect.top() - 36) < 0.01) header = it.key();
+            seen << header;
+            if (page->section == 1 && firstOfSecond < 0) firstOfSecond = k;
+        }
+        QVERIFY(firstOfSecond >= 4 && pages >= firstOfSecond + 3);
+        QCOMPARE(seen[0], QStringLiteral("first"));
+        QCOMPARE(seen[1], QStringLiteral("even"));
+        QCOMPARE(seen[2], QStringLiteral("odd"));
+        QCOMPARE(seen[3], QStringLiteral("even"));
+        QCOMPARE(seen[firstOfSecond], QStringLiteral("second first"));
+        QCOMPARE(seen[firstOfSecond + 1], QStringLiteral("odd"));   // (the second section asks for no even pages' headers: its ordinary one)
+        QCOMPARE(seen[firstOfSecond + 2], QStringLiteral("odd"));
+    }
+
+    // NUMPAGES and SECTIONPAGES show how many pages the document and the page's section have, which the page's fields read.
+    void pageFieldsKnowTheTotals()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 70, 6, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(10);
+            if (i == 39) bf.setProperty(flow::fp::SectionBreakAfter, true);
+        });
+        fd.sections << fd.sections[0];
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        int inFirst = 0;
+        for (int k = 0; k < pages; ++k) inFirst += pg.page(k).start.section == 0;
+        QVERIFY(inFirst > 1 && inFirst < pages - 1);
+        for (int k : {0, pages - 1}) {
+            const auto page = pg.materialize(k);
+            FieldContext ctx;
+            ctx.doc = page->doc.get();
+            QCOMPARE(ctx.resolve(QStringLiteral("pages")), QString::number(pages));
+            QCOMPARE(ctx.resolve(QStringLiteral("sectionpages")), QString::number(k == 0 ? inFirst : pages - inFirst));
+        }
+        // (Without a flowing document's counts, a context's own page count is shown.)
+        FieldContext own;
+        own.pageCount = 7;
+        QCOMPARE(own.resolve(QStringLiteral("pages")), QStringLiteral("7"));
+        QCOMPARE(own.resolve(QStringLiteral("sectionpages")), QStringLiteral("7"));
+    }
+
+    // A note longer than the pages the body has goes on over pages of its own, which have no text of the body: every page is made, and the end of the note is
+    // drawn on the last of them.
+    void aNoteLongerThanTheBodyHasPagesOfItsOwn()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("long"), 2000, QStringLiteral("LONGNOTE"));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fillStory(fd.story(), 20, 4, {}, 30, 40);
+        addReference(fd.story(), fd.story()->findBlockByNumber(1).position() + 5, QStringLiteral("long"));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        int noteOnly = 0;
+        QString drawn;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY2(page, qPrintable(QStringLiteral("page %1 of %2 isn't made").arg(k).arg(pages)));
+            if (pg.lines(k).isEmpty()) {
+                ++noteOnly;
+                QVERIFY2(!page->doc->pages[0]->items.empty(), "a page of notes alone has them drawn");
+            }
+            for (const auto &item : page->doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                    if (const Story *st = page->doc->story(t->storyId)) drawn += st->doc->toPlainText() + QLatin1Char('\n');
+        }
+        QVERIFY2(noteOnly > 0, "the note is longer than the body's pages");
+        QVERIFY(drawn.contains(QStringLiteral("word1999")));
+    }
+
+    // References packed in one paragraph cost in step with their number, not its square: the page lays out only what it holds of the paragraph's notes.
+    void denseReferencesTakeTimeInStepWithTheirNumber()
+    {
+        auto seconds = [&](int count) {
+            double best = 1e9;
+            for (int attempt = 0; attempt < 2; ++attempt) {
+                TestNotes notes;
+                FlowDocument fd;
+                fd.env.wordLines = true;
+                fd.fields = &notes;
+                QTextCursor c(fd.story());
+                QTextCharFormat cf;
+                cf.setFontPointSize(11);
+                for (int i = 0; i < count; ++i) {
+                    const QString id = QStringLiteral("n%1").arg(i);
+                    addNote(&notes, id, 3, QStringLiteral("N%1").arg(i));
+                    QTextCharFormat ref = cf;
+                    ref.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+                    ref.setProperty(tp::Field, QStringLiteral("footnote:") + id);
+                    c.insertText(QString(QChar(0xFFFC)), ref);
+                }
+                QElapsedTimer t;
+                t.start();
+                Paginator pg(&fd);
+                const int pages = pg.pageCount();
+                for (int k = 0; k < std::min(pages, 12); ++k) pg.materialize(k);
+                best = std::min(best, t.nsecsElapsed() / 1e9);
+            }
+            return best;
+        };
+        const double small = seconds(400), large = seconds(1600);
+        // (Four times the references: four times the time when it is in step, sixteen when it is the square; it was twenty before.)
+        QVERIFY2(large < small * 8, qPrintable(QStringLiteral("400 references %1 s, 1600 references %2 s").arg(small).arg(large)));
+    }
+
+    // Note numbers that restart in each section restart where a continuous section begins in the middle of a page: on the page, in its references and in
+    // its notes, and in the numbers the pages after it go on from.
+    void noteNumbersRestartAtAContinuousSectionBreak()
+    {
+        auto numbersOf = [](Paginator &pg, int k, QStringList *references, QStringList *notes) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            QStringList ids = page->doc->stories.keys();
+            ids.sort();
+            for (const QString &id : ids)
+                for (QTextBlock b = page->doc->story(id)->doc->begin(); b.isValid(); b = b.next())
+                    for (auto it = b.begin(); !it.atEnd(); ++it) {
+                        const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                        if (code.startsWith(QLatin1String("raw:"))) (id.startsWith(QLatin1String("flow-note-")) ? notes : references)->push_back(code.mid(4));
+                    }
+        };
+        for (bool restart : {false, true}) {
+            TestNotes notes;
+            for (const char *id : {"a", "b", "c", "d"}) addNote(&notes, QString::fromLatin1(id), 3, QString::fromLatin1(id).toUpper());
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fd.restartNotesInSections = restart;
+            fillStory(fd.story(), 4, 3, [](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i == 1) bf.setProperty(flow::fp::SectionBreakAfter, true);
+            }, 8, 12);
+            Section second = fd.sections[0];
+            second.continuous = true;
+            fd.sections << second;
+            const char *ids[] = {"a", "b", "c", "d"};
+            for (int i = 3; i >= 0; --i) addReference(fd.story(), fd.story()->findBlockByNumber(i).position() + 3, QString::fromLatin1(ids[i]));
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 1);
+            QStringList references, shown;
+            numbersOf(pg, 0, &references, &shown);
+            const QStringList want = restart ? QStringList{"1", "2", "1", "2"} : QStringList{"1", "2", "3", "4"};
+            QCOMPARE(references, want);
+            QCOMPARE(shown, want);
+        }
+    }
+
+    // A footnote is at the foot of the page that cites it, in a text box of its own at the bottom of the text area with a rule above it, and its
+    // number is where the reference is counted: the references go on through the pages, and the page's text has less room for the notes.
+    void footnotesAreAtTheFootOfThePageThatCitesThem()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("a"), 12, QStringLiteral("NOTEA"));
+        addNote(&notes, QStringLiteral("b"), 12, QStringLiteral("NOTEB"));
+        auto build = [&](bool withNotes) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 70, 12);
+            if (withNotes) {
+                fd->fields = &notes;
+                addReference(fd->story(), fd->story()->findBlockByNumber(2).position() + 5, QStringLiteral("a"));
+                addReference(fd->story(), fd->story()->findBlockByNumber(30).position() + 5, QStringLiteral("b"));
+            }
+            return fd;
+        };
+        auto with = build(true), without = build(false);
+        Paginator pg(with.get()), plain(without.get());
+        QVERIFY(pg.pageCount() >= 3);
+        // The first page: the note, its rule, and fewer lines than the page without notes holds.
+        const auto first = pg.materialize(0);
+        QString noteStory;
+        const TextItem *note = boxHolding(*first, QStringLiteral("NOTEA"), &noteStory);
+        QVERIFY(note);
+        QVERIFY(!boxHolding(*first, QStringLiteral("NOTEB")));
+        const double bottom = with->sections[0].content().bottom();
+        QVERIFY2(std::abs(note->rect.bottom() - bottom) < 0.05, qPrintable(QString::number(note->rect.bottom())));
+        QVERIFY(noteStory.contains(QStringLiteral("raw")) == false);   // (the mark is its number)
+        QVERIFY(pg.lines(0).size() < plain.lines(0).size());
+        const LineItem *rule = nullptr;
+        for (const auto &item : first->doc->pages[0]->items)
+            if (const auto *l = dynamic_cast<const LineItem *>(item.get())) rule = l;
+        QVERIFY(rule);
+        QVERIFY(std::abs((rule->p2.x() - rule->p1.x()) - 144) < 0.01);
+        QVERIFY(rule->p1.y() < note->rect.top() && rule->p1.y() > note->rect.top() - 20);
+        // The reference in the text shows its number; the number goes on through the pages (the second note is 2 wherever it is).
+        const TextItem *body = boxHolding(*first, QStringLiteral("court"));
+        QVERIFY(body);
+        const Story *bodyStory = first->doc->story(body->storyId);
+        bool numbered = false;
+        for (QTextBlock b = bodyStory->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) numbered |= it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("raw:1");
+        QVERIFY(numbered);
+        int notePage = -1;
+        for (int k = 1; k < pg.pageCount() && notePage < 0; ++k)
+            if (boxHolding(*pg.materialize(k), QStringLiteral("NOTEB"))) notePage = k;
+        QVERIFY(notePage > 0);
+        const auto later = pg.materialize(notePage);
+        const TextItem *bNote = boxHolding(*later, QStringLiteral("NOTEB"));
+        bool two = false;
+        for (QTextBlock b = later->doc->story(bNote->storyId)->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) two |= it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("raw:2");
+        QVERIFY(two);
+        QCOMPARE(pg.page(notePage).start.foot, 1);   // (one note came before the page's first paragraph)
+        QVERIFY(std::abs(bNote->rect.bottom() - bottom) < 0.05);
+        // A page that cites none has no note and no rule.
+        const auto bare = pg.materialize(1 == notePage ? 2 : 1);
+        QVERIFY(!boxHolding(*bare, QStringLiteral("NOTE")));
+        for (const auto &item : bare->doc->pages[0]->items) QVERIFY(!dynamic_cast<const LineItem *>(item.get()));
+    }
+
+    // A footnote too long for the room at the foot of the page is cut there, and the rest of it begins the notes of the next page.
+    void aLongFootnoteGoesOnOnTheNextPage()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("long"), 900, QStringLiteral("LONGNOTE"));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fillStory(fd.story(), 40, 14);
+        addReference(fd.story(), fd.story()->findBlockByNumber(1).position() + 5, QStringLiteral("long"));
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        QVERIFY(!pg.page(1).start.carried.isEmpty());
+        const auto first = pg.materialize(0), second = pg.materialize(1);
+        QVERIFY(boxHolding(*first, QStringLiteral("LONGNOTE")));
+        QString rest;
+        const TextItem *tail = boxHolding(*second, QStringLiteral("word"), &rest);
+        QVERIFY(tail);
+        QVERIFY(!rest.contains(QStringLiteral("LONGNOTE")));   // (the second part begins in the middle of the note's text)
+        // The note's text is all on the pages it is on: every word once.
+        QSet<QString> seen;
+        int count = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            for (const auto &item : page->doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(item.get())) {
+                    const Story *st = page->doc->story(t->storyId);
+                    if (!st->doc->toPlainText().contains(QStringLiteral("word"))) continue;
+                    if (st->doc->toPlainText().contains(QStringLiteral("court"))) continue;   // (the text, not a note)
+                    LayoutCache cache;
+                    const auto fl = cache.textFrame(*page->doc, *t, 1, RenderOptions());
+                    if (!fl.layout) continue;
+                    for (const auto &li : fl.layout->lineInfo(fl.frame))
+                        for (const QString &w : li.text.split(QLatin1Char(' '), Qt::SkipEmptyParts))
+                            if (w.startsWith(QStringLiteral("word"))) { seen.insert(w); ++count; }
+                }
+        }
+        QCOMPARE(int(seen.size()), 900);
+        QCOMPARE(count, 900);
+    }
+
+    // An object set at a place goes where its anchor's page, paragraph, or line puts it: from the margin or the page, in the middle or at the end of one,
+    // behind the text or over it; a rule's ends are from the place too; a picture's data is in the page's document.
+    void objectsAreSetWherePageParagraphAndLinePutThem()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 60, 12);
+        const QTextDocument *story = fd.story();
+        const int third = story->findBlockByNumber(3).position() + 4;
+        auto box = [](double w, double h) {
+            auto item = std::make_shared<ShapeItem>();
+            item->rect = QRectF(0, 0, w, h);
+            return item;
+        };
+        using Rel = FloatingObject::Rel;
+        // From the margin across and the paragraph down.
+        const int a = addObject(&fd, box(100, 20), third, Rel::Margin, Rel::Paragraph, 10, 5);
+        // In the middle across the page, at the end of the margin down, behind the text.
+        const int b = addObject(&fd, box(50, 30), third, Rel::Page, Rel::Margin);
+        fd.objects[b - 1].hAlign = FloatingObject::Align::Center;
+        fd.objects[b - 1].vAlign = FloatingObject::Align::End;
+        fd.objects[b - 1].behind = true;
+        // A rule from the column's edge, a line down.
+        auto line = std::make_shared<LineItem>();
+        line->p1 = QPointF(0, 0);
+        line->p2 = QPointF(120, 0);
+        const int c = addObject(&fd, line, third, Rel::Column, Rel::Line, 3, 2);
+        // A picture from the page's corner.
+        auto picture = std::make_shared<PictureItem>();
+        picture->rect = QRectF(0, 0, 40, 20);
+        fd.images.push_back({tinyPng(8, 4, Qt::red), QStringLiteral("png")});
+        const int p = addObject(&fd, picture, third, Rel::Page, Rel::Page, 20, 30);
+        fd.objects[p - 1].image = 0;
+        Q_UNUSED(a); Q_UNUSED(c);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const auto &items = page->doc->pages[0]->items;
+        // The paragraph and the line that hold the anchor, as the page laid them out.
+        const auto lines = pg.lines(0);
+        double paragraphTop = -1, lineTop = -1;
+        const int blockStart = story->findBlockByNumber(3).position();
+        for (const auto &l : lines)
+            if (l.block == blockStart) {
+                if (paragraphTop < 0) paragraphTop = l.rect.top();
+                if (third >= l.pos && third < l.end) lineTop = l.rect.top();
+            }
+        QVERIFY(paragraphTop > 0 && lineTop >= paragraphTop);
+        const double top = fd.sections[0].margins.top(), left = fd.sections[0].margins.left();
+        const ShapeItem *first = nullptr, *second = nullptr;
+        const LineItem *rule = nullptr;
+        const PictureItem *pic = nullptr;
+        for (const auto &it : items) {
+            if (it->type() == ItemType::Line) rule = static_cast<const LineItem *>(it.get());
+            if (it->type() == ItemType::Picture) pic = static_cast<const PictureItem *>(it.get());
+            if (it->type() == ItemType::Shape) {
+                const auto *sh = static_cast<const ShapeItem *>(it.get());
+                if (sh->rect.width() == 100) first = sh;
+                else second = sh;
+            }
+        }
+        QVERIFY(first && second && rule && pic);
+        QVERIFY2(std::abs(first->rect.left() - (left + 10)) < 0.01 && std::abs(first->rect.top() - (top + paragraphTop + 5)) < 0.01, qPrintable(QStringLiteral("%1 %2 (paragraph at %3)").arg(first->rect.left()).arg(first->rect.top()).arg(paragraphTop)));
+        QVERIFY(std::abs(second->rect.left() - (612 - 50) / 2.0) < 0.01);
+        QVERIFY(std::abs(second->rect.bottom() - (792 - fd.sections[0].margins.bottom())) < 0.01);
+        QVERIFY(items.front().get() == second);   // (behind the text: before it)
+        QVERIFY(std::abs(rule->p1.x() - (left + 3)) < 0.01 && std::abs(rule->p2.x() - (left + 3 + 120)) < 0.01);
+        QVERIFY(std::abs(rule->p1.y() - (top + lineTop + 2)) < 0.01 && std::abs(rule->p1.y() - rule->p2.y()) < 0.01);
+        QVERIFY(std::abs(pic->rect.left() - 20) < 0.01 && std::abs(pic->rect.top() - 30) < 0.01);
+        QVERIFY(!pic->imageId.isEmpty());
+        QVERIFY(page->doc->images.contains(pic->imageId));
+        // A page whose lines hold no anchor has none of them.
+        const auto other = pg.materialize(pg.pageCount() - 1);
+        for (const auto &it : other->doc->pages[0]->items) QVERIFY(it->type() == ItemType::Text);
+    }
+
+    // The objects set in a section's header are on every page of it, from the header's own lines; an inline picture in a story has the Id its picture
+    // has in the page's document.
+    void headerObjectsAndInlinePicturesAreOnTheirPages()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 80, 12);
+        auto header = furnitureStory({QStringLiteral("HEADER"), QStringLiteral("second line")});
+        {
+            // A rule anchored to the header's second paragraph, from the margin across and the paragraph down.
+            auto line = std::make_shared<LineItem>();
+            line->p1 = QPointF(0, 0);
+            line->p2 = QPointF(200, 0);
+            FloatingObject o;
+            o.item = line;
+            o.hRel = FloatingObject::Rel::Margin;
+            o.vRel = FloatingObject::Rel::Paragraph;
+            o.dy = 1;
+            fd.objects.push_back(o);
+            QTextCursor c(header.get());
+            c.setPosition(header->findBlockByNumber(1).position());
+            QTextCharFormat anchor;
+            anchor.setProperty(fp::AnchorId, 1);
+            c.insertText(QString(QChar(0xFFFC)), anchor);
+        }
+        fd.sections[0].header.odd = header;
+        fd.sections[0].headerDistance = 30;
+        // An inline picture in the body.
+        fd.images.push_back({tinyPng(6, 6, Qt::blue), QStringLiteral("png")});
+        {
+            auto item = std::make_shared<PictureItem>();
+            item->rect = QRectF(0, 0, 30, 20);
+            item->imageId = QStringLiteral("flow-img:0");
+            QTextCursor c(fd.story());
+            c.setPosition(fd.story()->findBlockByNumber(1).position() + 3);
+            QTextCharFormat inl;
+            inl.setFontPointSize(11);
+            inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
+            c.insertText(QString(QChar(0xFFFC)), inl);
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        for (int k : {0, 1}) {
+            const auto page = pg.materialize(k);
+            const LineItem *rule = nullptr;
+            for (const auto &it : page->doc->pages[0]->items)
+                if (it->type() == ItemType::Line) rule = static_cast<const LineItem *>(it.get());
+            QVERIFY(rule);
+            // The header's second line: below its first by a line, from the header's top.
+            StoryLayout own;
+            own.build(header.get(), {plainFrame(fd.sections[0].content().width(), 100000)}, fd.env);
+            const double second = own.lineInfo(0).at(1).rect.top();
+            QVERIFY2(std::abs(rule->p1.y() - (30 + second + 1)) < 0.01, qPrintable(QString::number(rule->p1.y())));
+            QVERIFY(std::abs(rule->p1.x() - fd.sections[0].margins.left()) < 0.01);
+        }
+        const auto first = pg.materialize(0);
+        const TextItem *body = boxHolding(*first, QStringLiteral("court"));
+        QVERIFY(body);
+        QString id;
+        for (QTextBlock b = first->doc->story(body->storyId)->doc->begin(); b.isValid() && id.isEmpty(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString json = it.fragment().charFormat().stringProperty(tp::InlineObject);
+                if (!json.isEmpty()) id = QJsonDocument::fromJson(json.toUtf8()).object().value(QStringLiteral("image")).toString();
+            }
+        QVERIFY(!id.isEmpty() && !id.startsWith(QStringLiteral("flow-img:")));
+        QVERIFY(first->doc->images.contains(id));
+    }
+
+    // A section that is continuous and has the same page as the one before goes on the page the one before ends on; one with another page, or that is not
+    // continuous, begins a page of its own.
+    void continuousSectionsShareThePage()
+    {
+        auto pagesOf = [&](bool continuous, bool samePage) {
+            FlowDocument fd;
+            fillStory(fd.story(), 6, 3, [](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i == 2) bf.setProperty(flow::fp::SectionBreakAfter, true);
+            });
+            Section second = fd.sections[0];
+            second.continuous = continuous;
+            if (!samePage) second.margins = QMarginsF(100, 72, 72, 72);
+            fd.sections << second;
+            Paginator pg(&fd);
+            // (The section of the page each paragraph is on is the section the page starts in, and the first page's is the first.)
+            QVector<int> sections;
+            for (int k = 0; k < pg.pageCount(); ++k) sections << pg.page(k).start.section;
+            return std::make_pair(pg.pageCount(), sections);
+        };
+        const auto apart = pagesOf(false, true), joined = pagesOf(true, true), other = pagesOf(true, false);
+        QCOMPARE(apart.first, 2);
+        QCOMPARE(joined.first, 1);
+        QCOMPARE(other.first, 2);   // (a page of another size of margins can't be shared)
+        QCOMPARE(apart.second.last(), 1);
+    }
+
+    // A continuous section with more columns than the one before begins below it on the same page, with its own columns.
+    void continuousSectionWithOtherColumnsBeginsBelow()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 24, 5, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 1) bf.setProperty(flow::fp::SectionBreakAfter, true);
+        });
+        Section second = fd.sections[0];
+        second.continuous = true;
+        second.columns = 2;
+        second.columnGap = 20;
+        fd.sections << second;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto page = pg.materialize(0);
+        QCOMPARE(page->boxes.size(), 3);
+        QVector<const TextItem *> box;
+        for (const QString &id : page->boxes)
+            for (const auto &it : page->doc->pages[0]->items)
+                if (it->id == id) box << static_cast<const TextItem *>(it.get());
+        QCOMPARE(box.size(), 3);
+        const Section &one = fd.sections[0], &two = fd.sections[1];
+        // The first section's text is in one column of the page's width; the second's below it, in two.
+        QVERIFY(std::abs(box[0]->rect.width() - one.columnRect(0).width()) < 0.01);
+        QVERIFY(std::abs(box[1]->rect.width() - two.columnRect(0).width()) < 0.01);
+        QVERIFY(std::abs(box[2]->rect.left() - two.columnRect(1).left()) < 0.01);
+        QVERIFY2(box[1]->rect.top() >= box[0]->rect.bottom() - 0.01, qPrintable(QString::number(box[1]->rect.top()) + " " + QString::number(box[0]->rect.bottom())));
+        QVERIFY2(box[1]->rect.top() - box[0]->rect.bottom() < 40, qPrintable(QString::number(box[1]->rect.top() - box[0]->rect.bottom())));
+        QCOMPARE(std::round(box[1]->rect.top() * 100), std::round(box[2]->rect.top() * 100));
+        // The columns go to the foot of the page, and the next page starts in the second section, with its columns.
+        const double foot = page->size.height() - one.margins.bottom();
+        QVERIFY(std::abs(box[2]->rect.bottom() - foot) < 30);
+        QCOMPARE(pg.page(1).start.section, 1);
+        const auto next = pg.materialize(1);
+        QVERIFY(next->boxes.size() >= 2);
+        QVERIFY(std::abs(static_cast<const TextItem *>(next->doc->pages[0]->items.front().get())->rect.width() - two.columnRect(0).width()) < 0.01);
     }
 
     // Where a position is on the pages.

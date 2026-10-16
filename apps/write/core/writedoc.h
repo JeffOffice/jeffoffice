@@ -32,6 +32,27 @@ struct StyleEntry {
     bool quick = false;     // shown in the gallery
 };
 
+class WriteDoc;
+
+// What the notes of a document are to its pages (flow::FlowDocument::fields): the stories of its footnotes, made when they are asked for, and the
+// height of the paragraph the pages set between the text and the notes.
+class NoteFields : public FieldSource {
+public:
+    explicit NoteFields(WriteDoc *doc) : m_doc(doc) {}
+    int firstPageNumber() const override { return 1; }
+    QString pageNumberFormat() const override { return QString(); }
+    QString businessField(const QString &) const override { return QString(); }
+    QStringList mergeFields() const override { return {}; }
+    QString mergeValue(int, const QString &) const override { return QString(); }
+    const QTextDocument *storyDoc(const QString &id) const override;
+    QList<const QTextDocument *> storyDocs() const override;
+    double noteSeparatorHeight() const override { return separator; }
+    double separator = 0;
+
+private:
+    WriteDoc *m_doc;
+};
+
 class WriteDoc : public QObject {
     Q_OBJECT
 public:
@@ -126,6 +147,19 @@ private:
     WriteDoc();
     void build(office::wml::Document &&doc);
     void buildStory(const QVector<office::wml::Block> &body);
+    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString());
+    // Makes of a drawn object of a run (its atom) what the pages show: a picture in the line is an inline object of the character, the rest are objects set at
+    // places on the page of the paragraph they are anchored to. False when it makes none (nothing drawn, or a picture the file does not hold).
+    bool drawnObjects(const office::wml::Inline &atom, const QString &part, QTextCharFormat *format);
+    // The story of the header or footer part a relationship names (made once, kept); none for a link that is not a part, or past the limit of parts.
+    std::shared_ptr<QTextDocument> headerStory(const QString &relationshipId);
+    // Gives the flowing sections from `from` on the stories of their headers and footers, those they state and the section before's for the rest.
+    void attachHeaders(int from);
+    // The footnotes of the file (its footnotes part), kept as what they hold and made into stories when a page asks for one ("fn" and the note's Id).
+    void loadNotes();
+    void measureNoteSeparator();
+    const QTextDocument *noteStory(const QString &id);
+    friend class NoteFields;
     void exportBody(QVector<office::wml::Block> *body);
     void exportInto(BlockSink &sink);
     void settleTables();
@@ -144,6 +178,15 @@ private:
     office::wml::SectionProps m_last;
     QVector<int> m_sectionKeys;                    // the key of each section's record (the break paragraphs', then the last's), as of the last sync
     qint64 m_sectionsMade = 0;
+    std::unique_ptr<NoteFields> m_noteFields;
+    QString m_notePart;                                               // the footnotes part's name
+    QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
+    // (The stories of the notes and of the headers and footers are made when a page needs them and are not edited: nothing in the program reaches them yet. When
+    // something does, the paginator has to be told as it is of the story's edits (its measures of them are kept by the story's revision), and the pages that show
+    // them made again.)
+    QHash<QString, std::shared_ptr<QTextDocument>> m_noteStories;     // the stories made of them
+    QHash<QString, std::shared_ptr<QTextDocument>> m_headerStories;   // by part name
+    QHash<int, office::wml::HeaderRefs> m_headerRefs;                 // by the key of the section's record
     QByteArray m_lastBytes;                        // the first paragraph's record of it (prop::LastSection) as last read
     int m_blockCount = 0;
     bool m_syncing = false;

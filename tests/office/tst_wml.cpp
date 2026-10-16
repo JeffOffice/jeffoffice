@@ -177,6 +177,279 @@ private Q_SLOTS:
         QVERIFY(!d.body[1].para.props.section);
     }
 
+    // A section names its headers and footers by relationship Id, a slot each for the first page, the ordinary pages, and the even pages.
+    void sectionsNameTheirHeadersAndFooters()
+    {
+        Made m;
+        m.body = R"(<w:p><w:pPr><w:sectPr><w:headerReference w:type="default" r:id="rId11"/><w:headerReference w:type="first" r:id="rId12"/><w:footerReference w:type="even" r:id="rId13"/><w:footerReference w:type="default" r:id="rId14"/><w:titlePg/><w:pgSz w:w="12240" w:h="15840"/></w:sectPr></w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const HeaderRefs refs = headerRefsOf(*d.body[0].para.props.section);
+        QCOMPARE(refs.header[0], QStringLiteral("rId11"));
+        QCOMPARE(refs.header[1], QStringLiteral("rId12"));
+        QCOMPARE(refs.header[2], QString());
+        QCOMPARE(refs.footer[0], QStringLiteral("rId14"));
+        QCOMPARE(refs.footer[1], QString());
+        QCOMPARE(refs.footer[2], QStringLiteral("rId13"));
+        QVERIFY(refs.any());
+        // (A section that names none, and one that was written with the references kept.)
+        QVERIFY(!headerRefsOf(d.lastSection).any());
+        QVERIFY(d.body[0].para.props.section->titlePg);
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QCOMPARE(count(out, "headerReference"), 2);
+        QCOMPARE(count(out, "footerReference"), 2);
+    }
+
+    // The paragraphs of a header, footer, or note part are read as the body's are.
+    void readsTheParagraphsOfAHeaderPart()
+    {
+        const QByteArray part = xmlDoc(QByteArray("<w:hdr ") + kW + R"(><w:p><w:pPr><w:pStyle w:val="Header"/><w:jc w:val="center"/></w:pPr><w:r><w:t>Top</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl><w:p><w:r><w:t>Bottom</w:t></w:r></w:p></w:hdr>)");
+        QVector<Block> blocks;
+        QVERIFY(readBlocks(part, &blocks));
+        QCOMPARE(int(blocks.size()), 3);
+        QVERIFY(!blocks[0].isRaw);
+        QCOMPARE(blocks[0].para.props.style, QStringLiteral("Header"));
+        QCOMPARE(blocks[0].para.content.first().text, QStringLiteral("Top"));
+        QVERIFY(blocks[1].isRaw);
+        QCOMPARE(blocks[1].tag, QStringLiteral("tbl"));
+        QCOMPARE(blocks[2].para.content.first().text, QStringLiteral("Bottom"));
+        QVERIFY(!readBlocks("<w:hdr", &blocks));
+    }
+
+    // The drawn objects of a run: the pictures, rules, boxes, and text boxes of VML, with where they are set and how text goes round them; and the
+    // pictures of DrawingML.
+    void readsTheShapesOfARun()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        // A picture in the line.
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:shapetype id='t75'/><v:shape id='s1' type='#t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' o:title=''/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Picture);
+        QVERIFY(!shapes[0].floating);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId4"));
+        QCOMPARE(shapes[0].width, 54.0);
+        QCOMPARE(shapes[0].height, 36.0);
+        // A picture set at a place, with the text going round it.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s2' style='position:absolute;margin-left:228.7pt;margin-top:61.25pt;width:198pt;height:142.5pt;z-index:251654144;mso-position-horizontal-relative:margin;mso-position-vertical-relative:page'><v:imagedata r:id='rId8'/><w10:wrap type='tight'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(shapes[0].floating);
+        QCOMPARE(shapes[0].left, 228.7);
+        QCOMPARE(shapes[0].top, 61.25);
+        QCOMPARE(shapes[0].hRel, Shape::Margin);
+        QCOMPARE(shapes[0].vRel, Shape::Page);
+        QCOMPARE(shapes[0].wrap, Shape::Tight);
+        QVERIFY(!shapes[0].behind);
+        // A rule drawn as a filled rectangle behind the text, and a line from point to point.
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='s3' style='position:absolute;margin-left:1.5pt;margin-top:-2.25pt;width:543.75pt;height:1.4pt;z-index:-251657216' fillcolor='black' stroked='f' strokeweight='0'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Rect);
+        QVERIFY(shapes[0].behind && shapes[0].filled && !shapes[0].stroked);
+        QCOMPARE(shapes[0].fillColor, QStringLiteral("000000"));
+        QCOMPARE(shapes[0].top, -2.25);
+        shapes = readShapes("<w:pict " + ns + "><v:line id='s4' style='position:absolute;left:0;text-align:left;z-index:5' from='-4.95pt,18.2pt' to='481.05pt,18.2pt' strokeweight='1.25pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Line);
+        QCOMPARE(shapes[0].x1, -4.95);
+        QCOMPARE(shapes[0].x2, 481.05);
+        QCOMPARE(shapes[0].y1, 18.2);
+        QCOMPARE(shapes[0].strokeWeight, 1.25);
+        QVERIFY(shapes[0].stroked);
+        // A text box: its content as written, its insets, and no fill or line when it says so.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s5' type='#t202' style='position:absolute;margin-left:171.75pt;margin-top:.6pt;width:206.35pt;height:18pt' filled='f' stroked='f'><v:textbox inset='0,0,0,0'><w:txbxContent><w:p><w:r><w:t>Inside</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::TextBox);
+        QVERIFY(!shapes[0].filled && !shapes[0].stroked);
+        QVERIFY(shapes[0].textBox.contains("Inside"));
+        QCOMPARE(shapes[0].inset[0], 0.0);
+        // A picture of DrawingML, set behind the text at a place from the page's edge.
+        shapes = readShapes("<w:drawing " + ns + "><wp:anchor behindDoc='1' distT='0' distB='0' distL='114300' distR='114300'><wp:positionH relativeFrom='page'><wp:posOffset>127000</wp:posOffset></wp:positionH><wp:positionV relativeFrom='paragraph'><wp:align>top</wp:align></wp:positionV><wp:extent cx='2540000' cy='1270000'/><wp:wrapSquare wrapText='bothSides'/><wp:docPr id='1' name='p' descr='a logo'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(shapes[0].floating && shapes[0].behind);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId7"));
+        QCOMPARE(shapes[0].width, 200.0);
+        QCOMPARE(shapes[0].height, 100.0);
+        QCOMPARE(shapes[0].left, 10.0);
+        QCOMPARE(shapes[0].hRel, Shape::Page);
+        QCOMPARE(shapes[0].vAlign, Shape::Start);
+        QCOMPARE(shapes[0].wrap, Shape::Square);
+        QCOMPARE(shapes[0].gapLeft, 9.0);
+        QCOMPARE(shapes[0].alt, QStringLiteral("a logo"));
+        // A group's members, in its units: a coordinate space of 1000 by 500 over 100 by 50 points.
+        shapes = readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;margin-left:10pt;margin-top:20pt;width:100pt;height:50pt' coordsize='1000,500' coordorigin='0,0'><v:rect id='m' style='position:absolute;left:100;top:50;width:200;height:100' fillcolor='red'/></v:group></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].left - 20) < 0.01 && std::abs(shapes[0].top - 25) < 0.01 && std::abs(shapes[0].width - 20) < 0.01 && std::abs(shapes[0].height - 10) < 0.01);
+        QVERIFY(readShapes("not xml").isEmpty());
+    }
+
+    // The numbers of a shape that are past what a page holds (or are not numbers) are brought into a range a page could be in.
+    void shapeCoordinatesStayInRange()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
+        auto sane = [](const Shape &s) {
+            for (double v : {s.left, s.top, s.width, s.height, s.x1, s.y1, s.x2, s.y2, s.rotation})
+                if (!std::isfinite(v) || std::abs(v) > 1e6) return false;
+            return true;
+        };
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:rect id='a' style='position:absolute;margin-left:1e999pt;margin-top:-1e999pt;width:1e999pt;height:1e300pt;rotation:1e999' fillcolor='red'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY2(sane(shapes[0]), qPrintable(QStringLiteral("left %1 top %2 width %3 height %4 rotation %5").arg(shapes[0].left).arg(shapes[0].top).arg(shapes[0].width).arg(shapes[0].height).arg(shapes[0].rotation)));
+        shapes = readShapes("<w:pict " + ns + "><v:line id='b' style='position:absolute;left:0' from='1e999pt,-1e999pt' to='1e999pt,1e300pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(sane(shapes[0]));
+        shapes = readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;margin-left:10pt;margin-top:20pt;width:100pt;height:50pt' coordsize='1e999,0' coordorigin='1e999,1e999'><v:rect id='m' style='position:absolute;left:100;top:50;width:200;height:100' fillcolor='red'/></v:group></w:pict>");
+        for (const Shape &s : shapes) QVERIFY(sane(s));
+    }
+
+    // The notes of a footnotes part come with their Ids, types, and paragraphs.
+    void readsTheNotesOfAPart()
+    {
+        const QByteArray part = xmlDoc(QByteArray("<w:footnotes ") + kW + R"(><w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id="2"><w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> note two</w:t></w:r></w:p><w:p><w:r><w:t>second paragraph</w:t></w:r></w:p></w:footnote></w:footnotes>)");
+        QVector<NotePart> notes;
+        QVERIFY(readNotes(part, &notes));
+        QCOMPARE(int(notes.size()), 2);
+        QCOMPARE(notes[0].id, -1);
+        QCOMPARE(notes[0].type, QStringLiteral("separator"));
+        QCOMPARE(notes[1].id, 2);
+        QVERIFY(notes[1].type.isEmpty());
+        QCOMPARE(int(notes[1].blocks.size()), 2);
+        QCOMPARE(notes[1].blocks[0].para.content.first().tag, QStringLiteral("footnoteRef"));
+        QCOMPARE(notes[1].blocks[1].para.content.first().text, QStringLiteral("second paragraph"));
+        QVERIFY(!readNotes("<w:footnotes", &notes));
+        // A part with more notes than the limit has the rest left out.
+        QByteArray many = QByteArray("<w:footnotes ") + kW + ">";
+        for (int i = 0; i < kMaxNotes + 50; ++i) many += "<w:footnote w:id=\"" + QByteArray::number(i + 1) + "\"><w:p/></w:footnote>";
+        many += "</w:footnotes>";
+        QVector<NotePart> capped;
+        QVERIFY(readNotes(many, &capped));
+        QCOMPARE(int(capped.size()), kMaxNotes);
+    }
+
+    // The fonts of a font table come with their alternates and kinds; a part of thousands of fonts is read in step with its size, and one that is
+    // not XML (unclosed elements) is refused.
+    void readsTheFontsOfAFontTable()
+    {
+        const QByteArray part = xmlDoc(QByteArray("<w:fonts ") + kW + R"(><w:font w:name="Palatino"><w:altName w:val="Book Antiqua"/><w:charset w:val="00"/><w:family w:val="roman"/></w:font><w:font w:name="Optima"><w:family w:val="auto"/></w:font><w:font w:name="Plain"/></w:fonts>)");
+        QVector<FontEntry> fonts;
+        QVERIFY(readFonts(part, &fonts));
+        QCOMPARE(int(fonts.size()), 3);
+        QCOMPARE(fonts[0].name, QStringLiteral("Palatino"));
+        QCOMPARE(fonts[0].alternate, QStringLiteral("Book Antiqua"));
+        QCOMPARE(fonts[0].family, QStringLiteral("roman"));
+        QCOMPARE(fonts[1].family, QStringLiteral("auto"));
+        QVERIFY(fonts[1].alternate.isEmpty());
+        QVERIFY(fonts[2].family.isEmpty());
+        auto seconds = [&](int count) {
+            QByteArray many = QByteArray("<w:fonts ") + kW + ">";
+            for (int i = 0; i < count; ++i) many += "<w:font ";
+            double best = 1e9;
+            for (int k = 0; k < 3; ++k) {
+                QElapsedTimer t;
+                t.start();
+                QVector<FontEntry> none;
+                if (readFonts(many, &none)) return -1.0;
+                best = std::min(best, t.nsecsElapsed() / 1e9);
+            }
+            return best;
+        };
+        const double small = seconds(5000), large = seconds(20000);
+        QVERIFY(small >= 0 && large >= 0);
+        // (Four times the openers: four times the time, or sixteen when it is the square; and never more than a moment.)
+        QVERIFY2(large < 0.1 + small * 8, qPrintable(QStringLiteral("5000 openers %1 s, 20000 openers %2 s").arg(small).arg(large)));
+        // More fonts than the limit have the rest left out.
+        QByteArray huge = QByteArray("<w:fonts ") + kW + ">";
+        for (int i = 0; i < kMaxFonts + 50; ++i) huge += "<w:font w:name=\"F" + QByteArray::number(i) + "\"/>";
+        huge += "</w:fonts>";
+        QVector<FontEntry> capped;
+        QVERIFY(readFonts(huge, &capped));
+        QCOMPARE(int(capped.size()), kMaxFonts);
+    }
+
+    // What the settings say of the numbering of the footnotes is read from the footnotes' own element: an endnote setting of the same name is not it.
+    void readsHowFootnoteNumbersRestart()
+    {
+        auto settings = [](const QByteArray &inner) { return xmlDoc(QByteArray("<w:settings ") + kW + ">" + inner + "</w:settings>"); };
+        QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numRestart w:val=\"eachSect\"/></w:footnotePr>"), "footnotePr"), QStringLiteral("eachSect"));
+        QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr><w:endnotePr><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"), "footnotePr"), QString());
+        QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr><w:endnotePr><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"), "endnotePr"), QStringLiteral("eachSect"));
+        QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numRestart w:val=\"continuous\"/></w:footnotePr>"), "footnotePr"), QStringLiteral("continuous"));
+        QCOMPARE(noteNumberRestart(settings(""), "footnotePr"), QString());
+        QCOMPARE(noteNumberRestart("not xml", "footnotePr"), QString());
+    }
+
+    // A compatibility option of the settings counts when it is stated and not turned off.
+    void readsACompatibilityOptionByItsValue()
+    {
+        auto settings = [](const QByteArray &inner) { return xmlDoc(QByteArray("<w:settings ") + kW + "><w:compat>" + inner + "</w:compat></w:settings>"); };
+        QVERIFY(compatOption(settings("<w:doNotWrapTextWithPunct/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"1\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"true\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"0\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"false\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"off\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption(settings("<w:somethingElse/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption("not xml", "doNotWrapTextWithPunct"));
+        // (Only in w:compat: an element of that name elsewhere, or in a comment, is not the option.)
+        QVERIFY(!compatOption(xmlDoc(QByteArray("<w:settings ") + kW + "><w:doNotWrapTextWithPunct/></w:settings>"), "doNotWrapTextWithPunct"));
+    }
+
+    // A paragraph's borders and shading are read into their sides and colors, and a side a style states that the paragraph doesn't is the style's;
+    // the elements are kept as written beside that, and written back.
+    void paragraphBordersAndShadingAreReadAndInherited()
+    {
+        Made m;
+        m.styles = R"(<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>)"
+                   R"(<w:style w:type="paragraph" w:styleId="Rule"><w:name w:val="Rule"/><w:basedOn w:val="Normal"/><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="2" w:color="FF0000"/><w:between w:val="dotted" w:sz="4" w:space="1"/></w:pBdr><w:shd w:val="clear" w:color="auto" w:fill="DDDDDD"/></w:pPr></w:style>)";
+        m.body = R"(<w:p><w:pPr><w:pStyle w:val="Rule"/><w:pBdr><w:top w:val="double" w:sz="6" w:space="3" w:color="auto"/><w:bottom w:val="nil"/></w:pBdr></w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Rule"/></w:pPr><w:r><w:t>two</w:t></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const ParaProps &own = d.body[0].para.props;
+        QVERIFY(own.borders && own.borders->top && own.borders->bottom);
+        QCOMPARE(own.borders->top->val, QStringLiteral("double"));
+        QCOMPARE(own.borders->top->size, 6);
+        QCOMPARE(own.borders->top->space, 3);
+        QVERIFY(own.borders->top->visible());
+        QVERIFY(!own.borders->bottom->visible());   // (nil says there is none)
+        QVERIFY(!own.shading);
+        // What the paragraph has in all: its own top, its own "no bottom" over the style's, the style's between and shading.
+        ParaProps all = d.styles.paragraph(QStringLiteral("Rule"));
+        QVERIFY(all.borders && all.borders->bottom && all.borders->bottom->visible() && all.shading);
+        QCOMPARE(all.borders->bottom->color, QStringLiteral("FF0000"));
+        all.overlay(own);
+        QVERIFY(all.borders->top->visible() && !all.borders->bottom->visible());
+        QVERIFY(all.borders->between && all.borders->between->visible());
+        QCOMPARE(all.shading->fill, QStringLiteral("DDDDDD"));
+        // Written back as they were.
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QCOMPARE(count(out, "<w:pBdr>"), 1);
+        QVERIFY(out.contains("w:val=\"double\" w:sz=\"6\" w:space=\"3\""));
+    }
+
+    // Automatic space before and after (a paragraph from a web page) is read apart from the points beside it, and a paragraph that gives its own space
+    // overrides its style's automatic one; written back as it was.
+    void automaticSpacingIsReadAndOverridden()
+    {
+        Made m;
+        m.styles = R"(<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>)"
+                   R"(<w:style w:type="paragraph" w:styleId="Web"><w:name w:val="Web"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="100" w:beforeAutospacing="1" w:after="100" w:afterAutospacing="1"/></w:pPr></w:style>)";
+        m.body = R"(<w:p><w:pPr><w:pStyle w:val="Web"/><w:spacing w:before="0"/></w:pPr><w:r><w:t>own</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Web"/></w:pPr><w:r><w:t>style's</w:t></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const ParaProps web = d.styles.paragraph(QStringLiteral("Web"));
+        QVERIFY(web.beforeAuto.value_or(false) && web.afterAuto.value_or(false));
+        QCOMPARE(web.before.value_or(-1), 100);
+        ParaProps own = d.styles.paragraph(QStringLiteral("Web"));
+        own.overlay(d.body[0].para.props);
+        QVERIFY(!own.beforeAuto.value_or(true));   // (its own before, with no automatic, ends the style's)
+        QVERIFY(own.afterAuto.value_or(false));
+        QVERIFY(!d.body[1].para.props.beforeAuto);
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QVERIFY(out.contains("w:before=\"0\""));
+    }
+
     void stylesInheritFromTheStylesTheyAreBasedOnAndTheDefaults()
     {
         Made m;

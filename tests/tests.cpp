@@ -6727,9 +6727,11 @@ private Q_SLOTS:
         font.replace(QByteArray("\x00" "A\x00r\x00i\x00m\x00o", 10), QByteArray("\x00" "A\x00r\x00i\x00" "a\x00l", 10));
         font.replace(QByteArray("Arimo"), QByteArray("Arial"));
         const int id = QFontDatabase::addApplicationFontFromData(font);
+        jp::fontsChanged();
         QVERIFY(id >= 0);
         const bool installed = jp::substituteFor(QStringLiteral("Arial")).isEmpty();
         QFontDatabase::removeApplicationFont(id);
+        jp::fontsChanged();
         QVERIFY(installed);
         QVERIFY(!jp::substituteFor(QStringLiteral("Arial")).isEmpty());
     }
@@ -13835,12 +13837,14 @@ private Q_SLOTS:
         font.replace(QByteArray("\x00" "A\x00r\x00i\x00m\x00o", 10), QByteArray("\x00" "A\x00r\x00i\x00" "a\x00l", 10));
         font.replace(QByteArray("Arimo"), QByteArray("Arial"));
         const int id = QFontDatabase::addApplicationFontFromData(font);
+        jp::fontsChanged();
         QVERIFY(id >= 0);
         QVERIFY(QFontDatabase::applicationFontFamilies(id).contains(QStringLiteral("Arial")));
         QFont arial(QStringLiteral("Arial"));
         arial.setPointSizeF(10);
         const double installed = naturalLineEm(arial, QStringLiteral("Arial"));
         QFontDatabase::removeApplicationFont(id);
+        jp::fontsChanged();
         QVERIFY2(std::abs(installed - notInstalled) < 1e-6, qPrintable(QStringLiteral("%1 vs %2").arg(installed).arg(notInstalled)));
         QVERIFY(std::abs(notInstalled - (1491.0 + 431 + 307) / 2048) < 1e-6);
     }
@@ -22363,6 +22367,34 @@ private Q_SLOTS:
         QVERIFY(!img.isNull());
         const QString out = qEnvironmentVariable("JP_RENDER_OUT");
         if (!out.isEmpty()) img.save(out);
+    }
+
+    // A drop cap is the first character of its paragraph, and the line beside it begins after it: the line's first position, where Home goes, and where
+    // a click at the line's start lands are the position after the cap (a text engine that has the word processor's hidden text must not give them as
+    // the cap's own).
+    void aDropCapLineBeginsAfterTheCap()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextBlockFormat bf;
+        bf.setProperty(tp::DropCapLines, 3);
+        bf.setProperty(tp::DropCapChars, 1);
+        c.setBlockFormat(bf);
+        QTextCharFormat cf;
+        cf.setFontPointSize(11);
+        c.insertText(QStringLiteral("Dropcap paragraph text that runs on for a few lines so the layout has something to wrap around the big letter at its start."), cf);
+        StoryLayout lay;
+        FrameSpec fs;
+        fs.size = QSizeF(300, 400);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        lay.build(&doc, {fs}, LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        QVERIFY(lines.size() > 2);
+        QCOMPARE(lines[0].docPos, 1);
+        QCOMPARE(lay.lineBriefs().first().pos, 1);
+        QCOMPARE(lay.firstPosition(0), 1);
+        QVERIFY2(lay.hitTest(0, QPointF(lines[0].rect.left() + 0.5, lines[0].rect.center().y())) >= 1, "a click at the start of the first line lands after the cap");
     }
 };
 
