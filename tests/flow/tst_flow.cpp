@@ -1869,6 +1869,51 @@ private Q_SLOTS:
         QCOMPARE(lineCount(text, upToMark - 5, false), 2);        // (the word itself doesn't fit)
     }
 
+    // The text after a page break that begins a paragraph is its first line, with the paragraph's first-line indent (here a hanging one); after a break in
+    // the middle of a paragraph the text is a line that follows.
+    void textAfterABreakThatBeginsAParagraphHasItsFirstLineIndent()
+    {
+        auto lefts = [&](const QString &text, bool paginated) {
+            QVector<double> out;
+            QTextBlockFormat bf;
+            bf.setLeftMargin(40);
+            bf.setTextIndent(-40);
+            const QString words = QStringLiteral("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon phi chi psi omega alpha beta gamma delta");
+            if (paginated) {
+                FlowDocument fd;
+                fd.env.wordLines = true;
+                QTextCursor c(fd.story());
+                c.setBlockFormat(bf);
+                c.insertText(text + words);
+                Paginator pg(&fd);
+                for (int k = 0; k < pg.pageCount(); ++k)
+                    for (const auto &l : pg.lines(k)) out << l.rect.left();
+                return out;
+            }
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            c.setBlockFormat(bf);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.insertText(text + words, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(200, 300)}, env);
+            for (const auto &l : lay.lineInfo(0)) out << l.rect.left();
+            return out;
+        };
+        for (bool paginated : {false, true}) {
+            const auto begin = lefts(QString(flow::kPageBreak), paginated), middle = lefts(QStringLiteral("some words ") + flow::kPageBreak, paginated);
+            QVERIFY(begin.size() >= 3 && middle.size() >= 3);
+            // The paragraph that begins with the break: its break's line, then the first line (at the margin), then the others (at the indent).
+            QVERIFY2(std::abs(begin[1]) < 0.01 && std::abs(begin[2] - 40) < 0.01, qPrintable(QStringLiteral("%1 %2 %3").arg(begin[0]).arg(begin[1]).arg(begin[2])));
+            // The break in the middle: the text after it is at the indent.
+            QVERIFY2(std::abs(middle[1] - 40) < 0.01, qPrintable(QString::number(middle[1])));
+        }
+    }
+
     // The space between two paragraphs is the larger of the first's space after and the second's space before, not their sum; a paragraph that asks
     // for contextual spacing has none between it and a paragraph of its own style.
     void wordSpaceBetweenParagraphsIsTheLarger()

@@ -2297,7 +2297,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl->setTextOption(opt);
         B->tl->setCacheEnabled(true);
 
-        const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail ? 0.0 : bf.textIndent() * scale;
+        // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
+        const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1;
+        const bool firstAfterBreak = startsWithBreak && (!tail || m_span.spaceBeforeContinued);
+        const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
         double before = tail && !m_span.spaceBeforeContinued ? 0.0 : bf.topMargin() * scale, after = bf.bottomMargin() * scale;
         if (env.slideLines) {
@@ -2620,7 +2623,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 PtLine line(B->tl->createLine());
                 if (!line.isValid()) break;
                 double indL = leftM, indR = rightM, lead = 0;
-                if (lineNo == 0) {
+                if (lineNo == 0 || (startsWithBreak && !tail && lineNo == 1)) {
                     if (!B->marker.isEmpty()) indL = textIndent < 0 ? leftM : leftM + textIndent + markerW;
                     else indL = leftM + textIndent;
                     // A line that hangs starts where it has room, not left of
