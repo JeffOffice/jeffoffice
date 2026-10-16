@@ -4416,8 +4416,24 @@ private Q_SLOTS:
         };
         QVERIFY(inkIn(20, 45) > 50);
         QVERIFY(inkIn(120, 145) > 50);
-        QCOMPARE(inkIn(47, 118), 0);
         QCOMPARE(inkIn(150, 200), 0);
+        // Measured by the ink, not by how wide this computer's font draws an "I": exactly two letters, the first starting near
+        // 20 and the second 100 points after the first one's start (a fixed empty gap failed where the font drew wider).
+        {
+            QVector<QPair<double, double>> runs;   // ink columns in picture units, as runs of columns
+            int empty = 2;
+            for (int x = 0; x < img.width(); ++x) {
+                bool inked = false;
+                for (int y = 0; y < img.height() && !inked; ++y) inked = qAlpha(img.pixel(x, y)) > 128;
+                const double at = x * 200.0 / img.width();
+                if (inked && empty >= 2) runs.append({at, at});
+                if (inked) { runs.last().second = at; empty = 0; } else ++empty;
+            }
+            QCOMPARE(int(runs.size()), 2);
+            QVERIFY2(runs[0].first > 15 && runs[0].first < 30, qPrintable(QString::number(runs[0].first)));
+            const double apart = runs[1].first - runs[0].first;
+            QVERIFY2(apart > 94 && apart < 106, qPrintable(QString::number(apart)));
+        }
         // A bitmap with a color table (here 8 pixels in a row at 8 bits each, red, green, then blue, over 10 to 90 across), and a direct one
         // (32 bits to the pixel in rows of each color: 4 pixels red, then 4 blue).
         auto pixmapHeader = [&](int rowBytes, int packType, int pixelSize, int components) {
