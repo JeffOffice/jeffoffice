@@ -946,7 +946,6 @@ private:
     StyleSet m_styles;
     QHash<quint32, QString> m_links;
     QVector<office::OdrawStoreEntry> m_store;
-    QByteArray m_defaults;   // the drawing group's default property records
     QHash<int, int> m_storeAt;   // by the number a shape gives a picture, the store's entry
     QHash<int, QString> m_pictureIds;
     qint64 m_pictureWork = office::kOdrawPictWork;   // what the Macintosh pictures may still do between them
@@ -1184,8 +1183,9 @@ void Importer::readDrawingGroup(const Rec &r)
     for (const Rec &dgg : m_ppt.in(r)) {
         if (dgg.type != 0xF000) continue;
         for (const Rec &b : m_ppt.in(dgg)) {
-            // The properties a shape has when it names none: its default tables.
-            if (b.type == 0xF00B || b.type == 0xF121 || b.type == 0xF122) m_defaults += view(b);
+            // Its default property tables (0xF00B, 0xF121, 0xF122) are what the program that wrote the file starts a new shape from; the
+            // program that draws it takes a shape's looks from the shape alone (and from its master's), so they are left unread: text
+            // sits at the top and wraps, and a filled shape that names no color is white, whatever the tables say.
             if (b.type != 0xF001) continue;
             m_store = office::odrawStore(view(b));
             // A store given as the records inside the container.
@@ -2419,7 +2419,6 @@ office::OdrawContext Importer::drawingContext()
 {
     office::OdrawContext ctx;
     ctx.budget = &m_shapes;
-    ctx.defaults = m_defaults;
     ctx.richLook = [this](Item &item, const QByteArray &package) { takeLookFromWritersXml(item, package); };
     ctx.background = [this](const QRectF &shape) { return m_state ? backgroundAt(m_state->background, shape) : Fill(); };
     ctx.inherits = [this](const QByteArray &clientData) {

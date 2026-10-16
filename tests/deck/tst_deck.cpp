@@ -21119,22 +21119,26 @@ private Q_SLOTS:
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("h")).toDouble(), 720.0);
     }
 
-    // The presentation's drawing group keeps the properties a shape starts from: a shape of a slide that names no colors has the
-    // fills color and the text color of the scheme (the master's), not white and black.
-    void importBinaryShapesTakeTheDrawingGroupsDefaults()
+    // The presentation's drawing group holds the properties of a new shape in the program that wrote the file, and the program that draws
+    // the file never reads them: a shape of a slide that names no colors is white with a black line, as the format has it, and text sits at
+    // the top, however the group's table says the fills color is the scheme's, the line the text color, and text is centered in its shape.
+    void importBinaryShapesIgnoreTheDrawingGroupsDefaults()
     {
         auto table = [&](const QVector<QPair<int, quint32>> &props) {
             QByteArray t;
             for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
             return pptRec(0xF00B, t, quint16(props.size()), 3);
         };
-        // Filled in scheme color 4 (the fills color), a line in scheme color 1 (the text color).
-        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
-        // A rectangle that says nothing of its look, and one that has its own fill.
-        auto rectangle = [&](quint32 id, int top, const QByteArray &props) {
-            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2)));
+        // Filled in scheme color 4 (the fills color), a line in scheme color 1 (the text color), text anchored in the middle.
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0'))
+                                                                 + table({{0x0087, 1}, {0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
+        // A rectangle that says nothing of its look, one that has its own fill, and a text box that says nothing of its text.
+        auto rectangle = [&](quint32 id, int top, const QByteArray &props, const QByteArray &textbox = QByteArray()) {
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2))
+                                      + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
         };
-        const QByteArray shapes = rectangle(0x500, 100, QByteArray()) + rectangle(0x501, 800, table({{0x0181, 0x0000FF}}));
+        const QByteArray shapes = rectangle(0x500, 100, QByteArray()) + rectangle(0x501, 800, table({{0x0181, 0x0000FF}}))
+                                  + rectangle(0x502, 1500, table({{0x01BF, 0x00100000}, {0x01FF, 0x00080000}}), pptText(4, QStringLiteral("Words")));
         auto look = [&](const QByteArray &file) {
             QString err;
             auto d = deck::importBinaryPresentation(file, &err);
@@ -21146,20 +21150,31 @@ private Q_SLOTS:
                     out << qMakePair(it->fill.color.kind() == ColorRef::Rgb ? it->fill.color.rgbValue() : QColor(), it->stroke.color.kind() == ColorRef::Rgb ? it->stroke.color.rgbValue() : QColor());
             return out;
         };
+        auto anchorOfTheTextBox = [&](const QByteArray &file) {
+            QString err;
+            auto d = deck::importBinaryPresentation(file, &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            if (d)
+                for (const auto &it : d->pages[0]->items)
+                    if (it->role.isEmpty() && it->type() == ItemType::Text) return int(static_cast<const TextItem *>(it.get())->valign);
+            return -1;
+        };
         const auto withGroup = look(buildPpt(false, false, false, false, QByteArray(), group, shapes));
         QCOMPARE(int(withGroup.size()), 2);
-        QCOMPARE(withGroup[0].first, QColor(0x77, 0x88, 0x99));
-        QCOMPARE(withGroup[0].second, QColor(0x11, 0x22, 0x33));
+        QCOMPARE(withGroup[0].first, QColor(Qt::white));
+        QCOMPARE(withGroup[0].second, QColor(Qt::black));
         QCOMPARE(withGroup[1].first, QColor(255, 0, 0));
-        // With no drawing group, the format's own: white, and black.
+        QCOMPARE(anchorOfTheTextBox(buildPpt(false, false, false, false, QByteArray(), group, shapes)), int(VAlign::Top));
+        // With no drawing group, the same.
         const auto without = look(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes));
         QCOMPARE(int(without.size()), 2);
         QCOMPARE(without[0].first, QColor(Qt::white));
         QCOMPARE(without[0].second, QColor(Qt::black));
+        QCOMPARE(anchorOfTheTextBox(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes)), int(VAlign::Top));
     }
 
-    // A slide's placeholder takes what it leaves out of its look from the master's shape of its kind, and then from the drawing group's
-    // defaults: the master's title says what the slides' titles look like.
+    // A slide's placeholder takes what it leaves out of its look from the master's shape of its kind, and then from the format's own (the
+    // drawing group's default tables are not read): the master's title says what the slides' titles look like.
     void importBinaryPlaceholdersTakeAfterTheirMastersShapes()
     {
         auto table = [&](const QVector<QPair<int, quint32>> &props) {
@@ -21167,7 +21182,7 @@ private Q_SLOTS:
             for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
             return pptRec(0xF00B, t, quint16(props.size()), 3);
         };
-        // The defaults: filled in the fills color, with a line in the text color.
+        // The group's defaults, which are not read: filled in the fills color, with a line in the text color.
         const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
         // The master's title: a green fill and no line. Its body says nothing.
         const QByteArray title = table({{0x0181, 0x00FF00}, {0x01BF, 0x00100010}, {0x01FF, 0x00080000}});
