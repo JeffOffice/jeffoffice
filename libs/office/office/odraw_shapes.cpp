@@ -130,6 +130,13 @@ VAlign verticalAlign(const Props &p)
     }
 }
 
+// Whether the text is anchored centered (the kinds of anchor that say "centered"): the block of it is in the middle of the frame across.
+bool centeredBlock(const Props &p)
+{
+    const quint32 anchor = p.value(0x0087, 0);
+    return anchor == 3 || anchor == 4 || anchor == 5 || anchor == 8 || anchor == 9;
+}
+
 // Turns an item and what is in it over, about the vertical (or horizontal) line at `axis`.
 void flipItem(Item &it, bool horizontal, double axis)
 {
@@ -349,6 +356,7 @@ private:
             t->insets = textInsets(p);
             t->valign = verticalAlign(p);
             t->noWrap = p.value(0x0085, 0) == 2;
+            t->centerBlock = ctx.presentation && centeredBlock(p);
             const quint32 flow = p.value(0x0088, 0);
             t->vertical = flow == 1 || flow == 2 || flow == 3 || flow == 5;
             if (p.flag(0x00BF, 0x01, false)) t->autofit = TextItem::GrowBox;
@@ -365,6 +373,7 @@ private:
             sh->insets = textInsets(p);
             sh->valign = verticalAlign(p);
             sh->noWrap = p.value(0x0085, 0) == 2;
+            sh->centerBlock = ctx.presentation && centeredBlock(p);
             item = sh;
         }
         item->name = p.text(0x0380);
