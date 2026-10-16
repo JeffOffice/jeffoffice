@@ -495,12 +495,33 @@ QString PackageWriter::addRelationship(const QString &source, const QString &typ
     const QString from = source.isEmpty() ? QStringLiteral("/") : source;
     QVector<Relationship> &links = m_rels[from];
     Relationship r;
-    r.id = QStringLiteral("rId%1").arg(links.size() + 1);
+    // (The next number no link of the source has, which is the count plus one unless links came with Ids of their own.)
+    for (int n = int(links.size()) + 1;; ++n) {
+        r.id = QStringLiteral("rId%1").arg(n);
+        bool taken = false;
+        for (const Relationship &l : std::as_const(links)) taken = taken || l.id == r.id;
+        if (!taken) break;
+    }
     r.type = type;
     r.target = external ? target : relativeTarget(from, target);
     r.external = external;
     links.append(r);
     return r.id;
+}
+
+bool PackageWriter::addRelationshipWithId(const QString &source, const QString &id, const QString &type, const QString &target, bool external)
+{
+    const QString from = source.isEmpty() ? QStringLiteral("/") : source;
+    QVector<Relationship> &links = m_rels[from];
+    for (const Relationship &l : std::as_const(links))
+        if (l.id == id) return false;
+    Relationship r;
+    r.id = id;
+    r.type = type;
+    r.target = external ? target : relativeTarget(from, target);
+    r.external = external;
+    links.append(r);
+    return true;
 }
 
 QByteArray PackageWriter::finish()

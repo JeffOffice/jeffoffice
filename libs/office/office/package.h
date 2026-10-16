@@ -117,6 +117,9 @@ public:
     // part's folder ("../media/image1.png"); an external one is written as
     // given.
     QString addRelationship(const QString &source, const QString &type, const QString &target, bool external = false);
+    // The same with an Id of its own, for a link that something in the source part refers to by that Id (a relationship read from a
+    // package keeps its Id when it is written again). An Id the source already has is not added again; false then.
+    bool addRelationshipWithId(const QString &source, const QString &id, const QString &type, const QString &target, bool external = false);
     // The ZIP: [Content_Types].xml first, then the package's relationships,
     // the parts in the order added, and the other relationships; deflated.
     QByteArray finish();
