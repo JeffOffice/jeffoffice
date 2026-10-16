@@ -472,10 +472,23 @@ bool PageView::caretLine(int position, int *pageOut, QLineF *line)
     if (!m_doc) return false;
     flow::Paginator &pg = m_doc->pager();
     const int home = pg.pageOfPosition(std::clamp(position, 0, std::max(0, m_doc->story()->characterCount() - 1)));
-    for (int page : {home, home - 1, home + 1}) {
+    QVector<int> candidates{home, home - 1, home + 1};
+    // (A row of a table that goes over page breaks is on every page that starts in it: the position may be on any of them.)
+    for (int p = home - 2; p >= 0 && pg.page(p + 1).start.piece != 0; --p) candidates << p;
+    for (int page : candidates) {
         if (page < 0) continue;
         const auto r = rendered(page);
-        if (!r || !r->page || r->boxes.isEmpty()) continue;
+        if (!r || !r->page) continue;
+        // A position in a cell of a table is where the table's own layout of it puts it.
+        for (const auto &fragment : r->page->tables) {
+            QLineF cellLine;
+            if (fragment->caretLine(position, &cellLine)) {
+                *line = cellLine;
+                *pageOut = page;
+                return true;
+            }
+        }
+        if (r->boxes.isEmpty()) continue;
         const int inPage = position - r->page->storyFrom;
         if (inPage < 0) continue;
         const LayoutCache::FrameLayout fl = r->layouts.textFrame(*r->page->doc, *r->boxes.first(), r->page->number, RenderOptions());
@@ -531,6 +544,14 @@ int PageView::positionAt(const Hit &hit)
     if (hit.page < 0) return -1;
     const auto r = rendered(hit.page);
     const int last = std::max(0, m_doc->story()->characterCount() - 1);
+    // A point in the rows of a table (beside them, too) is in the nearest of the cells.
+    if (r && r->page)
+        for (const auto &fragment : r->page->tables) {
+            const QRectF fr = fragment->rect();
+            if (hit.point.y() < fr.top() - 1 || hit.point.y() > fr.bottom() + 1) continue;
+            const int at = fragment->positionAt(hit.point);
+            if (at >= 0) return std::clamp(at, 0, last);
+        }
     if (!r || !r->page || r->boxes.isEmpty()) return std::clamp(m_doc->pager().page(hit.page).start.pos, 0, last);
     // The column the point is in (else the nearest).
     int column = 0;
@@ -571,6 +592,10 @@ int PageView::lineEdge(int position, bool end)
     QLineF line;
     if (!caretLine(position, &page, &line)) return position;
     const auto r = rendered(page);
+    for (const auto &fragment : r->page->tables) {
+        int edge = 0;
+        if (fragment->lineEdge(position, end, &edge)) return edge;
+    }
     const LayoutCache::FrameLayout fl = r->layouts.textFrame(*r->page->doc, *r->boxes.first(), r->page->number, RenderOptions());
     if (!fl.layout) return position;
     const int inPage = position - r->page->storyFrom;
@@ -583,6 +608,12 @@ int PageView::moveVertical(int position, int direction)
     QLineF line;
     if (!caretLine(position, &page, &line)) return position;
     const auto r = rendered(page);
+    for (const auto &fragment : r->page->tables)
+        if (fragment->contains(position)) {
+            const int moved = fragment->moveVertical(position, direction, &m_wantedX);
+            if (moved != position) return moved;
+            break;
+        }
     const LayoutCache::FrameLayout fl = r->layouts.textFrame(*r->page->doc, *r->boxes.first(), r->page->number, RenderOptions());
     if (!fl.layout) return position;
     const int inPage = position - r->page->storyFrom;

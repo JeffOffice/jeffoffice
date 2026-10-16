@@ -208,6 +208,11 @@ struct TableFragment {
     bool caretLine(int pos, QLineF *line) const;
     // The position nearest a page point, in the cell the point is in or the nearest one (-1: the fragment has no cell with text).
     int positionAt(const QPointF &point) const;
+    // The start or the end of the line that has a position in one of its cells (false when it is in none).
+    bool lineEdge(int pos, bool end, int *result) const;
+    // Up or Down from a position in one of its cells, along `wantedX` (page coordinates; a negative one is the caret's own, and is set): the line above or below in the
+    // cell, else the cell above or below in the fragment; `pos` when there is none.
+    int moveVertical(int pos, int direction, double *wantedX) const;
     bool contains(int pos) const;
     // The page rectangle of the cell that has the position (empty for none).
     QRectF cellRect(int pos) const;

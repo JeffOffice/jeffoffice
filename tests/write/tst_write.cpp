@@ -45,6 +45,7 @@
 #include <QLabel>
 #include <QRegularExpression>
 #include <QScrollBar>
+#include <functional>
 #include <random>
 
 using namespace jp;
@@ -113,6 +114,32 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text)
 }
 
 QString plain(WriteDoc &doc) { return doc.story()->toPlainText(); }
+
+// A random place in a table's cells (the cursor is not moved when the story has no table).
+bool placeInACell(WriteDoc &doc, QTextCursor &c, const std::function<int(int)> &pick)
+{
+    QVector<QTextBlock> cells;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        if (cellKeyOf(b)) cells << b;
+    if (cells.isEmpty()) return false;
+    const QTextBlock b = cells[pick(int(cells.size()))];
+    c.setPosition(b.position() + pick(b.length()));
+    return true;
+}
+
+// The table commands, as the random editing picks them (kinds 0 to 5: add a row, a column, Tab, take a row, a column, the table).
+void tableCommand(WriteDoc &doc, QTextCursor &c, int kind, const std::function<int(int)> &pick)
+{
+    if (!placeInACell(doc, c, pick)) return;
+    switch (kind) {
+    case 0: insertTableRow(doc, c, pick(2)); break;
+    case 1: insertTableColumn(doc, c, pick(2)); break;
+    case 2: insertTab(doc, c, pick(2)); break;
+    case 3: deleteTableRows(doc, c); break;
+    case 4: deleteTableColumns(doc, c); break;
+    default: if (pick(3) == 0) deleteTable(doc, c); break;
+    }
+}
 
 const QByteArray kStyles =
     "<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Tinos\" w:hAnsi=\"Tinos\"/><w:sz w:val=\"23\"/></w:rPr></w:rPrDefault>"
@@ -563,6 +590,68 @@ private Q_SLOTS:
         QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(first.x() + 40, first.y() + 60));
         QVERIFY(view.cursor().hasSelection());
         QVERIFY(view.cursor().selectionEnd() > 22);
+    }
+
+    // The caret is drawn in a cell where the cell's own layout puts it, a click in a cell puts it there, Up and Down go through the cell's lines and on to the cell above
+    // or below, and Home and End are to the cell's line.
+    void theCaretAndTheMouseWorkInCells()
+    {
+        auto doc = open(tableDocx(3, 2));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        QTextDocument *s = doc->story();
+        auto block = [&](const QString &text) { for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) if (b.text() == text) return b; return QTextBlock(); };
+        auto caretAt = [&](const QString &text, int offset) {
+            view.cursor().setPosition(block(text).position() + offset);
+            view.setCursor(view.cursor());
+            QRect r;
+            return view.caretRect(&r) ? r : QRect();
+        };
+        const QRect a = caretAt(QStringLiteral("r0c0"), 0), b = caretAt(QStringLiteral("r0c1"), 0), c = caretAt(QStringLiteral("r1c0"), 0), d = caretAt(QStringLiteral("r1c1"), 2);
+        QVERIFY(a.isValid() && b.isValid() && c.isValid() && d.isValid());
+        QVERIFY2(b.x() > a.x() + 100, "the second column is to the right of the first");
+        QVERIFY2(c.y() > a.y() + 8 && std::abs(c.x() - a.x()) < 2, "the second row is below the first");
+        QVERIFY(d.x() > c.x() + 100 && d.y() == c.y());
+        QVERIFY(view.pageRect(0).contains(d.center()));
+        // A click in a cell: the cell's text, at the place.
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(b.x() + 1, b.y() + b.height() / 2));
+        QCOMPARE(view.cursor().block().text(), QStringLiteral("r0c1"));
+        QCOMPARE(view.cursor().positionInBlock(), 0);
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(d.x() + 1, d.y() + 4));
+        QCOMPARE(view.cursor().block().text(), QStringLiteral("r1c1"));
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(c.x() + 90, c.y() + 4));   // (past the end of "r1c0": its end)
+        QCOMPARE(view.cursor().block().text(), QStringLiteral("r1c0"));
+        QCOMPARE(view.cursor().positionInBlock(), 4);
+        // Up and Down from a cell go to the cell above and below, along the same x.
+        caretAt(QStringLiteral("r1c1"), 1);
+        view.typeKey(Qt::Key_Up, Qt::NoModifier);
+        QCOMPARE(view.cursor().block().text(), QStringLiteral("r0c1"));
+        view.typeKey(Qt::Key_Down, Qt::NoModifier);
+        QCOMPARE(view.cursor().block().text(), QStringLiteral("r1c1"));
+        view.typeKey(Qt::Key_Down, Qt::NoModifier);
+        QCOMPARE(view.cursor().block().text(), QStringLiteral("r2c1"));
+        // Home and End are in the cell's line.
+        view.typeKey(Qt::Key_End, Qt::NoModifier);
+        QCOMPARE(view.cursor().positionInBlock(), 4);
+        view.typeKey(Qt::Key_Home, Qt::NoModifier);
+        QCOMPARE(view.cursor().positionInBlock(), 0);
+        // Typing and Tab.
+        view.insertText(QStringLiteral("Z"));
+        QCOMPARE(view.cursor().block().text(), QStringLiteral("Zr2c1"));
+        view.typeKey(Qt::Key_Backtab, Qt::NoModifier);
+        QCOMPARE(view.cursor().selectedText(), QStringLiteral("r2c0"));
+        // A selection across cells is drawn in them: the cells' text has the selection color somewhere.
+        view.cursor().setPosition(block(QStringLiteral("r0c0")).position());
+        view.cursor().setPosition(block(QStringLiteral("r1c1")).position() + 4, QTextCursor::KeepAnchor);
+        view.setCursor(view.cursor());
+        const QImage img = view.pageImage(0, 816);
+        QVERIFY(!img.isNull());
+        view.cursor().setPosition(0);
+        QRect r;
+        QVERIFY(view.caretRect(&r));
     }
 
     void theKeysMoveTheCaret()
@@ -1607,6 +1696,21 @@ private Q_SLOTS:
         checkWhole(*doc);
     }
 
+    // A section does not end in a table's cell: the command there changes nothing.
+    void aSectionBreakIsNotMadeInACell()
+    {
+        auto doc = open(tableDocx(1, 2));
+        QTextDocument *s = doc->story();
+        QTextCursor c(s);
+        for (QTextBlock b = s->begin(); b.isValid(); b = b.next())
+            if (b.text() == QLatin1String("r0c1")) c.setPosition(b.position() + 1);
+        const int blocks = s->blockCount();
+        insertSectionBreak(*doc, c);
+        QCOMPARE(s->blockCount(), blocks);
+        QCOMPARE(doc->sectionCount(), 1);
+        QVERIFY(!s->isUndoAvailable());
+    }
+
     // Rows and columns are added beside the cell's and taken away, as one step each that undoes to the very file it began as.
     void rowsAndColumnsAreAddedAndTakenAway()
     {
@@ -2583,7 +2687,8 @@ private Q_SLOTS:
                     seedsFailing.insert(QStringLiteral("%1/%2").arg(mode).arg(seed));
                 };
                 for (int step = 0; step < 120 && !seedFailed; ++step) {
-                    const int op = pick(mode == 0 ? 12 : mode == 1 ? 17 : 17);
+                    int op = pick(mode == 0 ? 15 : 23);
+                    if (mode == 0 && op >= 12) op += 5;   // (the commands that add to the tables: a row, a column, Tab)
                     if (mode == 2 && (op == 10 || op == 11)) continue;   // (no undo or redo among the commands: they are all undone at the end)
                     log << QStringLiteral("op%1@%2").arg(op).arg(c.position());
                     switch (op) {
@@ -2602,6 +2707,7 @@ private Q_SLOTS:
                     case 13: place(); deleteForward(*doc, c, false); break;
                     case 14: selectSome(); removeSelection(*doc, c); break;
                     case 15: place(); insertParagraph(*doc, c); deleteBack(*doc, c, false); break;
+                    case 17: case 18: case 19: case 20: case 21: case 22: tableCommand(*doc, c, op - 17, pick); break;
                     default: selectSome(); c.removeSelectedText(); break;
                     }
                     if (qEnvironmentVariableIsSet("JW_FUZZ_TRACE")) {
@@ -2679,13 +2785,24 @@ private Q_SLOTS:
         for (int i = 0; i < 4; ++i) body += "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"" + QByteArray::number(i % 2) + "\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>item " + QByteArray::number(i) + "</w:t></w:r></w:p>";
         body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:bookmarkStart w:id=\"1\" w:name=\"a\"/><w:r><w:t>A heading</w:t></w:r><w:bookmarkEnd w:id=\"1\"/></w:p>";
         body += paragraphs(6, 40);
-        body += "<w:tbl><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        // A table of cells joined across and down, with a header row, a cell with two paragraphs, a table in a cell, and a bookmark between the rows.
+        body += "<w:tbl><w:tblPr><w:tblStyle w:val=\"Grid\"/><w:tblW w:w=\"6000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                "<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc><w:p><w:r><w:t>head a</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>head b</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>head c</w:t></w:r></w:p></w:tc></w:tr>"
+                "<w:bookmarkStart w:id=\"2\" w:name=\"inTable\"/><w:bookmarkEnd w:id=\"2\"/>"
+                "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"4000\" w:type=\"dxa\"/><w:gridSpan w:val=\"2\"/></w:tcPr><w:p><w:r><w:t>wide</w:t></w:r></w:p><w:p><w:r><w:t>second paragraph of the wide cell</w:t></w:r></w:p></w:tc>"
+                "<w:tc><w:tcPr><w:vMerge w:val=\"restart\"/></w:tcPr><w:p><w:r><w:t>tall</w:t></w:r></w:p></w:tc></w:tr>"
+                "<w:tr><w:tc><w:p><w:r><w:t>one</w:t></w:r></w:p></w:tc><w:tc><w:tbl><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>in</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>side</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/></w:tc>"
+                "<w:tc><w:tcPr><w:vMerge/></w:tcPr><w:p/></w:tc></w:tr></w:tbl>";
         body += "<w:p><w:r><w:t>before break </w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after break</w:t></w:r></w:p>";
         body += "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr></w:pPr><w:r><w:t>end of one</w:t></w:r></w:p>";
         body += paragraphs(5, 30);
+        const QByteArray gridStyle =
+            "<w:style w:type=\"table\" w:styleId=\"Grid\"><w:name w:val=\"Grid\"/><w:pPr><w:spacing w:after=\"0\"/></w:pPr><w:tblPr><w:tblBorders><w:top w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>"
+            "<w:insideH w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/><w:insideV w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/></w:tblBorders></w:tblPr>"
+            "<w:tblStylePr w:type=\"firstRow\"><w:rPr><w:b/></w:rPr><w:tcPr><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"DDDDDD\"/></w:tcPr></w:tblStylePr></w:style>";
         const int seeds = qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 8;   // (more, to look further)
         for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
-            auto doc = open(makeDocx(body, kStyles, numbering));
+            auto doc = open(makeDocx(body, kStyles + gridStyle, numbering));
             QVERIFY(doc);
             std::mt19937 rng(seed);
             QTextCursor c(doc->story());
@@ -2699,7 +2816,7 @@ private Q_SLOTS:
             QTextDocumentFragment held;
             QStringList log;
             for (int step = 0; step < 300; ++step) {
-                const int op = pick(17);
+                const int op = pick(23);
                 log << QStringLiteral("%1:op%2 pos=%3 anchor=%4 blocks=%5").arg(step).arg(op).arg(c.position()).arg(c.anchor()).arg(doc->story()->blockCount());
                 switch (op) {
                 case 0: place(); typeText(*doc, c, QStringLiteral("word ")); break;
@@ -2718,6 +2835,7 @@ private Q_SLOTS:
                 case 13: selectSome(); setAlignment(*doc, c, pick(2) ? Qt::AlignRight : Qt::AlignJustify); break;
                 case 14: selectSome(); held = selectionFragment(c); break;
                 case 15: place(); pasteFragment(*doc, c, held); break;
+                case 17: case 18: case 19: case 20: case 21: case 22: tableCommand(*doc, c, op - 17, pick); break;
                 default: place(); moveCursor(c, pick(2) ? QTextCursor::NextCharacter : QTextCursor::PreviousCharacter, pick(2), 1 + pick(3)); break;
                 }
                 QVERIFY(doc->story()->blockCount() >= 1);
