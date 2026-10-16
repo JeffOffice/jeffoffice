@@ -9802,7 +9802,9 @@ private Q_SLOTS:
         withStory->storyId = QStringLiteral("s1");
         withStory->insets = QMarginsF(5, 6, 7, 8);
         withStory->valign = VAlign::Top;
-        const auto &w = static_cast<const ShapeItem &>(*jp::Item::fromJsonAny(withStory->toJson()));
+        const ItemPtr wBack = jp::Item::fromJsonAny(withStory->toJson());   // (held, so the item outlives the line)
+        QVERIFY(wBack && wBack->type() == ItemType::Shape);
+        const auto &w = static_cast<const ShapeItem &>(*wBack);
         QCOMPARE(w.insets, QMarginsF(5, 6, 7, 8));
         QCOMPARE(int(w.valign), int(VAlign::Top));
     }
