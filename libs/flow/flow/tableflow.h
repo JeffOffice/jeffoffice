@@ -129,6 +129,24 @@ public:
     // The cell's content, laid out.
     std::shared_ptr<CellContent> contentOf(const Cell &c) const;
 
+    // A row that goes over a page break is shown a part at a time: each cell's lines that fit the page, and the rest on the next, as a word processor sets a row that
+    // may be split. A part is told by its state: 0 for the row whole or the part at its top, else the index of the part (1 and up) with the room the first part
+    // had (in twentieths of a point, above 10 bits), from which the parts before it are found again.
+    struct Piece {
+        double height = 0;                  // as tall as its room when more of the row comes after it, else as the cells that are left need
+        QVector<double> offsets;            // for each cell of the row: how far down its content the part begins (from the top of the cell's text area)
+        bool progress = false;              // some cell has a line in the part (without, the row is not split there: it goes to the next page whole)
+        int next = 0;                       // the state of the part after it (0: the row ends in this one)
+    };
+    static int pieceState(int index, double firstRoom) { return (index & 0x3FF) | (int(std::lround(firstRoom * 20)) << 10); }
+    static int pieceIndex(int state) { return state & 0x3FF; }
+    static double pieceFirstRoom(int state) { return (state >> 10) / 20.0; }
+    // Whether row `r` can go over a page break: not one that says it can't, one of an exact height, or one with cells joined down in it (or covered by those).
+    bool splittable(int r) const;
+    // The part of row `r` that begins at `state`, when `room` is the most it may take (state 0) and `fullRoom` what each later part may (a page less the
+    // header rows). A part at the top of a page is given a line of each cell even if none fits (`force`), so that a row taller than a page ends.
+    Piece pieceOf(int r, int state, double room, double fullRoom, bool force);
+
 private:
     friend class TableFlow;
     TableLayout() = default;
@@ -143,6 +161,12 @@ private:
     int m_depth = 0;
     int m_maxRows = 1;                      // the most rows a cell covers
     TableContext m_ctx;
+    struct Units {
+        std::vector<std::pair<double, double>> lines;   // the top and bottom of each line of a cell's content (a table in it as one), from the top of its text area
+        double height = 0;
+    };
+    std::shared_ptr<const Units> unitsOf(int cell);
+    QHash<int, std::shared_ptr<const Units>> m_units;
 };
 
 // The cells of paragraphs [i0, i1) of the index laid out as the content of a cell `direct` cells deep, at a width (the paragraphs of the cell itself and
@@ -168,8 +192,17 @@ struct TableFragment {
         std::shared_ptr<CellContent> content;
     };
     std::vector<Item> items;                // the cells that show
+    // Rows that are shown in part: the row, and the part (see TableLayout::Piece).
+    struct Part {
+        int row = 0;
+        TableLayout::Piece piece;
+    };
+    std::vector<Part> parts;
 
     QRectF rect() const { return QRectF(origin, QSizeF(layout->width(), height)); }
+    // The part of a row this shows (null for a row whole), and how tall the row is here.
+    const Part *partOf(int row) const;
+    double heightOf(int row) const;
     void paint(QPainter *p, const TablePaint &o) const;
     // The text caret for a position in one of its cells: the line, in page coordinates. False when none of its cells has the position.
     bool caretLine(int pos, QLineF *line) const;
@@ -201,8 +234,8 @@ public:
     TableContext context();
     // The table at index `span` of the index, laid out (the same one again while the story is as it was).
     std::shared_ptr<TableLayout> layout(int span);
-    // A fragment of rows [first, end) of a table, with the cells it shows laid out.
-    std::shared_ptr<TableFragment> fragment(const std::shared_ptr<TableLayout> &layout, int firstRow, int endRow);
+    // A fragment of rows [first, end) of a table, with the cells it shows laid out; `parts` are those of its rows that it shows only a part of.
+    std::shared_ptr<TableFragment> fragment(const std::shared_ptr<TableLayout> &layout, int firstRow, int endRow, const std::vector<TableFragment::Part> &parts = {});
     // Whether a page that starts with row `first` of the table has the header rows above it (it does when the table has gone on from earlier pages).
     static bool repeatsHeader(const TableLayout &t, int first) { return t.headerRows() > 0 && first >= t.headerRows(); }
 

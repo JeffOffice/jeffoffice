@@ -391,6 +391,52 @@ private Q_SLOTS:
         QVERIFY2(t.parse(documentXmlOf(writeDocx(d2))), "the document is well formed");
     }
 
+    // A table style is what it says over the styles it is based on: borders and margins side by side, paragraph and run properties over one another, and the parts
+    // of it for the first row and the like each with its own.
+    void aTableStyleIsReadWithTheStylesItIsBasedOn()
+    {
+        Made m;
+        m.body = "<w:p/>";
+        m.styles =
+            R"(<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>)"
+            R"(<w:style w:type="table" w:styleId="Grid"><w:name w:val="Grid"/><w:basedOn w:val="TableNormal"/><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>)"
+            R"(<w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:tblBorders></w:tblPr></w:style>)"
+            R"(<w:style w:type="table" w:styleId="Fancy"><w:name w:val="Fancy"/><w:basedOn w:val="Grid"/><w:rPr><w:b/></w:rPr><w:pPr><w:jc w:val="center"/></w:pPr>)"
+            R"(<w:tblPr><w:tblStyleRowBandSize w:val="2"/><w:tblBorders><w:top w:val="double" w:sz="8" w:space="0" w:color="FF0000"/></w:tblBorders></w:tblPr><w:tcPr><w:vAlign w:val="center"/></w:tcPr>)"
+            R"(<w:tblStylePr w:type="firstRow"><w:rPr><w:color w:val="FF0000"/></w:rPr><w:tcPr><w:tcBorders><w:bottom w:val="double" w:sz="4" w:space="0" w:color="auto"/></w:tcBorders><w:shd w:val="clear" w:color="auto" w:fill="000000"/></w:tcPr></w:tblStylePr>)"
+            R"(<w:tblStylePr w:type="band1Horz"><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EEEEEE"/></w:tcPr></w:tblStylePr></w:style>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const TableStyleDef &fancy = d.styles.tableStyle(QStringLiteral("Fancy"));
+        QCOMPARE(fancy.base.tbl.top.val, QStringLiteral("double"));       // (its own over Grid's)
+        QCOMPARE(fancy.base.tbl.top.color, QStringLiteral("FF0000"));
+        QCOMPARE(fancy.base.tbl.left.val, QStringLiteral("single"));      // (Grid's)
+        QCOMPARE(fancy.base.tbl.insideH.val, QStringLiteral("single"));
+        QVERIFY(fancy.base.tbl.marLeft && fancy.base.tbl.marLeft->w == 108 && fancy.base.tbl.marRight && fancy.base.tbl.marTop && fancy.base.tbl.marTop->w == 0);   // (TableNormal's)
+        QVERIFY(fancy.base.pPr && fancy.base.pPr->after && *fancy.base.pPr->after == 0 && fancy.base.pPr->jc == QLatin1String("center"));
+        QVERIFY(fancy.base.rPr && fancy.base.rPr->bold && *fancy.base.rPr->bold);
+        QCOMPARE(fancy.base.cell.vAlign, QStringLiteral("center"));
+        QVERIFY(fancy.rowBand && *fancy.rowBand == 2 && !fancy.colBand);
+        QVERIFY(fancy.parts.contains(QStringLiteral("firstRow")) && fancy.parts.contains(QStringLiteral("band1Horz")));
+        QCOMPARE(fancy.parts[QStringLiteral("firstRow")].cell.shdFill, QStringLiteral("000000"));
+        QCOMPARE(fancy.parts[QStringLiteral("firstRow")].cell.bottom.val, QStringLiteral("double"));
+        QCOMPARE(fancy.parts[QStringLiteral("firstRow")].rPr->color->val, QStringLiteral("FF0000"));
+        QCOMPARE(fancy.parts[QStringLiteral("band1Horz")].cell.shdFill, QStringLiteral("EEEEEE"));
+        // The table style the file calls the default, and one it has none of.
+        QCOMPARE(d.styles.defaultId(QStringLiteral("table")), QStringLiteral("TableNormal"));
+        QVERIFY(d.styles.tableStyle(QStringLiteral("None")).parts.isEmpty() && !d.styles.tableStyle(QStringLiteral("None")).base.tbl.top.stated());
+        // A paragraph in a cell has the style's properties under its own style's.
+        TableLayer layer;
+        layer.p = *fancy.base.pPr;
+        layer.r = *fancy.base.rPr;
+        layer.key = QStringLiteral("fancy");
+        QVERIFY(!d.styles.paragraph(QStringLiteral("Normal")).after);
+        const ParaProps in = d.styles.paragraph(QStringLiteral("Normal"), &layer);
+        QVERIFY(in.after && *in.after == 0 && in.jc == QLatin1String("center"));
+        QVERIFY(d.styles.run(QStringLiteral("Normal"), QString(), &layer).bold.value_or(false));
+        QVERIFY(!d.styles.run(QStringLiteral("Normal"), QString()).bold.value_or(false));
+    }
+
     // A cell with no paragraph in a damaged file is given one, and a table past a limit (columns, depth) is kept whole as XML and shown as a stand-in, as before.
     void tablesPastTheLimitsAreKeptWholeAndCellsWithNothingGetAParagraph()
     {

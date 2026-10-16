@@ -66,6 +66,25 @@ double points(const TableWidth &w) { return w.type == QLatin1String("dxa") || w.
 
 } // namespace
 
+TableBuilder::TableBuilder(flow::FlowDocument *flow, const StyleSheet *sheet, int compatMode, const QVector<Block> &body) : m_flow(flow), m_sheet(sheet), m_compat(compatMode)
+{
+    // The rows of each table, counted before the tables come.
+    QVector<int> open;
+    for (const Block &b : body) {
+        if (!b.isRaw || b.role == Inline::Single) continue;
+        if (tagIs(b, "tbl")) {
+            if (b.role == Inline::Open) {
+                open.push_back(int(m_rowCounts.size()));
+                m_rowCounts.push_back(0);
+            } else if (!open.isEmpty()) {
+                open.removeLast();
+            }
+        } else if (tagIs(b, "tr") && b.role == Inline::Open && !open.isEmpty()) {
+            ++m_rowCounts[open.last()];
+        }
+    }
+}
+
 bool TableBuilder::isStructural(const Block &blk) const
 {
     if (!blk.isRaw) return false;
@@ -73,6 +92,13 @@ bool TableBuilder::isStructural(const Block &blk) const
     // (What a file keeps between a table's rows or a row's cells.)
     if (!m_levels.isEmpty() && m_levels.last().kind != Level::Cell && blk.display.isEmpty()) return true;
     return false;
+}
+
+const TableLayer *TableBuilder::layer() const
+{
+    for (int i = int(m_levels.size()) - 1; i >= 0; --i)
+        if (m_levels[i].kind == Level::Cell) return m_levels[i].cellPart->layer.get();
+    return nullptr;
 }
 
 void TableBuilder::addTail(const QVector<Block> &pieces)
@@ -84,6 +110,33 @@ void TableBuilder::addTail(const QVector<Block> &pieces)
         }
 }
 
+namespace {
+
+// The parts of a table's style that apply to the cell in row `row` of `rows` and column `col` of `columns`, from the one that gives way to the rest to the one that wins.
+QStringList stylePartsFor(const TableStyleDef &def, int look, int row, int rows, int col, int columns, int rowBand, int colBand)
+{
+    QStringList out;
+    const bool firstRow = look & 0x20, lastRow = look & 0x40, firstCol = look & 0x80, lastCol = look & 0x100, noHBand = look & 0x200, noVBand = look & 0x400;
+    const bool isFirstRow = firstRow && row == 0, isLastRow = lastRow && row == rows - 1, isFirstCol = firstCol && col == 0, isLastCol = lastCol && col == columns - 1;
+    // (The bands count from the rows and columns that the first and the last ones leave: a band of 2 is two rows.)
+    if (!noVBand && !isFirstCol && !isLastCol) out << ((col - (firstCol ? 1 : 0)) / std::max(1, colBand) % 2 == 0 ? QStringLiteral("band1Vert") : QStringLiteral("band2Vert"));
+    if (!noHBand && !isFirstRow && !isLastRow) out << ((row - (firstRow ? 1 : 0)) / std::max(1, rowBand) % 2 == 0 ? QStringLiteral("band1Horz") : QStringLiteral("band2Horz"));
+    if (isLastCol) out << QStringLiteral("lastCol");
+    if (isFirstCol) out << QStringLiteral("firstCol");
+    if (isLastRow) out << QStringLiteral("lastRow");
+    if (isFirstRow) out << QStringLiteral("firstRow");
+    if (isFirstRow && isFirstCol) out << QStringLiteral("nwCell");
+    if (isFirstRow && isLastCol) out << QStringLiteral("neCell");
+    if (isLastRow && isFirstCol) out << QStringLiteral("swCell");
+    if (isLastRow && isLastCol) out << QStringLiteral("seCell");
+    QStringList present;
+    for (const QString &p : std::as_const(out))
+        if (def.parts.contains(p)) present << p;
+    return present;
+}
+
+} // namespace
+
 void TableBuilder::take(const Block &blk, QVector<Block> *pending)
 {
     const bool open = blk.role == Inline::Open;
@@ -91,11 +144,22 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
         if (open) {
             Level l;
             l.kind = Level::Table;
-            const TableMark &m = *blk.table;
+            const TableMark &direct = *blk.table;
+            // The table as its style makes it, and then as it says itself.
+            l.styleId = direct.style.isEmpty() ? m_sheet->defaultId(QStringLiteral("table")) : direct.style;
+            l.style = &m_sheet->tableStyle(l.styleId);
+            TableMark m = l.style->base.tbl;
+            overlayTableMark(&m, direct);
+            l.look = direct.look;
+            l.rowBand = l.style->rowBand.value_or(1);
+            l.colBand = l.style->colBand.value_or(1);
+            l.rowCount = m_tables < m_rowCounts.size() ? m_rowCounts[m_tables] : 0;
+            ++m_tables;
+            l.columns = int(direct.grid.size());
             l.table = std::make_shared<flow::TableData>();
             flow::TableData &t = *l.table;
-            for (int w : m.grid) t.columns << w / 20.0;
-            // Margins inside a cell, unless a cell says: the table's own, else the usual (a little at the sides).
+            for (int w : direct.grid) t.columns << w / 20.0;
+            // Margins inside a cell, unless a cell says: the table's own, else its style's, else the usual (a little at the sides).
             t.margins = QMarginsF(m.marLeft ? points(*m.marLeft) : 5.4, m.marTop ? points(*m.marTop) : 0, m.marRight ? points(*m.marRight) : 5.4, m.marBottom ? points(*m.marBottom) : 0);
             t.top = lineOf(m.top).value_or(flow::TableLine());
             t.left = lineOf(m.left).value_or(flow::TableLine());
@@ -112,8 +176,8 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             l.tablePart = std::make_shared<TablePart>();
             l.tablePart->open = blk.raw;
             l.tablePart->mark = blk.table;
-            l.tablePart->original = m.original;
-            l.tablePart->fingerprint = m.fingerprint;
+            l.tablePart->original = direct.original;
+            l.tablePart->fingerprint = direct.fingerprint;
             l.tablePart->before = *pending;
             pending->clear();
             t.app = l.tablePart;
@@ -144,17 +208,18 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             l.row->header = m.header;
             l.row->before = m.gridBefore;
             l.row->after = m.gridAfter;
+            l.col = m.gridBefore;
             l.rowPart = std::make_shared<RowPart>();
             l.rowPart->open = blk.raw;
             l.rowPart->before = m_between;
             m_between.clear();
             l.row->app = l.rowPart;
-            m_levels.push_back(l);
-            for (int i = int(m_levels.size()) - 2; i >= 0; --i)
+            for (int i = int(m_levels.size()) - 1; i >= 0; --i)
                 if (m_levels[i].kind == Level::Table) {
                     ++m_levels[i].rows;
                     break;
                 }
+            m_levels.push_back(l);
         } else {
             for (int i = int(m_levels.size()) - 1; i >= 0; --i)
                 if (m_levels[i].kind == Level::Row) {
@@ -168,8 +233,7 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
     }
     if (tagIs(blk, "tc") && blk.role != Inline::Single) {
         if (open) {
-            Level *table = nullptr;
-            const Level *row = nullptr;
+            Level *table = nullptr, *row = nullptr;
             for (int i = int(m_levels.size()) - 1; i >= 0; --i) {
                 if (m_levels[i].kind == Level::Row && !row) row = &m_levels[i];
                 if (m_levels[i].kind == Level::Table) {
@@ -177,7 +241,6 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
                     break;
                 }
             }
-            QVector<double> firstRow;
             Level cell;
             cell.kind = Level::Cell;
             cell.cellPart = std::make_shared<CellPart>();
@@ -186,13 +249,36 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             m_between.clear();
             flow::CellRecord rec;
             rec.parent = key();
+            QVector<double> firstRow;
             if (table && row) {
-                const TableMark &m = *blk.table;
+                const TableMark &direct = *blk.table;
                 rec.table = table->table;
                 rec.row = row->row;
+                const int rowIndex = table->rows - 1, col = row->col;
+                row->col += std::max(1, direct.span);
+                // The parts of the table's style that apply to this cell, and the cell as they and it say.
+                const QStringList parts = stylePartsFor(*table->style, table->look, rowIndex, table->rowCount, col, std::max(table->columns, row->col), table->rowBand, table->colBand);
+                TableMark m = table->style->base.cell;
+                for (const QString &p : parts) overlayTableMark(&m, table->style->parts[p].cell);
+                overlayTableMark(&m, direct);
+                const QString layerKey = table->styleId + QLatin1Char('|') + parts.join(QLatin1Char(','));
+                auto layer = m_layers.value(layerKey);
+                if (!layer) {
+                    layer = std::make_shared<TableLayer>();
+                    layer->key = layerKey;
+                    if (table->style->base.pPr) layer->p.overlay(*table->style->base.pPr);
+                    if (table->style->base.rPr) layer->r.overlay(*table->style->base.rPr);
+                    for (const QString &p : parts) {
+                        const TableStylePart &sp = table->style->parts[p];
+                        if (sp.pPr) layer->p.overlay(*sp.pPr);
+                        if (sp.rPr) layer->r.overlay(*sp.rPr);
+                    }
+                    m_layers.insert(layerKey, layer);
+                }
+                cell.cellPart->layer = layer;
                 flow::CellData &c = rec.cell;
-                c.span = std::max(1, m.span);
-                c.vmerge = m.vMerge == QLatin1String("restart") ? flow::CellData::VMerge::Restart : m.vMerge == QLatin1String("continue") ? flow::CellData::VMerge::Continue : flow::CellData::VMerge::None;
+                c.span = std::max(1, direct.span);
+                c.vmerge = direct.vMerge == QLatin1String("restart") ? flow::CellData::VMerge::Restart : direct.vMerge == QLatin1String("continue") ? flow::CellData::VMerge::Continue : flow::CellData::VMerge::None;
                 if (m.cMarTop || m.cMarLeft || m.cMarBottom || m.cMarRight) {
                     const QMarginsF d = rec.table->margins;
                     c.margins = QMarginsF(m.cMarLeft ? points(*m.cMarLeft) : d.left(), m.cMarTop ? points(*m.cMarTop) : d.top(), m.cMarRight ? points(*m.cMarRight) : d.right(),
@@ -208,7 +294,7 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
                 c.app = cell.cellPart;
                 // The widths of the first row's cells, for a table whose grid the file left out.
                 if (table->rows == 1) {
-                    const double w = m.cellWidth.type == QLatin1String("dxa") ? m.cellWidth.w / 20.0 : 0;
+                    const double w = direct.cellWidth.type == QLatin1String("dxa") ? direct.cellWidth.w / 20.0 : 0;
                     for (int k = 0; k < c.span; ++k) firstRow << (w > 0 ? w / c.span : 0.0);
                 }
             }
@@ -332,6 +418,13 @@ void WriteDoc::settleTables()
         }
         if (end < out.size() && o.part) o.part->fingerprint = blocksFingerprint(out, o.at, end + 1);
     }
+}
+
+const TableLayer *WriteDoc::tableLayerOf(int cellKey) const
+{
+    const flow::CellRecord *rec = m_flow->tables.get(cellKey);
+    const CellPart *part = rec ? static_cast<const CellPart *>(rec->cell.app.get()) : nullptr;
+    return part ? part->layer.get() : nullptr;
 }
 
 } // namespace jp::write

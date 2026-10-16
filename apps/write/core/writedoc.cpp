@@ -523,19 +523,19 @@ int WriteDoc::deepestLevel(int numId) const
     return -1;
 }
 
-ParaProps WriteDoc::baselineParagraph(const QString &paragraphStyle, int numId, int level, bool direct, QHash<QString, ParaProps> *cache) const
+ParaProps WriteDoc::baselineParagraph(const QString &paragraphStyle, int numId, int level, bool direct, QHash<QString, ParaProps> *cache, const TableLayer *table) const
 {
     const QString style = paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle;
     QString key;
     if (cache && numId > 0) {
-        key = style + QLatin1Char('\n') + QString::number(numId) + QLatin1Char('\n') + QString::number(level) + (direct ? QLatin1String("\nd") : QLatin1String());
+        key = style + QLatin1Char('\n') + QString::number(numId) + QLatin1Char('\n') + QString::number(level) + (direct ? QLatin1String("\nd") : QLatin1String()) + (table ? QLatin1Char('\n') + table->key : QString());
         const auto it = cache->constFind(key);
         if (it != cache->constEnd()) return it.value();
     }
-    ParaProps p = m_wml.styles.paragraph(style);
+    ParaProps p = m_wml.styles.paragraph(style, table);
     if (numId > 0) {
         // A paragraph numbered by its style keeps the style's own indents over the list's; one numbered by itself gets the list's.
-        if (!direct && p.numId.value_or(0) == numId) p = m_wml.styles.paragraphWithNumbering(style, levelParagraph(numId, level));
+        if (!direct && p.numId.value_or(0) == numId) p = m_wml.styles.paragraphWithNumbering(style, levelParagraph(numId, level), table);
         else p.overlay(levelParagraph(numId, level));
     }
     p.style = style;

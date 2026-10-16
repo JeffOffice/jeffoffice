@@ -59,7 +59,9 @@ public:
         // on the one before: space before its first paragraph is kept.
         bool hard = true;
         int section = 0;
-        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section; }
+        // A page that starts in the middle of a row of a table that goes over the break: which part of the row it starts with (TableLayout::Piece's state).
+        int piece = 0;
+        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 
@@ -120,8 +122,15 @@ private:
         int frame = 0;                      // the column (from 0) it is in
         QRectF rect;                        // its place in the column: the rows' lines together
         int from = 0, to = 0;               // the positions it takes in the story
+        std::vector<TableFragment::Part> parts;   // its rows that are only in part on the page
     };
-    QVector<StoryLayout::LineBrief> linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, bool *windowShort);
+    // The parts of rows that the last lines were made with (a row's part is a line: its row's first position, and its state as the line's number).
+    struct PieceRecord {
+        int pos = 0, state = 0;
+        TableLayout::Piece piece;
+    };
+    std::vector<PieceRecord> m_pieces;
+    QVector<StoryLayout::LineBrief> linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, int piece, bool *windowShort);
     std::vector<TableGroup> tableGroups(const QVector<StoryLayout::LineBrief> &lines, int kept, int firstFrame);
     bool tablePlaceholder(QTextCursor &dst, QTextBlock &b, bool first, const std::vector<TableGroup> &groups) const;
     QTextBlock lastBlockWithTables(const QVector<StoryLayout::LineBrief> &lines, int kept, const std::vector<TableGroup> &groups) const;

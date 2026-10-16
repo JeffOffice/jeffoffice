@@ -235,6 +235,29 @@ struct Block {
     std::shared_ptr<const TableMark> table;   // the Open block of a table, a row, or a cell: what it says
 };
 
+// What a table style says (or one of its parts: the first row, banded rows...) of the table, its cells, and the paragraphs in them.
+struct TableStylePart {
+    TableMark tbl, cell;              // its tblPr and tcPr, as a table and a cell say theirs
+    std::optional<ParaProps> pPr;
+    std::optional<RunProps> rPr;
+};
+
+// A table style, with the styles it is based on: the whole table's part, and the parts of rows, columns, bands, and corners ("firstRow", "lastRow",
+// "firstCol", "lastCol", "band1Vert", "band2Vert", "band1Horz", "band2Horz", "neCell", "nwCell", "seCell", "swCell"), each over the styles it is based on.
+struct TableStyleDef {
+    TableStylePart base;
+    QMap<QString, TableStylePart> parts;
+    std::optional<int> rowBand, colBand;   // how many rows or columns a band is
+};
+
+// The paragraph and run properties the style of a table gives the paragraphs in a cell (with the parts of it that apply to the cell): they come over the
+// document's defaults and under the paragraph's own style.
+struct TableLayer {
+    ParaProps p;
+    RunProps r;
+    QString key;                      // what tells it from another (for the caches)
+};
+
 struct Style {
     QString id, name, type;           // type: paragraph, character, table, numbering
     QString basedOn, next, link;
@@ -262,15 +285,17 @@ public:
     // Adds a style (replacing one of the id); false for an empty id.
     bool add(const Style &style);
     // What a paragraph of style `id` has: the document's defaults, then the styles it is based on, then the style. A style no file
-    // defines gives the defaults.
-    ParaProps paragraph(const QString &id) const;
+    // defines gives the defaults. In a table's cell, the table style's properties for it go after the defaults.
+    ParaProps paragraph(const QString &id, const TableLayer *table = nullptr) const;
+    // The table style `id` makes of tables (the styles it is based on under it); an empty one for no such style.
+    const TableStyleDef &tableStyle(const QString &id) const;
     // The same, for a style whose own numbering gives its paragraphs the indents of `level` (the properties of the list's level): the
     // level's come below those of the style that says it is numbered, so that style's own indents win over the list's. (When a
     // paragraph itself says it is numbered, the list's come over its style's: that is `paragraph(id)` and then `overlay(level)`.)
-    ParaProps paragraphWithNumbering(const QString &id, const ParaProps &level) const;
+    ParaProps paragraphWithNumbering(const QString &id, const ParaProps &level, const TableLayer *table = nullptr) const;
     // What a run has when nothing is said directly: the defaults, the paragraph style's run properties, then the character style's.
-    RunProps run(const QString &paragraphStyle, const QString &characterStyle) const;
-    void changed() { m_paragraph.clear(); m_run.clear(); m_index.clear(); m_indexed = -1; }
+    RunProps run(const QString &paragraphStyle, const QString &characterStyle, const TableLayer *table = nullptr) const;
+    void changed() { m_paragraph.clear(); m_run.clear(); m_index.clear(); m_indexed = -1; m_tableStyles.clear(); }
 
 private:
     void reindex() const;
@@ -278,6 +303,7 @@ private:
     mutable qsizetype m_indexed = -1;
     mutable QHash<QString, ParaProps> m_paragraph;
     mutable QHash<QString, RunProps> m_run;
+    mutable QHash<QString, TableStyleDef> m_tableStyles;
 };
 
 // A level of a list.
@@ -401,6 +427,12 @@ QStringList builtinStyleIds();
 
 // A fingerprint of blocks [from, to) of a body as they are written (every piece kept, as nothing says otherwise), for telling a table that has not changed.
 QByteArray blocksFingerprint(const QVector<Block> &body, qsizetype from, qsizetype to);
+
+// What one table style says of itself (not the styles it is based on).
+TableStyleDef readTableStyle(const Style &style);
+// What the properties of a table, a row, or a cell say when those of `src` are put over those of `dst`: its borders, margins, shading, and the other properties
+// a style gives (not the ones a table or cell says only of itself: its width, its span, and its merge).
+void overlayTableMark(TableMark *dst, const TableMark &src);
 
 // The place the schema gives each child of pPr, rPr, and sectPr (children are written in this order; unknown ones sort last).
 int paraChildRank(const QByteArray &name);

@@ -343,6 +343,106 @@ double TableLayout::headerHeight()
     return h;
 }
 
+// ---- a row over a page break
+
+bool TableLayout::splittable(int r) const
+{
+    const Row &row = m_rows[size_t(r)];
+    if (row.data->cantSplit || row.data->header || (row.data->exact && row.data->height > 0)) return false;
+    for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
+        if (m_cells[size_t(i)].covered || m_cells[size_t(i)].rows > 1) return false;
+    return true;
+}
+
+std::shared_ptr<const TableLayout::Units> TableLayout::unitsOf(int index)
+{
+    const auto found = m_units.constFind(index);
+    if (found != m_units.constEnd()) return found.value();
+    auto u = std::make_shared<Units>();
+    const std::shared_ptr<CellContent> content = contentOf(m_cells[size_t(index)]);
+    for (const CellContent::Part &part : content->parts) {
+        if (part.text) {
+            for (const StoryLayout::LineBrief &l : part.text->lineBriefs())
+                if (l.frame >= 0) u->lines.push_back({part.y + l.rect.top(), part.y + l.rect.bottom()});
+        } else if (part.table) {
+            u->lines.push_back({part.y, part.y + part.table->height});
+        }
+    }
+    u->height = content->height;
+    m_units.insert(index, u);
+    return u;
+}
+
+TableLayout::Piece TableLayout::pieceOf(int r, int state, double room, double fullRoom, bool force)
+{
+    constexpr double kEnd = 1e18;
+    Piece piece;
+    const Row &row = m_rows[size_t(r)];
+    const int n = row.cells, k = state == 0 ? 0 : pieceIndex(state);
+    const double first = state == 0 ? room : pieceFirstRoom(state);
+    std::vector<std::shared_ptr<const Units>> units(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i)
+        if (!m_cells[size_t(row.cell0 + i)].covered) units[size_t(i)] = unitsOf(row.cell0 + i);
+    QVector<double> offs(n, 0.0);
+    for (int j = 0; j <= k; ++j) {
+        const double avail = j == 0 ? first : fullRoom;
+        // Each cell's lines that fit, and where the rest begins.
+        QVector<double> next(n, kEnd);
+        std::vector<int> begin(static_cast<size_t>(n), -1);
+        bool progress = false, more = false;
+        for (int i = 0; i < n; ++i) {
+            if (!units[size_t(i)]) continue;
+            const Cell &c = m_cells[size_t(row.cell0 + i)];
+            const auto &lines = units[size_t(i)]->lines;
+            const double inner = std::max(0.0, avail - c.margins.top() - c.margins.bottom());
+            int a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const std::pair<double, double> &l, double off) { return l.first < off; }) - lines.begin());
+            begin[size_t(i)] = a;
+            if (a >= int(lines.size())) continue;
+            int b = a;
+            while (b < int(lines.size()) && lines[size_t(b)].second - offs[i] <= inner + 0.01) ++b;
+            progress |= b > a;
+            next[i] = b < int(lines.size()) ? lines[size_t(b)].first : kEnd;
+            more |= b < int(lines.size());
+        }
+        // A part at the top of a page has a line of each cell that has one left, however tall: a row taller than a page ends.
+        const bool forced = !progress && more && (force || j > 0);
+        if (forced) {
+            more = false;
+            for (int i = 0; i < n; ++i) {
+                if (!units[size_t(i)] || begin[size_t(i)] < 0 || begin[size_t(i)] >= int(units[size_t(i)]->lines.size())) continue;
+                const auto &lines = units[size_t(i)]->lines;
+                const int b = begin[size_t(i)] + 1;
+                next[i] = b < int(lines.size()) ? lines[size_t(b)].first : kEnd;
+                more |= b < int(lines.size());
+            }
+            progress = true;
+        }
+        if (j == k) {
+            piece.progress = progress;
+            piece.offsets = offs;
+            if (more) {
+                piece.height = avail;
+                piece.next = pieceState(k + 1, first);
+            } else {
+                // The row ends here: as tall as what is left of the cells, but not past its room when the lines fit it (the space after the last is let go at a page's foot).
+                double need = 0, lines = 0;
+                for (int i = 0; i < n; ++i) {
+                    if (!units[size_t(i)] || offs[i] >= kEnd) continue;
+                    const Cell &c = m_cells[size_t(row.cell0 + i)];
+                    const auto &ls = units[size_t(i)]->lines;
+                    need = std::max(need, units[size_t(i)]->height - offs[i] + c.margins.top() + c.margins.bottom());
+                    if (!ls.empty()) lines = std::max(lines, ls.back().second - offs[i] + c.margins.top() + c.margins.bottom());
+                }
+                piece.height = lines <= avail + 0.01 ? std::min(need, avail) : need;
+                piece.next = 0;
+            }
+            break;
+        }
+        offs = next;
+    }
+    return piece;
+}
+
 // ---- fragments
 
 namespace {
@@ -362,7 +462,7 @@ void addItems(TableFragment *f, int r0, int r1, std::set<int> *added)
     }
 }
 
-std::shared_ptr<TableFragment> makeFragment(const std::shared_ptr<TableLayout> &layout, int first, int end)
+std::shared_ptr<TableFragment> makeFragment(const std::shared_ptr<TableLayout> &layout, int first, int end, const std::vector<TableFragment::Part> &parts = {})
 {
     if (!layout || layout->rowCount() == 0) return nullptr;
     auto f = std::make_shared<TableFragment>();
@@ -373,8 +473,9 @@ std::shared_ptr<TableFragment> makeFragment(const std::shared_ptr<TableLayout> &
     f->endRow = end;
     layout->measure(end - 1);
     f->header = TableFlow::repeatsHeader(*layout, first);
+    f->parts = parts;
     double h = f->header ? layout->headerHeight() : 0;
-    for (int r = first; r < end; ++r) h += layout->row(r).height;
+    for (int r = first; r < end; ++r) h += f->heightOf(r);
     f->height = h;
     std::set<int> added;
     if (f->header) addItems(f.get(), 0, layout->headerRows(), &added);
@@ -390,31 +491,56 @@ std::shared_ptr<TableFragment> wholeFragment(const std::shared_ptr<TableLayout> 
 
 } // namespace
 
+const TableFragment::Part *TableFragment::partOf(int row) const
+{
+    for (const Part &p : parts)
+        if (p.row == row) return &p;
+    return nullptr;
+}
+
+double TableFragment::heightOf(int row) const
+{
+    const Part *p = partOf(row);
+    return p ? p->piece.height : layout->row(row).height;
+}
+
 std::vector<TableFragment::Placed> TableFragment::place() const
 {
     std::vector<Placed> out;
     if (!layout) return out;
     double y = origin.y();
     auto rows = [&](int r0, int r1) {
-        double sliceH = 0;
-        for (int r = r0; r < r1; ++r) sliceH += layout->row(r).height;
-        const QRectF slice(origin.x(), y, layout->width(), sliceH);
+        // Where each row begins, from the first of them.
+        std::vector<double> tops(size_t(r1 - r0) + 1, 0.0);
+        for (int r = r0; r < r1; ++r) tops[size_t(r - r0) + 1] = tops[size_t(r - r0)] + heightOf(r);
+        const QRectF slice(origin.x(), y, layout->width(), tops.back());
         for (int n = 0; n < int(items.size()); ++n) {
             const TableLayout::Cell &c = layout->cell(items[size_t(n)].cell);
             if (c.row >= r1 || c.row + c.rows <= r0) continue;
-            const double top = c.row >= r0 ? layout->rowOffset(r0, c.row) : -layout->rowOffset(c.row, r0);
-            const double h = layout->rowOffset(c.row, c.row + c.rows);
+            // (A cell joined down may begin above the first row here and reach past the last: its place is that of the rows it covers.)
+            double top = 0, h = 0;
+            if (c.row >= r0) top = tops[size_t(c.row - r0)];
+            else top = -layout->rowOffset(c.row, r0);
+            for (int k = c.row; k < c.row + c.rows; ++k) h += k >= r0 && k < r1 ? heightOf(k) : layout->rowHeight(k);
             Placed p;
             p.item = n;
             p.rect = QRectF(origin.x() + c.x, y + top, c.w, h);
             p.clip = p.rect.intersected(slice);
+            const Part *part = c.rows == 1 ? partOf(c.row) : nullptr;
             const double inner = h - c.margins.top() - c.margins.bottom();
             const double free = std::max(0.0, inner - items[size_t(n)].content->height);
-            const double drop = c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
-            p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + drop);
+            double drop = c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
+            double offset = 0;
+            if (part) {
+                // (A row shown in part is set from the top: the cell's content begins where its part does.)
+                drop = 0;
+                const int at = items[size_t(n)].cell - layout->row(c.row).cell0;
+                if (at >= 0 && at < part->piece.offsets.size()) offset = std::min(part->piece.offsets[at], items[size_t(n)].content->height);
+            }
+            p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + drop - offset);
             out.push_back(p);
         }
-        y += sliceH;
+        y += tops.back();
     };
     if (header) rows(0, layout->headerRows());
     rows(firstRow, endRow);
@@ -553,7 +679,9 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         p->setClipRect(QRectF(pl.clip).adjusted(-2, -2, 2, 2), Qt::IntersectClip);
         strokeLine(p, edgeOf(*layout, index, Side::Top), r.topLeft(), r.topRight(), picture);
         strokeLine(p, edgeOf(*layout, index, Side::Left), r.topLeft(), r.bottomLeft(), picture);
-        if (cellCovering(*layout, c.row + c.rows, c.col) < 0) strokeLine(p, edgeOf(*layout, index, Side::Bottom), r.bottomLeft(), r.bottomRight(), picture);
+        const Part *part = c.rows == 1 ? partOf(c.row) : nullptr;
+        if (cellCovering(*layout, c.row + c.rows, c.col) < 0 || (part && part->piece.next != 0))   // (and the foot of a row that goes on past a page break)
+            strokeLine(p, edgeOf(*layout, index, Side::Bottom), r.bottomLeft(), r.bottomRight(), picture);
         if (cellCovering(*layout, c.row, c.col + c.span) < 0) strokeLine(p, edgeOf(*layout, index, Side::Right), r.topRight(), r.bottomRight(), picture);
         p->restore();
     }
@@ -695,6 +823,9 @@ std::shared_ptr<TableLayout> TableFlow::layout(int span)
     return t;
 }
 
-std::shared_ptr<TableFragment> TableFlow::fragment(const std::shared_ptr<TableLayout> &layout, int firstRow, int endRow) { return makeFragment(layout, firstRow, endRow); }
+std::shared_ptr<TableFragment> TableFlow::fragment(const std::shared_ptr<TableLayout> &layout, int firstRow, int endRow, const std::vector<TableFragment::Part> &parts)
+{
+    return makeFragment(layout, firstRow, endRow, parts);
+}
 
 } // namespace jp::flow

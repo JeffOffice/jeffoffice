@@ -337,9 +337,10 @@ namespace {
 constexpr int kStyleDepth = 32;   // (real files nest styles 4 or 5 deep)
 }
 
-ParaProps StyleSheet::paragraph(const QString &id) const
+ParaProps StyleSheet::paragraph(const QString &id, const TableLayer *table) const
 {
-    const auto cached = m_paragraph.constFind(id);
+    const QString cacheKey = table ? id + QLatin1String("\n#") + table->key : id;
+    const auto cached = m_paragraph.constFind(cacheKey);
     if (cached != m_paragraph.constEnd()) return cached.value();
     QVector<const Style *> chain;
     for (QString at = id; !at.isEmpty() && chain.size() < kStyleDepth;) {
@@ -349,6 +350,7 @@ ParaProps StyleSheet::paragraph(const QString &id) const
         at = s->basedOn;
     }
     ParaProps p = defaultPara;
+    if (table) p.overlay(table->p);
     for (int i = int(chain.size()) - 1; i >= 0; --i) p.overlay(chain[i]->pPr);
     p.style = id;
     // (What a style says besides the properties that have a field here is the style's own: not carried to the paragraphs that have it.)
@@ -357,11 +359,11 @@ ParaProps StyleSheet::paragraph(const QString &id) const
     p.indAttrs.clear();
     p.markRun.reset();
     p.section.reset();
-    m_paragraph.insert(id, p);
+    m_paragraph.insert(cacheKey, p);
     return p;
 }
 
-ParaProps StyleSheet::paragraphWithNumbering(const QString &id, const ParaProps &level) const
+ParaProps StyleSheet::paragraphWithNumbering(const QString &id, const ParaProps &level, const TableLayer *table) const
 {
     QVector<const Style *> chain;
     for (QString at = id; !at.isEmpty() && chain.size() < kStyleDepth;) {
@@ -375,11 +377,12 @@ ParaProps StyleSheet::paragraphWithNumbering(const QString &id, const ParaProps 
     for (int i = 0; i < chain.size() && numbered < 0; ++i)
         if (chain[i]->pPr.numId) numbered = i;
     if (numbered < 0) {
-        ParaProps p = paragraph(id);
+        ParaProps p = paragraph(id, table);
         p.overlay(level);
         return p;
     }
     ParaProps p = defaultPara;
+    if (table) p.overlay(table->p);
     for (int i = int(chain.size()) - 1; i >= 0; --i) {
         if (i == numbered) p.overlay(level);
         p.overlay(chain[i]->pPr);
@@ -393,12 +396,13 @@ ParaProps StyleSheet::paragraphWithNumbering(const QString &id, const ParaProps 
     return p;
 }
 
-RunProps StyleSheet::run(const QString &paragraphStyle, const QString &characterStyle) const
+RunProps StyleSheet::run(const QString &paragraphStyle, const QString &characterStyle, const TableLayer *table) const
 {
-    const QString key = paragraphStyle + QLatin1Char('\n') + characterStyle;
+    const QString key = paragraphStyle + QLatin1Char('\n') + characterStyle + (table ? QLatin1String("\n#") + table->key : QString());
     const auto cached = m_run.constFind(key);
     if (cached != m_run.constEnd()) return cached.value();
     RunProps r = defaultRun;
+    if (table) r.overlay(table->r);
     auto apply = [&](const QString &id) {
         QVector<const Style *> chain;
         for (QString at = id; !at.isEmpty() && chain.size() < kStyleDepth;) {
@@ -415,6 +419,87 @@ RunProps StyleSheet::run(const QString &paragraphStyle, const QString &character
     r.extra.clear();
     m_run.insert(key, r);
     return r;
+}
+
+// ---- table styles
+
+namespace {
+void mergeBorders(TableMark *d, const TableMark &s)
+{
+    if (s.top.stated()) d->top = s.top;
+    if (s.left.stated()) d->left = s.left;
+    if (s.bottom.stated()) d->bottom = s.bottom;
+    if (s.right.stated()) d->right = s.right;
+    if (s.insideH.stated()) d->insideH = s.insideH;
+    if (s.insideV.stated()) d->insideV = s.insideV;
+    if (s.diagDown.stated()) d->diagDown = s.diagDown;
+    if (s.diagUp.stated()) d->diagUp = s.diagUp;
+}
+
+} // namespace
+
+void overlayTableMark(TableMark *dm, const TableMark &sm)
+{
+    mergeBorders(dm, sm);
+    if (sm.marTop) dm->marTop = sm.marTop;
+    if (sm.marLeft) dm->marLeft = sm.marLeft;
+    if (sm.marBottom) dm->marBottom = sm.marBottom;
+    if (sm.marRight) dm->marRight = sm.marRight;
+    if (sm.cMarTop) dm->cMarTop = sm.cMarTop;
+    if (sm.cMarLeft) dm->cMarLeft = sm.cMarLeft;
+    if (sm.cMarBottom) dm->cMarBottom = sm.cMarBottom;
+    if (sm.cMarRight) dm->cMarRight = sm.cMarRight;
+    if (!sm.shdVal.isEmpty() || !sm.shdFill.isEmpty()) {
+        dm->shdVal = sm.shdVal;
+        dm->shdFill = sm.shdFill;
+        dm->shdColor = sm.shdColor;
+    }
+    if (sm.indent.stated()) dm->indent = sm.indent;
+    if (sm.spacing.stated()) dm->spacing = sm.spacing;
+    if (!sm.jc.isEmpty()) dm->jc = sm.jc;
+    if (!sm.layout.isEmpty()) dm->layout = sm.layout;
+    if (!sm.vAlign.isEmpty()) dm->vAlign = sm.vAlign;
+    if (sm.noWrap) dm->noWrap = true;
+}
+
+namespace {
+
+void mergePart(TableStylePart *d, const TableStylePart &s)
+{
+    overlayTableMark(&d->tbl, s.tbl);
+    overlayTableMark(&d->cell, s.cell);
+    if (s.pPr) {
+        if (d->pPr) d->pPr->overlay(*s.pPr);
+        else d->pPr = s.pPr;
+    }
+    if (s.rPr) {
+        if (d->rPr) d->rPr->overlay(*s.rPr);
+        else d->rPr = s.rPr;
+    }
+}
+
+} // namespace
+
+const TableStyleDef &StyleSheet::tableStyle(const QString &id) const
+{
+    const auto cached = m_tableStyles.constFind(id);
+    if (cached != m_tableStyles.constEnd()) return cached.value();
+    QVector<const Style *> chain;
+    for (QString at = id; !at.isEmpty() && chain.size() < kStyleDepth;) {
+        const Style *s = find(at);
+        if (!s || chain.contains(s)) break;
+        chain.push_back(s);
+        at = s->basedOn;
+    }
+    TableStyleDef def;
+    for (int i = int(chain.size()) - 1; i >= 0; --i) {
+        const TableStyleDef own = readTableStyle(*chain[i]);
+        mergePart(&def.base, own.base);
+        for (auto it = own.parts.cbegin(); it != own.parts.cend(); ++it) mergePart(&def.parts[it.key()], it.value());
+        if (own.rowBand) def.rowBand = own.rowBand;
+        if (own.colBand) def.colBand = own.colBand;
+    }
+    return m_tableStyles.insert(id, def).value();
 }
 
 // ---- Numbering

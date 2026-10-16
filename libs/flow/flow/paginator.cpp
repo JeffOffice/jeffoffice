@@ -127,7 +127,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             span.window = window;
             bool windowShort = false;
             if (m_tables->any()) {
-                all = linesWithTables(frames, span, run.firstFrame, &windowShort);   // (tables are laid out beside the text: paginator_tables.cpp)
+                all = linesWithTables(frames, span, run.firstFrame, st.piece, &windowShort);   // (tables are laid out beside the text: paginator_tables.cpp)
             } else {
                 StoryLayout layout;
                 layout.build(m_doc->story(), frames, m_doc->env, span);
@@ -257,6 +257,10 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.hasNext = true;
         run.next.pos = L[c].pos;
         run.next.skip = L[c].line;
+        if (m_tables->any() && m_tables->index().spanAt(L[c].pos) >= 0) {   // (a row of a table: the line's number is the part of it)
+            run.next.piece = L[c].line;
+            run.next.skip = 0;
+        }
         run.next.hard = hard;
         run.next.section = nextSection;
     } else if (forced && !byCharacter && c > 0) {
