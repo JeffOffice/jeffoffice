@@ -138,6 +138,8 @@ QString FieldContext::resolve(const QString &code) const
         if (!country.isEmpty()) lines << country;
         return lines.join(QChar(QChar::LineSeparator));
     }
+    // Text that a word processing document keeps as XML and shows as it is (a footnote's mark, a stand-in for a table), or nothing.
+    if (kind == "raw") return arg;
     if (kind == "conton") return continuedOnPage > 0 ? QCoreApplication::translate("Text", "(Continued on page %1)").arg(continuedOnPage) : QString();
     if (kind == "contfrom") return continuedFromPage > 0 ? QCoreApplication::translate("Text", "(Continued from page %1)").arg(continuedFromPage) : QString();
     return QStringLiteral("[%1]").arg(code);
