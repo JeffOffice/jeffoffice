@@ -43,6 +43,11 @@ public:
 // unit .pub tracking is measured in; -1 when it isn't one JeffPub knows.
 double originalAverageCharEm(const QString &family, bool bold, bool italic);
 
+// The moment automatic dates and times show: now, unless a tool has set another (setFieldClock, so that a render can be made again at the
+// moment of another). The apps never set one.
+QDateTime fieldNow();
+void setFieldClock(const QDateTime &moment);
+
 struct FieldContext {
     const FieldSource *doc = nullptr;
     int pageNumber = 1;           // 1-based
@@ -50,7 +55,7 @@ struct FieldContext {
     int mergeRecord = -1;         // -1 shows «Field» codes
     int continuedOnPage = 0, continuedFromPage = 0;
     int nextPage = 0, prevPage = 0;   // pages of the next and previous boxes of a linked chain (0: none)
-    QDateTime now = QDateTime::currentDateTime();
+    QDateTime now = fieldNow();
     QString resolve(const QString &code) const;
     // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only if `withClock`: a layout is laid out
     // again when the date or time it shows changes, which fieldValuesKey says (not every minute).

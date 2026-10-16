@@ -315,6 +315,9 @@ int main(int argc, char **argv)
     QGuiApplication app(argc, argv);
     setAppInfo(deckAppInfo());
     initCore();
+    // JP_NOW (an ISO 8601 date and time, say 2026-10-15T19:31:36-04:00) is the moment automatic dates and times show, so that a render can be made
+    // again as of the day the original was drawn. (A tool's: the app doesn't read it.)
+    if (const QDateTime moment = QDateTime::fromString(qEnvironmentVariable("JP_NOW"), Qt::ISODate); moment.isValid()) setFieldClock(moment);
     const QStringList args = app.arguments();
     QTextStream out(stdout);
     if (args.size() >= 4 && args[1] == "animate-demo") return animateDemo(args[2], args[3]);
