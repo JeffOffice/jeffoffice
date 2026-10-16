@@ -79,6 +79,7 @@
 #include "office/eot.h"
 #include "office/package.h"
 #include "office/xml.h"
+#include "render/pdfpage.h"
 #include "render/renderer.h"
 #include "render/shapes.h"
 #include "render/textart.h"
@@ -31467,6 +31468,30 @@ private Q_SLOTS:
     }
 
 private:
+    // The text of a page (0-based) of a PDF as a reader that copies it gets it, its white space single spaces.
+    static QString pdfText(const QByteArray &pdf, int page = 0)
+    {
+        const PdfDocument doc(pdf);
+        return doc.isValid() ? doc.text(page).simplified() : QString();
+    }
+    // The PDF of a presentation's slides (empty when it can't be made).
+    static QByteArray pdfOf(const Document &d, QString *err = nullptr)
+    {
+        QTemporaryDir dir;
+        if (!dir.isValid()) return QByteArray();
+        const QString path = dir.filePath(QStringLiteral("out.pdf"));
+        return deck::exportPdf(d, path, deck::OutputOptions(), err) ? fileBytes(path) : QByteArray();
+    }
+    // A picture on a slide, `rect` big, showing the image `id` in `imgRect` (its own frame when none is given).
+    static PictureItem *addPicture(Page &slide, const QString &id, const QRectF &rect, const QRectF &imgRect = QRectF())
+    {
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = id;
+        pic->rect = rect;
+        pic->imgRect = imgRect.isNull() ? QRectF(QPointF(0, 0), rect.size()) : imgRect;
+        slide.items.push_back(pic);
+        return pic.get();
+    }
     // The pages a PDF's page tree holds (a "/Type /Pages" node is not one).
     static int pdfPageCount(const QByteArray &pdf)
     {
@@ -31748,6 +31773,27 @@ private Q_SLOTS:
         QVERIFY(!err.isEmpty());
         QCOMPARE(fileBytes(kept), before);
         QVERIFY(!deck::exportPdf(*d, kept, o, nullptr));   // no place for the reason is fine
+    }
+
+    // The PDF's text names each letter the page draws, so that it can be found and copied: a ligature (the bundled Carlito has "ti", "tt", "ft",
+    // and the others) is one glyph that stands for several letters, and a reader can name none of them ("Objectives" copies as "Objec ves"). The
+    // PDF's text is set without ligatures.
+    void exportPdfTextNamesEveryLetterItDraws()
+    {
+        auto d = showDeck(1);
+        QTextDocument *story = d->storyDoc(static_cast<TextItem *>(d->pages[0]->items[0].get())->storyId);
+        story->setPlainText(QStringLiteral("Objectives: creative attitude, fifty flies, offline"));
+        QTextCursor c(story);
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setFontFamilies({QStringLiteral("Carlito")});
+        f.setFontPointSize(32);
+        c.mergeCharFormat(f);
+        QString err;
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        const QString text = pdfText(pdf);
+        for (const char *word : {"Objectives", "creative", "attitude", "fifty", "flies", "offline"}) QVERIFY2(text.contains(QLatin1String(word)), qPrintable(text));
     }
 
     // A notes page has the slide framed in its upper half and the speaker
