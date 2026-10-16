@@ -247,6 +247,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         QTextCursor first(story->begin());
         QTextBlockFormat bf = story->begin().blockFormat();
         setStored(bf, prop::LastSection, packSection(m_last));
+        setStored(bf, prop::MarkFormat, packFormat(story->begin().charFormat()));   // (and its mark's format, which the engine can't undo a change of)
         first.setBlockFormat(bf);
     }
     c.endEditBlock();

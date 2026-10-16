@@ -3,6 +3,7 @@
 
 #include "core/writedoc.h"
 
+#include "core/editops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -93,7 +94,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
 
         // The paragraph mark's own formatting: the last paragraph's.
         {
-            RunProps mark = runPropsOf(lastPart.charFormat());
+            RunProps mark = runPropsOf(markFormat(lastPart));
             RunProps diff = mark.differences(sheet.run(styleId, mark.style));
             diff.style = mark.style;
             if (!runPropsXml(diff).isEmpty()) direct.markRun = diff;

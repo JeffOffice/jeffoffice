@@ -129,7 +129,7 @@ bool isStoredProperty(int property)
 {
     switch (property) {
     case prop::Atom: case prop::ParaAttrs: case prop::RawBefore: case prop::RawAfter: case prop::RawBlock: case prop::RawPPr: case prop::SpacingAttrs:
-    case prop::IndAttrs: case prop::OddTabs: case prop::SectionData: case prop::RawRPr: case prop::LastSection: return true;
+    case prop::IndAttrs: case prop::OddTabs: case prop::SectionData: case prop::RawRPr: case prop::LastSection: case prop::MarkFormat: return true;
     default: return false;
     }
 }
