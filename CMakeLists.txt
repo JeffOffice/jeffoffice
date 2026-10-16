@@ -267,6 +267,11 @@ target_link_libraries(jdecktool PRIVATE jdcore)
 set_target_properties(jdecktool PROPERTIES WIN32_EXECUTABLE OFF)
 endif()
 
+# Developer tool for laying a text out in pages (the flowing document) from the command line, and for measuring that.
+qt_add_executable(writetool tools/writetool.cpp)
+target_link_libraries(writetool PRIVATE jo_flow)
+set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
+
 # Developer tool for rendering and converting publications from the command line.
 qt_add_executable(jpubtool tools/jpubtool.cpp)
 target_link_libraries(jpubtool PRIVATE jpcore)
