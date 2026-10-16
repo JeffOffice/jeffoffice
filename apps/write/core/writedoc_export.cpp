@@ -100,7 +100,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
         // The paragraph mark's own formatting: the last paragraph's.
         {
             RunProps mark = runPropsOf(lastPart.charFormat());
-            RunProps diff = mark.differences(sheet.run(styleId, QString()));
+            RunProps diff = mark.differences(sheet.run(styleId, mark.style));
             diff.style = mark.style;
             if (!runPropsXml(diff).isEmpty()) direct.markRun = diff;
         }
