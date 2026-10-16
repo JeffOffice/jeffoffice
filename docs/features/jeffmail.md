@@ -543,7 +543,7 @@ Not planned, because they only work with an online service, a product JeffOffice
 
 ## Decided
 
-Decisions in force on October 15, 2026.
+Decided October 11, 2026, except where noted.
 
 - First release, mail: mail from any standard provider over IMAP and SMTP, with OAuth sign-in where the provider offers it and app passwords otherwise, plus Outlook.com and Microsoft 365 mail over IMAP with Microsoft's OAuth sign-in.
 - First release, calendars and contacts: over the open standards CalDAV and CardDAV from the start. Many providers, such as Fastmail, offer them.
