@@ -177,6 +177,45 @@ private Q_SLOTS:
         QVERIFY(!d.body[1].para.props.section);
     }
 
+    // A section names its headers and footers by relationship Id, a slot each for the first page, the ordinary pages, and the even pages.
+    void sectionsNameTheirHeadersAndFooters()
+    {
+        Made m;
+        m.body = R"(<w:p><w:pPr><w:sectPr><w:headerReference w:type="default" r:id="rId11"/><w:headerReference w:type="first" r:id="rId12"/><w:footerReference w:type="even" r:id="rId13"/><w:footerReference w:type="default" r:id="rId14"/><w:titlePg/><w:pgSz w:w="12240" w:h="15840"/></w:sectPr></w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const HeaderRefs refs = headerRefsOf(*d.body[0].para.props.section);
+        QCOMPARE(refs.header[0], QStringLiteral("rId11"));
+        QCOMPARE(refs.header[1], QStringLiteral("rId12"));
+        QCOMPARE(refs.header[2], QString());
+        QCOMPARE(refs.footer[0], QStringLiteral("rId14"));
+        QCOMPARE(refs.footer[1], QString());
+        QCOMPARE(refs.footer[2], QStringLiteral("rId13"));
+        QVERIFY(refs.any());
+        // (A section that names none, and one that was written with the references kept.)
+        QVERIFY(!headerRefsOf(d.lastSection).any());
+        QVERIFY(d.body[0].para.props.section->titlePg);
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QCOMPARE(count(out, "headerReference"), 2);
+        QCOMPARE(count(out, "footerReference"), 2);
+    }
+
+    // The paragraphs of a header, footer, or note part are read as the body's are.
+    void readsTheParagraphsOfAHeaderPart()
+    {
+        const QByteArray part = xmlDoc(QByteArray("<w:hdr ") + kW + R"(><w:p><w:pPr><w:pStyle w:val="Header"/><w:jc w:val="center"/></w:pPr><w:r><w:t>Top</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl><w:p><w:r><w:t>Bottom</w:t></w:r></w:p></w:hdr>)");
+        QVector<Block> blocks;
+        QVERIFY(readBlocks(part, &blocks));
+        QCOMPARE(int(blocks.size()), 3);
+        QVERIFY(!blocks[0].isRaw);
+        QCOMPARE(blocks[0].para.props.style, QStringLiteral("Header"));
+        QCOMPARE(blocks[0].para.content.first().text, QStringLiteral("Top"));
+        QVERIFY(blocks[1].isRaw);
+        QCOMPARE(blocks[1].tag, QStringLiteral("tbl"));
+        QCOMPARE(blocks[2].para.content.first().text, QStringLiteral("Bottom"));
+        QVERIFY(!readBlocks("<w:hdr", &blocks));
+    }
+
     void stylesInheritFromTheStylesTheyAreBasedOnAndTheDefaults()
     {
         Made m;

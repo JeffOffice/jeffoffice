@@ -306,6 +306,19 @@ struct ReadNotes {
     bool leftOut = false;
 };
 
+// The relationship Ids a section's headers and footers have, empty where it states none: index 0 is the ordinary (default) page's, 1 the first
+// page's (used when the section has titlePg), and 2 the even pages' (used when the document has evenAndOddHeaders). A section that names
+// none of a kind takes the section before's.
+struct HeaderRefs {
+    QString header[3], footer[3];
+    bool any() const;
+};
+HeaderRefs headerRefsOf(const SectionProps &section);
+
+// The paragraphs of a header, footer, or note part, and the elements kept as written (a table, a content control's ends), read as the body
+// is. False, with nothing read, when the part isn't XML.
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks);
+
 // Reads a .docx (or .docm, .dotx) package. False, with a message, if it isn't a word processing document or is damaged beyond reading.
 // A file is held to limits: of parts together inflated, of the XML of a part (xmltree.h), and of what the body holds, past which the rest is
 // left out and a note says so. Real files, in 1,795 .docx files of public collections: 125 KB inflated in the middle, 15 MB for 99 of 100, and
