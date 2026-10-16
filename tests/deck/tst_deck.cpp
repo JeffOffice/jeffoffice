@@ -31847,6 +31847,26 @@ private Q_SLOTS:
         QVERIFY2(zs >= 100 && zs <= 1000, qPrintable(QString::number(zs)));
     }
 
+    // A diagram (SmartArt) is a picture of its drawing, whose letters are outlines: the PDF has its words as text too.
+    void exportPdfCarriesTheTextOfADiagram()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        // (The shapes are narrower than their words, which break where the line ends: the words are whole across it.)
+        const QString text = QString(pdfText(pdf)).remove(QRegularExpression(QStringLiteral("\\s")));
+        for (const char *word : {"First", "Second", "Third"}) QVERIFY2(text.contains(QLatin1String(word)), qPrintable(text));
+        // The drawing itself has the words as text with no ink, in a text element (not seen), and still the letters as paths.
+        const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("diagram"));
+        QVERIFY(pic);
+        const QByteArray svg = d->images.value(pic->imageId).bytes;
+        QVERIFY(svg.contains("<text"));
+        QVERIFY(svg.contains("fill-opacity=\"0\""));
+        QVERIFY(svg.contains("<path"));
+    }
+
     // A notes page has the slide framed in its upper half and the speaker
     // notes under it; a page without notes has nothing there.
     void notesPagePaintsTheSlideAboveItsNotes()
