@@ -2730,6 +2730,23 @@ office::OdrawContext Importer::drawingContext()
 
 namespace {
 
+// A text box that is turned over reads upright: the presentation program turns a shape's text with the shape, a half turn when it is flipped
+// top to bottom, and never mirrors it.
+void uprightText(const ItemList &items)
+{
+    for (const ItemPtr &it : items) {
+        if (it->type() == ItemType::Group) {
+            uprightText(static_cast<const GroupItem &>(*it).children);
+        } else if (it->type() == ItemType::Text && (it->flipH || it->flipV)) {
+            // (The item flips and then turns; the shape turned and then flipped, so its own turn is the other way round when it flips one way.)
+            double angle = it->flipH != it->flipV ? std::fmod(360 - it->rotation, 360.0) : it->rotation;
+            if (it->flipV) angle += 180;
+            it->rotation = std::fmod(std::fmod(angle, 360.0) + 360.0, 360.0);
+            it->flipH = it->flipV = false;
+        }
+    }
+}
+
 // Slide objects don't push text aside: the presentation program lets text and objects overlap.
 void leaveTextAlone(const ItemList &items)
 {
@@ -2749,6 +2766,7 @@ ItemList Importer::readShapes(const QByteArray &drawing, PageState &st)
     m_state = nullptr;
     noteShapeLimit();
     leaveTextAlone(items);
+    uprightText(items);
     return items;
 }
 

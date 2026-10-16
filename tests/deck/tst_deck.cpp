@@ -2137,12 +2137,13 @@ private:
         const QByteArray group = pptBox(0xF004, pptRec(0xF009, QByteArray(16, '\0'), 0, 1) + pptRec(0xF00A, le(0x400, 4) + le(5, 4), 0, 2));
         return pptBox(1036, pptBox(0xF002, pptRec(0xF008, le(2, 4) + le(0x402, 4)) + pptBox(0xF003, group + shapes)));
     }
-    // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds (and its property record).
-    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray())
+    // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds (and its property record,
+    // its flags, and its kind of shape).
+    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray(), quint32 flags = 0xA00, quint16 type = 1)
     {
         const QByteArray anchor = le(top, 2) + le(left, 2) + le(right, 2) + le(bottom, 2);
         const QByteArray data = pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({placeholder, 0, 0, 0})));
-        return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
+        return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(flags, 4), type, 2) + props + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
     }
     static QByteArray outlineRef(int index) { return pptRec(3998, le(index, 4)); }
 
@@ -24885,6 +24886,34 @@ private Q_SLOTS:
             QCOMPARE(kept[0], QColor(255, 0, 0));
             QCOMPARE(kept[1], QColor(0, 0, 128));
         }
+    }
+
+    // A text box that is flipped reads upright: the program turns its text with the box and never mirrors it, a half turn when the box is
+    // flipped top to bottom. The caption of a photo, flipped top to bottom and turned a half turn, is upright; one only flipped left to right
+    // is as it was; one only flipped top to bottom is a half turn.
+    void importBinaryTextOfAFlippedBoxReadsUpright()
+    {
+        auto turn = [&](int degrees) { return pptRec(0xF00B, le(0x0004, 2) + le(quint32(degrees) << 16, 4), 1, 3); };
+        auto box = [&](quint32 id, const QString &text, quint32 flags, const QByteArray &props) {
+            return pptShape(id, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)), 1000, 200, 5000, 1500, props, flags);
+        };
+        // Flags: a text box (0xA00) with flip left to right (0x40) or top to bottom (0x80).
+        const QByteArray shapes = box(0x440, QStringLiteral("Over"), 0xA80, turn(-180)) + box(0x441, QStringLiteral("Side"), 0xA40, QByteArray()) + box(0x442, QStringLiteral("Up"), 0xA80, QByteArray());
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QHash<QString, const TextItem *> byText;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text) {
+                const auto *t = static_cast<const TextItem *>(it.get());
+                byText.insert(d->storyDoc(t->storyId)->toPlainText(), t);
+            }
+        for (const QString &text : {QStringLiteral("Over"), QStringLiteral("Side"), QStringLiteral("Up")}) QVERIFY2(byText.contains(text), qPrintable(text));
+        auto upright = [&](const char *text) { return !byText.value(QString::fromLatin1(text))->flipH && !byText.value(QString::fromLatin1(text))->flipV; };
+        QVERIFY(upright("Over") && upright("Side") && upright("Up"));
+        QCOMPARE(byText.value(QStringLiteral("Over"))->rotation, 0.0);
+        QCOMPARE(byText.value(QStringLiteral("Side"))->rotation, 0.0);
+        QCOMPARE(byText.value(QStringLiteral("Up"))->rotation, 180.0);
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
