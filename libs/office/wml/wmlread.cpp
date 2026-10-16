@@ -312,6 +312,7 @@ public:
                 open.role = Inline::Open;
                 open.raw = t.startTag(c);
                 open.tag = QString::fromLatin1(name);
+                open.key = t.attr(c, "id");   // (a revision mark's Id, which is kept one to a mark)
                 Inline close = open;
                 close.role = Inline::Close;
                 close.raw = t.endTag(c);
@@ -418,6 +419,7 @@ public:
                 open.role = Inline::Open;
                 open.tag = QString::fromLatin1(name);
                 open.raw = t.startTag(c);
+                open.key = t.attr(c, "id");
                 Block close = open;
                 close.role = Inline::Close;
                 close.raw = t.endTag(c);

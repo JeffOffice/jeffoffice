@@ -1630,6 +1630,45 @@ private Q_SLOTS:
         QVERIFY(p.hasPart(QStringLiteral("/word/media/bullet.png")) && p.hasPart(QStringLiteral("/word/media/swatch.png")));
     }
 
+    // A bookmark or a comment range may begin in a paragraph and end inside a table that is kept as XML (or the other way about), and two
+    // bookmarks may carry the same Id: all of them stay, each start with its end, and the second of an Id is given an Id of its own.
+    void bookmarksAndRangesAcrossKeptTablesAndOfRepeatedIdsStay()
+    {
+        const QByteArray table1 = "<w:tbl><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r><w:bookmarkEnd w:id=\"1\"/><w:commentRangeEnd w:id=\"7\"/></w:p></w:tc></w:tr></w:tbl>";
+        const QByteArray table2 = "<w:tbl><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:bookmarkStart w:id=\"2\" w:name=\"fromTable\"/><w:commentRangeStart w:id=\"8\"/><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        const QByteArray body = "<w:p><w:bookmarkStart w:id=\"1\" w:name=\"intoTable\"/><w:commentRangeStart w:id=\"7\"/><w:r><w:t>before</w:t></w:r></w:p>" + table1 +
+                                "<w:p><w:r><w:t>between</w:t></w:r></w:p>" + table2 +
+                                "<w:p><w:r><w:t>after</w:t></w:r><w:bookmarkEnd w:id=\"2\"/><w:commentRangeEnd w:id=\"8\"/></w:p>"
+                                "<w:p><w:bookmarkStart w:id=\"3\" w:name=\"one\"/><w:r><w:t>x</w:t></w:r><w:bookmarkEnd w:id=\"3\"/></w:p>"
+                                "<w:p><w:bookmarkStart w:id=\"3\" w:name=\"two\"/><w:r><w:t>y</w:t></w:r><w:bookmarkEnd w:id=\"3\"/></w:p>";
+        auto d = open(makeDocx(body));
+        QVERIFY(d);
+        const QByteArray saved = d->toDocx();
+        const QStringList strict = rt::strictProblems(saved);
+        QVERIFY2(strict.isEmpty(), qPrintable(strict.join(QLatin1Char('\n'))));
+        const QByteArray x = documentXml(saved);
+        QCOMPARE(int(x.count("<w:bookmarkStart")), 4);
+        QCOMPARE(int(x.count("<w:bookmarkEnd")), 4);
+        QCOMPARE(int(x.count("<w:commentRangeStart")), 2);
+        QCOMPARE(int(x.count("<w:commentRangeEnd")), 2);
+        // Every bookmark start has an end of its Id, once; the names are all there.
+        QRegularExpression starts(QStringLiteral("<w:bookmarkStart w:id=\"(\\d+)\" w:name=\"(\\w+)\"")), ends(QStringLiteral("<w:bookmarkEnd w:id=\"(\\d+)\""));
+        QMap<QString, QString> name;
+        for (auto it = starts.globalMatch(QString::fromUtf8(x)); it.hasNext();) {
+            const auto m = it.next();
+            QVERIFY2(!name.contains(m.captured(1)), "an Id is used by two bookmarks");
+            name[m.captured(1)] = m.captured(2);
+        }
+        QMap<QString, int> endCount;
+        for (auto it = ends.globalMatch(QString::fromUtf8(x)); it.hasNext();) ++endCount[it.next().captured(1)];
+        QStringList names = name.values();
+        names.sort();
+        QCOMPARE(names, (QStringList{"fromTable", "intoTable", "one", "two"}));
+        for (auto it = name.cbegin(); it != name.cend(); ++it) QVERIFY2(endCount.value(it.key()) == 1, qPrintable(QStringLiteral("bookmark %1 (Id %2) has %3 ends").arg(it.value(), it.key()).arg(endCount.value(it.key()))));
+        const QStringList loss = rt::lossProblems(makeDocx(body), saved);
+        for (const QString &l : loss) QVERIFY2(!l.startsWith(QLatin1String("element counts")) || (!l.contains(QLatin1String("bookmark")) && !l.contains(QLatin1String("commentRange"))), qPrintable(l));
+    }
+
     void aRichDocumentComesBackFaithfulAndWellFormed()
     {
         const QByteArray original = richDocx();
