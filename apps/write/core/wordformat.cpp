@@ -479,6 +479,8 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (jc == QLatin1String("distribute") || jc == QLatin1String("thaiDistribute") || jc.endsWith(QLatin1String("Kashida"))) bf.setProperty(prop::JcRaw, jc);
     bf.setTopMargin(p.before.value_or(0) / 20.0);
     bf.setBottomMargin(p.after.value_or(0) / 20.0);
+    if (p.beforeAuto.value_or(false)) bf.setProperty(tp::SpaceBeforeAuto, true);
+    if (p.afterAuto.value_or(false)) bf.setProperty(tp::SpaceAfterAuto, true);
     bf.setLeftMargin(p.indLeft.value_or(0) / 20.0);
     bf.setRightMargin(p.indRight.value_or(0) / 20.0);
     bf.setTextIndent(p.indFirst.value_or(0) / 20.0);

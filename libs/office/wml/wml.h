@@ -121,6 +121,9 @@ struct ParaProps {
     std::optional<int> numId, ilvl;   // numPr
     std::optional<QVector<TabStop>> tabs;
     std::optional<int> before, after; // twentieths of a point
+    // The space before or after is "automatic" (w:beforeAutospacing, w:afterAutospacing): the word processor's own for a paragraph that came from a web
+    // page, which is not what `before` and `after` say. Stated with them: a paragraph that gives its space overrides its style's automatic one.
+    std::optional<bool> beforeAuto, afterAuto;
     std::optional<int> line;          // 240ths of a line, or twentieths of a point (see lineRule)
     QString lineRule;                 // auto, exact, atLeast
     std::optional<int> indLeft, indRight;   // twentieths of a point

@@ -196,6 +196,8 @@ public:
             } else if (name == "spacing") {
                 p.before = intOf(t, c, "before");
                 p.after = intOf(t, c, "after");
+                if (p.before || t.has(c, "beforeAutospacing")) p.beforeAuto = onOffString(t.attr(c, "beforeAutospacing"));
+                if (p.after || t.has(c, "afterAutospacing")) p.afterAuto = onOffString(t.attr(c, "afterAutospacing"));
                 p.line = intOf(t, c, "line");
                 p.lineRule = t.attr(c, "lineRule");
                 p.spacingAttrs = t.otherAttributes(c, {"before", "after", "line", "lineRule"});

@@ -248,6 +248,28 @@ private Q_SLOTS:
         QVERIFY(out.contains("w:val=\"double\" w:sz=\"6\" w:space=\"3\""));
     }
 
+    // Automatic space before and after (a paragraph from a web page) is read apart from the points beside it, and a paragraph that gives its own space
+    // overrides its style's automatic one; written back as it was.
+    void automaticSpacingIsReadAndOverridden()
+    {
+        Made m;
+        m.styles = R"(<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>)"
+                   R"(<w:style w:type="paragraph" w:styleId="Web"><w:name w:val="Web"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="100" w:beforeAutospacing="1" w:after="100" w:afterAutospacing="1"/></w:pPr></w:style>)";
+        m.body = R"(<w:p><w:pPr><w:pStyle w:val="Web"/><w:spacing w:before="0"/></w:pPr><w:r><w:t>own</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Web"/></w:pPr><w:r><w:t>style's</w:t></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const ParaProps web = d.styles.paragraph(QStringLiteral("Web"));
+        QVERIFY(web.beforeAuto.value_or(false) && web.afterAuto.value_or(false));
+        QCOMPARE(web.before.value_or(-1), 100);
+        ParaProps own = d.styles.paragraph(QStringLiteral("Web"));
+        own.overlay(d.body[0].para.props);
+        QVERIFY(!own.beforeAuto.value_or(true));   // (its own before, with no automatic, ends the style's)
+        QVERIFY(own.afterAuto.value_or(false));
+        QVERIFY(!d.body[1].para.props.beforeAuto);
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QVERIFY(out.contains("w:before=\"0\""));
+    }
+
     void stylesInheritFromTheStylesTheyAreBasedOnAndTheDefaults()
     {
         Made m;

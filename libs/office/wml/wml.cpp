@@ -238,6 +238,8 @@ void ParaProps::overlay(const ParaProps &t)
     }
     if (t.before) before = t.before;
     if (t.after) after = t.after;
+    if (t.beforeAuto) beforeAuto = t.beforeAuto;
+    if (t.afterAuto) afterAuto = t.afterAuto;
     if (t.line) line = t.line;
     if (!t.lineRule.isEmpty()) lineRule = t.lineRule;
     if (t.indLeft) indLeft = t.indLeft;
