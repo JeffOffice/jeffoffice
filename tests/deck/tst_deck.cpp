@@ -80,6 +80,7 @@
 #include <QAbstractButton>
 #include <QApplication>
 #include <QBuffer>
+#include <QColorSpace>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
@@ -2155,12 +2156,13 @@ private:
     // has a field, a link, a language, and a ruler, and that fades in. `cycle`
     // makes the older edit point back at the newer. `notesByAtom` leaves the
     // first slide without the id of its notes, which then name the slide.
+    // `titleMasterRecord` is the kind of record the title master is kept in (the presentation program keeps it as a slide record).
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
     // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
     // a shape for its drawing, and `masterExtra` more records for the main master.
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                                const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
-                               const QByteArray &masterExtra = QByteArray())
+                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016)
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
@@ -2201,7 +2203,7 @@ private:
             + pptRec(4003, le(1, 2) + le(0x800, 4) + le(1, 2) + le(0x70000, 4) + le(1, 2) + le(44, 2) + pptColor(0, 0, 0, 3), 0)
             + masterExtra
             + pptDrawing(pptShape(0x402, 1, QByteArray(), 100, 200, 5000, 900, masterTitleProps) + pptShape(0x403, 2, QByteArray()) + masterBackground));
-        const QByteArray titleMasterRec = pptBox(1016, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
+        const QByteArray titleMasterRec = pptBox(titleMasterRecord, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
             // The centered title and the subtitle, with only their sizes (the levels of these two start with their number).
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0x800, 4) + le(1, 2) + le(0x20000, 4) + le(54, 2), 6)
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0, 4) + le(0x20000, 4) + le(30, 2), 5)
@@ -2439,6 +2441,24 @@ private Q_SLOTS:
         QVERIFY(ctr);
         QCOMPARE(ctr->begin().begin().fragment().charFormat().fontPointSize(), 54.0);
         QVERIFY((ctr->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask) == Qt::AlignHCenter);
+    }
+
+    // The presentation program keeps a title master in a slide record, not in a master record: it is found all the same, and its
+    // own objects and sizes make the title layout.
+    void binaryPresentationTitleMasterKeptAsASlideRecord()
+    {
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(true, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1006), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(!err.contains(QStringLiteral("master was left out")), qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 3);
+        const Page &welcome = *d->pages[2];
+        const MasterPage *layout = d->masterFor(welcome);
+        QVERIFY(layout);
+        QCOMPARE(deck::layoutType(*layout), QStringLiteral("title"));
+        QTextDocument *ctr = placeholderStory(*d, welcome, QStringLiteral("ph:ctrTitle"));
+        QVERIFY(ctr);
+        QCOMPARE(ctr->begin().begin().fragment().charFormat().fontPointSize(), 54.0);
     }
 
     // A text's fields, links, languages, and ruler come through, and so does how a
@@ -2787,6 +2807,49 @@ private Q_SLOTS:
         QCOMPARE(int(d->pages.size()), 1);
         QCOMPARE(int(d->pages[0]->items.size()), kPictures);
         QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // The Macintosh pictures of a presentation are drawn from what they may do between them: pictures that are as slow as one may be, six of
+    // them (a polygon of 16,001 points that crosses itself, which took 15 seconds to paint), use up the file's share by the fourth, and the
+    // fifth and sixth are left out, with the note of pictures that were. Three of them are within it, and need no note.
+    void binaryPresentationLeavesMacintoshPicturesOutWhenTheyHaveDoneTooMuch()
+    {
+        auto big = [](int value) { QByteArray b(2, '\0'); qToBigEndian<quint16>(quint16(value), b.data()); return b; };
+        // A picture of 200 by 100 points that paints a star polygon: its size and frame, the version and header, and the polygon.
+        QByteArray star = big(0) + big(0) + big(0) + big(100) + big(200);
+        for (int i = 0; i < 16001; ++i) {
+            const double angle = 2 * M_PI * ((i * 8000) % 16001) / 16001.0;
+            star += big(int(50 + 49 * std::sin(angle))) + big(int(100 + 99 * std::cos(angle)));
+        }
+        qToBigEndian<quint16>(quint16(star.size()), star.data());
+        const QByteArray pict = big(0) + big(0) + big(0) + big(100) + big(200) + big(0x0011) + big(0x02FF) + big(0x0C00) + big(0xFFFE) + big(0) + QByteArray(8, '\0') + big(0) + big(0) + big(100)
+                                + big(200) + QByteArray(4, '\0') + big(0x0071) + star + big(0x00FF);
+        // (the record: two uids' worth of one, then the 34 bytes that tell its size and that it is stored, not deflated)
+        auto blip = [&] {
+            return pptRec(0xF01C, QByteArray(16, 'u') + le(quint32(pict.size()), 4) + le(0, 4) + le(0, 4) + le(200, 4) + le(100, 4) + le(0, 4) + le(0, 4) + le(quint32(pict.size()), 4)
+                                      + QByteArray("\xFE\xFE", 2) + pict, 0x542);
+        };
+        auto import = [&](int pictures) {
+            QByteArray entries, frames;
+            for (int i = 1; i <= pictures; ++i) {
+                const QByteArray one = blip();
+                entries += pptRec(0xF007, QByteArray(1, '\x04') + QByteArray(1, '\0') + QByteArray(16, char('a' + i)) + le(0xFF, 2) + le(quint32(one.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + one, 4, 2);
+                frames += pptPictureShape(i);
+            }
+            const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entries, quint16(pictures))));
+            QString err;
+            auto d = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(frames)}}, group), &err);
+            return std::make_pair(std::move(d), err);
+        };
+        QElapsedTimer timer;
+        timer.start();
+        const auto six = import(6);
+        QVERIFY2(six.first, qPrintable(six.second));
+        QVERIFY2(six.second.contains(QStringLiteral("2 pictures were left out")), qPrintable(six.second));
+        const auto three = import(3);
+        QVERIFY2(three.first, qPrintable(three.second));
+        QVERIFY2(!three.second.contains(QStringLiteral("were left out")), qPrintable(three.second));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
     }
 
     // The notes pages that slides name are found by their slide id in one step: 8,000 slides naming pages in a list of 500,000 each had
@@ -21907,6 +21970,57 @@ private Q_SLOTS:
             QVERIFY(!img.isNull());
             const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
             QVERIFY2(c == want.second, qPrintable(QString::number(want.first) + ": " + c.name()));
+        }
+    }
+
+    // A slide's PNG picture that has a color profile of its own (a screen's, most often) is drawn in the colors of that profile as screen
+    // colors, as the presentation program draws it, not with its numbers as they are. A file that only names its gamma and primaries has
+    // no profile to apply (the program leaves those out), and a publication's pictures are drawn as they always were.
+    void renderPictureWithAColorProfileInScreenColors()
+    {
+        const QColor raw(40, 160, 200);
+        QImage src(8, 8, QImage::Format_RGB32);
+        src.fill(raw);
+        QByteArray plain;
+        QBuffer plainBuffer(&plain);
+        QVERIFY(plainBuffer.open(QIODevice::WriteOnly) && src.save(&plainBuffer, "PNG"));
+        src.setColorSpace(QColorSpace(QColorSpace::DisplayP3));
+        QByteArray profiled;
+        QBuffer profiledBuffer(&profiled);
+        QVERIFY(profiledBuffer.open(QIODevice::WriteOnly) && src.save(&profiledBuffer, "PNG"));
+        const QColor want = src.convertedToColorSpace(QColorSpace(QColorSpace::SRgb)).pixelColor(4, 4);
+        QVERIFY2(!colorsNear(want, raw, 6), qPrintable(want.name()));
+        // The plain file with a gamma and the primaries of a wide screen after its header (a chunk: length, name, data, checksum).
+        auto chunk = [](const char *name, const QByteArray &data) {
+            QByteArray body = QByteArray(name, 4) + data, out(4, '\0');
+            qToBigEndian<quint32>(quint32(data.size()), out.data());
+            out += body;
+            QByteArray sum(4, '\0');
+            qToBigEndian<quint32>(jp::crc32(body), sum.data());
+            return out + sum;
+        };
+        auto be32 = [](quint32 v) { QByteArray b(4, '\0'); qToBigEndian<quint32>(v, b.data()); return b; };
+        const QByteArray primaries = be32(31270) + be32(32900) + be32(68000) + be32(32000) + be32(26500) + be32(69000) + be32(15000) + be32(6000);
+        const QByteArray named = plain.left(33) + chunk("gAMA", be32(45455)) + chunk("cHRM", primaries) + plain.mid(33);
+        QVERIFY(QImage::fromData(named).colorSpace().isValid());   // Qt takes a color space from them
+        struct Case { QByteArray file; bool slide; QColor expected; };
+        for (const Case &c : {Case{profiled, true, want}, Case{named, true, raw}, Case{profiled, false, raw}}) {
+            Document doc;
+            doc.slidePictures = c.slide;
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = doc.addImage(c.file, QStringLiteral("png"));
+            QVERIFY(!pic->imageId.isEmpty());
+            pic->rect = QRectF(0, 0, 80, 80);
+            pic->imgRect = pic->rect;
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = &doc;
+            ctx.cache = &cache;
+            const ItemList one{pic};
+            const QImage img = Renderer::renderItemsToImage(ctx, one, 1.0);
+            QVERIFY(!img.isNull());
+            const QColor got = img.pixelColor(img.width() / 2, img.height() / 2);
+            QVERIFY2(colorsNear(got, c.expected, 3), qPrintable(QStringLiteral("slide %1, %2 bytes: %3 instead of %4").arg(c.slide).arg(c.file.size()).arg(got.name(), c.expected.name())));
         }
     }
 

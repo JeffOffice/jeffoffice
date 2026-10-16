@@ -21678,6 +21678,74 @@ private Q_SLOTS:
             QVERIFY(near(img.pixel(175, 175), QColor(255, 0, 0)));
             QVERIFY(near(img.pixel(225, 175), QColor(0, 255, 0)));
         }
+        // PatBlt fills a rectangle (here 150 to 250 across and 200 to 260 down) with the brush, as table cells in a pasted table are.
+        QByteArray patBlt;
+        le32(patBlt, 0x00F00021);   // copy the brush
+        for (int v : {60, 100, 200, 150}) le16(patBlt, v);   // height, width, y, x
+        const QImage filled = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, wmfRecord(0x012D, words({0})) + wmfRecord(0x061D, patBlt)));
+        QVERIFY(near(filled.pixel(200, 230), QColor(0, 0, 255)));
+        QCOMPARE(qAlpha(filled.pixel(100, 230)), 0);
+        // Text in a font of the Greek character set is Greek: the byte 0xF4 is a tau there, where in the Western set it is an o with a
+        // circumflex.
+        {
+            QRect greek, tau;
+            ink(picture(wmf(QStringLiteral("Arial"), 161, "\xF4", 120, 150, 120)), QRect(0, 100, 400, 200), &greek);
+            ink(picture(emf(QStringLiteral("Arial"), 0, QString(QChar(0x03C4)), 120, 150, 120)), QRect(0, 100, 400, 200), &tau);
+            QVERIFY(!greek.isEmpty() && !tau.isEmpty());
+            QVERIFY2(std::abs(greek.height() - tau.height()) <= 2 && std::abs(greek.width() - tau.width()) <= 2, qPrintable(QStringLiteral("greek %1 x %2, tau %3 x %4").arg(greek.width()).arg(greek.height()).arg(tau.width()).arg(tau.height())));
+        }
+        // The other letters of those sets that are not where the Western set has them: Greek capital alpha with a tonos (0xA2), and the Cyrillic
+        // capital and small yo (0xA8 and 0xB8, in the Western set a diaeresis and a cedilla).
+        for (const auto &letter : {std::make_tuple(161, "\xA2", 0x0386), std::make_tuple(204, "\xA8", 0x0401), std::make_tuple(204, "\xB8", 0x0451)}) {
+            QRect fromBytes, fromUnicode;
+            ink(picture(wmf(QStringLiteral("Arial"), std::get<0>(letter), std::get<1>(letter), 120, 150, 120)), QRect(0, 100, 400, 200), &fromBytes);
+            ink(picture(emf(QStringLiteral("Arial"), 0, QString(QChar(std::get<2>(letter))), 120, 150, 120)), QRect(0, 100, 400, 200), &fromUnicode);
+            QVERIFY(!fromBytes.isEmpty() && !fromUnicode.isEmpty());
+            QVERIFY2(std::abs(fromBytes.height() - fromUnicode.height()) <= 2 && std::abs(fromBytes.width() - fromUnicode.width()) <= 2,
+                     qPrintable(QStringLiteral("0x%1: %2 x %3 instead of %4 x %5").arg(std::get<2>(letter), 0, 16).arg(fromBytes.width()).arg(fromBytes.height()).arg(fromUnicode.width()).arg(fromUnicode.height())));
+        }
+        // Text drawn with an opaque background (a label's white box on a map) fills the string's cell with the background color, in a
+        // metafile as in an enhanced one.
+        {
+            QByteArray colorRecord = QByteArray();
+            le32(colorRecord, 0x0000FFFF);   // yellow (red 255, green 255, blue 0)
+            QByteArray line = words({1}) + "I";
+            line.append('\0');
+            le16(line, 150);
+            le16(line, 150);
+            const QByteArray more = wmfRecord(0x0102, words({2})) + wmfRecord(0x0201, colorRecord) + wmfRecord(0x0521, line);
+            const QImage opaque = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 120, more));
+            QVERIFY(near(opaque.pixel(152, 152), QColor(255, 255, 0)));
+            QCOMPARE(qAlpha(opaque.pixel(120, 152)), 0);   // (left of the cell)
+        }
+        // A flood of records that each paint the whole picture (400,000 of them, 7 MB, over a minute before) is stopped after the work a
+        // picture may take, with what it drew before it still there, and so is one of records that each nest a saved state.
+        {
+            QByteArray patBlt;
+            le32(patBlt, 0x00F00021);
+            for (int v : {300, 400, 0, 0}) le16(patBlt, v);   // height, width, y, x
+            QByteArray flood = wmfRecord(0x012D, words({0}));
+            const QByteArray fill = wmfRecord(0x061D, patBlt);
+            for (int i = 0; i < 400000; ++i) flood += fill;
+            QElapsedTimer timer;
+            timer.start();
+            const QImage drawn = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, flood));
+            QVERIFY2(timer.elapsed() < 6000, qPrintable(QString::number(timer.elapsed())));
+            QVERIFY(near(drawn.pixel(200, 150), QColor(0, 0, 255)));
+            QByteArray nested;
+            for (int i = 0; i < 200000; ++i) nested += wmfRecord(0x001E, QByteArray());
+            timer.restart();
+            const QImage deep = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, nested + wmfRecord(0x012D, words({0})) + fill));
+            QVERIFY2(timer.elapsed() < 6000, qPrintable(QString::number(timer.elapsed())));
+            QVERIFY(near(deep.pixel(200, 150), QColor(0, 0, 255)));
+            // Saves past the cap are counted, so their restores undo nothing: a clip set after the first save
+            // still holds once as many restores as later saves have run (before, they unwound past it).
+            QByteArray balanced = wmfRecord(0x001E, QByteArray()) + wmfRecord(0x0416, words({10, 10, 0, 0}));
+            for (int i = 0; i < 1005; ++i) balanced += wmfRecord(0x001E, QByteArray());
+            for (int i = 0; i < 1005; ++i) balanced += wmfRecord(0x0127, words({0xFFFF}));
+            const QImage kept = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, balanced + wmfRecord(0x012D, words({0})) + fill));
+            QVERIFY(!near(kept.pixel(200, 150), QColor(0, 0, 255)));
+        }
         // Insert Picture takes both from files, whatever the case of the
         // extension, and the page shows the picture on screen and in print.
         QTemporaryDir dir;

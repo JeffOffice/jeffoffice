@@ -1,11 +1,13 @@
 #include "render/metafile.h"
 
 #include "core/fonts.h"
+#include "render/paintwork.h"
 
 #include <QFont>
 #include <QFontDatabase>
 #include <QFontMetricsF>
 #include <QHash>
+#include <QSet>
 #include <QPaintEngine>
 #include <QPainter>
 #include <QPainterPath>
@@ -17,6 +19,16 @@
 namespace jp {
 
 namespace {
+
+// What one play of a metafile may do, in units of about a microsecond of work on the computers it was measured on (a rectangle over the
+// whole of a picture of 600 by 600 pixels costs about 185, a string of text 40 and a font it has not used yet 1,500, an image of a
+// million pixels 10,000): the metafiles of the publications and presentations measured (draws to pixels, 1,600 on a side at most) take
+// 225,000 at most, and written to a PDF 31,000, so this is more than ten times that, and a second or two.
+constexpr double kMaxWork = 2500000;
+// The most elements of a path a metafile builds between BeginPath and EndPath, and the deepest its saved states go: real ones
+// use thousands of the first and tens of the second.
+constexpr int kMaxPathElements = 1000000;
+constexpr int kMaxSavedStates = 1000;
 
 // Reads little-endian values from a picture's bytes, never outside them: a
 // read past the end gives 0 and stops further reads, and moves by lengths
@@ -44,6 +56,7 @@ struct Obj {
     double height = 12;
     double escapement = 0;
     bool symbol = false;
+    quint8 charset = 0;
 };
 
 struct DC {
@@ -53,6 +66,7 @@ struct DC {
     double fontHeight = 12;
     double escapement = 0;
     bool symbolFont = false;
+    quint8 charset = 0;
     QColor textColor = Qt::black, bkColor = Qt::white;
     int bkMode = 2;
     Qt::FillRule fill = Qt::OddEvenFill;
@@ -150,6 +164,21 @@ QImage dibFromPacked(const uchar *d, qsizetype len)
     return dibToImage(d, bmiLen, d + bmiLen, len - bmiLen);
 }
 
+// A letter of the Greek (161) or Cyrillic (204) character set that is not the one at its place in the Western set; null for the others.
+QChar charsetLetter(quint8 charset, uchar c)
+{
+    if (charset == 161) {
+        if ((c >= 0xC1 && c <= 0xFE && c != 0xD2) || (c >= 0xB8 && c <= 0xBF && c != 0xBB && c != 0xBD)) return QChar(c + 0x02D0);
+        if (c == 0xA1 || c == 0xA2) return QChar(c + 0x02E4);   // the letters with a tonos above, and the tonos
+        if (c == 0xB4) return QChar(0x0384);
+        return QChar();
+    }
+    if (c >= 0xC0) return QChar(c + 0x0350);
+    if (c == 0xA8) return QChar(0x0401);   // the capital and small yo
+    if (c == 0xB8) return QChar(0x0451);
+    return QChar();
+}
+
 class Player {
 public:
     Player(QPainter *p, bool emf) : m_p(p), m_emf(emf) {}
@@ -174,6 +203,18 @@ private:
     QPainterPath m_path;
     bool m_inPath = false;
     double m_devPerMmX = 3.78, m_devPerMmY = 3.78;
+    double m_work = kMaxWork;
+    bool m_spent = false;
+    int m_droppedSaves = 0;   // saves past kMaxSavedStates: their restores undo nothing, so the ones before still match
+    QSet<QPair<QString, int>> m_fontsUsed;
+
+    // Takes work from what the metafile may do (see kMaxWork); false once it is spent, when the rest of it is not played.
+    bool pay(double units)
+    {
+        m_work -= units;
+        if (m_work < 0) m_spent = true;
+        return !m_spent;
+    }
 
     QTransform logical() const
     {
@@ -224,15 +265,32 @@ private:
 
     void fillAndStroke(const QPainterPath &path, bool fill = true, bool stroke = true)
     {
-        if (m_inPath) { m_path.addPath(path); return; }
+        if (m_inPath) {
+            if (m_path.elementCount() < kMaxPathElements && pay(path.elementCount() * 0.2)) m_path.addPath(path);
+            return;
+        }
         apply();
         QPainterPath pp = path;
         pp.setFillRule(m_dc.fill);
+        if (!pay(areaWork(m_p, pp.boundingRect()) + fillWork(m_p, pp) * (stroke && m_dc.pen.style() != Qt::NoPen ? 3 : 1))) return;
         if (fill && m_dc.brush.style() != Qt::NoBrush) {
             if (m_dc.brush.style() != Qt::SolidPattern && m_dc.bkMode == 2) m_p->fillPath(pp, m_dc.bkColor);
             m_p->fillPath(pp, m_dc.brush);
         }
         if (stroke && m_dc.pen.style() != Qt::NoPen) m_p->strokePath(pp, m_dc.pen);
+    }
+
+    // A rectangle filled by the brush, or black or white: the raster operations that need the pixels beneath are left out.
+    void patBlt(const QRectF &rect, quint32 rop)
+    {
+        if (rop != 0x00F00021 && rop != 0x00000042 && rop != 0x00FF0062) return;
+        QPainterPath pp;
+        pp.addRect(rect.normalized());
+        QBrush keep = m_dc.brush;
+        if (rop == 0x00000042) m_dc.brush = QBrush(Qt::black);
+        if (rop == 0x00FF0062) m_dc.brush = QBrush(Qt::white);
+        fillAndStroke(pp, true, false);
+        m_dc.brush = keep;
     }
 
     QPainterPath polygonPath(const QVector<QPointF> &pts, bool close)
@@ -282,7 +340,7 @@ private:
         switch (o.kind) {
         case Obj::Pen: m_dc.pen = o.pen; break;
         case Obj::Brush: m_dc.brush = o.brush; break;
-        case Obj::Font: m_dc.font = o.font; m_dc.fontHeight = o.height; m_dc.escapement = o.escapement; m_dc.symbolFont = o.symbol; break;
+        case Obj::Font: m_dc.font = o.font; m_dc.fontHeight = o.height; m_dc.escapement = o.escapement; m_dc.symbolFont = o.symbol; m_dc.charset = o.charset; break;
         default: break;
         }
     }
@@ -316,6 +374,7 @@ private:
         if (o.height <= 0) o.height = 12;
         o.escapement = escapement / 10.0;
         o.symbol = charset == 2;
+        o.charset = charset;
         return o;
     }
 
@@ -364,6 +423,16 @@ private:
         if (h == 6) x = -w / 2; else if (h == 2) x = -w;
         const quint32 v = ta & 24;
         if (v == 0) y = fm.ascent(); else if (v == 8) y = -fm.descent();
+        // A string costs what its area does, a few dozen units, and, the first time a font is used at a size, the 1,500 it takes to find it.
+        const QPair<QString, int> used(f.family(), f.pixelSize());
+        const bool first = !m_fontsUsed.contains(used);
+        if (first && m_fontsUsed.size() < 4096) m_fontsUsed.insert(used);
+        if (!pay(40 + s.size() * 2 + (first ? 1500 : 0) + areaWork(m_p, QRectF(x, y - fm.ascent(), w, fm.ascent() + fm.descent())))) {
+            m_p->restore();
+            return;
+        }
+        // In opaque mode the string's cell is first filled with the background color.
+        if (m_dc.bkMode == 2) m_p->fillRect(QRectF(x, y - fm.ascent(), w, fm.ascent() + fm.descent()), m_dc.bkColor);
         m_p->setPen(m_dc.textColor);
         if (!dx.isEmpty() && dx.size() == s.size()) {
             double cx = x;
@@ -388,6 +457,7 @@ private:
         else if (rop == 0x008800C6 || rop == 0x00660046) { m_p->restore(); return; }   // masks only make sense with blending
         m_p->setRenderHint(QPainter::SmoothPixmapTransform);
         QRectF s = src.isNull() ? QRectF(img.rect()) : src;
+        if (!pay(10 + double(img.width()) * img.height() / 100 + areaWork(m_p, dst) * 2)) { m_p->restore(); return; }
         // DIBs are bottom-up; QImage already flipped them. Source y counts from the top here.
         QImage shown = img;
         if (recolor) {
@@ -410,7 +480,8 @@ private:
         Reader r{reinterpret_cast<const uchar *>(data.constData()), data.size()};
         if (r.u32() == 0x9AC6CDD7u) r.p = 22; else r.p = 0;
         r.p += 18;   // standard header
-        while (r.ok(6)) {
+        while (r.ok(6) && !m_spent) {
+            pay(1);
             const qsizetype start = r.p;
             const quint32 words = r.u32();
             const quint16 fn = r.u16();
@@ -428,8 +499,8 @@ private:
             case 0x0106: m_dc.fill = a.u16() == 2 ? Qt::WindingFill : Qt::OddEvenFill; break;
             case 0x0209: m_dc.textColor = col(a.u32()); break;
             case 0x012E: m_dc.textAlign = a.u16(); break;
-            case 0x001E: m_stack.push_back(m_dc); m_p->save(); break;
-            case 0x0127: if (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); } break;
+            case 0x001E: if (m_stack.size() < kMaxSavedStates) { m_stack.push_back(m_dc); m_p->save(); } else ++m_droppedSaves; break;
+            case 0x0127: if (m_droppedSaves > 0) --m_droppedSaves; else if (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); } break;
             case 0x02FA: {
                 Obj o; o.kind = Obj::Pen;
                 const quint16 style = a.u16(); const qint16 w = a.s16(); a.s16();
@@ -532,14 +603,21 @@ private:
                 a.skip((len + 1) & ~1);
                 QVector<double> dx;
                 for (int i = 0; i < len && a.ok(2); ++i) dx << a.s16();
-                if ((opts & 0x02) && !clip.isNull()) { apply(); m_p->fillRect(clip.normalized(), m_dc.bkColor); }
+                if ((opts & 0x02) && !clip.isNull()) { apply(); if (pay(areaWork(m_p, clip.normalized()))) m_p->fillRect(clip.normalized(), m_dc.bkColor); }
                 text(QPointF(x, y), decode(s), dx);
                 break;
             }
             case 0x0416: {
                 const double b = a.s16(), rt = a.s16(), t = a.s16(), l = a.s16();
+                if (!pay(1)) break;
                 apply();
                 m_p->setClipRect(QRectF(QPointF(l, t), QPointF(rt, b)).normalized(), Qt::IntersectClip);
+                break;
+            }
+            case 0x061D: {
+                const quint32 rop = a.u32();
+                const double h = a.s16(), w = a.s16(), y = a.s16(), x = a.s16();
+                patBlt(QRectF(x, y, w, h), rop);
                 break;
             }
             case 0x0B41: case 0x0F43: case 0x0940: {
@@ -574,14 +652,24 @@ private:
             return out;
         }
         QStringDecoder d("windows-1252");
-        return d.isValid() ? d.decode(s) : QString::fromLatin1(s);
+        QString out = d.isValid() ? d.decode(s) : QString::fromLatin1(s);
+        // The letters of the Greek and Cyrillic character sets, which sit where the Western set has others (the equations an equation
+        // editor makes are in Greek-set fonts).
+        if (m_dc.charset == 161 || m_dc.charset == 204) {
+            for (int i = 0; i < s.size() && i < out.size(); ++i) {
+                const uchar c = uchar(s[i]);
+                if (const QChar letter = charsetLetter(m_dc.charset, c); !letter.isNull()) out[i] = letter;
+            }
+        }
+        return out;
     }
 
     // ---------------- EMF ----------------
     void playEmf(const QByteArray &data)
     {
         Reader r{reinterpret_cast<const uchar *>(data.constData()), data.size()};
-        while (r.ok(8)) {
+        while (r.ok(8) && !m_spent) {
+            pay(1);
             const qsizetype start = r.p;
             const quint32 type = r.u32();
             const quint32 size = r.u32();
@@ -612,10 +700,14 @@ private:
             case 24: m_dc.textColor = col(a.u32()); break;
             case 25: m_dc.bkColor = col(a.u32()); break;
             case 27: m_dc.cur = pt32(); if (m_inPath) m_path.moveTo(m_dc.cur); break;
-            case 33: m_stack.push_back(m_dc); m_p->save(); break;
+            case 33: if (m_stack.size() < kMaxSavedStates) { m_stack.push_back(m_dc); m_p->save(); } else ++m_droppedSaves; break;
             case 34: {
                 int rel = a.s32();
-                while (rel++ < 0 && !m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); }
+                while (rel++ < 0) {
+                    if (m_droppedSaves > 0) --m_droppedSaves;
+                    else if (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); }
+                    else break;
+                }
                 break;
             }
             case 35: {
@@ -764,6 +856,8 @@ private:
                 break;
             }
             case 67: {
+                // A clip to the path costs as much as the path is long: one file can clip to the same long path again and again.
+                if (!pay(1 + m_path.elementCount())) break;
                 apply();
                 QPainterPath pp = m_path;
                 pp.setFillRule(m_dc.fill);
@@ -779,6 +873,7 @@ private:
                     a.u32(); a.u32(); const quint32 nRects = a.u32(); a.u32(); a.skip(16);
                     QPainterPath region;
                     for (quint32 i = 0; i < nRects && a.ok(16); ++i) region.addRect(rect32().normalized());
+                    if (!pay(10 + region.elementCount() * 2)) break;   // (a rectangle is five elements, and clipping to one 8 units)
                     m_p->setTransform(base);
                     m_p->setClipPath(region, mode == 1 ? Qt::IntersectClip : Qt::ReplaceClip);
                 }
@@ -800,7 +895,7 @@ private:
                 QVector<double> dx;
                 if (offDx && start + qsizetype(offDx) + qsizetype(nChars) * 4 <= a.n)
                     for (quint32 i = 0; i < nChars; ++i) dx << qFromLittleEndian<qint32>(a.d + start + offDx + i * 4);
-                if ((options & 0x02) && rcl.isValid()) { apply(); m_p->fillRect(rcl.normalized(), m_dc.bkColor); }
+                if ((options & 0x02) && rcl.isValid()) { apply(); if (pay(areaWork(m_p, rcl.normalized()))) m_p->fillRect(rcl.normalized(), m_dc.bkColor); }
                 text(ref, s, dx);
                 break;
             }
@@ -819,14 +914,7 @@ private:
                     if (type == 77) { cxs = a.s32(); cys = a.s32(); }
                 }
                 if (cbBmi == 0) {
-                    QPainterPath pp; pp.addRect(QRectF(xd, yd, cxd, cyd).normalized());
-                    if (rop == 0x00F00021 || rop == 0x00000042 || rop == 0x00FF0062) {
-                        QBrush keep = m_dc.brush;
-                        if (rop == 0x00000042) m_dc.brush = QBrush(Qt::black);
-                        if (rop == 0x00FF0062) m_dc.brush = QBrush(Qt::white);
-                        fillAndStroke(pp, true, false);
-                        m_dc.brush = keep;
-                    }
+                    patBlt(QRectF(xd, yd, cxd, cyd), rop);
                     break;
                 }
                 if (start + offBmi + cbBmi > a.n || start + offBits + cbBits > a.n) break;
