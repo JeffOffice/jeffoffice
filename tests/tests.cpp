@@ -21738,6 +21738,13 @@ private Q_SLOTS:
             const QImage deep = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, nested + wmfRecord(0x012D, words({0})) + fill));
             QVERIFY2(timer.elapsed() < 6000, qPrintable(QString::number(timer.elapsed())));
             QVERIFY(near(deep.pixel(200, 150), QColor(0, 0, 255)));
+            // Saves past the cap are counted, so their restores undo nothing: a clip set after the first save
+            // still holds once as many restores as later saves have run (before, they unwound past it).
+            QByteArray balanced = wmfRecord(0x001E, QByteArray()) + wmfRecord(0x0416, words({10, 10, 0, 0}));
+            for (int i = 0; i < 1005; ++i) balanced += wmfRecord(0x001E, QByteArray());
+            for (int i = 0; i < 1005; ++i) balanced += wmfRecord(0x0127, words({0xFFFF}));
+            const QImage kept = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, balanced + wmfRecord(0x012D, words({0})) + fill));
+            QVERIFY(!near(kept.pixel(200, 150), QColor(0, 0, 255)));
         }
         // Insert Picture takes both from files, whatever the case of the
         // extension, and the page shows the picture on screen and in print.
