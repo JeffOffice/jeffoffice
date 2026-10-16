@@ -562,6 +562,8 @@ void keepSlideMaster(MasterPage &master)
     master.props.remove(kThemeKey);
 }
 
+bool isThemeMade(const MasterPage &master) { return master.props.value(kMadeByTheme).toBool(); }
+
 namespace {
 
 // The layout kind a set of placeholders asks for.
@@ -799,6 +801,25 @@ bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &s
     if (!reused) fitLinkColors(d, made.master);
     dropUnusedThemeMasters(d, made.master);
     return true;
+}
+
+void moveToLayout(Document &d, Page &slide, const MasterPage &layout)
+{
+    Standings standings(d);
+    const Standing was = standings.of(slide);
+    const MasterPage *now = isSlideMaster(layout) ? &layout : d.master(layout.baseId);
+    const MasterPage *then = !was.layout ? nullptr : isSlideMaster(*was.layout) ? was.layout : d.master(was.layout->baseId);
+    if (!now || now == then) {
+        applyLayout(d, slide, layout);
+        return;
+    }
+    const DeckTheme target = masterTheme(d, *now);
+    const bool dark = isDarkBackground(now->background);
+    TextReadable readable(d);
+    readable.note(slide, was.layout);
+    Places places(d);
+    moveSlide(d, slide, was.layout, layout, swapFor(was, target, dark), places);
+    readable.keep(slide, d.masterFor(slide), swapFor(was, target, dark).plain);
 }
 
 void applyColors(Document &d, const ColorSet &colors)

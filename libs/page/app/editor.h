@@ -147,9 +147,9 @@ public:
     void cancelChange();
     void change(const QString &label, const std::function<void()> &fn) { beginChange(label); fn(); endChange(); }
     // Called as a change ends while a master page is open on the canvas, after the change and before it is recorded for undo, with the
-    // document as it stands and as it was when the change began; what it changes joins the same undo step. Not called for a change that
-    // changed nothing.
-    std::function<void(Document &now, const Document &before)> masterEdited;
+    // document as it stands and as it was when the change began; what it changes joins the same undo step (it says whether it changed
+    // anything). Not called for a change that changed nothing.
+    std::function<bool(Document &now, const Document &before)> masterEdited;
     void notifyLive();                 // repaint during a drag without recording
     void flushTyping();
     void undo();

@@ -100,6 +100,10 @@ bool applyThemeToAll(Document &d, const Document &source);
 // presentation's theme stays the first master's).
 bool applyThemeToSlides(Document &d, const Document &source, const QList<int> &slides);
 
+// Gives a slide a layout, as applyLayout does and, when the layout stands on another slide master than the slide's own did, that slide master's
+// theme too: its text that had the old theme's fonts and colors has the new one's, as a change of theme from the Design tab sets it.
+void moveToLayout(Document &d, Page &slide, const MasterPage &layout);
+
 // Each of these changes the presentation: every slide master's theme, and the
 // slides, layouts, and masters standing on them.
 // Colors: the old scheme's colors become the new scheme's wherever they are
@@ -120,6 +124,8 @@ void keepTextReadable(Document &d);
 // Makes the slide master the user's own: one that a change of theme made for some slides stays when no slide stands on it any more, and
 // is no longer the theme it was made from (choosing that theme again for other slides makes a new one).
 void keepSlideMaster(MasterPage &master);
+// Whether a change of theme made the slide master for some slides, and nothing has made it the user's own since.
+bool isThemeMade(const MasterPage &master);
 
 // WCAG 2 contrast ratio of two colors (1 to 21).
 double contrastRatio(const QColor &a, const QColor &b);

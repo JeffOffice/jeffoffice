@@ -13,6 +13,7 @@
 #include "core/document.h"
 
 #include <QColor>
+#include <QSet>
 #include <functional>
 #include <QString>
 #include <QVector>
@@ -43,7 +44,7 @@ void setTheme(Document &d, const DeckTheme &t);
 
 // "ph:title" -> "title"; "" when the item isn't a placeholder.
 QString placeholderType(const Item &it);
-QString placeholderRole(const QString &type, int index = 0);
+QString placeholderRole(const QString &type, qint64 index = 0);
 // What an empty placeholder of that type says on screen.
 QString promptFor(const QString &type);
 
@@ -73,6 +74,10 @@ MasterPage *addLayout(Document &d, const QString &masterId, const QString &after
 // A master's placeholder of that type ("title", "body", "dt", "ftr", or "sldNum") as a new presentation has it, for the slide size: null
 // for any other type.
 ItemPtr standardPlaceholder(Document &d, const QString &type);
+// The place of `layout` that a slide's placeholder stands in, as applyLayout finds it: the same type and number, else the first of its family
+// (text, content, and subtitle places are one family; so are a title and a centered title) that `taken` does not hold already, which then holds it.
+// Null when there is none.
+Item *matchPlaceholder(const MasterPage &layout, const Item &placeholder, QSet<const Item *> &taken);
 // A copy of a layout's or a slide master's placeholder; with `empty`, its text is gone and its formatting kept for what is typed.
 ItemPtr copyPlaceholder(Document &d, const Item &place, bool empty);
 

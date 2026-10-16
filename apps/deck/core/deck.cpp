@@ -425,7 +425,7 @@ QString placeholderType(const Item &it)
     return it.role.startsWith(kPh) ? it.role.mid(kPh.size()).section(QLatin1Char(':'), 0, 0) : QString();
 }
 
-QString placeholderRole(const QString &type, int index)
+QString placeholderRole(const QString &type, qint64 index)
 {
     return index ? kPh + type + QLatin1Char(':') + QString::number(index) : kPh + type;
 }
@@ -608,6 +608,8 @@ MasterPage *addLayout(Document &d, const QString &masterId, const QString &after
     d.masters.insert(at, layout);
     return layout.get();
 }
+
+Item *matchPlaceholder(const MasterPage &layout, const Item &placeholder, QSet<const Item *> &taken) { return matchIn(layout, placeholder, taken); }
 
 ItemPtr copyPlaceholder(Document &d, const Item &place, bool empty)
 {
