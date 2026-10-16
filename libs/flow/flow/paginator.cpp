@@ -268,14 +268,18 @@ void Paginator::changed(int position, int removed, int added)
 {
     const int delta = added - removed;
     // The pages' places move with the text; one that began inside what was taken out is gone.
-    int w = 0;
+    int w = 0, goneBefore = 0;
     for (int r = 0; r < m_starts.size(); ++r) {
         PageStart s = m_starts[r];
-        if (s.pos > position && s.pos < position + removed) continue;
+        if (s.pos > position && s.pos < position + removed) {
+            goneBefore += m_pending && r <= m_high;
+            continue;
+        }
         if (s.pos >= position + removed && s.pos > position) s.pos += delta;
         m_starts[w++] = s;
     }
     m_starts.resize(w);
+    m_high -= goneBefore;
     // The paragraphs the edit touches, and the page that holds the first (and the one before, for what the page before did to make
     // room for it: a heading kept with its paragraph, a widow).
     const QTextDocument *story = m_doc->story();
@@ -287,7 +291,7 @@ void Paginator::changed(int position, int removed, int added)
     const int page = std::max(0, std::max(0, int(at - m_starts.begin()) - 1) - 1);
     if (!m_pending) {
         m_pending = true;
-        m_valid = page;
+        m_valid = m_high = page;
         m_dirtyEnd = to;
     } else {
         // (An earlier edit's end, in today's positions.)
@@ -295,6 +299,7 @@ void Paginator::changed(int position, int removed, int added)
         if (before >= position + removed && before > position) before += delta;
         else if (before > position) before = position + added;
         m_valid = std::min(m_valid, page);
+        m_high = std::clamp(m_high, m_valid, int(m_starts.size()) - 1);
         m_dirtyEnd = std::max(before, to);
     }
 }
@@ -311,6 +316,7 @@ void Paginator::settleStep()
     const Run run = layoutPage(k, m_starts[k]);
     if (!run.hasNext || run.next == m_starts[k]) {
         m_starts.resize(k + 1);
+        m_high = std::min(m_high, k);
         m_complete = true;
         m_pending = false;
         return;
@@ -318,17 +324,27 @@ void Paginator::settleStep()
     const PageStart next = run.next;
     int i = k + 1;
     while (i < m_starts.size() && m_starts[i].pos < next.pos) ++i;   // (pages that began where the text no longer has a page begin)
-    m_starts.remove(k + 1, i - (k + 1));
+    const int gone = i - (k + 1);
+    m_starts.remove(k + 1, gone);
+    if (m_high > k) m_high -= std::min(gone, m_high - k);
     i = k + 1;
     if (i < m_starts.size() && m_starts[i] == next) {
-        if (next.pos >= m_dirtyEnd) m_pending = false;   // from here on the pages are as they were
         m_valid = i;
-        return;
+        if (next.pos >= m_dirtyEnd) {
+            // Past what the edits touched. An entry from before them: the pages from there on are as they were. One laid out afresh after the
+            // first edit (up to m_high) is as good as this page: the ones to m_high stay, and those after them, still as they were before the
+            // first edit, are laid out next.
+            if (i > m_high) m_pending = false;
+            else m_valid = m_high;
+        }
+        m_high = std::max(m_high, m_valid);
+    } else {
+        m_starts.insert(i, next);
+        m_high = m_high >= i ? m_high + 1 : i;
+        m_valid = i;
     }
-    m_starts.insert(i, next);
-    m_valid = i;
     // (An unfinished pagination goes no further than it was.)
-    if (!m_complete && m_valid + 1 >= m_starts.size()) m_pending = false;
+    if (m_pending && !m_complete && m_valid + 1 >= m_starts.size()) m_pending = false;
 }
 
 // ---- the pages that are looked at ----

@@ -111,9 +111,10 @@ private:
     bool m_complete = false;
     // After edits, the pages up to m_valid are laid out afresh and those after are as they were, moved with the text. One laid out
     // afresh that starts where one of them did, past m_dirtyEnd (the end of the paragraphs the edits touched, as the text is now),
-    // means the pages from there are the same.
+    // means the pages from there are the same, if they were laid out afresh too (those up to m_high were, after the first edit; the
+    // ones after it are as they were before it).
     bool m_pending = false;
-    int m_valid = 0, m_dirtyEnd = 0;
+    int m_valid = 0, m_high = 0, m_dirtyEnd = 0;
     qint64 m_laidOut = 0;
 };
 
