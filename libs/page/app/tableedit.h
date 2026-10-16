@@ -4,14 +4,13 @@
 // selected cells, the cell the text cursor is in, or with only the table selected, the whole table),
 // and is one step that undoes. A command that can't be done says why in the editor's status bar.
 
+#include "app/editor.h"
 #include "core/document.h"
 #include "office/theme.h"
 
 #include <QString>
 
 namespace jp {
-
-class Editor;
 
 // The table the selection is in: the one being typed in, else the selected object when it is a table.
 TableItem *selectedTable(Editor *ed);
@@ -32,11 +31,12 @@ void tableDeleteCols(TableItem *t, int c0, int c1);
 
 // Rows and columns. Insert puts a new one beside the rows (columns) the selected cells are in, or at the end
 // of the table with nothing but the table selected.
-void insertTableRows(Editor *ed, bool below);
-void insertTableColumns(Editor *ed, bool right);
-// False, with the reason in the status bar, when no cells are named or the table would be left with none.
-bool deleteTableRows(Editor *ed);
-bool deleteTableColumns(Editor *ed);
+// Each says what it did (count 0 when nothing).
+Editor::TableEdit insertTableRows(Editor *ed, bool below);
+Editor::TableEdit insertTableColumns(Editor *ed, bool right);
+// Nothing is deleted, with the reason in the status bar, when no cells are named or the table would be left with none.
+Editor::TableEdit deleteTableRows(Editor *ed);
+Editor::TableEdit deleteTableColumns(Editor *ed);
 void deleteTable(Editor *ed);
 
 // Merge Cells joins the selected cells into one, whose text is all of theirs (one cell on its own joins the
@@ -81,6 +81,10 @@ struct TableStyleParts {
 // and stays (a shaded cell, a border drawn by hand, a word set bold), unless `reset`, which makes every cell as the style has it. A
 // style the program does not know by id (or a table whose style was one of JeffPub's) is named and its parts set, and nothing else.
 void setTableStyle(Editor *ed, TableItem *t, const QString &styleId, const TableStyleParts &parts, const office::Theme &theme, bool reset);
+// A table whose style is known keeps it through rows or columns coming and going: after the edit, each cell has the place in the style that
+// its row and column now give it (the banding goes on, a new row has the look of its neighbors in the style, a header row stays the first
+// row), except what the person did to it. Editor::tableEdited calls this for JeffDeck.
+void keepTableStyle(Editor *ed, TableItem *t, const Editor::TableEdit &edit, const office::Theme &theme);
 // The same without the step: for a table that is being made (not yet on the page) or inside a change of its own.
 void giveTableStyle(Editor *ed, TableItem *t, const QString &styleId, const TableStyleParts &parts, const office::Theme &theme, bool reset);
 

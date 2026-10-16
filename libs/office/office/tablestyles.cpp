@@ -287,7 +287,8 @@ const QVector<TableStyleInfo> &tableStyleList()
 {
     static const QVector<TableStyleInfo> list = [] {
         QVector<TableStyleInfo> v;
-        for (int f = 0; f < FamilyCount; ++f) {
+        // The usual style's family leads (the gallery's first strip shows the first few), then the rest of the medium ones, the light, and the dark.
+        for (const Family f : {Medium2, Medium1, Medium3, Medium4, Light1, Light2, Light3, Dark1, Dark2}) {
             const int count = f == Dark2 ? 4 : 7;
             for (int i = 0; i < count; ++i) {
                 QString name = styleName(kFamilies[f], i);

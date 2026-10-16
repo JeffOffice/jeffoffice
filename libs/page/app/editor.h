@@ -130,6 +130,14 @@ public:
     // merged one) the text cursor is in; not valid when neither.
     CellRange targetCells() const;
     CellRange cellsToFormat(const TableItem *t) const;   // those, or every cell of t when only the table is selected
+    // Rows or columns of a table that came or went (the table commands, Tab in the last cell): `rows` says which, `at` the first one that was
+    // added or taken away, `count` how many (more than 0 added, less than 0 taken away; 0 for none). A caller that keeps a table's style
+    // (JeffDeck) is told through tableEdited, inside the step that undoes.
+    struct TableEdit {
+        bool rows = true;
+        int at = 0, count = 0;
+    };
+    std::function<void(TableItem *, const TableEdit &)> tableEdited;
 
     // ---- changes and undo ----
     void beginChange(const QString &label);

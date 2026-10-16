@@ -20,7 +20,7 @@ This version of JeffDeck is a **Preview**. It is ready to try on real work, but 
 
 - Slides with layouts, sections, hidden slides, and slides reused from another presentation.
 - Themes. There are nine built-in themes, each with four color variants. You can also change a theme's colors, fonts, and background style.
-- Text, shapes, pictures, icons, Text Art, and tables on slides.
+- Text, shapes, pictures, icons, Text Art, and tables on slides. You can crop a picture, and you can merge cells, add borders, and pick a style for a table.
 - Movies and sounds. They play on the slide while you work and in the slide show.
 - Speaker notes and comments.
 - Slide size, backgrounds, and footers.
@@ -37,8 +37,7 @@ This version of JeffDeck is a **Preview**. It is ready to try on real work, but 
 - You can't edit slide masters or layouts.
 - You can't add or edit charts, SmartArt diagrams, or equations. If a file has them, JeffDeck shows them and keeps them.
 - Animations that start when you click an object, animations with sounds, and color animations are not available. If a file has them, JeffDeck keeps them.
-- Tables have no tools yet for merging cells, borders, or table styles.
-- There is no Format Shape pane yet, and you can't crop a picture.
+- There is no Format Shape pane yet.
 - There is no Find and Replace yet, and no menu when you right-click a slide.
 - **Notes Page** and **Reading View** are on the View tab, but they are not available yet.
 - Some slides look a little different from the way the original program draws them, most often in older .ppt files.

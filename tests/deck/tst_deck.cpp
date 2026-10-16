@@ -4979,6 +4979,100 @@ private Q_SLOTS:
         QCOMPARE(firstTable(*back)->format, unknown);
     }
 
+    // The style goes on through rows and columns that come and go: the bands still alternate, a new row has the look its place gives it, the
+    // header row stays the first row, and the words of a dark style stay light in the new cells.
+    void tableStyleGoesOnThroughNewAndDeletedRowsAndColumns()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 4, 3);
+        const QString id = theTable(ed)->id;
+        const Fill head = theTable(ed)->cell(0, 1).fill, band1 = theTable(ed)->cell(1, 0).fill, band2 = theTable(ed)->cell(2, 0).fill;
+        QVERIFY(!(band1 == band2) && !(head == band1));
+        // A row below the last: the bands go on (rows 1 and 3 are one band, row 2 the other, so row 4 is the second).
+        ed->selectCells(id, 3, 0, 3, 0);
+        QVERIFY(command(w, "tbl.insBelow"));
+        QCOMPARE(theTable(ed)->rows, 5);
+        QVERIFY(theTable(ed)->cell(4, 1).fill == band2);
+        QVERIFY(theTable(ed)->cell(3, 1).fill == band1);
+        // A row in the middle: every row below it takes the band its place now gives it.
+        ed->selectCells(id, 1, 0, 1, 0);
+        QVERIFY(command(w, "tbl.insAbove"));
+        QCOMPARE(theTable(ed)->rows, 6);
+        for (int r = 1; r < 6; ++r) QVERIFY2(theTable(ed)->cell(r, 2).fill == (r % 2 ? band1 : band2), qPrintable(QString::number(r)));
+        QVERIFY(theTable(ed)->cell(0, 1).fill == head);
+        // Taking a row away does the same; and a row above the first is the header, the old one a row of the bands.
+        ed->selectCells(id, 2, 0, 2, 0);
+        QVERIFY(command(w, "tbl.delRow"));
+        for (int r = 1; r < 5; ++r) QVERIFY2(theTable(ed)->cell(r, 2).fill == (r % 2 ? band1 : band2), qPrintable(QString::number(r)));
+        ed->selectCells(id, 0, 0, 0, 0);
+        QVERIFY(command(w, "tbl.insAbove"));
+        QVERIFY(theTable(ed)->cell(0, 1).fill == head && cellIsBold(ed, 0, 1));
+        QVERIFY(theTable(ed)->cell(1, 1).fill == band1);
+        QVERIFY(!cellIsBold(ed, 1, 1));   // "A2", the old header's words, are a body row's now
+        QCOMPARE(cellText(ed, 1, 1), QStringLiteral("A2"));
+        // Tab in the last cell adds a row, with the band its place gives it.
+        const int rows = theTable(ed)->rows;
+        ed->beginTextEdit(id, 0, rows - 1, theTable(ed)->cols - 1);
+        QTest::keyClick(w.canvas(), Qt::Key_Tab);
+        QCOMPARE(theTable(ed)->rows, rows + 1);
+        QVERIFY(theTable(ed)->cell(rows, 0).fill == ((rows) % 2 ? band1 : band2));
+        // A dark style: the words of a new row and column are light, whatever the table copied from its neighbors.
+        ed->endTextEdit();
+        ed->select(id);
+        w.applyTableStyle(QStringLiteral("{E8034E78-7F5D-4C2E-B375-FC64B27BC917}"));   // Dark Style 1
+        ed->selectCells(id, 1, 1, 1, 1);
+        QVERIFY(command(w, "tbl.insRight"));
+        QTextCursor cur(ed->doc()->storyDoc(theTable(ed)->cell(2, 2).storyId));
+        QVERIFY(cur.charFormat().stringProperty(tp::ColorRefP).size() > 0);
+        QVERIFY(QColor(cur.charFormat().stringProperty(tp::ColorRefP)).lightness() > 128);
+        // And undo takes the new column and its look back in one step.
+        ed->undo();
+        QCOMPARE(theTable(ed)->cols, 3);
+    }
+
+    // Dragging the line between two columns of a table moves it: the column on its left widens, and the table's width stays.
+    void tableColumnBorderDragResizesTheColumns()
+    {
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        tableOnSlide(w, 3, 3);
+        const TableItem *t = theTable(ed);
+        const QRectF r = t->rect;
+        const double x = r.left() + t->colW[0];
+        const QPoint a = w.canvas()->pageToView(QPointF(x, r.center().y())).toPoint(), b = w.canvas()->pageToView(QPointF(x + 40, r.center().y())).toPoint();
+        const double before = theTable(ed)->colW[0], width = theTable(ed)->rect.width();
+        QWidget *vp = w.canvas()->viewport();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, a);
+        QTest::mouseMove(vp, a + QPoint(5, 0));
+        QTest::mouseMove(vp, b);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, b);
+        QVERIFY(theTable(ed)->colW[0] > before + 20);
+        QVERIFY(std::abs(theTable(ed)->rect.width() - width) < 0.01);
+        ed->undo();
+        QCOMPARE(theTable(ed)->colW[0], before);
+    }
+
+    // Crop to Shape offers closed shapes only, and only those a presentation file has by name (a shape without one would be saved as a rectangle).
+    void everyCropShapeIsSavedByItsName()
+    {
+        DeckWindow w;
+        auto *button = w.ribbon()->findChild<GalleryButton *>(QStringLiteral("cropToShapeButton"));
+        QVERIFY(button);
+        const QVector<GalleryItem> items = button->items();
+        QVERIFY(items.size() > 50);
+        QStringList ids;
+        for (const GalleryItem &item : items) {
+            QVERIFY2(!office::presetForShape(item.id).isEmpty(), qPrintable(item.id));
+            const ShapeDef *shape = shapeDef(item.id);
+            QVERIFY2(shape && !shape->open, qPrintable(item.id));
+            ids << item.id;
+        }
+        QVERIFY(ids.contains(QStringLiteral("ellipse")) && ids.contains(QStringLiteral("rect")) && ids.contains(QStringLiteral("roundRect")));
+    }
+
     // Every style in the gallery is one the reader and the tab know: Light, Medium, and Dark, plain and in the six accent colors, with the
     // theme's colors in them.
     void tableStylesAreDrawnFromTheTheme()
@@ -5142,6 +5236,28 @@ private Q_SLOTS:
         QCOMPARE(ed->undoStack()->count(), stepsNow + 1);
         ed->undo();   // the crop is one step; undo is not stuck inside it
         QCOMPARE(thePicture(ed)->rect, cropped);
+        // Undo while cropping takes the crop back; another command ends the crop, keeping it, and then does its own work.
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 25);
+        ed->endChange();
+        QTRY_VERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());   // the window's commands follow the editor a moment later
+        QVERIFY(command(w, "edit.undo"));
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(thePicture(ed)->rect, cropped);
+        const int before = ed->undoStack()->index();   // steps taken (a step that was undone is in the way of the next one, and is dropped)
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 25);
+        ed->endChange();
+        QVERIFY(command(w, "arr.flipH"));
+        QVERIFY(ed->cropItem.isEmpty());
+        QVERIFY(thePicture(ed)->flipH);
+        QCOMPARE(ed->undoStack()->index(), before + 2);
+        ed->undo();
+        QVERIFY(!thePicture(ed)->flipH);
+        QCOMPARE(thePicture(ed)->rect.width(), cropped.width() - 25);
     }
 
     // The same with the mouse: a handle of the frame is dragged in, and a drag inside moves the picture in its frame; Enter ends the crop, which

@@ -18,18 +18,21 @@ namespace {
 
 // A row and column command: on the rows and columns the selected cells (or the cell the text cursor is in)
 // cover, or with the whole table selected, a range that is not valid (callers choose: the ends to insert at,
-// and nothing to delete).
-void editRowsAndColumns(Editor *ed, const QString &label, const std::function<void(TableItem *, const CellRange &)> &fn)
+// and nothing to delete). The command says what it did, and a caller keeping the table's style is told.
+Editor::TableEdit editRowsAndColumns(Editor *ed, const QString &label, const std::function<Editor::TableEdit(TableItem *, const CellRange &)> &fn)
 {
     TableItem *t = selectedTable(ed);
-    if (!t) return;
+    if (!t) return {};
     const CellRange rg = ed->targetCells();
     ed->endTextEdit();
+    Editor::TableEdit done;
     ed->change(label, [&] {
-        fn(t, rg);
+        done = fn(t, rg);
         dropUnusedStories(ed->doc());
+        if (done.count && ed->tableEdited) ed->tableEdited(t, done);
     });
     ed->select(t->id);
+    return done;
 }
 
 } // namespace
@@ -208,17 +211,21 @@ void tableDeleteCols(TableItem *t, int c0, int c1)
 }
 
 
-void insertTableRows(Editor *ed, bool below)
+Editor::TableEdit insertTableRows(Editor *ed, bool below)
 {
-    editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Insert Row"), [ed, below](TableItem *t, const CellRange &rg) {
-        tableInsertRow(ed, t, below ? (rg.valid() ? rg.r1 + 1 : t->rows) : std::max(0, rg.r0));
+    return editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Insert Row"), [ed, below](TableItem *t, const CellRange &rg) {
+        const int at = below ? (rg.valid() ? rg.r1 + 1 : t->rows) : std::max(0, rg.r0);
+        tableInsertRow(ed, t, at);
+        return Editor::TableEdit{true, std::clamp(at, 0, t->rows - 1), 1};
     });
 }
 
-void insertTableColumns(Editor *ed, bool right)
+Editor::TableEdit insertTableColumns(Editor *ed, bool right)
 {
-    editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Insert Column"), [ed, right](TableItem *t, const CellRange &rg) {
-        tableInsertCol(ed, t, right ? (rg.valid() ? rg.c1 + 1 : t->cols) : std::max(0, rg.c0));
+    return editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Insert Column"), [ed, right](TableItem *t, const CellRange &rg) {
+        const int at = right ? (rg.valid() ? rg.c1 + 1 : t->cols) : std::max(0, rg.c0);
+        tableInsertCol(ed, t, at);
+        return Editor::TableEdit{false, std::clamp(at, 0, t->cols - 1), 1};
     });
 }
 
@@ -244,18 +251,22 @@ bool canDelete(Editor *ed, bool rows, const QString &pick)
 
 } // namespace
 
-bool deleteTableRows(Editor *ed)
+Editor::TableEdit deleteTableRows(Editor *ed)
 {
-    if (!canDelete(ed, true, QCoreApplication::translate("TableEdit", "Click in the row to delete, or select cells in the rows, then choose Delete Rows. Delete Table removes the whole table."))) return false;
-    editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Delete Rows"), [](TableItem *t, const CellRange &rg) { tableDeleteRows(t, rg.r0, rg.r1); });
-    return true;
+    if (!canDelete(ed, true, QCoreApplication::translate("TableEdit", "Click in the row to delete, or select cells in the rows, then choose Delete Rows. Delete Table removes the whole table."))) return {};
+    return editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Delete Rows"), [](TableItem *t, const CellRange &rg) {
+        tableDeleteRows(t, rg.r0, rg.r1);
+        return Editor::TableEdit{true, rg.r0, -(rg.r1 - rg.r0 + 1)};
+    });
 }
 
-bool deleteTableColumns(Editor *ed)
+Editor::TableEdit deleteTableColumns(Editor *ed)
 {
-    if (!canDelete(ed, false, QCoreApplication::translate("TableEdit", "Click in the column to delete, or select cells in the columns, then choose Delete Columns. Delete Table removes the whole table."))) return false;
-    editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Delete Columns"), [](TableItem *t, const CellRange &rg) { tableDeleteCols(t, rg.c0, rg.c1); });
-    return true;
+    if (!canDelete(ed, false, QCoreApplication::translate("TableEdit", "Click in the column to delete, or select cells in the columns, then choose Delete Columns. Delete Table removes the whole table."))) return {};
+    return editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Delete Columns"), [](TableItem *t, const CellRange &rg) {
+        tableDeleteCols(t, rg.c0, rg.c1);
+        return Editor::TableEdit{false, rg.c0, -(rg.c1 - rg.c0 + 1)};
+    });
 }
 
 void deleteTable(Editor *ed)
@@ -616,6 +627,57 @@ void giveTableStyle(Editor *ed, TableItem *t, const QString &styleId, const Tabl
             restyleText(ed->doc()->storyDoc(cell.storyId2), before, after);
         }
     ed->fitTableRows(t);   // bold words are wider, and the first row may now be taller
+}
+
+void keepTableStyle(Editor *ed, TableItem *t, const Editor::TableEdit &edit, const office::Theme &theme)
+{
+    // The table as it was: the same style and parts, and the rows or columns it had then.
+    TableItem was;
+    was.rows = t->rows - (edit.rows ? edit.count : 0);
+    was.cols = t->cols - (edit.rows ? 0 : edit.count);
+    was.header = t->header;
+    was.totalRow = t->totalRow;
+    was.firstCol = t->firstCol;
+    was.lastCol = t->lastCol;
+    was.banded = t->banded;
+    was.bandedCols = t->bandedCols;
+    office::TableStyleEffect before, now;
+    if (was.rows <= 0 || was.cols <= 0 || !office::tableStyleEffect(t->format, was, theme, &before) || !office::tableStyleEffect(t->format, *t, theme, &now)) return;
+    // Which row (column) of the table before is now at i: none for a new one.
+    const auto oldIndex = [&](int i) {
+        if (edit.count > 0) return i < edit.at ? i : i < edit.at + edit.count ? -1 : i - edit.count;
+        return i < edit.at ? i : i - edit.count;
+    };
+    const Stroke none;
+    for (int r = 0; r < t->rows; ++r)
+        for (int c = 0; c < t->cols; ++c) {
+            TableCell &cell = t->cell(r, c);
+            if (cell.covered) continue;
+            const int oldRow = edit.rows ? oldIndex(r) : r, oldCol = edit.rows ? c : oldIndex(c);
+            const bool fresh = oldRow < 0 || oldCol < 0;
+            const size_t at = size_t(r) * t->cols + c, oldAt = fresh ? 0 : size_t(oldRow) * was.cols + oldCol;
+            if (fresh || cell.fill == before.fill[oldAt]) cell.fill = now.fill[at];
+            const auto take = [&](Stroke &edge, const Stroke &after, bool exists, const Stroke &old) {
+                if (fresh || (exists && edge == old)) edge = after;
+            };
+            const int oldBottom = oldRow + cell.rowSpan, oldRight = oldCol + cell.colSpan;
+            take(cell.border.top, now.above(r, c), !fresh, fresh ? none : before.above(oldRow, oldCol));
+            take(cell.border.bottom, now.above(r + cell.rowSpan, c), !fresh && oldBottom <= was.rows, fresh || oldBottom > was.rows ? none : before.above(oldBottom, oldCol));
+            take(cell.border.left, now.leftOf(r, c), !fresh, fresh ? none : before.leftOf(oldRow, oldCol));
+            take(cell.border.right, now.leftOf(r, c + cell.colSpan), !fresh && oldRight <= was.cols, fresh || oldRight > was.cols ? none : before.leftOf(oldRow, oldRight));
+            TextLook oldLook, newLook;
+            if (!fresh) {
+                oldLook.bold = before.bold[oldAt];
+                oldLook.italic = before.italic[oldAt];
+                oldLook.color = styleColor(before.color[oldAt], theme);
+            }
+            newLook.bold = now.bold[at];
+            newLook.italic = now.italic[at];
+            newLook.color = styleColor(now.color[at], theme);
+            restyleText(ed->doc()->storyDoc(cell.storyId), oldLook, newLook);
+            restyleText(ed->doc()->storyDoc(cell.storyId2), oldLook, newLook);
+        }
+    ed->fitTableRows(t);
 }
 
 void setTableStyle(Editor *ed, TableItem *t, const QString &styleId, const TableStyleParts &parts, const office::Theme &theme, bool reset)

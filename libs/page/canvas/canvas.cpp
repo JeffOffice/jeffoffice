@@ -2933,6 +2933,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
                         t->cells.push_back(nc);
                     }
                     t->syncRect();
+                    if (m_ed->tableEdited) m_ed->tableEdited(t, Editor::TableEdit{true, t->rows - 1, 1});
                 });
                 r = t->rows - 1;
                 c = 0;

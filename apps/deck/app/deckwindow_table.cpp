@@ -143,6 +143,9 @@ void DeckWindow::createTableActions()
         mk(QString::fromLatin1(b.id), b.text, "", QKeySequence(), [ed, sides] { setTableBorders(ed, sides, pen()); });
     }
 
+    // Rows and columns that come and go keep the table in its style: the bands go on, and a new row has its neighbors' look.
+    m_ed->tableEdited = [this](TableItem *t, const Editor::TableEdit &edit) { keepTableStyle(m_ed, t, edit, tableTheme(*m_ed->doc())); };
+
     auto sync = [this] { refreshTable(); };
     connect(m_ed, &Editor::selectionChanged, this, sync);
     connect(m_ed, &Editor::changed, this, sync);
