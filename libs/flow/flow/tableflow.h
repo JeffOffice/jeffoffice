@@ -81,6 +81,8 @@ public:
     std::shared_ptr<CellContent> find(int key, double width);
     // Keeps a content (`paragraphs` is what it costs): the ones used least lately go when there are too many.
     void insert(int key, double width, const std::shared_ptr<CellContent> &content, int paragraphs);
+    // Keeps a content among the last few that were only measured: the row that is measured last may be asked for again at once (to see where it can be cut), the others are not.
+    void insertJustMeasured(int key, double width, const std::shared_ptr<CellContent> &content);
     void clear();
     int paragraphs() const { return m_paragraphs; }
 
@@ -94,6 +96,13 @@ private:
     std::list<qint64> m_order;      // most lately used first
     QHash<qint64, Entry> m_entries;
     int m_paragraphs = 0;
+    static constexpr int kJustMeasured = 32;
+    struct Recent {
+        qint64 key = -1;
+        std::shared_ptr<CellContent> content;
+    };
+    Recent m_recent[kJustMeasured];
+    int m_recentAt = 0;
 };
 
 // Where the layout of a table finds the story and the index, while the story is as it was when they were made; after an edit a layout keeps the
@@ -105,6 +114,7 @@ struct TableContext {
     FlowDocument *doc = nullptr;
     Heights *heights = nullptr;
     qint64 *measured = nullptr;     // counts the rows that were measured (not found in `heights`)
+    qint64 *laidOut = nullptr;      // counts the cells that were laid out (not found among those laid out lately)
     CellContentCache *contents = nullptr;   // cells laid out lately
     const TableIndex *index = nullptr;
     std::shared_ptr<Live> live;
@@ -291,6 +301,8 @@ public:
     TableContext context();
     // How many rows (of tables, and of the tables in their cells) have been measured, as they were not known: what edits cost.
     qint64 rowsMeasured() const { return m_measured; }
+    // How many cells have been laid out (a cell that is asked for again soon is not: see CellContentCache).
+    qint64 cellsLaidOut() const { return m_laidOut; }
     // The table at index `span` of the index, laid out (the same one again while the story is as it was).
     std::shared_ptr<TableLayout> layout(int span);
     // A fragment of rows [first, end) of a table, with the cells it shows laid out; `parts` are those of its rows that it shows only a part of.
@@ -307,7 +319,7 @@ private:
     QHash<int, std::shared_ptr<TableLayout>> m_layouts;
     TableContext::Heights m_heights;
     CellContentCache m_contents;
-    qint64 m_measured = 0;
+    qint64 m_measured = 0, m_laidOut = 0;
     // Edits made while the tables were not found (the index is made when it is asked for): where they were, as places in the story now, with what is beside them. The
     // heights of the rows in them are dropped when the tables are found.
     std::vector<std::pair<int, int>> m_touched;

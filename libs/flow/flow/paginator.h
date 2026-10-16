@@ -115,6 +115,7 @@ public:
     qint64 pagesLaidOut() const { return m_laidOut; }
     // How many rows of tables were measured since it was made (what is measured again after an edit is the rows it touched): for tests of what edits cost.
     qint64 tableRowsMeasured() const { return m_tables ? m_tables->rowsMeasured() : 0; }
+    qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
     // How many pages the page numbers have been walked back over to find where their section began, for tests.
     qint64 numberStepsForTest() const { return m_numberSteps; }
 
