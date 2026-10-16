@@ -25346,44 +25346,12 @@ private Q_SLOTS:
         LayoutCache cache;
         const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
         QVERIFY(fl.layout);
+        // (The empty paragraph is no line of the box, though it moves the text: it is past the end of it, and no overflow.)
+        QVERIFY(!fl.layout->overflow());
         const auto lines = fl.layout->lineInfo(0);
-        QCOMPARE(int(lines.size()), 3);
+        QCOMPARE(int(lines.size()), 2);
         // The first line is above the inset (-2.4 with 3.6 of it and the 6 points).
         QVERIFY2(lines[0].rect.top() < box->insets.top() - 4, qPrintable(QString::number(lines[0].rect.top())));
-    }
-
-    // A metafile's records that scale the window and the viewport multiply the extents each has by their ratios, as the device context does: a
-    // window made half the size draws its contents twice the size, a viewport made half the size draws them half the size, and both together (the
-    // program's own clip art does it) change nothing. The window here is 400 by 300 units and the box 200 by 150: a quarter of the picture.
-    void renderMetafileScalesTheWindowAndTheViewportByTheirRatios()
-    {
-        const QByteArray half = wmfWords({2, 1, 2, 1}), twice = wmfWords({1, 2, 1, 2});   // (the parameters come last first)
-        const QImage none = drawMetafileWith(QByteArray());
-        QVERIFY(!none.isNull());
-        QVERIFY(paintedGrayAt(none, 0.25, 0.25) && paintedGrayAt(none, 0.45, 0.45) && !paintedGrayAt(none, 0.75, 0.75));
-        // The viewport alone, halved: the box is a quarter of the picture's width.
-        const QImage viewport = drawMetafileWith(wmfRecord(0x0412, half));
-        QVERIFY(paintedGrayAt(viewport, 0.125, 0.125) && !paintedGrayAt(viewport, 0.375, 0.375));
-        // The window alone, halved: the box fills it. Doubled: the box is a quarter of its width.
-        const QImage window = drawMetafileWith(wmfRecord(0x0410, half));
-        QVERIFY(paintedGrayAt(window, 0.75, 0.75) && paintedGrayAt(window, 0.95, 0.95));
-        const QImage doubled = drawMetafileWith(wmfRecord(0x0410, twice));
-        QVERIFY(paintedGrayAt(doubled, 0.125, 0.125) && !paintedGrayAt(doubled, 0.375, 0.375));
-        // Both halved: as if neither were.
-        const QImage pair = drawMetafileWith(wmfRecord(0x0410, half) + wmfRecord(0x0412, half));
-        QVERIFY(paintedGrayAt(pair, 0.25, 0.25) && paintedGrayAt(pair, 0.45, 0.45) && !paintedGrayAt(pair, 0.75, 0.75));
-        QVERIFY2(qAbs(paintedGray(pair) - paintedGray(none)) * 50 < paintedGray(none), qPrintable(QStringLiteral("%1 against %2").arg(paintedGray(pair)).arg(paintedGray(none))));
-        // The ratios of a hostile file are held to a bounded size (each is a 16-bit pair, repeated a hundred times: 30000 to the hundredth, a
-        // denominator of zero, and a negative ratio), and the picture is still drawn in a moment.
-        QByteArray hostile;
-        for (int i = 0; i < 100; ++i)
-            hostile += wmfRecord(0x0410, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0412, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0410, wmfWords({1, -1, 1, -1}));
-        hostile += wmfRecord(0x0410, wmfWords({0, 1, 0, 1})) + wmfRecord(0x0412, wmfWords({0, 1, 0, 1}));
-        QElapsedTimer timer;
-        timer.start();
-        const QImage bad = drawMetafileWith(hostile);
-        QVERIFY(!bad.isNull());
-        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
     }
 
     // A metafile's records that scale the window and the viewport multiply the extents each has by their ratios, as the device context does: a
@@ -25452,6 +25420,44 @@ private Q_SLOTS:
         int atSlash = 0;
         for (int i = 0; i + 1 < int(lines.size()); ++i) atSlash += lines[i].text.trimmed().endsWith(QLatin1Char('/'));
         QVERIFY2(atSlash < int(lines.size()) - 1, qPrintable(QStringLiteral("%1 of %2").arg(atSlash).arg(lines.size() - 1)));
+    }
+
+    // Blank paragraphs that end a slide's text count in the place the text is centered at, but not as text that runs over: the text of two lines in
+    // a box that holds them, with the empty paragraph after them that it doesn't, is not too tall for it (nothing is shrunk or marked for it), and
+    // the same text in a .pptx.
+    void layoutSlideTextEmptyParagraphAtTheEndIsNoOverflow()
+    {
+        const QByteArray props = pptRec(0xF00B, le(0x0087, 2) + le(1, 4), 1, 3);
+        const QByteArray shapes = pptShape(0x4A0, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("A\rB\r"))), 1000, 200, 3000, 1480, props);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        // Whether the text of the box fits it, as the renderer's fitting and the .odp export decide (a flag of overflow, and the lines' height).
+        auto fits = [](const Document &doc, const Page &page) {
+            for (const auto &it : page.items) {
+                if (it->type() != ItemType::Text) continue;
+                const auto &t = static_cast<const TextItem &>(*it);
+                const QTextDocument *story = doc.storyDoc(t.storyId);
+                if (!story || !story->toPlainText().startsWith(QLatin1String("A"))) continue;
+                LayoutCache cache;
+                const auto fl = cache.textFrame(doc, t, 1, RenderOptions());
+                if (!fl.layout) return false;
+                if (fl.layout->overflow()) return false;
+                const auto lines = fl.layout->lineInfo(0);
+                if (lines.size() != 2) return false;
+                double top = lines.first().rect.top(), bottom = lines.first().rect.bottom() - lines.first().below;
+                for (const auto &li : lines) {
+                    top = std::min(top, li.rect.top());
+                    bottom = std::max(bottom, li.rect.bottom() - li.below);
+                }
+                return bottom - top <= t.rect.height() - t.insets.top() - t.insets.bottom() + 0.5;
+            }
+            return false;
+        };
+        QVERIFY(fits(*d, *d->pages[0]));
+        auto again = viaPptx(*d, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(fits(*again, *again->pages[0]));
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.

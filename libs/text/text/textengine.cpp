@@ -1667,7 +1667,9 @@ void StoryLayout::build(const QTextDocument *doc, const QVector<FrameSpec> &fram
         return;
     }
     QVector<double> shifts = buildOnce(doc, frames, env);
-    if (m_overflow && frames.size() == 1 && frames[0].runsOver && frames[0].columns <= 1 && frames[0].obstacles.isEmpty() && !frames[0].fitToShape) {
+    // (Only blank paragraphs run over: the text is set in its own frame, and moved by the height they add.)
+    const bool onlyBlankRunsOver = !m_overflow && m_blankPast;
+    if ((m_overflow || m_blankPast) && frames.size() == 1 && frames[0].runsOver && frames[0].columns <= 1 && frames[0].obstacles.isEmpty() && !frames[0].fitToShape) {
         // Set from the top in a frame that holds it all, then moved as far up
         // as its alignment says for the frame it has.
         FrameSpec tall = frames[0];
@@ -1684,6 +1686,12 @@ void StoryLayout::build(const QTextDocument *doc, const QVector<FrameSpec> &fram
         const double room = frames[0].size.height() - frames[0].insets.top() - frames[0].insets.bottom();
         const double share = frames[0].valign == VAlign::Middle ? 0.5 : frames[0].valign == VAlign::Bottom ? 1.0 : 0.0;
         const double shift = bottom >= top ? (room - (bottom - frames[0].insets.top())) * share : 0;
+        if (onlyBlankRunsOver) {
+            // The text as the frame sets it, from the top, with the blank paragraphs past its end (no overflow, and not among its lines).
+            FrameSpec own = frames[0];
+            own.valign = VAlign::Top;
+            buildOnce(doc, {own}, env);
+        }
         if (shift != 0)
             for (auto &B : m_blocks)
                 for (int i = 0; i < B->lines.size(); ++i)
@@ -1726,6 +1734,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_frames = frames;
     m_env = env;
     m_overflow = false;
+    m_blankPast = false;
     m_windowShort = false;
     m_used = QVector<double>(frames.size(), 0.0);
     // The distances in the text (indents, tab stops, space before and after, an exact line spacing) shrink with its size, except a slide's
@@ -2326,13 +2335,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             double y, overflowY, rowH;
             QVector<Iv> row;
             int rowIdx;
-            bool rowActive, columnEmpty, overflow;
+            bool rowActive, columnEmpty, overflow, blank;
             QVector<double> used;
             QHash<int, double> reserve;
             QVector<Note> notes;
             QVector<int> carry, seeded;
         };
-        const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_used, reserve, m_notes, carry, seeded};
+        const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_blankPast, m_used, reserve, m_notes, carry, seeded};
         auto placeLines = [&](bool startNext, int breakAfter) {
             // Start in next text box.
             if (!tail && bf.boolProperty(tp::StartInNextBox) && f < nF && (y > 0 || c > 0)) {
@@ -2481,9 +2490,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         B->lines << Line{-1, 0, QRectF(indL + lead, overflowY, line.naturalTextWidth(), line.height())};
                         // Blank paragraphs past the end don't count as overflow
                         // (as in .pub layouts): a box doesn't shrink or warn for them.
-                        // (In a slide's text box that runs over, they do: the presentation program counts the empty paragraph that ends a text
-                        // in the height it centers.)
-                        if (!B->disp.trimmed().isEmpty() || (nF == 1 && frames[0].runsOver)) m_overflow = true;
+                        // (In a slide's text box that runs over, they count in the place the text is centered at: the presentation program counts
+                        // the empty paragraph that ends a text in the height it centers.)
+                        if (!B->disp.trimmed().isEmpty()) m_overflow = true;
+                        else if (nF == 1 && frames[0].runsOver) m_blankPast = true;
                         placed = true;
                         break;
                     }
@@ -2743,7 +2753,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         };
         auto redo = [&](bool startNext, int breakAfter) {
             f = startSpot.f; c = startSpot.c; y = startSpot.y; overflowY = startSpot.overflowY; rowH = startSpot.rowH; row = startSpot.row;
-            rowIdx = startSpot.rowIdx; rowActive = startSpot.rowActive; columnEmpty = startSpot.columnEmpty; m_overflow = startSpot.overflow; m_used = startSpot.used;
+            rowIdx = startSpot.rowIdx; rowActive = startSpot.rowActive; columnEmpty = startSpot.columnEmpty; m_overflow = startSpot.overflow; m_blankPast = startSpot.blank; m_used = startSpot.used;
             reserve = startSpot.reserve;
             m_notes = startSpot.notes;
             carry = startSpot.carry;
