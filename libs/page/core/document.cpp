@@ -1310,7 +1310,7 @@ void Document::indexItems() const
 
 Document::Loc Document::find(const QString &itemId) const
 {
-    std::lock_guard<std::mutex> lock(m_spotsLock);
+    QMutexLocker lock(&m_spotsLock);
     Loc out;
     const auto at = m_itemSpots.constFind(itemId);
     const bool seen = at != m_itemSpots.constEnd();
