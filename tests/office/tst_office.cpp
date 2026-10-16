@@ -979,6 +979,29 @@ private Q_SLOTS:
         QVERIFY(pkg.relationship(QStringLiteral("/nowhere.xml"), ids[0]).id.isEmpty());
     }
 
+    // Writing links and parts takes time in proportion to how many there are: four times as many take about four times as long, not sixteen
+    // (compared with each other, not against a clock).
+    void packageWriterIsLinearInLinksAndParts()
+    {
+        auto timeIt = [](int links, int parts, bool ownIds) {
+            PackageWriter w;
+            QElapsedTimer t;
+            t.start();
+            for (int i = 0; i < parts; ++i) w.addPart(QStringLiteral("/word/media/image%1.png").arg(i), "x", QStringLiteral("image/png"));
+            for (int i = 0; i < links; ++i) {
+                if (ownIds) w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdX%1").arg(i), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
+                else w.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
+            }
+            return t.nsecsElapsed() / 1e6;
+        };
+        for (bool ownIds : {false, true}) {
+            const double small = std::max(timeIt(5000, 0, ownIds), 1.0), large = timeIt(20000, 0, ownIds);
+            QVERIFY2(large < 9 * small, qPrintable(QStringLiteral("links, own ids %1: 5,000 took %2 ms, 20,000 took %3 ms").arg(ownIds).arg(small).arg(large)));
+        }
+        const double smallParts = std::max(timeIt(0, 1500, false), 1.0), largeParts = timeIt(0, 6000, false);
+        QVERIFY2(largeParts < 9 * smallParts, qPrintable(QStringLiteral("parts: 1,500 took %1 ms, 6,000 took %2 ms").arg(smallParts).arg(largeParts)));
+    }
+
     void packageFindsRelationships()
     {
         Package p;
@@ -11625,7 +11648,7 @@ private Q_SLOTS:
         PackageWriter w;
         w.addPart(QStringLiteral("/ok.xml"), "<a/>", QStringLiteral("application/xml"));
         for (const QString &bad : {QStringLiteral("/ppt/../evil.xml"), QStringLiteral("ppt/relative.xml"), QStringLiteral("/a\\b.xml"),
-                                   QStringLiteral("/a//b.xml"), QStringLiteral("/100%.xml"), QStringLiteral("/[Content_Types].xml"),
+                                   QStringLiteral("/a//b.xml"), QStringLiteral("/[Content_Types].xml"),
                                    QStringLiteral("/_rels/.rels")}) {
             QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("PackageWriter")));
             w.addPart(bad, "x", QStringLiteral("application/xml"));
@@ -11633,6 +11656,31 @@ private Q_SLOTS:
         Package p;
         QVERIFY(p.read(w.finish()));
         QCOMPARE(p.partNames(), QStringList({QStringLiteral("/ok.xml")}));
+    }
+
+    // A "%" (or a space, or a letter outside ASCII) is a character a part's name may have: the package writes it escaped, as the names of ZIP items,
+    // Overrides, and targets are URIs, and reads it back as it was.
+    void writerKeepsPartsWithEscapedCharactersInTheirNames()
+    {
+        PackageWriter w;
+        const QStringList names = {QStringLiteral("/100%.xml"), QStringLiteral("/a b.png"), QStringLiteral("/\u00fc/\u00e9.bin"), QStringLiteral("/x%41.bin")};
+        for (const QString &n : names) {
+            w.addPart(n, "x", QStringLiteral("application/octet-stream"));
+            w.addRelationship(QStringLiteral("/"), QStringLiteral("http://x/part"), n);
+        }
+        QMap<QString, QByteArray> items;
+        const QByteArray zip = w.finish();
+        QVERIFY(jp::readZip(zip, items));
+        QVERIFY(items.contains(QStringLiteral("100%25.xml")) && items.contains(QStringLiteral("a%20b.png")) && items.contains(QStringLiteral("x%2541.bin")));
+        Package p;
+        QVERIFY(p.read(zip));
+        QCOMPARE(p.skippedCount(), 0);
+        for (const QString &n : names) {
+            QVERIFY2(p.hasPart(n), qPrintable(n));
+            QCOMPARE(p.contentType(n), QStringLiteral("application/octet-stream"));
+        }
+        QCOMPARE(p.relationships(QStringLiteral("/")).size(), 4);
+        for (const Relationship &r : p.relationships(QStringLiteral("/"))) QVERIFY2(names.contains(r.target), qPrintable(r.target));
     }
 
     void writerDefaultsCanBeReplaced()

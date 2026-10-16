@@ -84,6 +84,9 @@ public:
     int pageCount() { paginate(-1); return pagesKnown(); }
     // Everything again (the sections or the settings changed).
     void invalidate();
+    // The pages from where section `section` begins again (that section, or one after it, changed, or sections came or went from it on): the pages
+    // of the sections before it are as they were.
+    void invalidateFrom(int section);
 
     Page page(int index);                       // a page that is known
     int pageOfPosition(int position);           // the page whose lines hold a position; the last known one past them

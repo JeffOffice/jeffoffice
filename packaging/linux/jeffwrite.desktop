@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=JeffWrite
+GenericName=Word Processor
+Comment=Write letters, reports, and other documents (Preview)
+Exec=jeffwrite %F
+Icon=jeffwrite
+Terminal=false
+Categories=Office;WordProcessor;
+MimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.openxmlformats-officedocument.wordprocessingml.template;
+Keywords=document;word processor;letter;report;docx;
+StartupWMClass=JeffWrite

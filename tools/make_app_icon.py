@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Draws the apps' icons: the app's two letters in white on its color, a
-rounded square (JeffPub: "JP" on magenta; JeffDeck: "JD" on orange).
+rounded square (JeffPub: "JP" on magenta; JeffDeck: "JD" on orange; JeffWrite: "JW" on blue).
 
     tools/make_app_icon.py
 
 Writes each app's app.png (256 px; the Mac .icns and the Linux icon are made
 from it) and app.ico (16 to 256 px, for Windows): resources/ for JeffPub,
-apps/deck/resources/ for JeffDeck. Needs Python 3 with Pillow.
+apps/deck/resources/ for JeffDeck, apps/write/resources/ for JeffWrite. Needs Python 3 with Pillow.
 """
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -18,6 +18,7 @@ SCALE = 4  # draw large, then shrink for smooth edges
 APPS = (
     ("JP", (158, 31, 99), RES),
     ("JD", (182, 66, 15), os.path.join(ROOT, "apps", "deck", "resources")),
+    ("JW", (29, 85, 196), os.path.join(ROOT, "apps", "write", "resources")),
 )
 
 
