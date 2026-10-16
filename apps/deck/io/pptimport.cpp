@@ -2716,6 +2716,7 @@ office::OdrawContext Importer::drawingContext()
         const QString type = placeholderOf(clientData);
         return type.isEmpty() ? QByteArray() : masterShapeProps(*m_state->source, type);
     };
+    ctx.presentation = true;
     ctx.clientAnchor = [](const QByteArray &anchor) { return anchorRect(anchor); };
     ctx.schemeColor = [this](int index) { return m_state && m_state->scheme && index >= 0 && index < 8 ? m_state->scheme[index] : QColor(); };
     ctx.picture = [this](int index) { return pictureId(index); };

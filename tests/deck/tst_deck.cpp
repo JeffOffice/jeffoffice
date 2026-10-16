@@ -24916,6 +24916,32 @@ private Q_SLOTS:
         QCOMPARE(byText.value(QStringLiteral("Up"))->rotation, 180.0);
     }
 
+    // The pentagon arrow and the chevron of an old presentation point at a quarter of their width unless the shape says (its first value, in
+    // 21600ths of the width, is where the point starts: 16200 by default), where the preset's own measure is a share of the shorter side. A
+    // box 350 by 187.5 points: the point is 87.5 points, 0.4667 of the shorter side; set to 10800 it is 175, 0.9333.
+    void importBinaryChevronsPointAtAQuarterOfTheirWidth()
+    {
+        auto adjust = [&](quint32 id, int type, const QByteArray &props) {
+            return pptShape(id, 0, QByteArray(), 1000, 200, 3000, 2500, props, 0xA00, quint16(type));
+        };
+        const QByteArray set = pptRec(0xF00B, le(0x0147, 2) + le(10800, 4), 1, 3);
+        const QByteArray shapes = adjust(0x450, 55, QByteArray()) + adjust(0x451, 55, set) + adjust(0x452, 15, QByteArray());
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const ShapeItem *> found;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Shape) found.push_back(static_cast<const ShapeItem *>(it.get()));
+        // (The shapes come in the order they were written.)
+        QCOMPARE(int(found.size()), 3);
+        QCOMPARE(found[0]->shape, QStringLiteral("chevron"));
+        QCOMPARE(found[2]->shape, QStringLiteral("homePlate"));
+        QCOMPARE(int(found[0]->adj.size()), 1);
+        QVERIFY2(qAbs(found[0]->adj[0] - 0.4667) < 0.001, qPrintable(QString::number(found[0]->adj[0])));
+        QVERIFY2(qAbs(found[1]->adj[0] - 0.9333) < 0.001, qPrintable(QString::number(found[1]->adj[0])));
+        QVERIFY2(qAbs(found[2]->adj[0] - 0.4667) < 0.001, qPrintable(QString::number(found[2]->adj[0])));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {

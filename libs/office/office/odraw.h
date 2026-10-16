@@ -64,6 +64,9 @@ struct OdrawContext {
     // the picture's gray, from `dark` (for black) to `light` (for white); the same image id if it can't be done. A host that leaves this out
     // has the picture drawn as it stands.
     std::function<QString(const QString &imageId, const QColor &dark, const QColor &light)> duotoned;
+    // The drawing is a presentation's: its shapes take the presentation program's defaults where those differ from the other programs' (the
+    // pentagon arrow and the chevron point at a quarter of their width). Left false, the shapes are as they always were.
+    bool presentation = false;
     // The shape another takes after: from a shape's client data record's
     // contents, the property records (0xF00B, 0xF121, 0xF122, header included)
     // of the shape whose properties it has for those it leaves out (a slide's
