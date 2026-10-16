@@ -2,7 +2,8 @@
 //   writetool render <file.txt> <outdir> [width=800] [options]   each page to page-001.png ...
 //   writetool pdf <file.txt> <out.pdf> [options]                 the pages as a PDF
 //   writetool info <file.txt> [options]                          the pages and where each starts
-//   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character
+//   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
+//                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed
 // The text: paragraphs are separated by blank lines; "# " and "## " start headings (kept with the paragraph after); "- " starts a bullet and
 // "1. " a numbered item; "@page-break" puts a page break before the next paragraph; "@section [letter|a4|legal] [landscape] [columns N]" ends
 // the section and starts the next with a page of its own.
@@ -268,6 +269,9 @@ QImage pageImage(Paginator &pg, LayoutCache *cache, int index, int width, bool p
 
 double ms(const QElapsedTimer &t) { return t.nsecsElapsed() / 1e6; }
 
+// What the flowing document is to do with a story of 26,443 paragraphs (CI's tests allow ten times as much, for slow machines).
+constexpr double kTargetFirstPageMs = 300, kTargetAllPagesMs = 5000, kTargetTypedMs = 50;
+
 int bench(int paragraphs, const Options &o, QTextStream &out)
 {
     FlowDocument fd;
@@ -279,12 +283,24 @@ int bench(int paragraphs, const Options &o, QTextStream &out)
     out << "story\t" << paragraphs << " paragraphs\t" << fd.story()->characterCount() << " characters\t" << ms(t) << " ms\n";
     Paginator pg(&fd);
     LayoutCache cache;
+    bool met = true;
+    auto target = [&](const char *what, double took, double limit) {
+        const bool ok = took <= limit;
+        met &= ok;
+        out << "target\t" << what << "\t" << took << " ms of " << limit << " ms\t" << (ok ? "met" : "MISSED") << "\n";
+    };
     t.restart();
     const QImage first = pageImage(pg, &cache, 0, 800);
-    out << "first page ready\t" << ms(t) << " ms\t(" << (first.isNull() ? "none" : "drawn") << ")\n";
+    const double firstMs = ms(t);
+    out << "first page ready\t" << firstMs << " ms\t(" << (first.isNull() ? "none" : "drawn") << ")\n";
     t.restart();
     const int pages = pg.pageCount();
-    out << "all pages\t" << pages << " pages\t" << ms(t) / 1000 << " s\t" << ms(t) / std::max(1, pages) << " ms a page\t" << residentKb() / 1024 << " MB\n";
+    const double allMs = ms(t);
+    out << "all pages\t" << pages << " pages\t" << allMs / 1000 << " s\t" << allMs / std::max(1, pages) << " ms a page\t" << residentKb() / 1024 << " MB\n";
+    if (paragraphs == 26443) {
+        target("the first page", firstMs, kTargetFirstPageMs);
+        target("all of the pages", allMs, kTargetAllPagesMs);
+    }
     // A typed character: at the start, the middle, and the end. What a screen needs is the pages by the edit; the rest goes on after.
     const int end = fd.story()->characterCount() - 1;
     const std::pair<const char *, int> places[] = {{"start", 0}, {"middle", end / 2}, {"end", end - 1}};
@@ -310,12 +326,14 @@ int bench(int paragraphs, const Options &o, QTextStream &out)
         }
         out << "typed a character at the " << where.first << "\t" << nearest / tries << " ms on average for the pages by it (worst " << worst << " ms)\t" << settle / tries
             << " ms more to settle the rest\t" << double(laid) / tries << " pages laid out in all\n";
+        if (paragraphs == 26443) target(qPrintable(QStringLiteral("a typed character at the %1 (worst)").arg(QLatin1String(where.first))), worst, kTargetTypedMs);
     }
     // The page after an edit, drawn.
     t.restart();
     const QImage again = pageImage(pg, &cache, pg.pageOfPosition(end / 2), 800);
     out << "a page made and drawn\t" << ms(t) << " ms\n";
-    return again.isNull() ? 1 : 0;
+    if (!met) out << "a target was missed (a busy machine slows these: run it again when it isn't)\n";
+    return again.isNull() || !met ? 1 : 0;
 }
 
 } // namespace
