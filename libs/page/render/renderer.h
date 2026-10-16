@@ -5,6 +5,7 @@
 #include "core/document.h"
 #include "text/textengine.h"
 
+#include <QDateTime>
 #include <QHash>
 #include <QPainterPath>
 #include <functional>
@@ -18,6 +19,9 @@ struct RenderOptions {
     bool output = false;          // printing/exporting: no placeholders or screen-only marks
     TextOutput textOutput = TextOutput::Picture;   // what the text is drawn for (a PDF export, the printer, or a screen or picture)
     int mergeRecord = -1;
+    // The time the date and time fields show; unset, the time on the clock. A test, or a caller that needs
+    // every page of a long job to say the same minute, sets it.
+    QDateTime now;
     bool shadeFields = false;
     bool showSpecial = false;
     bool tableGridlines = true;   // dotted gridlines on borderless tables (screen only)
@@ -49,9 +53,19 @@ public:
     FrameLayout textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt);
     // Layout for a single story in one box (shape text, table cells).
     const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key);
-    void clear() { m_entries.clear(); }
+    void clear() { m_entries.clear(); m_fields.clear(); }
 
 private:
+    // What the fields of a story show that its layout's key doesn't say (the date and time, business information, mail merge values), as text,
+    // and its notes' text as a number: both in the key, so that the layout is laid out again when they change. The story's fields are found
+    // again when it, or a note it refers to, changes.
+    QString fieldsKey(const Document &doc, const Story &story, const FieldContext &ctx);
+    struct FieldNote {
+        int revision = -1;
+        quint64 notes = 0;
+        StoryFields fields;
+    };
+    QHash<quint64, FieldNote> m_fields;   // by story serial
     struct Entry {
         QString sig;
         std::shared_ptr<StoryLayout> layout;

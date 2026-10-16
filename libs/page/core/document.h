@@ -13,6 +13,7 @@
 #include <QImage>
 #include <QJsonObject>
 #include <QMap>
+#include <QMutex>
 #include <QSizeF>
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
@@ -418,7 +419,16 @@ public:
 
     // items
     struct Loc { Item *item = nullptr; ItemList *list = nullptr; int index = -1; int page = -1; QString masterId; bool scratch = false; GroupItem *parent = nullptr; };
+    // Where an item is, by its id. It is found in an index of where items were last seen, kept honest
+    // by checking each answer against the pages and lists as they are now: so it follows pages and
+    // lists changed directly (added to, removed from, moved between, replaced, loaded again) with
+    // nothing to tell it, and a lookup costs a hash and a few comparisons, not a look at every item.
+    // An item the index has not seen yet, or has seen move, costs a look at every item once.
     Loc find(const QString &itemId) const;
+    // How many times find had to look through every item, for tests.
+    int findScansForTest() const { return m_scans; }
+    // How many times the index of where items are was made again, for tests.
+    int findIndexingsForTest() const { return m_indexings; }
     Item *item(const QString &itemId) const { return find(itemId).item; }
     ItemPtr itemPtr(const QString &itemId) const;
     QVector<TextItem *> chainOf(const QString &frameId) const;   // whole linked chain in order
@@ -466,6 +476,27 @@ private:
     mutable qint64 m_decodedBytes = 0;          // the decodes held, as last counted
     mutable quint64 m_imageClock = 0;
     QByteArray m_refusedSvg;                    // the last SVG left out, so that the same one again costs nothing
+    // Where an item was when last seen: the item itself (an item that is gone is not found by it), the list it was in (a page's, a master's,
+    // the scratch area's, or a group's children), and its place in that list, and the page or master that holds it (so that it can be found
+    // again if the pages have moved about). Checked against the document as it is before it is believed.
+    struct ItemSpot {
+        std::weak_ptr<Item> item;
+        std::weak_ptr<Item> parent;     // the group whose children it is in; empty at the top of a page, master, or scratch
+        std::weak_ptr<PageBase> owner;  // the page or master
+        int page = -1;                  // the page, or -1
+        int master = -1;                // the master page's place in `masters`, or -1
+        bool scratch = false;
+        int index = -1;
+    };
+    Loc findScan(const QString &itemId, ItemSpot *spot) const;
+    bool spotHolds(const QString &itemId, const ItemSpot &spot, Loc *out, int depth) const;
+    // An item not where its spot says: looked for in the list it was in, or in the page or master that had it, and the spot made right.
+    bool respot(const QString &itemId, ItemSpot *spot, Loc *out, int depth) const;
+    void indexItems() const;
+    mutable QHash<QString, ItemSpot> m_itemSpots;
+    mutable qsizetype m_spotsMade = 0;          // how many it was made for
+    mutable QMutex m_spotsLock;
+    mutable int m_scans = 0, m_indexings = 0;
 };
 
 // The most a picture file can be, in bytes; a larger file isn't read.
