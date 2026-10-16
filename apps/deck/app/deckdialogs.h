@@ -39,8 +39,12 @@ public:
     BackgroundDialog(const QColor &current, const ColorScheme &scheme, QWidget *parent = nullptr);
     QColor color() const { return m_color; }
     bool applyToAll() const { return m_all; }
+    // The Hide background graphics box: the pictures and shapes of the slide masters under the page stop showing.
+    void setHideGraphics(bool hide);
+    bool hideGraphics() const;
 
 private:
+    QCheckBox *m_hide;
     ColorButton *m_button;
     QColor m_color;
     ColorScheme m_scheme;
