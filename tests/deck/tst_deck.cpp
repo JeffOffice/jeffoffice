@@ -22833,7 +22833,14 @@ private Q_SLOTS:
         s->shape = QStringLiteral("roundRect");
         s->rect = QRectF(100, 100, 110, 400);
         s->storyId = d->createStory();
-        d->storyDoc(s->storyId)->setPlainText(QStringLiteral("internationalization internationalization internationalization"));
+        QTextDocument *story = d->storyDoc(s->storyId);
+        story->setPlainText(QStringLiteral("internationalization internationalization internationalization"));
+        // (The language is said, so that the dictionary is a known one.)
+        QTextCursor language(story);
+        language.select(QTextCursor::Document);
+        QTextCharFormat english;
+        english.setProperty(tp::Language, QStringLiteral("en-US"));
+        language.mergeCharFormat(english);
         d->pages[0]->items.push_back(s);
         auto linesOf = [&] {
             LayoutCache cache;
@@ -32035,26 +32042,37 @@ private Q_SLOTS:
         QVERIFY2(!text.contains(QStringLiteral("Defined")), qPrintable(text));
     }
 
-    // A drawing can't make the PDF hold more words than it may: the most texts of one drawing are said (five thousand), each cut at a thousand letters.
+    // A drawing can't make the PDF hold more words than it may: at most five thousand texts of one drawing are said, and at most two hundred thousand
+    // letters, each text cut at a thousand. (Counted in the text that comes back, not timed.)
     void exportPdfBoundsTheTextOfAnSvgPicture()
     {
-        QByteArray svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">"
-                         "<text x=\"10\" y=\"100\" font-size=\"8\">early</text><text x=\"10\" y=\"60\" font-size=\"2\">" + QByteArray(5000, 'z') + "</text>";
-        for (int i = 0; i < 5300; ++i) svg += "<text x=\"10\" y=\"20\" font-size=\"4\">filler</text>";
-        svg += "<text x=\"10\" y=\"150\" font-size=\"8\">late</text></svg>";
-        auto d = deck::newPresentation();
-        addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 200));
-        QElapsedTimer timer;
-        timer.start();
         QString err;
-        const QByteArray pdf = pdfOf(*d, &err);
-        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
-        QVERIFY2(timer.elapsed() < 90000, qPrintable(QString::number(timer.elapsed())));
-        const QString text = pdfText(pdf);
-        QVERIFY2(text.contains(QStringLiteral("early")), "the first texts are said");
-        QVERIFY2(!text.contains(QStringLiteral("late")), "the texts after the most are not");
-        const int zs = text.count(QLatin1Char('z'));   // (cut at a thousand letters)
-        QVERIFY2(zs >= 100 && zs <= 1000, qPrintable(QString::number(zs)));
+        auto say = [&](const QByteArray &svg) {
+            auto d = deck::newPresentation();
+            addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 200));
+            const QByteArray pdf = pdfOf(*d, &err);
+            return pdf.isEmpty() ? QString() : pdfText(pdf);
+        };
+        // Many small texts, each one letter of its own place on a grid (5,300 of them, 100 to a row): five thousand are said, and the first are among them.
+        QByteArray many = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">";
+        for (int i = 0; i < 5300; ++i)
+            many += "<text x=\"" + QByteArray::number(2 + (i % 100) * 2.9) + "\" y=\"" + QByteArray::number(5 + (i / 100) * 3.2) + "\" font-size=\"2\">" + (i < 5000 ? "a" : "q") + "</text>";
+        many += "</svg>";
+        const QString first = say(many);
+        QVERIFY2(!first.isEmpty(), qPrintable(err));
+        const int as = first.count(QLatin1Char('a'));
+        QVERIFY2(as >= 4000 && as <= 5000, qPrintable(QString::number(as)));
+        QCOMPARE(first.count(QLatin1Char('q')), 0);   // (the ones after the five thousandth)
+        // Long texts: each is cut at a thousand letters, and the letters said stop at two hundred thousand (250 texts of 5,000 give 200). (They are
+        // texts the renderer is told not to draw, as a diagram's are, so that the picture isn't a million outlines.)
+        QByteArray long_ = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">";
+        for (int i = 0; i < 250; ++i)
+            long_ += "<text class=\"jo-words\" display=\"none\" x=\"2\" y=\"" + QByteArray::number(3 + i * 0.75) + "\" font-size=\"2\">" + QByteArray(5000, 'z') + "</text>";
+        long_ += "</svg>";
+        const QString second = say(long_);
+        QVERIFY2(!second.isEmpty(), qPrintable(err));
+        const int zs = second.count(QLatin1Char('z'));
+        QCOMPARE(zs, 200000);
     }
 
     // Text the picture doesn't show isn't said: that a style sheet hides (display none, hidden visibility) or sizes to nothing, text in a nested drawing
@@ -32124,7 +32142,8 @@ private Q_SLOTS:
         }
     }
 
-    // A diagram (SmartArt) is a picture of its drawing, whose letters are outlines: the PDF has its words as text too.
+    // A diagram (SmartArt) is a picture of its drawing, whose letters are outlines: the PDF has its words as text too, and the picture itself looks as
+    // it did (what says the words draws nothing: the picture without any text element is the same pixels).
     void exportPdfCarriesTheTextOfADiagram()
     {
         QString err;
@@ -32135,32 +32154,44 @@ private Q_SLOTS:
         // (The shapes are narrower than their words, which break where the line ends: the words are whole across it.)
         const QString text = QString(pdfText(pdf)).remove(QRegularExpression(QStringLiteral("\\s")));
         for (const char *word : {"First", "Second", "Third"}) QVERIFY2(text.contains(QLatin1String(word)), qPrintable(text));
-        // The drawing itself has the words as text with no ink, in a text element (not seen), and still the letters as paths.
         const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("diagram"));
         QVERIFY(pic);
-        const QByteArray svg = d->images.value(pic->imageId).bytes;
-        QVERIFY(svg.contains("<text"));
-        QVERIFY(svg.contains("fill-opacity=\"0\""));
-        QVERIFY(svg.contains("<path"));
+        QByteArray svg = d->images.value(pic->imageId).bytes;
+        auto draw = [](const QByteArray &bytes) {
+            QSvgRenderer r(bytes);
+            QImage img(288, 144, QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::transparent);
+            QPainter painter(&img);
+            r.render(&painter);
+            return img;
+        };
+        QString stripped = QString::fromUtf8(svg);
+        stripped.remove(QRegularExpression(QStringLiteral("<text\\b.*?</text>"), QRegularExpression::DotMatchesEverythingOption));
+        const QByteArray without = stripped.toUtf8();
+        QVERIFY(without.size() < svg.size());   // (the words are in the drawing as text elements)
+        QVERIFY(draw(svg) == draw(without));
     }
 
     // A diagram's text takes the theme's body font (the drawing's style names it: fontRef minor) over the one the presentation's default text style
-    // sets: here that style says Arial, the theme's body font is Verdana.
+    // sets: the picture of the diagram is the same whether that style says the theme's body font (+mn-lt) or Arial (here the theme's body font is Verdana).
     void diagramTextTakesTheThemesBodyFontItsStyleNames()
     {
-        Parts p = smartArtPptx();
-        QString pres = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
-        QVERIFY(pres.contains(QStringLiteral("<a:latin typeface=\"+mn-lt\"/>")));
-        pres.replace(QStringLiteral("<a:latin typeface=\"+mn-lt\"/>"), QStringLiteral("<a:latin typeface=\"Arial\"/>"));
-        p.data["/ppt/presentation.xml"].xml = pres.toUtf8();
         QString err;
-        auto d = deck::importPresentation(pack(p), &err);
-        QVERIFY2(d, qPrintable(err));
-        const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("diagram"));
-        QVERIFY(pic);
-        const QByteArray svg = d->images.value(pic->imageId).bytes;
-        QVERIFY(svg.contains("font-family=\"Verdana\""));
-        QVERIFY(!svg.contains("font-family=\"Arial\""));
+        auto picture = [&](const QString &defaultFont) {
+            Parts p = smartArtPptx();
+            QString pres = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+            if (defaultFont != QLatin1String("+mn-lt")) pres.replace(QStringLiteral("<a:latin typeface=\"+mn-lt\"/>"), QStringLiteral("<a:latin typeface=\"%1\"/>").arg(defaultFont));
+            p.data["/ppt/presentation.xml"].xml = pres.toUtf8();
+            auto d = deck::importPresentation(pack(p), &err);
+            if (!d) return QByteArray();
+            const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("diagram"));
+            return pic ? d->images.value(pic->imageId).bytes : QByteArray();
+        };
+        const QByteArray themed = picture(QStringLiteral("+mn-lt")), arial = picture(QStringLiteral("Arial"));
+        QVERIFY2(!themed.isEmpty() && !arial.isEmpty(), qPrintable(err));
+        // (A pattern in the picture has a number of its own each time: the same picture is the same but for that.)
+        auto same = [](QByteArray svg) { return QString::fromUtf8(svg).replace(QRegularExpression(QStringLiteral("texpattern_[0-9a-f]+")), QStringLiteral("texpattern")); };
+        QVERIFY(same(themed) == same(arial));
     }
 
     // A style's body font doesn't take the place of a font a placeholder inherits: the title of a slide whose shape style says fontRef minor keeps
