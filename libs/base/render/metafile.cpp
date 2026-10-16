@@ -380,6 +380,8 @@ private:
         if (h == 6) x = -w / 2; else if (h == 2) x = -w;
         const quint32 v = ta & 24;
         if (v == 0) y = fm.ascent(); else if (v == 8) y = -fm.descent();
+        // In opaque mode the string's cell is first filled with the background color.
+        if (m_dc.bkMode == 2) m_p->fillRect(QRectF(x, y - fm.ascent(), w, fm.ascent() + fm.descent()), m_dc.bkColor);
         m_p->setPen(m_dc.textColor);
         if (!dx.isEmpty() && dx.size() == s.size()) {
             double cx = x;

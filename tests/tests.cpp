@@ -21694,6 +21694,20 @@ private Q_SLOTS:
             QVERIFY(!greek.isEmpty() && !tau.isEmpty());
             QVERIFY2(std::abs(greek.height() - tau.height()) <= 2 && std::abs(greek.width() - tau.width()) <= 2, qPrintable(QStringLiteral("greek %1 x %2, tau %3 x %4").arg(greek.width()).arg(greek.height()).arg(tau.width()).arg(tau.height())));
         }
+        // Text drawn with an opaque background (a label's white box on a map) fills the string's cell with the background color, in a
+        // metafile as in an enhanced one.
+        {
+            QByteArray colorRecord = QByteArray();
+            le32(colorRecord, 0x0000FFFF);   // yellow (red 255, green 255, blue 0)
+            QByteArray line = words({1}) + "I";
+            line.append('\0');
+            le16(line, 150);
+            le16(line, 150);
+            const QByteArray more = wmfRecord(0x0102, words({2})) + wmfRecord(0x0201, colorRecord) + wmfRecord(0x0521, line);
+            const QImage opaque = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 120, more));
+            QVERIFY(near(opaque.pixel(152, 152), QColor(255, 255, 0)));
+            QCOMPARE(qAlpha(opaque.pixel(120, 152)), 0);   // (left of the cell)
+        }
         // Insert Picture takes both from files, whatever the case of the
         // extension, and the page shows the picture on screen and in print.
         QTemporaryDir dir;
