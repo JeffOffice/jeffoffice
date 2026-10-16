@@ -382,10 +382,55 @@ void WriteDoc::syncSections()
     }
     m_sectionKeys = keys;
     if (changed) {
+        attachHeaders(from);
         if (m_pager) m_pager->invalidateFrom(from);
         Q_EMIT sectionsChanged();
     }
     m_syncing = false;
+}
+
+namespace {
+// The most distinct header and footer parts that are read; a file with more has the rest left out (a section's reference to one shows nothing).
+constexpr int kMostHeaderParts = 64;
+} // namespace
+
+std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationshipId)
+{
+    const Relationship rel = mainRelationship(relationshipId);
+    if (rel.id.isEmpty() || rel.external) return nullptr;
+    const auto found = m_headerStories.constFind(rel.target);
+    if (found != m_headerStories.constEnd()) return found.value();
+    if (m_headerStories.size() >= kMostHeaderParts) return nullptr;
+    QVector<Block> blocks;
+    auto doc = std::make_shared<QTextDocument>();
+    if (readBlocks(partData(rel.target), &blocks)) {
+        doc->setDocumentMargin(0);
+        doc->setDefaultFont(story()->defaultFont());
+        doc->setUndoRedoEnabled(false);
+        fillStory(doc.get(), blocks, true);
+    }
+    m_headerStories.insert(rel.target, doc);
+    return doc;
+}
+
+void WriteDoc::attachHeaders(int from)
+{
+    flow::FlowDocument &f = *m_flow;
+    if (m_headerRefs.size() > 4096) m_headerRefs.clear();
+    for (int i = std::max(0, from); i < f.sections.size() && i < m_sectionKeys.size() && i < int(m_sections.size()); ++i) {
+        auto it = m_headerRefs.find(m_sectionKeys[i]);
+        if (it == m_headerRefs.end()) it = m_headerRefs.insert(m_sectionKeys[i], headerRefsOf(m_sections[i]));
+        const HeaderRefs &refs = it.value();
+        flow::Section &s = f.sections[i];
+        const flow::Section *before = i > 0 ? &f.sections[i - 1] : nullptr;
+        auto pick = [&](const QString &id, const std::shared_ptr<QTextDocument> &inherited) { return id.isEmpty() ? inherited : headerStory(id); };
+        s.header.odd = pick(refs.header[0], before ? before->header.odd : nullptr);
+        s.header.first = pick(refs.header[1], before ? before->header.first : nullptr);
+        s.header.even = pick(refs.header[2], before ? before->header.even : nullptr);
+        s.footer.odd = pick(refs.footer[0], before ? before->footer.odd : nullptr);
+        s.footer.first = pick(refs.footer[1], before ? before->footer.first : nullptr);
+        s.footer.even = pick(refs.footer[2], before ? before->footer.even : nullptr);
+    }
 }
 
 void WriteDoc::setSectionProps(int index, const SectionProps &props)

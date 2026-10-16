@@ -121,6 +121,11 @@ private:
     WriteDoc();
     void build(office::wml::Document &&doc);
     void buildStory(const QVector<office::wml::Block> &body);
+    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header);
+    // The story of the header or footer part a relationship names (made once, kept); none for a link that is not a part, or past the limit of parts.
+    std::shared_ptr<QTextDocument> headerStory(const QString &relationshipId);
+    // Gives the flowing sections from `from` on the stories of their headers and footers, those they state and the section before's for the rest.
+    void attachHeaders(int from);
     void exportBody(QVector<office::wml::Block> *body);
     void setUpEnvironment();
     void storyChanged(int position, int removed, int added);
@@ -137,6 +142,8 @@ private:
     office::wml::SectionProps m_last;
     QVector<int> m_sectionKeys;                    // the key of each section's record (the break paragraphs', then the last's), as of the last sync
     qint64 m_sectionsMade = 0;
+    QHash<QString, std::shared_ptr<QTextDocument>> m_headerStories;   // by part name
+    QHash<int, office::wml::HeaderRefs> m_headerRefs;                 // by the key of the section's record
     QByteArray m_lastBytes;                        // the first paragraph's record of it (prop::LastSection) as last read
     int m_blockCount = 0;
     bool m_syncing = false;
