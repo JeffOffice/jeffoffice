@@ -16,6 +16,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTextBlock>
@@ -298,6 +299,41 @@ void thesaurusDialog(QWidget *p, Editor *ed)
     ed->cursor().insertText(s);
     ed->endChange();
     ed->textEdited();
+}
+
+// ---------------- the right-click menu ----------------
+bool addSpellingSuggestions(QMenu &menu, Editor *ed)
+{
+    const QTextCursor cur = ed->cursor();
+    const int pos = cur.position();
+    for (const auto &m : ed->misspelledIn(ed->textTarget().storyId)) {
+        if (pos < m.first || pos > m.second || cur.hasSelection()) continue;
+        QTextCursor wc = cur;
+        wc.setPosition(m.first);
+        wc.setPosition(m.second, QTextCursor::KeepAnchor);
+        const QString word = wc.selectedText();
+        QTextCursor lc = cur;
+        lc.setPosition(m.first + 1);
+        const QStringList sugg = spellingSuggestions(word, lc.charFormat().stringProperty(tp::Language)).mid(0, 6);
+        QFont bold = menu.font();
+        bold.setBold(true);
+        for (const QString &sgg : sugg) {
+            QAction *a = menu.addAction(sgg, &menu, [ed, m, sgg] {
+                ed->editText([&](QTextCursor &c) {
+                    c.setPosition(m.first);
+                    c.setPosition(m.second, QTextCursor::KeepAnchor);
+                    c.insertText(sgg);
+                });
+            });
+            a->setFont(bold);
+        }
+        if (sugg.isEmpty()) menu.addAction(QCoreApplication::translate("Proofing", "(No spelling suggestions)"))->setEnabled(false);
+        menu.addAction(QCoreApplication::translate("Proofing", "Ignore All"), &menu, [ed, word] { spellingIgnore(word); ed->invalidateSpelling(); });
+        menu.addAction(QCoreApplication::translate("Proofing", "Add to Dictionary"), &menu, [ed, word] { spellingAdd(word); ed->invalidateSpelling(); });
+        menu.addSeparator();
+        return true;
+    }
+    return false;
 }
 
 } // namespace jp

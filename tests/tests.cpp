@@ -41,6 +41,8 @@
 #include <QTabWidget>
 #include "app/dialogs.h"
 #include "app/editor.h"
+#include "app/findreplace.h"
+#include "app/proofingdialogs.h"
 #include "app/mainwindow.h"
 #include "app/recovery.h"
 #include "app/i18n.h"
@@ -14556,6 +14558,223 @@ private Q_SLOTS:
         QCOMPARE(ranges.first(), qMakePair(8, 11));
         QVERIFY(jp::spellingSuggestions(QStringLiteral("teh")).contains(QStringLiteral("the")));
         QVERIFY(w.editor()->renderOptions().misspelled.contains(t->storyId));
+    }
+
+    // The Find and Replace pane: Find Next walks the pages and shows each match
+    // typed-in and selected, Replace swaps the one shown, and Replace All is one
+    // undo step that says how many it made.
+    void findPaneFindsAcrossPagesAndReplaces()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->addPage();
+        QStringList stories;
+        for (int p = 0; p < 2; ++p) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(72, 72, 300, 100);
+            t->storyId = doc->createStory(p == 0 ? QStringLiteral("One Cat and a cat.") : QStringLiteral("Another cat, and a catalog."));
+            doc->pages[p]->items.push_back(t);
+            stories << t->storyId;
+        }
+        ed->setDocument(std::move(doc));
+        w.showTaskPane(QStringLiteral("find"));
+        auto *tp = w.findChild<jp::TaskPane *>();
+        QVERIFY(tp);
+        auto edit = [&](const QString &name) -> QLineEdit * {
+            for (QLineEdit *e : tp->findChildren<QLineEdit *>())
+                if (name.isEmpty() ? e->objectName() != QLatin1String("replace") : e->objectName() == name) return e;
+            return nullptr;
+        };
+        auto button = [&](const QString &text) -> QPushButton * {
+            for (QPushButton *b : tp->findChildren<QPushButton *>())
+                if (b->text() == text) return b;
+            return nullptr;
+        };
+        auto check = [&](const QString &text) -> QCheckBox * {
+            for (QCheckBox *c : tp->findChildren<QCheckBox *>())
+                if (c->text() == text) return c;
+            return nullptr;
+        };
+        QVERIFY(edit(QString()) && edit(QStringLiteral("replace")) && button(QStringLiteral("Find Next")) && check(QStringLiteral("Match case")));
+        auto status = [&] {
+            QString s;
+            for (QLabel *l : tp->findChildren<QLabel *>())
+                if (l->wordWrap()) s = l->text();
+            return s;
+        };
+        edit(QString())->setText(QStringLiteral("cat"));
+        // Case is ignored unless asked; the first match is the capital one, then each after it, then round to the first.
+        QStringList seen;
+        for (int i = 0; i < 6; ++i) {
+            button(QStringLiteral("Find Next"))->click();
+            QVERIFY(ed->isEditingText());
+            seen << QStringLiteral("%1:%2@%3").arg(ed->currentPage()).arg(ed->cursor().selectedText()).arg(ed->cursor().selectionStart());
+        }
+        QCOMPARE(seen, (QStringList{QStringLiteral("0:Cat@4"), QStringLiteral("0:cat@14"), QStringLiteral("1:cat@8"), QStringLiteral("1:cat@19"),
+                                    QStringLiteral("0:Cat@4"), QStringLiteral("0:cat@14")}));
+        check(QStringLiteral("Match case"))->setChecked(true);
+        edit(QString())->setText(QStringLiteral("Cat"));
+        ed->setCurrentPage(1);
+        button(QStringLiteral("Find Next"))->click();
+        QCOMPARE(ed->currentPage(), 0);
+        QCOMPARE(ed->cursor().selectionStart(), 4);
+        check(QStringLiteral("Match case"))->setChecked(false);
+        check(QStringLiteral("Find whole words only"))->setChecked(true);
+        edit(QString())->setText(QStringLiteral("cat"));
+        edit(QStringLiteral("replace"))->setText(QStringLiteral("dog"));
+        button(QStringLiteral("Replace All"))->click();
+        QCOMPARE(ed->doc()->storyDoc(stories[0])->toPlainText(), QStringLiteral("One dog and a dog."));
+        QCOMPARE(ed->doc()->storyDoc(stories[1])->toPlainText(), QStringLiteral("Another dog, and a catalog."));
+        QVERIFY2(status().contains(QLatin1String("3 replacement")), qPrintable(status()));
+        ed->undo();
+        QCOMPARE(ed->doc()->storyDoc(stories[0])->toPlainText(), QStringLiteral("One Cat and a cat."));
+        QCOMPARE(ed->doc()->storyDoc(stories[1])->toPlainText(), QStringLiteral("Another cat, and a catalog."));
+        // Replace swaps the match that is shown, then moves to the next.
+        edit(QString())->setText(QStringLiteral("a cat"));
+        edit(QStringLiteral("replace"))->setText(QStringLiteral("the cat"));
+        check(QStringLiteral("Find whole words only"))->setChecked(false);
+        button(QStringLiteral("Find Next"))->click();
+        button(QStringLiteral("Replace"))->click();
+        QCOMPARE(ed->doc()->storyDoc(stories[0])->toPlainText(), QStringLiteral("One Cat and the cat."));
+        QCOMPARE(ed->currentPage(), 1);
+        edit(QString())->setText(QStringLiteral("zzz"));
+        button(QStringLiteral("Find Next"))->click();
+        QVERIFY2(status().contains(QLatin1String("\"zzz\" was not found")), qPrintable(status()));
+    }
+
+    // The shared search: stories in the order to search them (the pages from the one asked for round to the
+    // ones before it, a page's speaker notes after its own, the master pages last), the next match round the
+    // end, backward too, and Replace All's count.
+    void findEngineWalksStoriesInOrder()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->addPage();
+        doc->addPage();
+        QStringList boxes, notes;
+        for (int p = 0; p < 3; ++p) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(72, 72, 300, 100);
+            t->storyId = doc->createStory(QStringLiteral("Box %1 has red and Red.").arg(p));
+            doc->pages[p]->items.push_back(t);
+            boxes << t->storyId;
+            if (p == 1) {
+                auto tb = std::make_shared<jp::TableItem>();
+                tb->rows = 1;
+                tb->cols = 2;
+                tb->rect = QRectF(72, 300, 300, 40);
+                tb->cells.resize(2);
+                tb->cells[0].storyId = doc->createStory(QStringLiteral("cell one red"));
+                tb->cells[1].storyId = doc->createStory(QStringLiteral("cell two"));
+                doc->pages[p]->items.push_back(tb);
+                boxes << tb->cells[0].storyId << tb->cells[1].storyId;
+            }
+            if (p > 0) {
+                doc->pages[p]->notesStoryId = doc->createStory(QStringLiteral("notes %1: red").arg(p));
+                notes << doc->pages[p]->notesStoryId;
+            }
+        }
+        auto ids = [](const QVector<jp::FindStory> &v) {
+            QStringList out;
+            for (const auto &s : v) out << s.storyId;
+            return out;
+        };
+        QCOMPARE(ids(jp::findStories(*doc)), (QStringList{boxes[0], boxes[1], boxes[2], boxes[3], boxes[4]}));
+        const auto from1 = jp::findStories(*doc, jp::FindScope{false, true, 1});
+        QCOMPARE(ids(from1), (QStringList{boxes[1], boxes[2], boxes[3], notes[0], boxes[4], notes[1], boxes[0]}));
+        QVERIFY(from1[3].notes && from1[3].page == 1 && from1[3].itemId.isEmpty());
+        QVERIFY(!from1[0].notes && from1[1].row == 0 && from1[2].col == 1 && from1[1].itemId == from1[2].itemId);
+        const auto plain = jp::findStories(*doc);
+        const QTextDocument::FindFlags none;
+        int story = -1;
+        QTextCursor found;
+        // Forward from the end of the first box, then from the end of the last: round to the start.
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), none, 0, 11, &story, &found));
+        QCOMPARE(story, 0);
+        QCOMPARE(found.selectedText(), QStringLiteral("Red"));
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), none, 0, 22, &story, &found));
+        QCOMPARE(story, 1);
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), none, 4, 22, &story, &found));
+        QCOMPARE(story, 0);
+        QCOMPARE(found.selectionStart(), 10);
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), QTextDocument::FindBackward, 1, 0, &story, &found));
+        QCOMPARE(story, 0);
+        QCOMPARE(found.selectionStart(), 18);
+        QVERIFY(!jp::findInStories(*doc, plain, QStringLiteral("blue"), none, 0, 0, &story, &found));
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), QTextDocument::FindCaseSensitively, 0, 0, &story, &found));
+        QCOMPARE(found.selectionStart(), 10);
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("Box 1 has red"), QTextDocument::FindWholeWords, 0, 0, &story, &found));
+        QCOMPARE(story, 1);
+        QVERIFY(!jp::findInStories(*doc, plain, QStringLiteral("has re"), QTextDocument::FindWholeWords, 0, 0, &story, &found));
+        // Replace All counts every match (case ignored unless asked) in the stories it is given.
+        QCOMPARE(jp::replaceInStories(*doc, from1, QStringLiteral("red"), none, QStringLiteral("blue")), 2 + 1 + 0 + 1 + 2 + 1 + 2);
+        QCOMPARE(doc->storyDoc(boxes[0])->toPlainText(), QStringLiteral("Box 0 has blue and blue."));
+        QCOMPARE(doc->storyDoc(notes[1])->toPlainText(), QStringLiteral("notes 2: blue"));
+        QCOMPARE(jp::replaceInStories(*doc, plain, QStringLiteral("red"), none, QStringLiteral("x")), 0);
+    }
+
+    // The spelling help for the right-click menu: nothing and false off a misspelled word.
+    void spellingMenuHelpNeedsAMisspelledWord()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("This is teh test."));
+        doc->pages[0]->items.push_back(t);
+        ed->setDocument(std::move(doc));
+        ed->beginTextEdit(t->id, 2);
+        QMenu none;
+        QVERIFY(!jp::addSpellingSuggestions(none, ed));
+        QVERIFY(none.isEmpty());
+        ed->beginTextEdit(t->id, 10);
+        QMenu menu;
+        QVERIFY(jp::addSpellingSuggestions(menu, ed));
+        QVERIFY(menu.actions().size() > 3);
+        QVERIFY(menu.actions().last()->isSeparator());
+        // The first suggestion replaces the word, as one change.
+        QAction *first = menu.actions().first();
+        QVERIFY(jp::spellingSuggestions(QStringLiteral("teh")).contains(first->text()));
+        first->trigger();
+        QVERIFY(!w.editor()->doc()->storyDoc(t->storyId)->toPlainText().contains(QLatin1String("teh")));
+    }
+
+    // Right-clicking a misspelled word in the text being typed offers the dictionary's
+    // suggestions first, in bold, then Ignore All and Add to Dictionary.
+    void contextMenuOffersSpellingSuggestions()
+    {
+        jp::MainWindow w;
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("This is teh test."));
+        doc->pages[0]->items.push_back(t);
+        ed->setDocument(std::move(doc));
+        ed->beginTextEdit(t->id, 9);
+        QStringList texts;
+        QList<bool> bold;
+        QTimer::singleShot(100, [&] {
+            if (auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+                for (QAction *a : m->actions()) {
+                    texts << a->text();
+                    bold << a->font().bold();
+                }
+                m->close();
+            }
+        });
+        Q_EMIT w.canvas()->contextMenuWanted(w.mapToGlobal(QPoint(300, 300)));
+        QVERIFY(texts.size() > 6);
+        QVERIFY2(texts.first().compare(QLatin1String("the"), Qt::CaseInsensitive) == 0 || jp::spellingSuggestions(QStringLiteral("teh")).contains(texts.first()), qPrintable(texts.join(QLatin1Char('|'))));
+        QVERIFY(bold.first());
+        const int ignore = int(texts.indexOf(QStringLiteral("Ignore All")));
+        QVERIFY(ignore > 0);
+        QCOMPARE(texts[ignore + 1], QStringLiteral("Add to Dictionary"));
+        QVERIFY(!bold[ignore]);
+        QVERIFY(jp::spellingSuggestions(QStringLiteral("teh")).mid(0, 6).contains(texts.first()));
+        QCOMPARE(ignore, int(qMin<qsizetype>(6, jp::spellingSuggestions(QStringLiteral("teh")).size())));
     }
 
     // Saving as .pub: pages, formatted text boxes, rectangles and ovals
