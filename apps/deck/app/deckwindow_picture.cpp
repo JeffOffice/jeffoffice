@@ -11,6 +11,7 @@
 #include "app/ribbonbuilder.h"
 #include "app/widgets.h"
 #include "canvas/canvas.h"
+#include "office/drawingml_write.h"
 #include "render/shapes.h"
 
 #include <QAction>
@@ -113,13 +114,14 @@ void DeckWindow::addCropParts(RibbonParts &parts)
 {
     parts.colors[QStringLiteral("pictureFormat")] = QColor(0x2F, 0x7D, 0x4F);
     parts.colors[QStringLiteral("table")] = QColor(0x8E, 0x2A, 0x5E);   // Table Design and Layout share it
-    // Crop to Shape: the closed shapes, as the Shapes gallery lists them.
+    // Crop to Shape: the closed shapes, as the Shapes gallery lists them, that a presentation file has by name (it saves the picture's shape as one of them).
     parts.widgets[QStringLiteral("cropToShapeButton")] = [this]() -> QWidget * {
         auto *b = new GalleryButton(icon("shapes"), tr("Crop to Shape"), QSize(24, 24), 12, true);
+        b->setObjectName(QStringLiteral("cropToShapeButton"));
         b->setItemsProvider([] {
             QVector<GalleryItem> v;
             for (const auto &s : shapeLibrary())
-                if (!s.open) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
+                if (!s.open && !office::presetForShape(s.id).isEmpty()) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
             return v;
         });
         connect(b, &GalleryButton::activated, this, [this](const QString &id) { cropPictureToShape(id); });

@@ -1,5 +1,5 @@
 # Shapes, pictures, tables, and Text Art
-<!-- keywords: shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, online pictures, openverse, wikimedia commons, credit, license, alt text, icons, svg, table, grid, rows, columns, text art, chart, smartart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop, picture colors, brightness, contrast, gray, black and white, duotone, recolor, transparent color -->
+<!-- keywords: shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, online pictures, openverse, wikimedia commons, credit, license, alt text, icons, svg, table, grid, rows, columns, text art, chart, smartart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop, picture colors, brightness, contrast, gray, black and white, duotone, recolor, transparent color, crop, crop to shape, aspect ratio, fit, clear crop, picture format, handles, table design, table layout, merge cells, split cells, borders, shading, table style, style options, header row, total row, banded rows, first column, last column, insert row, delete row, insert column, delete column, distribute, row height, column width, cell margins, text direction, align -->
 
 Besides text, a slide can hold shapes, pictures, and tables. This topic shows how to add them and what JeffDeck does with other kinds of objects.
 
@@ -32,6 +32,20 @@ JeffDeck reads PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, WMF, EMF, ICO, and PDF pict
 
 The picture goes in the middle of the slide. It is no larger than most of the slide. The picture's title is saved as its **alt text**, which is words that a screen reader says aloud for people who can't see it. Most licenses ask you to name the author. When **Add a credit under the picture** is checked, JeffDeck adds a small line of text under the picture with its title, its author, and its license. It is a text box you can move or change. Check that the license fits how you will use the picture.
 
+## Crop a picture
+
+To **crop** a picture is to cut away the edges you don't want to show. The part you cut away is not lost. It stays hidden inside the picture, so you can bring it back.
+
+Click a picture. The **Picture Format** tab shows. Its **Crop** group has these buttons:
+
+- **Crop** puts black handles on the picture's frame. Drag a handle to move that edge in. The part that is hidden shows dim, outside the frame, so you can see what you are cutting away. Drag inside the frame to slide the picture behind it. When you are done, press **Enter**, or click away from the picture. To take the crop back, press **Esc**. Everything you do from the moment you choose **Crop** is one step, so **Ctrl+Z** takes it all back too.
+- **Crop to Shape** opens a gallery of shapes, like a circle or a star. The picture shows only inside the shape you click. Click the plain rectangle to go back.
+- **Aspect Ratio** cuts the frame to a shape, given as width to height, like **Square 1:1** or **Landscape 16:9**. The frame shrinks around its middle, and the picture stays where it is.
+- **Fill** makes the picture cover the whole frame, and cuts off what sticks out. **Fit** makes the whole picture fit inside the frame, and leaves empty room at the sides if it must.
+- **Clear Crop** shows the whole picture again.
+
+A crop is saved in the file with the part you hid, and a shape is saved too. A picture cropped to a shape is saved in an .odp file as the picture you see. The hidden part and the shape can't be changed after you open that file again.
+
 ## Add an icon
 
 An **icon** is a simple picture, like a heart, an arrow, or an envelope. JeffDeck has more than 1,500.
@@ -60,7 +74,29 @@ A **table** is a grid of rows and columns. Each box in the grid is a cell, and e
 1. Click **Insert > Tables > Table**. Slide across the grid to pick the number of rows and columns, then click. Or choose **Insert Table…** and type the **Number of columns** and **Number of rows**.
 2. The table appears in the middle of the slide, with its first cell ready to type in. Type, and press Tab to go to the next cell. Press Shift+Tab to go back. Press Tab in the last cell to add a row.
 
-While you type in a cell, the font, size, color, and alignment buttons on the **Home** tab work on its text. JeffDeck has no table tools yet for merging cells, borders, or table styles, but tables made elsewhere show as they were made.
+While you type in a cell, the font, size, color, and alignment buttons on the **Home** tab work on its text.
+
+### Change a table
+
+Click in a cell, or click the table's edge. The **Table Design** and **Table Layout** tabs show. To pick several cells, drag across them, or click one and then Shift+click another. Every button below works on the cells you picked, or on the whole table if you picked none. Each change is one step, so **Ctrl+Z** takes it back.
+
+**Table Layout** is for the shape of the table:
+
+- **Select** picks the cell, the row, the column, or the whole table you are in.
+- **Delete** removes the rows or the columns you picked, or the whole table. A table keeps at least one row and one column.
+- **Insert Above**, **Insert Below**, **Insert Left**, and **Insert Right** add a row or a column next to the one you are in.
+- **Merge Cells** joins the cells you picked into one cell that holds all their words. **Split Cells** makes a merged cell into separate cells again.
+- **Height** and **Width** set how tall the picked rows are and how wide the picked columns are. **Distribute Rows** and **Distribute Columns** make all the rows, or all the columns, the same size.
+- The buttons under **Alignment** put the words at the left, the center, or the right of a cell, and at its top, middle, or bottom. **Text Direction** turns the words a quarter turn. **Cell Margins** says how much room is left between the words and the edges of the cell.
+
+**Table Design** is for how the table looks:
+
+- **Table Style Options** has six boxes. **Header Row** and **Total Row** make the first row and the last row stand out. **First Column** and **Last Column** do the same for those columns. **Banded Rows** and **Banded Columns** give every other row, or every other column, a different shade. Each box turns that part of the style on or off. A shade or a line you gave to a cell by hand stays.
+- **Table Styles** is a gallery of looks, in groups called Light, Medium, and Dark, in the colors of the theme. Click one to give every cell its look. It replaces the shades and the lines you gave cells by hand. A new table starts with Medium Style 2, Accent 1.
+- **Shading** colors the cells you picked.
+- **Borders** draws a line on the edges of the cells you picked: all of them, the outside, the inside, only the inside rows or the inside columns, or only the top, bottom, left, or right. Choose **No Border** to take the lines away. **Pen Style**, **Pen Weight**, and **Pen Color** under **Draw Borders** say how the line looks.
+
+New rows and columns keep the table's style. The bands go on in step, and the first row stays the first row. When you save a .pptx file, the table keeps its style and which parts are on. An .odp file keeps how each cell looks, but not the style's name or the six boxes. Tables made in other programs show as they were made.
 
 ## Add a movie or a sound
 

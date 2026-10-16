@@ -368,8 +368,8 @@ JeffDeck has one: Playback, while a single movie or sound is selected. The rest 
 - [ ] **later** Set as Default Shape, Text Box, or Line
 
 ### Picture Format (pictures, icons, and screenshots)
-- [ ] **1.0** The Picture Format tab itself, and a Format Picture pane
-- [~] **1.0** Crop with handles, Crop to Shape, Aspect Ratio, and Fill and Fit *(a crop in a file is drawn and saved, and a picture dropped in a picture placeholder is cropped to fill it from the middle; no tool crops, though JeffPub has one in apps/pub; ours: crops 7 of 19 decks, 227 pictures)*
+- [~] **1.0** The Picture Format tab itself, and a Format Picture pane *(the tab shows while a picture is selected, with the Crop group; no Format Picture pane yet)*
+- [x] **1.0** Crop with handles, Crop to Shape, Aspect Ratio, and Fill and Fit *(Crop drags the frame's handles, shows the hidden part dim, and is one step: Enter or a click away ends it, Esc takes it back; Aspect Ratio offers 12 shapes; saved as a:srcRect and the shape's geometry in a .pptx and as fo:clip in an .odp, where a picture cropped to a shape is saved as the picture it draws, so its shape can't be changed after reopening; a picture dropped in a picture placeholder is cropped to fill it from the middle; ours: crops 7 of 19 decks, 227 pictures)*
 - [~] **1.0** Corrections, Color, and Transparency: brightness and contrast, sharpen and soften, recolor, saturation, temperature, set transparent color, and picture transparency *(a brightness and contrast, gray, black and white, a color made clear, a duotone, a turned hue, and a tint are read, drawn as the original draws them, and saved as listed, with the picture's bytes untouched; none can be made; ours: any in 1 of 19, 4 uses)*
 - [ ] **1.0** Change Picture (keeping size, place, and formatting) and Reset Picture
 - [ ] **1.0** Picture Styles (frames, shadow, reflection, and rounded corners), Picture Border, and Picture Effects
@@ -382,13 +382,13 @@ JeffDeck has one: Playback, while a single movie or sound is selected. The rest 
 - [x] **1.0** Resize a picture at a corner to keep its proportions, Shift to stretch it freely, turn it by its handle, and drop one picture on another to swap them (Ctrl to copy)
 
 ### Table Design and Table Layout (tables)
-- [~] **1.0** Tables from a file show and save as made, with rows that grow to their text *(the editing tools below are not there; rows that grow with typing could not be confirmed)*
-- [ ] **1.0** Table Style Options (Header Row, Total Row, Banded Rows, First Column, Last Column, and Banded Columns) and the Table Styles gallery (Light, Medium, and Dark, from the theme) *(a table style id in files: ours 1 of 19)*
-- [ ] **1.0** Shading, Borders (all, outside, inside, top, bottom, left, and right, none), and Draw Borders (pen style, weight, and color; Draw Table; Eraser)
-- [ ] **1.0** Select (table, column, row, and cell), View Gridlines, Delete, and Insert Above, Below, Left, and Right
-- [ ] **1.0** Merge Cells and Split Cells *(merged cells in files: ours 0 of 19)*
-- [ ] **1.0** Cell Size: row height and column width by number and by dragging the borders, Distribute Rows and Columns
-- [ ] **1.0** Alignment: align left, center, right, top, middle, and bottom, text direction, and cell margins
+- [~] **1.0** Tables from a file show and save as made, with rows that grow to their text *(rows that grow with typing could not be confirmed)*
+- [x] **1.0** Table Style Options (Header Row, Total Row, Banded Rows, First Column, Last Column, and Banded Columns) and the Table Styles gallery (Light, Medium, and Dark, from the theme) *(62 styles by id (tablestyles.cpp), drawn in the theme's colors; a table is saved with its style id, its six options, and every cell's own look, and a style the file names that we don't have is kept; a style gives every cell its look, an option keeps what was shaded or lined by hand, and rows and columns that come and go keep the bands; a new table has Medium Style 2, Accent 1; the .odp keeps each cell's look, not the style or the options; a table style id in files: ours 1 of 19)*
+- [~] **1.0** Shading, Borders (all, outside, inside, inside horizontal and vertical, top, bottom, left, and right, none), and Draw Borders (pen style, weight, and color; Draw Table; Eraser) *(shading, borders, and the pen are there; Draw Table and the Eraser are not)*
+- [~] **1.0** Select (table, column, row, and cell), View Gridlines, Delete, and Insert Above, Below, Left, and Right *(all but View Gridlines)*
+- [x] **1.0** Merge Cells and Split Cells *(saved as gridSpan, rowSpan, hMerge, and vMerge in a .pptx and as spanned cells in an .odp; merged cells in files: ours 0 of 19)*
+- [x] **1.0** Cell Size: row height and column width by number and by dragging the borders, Distribute Rows and Columns
+- [x] **1.0** Alignment: align left, center, right, top, middle, and bottom, text direction, and cell margins *(text direction is the quarter turn clockwise, saved as vert="vert" and as style:rotation-angle 270)*
 - [ ] **1.0** Table Size, Arrange, and Table Effects (shadow, reflection, cell bevel)
 - [ ] **1.0** Cells copied from JeffCrunch or a document land as a table with fonts, fills, borders, and number formats *(shared: the table engine; see Shared)*
 
@@ -624,7 +624,7 @@ What JeffDeck builds on, and the pieces to build once so that JeffWrite, JeffCru
 - [ ] **1.0** Move JeffPub's finished tools into libs/page and libs/shell so JeffDeck gets them: Find and Replace, the crop tool, and the paste choices (Keep Text Only) *(needed by: JeffDeck, JeffPub, JeffWrite)*
 - [ ] **1.0** A Format pane (fill, line, effects, size and position, and text options) and the Selection Pane, built once *(needed by: JeffDeck, JeffPub, JeffWrite)*
 - [ ] **1.0** Shape styles, picture styles, and text effects menus on the effects the engine already draws *(needed by: JeffDeck, JeffPub, JeffWrite)*
-- [ ] **1.0** A table engine with merged cells, styles, borders, and sizes, and its Table Design and Table Layout tabs *(needed by: JeffWrite, JeffMail, JeffCrunch, JeffDeck)*
+- [~] **1.0** A table engine with merged cells, styles, borders, and sizes, and its Table Design and Table Layout tabs *(libs/page has the table commands (app/tableedit.h) that JeffPub and JeffDeck both use, and libs/office the table styles by id and the reading and writing of tables; each app has its own tabs; needed by: JeffWrite, JeffMail, JeffCrunch, JeffDeck)*
 - [ ] **1.0** Chart editing on top of libs/office chart: the data grid, the element menus, types, and styles; a chart in JeffDeck keeps its data in a small embedded sheet edited with JeffCrunch's grid *(needed by: JeffCrunch, JeffWrite, JeffDeck)*
 - [ ] **1.0** A review model for comments with replies, tracked changes, and comparison, so JeffDeck's comments, JeffWrite's tracked changes, and JeffCrunch's notes follow it, and Compare works in a presentation *(needed by: JeffWrite, JeffDeck, JeffCrunch)*
 - [ ] **1.0** A field engine for slide numbers, dates, and document properties *(needed by: all)*
