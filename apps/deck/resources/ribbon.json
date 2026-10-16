@@ -529,14 +529,6 @@
             {
               "large": "design.formatBackground",
               "keytip": "FB"
-            },
-            {
-              "row": [
-                {
-                  "widget": "masterHideCheck",
-                  "keytip": "HG"
-                }
-              ]
             }
           ]
         }

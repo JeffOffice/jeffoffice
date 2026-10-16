@@ -224,11 +224,8 @@ void DeckWindow::refreshMasterActions()
     act("master.title")->setChecked(layout && deck::layoutHasTitle(*page));
     act("master.footers")->setEnabled(layout);
     act("master.footers")->setChecked(layout && deck::layoutHasFooters(*page));
-    // Hide Background Graphics is for the layout being edited, or else for the slide.
-    const int slide = m_ed->currentPage();
-    const bool onSlide = !inMaster && d && slide >= 0 && slide < d->pages.size();
-    act("master.hideBackground")->setEnabled(layout || onSlide);
-    act("master.hideBackground")->setChecked(layout ? !page->showMasterItems : onSlide && !d->pages[slide]->showMasterItems);
+    act("master.hideBackground")->setEnabled(layout);
+    act("master.hideBackground")->setChecked(layout && !page->showMasterItems);
     // Slides can't be added, copied, or taken away from a master.
     for (const char *id : {"slide.new", "slide.duplicate", "slide.delete", "slide.hide", "slide.reset", "view.notes", "insert.headerFooter"})
         if (inMaster) act(id)->setEnabled(false);

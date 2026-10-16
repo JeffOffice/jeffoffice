@@ -21764,7 +21764,7 @@ private Q_SLOTS:
         QVERIFY(bandAt(1));
     }
 
-    // Hide Background Graphics on a slide (the Design tab's check box) does the same for that slide alone, and is saved with it.
+    // Hide Background Graphics on a slide (the Format Background box) does the same for that slide alone, and is saved with it.
     void hidingBackgroundGraphicsOnASlide()
     {
         DeckWindow w;
@@ -21784,11 +21784,10 @@ private Q_SLOTS:
         ctx.doc = d;
         ctx.cache = &cache;
         auto bandAt = [&](int slide) { return Renderer::renderToImage(ctx, slide, 1).pixelColor(480, 510) == QColor(0x65, 0x43, 0x21); };
-        QVERIFY(w.act(QStringLiteral("master.hideBackground"))->isEnabled() && !w.act(QStringLiteral("master.hideBackground"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("master.hideBackground"))->isEnabled());
         QVERIFY(bandAt(0) && bandAt(1));
         w.hideBackgroundGraphics(true);
         QVERIFY(!d->pages[1]->showMasterItems && d->pages[0]->showMasterItems);
-        QVERIFY(w.act(QStringLiteral("master.hideBackground"))->isChecked());
         QVERIFY(bandAt(0) && !bandAt(1));
         QMap<QString, QByteArray> zip;
         auto back = throughPptx(*d, &zip);
@@ -21797,9 +21796,11 @@ private Q_SLOTS:
         QVERIFY(zip.value(QStringLiteral("ppt/slides/slide2.xml")).contains("showMasterSp=\"0\""));
         w.editor()->undo();
         QVERIFY(d->pages[1]->showMasterItems && bandAt(1));
-        // The check box is on the Design tab as well as the Slide Master tab.
-        QVERIFY(w.ribbon()->tab(QStringLiteral("Design"))->findChildren<QCheckBox *>().size() == 1);
-        QVERIFY(w.ribbon()->tab(QStringLiteral("Slide Master"))->findChildren<QCheckBox *>().size() == 3);
+        // The Format Background box says what the slide has, and sets it.
+        BackgroundDialog dlg(Qt::white, d->colors);
+        dlg.setHideGraphics(true);
+        QVERIFY(dlg.hideGraphics());
+        QVERIFY(dlg.findChild<QCheckBox *>(QStringLiteral("hideGraphics")));
     }
 
     // Colors and fonts chosen while a slide master is open change the presentation as they do in Normal view.
@@ -22055,6 +22056,11 @@ private Q_SLOTS:
         Document *d = w.editor()->doc();
         w.editor()->setCurrentPage(1);
         QVERIFY(QTest::qWaitForWindowExposed(&w));
+        // The tabs that have the commands that open it and Hide Background Graphics.
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("View")));
+        shot(&w, QStringLiteral("master-view-view-tab"));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Design")));
+        shot(&w, QStringLiteral("master-view-design-tab"));
         w.editMasters(QStringLiteral("SM1"));
         QTRY_COMPARE(w.masterPane()->ids().size(), 10);
         shot(&w, QStringLiteral("master-view-master"));
@@ -22084,6 +22090,13 @@ private Q_SLOTS:
         PaintContext ctx;
         ctx.doc = d;
         ctx.cache = &cache;
+        // The presentation as it is saved, for looking at in the other programs.
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+            QFile pptx(dir + QStringLiteral("/master-view.pptx")), odp(dir + QStringLiteral("/master-view.odp"));
+            if (pptx.open(QIODevice::WriteOnly)) pptx.write(deck::exportPresentation(*d));
+            if (odp.open(QIODevice::WriteOnly)) odp.write(deck::exportOdp(*d));
+        }
         QCOMPARE(Renderer::renderToImage(ctx, 1, 1).pixelColor(10, 270), QColor(0x2B, 0x7A, 0x78));
         QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), QStringLiteral("Georgia"));
         QVERIFY(firstLetterOf(*d, *holderOn(*d->pages[1], QStringLiteral("title"))).fontWeight() >= QFont::DemiBold);

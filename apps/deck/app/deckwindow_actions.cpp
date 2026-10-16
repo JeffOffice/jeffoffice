@@ -299,7 +299,14 @@ void DeckWindow::showFormatBackground()
     for (int k = int(chain.size()) - 1; k >= 0 && fill.type == Fill::NoFill; --k) fill = chain[k]->background;
     const QColor now = fill.type == Fill::Solid ? fill.color.resolve(d->colors) : QColor(Qt::white);
     BackgroundDialog dlg(now, d->colors, this);
-    if (dlg.exec() == QDialog::Accepted) setBackground(dlg.color(), dlg.applyToAll());
+    const bool hidden = open ? !open->showMasterItems : !d->pages[i]->showMasterItems;
+    dlg.setHideGraphics(hidden);
+    if (dlg.exec() != QDialog::Accepted) return;
+    // The color and the box are one step.
+    m_ed->beginChange(tr("Format Background"));
+    setBackground(dlg.color(), dlg.applyToAll());
+    if (dlg.hideGraphics() != hidden) hideBackgroundGraphics(dlg.hideGraphics());
+    m_ed->endChange();
 }
 
 void DeckWindow::applyFooters(const deck::FooterOptions &options, bool all)

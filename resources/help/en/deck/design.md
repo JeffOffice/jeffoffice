@@ -21,6 +21,8 @@ Click **Design > Customize > Format Background**. Choose a **Solid fill color** 
 - **Apply** to change only the slide you are on.
 - **Apply to All** to change every slide. Slides and layouts that had a background of their own now follow the new one.
 
+Check **Hide background graphics** to stop the pictures and shapes of the slide master from showing on the slide you are on. The background color stays. In Slide Master view the box is for the layout you are editing.
+
 ## Header and footer
 
 A footer is a line of small text along the bottom of a slide. It can hold the date, the slide number, and a line of your own words. It shows on the slide, and so it prints and plays.
