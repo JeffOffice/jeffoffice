@@ -108,6 +108,7 @@ Point at a movie to show its control bar. Click the movie to play it or pause it
 - Drag a handle to resize. Pictures keep their proportions at a corner. Hold Shift to stretch them freely. For other objects, hold Shift to keep the proportions.
 - Drag the round handle above an object to turn it.
 - Press **Delete** to remove the selected object.
+- Right-click an object, or press **Shift+F10**, for a menu with Cut, Copy, Paste, Delete, Edit Text, Group, Order, a link, and a new comment.
 
 **Home > Drawing > Arrange** has **Bring to Front**, **Bring Forward**, **Send Backward**, and **Send to Back** to change which object is on top. It also has **Group** (Ctrl+Shift+G) and **Ungroup**, which make several objects move and resize as one, and **Rotate Right 90°**, **Rotate Left 90°**, **Flip Horizontal**, and **Flip Vertical**.
 

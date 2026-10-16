@@ -43,6 +43,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Reorder Animation"),
     QT_TRANSLATE_NOOP("Ribbon", "Review"),
     QT_TRANSLATE_NOOP("Ribbon", "Section"),
+    QT_TRANSLATE_NOOP("Ribbon", "Select"),
     QT_TRANSLATE_NOOP("Ribbon", "Set Up"),
     QT_TRANSLATE_NOOP("Ribbon", "Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Slide Show"),
