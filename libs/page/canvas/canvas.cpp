@@ -1874,7 +1874,7 @@ void Canvas::mousePressEvent(QMouseEvent *e)
             m_drag = Drag::CropMove;
             m_orig.clear();
             m_orig[h.id] = it->toJson();
-            m_ed->beginChange(QCoreApplication::translate("Canvas", "Crop"));
+            m_ed->beginCropChange(QCoreApplication::translate("Canvas", "Crop"));
             return;
         }
         m_copyDrag = (e->modifiers() & Qt::ControlModifier);
@@ -1911,7 +1911,7 @@ void Canvas::beginResize(const Hit &h, const QPointF &page)
     case HitKind::LineEnd: m_drag = Drag::LineEnd; m_ed->beginChange(QCoreApplication::translate("Canvas", "Move Line Point")); break;
     case HitKind::LineBend: m_drag = Drag::LineBend; m_ed->beginChange(QCoreApplication::translate("Canvas", "Adjust Line")); break;
     case HitKind::Adjust: m_drag = Drag::Adjust; m_ed->beginChange(QCoreApplication::translate("Canvas", "Adjust Shape")); break;
-    case HitKind::Crop: m_drag = Drag::Crop; m_ed->beginChange(QCoreApplication::translate("Canvas", "Crop")); break;
+    case HitKind::Crop: m_drag = Drag::Crop; m_ed->beginCropChange(QCoreApplication::translate("Canvas", "Crop")); break;
     case HitKind::ColBorder: m_drag = Drag::ColResize; m_ed->beginChange(QCoreApplication::translate("Canvas", "Resize Column")); break;
     case HitKind::RowBorder: m_drag = Drag::RowResize; m_ed->beginChange(QCoreApplication::translate("Canvas", "Resize Row")); break;
     default: break;
@@ -2915,6 +2915,10 @@ void Canvas::handleTextKey(QKeyEvent *e)
                 else if (++c >= t->cols) { c = 0; ++r; }
             } while (r >= 0 && r < t->rows && t->cell(r, c).covered);
             if (r < 0) return;
+            if (r >= t->rows && t->rows >= kMaxTableRowsOrColumns) {
+                Q_EMIT m_ed->status(QCoreApplication::translate("TableEdit", "A table has at most %1 rows.").arg(kMaxTableRowsOrColumns));
+                return;
+            }
             if (r >= t->rows) {
                 // Tab in the last cell adds a row.
                 m_ed->change(QCoreApplication::translate("Canvas", "Insert Row"), [&] {

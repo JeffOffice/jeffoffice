@@ -57,7 +57,7 @@ public:
     // What a new, unsaved, untitled document is called in this app
     // ("Publication1" unless the app says otherwise); kept across documents.
     void setNewDocumentName(const QString &name) { m_newName = name; }
-    bool isModified() const { return !m_undo.isClean(); }
+    bool isModified() const { return !m_undo.isClean() || m_cropOpen; }
     void markSaved() { m_undo.setClean(); }
     void markUnsaved() { m_undo.resetClean(); }   // a recovered copy: unsaved until saved
 
@@ -141,6 +141,8 @@ public:
 
     // ---- changes and undo ----
     void beginChange(const QString &label);
+    // A change that is part of the crop in progress (a drag of its handles, or of the picture in its frame): it joins the crop's step.
+    void beginCropChange(const QString &label);
     void endChange();
     void cancelChange();
     void change(const QString &label, const std::function<void()> &fn) { beginChange(label); fn(); endChange(); }
@@ -333,6 +335,10 @@ private:
     mutable QHash<QString, SpellEntry> m_spell;
     QUndoStack m_undo;
     bool m_cropOpen = false;   // a crop session holds a change open (cropSessions)
+    int m_cropPage = 0;        // the slide and the selection it began with, which its step is filed under
+    QStringList m_cropSel;
+    void finishChange(int page, const QStringList &selection);
+    void leaveCrop() { if (m_cropOpen) endCrop(true); }
     QString m_path;
     QString m_untitledName;
     QString m_newName;
