@@ -23,7 +23,7 @@ namespace {
 // with its beginning (the XML before it, the attributes it had in the file). When a paragraph is cut in two, the second half has the mark's, and
 // the first keeps the beginning's; when two become one, the result has the first's beginning and the last's end.
 const int kTail[] = {flow::fp::SectionBreakAfter, prop::SectionData, prop::RawAfter};
-const int kHead[] = {prop::RawBefore, prop::ParaAttrs};
+const int kHead[] = {prop::RawBefore, prop::ParaAttrs, prop::LastSection};
 
 void copyTail(const QTextBlockFormat &from, QTextBlockFormat *to)
 {
@@ -364,6 +364,7 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
         nf = bFormat;
         nf.setObjectIndex(list);
         clearHead(&nf);
+        if (aFormat.hasProperty(prop::LastSection)) nf.setProperty(prop::LastSection, aFormat.property(prop::LastSection));
         clearTail(&nf);
         for (int key : {int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
             if (bFormat.hasProperty(key)) nf.setProperty(key, bFormat.property(key));
@@ -1153,7 +1154,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+    for (int key : {int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
     const bool wasList = bf.hasProperty(prop::NumId);

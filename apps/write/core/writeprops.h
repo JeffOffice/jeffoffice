@@ -31,6 +31,8 @@ enum : int {
     Outline,                                  // int: outline level 0 to 8, 9 for body text
     Contextual,                               // bool: don't add space between paragraphs of the same style
     SectionData,                              // QByteArray: the section this paragraph ends (packSection), with flow::fp::SectionBreakAfter
+    LastSection,                              // a key of bytes (packSection), on the FIRST paragraph: the properties of the document's last section, which
+                                              // belong to no paragraph; being a paragraph's property, a change to them undoes with the text
     SpacingAttrs,                             // QByteArray: attributes of w:spacing that have no field, as written
     IndAttrs,                                 // QByteArray: the same for w:ind
     FontsOther,                               // QString: the fonts of the scripts the engine has none for, as a run says them (packOtherFonts)
