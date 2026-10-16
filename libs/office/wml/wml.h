@@ -127,7 +127,7 @@ struct SectionProps {
     int cols = 1, colSpace = 720;
     bool colSep = false, colEqual = true;
     QVector<ColumnDef> colDefs;
-    int pageStart = 0;                // pgNumType start (0: not stated)
+    std::optional<int> pageStart;     // pgNumType start (empty: not stated; 0 is a number a section can start at)
     QString pageFormat;               // pgNumType fmt (decimal when empty)
     bool titlePg = false;
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file

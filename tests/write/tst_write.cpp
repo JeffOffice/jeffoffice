@@ -1359,6 +1359,18 @@ private Q_SLOTS:
         QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), x);
     }
 
+    void aSectionThatStartsPageNumbersAtZeroKeepsSayingIt()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>"
+                                "<w:pgNumType w:start=\"0\" w:fmt=\"decimal\"/><w:titlePg/></w:sectPr>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>cover</w:t></w:r></w:p>", kStyles, QByteArray(), sect));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:pgNumType w:fmt=\"decimal\" w:start=\"0\"/>"), x.constData());
+        // And a file that says nothing of it says nothing.
+        auto plain = open(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>", kStyles));
+        QVERIFY(!documentXml(plain->toDocx()).contains("pgNumType"));
+    }
+
     void aParagraphThatSaysNoFirstLineIndentKeepsSayingIt()
     {
         // The style indents the first line; the paragraph says "hanging" by nothing, which takes that indent away.
