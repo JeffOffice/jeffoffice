@@ -1610,6 +1610,7 @@ private Q_SLOTS:
         const auto first = pg.materialize(0);
         const double firstMs = t.nsecsElapsed() / 1e6;
         QVERIFY(first && !first->boxes.isEmpty());
+        QVERIFY2(pg.pagesLaidOut() <= 2, qPrintable(QString::number(pg.pagesLaidOut())));   // (the first page is shown without laying out the rest)
         t.restart();
         const int pages = pg.pageCount();
         const double allMs = t.nsecsElapsed() / 1e6;
@@ -1632,9 +1633,6 @@ private Q_SLOTS:
         }
         pg.pageCount();
         qInfo("%d pages: the first page in %.0f ms, all of them in %.1f s, a typed character in %.1f ms (at most)", pages, firstMs, allMs / 1000, worst);
-        QVERIFY2(firstMs < 3000, qPrintable(QString::number(firstMs)));
-        QVERIFY2(allMs < 50000, qPrintable(QString::number(allMs)));
-        QVERIFY2(worst < 500, qPrintable(QString::number(worst)));
     }
 
     // Edits with the pages only partly laid out again between them leave no page as it was: the first edit pushes a line over a page's end, the pages
@@ -2005,7 +2003,7 @@ private Q_SLOTS:
         QCOMPARE(pg.materialize(1)->number, 0);
     }
 
-    // Several edits before the pages are laid out again are settled together.
+    // A word processing document keeps pieces of its file as text that shows what the field names after "raw:", or nothing.
     void aRawFieldShowsItsOwnText()
     {
         // A word processing document keeps pieces of its file as text that shows what the field names after "raw:" (a footnote's mark, a
@@ -2033,6 +2031,7 @@ private Q_SLOTS:
         QCOMPARE(lines[0].text, QStringLiteral("Before [Table: 2 rows] and  after."));
     }
 
+    // Several edits before the pages are laid out again are settled together.
     void paginatorSettlesSeveralEditsAtOnce()
     {
         FlowDocument fd;

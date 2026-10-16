@@ -113,11 +113,11 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text)
 QString plain(WriteDoc &doc) { return doc.story()->toPlainText(); }
 
 const QByteArray kStyles =
-    "<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Liberation Serif\" w:hAnsi=\"Liberation Serif\"/><w:sz w:val=\"23\"/></w:rPr></w:rPrDefault>"
+    "<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Tinos\" w:hAnsi=\"Tinos\"/><w:sz w:val=\"23\"/></w:rPr></w:rPrDefault>"
     "<w:pPrDefault><w:pPr><w:spacing w:after=\"120\" w:line=\"264\" w:lineRule=\"auto\"/></w:pPr></w:pPrDefault></w:docDefaults>"
     "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:qFormat/></w:style>"
     "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:uiPriority w:val=\"9\"/><w:qFormat/>"
-    "<w:pPr><w:keepNext/><w:spacing w:before=\"360\" w:after=\"120\"/><w:outlineLvl w:val=\"0\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Liberation Sans\" w:hAnsi=\"Liberation Sans\"/><w:b/><w:color w:val=\"1F3864\"/><w:sz w:val=\"34\"/></w:rPr></w:style>"
+    "<w:pPr><w:keepNext/><w:spacing w:before=\"360\" w:after=\"120\"/><w:outlineLvl w:val=\"0\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Arimo\" w:hAnsi=\"Arimo\"/><w:b/><w:color w:val=\"1F3864\"/><w:sz w:val=\"34\"/></w:rPr></w:style>"
     "<w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:qFormat/><w:rPr><w:b/></w:rPr></w:style>";
 
 
@@ -442,13 +442,12 @@ private Q_SLOTS:
         auto doc = open(makeDocx(paragraphs(3000), kStyles));
         PageView view;
         view.resize(1000, 700);
-        QElapsedTimer t;
-        t.start();
         view.setDocument(doc.get());
         QVERIFY(view.pageCount() >= 1);
         view.show();
         QVERIFY(view.grab().width() == 1000);   // the first page is drawn
-        QVERIFY2(t.elapsed() < 3000, "the first page must show without waiting for the document");
+        // (Without waiting for the document: a few pages are laid out, not all of them.)
+        QVERIFY2(doc->pager().pagesLaidOut() < 20 && !view.pagesComplete(), qPrintable(QString::number(doc->pager().pagesLaidOut())));
         QTRY_VERIFY_WITH_TIMEOUT(view.pagesComplete(), 60000);
         QVERIFY(view.pageCount() > 100);
         // The page count grew as pages were laid out, and the scroll range with it.
@@ -940,17 +939,23 @@ private Q_SLOTS:
 
     void anEditCostsTheCommandNotTheDocument()
     {
-        // 20,000 paragraphs: an undo that kept the whole document would take seconds and megabytes (the design's reason for commands).
-        auto doc = open(makeDocx(paragraphs(20000, 12), kStyles));
-        QTextCursor c(doc->story());
-        c.setPosition(5000);
-        QElapsedTimer t;
-        t.start();
-        for (int i = 0; i < 50; ++i) insertText(*doc, c, QStringLiteral("x"));
-        insertParagraph(*doc, c);
-        for (int i = 0; i < 50; ++i) doc->story()->undo(&c);
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QString::number(t.elapsed())));
-        QCOMPARE(doc->story()->blockCount(), 20000);
+        // 20,000 paragraphs: an undo that kept the whole document would take time in proportion to it (the design's reason for commands). The same
+        // edits in a tenth of the paragraphs take about as long, not a tenth: compared with each other, not with a clock.
+        auto timeEdits = [](int paragraphCount) {
+            auto doc = open(makeDocx(paragraphs(paragraphCount, 12), kStyles));
+            QTextCursor c(doc->story());
+            c.setPosition(5000);
+            QElapsedTimer t;
+            t.start();
+            for (int i = 0; i < 50; ++i) insertText(*doc, c, QStringLiteral("x"));
+            insertParagraph(*doc, c);
+            for (int i = 0; i < 50; ++i) doc->story()->undo(&c);
+            const double ms = t.nsecsElapsed() / 1e6;
+            return doc->story()->blockCount() == paragraphCount ? ms : 1e9;
+        };
+        timeEdits(2000);   // (the first of anything is slow)
+        const double small = std::max(timeEdits(2000), 5.0), large = timeEdits(20000);
+        QVERIFY2(large < 4 * small, qPrintable(QStringLiteral("2,000 paragraphs %1 ms, 20,000 paragraphs %2 ms").arg(small).arg(large)));
     }
 
     void enterAndBackspaceSplitAndJoinParagraphs()
@@ -1008,7 +1013,7 @@ private Q_SLOTS:
         setFontSize(*doc, c, 20);
         setTextColor(*doc, c, QColor(0xC0, 0, 0));
         setHighlight(*doc, c, QStringLiteral("yellow"));
-        setFontFamily(*doc, c, QStringLiteral("Liberation Mono"));
+        setFontFamily(*doc, c, QStringLiteral("Cousine"));
         QCOMPARE(c.charFormat().fontWeight(), int(QFont::Bold));
         // Toggling again, with all of it bold, turns it off.
         QVERIFY(allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; }));
@@ -1026,7 +1031,7 @@ private Q_SLOTS:
         QVERIFY(props.contains(QLatin1String("<w:sz w:val=\"40\"/>")));
         QVERIFY(props.contains(QLatin1String("<w:color w:val=\"C00000\"/>")));
         QVERIFY(props.contains(QLatin1String("<w:highlight w:val=\"yellow\"/>")));
-        QVERIFY(props.contains(QLatin1String("Liberation Mono")));
+        QVERIFY(props.contains(QLatin1String("Cousine")));
         QVERIFY(x.contains("<w:t xml:space=\"preserve\">Some </w:t>"));
         const int firstRun = x.indexOf("<w:r>");
         QVERIFY(x.mid(firstRun, 40).startsWith("<w:r><w:t"));   // (no direct properties on text that has none of its own)
@@ -1040,7 +1045,7 @@ private Q_SLOTS:
         QVERIFY(f.fontItalic());
         QCOMPARE(f.fontPointSize(), 20.0);
         QCOMPARE(f.foreground().color(), QColor(0xC0, 0, 0));
-        QCOMPARE(f.fontFamilies().toStringList().value(0), QStringLiteral("Liberation Mono"));
+        QCOMPARE(f.fontFamilies().toStringList().value(0), QStringLiteral("Cousine"));
         QVERIFY(f.underlineStyle() != QTextCharFormat::NoUnderline);
         t.setPosition(2);
         QCOMPARE(t.charFormat().fontWeight(), int(QFont::Normal));
@@ -1699,12 +1704,21 @@ private Q_SLOTS:
         QVERIFY(doc->pager().pageCount() >= 1);
         QVERIFY(doc->pager().page(0).size.width() >= 36 && doc->pager().page(0).size.height() <= 3168);
         QVERIFY(doc->flow().section(0).columnCount() <= 45);
-        // A big document in a time a person would wait: 30,000 paragraphs open, lay out its first page at once, and save.
-        QElapsedTimer t;
-        t.start();
+        // A big document: 30,000 paragraphs open in time in proportion to their number (ten times the paragraphs, about ten times as long), lay out
+        // the first page at once, and save.
+        auto openTime = [](int count) {
+            const QByteArray zip = makeDocx(paragraphs(count, 25), kStyles);
+            QElapsedTimer t;
+            t.start();
+            auto d = open(zip);
+            return d ? t.nsecsElapsed() / 1e6 : 1e9;
+        };
+        openTime(3000);   // (the first of anything is slow)
+        const double few = std::max(openTime(3000), 20.0), many = openTime(30000);
+        QVERIFY2(many < 25 * few, qPrintable(QStringLiteral("3,000 paragraphs %1 ms, 30,000 paragraphs %2 ms").arg(few).arg(many)));
         auto big = open(makeDocx(paragraphs(30000, 25), kStyles));
-        QVERIFY2(t.elapsed() < 30000, qPrintable(QString::number(t.elapsed())));
         QVERIFY(big->pager().materialize(0));
+        QVERIFY(big->pager().pagesLaidOut() <= 2);
         QVERIFY(!big->toDocx().isEmpty());
         QCOMPARE(big->story()->blockCount(), 30000);
     }
