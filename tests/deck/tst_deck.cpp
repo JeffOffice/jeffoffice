@@ -131,6 +131,7 @@
 #include <QStatusBar>
 #include <QTabWidget>
 #include <QTableWidget>
+#include <QProcess>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextBrowser>
@@ -2170,10 +2171,12 @@ private:
     // `titleMasterRecord` is the kind of record the title master is kept in (the presentation program keeps it as a slide record).
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
     // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
-    // a shape for its drawing, `masterExtra` more records for the main master, and `documentExtra` more records for the document.
+    // a shape for its drawing, `masterExtra` more records for the main master, `documentExtra` more records for the document, and `firstSlideExtra` more
+    // records for the first slide (a headers and footers record of its own).
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                                const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
-                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray())
+                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),
+                               const QByteArray &firstSlideExtra = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
@@ -2221,12 +2224,12 @@ private:
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0, 4) + le(0x20000, 4) + le(30, 2), 5)
             + pptDrawing());
 
-        auto slide = [&](int geom, const QByteArray &placeholders, quint32 master, quint32 notes, bool hidden, const QByteArray &shapes, const QByteArray &transition = QByteArray()) {
+        auto slide = [&](int geom, const QByteArray &placeholders, quint32 master, quint32 notes, bool hidden, const QByteArray &shapes, const QByteArray &transition = QByteArray(), const QByteArray &extra = QByteArray()) {
             QByteArray info = le(0, 4) + le(0, 4) + raw({2, 0}) + le(hidden ? 0x4 : 0x400, 2) + raw({2, 0, 0, 0});
-            return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, transition.isEmpty() ? info : transition) + pptDrawing(shapes));
+            return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, transition.isEmpty() ? info : transition) + pptDrawing(shapes) + extra);
         };
         const QByteArray titleOnBody = pptShape(0x402, 0xD, outlineRef(0)) + pptShape(0x403, 0xE, outlineRef(1), 1000, 200, 5000, 3800);
-        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody + firstSlideShapes);
+        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody + firstSlideShapes, QByteArray(), firstSlideExtra);
         const QByteArray secondOld = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody);
         const QByteArray second = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, true, titleOnBody);
         const QByteArray third = slide(0, QByteArray("\x0F\x10", 2), kTitleMaster, 0, false, pptShape(0x402, 0xF, outlineRef(0)) + pptShape(0x403, 0x10, outlineRef(1)));
@@ -2306,6 +2309,124 @@ private:
         for (const auto &it : slide.items)
             if (it->role == role && it->type() == ItemType::Text) return d.storyDoc(static_cast<const TextItem *>(it.get())->storyId);
         return nullptr;
+    }
+
+    // The headers and footers record of a document (instance 3) or of a slide: the format of the date and the flags of what is shown, with the
+    // user's own date (the string of instance 0) and the footer's text (instance 2) when there are any.
+    static QByteArray footersBox(int formatId, int flags, const QString &userDate = QString(), const QString &footer = QString())
+    {
+        QByteArray body = pptRec(4058, le(formatId, 2) + le(flags, 2));
+        if (!userDate.isEmpty()) body += pptRec(4026, utf16(userDate), 0);
+        if (!footer.isEmpty()) body += pptRec(4026, utf16(footer), 2);
+        return pptBox(4057, body, 3);
+    }
+    // The master's places for the date (7), the footer (9), and the slide number (8); the footer's and the date's hold the given texts.
+    static QByteArray masterFooterPlaces(const QString &footerText = QString(), const QString &dateText = QString())
+    {
+        auto text = [](const QString &s) { return s.isEmpty() ? QByteArray() : pptRec(3999, le(4, 4)) + pptRec(4000, utf16(s)); };
+        return pptShape(0x410, 7, text(dateText), 4000, 200, 2000, 4300) + pptShape(0x411, 9, text(footerText), 4000, 2100, 3900, 4300)
+               + pptShape(0x412, 8, QByteArray(), 4000, 4000, 5500, 4300);
+    }
+    // How many placeholders of that type ("dt", "ftr", "sldNum") a slide has.
+    static int placeholdersOf(const Page &p, const QString &type)
+    {
+        int n = 0;
+        for (const auto &it : p.items) n += deck::placeholderType(*it) == type;
+        return n;
+    }
+    // The code of the first field in a story (empty for a story with none).
+    static QString storyFieldCode(const QTextDocument *story)
+    {
+        if (!story) return QString();
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                if (const QString code = it.fragment().charFormat().stringProperty(tp::Field); !code.isEmpty()) return code;
+        return QString();
+    }
+    // A presentation saved as .pptx or as .odp and opened again (null when it can't be).
+    static std::unique_ptr<Document> viaPptx(const Document &d, QString *err)
+    {
+        const QByteArray bytes = deck::exportPresentation(d, err);
+        return bytes.isEmpty() ? nullptr : deck::importPresentation(bytes, err);
+    }
+    static std::unique_ptr<Document> viaOdp(const Document &d, QString *err)
+    {
+        const QByteArray bytes = deck::exportOdp(d, false, err);
+        return bytes.isEmpty() ? nullptr : deck::importOdp(bytes, err);
+    }
+    // The story on a slide that begins with the text (empty when none does).
+    static const QTextDocument *storyBeginning(const Document &d, const Page &slide, const QString &text)
+    {
+        for (const auto &it : slide.items)
+            if (it->type() == ItemType::Text)
+                if (const QTextDocument *s = d.storyDoc(static_cast<const TextItem *>(it.get())->storyId); s && s->toPlainText().startsWith(text)) return s;
+        return nullptr;
+    }
+
+    // The words of a metafile record's parameters, a record, and a placeable metafile of a window 400 by 300 units around records.
+    static QByteArray wmfWords(std::initializer_list<int> v)
+    {
+        QByteArray b;
+        for (int w : v) {
+            b.append(char(w & 0xFF));
+            b.append(char((w >> 8) & 0xFF));
+        }
+        return b;
+    }
+    static QByteArray wmfDword(quint32 v)
+    {
+        QByteArray b;
+        for (int i = 0; i < 4; ++i) b.append(char((v >> (8 * i)) & 0xFF));
+        return b;
+    }
+    static QByteArray wmfRecord(int fn, const QByteArray &params)
+    {
+        QByteArray b = wmfDword(quint32((6 + params.size() + (params.size() & 1)) / 2)) + wmfWords({fn});
+        b += params;
+        if (params.size() & 1) b.append('\0');
+        return b;
+    }
+    // The picture, 200 by 150 points, that such a metafile draws: the window is set to 400 by 300 units and a gray brush chosen, then the given
+    // records come (the scaling), and then a box from the window's top left corner, 200 by 150 units.
+    static QImage drawMetafileWith(const QByteArray &records)
+    {
+        const QByteArray brush = wmfWords({0}) + wmfDword(0x00646464) + wmfWords({0}), pen = wmfWords({5, 0, 0}) + wmfDword(0);
+        QByteArray body = wmfRecord(0x020B, wmfWords({0, 0})) + wmfRecord(0x020C, wmfWords({300, 400})) + wmfRecord(0x02FC, brush) + wmfRecord(0x02FA, pen) + records;
+        body += wmfRecord(0x012D, wmfWords({1})) + wmfRecord(0x012D, wmfWords({0})) + wmfRecord(0x041B, wmfWords({150, 200, 0, 0})) + wmfRecord(0x0000, QByteArray());
+        QByteArray head = wmfDword(0x9AC6CDD7u) + wmfWords({0, 0, 0, 400, 300, 72}) + wmfDword(0);
+        quint16 sum = 0;
+        for (int i = 0; i < 20; i += 2) sum ^= quint16(quint8(head[i]) | (quint8(head[i + 1]) << 8));
+        head += wmfWords({int(sum)});
+        const QByteArray standard = wmfWords({1, 9, 0x300}) + wmfDword(quint32((18 + body.size()) / 2)) + wmfWords({2}) + wmfDword(60) + wmfWords({0});
+        Document doc;
+        doc.slidePictures = true;
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = doc.addImage(head + standard + body, QStringLiteral("wmf"));
+        if (pic->imageId.isEmpty()) return QImage();
+        pic->rect = QRectF(0, 0, 200, 150);
+        pic->imgRect = pic->rect;
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = &doc;
+        ctx.cache = &cache;
+        const ItemList one{pic};
+        return Renderer::renderItemsToImage(ctx, one, 1.0);
+    }
+    // Whether the point (as shares of the picture's width and height) is the box's gray; how many points are.
+    static bool paintedGrayAt(const QImage &img, double fx, double fy)
+    {
+        const QColor c = img.pixelColor(int(img.width() * fx), int(img.height() * fy));
+        return c.alpha() == 255 && qAbs(c.red() - 100) <= 2;
+    }
+    static int paintedGray(const QImage &img)
+    {
+        int n = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) {
+                const QColor c = img.pixelColor(x, y);
+                n += c.alpha() == 255 && qAbs(c.red() - 100) <= 2;
+            }
+        return n;
     }
 
 private Q_SLOTS:
