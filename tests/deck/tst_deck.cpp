@@ -22797,6 +22797,38 @@ private Q_SLOTS:
         QCOMPARE(cut->lineInfo(0).size(), all->lineInfo(0).size());
     }
 
+    // The text of a shape on a slide is not hyphenated (the presentation program breaks a line at a space), where a publication's shapes hyphenate: a long
+    // word in a narrow shape is broken across lines without a hyphen.
+    void shapeTextOnASlideIsNotHyphenated()
+    {
+        auto d = deck::newPresentation();
+        QVERIFY(d->slideText);
+        auto s = std::make_shared<ShapeItem>();
+        s->shape = QStringLiteral("roundRect");
+        s->rect = QRectF(100, 100, 110, 400);
+        s->storyId = d->createStory();
+        d->storyDoc(s->storyId)->setPlainText(QStringLiteral("internationalization internationalization internationalization"));
+        d->pages[0]->items.push_back(s);
+        auto linesOf = [&] {
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = d.get();
+            ctx.cache = &cache;
+            QPointF origin;
+            QStringList out;
+            for (const auto &line : Renderer::shapeTextLayout(ctx, *s, &origin)->lineInfo(0)) out << line.text;
+            return out;
+        };
+        const QStringList slide = linesOf();
+        QVERIFY(slide.size() > 3);
+        for (const QString &line : slide) QVERIFY2(!line.contains(QLatin1Char('-')) && !line.contains(QChar::SoftHyphen), qPrintable(slide.join('|')));
+        d->slideText = false;
+        const QStringList publication = linesOf();
+        bool hyphenated = false;
+        for (const QString &line : publication) hyphenated = hyphenated || line.contains(QLatin1Char('-')) || line.contains(QChar::SoftHyphen);
+        QVERIFY2(hyphenated, qPrintable(publication.join('|')));
+    }
+
     // The same, in a shape that holds text: its frame has the flag too, and its text is set unwrapped.
     void importBinaryShapesWithNoWrapSetTheirTextOnOneLine()
     {
