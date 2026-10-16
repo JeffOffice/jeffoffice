@@ -216,6 +216,74 @@ private Q_SLOTS:
         QVERIFY(!readBlocks("<w:hdr", &blocks));
     }
 
+    // The drawn objects of a run: the pictures, rules, boxes, and text boxes of VML, with where they are set and how text goes round them; and the
+    // pictures of DrawingML.
+    void readsTheShapesOfARun()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        // A picture in the line.
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:shapetype id='t75'/><v:shape id='s1' type='#t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' o:title=''/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Picture);
+        QVERIFY(!shapes[0].floating);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId4"));
+        QCOMPARE(shapes[0].width, 54.0);
+        QCOMPARE(shapes[0].height, 36.0);
+        // A picture set at a place, with the text going round it.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s2' style='position:absolute;margin-left:228.7pt;margin-top:61.25pt;width:198pt;height:142.5pt;z-index:251654144;mso-position-horizontal-relative:margin;mso-position-vertical-relative:page'><v:imagedata r:id='rId8'/><w10:wrap type='tight'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(shapes[0].floating);
+        QCOMPARE(shapes[0].left, 228.7);
+        QCOMPARE(shapes[0].top, 61.25);
+        QCOMPARE(shapes[0].hRel, Shape::Margin);
+        QCOMPARE(shapes[0].vRel, Shape::Page);
+        QCOMPARE(shapes[0].wrap, Shape::Tight);
+        QVERIFY(!shapes[0].behind);
+        // A rule drawn as a filled rectangle behind the text, and a line from point to point.
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='s3' style='position:absolute;margin-left:1.5pt;margin-top:-2.25pt;width:543.75pt;height:1.4pt;z-index:-251657216' fillcolor='black' stroked='f' strokeweight='0'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Rect);
+        QVERIFY(shapes[0].behind && shapes[0].filled && !shapes[0].stroked);
+        QCOMPARE(shapes[0].fillColor, QStringLiteral("000000"));
+        QCOMPARE(shapes[0].top, -2.25);
+        shapes = readShapes("<w:pict " + ns + "><v:line id='s4' style='position:absolute;left:0;text-align:left;z-index:5' from='-4.95pt,18.2pt' to='481.05pt,18.2pt' strokeweight='1.25pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Line);
+        QCOMPARE(shapes[0].x1, -4.95);
+        QCOMPARE(shapes[0].x2, 481.05);
+        QCOMPARE(shapes[0].y1, 18.2);
+        QCOMPARE(shapes[0].strokeWeight, 1.25);
+        QVERIFY(shapes[0].stroked);
+        // A text box: its content as written, its insets, and no fill or line when it says so.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s5' type='#t202' style='position:absolute;margin-left:171.75pt;margin-top:.6pt;width:206.35pt;height:18pt' filled='f' stroked='f'><v:textbox inset='0,0,0,0'><w:txbxContent><w:p><w:r><w:t>Inside</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::TextBox);
+        QVERIFY(!shapes[0].filled && !shapes[0].stroked);
+        QVERIFY(shapes[0].textBox.contains("Inside"));
+        QCOMPARE(shapes[0].inset[0], 0.0);
+        // A picture of DrawingML, set behind the text at a place from the page's edge.
+        shapes = readShapes("<w:drawing " + ns + "><wp:anchor behindDoc='1' distT='0' distB='0' distL='114300' distR='114300'><wp:positionH relativeFrom='page'><wp:posOffset>127000</wp:posOffset></wp:positionH><wp:positionV relativeFrom='paragraph'><wp:align>top</wp:align></wp:positionV><wp:extent cx='2540000' cy='1270000'/><wp:wrapSquare wrapText='bothSides'/><wp:docPr id='1' name='p' descr='a logo'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(shapes[0].floating && shapes[0].behind);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId7"));
+        QCOMPARE(shapes[0].width, 200.0);
+        QCOMPARE(shapes[0].height, 100.0);
+        QCOMPARE(shapes[0].left, 10.0);
+        QCOMPARE(shapes[0].hRel, Shape::Page);
+        QCOMPARE(shapes[0].vAlign, Shape::Start);
+        QCOMPARE(shapes[0].wrap, Shape::Square);
+        QCOMPARE(shapes[0].gapLeft, 9.0);
+        QCOMPARE(shapes[0].alt, QStringLiteral("a logo"));
+        // A group's members, in its units: a coordinate space of 1000 by 500 over 100 by 50 points.
+        shapes = readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;margin-left:10pt;margin-top:20pt;width:100pt;height:50pt' coordsize='1000,500' coordorigin='0,0'><v:rect id='m' style='position:absolute;left:100;top:50;width:200;height:100' fillcolor='red'/></v:group></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].left - 20) < 0.01 && std::abs(shapes[0].top - 25) < 0.01 && std::abs(shapes[0].width - 20) < 0.01 && std::abs(shapes[0].height - 10) < 0.01);
+        QVERIFY(readShapes("not xml").isEmpty());
+    }
+
     // The notes of a footnotes part come with their Ids, types, and paragraphs.
     void readsTheNotesOfAPart()
     {
