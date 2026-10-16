@@ -2169,7 +2169,7 @@ private:
                                const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016)
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
-        const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
+        const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")));
         // The default body text: bullets, 28 and 24 points, the first font, the text color.
         const QByteArray bodyStyle = le(2, 2)
             + le(0x593, 4) + le(3, 2) + le(0x2022, 2) + le(0, 2) + le(360, 2) + le(0, 2)
@@ -21650,6 +21650,39 @@ private Q_SLOTS:
         QCOMPARE(tiles, 400);
     }
 
+    // Text in a symbol font shows the font's own pictures: a run that names a font for its symbols (character run, the fourth font reference)
+    // keeps them at 0xF020 to 0xF0FF, and a run set in the font itself has the plain codes. A Greek letter, an arrow, or a number in a circle
+    // is the Unicode character that looks like it, in the text's own font (so it shows wherever the symbol font isn't); one that has no
+    // look-alike stays in a piece set in the symbol font, where the font is. Text of a font that isn't a symbol font is as it was.
+    void importBinarySymbolFontTextBecomesItsPictures()
+    {
+        // The fonts of the buildPpt document: 0 Alpha Sans, 1 Beta Serif, 2 Symbol, 3 Wingdings 2.
+        const QChar alpha(0x3B1), arrow(0x2192), circled(0x2776), none(0xF0FF);
+        const QString text = QStringLiteral("x") + QChar(0xF061) + QStringLiteral("y") + none + QChar(0xF0AE) + QStringLiteral("z") + QChar(0xF075) + QStringLiteral("a") + QStringLiteral("b");
+        // x; alpha (Symbol, as a symbol run); y; the character Symbol lacks; an arrow; z; a number in a circle (Wingdings 2); then "a" set
+        // in Symbol itself; and "b" in the text's own font. The last run has the paragraph's end too.
+        const quint32 sym = 0x800000, own = 0x10000;
+        const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0)
+            + cfRun(1, 0) + cfRun(1, sym, le(2, 2)) + cfRun(1, 0) + cfRun(1, sym, le(2, 2)) + cfRun(1, sym, le(2, 2)) + cfRun(1, 0) + cfRun(1, sym, le(3, 2))
+            + cfRun(1, own, le(2, 2)) + cfRun(2, own, le(0, 2));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles, true)), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QString shown;
+        QMap<QChar, QStringList> families;   // each character -> the fonts of its piece
+        for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                shown += it.fragment().text();
+                for (const QChar ch : it.fragment().text()) families[ch] = it.fragment().charFormat().fontFamilies().toStringList();
+            }
+        QCOMPARE(shown, QStringLiteral("x") + alpha + QStringLiteral("y") + none + arrow + QStringLiteral("z") + circled + alpha + QStringLiteral("b"));
+        // The character with no look-alike is a piece of its own in Symbol; the others are not in it: the letter alpha of a run set in Symbol
+        // is in the text's font too, and "b" is in the font its run names.
+        QCOMPARE(families.value(none), QStringList{QStringLiteral("Symbol")});
+        for (const QChar ch : {QChar('x'), alpha, QChar('y'), arrow, QChar('z'), circled}) QVERIFY2(!families.value(ch).contains(QStringLiteral("Symbol")), qPrintable(QString(ch)));
+        QCOMPARE(families.value(QChar('b')), QStringList{QStringLiteral("Alpha Sans")});
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.

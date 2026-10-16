@@ -4,6 +4,7 @@
 #include "core/blipeffects.h"
 #include "core/color.h"
 #include "core/deck.h"
+#include "core/fonts.h"
 #include "core/texteffects.h"
 #include "core/transition.h"
 #include "io/cfb.h"
@@ -242,7 +243,7 @@ struct Pf {
 struct Cf {
     quint32 has = 0;
     quint16 style = 0;
-    quint16 font = 0, ansiFont = 0, size = 0;
+    quint16 font = 0, ansiFont = 0, symbolFont = 0, size = 0;
     qint16 position = 0;
     ColorIndex color;
 };
@@ -286,7 +287,7 @@ bool readCf(Cursor &c, Cf *cf)
     if (m & CfFont) cf->font = c.u16();
     if (m & CfEastAsian) c.u16();
     if (m & CfAnsi) cf->ansiFont = c.u16();
-    if (m & CfSymbol) c.u16();
+    if (m & CfSymbol) cf->symbolFont = c.u16();
     if (m & CfSize) cf->size = c.u16();
     if (m & CfColor) cf->color = readColor(c);
     if (m & CfPosition) cf->position = c.i16();
@@ -321,6 +322,7 @@ void mergeCf(Cf &base, const Cf &over)
     base.style = quint16((base.style & ~styleBits) | (over.style & styleBits));
     if (m & CfFont) base.font = over.font;
     if (m & CfAnsi) base.ansiFont = over.ansiFont;
+    if (m & CfSymbol) base.symbolFont = over.symbolFont;
     if (m & CfSize) base.size = over.size;
     if (m & CfColor) base.color = over.color;
     if (m & CfPosition) base.position = over.position;
@@ -2330,7 +2332,49 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
                 fmt.setProperty(tp::ColorRefP, ColorRef::rgb(color).toString());
                 fmt.setUnderlineStyle(QTextCharFormat::SingleUnderline);
             }
-            if (!piece.isEmpty()) pieces.push_back({piece, fmt});
+            // Text in a symbol font is shown as the font's own pictures: a character of the font the run names for symbols (kept at
+            // 0xF020 to 0xF0FF), or of a run set in the font itself (the plain code), that has a look-alike in Unicode (a Greek letter, an
+            // arrow) is that, in the text's own font; a private one that has none stays in a piece of the font's own, where the font is.
+            const QString symbolFamily = (cf.has & CfSymbol) && cf.symbolFont < m_fonts.size() ? m_fonts.at(cf.symbolFont) : QString();
+            const QString runFont = fontName(cf);
+            const bool setInSymbols = isSymbolFont(runFont);
+            if (!piece.isEmpty() && !field && (!symbolFamily.isEmpty() || setInSymbols)) {
+                QTextCharFormat texty = fmt;
+                if (setInSymbols) texty.clearProperty(QTextFormat::FontFamilies);
+                // The characters in a row that are shown alike make one piece: as they are, in the text's own font, or in the symbol font's.
+                enum Look { Asis, Texty, Own };
+                QString held, heldFamily;
+                Look heldLook = Asis;
+                auto flush = [&] {
+                    if (held.isEmpty()) return;
+                    QTextCharFormat format = heldLook == Texty ? texty : fmt;
+                    if (heldLook == Own) format.setFontFamilies(QStringList{heldFamily});
+                    pieces.push_back({held, format});
+                    held.clear();
+                    ++m_pieces;
+                };
+                auto put = [&](const QString &text, Look look, const QString &family = QString()) {
+                    if (look != heldLook || family != heldFamily) flush();
+                    held += text;
+                    heldLook = look;
+                    heldFamily = family;
+                };
+                for (const QChar ch : std::as_const(piece)) {
+                    const ushort u = ch.unicode();
+                    const bool inPrivateUse = u >= 0xF020 && u <= 0xF0FF;
+                    // (Past the limit on pieces, the rest is as it stands.)
+                    const QString family = m_pieces >= kMaxTotalPieces ? QString()
+                                           : inPrivateUse && !symbolFamily.isEmpty() ? symbolFamily
+                                           : setInSymbols && (inPrivateUse || (u >= 0x20 && u <= 0xFF)) ? runFont : QString();
+                    const QString mapped = family.isEmpty() ? QString() : symbolTextToUnicode(family, u);
+                    if (!mapped.isEmpty()) put(mapped, Texty);
+                    else if (inPrivateUse && !family.isEmpty()) put(QString(ch), Own, family);
+                    else put(QString(ch), Asis);
+                }
+                flush();
+            } else if (!piece.isEmpty()) {
+                pieces.push_back({piece, fmt});
+            }
             pos = next;
         }
 
