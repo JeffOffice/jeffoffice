@@ -3,6 +3,7 @@
 
 #include "core/writedoc.h"
 
+#include "core/tablemodel.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -102,8 +103,25 @@ void WriteDoc::buildStory(const QVector<Block> &body)
     QHash<int, NumState> numbering;
     QHash<QString, ParaProps> baselines;
     QVector<Block> pending;   // body elements kept as XML that wait for the next paragraph
+    TableBuilder tables(m_flow.get(), m_wml.compatMode);
 
     for (const Block &blk : body) {
+        if (tables.isStructural(blk)) {
+            // The parts of a table (its start, rows, and cells) become the records of the cells that its paragraphs are given. What was kept after a cell's last
+            // paragraph goes after it; for a cell that ends in a table, with the cell.
+            if (blk.role == Inline::Close && blk.tag == QLatin1String("tc") && !pending.isEmpty()) {
+                if (c.blockFormat().intProperty(flow::fp::Cell) == tables.key() && tables.key() != 0) {
+                    QTextBlockFormat last = c.blockFormat();
+                    setStored(last, prop::RawAfter, packBlocks(pending));
+                    c.setBlockFormat(last);
+                } else {
+                    tables.addTail(pending);
+                }
+                pending.clear();
+            }
+            tables.take(blk, &pending);
+            continue;
+        }
         if (blk.isRaw) {
             if (blk.display.isEmpty()) {
                 pending.push_back(blk);
@@ -114,6 +132,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
             pf.setAlignment(Qt::AlignHCenter);
             pf.setTopMargin(6);
             pf.setBottomMargin(6);
+            if (tables.key()) pf.setProperty(flow::fp::Cell, tables.key());
             setStored(pf, prop::RawBlock, packBlocks({blk}));
             if (!pending.isEmpty()) {
                 setStored(pf, prop::RawBefore, packBlocks(pending));
@@ -151,6 +170,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         resolved.numId = numId;
         resolved.ilvl = level;
         QTextBlockFormat bf = blockFormatOf(resolved);
+        if (tables.key()) bf.setProperty(flow::fp::Cell, tables.key());
         if (!p.attrs.isEmpty()) setStored(bf, prop::ParaAttrs, p.attrs);
         // A paragraph that says it is numbered as its style says: that it said so is kept, for it changes whose indents win.
         if (numId > 0 && numberedByItself && base.numId.value_or(0) == numId) bf.setProperty(prop::NumDirect, true);

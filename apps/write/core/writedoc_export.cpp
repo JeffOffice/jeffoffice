@@ -4,6 +4,7 @@
 #include "core/writedoc.h"
 
 #include "core/editops.h"
+#include "core/tablemodel.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -19,16 +20,18 @@ using namespace jp::office::wml;
 
 namespace jp::write {
 
-void WriteDoc::exportBody(QVector<Block> *out)
+void WriteDoc::exportBody(QVector<Block> *out, QVector<TableExporter::Opened> *tablesOut)
 {
     QTextDocument *story = this->story();
     const StyleSheet &sheet = m_wml.styles;
     const QString defaultStyle = defaultParagraphStyle();
     int sectionIndex = 0;
     QHash<QString, ParaProps> baselines;
+    TableExporter tables(m_flow.get());
 
     for (QTextBlock b = story->begin(); b.isValid();) {
         const QTextBlockFormat bf = b.blockFormat();
+        tables.moveTo(bf.intProperty(flow::fp::Cell), out);   // (the end of the tables the paragraph is not in, and the start of those it is)
         if (bf.hasProperty(prop::RawBefore))
             for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawBefore))) out->push_back(r);
         if (bf.hasProperty(prop::RawBlock)) {
@@ -108,6 +111,8 @@ void WriteDoc::exportBody(QVector<Block> *out)
             for (const Block &r : unpackBlocks(storedBytes(lastFormat, prop::RawAfter))) out->push_back(r);
         b = b.next();
     }
+    tables.finish(out);
+    if (tablesOut) *tablesOut = tables.opened();
 }
 
 QByteArray WriteDoc::toDocx(QString *error, bool template_)
