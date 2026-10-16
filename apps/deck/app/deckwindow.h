@@ -28,7 +28,7 @@ class CommentsPane;
 class DeckCanvas;
 class DeckFileScreen;
 class Editor;
-class FindPane;
+class DeckFindPane;
 class FontCombo;
 class HelpView;
 class HelpWindow;
@@ -186,7 +186,7 @@ public:
     void showSlideContextMenu(const QPoint &global);
     // Find and Replace (Home > Editing, Ctrl+F and Ctrl+H): the pane on the right, with the cursor in Find what, or
     // in Replace with. (deckwindow_find.cpp)
-    FindPane *findPane() const { return m_find; }
+    DeckFindPane *findPane() const { return m_find; }
     void showFindPane(bool replace = false);
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
@@ -308,7 +308,7 @@ private:
     QDockWidget *m_onlineDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
-    FindPane *m_find = nullptr;
+    DeckFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
     bool m_menuOpen = false;   // the slide's right-click menu is up
     AnimationPane *m_animPane = nullptr;

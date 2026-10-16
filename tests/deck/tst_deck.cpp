@@ -12,7 +12,7 @@
 #include "app/deckwindow.h"
 #include "app/editor.h"
 #include "app/filescreen.h"
-#include "app/findpane.h"
+#include "app/deckfindpane.h"
 #include "app/help.h"
 #include "app/i18n.h"
 #include "app/editormedia.h"
@@ -27967,7 +27967,7 @@ private Q_SLOTS:
         fillFindDeck(w);
         Editor *ed = w.editor();
         w.showFindPane();
-        FindPane *pane = w.findPane();
+        DeckFindPane *pane = w.findPane();
         pane->findBox()->setText(QStringLiteral("review"));
         const QStringList all = {QStringLiteral("1:review@5"), QStringLiteral("2:review@3"), QStringLiteral("2:Review@21"), QStringLiteral("2:review@7 in the notes"),
                                  QStringLiteral("3:Review@0"), QStringLiteral("3:review@13"), QStringLiteral("3:review@5"), QStringLiteral("3:Review@0")};
@@ -28027,7 +28027,7 @@ private Q_SLOTS:
         fillFindDeck(w);
         Editor *ed = w.editor();
         w.showFindPane();
-        FindPane *pane = w.findPane();
+        DeckFindPane *pane = w.findPane();
         pane->findBox()->setText(QStringLiteral("review"));
         ed->setCurrentPage(2);
         QCOMPARE(findAll(w, 3), (QStringList{QStringLiteral("3:Review@0"), QStringLiteral("3:review@13"), QStringLiteral("3:review@5")}));
@@ -28055,7 +28055,7 @@ private Q_SLOTS:
         Editor *ed = w.editor();
         Document *d = ed->doc();
         w.showFindPane(true);
-        FindPane *pane = w.findPane();
+        DeckFindPane *pane = w.findPane();
         pane->findBox()->setText(QStringLiteral("review"));
         pane->replaceBox()->setText(QStringLiteral("audit"));
         const QString title = storyText(w, placeholderOfSlide(*d, 0, 0)->storyId);
@@ -28110,7 +28110,7 @@ private Q_SLOTS:
         Editor *ed = w.editor();
         Document *d = ed->doc();
         w.showFindPane(true);
-        FindPane *pane = w.findPane();
+        DeckFindPane *pane = w.findPane();
         pane->findBox()->setText(QStringLiteral("review"));
         pane->replaceBox()->setText(QStringLiteral("audit"));
         const int steps = ed->undoStack()->count();
@@ -28142,13 +28142,287 @@ private Q_SLOTS:
     {
         DeckWindow w;
         w.showFindPane();
-        FindPane *pane = w.findPane();
+        DeckFindPane *pane = w.findPane();
         for (QLineEdit *e : pane->findChildren<QLineEdit *>()) {
             QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(e);
             QVERIFY(iface);
             QVERIFY2(!iface->text(QAccessible::Name).trimmed().isEmpty(), qPrintable(e->objectName()));
         }
         for (QAbstractButton *b : pane->findChildren<QAbstractButton *>()) QVERIFY(!b->text().isEmpty());
+    }
+
+private:
+    // A real mouse click: pressed and let go on the slide at a point of the page, through the canvas.
+    static void clickSlide(DeckWindow &w, const QPointF &page, Qt::MouseButton button)
+    {
+        Canvas *cv = w.canvas();
+        const QPointF v = cv->pageToView(page);
+        QMouseEvent press(QEvent::MouseButtonPress, v, cv->viewport()->mapToGlobal(v.toPoint()), button, button, Qt::NoModifier);
+        QApplication::sendEvent(cv->viewport(), &press);
+        QMouseEvent release(QEvent::MouseButtonRelease, v, cv->viewport()->mapToGlobal(v.toPoint()), button, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(cv->viewport(), &release);
+    }
+    static QString longWords()
+    {
+        QString out;
+        for (int i = 0; i < 40; ++i) out += QStringLiteral("longer words ");
+        return out;
+    }
+
+private Q_SLOTS:
+    // Replace All fits what the new words need, as typing them would: a title a program had shrunk is fitted here from now on, a box that
+    // grows to fit grows, a table's rows grow; one Undo gives all of it back.
+    void replaceAllClearsAStoredShrinkAndRefitsBoxesAndTables()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        TextItem *title = placeholderOfSlide(*d, 0, 0);
+        QTextCursor(d->storyDoc(title->storyId)).insertText(QStringLiteral("review"));
+        title->autofit = TextItem::ShrinkOnOverflow;
+        title->fitAsStored = true;
+        title->fitScale = 0.8;
+        auto grow = std::make_shared<TextItem>();
+        grow->rect = QRectF(100, 300, 200, 30);
+        grow->storyId = d->createStory(QStringLiteral("review"));
+        grow->autofit = TextItem::GrowBox;
+        d->pages[0]->items.push_back(grow);
+        w.insertTable(1, 2);
+        auto *table = static_cast<TableItem *>(d->pages[0]->items.back().get());
+        QTextCursor(d->storyDoc(table->cells[0].storyId)).insertText(QStringLiteral("Review"));
+        ed->clearSelection();
+        ed->notifyLive();
+        ed->undoStack()->clear();
+        const double growHeight = grow->rect.height(), rowHeight = table->rowH[0];
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        pane->replaceBox()->setText(longWords());
+        pane->replaceAll();
+        QVERIFY(!title->fitAsStored);
+        QVERIFY2(grow->rect.height() > growHeight + 50, qPrintable(QString::number(grow->rect.height())));
+        QVERIFY2(table->rowH[0] > rowHeight + 50, qPrintable(QString::number(table->rowH[0])));
+        const double h = grow->rect.height(), r = table->rowH[0];
+        ed->autoGrowText(grow.get());
+        ed->fitTableRows(table);
+        QCOMPARE(grow->rect.height(), h);
+        QCOMPARE(table->rowH[0], r);
+        ed->undo();
+        d = ed->doc();
+        QVERIFY(placeholderOfSlide(*d, 0, 0)->fitAsStored);
+        QCOMPARE(d->pages[0]->items[2]->rect.height(), growHeight);
+        QCOMPARE(static_cast<TableItem *>(d->pages[0]->items[3].get())->rowH[0], rowHeight);
+    }
+
+    // Find reaches text in groups and on hidden slides, and Text Art words (shown by selecting the Text Art); the layouts and the
+    // slide master are the presentation's design, not its words, and are left alone.
+    void findReachesGroupsHiddenSlidesAndTextArtButNotLayouts()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 0)->storyId)).insertText(QStringLiteral("Plain review"));
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 1, 0)->storyId)).insertText(QStringLiteral("Hidden review"));
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 2, 0)->storyId)).insertText(QStringLiteral("Group review one"));
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 2, 1)->storyId)).insertText(QStringLiteral("Group review two"));
+        d->pages[1]->hidden = true;
+        auto art = std::make_shared<TextArtItem>();
+        art->rect = QRectF(100, 400, 300, 80);
+        art->text = QStringLiteral("Art review words");
+        d->pages[2]->items.push_back(art);
+        auto art2 = std::make_shared<TextArtItem>();
+        art2->rect = QRectF(100, 300, 300, 80);
+        art2->text = QStringLiteral("Second review art");
+        d->pages[2]->items.push_back(art2);
+        const QString artId = art->id, art2Id = art2->id;
+        // A word in a layout's prompt: not the presentation's.
+        QString layoutStory;
+        for (const auto &m : d->masters)
+            for (const auto &it : m->items)
+                if (it->type() == ItemType::Text && layoutStory.isEmpty()) layoutStory = static_cast<TextItem *>(it.get())->storyId;
+        QVERIFY(!layoutStory.isEmpty());
+        QTextCursor(d->storyDoc(layoutStory)).insertText(QStringLiteral(" review"));
+        ed->setCurrentPage(2);
+        ed->select(QStringList{placeholderOfSlide(*d, 2, 0)->id, placeholderOfSlide(*d, 2, 1)->id});
+        slideMenu(w);   // the commands are enabled as the selection allows
+        w.act(QStringLiteral("arr.group"))->trigger();
+        QCOMPARE(ed->selectionKind(), QStringLiteral("group"));
+        ed->clearSelection();
+        ed->setCurrentPage(0);
+        ed->notifyLive();
+        ed->undoStack()->clear();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        QCOMPARE(findAll(w, 4), (QStringList{QStringLiteral("1:review@6"), QStringLiteral("2:review@7"), QStringLiteral("3:review@6"), QStringLiteral("3:review@6")}));
+        QCOMPARE(ed->currentPage(), 2);
+        QVERIFY(ed->isEditingText());
+        // The Text Art is shown by selecting it, and Replace swaps its words; the next search goes on from there.
+        QVERIFY(pane->findNext());
+        QCOMPARE(ed->currentPage(), 2);
+        QVERIFY(!ed->isEditingText());
+        QCOMPARE(ed->selection(), QStringList{artId});
+        pane->replaceBox()->setText(QStringLiteral("audit"));
+        pane->replaceOne();
+        QCOMPARE(static_cast<TextArtItem *>(ed->doc()->item(artId))->text, QStringLiteral("Art audit words"));
+        QCOMPARE(ed->selection(), QStringList{art2Id});   // on to the second
+        // Replace All: the group's, the hidden slide's, the first slide's, and the other Text Art's, but not the layout's.
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffDeck made 5 replacements."));
+        d = ed->doc();
+        QVERIFY(storyText(w, layoutStory).contains(QStringLiteral(" review")));
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 1, 0)->storyId), QStringLiteral("Hidden audit"));
+        QCOMPARE(static_cast<TextArtItem *>(d->item(art2Id))->text, QStringLiteral("Second audit art"));
+        ed->undo();
+        QCOMPARE(static_cast<TextArtItem *>(ed->doc()->item(art2Id))->text, QStringLiteral("Second review art"));
+        QCOMPARE(static_cast<TextArtItem *>(ed->doc()->item(artId))->text, QStringLiteral("Art audit words"));
+        pane->findBox()->setText(QStringLiteral("review words"));
+        QVERIFY(!pane->findNext());
+        pane->findBox()->setText(QStringLiteral("audit words"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(ed->selection(), QStringList{artId});
+    }
+
+    // The words that replace a match are not searched for again: after Replace the next match is the next one, and Replace All makes one pass.
+    void aReplacementThatHoldsTheSearchTextIsNotFoundAgain()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 0)->storyId)).insertText(QStringLiteral("cat and cat"));
+        QTextCursor(d->storyDoc(d->pages[0]->notesStoryId)).insertText(QStringLiteral("cat"));
+        ed->notifyLive();
+        ed->undoStack()->clear();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("concatenate"));
+        pane->replaceOne();
+        QCOMPARE(matchShown(w), QStringLiteral("1:cat@0"));
+        pane->replaceOne();
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 0, 0)->storyId), QStringLiteral("concatenate and cat"));
+        QCOMPARE(matchShown(w), QStringLiteral("1:cat@16"));
+        pane->replaceOne();
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 0, 0)->storyId), QStringLiteral("concatenate and concatenate"));
+        QCOMPARE(matchShown(w), QStringLiteral("1:cat@0 in the notes"));
+        pane->replaceOne();
+        QCOMPARE(deck::notesText(*d, *d->pages[0]), QStringLiteral("concatenate"));
+        ed->undo();
+        ed->undo();
+        ed->undo();
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffDeck made 3 replacements."));
+        QCOMPARE(storyText(w, placeholderOfSlide(*ed->doc(), 0, 0)->storyId), QStringLiteral("concatenate and concatenate"));
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("concatenate"));
+    }
+
+    // Two matches in one notes box are both found, in order, and Replace on the first leaves the second to be found where it moved to.
+    void twoMatchesInOneNotesBoxAreBothFound()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(d->pages[0]->notesStoryId)).insertText(QStringLiteral("review one and review two"));
+        ed->notifyLive();
+        ed->undoStack()->clear();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        QCOMPARE(findAll(w, 3), (QStringList{QStringLiteral("1:review@0 in the notes"), QStringLiteral("1:review@15 in the notes"), QStringLiteral("1:review@0 in the notes")}));
+        pane->replaceBox()->setText(QStringLiteral("audit"));
+        pane->replaceOne();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("audit one and review two"));
+        QCOMPARE(matchShown(w), QStringLiteral("1:review@14 in the notes"));
+        pane->replaceOne();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("audit one and audit two"));
+        QVERIFY(!pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("was not found")), qPrintable(pane->status()));
+    }
+
+    // A real right click (pressed and let go on the slide, not a menu request made up in the test) selects the object it is on, keeps the
+    // objects selected together when it is on one of them, and clears the selection on the bare slide.
+    void aRightClickSelectsTheObjectUnderIt()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 0)->storyId)).insertText(QStringLiteral("Title words"));
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 1)->storyId)).insertText(QStringLiteral("Subtitle words"));
+        ed->notifyLive();
+        QApplication::processEvents();
+        const QString titleId = placeholderOfSlide(*d, 0, 0)->id, subId = placeholderOfSlide(*d, 0, 1)->id;
+        const QPointF titleAt = placeholderOfSlide(*d, 0, 0)->bounds().center(), subAt = placeholderOfSlide(*d, 0, 1)->bounds().center();
+        ed->select(titleId);
+        clickSlide(w, subAt, Qt::RightButton);
+        QCOMPARE(ed->selection(), QStringList{subId});
+        QVERIFY(slideMenu(w).contains(QStringLiteral("edit.cut")));
+        // On one of two selected objects, both stay selected.
+        ed->select(QStringList{titleId, subId});
+        clickSlide(w, titleAt, Qt::RightButton);
+        QCOMPARE(ed->selection().size(), 2);
+        QVERIFY(slideMenu(w).contains(QStringLiteral("arr.group")));
+        // On the bare slide, nothing is selected.
+        clickSlide(w, QPointF(5, 5), Qt::RightButton);
+        QVERIFY(ed->selection().isEmpty());
+        QVERIFY(slideMenu(w).contains(QStringLiteral("slide.reset")));
+    }
+
+    // A right click on the bare slide while typing ends the typing, so the menu is the slide's; on the text being typed in, it stays.
+    void aRightClickOnTheBareSlideWhileTypingEndsTheTyping()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 0)->storyId)).insertText(QStringLiteral("Title words"));
+        ed->notifyLive();
+        QApplication::processEvents();
+        const QString titleId = placeholderOfSlide(*d, 0, 0)->id;
+        const QPointF titleAt = placeholderOfSlide(*d, 0, 0)->bounds().center();
+        ed->beginTextEdit(titleId);
+        clickSlide(w, titleAt, Qt::RightButton);
+        QVERIFY(ed->isEditingText());
+        QVERIFY(slideMenu(w).contains(QStringLiteral("fmt.fontDialog")));
+        clickSlide(w, QPointF(5, 5), Qt::RightButton);
+        QVERIFY(!ed->isEditingText());
+        QVERIFY(ed->selection().isEmpty());
+        const QStringList ids = slideMenu(w);
+        QVERIFY2(ids.contains(QStringLiteral("slide.reset")) && !ids.contains(QStringLiteral("fmt.fontDialog")), qPrintable(ids.join(QLatin1Char(' '))));
+    }
+
+    // The pane's message is plain text, and a long search text can't stretch the pane: it is cut short and may break anywhere.
+    void findPaneMessageIsPlainTextAndNarrow()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        QLabel *status = pane->findChild<QLabel *>(QStringLiteral("findStatus"));
+        QVERIFY(status);
+        pane->findBox()->setText(QStringLiteral("<b>x"));
+        pane->findNext();
+        QCOMPARE(status->textFormat(), Qt::PlainText);
+        QVERIFY2(pane->status().contains(QStringLiteral("\"<b>x\" was not found")), qPrintable(pane->status()));
+        pane->findBox()->setText(QString(120, QLatin1Char('x')));
+        pane->findNext();
+        QVERIFY2(pane->status().size() < 200, qPrintable(QString::number(pane->status().size())));
+        QVERIFY2(status->minimumSizeHint().width() < 300, qPrintable(QString::number(status->minimumSizeHint().width())));
+        pane->replaceBox()->setText(QStringLiteral("y"));
+        pane->replaceAll();
+        QVERIFY2(pane->status().size() < 200, qPrintable(QString::number(pane->status().size())));
+        QVERIFY2(status->minimumSizeHint().width() < 300, qPrintable(QString::number(status->minimumSizeHint().width())));
     }
 };
 

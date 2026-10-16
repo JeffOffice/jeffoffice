@@ -177,7 +177,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **later** Shape Effects: bevel and 3-D rotation, which are not drawn yet *(ours 1 of 19)*
 
 ### Editing
-- [x] **1.0** Find (Ctrl+F) in slide text, tables, shapes, and notes, with whole word and match case *(Home > Editing > Find opens a Find and Replace pane on the right; it searches every slide in order from the current one, shows each match on its slide, and can leave the notes out; the search is shared with JeffPub in libs/page/app/findreplace)*
+- [x] **1.0** Find (Ctrl+F) in slide text, tables, shapes, Text Art, and notes, with whole word and match case *(Home > Editing > Find opens a Find and Replace pane on the right; it searches every slide in order from the current one, shows each match on its slide, and can leave the notes out; the search is shared with JeffPub in libs/page/app/findreplace)*
 - [x] **1.0** Replace (Ctrl+H), one match at a time or Replace All as one undo step that says how many it changed
 - [ ] **1.0** Replace Fonts
 - [x] **1.0** Select All (Ctrl+A) in an object, on a slide, and in the Slide Sorter

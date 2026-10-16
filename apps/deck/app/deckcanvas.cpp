@@ -70,6 +70,8 @@ QString DeckCanvas::commentAt(const QPointF &view) const
 void DeckCanvas::mousePressEvent(QMouseEvent *e)
 {
     if (m_media->press(e)) return;
+    // A right click on the bare slide while typing is the slide's: it ends the typing, so that the menu is the slide's, not the text's.
+    if (e->button() == Qt::RightButton && editor()->isEditingText() && hitTest(e->position()).kind == HitKind::None) editor()->endTextEdit();
     const QString id = e->button() == Qt::LeftButton ? commentAt(e->position()) : QString();
     if (id.isEmpty()) {
         Canvas::mousePressEvent(e);

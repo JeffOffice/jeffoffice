@@ -1,4 +1,4 @@
-#include "app/findpane.h"
+#include "app/deckfindpane.h"
 
 #include "app/deckwindow.h"
 #include "app/editor.h"
@@ -15,7 +15,7 @@
 
 namespace jp {
 
-FindPane::FindPane(DeckWindow *win, QWidget *parent) : QWidget(parent), m_win(win)
+DeckFindPane::DeckFindPane(DeckWindow *win, QWidget *parent) : QWidget(parent), m_win(win)
 {
     setObjectName(QStringLiteral("findPane"));
     auto *v = new QVBoxLayout(this);
@@ -50,6 +50,7 @@ FindPane::FindPane(DeckWindow *win, QWidget *parent) : QWidget(parent), m_win(wi
     v->addLayout(row);
     m_status = new QLabel(this);
     m_status->setObjectName(QStringLiteral("findStatus"));
+    m_status->setTextFormat(Qt::PlainText);   // it says what was searched for, which may look like markup
     m_status->setWordWrap(true);
     v->addWidget(m_status);
     v->addStretch(1);
@@ -60,16 +61,16 @@ FindPane::FindPane(DeckWindow *win, QWidget *parent) : QWidget(parent), m_win(wi
     setMinimumWidth(240);
 }
 
-void FindPane::focusBox(bool replace)
+void DeckFindPane::focusBox(bool replace)
 {
     QLineEdit *box = replace ? m_replace : m_find;
     box->setFocus(Qt::OtherFocusReason);
     box->selectAll();
 }
 
-QString FindPane::status() const { return m_status->text(); }
+QString DeckFindPane::status() const { return m_status->text(); }
 
-QTextDocument::FindFlags FindPane::flags() const
+QTextDocument::FindFlags DeckFindPane::flags() const
 {
     QTextDocument::FindFlags f;
     if (m_case->isChecked()) f |= QTextDocument::FindCaseSensitively;
@@ -77,17 +78,18 @@ QTextDocument::FindFlags FindPane::flags() const
     return f;
 }
 
-FindScope FindPane::scope(int firstPage) const
+FindScope DeckFindPane::scope(int firstPage) const
 {
     FindScope s;
     s.masters = false;   // the layouts' prompts are not the presentation's words
     s.notes = m_notes->isChecked();
     s.firstPage = firstPage;
+    s.textArt = true;
     return s;
 }
 
 // Whether the last match was in the notes of the slide being edited and their cursor has stayed where it ended.
-bool FindPane::notesMatchShown() const
+bool DeckFindPane::notesMatchShown() const
 {
     Editor *ed = m_win->editor();
     if (m_noteStory.isEmpty() || ed->isEditingText()) return false;
@@ -96,12 +98,27 @@ bool FindPane::notesMatchShown() const
     return page >= 0 && page < d->pages.size() && d->pages[page]->notesStoryId == m_noteStory && m_win->notesPane()->textCursor().selectionEnd() == m_noteEnd;
 }
 
-void FindPane::showMatch(const FindStory &story, const QTextCursor &found)
+// Whether the last match was the words of a Text Art, which is still the one thing selected on its slide.
+bool DeckFindPane::artMatchShown() const
+{
+    Editor *ed = m_win->editor();
+    if (m_artItem.isEmpty() || ed->isEditingText() || ed->selection() != QStringList{m_artItem}) return false;
+    return ed->doc()->find(m_artItem).page == ed->currentPage() && dynamic_cast<TextArtItem *>(ed->doc()->item(m_artItem));
+}
+
+void DeckFindPane::showMatch(const FindStory &story, const QTextCursor &found)
 {
     if (m_win->view() == DeckWindow::View::Sorter) m_win->setView(DeckWindow::View::Normal);
     Editor *ed = m_win->editor();
     showFindMatch(ed, story, found);
     m_noteStory.clear();
+    m_artItem.clear();
+    if (story.art) {
+        m_artItem = story.itemId;
+        m_artStart = found.selectionStart();
+        m_artEnd = found.selectionEnd();
+        return;
+    }
     if (!story.notes) return;
     // The notes are a box under the slide, not part of it: open them and select the match there.
     ed->endTextEdit();
@@ -118,7 +135,7 @@ void FindPane::showMatch(const FindStory &story, const QTextCursor &found)
     m_noteEnd = found.selectionEnd();
 }
 
-bool FindPane::findNext()
+bool DeckFindPane::findNext()
 {
     Editor *ed = m_win->editor();
     const QString q = m_find->text();
@@ -139,6 +156,10 @@ bool FindPane::findNext()
         for (int i = 0; i < all.size(); ++i)
             if (all[i].storyId == m_noteStory) { start = i; break; }
         pos = m_noteEnd;
+    } else if (artMatchShown()) {
+        for (int i = 0; i < all.size(); ++i)
+            if (all[i].art && all[i].itemId == m_artItem) { start = i; break; }
+        pos = m_artEnd;
     }
     int story = 0;
     QTextCursor found;
@@ -147,11 +168,11 @@ bool FindPane::findNext()
         m_status->clear();
         return true;
     }
-    m_status->setText(tr("JeffDeck finished searching the presentation. \"%1\" was not found.").arg(q));
+    m_status->setText(tr("JeffDeck finished searching the presentation. \"%1\" was not found.").arg(findTextForMessage(q)));
     return false;
 }
 
-void FindPane::replaceOne()
+void DeckFindPane::replaceOne()
 {
     Editor *ed = m_win->editor();
     const Qt::CaseSensitivity cs = m_case->isChecked() ? Qt::CaseSensitive : Qt::CaseInsensitive;
@@ -175,11 +196,15 @@ void FindPane::replaceOne()
             notes->setTextCursor(after);
             m_noteEnd = after.position();
         }
+    } else if (artMatchShown()) {
+        bool done = false;
+        ed->change(tr("Replace"), [&] { done = replaceArtWords(*ed->doc(), m_artItem, m_artStart, m_artEnd, m_find->text(), cs, m_replace->text()); });
+        if (done) m_artEnd = m_artStart + int(m_replace->text().size());
     }
     findNext();
 }
 
-void FindPane::replaceAll()
+void DeckFindPane::replaceAll()
 {
     Editor *ed = m_win->editor();
     const QString q = m_find->text();
@@ -188,9 +213,17 @@ void FindPane::replaceAll()
     if (m_win->outlineView()) m_win->outlineView()->commit();
     ed->endTextEdit();
     m_noteStory.clear();
+    m_artItem.clear();
     int n = 0;
-    ed->change(tr("Replace All"), [&] { n = replaceInStories(*ed->doc(), findStories(*ed->doc(), scope(0)), q, flags(), m_replace->text()); });
-    m_status->setText(n == 0   ? tr("JeffDeck made no replacements. \"%1\" was not found.").arg(q)
+    ed->change(tr("Replace All"), [&] {
+        QVector<FindStory> changed;
+        n = replaceInStories(*ed->doc(), findStories(*ed->doc(), scope(0)), q, flags(), m_replace->text(), &changed);
+        refitFoundStories(ed, changed);
+        // Words a program shrank to fit are not kept at that size once they change: the box is fitted here from now on.
+        for (const FindStory &story : changed)
+            if (Item *it = story.itemId.isEmpty() ? nullptr : ed->doc()->item(story.itemId); it && it->type() == ItemType::Text) static_cast<TextItem *>(it)->fitAsStored = false;
+    });
+    m_status->setText(n == 0   ? tr("JeffDeck made no replacements. \"%1\" was not found.").arg(findTextForMessage(q))
                       : n == 1 ? tr("JeffDeck made 1 replacement.")
                                : tr("JeffDeck made %1 replacements.").arg(n));
 }
