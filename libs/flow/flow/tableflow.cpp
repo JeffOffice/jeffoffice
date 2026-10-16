@@ -649,19 +649,18 @@ QVector<NoteRef> TableLayout::rowNotes(int r)
     return out;
 }
 
-TableLayout::Piece TableLayout::pieceOf(int r, int index, const Rooms &rooms, double roomHere, bool force)
+TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> &from, double room, bool ruleNeeded, double ruleGap, bool force)
 {
     constexpr double kEnd = 1e18;
     Piece piece;
     const Row &row = m_rows[size_t(r)];
     const int n = row.cells, k = std::clamp(index, 0, kMostParts - 1);
+    const QVector<double> offs = from.size() == n ? from : QVector<double>(n, 0.0);
     std::vector<std::shared_ptr<const Units>> units(static_cast<size_t>(n));
     const bool anyNotes = m_noteHeight && rowHasNotes(r);
     for (int i = 0; i < n; ++i)
         if (!m_cells[size_t(row.cell0 + i)].covered) units[size_t(i)] = unitsOf(row.cell0 + i);
-    // The room of the j-th part: the first has its own, those after it the page's by whether its number is odd or even, and the one asked for the page it is on.
-    auto avail = [&](int j) { return j == k && k > 0 ? roomHere : j == 0 ? rooms.first : rooms.full[(rooms.firstParity + j) & 1]; };
-    // The part that begins at `offs` (each cell's place) as the j-th: where the next begins, whether any cell has a line in it, whether any has lines left, and the
+    // The part that begins at `offs` (each cell's place): where the next begins, whether any cell has a line in it, whether any has lines left, and the
     // notes its lines cite (they take room at the page's foot, which the lines have less of).
     struct Step {
         QVector<double> next;
@@ -669,10 +668,9 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const Rooms &rooms, do
         double avail = 0, noteHeight = 0;
         QVector<NoteRef> notes;
     };
-    auto stepFrom = [&](int j, const QVector<double> &offs) {
+    auto stepFrom = [&]() {
         Step st;
-        st.avail = avail(j);
-        const bool ruleNeeded = !(j == 0 && rooms.ruleAbove);
+        st.avail = room;
         double reserved = 0;
         // (The notes need room, which takes from the lines', which may cite other notes: so it goes round until the notes are the room's.)
         for (int pass = 0; pass < 8; ++pass) {
@@ -698,7 +696,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const Rooms &rooms, do
                 st.more |= b < int(lines.size());
             }
             // A part at the top of a page has a line of each cell that has one left, however tall: a row taller than a page ends.
-            const bool forced = !st.progress && st.more && (force || j > 0);
+            const bool forced = !st.progress && st.more && (force || k > 0);
             if (forced) {
                 st.more = false;
                 for (int i = 0; i < n; ++i) {
@@ -721,7 +719,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const Rooms &rooms, do
             }
             double h = 0;
             for (const NoteRef &nr : std::as_const(notes)) h += m_noteHeight(nr.id);
-            if (!notes.isEmpty() && ruleNeeded) h += rooms.ruleGap;
+            if (!notes.isEmpty() && ruleNeeded) h += ruleGap;
             std::sort(notes.begin(), notes.end(), [](const NoteRef &a, const NoteRef &b) { return a.number != b.number ? a.number < b.number : a.pos < b.pos; });
             st.notes = notes;
             st.noteHeight = h;
@@ -730,17 +728,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const Rooms &rooms, do
         }
         return st;
     };
-    // Where the part begins, from where the one before did (the parts before it, found once for the rooms the row has).
-    const std::array<int, 7> key{r, std::clamp(int(std::lround(rooms.first * 20)), 0, 1 << 24), std::clamp(int(std::lround(rooms.full[0] * 20)), 0, 1 << 24), std::clamp(int(std::lround(rooms.full[1] * 20)), 0, 1 << 24),
-                                 rooms.firstParity & 1, rooms.ruleAbove ? 1 : 0, std::clamp(int(std::lround(rooms.ruleGap * 20)), 0, 1 << 24)};
-    std::vector<QVector<double>> &starts = m_partStarts[key];
-    if (starts.empty()) starts.push_back(QVector<double>(n, 0.0));
-    while (int(starts.size()) <= k) {
-        const int j = int(starts.size()) - 1;
-        starts.push_back(stepFrom(j, starts[size_t(j)]).next);
-    }
-    const QVector<double> offs = starts[size_t(k)];
-    Step st = stepFrom(k, offs);
+    Step st = stepFrom();
     if (k >= kMostParts - 1) st.more = false;   // (the part the parts end in has all that is left)
     piece.progress = st.progress;
     piece.offsets = offs;

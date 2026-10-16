@@ -68,9 +68,10 @@ public:
         // on the one before: space before its first paragraph is kept.
         bool hard = true;
         int section = 0;
-        // A page that starts in the middle of a row of a table that goes over the break: which part of the row it starts with (the number of the part, from 1), and the room
-        // the row's first part had, in twentieths of a point (the later parts are found from it).
-        int piece = 0, pieceRoom = 0;
+        // A page that starts in the middle of a row of a table that goes over the break: which part of the row it starts with (the number of the part, from 1), and where in
+        // each of the row's cells (how far down its content) the part begins.
+        int piece = 0;
+        QVector<double> pieceAt;
         // The footnotes and endnotes before the page's first paragraph (the numbers its own go on from), and the footnotes cut at the foot of the page
         // before, each as "story|number|from".
         int foot = 0, end = 0;
@@ -78,7 +79,7 @@ public:
         // The page is the first of its section (the one before began in another): the section's first page can have headers and footers of its own, which a page
         // is laid out with.
         bool firstOfSection = false;
-        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceRoom == o.pieceRoom && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection; }
+        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceAt == o.pieceAt && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 
@@ -170,16 +171,10 @@ private:
     // How tall the note is when set in a column `width` wide (its story is the document's `fields`').
     double noteHeight(const QString &id, double width);
     std::map<std::tuple<QString, int, int>, double> m_noteHeights;   // by note, the width in hundredths of a point, and its story's revision
-    // What the pages that a row of a table is in parts on have for it (TableLayout::Rooms): `section` is the table's, `numberOfFirst` the number of the page the row begins on, `first` the
-    // room its first part has (the room's twentieths and whether notes are above it are what a page that starts in the row has, as PageStart::pieceRoom).
-    TableLayout::Rooms partRooms(TableLayout &table, int row, int section, int numberOfFirst, double first, bool ruleAbove, double ruleGap);
-    static int roomOfPart(double firstRoom, bool ruleAbove) { return int(std::lround(firstRoom * 20)) | (ruleAbove ? 1 << 30 : 0); }
-    static double firstOfRoom(int stored) { return (stored & ((1 << 30) - 1)) / 20.0; }
-    static bool ruleAboveOfRoom(int stored) { return (stored >> 30) & 1; }
-    // The section a position is in on the page that starts with `st`.
-    int sectionAt(const PageStart &st, int position) const;
     double m_ruleGap = 0;   // the gap above a page's notes (the last the text engine said)
-    int m_roomOut = 0;   // the room the first part of the row that goes on to the next page had (twentieths of a point), as the last lines of a page left it
+    QVector<double> m_offsOut;   // where in the row's cells the part that begins the next page starts, as the last lines of a page left it
+    // The parts of row `row` of the table `span` that page `index` shows (the page laid out again).
+    std::vector<TableLayout::Piece> partsOnPage(int index, int span, int row);
     std::vector<TableGroup> tableGroups(const QVector<StoryLayout::LineBrief> &lines, int kept, int firstFrame);
     bool tablePlaceholder(QTextCursor &dst, QTextBlock &b, bool first, const std::vector<TableGroup> &groups) const;
     QTextBlock lastBlockWithTables(const QVector<StoryLayout::LineBrief> &lines, int kept, const std::vector<TableGroup> &groups) const;

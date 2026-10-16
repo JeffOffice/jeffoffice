@@ -402,7 +402,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.next.skip = L[c].line;
         if (m_tables->any() && m_tables->index().spanAt(L[c].pos) >= 0) {   // (a row of a table: the line's number is the part of it)
             run.next.piece = L[c].line;
-            run.next.pieceRoom = L[c].line != 0 ? m_roomOut : 0;
+            run.next.pieceAt = L[c].line != 0 ? m_offsOut : QVector<double>();
             run.next.skip = 0;
         }
         run.next.hard = hard;
@@ -431,6 +431,17 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.next.firstOfSection = run.next.section != st.section;
     }
     return run;
+}
+
+std::vector<TableLayout::Piece> Paginator::partsOnPage(int index, int span, int row)
+{
+    std::vector<TableLayout::Piece> out;
+    if (index < 0 || index >= m_starts.size()) return out;
+    const Run run = layoutPage(index, m_starts[index]);
+    for (const TableGroup &g : run.groups)
+        for (const TableFragment::Part &part : g.parts)
+            if (g.span == span && part.row == row) out.push_back(part.piece);
+    return out;
 }
 
 bool Paginator::restartsNotesAt(const QTextBlock &block) const
@@ -662,7 +673,7 @@ void Paginator::settleStep()
     auto goneAt = [&](const PageStart &e) {
         if (e.pos != next.pos) return e.pos < next.pos;
         if (e == next) return false;
-        return next.piece == 0 ? e.piece != 0 : (e.piece == 0 || e.pieceRoom != next.pieceRoom || e.piece < next.piece);
+        return next.piece == 0 ? e.piece != 0 : (e.piece == 0 || e.pieceAt != next.pieceAt || e.piece < next.piece);
     };
     while (i < m_starts.size() && goneAt(m_starts[i])) ++i;
     const int gone = i - (k + 1);

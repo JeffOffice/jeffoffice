@@ -196,8 +196,8 @@ public:
     std::shared_ptr<CellContent> contentOf(const Cell &c) const { return contentFor(c, true); }
 
     // A row that goes over a page break is shown a part at a time: each cell's lines that fit the page, and the rest on the next, as a word processor sets a row that
-    // may be split. A part is told by its number: 0 for the row whole or the part at its top, else the number of the part (1 and up), which is found again from the
-    // room the first part had.
+    // may be split. A part is told by its number: 0 for the row whole or the part at its top, else the number of the part (1 and up), and the page that starts with it
+    // says where in the cells it begins.
     struct Piece {
         double height = 0;                  // as tall as its room when more of the row comes after it, else as the cells that are left need
         QVector<double> offsets;            // for each cell of the row: how far down its content the part begins (from the top of the cell's text area)
@@ -215,19 +215,11 @@ public:
     double lineTopIn(int cell, int position) const;
     // Whether row `r` can go over a page break: not one that says it can't, one of an exact height, or one with cells joined down in it (or covered by those).
     bool splittable(int r) const;
-    // Part number `index` of row `r`: when it is the first, `room` is the most it may take; else `first` is what the first part had, and `fullRoom` is what each later part may
-    // (a page less the header rows). A part at the top of a page is given a line of each cell even if none fits (`force`), so that a row taller than a page ends.
-    // What the pages that a row is in parts on have for it: the room of the first part, that of each later part (by whether the page's number is odd or even, as a
-    // section's headers of other heights for each make them other), the room of the part asked for (the page it is on now), and what the notes cited in the row take: the
-    // rule above them, which the first part's page may have already.
-    struct Rooms {
-        double first = 0;
-        double full[2] = {0, 0};
-        int firstParity = 0;                // the first part's page's number, odd or even (1 or 0)
-        double ruleGap = 0;
-        bool ruleAbove = false;             // the first part's page has notes above it already: no rule is needed for these
-    };
-    Piece pieceOf(int r, int index, const Rooms &rooms, double roomHere, bool force);
+    // The part of row `r` that is number `index` and begins at `from` (for each cell of the row, how far down its content: empty for the first part, at the top): the lines
+    // of each cell that fit `room` (what the page has for it, the notes already at its foot taken out), the notes its lines cite, and where the next part begins (`ends`). The
+    // notes take room at the page's foot, with a rule above them (`ruleGap`) when the page has none yet (`ruleNeeded`). A part at the top of a page is given a line of each
+    // cell even if none fits (`force`), so that a row taller than a page ends.
+    Piece pieceOf(int r, int index, const QVector<double> &from, double room, bool ruleNeeded, double ruleGap, bool force);
     // How tall a note is when set at the column's width (set by the paginator, which has the notes' stories), for the room a part's notes take.
     void setNoteHeights(std::function<double(const QString &)> height) { m_noteHeight = std::move(height); }
     // The notes cited by the lines of the row's cells (the cells that begin in it), in order.
@@ -257,8 +249,6 @@ private:
     };
     std::shared_ptr<const Units> unitsOf(int cell);
     QHash<int, std::shared_ptr<const Units>> m_units;
-    // Where each part of a row begins, by the rows' rooms (a part is found from the one before it: parts are asked for in order).
-    std::map<std::array<int, 7>, std::vector<QVector<double>>> m_partStarts;
     std::function<double(const QString &)> m_noteHeight;
 };
 
