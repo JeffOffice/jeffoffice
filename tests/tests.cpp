@@ -14787,9 +14787,10 @@ private Q_SLOTS:
             }
             return best;
         };
-        const qint64 small = timeFor(600), big = timeFor(2400);
+        // Eight times the pages: linear work grows about 8 times (more with caches spilling), the old quadratic walk 64 times.
+        const qint64 small = timeFor(500), big = timeFor(4000);
         QVERIFY(small > 0 && big > 0);
-        QVERIFY2(big < small * 9, qPrintable(QStringLiteral("600 pages: %1 us, 2400 pages: %2 us").arg(small / 1000).arg(big / 1000)));
+        QVERIFY2(big < small * 24, qPrintable(QStringLiteral("500 pages: %1 us, 4000 pages: %2 us").arg(small / 1000).arg(big / 1000)));
     }
 
     // A Text Art's words are searched when the scope says so (not for JeffPub, whose pane does not follow a match into one): found,
