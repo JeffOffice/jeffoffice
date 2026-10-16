@@ -85,6 +85,8 @@ enum : int {
     OutOfFlow,                                   // bool: a paragraph set where the next one begins and taking no room (a word processor's frame beside the text); LayoutEnv::wordLines
     Borders,                                     // QString: the paragraph's borders and shading (ParaBox::spec), drawn by LayoutEnv::wordLines text
     BorderTopOff,                                // bool: the paragraph is the rest of one a page began, or one whose box the page before began (no top border)
+    SpaceBeforeAuto,                             // bool: the space before is a word processor's automatic spacing (14 points), not the top margin (LayoutEnv::wordLines)
+    SpaceAfterAuto,                              // bool: the same for the space after
     BorderBottomOff,                             // bool: the paragraph's box goes on after it, on the next page (no bottom border)
 };
 

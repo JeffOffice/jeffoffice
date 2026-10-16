@@ -2301,6 +2301,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             before = slideSpaceOf(b, tp::SpaceBeforeShare, env.fontScale);
             after = slideSpaceOf(b, tp::SpaceAfterShare, env.fontScale);
         }
+        // A word processor's automatic spacing (a paragraph from a web page) is a fixed 14 points.
+        if (env.wordLines) {
+            // (Between two items of a list there is none.)
+            const bool item = b.textList() != nullptr;
+            if (bf.boolProperty(tp::SpaceBeforeAuto) && (!tail || m_span.spaceBeforeContinued)) before = item && b.previous().isValid() && b.previous().textList() ? 0.0 : 14 * scale;
+            if (bf.boolProperty(tp::SpaceAfterAuto)) after = item && b.next().isValid() && b.next().textList() ? 0.0 : 14 * scale;
+        }
 
         // List marker.
         double markerW = 0, markerSingle = 0;
@@ -2458,7 +2465,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             }
             if (startNext && f < nF) advance();
             if (f < nF && y > 0) y += env.wordLines ? std::max(0.0, before - prevAfter) : before;
-            else if (f < nF && !env.slideLines && !(first && !m_span.spaceBeforeFirst)) y += before;  // space before also applies at the top of a frame (not a slide's)
+            else if (f < nF && !env.slideLines && !(first && !m_span.spaceBeforeFirst)) y += env.wordLines && bf.boolProperty(tp::SpaceBeforeAuto) ? 0.0 : before;  // space before also applies at the top of a frame (not a slide's, nor a word processor's automatic)
             if (f < nF) y += B->boxTopRoom;   // (the line above a paragraph's text)
             // A raised cap rises above the first line: room for it.
             if (f < nF && B->dropUp && !B->dropText.isEmpty())

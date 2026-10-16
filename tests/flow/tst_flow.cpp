@@ -1651,6 +1651,54 @@ private Q_SLOTS:
         QVERIFY(plain.lineInfo(0)[0].text.contains(QStringLiteral("hidden codes")));
     }
 
+    // Automatic space before and after (a paragraph from a web page) is 14 points, whatever the margins say.
+    void automaticSpaceIsFourteenPoints()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}, {tnr, 12}}, [](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(5);
+            bf.setBottomMargin(5);
+            if (i == 1) {
+                bf.setProperty(tp::SpaceBeforeAuto, true);
+                bf.setProperty(tp::SpaceAfterAuto, true);
+            }
+        });
+        // The first's space after (5) and the second's automatic before (14): the larger; then its automatic after and the third's before (5).
+        QVERIFY(std::abs((lines[1].rect.top() - lines[0].rect.bottom()) - 14) < 0.01);
+        QVERIFY(std::abs((lines[2].rect.top() - lines[1].rect.bottom()) - 14) < 0.01);
+        // Between two items of a list, none; before the first and after the last, the automatic space.
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({tnr});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setProperty(tp::SpaceBeforeAuto, true);
+        bf.setProperty(tp::SpaceAfterAuto, true);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("intro"), run);
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        QTextList *list = nullptr;
+        for (int i = 0; i < 3; ++i) {
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("item"), run);
+            if (i == 0) list = c.createList(lf); else list->add(c.block());
+        }
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("outro"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 700)}, env);
+        const auto all = lay.lineInfo(0);
+        QCOMPARE(all.size(), 5);
+        QVERIFY(std::abs((all[1].rect.top() - all[0].rect.bottom()) - 14) < 0.01);
+        QVERIFY(std::abs((all[2].rect.top() - all[1].rect.bottom())) < 0.01);
+        QVERIFY(std::abs((all[3].rect.top() - all[2].rect.bottom())) < 0.01);
+        QVERIFY(std::abs((all[4].rect.top() - all[3].rect.bottom()) - 14) < 0.01);
+    }
+
     // The space between two paragraphs is the larger of the first's space after and the second's space before, not their sum; a paragraph that asks
     // for contextual spacing has none between it and a paragraph of its own style.
     void wordSpaceBetweenParagraphsIsTheLarger()
