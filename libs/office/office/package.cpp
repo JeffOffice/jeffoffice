@@ -477,11 +477,13 @@ void PackageWriter::addPart(const QString &name, const QByteArray &data, const Q
         qWarning("PackageWriter: \"%s\" is not a usable part name; the part was left out", qPrintable(name));
         return;
     }
-    for (Part &p : m_parts)
-        if (p.name.compare(name, Qt::CaseInsensitive) == 0) {
-            p = Part{name, data, contentType};
-            return;
-        }
+    const QString key = name.toLower();
+    const auto at = m_partAt.constFind(key);
+    if (at != m_partAt.cend()) {
+        m_parts[*at] = Part{name, data, contentType};
+        return;
+    }
+    m_partAt.insert(key, int(m_parts.size()));
     m_parts.append(Part{name, data, contentType});
 }
 
@@ -494,14 +496,19 @@ QString PackageWriter::addRelationship(const QString &source, const QString &typ
 {
     const QString from = source.isEmpty() ? QStringLiteral("/") : source;
     QVector<Relationship> &links = m_rels[from];
+    QSet<QString> &ids = m_relIds[from];
     Relationship r;
-    // (The next number no link of the source has, which is the count plus one unless links came with Ids of their own.)
-    for (int n = int(links.size()) + 1;; ++n) {
+    // (The next number no link of the source has, which is the count plus one unless links came with Ids of their own; where the last was found
+    // is where to look from, so that adding links takes time in proportion to how many there are.)
+    int &next = m_nextRelId[from];
+    for (int n = std::max(next, int(links.size()) + 1);; ++n) {
         r.id = QStringLiteral("rId%1").arg(n);
-        bool taken = false;
-        for (const Relationship &l : std::as_const(links)) taken = taken || l.id == r.id;
-        if (!taken) break;
+        if (!ids.contains(r.id)) {
+            next = n + 1;
+            break;
+        }
     }
+    ids.insert(r.id);
     r.type = type;
     r.target = external ? target : relativeTarget(from, target);
     r.external = external;
@@ -513,8 +520,9 @@ bool PackageWriter::addRelationshipWithId(const QString &source, const QString &
 {
     const QString from = source.isEmpty() ? QStringLiteral("/") : source;
     QVector<Relationship> &links = m_rels[from];
-    for (const Relationship &l : std::as_const(links))
-        if (l.id == id) return false;
+    QSet<QString> &ids = m_relIds[from];
+    if (ids.contains(id)) return false;
+    ids.insert(id);
     Relationship r;
     r.id = id;
     r.type = type;

@@ -979,6 +979,29 @@ private Q_SLOTS:
         QVERIFY(pkg.relationship(QStringLiteral("/nowhere.xml"), ids[0]).id.isEmpty());
     }
 
+    // Writing links and parts takes time in proportion to how many there are: four times as many take about four times as long, not sixteen
+    // (compared with each other, not against a clock).
+    void packageWriterIsLinearInLinksAndParts()
+    {
+        auto timeIt = [](int links, int parts, bool ownIds) {
+            PackageWriter w;
+            QElapsedTimer t;
+            t.start();
+            for (int i = 0; i < parts; ++i) w.addPart(QStringLiteral("/word/media/image%1.png").arg(i), "x", QStringLiteral("image/png"));
+            for (int i = 0; i < links; ++i) {
+                if (ownIds) w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdX%1").arg(i), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
+                else w.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
+            }
+            return t.nsecsElapsed() / 1e6;
+        };
+        for (bool ownIds : {false, true}) {
+            const double small = std::max(timeIt(5000, 0, ownIds), 1.0), large = timeIt(20000, 0, ownIds);
+            QVERIFY2(large < 9 * small, qPrintable(QStringLiteral("links, own ids %1: 5,000 took %2 ms, 20,000 took %3 ms").arg(ownIds).arg(small).arg(large)));
+        }
+        const double smallParts = std::max(timeIt(0, 1500, false), 1.0), largeParts = timeIt(0, 6000, false);
+        QVERIFY2(largeParts < 9 * smallParts, qPrintable(QStringLiteral("parts: 1,500 took %1 ms, 6,000 took %2 ms").arg(smallParts).arg(largeParts)));
+    }
+
     void packageFindsRelationships()
     {
         Package p;
