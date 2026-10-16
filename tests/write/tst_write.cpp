@@ -2030,6 +2030,23 @@ private Q_SLOTS:
                     case 15: place(); insertParagraph(*doc, c); deleteBack(*doc, c, false); break;
                     default: selectSome(); c.removeSelectedText(); break;
                     }
+                    if (qEnvironmentVariableIsSet("JW_FUZZ_TRACE")) {
+                        QString line;
+                        for (QTextBlock bk = doc->story()->begin(); bk.isValid() && bk.blockNumber() < 3; bk = bk.next()) {
+                            QString t;
+                            for (QTextBlock::iterator it = bk.begin(); !it.atEnd(); ++it) {
+                                const QTextFragment fr = it.fragment();
+                                if (fr.charFormat().hasProperty(prop::Atom)) {
+                                    const wml::Inline a = unpackAtom(storedBytes(fr.charFormat(), prop::Atom));
+                                    for (QChar ch : fr.text()) t += ch == QChar::ObjectReplacementCharacter ? QStringLiteral("{%1%2}").arg(a.role == wml::Inline::Close ? QStringLiteral("/") : QString(), a.tag.left(3)) : QString(ch);
+                                } else {
+                                    t += fr.text();
+                                }
+                            }
+                            line += QStringLiteral(" [%1]").arg(t.left(110));
+                        }
+                        qInfo("step %d op%d@%d: %s", step, op, c.position(), qPrintable(line));
+                    }
                     if (step % 6 != 5) continue;
                     QString err;
                     const QByteArray zip = doc->toDocx(&err);

@@ -132,9 +132,14 @@ QVector<Wrapper> wrappersOpenAt(const QTextBlock &b, int position)
     for (int i = 0; i < items.size(); ++i) {
         if (items[i].atom.role == Inline::Open) {
             stack.push_back(i);
-        } else if (!stack.isEmpty() && items[stack.back()].atom.tag == items[i].atom.tag) {
-            pairs.push_back({stack.back(), i});
-            stack.removeLast();
+        } else {
+            // (An end closes the nearest start of its tag that is open: a stray start above it, from a copy, is not part of the pair.)
+            int at = int(stack.size()) - 1;
+            while (at >= 0 && items[stack[at]].atom.tag != items[i].atom.tag) --at;
+            if (at >= 0) {
+                pairs.push_back({stack[at], i});
+                stack.resize(at);
+            }
         }
     }
     QVector<Wrapper> out;
