@@ -11759,7 +11759,8 @@ private Q_SLOTS:
 
     // A shaded fill of two colors runs along a curve unless the shape turns it off (fillShadeType 0x019C: gamma 1, sigma 2): the position is
     // eased by the sigma curve (3u^2 - 2u^3) and the colors blend in linear light (a power of 2.2), as the program draws them; a gradient
-    // that says nothing of it is drawn that way (gamma and sigma). A list of colors is not.
+    // that says nothing of it is drawn that way (gamma and sigma) when it is opaque, and straight when either of its colors is clear in part,
+    // as the program draws the old files that never name a shade. A list of colors is not.
     void odrawShadesFollowTheirCurve()
     {
         auto stopsOf = [&](const QVector<OdProp> &more, const QByteArray &list = QByteArray()) {
@@ -11786,6 +11787,10 @@ private Q_SLOTS:
         }
         // The middle of it: 186, not 128.
         QVERIFY(qAbs(odRgb(stopsOf({})[4].color).red() - 186) <= 1);
+        // A gradient with a color that is clear in part, that names no shade, is straight; one that names it is not.
+        QCOMPARE(int(stopsOf({{0x0184, 0xE666}}).size()), 2);
+        QCOMPARE(int(stopsOf({{0x0182, 0x8000}}).size()), 2);
+        QCOMPARE(int(stopsOf({{0x0184, 0xE666}, {0x019C, 3}}).size()), 9);
         // Sigma alone eases the position; gamma alone blends in linear light; neither is two colors.
         QVector<GradientStop> st = stopsOf({{0x019C, 2}});
         QCOMPARE(int(st.size()), 9);
@@ -11803,7 +11808,7 @@ private Q_SLOTS:
         QCOMPARE(int(stopsOf({}, list).size()), 3);
         QCOMPARE(int(stopsOf({{0x019C, 3}}, list).size()), 3);
         // The opacity runs along it evenly.
-        st = stopsOf({{0x0182, 0x10000}, {0x0184, 0x8000}});
+        st = stopsOf({{0x0182, 0x10000}, {0x0184, 0x8000}, {0x019C, 3}});
         QVERIFY(qAbs(st[4].transparency - 0.25) < 1e-6);
     }
 
