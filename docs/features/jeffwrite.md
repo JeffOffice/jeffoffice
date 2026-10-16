@@ -10,12 +10,12 @@ Every item carries a tier:
 - **1.0**: what someone coming from Word 2021 expects to find day to day. Version 1.0 is ready to ship when Word opens every file JeffWrite saves and JeffWrite's pages match Word's own PDFs about as closely as JeffPub's match Publisher's.
 - **later**: used by few documents, needs a piece the suite doesn't have yet, or depends on something outside the program.
 
-How the evidence reads. Where the counts measure a feature, its item carries how many real documents use it, as "Jeff" and "public": **Jeff** is the share of Jeff's own 2,082 files (1,056 `.docx`, plus 1,026 old `.doc` and `.rtf` files, about 3% of them `.rtf`), and **public** is the share of 1,527 U.S. government `.doc` files. The old files were converted to `.docx` to be counted. Where the two kinds of Jeff's files differ a lot, the item says so. Four cautions:
+How the evidence reads. Where the counts measure a feature, its item carries how many real documents use it, as "ours" and "public": **ours** is the share of our own collection of 2,082 working documents (1,056 `.docx`, plus 1,026 old `.doc` and `.rtf` files, about 3% of them `.rtf`), and **public** is the share of 1,527 U.S. government `.doc` files. The old files were converted to `.docx` to be counted. Where the two kinds of our files differ a lot, the item says so. Four cautions:
 
-- The conversion adds "automatic hyphenation" and "vertical text direction" to every old file, so their counts use only Jeff's `.docx`.
-- Footnote and endnote *parts* exist in 71% of Jeff's `.docx` because Word writes empty ones into most files. The real use is the count of footnote references, and those figures are the ones quoted below.
+- The conversion adds "automatic hyphenation" and "vertical text direction" to every old file, so their counts use only our `.docx`.
+- Footnote and endnote *parts* exist in 71% of our `.docx` because Word writes empty ones into most files. The real use is the count of footnote references, and those figures are the ones quoted below.
 - The public sample is all `.doc`; the only public `.docx` are Apache POI's 134 test files, which are edge cases and count lightly (the POI `.doc` folder held no files). Features that exist only in the newer format (content controls, table styles, embedded fonts) therefore have thin public evidence.
-- "Page number formats" reads 99% in the converted `.doc` files, which looks like the conversion writing the element into every section; only Jeff's `.docx` figure (38%) is trusted.
+- "Page number formats" reads 99% in the converted `.doc` files, which looks like the conversion writing the element into every section; only our `.docx` figure (38%) is trusted.
 
 ## Beyond Word
 
@@ -59,7 +59,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **1.0** More built-in templates: resumes, cover letters, invoices, flyers, brochures, meeting notes, legal pleadings, and book interiors
 - [ ] **1.0** Save as a template (`.dotx`, `.ott`) and reuse your own under My Templates
 - [ ] **1.0** The Normal template: the default styles, margins, and page size that every new blank document starts from, changed with Set as Default in the Font, Paragraph, and Page Setup dialogs
-- [ ] **1.0** Attach a different template to a document (Developer tab > Document Template) and copy styles and building blocks between a document and its template with the Organizer *(Jeff 2% attached a template, public 0%; POI 3%)*
+- [ ] **1.0** Attach a different template to a document (Developer tab > Document Template) and copy styles and building blocks between a document and its template with the Organizer *(ours 2% attached a template, public 0%; POI 3%)*
 - [ ] **later** Customize a template's color scheme and font scheme before creating the document from it *(shared: the idea in JeffPub's template page)*
 
 ### Open, Save, Save As, and Close
@@ -121,10 +121,10 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 ### Font
 - [~] **first release** Font name (theme fonts first, recent fonts, a preview in the list) and size (list, typed, Grow and Shrink, and the Ctrl+[ and Ctrl+] keys) *(shared: JeffPub's Font group)*
 - [~] **first release** Bold, italic, underline (single, words only, double, thick, dotted, dashed, wavy, each with its own color), strikethrough, and double strikethrough
-- [~] **first release** Subscript and superscript *(Jeff 26%, public 35%)*
-- [~] **first release** Small caps and all caps *(small caps: Jeff 10%, public 9%; all caps: Jeff 10%, public 9%)*
-- [~] **first release** Character spacing: expanded or condensed by an amount, raised or lowered, scaled, and pair kerning from a chosen size *(Jeff 10%, public 15%)*
-- [~] **first release** Font color (theme colors with tints, standard colors, more colors, eyedropper) and highlight color, with Stop Highlighting *(highlight: Jeff 2%, public 8%)*
+- [~] **first release** Subscript and superscript *(ours 26%, public 35%)*
+- [~] **first release** Small caps and all caps *(small caps: ours 10%, public 9%; all caps: ours 10%, public 9%)*
+- [~] **first release** Character spacing: expanded or condensed by an amount, raised or lowered, scaled, and pair kerning from a chosen size *(ours 10%, public 15%)*
+- [~] **first release** Font color (theme colors with tints, standard colors, more colors, eyedropper) and highlight color, with Stop Highlighting *(highlight: ours 2%, public 8%)*
 - [ ] **first release** Hidden text: kept, not shown or printed unless asked for
 - [~] **first release** Clear All Formatting
 - [~] **first release** The Font dialog with every effect above, plus the live preview, and Set as Default
@@ -133,27 +133,27 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **1.0** OpenType choices: ligatures, number spacing and forms, stylistic sets, and contextual alternates
 - [ ] **1.0** The Mini toolbar that floats beside a selection
 - [~] **later** Text effects on letters (outline, shadow, reflection, glow, gradient fill): kept and drawn first, edited later *(shared: libs/draw text effects)*
-- [ ] **later** Classic effects (emboss, engrave, outline, shadow), phonetic guide (ruby, Jeff 0%, POI 1%), and enclosed characters
+- [ ] **later** Classic effects (emboss, engrave, outline, shadow), phonetic guide (ruby, ours 0%, POI 1%), and enclosed characters
 
 ### Paragraph
 - [~] **first release** Alignment: left, center, right, and justified; the Paragraph dialog with indents (left, right, first line, hanging), the ruler's markers, Increase and Decrease Indent, and mirror indents *(shared: JeffPub's paragraph formatting)*
 - [~] **first release** Line spacing (single, 1.15, double, multiple, at least, exactly) and space before and after, with "don't add space between paragraphs of the same style"
-- [~] **first release** Tab stops: left, center, right, decimal, and bar, with dot, dash, or line leaders, set on the ruler or in the Tabs dialog, with default stops and Clear All *(Jeff 37%, public 67%)*
-- [~] **first release** Bulleted lists: the gallery, a symbol or picture of your own, and level changes *(lists: Jeff 44%, public 52%; 59% of his `.docx`)*
+- [~] **first release** Tab stops: left, center, right, decimal, and bar, with dot, dash, or line leaders, set on the ruler or in the Tabs dialog, with default stops and Clear All *(ours 37%, public 67%)*
+- [~] **first release** Bulleted lists: the gallery, a symbol or picture of your own, and level changes *(lists: ours 44%, public 52%; 59% of his `.docx`)*
 - [~] **first release** Numbered lists: the number formats (1., 1), A., a., I., i., and others), start at, continue, restart, and Set Numbering Value *(same lists evidence)*
-- [ ] **first release** Multilevel lists, nine levels: each level's number format, alignment, indent, tab or space after, restart rule, legal style, and link to a heading style, saved as list styles *(lists: Jeff 44%, public 52%; the books and briefs depend on it)*
+- [ ] **first release** Multilevel lists, nine levels: each level's number format, alignment, indent, tab or space after, restart rule, legal style, and link to a heading style, saved as list styles *(lists: ours 44%, public 52%; the books and briefs depend on it)*
 - [~] **first release** Show or hide formatting marks: paragraph marks, tabs, spaces, hidden text, optional hyphens, and object anchors *(shared: JeffPub's Show Special Characters)*
-- [~] **first release** Paragraph shading *(shading: Jeff 6%, public 17%)* and borders on any side, with every style, width, and color and the distance from the text *(paragraph borders: Jeff 3%, public 17%)*
+- [~] **first release** Paragraph shading *(shading: ours 6%, public 17%)* and borders on any side, with every style, width, and color and the distance from the text *(paragraph borders: ours 3%, public 17%)*
 - [~] **first release** Line and Page Breaks in the Paragraph dialog: widow and orphan control, keep with next, keep lines together, page break before, suppress line numbers, and don't hyphenate; outline level (body text or 1 to 9)
-- [~] **first release** Right-to-left paragraphs and text, with the Left-to-Right and Right-to-Left buttons and mixed-direction runs *(Jeff 4%, public 10%; shared: Qt shaping in libs/text)*
+- [~] **first release** Right-to-left paragraphs and text, with the Left-to-Right and Right-to-Left buttons and mixed-direction runs *(ours 4%, public 10%; shared: Qt shaping in libs/text)*
 - [ ] **1.0** Sort paragraphs, list items, or table rows by text, number, or date, on up to three keys
 - [ ] **1.0** Horizontal line from the Borders menu
-- [ ] **later** Distributed and Thai justification, and East Asian typography: vertical in horizontal, combine characters, two lines in one, fit text, character scaling, and the line-breaking rules for Chinese, Japanese, and Korean *(vertical text direction: Jeff 1% of his `.docx`, POI 7%)*
+- [ ] **later** Distributed and Thai justification, and East Asian typography: vertical in horizontal, combine characters, two lines in one, fit text, character scaling, and the line-breaking rules for Chinese, Japanese, and Korean *(vertical text direction: ours 1% of his `.docx`, POI 7%)*
 
 ### Styles
 - [~] **first release** Style gallery with live preview (Normal, No Spacing, Heading 1 to 9, Title, Subtitle, Emphasis, Strong, Quote, Intense Quote, References, Book Title, List Paragraph), applied by click, by typing the name, or by key *(shared: JeffPub's styles)*
 - [~] **first release** Styles pane: list with previews, which styles to show, and sorting
-- [~] **first release** Create a style from a selection and Modify Style: name, type (paragraph, character, linked, table, list), based on, style for the following paragraph, formatting, add to the gallery, update automatically, and this document or new documents *(a typical `.docx` of Jeff's defines 16 styles and one in ten more than 33; a typical government file 30)*
+- [~] **first release** Create a style from a selection and Modify Style: name, type (paragraph, character, linked, table, list), based on, style for the following paragraph, formatting, add to the gallery, update automatically, and this document or new documents *(a typical `.docx` of our defines 16 styles and one in ten more than 33; a typical government file 30)*
 - [~] **first release** Update a style to match the selection, Select Text with Similar Formatting, and Clear Formatting
 - [ ] **1.0** Manage Styles: edit, recommend, restrict, set defaults, and import or export styles with the Organizer
 - [ ] **1.0** Style Inspector and Reveal Formatting (Shift+F1)
@@ -174,24 +174,24 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 Header, Footer, and Page Number are listed under Header & Footer tools, and Comment under Review.
 
 ### Pages
-- [ ] **first release** Page Break (Ctrl+Enter) and Blank Page *(page breaks: Jeff 26%, public 38%)*
+- [ ] **first release** Page Break (Ctrl+Enter) and Blank Page *(page breaks: ours 26%, public 38%)*
 - [ ] **1.0** Cover Page gallery of built-in designs, Remove Current Cover Page, and saving your own
 
 ### Tables
-- [~] **first release** Insert Table from the grid or the dialog (columns, rows, fixed or auto width, remember the size), and Draw Table; everything else is under Table tools *(tables: Jeff 20%, public 42%)* *(shared: JeffPub's tables)*
+- [~] **first release** Insert Table from the grid or the dialog (columns, rows, fixed or auto width, remember the size), and Draw Table; everything else is under Table tools *(tables: ours 20%, public 42%)* *(shared: JeffPub's tables)*
 - [ ] **1.0** Convert Text to Table and Table to Text (by paragraphs, commas, tabs, or another character)
 - [ ] **1.0** Quick Tables gallery (calendars, matrices, tabular lists, with subheadings) and saving your own
 - [ ] **later** Excel Spreadsheet: an embedded worksheet, edited in place by JeffCrunch once it exists *(shared with JeffCrunch)*
 
 ### Illustrations
-- [x] **first release** Picture formats: PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, and EMF and WMF are read and drawn, the vector ones staying vectors in print and PDF *(shared: libs/base and libs/draw)* *(pictures: Jeff 25%, public 38%)*
+- [x] **first release** Picture formats: PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, and EMF and WMF are read and drawn, the vector ones staying vectors in print and PDF *(shared: libs/base and libs/draw)* *(pictures: ours 25%, public 38%)*
 - [~] **first release** Insert Picture from a file, linked or embedded, from the clipboard, or by dragging in, with its alt text *(shared: JeffPub's Insert Picture)*
 - [~] **1.0** **(alt)** Online Pictures and Stock Images from Openverse and Wikimedia Commons, with license and credit kept as a caption *(shared: JeffPub's online pictures)*
-- [~] **first release** Shapes: lines, rectangles, basic shapes, block arrows, equation shapes, flowchart, stars and banners, and callouts, with text inside them, connectors, and edit points *(drawing objects of any kind, pictures among them: Jeff 32% (.docx 18%, .doc and .rtf 45%), public 59%; the old-style (VML) ones: Jeff 17%, public 50%; shared: libs/draw)*
+- [~] **first release** Shapes: lines, rectangles, basic shapes, block arrows, equation shapes, flowchart, stars and banners, and callouts, with text inside them, connectors, and edit points *(drawing objects of any kind, pictures among them: ours 32% (.docx 18%, .doc and .rtf 45%), public 59%; the old-style (VML) ones: ours 17%, public 50%; shared: libs/draw)*
 - [~] **1.0** Drawing canvas: a frame that holds shapes and pictures together *(shared: libs/draw groups)*
 - [~] **1.0** Icons, drawn as shapes whose color and line weight can change *(shared: JeffPub's icon picker)*
-- [~] **1.0** Chart: insert, edit its data in a grid, and change its type (column, bar, line, pie, area, scatter, and the rest), elements, layout, style, and colors *(charts: Jeff 0%, public 0%, POI 1%; shared: libs/office chart, also used by JeffDeck and later JeffCrunch)*
-- [ ] **later** SmartArt: shown from the drawing the file keeps and written back as it was (Jeff <1%, public 0%); editing the diagram follows *(shared: JeffDeck's SmartArt drawing)*
+- [~] **1.0** Chart: insert, edit its data in a grid, and change its type (column, bar, line, pie, area, scatter, and the rest), elements, layout, style, and colors *(charts: ours 0%, public 0%, POI 1%; shared: libs/office chart, also used by JeffDeck and later JeffCrunch)*
+- [ ] **later** SmartArt: shown from the drawing the file keeps and written back as it was (ours <1%, public 0%); editing the diagram follows *(shared: JeffDeck's SmartArt drawing)*
 - [ ] **later** 3-D models: shown as the picture the file keeps and written back; rotating them in 3-D is not planned
 - [ ] **later** Screenshot and screen clipping (the system's screenshot tool works in the meantime)
 
@@ -199,22 +199,22 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **later** Online video: a poster picture with a link that plays the video in the browser
 
 ### Links
-- [~] **first release** Hyperlink: a web address, email address, place in this document (heading or bookmark), or new document, with screen tip, edit, remove, and Ctrl+click to follow *(hyperlinks: Jeff 32%, public 37%)* *(shared: JeffPub's hyperlinks)*
-- [~] **first release** Bookmark: add, go to, delete, sort by name or location, and hidden bookmarks *(bookmarks: Jeff 40% (.docx 77%, .doc and .rtf 1%), public 25%; most of them are the ones Word makes for contents and cross-references)* *(shared: JeffPub's bookmarks)*
+- [~] **first release** Hyperlink: a web address, email address, place in this document (heading or bookmark), or new document, with screen tip, edit, remove, and Ctrl+click to follow *(hyperlinks: ours 32%, public 37%)* *(shared: JeffPub's hyperlinks)*
+- [~] **first release** Bookmark: add, go to, delete, sort by name or location, and hidden bookmarks *(bookmarks: ours 40% (.docx 77%, .doc and .rtf 1%), public 25%; most of them are the ones Word makes for contents and cross-references)* *(shared: JeffPub's bookmarks)*
 
 ### Text
-- [~] **first release** Text Box: draw one, in a horizontal or vertical direction, with fill, outline, insets, wrap, and linking boxes so text continues from one to the next *(text boxes: Jeff 12%, public 44%)* *(shared: JeffPub's text boxes and linked frames)*
+- [~] **first release** Text Box: draw one, in a horizontal or vertical direction, with fill, outline, insets, wrap, and linking boxes so text continues from one to the next *(text boxes: ours 12%, public 44%)* *(shared: JeffPub's text boxes and linked frames)*
 - [ ] **1.0** Text box gallery of built-in designs (simple, sidebars, pull quotes) and saving your own
-- [ ] **1.0** Quick Parts and building blocks: AutoText, Document Property, Field, the Building Blocks Organizer, and saving a selection to a gallery, as the galleries for cover pages, headers, footers, equations, tables, and watermarks use *(glossary parts: Jeff <1%, public 0%; POI 9%)*
+- [ ] **1.0** Quick Parts and building blocks: AutoText, Document Property, Field, the Building Blocks Organizer, and saving a selection to a gallery, as the galleries for cover pages, headers, footers, equations, tables, and watermarks use *(glossary parts: ours <1%, public 0%; POI 9%)*
 - [~] **1.0** WordArt: styles, fill, outline, and effects, and text shapes (warps) *(shared: libs/draw text art)*
 - [ ] **1.0** Drop Cap: dropped or in the margin, lines high, distance from text, and font
-- [ ] **1.0** Date & Time: formats and languages, updated automatically or fixed *(DATE field: Jeff 1%, public 2%)*
+- [ ] **1.0** Date & Time: formats and languages, updated automatically or fixed *(DATE field: ours 1%, public 2%)*
 - [ ] **1.0** Text from File: insert another document's text (`.docx`, `.doc`, `.rtf`, `.odt`, or plain text), or a bookmarked part of it *(shared: JeffPub's Insert File)*
 - [ ] **later** Signature Line: a drawn line for a name and title, signed digitally when digital signatures exist
-- [ ] **later** Object: embed or link an object made by another program (OLE on Windows; on other systems the picture and the data are kept and written back) *(OLE objects: Jeff 1%, public 10%)*
+- [ ] **later** Object: embed or link an object made by another program (OLE on Windows; on other systems the picture and the data are kept and written back) *(OLE objects: ours 1%, public 10%)*
 
 ### Symbols
-- [~] **first release** Symbol: recently used symbols, the full character map by font and Unicode block, a shortcut key for a symbol, and an AutoCorrect entry for it *(symbols: Jeff 1%, public 13%)* *(shared: JeffPub's Symbol dialog)*
+- [~] **first release** Symbol: recently used symbols, the full character map by font and Unicode block, a shortcut key for a symbol, and an AutoCorrect entry for it *(symbols: ours 1%, public 13%)* *(shared: JeffPub's Symbol dialog)*
 - [~] **first release** Special characters: nonbreaking space and hyphen, optional hyphen, en and em dash and space, quotation marks, line break (Shift+Enter), and no-width optional break *(shared: JeffPub)*
 
 ## Draw tab
@@ -229,27 +229,27 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **1.0** Themes gallery: apply, save the current one, browse for one, and reset to the template's; a theme is its colors, fonts, and effects *(shared: libs/office theme, JeffDeck's themes)*
 - [~] **1.0** Theme Colors and Theme Fonts galleries (heading and body pairs) and Create New for each; changing them restyles the whole document *(shared: JeffPub's color and font schemes)*
 - [ ] **1.0** Style sets gallery (a coordinated set of every style's look), paragraph spacing presets, Set as Default, and Reset to the template's set
-- [ ] **1.0** Watermark: built-in text (Confidential, Draft, and others), custom text or picture with size, color, layout, and transparency, and Remove *(watermark-like header text: Jeff <1%, public 1%)*
-- [ ] **1.0** Page Color: theme colors, more colors, and fill effects (gradient, texture, pattern, picture); background colors print only if asked *(page background: Jeff 2%, public 1%)*
+- [ ] **1.0** Watermark: built-in text (Confidential, Draft, and others), custom text or picture with size, color, layout, and transparency, and Remove *(watermark-like header text: ours <1%, public 1%)*
+- [ ] **1.0** Page Color: theme colors, more colors, and fill effects (gradient, texture, pattern, picture); background colors print only if asked *(page background: ours 2%, public 1%)*
 - [ ] **1.0** Page Borders: box, shadow, 3-D, and custom; every line style, width, color, and art border; for the whole document, a section, or the first page; measured from the text or the page edge
 
 ## Layout tab
 
 ### Page Setup
-- [~] **first release** Margins: the presets (Normal, Narrow, Moderate, Wide, Mirrored), custom margins, gutter on the left or top, and "Mirror margins" so inside and outside margins swap on facing pages; multiple pages per sheet: normal, mirror margins, 2 pages per sheet, book fold, and reverse book fold; applied to the document, this section, or from this point on *(mirror margins: Jeff 20% (.docx 40%, .doc and .rtf <1%), public 1%)* *(shared: JeffPub's page setup)*
-- [~] **first release** Orientation and Size: Letter, Legal, A4, A5, B5, Executive, envelopes, and the rest, a custom size, and More Paper Sizes; each section its own orientation *(landscape sections: Jeff 1%, public 7%)*
-- [ ] **first release** Columns: one to many, presets (two, three, left, right), custom widths and spacing, equal widths, a line between, and "from this point forward"; Column Break *(columns: Jeff 9% (.docx 16%, .doc and .rtf 2%), public 7%; column breaks: Jeff 1%, public 2%)*
-- [ ] **first release** Breaks: page, column, and text wrapping; section breaks: next page, continuous, even page, and odd page *(more than one section: Jeff 24% (.docx 42%, .doc and .rtf 7%), public 28%)*
-- [~] **first release** Hyphenation: none, automatic, or manual, with "hyphenate words in capitals," the hyphenation zone, and a limit on hyphens in a row, in 12 languages; per-paragraph "don't hyphenate" *(automatic hyphenation: Jeff 2% of his .docx, public n/a (the conversion adds it); POI 6%; shared: libs/base/text hyphenation)*
+- [~] **first release** Margins: the presets (Normal, Narrow, Moderate, Wide, Mirrored), custom margins, gutter on the left or top, and "Mirror margins" so inside and outside margins swap on facing pages; multiple pages per sheet: normal, mirror margins, 2 pages per sheet, book fold, and reverse book fold; applied to the document, this section, or from this point on *(mirror margins: ours 20% (.docx 40%, .doc and .rtf <1%), public 1%)* *(shared: JeffPub's page setup)*
+- [~] **first release** Orientation and Size: Letter, Legal, A4, A5, B5, Executive, envelopes, and the rest, a custom size, and More Paper Sizes; each section its own orientation *(landscape sections: ours 1%, public 7%)*
+- [ ] **first release** Columns: one to many, presets (two, three, left, right), custom widths and spacing, equal widths, a line between, and "from this point forward"; Column Break *(columns: ours 9% (.docx 16%, .doc and .rtf 2%), public 7%; column breaks: ours 1%, public 2%)*
+- [ ] **first release** Breaks: page, column, and text wrapping; section breaks: next page, continuous, even page, and odd page *(more than one section: ours 24% (.docx 42%, .doc and .rtf 7%), public 28%)*
+- [~] **first release** Hyphenation: none, automatic, or manual, with "hyphenate words in capitals," the hyphenation zone, and a limit on hyphens in a row, in 12 languages; per-paragraph "don't hyphenate" *(automatic hyphenation: ours 2% of his .docx, public n/a (the conversion adds it); POI 6%; shared: libs/base/text hyphenation)*
 - [ ] **first release** The Page Setup dialog: margins and gutter; paper size and source; layout tab with section start, different odd and even pages, different first page, header and footer distance from the edge, vertical alignment of the page (top, center, justified, bottom), line numbers, and borders; applied to a part of the document
-- [ ] **1.0** Line Numbers: continuous, restart each page or section, count by, start at, distance from text, and suppress for a paragraph *(Jeff 0%, public 1%)*
+- [ ] **1.0** Line Numbers: continuous, restart each page or section, count by, start at, distance from text, and suppress for a paragraph *(ours 0%, public 1%)*
 - [ ] **later** Text direction for a section (vertical text pages), gutter at the top, and the East Asian document grid (characters per line, lines per page)
 
 ### Paragraph
 - [ ] **1.0** Indent left and right, and spacing before and after, as boxes on the tab
 
 ### Arrange
-- [~] **first release** Wrap Text: in line with text, square, tight, through, top and bottom, behind text, and in front of text, for pictures, shapes, and text boxes *(pictures: Jeff 25% (.docx 12%, .doc and .rtf 39%), public 38%; shared: JeffPub's wrap engine)*
+- [~] **first release** Wrap Text: in line with text, square, tight, through, top and bottom, behind text, and in front of text, for pictures, shapes, and text boxes *(pictures: ours 25% (.docx 12%, .doc and .rtf 39%), public 38%; shared: JeffPub's wrap engine)*
 - [~] **first release** Position: anchored to a paragraph, character, line, margin, page, or column, by offset or alignment; move with text, lock the anchor, and allow overlap
 - [ ] **1.0** Edit Wrap Points (the outline tight wrapping follows), distance from text, wrap on one or both sides, and Set as Default Layout
 - [~] **1.0** Bring Forward and Send Backward (also in front of and behind text), Align (to the page, margin, or each other, and distribute), Group, Ungroup, Regroup, and Rotate or Flip *(shared: JeffPub's Arrange)*
@@ -258,28 +258,28 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ## References tab
 
 ### Table of Contents
-- [~] **first release** Table of Contents: the gallery (Automatic Table 1 and 2, Manual Table) and the custom dialog: page numbers shown and right-aligned, tab leader, the built-in formats, levels 1 to 9, built from heading styles, outline levels, or table entry fields, and TOC 1 to 9 styles to modify *(TOC field: Jeff 19% (.docx 38%, .doc and .rtf <1%), public 7%; shared: JeffPub's automatic table of contents)*
-- [ ] **first release** Update Table (page numbers only, or the whole table), F9, Remove Table, and Add Text (mark a paragraph for a level) *(PAGEREF fields, which contents lines are made of: Jeff 19% (.docx 38%, .doc and .rtf <1%), public <1%)*
-- [ ] **1.0** Mark entries for the table by hand (TC fields, Alt+Shift+O) *(TC field: Jeff <1%, public 2%)*
+- [~] **first release** Table of Contents: the gallery (Automatic Table 1 and 2, Manual Table) and the custom dialog: page numbers shown and right-aligned, tab leader, the built-in formats, levels 1 to 9, built from heading styles, outline levels, or table entry fields, and TOC 1 to 9 styles to modify *(TOC field: ours 19% (.docx 38%, .doc and .rtf <1%), public 7%; shared: JeffPub's automatic table of contents)*
+- [ ] **first release** Update Table (page numbers only, or the whole table), F9, Remove Table, and Add Text (mark a paragraph for a level) *(PAGEREF fields, which contents lines are made of: ours 19% (.docx 38%, .doc and .rtf <1%), public <1%)*
+- [ ] **1.0** Mark entries for the table by hand (TC fields, Alt+Shift+O) *(TC field: ours <1%, public 2%)*
 
 ### Footnotes
-- [~] **first release** Insert Footnote and Insert Endnote (Ctrl+Alt+F and Ctrl+Alt+D) with their dialog: number format (1, a, i, symbols, or a mark you type), start at, restart each section or page, location (bottom of page, below text, end of section, end of document), and notes in columns *(footnote references: Jeff 2% (.docx 3%, .doc and .rtf 0%), public 17%; endnote references: Jeff <1%, public <1%; shared: libs/text footnotes)*
+- [~] **first release** Insert Footnote and Insert Endnote (Ctrl+Alt+F and Ctrl+Alt+D) with their dialog: number format (1, a, i, symbols, or a mark you type), start at, restart each section or page, location (bottom of page, below text, end of section, end of document), and notes in columns *(footnote references: ours 2% (.docx 3%, .doc and .rtf 0%), public 17%; endnote references: ours <1%, public <1%; shared: libs/text footnotes)*
 - [ ] **first release** Next and Previous Footnote or Endnote, Show Notes, double-click a mark to jump to its note, and the notes pane in Draft view
 - [ ] **1.0** Convert footnotes to endnotes and back (all, or one), and swap them
 - [ ] **1.0** Edit the separator, the continuation separator, and the continuation notice for footnotes and endnotes
 
 ### Citations and Bibliography
-- [ ] **1.0** Insert Citation and Manage Sources (a master list shared among documents, beside the document's own): book, article, report, website, case, interview, and the other source types, placeholders, and the style (APA, MLA, Chicago, and the rest) *(in a sample of 399 of Jeff's `.docx`, none held a single source; the custom XML in 56% of them is Word's empty source list)*
+- [ ] **1.0** Insert Citation and Manage Sources (a master list shared among documents, beside the document's own): book, article, report, website, case, interview, and the other source types, placeholders, and the style (APA, MLA, Chicago, and the rest) *(in a sample of 399 of our `.docx`, none held a single source; the custom XML in 56% of them is Word's empty source list)*
 - [ ] **1.0** Bibliography, Works Cited, and References galleries, and Update Citations and Bibliography
 - [ ] **later** **(alt)** Citation styles in the open CSL format, and sources imported from BibTeX, RIS, and Zotero exports, in place of Word's own style files
 
 ### Captions
-- [ ] **1.0** Insert Caption: label (Figure, Table, Equation, or your own), above or below, numbering with the chapter number, exclude the label, and AutoCaption *(SEQ field: Jeff <1%, public 3%)*
+- [ ] **1.0** Insert Caption: label (Figure, Table, Equation, or your own), above or below, numbering with the chapter number, exclude the label, and AutoCaption *(SEQ field: ours <1%, public 3%)*
 - [ ] **1.0** Insert Table of Figures from a caption label or a style, and update it
-- [ ] **first release** Cross-reference to a heading, numbered item, bookmark, footnote, endnote, caption, or page, as its text, number, page, or "above" and "below," inserted as a link *(also the Insert > Links command; PAGEREF: Jeff 19% (.docx 38%, .doc and .rtf <1%), public <1%)*
+- [ ] **first release** Cross-reference to a heading, numbered item, bookmark, footnote, endnote, caption, or page, as its text, number, page, or "above" and "below," inserted as a link *(also the Insert > Links command; PAGEREF: ours 19% (.docx 38%, .doc and .rtf <1%), public <1%)*
 
 ### Index
-- [ ] **1.0** Mark Entry and Mark All (main entry, subentry, cross-reference such as "see," a page range from a bookmark, bold or italic page number) *(XE field: Jeff 0%, public 1%; legal and book indexes depend on it)*
+- [ ] **1.0** Mark Entry and Mark All (main entry, subentry, cross-reference such as "see," a page range from a bookmark, bold or italic page number) *(XE field: ours 0%, public 1%; legal and book indexes depend on it)*
 - [ ] **1.0** Insert Index: formats, columns, right-aligned page numbers, tab leader, and sorting by language, with Update and AutoMark from a list of words
 
 ### Table of Authorities
@@ -287,7 +287,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 
 ## Mailings tab
 
-- [ ] **first release** Documents that already hold merge fields keep them on a round trip (MERGEFIELD, NEXT, IF, ASK, and the rest), and their data-source link is kept *(MERGEFIELD: Jeff 0%, public <1%; ADDRESSBLOCK: Jeff <1%, public 0%)*
+- [ ] **first release** Documents that already hold merge fields keep them on a round trip (MERGEFIELD, NEXT, IF, ASK, and the rest), and their data-source link is kept *(MERGEFIELD: ours 0%, public <1%; ADDRESSBLOCK: ours <1%, public 0%)*
 - [~] **1.0** Start Mail Merge: letters, email messages, envelopes, labels, and directory, the Step-by-Step Wizard, and Clear Merge Type *(shared: JeffPub's mail merge and the merge source in libs/page/core)*
 - [~] **1.0** Select Recipients: type a new list, use an existing one (CSV, tab-delimited, `.xlsx`, `.ods`, vCard contacts), or choose contacts **(alt: any address book saved as `.vcf`)** *(shared: JeffPub)*
 - [~] **1.0** Edit Recipient List: sort, filter, find duplicates, validate addresses, and include or exclude records *(shared: JeffPub)*
@@ -315,11 +315,11 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **later** Chinese conversion between simplified and traditional, Hangul and Hanja conversion, the Japanese consistency checker, and IME dictionary tools
 
 ### Comments
-- [ ] **first release** Comments: new, edit, reply in threads, resolve and reopen, delete (one, all shown, or all), Previous and Next, in balloons in the margin or in the Reviewing pane, with author and initials; read and written back with their replies *(comments: Jeff <1%, public 1%; kept for a document that comes back from an editor)*
+- [ ] **first release** Comments: new, edit, reply in threads, resolve and reopen, delete (one, all shown, or all), Previous and Next, in balloons in the margin or in the Reviewing pane, with author and initials; read and written back with their replies *(comments: ours <1%, public 1%; kept for a document that comes back from an editor)*
 - [ ] **later** Ink comments and @mentions
 
 ### Tracking and changes
-- [ ] **first release** Track Changes on and off (Ctrl+Shift+E): inserted and deleted text, formatting changes, moves, and changes to paragraphs, tables, and numbering, each with author and date *(a document that comes back from an editor must open with its markup; tracked insertions: Jeff 1%, public 5%; deletions: Jeff 1%, public 3%; tracking left on: Jeff 1%, public 4%)*
+- [ ] **first release** Track Changes on and off (Ctrl+Shift+E): inserted and deleted text, formatting changes, moves, and changes to paragraphs, tables, and numbering, each with author and date *(a document that comes back from an editor must open with its markup; tracked insertions: ours 1%, public 5%; deletions: ours 1%, public 3%; tracking left on: ours 1%, public 4%)*
 - [ ] **first release** Accept and Reject: the current change, then move on; all shown; all in the document; and accept all and stop tracking
 - [ ] **first release** Display for Review (Simple Markup, All Markup, No Markup, Original), Show Markup by kind and by person, balloons (changes in balloons, inline, or only comments and formatting), Highlight Updates, and the Reviewing pane (vertical or horizontal)
 - [ ] **1.0** Track Changes Options: colors by author and kind, change bars, moved text, and formatting changes; change the user name; Lock Tracking with a password
@@ -328,7 +328,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Compare two versions into one document of tracked changes (by word or character; ignoring case, formatting, white space, tables, headers and footers, notes, text boxes, fields, and moves), and Combine revisions from several authors; Show Source Documents *(legal publishing leans on it; see the open questions)*
 
 ### Protect
-- [ ] **1.0** Restrict Editing: limit formatting to chosen styles, and allow only tracked changes, comments, or filling in forms, with an optional password *(document protection: Jeff <1%, public 1%)*
+- [ ] **1.0** Restrict Editing: limit formatting to chosen styles, and allow only tracked changes, comments, or filling in forms, with an optional password *(document protection: ours <1%, public 1%)*
 - [ ] **later** Co-authoring locks and Block Authors: not planned (they depend on a cloud service)
 
 ## View tab
@@ -353,10 +353,10 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 
 ## Developer tab (hidden until turned on)
 
-- [ ] **first release** Content controls are shown and kept as saved, including the table of contents' own wrapper *(content controls: Jeff 21% (.docx 42%, .doc and .rtf <1%), public 7%; in a sample of 400 of Jeff's `.docx`, 70 had a control in the body and 69 of those were the contents' own wrapper; headers and footers were not checked)*
+- [ ] **first release** Content controls are shown and kept as saved, including the table of contents' own wrapper *(content controls: ours 21% (.docx 42%, .doc and .rtf <1%), public 7%; in a sample of 400 of our `.docx`, 70 had a control in the body and 69 of those were the contents' own wrapper; headers and footers were not checked)*
 - [ ] **1.0** Insert and edit content controls: rich text, plain text, picture, building-block gallery, check box, combo box, drop-down list, date picker, and repeating section, with title, tag, locking, and Design Mode; Group and Ungroup
-- [ ] **1.0** Legacy form fields (text, check box, drop-down) and Restrict Editing to filling in forms *(legacy form fields: Jeff <1%, public 2%; check box field: Jeff <1%, public 2%)*
-- [ ] **later** Macros are kept and never run; recording or writing them needs a scripting language first (see the open questions) *(macros: Jeff 0%, public 0%; POI 2%)*
+- [ ] **1.0** Legacy form fields (text, check box, drop-down) and Restrict Editing to filling in forms *(legacy form fields: ours <1%, public 2%; check box field: ours <1%, public 2%)*
+- [ ] **later** Macros are kept and never run; recording or writing them needs a scripting language first (see the open questions) *(macros: ours 0%, public 0%; POI 2%)*
 - [ ] **later** XML mapping: bind content controls to custom XML, and the Schema, Transform, and Expansion Packs commands
 - [ ] **later** ActiveX and web controls on a form
 
@@ -368,13 +368,13 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 
 ## Table Design and Layout tabs
 
-- [~] **first release** Table styles gallery (grid, list, and plain styles), the style options (header row, total row, banded rows, first and last column, banded columns), Modify Table Style, New Table Style, and Clear *(table styles: Jeff 12% (.docx 23%, .doc and .rtf 0%), public 0%; shared: JeffPub's Table Formats gallery)*
-- [~] **first release** Shading and borders: every border style, width, and color on any side or inside, the border painter, the Borders and Shading dialog, and View Gridlines *(shading: Jeff 6%, public 17%)*
+- [~] **first release** Table styles gallery (grid, list, and plain styles), the style options (header row, total row, banded rows, first and last column, banded columns), Modify Table Style, New Table Style, and Clear *(table styles: ours 12% (.docx 23%, .doc and .rtf 0%), public 0%; shared: JeffPub's Table Formats gallery)*
+- [~] **first release** Shading and borders: every border style, width, and color on any side or inside, the border painter, the Borders and Shading dialog, and View Gridlines *(shading: ours 6%, public 17%)*
 - [~] **first release** Select a cell, row, column, or table; insert rows above or below and columns left or right; delete cells, rows, columns, or the table; the Tab key at the last cell adds a row
-- [~] **first release** Merge Cells and Split Cells (across and down), and Split Table *(merged across: Jeff 4%, public 20%; merged down: Jeff 1%, public 8%; shared: JeffPub's merged cells)*
-- [ ] **first release** Nested tables, a table inside a cell *(nested: Jeff 2%, public 2%)*
+- [~] **first release** Merge Cells and Split Cells (across and down), and Split Table *(merged across: ours 4%, public 20%; merged down: ours 1%, public 8%; shared: JeffPub's merged cells)*
+- [ ] **first release** Nested tables, a table inside a cell *(nested: ours 2%, public 2%)*
 - [~] **first release** Cell size: row height (at least or exactly), column width (points or percent), AutoFit to contents, to the window, or fixed, and Distribute Rows and Columns *(shared: JeffPub)*
-- [~] **first release** Table Properties: alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, "allow row to break across pages," **Repeat as header row at the top of each page**, vertical alignment, no wrap, fit text, and alt text *(repeating header rows: Jeff 1%, public 7%)*
+- [~] **first release** Table Properties: alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, "allow row to break across pages," **Repeat as header row at the top of each page**, vertical alignment, no wrap, fit text, and alt text *(repeating header rows: ours 1%, public 7%)*
 - [~] **first release** Cell alignment in nine positions, and text direction in a cell
 - [ ] **1.0** Draw Table and Eraser, with the pen style, weight, and color
 - [ ] **1.0** Formula in a cell (=SUM(ABOVE), =AVERAGE(LEFT), and the functions, with number formats), updated with F9 *(shared: a calculation engine with JeffCrunch)*
@@ -401,15 +401,15 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ## Header & Footer tab
 
 - [~] **first release** Header and Footer: Edit, Remove, and the gallery of built-in designs (blank, three columns, and the others); Page Number at the top, bottom, in the margins, or at the cursor *(shared: JeffPub's master page header and footer)*
-- [~] **first release** Format Page Numbers: 1 2 3, a b c, A B C, i ii iii, I II III, dashed, with the chapter number (heading style and separator), continue from the previous section, or start at *(page number formats: 38% of Jeff's `.docx`, the only trustworthy count; PAGE field: Jeff 38% (.docx 64%, .doc and .rtf 11%), public 54%; NUMPAGES: Jeff 5%, public 8%)*
-- [ ] **first release** Different First Page and Different Odd & Even Pages *(first page: Jeff 6%, public 30%; odd and even headers: Jeff 20% (.docx 38%, .doc and .rtf <1%), public 5%)*
-- [ ] **first release** Link to Previous for each header and footer of each section; Previous and Next section; Go to Header and Go to Footer; and the kinds of header and footer (first, odd, and even) for every section *(headers: Jeff 35%, public 46%; footers: Jeff 35%, public 58%)*
-- [ ] **first release** Insert in a header or footer: Date and Time, Document Info (author, file name, path, title), Quick Parts and fields, **STYLEREF so a running head shows the current chapter or heading**, and pictures *(STYLEREF: Jeff 15% (.docx 29%, .doc and .rtf <1%), public <1%)*
+- [~] **first release** Format Page Numbers: 1 2 3, a b c, A B C, i ii iii, I II III, dashed, with the chapter number (heading style and separator), continue from the previous section, or start at *(page number formats: 38% of our `.docx`, the only trustworthy count; PAGE field: ours 38% (.docx 64%, .doc and .rtf 11%), public 54%; NUMPAGES: ours 5%, public 8%)*
+- [ ] **first release** Different First Page and Different Odd & Even Pages *(first page: ours 6%, public 30%; odd and even headers: ours 20% (.docx 38%, .doc and .rtf <1%), public 5%)*
+- [ ] **first release** Link to Previous for each header and footer of each section; Previous and Next section; Go to Header and Go to Footer; and the kinds of header and footer (first, odd, and even) for every section *(headers: ours 35%, public 46%; footers: ours 35%, public 58%)*
+- [ ] **first release** Insert in a header or footer: Date and Time, Document Info (author, file name, path, title), Quick Parts and fields, **STYLEREF so a running head shows the current chapter or heading**, and pictures *(STYLEREF: ours 15% (.docx 29%, .doc and .rtf <1%), public <1%)*
 - [ ] **first release** Header from top and Footer from bottom distances, Insert Alignment Tab (left, center, right, relative to the margin or the indents, with a leader), and Show Document Text
 
 ## Equation tab
 
-- [ ] **1.0** Insert Equation (Alt+=): the built-in equations, writing by typing (`\alpha` and the rest turn into symbols), and saving to the gallery *(equations: Jeff 0%, public 2%; shared: an equation engine to build for JeffDeck and JeffCrunch)*
+- [ ] **1.0** Insert Equation (Alt+=): the built-in equations, writing by typing (`\alpha` and the rest turn into symbols), and saving to the gallery *(equations: ours 0%, public 2%; shared: an equation engine to build for JeffDeck and JeffCrunch)*
 - [ ] **1.0** Structures: fractions, scripts, radicals, integrals, large operators, brackets, functions, accents, limits, operators, and matrices; and the symbol galleries (basic math, Greek, letter-like, operators, arrows, negated, scripts, geometry)
 - [ ] **1.0** Professional and Linear forms with Unicode or LaTeX input, Normal Text inside an equation, and equation options (math AutoCorrect, math regions)
 - [ ] **1.0** Equations read and saved as Office Math in `.docx` and `.doc`, and as MathML in `.odt`, drawn on screen, in print, and in PDF
@@ -439,13 +439,13 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **first release** Text input for every script: input methods, dead keys, and the system's emoji and symbol pickers
 
 ### Pagination and sections
-- [ ] **first release** Pages flow from the text: a document is a run of paragraphs and tables laid out into pages by size, margins, columns, floating objects, footnotes, and the keep rules; pages are laid out as needed and in the background, so a long document opens at once and typing never waits for the last page *(the largest of Jeff's `.docx` has 26,443 paragraphs and the largest government file 45,013; one in ten of Jeff's `.docx` has more than 2,200 paragraphs and one in ten government files more than 1,400)*
+- [ ] **first release** Pages flow from the text: a document is a run of paragraphs and tables laid out into pages by size, margins, columns, floating objects, footnotes, and the keep rules; pages are laid out as needed and in the background, so a long document opens at once and typing never waits for the last page *(the largest of our `.docx` has 26,443 paragraphs and the largest government file 45,013; one in ten of our `.docx` has more than 2,200 paragraphs and one in ten government files more than 1,400)*
 - [ ] **first release** Line and page breaks match Word's for the same fonts, in the way JeffPub's match Publisher's *(shared: libs/text metrics and the font-width tables)*
-- [ ] **first release** Sections: each with its own page size and orientation, margins, columns, headers and footers, page-number format and start, vertical alignment, line numbering, and footnote numbering; start types next page, continuous, even page, and odd page *(more than one section: Jeff 24% (.docx 42%, .doc and .rtf 7%), public 28%; landscape sections: Jeff 1%, public 7%)*
-- [ ] **first release** Facing pages and mirrored margins: left and right pages swap inside and outside margins and gutter, and a section that starts on an odd or even page gets the blank page it needs *(mirror margins: Jeff 20% (.docx 40%, .doc and .rtf <1%), public 1%; odd and even headers: Jeff 20% (.docx 38%, .doc and .rtf <1%), public 5%)*
-- [~] **first release** Columns: equal or unequal widths, a line between, balanced by a continuous section break, a column break, and columns inside text boxes and table cells *(columns: Jeff 9% (.docx 16%, .doc and .rtf 2%), public 7%; shared: columns in libs/text)*
-- [ ] **first release** Floating pictures, shapes, and text boxes: text wraps around their shape, they are anchored to a paragraph and move with it, and they never push the text out of the page's headers, footers, or notes *(pictures: Jeff 25% (.docx 12%, .doc and .rtf 39%), public 38%)*
-- [ ] **first release** Frames (paragraphs positioned on the page, which older files use for drop caps, side notes, and captions): laid out where the file puts them and kept, with the Frame dialog to edit them at 1.0 *(frames: Jeff 1%, public <1%)*
+- [ ] **first release** Sections: each with its own page size and orientation, margins, columns, headers and footers, page-number format and start, vertical alignment, line numbering, and footnote numbering; start types next page, continuous, even page, and odd page *(more than one section: ours 24% (.docx 42%, .doc and .rtf 7%), public 28%; landscape sections: ours 1%, public 7%)*
+- [ ] **first release** Facing pages and mirrored margins: left and right pages swap inside and outside margins and gutter, and a section that starts on an odd or even page gets the blank page it needs *(mirror margins: ours 20% (.docx 40%, .doc and .rtf <1%), public 1%; odd and even headers: ours 20% (.docx 38%, .doc and .rtf <1%), public 5%)*
+- [~] **first release** Columns: equal or unequal widths, a line between, balanced by a continuous section break, a column break, and columns inside text boxes and table cells *(columns: ours 9% (.docx 16%, .doc and .rtf 2%), public 7%; shared: columns in libs/text)*
+- [ ] **first release** Floating pictures, shapes, and text boxes: text wraps around their shape, they are anchored to a paragraph and move with it, and they never push the text out of the page's headers, footers, or notes *(pictures: ours 25% (.docx 12%, .doc and .rtf 39%), public 38%)*
+- [ ] **first release** Frames (paragraphs positioned on the page, which older files use for drop caps, side notes, and captions): laid out where the file puts them and kept, with the Frame dialog to edit them at 1.0 *(frames: ours 1%, public <1%)*
 - [ ] **first release** Tables across pages: rows split or kept whole, header rows repeated, nested tables, and tables wrapped by text; a table in a column or a text box
 - [ ] **first release** Widow and orphan control, keep with next, keep lines together, and page break before, as Word applies them (including the cases where it gives up)
 - [ ] **1.0** Document grid and East Asian layout: characters per line, lines per page, and vertical pages
@@ -457,9 +457,9 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 
 ### Fields
 - [ ] **first release** The field model: a field is a code and a result, both kept; show codes or results (Alt+F9 and per field), update (F9, all, before printing), lock, unlock, and unlink (Ctrl+Shift+F9), nested fields, shading, and the switches for formats (\* MERGEFORMAT, \* Upper, \# number pictures, \@ date pictures)
-- [ ] **first release** Fields that must work: PAGE, NUMPAGES, SECTIONPAGES, SECTION, STYLEREF, REF, PAGEREF, NOTEREF, TOC, HYPERLINK, and SEQ *(PAGE: Jeff 38%, public 54%; PAGEREF: Jeff 19%, public <1%; STYLEREF: Jeff 15%, public <1%; TOC: Jeff 19%, public 7%; HYPERLINK: Jeff 2%, public 3%; SEQ: Jeff <1%, public 3%)*
-- [ ] **1.0** Fields that follow: DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, FILENAME, AUTHOR, TITLE, SUBJECT, DOCPROPERTY, IF, COMPARE, SET, ASK, FILLIN, QUOTE, LISTNUM, SYMBOL, TC, XE, INDEX, TA, TOA, and formula (=) *(DATE: Jeff 1%, public 2%; FILENAME: Jeff 0%, public 2%; DOCPROPERTY: Jeff 0%, public <1%; INDEX: Jeff 0%, public 1%)*
-- [ ] **later** Fields that rarely appear: DATABASE, INCLUDETEXT, INCLUDEPICTURE, LINK, EQ, ADVANCE, GOTOBUTTON, MACROBUTTON, AUTOTEXTLIST, and ADDIN; they are kept and shown as saved *(EQ: Jeff 0%, public <1%; GOTOBUTTON: Jeff 0%, public <1%)*
+- [ ] **first release** Fields that must work: PAGE, NUMPAGES, SECTIONPAGES, SECTION, STYLEREF, REF, PAGEREF, NOTEREF, TOC, HYPERLINK, and SEQ *(PAGE: ours 38%, public 54%; PAGEREF: ours 19%, public <1%; STYLEREF: ours 15%, public <1%; TOC: ours 19%, public 7%; HYPERLINK: ours 2%, public 3%; SEQ: ours <1%, public 3%)*
+- [ ] **1.0** Fields that follow: DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, FILENAME, AUTHOR, TITLE, SUBJECT, DOCPROPERTY, IF, COMPARE, SET, ASK, FILLIN, QUOTE, LISTNUM, SYMBOL, TC, XE, INDEX, TA, TOA, and formula (=) *(DATE: ours 1%, public 2%; FILENAME: ours 0%, public 2%; DOCPROPERTY: ours 0%, public <1%; INDEX: ours 0%, public 1%)*
+- [ ] **later** Fields that rarely appear: DATABASE, INCLUDETEXT, INCLUDEPICTURE, LINK, EQ, ADVANCE, GOTOBUTTON, MACROBUTTON, AUTOTEXTLIST, and ADDIN; they are kept and shown as saved *(EQ: ours 0%, public <1%; GOTOBUTTON: ours 0%, public <1%)*
 - [ ] **1.0** The Field dialog: choose a category and a field, set its properties and options, and see the code it writes
 
 ### Styles
@@ -468,7 +468,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Theme references: fonts and colors that follow the theme (heading and body fonts, accent colors with tints), so a theme change restyles the document *(shared: libs/office theme)*
 
 ### Numbering
-- [ ] **first release** The numbering model: abstract definitions and the lists that use them, nine levels, level overrides, restart and continue rules, "start at," legal numbering (1.1.1), picture and symbol bullets, the text and tab after a number, and numbering linked to heading styles *(lists: Jeff 44% (.docx 59%, .doc and .rtf 27%), public 52%; the 627 `.docx` of Jeff's that use lists hold 361,894 numbered paragraphs between them)*
+- [ ] **first release** The numbering model: abstract definitions and the lists that use them, nine levels, level overrides, restart and continue rules, "start at," legal numbering (1.1.1), picture and symbol bullets, the text and tab after a number, and numbering linked to heading styles *(lists: ours 44% (.docx 59%, .doc and .rtf 27%), public 52%; the 627 `.docx` of our that use lists hold 361,894 numbered paragraphs between them)*
 - [ ] **1.0** Number formats of other scripts and systems: Arabic-Indic, Hebrew, Thai, Chinese and Japanese counting, ordinal text ("first," "second"), and chapter-style numbers
 
 ### Review model
@@ -480,11 +480,11 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **first release** Compatibility mode: the file's compatibility setting (Word 97 to 2003, 2007, 2010, and 2013 or later) picks the layout rules used, as Word does, and shows "Compatibility Mode" in the title with a Convert command
 - [ ] **first release** Documents opened from `.doc`, `.rtf`, and older `.docx` lay out as they did in the program that made them, with the options that change layout (spacing at the top of a page, table cell margins, justification, line height) honored one by one
 - [ ] **1.0** The per-document list of compatibility options, kept and written back, with those that never change layout (such as "don't use HTML paragraph auto spacing") ignored on screen
-- [ ] **first release** Fonts: embedded fonts in a file (the obfuscated `.odttf` parts) are read and used for that document, and a missing font is replaced by one with the same widths so lines break where they did *(embedded fonts: Jeff 18% (.docx 35%, .doc and .rtf 0%), public 0%; shared: libs/office font readers and the width tables)*
+- [ ] **first release** Fonts: embedded fonts in a file (the obfuscated `.odttf` parts) are read and used for that document, and a missing font is replaced by one with the same widths so lines break where they did *(embedded fonts: ours 18% (.docx 35%, .doc and .rtf 0%), public 0%; shared: libs/office font readers and the width tables)*
 - [~] **1.0** Embed fonts when saving, only where each font's own license bits allow it, with "only the characters used" and "don't embed common fonts" *(shared: libs/base sfnt)*
 
 ### Text and languages
-- [~] **first release** Complex scripts and bidirectional text (Arabic, Hebrew, Indic, Thai), symbol fonts (Wingdings, Symbol) mapped to their letters, and a font fallback when a letter is missing *(right-to-left: Jeff 4%, public 10%; shared: Qt shaping in libs/text)*
+- [~] **first release** Complex scripts and bidirectional text (Arabic, Hebrew, Indic, Thai), symbol fonts (Wingdings, Symbol) mapped to their letters, and a font fallback when a letter is missing *(right-to-left: ours 4%, public 10%; shared: Qt shaping in libs/text)*
 - [~] **first release** Each run carries its language; spelling and hyphenation follow it, and "no proofing" is kept *(shared: libs/base/text)*
 - [ ] **later** East Asian line breaking (kinsoku), ruby, vertical text, and half- and full-width forms
 
@@ -508,7 +508,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again in the original program without a repair message or a visible change.
 
 ### Word `.docx` and `.dotx` (Open XML)
-- [ ] **first release** Open `.docx` from Word 2007 to 2021 (Transitional): body text and every kind of formatting, styles, numbering, sections and page setup, headers and footers, notes, fields with their results, bookmarks, links, tables, pictures, DrawingML shapes and text boxes, legacy VML shapes, equations, charts, content controls, comments, tracked changes, properties, themes, settings, and embedded fonts *(Jeff's own `.docx`: 1,056 files)*
+- [ ] **first release** Open `.docx` from Word 2007 to 2021 (Transitional): body text and every kind of formatting, styles, numbering, sections and page setup, headers and footers, notes, fields with their results, bookmarks, links, tables, pictures, DrawingML shapes and text boxes, legacy VML shapes, equations, charts, content controls, comments, tracked changes, properties, themes, settings, and embedded fonts *(our own `.docx`: 1,056 files)*
 - [ ] **first release** Save `.docx` so that Word opens every file without a repair message, checked on a large collection as JeffPub's `.pub` files were, and the layout matches Word's own
 - [ ] **first release** Round trip keeps what JeffWrite can't edit: SmartArt, 3-D models, custom XML, document variables, the glossary document of building blocks, people and comment extensions, `mc:AlternateContent` choices, and the extension elements of newer Word versions (`w14`, `w15`, `w16`), written back as they were, and untouched parts kept byte for byte
 - [ ] **first release** Open and save templates (`.dotx`) with their styles and building blocks
@@ -517,13 +517,13 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [ ] **later** Open and save the Strict variant of Open XML, and Flat OPC (`.xml`) files
 
 ### Word 97 to 2003 `.doc` and `.dot` (binary)
-- [~] **first release** Open `.doc` and `.dot`: text and every property of characters, paragraphs, sections, and tables; styles; lists; fields; footnotes and endnotes; headers and footers; bookmarks; pictures and drawings (Escher shapes and text boxes); embedded objects; comments; tracked changes; form fields; and fast-saved and complex files *(public: all 1,527 files; Jeff's: about a thousand of his 2,082; shared: the compound-file reader in libs/base/io and the drawing reader in libs/office)*
+- [~] **first release** Open `.doc` and `.dot`: text and every property of characters, paragraphs, sections, and tables; styles; lists; fields; footnotes and endnotes; headers and footers; bookmarks; pictures and drawings (Escher shapes and text boxes); embedded objects; comments; tracked changes; form fields; and fast-saved and complex files *(public: all 1,527 files; our: about a thousand of his 2,082; shared: the compound-file reader in libs/base/io and the drawing reader in libs/office)*
 - [ ] **1.0** Save `.doc` so Word opens it, with Check Compatibility naming what is lost; if this stays out of 1.0, "Save As" offers a new `.docx` name instead, as JeffDeck does for `.ppt` *(see the open questions)*
 - [ ] **1.0** Open encrypted `.doc` (RC4 and the older XOR scheme)
 - [ ] **later** Open Word 6.0 and Word 95 `.doc`, and Word 2003 XML (`.xml`)
 
 ### Rich Text `.rtf`
-- [ ] **first release** Open `.rtf`: character and paragraph formatting, styles, lists, tables, pictures (WMF, EMF, PNG, JPEG), fields, footnotes, headers and footers, sections, bookmarks, and all Unicode text and code pages *(about 3% of Jeff's old files are `.rtf`)*
+- [ ] **first release** Open `.rtf`: character and paragraph formatting, styles, lists, tables, pictures (WMF, EMF, PNG, JPEG), fields, footnotes, headers and footers, sections, bookmarks, and all Unicode text and code pages *(about 3% of our old files are `.rtf`)*
 - [ ] **1.0** Save `.rtf` that Word and other editors open with the same text, styles, lists, tables, and pictures
 - [ ] **1.0** Paste and drop RTF from other programs through the same reader *(shared: JeffPub's RTF insert)*
 
@@ -577,7 +577,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 - Embedded fonts: follow JeffDeck's rule. Saving embeds, by default, the fonts JeffOffice brings that other computers may lack; fonts drawn in place of common ones are saved under the common name.
 - How text flows across pages (a new library or an extension of libs/page) is an engineering choice, made when building starts.
 
-## Open questions for Jeff
+## Open questions
 
 1. Should Compare Documents (and Combine) move up to the first release, since legal publishing runs on redlines?
 2. Should the Table of Authorities and Index marking move up to the first release for briefs and books, though the counts don't measure them?
