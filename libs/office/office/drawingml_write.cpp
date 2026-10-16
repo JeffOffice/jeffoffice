@@ -533,6 +533,7 @@ struct Body {
     double columnGap = 0;
     bool vertical = false;
     bool noWrap = false;
+    bool centerBlock = false;
     TextItem::Autofit autofit = TextItem::NoAutofit;
     double fitScale = 1.0;
     double fitLineCut = 0;
@@ -544,6 +545,7 @@ void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, boo
     begin(w, "a:bodyPr");
     if (b.vertical) attribute(w, "vert", QStringLiteral("vert"));
     attribute(w, "wrap", b.noWrap ? QStringLiteral("none") : QStringLiteral("square"));
+    if (b.centerBlock) attribute(w, "anchorCtr", QStringLiteral("1"));
     attribute(w, "lIns", inset(b.insets.left()));
     attribute(w, "tIns", inset(b.insets.top()));
     attribute(w, "rIns", inset(b.insets.right()));
@@ -618,6 +620,7 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     body.columnGap = t.columnGap;
     body.vertical = t.vertical;
     body.noWrap = t.noWrap;
+    body.centerBlock = t.centerBlock;
     body.autofit = t.autofit;
     body.fitScale = t.fitScale;
     body.fitLineCut = t.fitLineCut;
@@ -744,6 +747,7 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     body.insets = s.insets;
     body.valign = s.valign;
     body.noWrap = s.noWrap;
+    body.centerBlock = s.centerBlock;
     writeBody(w, body, storyOf(s.storyId, ctx), ph.is, ctx);
     w.writeEndElement();
 }

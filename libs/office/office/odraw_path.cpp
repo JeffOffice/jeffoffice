@@ -5,6 +5,7 @@
 #include "office/odraw_read.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace jp::office::odraw {
 
@@ -135,6 +136,31 @@ QPainterPath freeformPath(const Props &p, const QSizeF &size)
         }
     }
     return path.elementCount() >= 2 ? path : QPainterPath();
+}
+
+QPainterPath arcPath(const Props &p, const QSizeF &size)
+{
+    QPainterPath path;
+    if (size.width() <= 0 || size.height() <= 0) return path;
+    QRectF ellipse(QPointF(0, 0), size);
+    const QByteArray vertexData = p.complex(0x0145);
+    const ArrayView vertices = arrayOf(vertexData);
+    if (vertices.count >= 2 && (vertices.size == 8 || vertices.size == 4)) {
+        const double left = p.integer(0x0140, 0), top = p.integer(0x0141, 0);
+        double width = double(p.integer(0x0142, 21600)) - left, height = double(p.integer(0x0143, 21600)) - top;
+        if (width == 0) width = 21600;
+        if (height == 0) height = 21600;
+        const QPointF a = vertexAt(vertexData, vertices, 0), b = vertexAt(vertexData, vertices, 1);
+        const QRectF rect = QRectF(QPointF((a.x() - left) * size.width() / width, (a.y() - top) * size.height() / height),
+                                   QPointF((b.x() - left) * size.width() / width, (b.y() - top) * size.height() / height)).normalized();
+        if (rect.width() > 0 && rect.height() > 0) ellipse = rect;
+    }
+    const double from = p.fixed(0x0147, -90), to = p.fixed(0x0148, 0);
+    double sweep = std::fmod(to - from, 360.0);
+    if (sweep < 0) sweep += 360;
+    path.arcMoveTo(ellipse, -from);
+    path.arcTo(ellipse, -from, -sweep);
+    return path;
 }
 
 QPainterPath connectorPath(int type, const Props &p, const QSizeF &size)
