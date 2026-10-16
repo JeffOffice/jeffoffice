@@ -24769,6 +24769,56 @@ private Q_SLOTS:
         for (const auto &p : plain->pages) QCOMPARE(count(*p, QStringLiteral("ftr")) + count(*p, QStringLiteral("sldNum")), 0);
     }
 
+    // The extension that comes with the outline's text (a slide's text, by its slide and its kind) can number the paragraphs of a run of the
+    // text: the first run here is numbered the usual way ("1."), the second counts from 5 with a parenthesis ("5)", "6)"), the third has no
+    // numbering and keeps the master's bullet. The entries go with the runs of paragraphs in order.
+    void importBinaryNumbersTheParagraphsTheTextExtensionNames()
+    {
+        auto entry = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        // bulletHasScheme (0x02000000), and with bulletScheme (0x01000000): the number's scheme (2 is "1)") and where it starts.
+        const QByteArray atom = entry(0x02000000, le(1, 2)) + entry(0x03000000, le(1, 2) + le(2, 2) + le(5, 2)) + entry(0, QByteArray());
+        const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, atom));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, outline)));
+        // Three paragraphs, each a run of its own (12, 13, and 12 characters; the master's bullets are on for both levels).
+        const QByteArray body = pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(37, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        QCOMPARE(story->blockCount(), 3);
+        const QTextBlock first = story->firstBlock(), second = first.next(), third = second.next();
+        QVERIFY(first.textList() && second.textList() && third.textList());
+        const QTextListFormat one = first.textList()->format(), two = second.textList()->format(), none = third.textList()->format();
+        QCOMPARE(one.style(), QTextListFormat::ListDecimal);
+        QCOMPARE(one.numberSuffix(), QStringLiteral("."));
+        QCOMPARE(one.start(), 1);
+        QCOMPARE(two.style(), QTextListFormat::ListDecimal);
+        QCOMPARE(two.numberSuffix(), QStringLiteral(")"));
+        QCOMPARE(two.start(), 5);
+        QCOMPARE(none.style(), QTextListFormat::ListDisc);
+        // Without the extension the same text is bulleted.
+        auto plain = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(plain, qPrintable(err));
+        const QTextDocument *plainStory = placeholderStory(*plain, *plain->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(plainStory && plainStory->firstBlock().textList());
+        QCOMPARE(plainStory->firstBlock().textList()->format().style(), QTextListFormat::ListDisc);
+        // An empty paragraph between two numbered ones is no item of the list: it has no number, and the numbering goes on past it.
+        const QByteArray gapOutline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, entry(0x02000000, le(1, 2))));
+        const QByteArray gapTags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, gapOutline)));
+        const QByteArray gapBody = pptText(1, QStringLiteral("Alpha\r\rBeta"), pfRun(12, 0, 0) + cfRun(12, 0));
+        auto gap = deck::importBinaryPresentation(buildPpt(false, false, false, false, gapBody, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, gapTags), &err);
+        QVERIFY2(gap, qPrintable(err));
+        const QTextDocument *gapStory = placeholderStory(*gap, *gap->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(gapStory);
+        QCOMPARE(gapStory->blockCount(), 3);
+        const QTextBlock alpha = gapStory->firstBlock(), empty = alpha.next(), beta = empty.next();
+        QVERIFY(alpha.textList() && beta.textList());
+        QVERIFY(!empty.textList());
+        QVERIFY(alpha.textList() == beta.textList());
+        QCOMPARE(beta.textList()->itemNumber(beta), 1);
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
