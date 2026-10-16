@@ -89,6 +89,9 @@ public:
     VAlign valign = VAlign::Top;
     Autofit autofit = NoAutofit;
     bool vertical = false;       // text direction rotated 90°
+    // The text isn't broken to the width of the frame: each paragraph is one line (broken only where it says), set against the frame as its
+    // alignment says and running out of it where it is longer. A slide's text box whose file says "none" for wrapping.
+    bool noWrap = false;
     bool continuedOn = false, continuedFrom = false;
     bool hyphenate = true;       // automatic hyphenation (on by default for text boxes, as in .pub files)
     double hyphenZone = 18;      // points: break a word only if moving it whole would leave more empty
@@ -165,6 +168,7 @@ public:
     QString storyId;            // text inside the shape
     QMarginsF insets{7.2, 3.6, 7.2, 3.6};
     VAlign valign = VAlign::Middle;
+    bool noWrap = false;        // the text isn't broken to the shape's width (see TextItem::noWrap)
 
     // Artwork (shape "art": an icon, or an SVG picture turned into shapes)
     // scales like a picture: its line weight grows and shrinks with it, and

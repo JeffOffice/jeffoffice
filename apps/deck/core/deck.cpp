@@ -590,6 +590,7 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
                 const auto *p = static_cast<const TextItem *>(place);
                 t->valign = p->valign;
                 t->insets = p->insets;
+                t->noWrap = p->noWrap;
                 t->prompt = promptFor(placeholderType(*place));
                 // With nothing in it, what is typed next has the new layout's look: its bullet, indent, and text.
                 QTextDocument *sd = d.storyDoc(t->storyId);

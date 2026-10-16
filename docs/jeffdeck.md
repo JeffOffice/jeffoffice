@@ -82,12 +82,23 @@ libs/base            colors, fonts, files, PDF
   made of in the page's `props` ("charts", each with a "kind"); saving writes
   the real thing again. A duplicated slide keeps them; a copy of the picture
   pasted on a slide is only a picture.
+- **An old .ppt is read as the program draws it.** A pattern fill is the
+  bitmap's white in the fill color and its black in the back color; the
+  drawing group's default property tables are not read (the program draws a
+  shape from its own properties and its master's); a gradient that names no
+  shade type is curved (gamma and sigma) when opaque and straight when a color
+  is clear in part; text in a symbol font (Symbol, Wingdings) is the Unicode
+  character that looks like it (`symbolTextToUnicode`).
 - **Text is set as on a slide.** A presentation's `Document::slideText`
   switches the shared text engine to the presentation program's rules: a
   single line is 1.2 times the text size whatever the font, a wider line's
   extra space is above it, the paragraph at the top of a box takes no space
   before it, an empty paragraph shows no bullet, text doesn't wrap around
   objects, and what doesn't fit runs out of its box instead of hiding.
+  A frame whose file says it doesn't wrap its text (`wrap="none"` in a
+  .pptx, `fo:wrap-option="no-wrap"` in an .odp, wrapText 2 in an old .ppt;
+  `TextItem::noWrap` and `ShapeItem::noWrap`) sets each paragraph on one line,
+  against the frame as its alignment says, and writes that back.
   A line that isn't single sits its baseline 3/4 of the way down it when
   it is taller than a single one, and a font's descent above its bottom
   (but no higher than 3/4 down) when shorter, for all slide text; space

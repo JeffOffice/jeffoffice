@@ -307,6 +307,7 @@ ItemPtr Reader::readTextBox(const QDomElement &frame, const QDomElement &box, Sc
                           lengthOr(bag.get(Graphic, "fo:padding-right"), pad), lengthOr(bag.get(Graphic, "fo:padding-bottom"), pad));
     const QString anchor = bag.get(Graphic, "draw:textarea-vertical-align");
     t->valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+    t->noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
     if (bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true") || bag.get(Graphic, "draw:fit-to-size") == QLatin1String("shrink")) t->autofit = TextItem::ShrinkOnOverflow;
     else if (bag.get(Graphic, "draw:auto-grow-height") == QLatin1String("true")) t->autofit = TextItem::GrowBox;
     const QString mode = bag.get(Para, "style:writing-mode");
@@ -787,6 +788,7 @@ ItemPtr Reader::readCustomShape(const QDomElement &e, Scope &sc, const QTransfor
                             lengthOr(bag.get(Graphic, "fo:padding-right"), pad), lengthOr(bag.get(Graphic, "fo:padding-bottom"), pad));
     const QString anchor = bag.get(Graphic, "draw:textarea-vertical-align");
     base.valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+    base.noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
     base.shape = QStringLiteral("rect");
 
     // The preset the type stands for: the standard's own names, and the shape library or its definition for the preset.

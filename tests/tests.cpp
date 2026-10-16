@@ -5160,6 +5160,36 @@ private Q_SLOTS:
         QVERIFY(jp::publicationThumbnail(junk.fileName()).isNull());
     }
 
+    // The margins and vertical alignment set for a shape in Format Shape are kept through a save, with no text in it: they were written only
+    // for a shape that held text, so an empty shape came back with a new shape's.
+    void emptyShapeKeepsItsMarginsAndAnchorWhenSaved()
+    {
+        Editor ed;
+        ed.setDocument(Document::blank(QSizeF(612, 792)));
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = QRectF(72, 72, 200, 100);
+        ed.addItem(s);
+        QVERIFY(s->storyId.isEmpty());
+        // As the dialog sets them.
+        ed.change(QStringLiteral("Format Shape"), [&] {
+            s->insets = QMarginsF(1, 2, 3, 4);
+            s->valign = VAlign::Bottom;
+        });
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("shape.jpub"));
+        QString err;
+        QVERIFY2(savePublication(*ed.doc(), path, QImage(), &err), qPrintable(err));
+        auto back = loadPublication(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const ShapeItem *again = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->type() == ItemType::Shape) again = static_cast<const ShapeItem *>(it.get());
+        QVERIFY(again);
+        QVERIFY(again->storyId.isEmpty());
+        QCOMPARE(again->insets, QMarginsF(1, 2, 3, 4));
+        QCOMPARE(int(again->valign), int(VAlign::Bottom));
+    }
+
     // A publication's name goes into an email's headers: a line break must
     // not start a header of its own, and accented names are encoded.
     void emailHeaderNames()
@@ -6488,6 +6518,28 @@ private Q_SLOTS:
         // A Unicode check mark is saved as Wingdings' own.
         QCOMPARE(b.next().textList()->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Wingdings"));
         QCOMPARE(b.next().textList()->format().stringProperty(jp::tp::BulletChar), QString(QChar(0xF0FC)));
+    }
+
+    // The letters and signs of a symbol font in running text come to the Unicode character that looks like them; the ones that have a picture
+    // of their own as emoji (the hands, the card suits) carry U+FE0E after them, which asks for the plain glyph, so they aren't drawn in
+    // color; the others carry nothing. A circled number set in Wingdings, from the code itself (0x8C), is one in a dark circle.
+    void symbolTextKeepsEmojiPlain()
+    {
+        const QChar plain(0xFE0E);
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xF061), QString(QChar(0x3B1)));                       // alpha
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAE), QString(QChar(0x2192)));                        // an arrow
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAA), QString(QChar(0x2660)) + plain);                // a spade
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAB), QString(QChar(0x2194)) + plain);                // a double arrow
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x43), QString::fromUcs4(U"\U0001F44D") + plain);     // a thumb up
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x44), QString::fromUcs4(U"\U0001F44E") + plain);     // a thumb down
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x42), QString::fromUcs4(U"\U0001F44C") + plain);     // a hand
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x41), QString(QChar(0x270C)) + plain);             // a victory sign
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x47), QString(QChar(0x261D)) + plain);             // a hand pointing up
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x46), QString(QChar(0x261E)));                     // a hand pointing right: no emoji
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0xFC), QString(QChar(0x2714)) + plain);             // a check mark
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x8C), QString(QChar(0x2776)));                     // 1 in a dark circle
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x9F), QString(QChar(0x2022)));                     // a bullet
+        QVERIFY(jp::symbolTextToUnicode(QStringLiteral("Arial"), 0x41).isEmpty());
     }
 
     // A Symbol bullet (as .pub lists have) sets the height of its item's
