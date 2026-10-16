@@ -20,7 +20,7 @@ enum : int {
     ColorAttrsRgb,                            // QString: the color those attributes gave, "RRGGBB"
     UnderlineAttrs,                           // QString: the attributes of w:u beside its val and color (themeColor...), as written
     DoubleStrike,                             // bool
-    Hidden,                                   // bool: hidden text
+    Hidden,                                   // (unused: hidden text is tp::HiddenText, which the text engine leaves out)
     Raised,                                   // int: half-points raised
     // block formats
     RawBefore = QTextFormat::UserProperty + 430,   // QByteArray: body elements kept as XML that come before the paragraph (packBlocks)

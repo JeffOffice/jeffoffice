@@ -7,6 +7,7 @@
 
 #include "core/color.h"
 #include "core/items.h"
+#include "text/textprops.h"
 
 #include <QDateTime>
 #include <QFont>
@@ -230,6 +231,9 @@ public:
         // Space before the first paragraph at the top of the first frame. A paragraph that goes on from the
         // page before has none there, nor has one that the text only came to.
         bool spaceBeforeFirst = true;
+        // The first paragraph is the rest of one (`continued`) and keeps its space before, as a word processor sets the text of a paragraph that a page
+        // break inside it moves to the top of a page.
+        bool spaceBeforeContinued = false;
         // Footnotes and endnotes in the story before the first paragraph, whose numbers the notes in this stretch go on from
         // (the first paragraph's own, in the lines that went before, the layout counts itself).
         int footnotesBefore = 0, endnotesBefore = 0;
@@ -305,6 +309,11 @@ public:
         QVector<QPair<int, int>> noteRefs;           // a note reference's display position, and its index in notes()
         struct Box { int disp = 0; int docPos = 0; QString json; QSizeF size; QMarginsF pad; };
         QVector<Box> objects;                        // objects set in the text, by display position
+        // A word processor's paragraph borders and shading (tp::Borders): the box, whether the paragraph is in one with the one before and after
+        // (the same borders and indents), and the room its top and bottom lines take in the layout, and where its sides are (frame-local).
+        tp::ParaBox box;
+        bool boxJoinedBefore = false, boxJoinedAfter = false, boxTopOff = false;
+        double boxTopRoom = 0, boxBottomRoom = 0, boxLeft = 0, boxRight = 0;
         int dispFromDoc(int rel) const;
         int docFromDisp(int d) const;
     };
@@ -343,6 +352,7 @@ private:
     double frameY(int frame) const;   // where a frame's lines start in the paragraph layouts (frameCount() for overflow)
     // The effect lists of runs (tp::TextFx): under the letters (shadows beside them, glow, reflection) or over them (an inner shadow).
     void paintTextEffects(QPainter *p, int frame, bool over) const;
+    void paintBox(QPainter *p, int block, int frame) const;   // a paragraph's borders and shading
     // One layout pass; returns how far each frame's text moved down for its
     // vertical alignment.
     QVector<double> buildOnce(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env);
