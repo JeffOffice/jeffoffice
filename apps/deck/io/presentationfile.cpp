@@ -46,8 +46,8 @@ QStringList leftOutNotes(int pictures, int parts)
 {
     QStringList notes;
     auto say = [](const char *text) { return QCoreApplication::translate("PresentationFile", text); };
-    if (pictures == 1) notes << say("A picture was left out: it is too large to show, or it would draw from outside the file.");
-    else if (pictures > 1) notes << say("%1 pictures were left out: they are too large to show, or they would draw from outside the file.").arg(pictures);
+    if (pictures == 1) notes << say("A picture was left out: it is too large or too complex to show, or it would draw from outside the file.");
+    else if (pictures > 1) notes << say("%1 pictures were left out: they are too large or too complex to show, or they would draw from outside the file.").arg(pictures);
     if (parts == 1) notes << say("One part of the file has a name or a link that can't be used, and was left out.");
     else if (parts > 1) notes << say("%1 parts of the file have names or links that can't be used, and were left out.").arg(parts);
     return notes;
