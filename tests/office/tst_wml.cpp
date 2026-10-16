@@ -527,12 +527,21 @@ private Q_SLOTS:
     {
         QString err;
         Document d;
-        // A document nested past the depth limit, one with a DOCTYPE, and a body that is not XML are refused with a message.
+        // A document nested past the depth limit is not refused: what is below the limit is made plain paragraphs, and a note says so (the limit
+        // itself stays: the XML reader never goes that deep). One with a DOCTYPE and a body that is not XML are refused with a message.
         QByteArray deep;
         for (int i = 0; i < kMaxXmlDepth + 10; ++i) deep += "<w:p>";
         for (int i = 0; i < kMaxXmlDepth + 10; ++i) deep += "</w:p>";
-        QVERIFY(!readDocx(Made{deep, {}, {}, {}}.build(), &d, &err));
-        QVERIFY(!err.isEmpty());
+        ReadNotes deepNotes;
+        QVERIFY(readDocx(Made{deep, {}, {}, {}}.build(), &d, &err, &deepNotes));
+        QVERIFY(deepNotes.leftOut && deepNotes.notes.size() == 1);
+        QByteArray tables;
+        for (int i = 0; i < 400; ++i) tables += "<w:tbl><w:tr><w:tc><w:p><w:r><w:t>level " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        for (int i = 0; i < 400; ++i) tables += "</w:tc></w:tr></w:tbl><w:p/>";
+        ReadNotes tableNotes;
+        QVERIFY(readDocx(Made{tables, {}, {}, {}}.build(), &d, &err, &tableNotes));
+        QVERIFY(tableNotes.leftOut);
+        QVERIFY(documentXmlOf(writeDocx(d)).contains("level 399"));
         {
             PackageWriter w;
             w.addPart(QStringLiteral("/word/document.xml"), "<!DOCTYPE d [<!ENTITY a \"aaaa\">]><w:document " + QByteArray(kW) + "><w:body><w:p><w:r><w:t>&a;</w:t></w:r></w:p></w:body></w:document>",
@@ -548,15 +557,23 @@ private Q_SLOTS:
             w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
             QVERIFY(!readDocx(w.finish(), &d, &err));
         }
-        // Two hundred thousand paragraphs, each with runs, read in a time a person would wait, and written again.
-        QByteArray many;
-        many.reserve(200000 * 80);
-        for (int i = 0; i < 200000; ++i) many += "<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>word</w:t></w:r></w:p>";
-        QElapsedTimer timer;
-        timer.start();
-        QVERIFY(readDocx(Made{many, {}, {}, {}}.build(), &d, &err));
+        // Two hundred thousand paragraphs, each with runs, read in time in proportion to their number (ten times the paragraphs of twenty
+        // thousand, about ten times as long: compared with each other, not with a clock), and written again.
+        auto readTime = [&](int count, Document *into) {
+            QByteArray many;
+            many.reserve(count * 80);
+            for (int i = 0; i < count; ++i) many += "<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>word</w:t></w:r></w:p>";
+            const QByteArray zip = Made{many, {}, {}, {}}.build();
+            QElapsedTimer timer;
+            timer.start();
+            const bool ok = readDocx(zip, into, &err);
+            return ok ? timer.nsecsElapsed() / 1e6 : 1e9;
+        };
+        Document small;
+        readTime(20000, &small);   // (the first of anything is slow)
+        const double few = std::max(readTime(20000, &small), 10.0), lots = readTime(200000, &d);
         QCOMPARE(d.body.size(), 200000);
-        QVERIFY2(timer.elapsed() < 20000, "reading 200,000 paragraphs");
+        QVERIFY2(lots < 25 * few, qPrintable(QStringLiteral("20,000 paragraphs %1 ms, 200,000 paragraphs %2 ms").arg(few).arg(lots)));
         QVERIFY(!writeDocx(d).isEmpty());
         // More elements than the limit allows are refused before the memory goes: 8,000,001 empty ones.
         QByteArray tooMany;
