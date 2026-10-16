@@ -242,6 +242,13 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         setStored(bf, prop::RawAfter, packBlocks(pending));
         c.setBlockFormat(bf);
     }
+    // The last section's properties are the first paragraph's (prop::LastSection).
+    {
+        QTextCursor first(story->begin());
+        QTextBlockFormat bf = story->begin().blockFormat();
+        setStored(bf, prop::LastSection, packSection(m_last));
+        first.setBlockFormat(bf);
+    }
     c.endEditBlock();
 }
 

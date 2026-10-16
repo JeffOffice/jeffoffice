@@ -129,7 +129,7 @@ bool isStoredProperty(int property)
 {
     switch (property) {
     case prop::Atom: case prop::ParaAttrs: case prop::RawBefore: case prop::RawAfter: case prop::RawBlock: case prop::RawPPr: case prop::SpacingAttrs:
-    case prop::IndAttrs: case prop::OddTabs: case prop::SectionData: case prop::RawRPr: return true;
+    case prop::IndAttrs: case prop::OddTabs: case prop::SectionData: case prop::RawRPr: case prop::LastSection: return true;
     default: return false;
     }
 }
@@ -223,13 +223,15 @@ void WriteDoc::setUpEnvironment()
     f.story()->setDefaultFont(body);
 }
 
-void WriteDoc::storyChanged(int, int removed, int added)
+void WriteDoc::storyChanged(int position, int removed, int added)
 {
     if (m_syncing) return;
     const int blocks = story()->blockCount();
     if (blocks != m_blockCount || removed > 1 || added > 1) {
         m_blockCount = blocks;
         syncSections();
+    } else if (position == 0 && storedBytes(story()->begin().blockFormat(), prop::LastSection) != m_lastBytes) {
+        syncSections();   // (the last section's properties are the first paragraph's, and an undo may have changed them)
     }
 }
 
@@ -309,6 +311,12 @@ void WriteDoc::syncSections()
 {
     if (m_syncing) return;
     m_syncing = true;
+    // The last section's properties are the first paragraph's, so that a change to them is one step of the text's undo.
+    {
+        const QByteArray bytes = storedBytes(story()->begin().blockFormat(), prop::LastSection);
+        if (!bytes.isEmpty()) m_last = unpackSection(bytes);
+        m_lastBytes = bytes;
+    }
     std::vector<SectionProps> list;
     for (QTextBlock b = story()->begin(); b.isValid(); b = b.next()) {
         const QTextBlockFormat bf = b.blockFormat();
@@ -333,6 +341,10 @@ void WriteDoc::setSectionProps(int index, const SectionProps &props)
 {
     index = std::clamp(index, 0, int(m_sections.size()) - 1);
     if (index == int(m_sections.size()) - 1) {
+        QTextCursor c(story()->begin());
+        QTextBlockFormat bf = story()->begin().blockFormat();
+        setStored(bf, prop::LastSection, packSection(props));
+        c.setBlockFormat(bf);
         m_last = props;
         syncSections();
         return;

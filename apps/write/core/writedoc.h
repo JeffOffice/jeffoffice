@@ -128,6 +128,7 @@ private:
     office::wml::Document m_wml;                   // everything of the file but the body
     std::vector<office::wml::SectionProps> m_sections;   // the sections (the last one's is in m_last)
     office::wml::SectionProps m_last;
+    QByteArray m_lastBytes;                        // the first paragraph's record of it (prop::LastSection) as last read
     int m_blockCount = 0;
     bool m_syncing = false;
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;

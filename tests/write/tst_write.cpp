@@ -1104,6 +1104,36 @@ private Q_SLOTS:
         QCOMPARE(int(documentXml(mid->toDocx()).count("<w:br w:type=\"page\"/>")), 2);
     }
 
+    // Page Setup on the last section (or the only one) is a step of the undo, as on the others, and marks the document as changed.
+    void pageSetupOnTheLastSectionUndoesAndMarksTheDocumentModified()
+    {
+        for (int which = 0; which < 2; ++which) {
+            std::unique_ptr<WriteDoc> doc = which == 0 ? WriteDoc::blank() : open(richDocx());
+            QVERIFY(doc);
+            const int last = doc->sectionCount() - 1;
+            QCOMPARE(last, which);
+            const QByteArray was = packSection(doc->sectionProps(last));
+            const QSizeF size = doc->pager().page(doc->pager().pageCount() - 1).size;
+            doc->setModified(false);
+            const int steps = doc->story()->availableUndoSteps();
+            wml::SectionProps p = doc->sectionProps(last);
+            std::swap(p.pageW, p.pageH);
+            p.orient = QStringLiteral("landscape");
+            doc->setSectionProps(last, p);
+            QVERIFY2(doc->isModified(), "the document is marked as changed");
+            QCOMPARE(doc->story()->availableUndoSteps(), steps + 1);
+            QCOMPARE(doc->pager().page(doc->pager().pageCount() - 1).size, QSizeF(size.height(), size.width()));
+            doc->story()->undo();
+            QCOMPARE(packSection(doc->sectionProps(last)), was);
+            QCOMPARE(doc->pager().page(doc->pager().pageCount() - 1).size, size);
+            doc->story()->redo();
+            QCOMPARE(doc->pager().page(doc->pager().pageCount() - 1).size, QSizeF(size.height(), size.width()));
+            // And the file has it.
+            auto back = open(doc->toDocx());
+            QCOMPARE(back->sectionProps(back->sectionCount() - 1).orient, QStringLiteral("landscape"));
+        }
+    }
+
     void aSectionThatEndsTheFileLeavesABlankLastPageThatIsDrawn()
     {
         // The only paragraph ends a next-page section and nothing follows: the second section has no text, so its page has no lines.
