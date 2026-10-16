@@ -2304,6 +2304,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             before = slideSpaceOf(b, tp::SpaceBeforeShare, env.fontScale);
             after = slideSpaceOf(b, tp::SpaceAfterShare, env.fontScale);
         }
+        // (A paragraph that begins with a page break has no space before where it begins: the text after the break has it, on the next page.)
+        if (env.wordLines && !tail && b.length() > 1 && doc->characterAt(b.position()) == QChar(0x000C)) before = 0;
         // A word processor's automatic spacing (a paragraph from a web page) is a fixed 14 points.
         if (env.wordLines) {
             // (Between two items of a list there is none.)
@@ -2510,8 +2512,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (wordTabs) {
                     double last = -1e9;
                     bool hung = !hangStop(off, hangLine);
+                    int own = 0;
                     for (QTextOption::Tab t : ownTabs) {
                         const double at = t.position * scale;
+                        // (A stop's leader goes with it: a stop that isn't the paragraph's own has none, wherever it falls in the list.)
+                        if (t.type != QTextOption::DelimiterTab) t.delimiter = own < B->leaders.size() && !B->leaders[own].isSpace() ? B->leaders[own] : QChar();
+                        ++own;
                         if (!hung && at > leftM + 0.01) {
                             tabs << QTextOption::Tab((leftM - off) * kFine, QTextOption::LeftTab);   // (the left indent of a hanging line is a stop)
                             hung = true;
@@ -2776,6 +2782,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         textH = h;
                         const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle);
                         baseDown = bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
+                        // A paragraph's first line that holds only a page break (the paragraph begins with it) takes no room: it is at the foot of the page
+                        // the paragraph's text is to leave, whether or not there is room for a line there.
+                        if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(b.position() + B->docFromDisp(line.textStart())) == QChar(0x000C)) {
+                            h = textH = 0;
+                            baseDown = 0;
+                        }
                     }
                     const double rise = objUp > baseDown && bf.lineHeightType() != QTextBlockFormat::FixedHeight ? objUp - baseDown : 0;
                     h += rise;
@@ -2939,7 +2951,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const bool roomAhead = startSpot.f < nF && (startSpot.c + 1 < std::max(1, frames[startSpot.f].columns) || startSpot.f + 1 < nF);
         if (roomAhead && m_span.keepRules && !startSpot.columnEmpty && B->lines.size() > 1 && B->lines.first().frame >= 0) {
             const int at = splitAt();
-            const bool split = at > 0 && B->lines[at].frame >= 0;
+            // (A paragraph that goes on at the next page because a page break ends a line is not cut for want of room: no rule of the lines applies.)
+            bool broken = false;
+            if (at > 0 && env.wordLines) {
+                const PtLine before(B->tl->lineAt(at - 1));
+                const int last = before.textStart() + before.textLength() - 1;
+                broken = last >= 0 && doc->characterAt(B->docStart + B->docFromDisp(last)) == QChar(0x000C);   // (the display shows a page break as a line break)
+            }
+            const bool split = at > 0 && B->lines[at].frame >= 0 && !broken;
             if (split && bf.boolProperty(tp::KeepTogether)) redo(true, -1);                 // keep lines together
             else if (split && at == 1 && bf.boolProperty(tp::WidowControl)) redo(true, -1);  // an orphan: one line left behind
             else if (split && int(B->lines.size()) - at == 1 && at >= 2 && bf.boolProperty(tp::WidowControl))
@@ -4083,23 +4102,28 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
         // Tab leaders: the stop each tab goes to is the first one past where
         // it starts; its leader fills the gap, on a grid so rows line up.
         if (!B->leaders.trimmed().isEmpty()) {
-            const QList<QTextOption::Tab> stops = B->tl->textOption().tabs();
             const QList<QTextLayout::FormatRange> fmts = B->tl->formats();
             for (int i = 0; i < B->lines.size(); ++i) {
                 if (B->lines[i].frame != frame) continue;
                 const PtLine l(B->tl->lineAt(i));
+                const QList<QTextOption::Tab> stops = B->tl->textOption().tabs();   // (the stops of this line's list)
                 for (int k = l.textStart(); k < l.textStart() + l.textLength(); ++k) {
                     if (B->disp[k] != QLatin1Char('\t')) continue;
                     const double x0 = l.cursorToX(k), x1 = l.cursorToX(k + 1);
                     int idx = -1;
+                    // (A word processor's lists are from each line's own start; the other lists are from the layout's.)
+                    const double fromStart = m_env.wordLines ? x0 - l.position().x() : x0;
                     for (int s = 0; s < stops.size() && idx < 0; ++s)
-                        if (stops[s].position / kFine > x0 + 0.01) idx = s;
-                    if (idx < 0 || idx >= B->leaders.size() || B->leaders[idx].isSpace() || B->leaders[idx].isNull()) continue;
+                        if (stops[s].position / kFine > fromStart + 0.01) idx = s;
+                    // (A word processor's stops carry their own leaders: the lines' lists differ.)
+                    const QChar leader = m_env.wordLines && !stops.isEmpty() ? (idx >= 0 && stops[idx].type != QTextOption::DelimiterTab ? stops[idx].delimiter : QChar())
+                                                                              : (idx >= 0 && idx < B->leaders.size() ? B->leaders[idx] : QChar());
+                    if (idx < 0 || leader.isSpace() || leader.isNull()) continue;
                     QTextCharFormat cf;
                     for (const auto &r : fmts)
                         if (k >= r.start && k < r.start + r.length) cf = r.format;
                     const QFont f = pointFont(cf.hasProperty(QTextFormat::FontFamilies) ? cf.font() : B->tl->font());
-                    const QString ch(B->leaders[idx]);
+                    const QString ch(leader);
                     const double w = advanceOf(f, ch);
                     if (w <= 0.01) continue;
                     const double gap = w * 0.4;

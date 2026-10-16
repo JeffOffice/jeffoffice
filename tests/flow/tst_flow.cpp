@@ -1274,6 +1274,62 @@ private Q_SLOTS:
         QCOMPARE(after->storyFrom, 13);
     }
 
+    // A paragraph that begins with a page break goes on at the next page because of the break, not for want of room: no rule of widows or orphans moves
+    // its first line (the break's) to the next frame, though it is left alone there.
+    void aBreakAtTheStartOfAParagraphIsNotAnOrphan()
+    {
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        auto lines = [&](bool withBreak) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setProperty(tp::WidowControl, true);
+            for (int i = 0; i < 4; ++i) {
+                if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+                c.insertText(QStringLiteral("filler %1").arg(i), run);
+            }
+            c.insertBlock(bf);
+            c.insertText(QString(withBreak ? flow::kPageBreak : QChar(0x2028)) + QStringLiteral("after the break"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            // Room for the four lines and a few points: none for a line of the paragraph, but the break's takes none.
+            lay.build(&doc, {plainFrame(300, 4 * single + 3), plainFrame(300, 500)}, env);
+            return lay.lineBriefs();
+        };
+        const auto broken = lines(true), line = lines(false);
+        QCOMPARE(broken.size(), 6);
+        QCOMPARE(broken[4].frame, 0);   // the break's line stays where it is
+        QCOMPARE(broken[5].frame, 1);
+        // (A line break that is only a line break leaves a paragraph's one line at the foot of a page as an orphan.)
+        QCOMPARE(line[4].frame, 1);
+        QCOMPARE(line[5].frame, 1);
+        // The break's line takes no room, so that it is at the foot of the page even where a line would not fit there.
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setTopMargin(6);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("filler"), run);
+        c.insertBlock(bf);
+        c.insertText(QString(flow::kPageBreak) + QStringLiteral("after the break"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, single + 9), plainFrame(300, 500)}, env);
+        const auto tight = lay.lineBriefs();
+        QCOMPARE(tight.size(), 3);
+        QCOMPARE(tight[1].frame, 0);
+        QVERIFY(tight[1].rect.height() < 0.01);
+        QCOMPARE(tight[2].frame, 1);
+    }
+
     // The text after a page break inside a paragraph is at the top of the next page with the paragraph's space before again (as a word processor sets it),
     // and a paragraph that goes on onto a page for want of room has none there.
     void aBreakInsideAParagraphKeepsItsSpaceBeforeOnTheNextPage()
