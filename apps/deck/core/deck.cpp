@@ -290,13 +290,24 @@ void fillFooter(Document &d, Item &it, const QString &type, const FooterOptions 
         c.insertText(o.footerText, plain);
         return;
     }
-    if (type == QLatin1String("dt") && !o.dateText.isEmpty()) {
-        c.insertText(o.dateText, plain);
+    const bool number = type == QLatin1String("sldNum");
+    const QString code = number ? QStringLiteral("page") : o.dateCode.isEmpty() ? QStringLiteral("date") : o.dateCode;
+    const QString &held = number ? o.numberText : o.dateText;
+    QTextCharFormat f = c.charFormat();
+    f.setProperty(tp::Field, code);
+    if (held.isEmpty()) {
+        c.insertText(QString(QChar::ObjectReplacementCharacter), f);
         return;
     }
-    QTextCharFormat f = c.charFormat();
-    f.setProperty(tp::Field, type == QLatin1String("sldNum") ? QStringLiteral("page") : o.dateCode.isEmpty() ? QStringLiteral("date") : o.dateCode);
-    c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+    // The text, with the field where U+FFFC stands in it.
+    qsizetype from = 0;
+    for (;;) {
+        const qsizetype at = held.indexOf(QChar::ObjectReplacementCharacter, from), end = at < 0 ? held.size() : at;
+        if (end > from) c.insertText(held.mid(from, end - from), plain);
+        if (at < 0) break;
+        c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+        from = at + 1;
+    }
 }
 
 // The text of a story at a new size: each run's point size times `k`.
@@ -1070,6 +1081,7 @@ QJsonObject FooterOptions::toJson() const
 {
     QJsonObject o{{"date", date}, {"slideNumber", slideNumber}, {"footer", footer}, {"text", footerText}, {"skipTitle", skipTitleSlide}};
     if (!dateText.isEmpty()) o["dateText"] = dateText;
+    if (!numberText.isEmpty()) o["numberText"] = numberText;
     if (!dateCode.isEmpty()) o["dateCode"] = dateCode;
     return o;
 }
@@ -1083,6 +1095,7 @@ FooterOptions FooterOptions::fromJson(const QJsonObject &o)
     f.footerText = o["text"].toString();
     f.skipTitleSlide = o["skipTitle"].toBool();
     f.dateText = o["dateText"].toString();
+    f.numberText = o["numberText"].toString();
     f.dateCode = o["dateCode"].toString();
     return f;
 }
@@ -1103,6 +1116,21 @@ QString layoutFooterText(const Document &d, const Page &slide)
     if (!place || place->type() != ItemType::Text) return QString();
     const QTextDocument *story = d.storyDoc(static_cast<const TextItem *>(place)->storyId);
     return story ? story->toPlainText().trimmed() : QString();
+}
+
+QString layoutPlaceText(const Document &d, const Page &slide, const QString &type, QString *fieldCode)
+{
+    const MasterPage *layout = d.masterFor(slide);
+    const Item *place = layout ? layoutPlaceholder(d, *layout, type) : nullptr;
+    if (!place || place->type() != ItemType::Text) return QString();
+    const QTextDocument *story = d.storyDoc(static_cast<const TextItem *>(place)->storyId);
+    if (!story) return QString();
+    if (fieldCode) {
+        fieldCode->clear();
+        for (QTextBlock b = story->begin(); b.isValid() && fieldCode->isEmpty(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd() && fieldCode->isEmpty(); ++it) *fieldCode = it.fragment().charFormat().stringProperty(tp::Field);
+    }
+    return story->toPlainText().trimmed();
 }
 
 void addMissingFooters(Document &d, const FooterOptions &o, Page &slide)

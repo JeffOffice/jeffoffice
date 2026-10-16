@@ -945,6 +945,8 @@ private:
     void showFooters(const FooterSpec &document);
     QString masterFooterText(const Page &slide) const;
     MasterInfo *masterByRef(quint32 ref) const;
+    QString masterPlaceText(const Page &slide, const QString &type, QString *fieldCode = nullptr) const;
+    void takeMasterTexts(const FooterSpec &f, const Page &slide, FooterOptions *o) const;
     void finishItems(ItemList &items, PageState &st, bool slide);
     QString readNotes(const SlideEntry &slide, quint32 notesRef, const MasterInfo &master);
     int effectiveGeometry(int geom, const QStringList &types) const;
@@ -2254,12 +2256,38 @@ void Importer::showFooters(const FooterSpec &document)
         if (!o.any()) continue;
         addMissingFooters(m_doc, o, *page);
     }
+// The text typed in the place of that type ("dt" or "sldNum") of a slide's master (a field in it is U+FFFC), cut at a footer's most; empty when the
+// place holds only fields, which is the program's own date or number, not text.
+QString Importer::masterPlaceText(const Page &slide, const QString &type, QString *fieldCode) const
+{
+    const QString held = layoutPlaceText(m_doc, slide, type, fieldCode);
+    if (QString(held).remove(QChar(QChar::ObjectReplacementCharacter)).trimmed().isEmpty()) return QString();
+    return held.left(kMaxFooterChars);
+}
+
+// What the master's places for the date and the slide number say a slide shows, where the record leaves it to them: a date the record shows
+// without saying which (not today's, and none of its own) is the text typed in the master's date place, and the number takes the text the master's
+// number place holds around its field.
+void Importer::takeMasterTexts(const FooterSpec &f, const Page &slide, FooterOptions *o) const
+{
+    if ((f.flags & FootHasDate) && !o->date) {
+        QString code;
+        if (const QString text = masterPlaceText(slide, QStringLiteral("dt"), &code); !text.isEmpty()) {
+            o->date = true;
+            o->dateText = text;
+            o->dateCode = code;
+        }
+    }
+    if (o->slideNumber) o->numberText = masterPlaceText(slide, QStringLiteral("sldNum"));
+}
+
 }
 
 // The text box of a placeholder in a drawing, looking into its groups too.
 bool findPlaceholderText(Records &rs, const Rec &box, const QSet<int> &ids, int depth, Rec *textbox)
 {
     const QByteArray &d = rs.data();
+        if (!m_doc.pages.isEmpty()) takeMasterTexts(document, *m_doc.pages.first(), &all);
     for (const Rec &r : rs.in(box)) {
         if (r.type == RT_SpContainer) {
             const QVector<Rec> kids = rs.in(r);
@@ -2279,6 +2307,7 @@ bool findPlaceholderText(Records &rs, const Rec &box, const QSet<int> &ids, int 
         }
     }
     return false;
+        takeMasterTexts(spec, *page, &o);
 }
 
 // The story of a slide's speaker notes: the text of the notes page's body placeholder, or the notes
