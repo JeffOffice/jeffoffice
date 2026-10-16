@@ -11,8 +11,11 @@
 #include "text/textprops.h"
 
 #include <QApplication>
+#include <QBuffer>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QTest>
@@ -28,6 +31,8 @@
 
 using namespace jp;
 using jp::flow::FlowDocument;
+using jp::flow::FloatingObject;
+namespace fp = jp::flow::fp;
 using jp::flow::MaterializedPage;
 using jp::flow::Paginator;
 using jp::flow::Section;
@@ -443,6 +448,39 @@ const TextItem *boxHolding(const MaterializedPage &page, const QString &text, QS
                     return t;
                 }
     return nullptr;
+}
+
+
+// A small picture's bytes, as a file.
+QByteArray tinyPng(int w, int h, const QColor &color)
+{
+    QImage img(w, h, QImage::Format_RGB32);
+    img.fill(color);
+    QByteArray bytes;
+    QBuffer buf(&bytes);
+    buf.open(QIODevice::WriteOnly);
+    img.save(&buf, "PNG");
+    return bytes;
+}
+
+// An object to set at a place, with the item given, anchored by a character put into the story at `position`.
+int addObject(FlowDocument *fd, ItemPtr item, int position, FloatingObject::Rel hRel, FloatingObject::Rel vRel, double dx = 0, double dy = 0)
+{
+    FloatingObject o;
+    o.item = std::move(item);
+    o.hRel = hRel;
+    o.vRel = vRel;
+    o.dx = dx;
+    o.dy = dy;
+    fd->objects.push_back(o);
+    const int id = int(fd->objects.size());
+    QTextCursor c(fd->story());
+    c.setPosition(position);
+    QTextCharFormat anchor;
+    anchor.setFontPointSize(11);
+    anchor.setProperty(fp::AnchorId, id);
+    c.insertText(QString(QChar(0xFFFC)), anchor);
+    return id;
 }
 
 } // namespace
@@ -1525,6 +1563,16 @@ private Q_SLOTS:
         QVERIFY(std::abs(old[0].rect.height() - heights[0]) > 0.5);
     }
 
+    // A family that isn't on the machine is set as its stand-in is, Calibri's line; Times and Helvetica are the names of Times New Roman and Arial.
+    void wordLinesOfMissingFamiliesAreTheStandIns()
+    {
+        const auto lines = wordLinesOf({{QStringLiteral("No Such Typeface Anywhere"), 12}, {QStringLiteral("Times"), 12}, {QStringLiteral("Helvetica"), 11}});
+        QCOMPARE(lines.size(), 3);
+        const double heights[] = {(1950 + 550) / 2048.0 * 12, (1825 + 443 + 87) / 2048.0 * 12, (1854 + 434 + 67) / 2048.0 * 11};
+        for (int i = 0; i < 3; ++i)
+            QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
+    }
+
     // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline a descent
     // above its bottom (the text's top is cut off where there is less room than the font's ascent); an at-least height does the same when it is
     // more than a single line, and is a single line when it is less.
@@ -1914,6 +1962,40 @@ private Q_SLOTS:
         }
     }
 
+    // A paragraph whose text and mark are both hidden takes no room (not a line, not its space); one whose mark is not hidden is an empty line.
+    void aParagraphThatIsAllHiddenTakesNoRoom()
+    {
+        auto tops = [&](bool markHidden) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextCharFormat hidden = run;
+            hidden.setProperty(tp::HiddenText, true);
+            QTextBlockFormat bf;
+            bf.setTopMargin(10);
+            bf.setBottomMargin(10);
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("before"), run);
+            c.insertBlock(bf, markHidden ? hidden : run);
+            c.insertText(QStringLiteral("Top of Form"), hidden);
+            c.insertBlock(bf, run);
+            c.insertText(QStringLiteral("after"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 300)}, env);
+            const auto lines = lay.lineInfo(0);
+            return std::make_pair(int(lines.size()), lines.last().rect.top() - lines.first().rect.bottom());
+        };
+        const auto gone = tops(true), line = tops(false);
+        QCOMPARE(gone.first, 2);
+        QVERIFY(std::abs(gone.second - 10) < 0.01);
+        QCOMPARE(line.first, 3);
+        QVERIFY(line.second > 20);
+    }
+
     // The space between two paragraphs is the larger of the first's space after and the second's space before, not their sum; a paragraph that asks
     // for contextual spacing has none between it and a paragraph of its own style.
     void wordSpaceBetweenParagraphsIsTheLarger()
@@ -2203,6 +2285,214 @@ private Q_SLOTS:
         }
         QCOMPARE(int(seen.size()), 900);
         QCOMPARE(count, 900);
+    }
+
+    // An object set at a place goes where its anchor's page, paragraph, or line puts it: from the margin or the page, in the middle or at the end of one,
+    // behind the text or over it; a rule's ends are from the place too; a picture's data is in the page's document.
+    void objectsAreSetWherePageParagraphAndLinePutThem()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 60, 12);
+        const QTextDocument *story = fd.story();
+        const int third = story->findBlockByNumber(3).position() + 4;
+        auto box = [](double w, double h) {
+            auto item = std::make_shared<ShapeItem>();
+            item->rect = QRectF(0, 0, w, h);
+            return item;
+        };
+        using Rel = FloatingObject::Rel;
+        // From the margin across and the paragraph down.
+        const int a = addObject(&fd, box(100, 20), third, Rel::Margin, Rel::Paragraph, 10, 5);
+        // In the middle across the page, at the end of the margin down, behind the text.
+        const int b = addObject(&fd, box(50, 30), third, Rel::Page, Rel::Margin);
+        fd.objects[b - 1].hAlign = FloatingObject::Align::Center;
+        fd.objects[b - 1].vAlign = FloatingObject::Align::End;
+        fd.objects[b - 1].behind = true;
+        // A rule from the column's edge, a line down.
+        auto line = std::make_shared<LineItem>();
+        line->p1 = QPointF(0, 0);
+        line->p2 = QPointF(120, 0);
+        const int c = addObject(&fd, line, third, Rel::Column, Rel::Line, 3, 2);
+        // A picture from the page's corner.
+        auto picture = std::make_shared<PictureItem>();
+        picture->rect = QRectF(0, 0, 40, 20);
+        fd.images.push_back({tinyPng(8, 4, Qt::red), QStringLiteral("png")});
+        const int p = addObject(&fd, picture, third, Rel::Page, Rel::Page, 20, 30);
+        fd.objects[p - 1].image = 0;
+        Q_UNUSED(a); Q_UNUSED(c);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const auto &items = page->doc->pages[0]->items;
+        // The paragraph and the line that hold the anchor, as the page laid them out.
+        const auto lines = pg.lines(0);
+        double paragraphTop = -1, lineTop = -1;
+        const int blockStart = story->findBlockByNumber(3).position();
+        for (const auto &l : lines)
+            if (l.block == blockStart) {
+                if (paragraphTop < 0) paragraphTop = l.rect.top();
+                if (third >= l.pos && third < l.end) lineTop = l.rect.top();
+            }
+        QVERIFY(paragraphTop > 0 && lineTop >= paragraphTop);
+        const double top = fd.sections[0].margins.top(), left = fd.sections[0].margins.left();
+        const ShapeItem *first = nullptr, *second = nullptr;
+        const LineItem *rule = nullptr;
+        const PictureItem *pic = nullptr;
+        for (const auto &it : items) {
+            if (it->type() == ItemType::Line) rule = static_cast<const LineItem *>(it.get());
+            if (it->type() == ItemType::Picture) pic = static_cast<const PictureItem *>(it.get());
+            if (it->type() == ItemType::Shape) {
+                const auto *sh = static_cast<const ShapeItem *>(it.get());
+                if (sh->rect.width() == 100) first = sh;
+                else second = sh;
+            }
+        }
+        QVERIFY(first && second && rule && pic);
+        QVERIFY2(std::abs(first->rect.left() - (left + 10)) < 0.01 && std::abs(first->rect.top() - (top + paragraphTop + 5)) < 0.01, qPrintable(QStringLiteral("%1 %2 (paragraph at %3)").arg(first->rect.left()).arg(first->rect.top()).arg(paragraphTop)));
+        QVERIFY(std::abs(second->rect.left() - (612 - 50) / 2.0) < 0.01);
+        QVERIFY(std::abs(second->rect.bottom() - (792 - fd.sections[0].margins.bottom())) < 0.01);
+        QVERIFY(items.front().get() == second);   // (behind the text: before it)
+        QVERIFY(std::abs(rule->p1.x() - (left + 3)) < 0.01 && std::abs(rule->p2.x() - (left + 3 + 120)) < 0.01);
+        QVERIFY(std::abs(rule->p1.y() - (top + lineTop + 2)) < 0.01 && std::abs(rule->p1.y() - rule->p2.y()) < 0.01);
+        QVERIFY(std::abs(pic->rect.left() - 20) < 0.01 && std::abs(pic->rect.top() - 30) < 0.01);
+        QVERIFY(!pic->imageId.isEmpty());
+        QVERIFY(page->doc->images.contains(pic->imageId));
+        // A page whose lines hold no anchor has none of them.
+        const auto other = pg.materialize(pg.pageCount() - 1);
+        for (const auto &it : other->doc->pages[0]->items) QVERIFY(it->type() == ItemType::Text);
+    }
+
+    // The objects set in a section's header are on every page of it, from the header's own lines; an inline picture in a story has the Id its picture
+    // has in the page's document.
+    void headerObjectsAndInlinePicturesAreOnTheirPages()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 80, 12);
+        auto header = furnitureStory({QStringLiteral("HEADER"), QStringLiteral("second line")});
+        {
+            // A rule anchored to the header's second paragraph, from the margin across and the paragraph down.
+            auto line = std::make_shared<LineItem>();
+            line->p1 = QPointF(0, 0);
+            line->p2 = QPointF(200, 0);
+            FloatingObject o;
+            o.item = line;
+            o.hRel = FloatingObject::Rel::Margin;
+            o.vRel = FloatingObject::Rel::Paragraph;
+            o.dy = 1;
+            fd.objects.push_back(o);
+            QTextCursor c(header.get());
+            c.setPosition(header->findBlockByNumber(1).position());
+            QTextCharFormat anchor;
+            anchor.setProperty(fp::AnchorId, 1);
+            c.insertText(QString(QChar(0xFFFC)), anchor);
+        }
+        fd.sections[0].header.odd = header;
+        fd.sections[0].headerDistance = 30;
+        // An inline picture in the body.
+        fd.images.push_back({tinyPng(6, 6, Qt::blue), QStringLiteral("png")});
+        {
+            auto item = std::make_shared<PictureItem>();
+            item->rect = QRectF(0, 0, 30, 20);
+            item->imageId = QStringLiteral("flow-img:0");
+            QTextCursor c(fd.story());
+            c.setPosition(fd.story()->findBlockByNumber(1).position() + 3);
+            QTextCharFormat inl;
+            inl.setFontPointSize(11);
+            inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
+            c.insertText(QString(QChar(0xFFFC)), inl);
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        for (int k : {0, 1}) {
+            const auto page = pg.materialize(k);
+            const LineItem *rule = nullptr;
+            for (const auto &it : page->doc->pages[0]->items)
+                if (it->type() == ItemType::Line) rule = static_cast<const LineItem *>(it.get());
+            QVERIFY(rule);
+            // The header's second line: below its first by a line, from the header's top.
+            StoryLayout own;
+            own.build(header.get(), {plainFrame(fd.sections[0].content().width(), 100000)}, fd.env);
+            const double second = own.lineInfo(0).at(1).rect.top();
+            QVERIFY2(std::abs(rule->p1.y() - (30 + second + 1)) < 0.01, qPrintable(QString::number(rule->p1.y())));
+            QVERIFY(std::abs(rule->p1.x() - fd.sections[0].margins.left()) < 0.01);
+        }
+        const auto first = pg.materialize(0);
+        const TextItem *body = boxHolding(*first, QStringLiteral("court"));
+        QVERIFY(body);
+        QString id;
+        for (QTextBlock b = first->doc->story(body->storyId)->doc->begin(); b.isValid() && id.isEmpty(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString json = it.fragment().charFormat().stringProperty(tp::InlineObject);
+                if (!json.isEmpty()) id = QJsonDocument::fromJson(json.toUtf8()).object().value(QStringLiteral("image")).toString();
+            }
+        QVERIFY(!id.isEmpty() && !id.startsWith(QStringLiteral("flow-img:")));
+        QVERIFY(first->doc->images.contains(id));
+    }
+
+    // A section that is continuous and has the same page as the one before goes on the page the one before ends on; one with another page, or that is not
+    // continuous, begins a page of its own.
+    void continuousSectionsShareThePage()
+    {
+        auto pagesOf = [&](bool continuous, bool samePage) {
+            FlowDocument fd;
+            fillStory(fd.story(), 6, 3, [](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i == 2) bf.setProperty(flow::fp::SectionBreakAfter, true);
+            });
+            Section second = fd.sections[0];
+            second.continuous = continuous;
+            if (!samePage) second.margins = QMarginsF(100, 72, 72, 72);
+            fd.sections << second;
+            Paginator pg(&fd);
+            // (The section of the page each paragraph is on is the section the page starts in, and the first page's is the first.)
+            QVector<int> sections;
+            for (int k = 0; k < pg.pageCount(); ++k) sections << pg.page(k).start.section;
+            return std::make_pair(pg.pageCount(), sections);
+        };
+        const auto apart = pagesOf(false, true), joined = pagesOf(true, true), other = pagesOf(true, false);
+        QCOMPARE(apart.first, 2);
+        QCOMPARE(joined.first, 1);
+        QCOMPARE(other.first, 2);   // (a page of another size of margins can't be shared)
+        QCOMPARE(apart.second.last(), 1);
+    }
+
+    // A continuous section with more columns than the one before begins below it on the same page, with its own columns.
+    void continuousSectionWithOtherColumnsBeginsBelow()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 24, 5, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 1) bf.setProperty(flow::fp::SectionBreakAfter, true);
+        });
+        Section second = fd.sections[0];
+        second.continuous = true;
+        second.columns = 2;
+        second.columnGap = 20;
+        fd.sections << second;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto page = pg.materialize(0);
+        QCOMPARE(page->boxes.size(), 3);
+        QVector<const TextItem *> box;
+        for (const QString &id : page->boxes)
+            for (const auto &it : page->doc->pages[0]->items)
+                if (it->id == id) box << static_cast<const TextItem *>(it.get());
+        QCOMPARE(box.size(), 3);
+        const Section &one = fd.sections[0], &two = fd.sections[1];
+        // The first section's text is in one column of the page's width; the second's below it, in two.
+        QVERIFY(std::abs(box[0]->rect.width() - one.columnRect(0).width()) < 0.01);
+        QVERIFY(std::abs(box[1]->rect.width() - two.columnRect(0).width()) < 0.01);
+        QVERIFY(std::abs(box[2]->rect.left() - two.columnRect(1).left()) < 0.01);
+        QVERIFY2(box[1]->rect.top() >= box[0]->rect.bottom() - 0.01, qPrintable(QString::number(box[1]->rect.top()) + " " + QString::number(box[0]->rect.bottom())));
+        QVERIFY2(box[1]->rect.top() - box[0]->rect.bottom() < 40, qPrintable(QString::number(box[1]->rect.top() - box[0]->rect.bottom())));
+        QCOMPARE(std::round(box[1]->rect.top() * 100), std::round(box[2]->rect.top() * 100));
+        // The columns go to the foot of the page, and the next page starts in the second section, with its columns.
+        const double foot = page->size.height() - one.margins.bottom();
+        QVERIFY(std::abs(box[2]->rect.bottom() - foot) < 30);
+        QCOMPARE(pg.page(1).start.section, 1);
+        const auto next = pg.materialize(1);
+        QVERIFY(next->boxes.size() >= 2);
+        QVERIFY(std::abs(static_cast<const TextItem *>(next->doc->pages[0]->items.front().get())->rect.width() - two.columnRect(0).width()) < 0.01);
     }
 
     // Where a position is on the pages.

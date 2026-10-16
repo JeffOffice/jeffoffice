@@ -76,6 +76,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.footerDistance = p.footer / 20.0;
     s.differentFirstPage = p.titlePg;
     s.differentOddEven = evenAndOdd;
+    s.continuous = p.type == QLatin1String("continuous");
     s.firstPageNumber = p.pageStart;
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
@@ -411,7 +412,7 @@ std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationship
         doc->setDocumentMargin(0);
         doc->setDefaultFont(story()->defaultFont());
         doc->setUndoRedoEnabled(false);
-        fillStory(doc.get(), blocks, true);
+        fillStory(doc.get(), blocks, true, rel.target);
     }
     m_headerStories.insert(rel.target, doc);
     return doc;

@@ -8,7 +8,9 @@
 #include "text/textprops.h"
 
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QHash>
+#include <QJsonDocument>
 #include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -72,6 +74,16 @@ void WriteDoc::buildStory(const QVector<Block> &body) { fillStory(story(), body,
 constexpr int kMostFieldNesting = 8;
 // The most paragraphs of a header or footer that are read (the rest is left out).
 constexpr int kMostHeaderParagraphs = 400;
+// The most objects set at places that a file's pages have, and the most pictures (a file with more has the rest left out).
+constexpr int kMostObjects = 20000;
+constexpr int kMostImages = 2000;
+
+namespace {
+bool drawnTag(const QString &tag)
+{
+    return tag == QLatin1String("pict") || tag == QLatin1String("drawing") || tag == QLatin1String("AlternateContent") || tag == QLatin1String("object");
+}
+} // namespace
 
 namespace {
 
@@ -115,7 +127,7 @@ QString attributeOfTag(const QByteArray &xml, const QString &name)
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
-void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header)
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part)
 {
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
@@ -319,6 +331,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     QTextCharFormat mark = formatOf(styleId, in.props);
                     mark.setProperty(tp::Field, QStringLiteral("notemark"));
                     put(QString(QChar::ObjectReplacementCharacter), mark);
+                } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
+                    QTextCharFormat object = formatOf(styleId, in.props);
+                    if (drawnObjects(in, part, &object)) put(QString(QChar::ObjectReplacementCharacter), object);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
                     if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
@@ -344,7 +359,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
             // case roman numerals a word processor's endnotes have.
             QString field = QStringLiteral("raw:") + in.display;
-            if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) field = QStringLiteral("footnote:fn") + in.key;
+            if (in.kind == Inline::RunAtom && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
+            else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) field = QStringLiteral("footnote:fn") + in.key;
             else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(++endnoteNumber, false);
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
@@ -379,6 +395,119 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         first.setBlockFormat(bf);
     }
     c.endEditBlock();
+}
+
+bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format)
+{
+    const QVector<Shape> shapes = readShapes(atom.raw);
+    if (shapes.isEmpty()) return false;
+    flow::FlowDocument &f = *m_flow;
+    // The picture of a shape: its bytes (from the part the run is in), kept once for the document.
+    auto pictureOf = [&](const Shape &s) -> int {
+        if (s.embed.isEmpty() || f.images.size() >= kMostImages) return -1;
+        QString target;
+        const QVector<Relationship> &links = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
+        for (const Relationship &r : links)
+            if (r.id == s.embed && !r.external) target = r.target;
+        if (target.isEmpty()) return -1;
+        const QByteArray bytes = partData(target);
+        if (bytes.isEmpty()) return -1;
+        for (int i = 0; i < f.images.size(); ++i)
+            if (f.images[i].bytes == bytes) return i;
+        flow::FlowImage image;
+        image.bytes = bytes;
+        image.format = QFileInfo(target).suffix().toLower();
+        f.images.push_back(image);
+        return int(f.images.size()) - 1;
+    };
+    auto colorOf = [](const QString &rgb) { return ColorRef::rgb(QColor(QLatin1Char('#') + rgb)); };
+    int firstObject = 0, lastObject = 0;
+    bool inlinePicture = false;
+    for (const Shape &s : shapes) {
+        if (s.kind == Shape::Picture && !s.floating && !inlinePicture) {
+            const int image = pictureOf(s);
+            if (image < 0 || s.width <= 0 || s.height <= 0) continue;
+            // A picture in the line: an object set in the text, with no room round it of its own.
+            auto pic = std::make_shared<PictureItem>();
+            pic->rect = QRectF(0, 0, s.width, s.height);
+            pic->imgRect = QRectF(0, 0, s.width, s.height);
+            pic->imageId = QStringLiteral("flow-img:%1").arg(image);
+            pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 0;
+            pic->altText = s.alt;
+            format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(pic->toJson()).toJson(QJsonDocument::Compact)));
+            inlinePicture = true;
+            continue;
+        }
+        if (f.objects.size() >= kMostObjects) break;
+        flow::FloatingObject o;
+        o.hRel = s.hRel == Shape::Margin ? flow::FloatingObject::Rel::Margin : s.hRel == Shape::Page ? flow::FloatingObject::Rel::Page
+                 : s.hRel == Shape::Character ? flow::FloatingObject::Rel::Character : flow::FloatingObject::Rel::Column;
+        o.vRel = s.vRel == Shape::Margin ? flow::FloatingObject::Rel::Margin : s.vRel == Shape::Page ? flow::FloatingObject::Rel::Page
+                 : s.vRel == Shape::LineOf ? flow::FloatingObject::Rel::Line : s.vRel == Shape::Character ? flow::FloatingObject::Rel::Line : flow::FloatingObject::Rel::Paragraph;
+        auto align = [](Shape::Align a) { return a == Shape::Start ? flow::FloatingObject::Align::Start : a == Shape::Center ? flow::FloatingObject::Align::Center
+                                                                : a == Shape::End ? flow::FloatingObject::Align::End : flow::FloatingObject::Align::None; };
+        o.hAlign = align(s.hAlign);
+        o.vAlign = align(s.vAlign);
+        o.dx = s.left;
+        o.dy = s.top;
+        o.behind = s.behind;
+        o.wrap = s.wrap == Shape::Square || s.wrap == Shape::Tight ? flow::FloatingObject::Wrap::Square : s.wrap == Shape::TopBottom ? flow::FloatingObject::Wrap::TopBottom : flow::FloatingObject::Wrap::None;
+        o.gap = QMarginsF(s.gapLeft, s.gapTop, s.gapRight, s.gapBottom);
+        if (s.kind == Shape::Picture) {
+            const int image = pictureOf(s);
+            if (image < 0) continue;
+            auto pic = std::make_shared<PictureItem>();
+            pic->rect = QRectF(0, 0, s.width, s.height);
+            pic->altText = s.alt;
+            o.item = pic;
+            o.image = image;
+        } else if (s.kind == Shape::Line) {
+            auto line = std::make_shared<LineItem>();
+            line->p1 = QPointF(s.x1, s.y1);
+            line->p2 = QPointF(s.x2, s.y2);
+            line->stroke = Stroke::line(colorOf(s.strokeColor), std::max(0.25, s.strokeWeight));
+            if (s.arrowEnd) line->stroke.endArrow = Arrow::Triangle;
+            if (s.arrowStart) line->stroke.startArrow = Arrow::Triangle;
+            o.item = line;
+        } else {
+            std::shared_ptr<Item> item;
+            if (s.kind == Shape::TextBox) {
+                QVector<Block> blocks;
+                if (readBlocks(s.textBox, &blocks)) {
+                    auto story = std::make_shared<QTextDocument>();
+                    story->setDocumentMargin(0);
+                    story->setDefaultFont(this->story()->defaultFont());
+                    story->setUndoRedoEnabled(false);
+                    fillStory(story.get(), blocks, true, part);
+                    o.story = story;
+                }
+                auto box = std::make_shared<TextItem>();
+                box->rect = QRectF(0, 0, s.width, s.height);
+                o.insets = QMarginsF(s.inset[0], s.inset[1], s.inset[2], s.inset[3]);
+                item = box;
+            } else {
+                auto shape = std::make_shared<ShapeItem>();
+                shape->rect = QRectF(0, 0, s.width, s.height);
+                shape->shape = s.kind == Shape::Oval ? QStringLiteral("ellipse") : QStringLiteral("rect");
+                item = shape;
+            }
+            if (s.filled && !s.fillColor.isEmpty()) item->fill = Fill::solid(colorOf(s.fillColor));
+            if (s.stroked && s.strokeWeight > 0) item->stroke = Stroke::line(colorOf(s.strokeColor), s.strokeWeight);
+            item->rotation = s.rotation;
+            item->flipH = s.flipH;
+            item->flipV = s.flipV;
+            o.item = item;
+        }
+        if (!o.item) continue;
+        f.objects.push_back(o);
+        const int id = int(f.objects.size());
+        if (lastObject > 0) f.objects[lastObject - 1].next = id;
+        else firstObject = id;
+        lastObject = id;
+    }
+    if (firstObject > 0) format->setProperty(flow::fp::AnchorId, firstObject);
+    if (firstObject > 0 || inlinePicture) format->setProperty(tp::Field, QStringLiteral("raw:"));   // (the anchor shows nothing of its own)
+    return firstObject > 0 || inlinePicture;
 }
 
 } // namespace jp::write
