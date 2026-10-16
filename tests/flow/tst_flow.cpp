@@ -1573,6 +1573,66 @@ private Q_SLOTS:
             QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
     }
 
+    // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.
+    void missingFamilyStandsInAsTheFileSays()
+    {
+        auto height = [&](const QString &family, const QHash<QString, QString> &standIns) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            c.insertText(QStringLiteral("Line"), cf);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.standIns = standIns;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(400, 700)}, env);
+            return lay.lineInfo(0).first().rect.height();
+        };
+        const QString missing = QStringLiteral("No Such Typeface Anywhere");
+        QVERIFY(std::abs(height(missing, {}) - (1950 + 550) / 2048.0 * 12) < 0.01);
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Times New Roman")}}) - (1825 + 443 + 87) / 2048.0 * 12) < 0.01);
+    }
+
+    // A number that isn't hanging is followed by a tab: the text begins at the next stop past the number, the paragraph's own or the default ones.
+    void numberIsFollowedByATab()
+    {
+        auto textStart = [&](double indent, double left, const QList<QTextOption::Tab> &tabs) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            QTextBlockFormat bf;
+            bf.setTextIndent(indent);
+            bf.setLeftMargin(left);
+            if (!tabs.isEmpty()) bf.setTabPositions(tabs);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            c.insertText(QStringLiteral("Text of the item"), cf);
+            c.createList(lf);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.defaultTab = 36;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(400, 700)}, env);
+            return lay.lineInfo(0).first().rect.left();
+        };
+        // A number set in at 36 points ends before the stop at 72; one that ends past a stop goes to the next.
+        QVERIFY2(std::abs(textStart(36, 0, {}) - 72) < 0.01, qPrintable(QString::number(textStart(36, 0, {}))));
+        QVERIFY2(std::abs(textStart(60, 0, {}) - 72) < 0.01, qPrintable(QString::number(textStart(60, 0, {}))));
+        // A stop of the paragraph's own is the one it goes to, and the default stops begin past the last of them.
+        QVERIFY2(std::abs(textStart(36, 0, {QTextOption::Tab(100, QTextOption::LeftTab)}) - 100) < 0.01, qPrintable(QString::number(textStart(36, 0, {QTextOption::Tab(100, QTextOption::LeftTab)}))));
+        QVERIFY2(std::abs(textStart(36, 0, {QTextOption::Tab(40, QTextOption::LeftTab)}) - 72) < 0.01, "a stop before the number's end is passed");
+        // A hanging number leaves the text at the paragraph's indent.
+        QVERIFY2(std::abs(textStart(-36, 36, {}) - 36) < 0.01, qPrintable(QString::number(textStart(-36, 36, {}))));
+    }
+
     // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline a descent
     // above its bottom (the text's top is cut off where there is less room than the font's ascent); an at-least height does the same when it is
     // more than a single line, and is a single line when it is less.
@@ -2079,6 +2139,42 @@ private Q_SLOTS:
         Paginator bp(&bare);
         const auto plain = bp.materialize(0);
         QCOMPARE(int(plain->doc->pages[0]->items.size()), 1);
+    }
+
+    // A header's first paragraph, when it is empty, keeps its line height and the size of its mark on the page: the empty line is as tall as the paginator measured it.
+    void anEmptyFirstParagraphOfAHeaderKeepsItsMark()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 20, 4);
+        auto header = std::make_shared<QTextDocument>();
+        header->setDocumentMargin(0);
+        {
+            QTextCursor c(header.get());
+            QTextCharFormat big, small;
+            big.setFontPointSize(30);
+            small.setFontPointSize(10);
+            QTextBlockFormat tight;
+            tight.setLineHeight(80, QTextBlockFormat::ProportionalHeight);
+            c.setBlockFormat(tight);
+            c.setBlockCharFormat(big);
+            c.insertBlock(QTextBlockFormat(), small);
+            c.insertText(QStringLiteral("HEADER TEXT"), small);
+        }
+        fd.sections[0].header.odd = header;
+        fd.sections[0].headerDistance = 10;
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const TextItem *box = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *st = page->doc->story(t->storyId))
+                    if (st->doc->toPlainText().contains(QStringLiteral("HEADER TEXT"))) {
+                        box = t;
+                        QCOMPARE(st->doc->begin().charFormat().fontPointSize(), 30.0);
+                        QCOMPARE(st->doc->begin().blockFormat().lineHeight(), 80.0);
+                    }
+        QVERIFY(box);
     }
 
     // A header or footer taller than the margin leaves room for moves the text away from it, so the page holds fewer lines.

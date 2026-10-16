@@ -144,7 +144,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 auto *box = static_cast<TextItem *>(item.get());
                 auto s = std::make_shared<Story>();
                 s->id = QStringLiteral("flow-boxtext-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
-                s->doc.reset(o.story->clone());
+                s->doc = cloneStory(o.story.get());
                 resolveImages(s->doc.get(), d);
                 d->stories.insert(s->id, s);
                 box->storyId = s->id;

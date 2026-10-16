@@ -162,6 +162,9 @@ struct LayoutEnv {
     // font was added to the font database under. A run that names one of these is drawn with that font, whatever the computer has under the
     // name; no other document, and no menu, sees them.
     QHash<QString, QString> familyAliases;
+    // What a word processor sets a family it doesn't have in (wordLines): the family the file's font table names for each (lower-cased), if that is one
+    // it has; any other is set in Calibri.
+    QHash<QString, QString> standIns;
     QString aliasOf(const QString &family) const { return familyAliases.isEmpty() ? family : familyAliases.value(family.toLower(), family); }
     QString key() const;
 };

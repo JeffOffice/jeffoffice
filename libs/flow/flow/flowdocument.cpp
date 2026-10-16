@@ -2,6 +2,8 @@
 
 #include <QAbstractTextDocumentLayout>
 #include <QFont>
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <algorithm>
 
@@ -91,6 +93,19 @@ const Section &FlowDocument::section(int index) const
 {
     static const Section none;   // (a document whose sections were all taken out is laid out as if it had one)
     return sections.isEmpty() ? none : sections[std::clamp(index, 0, int(sections.size()) - 1)];
+}
+
+std::unique_ptr<QTextDocument> cloneStory(const QTextDocument *story)
+{
+    std::unique_ptr<QTextDocument> copy(story->clone());
+    const QTextBlock first = story->begin();
+    if (first.isValid() && first.length() <= 1) {
+        QTextCursor c(copy.get());
+        c.setPosition(0);
+        c.setBlockFormat(first.blockFormat());
+        c.setBlockCharFormat(first.charFormat());
+    }
+    return copy;
 }
 
 } // namespace jp::flow

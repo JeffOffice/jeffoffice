@@ -217,6 +217,7 @@ LayoutEnv Renderer::layoutEnv(const Document &doc)
     env.slideLines = doc.slideText;
     env.wordLines = doc.wordText;
     env.wordNoHang = doc.wordNoHang;
+    env.standIns = doc.wordStandIns;
     env.familyAliases = doc.fontAliases;
     return env;
 }
