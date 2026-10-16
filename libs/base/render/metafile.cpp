@@ -205,6 +205,7 @@ private:
     double m_devPerMmX = 3.78, m_devPerMmY = 3.78;
     double m_work = kMaxWork;
     bool m_spent = false;
+    int m_droppedSaves = 0;   // saves past kMaxSavedStates: their restores undo nothing, so the ones before still match
     QSet<QPair<QString, int>> m_fontsUsed;
 
     // Takes work from what the metafile may do (see kMaxWork); false once it is spent, when the rest of it is not played.
@@ -498,8 +499,8 @@ private:
             case 0x0106: m_dc.fill = a.u16() == 2 ? Qt::WindingFill : Qt::OddEvenFill; break;
             case 0x0209: m_dc.textColor = col(a.u32()); break;
             case 0x012E: m_dc.textAlign = a.u16(); break;
-            case 0x001E: if (m_stack.size() < kMaxSavedStates) { m_stack.push_back(m_dc); m_p->save(); } break;
-            case 0x0127: if (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); } break;
+            case 0x001E: if (m_stack.size() < kMaxSavedStates) { m_stack.push_back(m_dc); m_p->save(); } else ++m_droppedSaves; break;
+            case 0x0127: if (m_droppedSaves > 0) --m_droppedSaves; else if (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); } break;
             case 0x02FA: {
                 Obj o; o.kind = Obj::Pen;
                 const quint16 style = a.u16(); const qint16 w = a.s16(); a.s16();
@@ -608,6 +609,7 @@ private:
             }
             case 0x0416: {
                 const double b = a.s16(), rt = a.s16(), t = a.s16(), l = a.s16();
+                if (!pay(1)) break;
                 apply();
                 m_p->setClipRect(QRectF(QPointF(l, t), QPointF(rt, b)).normalized(), Qt::IntersectClip);
                 break;
@@ -698,10 +700,14 @@ private:
             case 24: m_dc.textColor = col(a.u32()); break;
             case 25: m_dc.bkColor = col(a.u32()); break;
             case 27: m_dc.cur = pt32(); if (m_inPath) m_path.moveTo(m_dc.cur); break;
-            case 33: if (m_stack.size() < kMaxSavedStates) { m_stack.push_back(m_dc); m_p->save(); } break;
+            case 33: if (m_stack.size() < kMaxSavedStates) { m_stack.push_back(m_dc); m_p->save(); } else ++m_droppedSaves; break;
             case 34: {
                 int rel = a.s32();
-                while (rel++ < 0 && !m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); }
+                while (rel++ < 0) {
+                    if (m_droppedSaves > 0) --m_droppedSaves;
+                    else if (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); }
+                    else break;
+                }
                 break;
             }
             case 35: {
@@ -850,6 +856,8 @@ private:
                 break;
             }
             case 67: {
+                // A clip to the path costs as much as the path is long: one file can clip to the same long path again and again.
+                if (!pay(1 + m_path.elementCount())) break;
                 apply();
                 QPainterPath pp = m_path;
                 pp.setFillRule(m_dc.fill);
