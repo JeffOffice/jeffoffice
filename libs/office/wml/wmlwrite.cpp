@@ -407,6 +407,7 @@ void writeRunText(QByteArray &out, const RunProps &props, const QString &text)
         else if (u == QChar::LineSeparator || u == '\n') { flush(); out += "<w:br/>"; }
         else if (u == 0x000C) { flush(); out += "<w:br w:type=\"page\"/>"; }
         else if (u == 0x2011) { flush(); out += "<w:noBreakHyphen/>"; }
+        else if (u == 0x00AD) { flush(); out += "<w:softHyphen/>"; }
         else seg += c;
     }
     flush();

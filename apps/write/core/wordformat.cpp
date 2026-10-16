@@ -472,7 +472,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
                        : t.leader == QLatin1String("middleDot") ? QChar(0x00B7)
                                                                 : QLatin1Char(' ');
         }
-        bf.setTabPositions(tabs);
+        if (!tabs.isEmpty()) bf.setTabPositions(tabs);   // (none is none, whether the paragraph says so or says nothing)
         if (leaders.contains(QRegularExpression(QStringLiteral("[^ ]")))) bf.setProperty(tp::TabLeaders, leaders);
     }
     if (!p.extra.isEmpty()) setStored(bf, prop::RawPPr, packRaw(p.extra));
