@@ -4,8 +4,10 @@
 #include "office/odraw.h"
 
 #include "office/odraw_inflate.h"
+#include "office/odraw_pict.h"
 #include "office/odraw_read.h"
 
+#include <QBuffer>
 #include <QtMath>
 #include <algorithm>
 
@@ -15,9 +17,9 @@ namespace {
 
 using namespace odraw;
 
-// A metafile of more than 32 MB, as inflated, is left out: the reference
-// presentations' and publications' largest is under 1 MB. (Document::addImage
-// holds a metafile to the same size.)
+// A metafile or picture of more than 32 MB, as inflated, is left out: the
+// reference presentations' and publications' largest is under 1 MB.
+// (Document::addImage holds a metafile to the same size.)
 constexpr qint64 kMaxMetafile = 32 * 1024 * 1024;
 constexpr int kMaxStoreEntries = 100000;
 
@@ -101,7 +103,7 @@ QByteArray odrawBlip(const QByteArray &data, QString *format)
     switch (r.type) {
     case 0xF01A: name = QStringLiteral("emf"); metafile = true; break;
     case 0xF01B: name = QStringLiteral("wmf"); metafile = true; break;
-    case 0xF01C: return QByteArray();   // a Macintosh picture: nothing here shows one
+    case 0xF01C: name = QStringLiteral("pict"); metafile = true; break;
     case 0xF01D: case 0xF02A: name = QStringLiteral("jpeg"); break;
     case 0xF01E: name = QStringLiteral("png"); break;
     case 0xF01F: name = QStringLiteral("bmp"); break;
@@ -126,6 +128,15 @@ QByteArray odrawBlip(const QByteArray &data, QString *format)
             file = data.mid(start, length);
         } else {
             return QByteArray();
+        }
+        if (name == QLatin1String("pict")) {
+            // A Macintosh picture is drawn once, as a PNG file.
+            const QImage image = odrawPictImage(file);
+            file.clear();
+            if (image.isNull()) return QByteArray();
+            QBuffer buffer(&file);
+            if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "PNG")) return QByteArray();
+            name = QStringLiteral("png");
         }
         if (name == QLatin1String("wmf") && u32(file, 0) != 0x9AC6CDD7u)
             file = placeableHeader(i32(data, p + 4), i32(data, p + 8), i32(data, p + 12), i32(data, p + 16), i32(data, p + 20), i32(data, p + 24)) + file;
