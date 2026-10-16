@@ -1691,6 +1691,235 @@ private Q_SLOTS:
         }
     }
 
+    // A table whose indent is to the text of its first cell (the way tables were set before the program of 2013) has its left edge left of that by the cell's margin; a
+    // centered one is in the middle of the text area, and a right one at its right edge.
+    void aTableIsIndentedToTheTextOfItsFirstCellOrCenteredOrRight()
+    {
+        for (const int align : {0, 1, 2, 3}) {
+            FlowDocument fd;
+            TestTable spec;
+            spec.rows = 2;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            spec.margins = QMarginsF(7, 1, 3, 1);
+            spec.setTable = [align](TableData &t) {
+                t.indent = 20;
+                t.indentToText = align == 1;
+                t.align = align == 2 ? TableData::Align::Center : align == 3 ? TableData::Align::Right : TableData::Align::Left;
+            };
+            addTable(fd, spec);
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            c.insertBlock(QTextBlockFormat());
+            Paginator pg(&fd);
+            const auto page = pg.materialize(0);
+            QVERIFY(page && page->tables.size() == 1);
+            const QRectF col = fd.section(0).columnRect(0);
+            const double x = page->tables[0]->origin.x() - col.left();
+            const double want = align == 0 ? 20 : align == 1 ? 20 - 7 : align == 2 ? (col.width() - 200) / 2 : col.width() - 200;
+            QVERIFY2(std::abs(x - want) < 0.01, qPrintable(QStringLiteral("alignment %1: the table's edge is at %2, not %3").arg(align).arg(x).arg(want)));
+        }
+    }
+
+    // In a section of columns a table goes down a column and on into the next, row by row; a row that is split goes on from the foot of one column to the top of the next.
+    void aTableFlowsFromColumnToColumn()
+    {
+        for (const bool tallRow : {false, true}) {
+            FlowDocument fd;
+            fd.sections[0].columns = 2;
+            fd.sections[0].paper = QSizeF(400, 300);
+            fd.sections[0].margins = QMarginsF(36, 36, 36, 36);
+            fillStory(fd.story(), 2, 9, {}, 6, 8);
+            TestTable spec;
+            spec.rows = tallRow ? 3 : 120;
+            spec.cols = 2;
+            spec.columnWidth = 70;
+            spec.text = [&](int r, int c) {
+                QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
+                if (tallRow && r == 1 && c == 0)
+                    for (int i = 0; i < 120; ++i) t += QStringLiteral("\nline %1").arg(i);
+                return t;
+            };
+            const TestTable table = addTable(fd, spec);
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY2(pages >= 2, qPrintable(QString::number(pages)));
+            QVector<int> seen;
+            bool second = false;
+            int partsInTheSecondColumn = 0;
+            for (int k = 0; k < pages; ++k) {
+                for (const auto &l : pg.lines(k)) {
+                    if (!fd.story()->findBlock(l.block).blockFormat().intProperty(fp::Cell)) continue;
+                    if (l.frame == 1) second = true;
+                    if (tallRow && l.pos == table.rowStarts[1] && l.frame == 1) ++partsInTheSecondColumn;
+                    if (seen.isEmpty() || seen.last() != l.pos) seen << l.pos;
+                    QVERIFY2(l.rect.bottom() <= fd.section(0).content().height() + 0.1 || (tallRow && l.pos == table.rowStarts[1]), qPrintable(QStringLiteral("page %1: a row ends at %2").arg(k).arg(l.rect.bottom())));
+                }
+                const auto page = pg.materialize(k);
+                QVERIFY(page);
+            }
+            QVERIFY2(second, "some rows are in the second column");
+            QCOMPARE(seen, table.rowStarts);
+            if (tallRow) QVERIFY(partsInTheSecondColumn >= 1);
+            // A page with rows in both columns has a fragment in each, the second to the right of the first.
+            for (int k = 0; k < pages; ++k) {
+                const auto page = pg.materialize(k);
+                if (page->tables.size() < 2) continue;
+                QVERIFY(page->tables[1]->origin.x() > page->tables[0]->origin.x() + 50);
+            }
+        }
+    }
+
+    // A file that says more than it can mean: cells that span further than the table has columns, a table that is a single row with a header, a header row taller than the
+    // page, and cells joined down that have nothing to be joined to. Every one lays out and ends.
+    void hostileTablesLayOutAndEnd()
+    {
+        FlowDocument fd;
+        fd.sections[0].paper = QSizeF(300, 200);
+        fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+        TestTable spec;
+        spec.rows = 12;
+        spec.cols = 3;
+        spec.columnWidth = 60;
+        spec.text = [](int r, int c) {
+            QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
+            if (r == 0)
+                for (int i = 0; i < 40; ++i) t += QStringLiteral("\nheading line %1").arg(i);   // (a header row taller than the page)
+            if (r == 3 && c == 1)
+                for (int i = 0; i < 30; ++i) t += QStringLiteral("\nrow three line %1").arg(i);
+            return t;
+        };
+        spec.setRow = [](int r, RowData &row) { row.header = r == 0; row.before = r == 5 ? 2 : 0; row.after = r == 6 ? 1000 : 0; };
+        spec.setCell = [](int r, int c, CellData &cell) {
+            if (r == 2 && c == 0) cell.span = 500;                                   // (more columns than the table has)
+            if (r == 4) cell.vmerge = CellData::VMerge::Continue;                    // (continuing a cell that is not there)
+            if (r == 7 && c == 0) cell.vmerge = CellData::VMerge::Restart;           // (joined to the rows below, one of which is missing a cell)
+            if (r == 8 && c == 0) cell.vmerge = CellData::VMerge::Continue;
+            if (r == 9 && c == 1) cell.span = 3;
+        };
+        const TestTable table = addTable(fd, spec);
+        QTextCursor c(fd.story());
+        c.movePosition(QTextCursor::End);
+        c.insertBlock(QTextBlockFormat());
+        c.insertText(QStringLiteral("after"));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY2(pages >= 2 && pages < 400, qPrintable(QString::number(pages)));
+        QVERIFY(pg.page(pages - 1).start.pos < fd.story()->characterCount());
+        for (int k = 0; k < pages; ++k) QVERIFY(pg.materialize(k));
+        // Every row begins on some page.
+        QVector<int> seen;
+        for (int k = 0; k < pages; ++k)
+            for (const auto &l : pg.lines(k))
+                if (fd.story()->findBlock(l.block).blockFormat().intProperty(fp::Cell) && (seen.isEmpty() || seen.last() != l.pos)) seen << l.pos;
+        QCOMPARE(seen, table.rowStarts);
+    }
+
+    // After edits in and around a long table, the pages are the ones a new paginator finds, the pages near an edit are the only ones that are laid out for it, and the rows
+    // that were not touched are not measured again.
+    void paginatorFollowsEditsInTablesAndMeasuresOnlyTheRowsTheyTouch()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 6, 12, {}, 20, 40);
+        TestTable spec;
+        spec.rows = 400;
+        spec.cols = 3;
+        spec.columnWidth = 120;
+        spec.setRow = [](int r, RowData &row) { row.header = r == 0; };
+        spec.text = [](int r, int c) {
+            return r % 11 == 5 && c == 1 ? QStringLiteral("a longer cell %1 with enough words to take a few lines in a column this narrow").arg(r) : QStringLiteral("r%1c%2").arg(r).arg(c);
+        };
+        spec.setCell = [](int r, int c, CellData &cell) {
+            if (c == 2 && r % 20 == 3) cell.vmerge = CellData::VMerge::Restart;
+            if (c == 2 && r % 20 == 4) cell.vmerge = CellData::VMerge::Continue;
+        };
+        const TestTable table = addTable(fd, spec);
+        QTextCursor tail(fd.story());
+        tail.movePosition(QTextCursor::End);
+        tail.insertBlock(QTextBlockFormat());
+        tail.insertText(QStringLiteral("after the table"));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages > 8);
+        auto sameAsFresh = [&](const QString &what) {
+            Paginator fresh(&fd);
+            const int want = fresh.pageCount(), got = pg.pageCount();
+            if (want != got) return QStringLiteral("%1: %2 pages, a new paginator finds %3").arg(what).arg(got).arg(want);
+            for (int k = 0; k < want; ++k) {
+                if (fresh.page(k).start != pg.page(k).start) return QStringLiteral("%1: page %2 starts elsewhere than a new paginator has it").arg(what).arg(k);
+                const auto a = fresh.lines(k), b = pg.lines(k);
+                if (a.size() != b.size()) return QStringLiteral("%1: page %2 has %3 lines, a new paginator's has %4").arg(what).arg(k).arg(b.size()).arg(a.size());
+                for (int i = 0; i < a.size(); ++i)
+                    if (a[i].pos != b[i].pos || std::abs(a[i].rect.top() - b[i].rect.top()) > 0.01 || std::abs(a[i].rect.height() - b[i].rect.height()) > 0.01)
+                        return QStringLiteral("%1: line %2 of page %3 is in another place").arg(what).arg(i).arg(k);
+            }
+            return QString();
+        };
+        auto cellBlock = [&](int row, int col) {
+            QTextBlock b = fd.story()->findBlock(table.rowStarts[row]);
+            for (int n = 0; n < col; ++n) {
+                const int key = b.blockFormat().intProperty(fp::Cell);
+                while (b.blockFormat().intProperty(fp::Cell) == key) b = b.next();
+            }
+            return b;
+        };
+        struct Edit { QString what; std::function<void(QTextCursor &)> make; std::function<int()> where; };
+        const std::vector<Edit> edits = {
+            {"a letter in a cell far down", [](QTextCursor &c) { c.insertText(QStringLiteral("x")); }, [&] { return cellBlock(300, 1).position() + 1; }},
+            {"words that make a row taller", [](QTextCursor &c) { c.insertText(QStringLiteral(" and many more words that go on for several lines in this cell of the table")); }, [&] { return cellBlock(200, 0).position() + 2; }},
+            {"a paragraph break in a cell", [](QTextCursor &c) { c.insertBlock(); }, [&] { return cellBlock(250, 1).position() + 1; }},
+            {"the text in a header cell", [](QTextCursor &c) { c.insertText(QStringLiteral(" with a long heading that wraps in two lines")); }, [&] { return cellBlock(0, 0).position() + 2; }},
+            {"a paragraph before the table taken out", [](QTextCursor &c) { c.select(QTextCursor::BlockUnderCursor); c.removeSelectedText(); }, [&] { return fd.story()->findBlockByNumber(2).position() + 1; }},
+            {"words in a cell joined down", [](QTextCursor &c) { c.insertText(QStringLiteral(" and a line more\nand another here")); }, [&] { return cellBlock(63, 2).position() + 1; }},
+            {"a row taken out", [&](QTextCursor &c) {
+                 const QTextBlock a = cellBlock(120, 0), b = cellBlock(121, 0);
+                 c.setPosition(a.position() - 1);
+                 c.setPosition(b.position() - 1, QTextCursor::KeepAnchor);
+                 c.removeSelectedText();
+             }, [&] { return 0; }},
+        };
+        QVERIFY2(sameAsFresh("before editing").isEmpty(), "starts");
+        for (const Edit &e : edits) {
+            QTextCursor c(fd.story());
+            c.setPosition(std::clamp(e.where(), 0, fd.story()->characterCount() - 1));
+            const int at = c.position();
+            e.make(c);
+            const qint64 before = pg.pagesLaidOut();
+            pg.paginate(pg.pageOfPosition(std::min(at, fd.story()->characterCount() - 1)) + 1);
+            const qint64 near = pg.pagesLaidOut() - before;
+            QVERIFY2(near <= 8, qPrintable(QStringLiteral("%1: %2 pages near the edit").arg(e.what).arg(near)));
+            pg.pageCount();
+            QVERIFY(pg.settled());
+            const QString bad = sameAsFresh(e.what);
+            QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        }
+    }
+
+    // Typing in a long table costs about what it does in text: the rows above the edit are not measured again.
+    void typingInALongTableIsFast()
+    {
+        FlowDocument fd;
+        TestTable spec;
+        spec.rows = 3000;
+        spec.cols = 3;
+        spec.columnWidth = 120;
+        const TestTable table = addTable(fd, spec);
+        Paginator pg(&fd);
+        QElapsedTimer timer;
+        timer.start();
+        const int pages = pg.pageCount();
+        const double whole = timer.nsecsElapsed() / 1e6;
+        QVERIFY(pages > 40);
+        QTextCursor c(fd.story());
+        c.setPosition(fd.story()->findBlock(table.rowStarts[2500]).position() + 1);
+        timer.restart();
+        c.insertText(QStringLiteral("x"));
+        pg.paginate(pg.pageOfPosition(c.position()) + 1);
+        const double typed = timer.nsecsElapsed() / 1e6;
+        qInfo("a table of 3,000 rows: all of it laid out in %.0f ms, a letter typed in row 2,500 in %.0f ms", whole, typed);
+        QVERIFY2(typed < whole / 8, qPrintable(QStringLiteral("typing took %1 ms, the whole %2 ms").arg(typed).arg(whole)));
+    }
+
     // ---- the pages that are looked at ----
 
     // A page made into a document of its own is laid out by the page layer in the lines the paginator found: whole paragraphs, the rest of

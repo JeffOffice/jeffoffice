@@ -43,6 +43,9 @@ public:
     int firstFrom(int pos) const;
     // The cells a paragraph is in, the outermost first: the table's own cell, and for a nested table the cells it is in.
     const QVector<const CellRecord *> &chain(int key) const;
+    // An edit in the story at `position` that took out `removed` characters and put in `added`, where it is not in a table or beside one: the tables' places move
+    // with the text. False (nothing done) when it touches a table, which is to be found again.
+    bool shift(int position, int removed, int added);
 
 private:
     std::vector<Span> m_spans;
@@ -71,7 +74,10 @@ struct CellContent {
 // heights it has and measures no more.
 struct TableContext {
     struct Live { quint64 epoch = 0; };
+    // The heights rows were measured to, kept through edits that do not touch them: by the row and the table (a table that has other columns is another).
+    using Heights = QHash<QPair<const RowData *, const TableData *>, double>;
     FlowDocument *doc = nullptr;
+    Heights *heights = nullptr;
     const TableIndex *index = nullptr;
     std::shared_ptr<Live> live;
     quint64 at = 0;
@@ -233,8 +239,11 @@ public:
     ~TableFlow();
     // Whether the story has tables at all (what the paginator asks before anything else, so a document without them is laid out as before).
     bool any() const { return !m_doc->tables.isEmpty(); }
-    // The story was edited: what was found of it, and the tables laid out, are gone.
-    void edited();
+    // The story was edited at `position` (`removed` characters taken out, `added` put in): the tables laid out are gone, and so are the heights of the rows it touched;
+    // what was found of the tables is made again, unless the edit was not near one.
+    void edited(int position, int removed, int added);
+    // Everything about the tables is to be found afresh (the sections or the fonts changed).
+    void reset();
     const TableIndex &index();
     TableContext context();
     // The table at index `span` of the index, laid out (the same one again while the story is as it was).
@@ -250,6 +259,7 @@ private:
     bool m_valid = false;
     std::shared_ptr<TableContext::Live> m_live;
     QHash<int, std::shared_ptr<TableLayout>> m_layouts;
+    TableContext::Heights m_heights;
 };
 
 } // namespace jp::flow

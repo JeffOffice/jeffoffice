@@ -647,8 +647,13 @@ private Q_SLOTS:
         view.cursor().setPosition(block(QStringLiteral("r0c0")).position());
         view.cursor().setPosition(block(QStringLiteral("r1c1")).position() + 4, QTextCursor::KeepAnchor);
         view.setCursor(view.cursor());
-        const QImage img = view.pageImage(0, 816);
+        const QImage img = view.pageImage(0, 816);   // (the page as it is printed: the cells' text is in it)
         QVERIFY(!img.isNull());
+        const QRect pr = view.pageRect(0);
+        int dark = 0;
+        for (int y = std::max(0, a.y() - pr.y() - 4); y < std::min(img.height(), d.bottom() - pr.y() + 30); ++y)
+            for (int x = std::max(0, a.x() - pr.x() - 2); x < std::min(img.width(), d.right() - pr.x() + 150); ++x) dark += qGray(img.pixel(x, y)) < 128;
+        QVERIFY2(dark > 300, qPrintable(QString::number(dark)));
         view.cursor().setPosition(0);
         QRect r;
         QVERIFY(view.caretRect(&r));
@@ -1694,6 +1699,59 @@ private Q_SLOTS:
         deleteForward(*doc, c, false);
         QCOMPARE(s->blockCount(), blocks);
         checkWhole(*doc);
+    }
+
+    // A file that multiplies what it holds past the limits (more cells than a table may have, tables nested deeper than they are read, more columns than there are) is
+    // kept whole as the file had it and shown as a stand-in; one at the limits opens, is laid out, and saves.
+    void tablesPastTheLimitsAreKeptWholeAndOnesAtThemWork()
+    {
+        auto tableOf = [](int rows, int cols) {
+            QByteArray t = "<w:tbl><w:tblGrid>";
+            for (int c = 0; c < cols; ++c) t += "<w:gridCol w:w=\"500\"/>";
+            t += "</w:tblGrid>";
+            for (int r = 0; r < rows; ++r) {
+                t += "<w:tr>";
+                for (int c = 0; c < cols; ++c) t += "<w:tc><w:p/></w:tc>";
+                t += "</w:tr>";
+            }
+            return t + "</w:tbl>";
+        };
+        auto standIns = [](WriteDoc &doc) {
+            int n = 0;
+            for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) n += isLocked(b);
+            return n;
+        };
+        // 1,001 rows of 100 columns: more cells than one table may have.
+        const QByteArray many = tableOf(1001, 100);
+        auto big = open(makeDocx(many + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles));
+        QVERIFY(big);
+        QCOMPARE(standIns(*big), 1);
+        QVERIFY(documentXml(big->toDocx()).contains(many));
+        // 40 rows of 256 columns, and 3,000 rows of 3: at the limits, they work.
+        auto wide = open(makeDocx(tableOf(40, 256) + "<w:p/>", kStyles));
+        QVERIFY(wide);
+        QCOMPARE(standIns(*wide), 0);
+        QVERIFY(wide->pager().pageCount() >= 1);
+        QVERIFY(wide->pager().materialize(0));
+        checkWhole(*wide);
+        auto tall = open(makeDocx(tableOf(3000, 3) + "<w:p/>", kStyles));
+        QVERIFY(tall);
+        QCOMPARE(standIns(*tall), 0);
+        QVERIFY(tall->pager().pageCount() > 10);
+        // More columns than the limit in one row: a stand-in.
+        auto toowide = open(makeDocx(tableOf(2, 257) + "<w:p/>", kStyles));
+        QVERIFY(toowide);
+        QCOMPARE(standIns(*toowide), 1);
+        // Nested nine deep: eight are read, and what is in the ninth is a stand-in.
+        QByteArray deep;
+        for (int i = 0; i < 9; ++i) deep += "<w:tbl><w:tblGrid><w:gridCol w:w=\"1000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>level " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        for (int i = 0; i < 9; ++i) deep += "</w:tc></w:tr></w:tbl><w:p/>";
+        auto nested = open(makeDocx(deep, kStyles));
+        QVERIFY(nested);
+        QCOMPARE(standIns(*nested), 1);
+        QVERIFY(documentXml(nested->toDocx()).contains("level 8"));
+        QVERIFY(nested->pager().pageCount() >= 1);
+        checkWhole(*nested);
     }
 
     // A section does not end in a table's cell: the command there changes nothing.

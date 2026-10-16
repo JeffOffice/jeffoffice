@@ -63,6 +63,26 @@ void TableIndex::rebuild(const QTextDocument *story, const TableStore &store)
     }
 }
 
+bool TableIndex::shift(int position, int removed, int added)
+{
+    const int end = position + removed;
+    for (const Span &s : m_spans)
+        if (s.to >= position - 1 && s.from <= end + 1) return false;
+    const int delta = added - removed;
+    if (delta == 0) return true;
+    for (Span &s : m_spans)
+        if (s.from >= end) {
+            s.from += delta;
+            s.to += delta;
+        }
+    for (BlockRef &r : m_refs)
+        if (r.pos >= end) {
+            r.pos += delta;
+            r.end += delta;
+        }
+    return true;
+}
+
 int TableIndex::spanAt(int pos) const
 {
     const auto it = std::upper_bound(m_spans.begin(), m_spans.end(), pos, [](int p, const Span &s) { return p < s.from; });
@@ -279,7 +299,7 @@ double TableLayout::leftEdgeIn(double area) const
     switch (m_data->align) {
     case TableData::Align::Center: return (area - m_width) / 2;
     case TableData::Align::Right: return area - m_width;
-    default: return m_data->indent;
+    default: return m_data->indent - (m_data->indentToText && !m_cells.empty() ? m_cells[0].margins.left() : 0);
     }
 }
 
@@ -301,6 +321,15 @@ void TableLayout::measure(int r)
         Row &row = m_rows[size_t(m_measured)];
         const RowData &rd = *row.data;
         const bool exact = rd.exact && rd.height > 0;
+        // A row that was measured and has not been touched since is as tall as it was.
+        const QPair<const RowData *, const TableData *> kept(row.data, m_data.get());
+        if (m_ctx.heights) {
+            const auto it = m_ctx.heights->constFind(kept);
+            if (it != m_ctx.heights->constEnd()) {
+                row.height = it.value();
+                continue;
+            }
+        }
         double need = 0;
         if (!exact)
             for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
@@ -323,6 +352,7 @@ void TableLayout::measure(int r)
                 }
             }
         row.height = h;
+        if (m_ctx.heights) m_ctx.heights->insert(kept, h);
     }
 }
 
@@ -828,10 +858,42 @@ TableFlow::TableFlow(FlowDocument *doc) : m_doc(doc), m_live(std::make_shared<Ta
 
 TableFlow::~TableFlow() { ++m_live->epoch; }
 
-void TableFlow::edited()
+void TableFlow::edited(int position, int removed, int added)
+{
+    bool near = false;
+    if (m_valid) {
+        // The rows that the edit touched (and those beside them, and the rows that cells joined down in them cover) are measured again; the others are as tall as they were.
+        const int lo = position - 1, hi = position + removed + 1;
+        for (int si = 0; si < int(m_index.spans().size()); ++si) {
+            const TableIndex::Span &s = m_index.spans()[size_t(si)];
+            if (s.to < lo || s.from > hi) continue;
+            near = true;
+            const std::shared_ptr<TableLayout> t = layout(si);
+            if (!t) continue;
+            const int r0 = std::max(0, t->rowOfPosition(std::max(lo, s.from)) - 1), r1 = std::min(t->rowCount() - 1, t->rowOfPosition(std::min(hi, s.to - 1)) + 1);
+            for (int r = r0; r <= r1; ++r) {
+                const TableLayout::Row &row = t->row(r);
+                m_heights.remove(qMakePair(row.data, &t->data()));
+                for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+                    const TableLayout::Cell &c = t->cell(i);
+                    for (int k = c.row; k < std::min(c.row + c.rows, t->rowCount()); ++k) m_heights.remove(qMakePair(t->row(k).data, &t->data()));
+                }
+            }
+        }
+        // (Rows that have gone from the story leave their heights behind: not many, and they go when there are.)
+        if (m_heights.size() > 400000) m_heights.clear();
+    }
+    ++m_live->epoch;
+    m_layouts.clear();
+    if (m_valid && !near && m_index.shift(position, removed, added)) return;   // (the tables are where the text left them)
+    m_valid = false;
+}
+
+void TableFlow::reset()
 {
     m_valid = false;
     m_layouts.clear();
+    m_heights.clear();
     ++m_live->epoch;
 }
 
@@ -850,6 +912,7 @@ TableContext TableFlow::context()
     TableContext c;
     c.doc = m_doc;
     c.index = &m_index;
+    c.heights = &m_heights;
     c.live = m_live;
     c.at = m_live->epoch;
     return c;
