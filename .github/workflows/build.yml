@@ -10,6 +10,10 @@ on:
 
 jobs:
   build:
+    env:
+      # JeffWrite is built and tested on every run. It goes into the installer, the Linux packages, and the Mac disk image only when this is
+      # "true": the owner decides when it ships.
+      SHIP_WRITE: 'false'
     strategy:
       fail-fast: false
       matrix:
@@ -139,6 +143,19 @@ jobs:
           echo "--- flowtests-results.txt"; cat flowtests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
           echo "flowtests exit code: $wcode"
           if [ "$code" -eq 0 ]; then code=$wcode; fi
+          # The word processing XML's tests (libs/office/wml), and JeffWrite's.
+          if [ "$RUNNER_OS" = "Windows" ]; then X=build/wmltests.exe; else X=build/wmltests; fi
+          "$X" -v1 -o wmltests-results.txt,txt -o -,txt
+          xcode=$?
+          echo "--- wmltests-results.txt"; cat wmltests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
+          echo "wmltests exit code: $xcode"
+          if [ "$code" -eq 0 ]; then code=$xcode; fi
+          if [ "$RUNNER_OS" = "Windows" ]; then J=build/writetests.exe; else J=build/writetests; fi
+          "$J" -v1 -o writetests-results.txt,txt -o -,txt
+          jcode=$?
+          echo "--- writetests-results.txt"; cat writetests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
+          echo "writetests exit code: $jcode"
+          if [ "$code" -eq 0 ]; then code=$jcode; fi
           exit $code
         env:
           QT_QPA_PLATFORM: offscreen
@@ -187,6 +204,8 @@ jobs:
           # The suite's folder: both apps beside the Qt they share.
           New-Item -ItemType Directory -Force dist/JeffOffice | Out-Null
           Copy-Item build/JeffPub.exe, build/JeffDeck.exe dist/JeffOffice/
+          # JeffWrite needs the same Qt as JeffPub; it is packaged only when the switch at the top says so.
+          if ($env:SHIP_WRITE -eq 'true') { Copy-Item build/JeffWrite.exe dist/JeffOffice/ }
           # Also copies the GCC runtime DLLs beside the programs.
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffPub.exe
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffDeck.exe
@@ -215,7 +234,7 @@ jobs:
         shell: pwsh
         run: |
           $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(JeffPub VERSION ([0-9.]+)').Matches[0].Groups[1].Value
-          makensis /DVERSION=$ver packaging/windows/installer.nsi
+          if ($env:SHIP_WRITE -eq 'true') { makensis /DVERSION=$ver /DWITH_WRITE packaging/windows/installer.nsi } else { makensis /DVERSION=$ver packaging/windows/installer.nsi }
           New-Item -ItemType Directory -Force installer | Out-Null
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
 
@@ -246,6 +265,7 @@ jobs:
         run: |
           mkdir -p dist/JeffOffice
           cp build/JeffPub build/JeffDeck LICENSE README.md dist/JeffOffice/
+          if [ "$SHIP_WRITE" = true ]; then cp build/JeffWrite dist/JeffOffice/; fi
           cp -r resources/fonts resources/dict dist/JeffOffice/
 
       - name: Linux packages (.deb and AppImage)
@@ -263,6 +283,10 @@ jobs:
           test -s deb-check/check.pdf
           env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 deb-check/opt/jeffoffice/bin/JeffDeck --screenshot deb-check/deck.png --size 800x600
           test -s deb-check/deck.png
+          if [ "$SHIP_WRITE" = true ]; then
+            env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 deb-check/opt/jeffoffice/bin/JeffWrite --screenshot deb-check/write.png --size 800x600
+            test -s deb-check/write.png
+          fi
           # PDFium is in the package, with the license texts.
           test -f deb-check/opt/jeffoffice/lib/libpdfium.so
           # JeffDeck plays movies and sounds: Qt Multimedia's FFmpeg plugin and FFmpeg's libraries are in the package.
@@ -286,7 +310,9 @@ jobs:
         run: |
           ver=$(sed -n 's/^project(JeffPub VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           mkdir -p dist macos-dmg
-          for app in JeffPub JeffDeck; do
+          apps="JeffPub JeffDeck"
+          if [ "$SHIP_WRITE" = true ]; then apps="$apps JeffWrite"; fi
+          for app in $apps; do
             cp -R build/$app.app dist/
             "$QT_ROOT_DIR/bin/macdeployqt" dist/$app.app
             # PDFium beside the Qt frameworks, where the program finds it,
@@ -317,7 +343,11 @@ jobs:
           test -s dist/check.pdf && rm dist/check.pdf
           QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 dist/JeffDeck.app/Contents/MacOS/JeffDeck --screenshot dist/deck.png --size 800x600
           test -s dist/deck.png && rm dist/deck.png
-          mkdir dmg-root && cp -R dist/JeffPub.app dist/JeffDeck.app LICENSE README.md dmg-root/ && ln -s /Applications dmg-root/Applications
+          if [ "$SHIP_WRITE" = true ]; then
+            QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 dist/JeffWrite.app/Contents/MacOS/JeffWrite --screenshot dist/write.png --size 800x600
+            test -s dist/write.png && rm dist/write.png
+          fi
+          mkdir dmg-root && cp -R dist/*.app LICENSE README.md dmg-root/ && ln -s /Applications dmg-root/Applications
           # hdiutil now and then fails with "Resource busy" on the hosted
           # runners; a few tries a little apart get past it.
           for try in 1 2 3 4 5; do
