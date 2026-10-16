@@ -369,7 +369,8 @@ private:
             const QString preset = presetForDrawingShapeType(type);
             sh->shape = preset.isEmpty() ? QStringLiteral("rect") : preset;
             sh->adj = adjustments(type, p, sh->rect.size());
-            sh->customPath = freeformPath(p, sh->rect.size());
+            // (A presentation's arc keeps the ellipse it is part of, in its vertices, with no segments to make a path of.)
+            sh->customPath = ctx.presentation && type == 19 ? arcPath(p, sh->rect.size()) : freeformPath(p, sh->rect.size());
             sh->insets = textInsets(p);
             sh->valign = verticalAlign(p);
             sh->noWrap = p.value(0x0085, 0) == 2;

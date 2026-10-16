@@ -25134,6 +25134,43 @@ private Q_SLOTS:
         QCOMPARE(body->toPlainText(), QString(QChar(0x2B9C)) + QChar(0x27A2));
     }
 
+    // An arc of an old presentation is the part of an ellipse from the angle of its first adjust value to its second's (turning clockwise
+    // from the right; a quarter from the top when they are left out), and the ellipse is the one its first two vertices give in the shape's
+    // units when it has them: the frame holds the arc only. (It was drawn as lines through its vertices.) A frame 200 by 100 points.
+    void importBinaryArcsArePartsOfTheirEllipse()
+    {
+        auto fixed = [&](int degrees) { return quint32(qint32(degrees) * 65536); };
+        auto simple = [&](quint16 id, quint32 value) { return le(id, 2) + le(value, 4); };
+        auto arc = [&](quint32 id, const QByteArray &entries, int count, const QByteArray &data) {
+            return pptShape(id, 0, QByteArray(), 1000, 200, 1800, 1800, pptRec(0xF00B, entries + data, quint16(count), 3), 0xA00, 19);
+        };
+        // The vertices: an array of two points of two 32-bit numbers, the corners of an ellipse twice as wide and tall as the frame, its center
+        // the frame's bottom left corner.
+        QByteArray vertices = le(2, 2) + le(2, 2) + le(8, 2);
+        for (qint32 v : {-21600, 0, 21600, 43200}) vertices += le(quint32(v), 4);
+        const QByteArray shapes = arc(0x470, QByteArray(), 0, QByteArray())
+                                  + arc(0x471, simple(0x0148, fixed(90)), 1, QByteArray())
+                                  + arc(0x472, simple(0x8145, quint32(vertices.size())), 1, vertices);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const ShapeItem *> arcs;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Shape) arcs.push_back(static_cast<const ShapeItem *>(it.get()));
+        QCOMPARE(int(arcs.size()), 3);
+        auto near = [&](const QPointF &a, const QPointF &b) { return std::abs(a.x() - b.x()) < 1.5 && std::abs(a.y() - b.y()) < 1.5; };
+        auto text = [&](const QPointF &p) { return QStringLiteral("%1, %2").arg(p.x()).arg(p.y()); };
+        // The quarter from the top to the right, in the frame.
+        QVERIFY(!arcs[0]->customPath.isEmpty());
+        QVERIFY2(near(arcs[0]->customPath.pointAtPercent(0), QPointF(100, 0)), qPrintable(text(arcs[0]->customPath.pointAtPercent(0))));
+        QVERIFY2(near(arcs[0]->customPath.pointAtPercent(1), QPointF(200, 50)), qPrintable(text(arcs[0]->customPath.pointAtPercent(1))));
+        // To 90 degrees: the half, down to the bottom.
+        QVERIFY2(near(arcs[1]->customPath.pointAtPercent(1), QPointF(100, 100)), qPrintable(text(arcs[1]->customPath.pointAtPercent(1))));
+        // Of the larger ellipse: from its top (the frame's top left corner) to its right (the frame's bottom right corner).
+        QVERIFY2(near(arcs[2]->customPath.pointAtPercent(0), QPointF(0, 0)), qPrintable(text(arcs[2]->customPath.pointAtPercent(0))));
+        QVERIFY2(near(arcs[2]->customPath.pointAtPercent(1), QPointF(200, 100)), qPrintable(text(arcs[2]->customPath.pointAtPercent(1))));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
