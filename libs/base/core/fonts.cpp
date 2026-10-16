@@ -723,7 +723,7 @@ QString symbolToUnicode(const QString &family, uint code)
     return QString(QChar(char16_t(map->value(code))));
 }
 
-QString symbolTextToUnicode(const QString &family, uint code)
+static QString symbolTextCharacter(const QString &family, uint code)
 {
     if (code >= 0xF000 && code <= 0xF0FF) code -= 0xF000;
     const QString f = family.toLower();
@@ -752,11 +752,36 @@ QString symbolTextToUnicode(const QString &family, uint code)
         static const QHash<uint, char32_t> hands = {{0x41, 0x270C}, {0x42, 0x1F44C}, {0x43, 0x1F44D}, {0x44, 0x1F44E}, {0x45, 0x261C},
                                                     {0x46, 0x261E}, {0x47, 0x261D}, {0x48, 0x261F}, {0xE0, 0x2192}};
         if (const auto it = hands.constFind(code); it != hands.constEnd()) return QString::fromUcs4(&it.value(), 1);
+        // The circled numbers: 0 to 10 outlined, then 0 to 10 in dark circles.
+        if (code >= 0x80 && code <= 0x8A) return QString(QChar(char16_t(code == 0x80 ? 0x24EA : 0x2460 + (code - 0x81))));
+        if (code == 0x8B) return QString(QChar(char16_t(0x24FF)));
+        if (code >= 0x8C && code <= 0x95) return QString(QChar(char16_t(0x2776 + (code - 0x8C))));
     } else if (f == QLatin1String("wingdings 2")) {
         // The numbers 1 to 3 in dark circles (the rest of the row is read from the program's pictures when a file shows it).
         if (code >= 0x75 && code <= 0x77) return QString(QChar(char16_t(0x2776 + (code - 0x75))));
     }
     return symbolToUnicode(family, code);
+}
+
+// The characters that have a picture of their own as emoji, among those the symbol fonts' pictures come to: a program that draws them as
+// emoji draws them in color, where the symbol font had a plain glyph.
+static bool hasEmojiPicture(char32_t c)
+{
+    switch (c) {
+    case 0xA9: case 0xAE: case 0x2122: case 0x2194: case 0x2660: case 0x2663: case 0x2665: case 0x2666: case 0x261D: case 0x270C: case 0x2714:
+    case 0x2611: case 0x25AA: case 0x25FB: case 0x25B6: case 0x1F44C: case 0x1F44D: case 0x1F44E:
+        return true;
+    default:
+        return false;
+    }
+}
+
+QString symbolTextToUnicode(const QString &family, uint code)
+{
+    QString out = symbolTextCharacter(family, code);
+    // Where a character has an emoji picture, text presentation (U+FE0E) asks for the plain glyph.
+    if (!out.isEmpty() && hasEmojiPicture(out.toUcs4().first())) out += QChar(0xFE0E);
+    return out;
 }
 
 uint unicodeToSymbol(QChar c, QString *family)

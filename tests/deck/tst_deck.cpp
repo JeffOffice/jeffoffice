@@ -2172,7 +2172,7 @@ private:
                                const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016)
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
-        const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")));
+        const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
         // The default body text: bullets, 28 and 24 points, the first font, the text color.
         const QByteArray bodyStyle = le(2, 2)
             + le(0x593, 4) + le(3, 2) + le(0x2022, 2) + le(0, 2) + le(360, 2) + le(0, 2)
@@ -23157,6 +23157,75 @@ private Q_SLOTS:
         QCOMPARE(families.value(none), QStringList{QStringLiteral("Symbol")});
         for (const QChar ch : {QChar('x'), alpha, QChar('y'), arrow, QChar('z'), circled}) QVERIFY2(!families.value(ch).contains(QStringLiteral("Symbol")), qPrintable(QString(ch)));
         QCOMPARE(families.value(QChar('b')), QStringList{QStringLiteral("Alpha Sans")});
+    }
+
+    // The split of text in a symbol font adds at most 256 pieces to a paragraph: a run of 50,000 characters that alternate between a
+    // letter the font has a look-alike for and one it hasn't would be 50,000 pieces, each laid out by itself, and takes far longer than
+    // the same text in a font of letters. The rest of the run after them is one piece, as it was before the split.
+    void importBinarySymbolRunsAreCutIntoFewPieces()
+    {
+        QString text;
+        for (int i = 0; i < 25000; ++i) text += QStringLiteral("a") + QChar(0x100);
+        const quint32 own = 0x10000;
+        auto deckOf = [&](int font) {
+            const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, own, le(font, 2));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles, true)), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            return d;
+        };
+        auto fragments = [&](const Document &d) {
+            int n = 0;
+            const QTextDocument *body = placeholderStory(d, *d.pages[0], QStringLiteral("ph:body:1"));
+            if (body)
+                for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+                    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) ++n;
+            return n;
+        };
+        // The font Symbol (2), and a font of letters (0).
+        auto symbols = deckOf(2), letters = deckOf(0);
+        QVERIFY(symbols && letters);
+        QCOMPARE(fragments(*letters), 1);
+        QVERIFY2(fragments(*symbols) <= 256 + 8, qPrintable(QString::number(fragments(*symbols))));
+        QVERIFY(fragments(*symbols) > 2);   // (the first of them are cut as before)
+        // Laid out, it costs about what the same text in another font does.
+        auto layoutMs = [&](Document &d) {
+            const TextItem *body = nullptr;
+            for (const auto &it : d.pages[0]->items)
+                if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+            if (!body) return qint64(-1);
+            LayoutCache cache;
+            const RenderOptions opt;
+            QElapsedTimer timer;
+            timer.start();
+            const auto fl = cache.textFrame(d, *body, 1, opt);
+            return fl.layout ? timer.elapsed() : qint64(-1);
+        };
+        const qint64 plain = layoutMs(*letters), cut = layoutMs(*symbols);
+        QVERIFY2(plain >= 0 && cut >= 0, "the text was laid out");
+        QVERIFY2(cut <= 5 * std::max<qint64>(plain, 100), qPrintable(QStringLiteral("cut %1 ms, plain %2 ms").arg(cut).arg(plain)));
+    }
+
+    // In 8-bit text the codes 0x80 to 0x9F read as Windows-1252's characters, which a symbol font doesn't have: a run set in the font gets
+    // its picture from the code itself (0x8C is the number 1 in a dark circle in Wingdings, 0x9F a bullet), where the same codes in
+    // another font are those characters. The pictures that are emoji are followed by U+FE0E, for the plain glyph.
+    void importBinarySymbolFontBytesAreReadByTheirCodes()
+    {
+        // 0x8C, 0x9F, then 'C' (a thumb up in Wingdings) and 'F' (a hand that is not an emoji), as bytes; the fonts are 4 Wingdings, 0 Alpha Sans.
+        const QByteArray raw8 = QByteArray("\x8C\x9F" "CF");
+        auto textIn = [&](int font) {
+            const QByteArray styles = pfRun(int(raw8.size()) + 1, 0, 0) + cfRun(int(raw8.size()) + 1, 0x10000, le(font, 2));
+            QByteArray text = pptRec(3999, le(1, 4)) + pptRec(4008, raw8) + pptRec(4001, styles);
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, text), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            const QTextDocument *body = d ? placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1")) : nullptr;
+            return body ? body->toPlainText() : QStringLiteral("<none>");
+        };
+        const QChar plain(0xFE0E);
+        QCOMPARE(textIn(4), QString(QChar(0x2776)) + QChar(0x2022) + QString::fromUcs4(U"\U0001F44D") + plain + QChar(0x261E));
+        // In a font of letters, the Windows-1252 characters they were.
+        QCOMPARE(textIn(0), QString(QChar(0x0152)) + QChar(0x0178) + QStringLiteral("CF"));
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.

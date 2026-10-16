@@ -6490,6 +6490,28 @@ private Q_SLOTS:
         QCOMPARE(b.next().textList()->format().stringProperty(jp::tp::BulletChar), QString(QChar(0xF0FC)));
     }
 
+    // The letters and signs of a symbol font in running text come to the Unicode character that looks like them; the ones that have a picture
+    // of their own as emoji (the hands, the card suits) carry U+FE0E after them, which asks for the plain glyph, so they aren't drawn in
+    // color; the others carry nothing. A circled number set in Wingdings, from the code itself (0x8C), is one in a dark circle.
+    void symbolTextKeepsEmojiPlain()
+    {
+        const QChar plain(0xFE0E);
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xF061), QString(QChar(0x3B1)));                       // alpha
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAE), QString(QChar(0x2192)));                        // an arrow
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAA), QString(QChar(0x2660)) + plain);                // a spade
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAB), QString(QChar(0x2194)) + plain);                // a double arrow
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x43), QString::fromUcs4(U"\U0001F44D") + plain);     // a thumb up
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x44), QString::fromUcs4(U"\U0001F44E") + plain);     // a thumb down
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x42), QString::fromUcs4(U"\U0001F44C") + plain);     // a hand
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x41), QString(QChar(0x270C)) + plain);             // a victory sign
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x47), QString(QChar(0x261D)) + plain);             // a hand pointing up
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x46), QString(QChar(0x261E)));                     // a hand pointing right: no emoji
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0xFC), QString(QChar(0x2714)) + plain);             // a check mark
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x8C), QString(QChar(0x2776)));                     // 1 in a dark circle
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x9F), QString(QChar(0x2022)));                     // a bullet
+        QVERIFY(jp::symbolTextToUnicode(QStringLiteral("Arial"), 0x41).isEmpty());
+    }
+
     // A Symbol bullet (as .pub lists have) sets the height of its item's
     // first line when it is taller than the text's, at the bullet's own size.
     void listBulletLineHeight()
