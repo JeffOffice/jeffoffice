@@ -1535,6 +1535,43 @@ private Q_SLOTS:
         QCOMPARE(big->story()->blockCount(), 30000);
     }
 
+    // What the file keeps beside a paragraph's text (its w14:paraId, a bookmark) is unique to each paragraph in a modern file, and the formats must
+    // not be compared with every other one each time one is made: opening takes about as long with them as without. (Compared with each other,
+    // not against a clock: the same machine, the same load.)
+    void openingDoesNotSlowDownWithUniqueIdsAndBookmarks()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+        auto build = [&](int kind) {
+            QByteArray body;
+            for (int i = 0; i < 8000; ++i) {
+                const QByteArray n = QByteArray::number(i);
+                if (kind == 1) body += "<w:p w14:paraId=\"" + QByteArray::number(0x10000000 + i, 16).toUpper() + "\" w14:textId=\"77777777\">";
+                else body += "<w:p>";
+                if (kind == 2) body += "<w:bookmarkStart w:id=\"" + n + "\" w:name=\"b" + n + "\"/>";
+                body += "<w:r><w:t>paragraph " + n + "</w:t></w:r>";
+                if (kind == 2) body += "<w:bookmarkEnd w:id=\"" + n + "\"/>";
+                body += "</w:p>";
+            }
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"),
+                      QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+            w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+            return w.finish();
+        };
+        auto openTime = [&](const QByteArray &zip) {
+            QElapsedTimer t;
+            t.start();
+            auto doc = open(zip);
+            const double ms = t.nsecsElapsed() / 1e6;
+            return doc ? ms : 1e9;
+        };
+        const QByteArray plain = build(0), withIds = build(1), withBookmarks = build(2);
+        openTime(plain);   // (the first of anything is slow: fonts, the first layout)
+        const double base = std::max(openTime(plain), 20.0), ids = openTime(withIds), marks = openTime(withBookmarks);
+        QVERIFY2(ids < 10 * base, qPrintable(QStringLiteral("with ids %1 ms, without %2 ms").arg(ids).arg(base)));
+        QVERIFY2(marks < 10 * base, qPrintable(QStringLiteral("with bookmarks %1 ms, without %2 ms").arg(marks).arg(base)));
+    }
+
     void aRichDocumentComesBackFaithfulAndWellFormed()
     {
         const QByteArray original = richDocx();

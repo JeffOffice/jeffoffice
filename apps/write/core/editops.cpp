@@ -272,12 +272,12 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
     if (aLocked) {
         // What is left of the second paragraph takes the place of the one that was kept as XML.
         const bool before = aFormat.hasProperty(prop::RawBefore);
-        const QVariant rawBefore = aFormat.property(prop::RawBefore);
+        const QByteArray rawBefore = storedBytes(aFormat, prop::RawBefore);
         const int list = nf.objectIndex();
         nf = bFormat;
         nf.setObjectIndex(list);
         clearHead(&nf);
-        if (before) nf.setProperty(prop::RawBefore, rawBefore);
+        if (before) setStored(nf, prop::RawBefore, rawBefore);
         QTextCursor(m).setBlockCharFormat(bMark);
     }
     QTextCursor(m).setBlockFormat(nf);

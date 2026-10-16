@@ -42,6 +42,17 @@ enum : int {
 };
 }
 
+// The bytes that formats keep beside the text (a piece of the file kept as XML, the attributes of a paragraph...) are not in the formats, whose
+// properties of that kind Qt does not hash (so that each one inserted would be compared with every one before it): a format holds a key, an
+// int, and the bytes are in a store that is the same for every document. Equal bytes have the same key. The store is emptied when the last
+// document is closed; `generation` says which store a key is of (a copy on the clipboard is of one).
+int storeBytes(const QByteArray &bytes);
+QByteArray storedBytesOf(int key);
+void setStored(QTextFormat &format, int property, const QByteArray &bytes);
+QByteArray storedBytes(const QTextFormat &format, int property);
+void clearByteStore();
+quint64 byteStoreGeneration();
+
 // A piece kept as XML, with what the writer needs to keep it whole.
 QByteArray packAtom(const office::wml::Inline &atom);
 office::wml::Inline unpackAtom(const QByteArray &packed);

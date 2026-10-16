@@ -133,16 +133,25 @@ bool isStoredProperty(int property)
     }
 }
 
-QVariant resolveStored(const WriteDoc &, const QVariant &value, int) { return value; }
+QVariant resolveStored(const WriteDoc &, const QVariant &value, int property)
+{
+    return isStoredProperty(property) && value.typeId() == QMetaType::Int ? QVariant(storedBytesOf(value.toInt())) : value;
+}
 
 // ---- the document
 
-WriteDoc::WriteDoc() : m_flow(std::make_unique<flow::FlowDocument>()) {}
+namespace {
+int s_openDocuments = 0;   // (the store of bytes the formats refer to is emptied with the last)
+}
+
+WriteDoc::WriteDoc() : m_flow(std::make_unique<flow::FlowDocument>()) { ++s_openDocuments; }
 
 WriteDoc::~WriteDoc()
 {
     // (The paginator watches the story, which the flowing document owns: it goes first.)
     m_pager.reset();
+    m_flow.reset();
+    if (--s_openDocuments == 0) clearByteStore();
 }
 
 std::unique_ptr<WriteDoc> WriteDoc::blank()
@@ -237,7 +246,7 @@ void WriteDoc::syncSections()
     for (QTextBlock b = story()->begin(); b.isValid(); b = b.next()) {
         const QTextBlockFormat bf = b.blockFormat();
         if (!bf.boolProperty(flow::fp::SectionBreakAfter)) continue;
-        list.push_back(bf.hasProperty(prop::SectionData) ? unpackSection(bf.property(prop::SectionData).toByteArray()) : (list.empty() ? m_last : list.back()));
+        list.push_back(bf.hasProperty(prop::SectionData) ? unpackSection(storedBytes(bf, prop::SectionData)) : (list.empty() ? m_last : list.back()));
     }
     list.push_back(m_last);
     bool same = list.size() == m_sections.size();
@@ -267,7 +276,7 @@ void WriteDoc::setSectionProps(int index, const SectionProps &props)
         if (n++ != index) continue;
         QTextCursor c(b);
         QTextBlockFormat bf = b.blockFormat();
-        bf.setProperty(prop::SectionData, packSection(props));
+        setStored(bf, prop::SectionData, packSection(props));
         c.setBlockFormat(bf);
         break;
     }
@@ -289,7 +298,7 @@ bool WriteDoc::insertSectionBreak(const QTextBlock &block)
     QTextCursor c(block);
     QTextBlockFormat bf = block.blockFormat();
     bf.setProperty(flow::fp::SectionBreakAfter, true);
-    bf.setProperty(prop::SectionData, packSection(here));
+    setStored(bf, prop::SectionData, packSection(here));
     c.setBlockFormat(bf);
     syncSections();
     return true;
