@@ -36,6 +36,10 @@ struct RawChild {
 struct Fonts {
     QString ascii, hAnsi, eastAsia, cs;
     QString asciiTheme, hAnsiTheme, eastAsiaTheme, csTheme;
+    QString hint;                     // which script's font the characters that could be either take ("eastAsia", "cs", or "default")
+    // The fonts of the scripts the text engine's formats have no place for (everything but the Latin ones, and the hint).
+    bool hasOtherScripts() const { return !eastAsia.isEmpty() || !cs.isEmpty() || !eastAsiaTheme.isEmpty() || !csTheme.isEmpty() || !hint.isEmpty(); }
+    bool sameOtherScripts(const Fonts &o) const { return eastAsia == o.eastAsia && cs == o.cs && eastAsiaTheme == o.eastAsiaTheme && csTheme == o.csTheme && hint == o.hint; }
     bool operator==(const Fonts &o) const;
     bool operator!=(const Fonts &o) const { return !(*this == o); }
     bool isEmpty() const;

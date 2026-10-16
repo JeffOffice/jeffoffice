@@ -35,6 +35,7 @@ enum : int {
     SectionData,                              // QByteArray: the section this paragraph ends (packSection), with flow::fp::SectionBreakAfter
     SpacingAttrs,                             // QByteArray: attributes of w:spacing that have no field, as written
     IndAttrs,                                 // QByteArray: the same for w:ind
+    FontsOther,                               // QString: the fonts of the scripts the engine has none for, as a run says them (packOtherFonts)
     NumDirect,                                // bool: the paragraph says it is numbered as its style says (and so the list's indents are over the style's)
     JcRaw,                                    // QString: the alignment as the file wrote it, when it is a kind of justified ("distribute")
     OddTabs,                                  // QByteArray: tab stops of the paragraph's own that the engine has no kind for (a bar), packed (packTabs)
@@ -50,6 +51,9 @@ QByteArray packBlocks(const QVector<office::wml::Block> &blocks);
 QVector<office::wml::Block> unpackBlocks(const QByteArray &packed);
 
 // Tab stops.
+// What a run says of its East Asian and complex-script fonts and its hint, in one string; and back.
+QString packOtherFonts(const office::wml::Fonts &fonts);
+office::wml::Fonts unpackOtherFonts(const QString &packed);
 QByteArray packTabs(const QVector<office::wml::TabStop> &tabs);
 QVector<office::wml::TabStop> unpackTabs(const QByteArray &packed);
 

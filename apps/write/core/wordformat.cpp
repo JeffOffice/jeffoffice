@@ -99,6 +99,26 @@ QVector<Block> unpackBlocks(const QByteArray &packed)
     return out;
 }
 
+QString packOtherFonts(const Fonts &f)
+{
+    const QChar sep(0x1f);
+    return f.eastAsia + sep + f.cs + sep + f.eastAsiaTheme + sep + f.csTheme + sep + f.hint;
+}
+
+Fonts unpackOtherFonts(const QString &packed)
+{
+    Fonts f;
+    const QStringList parts = packed.split(QChar(0x1f));
+    if (parts.size() >= 5) {
+        f.eastAsia = parts[0];
+        f.cs = parts[1];
+        f.eastAsiaTheme = parts[2];
+        f.csTheme = parts[3];
+        f.hint = parts[4];
+    }
+    return f;
+}
+
 QByteArray packTabs(const QVector<TabStop> &tabs)
 {
     QByteArray out;
@@ -192,7 +212,7 @@ QTextCharFormat withoutAtom(QTextCharFormat f)
 
 // ---- runs
 
-QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme)
+QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunProps *direct)
 {
     QTextCharFormat cf;
     cf.setFontPointSize(r.size.value_or(20) / 2.0);
@@ -262,6 +282,7 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme)
         if (h.isValid()) cf.setProperty(tp::HighlightRefP, ColorRef::rgb(h).toString());
     }
     if (!r.extra.isEmpty()) cf.setProperty(prop::RawRPr, packRaw(r.extra));
+    if (direct && direct->fonts && direct->fonts->hasOtherScripts()) cf.setProperty(prop::FontsOther, packOtherFonts(*direct->fonts));
     return cf;
 }
 
@@ -274,8 +295,15 @@ RunProps runPropsOf(const QTextCharFormat &f)
     } else {
         const QString p = f.stringProperty(tp::ThemeFont) == QLatin1String("major") ? QStringLiteral("major") : QStringLiteral("minor");
         fonts.asciiTheme = fonts.hAnsiTheme = p + QStringLiteral("HAnsi");
-        fonts.eastAsiaTheme = p + QStringLiteral("EastAsia");
-        fonts.csTheme = p + QStringLiteral("Bidi");
+    }
+    // (The other scripts' fonts are those the run said, if it said any.)
+    if (f.hasProperty(prop::FontsOther)) {
+        const Fonts other = unpackOtherFonts(f.stringProperty(prop::FontsOther));
+        fonts.eastAsia = other.eastAsia;
+        fonts.cs = other.cs;
+        fonts.eastAsiaTheme = other.eastAsiaTheme;
+        fonts.csTheme = other.csTheme;
+        fonts.hint = other.hint;
     }
     r.fonts = fonts;
     r.bold = f.fontWeight() >= QFont::DemiBold;
