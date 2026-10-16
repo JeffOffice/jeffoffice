@@ -194,11 +194,12 @@ public:
     ParaProps paragraph(const QString &id) const;
     // What a run has when nothing is said directly: the defaults, the paragraph style's run properties, then the character style's.
     RunProps run(const QString &paragraphStyle, const QString &characterStyle) const;
-    void changed() { m_paragraph.clear(); m_run.clear(); m_index.clear(); }
+    void changed() { m_paragraph.clear(); m_run.clear(); m_index.clear(); m_indexed = -1; }
 
 private:
     void reindex() const;
     mutable QHash<QString, int> m_index;
+    mutable qsizetype m_indexed = -1;
     mutable QHash<QString, ParaProps> m_paragraph;
     mutable QHash<QString, RunProps> m_run;
 };
@@ -244,6 +245,11 @@ struct Numbering {
     const Num *num(int numId) const;
     int nextNumId() const;
     int nextAbstractId() const;
+
+private:
+    void index() const;
+    mutable QHash<int, int> m_nums, m_abstracts;   // the first of each id, by place
+    mutable qsizetype m_numCount = -1, m_abstractCount = -1;
 };
 
 // A part kept whole.
@@ -284,8 +290,13 @@ struct ReadNotes {
 };
 
 // Reads a .docx (or .docm, .dotx) package. False, with a message, if it isn't a word processing document or is damaged beyond reading.
-// A file is held to limits (xml.h; at most kMaxInflatedBytes of parts together once inflated).
-constexpr qint64 kMaxInflatedBytes = qint64(1) << 29;
+// A file is held to limits: of parts together inflated, of the XML of a part (xmltree.h), and of what the body holds, past which the rest is
+// left out and a note says so. Real files, in 1,795 .docx files of public collections: 125 KB inflated in the middle, 15 MB for 99 of 100, and
+// 97.5 MB at the most (of which word/document.xml 20.6 MB); at most 45,000 paragraphs and 65,000 runs (the pieces kept as XML are about as many again). Each limit
+// is 10 times the most or more.
+constexpr qint64 kMaxInflatedBytes = qint64(1) << 30;
+constexpr int kMaxParagraphs = 500000;
+constexpr int kMaxInlines = 1500000;
 bool readDocx(const QByteArray &zip, Document *doc, QString *error = nullptr, ReadNotes *notes = nullptr);
 // The package of a document. Empty, with a message, if it can't be made (an Id or a part name that can't be written).
 QByteArray writeDocx(const Document &doc, QString *error = nullptr);

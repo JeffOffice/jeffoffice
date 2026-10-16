@@ -159,7 +159,7 @@ bool XmlTree::parse(const QByteArray &xmlIn, QString *error)
         clear();
         return false;
     };
-    if (xmlIn.size() > kMaxXmlBytes) return fail(QStringLiteral("The XML part is too large"), 0);
+    if (xmlIn.size() > kMaxTreeBytes) return fail(QStringLiteral("The XML part is too large"), 0);
     QByteArray xml = xmlIn;
     if (const auto enc = QStringConverter::encodingForData(xml); enc && *enc != QStringConverter::Utf8) {
         QStringDecoder dec(*enc);
@@ -271,7 +271,7 @@ bool XmlTree::parse(const QByteArray &xmlIn, QString *error)
         }
         // A start tag.
         if (stack.isEmpty() && m_root >= 0) return fail(QStringLiteral("More than one root element"), i);
-        if (m_nodes.size() >= kMaxXmlNodes) return fail(QStringLiteral("The XML has too many elements"), i);
+        if (m_nodes.size() >= kMaxTreeNodes) return fail(QStringLiteral("The XML has too many elements"), i);
         if (stack.size() >= kMaxXmlDepth) return fail(QStringLiteral("The XML is nested too deeply"), i);
         quint32 j = i + 1;
         const quint32 nameBegin = j;
@@ -316,7 +316,7 @@ bool XmlTree::parse(const QByteArray &xmlIn, QString *error)
                 if (s[k] == '&' && !entityOk(s, k, ve + 1)) return fail(QStringLiteral("An attribute value that is not XML"), k);
             }
             j = ve + 1;
-            if (pending.size() >= kMaxAttributesPerElement) return fail(QStringLiteral("An element has too many attributes"), an);
+            if (pending.size() >= kMaxAttributesPerElement || m_attrs.size() + pending.size() >= kMaxTreeAttributes) return fail(QStringLiteral("An element has too many attributes"), an);
             pending.push_back({an, ae, vb, ve});
         }
         if (!closed) return fail(QStringLiteral("A tag is not closed"), i);

@@ -39,6 +39,58 @@ QByteArray withW(QByteArray tag)
     return tag;
 }
 
+// The prefixes of the namespaces word processing files use besides the main ones, with their names. A piece kept as XML may come from
+// another file (copied across), whose root declared a prefix that this file's does not; the prefixes the pieces use are declared on the root.
+const char *const kKnownPrefixes[][2] = {
+    {"wp", "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"},
+    {"a", "http://schemas.openxmlformats.org/drawingml/2006/main"},
+    {"pic", "http://schemas.openxmlformats.org/drawingml/2006/picture"},
+    {"c", "http://schemas.openxmlformats.org/drawingml/2006/chart"},
+    {"dgm", "http://schemas.openxmlformats.org/drawingml/2006/diagram"},
+    {"mc", "http://schemas.openxmlformats.org/markup-compatibility/2006"},
+    {"m", "http://schemas.openxmlformats.org/officeDocument/2006/math"},
+    {"v", "urn:schemas-microsoft-com:vml"},
+    {"o", "urn:schemas-microsoft-com:office:office"},
+    {"w10", "urn:schemas-microsoft-com:office:word"},
+    {"w14", "http://schemas.microsoft.com/office/word/2010/wordml"},
+    {"w15", "http://schemas.microsoft.com/office/word/2012/wordml"},
+    {"wp14", "http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"},
+    {"wps", "http://schemas.microsoft.com/office/word/2010/wordprocessingShape"},
+    {"wpg", "http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"},
+    {"wpc", "http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"},
+};
+
+void collectPrefixes(const QByteArray &xml, QSet<QByteArray> *used)
+{
+    for (qsizetype at = xml.indexOf(':'); at > 0; at = xml.indexOf(':', at + 1)) {
+        qsizetype from = at;
+        while (from > 0 && ((xml[from - 1] >= 'a' && xml[from - 1] <= 'z') || (xml[from - 1] >= 'A' && xml[from - 1] <= 'Z') || (xml[from - 1] >= '0' && xml[from - 1] <= '9'))) --from;
+        if (from == at || from == 0) continue;
+        const char before = xml[from - 1];
+        if (before != '<' && before != ' ' && before != '/') continue;
+        used->insert(xml.mid(from, at - from));
+    }
+}
+
+QByteArray withKnownPrefixes(QByteArray rootTag, const Document &doc)
+{
+    QSet<QByteArray> used;
+    for (const Block &b : doc.body) {
+        if (b.isRaw) {
+            collectPrefixes(b.raw, &used);
+            continue;
+        }
+        for (const Inline &a : b.para.content)
+            if (a.kind != Inline::Text) collectPrefixes(a.raw, &used);
+    }
+    for (const auto &known : kKnownPrefixes) {
+        const QByteArray prefix(known[0]);
+        if (!used.contains(prefix) || rootTag.contains(" xmlns:" + prefix + "=")) continue;
+        rootTag.insert(int(qnameOf(rootTag).size()) + 1, " xmlns:" + prefix + "=\"" + known[1] + "\"");
+    }
+    return rootTag;
+}
+
 constexpr quint64 coord(int block, int inl) { return (quint64(block) << 32) | quint32(inl + 1); }
 
 // Which of the pieces kept as XML are written: the ones whose partners are there.
@@ -209,7 +261,7 @@ QByteArray documentXml(const Document &doc)
     out += kXmlHead;
     QByteArray root = doc.rootStart;
     if (root.isEmpty()) root = QByteArray("<w:document xmlns:w=\"") + kWNs + "\" xmlns:r=\"" + kRNs + "\">";
-    root = withW(root);
+    root = withKnownPrefixes(withW(root), doc);
     out += root;
     out += doc.beforeBody;
     out += "<w:body>";
@@ -224,12 +276,30 @@ QByteArray documentXml(const Document &doc)
         const QByteArray ppr = paraPropsXml(blk.para.props);
         if (!ppr.isEmpty()) out += "<w:pPr>" + ppr + "</w:pPr>";
         const auto &content = blk.para.content;
+        // Runs of text with the same properties are one run (those that pieces kept as XML, left out above, had kept apart, too).
+        QString pending;
+        const RunProps *pendingProps = nullptr;
+        auto flush = [&] {
+            if (!pendingProps) return;
+            writeRunText(out, *pendingProps, pending);
+            pendingProps = nullptr;
+            pending.clear();
+        };
         for (int i = 0; i < content.size(); ++i) {
             if (!whole.inlineKept(b, i)) continue;
             const Inline &a = content[i];
             if (a.kind == Inline::Text) {
-                writeRunText(out, a.props, a.text);
-            } else if (a.kind == Inline::RunAtom) {
+                if (pendingProps && *pendingProps == a.props) {
+                    pending += a.text;
+                } else {
+                    flush();
+                    pendingProps = &a.props;
+                    pending = a.text;
+                }
+                continue;
+            }
+            flush();
+            if (a.kind == Inline::RunAtom) {
                 const QByteArray rpr = runPropsXml(a.props);
                 out += "<w:r>";
                 if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
@@ -238,6 +308,7 @@ QByteArray documentXml(const Document &doc)
                 out += a.raw;
             }
         }
+        flush();
         out += "</w:p>";
     }
     out += sectionPropsXml(doc.lastSection);
