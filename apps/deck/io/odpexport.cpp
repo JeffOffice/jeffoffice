@@ -695,10 +695,10 @@ void Exporter::writePresentationStyles(X &out, const MasterOut &m)
     auto frameAttrs = [&](const TextItem *t) {
         const QMarginsF in = t ? t->insets : QMarginsF(7.2, 3.6, 7.2, 3.6);
         const VAlign v = t ? t->valign : VAlign::Top;
-        QString a = QStringLiteral(" draw:stroke=\"none\" draw:fill=\"none\" draw:textarea-vertical-align=\"%1\" draw:textarea-horizontal-align=\"justify\" draw:auto-grow-height=\"false\" draw:fit-to-size=\"false\" "
+        QString a = QStringLiteral(" draw:stroke=\"none\" draw:fill=\"none\" draw:textarea-vertical-align=\"%1\" draw:textarea-horizontal-align=\"%3\" draw:auto-grow-height=\"false\" draw:fit-to-size=\"false\" "
                                    "style:shrink-to-fit=\"false\" fo:wrap-option=\"%2\"")
                         .arg(v == VAlign::Middle ? QStringLiteral("middle") : v == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"),
-                             t && t->noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
+                             t && t->noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"), t && t->centerBlock ? QStringLiteral("center") : QStringLiteral("justify"));
         a += QStringLiteral(" fo:padding-top=\"%1\" fo:padding-bottom=\"%2\" fo:padding-left=\"%3\" fo:padding-right=\"%4\"").arg(cm(in.top()), cm(in.bottom()), cm(in.left()), cm(in.right()));
         return a;
     };

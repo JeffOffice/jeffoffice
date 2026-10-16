@@ -43,6 +43,11 @@ public:
 // unit .pub tracking is measured in; -1 when it isn't one JeffPub knows.
 double originalAverageCharEm(const QString &family, bool bold, bool italic);
 
+// The moment automatic dates and times show: now, unless a tool has set another (setFieldClock, so that a render can be made again at the
+// moment of another). The apps never set one.
+QDateTime fieldNow();
+void setFieldClock(const QDateTime &moment);
+
 struct FieldContext {
     const FieldSource *doc = nullptr;
     int pageNumber = 1;           // 1-based
@@ -50,7 +55,7 @@ struct FieldContext {
     int mergeRecord = -1;         // -1 shows «Field» codes
     int continuedOnPage = 0, continuedFromPage = 0;
     int nextPage = 0, prevPage = 0;   // pages of the next and previous boxes of a linked chain (0: none)
-    QDateTime now = QDateTime::currentDateTime();
+    QDateTime now = fieldNow();
     QString resolve(const QString &code) const;
     // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only if `withClock`: a layout is laid out
     // again when the date or time it shows changes, which fieldValuesKey says (not every minute).
@@ -94,6 +99,9 @@ struct FrameSpec {
     // The paragraphs aren't broken to the frame's width (a slide's text box that doesn't wrap): each is one line, against the frame as its
     // alignment says, and out of it where it is longer than the frame. One frame, one column.
     bool noWrap = false;
+    // The block of the frame's text (its widest line, with its bullets) is set in the middle of the frame, the lines in it aligned as their
+    // paragraphs say: a slide's text box whose text is anchored "centered". One column.
+    bool centerBlock = false;
     FieldContext ctx;
 };
 
@@ -341,6 +349,7 @@ private:
     QVector<double> m_frameY;
     QVector<double> m_used;
     bool m_overflow = false;
+    bool m_blankPast = false;   // blank paragraphs ran past the end of a frame that lets text run over (they move centered text, but are no overflow)
     LayoutEnv m_env;
     QVector<Note> m_notes;
     QVector<Rule> m_noteRules;

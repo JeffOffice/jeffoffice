@@ -131,6 +131,7 @@
 #include <QStatusBar>
 #include <QTabWidget>
 #include <QTableWidget>
+#include <QProcess>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextBrowser>
@@ -2137,12 +2138,13 @@ private:
         const QByteArray group = pptBox(0xF004, pptRec(0xF009, QByteArray(16, '\0'), 0, 1) + pptRec(0xF00A, le(0x400, 4) + le(5, 4), 0, 2));
         return pptBox(1036, pptBox(0xF002, pptRec(0xF008, le(2, 4) + le(0x402, 4)) + pptBox(0xF003, group + shapes)));
     }
-    // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds (and its property record).
-    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray())
+    // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds (and its property record,
+    // its flags, and its kind of shape).
+    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray(), quint32 flags = 0xA00, quint16 type = 1)
     {
         const QByteArray anchor = le(top, 2) + le(left, 2) + le(right, 2) + le(bottom, 2);
         const QByteArray data = pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({placeholder, 0, 0, 0})));
-        return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
+        return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(flags, 4), type, 2) + props + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
     }
     static QByteArray outlineRef(int index) { return pptRec(3998, le(index, 4)); }
 
@@ -2169,10 +2171,12 @@ private:
     // `titleMasterRecord` is the kind of record the title master is kept in (the presentation program keeps it as a slide record).
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
     // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
-    // a shape for its drawing, and `masterExtra` more records for the main master.
+    // a shape for its drawing, `masterExtra` more records for the main master, `documentExtra` more records for the document, and `firstSlideExtra` more
+    // records for the first slide (a headers and footers record of its own).
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                                const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
-                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016)
+                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),
+                               const QByteArray &firstSlideExtra = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
@@ -2186,6 +2190,7 @@ private:
         const QByteArray document = pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
             + environment
             + drawingGroup
+            + documentExtra
             + (links ? pptBox(1033, pptRec(1034, le(1, 4)) + pptBox(4055, pptRec(4051, le(7, 4)) + pptRec(4026, utf16(QStringLiteral("the site")), 0) + pptRec(4026, utf16(QStringLiteral("https://example.org/site")), 1)))
                      : QByteArray())
             + pptBox(4080, slidePersist(3, 0, kMaster) + (titleMaster ? slidePersist(7, 0, kTitleMaster) : QByteArray()), 1)
@@ -2219,12 +2224,12 @@ private:
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0, 4) + le(0x20000, 4) + le(30, 2), 5)
             + pptDrawing());
 
-        auto slide = [&](int geom, const QByteArray &placeholders, quint32 master, quint32 notes, bool hidden, const QByteArray &shapes, const QByteArray &transition = QByteArray()) {
+        auto slide = [&](int geom, const QByteArray &placeholders, quint32 master, quint32 notes, bool hidden, const QByteArray &shapes, const QByteArray &transition = QByteArray(), const QByteArray &extra = QByteArray()) {
             QByteArray info = le(0, 4) + le(0, 4) + raw({2, 0}) + le(hidden ? 0x4 : 0x400, 2) + raw({2, 0, 0, 0});
-            return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, transition.isEmpty() ? info : transition) + pptDrawing(shapes));
+            return pptBox(1006, slideAtom(geom, placeholders, master, notes, 7) + pptRec(1017, transition.isEmpty() ? info : transition) + pptDrawing(shapes) + extra);
         };
         const QByteArray titleOnBody = pptShape(0x402, 0xD, outlineRef(0)) + pptShape(0x403, 0xE, outlineRef(1), 1000, 200, 5000, 3800);
-        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody + firstSlideShapes);
+        const QByteArray first = slide(1, QByteArray("\x0D\x0E", 2), kMaster, notesByAtom ? 0 : 0x200, false, titleOnBody + firstSlideShapes, QByteArray(), firstSlideExtra);
         const QByteArray secondOld = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody);
         const QByteArray second = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, true, titleOnBody);
         const QByteArray third = slide(0, QByteArray("\x0F\x10", 2), kTitleMaster, 0, false, pptShape(0x402, 0xF, outlineRef(0)) + pptShape(0x403, 0x10, outlineRef(1)));
@@ -2304,6 +2309,124 @@ private:
         for (const auto &it : slide.items)
             if (it->role == role && it->type() == ItemType::Text) return d.storyDoc(static_cast<const TextItem *>(it.get())->storyId);
         return nullptr;
+    }
+
+    // The headers and footers record of a document (instance 3) or of a slide: the format of the date and the flags of what is shown, with the
+    // user's own date (the string of instance 0) and the footer's text (instance 2) when there are any.
+    static QByteArray footersBox(int formatId, int flags, const QString &userDate = QString(), const QString &footer = QString())
+    {
+        QByteArray body = pptRec(4058, le(formatId, 2) + le(flags, 2));
+        if (!userDate.isEmpty()) body += pptRec(4026, utf16(userDate), 0);
+        if (!footer.isEmpty()) body += pptRec(4026, utf16(footer), 2);
+        return pptBox(4057, body, 3);
+    }
+    // The master's places for the date (7), the footer (9), and the slide number (8); the footer's and the date's hold the given texts.
+    static QByteArray masterFooterPlaces(const QString &footerText = QString(), const QString &dateText = QString())
+    {
+        auto text = [](const QString &s) { return s.isEmpty() ? QByteArray() : pptRec(3999, le(4, 4)) + pptRec(4000, utf16(s)); };
+        return pptShape(0x410, 7, text(dateText), 4000, 200, 2000, 4300) + pptShape(0x411, 9, text(footerText), 4000, 2100, 3900, 4300)
+               + pptShape(0x412, 8, QByteArray(), 4000, 4000, 5500, 4300);
+    }
+    // How many placeholders of that type ("dt", "ftr", "sldNum") a slide has.
+    static int placeholdersOf(const Page &p, const QString &type)
+    {
+        int n = 0;
+        for (const auto &it : p.items) n += deck::placeholderType(*it) == type;
+        return n;
+    }
+    // The code of the first field in a story (empty for a story with none).
+    static QString storyFieldCode(const QTextDocument *story)
+    {
+        if (!story) return QString();
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                if (const QString code = it.fragment().charFormat().stringProperty(tp::Field); !code.isEmpty()) return code;
+        return QString();
+    }
+    // A presentation saved as .pptx or as .odp and opened again (null when it can't be).
+    static std::unique_ptr<Document> viaPptx(const Document &d, QString *err)
+    {
+        const QByteArray bytes = deck::exportPresentation(d, err);
+        return bytes.isEmpty() ? nullptr : deck::importPresentation(bytes, err);
+    }
+    static std::unique_ptr<Document> viaOdp(const Document &d, QString *err)
+    {
+        const QByteArray bytes = deck::exportOdp(d, false, err);
+        return bytes.isEmpty() ? nullptr : deck::importOdp(bytes, err);
+    }
+    // The story on a slide that begins with the text (empty when none does).
+    static const QTextDocument *storyBeginning(const Document &d, const Page &slide, const QString &text)
+    {
+        for (const auto &it : slide.items)
+            if (it->type() == ItemType::Text)
+                if (const QTextDocument *s = d.storyDoc(static_cast<const TextItem *>(it.get())->storyId); s && s->toPlainText().startsWith(text)) return s;
+        return nullptr;
+    }
+
+    // The words of a metafile record's parameters, a record, and a placeable metafile of a window 400 by 300 units around records.
+    static QByteArray wmfWords(std::initializer_list<int> v)
+    {
+        QByteArray b;
+        for (int w : v) {
+            b.append(char(w & 0xFF));
+            b.append(char((w >> 8) & 0xFF));
+        }
+        return b;
+    }
+    static QByteArray wmfDword(quint32 v)
+    {
+        QByteArray b;
+        for (int i = 0; i < 4; ++i) b.append(char((v >> (8 * i)) & 0xFF));
+        return b;
+    }
+    static QByteArray wmfRecord(int fn, const QByteArray &params)
+    {
+        QByteArray b = wmfDword(quint32((6 + params.size() + (params.size() & 1)) / 2)) + wmfWords({fn});
+        b += params;
+        if (params.size() & 1) b.append('\0');
+        return b;
+    }
+    // The picture, 200 by 150 points, that such a metafile draws: the window is set to 400 by 300 units and a gray brush chosen, then the given
+    // records come (the scaling), and then a box from the window's top left corner, 200 by 150 units.
+    static QImage drawMetafileWith(const QByteArray &records)
+    {
+        const QByteArray brush = wmfWords({0}) + wmfDword(0x00646464) + wmfWords({0}), pen = wmfWords({5, 0, 0}) + wmfDword(0);
+        QByteArray body = wmfRecord(0x020B, wmfWords({0, 0})) + wmfRecord(0x020C, wmfWords({300, 400})) + wmfRecord(0x02FC, brush) + wmfRecord(0x02FA, pen) + records;
+        body += wmfRecord(0x012D, wmfWords({1})) + wmfRecord(0x012D, wmfWords({0})) + wmfRecord(0x041B, wmfWords({150, 200, 0, 0})) + wmfRecord(0x0000, QByteArray());
+        QByteArray head = wmfDword(0x9AC6CDD7u) + wmfWords({0, 0, 0, 400, 300, 72}) + wmfDword(0);
+        quint16 sum = 0;
+        for (int i = 0; i < 20; i += 2) sum ^= quint16(quint8(head[i]) | (quint8(head[i + 1]) << 8));
+        head += wmfWords({int(sum)});
+        const QByteArray standard = wmfWords({1, 9, 0x300}) + wmfDword(quint32((18 + body.size()) / 2)) + wmfWords({2}) + wmfDword(60) + wmfWords({0});
+        Document doc;
+        doc.slidePictures = true;
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = doc.addImage(head + standard + body, QStringLiteral("wmf"));
+        if (pic->imageId.isEmpty()) return QImage();
+        pic->rect = QRectF(0, 0, 200, 150);
+        pic->imgRect = pic->rect;
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = &doc;
+        ctx.cache = &cache;
+        const ItemList one{pic};
+        return Renderer::renderItemsToImage(ctx, one, 1.0);
+    }
+    // Whether the point (as shares of the picture's width and height) is the box's gray; how many points are.
+    static bool paintedGrayAt(const QImage &img, double fx, double fy)
+    {
+        const QColor c = img.pixelColor(int(img.width() * fx), int(img.height() * fy));
+        return c.alpha() == 255 && qAbs(c.red() - 100) <= 2;
+    }
+    static int paintedGray(const QImage &img)
+    {
+        int n = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) {
+                const QColor c = img.pixelColor(x, y);
+                n += c.alpha() == 255 && qAbs(c.red() - 100) <= 2;
+            }
+        return n;
     }
 
 private Q_SLOTS:
@@ -24671,6 +24794,1094 @@ private Q_SLOTS:
         QCOMPARE(textIn(4), QString(QChar(0x2776)) + QChar(0x2022) + QString::fromUcs4(U"\U0001F44D") + plain + QChar(0x261E));
         // In a font of letters, the Windows-1252 characters they were.
         QCOMPARE(textIn(0), QString(QChar(0x0152)) + QChar(0x0178) + QStringLiteral("CF"));
+    }
+
+    // A metafile whose writer sets a smaller window and scales the viewport down by the same ratio (the program's own clip art does, to
+    // keep a drawing's size) is drawn at the size it had: here a drawing 400 by 300 units that sets a window of 200 by 150 and halves
+    // the viewport, then fills the whole of that window, covers the top left quarter of its picture, not all of it.
+    void renderMetafileKeepsTheScaleOfAViewportScaledWithItsWindow()
+    {
+        auto le16 = [](QByteArray &b, int v) { b.append(char(v & 0xFF)); b.append(char((v >> 8) & 0xFF)); };
+        auto le32 = [](QByteArray &b, quint32 v) { for (int i = 0; i < 4; ++i) b.append(char((v >> (8 * i)) & 0xFF)); };
+        auto words = [&](std::initializer_list<int> v) { QByteArray b; for (int w : v) le16(b, w); return b; };
+        auto record = [&](int fn, const QByteArray &params) {
+            QByteArray b;
+            le32(b, quint32((6 + params.size() + (params.size() & 1)) / 2));
+            le16(b, fn);
+            b += params;
+            if (params.size() & 1) b.append('\0');
+            return b;
+        };
+        QByteArray brush = words({0}), pen = words({5, 0, 0});
+        le32(brush, 0x00646464);
+        le16(brush, 0);
+        le32(pen, 0);
+        // The parameters of a record come last first: the viewport's scale is the height's denominator and numerator, then the width's.
+        QByteArray body = record(0x020B, words({0, 0})) + record(0x020C, words({300, 400})) + record(0x02FC, brush) + record(0x02FA, pen);
+        body += record(0x0412, words({300, 150, 400, 200})) + record(0x020C, words({150, 200}));
+        body += record(0x012D, words({1})) + record(0x012D, words({0})) + record(0x041B, words({150, 200, 0, 0})) + record(0x0000, QByteArray());
+        QByteArray head, standard;
+        le32(head, 0x9AC6CDD7u);
+        le16(head, 0);
+        for (int v : {0, 0, 400, 300, 72}) le16(head, v);
+        le32(head, 0);
+        quint16 sum = 0;
+        for (int i = 0; i < 20; i += 2) sum ^= quint16(quint8(head[i]) | (quint8(head[i + 1]) << 8));
+        le16(head, sum);
+        for (int v : {1, 9, 0x300}) le16(standard, v);
+        le32(standard, quint32((18 + body.size()) / 2));
+        le16(standard, 2);
+        le32(standard, 60);
+        le16(standard, 0);
+        const QByteArray wmf = head + standard + body;
+        Document doc;
+        doc.slidePictures = true;
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = doc.addImage(wmf, QStringLiteral("wmf"));
+        QVERIFY(!pic->imageId.isEmpty());
+        pic->rect = QRectF(0, 0, 200, 150);
+        pic->imgRect = pic->rect;
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = &doc;
+        ctx.cache = &cache;
+        const ItemList one{pic};
+        const QImage img = Renderer::renderItemsToImage(ctx, one, 1.0);
+        QVERIFY(!img.isNull());
+        // A point in the top left quarter is the box's gray; one in the bottom right is not (nothing is drawn there).
+        const QColor inside = img.pixelColor(img.width() / 4, img.height() / 4), outside = img.pixelColor(img.width() * 3 / 4, img.height() * 3 / 4);
+        QVERIFY2(qAbs(inside.red() - 100) <= 2 && inside.alpha() == 255, qPrintable(inside.name(QColor::HexArgb)));
+        QVERIFY2(outside.alpha() == 0 || outside.red() > 200, qPrintable(outside.name(QColor::HexArgb)));
+    }
+
+    // A presentation whose document says (in its headers and footers record) that the slides show a slide number and a footer text shows
+    // them on the slides that lack them, wherever the slide's master has the place for them; a slide that has a place for one of them of its own
+    // keeps it as it is, and gets the others. A document that says nothing of them shows none. The footers are kept when it is saved as a
+    // .pptx or as an .odp and opened again.
+    void importBinaryShowsTheFootersTheDocumentSetsOnSlidesWithoutThem()
+    {
+        // The flags: slide number (8) and footer (0x20); the footer's text is the string of instance 2.
+        const QByteArray footers = pptBox(4057, pptRec(4058, le(0, 2) + le(0x28, 2)) + pptRec(4026, utf16(QStringLiteral("Quarterly review")), 2), 3);
+        // The master's places for the footer (9) and the slide number (8), and the first slide's own number (8), holding 7.
+        const QByteArray masterPlaces = pptShape(0x410, 9, QByteArray(), 4000, 200, 3000, 4300) + pptShape(0x411, 8, QByteArray(), 4000, 4000, 5500, 4300);
+        const QByteArray ownNumber = pptShape(0x420, 8, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("7"))), 4000, 4000, 5500, 4300);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), ownNumber, QByteArray(), masterPlaces, QByteArray(), 1016, footers), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 2);
+        auto count = [](const Page &p, const QString &type) {
+            int n = 0;
+            for (const auto &it : p.items) n += deck::placeholderType(*it) == type;
+            return n;
+        };
+        // The second slide has both, the footer with the text and the number as the field of the slide's number.
+        QCOMPARE(count(*d->pages[1], QStringLiteral("ftr")), 1);
+        QCOMPARE(count(*d->pages[1], QStringLiteral("sldNum")), 1);
+        QCOMPARE(count(*d->pages[1], QStringLiteral("dt")), 0);
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:ftr")), QStringLiteral("Quarterly review"));
+        const QTextDocument *number = placeholderStory(*d, *d->pages[1], QStringLiteral("ph:sldNum"));
+        QVERIFY(number);
+        QCOMPARE(number->toPlainText(), QString(QChar::ObjectReplacementCharacter));
+        // The first slide keeps its own number, and gets the footer it lacked.
+        QCOMPARE(count(*d->pages[0], QStringLiteral("sldNum")), 1);
+        QCOMPARE(count(*d->pages[0], QStringLiteral("ftr")), 1);
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:sldNum")), QStringLiteral("7"));
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:ftr")), QStringLiteral("Quarterly review"));
+        // Saved as a .pptx or an .odp and opened again, the second slide has the footer's text and the number's field.
+        for (const bool odp : {false, true}) {
+            auto again = odp ? viaOdp(*d, &err) : viaPptx(*d, &err);
+            QVERIFY2(again, qPrintable(err));
+            QCOMPARE(int(again->pages.size()), 2);
+            QCOMPARE(count(*again->pages[1], QStringLiteral("ftr")), 1);
+            QCOMPARE(placeholderText(*again, *again->pages[1], QStringLiteral("ph:ftr")), QStringLiteral("Quarterly review"));
+            QCOMPARE(count(*again->pages[1], QStringLiteral("sldNum")), 1);
+            const QTextDocument *again2 = placeholderStory(*again, *again->pages[1], QStringLiteral("ph:sldNum"));
+            QVERIFY(again2);
+            QCOMPARE(again2->toPlainText(), QString(QChar::ObjectReplacementCharacter));
+            QCOMPARE(count(*again->pages[1], QStringLiteral("dt")), 0);
+            QCOMPARE(count(*again->pages[0], QStringLiteral("sldNum")), 1);
+        }
+        // With no record of them, no slide shows them.
+        auto plain = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterPlaces), &err);
+        QVERIFY2(plain, qPrintable(err));
+        for (const auto &p : plain->pages) QCOMPARE(count(*p, QStringLiteral("ftr")) + count(*p, QStringLiteral("sldNum")), 0);
+    }
+
+    // The extension that comes with the outline's text (a slide's text, by its slide and its kind) can number the paragraphs of a run of the
+    // text: the first run here is numbered the usual way ("1."), the second counts from 5 with a parenthesis ("5)", "6)"), the third has no
+    // numbering and keeps the master's bullet. The entries go with the runs of paragraphs in order.
+    void importBinaryNumbersTheParagraphsTheTextExtensionNames()
+    {
+        auto entry = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        // bulletHasScheme (0x02000000), and with bulletScheme (0x01000000): the number's scheme (2 is "1)") and where it starts.
+        const QByteArray atom = entry(0x02000000, le(1, 2)) + entry(0x03000000, le(1, 2) + le(2, 2) + le(5, 2)) + entry(0, QByteArray());
+        const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, atom));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, outline)));
+        // Three paragraphs, each a run of its own (12, 13, and 12 characters; the master's bullets are on for both levels).
+        const QByteArray body = pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(37, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        QCOMPARE(story->blockCount(), 3);
+        const QTextBlock first = story->firstBlock(), second = first.next(), third = second.next();
+        QVERIFY(first.textList() && second.textList() && third.textList());
+        const QTextListFormat one = first.textList()->format(), two = second.textList()->format(), none = third.textList()->format();
+        QCOMPARE(one.style(), QTextListFormat::ListDecimal);
+        QCOMPARE(one.numberSuffix(), QStringLiteral("."));
+        QCOMPARE(one.start(), 1);
+        QCOMPARE(two.style(), QTextListFormat::ListDecimal);
+        QCOMPARE(two.numberSuffix(), QStringLiteral(")"));
+        QCOMPARE(two.start(), 5);
+        QCOMPARE(none.style(), QTextListFormat::ListDisc);
+        // Without the extension the same text is bulleted.
+        auto plain = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(plain, qPrintable(err));
+        const QTextDocument *plainStory = placeholderStory(*plain, *plain->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(plainStory && plainStory->firstBlock().textList());
+        QCOMPARE(plainStory->firstBlock().textList()->format().style(), QTextListFormat::ListDisc);
+        // An empty paragraph between two numbered ones is no item of the list: it has no number, and the numbering goes on past it.
+        const QByteArray gapOutline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, entry(0x02000000, le(1, 2))));
+        const QByteArray gapTags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, gapOutline)));
+        const QByteArray gapBody = pptText(1, QStringLiteral("Alpha\r\rBeta"), pfRun(12, 0, 0) + cfRun(12, 0));
+        auto gap = deck::importBinaryPresentation(buildPpt(false, false, false, false, gapBody, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, gapTags), &err);
+        QVERIFY2(gap, qPrintable(err));
+        const QTextDocument *gapStory = placeholderStory(*gap, *gap->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(gapStory);
+        QCOMPARE(gapStory->blockCount(), 3);
+        const QTextBlock alpha = gapStory->firstBlock(), empty = alpha.next(), beta = empty.next();
+        QVERIFY(alpha.textList() && beta.textList());
+        QVERIFY(!empty.textList());
+        QVERIFY(alpha.textList() == beta.textList());
+        QCOMPARE(beta.textList()->itemNumber(beta), 1);
+        // The numbering is kept when the presentation is saved as a .pptx or an .odp and opened again: "1.", then "5)", then the bullet.
+        for (const bool odp : {false, true}) {
+            auto again = odp ? viaOdp(*d, &err) : viaPptx(*d, &err);
+            QVERIFY2(again, qPrintable(err));
+            const QTextDocument *s = storyBeginning(*again, *again->pages[0], QStringLiteral("First point"));
+            QVERIFY(s);
+            QCOMPARE(s->blockCount(), 3);
+            const QTextBlock a = s->firstBlock(), b = a.next(), c = b.next();
+            QVERIFY(a.textList() && b.textList() && c.textList());
+            QCOMPARE(a.textList()->format().style(), QTextListFormat::ListDecimal);
+            QCOMPARE(a.textList()->format().numberSuffix(), QStringLiteral("."));
+            QCOMPARE(b.textList()->format().style(), QTextListFormat::ListDecimal);
+            QCOMPARE(b.textList()->format().numberSuffix(), QStringLiteral(")"));
+            QCOMPARE(b.textList()->format().start(), 5);
+            QCOMPARE(c.textList()->format().style(), QTextListFormat::ListDisc);
+        }
+    }
+
+    // A shape that shows the slide's text (an outline reference) can keep a text ruler beside the reference: the margins it sets are those
+    // of the text in that shape (here the first level's, 720 master units, which is 90 points), where another shape that shows the same
+    // text with no ruler of its own has the master's.
+    void importBinaryTakesTheRulerOfAShapeThatShowsTheSlidesText()
+    {
+        const QByteArray ruled = pptShape(0x430, 0, outlineRef(1) + pptRec(4006, le(0x8, 4) + le(720, 2)), 1000, 200, 5000, 3800);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), ruled), &err);
+        QVERIFY2(d, qPrintable(err));
+        QList<double> margins;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text) continue;
+            const QTextDocument *story = d->storyDoc(static_cast<const TextItem *>(it.get())->storyId);
+            if (!story || story->toPlainText().isEmpty()) continue;
+            if (it->role == QLatin1String("ph:body:1") || it->role.isEmpty()) margins << story->firstBlock().blockFormat().leftMargin();
+        }
+        QCOMPARE(int(margins.size()), 2);
+        std::sort(margins.begin(), margins.end());
+        QVERIFY2(qAbs(margins.last() - 90.0) < 0.01, qPrintable(QString::number(margins.last())));
+        QVERIFY2(qAbs(margins.first() - 90.0) > 1.0, qPrintable(QString::number(margins.first())));
+        // The two margins are kept in a .pptx and an .odp (the text of both shapes begins "First point").
+        for (const bool odp : {false, true}) {
+            auto again = odp ? viaOdp(*d, &err) : viaPptx(*d, &err);
+            QVERIFY2(again, qPrintable(err));
+            QList<double> kept;
+            for (const auto &it : again->pages[0]->items) {
+                if (it->type() != ItemType::Text) continue;
+                const QTextDocument *story = again->storyDoc(static_cast<const TextItem *>(it.get())->storyId);
+                if (story && story->toPlainText().startsWith(QLatin1String("First point"))) kept << story->firstBlock().blockFormat().leftMargin();
+            }
+            QCOMPARE(int(kept.size()), 2);
+            std::sort(kept.begin(), kept.end());
+            QVERIFY2(qAbs(kept.last() - 90.0) < 0.5 && qAbs(kept.first() - margins.first()) < 0.5, qPrintable(QStringLiteral("%1, %2").arg(kept.first()).arg(kept.last())));
+        }
+    }
+
+    // A fill that is a picture and is set to be recolored as a picture, with the color to recolor it in (a master's background, in the clouds
+    // of one deck), is drawn in two colors, as the presentation program draws it: each pixel as light as the picture's gray, from that color (for
+    // black) to the back color (for white). A picture fill that isn't set so, or that has no such color (another deck's textured background
+    // is set so and keeps its colors), is as it is.
+    void importBinaryRecolorsAPictureFillAsTwoColors()
+    {
+        QImage photo(2, 1, QImage::Format_ARGB32);
+        photo.setPixelColor(0, 0, QColor(255, 0, 0));
+        photo.setPixelColor(1, 0, QColor(0, 0, 128));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        photo.save(&buffer, "PNG");
+        const QByteArray picture = pptRec(0xF01E, QByteArray(16, 'v') + QByteArray(1, '\xFF') + png, 0x6E0);
+        const QByteArray entry = pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, 't') + le(0xFF, 2) + le(quint32(picture.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + picture, 6, 2);
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry, 1)));
+        std::unique_ptr<Document> kept;
+        auto pixels = [&](quint32 styleFlags, bool recolorTo, bool keep = false) {
+            QByteArray t;
+            // A picture fill of the first picture, the fill color green, the color to recolor it in red (when it has one), and the back color blue
+            // (a color is stored blue, green, red).
+            QVector<QPair<int, quint32>> props{{0x0180, 3}, {0x4186, 1}, {0x0181, 0x00FF00}, {0x0183, 0xFF0000}, {0x01BF, styleFlags}};
+            if (recolorTo) props.insert(1, {0x011A, 0x0000FF});
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x1000, 4) + le(0xC00, 4), 1, 2) + pptRec(0xF00B, t, quint16(props.size()), 3));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, QByteArray(), QByteArray(), background), &err);
+            QList<QColor> out;
+            if (!d) qWarning("%s", qPrintable(err));
+            if (!d || d->masters.isEmpty() || d->masters.first()->background.type != Fill::Picture) return out;
+            const QImage im = d->image(d->masters.first()->background.imageId);
+            for (int x = 0; x < im.width(); ++x) out << im.pixelColor(x, 0);
+            if (keep) kept = std::move(d);
+            return out;
+        };
+        // Set to recolor: red's gray is 0.2126 of the way from the fill color to the back color, and dark blue's 0.0362.
+        const QList<QColor> two = pixels(0x00500050, true, true);
+        QCOMPARE(int(two.size()), 2);
+        QVERIFY2(colorsNear(two[0], QColor(201, 0, 54), 2), qPrintable(two[0].name()));
+        QVERIFY2(colorsNear(two[1], QColor(246, 0, 9), 2), qPrintable(two[1].name()));
+        // The two colors stay when the presentation is saved as a .pptx or an .odp and opened again.
+        QVERIFY(kept);
+        for (const bool odp : {false, true}) {
+            QString err;
+            auto again = odp ? viaOdp(*kept, &err) : viaPptx(*kept, &err);
+            QVERIFY2(again, qPrintable(err));
+            QList<QColor> colors;
+            for (const auto &m : again->masters)
+                if (m->background.type == Fill::Picture && colors.isEmpty()) {
+                    const QImage im = again->image(m->background.imageId);
+                    for (int x = 0; x < im.width(); ++x) colors << im.pixelColor(x, 0);
+                }
+            QCOMPARE(int(colors.size()), 2);
+            QVERIFY2(colorsNear(colors[0], two[0], 3) && colorsNear(colors[1], two[1], 3), qPrintable(colors[0].name() + QLatin1Char(' ') + colors[1].name()));
+        }
+        // Not set to, or set to with no color to recolor it in: as it is.
+        for (const QList<QColor> &kept : {pixels(0x00100010, true), pixels(0x00500050, false)}) {
+            QCOMPARE(int(kept.size()), 2);
+            QCOMPARE(kept[0], QColor(255, 0, 0));
+            QCOMPARE(kept[1], QColor(0, 0, 128));
+        }
+    }
+
+    // The pentagon arrow and the chevron of an old presentation point at a quarter of their width unless the shape says (its first value, in
+    // 21600ths of the width, is where the point starts: 16200 by default), where the preset's own measure is a share of the shorter side. A
+    // box 350 by 187.5 points: the point is 87.5 points, 0.4667 of the shorter side; set to 10800 it is 175, 0.9333.
+    void importBinaryChevronsPointAtAQuarterOfTheirWidth()
+    {
+        auto adjust = [&](quint32 id, int type, const QByteArray &props) {
+            return pptShape(id, 0, QByteArray(), 1000, 200, 3000, 2500, props, 0xA00, quint16(type));
+        };
+        const QByteArray set = pptRec(0xF00B, le(0x0147, 2) + le(10800, 4), 1, 3);
+        const QByteArray shapes = adjust(0x450, 55, QByteArray()) + adjust(0x451, 55, set) + adjust(0x452, 15, QByteArray());
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const ShapeItem *> found;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Shape) found.push_back(static_cast<const ShapeItem *>(it.get()));
+        // (The shapes come in the order they were written.)
+        QCOMPARE(int(found.size()), 3);
+        QCOMPARE(found[0]->shape, QStringLiteral("chevron"));
+        QCOMPARE(found[2]->shape, QStringLiteral("homePlate"));
+        QCOMPARE(int(found[0]->adj.size()), 1);
+        QVERIFY2(qAbs(found[0]->adj[0] - 0.4667) < 0.001, qPrintable(QString::number(found[0]->adj[0])));
+        QVERIFY2(qAbs(found[1]->adj[0] - 0.9333) < 0.001, qPrintable(QString::number(found[1]->adj[0])));
+        QVERIFY2(qAbs(found[2]->adj[0] - 0.4667) < 0.001, qPrintable(QString::number(found[2]->adj[0])));
+    }
+
+    // A slide's line doesn't break after a slash, as the presentation program breaks at spaces and hyphens (and a word longer than the line
+    // anywhere): in a long run of letters cut by slashes the lines don't all end at one. (Without the rule they all would.)
+    void layoutSlideTextDoesNotBreakAfterASlash()
+    {
+        QString text;
+        const int sizes[] = {2, 3, 5, 7, 4, 6, 8, 3};
+        for (int i = 0; i < 80; ++i) {
+            for (int k = 0; k < sizes[i % 8]; ++k) text += QChar('a' + (i * 7 + k) % 26);
+            text += QLatin1Char('/');
+        }
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(d->slideText);
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        const auto lines = fl.layout->lineInfo(0);
+        QVERIFY2(lines.size() > 3, qPrintable(QString::number(lines.size())));
+        int atSlash = 0;
+        for (int i = 0; i + 1 < int(lines.size()); ++i) atSlash += lines[i].text.trimmed().endsWith(QLatin1Char('/'));
+        QVERIFY2(atSlash < int(lines.size()) - 1, qPrintable(QStringLiteral("%1 of %2").arg(atSlash).arg(lines.size() - 1)));
+    }
+
+    // The word joiner that keeps a slide's line from breaking after a slash is no letter: text with spacing between its letters is no wider for it
+    // (three letters with 6 points between them are 18 points wider than with none, not 24).
+    void layoutSlideTextSlashTakesNoLetterSpacing()
+    {
+        const QString text = QStringLiteral("a/b");
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        QTextDocument *story = d->storyDoc(box->storyId);
+        QVERIFY(story);
+        auto widthWith = [&](double spacing) {
+            QTextCursor c(story);
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontLetterSpacingType(QFont::AbsoluteSpacing);
+            f.setFontLetterSpacing(spacing);
+            c.mergeCharFormat(f);
+            LayoutCache cache;
+            const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+            QRectF all;
+            if (fl.layout)
+                for (const QRectF &r : fl.layout->rangeRects(0, 0, 3)) all = all.united(r);
+            return all.width();
+        };
+        const double plain = widthWith(0), spaced = widthWith(6);
+        QVERIFY2(std::abs((spaced - plain) - 18) < 0.8, qPrintable(QStringLiteral("%1 wider").arg(spaced - plain)));
+    }
+
+    // Text anchored "centered" (the kinds of anchor 3 to 5) sets the block of text in the middle of its box across: the widest line is as far
+    // from one side as from the other, and the shorter lines keep their alignment in it (left aligned, here, at the block's left). Text
+    // anchored in the middle only (1) stays against the left.
+    void importBinaryCenteredAnchorSetsTheTextBlockInTheMiddle()
+    {
+        auto anchored = [&](quint32 id, const QString &text, int anchor) {
+            const QByteArray props = pptRec(0xF00B, le(0x0087, 2) + le(quint32(anchor), 4), 1, 3);
+            return pptShape(id, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)), 1000, 200, 5000, 1500, props);
+        };
+        const QByteArray shapes = anchored(0x460, QStringLiteral("Centered"), 4) + anchored(0x461, QStringLiteral("Plain"), 1)
+                                  + anchored(0x462, QStringLiteral("A longer first line of words\rShort"), 3);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        LayoutCache cache;
+        QHash<QString, QVector<QRectF>> rects, inks;   // by the text's start, the rectangles of its lines, and of each line's letters (its paragraph mark left out)
+        double width = 0, inset = 0;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text || !it->role.isEmpty()) continue;
+            const auto *t = static_cast<const TextItem *>(it.get());
+            const QString text = d->storyDoc(t->storyId)->toPlainText();
+            const auto fl = cache.textFrame(*d, *t, 1, RenderOptions());
+            QVERIFY(fl.layout);
+            rects.insert(text.left(5), fl.layout->rangeRects(0, 0, d->storyDoc(t->storyId)->characterCount() - 1));
+            QVector<QRectF> letters;
+            for (const auto &li : fl.layout->lineInfo(0)) {
+                int end = li.docEnd;
+                if (end > li.docPos && d->storyDoc(t->storyId)->characterAt(end - 1) == QChar::ParagraphSeparator) --end;
+                QRectF ink;
+                for (const QRectF &r : fl.layout->rangeRects(0, li.docPos, end)) ink = ink.united(r);
+                letters << ink;
+            }
+            inks.insert(text.left(5), letters);
+            width = t->rect.width();
+            inset = t->insets.left();
+        }
+        QCOMPARE(int(rects.size()), 3);
+        QVERIFY(width > 100);
+        auto whole = [&](const QString &key) {
+            QRectF all;
+            for (const QRectF &r : rects.value(key)) all = all.united(r);
+            return all;
+        };
+        QVERIFY2(std::abs(whole(QStringLiteral("Cente")).center().x() - width / 2) < 1.5, qPrintable(QString::number(whole(QStringLiteral("Cente")).center().x())));
+        QVERIFY2(std::abs(whole(QStringLiteral("Plain")).left() - inset) < 1.5, qPrintable(QString::number(whole(QStringLiteral("Plain")).left())));
+        const QVector<QRectF> block = rects.value(QStringLiteral("A lon"));
+        QVERIFY(block.size() >= 2);
+        // The widest line's letters (a line's box takes in its paragraph mark, so it is the letters that are set in the middle) are as far from
+        // one side as from the other, to the layout's own measure of a position.
+        const QVector<QRectF> letters = inks.value(QStringLiteral("A lon"));
+        QVERIFY(letters.size() >= 2);
+        QRectF widest = letters[0];
+        for (const QRectF &r : letters) if (r.width() > widest.width()) widest = r;
+        QVERIFY2(std::abs(widest.center().x() - width / 2) < 0.5, qPrintable(QString::number(widest.center().x())));
+        QVERIFY2(std::abs(block.first().left() - block.last().left()) < 1.0, qPrintable(QString::number(block.first().left() - block.last().left())));
+        QVERIFY(block.first().left() > inset + 10);
+        // The setting goes into a .pptx and comes back (the two boxes anchored centered).
+        const QByteArray pptx = deck::exportPresentation(*d, &err);
+        QVERIFY2(!pptx.isEmpty(), qPrintable(err));
+        auto again = deck::importPresentation(pptx, &err);
+        QVERIFY2(again, qPrintable(err));
+        int centered = 0;
+        for (const auto &it : again->pages[0]->items)
+            if (it->type() == ItemType::Text && static_cast<const TextItem *>(it.get())->centerBlock) ++centered;
+        QCOMPARE(centered, 2);
+    }
+
+    // The block of text anchored centered is as wide as its widest line's words: the spaces that hang at a line's end are not in it. A line of
+    // centered text with spaces after it, in a box anchored centered, has its words in the middle of the box.
+    void importBinaryCenteredBlockLeavesOutTheSpacesAtTheEndOfLines()
+    {
+        const QByteArray props = pptRec(0xF00B, le(0x0087, 2) + le(4, 4), 1, 3);
+        const QString text = QStringLiteral("Spaced      ");
+        // Centered (the paragraph format's alignment 1, mask 0x800).
+        const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0x800, le(1, 2)) + cfRun(int(text.size()) + 1, 0);
+        const QByteArray shapes = pptShape(0x490, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)) + pptRec(4001, styles), 1000, 200, 5000, 1500, props);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        QRectF words;
+        for (const QRectF &r : fl.layout->rangeRects(0, 0, 6)) words = words.united(r);
+        QVERIFY2(std::abs(words.center().x() - box->rect.width() / 2) < 1.5, qPrintable(QString::number(words.center().x() - box->rect.width() / 2)));
+    }
+
+    // A slide's justified lines have their words stretched to the edge: the spaces that hang at the end of a line are no part of the width the
+    // words are spread over, so the last word of most lines (all but the paragraph's last) ends at the right edge of the text area, not a space short of it.
+    void layoutSlideJustifiedLinesReachTheRightEdge()
+    {
+        QString text;
+        // (Words with ligatures too: a line is cut after a space, never inside a word.)
+        for (int i = 0; i < 12; ++i) text += QStringLiteral("The quick brown fox jumps over the lazy dog, the staff officers, difficult affiliate traffic ");
+        text += QStringLiteral("end");
+        // Justified: the alignment is 3 (the paragraph format's mask 0x800).
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0x800, le(3, 2)) + cfRun(int(text.size()) + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        const auto lines = fl.layout->lineInfo(0);
+        QVERIFY2(lines.size() > 2, qPrintable(QString::number(lines.size())));
+        const double edge = box->rect.width() - box->insets.right();
+        QVector<bool> reaches;   // by line: whether its last letter is at the edge
+        for (int i = 0; i + 1 < int(lines.size()); ++i) {
+            QVERIFY2(d->storyDoc(box->storyId)->characterAt(lines[i].docEnd - 1).isSpace(), qPrintable(QStringLiteral("line %1 is cut inside a word").arg(i)));
+            // The last character that isn't a space.
+            int last = lines[i].docEnd - 1;
+            while (last > lines[i].docPos && d->storyDoc(box->storyId)->characterAt(last).isSpace()) --last;
+            QRectF r;
+            for (const QRectF &c : fl.layout->rangeRects(0, last, last + 1)) r = r.united(c);
+            reaches << (std::abs(r.right() - edge) < 0.75);
+        }
+        // A line that the spaces added to its width would take another word into is laid out as it was, a space short of the edge: all the others
+        // reach it. Which lines those are the same text set to the left says (each line's right end as it is, and the width of the next line's first
+        // word: the word comes in when it ends within the edge); the lines too near to tell by half a point are left out.
+        QTextCursor all(d->storyDoc(box->storyId));
+        all.select(QTextCursor::Document);
+        QTextBlockFormat toLeft;
+        toLeft.setAlignment(Qt::AlignLeft);
+        all.mergeBlockFormat(toLeft);
+        LayoutCache plainCache;
+        const auto natural = plainCache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(natural.layout);
+        const auto plain = natural.layout->lineInfo(0);
+        QCOMPARE(int(plain.size()), int(lines.size()));
+        const QTextDocument *story = d->storyDoc(box->storyId);
+        int checked = 0, reached = 0;
+        for (int i = 0; i + 1 < int(plain.size()); ++i) {
+            int last = plain[i].docEnd - 1;
+            while (last > plain[i].docPos && story->characterAt(last).isSpace()) --last;
+            QRectF end;
+            for (const QRectF &c : natural.layout->rangeRects(0, last, last + 1)) end = end.united(c);
+            int wordEnd = plain[i + 1].docPos;
+            while (wordEnd < plain[i + 1].docEnd && !story->characterAt(wordEnd).isSpace()) ++wordEnd;
+            QRectF word;
+            for (const QRectF &c : natural.layout->rangeRects(0, plain[i + 1].docPos, wordEnd)) word = word.united(c);
+            const double slack = edge - (end.right() + word.width());   // what is left of the line if the next word came on without a space
+            if (std::abs(slack) < 0.5) continue;
+            ++checked;
+            QVERIFY2(reaches[i] == (slack < 0), qPrintable(QStringLiteral("line %1: slack %2, reaches the edge: %3").arg(i).arg(slack).arg(reaches[i])));
+            reached += reaches[i];
+        }
+        QVERIFY2(checked * 2 >= int(lines.size()) - 1 && reached > 0, qPrintable(QStringLiteral("%1 lines checked of %2, %3 reach the edge").arg(checked).arg(lines.size() - 1).arg(reached)));
+    }
+
+    // The arrowhead that points left (code 0xD7 in Wingdings), the mirror of the one that points right (0xD8, which a theme sets at the end of a
+    // line), has its own character in Unicode (the black leftwards equilateral arrowhead); a run in the font shows that and not a box.
+    void importBinaryWingdingsLeftArrowheadIsAnArrowhead()
+    {
+        const QByteArray raw8 = QByteArray("\xD7\xD8");
+        const QByteArray styles = pfRun(int(raw8.size()) + 1, 0, 0) + cfRun(int(raw8.size()) + 1, 0x10000, le(4, 2));   // font 4: Wingdings
+        const QByteArray text = pptRec(3999, le(1, 4)) + pptRec(4008, raw8) + pptRec(4001, styles);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, text), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QCOMPARE(body->toPlainText(), QString(QChar(0x2B9C)) + QChar(0x27A2));
+    }
+
+    // An arc of an old presentation is the part of an ellipse from the angle of its first adjust value to its second's (turning clockwise
+    // from the right; a quarter from the top when they are left out), and the ellipse is the one its first two vertices give in the shape's
+    // units when it has them: the frame holds the arc only. (It was drawn as lines through its vertices.) A frame 200 by 100 points.
+    void importBinaryArcsArePartsOfTheirEllipse()
+    {
+        auto fixed = [&](int degrees) { return quint32(qint32(degrees) * 65536); };
+        auto simple = [&](quint16 id, quint32 value) { return le(id, 2) + le(value, 4); };
+        auto arc = [&](quint32 id, const QByteArray &entries, int count, const QByteArray &data) {
+            return pptShape(id, 0, QByteArray(), 1000, 200, 1800, 1800, pptRec(0xF00B, entries + data, quint16(count), 3), 0xA00, 19);
+        };
+        // The vertices: an array of two points of two 32-bit numbers, the corners of an ellipse twice as wide and tall as the frame, its center
+        // the frame's bottom left corner.
+        QByteArray vertices = le(2, 2) + le(2, 2) + le(8, 2);
+        for (qint32 v : {-21600, 0, 21600, 43200}) vertices += le(quint32(v), 4);
+        const QByteArray shapes = arc(0x470, QByteArray(), 0, QByteArray())
+                                  + arc(0x471, simple(0x0148, fixed(90)), 1, QByteArray())
+                                  + arc(0x472, simple(0x8145, quint32(vertices.size())), 1, vertices);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const ShapeItem *> arcs;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Shape) arcs.push_back(static_cast<const ShapeItem *>(it.get()));
+        QCOMPARE(int(arcs.size()), 3);
+        auto near = [&](const QPointF &a, const QPointF &b) { return std::abs(a.x() - b.x()) < 1.5 && std::abs(a.y() - b.y()) < 1.5; };
+        auto text = [&](const QPointF &p) { return QStringLiteral("%1, %2").arg(p.x()).arg(p.y()); };
+        // The quarter from the top to the right, in the frame.
+        QVERIFY(!arcs[0]->customPath.isEmpty());
+        QVERIFY2(near(arcs[0]->customPath.pointAtPercent(0), QPointF(100, 0)), qPrintable(text(arcs[0]->customPath.pointAtPercent(0))));
+        QVERIFY2(near(arcs[0]->customPath.pointAtPercent(1), QPointF(200, 50)), qPrintable(text(arcs[0]->customPath.pointAtPercent(1))));
+        // To 90 degrees: the half, down to the bottom.
+        QVERIFY2(near(arcs[1]->customPath.pointAtPercent(1), QPointF(100, 100)), qPrintable(text(arcs[1]->customPath.pointAtPercent(1))));
+        // Of the larger ellipse: from its top (the frame's top left corner) to its right (the frame's bottom right corner).
+        QVERIFY2(near(arcs[2]->customPath.pointAtPercent(0), QPointF(0, 0)), qPrintable(text(arcs[2]->customPath.pointAtPercent(0))));
+        QVERIFY2(near(arcs[2]->customPath.pointAtPercent(1), QPointF(200, 100)), qPrintable(text(arcs[2]->customPath.pointAtPercent(1))));
+    }
+
+    // An action button of an old presentation is a plain box, with its picture on it where it has one: the arrow that points back (shape
+    // 194) is a group of the box and a triangle in a darker shade of the box's color, inside it; the blank button (189) is the box alone, not
+    // the library's box with a frame in it.
+    void importBinaryActionButtonsAreBoxesWithTheirPictures()
+    {
+        const QByteArray fill = pptRec(0xF00B, le(0x0181, 2) + le(0xC0C0C0, 4) + le(0x01BF, 2) + le(0x00110011, 4), 2, 3);
+        auto button = [&](quint32 id, int type) { return pptShape(id, 0, QByteArray(), 1000, 200, 1000, 1500, fill, 0xA00, quint16(type)); };
+        // A button 100 points wide and 62.5 high.
+        const QByteArray shapes = button(0x480, 194) + button(0x481, 189);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const GroupItem *back = nullptr;
+        const ShapeItem *blank = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() == ItemType::Group) back = static_cast<const GroupItem *>(it.get());
+            if (it->type() == ItemType::Shape) blank = static_cast<const ShapeItem *>(it.get());
+        }
+        QVERIFY(back && blank);
+        QCOMPARE(int(back->children.size()), 2);
+        QCOMPARE(back->children[0]->type(), ItemType::Shape);
+        QCOMPARE(back->children[1]->type(), ItemType::Shape);
+        const auto *box = static_cast<const ShapeItem *>(back->children[0].get());
+        const auto *mark = static_cast<const ShapeItem *>(back->children[1].get());
+        QCOMPARE(box->shape, QStringLiteral("rect"));
+        QVERIFY(box->customPath.isEmpty());
+        QVERIFY(!mark->customPath.isEmpty());
+        // The triangle is inside the box and darker than it.
+        const QRectF inside = mark->customPath.boundingRect();
+        QVERIFY2(QRectF(QPointF(0, 0), mark->rect.size()).contains(inside), qPrintable(QStringLiteral("%1,%2 %3x%4").arg(inside.x()).arg(inside.y()).arg(inside.width()).arg(inside.height())));
+        QCOMPARE(box->fill.color.rgbValue(), QColor(0xC0, 0xC0, 0xC0));
+        QVERIFY(mark->fill.color.rgbValue().red() < 0xC0 && mark->fill.color.rgbValue().red() > 0x40);
+        QCOMPARE(blank->shape, QStringLiteral("rect"));
+        // The button (its box and the picture on it) and the blank one are kept in a .pptx and an .odp.
+        for (const bool odp : {false, true}) {
+            auto again = odp ? viaOdp(*d, &err) : viaPptx(*d, &err);
+            QVERIFY2(again, qPrintable(err));
+            const GroupItem *group = nullptr;
+            const ShapeItem *plain = nullptr;
+            for (const auto &it : again->pages[0]->items) {
+                if (it->type() == ItemType::Group) group = static_cast<const GroupItem *>(it.get());
+                if (it->type() == ItemType::Shape) plain = static_cast<const ShapeItem *>(it.get());
+            }
+            QVERIFY(group && plain);
+            QCOMPARE(int(group->children.size()), 2);
+            QVERIFY(group->children[0]->type() == ItemType::Shape && group->children[1]->type() == ItemType::Shape);
+            const auto *keptBox = static_cast<const ShapeItem *>(group->children[0].get());
+            const auto *keptMark = static_cast<const ShapeItem *>(group->children[1].get());
+            QCOMPARE(keptBox->fill.color.rgbValue(), QColor(0xC0, 0xC0, 0xC0));
+            QVERIFY(keptMark->fill.color.rgbValue().red() < 0xC0 && keptMark->fill.color.rgbValue().red() > 0x40);
+            QVERIFY(qAbs(group->rect.width() - back->rect.width()) < 1.0 && qAbs(group->rect.height() - back->rect.height()) < 1.0);
+        }
+    }
+
+    // The empty paragraph that ends a slide's text counts in the height the text is centered by, as the presentation program counts it, when
+    // the text with it is taller than the box (text that runs over is centered both ways): in a box 60 points high, anchored in the middle,
+    // the lines A and B and the empty one after them are 64.8 points (21.6 each) in a place of 52.8, and begin 6 points above where the
+    // box's text begins; without the empty one they would be 43.2 and begin below it.
+    void layoutSlideTextCountsTheEmptyParagraphThatEndsIt()
+    {
+        const QByteArray props = pptRec(0xF00B, le(0x0087, 2) + le(1, 4), 1, 3);
+        const QByteArray shapes = pptShape(0x4A0, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("A\rB\r"))), 1000, 200, 3000, 1480, props);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        QVERIFY2(std::abs(box->rect.height() - 60.0) < 0.01, qPrintable(QString::number(box->rect.height())));
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        // (The empty paragraph is no line of the box, though it moves the text: it is past the end of it, and no overflow.)
+        QVERIFY(!fl.layout->overflow());
+        const auto lines = fl.layout->lineInfo(0);
+        QCOMPARE(int(lines.size()), 2);
+        // The first line is above the inset (-2.4 with 3.6 of it and the 6 points).
+        QVERIFY2(lines[0].rect.top() < box->insets.top() - 4, qPrintable(QString::number(lines[0].rect.top())));
+    }
+
+    // A metafile's records that scale the window and the viewport multiply the extents each has by their ratios, as the device context does: a
+    // window made half the size draws its contents twice the size, a viewport made half the size draws them half the size, and both together (the
+    // program's own clip art does it) change nothing. The window here is 400 by 300 units and the box 200 by 150: a quarter of the picture.
+    void renderMetafileScalesTheWindowAndTheViewportByTheirRatios()
+    {
+        const QByteArray half = wmfWords({2, 1, 2, 1}), twice = wmfWords({1, 2, 1, 2});   // (the parameters come last first)
+        const QImage none = drawMetafileWith(QByteArray());
+        QVERIFY(!none.isNull());
+        QVERIFY(paintedGrayAt(none, 0.25, 0.25) && paintedGrayAt(none, 0.45, 0.45) && !paintedGrayAt(none, 0.75, 0.75));
+        // The viewport alone, halved: the box is a quarter of the picture's width.
+        const QImage viewport = drawMetafileWith(wmfRecord(0x0412, half));
+        QVERIFY(paintedGrayAt(viewport, 0.125, 0.125) && !paintedGrayAt(viewport, 0.375, 0.375));
+        // The window alone, halved: the box fills it. Doubled: the box is a quarter of its width.
+        const QImage window = drawMetafileWith(wmfRecord(0x0410, half));
+        QVERIFY(paintedGrayAt(window, 0.75, 0.75) && paintedGrayAt(window, 0.95, 0.95));
+        const QImage doubled = drawMetafileWith(wmfRecord(0x0410, twice));
+        QVERIFY(paintedGrayAt(doubled, 0.125, 0.125) && !paintedGrayAt(doubled, 0.375, 0.375));
+        // Both halved: as if neither were.
+        const QImage pair = drawMetafileWith(wmfRecord(0x0410, half) + wmfRecord(0x0412, half));
+        QVERIFY(paintedGrayAt(pair, 0.25, 0.25) && paintedGrayAt(pair, 0.45, 0.45) && !paintedGrayAt(pair, 0.75, 0.75));
+        QVERIFY2(qAbs(paintedGray(pair) - paintedGray(none)) * 50 < paintedGray(none), qPrintable(QStringLiteral("%1 against %2").arg(paintedGray(pair)).arg(paintedGray(none))));
+        // The ratios of a hostile file are held to a bounded size (each is a 16-bit pair, repeated a hundred times: 30000 to the hundredth, a
+        // denominator of zero, and a negative ratio), and the picture is still drawn in a moment.
+        QByteArray hostile;
+        for (int i = 0; i < 100; ++i)
+            hostile += wmfRecord(0x0410, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0412, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0410, wmfWords({1, -1, 1, -1}));
+        hostile += wmfRecord(0x0410, wmfWords({0, 1, 0, 1})) + wmfRecord(0x0412, wmfWords({0, 1, 0, 1}));
+        QElapsedTimer timer;
+        timer.start();
+        const QImage bad = drawMetafileWith(hostile);
+        QVERIFY(!bad.isNull());
+        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // A text box with a quarter turn that is flipped reads upright, turned the way its box is turned on the page: the box turns and then is flipped
+    // (the item flips and then turns), so a box flipped one way and turned a quarter has its text turned the other quarter, and one flipped top to
+    // bottom has it a half turn more. Flipped both ways it is turned a half turn.
+    void importBinaryFlippedTextBoxKeepsItsQuarterTurn()
+    {
+        auto turn = [&](int degrees) { return pptRec(0xF00B, le(0x0004, 2) + le(quint32(degrees) << 16, 4), 1, 3); };
+        auto box = [&](quint32 id, const QString &text, quint32 flags, const QByteArray &props) {
+            return pptShape(id, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)), 1000, 200, 5000, 1500, props, flags);
+        };
+        // Flags: a text box (0xA00) with flip left to right (0x40) and/or top to bottom (0x80).
+        const QByteArray shapes = box(0x440, QStringLiteral("Over"), 0xA80, turn(180)) + box(0x441, QStringLiteral("Side"), 0xA40, QByteArray()) + box(0x442, QStringLiteral("Up"), 0xA80, QByteArray())
+                                  + box(0x443, QStringLiteral("SideQuarter"), 0xA40, turn(90)) + box(0x444, QStringLiteral("UpQuarter"), 0xA80, turn(90))
+                                  + box(0x445, QStringLiteral("SideBack"), 0xA40, turn(-90)) + box(0x446, QStringLiteral("BothQuarter"), 0xAC0, turn(90));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QHash<QString, const TextItem *> byText;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text) {
+                const auto *t = static_cast<const TextItem *>(it.get());
+                byText.insert(d->storyDoc(t->storyId)->toPlainText(), t);
+            }
+        const QVector<QPair<QString, double>> expected{{"Over", 0}, {"Side", 0}, {"Up", 180}, {"SideQuarter", 270}, {"UpQuarter", 90}, {"SideBack", 90}, {"BothQuarter", 270}};
+        for (const auto &e : expected) {
+            QVERIFY2(byText.contains(e.first), qPrintable(e.first));
+            const TextItem *t = byText.value(e.first);
+            QVERIFY2(!t->flipH && !t->flipV, qPrintable(e.first));
+            QVERIFY2(qAbs(t->rotation - e.second) < 0.01, qPrintable(QStringLiteral("%1 is turned %2, not %3").arg(e.first).arg(t->rotation).arg(e.second)));
+        }
+    }
+
+    // A fixed date that a presentation's document sets (its headers and footers record names the date as the user's own and holds its text), and each
+    // of the places the document says to show that a slide lacks: a slide with a place of its own for the number keeps it, and still gets the date.
+    void importBinaryShowsAFixedDateAndEachFooterThatASlideLacks()
+    {
+        // The flags: a date (1) that is the user's own (4), and the slide number (8).
+        const QByteArray footers = footersBox(0, 0x1 | 0x4 | 0x8, QStringLiteral("May 19, 2003"));
+        const QByteArray ownNumber = pptShape(0x420, 8, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("7"))), 4000, 4000, 5500, 4300);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), ownNumber, QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footers), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 2);
+        const QString dt = QStringLiteral("dt"), number = QStringLiteral("sldNum");
+        // The second slide has no place of its own: the date as the user typed it (text, not a field), and the number as a field.
+        QCOMPARE(placeholdersOf(*d->pages[1], dt), 1);
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:dt")), QStringLiteral("May 19, 2003"));
+        QVERIFY(storyFieldCode(placeholderStory(*d, *d->pages[1], QStringLiteral("ph:dt"))).isEmpty());
+        QCOMPARE(placeholdersOf(*d->pages[1], number), 1);
+        // The first has its number (holding 7), kept as it is, and the date it lacked.
+        QCOMPARE(placeholdersOf(*d->pages[0], number), 1);
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:sldNum")), QStringLiteral("7"));
+        QCOMPARE(placeholdersOf(*d->pages[0], dt), 1);
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:dt")), QStringLiteral("May 19, 2003"));
+    }
+
+    // An automatic date shows in the format the record names (the format id of its headers and footers atom, an index into the program's list of
+    // date and time formats): 0 is the short date, 1 the long one with the day's name, 3 the month's name with the day and year, 7 the date and
+    // the time, 11 and 12 the time with its AM or PM.
+    void importBinaryAutomaticDateTakesTheFormatTheRecordNames()
+    {
+        const QVector<QPair<int, QString>> formats{{0, "M/d/yyyy"}, {1, "dddd, MMMM d, yyyy"}, {2, "d MMMM yyyy"}, {3, "MMMM d, yyyy"}, {4, "d-MMM-yy"}, {5, "MMMM yy"},
+                                                   {6, "MMM-yy"}, {7, "M/d/yyyy h:mm AP"}, {8, "M/d/yyyy h:mm:ss AP"}, {11, "h:mm AP"}, {12, "h:mm:ss AP"}};
+        QString err;
+        for (const auto &f : formats) {
+            // The flags: a date (1) that is today's (2).
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(f.first, 0x3)), &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(placeholdersOf(*d->pages[1], QStringLiteral("dt")), 1);
+            QCOMPARE(storyFieldCode(placeholderStory(*d, *d->pages[1], QStringLiteral("ph:dt"))), QStringLiteral("datetime:") + f.second);
+            if (f.first != 0) continue;
+            // The short date, on the day the original shows it: 10/15/2026.
+            FieldContext ctx;
+            ctx.now = QDateTime(QDate(2026, 10, 15), QTime(19, 31, 36));
+            QCOMPARE(ctx.resolve(storyFieldCode(placeholderStory(*d, *d->pages[1], QStringLiteral("ph:dt")))), QStringLiteral("10/15/2026"));
+        }
+    }
+
+    // A footer whose text the document's record leaves out but the master's footer place holds is shown with that text on the slides that show their
+    // footer; the text the record names wins over it, a slide whose own record shows no footer has none, and a document that says nothing of footers
+    // shows none (the master holds the text, but no slide shows it).
+    void importBinaryShowsTheFooterTextOfTheMastersFooterPlace()
+    {
+        const QString line = QStringLiteral("Seminar, Berlin, May 19, 2003"), ftr = QStringLiteral("ftr");
+        const QByteArray places = masterFooterPlaces(line);
+        QString err;
+        // The flag of the footer (0x20) and no text.
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places, QByteArray(), 1016, footersBox(0, 0x20)), &err);
+        QVERIFY2(d, qPrintable(err));
+        for (const auto &p : d->pages) {
+            QCOMPARE(placeholdersOf(*p, ftr), 1);
+            QCOMPARE(placeholderText(*d, *p, QStringLiteral("ph:ftr")), line);
+        }
+        // The first slide has a record of its own that shows only the number (8): no footer there, the master's line on the second.
+        auto hidden = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places, QByteArray(), 1016, footersBox(0, 0x20), footersBox(0, 0x08)), &err);
+        QVERIFY2(hidden, qPrintable(err));
+        QCOMPARE(placeholdersOf(*hidden->pages[0], ftr), 0);
+        QCOMPARE(placeholderText(*hidden, *hidden->pages[1], QStringLiteral("ph:ftr")), line);
+        // The record's own text wins.
+        auto named = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places, QByteArray(), 1016, footersBox(0, 0x20, QString(), QStringLiteral("Annual review"))), &err);
+        QVERIFY2(named, qPrintable(err));
+        QCOMPARE(placeholderText(*named, *named->pages[1], QStringLiteral("ph:ftr")), QStringLiteral("Annual review"));
+        // No record, no footer.
+        auto silent = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places), &err);
+        QVERIFY2(silent, qPrintable(err));
+        for (const auto &p : silent->pages) QCOMPARE(placeholdersOf(*p, ftr), 0);
+    }
+
+    // A slide can set its own footers in a record of its own: its date (the user's, here), its footer text, and no number, where the next slide
+    // follows the document's.
+    void importBinaryEachSlideCanSetItsOwnFooters()
+    {
+        const QByteArray document = footersBox(0, 0x8 | 0x20, QString(), QStringLiteral("Quarterly review"));
+        const QByteArray own = footersBox(0, 0x1 | 0x4 | 0x20, QStringLiteral("Slide one date"), QStringLiteral("Only here"));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, document, own), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:dt")), QStringLiteral("Slide one date"));
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:ftr")), QStringLiteral("Only here"));
+        QCOMPARE(placeholdersOf(*d->pages[0], QStringLiteral("sldNum")), 0);
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:ftr")), QStringLiteral("Quarterly review"));
+        QCOMPARE(placeholdersOf(*d->pages[1], QStringLiteral("sldNum")), 1);
+        QCOMPARE(placeholdersOf(*d->pages[1], QStringLiteral("dt")), 0);
+    }
+
+    // The footer text and the user's date of a record, and the footer text the master's footer place holds, are cut at a thousand characters
+    // (kMaxFooterChars), so a file can't make every slide carry text of any length in them.
+    void importBinaryFooterTextIsCutAtTheLimit()
+    {
+        const QByteArray footers = footersBox(0, 0x1 | 0x4 | 0x20, QString(2500, QLatin1Char('d')), QString(3000, QLatin1Char('f')));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footers), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:ftr")), QString(1000, QLatin1Char('f')));
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:dt")), QString(1000, QLatin1Char('d')));
+        // The master's footer place holds 3000 letters, and the record shows the footer without a text of its own.
+        auto fromMaster = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(QString(3000, QLatin1Char('m'))), QByteArray(), 1016, footersBox(0, 0x20)), &err);
+        QVERIFY2(fromMaster, qPrintable(err));
+        QCOMPARE(placeholderText(*fromMaster, *fromMaster->pages[1], QStringLiteral("ph:ftr")), QString(1000, QLatin1Char('m')));
+    }
+
+    // A text extension with a great many entries (the limit is kMaxPp9Entries, which the runs of a text can't reach, so this holds the file to its
+    // memory and not what it shows) is read in a moment and numbers the first paragraphs by their entries.
+    void importBinaryTextExtensionWithManyEntriesIsRead()
+    {
+        auto entry = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        // The first numbered (scheme 3, "1.") from 7; sixty thousand more with nothing set.
+        QByteArray atom = entry(0x03000000, le(1, 2) + le(3, 2) + le(7, 2));
+        for (int i = 0; i < 60000; ++i) atom += entry(0, QByteArray());
+        const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, atom));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, outline)));
+        const QByteArray body = pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(37, 0));
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story && story->firstBlock().textList());
+        QCOMPARE(story->firstBlock().textList()->format().style(), QTextListFormat::ListDecimal);
+        QCOMPARE(story->firstBlock().textList()->format().start(), 7);
+        QCOMPARE(story->firstBlock().next().textList()->format().style(), QTextListFormat::ListDisc);
+    }
+
+    // The centered text block of a text box or a shape is kept in an .odp (as the area of the text centered across the shape) and is read back; a
+    // box that isn't centered stays as it was.
+    void importBinaryCenteredTextBlockSurvivesAnOdpRoundTrip()
+    {
+        auto anchored = [&](quint32 id, const QString &text, int anchor, bool filled) {
+            QByteArray props = le(0x0087, 2) + le(quint32(anchor), 4);
+            if (filled) props += le(0x0181, 2) + le(0xC0C0C0, 4) + le(0x01BF, 2) + le(0x00110011, 4);
+            return pptShape(id, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)), 1000, 200, 5000, 1500, pptRec(0xF00B, props, filled ? 3 : 1, 3));
+        };
+        const QByteArray shapes = anchored(0x460, QStringLiteral("Centered"), 4, false) + anchored(0x461, QStringLiteral("Plain"), 1, false) + anchored(0x462, QStringLiteral("Filled"), 3, true)
+                                  + anchored(0x463, QStringLiteral("Filled plain"), 1, true);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        // Which of the slide's boxes and shapes are centered, by the text they hold.
+        auto centered = [](const Document &doc) {
+            QStringList out;
+            for (const auto &it : doc.pages[0]->items) {
+                const QString text = it->type() == ItemType::Text ? doc.storyDoc(static_cast<const TextItem &>(*it).storyId)->toPlainText()
+                                     : it->type() == ItemType::Shape ? doc.storyDoc(static_cast<const ShapeItem &>(*it).storyId)->toPlainText() : QString();
+                const bool on = it->type() == ItemType::Text ? static_cast<const TextItem &>(*it).centerBlock : it->type() == ItemType::Shape && static_cast<const ShapeItem &>(*it).centerBlock;
+                if (on && (text == QLatin1String("Centered") || text == QLatin1String("Filled"))) out << text;
+                else if (on && !text.isEmpty()) out << QStringLiteral("wrongly ") + text;
+            }
+            out.sort();
+            return out;
+        };
+        QCOMPARE(centered(*d), (QStringList{"Centered", "Filled"}));
+        auto again = viaOdp(*d, &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(centered(*again), (QStringList{"Centered", "Filled"}));
+    }
+
+    // A fixed date is kept as the text it is in an .odp (the date's declaration is a fixed one with its text), where an automatic one stays a field
+    // that shows the day it is opened on.
+    void importBinaryFixedDateSurvivesAnOdpRoundTrip()
+    {
+        QString err;
+        const QString dt = QStringLiteral("ph:dt");
+        auto fixed = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(0, 0x1 | 0x4, QStringLiteral("May 19, 2003"))), &err);
+        QVERIFY2(fixed, qPrintable(err));
+        QCOMPARE(placeholderText(*fixed, *fixed->pages[1], dt), QStringLiteral("May 19, 2003"));
+        auto again = viaOdp(*fixed, &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(int(again->pages.size()), 2);
+        for (const auto &p : again->pages) {
+            QCOMPARE(placeholdersOf(*p, QStringLiteral("dt")), 1);
+            QCOMPARE(placeholderText(*again, *p, dt), QStringLiteral("May 19, 2003"));
+            QVERIFY(storyFieldCode(placeholderStory(*again, *p, dt)).isEmpty());
+        }
+        auto automatic = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(0, 0x3)), &err);
+        QVERIFY2(automatic, qPrintable(err));
+        auto autoAgain = viaOdp(*automatic, &err);
+        QVERIFY2(autoAgain, qPrintable(err));
+        QVERIFY(storyFieldCode(placeholderStory(*autoAgain, *autoAgain->pages[1], dt)).startsWith(QLatin1String("date")));
+        QCOMPARE(placeholderText(*autoAgain, *autoAgain->pages[1], dt), QString(QChar::ObjectReplacementCharacter));
+    }
+
+    // The date that JP_NOW names (in ISO 8601, with its offset) is the time the tool draws automatic dates and times at; without it they show today. The
+    // app itself never reads it. A presentation whose slides show the date in its short form: JP_NOW of 15 October 2026 draws 10/15/2026, one of
+    // 2 March 2027 draws 3/2/2027, and two renders at the same moment are the same picture.
+    void toolRenderDrawsTheDateJPNowNames()
+    {
+        QString tool = QCoreApplication::applicationDirPath() + QStringLiteral("/jdecktool");
+#ifdef Q_OS_WIN
+        tool += QStringLiteral(".exe");
+#endif
+        if (!QFileInfo::exists(tool)) QSKIP("jdecktool is not built beside the tests");
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString file = dir.filePath(QStringLiteral("dated.ppt"));
+        {
+            QFile f(file);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(0, 0x3)));
+        }
+        auto run = [&](const QStringList &args, const QString &now) {
+            QProcess p;
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+            env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+            env.insert(QStringLiteral("JP_NO_TELEMETRY"), QStringLiteral("1"));
+            env.remove(QStringLiteral("JP_NOW"));
+            if (!now.isEmpty()) env.insert(QStringLiteral("JP_NOW"), now);
+            p.setProcessEnvironment(env);
+            p.start(tool, args);
+            if (!p.waitForFinished(120000)) {
+                p.kill();
+                return QStringLiteral("<timed out>");
+            }
+            return QString::fromUtf8(p.readAllStandardOutput());
+        };
+        const QString first = QStringLiteral("2026-10-15T19:31:36-04:00"), second = QStringLiteral("2027-03-02T08:00:00-05:00");
+        const QString linesFirst = run({QStringLiteral("lines"), file, QStringLiteral("1")}, first), linesSecond = run({QStringLiteral("lines"), file, QStringLiteral("1")}, second);
+        QVERIFY2(linesFirst.contains(QLatin1String("10/15/2026")), qPrintable(linesFirst));
+        QVERIFY2(linesSecond.contains(QLatin1String("3/2/2027")), qPrintable(linesSecond));
+        auto render = [&](const QString &now, const QString &name) {
+            const QString out = dir.filePath(name);
+            run({QStringLiteral("render"), file, out, QStringLiteral("640")}, now);
+            return QImage(QDir(out).filePath(QStringLiteral("slide-001.png")));
+        };
+        const QImage a = render(first, QStringLiteral("a")), b = render(first, QStringLiteral("b")), c = render(second, QStringLiteral("c"));
+        QVERIFY(!a.isNull() && !b.isNull() && !c.isNull());
+        QVERIFY(a == b);
+        QVERIFY(a != c);
+    }
+
+    // A slide's line doesn't break after a slash when the text goes on in another format: a slash that ends a run in regular type, followed by a
+    // word in bold, is no more a place to break than one inside a run (every slash of this text ends a run, so without the rule every line would end
+    // at one).
+    void layoutSlideTextDoesNotBreakAfterASlashAtAFormatChange()
+    {
+        QString text;
+        QByteArray characters;
+        const int sizes[] = {2, 3, 5, 7, 4, 6, 8, 3};
+        for (int i = 0; i < 80; ++i) {
+            QString unit;
+            for (int k = 0; k < sizes[i % 8]; ++k) unit += QChar('a' + (i * 7 + k) % 26);
+            unit += QLatin1Char('/');
+            text += unit;
+            // Every other unit in bold (the first mask bit, with the flag 1).
+            characters += cfRun(int(unit.size()) + (i == 79 ? 1 : 0), 1, le(i & 1, 2));
+        }
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0) + characters);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        const auto lines = fl.layout->lineInfo(0);
+        QVERIFY2(lines.size() > 3, qPrintable(QString::number(lines.size())));
+        int atSlash = 0;
+        for (int i = 0; i + 1 < int(lines.size()); ++i) atSlash += lines[i].text.trimmed().endsWith(QLatin1Char('/'));
+        QVERIFY2(atSlash < int(lines.size()) - 1, qPrintable(QStringLiteral("%1 of %2").arg(atSlash).arg(lines.size() - 1)));
+    }
+
+    // Numbering goes on past the cut a long list is made in (a list is cut into lists of 400 for its cost): the 401st numbered paragraph is 401,
+    // not 1, as in a presentation the other format holds.
+    void importBinaryNumberingGoesOnPastTheCutOfALongList()
+    {
+        auto entry = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, entry(0x02000000, le(1, 2))));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, outline)));
+        QString text;
+        for (int i = 0; i < 450; ++i) text += QLatin1String(i < 449 ? "a\r" : "a");
+        // One run of paragraphs, so one entry numbers them all.
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        QCOMPARE(story->blockCount(), 450);
+        QTextBlock b = story->firstBlock();
+        for (int i = 0; i < 450; ++i, b = b.next()) {
+            QVERIFY2(b.textList(), qPrintable(QString::number(i)));
+            QCOMPARE(b.textList()->format().style(), QTextListFormat::ListDecimal);
+            const int shown = b.textList()->format().start() + b.textList()->itemNumber(b);
+            if (i == 0 || i == 398 || i == 399 || i == 400 || i == 401 || i == 449) QVERIFY2(shown == i + 1, qPrintable(QStringLiteral("paragraph %1 is numbered %2").arg(i + 1).arg(shown)));
+        }
+    }
+
+    // A slide's text box that says its text isn't centered across the box (anchored in the middle only) keeps that when its master's is centered: a
+    // title the master centers across its box is centered on the slide, and a second title shape on the slide that sets its anchor itself is not.
+    void importBinaryASlideCanTurnOffTheCenteredBlockItsMasterSets()
+    {
+        // The master's title anchored centered (4); the slide's own shape anchored in the middle only (1).
+        const QByteArray masterTitle = pptRec(0xF00B, le(0x0087, 2) + le(4, 4), 1, 3);
+        const QByteArray own = pptShape(0x430, 0xD, outlineRef(0), 1000, 200, 5000, 1500, pptRec(0xF00B, le(0x0087, 2) + le(1, 4), 1, 3));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), own, masterTitle), &err);
+        QVERIFY2(d, qPrintable(err));
+        int centered = 0, plain = 0;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:title")) (static_cast<const TextItem *>(it.get())->centerBlock ? centered : plain)++;
+        QCOMPARE(centered, 1);
+        QCOMPARE(plain, 1);
+    }
+
+    // Blank paragraphs that end a slide's text count in the place the text is centered at, but not as text that runs over: the text of two lines in
+    // a box that holds them, with the empty paragraph after them that it doesn't, is not too tall for it (nothing is shrunk or marked for it), and
+    // the same text in a .pptx.
+    void layoutSlideTextEmptyParagraphAtTheEndIsNoOverflow()
+    {
+        const QByteArray props = pptRec(0xF00B, le(0x0087, 2) + le(1, 4), 1, 3);
+        const QByteArray shapes = pptShape(0x4A0, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("A\rB\r"))), 1000, 200, 3000, 1480, props);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        // Whether the text of the box fits it, as the renderer's fitting and the .odp export decide (a flag of overflow, and the lines' height).
+        auto fits = [](const Document &doc, const Page &page) {
+            for (const auto &it : page.items) {
+                if (it->type() != ItemType::Text) continue;
+                const auto &t = static_cast<const TextItem &>(*it);
+                const QTextDocument *story = doc.storyDoc(t.storyId);
+                if (!story || !story->toPlainText().startsWith(QLatin1String("A"))) continue;
+                LayoutCache cache;
+                const auto fl = cache.textFrame(doc, t, 1, RenderOptions());
+                if (!fl.layout) return false;
+                if (fl.layout->overflow()) return false;
+                const auto lines = fl.layout->lineInfo(0);
+                if (lines.size() != 2) return false;
+                double top = lines.first().rect.top(), bottom = lines.first().rect.bottom() - lines.first().below;
+                for (const auto &li : lines) {
+                    top = std::min(top, li.rect.top());
+                    bottom = std::max(bottom, li.rect.bottom() - li.below);
+                }
+                return bottom - top <= t.rect.height() - t.insets.top() - t.insets.bottom() + 0.5;
+            }
+            return false;
+        };
+        QVERIFY(fits(*d, *d->pages[0]));
+        auto again = viaPptx(*d, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(fits(*again, *again->pages[0]));
+    }
+
+    // A slide's own date place that holds the generic date field (the one the slide's date place has in a file, which takes the format of the headers
+    // and footers record rather than saying one) shows the date in the format the slide's record names, or the document's: the first slide's own
+    // record names format 1 (the long date with the day's name), the second slide follows the document's, format 0.
+    void importBinaryGenericDateFieldTakesTheFormatOfTheRecord()
+    {
+        // The first slide's own date place (7): its text is the field's place ("*") and the generic date field's atom (position 0).
+        const QByteArray ownDate = pptShape(0x421, 7, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("*"))) + pptRec(4088, le(0, 4)), 4000, 200, 2000, 4300);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), ownDate, QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(0, 0x3), footersBox(1, 0x3)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(placeholdersOf(*d->pages[0], QStringLiteral("dt")), 1);
+        QCOMPARE(storyFieldCode(placeholderStory(*d, *d->pages[0], QStringLiteral("ph:dt"))), QStringLiteral("datetime:dddd, MMMM d, yyyy"));
+        QCOMPARE(storyFieldCode(placeholderStory(*d, *d->pages[1], QStringLiteral("ph:dt"))), QStringLiteral("datetime:M/d/yyyy"));
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.

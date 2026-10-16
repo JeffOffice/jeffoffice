@@ -58,6 +58,8 @@ constexpr int kMaxRuns = 20000, kMaxParagraphs = 10000;
 constexpr qint64 kMaxTotalParagraphs = 200000, kMaxTotalPieces = 500000;
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
+constexpr int kMaxFooterChars = 1000;   // of a footer or a date text
+constexpr int kMaxPp9Entries = 20000;   // the runs of one text that its extension says more of
 // The XML a writer kept for a shape or a theme: the most of one that is read, and of all of them.
 // The most pixels of a picture that has its brightness or contrast applied to them, or its tiles moved.
 constexpr qint64 kMaxAdjustedPixels = 16'000'000;
@@ -186,10 +188,11 @@ enum : quint16 {
     RT_Document = 1000, RT_DocumentAtom = 1001, RT_Slide = 1006, RT_SlideAtom = 1007, RT_Notes = 1008, RT_NotesAtom = 1009, RT_Environment = 1010,
     RT_SlidePersistAtom = 1011, RT_MainMaster = 1016, RT_SlideShowSlideInfoAtom = 1017, RT_ExObjList = 1033, RT_DrawingGroup = 1035, RT_PPDrawing = 1036,
     RT_RoundTripThemeAtom = 1038, RT_RoundTripColorMappingAtom = 1039,
-    RT_FontCollection = 2005, RT_ColorSchemeAtom = 2032, RT_PlaceholderAtom = 3011, RT_OutlineTextRefAtom = 3998, RT_TextHeaderAtom = 3999,
+    RT_List = 2000, RT_FontCollection = 2005, RT_ColorSchemeAtom = 2032, RT_PlaceholderAtom = 3011, RT_OutlineTextRefAtom = 3998, RT_TextHeaderAtom = 3999,
     RT_TextCharsAtom = 4000, RT_StyleTextPropAtom = 4001, RT_MasterTextPropAtom = 4002, RT_TextMasterStyleAtom = 4003, RT_TextCFExceptionAtom = 4004,
     RT_TextPFExceptionAtom = 4005, RT_TextRulerAtom = 4006, RT_TextBytesAtom = 4008, RT_TextSpecialInfoAtom = 4010, RT_FontEntityAtom = 4023,
     RT_CString = 4026, RT_ExHyperlinkAtom = 4051, RT_ExHyperlink = 4055, RT_SlideNumberMCAtom = 4056, RT_HeadersFooters = 4057, RT_HeadersFootersAtom = 4058,
+    RT_StyleTextProp9Atom = 4012, RT_OutlineTextProps9 = 4014, RT_OutlineTextPropsHeader9Atom = 4015, RT_ProgTags = 5000, RT_ProgBinaryTag = 5002, RT_BinaryTagData = 5003,
     RT_TextInteractiveInfoAtom = 4063, RT_SlideListWithText = 4080, RT_InteractiveInfo = 4082, RT_InteractiveInfoAtom = 4083, RT_UserEditAtom = 4085,
     RT_CurrentUserAtom = 4086, RT_DateTimeMCAtom = 4087, RT_GenericDateMCAtom = 4088, RT_HeaderMCAtom = 4089, RT_FooterMCAtom = 4090,
     RT_PersistDirectoryAtom = 6002,
@@ -409,6 +412,13 @@ struct LevelRun {
     int level = 0;
 };
 
+// What the text extension (StyleTextProp9Atom) says of a run of paragraphs: that they are numbered, in which scheme and from which number.
+struct Pp9 {
+    bool autoNumber = false;
+    int scheme = 3;   // TextAutoNumberScheme: 3 is "1."
+    int start = 1;
+};
+
 // The records of one text: its type, characters, and the runs that style them.
 struct TextGroup {
     int type = -1;              // TextTypeEnum; -1 when the group has no header
@@ -421,6 +431,7 @@ struct TextGroup {
     QVector<LangRun> lang;
     QVector<FieldMark> fields;
     QVector<LinkMark> links;
+    QVector<Pp9> pp9;           // by run of paragraphs, what its extension says (from the document's outline properties)
     qint64 outline = -1;        // the text of the slide this shape shows (OutlineTextRefAtom)
     bool bytes = false;         // the text is 8-bit (a TextBytesAtom), its codes 0x80 to 0x9F read as Windows-1252's characters
 };
@@ -881,6 +892,14 @@ private:
     QVector<qint64> m_start;
 };
 
+// What a headers and footers record says (HeadersFootersAtom's flags, and the texts of its strings).
+struct FooterSpec {
+    bool set = false;
+    quint16 formatId = 0, flags = 0;   // the format of an automatic date (an index into the program's list of them)
+    QString date, footer;
+};
+enum : quint16 { FootHasDate = 0x1, FootTodayDate = 0x2, FootUserDate = 0x4, FootSlideNumber = 0x8, FootHasFooter = 0x20 };
+
 class Importer {
 public:
     Importer(const QByteArray &file, Document &doc) : m_file(file), m_doc(doc) {}
@@ -900,10 +919,12 @@ private:
     void readDrawingGroup(const Rec &r);
     void readHyperlinks(const Rec &r);
     QVector<SlideEntry> readSlideList(const Rec &list);
+    void readTextExtensions(const QVector<Rec> &documentRecords);
     TextGroup readTextGroup(Records &rs, const QVector<Rec> &recs);
     QString pictureId(int blipIndex);
     QString adjustedPicture(const QString &id, double brightness, double contrast);
     QString patternedPicture(const QString &id, const QColor &fillColor, const QColor &backColor);
+    QString duotonedPicture(const QString &id, const QColor &dark, const QColor &light);
 
     // The masters.
     void readMasters();
@@ -920,6 +941,9 @@ private:
 
     // The slides.
     void readSlide(int number, const SlideEntry &e);
+    FooterSpec readFooterSpec(const Rec &box);
+    void showFooters(const FooterSpec &document);
+    QString masterFooterText(const Page &slide) const;
     MasterInfo *masterByRef(quint32 ref) const;
     void finishItems(ItemList &items, PageState &st, bool slide);
     QString readNotes(const SlideEntry &slide, quint32 notesRef, const MasterInfo &master);
@@ -981,6 +1005,8 @@ private:
     bool m_charLimitSaid = false, m_paragraphLimitSaid = false;
     int m_layoutCount = 0;
     bool m_footers = false;
+    QHash<const Page *, FooterSpec> m_slideFooters;
+    QHash<quint64, QVector<Pp9>> m_outlineProps9;   // by slide and kind of text (slideId << 8 | kind)   // the headers and footers a slide sets for itself
     QStringList m_notes;
     int m_extraNotes = 0;
 
@@ -1240,12 +1266,66 @@ void Importer::readHyperlinks(const Rec &list)
     }
 }
 
+// The extension of the document's text (the outline properties its ___PPT9 tag keeps: for each slide's text of a kind, what its runs of paragraphs
+// say beyond the usual ones). Each run's entry is its paragraph format (a bullet picture, numbering), character format, and special info, each
+// with the fields its mask names; only the numbering is kept. A text keeps at most kMaxPp9Entries of them.
+void Importer::readTextExtensions(const QVector<Rec> &documentRecords)
+{
+    const QByteArray &d = m_ppt.data();
+    // (The tags are among the records of the document's text information, a list.)
+    QVector<Rec> candidates = documentRecords;
+    for (const Rec &r : documentRecords)
+        if (r.type == RT_List) candidates += m_ppt.in(r);
+    for (const Rec &tags : candidates) {
+        if (tags.type != RT_ProgTags) continue;
+        for (const Rec &tag : m_ppt.in(tags)) {
+            if (tag.type != RT_ProgBinaryTag) continue;
+            const QVector<Rec> parts = m_ppt.in(tag);
+            const Rec *name = find(parts, RT_CString), *data = find(parts, RT_BinaryTagData);
+            if (!name || !data || readChars(d, *name, true).section(QChar(0), 0, 0) != QLatin1String("___PPT9")) continue;
+            for (const Rec &box : m_ppt.in(*data)) {
+                if (box.type != RT_OutlineTextProps9) continue;
+                const QVector<Rec> items = m_ppt.in(box);
+                for (int i = 0; i + 1 < items.size(); ++i) {
+                    if (items[i].type != RT_OutlineTextPropsHeader9Atom || items[i].len < 8 || items[i + 1].type != RT_StyleTextProp9Atom) continue;
+                    Cursor h(d, items[i].off, items[i].end());
+                    const quint32 slideId = h.u32(), kind = h.u32();
+                    QVector<Pp9> entries;
+                    Cursor c(d, items[i + 1].off, items[i + 1].end());
+                    while (c.ok() && c.left() >= 12 && entries.size() < kMaxPp9Entries) {
+                        Pp9 e;
+                        const quint32 paragraph = c.u32();
+                        if (paragraph & 0x00800000) c.u16();   // the bullet's picture
+                        if (paragraph & 0x02000000) e.autoNumber = c.u16() != 0;
+                        if (paragraph & 0x01000000) {
+                            e.scheme = c.u16();
+                            e.start = c.u16();
+                        }
+                        const quint32 character = c.u32();
+                        if (character & 0x00100000) c.u32();
+                        const quint32 special = c.u32();
+                        if (special & 0x02) c.u16();
+                        if (special & 0x04) c.u16();
+                        if (special & 0x40) c.u16();
+                        if (special & 0x20) c.u32();
+                        if (!c.ok()) break;
+                        entries << e;
+                    }
+                    if (h.ok() && kind < 256 && !entries.isEmpty() && m_outlineProps9.size() < kMaxSlides * 4) m_outlineProps9.insert((quint64(slideId) << 8) | kind, entries);
+                    ++i;
+                }
+            }
+        }
+    }
+}
+
 // The slides (or masters, or notes) a list names, in its order, each with the texts it keeps for them.
 QVector<SlideEntry> Importer::readSlideList(const Rec &list)
 {
     const QByteArray &d = m_ppt.data();
     QVector<SlideEntry> out;
     const QVector<Rec> kids = m_ppt.in(list);
+    QSet<quint64> extended;
     int i = 0;
     while (i < kids.size()) {
         const Rec &r = kids[i];
@@ -1262,7 +1342,15 @@ QVector<SlideEntry> Importer::readSlideList(const Rec &list)
             // A text runs to the next header or the next slide.
             int j = i + 1;
             while (j < kids.size() && kids[j].type != RT_TextHeaderAtom && kids[j].type != RT_SlidePersistAtom) ++j;
-            if (!out.isEmpty() && out.last().groups.size() < 1000) out.last().groups << readTextGroup(m_ppt, kids.mid(i, j - i));
+            if (!out.isEmpty() && out.last().groups.size() < 1000) {
+                TextGroup g = readTextGroup(m_ppt, kids.mid(i, j - i));
+                // The extension's entries for a kind of a slide's text go to the first text of that kind.
+                if (const quint64 key = (quint64(out.last().slideId) << 8) | quint64(g.type & 0xFF); g.type >= 0 && !extended.contains(key)) {
+                    extended.insert(key);
+                    g.pp9 = m_outlineProps9.value(key);
+                }
+                out.last().groups << g;
+            }
             i = j;
         } else {
             ++i;
@@ -1437,6 +1525,37 @@ QString Importer::patternedPicture(const QString &id, const QColor &fillColor, c
             buffer.open(QIODevice::WriteOnly);
             if (tile.save(&buffer, "PNG")) result = m_doc.addImage(png, QStringLiteral("png"), QString(), tile);
         }
+    }
+    m_adjusted.insert(key, result);
+    return result;
+}
+
+// A picture in two colors, as the presentation program draws a picture fill that is recolored as a picture: each pixel as light as the picture's
+// gray (by the weights of the sRGB colors of a screen) from the dark color, for black, to the light one, for white. The picture itself when it
+// is too big (past kMaxAdjustedPixels) or when too many have been made.
+QString Importer::duotonedPicture(const QString &id, const QColor &dark, const QColor &light)
+{
+    const QString key = QStringLiteral("duotone|%1|%2|%3").arg(id, dark.name(), light.name());
+    if (const auto it = m_adjusted.constFind(key); it != m_adjusted.constEnd()) return it.value();
+    QString result = id;
+    const QSize size = m_doc.imageSize(id);
+    QImage img = size.isValid() && qint64(size.width()) * size.height() <= kMaxAdjustedPixels && m_adjusted.size() < 200 ? m_doc.image(id) : QImage();
+    if (!img.isNull()) {
+        img = img.convertToFormat(QImage::Format_ARGB32);
+        QRgb ramp[256];
+        for (int i = 0; i < 256; ++i)
+            ramp[i] = qRgb(dark.red() + (light.red() - dark.red()) * i / 255, dark.green() + (light.green() - dark.green()) * i / 255, dark.blue() + (light.blue() - dark.blue()) * i / 255);
+        for (int y = 0; y < img.height(); ++y) {
+            QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
+            for (int x = 0; x < img.width(); ++x) {
+                const int gray = int(std::lround(0.2126 * qRed(line[x]) + 0.7152 * qGreen(line[x]) + 0.0722 * qBlue(line[x])));
+                line[x] = qRgba(qRed(ramp[gray]), qGreen(ramp[gray]), qBlue(ramp[gray]), qAlpha(line[x]));
+            }
+        }
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        if (img.save(&buffer, "PNG")) result = m_doc.addImage(png, QStringLiteral("png"), QString(), img);
     }
     m_adjusted.insert(key, result);
     return result;
@@ -1868,6 +1987,7 @@ ItemPtr textBoxFor(const ShapeItem &s)
 {
     auto t = std::make_shared<TextItem>();
     t->noWrap = s.noWrap;
+    t->centerBlock = s.centerBlock;
     t->name = s.name;
     t->role = s.role;
     t->altText = s.altText;
@@ -2026,6 +2146,10 @@ void Importer::readSlide(int number, const SlideEntry &e)
     ItemList items = readShapes(drawing, st);
     finishItems(items, st, true);
     page->items = std::move(items);
+    if (const Rec *hf = find(kids, RT_HeadersFooters)) {
+        const FooterSpec own = readFooterSpec(*hf);
+        if (own.set) m_slideFooters.insert(page.get(), own);
+    }
     for (const auto &it : page->items) {
         const QString type = placeholderType(*it);
         if (isTitleType(type) && it->type() == ItemType::Text) {
@@ -2038,6 +2162,98 @@ void Importer::readSlide(int number, const SlideEntry &e)
     page->masterId = layout->id;
     page->notesStoryId = readNotes(e, notesRef, *source);
     m_doc.pages << page;
+}
+
+// The flags and strings of a headers and footers record: the user's date (instance 0) and the footer (2), each cut short past a line's worth.
+FooterSpec Importer::readFooterSpec(const Rec &box)
+{
+    FooterSpec spec;
+    const QByteArray &d = m_ppt.data();
+    for (const Rec &k : m_ppt.in(box)) {
+        if (k.type == RT_HeadersFootersAtom && k.len >= 4) {
+            Cursor c(d, k.off, k.end());
+            spec.formatId = c.u16();
+            spec.flags = c.u16();
+            spec.set = c.ok();
+        } else if (k.type == RT_CString && (k.inst == 0 || k.inst == 2)) {
+            const QString text = readChars(d, k, true).section(QChar(0), 0, 0).left(kMaxFooterChars);
+            (k.inst == 0 ? spec.date : spec.footer) = text;
+        }
+    }
+    return spec;
+}
+
+// The generic date a story holds (the field the date place of a slide has, which takes the format of the headers and footers record) made a field
+// of the code given. (The fields are found first, then changed: a change splits the story's fragments.)
+static void retargetGenericDate(QTextDocument *story, const QString &code)
+{
+    constexpr int kMostFields = 100;
+    QVector<QPair<int, int>> found;
+    for (QTextBlock b = story->begin(); b.isValid() && found.size() < kMostFields; b = b.next())
+        for (auto it = b.begin(); !it.atEnd() && found.size() < kMostFields; ++it)
+            if (it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("date")) found << qMakePair(it.fragment().position(), it.fragment().length());
+    for (const auto &f : std::as_const(found)) {
+        QTextCursor c(story);
+        c.setPosition(f.first);
+        c.setPosition(f.first + f.second, QTextCursor::KeepAnchor);
+        QTextCharFormat format;
+        format.setProperty(tp::Field, code);
+        c.mergeCharFormat(format);
+    }
+}
+
+// What a record says is shown: the date (the user's own as the text it is, or today's in the format the record names), the slide number, and
+// the footer (the text the record holds, else the one the master's footer place holds, which a slide shows when it shows its footer).
+static FooterOptions footerOptionsOf(const FooterSpec &f)
+{
+    FooterOptions o;
+    const bool today = f.flags & FootTodayDate;
+    o.date = (f.flags & FootHasDate) && (today || ((f.flags & FootUserDate) && !f.date.isEmpty()));
+    if (o.date) {
+        if (today) o.dateCode = QStringLiteral("datetime:") + dateFormat(f.formatId > 12 ? 0 : f.formatId);
+        else o.dateText = f.date;
+    }
+    o.slideNumber = f.flags & FootSlideNumber;
+    o.footer = f.flags & FootHasFooter;
+    o.footerText = f.footer;
+    return o;
+}
+
+// The text a slide's master holds in its footer place ("*" stands for the field there, not for text), cut at a footer's most (each slide shows it).
+QString Importer::masterFooterText(const Page &slide) const
+{
+    const QString held = layoutFooterText(m_doc, slide);
+    return held == QLatin1String("*") ? QString() : held.left(kMaxFooterChars);
+}
+
+// The date, slide number, and footer the document (or a slide) says its slides show, each on the slides that lack it, where their layout has the
+// place for it: a slide keeps the places it has of its own.
+void Importer::showFooters(const FooterSpec &document)
+{
+    if (document.set) {
+        FooterOptions all = footerOptionsOf(document);
+        // (What new slides will show: the footer's text, if the record has none, is the first slide's master's.)
+        if (all.footer && all.footerText.isEmpty() && !m_doc.pages.isEmpty()) all.footerText = masterFooterText(*m_doc.pages.first());
+        if (all.footer && all.footerText.isEmpty()) all.footer = false;
+        m_doc.appData[QStringLiteral("footerOptions")] = all.toJson();
+        if (all.any()) m_footers = true;
+    }
+    for (const auto &page : m_doc.pages) {
+        const auto set = m_slideFooters.constFind(page.get());
+        const FooterSpec &spec = set != m_slideFooters.cend() ? set.value() : document;
+        if (!spec.set) continue;
+        FooterOptions o = footerOptionsOf(spec);
+        // A footer whose text the record leaves out is the master's footer place's.
+        if (o.footer && o.footerText.isEmpty()) o.footerText = masterFooterText(*page);
+        if (o.footer && o.footerText.isEmpty()) o.footer = false;
+        // A date place the slide has of its own, holding the generic date field, shows it in the format the record names.
+        if (!o.dateCode.isEmpty())
+            for (const auto &it : page->items)
+                if (placeholderType(*it) == QLatin1String("dt") && it->type() == ItemType::Text)
+                    if (QTextDocument *story = m_doc.storyDoc(static_cast<TextItem &>(*it).storyId)) retargetGenericDate(story, o.dateCode);
+        if (!o.any()) continue;
+        addMissingFooters(m_doc, o, *page);
+    }
 }
 
 // The text box of a placeholder in a drawing, looking into its groups too.
@@ -2188,6 +2404,37 @@ QTextCharFormat Importer::charFormat(const Cf &cf, const TextCtx &ctx) const
 
 namespace {
 
+// A numbering scheme (TextAutoNumberScheme): the list's counting, the marks around the number, and tp::NumberFormat (0 when it is none of the
+// seven that name; a scheme this reading doesn't know is "1.").
+struct NumberScheme {
+    QTextListFormat::Style style = QTextListFormat::ListDecimal;
+    QString prefix, suffix;
+    int format = 1;
+};
+NumberScheme numberSchemeOf(int scheme)
+{
+    struct Row { QTextListFormat::Style style; const char *prefix, *suffix; int format; };
+    static const Row rows[] = {
+        {QTextListFormat::ListLowerAlpha, "", ".", 2}, {QTextListFormat::ListUpperAlpha, "", ".", 3}, {QTextListFormat::ListDecimal, "", ")", 6},
+        {QTextListFormat::ListDecimal, "", ".", 1}, {QTextListFormat::ListLowerRoman, "(", ")", 0}, {QTextListFormat::ListLowerRoman, "", ")", 0},
+        {QTextListFormat::ListLowerRoman, "", ".", 4}, {QTextListFormat::ListUpperRoman, "", ".", 5}, {QTextListFormat::ListLowerAlpha, "(", ")", 0},
+        {QTextListFormat::ListLowerAlpha, "", ")", 0}, {QTextListFormat::ListUpperAlpha, "(", ")", 0}, {QTextListFormat::ListUpperAlpha, "", ")", 0},
+        {QTextListFormat::ListDecimal, "(", ")", 7}, {QTextListFormat::ListDecimal, "", "", 0}, {QTextListFormat::ListUpperRoman, "(", ")", 0},
+        {QTextListFormat::ListUpperRoman, "", ")", 0},
+    };
+    NumberScheme s;
+    if (scheme < 0 || scheme >= int(sizeof(rows) / sizeof(rows[0]))) {
+        s.suffix = QStringLiteral(".");
+        return s;
+    }
+    const Row &r = rows[scheme];
+    s.style = r.style;
+    s.prefix = QString::fromLatin1(r.prefix);
+    s.suffix = QString::fromLatin1(r.suffix);
+    s.format = r.format;
+    return s;
+}
+
 // The characters of a run as they show: a vertical tab or a line feed breaks the line, and the other control characters are not shown.
 QString displayText(const QString &s)
 {
@@ -2244,7 +2491,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
     bool firstBlock = true;
     QTextList *list = nullptr;
     QString listKey;
-    int inList = 0;
+    int inList = 0, counted = 0;   // the paragraphs in the list now, and the numbered ones counted in the run of lists it goes on from
     qint64 start = 0;
     int paragraphs = 0;
     for (;;) {
@@ -2260,8 +2507,10 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         // The paragraph's style: its kind and level on the masters, the text box's ruler, its own settings.
         int level = 0;
         const PfRun *pfRun = nullptr;
+        int pfRunNumber = -1;
         if (const int i = pfIndex.at(start); i >= 0) {
             pfRun = &g.pf.at(i);
+            pfRunNumber = i;
             level = pfRun->level;
         } else if (const int i = levelIndex.at(start); i >= 0) {
             level = g.levels.at(i).level;
@@ -2443,19 +2692,39 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             if (pf.flags & BulletOwnSize) markSize = pf.bulletSize > 0 ? size * pf.bulletSize / 100.0 : -pf.bulletSize;
             if (std::abs(markSize - size) < 0.01) markSize = 0;
             const QString color = (pf.flags & BulletOwnColor) ? ColorRef::rgb(colorOf(pf.bulletColor, ctx, QColor(Qt::black))).toString() : QString();
-            const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6").arg(level).arg(ch).arg(font).arg(markSize).arg(color).arg(leftMargin);
+            // Paragraphs the text's extension numbers count instead of showing the mark.
+            const Pp9 *numbered = pfRunNumber >= 0 && pfRunNumber < g.pp9.size() && g.pp9.at(pfRunNumber).autoNumber ? &g.pp9.at(pfRunNumber) : nullptr;
+            const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8").arg(level).arg(numbered ? 0 : ch).arg(numbered ? QString() : font).arg(markSize).arg(color).arg(leftMargin)
+                                    .arg(numbered ? numbered->scheme : -1).arg(numbered ? numbered->start : 0);
             // (A list takes its items one by one at a cost that grows with its length, so a long run of bullets is cut into lists of at most 400.)
-            if (list && key == listKey && inList < 400) {
+            // An empty paragraph is no item of a numbered list: it has no number, and the numbering goes on after it.
+            if (numbered && list && key == listKey && start == end) {
+                // (left out of the list)
+            } else if (list && key == listKey && inList < 400) {
                 list->add(cur.block());
                 ++inList;
+                if (numbered) ++counted;
             } else {
+                // (A run of numbered paragraphs cut for its length goes on counting where the list before stopped.)
+                const bool goesOn = numbered && list && key == listKey;
+                if (!goesOn) counted = 0;
                 inList = 1;
                 QTextListFormat lf;
                 lf.setStyle(QTextListFormat::ListDisc);
                 lf.setIndent(0);
                 lf.setProperty(tp::ListLevel, level);
-                if (ch != 0x2022 || !font.isEmpty()) lf.setProperty(tp::BulletChar, QString(QChar(ch)));
-                if (!font.isEmpty()) lf.setProperty(tp::BulletFont, font);
+                if (numbered) {
+                    const NumberScheme scheme = numberSchemeOf(numbered->scheme);
+                    lf.setStyle(scheme.style);
+                    lf.setNumberPrefix(scheme.prefix);
+                    lf.setNumberSuffix(scheme.suffix);
+                    if (const int first = numbered->start + (goesOn ? counted : 0); first > 1) lf.setStart(std::min(first, 32767));
+                    ++counted;
+                    if (scheme.format) lf.setProperty(tp::NumberFormat, scheme.format);
+                } else {
+                    if (ch != 0x2022 || !font.isEmpty()) lf.setProperty(tp::BulletChar, QString(QChar(ch)));
+                    if (!font.isEmpty()) lf.setProperty(tp::BulletFont, font);
+                }
                 if (!color.isEmpty()) lf.setProperty(tp::BulletColor, color);
                 if (markSize > 0) lf.setProperty(tp::BulletSize, markSize);
                 lf.setProperty(tp::BulletTab, leftMargin);
@@ -2489,11 +2758,13 @@ office::OdrawContext Importer::drawingContext()
         const QString type = placeholderOf(clientData);
         return type.isEmpty() ? QByteArray() : masterShapeProps(*m_state->source, type);
     };
+    ctx.presentation = true;
     ctx.clientAnchor = [](const QByteArray &anchor) { return anchorRect(anchor); };
     ctx.schemeColor = [this](int index) { return m_state && m_state->scheme && index >= 0 && index < 8 ? m_state->scheme[index] : QColor(); };
     ctx.picture = [this](int index) { return pictureId(index); };
     ctx.adjusted = [this](const QString &id, double brightness, double contrast) { return adjustedPicture(id, brightness, contrast); };
     ctx.patterned = [this](const QString &id, const QColor &fillColor, const QColor &backColor) { return patternedPicture(id, fillColor, backColor); };
+    ctx.duotoned = [this](const QString &id, const QColor &dark, const QColor &light) { return duotonedPicture(id, dark, light); };
     ctx.client = [this](Item &item, const QByteArray &textbox, const QByteArray &clientData) {
         if (m_state) clientShape(item, textbox, clientData);
     };
@@ -2501,6 +2772,23 @@ office::OdrawContext Importer::drawingContext()
 }
 
 namespace {
+
+// A text box that is turned over reads upright: the presentation program turns a shape's text with the shape, a half turn more when it is flipped
+// top to bottom, and never mirrors it.
+void uprightText(const ItemList &items)
+{
+    for (const ItemPtr &it : items) {
+        if (it->type() == ItemType::Group) {
+            uprightText(static_cast<const GroupItem &>(*it).children);
+        } else if (it->type() == ItemType::Text && (it->flipH || it->flipV)) {
+            // (The item flips and then turns, so the text goes with that turn as it is, whichever way the shape flips.)
+            double angle = it->rotation;
+            if (it->flipV) angle += 180;
+            it->rotation = std::fmod(std::fmod(angle, 360.0) + 360.0, 360.0);
+            it->flipH = it->flipV = false;
+        }
+    }
+}
 
 // Slide objects don't push text aside: the presentation program lets text and objects overlap.
 void leaveTextAlone(const ItemList &items)
@@ -2521,6 +2809,7 @@ ItemList Importer::readShapes(const QByteArray &drawing, PageState &st)
     m_state = nullptr;
     noteShapeLimit();
     leaveTextAlone(items);
+    uprightText(items);
     return items;
 }
 
@@ -2563,10 +2852,17 @@ void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArr
     if (!link.isEmpty()) item.hyperlink = link;
 
     const TextGroup *use = nullptr;
+    TextGroup ruled;
     if (g.outline >= 0) {
         if (st.groups && g.outline < st.groups->size()) {
             use = &st.groups->at(int(g.outline));
             st.used[int(g.outline)] = true;
+            // The ruler the shape keeps beside its reference to the slide's text is that text's (its margins, indents, and tabs).
+            if (g.ruler.has && !use->ruler.has) {
+                ruled = *use;
+                ruled.ruler = g.ruler;
+                use = &ruled;
+            }
         }
     } else if (g.hasText) {
         use = &g;
@@ -2610,6 +2906,7 @@ bool Importer::run(QString *error)
     if (const Rec *r = find(kids, RT_Environment)) readEnvironment(*r);
     if (const Rec *r = find(kids, RT_DrawingGroup)) readDrawingGroup(*r);
     if (const Rec *r = find(kids, RT_ExObjList)) readHyperlinks(*r);
+    readTextExtensions(kids);
     for (const Rec &r : kids) {
         if (r.type != RT_SlideListWithText) continue;
         QVector<SlideEntry> list = readSlideList(r);
@@ -2641,6 +2938,14 @@ bool Importer::run(QString *error)
         readSlide(number, e);
     }
     assembleMasters();
+    // (The record of the document that is for slides: the notes have their own.)
+    FooterSpec documentFooters;
+    for (const Rec &r : kids)
+        if (r.type == RT_HeadersFooters && r.inst == 3) {
+            documentFooters = readFooterSpec(r);
+            break;
+        }
+    showFooters(documentFooters);
 
     // The theme: the first master's colors (the scheme's text and background are the theme's dark 1 and light 1, its
     // title text and shadow dark 2 and light 2, its fills and accent the first two accents, and its two hyperlink

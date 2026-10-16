@@ -307,6 +307,8 @@ ItemPtr Reader::readTextBox(const QDomElement &frame, const QDomElement &box, Sc
                           lengthOr(bag.get(Graphic, "fo:padding-right"), pad), lengthOr(bag.get(Graphic, "fo:padding-bottom"), pad));
     const QString anchor = bag.get(Graphic, "draw:textarea-vertical-align");
     t->valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+    // (The area of the text centered across the box: the block of text is in the middle of it.)
+    t->centerBlock = bag.get(Graphic, "draw:textarea-horizontal-align") == QLatin1String("center");
     t->noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
     if (bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true") || bag.get(Graphic, "draw:fit-to-size") == QLatin1String("shrink")) t->autofit = TextItem::ShrinkOnOverflow;
     else if (bag.get(Graphic, "draw:auto-grow-height") == QLatin1String("true")) t->autofit = TextItem::GrowBox;
@@ -788,6 +790,7 @@ ItemPtr Reader::readCustomShape(const QDomElement &e, Scope &sc, const QTransfor
                             lengthOr(bag.get(Graphic, "fo:padding-right"), pad), lengthOr(bag.get(Graphic, "fo:padding-bottom"), pad));
     const QString anchor = bag.get(Graphic, "draw:textarea-vertical-align");
     base.valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+    base.centerBlock = bag.get(Graphic, "draw:textarea-horizontal-align") == QLatin1String("center");
     base.noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
     base.shape = QStringLiteral("rect");
 
@@ -866,6 +869,7 @@ ItemPtr Reader::readBasicShape(const QDomElement &e, Scope &sc, const QTransform
                           lengthOr(bag.get(Graphic, "fo:padding-right"), pad), lengthOr(bag.get(Graphic, "fo:padding-bottom"), pad));
     const QString anchor = bag.get(Graphic, "draw:textarea-vertical-align");
     s->valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+    s->centerBlock = bag.get(Graphic, "draw:textarea-horizontal-align") == QLatin1String("center");
     if (tag == QLatin1String("draw:rect") || tag == QLatin1String("draw:caption")) {
         s->shape = QStringLiteral("rect");
         const double radius = std::max(lengthOr(a.get("svg:rx"), 0), lengthOr(a.get("draw:corner-radius"), 0));
