@@ -99,6 +99,51 @@ QVector<Block> unpackBlocks(const QByteArray &packed)
     return out;
 }
 
+namespace {
+struct ByteStore {
+    QVector<QByteArray> items;
+    QHash<QByteArray, int> index;
+    quint64 generation = 1;
+};
+
+ByteStore &byteStore()
+{
+    static ByteStore s;
+    return s;
+}
+} // namespace
+
+int storeBytes(const QByteArray &bytes)
+{
+    ByteStore &s = byteStore();
+    const auto it = s.index.constFind(bytes);
+    if (it != s.index.constEnd()) return it.value();
+    const int key = int(s.items.size()) + 1;   // (0 is no key)
+    s.items.push_back(bytes);
+    s.index.insert(bytes, key);
+    return key;
+}
+
+QByteArray storedBytesOf(int key)
+{
+    const ByteStore &s = byteStore();
+    return key >= 1 && key <= s.items.size() ? s.items[key - 1] : QByteArray();
+}
+
+void setStored(QTextFormat &format, int property, const QByteArray &bytes) { format.setProperty(property, storeBytes(bytes)); }
+
+QByteArray storedBytes(const QTextFormat &format, int property) { return format.hasProperty(property) ? storedBytesOf(format.intProperty(property)) : QByteArray(); }
+
+void clearByteStore()
+{
+    ByteStore &s = byteStore();
+    s.items.clear();
+    s.index.clear();
+    ++s.generation;
+}
+
+quint64 byteStoreGeneration() { return byteStore().generation; }
+
 QString packOtherFonts(const Fonts &f)
 {
     const QChar sep(0x1f);
@@ -281,7 +326,7 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         const QColor h = highlightColor(r.highlight);
         if (h.isValid()) cf.setProperty(tp::HighlightRefP, ColorRef::rgb(h).toString());
     }
-    if (!r.extra.isEmpty()) cf.setProperty(prop::RawRPr, packRaw(r.extra));
+    if (!r.extra.isEmpty()) setStored(cf, prop::RawRPr, packRaw(r.extra));
     if (direct && direct->fonts && direct->fonts->hasOtherScripts()) cf.setProperty(prop::FontsOther, packOtherFonts(*direct->fonts));
     return cf;
 }
@@ -351,7 +396,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
     const QString h = f.stringProperty(tp::HighlightRefP);
     r.highlight = h.isEmpty() ? QStringLiteral("none") : highlightName(ColorRef::fromString(h).rgbValue());
     r.style = f.stringProperty(tp::CharStyle);
-    if (f.hasProperty(prop::RawRPr)) r.extra = unpackRaw(f.property(prop::RawRPr).toByteArray());
+    if (f.hasProperty(prop::RawRPr)) r.extra = unpackRaw(storedBytes(f, prop::RawRPr));
     return r;
 }
 
@@ -410,9 +455,9 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
         bf.setTabPositions(tabs);
         if (leaders.contains(QRegularExpression(QStringLiteral("[^ ]")))) bf.setProperty(tp::TabLeaders, leaders);
     }
-    if (!p.extra.isEmpty()) bf.setProperty(prop::RawPPr, packRaw(p.extra));
-    if (!p.spacingAttrs.isEmpty()) bf.setProperty(prop::SpacingAttrs, p.spacingAttrs);
-    if (!p.indAttrs.isEmpty()) bf.setProperty(prop::IndAttrs, p.indAttrs);
+    if (!p.extra.isEmpty()) setStored(bf, prop::RawPPr, packRaw(p.extra));
+    if (!p.spacingAttrs.isEmpty()) setStored(bf, prop::SpacingAttrs, p.spacingAttrs);
+    if (!p.indAttrs.isEmpty()) setStored(bf, prop::IndAttrs, p.indAttrs);
     return bf;
 }
 
@@ -480,9 +525,9 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
         tabs.push_back(t);
     }
     p.tabs = tabs;
-    if (f.hasProperty(prop::RawPPr)) p.extra = unpackRaw(f.property(prop::RawPPr).toByteArray());
-    if (f.hasProperty(prop::SpacingAttrs)) p.spacingAttrs = f.property(prop::SpacingAttrs).toByteArray();
-    if (f.hasProperty(prop::IndAttrs)) p.indAttrs = f.property(prop::IndAttrs).toByteArray();
+    if (f.hasProperty(prop::RawPPr)) p.extra = unpackRaw(storedBytes(f, prop::RawPPr));
+    if (f.hasProperty(prop::SpacingAttrs)) p.spacingAttrs = storedBytes(f, prop::SpacingAttrs);
+    if (f.hasProperty(prop::IndAttrs)) p.indAttrs = storedBytes(f, prop::IndAttrs);
     return p;
 }
 

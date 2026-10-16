@@ -114,9 +114,9 @@ void WriteDoc::buildStory(const QVector<Block> &body)
             pf.setAlignment(Qt::AlignHCenter);
             pf.setTopMargin(6);
             pf.setBottomMargin(6);
-            pf.setProperty(prop::RawBlock, packBlocks({blk}));
+            setStored(pf, prop::RawBlock, packBlocks({blk}));
             if (!pending.isEmpty()) {
-                pf.setProperty(prop::RawBefore, packBlocks(pending));
+                setStored(pf, prop::RawBefore, packBlocks(pending));
                 pending.clear();
             }
             QTextCharFormat pc;
@@ -151,7 +151,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         resolved.numId = numId;
         resolved.ilvl = level;
         QTextBlockFormat bf = blockFormatOf(resolved);
-        if (!p.attrs.isEmpty()) bf.setProperty(prop::ParaAttrs, p.attrs);
+        if (!p.attrs.isEmpty()) setStored(bf, prop::ParaAttrs, p.attrs);
         // A paragraph that says it is numbered as its style says: that it said so is kept, for it changes whose indents win.
         if (numId > 0 && numberedByItself && base.numId.value_or(0) == numId) bf.setProperty(prop::NumDirect, true);
         // The tab stops of its own that the engine has no kind for (a bar) are kept beside the others.
@@ -159,10 +159,10 @@ void WriteDoc::buildStory(const QVector<Block> &body)
             QVector<TabStop> odd;
             for (const TabStop &t : *direct.tabs)
                 if (t.val == QLatin1String("bar") || t.val == QLatin1String("num")) odd.push_back(t);
-            if (!odd.isEmpty()) bf.setProperty(prop::OddTabs, packTabs(odd));
+            if (!odd.isEmpty()) setStored(bf, prop::OddTabs, packTabs(odd));
         }
         if (!pending.isEmpty()) {
-            bf.setProperty(prop::RawBefore, packBlocks(pending));
+            setStored(bf, prop::RawBefore, packBlocks(pending));
             pending.clear();
         }
         RunProps mark = sheet.run(styleId, direct.markRun ? direct.markRun->style : QString());   // (a character style on the mark counts)
@@ -237,14 +237,14 @@ void WriteDoc::buildStory(const QVector<Block> &body)
                 continue;
             }
             QTextCharFormat af = formatOf(styleId, in.props);
-            af.setProperty(prop::Atom, packAtom(in));
+            setStored(af, prop::Atom, packAtom(in));
             af.setProperty(tp::Field, QStringLiteral("raw:") + in.display);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }
         if (direct.section) {
             QTextBlockFormat last = c.blockFormat();
             last.setProperty(flow::fp::SectionBreakAfter, true);
-            last.setProperty(prop::SectionData, packSection(*direct.section));
+            setStored(last, prop::SectionData, packSection(*direct.section));
             c.setBlockFormat(last);
         }
     }
@@ -255,7 +255,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
     }
     if (!pending.isEmpty()) {
         QTextBlockFormat bf = c.blockFormat();
-        bf.setProperty(prop::RawAfter, packBlocks(pending));
+        setStored(bf, prop::RawAfter, packBlocks(pending));
         c.setBlockFormat(bf);
     }
     c.endEditBlock();

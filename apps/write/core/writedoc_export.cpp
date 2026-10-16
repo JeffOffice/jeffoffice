@@ -28,11 +28,11 @@ void WriteDoc::exportBody(QVector<Block> *out)
     for (QTextBlock b = story->begin(); b.isValid();) {
         const QTextBlockFormat bf = b.blockFormat();
         if (bf.hasProperty(prop::RawBefore))
-            for (const Block &r : unpackBlocks(bf.property(prop::RawBefore).toByteArray())) out->push_back(r);
+            for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawBefore))) out->push_back(r);
         if (bf.hasProperty(prop::RawBlock)) {
-            for (const Block &r : unpackBlocks(bf.property(prop::RawBlock).toByteArray())) out->push_back(r);
+            for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawBlock))) out->push_back(r);
             if (bf.hasProperty(prop::RawAfter))
-                for (const Block &r : unpackBlocks(bf.property(prop::RawAfter).toByteArray())) out->push_back(r);
+                for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawAfter))) out->push_back(r);
             b = b.next();
             continue;
         }
@@ -50,7 +50,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
         direct.style = styleId == defaultStyle ? QString() : styleId;
         if (bf.hasProperty(prop::OddTabs)) {
             QVector<TabStop> tabs = direct.tabs.value_or(QVector<TabStop>());
-            tabs += unpackTabs(bf.property(prop::OddTabs).toByteArray());
+            tabs += unpackTabs(storedBytes(bf, prop::OddTabs));
             std::stable_sort(tabs.begin(), tabs.end(), [](const TabStop &a, const TabStop &b) { return a.pos < b.pos; });
             direct.tabs = tabs;
         }
@@ -60,7 +60,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
         }
         Block blk;
         Paragraph &p = blk.para;
-        if (bf.hasProperty(prop::ParaAttrs)) p.attrs = bf.property(prop::ParaAttrs).toByteArray();
+        if (bf.hasProperty(prop::ParaAttrs)) p.attrs = storedBytes(bf, prop::ParaAttrs);
 
         QTextBlock part = b;
         QTextBlock lastPart = b;
@@ -74,7 +74,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
                 RunProps diff = run.differences(sheet.run(styleId, run.style));
                 diff.style = run.style;
                 if (cf.hasProperty(prop::Atom)) {
-                    Inline a = unpackAtom(cf.property(prop::Atom).toByteArray());
+                    Inline a = unpackAtom(storedBytes(cf, prop::Atom));
                     a.props = diff;
                     for (const QChar ch : text)
                         if (ch == QChar::ObjectReplacementCharacter) p.content.push_back(a);
@@ -116,7 +116,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
         out->push_back(blk);
         const QTextBlockFormat lastFormat = lastPart.blockFormat();
         if (lastFormat.hasProperty(prop::RawAfter))
-            for (const Block &r : unpackBlocks(lastFormat.property(prop::RawAfter).toByteArray())) out->push_back(r);
+            for (const Block &r : unpackBlocks(storedBytes(lastFormat, prop::RawAfter))) out->push_back(r);
         b = lastPart.next();
     }
 }
