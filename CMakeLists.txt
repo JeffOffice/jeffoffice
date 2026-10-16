@@ -21,6 +21,9 @@ include(cmake/pdfium.cmake)
 #   jo_shell  the window: ribbon, KeyTips, themes, Help, updater, AutoRecover
 #   jo_page   pages of placed objects: the document, its drawing, the editor
 #             and the canvas (JeffPub's publications, JeffDeck's slides)
+#   jo_flow   a document that flows through pages made as the text fills
+#             them: its sections, the paginator, and the pages it draws
+#             with the layer below (the word processor)
 # Inside each, the files keep the folders they had under src/ (core/, io/,
 # app/...), so an include names the same file wherever it lives.
 function(jo_library name dir)
@@ -51,12 +54,14 @@ if(WIN32)
 endif()
 jo_library(jo_page libs/page)
 target_link_libraries(jo_page PUBLIC jo_shell)
+jo_library(jo_flow libs/flow)
+target_link_libraries(jo_flow PUBLIC jo_page)
 
 # Each shared library links on its own, with only the ones below it: every
 # object of it is pulled in, so a call into a higher layer (which the include
 # check can't see) fails to link here. Linux's linker is enough to catch one.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  foreach(lib jo_base jo_draw jo_text jo_office jo_shell jo_page)
+  foreach(lib jo_base jo_draw jo_text jo_office jo_shell jo_page jo_flow)
     add_executable(${lib}_linkcheck tools/linkcheck.cpp)
     target_link_libraries(${lib}_linkcheck PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
   endforeach()
@@ -138,6 +143,13 @@ set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME officetests COMMAND officetests)
 set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# The tests of libs/flow and of the changes below it that it needs.
+qt_add_executable(flowtests tests/flow/tst_flow.cpp)
+target_link_libraries(flowtests PRIVATE jo_flow Qt6::Test)
+set_target_properties(flowtests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME flowtests COMMAND flowtests)
+set_tests_properties(flowtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 
 # JeffDeck, the presentation app: like JeffPub, everything except main() is a
@@ -209,7 +221,7 @@ endif()
 # English needs one too, for plurals only: jeffoffice_en.ts gives "%n page(s)"
 # its singular and plural forms (lupdate adds new ones; fill in their forms).
 find_package(Qt6 QUIET COMPONENTS LinguistTools)
-set(JP_LUPDATE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jpcore jeffpub)
+set(JP_LUPDATE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jo_flow jpcore jeffpub)
 if(JP_BUILD_DECK)
   list(APPEND JP_LUPDATE_TARGETS jdcore jeffdeck)
 endif()
