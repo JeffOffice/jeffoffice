@@ -91,6 +91,9 @@ struct FrameSpec {
     // text at the bottom. Text that fits is set as without it. One frame, one
     // column, nothing to wrap around.
     bool runsOver = false;
+    // The paragraphs aren't broken to the frame's width (a slide's text box that doesn't wrap): each is one line, against the frame as its
+    // alignment says, and out of it where it is longer than the frame. One frame, one column.
+    bool noWrap = false;
     FieldContext ctx;
 };
 

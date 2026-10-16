@@ -9778,6 +9778,23 @@ private Q_SLOTS:
         QCOMPARE(static_cast<GroupItem *>(copy.get())->children[0]->sourceId, 0);
     }
 
+    // A text frame, and a shape that holds text, that don't wrap their text keep that through their own data and copies; the default is
+    // not written.
+    void framesThatDoNotWrapKeepThatInJson()
+    {
+        auto t = std::make_shared<TextItem>();
+        QVERIFY(!t->noWrap && !t->toJson().contains(QStringLiteral("noWrap")));
+        t->noWrap = true;
+        QVERIFY(static_cast<const TextItem &>(*jp::Item::fromJsonAny(t->toJson())).noWrap);
+        QVERIFY(static_cast<const TextItem &>(*t->clone()).noWrap);
+        auto text = std::make_shared<ShapeItem>();
+        text->storyId = QStringLiteral("s2");
+        QVERIFY(!text->noWrap && !text->toJson().contains(QStringLiteral("noWrap")));
+        text->noWrap = true;
+        QVERIFY(static_cast<const ShapeItem &>(*jp::Item::fromJsonAny(text->toJson())).noWrap);
+        QVERIFY(static_cast<const ShapeItem &>(*text->clone()).noWrap);
+    }
+
     void dmlReadKeepsTheNumbersShapesHad()
     {
         DmlEnv env;

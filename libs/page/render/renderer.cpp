@@ -231,6 +231,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.hyphenate = t.hyphenate;
     s.hyphenZone = t.hyphenZone;
     s.runsOver = doc.slideText;
+    s.noWrap = t.noWrap;
     // Baseline guides of the page's master (for "align text to baseline guides").
     const auto at = doc.find(t.id);
     const MasterPage *mp = at.page >= 0 ? doc.masterFor(*doc.pages[at.page]) : (!at.masterId.isEmpty() ? doc.master(at.masterId) : nullptr);
@@ -278,6 +279,7 @@ static QString specSig(const FrameSpec &s, bool withClock)
     k += QStringLiteral("h%1,%2|b%3,%4;").arg(int(s.hyphenate)).arg(s.hyphenZone).arg(s.baselineGrid).arg(s.baselineOrigin);
     if (s.fitToShape) k += QLatin1Char('s');
     if (s.runsOver) k += QLatin1Char('r');
+    if (s.noWrap) k += QLatin1Char('w');
     for (const auto &o : s.obstacles) {
         const QRectF b = o.boundingRect();
         // The points' sum too, so moving a point inside the same bounds re-wraps.
@@ -901,6 +903,7 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.insets = s.insets;
     if (const double d = s.stroke.textShift(); d > 0) spec.insets += QMarginsF(d, d, d, d);
     spec.valign = s.valign;
+    spec.noWrap = s.noWrap;
     spec.ctx.doc = ctx.doc;
     spec.ctx.pageNumber = ctx.pageNumber;
     spec.ctx.pageCount = ctx.pageCount;
