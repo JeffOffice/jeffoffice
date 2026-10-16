@@ -181,7 +181,7 @@ private Q_SLOTS:
     {
         Made m;
         m.body = R"(<w:p/>)";
-        m.styles = R"(<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160"/></w:pPr></w:pPrDefault></w:docDefaults>)"
+        m.styles = R"(<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri"/><w:sz w:val="22"/><w:lang w:val="en-US"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160"/></w:pPr></w:pPrDefault></w:docDefaults>)"
                    R"(<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>)"
                    R"(<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="240"/></w:pPr><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>)"
                    R"(<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Heading1"/><w:rPr><w:sz w:val="26"/></w:rPr></w:style>)"
@@ -204,6 +204,10 @@ private Q_SLOTS:
         // A style that no file defines gives the defaults; styles that name each other don't loop.
         QCOMPARE(s.run(QStringLiteral("Missing"), QString()).size, std::optional<int>(22));
         QCOMPARE(s.run(QStringLiteral("Loop1"), QString()).italic, std::optional<bool>(true));
+        // What a style says besides the properties that have a field (here, the language of the defaults) is the style's: it is not carried to
+        // the paragraphs and runs that have the style, where it would be written again as theirs.
+        QVERIFY(s.run(QStringLiteral("Heading2"), QString()).extra.isEmpty());
+        QVERIFY(s.paragraph(QStringLiteral("Heading2")).extra.isEmpty());
     }
 
     void readsListDefinitions()

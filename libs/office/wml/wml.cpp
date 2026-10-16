@@ -3,6 +3,7 @@
 #include "wml/xmltree.h"
 
 #include <algorithm>
+#include <tuple>
 
 namespace jp::office::wml {
 
@@ -149,7 +150,9 @@ RunProps RunProps::differences(const RunProps &base) const
     RunProps d;
     d.style = style;
     d.extra = extra;
-    if (fonts && n.fonts != b.fonts) d.fonts = fonts;
+    // (The fonts of other scripts aren't something the text engine's formats hold, so they can't be told apart here.)
+    auto latin = [](const std::optional<Fonts> &f) { return f ? std::make_tuple(f->ascii, f->hAnsi, f->asciiTheme, f->hAnsiTheme) : std::tuple<QString, QString, QString, QString>(); };
+    if (fonts && latin(n.fonts) != latin(b.fonts)) d.fonts = fonts;
     auto flag = [&](std::optional<bool> RunProps::*f) {
         if ((n.*f) != (b.*f)) (d.*f) = (n.*f);
     };
@@ -211,6 +214,10 @@ ParaProps ParaProps::normalized() const
     if (!n.numId) n.numId = 0;
     if (!n.ilvl) n.ilvl = 0;
     if (!n.tabs) n.tabs = QVector<TabStop>();
+    for (TabStop &t : *n.tabs) {   // (a tab with no leader says "none" in some files, and one with no type is a left tab)
+        if (t.leader == QLatin1String("none")) t.leader.clear();
+        if (t.val.isEmpty()) t.val = QStringLiteral("left");
+    }
     if (!n.before) n.before = 0;
     if (!n.after) n.after = 0;
     if (!n.line) n.line = 240;
@@ -324,6 +331,12 @@ ParaProps StyleSheet::paragraph(const QString &id) const
     ParaProps p = defaultPara;
     for (int i = int(chain.size()) - 1; i >= 0; --i) p.overlay(chain[i]->pPr);
     p.style = id;
+    // (What a style says besides the properties that have a field here is the style's own: not carried to the paragraphs that have it.)
+    p.extra.clear();
+    p.spacingAttrs.clear();
+    p.indAttrs.clear();
+    p.markRun.reset();
+    p.section.reset();
     m_paragraph.insert(id, p);
     return p;
 }
@@ -347,6 +360,7 @@ RunProps StyleSheet::run(const QString &paragraphStyle, const QString &character
     apply(paragraphStyle);
     apply(characterStyle);
     r.style = characterStyle;
+    r.extra.clear();
     m_run.insert(key, r);
     return r;
 }
