@@ -137,7 +137,20 @@ add_test(NAME jptests COMMAND jptests)
 set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # The tests of libs/office, which need none of the app.
-qt_add_executable(officetests tests/office/tst_office.cpp)
+qt_add_executable(officetests
+  tests/testrunner.cpp
+  tests/office/officehelpers.cpp
+  tests/office/tst_office_chart.cpp
+  tests/office/tst_office_dmlfill.cpp
+  tests/office/tst_office_dmlgeometry.cpp
+  tests/office/tst_office_dmlshape.cpp
+  tests/office/tst_office_dmltable.cpp
+  tests/office/tst_office_dmlwrite.cpp
+  tests/office/tst_office_fonts.cpp
+  tests/office/tst_office_odraw.cpp
+  tests/office/tst_office_package.cpp
+  tests/office/tst_office_text.cpp
+  tests/office/tst_office_theme.cpp)
 target_link_libraries(officetests PRIVATE jo_office Qt6::Test)
 set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME officetests COMMAND officetests)
