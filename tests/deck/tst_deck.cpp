@@ -2172,7 +2172,7 @@ private:
                                const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016)
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
-        const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
+        const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
         // The default body text: bullets, 28 and 24 points, the first font, the text color.
         const QByteArray bodyStyle = le(2, 2)
             + le(0x593, 4) + le(3, 2) + le(0x2022, 2) + le(0, 2) + le(360, 2) + le(0, 2)
@@ -22418,22 +22418,26 @@ private Q_SLOTS:
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("h")).toDouble(), 720.0);
     }
 
-    // The presentation's drawing group keeps the properties a shape starts from: a shape of a slide that names no colors has the
-    // fills color and the text color of the scheme (the master's), not white and black.
-    void importBinaryShapesTakeTheDrawingGroupsDefaults()
+    // The presentation's drawing group holds the properties of a new shape in the program that wrote the file, and the program that draws
+    // the file never reads them: a shape of a slide that names no colors is white with a black line, as the format has it, and text sits at
+    // the top, however the group's table says the fills color is the scheme's, the line the text color, and text is centered in its shape.
+    void importBinaryShapesIgnoreTheDrawingGroupsDefaults()
     {
         auto table = [&](const QVector<QPair<int, quint32>> &props) {
             QByteArray t;
             for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
             return pptRec(0xF00B, t, quint16(props.size()), 3);
         };
-        // Filled in scheme color 4 (the fills color), a line in scheme color 1 (the text color).
-        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
-        // A rectangle that says nothing of its look, and one that has its own fill.
-        auto rectangle = [&](quint32 id, int top, const QByteArray &props) {
-            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2)));
+        // Filled in scheme color 4 (the fills color), a line in scheme color 1 (the text color), text anchored in the middle.
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0'))
+                                                                 + table({{0x0087, 1}, {0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
+        // A rectangle that says nothing of its look, one that has its own fill, and a text box that says nothing of its text.
+        auto rectangle = [&](quint32 id, int top, const QByteArray &props, const QByteArray &textbox = QByteArray()) {
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2))
+                                      + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
         };
-        const QByteArray shapes = rectangle(0x500, 100, QByteArray()) + rectangle(0x501, 800, table({{0x0181, 0x0000FF}}));
+        const QByteArray shapes = rectangle(0x500, 100, QByteArray()) + rectangle(0x501, 800, table({{0x0181, 0x0000FF}}))
+                                  + rectangle(0x502, 1500, table({{0x01BF, 0x00100000}, {0x01FF, 0x00080000}}), pptText(4, QStringLiteral("Words")));
         auto look = [&](const QByteArray &file) {
             QString err;
             auto d = deck::importBinaryPresentation(file, &err);
@@ -22445,20 +22449,31 @@ private Q_SLOTS:
                     out << qMakePair(it->fill.color.kind() == ColorRef::Rgb ? it->fill.color.rgbValue() : QColor(), it->stroke.color.kind() == ColorRef::Rgb ? it->stroke.color.rgbValue() : QColor());
             return out;
         };
+        auto anchorOfTheTextBox = [&](const QByteArray &file) {
+            QString err;
+            auto d = deck::importBinaryPresentation(file, &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            if (d)
+                for (const auto &it : d->pages[0]->items)
+                    if (it->role.isEmpty() && it->type() == ItemType::Text) return int(static_cast<const TextItem *>(it.get())->valign);
+            return -1;
+        };
         const auto withGroup = look(buildPpt(false, false, false, false, QByteArray(), group, shapes));
         QCOMPARE(int(withGroup.size()), 2);
-        QCOMPARE(withGroup[0].first, QColor(0x77, 0x88, 0x99));
-        QCOMPARE(withGroup[0].second, QColor(0x11, 0x22, 0x33));
+        QCOMPARE(withGroup[0].first, QColor(Qt::white));
+        QCOMPARE(withGroup[0].second, QColor(Qt::black));
         QCOMPARE(withGroup[1].first, QColor(255, 0, 0));
-        // With no drawing group, the format's own: white, and black.
+        QCOMPARE(anchorOfTheTextBox(buildPpt(false, false, false, false, QByteArray(), group, shapes)), int(VAlign::Top));
+        // With no drawing group, the same.
         const auto without = look(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes));
         QCOMPARE(int(without.size()), 2);
         QCOMPARE(without[0].first, QColor(Qt::white));
         QCOMPARE(without[0].second, QColor(Qt::black));
+        QCOMPARE(anchorOfTheTextBox(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes)), int(VAlign::Top));
     }
 
-    // A slide's placeholder takes what it leaves out of its look from the master's shape of its kind, and then from the drawing group's
-    // defaults: the master's title says what the slides' titles look like.
+    // A slide's placeholder takes what it leaves out of its look from the master's shape of its kind, and then from the format's own (the
+    // drawing group's default tables are not read): the master's title says what the slides' titles look like.
     void importBinaryPlaceholdersTakeAfterTheirMastersShapes()
     {
         auto table = [&](const QVector<QPair<int, quint32>> &props) {
@@ -22466,7 +22481,7 @@ private Q_SLOTS:
             for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
             return pptRec(0xF00B, t, quint16(props.size()), 3);
         };
-        // The defaults: filled in the fills color, with a line in the text color.
+        // The group's defaults, which are not read: filled in the fills color, with a line in the text color.
         const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
         // The master's title: a green fill and no line. Its body says nothing.
         const QByteArray title = table({{0x0181, 0x00FF00}, {0x01BF, 0x00100010}, {0x01FF, 0x00080000}});
@@ -22547,6 +22562,295 @@ private Q_SLOTS:
         // One that holds its text, and one with a fill, as they are.
         QCOMPARE(boxes[3]->rect.height(), 50.0);
         QCOMPARE(boxes[4]->rect.height(), 25.0);
+    }
+
+    // A text box that doesn't wrap its text (wrapText 0x0085 = 2, the format's "none") keeps each paragraph on one line, however long it is,
+    // and sets the line against the box as its alignment says: a left one starts at the left inset and runs out past the right edge, a
+    // centered one is centered on the box and runs out of both sides, a right one ends at the right inset and runs out of the left. The
+    // same box that says nothing, or "square" (0), wraps, and a drawing group's table that says "none" is not a box that says it.
+    void importBinaryTextWithNoWrapIsSetOnOneLine()
+    {
+        const QString words = QStringLiteral("one two three four five six seven eight nine ten");
+        const int length = int(words.size());
+        // A box 100 points wide (800 master units), the paragraph's alignment (0 left, 1 center, 2 right) and the wrap property.
+        auto textBox = [&](quint32 id, int top, int align, const QVector<QPair<int, quint32>> &more) {
+            QByteArray props;
+            int count = 0;
+            for (const auto &p : more) {
+                props += le(quint16(p.first), 2) + le(p.second, 4);
+                ++count;
+            }
+            const QByteArray styles = pfRun(length + 1, 0, 0x800, le(align, 2)) + cfRun(length + 1, 0);
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 202, 2) + pptRec(0xF00B, props, quint16(count), 3)
+                                      + pptRec(0xF010, le(top, 2) + le(2000, 2) + le(2800, 2) + le(top + 400, 2)) + pptBox(0xF00D, pptText(4, words, styles)));
+        };
+        const QVector<QPair<int, quint32>> none = {{0x0085, 2}}, square = {{0x0085, 0}}, rest = {{0x01BF, 0x00100000}, {0x01FF, 0x00080000}};
+        auto both = [&](const QVector<QPair<int, quint32>> &a) { return a + rest; };
+        const QByteArray shapes = textBox(0x500, 1000, 0, both(none)) + textBox(0x501, 1500, 1, both(none)) + textBox(0x502, 2000, 2, both(none))
+                                  + textBox(0x503, 2500, 0, both(square)) + textBox(0x504, 3000, 0, rest);
+        // A drawing group that says "none" for every shape: it is not read.
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0085, 2}})));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const TextItem *> boxes;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) boxes << static_cast<const TextItem *>(it.get());
+        QCOMPARE(int(boxes.size()), 5);
+        QVERIFY(d->slideText);
+        LayoutCache cache;
+        const RenderOptions opt;
+        // The lines of a box, and the span the characters of the whole text cover from the box's left edge.
+        auto lineCount = [&](const TextItem &t) {
+            const auto fl = cache.textFrame(*d, t, 1, opt);
+            return fl.layout ? int(fl.layout->lineInfo(0).size()) : -1;
+        };
+        auto span = [&](const TextItem &t) {
+            const auto fl = cache.textFrame(*d, t, 1, opt);
+            QRectF all;
+            if (fl.layout)
+                for (const QRectF &r : fl.layout->rangeRects(0, 0, d->storyDoc(t.storyId)->characterCount() - 1)) all = all.united(r);
+            return all;
+        };
+        for (int i : {0, 1, 2}) {
+            QVERIFY2(boxes[i]->noWrap, qPrintable(QString::number(i)));
+            QCOMPARE(boxes[i]->rect.width(), 100.0);
+            QCOMPARE(lineCount(*boxes[i]), 1);
+            QVERIFY2(span(*boxes[i]).width() > 200, qPrintable(QString::number(span(*boxes[i]).width())));
+        }
+        const double inLeft = boxes[0]->insets.left(), inRight = boxes[0]->insets.right();
+        QVERIFY2(std::abs(span(*boxes[0]).left() - inLeft) < 1.0, qPrintable(QString::number(span(*boxes[0]).left())));
+        QVERIFY2(std::abs(span(*boxes[1]).center().x() - 50.0) < 1.0, qPrintable(QString::number(span(*boxes[1]).center().x())));
+        QVERIFY2(std::abs(span(*boxes[2]).right() - (100.0 - inRight)) < 1.0, qPrintable(QString::number(span(*boxes[2]).right())));
+        // Square, and nothing said: wrapped in the box.
+        for (int i : {3, 4}) {
+            QVERIFY2(!boxes[i]->noWrap, qPrintable(QString::number(i)));
+            QVERIFY2(lineCount(*boxes[i]) > 3, qPrintable(QString::number(lineCount(*boxes[i]))));
+            QVERIFY(span(*boxes[i]).right() <= 100.0);
+        }
+    }
+
+    // The same, in a shape that holds text: its frame has the flag too, and its text is set unwrapped.
+    void importBinaryShapesWithNoWrapSetTheirTextOnOneLine()
+    {
+        const QString words = QStringLiteral("one two three four five six seven eight nine ten");
+        auto shape = [&](quint32 id, int top, quint32 wrap) {
+            QByteArray props = le(0x0085, 2) + le(wrap, 4);
+            props += le(0x0087, 2) + le(1, 4);
+            const QByteArray styles = pfRun(int(words.size()) + 1, 0, 0) + cfRun(int(words.size()) + 1, 0);
+            // A rounded rectangle (spt 2) with its text.
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 2, 2) + pptRec(0xF00B, props, 2, 3)
+                                      + pptRec(0xF010, le(top, 2) + le(2000, 2) + le(2800, 2) + le(top + 1600, 2)) + pptBox(0xF00D, pptText(4, words, styles)));
+        };
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shape(0x500, 1000, 2) + shape(0x501, 3000, 0)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const ShapeItem *> shapes;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Shape && it->role.isEmpty()) shapes << static_cast<const ShapeItem *>(it.get());
+        QCOMPARE(int(shapes.size()), 2);
+        QVERIFY(shapes[0]->noWrap);
+        QVERIFY(!shapes[1]->noWrap);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QPointF origin;
+        const StoryLayout *one = Renderer::shapeTextLayout(ctx, *shapes[0], &origin);
+        QVERIFY(one);
+        QCOMPARE(int(one->lineInfo(0).size()), 1);
+        const StoryLayout *many = Renderer::shapeTextLayout(ctx, *shapes[1], &origin);
+        QVERIFY(many);
+        QVERIFY(many->lineInfo(0).size() > 3);
+    }
+
+    // A text frame that doesn't wrap is the file's too, in the formats that have it: a:bodyPr wrap="none" in a .pptx (read from the frame
+    // or the placeholder it takes after, written back, and "square" for the others), fo:wrap-option="no-wrap" in an .odp, and the item's
+    // own data (undo, copies) keep it.
+    void textFramesThatDoNotWrapAreKeptByTheFormats()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        auto box = [&](int id, const QString &name, const QString &bodyPr, bool textBox, int y) {
+            return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\"/><p:cNvSpPr%3/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id).arg(name, textBox ? QStringLiteral(" txBox=\"1\"") : QString())
+                   + xfrm(0, y, 1828800, 457200) + (textBox ? QStringLiteral("<a:noFill/>") : QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst/></a:prstGeom>"))
+                   + QStringLiteral("</p:spPr><p:txBody>") + bodyPr + QStringLiteral("<a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"/><a:t>one two three four five six seven eight nine ten</a:t></a:r></a:p></p:txBody></p:sp>");
+        };
+        xml.replace(QStringLiteral("</p:spTree>"),
+                    box(30, QStringLiteral("NoWrapBox"), QStringLiteral("<a:bodyPr wrap=\"none\"><a:spAutoFit/></a:bodyPr>"), true, 0)
+                        + box(31, QStringLiteral("NoWrapShape"), QStringLiteral("<a:bodyPr wrap=\"none\" rtlCol=\"0\"/>"), false, 600000)
+                        + box(32, QStringLiteral("SquareBox"), QStringLiteral("<a:bodyPr wrap=\"square\"/>"), true, 1200000)
+                        + box(33, QStringLiteral("PlainBox"), QStringLiteral("<a:bodyPr/>"), true, 1800000) + QStringLiteral("</p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto flag = [](const Document &doc, const QString &name, bool *found) {
+            *found = false;
+            for (const auto &it : doc.pages[0]->items) {
+                if (it->name != name) continue;
+                *found = true;
+                if (it->type() == ItemType::Text) return static_cast<const TextItem *>(it.get())->noWrap;
+                if (it->type() == ItemType::Shape) return static_cast<const ShapeItem *>(it.get())->noWrap;
+            }
+            return false;
+        };
+        bool found = false;
+        QVERIFY(flag(*d, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*d, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*d, QStringLiteral("SquareBox"), &found) && found);
+        QVERIFY(!flag(*d, QStringLiteral("PlainBox"), &found) && found);
+        // Written back: wrap="none" for the two, "square" for the others.
+        Exported e;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        auto wrapOf = [](const QString &slide, const QString &name) {
+            const int at = slide.indexOf(QStringLiteral("name=\"") + name + QStringLiteral("\""));
+            const int body = slide.indexOf(QStringLiteral("<a:bodyPr"), at);
+            return slide.mid(body, slide.indexOf(QLatin1Char('>'), body) - body);
+        };
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(wrapOf(slide, QStringLiteral("NoWrapBox")).contains(QStringLiteral("wrap=\"none\"")), qPrintable(wrapOf(slide, QStringLiteral("NoWrapBox"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("NoWrapShape")).contains(QStringLiteral("wrap=\"none\"")), qPrintable(wrapOf(slide, QStringLiteral("NoWrapShape"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("SquareBox")).contains(QStringLiteral("wrap=\"square\"")), qPrintable(wrapOf(slide, QStringLiteral("SquareBox"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("PlainBox")).contains(QStringLiteral("wrap=\"square\"")), qPrintable(wrapOf(slide, QStringLiteral("PlainBox"))));
+        // Read again, the same; and through an .odp.
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(flag(*again, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*again, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*again, QStringLiteral("SquareBox"), &found) && found);
+        const QByteArray odp = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(odp, zip, &err), qPrintable(err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY(content.contains(QStringLiteral("fo:wrap-option=\"no-wrap\"")));
+        auto fromOdp = deck::importOdp(odp, &err);
+        QVERIFY2(fromOdp, qPrintable(err));
+        QVERIFY(flag(*fromOdp, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*fromOdp, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*fromOdp, QStringLiteral("SquareBox"), &found) && found);
+        QVERIFY(!flag(*fromOdp, QStringLiteral("PlainBox"), &found) && found);
+    }
+
+    // A placeholder the drawing gives as a plain rectangle, with no text of its own in the drawing, is a text box in place of it, and keeps
+    // what the rectangle said of its text: a title and a body that say wrapText 2 don't wrap.
+    void importBinaryRectanglePlaceholdersKeepNoWrap()
+    {
+        const QByteArray none = pptRec(0xF00B, le(0x0085, 2) + le(2, 4), 1, 3);
+        // A title (0xD) and a body (0xE) of their own, below the slide's, each a rectangle with no text in its record.
+        const QByteArray shapes = pptShape(0x600, 0xD, QByteArray(), 2000, 200, 5000, 2400, none) + pptShape(0x601, 0xE, QByteArray(), 2600, 200, 5000, 3800, none);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *title = nullptr, *body = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text) continue;
+            if (std::abs(it->rect.top() - 250) < 0.5) title = static_cast<const TextItem *>(it.get());
+            if (std::abs(it->rect.top() - 325) < 0.5) body = static_cast<const TextItem *>(it.get());
+        }
+        QVERIFY(title && body);
+        QVERIFY(title->role.startsWith(QLatin1String("ph:title")));
+        QVERIFY(body->role.startsWith(QLatin1String("ph:body")));
+        QVERIFY(title->noWrap);
+        QVERIFY(body->noWrap);
+        // The slide's own placeholders, which say nothing of it, wrap.
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.startsWith(QLatin1String("ph:")) && it.get() != title && it.get() != body)
+                QVERIFY2(!static_cast<const TextItem *>(it.get())->noWrap, qPrintable(it->role));
+    }
+
+    // A frame that doesn't wrap passes that to what takes after it: a slide's placeholder takes it from its layout's (in a .pptx, where the
+    // placeholder's own a:bodyPr says nothing), a slide moved to a layout takes it from the layout's placeholder, a placeholder made on a
+    // slide from the layout copies it, and a layout's frame is written into the master page's styles of an .odp.
+    void textFramesTakeNoWrapFromTheirLayouts()
+    {
+        auto isFooter = [](const Item &it) {
+            const QString type = deck::placeholderType(it);
+            return type == QLatin1String("dt") || type == QLatin1String("ftr") || type == QLatin1String("sldNum") || type == QLatin1String("hdr");
+        };
+        // The .pptx: the layout's content placeholder says wrap="none"; the slide's, which is on that layout, says nothing.
+        Parts p = samplePptx();
+        QString layout = QString::fromUtf8(p.data["/ppt/slideLayouts/slideLayout2.xml"].xml);
+        const int at = layout.indexOf(QStringLiteral("name=\"Content Placeholder 2\""));
+        QVERIFY(at >= 0);
+        const int body = layout.indexOf(QStringLiteral("<a:bodyPr/>"), at);
+        QVERIFY(body > at);
+        layout.replace(body, int(QStringLiteral("<a:bodyPr/>").size()), QStringLiteral("<a:bodyPr wrap=\"none\"/>"));
+        p.data["/ppt/slideLayouts/slideLayout2.xml"].xml = layout.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto flagOf = [](const Document &doc, const Page &page, const QString &name, bool *found) {
+            *found = false;
+            for (const auto &it : page.items)
+                if (it->name == name && it->type() == ItemType::Text) {
+                    *found = true;
+                    return static_cast<const TextItem *>(it.get())->noWrap;
+                }
+            Q_UNUSED(doc);
+            return false;
+        };
+        bool found = false;
+        QVERIFY(flagOf(*d, *d->pages[0], QStringLiteral("Content Placeholder 2"), &found) && found);
+        QVERIFY(!flagOf(*d, *d->pages[0], QStringLiteral("Title 1"), &found) && found);
+        // And written back with the frame (the slide's own file says it now).
+        Exported e;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(flagOf(*again, *again->pages[0], QStringLiteral("Content Placeholder 2"), &found) && found);
+
+        // A new presentation: its layout "Two Content" has a title with no wrapping and a content place with none.
+        auto fresh = deck::newPresentation();
+        const MasterPage *two = deck::layoutOfType(*fresh, QStringLiteral("twoObj"));
+        QVERIFY(two && two->items.size() >= 3);
+        for (const auto &it : two->items)
+            if (it->type() == ItemType::Text && !isFooter(*it)) static_cast<TextItem *>(it.get())->noWrap = true;
+        Page &slide = *fresh->pages[0];
+        auto *title = static_cast<TextItem *>(slide.items[0].get());
+        QVERIFY(!title->noWrap);
+        deck::applyLayout(*fresh, slide, *two);
+        QVERIFY(title->noWrap);
+        // The places of the layout the slide's own fill and the one made for the place it had none for have the frame too.
+        int texts = 0;
+        for (const auto &it : slide.items)
+            if (it->type() == ItemType::Text && !deck::placeholderType(*it).isEmpty() && !isFooter(*it)) {
+                ++texts;
+                QVERIFY2(static_cast<const TextItem *>(it.get())->noWrap, qPrintable(it->role));
+            }
+        QVERIFY(texts >= 3);
+        // The .odp: the master pages' styles say no-wrap for the placeholders that say it, and wrap for the others.
+        auto wrapStyles = [&](const Document &doc, int *noWrap, int *wrap) {
+            QString why;
+            const QByteArray odp = deck::exportOdp(doc, false, &why);
+            QMap<QString, QByteArray> zip;
+            if (odp.isEmpty() || !readZip(odp, zip, &why)) return false;
+            const QString styles = QString::fromUtf8(zip.value(QStringLiteral("styles.xml")));
+            *noWrap = int(styles.count(QStringLiteral("fo:wrap-option=\"no-wrap\"")));
+            *wrap = int(styles.count(QStringLiteral("fo:wrap-option=\"wrap\"")));
+            return true;
+        };
+        auto framed = deck::newPresentation();
+        for (const auto &m : framed->masters)
+            for (const auto &it : m->items)
+                if (it->type() == ItemType::Text && !isFooter(*it)) static_cast<TextItem *>(it.get())->noWrap = true;
+        int noWrap = 0, wrap = 0;
+        QVERIFY(wrapStyles(*framed, &noWrap, &wrap));
+        QVERIFY2(noWrap >= 1, qPrintable(QString::number(noWrap)));
+        QVERIFY(wrap >= 1);   // (the footers' frames wrap)
+        auto plainDeck = deck::newPresentation();
+        int none = 0, all = 0;
+        QVERIFY(wrapStyles(*plainDeck, &none, &all));
+        QCOMPARE(none, 0);
+        QVERIFY(all >= 1);
     }
 
     // Spacing as the file has it, set as the presentation program sets it (the text engine's slide lines): a line of a share (100 for a
@@ -22843,6 +23147,221 @@ private Q_SLOTS:
         QCOMPARE(int(washed.size()), 2);
         QVERIFY2(washed[0].green() > 185 && washed[0].green() < 195, qPrintable(washed[0].name()));
         QCOMPARE(washed[0].red(), 255);
+    }
+
+    // A pattern fill (fillType 1) is a bitmap of black and white that the shape's own colors are put in, as the presentation program draws
+    // it: the bitmap's white bits in the fill color, its black ones in the back color (a master's striped background has three rows of black
+    // to one of white, and is drawn with three rows of the back color to one of the fill color), each with its opacity. A bitmap of
+    // more colors is a picture and keeps them.
+    void importBinaryPatternsTakeTheShapesColors()
+    {
+        // An 8 by 8 bitmap of one bit a pixel: white on its left half, black on its right (a DIB's palette is white, then black).
+        QByteArray dib = le(40, 4) + le(8, 4) + le(8, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(32, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                         + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        for (int row = 0; row < 8; ++row) dib += raw({0x0F, 0, 0, 0});
+        QImage photo(2, 1, QImage::Format_ARGB32);
+        photo.setPixelColor(0, 0, QColor(255, 0, 0));
+        photo.setPixelColor(1, 0, QColor(0, 0, 128));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        photo.save(&buffer, "PNG");
+        const QByteArray bitmap = pptRec(0xF01F, QByteArray(16, 'u') + QByteArray(1, '\xFF') + dib, 0x7A0), picture = pptRec(0xF01E, QByteArray(16, 'v') + QByteArray(1, '\xFF') + png, 0x6E0);
+        auto entry = [&](const QByteArray &blip, char uid) {
+            return pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, uid) + le(0xFF, 2) + le(quint32(blip.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + blip, 6, 2);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry(bitmap, 's') + entry(picture, 't'), 2)));
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        // The background's pixels in its first row: red where the fill color shows (the fill color is red, the back color blue).
+        double transparency = -1;
+        auto pixels = [&](int blip, const QVector<QPair<int, quint32>> &more) {
+            QVector<QPair<int, quint32>> props = {{0x0180, 1}, {0x4186, quint32(blip)}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x01BF, 0x00100010}};
+            props += more;
+            const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x1000, 4) + le(0xC00, 4), 1, 2) + table(props));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, QByteArray(), QByteArray(), background), &err);
+            QList<QColor> out;
+            if (!d) qWarning("%s", qPrintable(err));
+            if (!d || d->masters.isEmpty() || d->masters.first()->background.type != Fill::Texture) return out;
+            transparency = d->masters.first()->background.transparency;
+            const QImage im = d->image(d->masters.first()->background.imageId);
+            for (int x = 0; x < im.width(); ++x) out << im.pixelColor(x, 0);
+            return out;
+        };
+        const QList<QColor> plain = pixels(1, {});
+        QCOMPARE(transparency, 0.0);   // (the colors hold the opacity)
+        QCOMPARE(int(plain.size()), 8);
+        for (int x = 0; x < 8; ++x) QCOMPARE(plain[x], x < 4 ? QColor(255, 0, 0) : QColor(0, 0, 255));
+        // Half as opaque a fill color, and a back color half as opaque.
+        const QList<QColor> half = pixels(1, {{0x0182, 0x8000}, {0x0184, 0x4000}});
+        QCOMPARE(int(half.size()), 8);
+        QCOMPARE(half[0].rgb(), QColor(255, 0, 0).rgb());
+        QVERIFY2(std::abs(half[0].alpha() - 128) <= 1, qPrintable(QString::number(half[0].alpha())));
+        QCOMPARE(half[7].rgb(), QColor(0, 0, 255).rgb());
+        QVERIFY2(std::abs(half[7].alpha() - 64) <= 1, qPrintable(QString::number(half[7].alpha())));
+        // A picture of other colors than black and white is drawn as it is.
+        const QList<QColor> kept = pixels(2, {});
+        QCOMPARE(int(kept.size()), 2);
+        QCOMPARE(kept[0], QColor(255, 0, 0));
+        QCOMPARE(kept[1], QColor(0, 0, 128));
+    }
+
+    // A file with a pattern fill for each of hundreds of colors makes a picture for no more than 200 of them: the others keep the bitmap, so
+    // no file can make the reader do the work again and again. A bitmap bigger than a pattern (257 by 256, 65,792 pixels, past the 65,536 a
+    // pattern may have) is a picture, and keeps its pixels.
+    void importBinaryPatternsInManyColorsAreBounded()
+    {
+        QByteArray dib = le(40, 4) + le(8, 4) + le(8, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(32, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                         + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        for (int row = 0; row < 8; ++row) dib += raw({0x0F, 0, 0, 0});
+        const QByteArray blip = pptRec(0xF01F, QByteArray(16, 'u') + QByteArray(1, '\xFF') + dib, 0x7A0);
+        // The big one: 257 pixels a row (36 bytes with the padding), 256 rows, all of its bits set (black).
+        QByteArray bigDib = le(40, 4) + le(257, 4) + le(256, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(0, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                            + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        bigDib += QByteArray(36 * 256, '\xFF');
+        const QByteArray bigBlip = pptRec(0xF01F, QByteArray(16, 'v') + QByteArray(1, '\xFF') + bigDib, 0x7A0);
+        auto storeEntry = [&](const QByteArray &record, char uid) {
+            return pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, uid) + le(0xFF, 2) + le(quint32(record.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + record, 6, 2);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, storeEntry(blip, 's') + storeEntry(bigBlip, 't'), 2)));
+        QByteArray shapes;
+        for (int i = 0; i < 400; ++i) {
+            const QByteArray props = le(0x0180, 2) + le(1, 4) + le(0x4186, 2) + le(1, 4) + le(0x0181, 2) + le(quint32(0x010000 + i * 0x300), 4) + le(0x01BF, 2) + le(0x00100010, 4);
+            shapes += pptBox(0xF004, pptRec(0xF00A, le(0x500 + i, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 4, 3) + pptRec(0xF010, le(100, 2) + le(100, 2) + le(300, 2) + le(300, 2)));
+        }
+        {
+            // The last shape's pattern is the big bitmap, in a color of its own.
+            const QByteArray props = le(0x0180, 2) + le(1, 4) + le(0x4186, 2) + le(2, 4) + le(0x0181, 2) + le(0x0000FF, 4) + le(0x0183, 2) + le(0xFF0000, 4) + le(0x01BF, 2) + le(0x00100010, 4);
+            shapes += pptBox(0xF004, pptRec(0xF00A, le(0x900, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 5, 3) + pptRec(0xF010, le(400, 2) + le(100, 2) + le(600, 2) + le(300, 2)));
+        }
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(d->images.size() <= 203, qPrintable(QString::number(d->images.size())));
+        QVERIFY(d->images.size() >= 100);
+        int tiles = 0;
+        for (const auto &it : d->pages[0]->items) tiles += it->fill.type == Fill::Texture;
+        QCOMPARE(tiles, 401);
+        // The big bitmap is as the file has it: its size, and black (not the shape's red or blue).
+        const Item *big = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->fill.type == Fill::Texture) big = it.get();
+        QVERIFY(big);
+        const QImage bitmap = d->image(big->fill.imageId);
+        QCOMPARE(bitmap.size(), QSize(257, 256));
+        QCOMPARE(bitmap.pixelColor(0, 0), QColor(Qt::black));
+        QCOMPARE(bitmap.pixelColor(256, 255), QColor(Qt::black));
+    }
+
+    // Text in a symbol font shows the font's own pictures: a run that names a font for its symbols (character run, the fourth font reference)
+    // keeps them at 0xF020 to 0xF0FF, and a run set in the font itself has the plain codes. A Greek letter, an arrow, or a number in a circle
+    // is the Unicode character that looks like it, in the text's own font (so it shows wherever the symbol font isn't); one that has no
+    // look-alike stays in a piece set in the symbol font, where the font is. Text of a font that isn't a symbol font is as it was.
+    void importBinarySymbolFontTextBecomesItsPictures()
+    {
+        // The fonts of the buildPpt document: 0 Alpha Sans, 1 Beta Serif, 2 Symbol, 3 Wingdings 2.
+        const QChar alpha(0x3B1), arrow(0x2192), circled(0x2776), none(0xF0FF);
+        const QString text = QStringLiteral("x") + QChar(0xF061) + QStringLiteral("y") + none + QChar(0xF0AE) + QStringLiteral("z") + QChar(0xF075) + QStringLiteral("a") + QStringLiteral("b");
+        // x; alpha (Symbol, as a symbol run); y; the character Symbol lacks; an arrow; z; a number in a circle (Wingdings 2); then "a" set
+        // in Symbol itself; and "b" in the text's own font. The last run has the paragraph's end too.
+        const quint32 sym = 0x800000, own = 0x10000;
+        const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0)
+            + cfRun(1, 0) + cfRun(1, sym, le(2, 2)) + cfRun(1, 0) + cfRun(1, sym, le(2, 2)) + cfRun(1, sym, le(2, 2)) + cfRun(1, 0) + cfRun(1, sym, le(3, 2))
+            + cfRun(1, own, le(2, 2)) + cfRun(2, own, le(0, 2));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles, true)), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QString shown;
+        QMap<QChar, QStringList> families;   // each character -> the fonts of its piece
+        for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                shown += it.fragment().text();
+                for (const QChar ch : it.fragment().text()) families[ch] = it.fragment().charFormat().fontFamilies().toStringList();
+            }
+        QCOMPARE(shown, QStringLiteral("x") + alpha + QStringLiteral("y") + none + arrow + QStringLiteral("z") + circled + alpha + QStringLiteral("b"));
+        // The character with no look-alike is a piece of its own in Symbol; the others are not in it: the letter alpha of a run set in Symbol
+        // is in the text's font too, and "b" is in the font its run names.
+        QCOMPARE(families.value(none), QStringList{QStringLiteral("Symbol")});
+        for (const QChar ch : {QChar('x'), alpha, QChar('y'), arrow, QChar('z'), circled}) QVERIFY2(!families.value(ch).contains(QStringLiteral("Symbol")), qPrintable(QString(ch)));
+        QCOMPARE(families.value(QChar('b')), QStringList{QStringLiteral("Alpha Sans")});
+    }
+
+    // The split of text in a symbol font adds at most 256 pieces to a paragraph: a run of 50,000 characters that alternate between a
+    // letter the font has a look-alike for and one it hasn't would be 50,000 pieces, each laid out by itself, and takes far longer than
+    // the same text in a font of letters. The rest of the run after them is one piece, as it was before the split.
+    void importBinarySymbolRunsAreCutIntoFewPieces()
+    {
+        QString text;
+        for (int i = 0; i < 25000; ++i) text += QStringLiteral("a") + QChar(0x100);
+        const quint32 own = 0x10000;
+        auto deckOf = [&](int font) {
+            const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, own, le(font, 2));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles, true)), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            return d;
+        };
+        auto fragments = [&](const Document &d) {
+            int n = 0;
+            const QTextDocument *body = placeholderStory(d, *d.pages[0], QStringLiteral("ph:body:1"));
+            if (body)
+                for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+                    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) ++n;
+            return n;
+        };
+        // The font Symbol (2), and a font of letters (0).
+        auto symbols = deckOf(2), letters = deckOf(0);
+        QVERIFY(symbols && letters);
+        QCOMPARE(fragments(*letters), 1);
+        QVERIFY2(fragments(*symbols) <= 256 + 8, qPrintable(QString::number(fragments(*symbols))));
+        QVERIFY(fragments(*symbols) > 2);   // (the first of them are cut as before)
+        // Laid out, it costs about what the same text in another font does.
+        auto layoutMs = [&](Document &d) {
+            const TextItem *body = nullptr;
+            for (const auto &it : d.pages[0]->items)
+                if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+            if (!body) return qint64(-1);
+            LayoutCache cache;
+            const RenderOptions opt;
+            QElapsedTimer timer;
+            timer.start();
+            const auto fl = cache.textFrame(d, *body, 1, opt);
+            return fl.layout ? timer.elapsed() : qint64(-1);
+        };
+        const qint64 plain = layoutMs(*letters), cut = layoutMs(*symbols);
+        QVERIFY2(plain >= 0 && cut >= 0, "the text was laid out");
+        QVERIFY2(cut <= 5 * std::max<qint64>(plain, 100), qPrintable(QStringLiteral("cut %1 ms, plain %2 ms").arg(cut).arg(plain)));
+    }
+
+    // In 8-bit text the codes 0x80 to 0x9F read as Windows-1252's characters, which a symbol font doesn't have: a run set in the font gets
+    // its picture from the code itself (0x8C is the number 1 in a dark circle in Wingdings, 0x9F a bullet), where the same codes in
+    // another font are those characters. The pictures that are emoji are followed by U+FE0E, for the plain glyph.
+    void importBinarySymbolFontBytesAreReadByTheirCodes()
+    {
+        // 0x8C, 0x9F, then 'C' (a thumb up in Wingdings) and 'F' (a hand that is not an emoji), as bytes; the fonts are 4 Wingdings, 0 Alpha Sans.
+        const QByteArray raw8 = QByteArray("\x8C\x9F" "CF");
+        auto textIn = [&](int font) {
+            const QByteArray styles = pfRun(int(raw8.size()) + 1, 0, 0) + cfRun(int(raw8.size()) + 1, 0x10000, le(font, 2));
+            QByteArray text = pptRec(3999, le(1, 4)) + pptRec(4008, raw8) + pptRec(4001, styles);
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, text), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            const QTextDocument *body = d ? placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1")) : nullptr;
+            return body ? body->toPlainText() : QStringLiteral("<none>");
+        };
+        const QChar plain(0xFE0E);
+        QCOMPARE(textIn(4), QString(QChar(0x2776)) + QChar(0x2022) + QString::fromUcs4(U"\U0001F44D") + plain + QChar(0x261E));
+        // In a font of letters, the Windows-1252 characters they were.
+        QCOMPARE(textIn(0), QString(QChar(0x0152)) + QChar(0x0178) + QStringLiteral("CF"));
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.

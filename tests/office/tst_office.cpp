@@ -5435,6 +5435,46 @@ private Q_SLOTS:
         QVERIFY(readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0180, 7}, red, blue, {0x01BF, 0x00100000}}, odClientAnchor(0, 0, 1, 1))), odContext())[0]->fill.isNone());
     }
 
+    // A pattern fill (fillType 1) is a bitmap the host puts the shape's colors in (the fill color and the back color, each with its opacity
+    // as its alpha): the fill is then that picture, tiled, and clear only through its colors. A host that can't, or doesn't, has the bitmap
+    // as it stands, with the fill's opacity; a texture is never asked for.
+    void odrawPatternFillsAskTheHostForTheirColors()
+    {
+        QVector<QColor> asked;
+        OdrawContext ctx = odContext();
+        ctx.patterned = [&](const QString &id, const QColor &fill, const QColor &back) {
+            asked << fill << back;
+            return id == QLatin1String("pic8") ? id : QStringLiteral("colored:") + id;
+        };
+        auto fillOf = [&](const QVector<OdProp> &more, const OdrawContext &c) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}};
+            props += more;
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), c)[0]->fill;
+        };
+        Fill f = fillOf({{0x0180, 1}, {0x0186, 7, {}, true}, {0x0182, 0x8000}}, ctx);
+        QVERIFY(f.type == Fill::Texture && f.tile);
+        QCOMPARE(f.imageId, QStringLiteral("colored:pic7"));
+        QCOMPARE(f.transparency, 0.0);
+        QCOMPARE(int(asked.size()), 2);
+        QCOMPARE(asked[0].rgb(), QColor(255, 0, 0).rgb());
+        QVERIFY(qAbs(asked[0].alphaF() - 0.5) < 0.01);
+        QCOMPARE(asked[1].rgb(), QColor(0, 0, 255).rgb());
+        QCOMPARE(asked[1].alpha(), 255);
+        // The host leaves it as it is: the picture, and the fill's opacity.
+        f = fillOf({{0x0180, 1}, {0x0186, 8, {}, true}, {0x0182, 0x8000}}, ctx);
+        QCOMPARE(f.imageId, QStringLiteral("pic8"));
+        QVERIFY(qAbs(f.transparency - 0.5) < 1e-6);
+        // No host hook: as it always was.
+        f = fillOf({{0x0180, 1}, {0x0186, 7, {}, true}, {0x0182, 0x8000}}, odContext());
+        QCOMPARE(f.imageId, QStringLiteral("pic7"));
+        QVERIFY(qAbs(f.transparency - 0.5) < 1e-6);
+        // A texture and a picture are not patterns.
+        asked.clear();
+        QCOMPARE(fillOf({{0x0180, 2}, {0x0186, 7, {}, true}}, ctx).imageId, QStringLiteral("pic7"));
+        QCOMPARE(fillOf({{0x0180, 3}, {0x0186, 7, {}, true}}, ctx).imageId, QStringLiteral("pic7"));
+        QVERIFY(asked.isEmpty());
+    }
+
     void odrawReadsArrowheadsShadowsAndHyperlinks()
     {
         const QByteArray at = odClientAnchor(0, 0, 100, 50);
@@ -9738,6 +9778,52 @@ private Q_SLOTS:
         QCOMPARE(static_cast<GroupItem *>(copy.get())->children[0]->sourceId, 0);
     }
 
+    // A shape that holds no text keeps its text insets and anchor through its own data (undo, copies): they were written only for a shape
+    // with a story, so a shape made with insets of its own (a drawing's, with the text to come) came back with the defaults.
+    void shapesWithoutTextKeepTheirInsetsAndAnchorInJson()
+    {
+        auto s = std::make_shared<ShapeItem>();
+        // As made, with the defaults: nothing more is written than before.
+        QVERIFY(!s->toJson().contains(QStringLiteral("insets")));
+        QVERIFY(!s->toJson().contains(QStringLiteral("valign")));
+        s->insets = QMarginsF(1, 2, 3, 4);
+        s->valign = VAlign::Bottom;
+        QVERIFY(s->storyId.isEmpty());
+        const ItemPtr back = jp::Item::fromJsonAny(s->toJson());
+        QVERIFY(back && back->type() == ItemType::Shape);
+        const auto &b = static_cast<const ShapeItem &>(*back);
+        QCOMPARE(b.insets, QMarginsF(1, 2, 3, 4));
+        QCOMPARE(int(b.valign), int(VAlign::Bottom));
+        // An anchor alone, and with a story.
+        auto top = std::make_shared<ShapeItem>();
+        top->valign = VAlign::Top;
+        QCOMPARE(int(static_cast<const ShapeItem &>(*jp::Item::fromJsonAny(top->toJson())).valign), int(VAlign::Top));
+        auto withStory = std::make_shared<ShapeItem>();
+        withStory->storyId = QStringLiteral("s1");
+        withStory->insets = QMarginsF(5, 6, 7, 8);
+        withStory->valign = VAlign::Top;
+        const auto &w = static_cast<const ShapeItem &>(*jp::Item::fromJsonAny(withStory->toJson()));
+        QCOMPARE(w.insets, QMarginsF(5, 6, 7, 8));
+        QCOMPARE(int(w.valign), int(VAlign::Top));
+    }
+
+    // A text frame, and a shape that holds text, that don't wrap their text keep that through their own data and copies; the default is
+    // not written.
+    void framesThatDoNotWrapKeepThatInJson()
+    {
+        auto t = std::make_shared<TextItem>();
+        QVERIFY(!t->noWrap && !t->toJson().contains(QStringLiteral("noWrap")));
+        t->noWrap = true;
+        QVERIFY(static_cast<const TextItem &>(*jp::Item::fromJsonAny(t->toJson())).noWrap);
+        QVERIFY(static_cast<const TextItem &>(*t->clone()).noWrap);
+        auto text = std::make_shared<ShapeItem>();
+        text->storyId = QStringLiteral("s2");
+        QVERIFY(!text->noWrap && !text->toJson().contains(QStringLiteral("noWrap")));
+        text->noWrap = true;
+        QVERIFY(static_cast<const ShapeItem &>(*jp::Item::fromJsonAny(text->toJson())).noWrap);
+        QVERIFY(static_cast<const ShapeItem &>(*text->clone()).noWrap);
+    }
+
     void dmlReadKeepsTheNumbersShapesHad()
     {
         DmlEnv env;
@@ -11719,7 +11805,8 @@ private Q_SLOTS:
 
     // A shaded fill of two colors runs along a curve unless the shape turns it off (fillShadeType 0x019C: gamma 1, sigma 2): the position is
     // eased by the sigma curve (3u^2 - 2u^3) and the colors blend in linear light (a power of 2.2), as the program draws them; a gradient
-    // that says nothing of it is drawn that way (gamma and sigma). A list of colors is not.
+    // that says nothing of it is drawn that way (gamma and sigma) when it is opaque, and straight when either of its colors is clear in part,
+    // as the program draws the old files that never name a shade. A list of colors is not.
     void odrawShadesFollowTheirCurve()
     {
         auto stopsOf = [&](const QVector<OdProp> &more, const QByteArray &list = QByteArray()) {
@@ -11746,6 +11833,15 @@ private Q_SLOTS:
         }
         // The middle of it: 186, not 128.
         QVERIFY(qAbs(odRgb(stopsOf({})[4].color).red() - 186) <= 1);
+        // A gradient with a color that is clear in part, that names no shade, is straight; one that names it is not.
+        QCOMPARE(int(stopsOf({{0x0184, 0xE666}}).size()), 2);
+        QCOMPARE(int(stopsOf({{0x0182, 0x8000}}).size()), 2);
+        QCOMPARE(int(stopsOf({{0x0184, 0xE666}, {0x019C, 3}}).size()), 9);
+        // An opacity of 100 percent as a writer rounds it (0xFFFF), or just under (0xFF00), is none: the gradient is curved. A little less
+        // (0xFEFF) is a color clear in part.
+        QCOMPARE(int(stopsOf({{0x0182, 0xFFFF}, {0x0184, 0xFFFF}}).size()), 9);
+        QCOMPARE(int(stopsOf({{0x0184, 0xFF00}}).size()), 9);
+        QCOMPARE(int(stopsOf({{0x0184, 0xFEFF}}).size()), 2);
         // Sigma alone eases the position; gamma alone blends in linear light; neither is two colors.
         QVector<GradientStop> st = stopsOf({{0x019C, 2}});
         QCOMPARE(int(st.size()), 9);
@@ -11763,7 +11859,7 @@ private Q_SLOTS:
         QCOMPARE(int(stopsOf({}, list).size()), 3);
         QCOMPARE(int(stopsOf({{0x019C, 3}}, list).size()), 3);
         // The opacity runs along it evenly.
-        st = stopsOf({{0x0182, 0x10000}, {0x0184, 0x8000}});
+        st = stopsOf({{0x0182, 0x10000}, {0x0184, 0x8000}, {0x019C, 3}});
         QVERIFY(qAbs(st[4].transparency - 0.25) < 1e-6);
     }
 

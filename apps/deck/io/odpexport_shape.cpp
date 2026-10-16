@@ -274,7 +274,7 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
         if (overflowsAsStored(m_doc, t, number)) shrinks = false;
     }
     extra += attrOf("style:shrink-to-fit", shrinks ? QStringLiteral("true") : QStringLiteral("false"));
-    extra += attrOf("fo:min-height", cm(t.autofit == TextItem::GrowBox ? t.rect.height() : 0.0)) + attrOf("fo:wrap-option", QStringLiteral("wrap"));
+    extra += attrOf("fo:min-height", cm(t.autofit == TextItem::GrowBox ? t.rect.height() : 0.0)) + attrOf("fo:wrap-option", t.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
     QString children;
     if (t.columns > 1) children = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(t.columns, 1, 16)).arg(cm(t.columnGap));
     const QString paragraph = attrOf("style:writing-mode", t.vertical ? QStringLiteral("tb-rl") : QStringLiteral("lr-tb"));
@@ -367,7 +367,7 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
     extra += attrOf("fo:padding-top", cm(s.insets.top())) + attrOf("fo:padding-bottom", cm(s.insets.bottom())) + attrOf("fo:padding-left", cm(s.insets.left())) + attrOf("fo:padding-right", cm(s.insets.right()));
     extra += attrOf("draw:textarea-vertical-align", s.valign == VAlign::Middle ? QStringLiteral("middle") : s.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
     extra += attrOf("draw:textarea-horizontal-align", QStringLiteral("justify")) + attrOf("draw:auto-grow-height", QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
-    extra += attrOf("fo:wrap-option", QStringLiteral("wrap"));
+    extra += attrOf("fo:wrap-option", s.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
     const QString style = frameStyle(sc, s, QString(), extra, QString(), attrOf("style:writing-mode", QStringLiteral("lr-tb")), true);
 
     x.open("draw:custom-shape").attr("draw:style-name", style);

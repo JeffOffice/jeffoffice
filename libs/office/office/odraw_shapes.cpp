@@ -348,6 +348,7 @@ private:
             look(*t, s, ctx, false, false);
             t->insets = textInsets(p);
             t->valign = verticalAlign(p);
+            t->noWrap = p.value(0x0085, 0) == 2;
             const quint32 flow = p.value(0x0088, 0);
             t->vertical = flow == 1 || flow == 2 || flow == 3 || flow == 5;
             if (p.flag(0x00BF, 0x01, false)) t->autofit = TextItem::GrowBox;
@@ -363,6 +364,7 @@ private:
             sh->customPath = freeformPath(p, sh->rect.size());
             sh->insets = textInsets(p);
             sh->valign = verticalAlign(p);
+            sh->noWrap = p.value(0x0085, 0) == 2;
             item = sh;
         }
         item->name = p.text(0x0380);
