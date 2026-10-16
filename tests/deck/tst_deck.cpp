@@ -25598,6 +25598,54 @@ private Q_SLOTS:
         QCOMPARE(placeholderText(*autoAgain, *autoAgain->pages[1], dt), QString(QChar::ObjectReplacementCharacter));
     }
 
+    // The date that JP_NOW names (in ISO 8601, with its offset) is the time the tool draws automatic dates and times at; without it they show today. The
+    // app itself never reads it. A presentation whose slides show the date in its short form: JP_NOW of 15 October 2026 draws 10/15/2026, one of
+    // 2 March 2027 draws 3/2/2027, and two renders at the same moment are the same picture.
+    void toolRenderDrawsTheDateJPNowNames()
+    {
+        QString tool = QCoreApplication::applicationDirPath() + QStringLiteral("/jdecktool");
+#ifdef Q_OS_WIN
+        tool += QStringLiteral(".exe");
+#endif
+        if (!QFileInfo::exists(tool)) QSKIP("jdecktool is not built beside the tests");
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString file = dir.filePath(QStringLiteral("dated.ppt"));
+        {
+            QFile f(file);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(0, 0x3)));
+        }
+        auto run = [&](const QStringList &args, const QString &now) {
+            QProcess p;
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+            env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+            env.insert(QStringLiteral("JP_NO_TELEMETRY"), QStringLiteral("1"));
+            env.remove(QStringLiteral("JP_NOW"));
+            if (!now.isEmpty()) env.insert(QStringLiteral("JP_NOW"), now);
+            p.setProcessEnvironment(env);
+            p.start(tool, args);
+            if (!p.waitForFinished(120000)) {
+                p.kill();
+                return QStringLiteral("<timed out>");
+            }
+            return QString::fromUtf8(p.readAllStandardOutput());
+        };
+        const QString first = QStringLiteral("2026-10-15T19:31:36-04:00"), second = QStringLiteral("2027-03-02T08:00:00-05:00");
+        const QString linesFirst = run({QStringLiteral("lines"), file, QStringLiteral("1")}, first), linesSecond = run({QStringLiteral("lines"), file, QStringLiteral("1")}, second);
+        QVERIFY2(linesFirst.contains(QLatin1String("10/15/2026")), qPrintable(linesFirst));
+        QVERIFY2(linesSecond.contains(QLatin1String("3/2/2027")), qPrintable(linesSecond));
+        auto render = [&](const QString &now, const QString &name) {
+            const QString out = dir.filePath(name);
+            run({QStringLiteral("render"), file, out, QStringLiteral("640")}, now);
+            return QImage(QDir(out).filePath(QStringLiteral("slide-001.png")));
+        };
+        const QImage a = render(first, QStringLiteral("a")), b = render(first, QStringLiteral("b")), c = render(second, QStringLiteral("c"));
+        QVERIFY(!a.isNull() && !b.isNull() && !c.isNull());
+        QVERIFY(a == b);
+        QVERIFY(a != c);
+    }
+
     // A slide's line doesn't break after a slash when the text goes on in another format: a slash that ends a run in regular type, followed by a
     // word in bold, is no more a place to break than one inside a run (every slash of this text ends a run, so without the rule every line would end
     // at one).

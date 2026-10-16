@@ -63,6 +63,12 @@ static QString noteNumber(const FieldSource *doc, const QString &kind, const QSt
     return QStringLiteral("*");
 }
 
+static QDateTime g_fieldClock;   // the moment a tool set (invalid: none)
+
+QDateTime fieldNow() { return g_fieldClock.isValid() ? g_fieldClock : QDateTime::currentDateTime(); }
+
+void setFieldClock(const QDateTime &moment) { g_fieldClock = moment; }
+
 QString FieldContext::resolve(const QString &code) const
 {
     const QString kind = code.section(':', 0, 0);
