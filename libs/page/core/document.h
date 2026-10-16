@@ -329,6 +329,8 @@ public:
     // or hiding as a publication's does. Set by the app that makes the
     // document; not saved.
     bool slideText = false;
+    // Text is set as a word processor sets its lines (LayoutEnv::wordLines). Set by the app that makes the document; not saved.
+    bool wordText = false;
     // A picture's brightness, contrast, black and white, and transparent color change its colors as the presentation program changes a
     // slide's pictures (PictureItem::colorEffects), not as Publisher changes a publication's. Set by the app that makes the document; not saved.
     bool slidePictures = false;

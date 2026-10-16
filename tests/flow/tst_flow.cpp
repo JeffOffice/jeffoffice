@@ -20,6 +20,7 @@
 #include <QTextDocument>
 #include <QTextList>
 #include <functional>
+#include <memory>
 #include <random>
 
 using namespace jp;
@@ -337,6 +338,30 @@ QString materializedDiffers(FlowDocument &fd, Paginator &pg, int k, LayoutCache 
         }
     }
     return QString();
+}
+
+
+// Paragraphs set the way a word processor sets lines (LayoutEnv::wordLines), each a line of text in the family and size given: the lines of
+// the story, in a frame of one page. `shape` sets a paragraph's format (spacing, line height, style).
+QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, double>> &fonts, const std::function<void(int, QTextBlockFormat &)> &shape = {}, bool word = true)
+{
+    auto doc = std::make_unique<QTextDocument>();
+    QTextCursor c(doc.get());
+    for (int i = 0; i < fonts.size(); ++i) {
+        QTextBlockFormat bf;
+        if (shape) shape(i, bf);
+        QTextCharFormat cf;
+        cf.setFontFamilies({fonts[i].first});
+        cf.setFontPointSize(fonts[i].second);
+        if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+        c.setBlockCharFormat(cf);
+        c.insertText(QStringLiteral("Line %1").arg(i), cf);
+    }
+    LayoutEnv env;
+    env.wordLines = word;
+    StoryLayout lay;
+    lay.build(doc.get(), {plainFrame(400, 700)}, env);
+    return lay.lineInfo(0);
 }
 
 } // namespace
@@ -1308,6 +1333,85 @@ private Q_SLOTS:
             asked |= hard;
         }
         QVERIFY(natural && asked);
+    }
+
+    // A word processor's single line is its font's Windows ascent and descent plus the leading the font's tables ask for, whatever font stands in
+    // for it: 1.15 em for Times New Roman and Arial, 1.22 em for Calibri, with the baseline one ascent below the line's top.
+    void wordLinesAreTheFontsWindowsMetrics()
+    {
+        const auto lines = wordLinesOf({{QStringLiteral("Times New Roman"), 12}, {QStringLiteral("Arial"), 11}, {QStringLiteral("Calibri"), 11}, {QStringLiteral("Courier New"), 10}});
+        QCOMPARE(lines.size(), 4);
+        const double heights[] = {(1825 + 443 + 87) / 2048.0 * 12, (1854 + 434 + 67) / 2048.0 * 11, (1950 + 550) / 2048.0 * 11, (1705 + 615) / 2048.0 * 10};
+        const double ascents[] = {1825 / 2048.0 * 12, 1854 / 2048.0 * 11, 1950 / 2048.0 * 11, 1705 / 2048.0 * 10};
+        double top = 0;
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY2(std::abs(lines[i].rect.top() - top) < 0.01, qPrintable(QStringLiteral("line %1 starts at %2, not %3").arg(i).arg(lines[i].rect.top()).arg(top)));
+            QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
+            QVERIFY2(std::abs(lines[i].baseline - (top + ascents[i])) < 0.02, qPrintable(QStringLiteral("line %1's baseline is at %2, not %3").arg(i).arg(lines[i].baseline).arg(top + ascents[i])));
+            top += heights[i];
+        }
+        // (Without it, a text's lines are as before: a Publisher's, 1.06 em for Times New Roman.)
+        const auto old = wordLinesOf({{QStringLiteral("Times New Roman"), 12}}, {}, false);
+        QVERIFY(std::abs(old[0].rect.height() - heights[0]) > 0.5);
+    }
+
+    // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline a descent
+    // above its bottom (the text's top is cut off where there is less room than the font's ascent); an at-least height does the same when it is
+    // more than a single line, and is a single line when it is less.
+    void wordLineHeightsFollowTheirRules()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        const double single = (1825 + 443 + 87) / 2048.0 * 12, ascent = 1825 / 2048.0 * 12, descent = 443 / 2048.0 * 12;
+        auto one = [&](QTextBlockFormat::LineHeightTypes type, double value) {
+            return wordLinesOf({{tnr, 12}}, [&](int, QTextBlockFormat &bf) { bf.setLineHeight(value, type); }).first();
+        };
+        auto twice = one(QTextBlockFormat::ProportionalHeight, 200);
+        QVERIFY(std::abs(twice.rect.height() - 2 * single) < 0.01);
+        QVERIFY(std::abs(twice.baseline - ascent) < 0.02);
+        auto exact = one(QTextBlockFormat::FixedHeight, 20);
+        QVERIFY(std::abs(exact.rect.height() - 20) < 0.01);
+        QVERIFY(std::abs(exact.baseline - (20 - descent)) < 0.02);
+        auto tight = one(QTextBlockFormat::FixedHeight, 9);
+        QVERIFY(std::abs(tight.rect.height() - 9) < 0.01);
+        QVERIFY(std::abs(tight.baseline - (9 - descent)) < 0.02);
+        auto most = one(QTextBlockFormat::MinimumHeight, 24);
+        QVERIFY(std::abs(most.rect.height() - 24) < 0.01);
+        QVERIFY(std::abs(most.baseline - (24 - descent)) < 0.02);
+        auto least = one(QTextBlockFormat::MinimumHeight, 10);
+        QVERIFY(std::abs(least.rect.height() - single) < 0.01);
+        QVERIFY(std::abs(least.baseline - ascent) < 0.02);
+    }
+
+    // The space between two paragraphs is the larger of the first's space after and the second's space before, not their sum; a paragraph that asks
+    // for contextual spacing has none between it and a paragraph of its own style.
+    void wordSpaceBetweenParagraphsIsTheLarger()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        auto gap = [&](double after, double before, bool word = true) {
+            const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}}, [&](int i, QTextBlockFormat &bf) {
+                if (i == 0) bf.setBottomMargin(after);
+                else bf.setTopMargin(before);
+            }, word);
+            return lines[1].rect.top() - lines[0].rect.bottom();
+        };
+        QVERIFY(std::abs(gap(6, 12) - 12) < 0.01);
+        QVERIFY(std::abs(gap(12, 6) - 12) < 0.01);
+        QVERIFY(std::abs(gap(6, 6) - 6) < 0.01);
+        QVERIFY(std::abs(gap(0, 9) - 9) < 0.01);
+        QVERIFY(std::abs(gap(6, 12, false) - 18) < 0.01);   // (as a publication's are added)
+        auto contextual = [&](const QString &second) {
+            const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}}, [&](int i, QTextBlockFormat &bf) {
+                bf.setTopMargin(10);
+                bf.setBottomMargin(10);
+                bf.setProperty(tp::StyleName, i == 0 ? QStringLiteral("Body") : second);
+                bf.setProperty(tp::ContextualSpacing, true);
+            });
+            return lines[1].rect.top() - lines[0].rect.bottom();
+        };
+        QVERIFY(std::abs(contextual(QStringLiteral("Body"))) < 0.01);
+        QVERIFY(std::abs(contextual(QStringLiteral("Other")) - 10) < 0.01);
+        Q_UNUSED(single);
     }
 
     // Where a position is on the pages.

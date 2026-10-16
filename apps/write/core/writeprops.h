@@ -31,7 +31,7 @@ enum : int {
     NumId,                                    // int: the list definition (w:numId) of a paragraph in a list
     NumLevel,                                 // int: its level, 0 to 8
     Outline,                                  // int: outline level 0 to 8, 9 for body text
-    Contextual,                               // bool: don't add space between paragraphs of the same style
+    Contextual,                               // (unused: the paragraph's "no space between paragraphs of the same style" is tp::ContextualSpacing)
     SectionData,                              // QByteArray: the section this paragraph ends (packSection), with flow::fp::SectionBreakAfter
     LastSection,                              // a key of bytes (packSection), on the FIRST paragraph: the properties of the document's last section, which
                                               // belong to no paragraph; being a paragraph's property, a change to them undoes with the text
