@@ -704,6 +704,8 @@ What our own `.csv` files look like, to set the defaults (counts only): 1,267 fi
 
 ## Shared with other JeffOffice apps
 
+The suite-wide map of shared parts, [shared.md](shared.md), says where each lives, which app builds it first, and who uses it; where this list disagrees with it, the map holds.
+
 What JeffCrunch builds on, and the pieces it should build so that JeffWrite, JeffDeck, JeffMail, and JeffBase can use them.
 
 ### Already there
