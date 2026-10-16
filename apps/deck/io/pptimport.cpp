@@ -431,7 +431,7 @@ struct TextGroup {
     QVector<LangRun> lang;
     QVector<FieldMark> fields;
     QVector<LinkMark> links;
-    QVector<Pp9> pp9;           // by run of paragraphs, what its extension says (from the document's outline properties)
+    QVector<Pp9> pp9;           // by run of paragraphs, what its extension says (from the document's outline properties, or a shape's own)
     qint64 outline = -1;        // the text of the slide this shape shows (OutlineTextRefAtom)
     bool bytes = false;         // the text is 8-bit (a TextBytesAtom), its codes 0x80 to 0x9F read as Windows-1252's characters
 };
@@ -920,6 +920,7 @@ private:
     void readHyperlinks(const Rec &r);
     QVector<SlideEntry> readSlideList(const Rec &list);
     void readTextExtensions(const QVector<Rec> &documentRecords);
+    QVector<Pp9> shapeTextExtension(const QByteArray &clientData) const;
     TextGroup readTextGroup(Records &rs, const QVector<Rec> &recs);
     QString pictureId(int blipIndex);
     QString adjustedPicture(const QString &id, double brightness, double contrast);
@@ -944,6 +945,8 @@ private:
     FooterSpec readFooterSpec(const Rec &box);
     void showFooters(const FooterSpec &document);
     QString masterFooterText(const Page &slide) const;
+    bool masterHoldsText(const Page *slide, const QString &type) const;
+    void takeMasterTexts(const FooterSpec &f, const Page *slide, FooterOptions *o) const;
     MasterInfo *masterByRef(quint32 ref) const;
     void finishItems(ItemList &items, PageState &st, bool slide);
     QString readNotes(const SlideEntry &slide, quint32 notesRef, const MasterInfo &master);
@@ -1266,9 +1269,36 @@ void Importer::readHyperlinks(const Rec &list)
     }
 }
 
+// The entries of a StyleTextProp9Atom: for each run of paragraphs, its paragraph format (a bullet picture, numbering), character format, and special
+// info, each with the fields its mask names; only the numbering is kept. A text keeps at most kMaxPp9Entries of them.
+static QVector<Pp9> pp9Entries(const QByteArray &d, const Rec &atom)
+{
+    QVector<Pp9> entries;
+    Cursor c(d, atom.off, atom.end());
+    while (c.ok() && c.left() >= 12 && entries.size() < kMaxPp9Entries) {
+        Pp9 e;
+        const quint32 paragraph = c.u32();
+        if (paragraph & 0x00800000) c.u16();   // the bullet's picture
+        if (paragraph & 0x02000000) e.autoNumber = c.u16() != 0;
+        if (paragraph & 0x01000000) {
+            e.scheme = c.u16();
+            e.start = c.u16();
+        }
+        const quint32 character = c.u32();
+        if (character & 0x00100000) c.u32();
+        const quint32 special = c.u32();
+        if (special & 0x02) c.u16();
+        if (special & 0x04) c.u16();
+        if (special & 0x40) c.u16();
+        if (special & 0x20) c.u32();
+        if (!c.ok()) break;
+        entries << e;
+    }
+    return entries;
+}
+
 // The extension of the document's text (the outline properties its ___PPT9 tag keeps: for each slide's text of a kind, what its runs of paragraphs
-// say beyond the usual ones). Each run's entry is its paragraph format (a bullet picture, numbering), character format, and special info, each
-// with the fields its mask names; only the numbering is kept. A text keeps at most kMaxPp9Entries of them.
+// say beyond the usual ones).
 void Importer::readTextExtensions(const QVector<Rec> &documentRecords)
 {
     const QByteArray &d = m_ppt.data();
@@ -1290,33 +1320,33 @@ void Importer::readTextExtensions(const QVector<Rec> &documentRecords)
                     if (items[i].type != RT_OutlineTextPropsHeader9Atom || items[i].len < 8 || items[i + 1].type != RT_StyleTextProp9Atom) continue;
                     Cursor h(d, items[i].off, items[i].end());
                     const quint32 slideId = h.u32(), kind = h.u32();
-                    QVector<Pp9> entries;
-                    Cursor c(d, items[i + 1].off, items[i + 1].end());
-                    while (c.ok() && c.left() >= 12 && entries.size() < kMaxPp9Entries) {
-                        Pp9 e;
-                        const quint32 paragraph = c.u32();
-                        if (paragraph & 0x00800000) c.u16();   // the bullet's picture
-                        if (paragraph & 0x02000000) e.autoNumber = c.u16() != 0;
-                        if (paragraph & 0x01000000) {
-                            e.scheme = c.u16();
-                            e.start = c.u16();
-                        }
-                        const quint32 character = c.u32();
-                        if (character & 0x00100000) c.u32();
-                        const quint32 special = c.u32();
-                        if (special & 0x02) c.u16();
-                        if (special & 0x04) c.u16();
-                        if (special & 0x40) c.u16();
-                        if (special & 0x20) c.u32();
-                        if (!c.ok()) break;
-                        entries << e;
-                    }
+                    const QVector<Pp9> entries = pp9Entries(d, items[i + 1]);
                     if (h.ok() && kind < 256 && !entries.isEmpty() && m_outlineProps9.size() < kMaxSlides * 4) m_outlineProps9.insert((quint64(slideId) << 8) | kind, entries);
                     ++i;
                 }
             }
         }
     }
+}
+
+// The extension a shape keeps for its own text (in its client data, the same tag): what its runs of paragraphs say, in order.
+QVector<Pp9> Importer::shapeTextExtension(const QByteArray &clientData) const
+{
+    Records rs(clientData);
+    QVector<Rec> kids = rs.in(0, clientData.size());
+    if (kids.size() == 1 && kids.first().type == RT_ClientData) kids = rs.in(kids.first());
+    for (const Rec &tags : kids) {
+        if (tags.type != RT_ProgTags) continue;
+        for (const Rec &tag : rs.in(tags)) {
+            if (tag.type != RT_ProgBinaryTag) continue;
+            const QVector<Rec> parts = rs.in(tag);
+            const Rec *name = find(parts, RT_CString), *data = find(parts, RT_BinaryTagData);
+            if (!name || !data || readChars(rs.data(), *name, true).section(QChar(0), 0, 0) != QLatin1String("___PPT9")) continue;
+            for (const Rec &atom : rs.in(*data))
+                if (atom.type == RT_StyleTextProp9Atom) return pp9Entries(rs.data(), atom);
+        }
+    }
+    return {};
 }
 
 // The slides (or masters, or notes) a list names, in its order, each with the texts it keeps for them.
@@ -2226,12 +2256,39 @@ QString Importer::masterFooterText(const Page &slide) const
     return held == QLatin1String("*") ? QString() : held.left(kMaxFooterChars);
 }
 
+// Whether the master of a slide (of any slide, when it is null) has text typed in its place of that type ("dt" or "sldNum"), not only the field that
+// is the program's own date or number.
+bool Importer::masterHoldsText(const Page *slide, const QString &type) const
+{
+    if (slide) {
+        const MasterPage *layout = m_doc.masterFor(*slide);
+        return layout && !layoutTypedText(m_doc, *layout, type).isEmpty();
+    }
+    for (const auto &m : m_doc.masters)
+        if (!layoutTypedText(m_doc, *m, type).isEmpty()) return true;
+    return false;
+}
+
+// What the master's places for the date and the slide number say a slide shows, where the record leaves it to them: a date the record shows
+// without saying which (not today's, and none of its own) is the text typed in the master's date place, and the number takes the text the master's
+// number place holds around its field. Each slide gets its own master's (the options say the date or number is the master's; the text is its
+// layout's when they are used).
+void Importer::takeMasterTexts(const FooterSpec &f, const Page *slide, FooterOptions *o) const
+{
+    if ((f.flags & FootHasDate) && !o->date && masterHoldsText(slide, QStringLiteral("dt"))) {
+        o->date = true;
+        o->dateFromMaster = true;
+    }
+    if (o->slideNumber && masterHoldsText(slide, QStringLiteral("sldNum"))) o->numberFromMaster = true;
+}
+
 // The date, slide number, and footer the document (or a slide) says its slides show, each on the slides that lack it, where their layout has the
 // place for it: a slide keeps the places it has of its own.
 void Importer::showFooters(const FooterSpec &document)
 {
     if (document.set) {
         FooterOptions all = footerOptionsOf(document);
+        takeMasterTexts(document, nullptr, &all);
         // (What new slides will show: the footer's text, if the record has none, is the first slide's master's.)
         if (all.footer && all.footerText.isEmpty() && !m_doc.pages.isEmpty()) all.footerText = masterFooterText(*m_doc.pages.first());
         if (all.footer && all.footerText.isEmpty()) all.footer = false;
@@ -2251,6 +2308,7 @@ void Importer::showFooters(const FooterSpec &document)
             for (const auto &it : page->items)
                 if (placeholderType(*it) == QLatin1String("dt") && it->type() == ItemType::Text)
                     if (QTextDocument *story = m_doc.storyDoc(static_cast<TextItem &>(*it).storyId)) retargetGenericDate(story, o.dateCode);
+        takeMasterTexts(spec, page.get(), &o);
         if (!o.any()) continue;
         addMissingFooters(m_doc, o, *page);
     }
@@ -2844,6 +2902,8 @@ void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArr
         if (kids.size() == 1 && kids.first().type == RT_ClientTextbox) kids = rs.in(kids.first());
         g = readTextGroup(rs, kids);
         hasBox = true;
+        // A text of the shape's own has its numbering in the shape's extension.
+        if (g.hasText && g.outline < 0 && !clientData.isEmpty()) g.pp9 = shapeTextExtension(clientData);
     }
     if (!type.isEmpty() && type != QLatin1String("sldImg")) {
         item.role = placeholderRole(type, isContentType(type) ? ++st.contents : 0);

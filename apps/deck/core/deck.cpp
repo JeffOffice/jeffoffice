@@ -274,6 +274,23 @@ const Item *layoutPlaceholder(const Document &d, const MasterPage &layout, const
     return nullptr;
 }
 
+// The options as they are for a layout: a date or number that is the text typed in the layout's own place has that text (and the date field's code).
+FooterOptions forLayout(const Document &d, const FooterOptions &o, const MasterPage *layout)
+{
+    FooterOptions r = o;
+    r.numberText.clear();
+    if (!layout) return r;
+    if (o.dateFromMaster) {
+        QString code;
+        if (const QString text = layoutTypedText(d, *layout, QStringLiteral("dt"), &code); !text.isEmpty()) {
+            r.dateText = text;
+            r.dateCode = code;
+        }
+    }
+    if (o.numberFromMaster) r.numberText = layoutTypedText(d, *layout, QStringLiteral("sldNum"));
+    return r;
+}
+
 // A footer placeholder's content: the footer text, a fixed date as its text, or the date or slide number as the field that keeps it current.
 void fillFooter(Document &d, Item &it, const QString &type, const FooterOptions &o)
 {
@@ -290,13 +307,24 @@ void fillFooter(Document &d, Item &it, const QString &type, const FooterOptions 
         c.insertText(o.footerText, plain);
         return;
     }
-    if (type == QLatin1String("dt") && !o.dateText.isEmpty()) {
-        c.insertText(o.dateText, plain);
+    const bool number = type == QLatin1String("sldNum");
+    const QString code = number ? QStringLiteral("page") : o.dateCode.isEmpty() ? QStringLiteral("date") : o.dateCode;
+    const QString &held = number ? o.numberText : o.dateText;
+    QTextCharFormat f = c.charFormat();
+    f.setProperty(tp::Field, code);
+    if (held.isEmpty()) {
+        c.insertText(QString(QChar::ObjectReplacementCharacter), f);
         return;
     }
-    QTextCharFormat f = c.charFormat();
-    f.setProperty(tp::Field, type == QLatin1String("sldNum") ? QStringLiteral("page") : o.dateCode.isEmpty() ? QStringLiteral("date") : o.dateCode);
-    c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+    // The text, with the field where U+FFFC stands in it.
+    qsizetype from = 0;
+    for (;;) {
+        const qsizetype at = held.indexOf(QChar::ObjectReplacementCharacter, from), end = at < 0 ? held.size() : at;
+        if (end > from) c.insertText(held.mid(from, end - from), plain);
+        if (at < 0) break;
+        c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+        from = at + 1;
+    }
 }
 
 // The text of a story at a new size: each run's point size times `k`.
@@ -639,13 +667,13 @@ int addSlide(Document &d, const MasterPage &layout, int at)
 {
     auto slide = std::make_shared<Page>();
     slide->masterId = layout.id;
-    const FooterOptions footers = footerOptions(d);
+    const FooterOptions footers = footerOptions(d), filled = forLayout(d, footers, &layout);
     const bool chosen = d.appData.contains(QStringLiteral("footerOptions"));   // else the footers are only empty places
     for (const auto &it : layout.items) {
         const QString type = placeholderType(*it);
         if (type.isEmpty() || (isFooterType(type) && !footers.shows(type, layoutType(layout)))) continue;
         slide->items.push_back(slidePlaceholder(d, *it));
-        if (chosen && isFooterType(type)) fillFooter(d, *slide->items.back(), type, footers);
+        if (chosen && isFooterType(type)) fillFooter(d, *slide->items.back(), type, filled);
     }
     slide->notesStoryId = d.createStory();
     const int index = at < 0 || at > d.pages.size() ? int(d.pages.size()) : at;
@@ -720,13 +748,13 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
         }
     }
     // The new layout's places that nothing filled get empty placeholders.
-    const FooterOptions footers = footerOptions(d);
+    const FooterOptions footers = footerOptions(d), filled = forLayout(d, footers, &layout);
     const bool chosen = d.appData.contains(QStringLiteral("footerOptions"));
     for (const auto &l : layout.items) {
         const QString type = placeholderType(*l);
         if (type.isEmpty() || taken.contains(l.get()) || (isFooterType(type) && !footers.shows(type, layoutType(layout)))) continue;
         slide.items.push_back(slidePlaceholder(d, *l));
-        if (chosen && isFooterType(type)) fillFooter(d, *slide.items.back(), type, footers);
+        if (chosen && isFooterType(type)) fillFooter(d, *slide.items.back(), type, filled);
     }
 }
 
@@ -1071,6 +1099,8 @@ QJsonObject FooterOptions::toJson() const
     QJsonObject o{{"date", date}, {"slideNumber", slideNumber}, {"footer", footer}, {"text", footerText}, {"skipTitle", skipTitleSlide}};
     if (!dateText.isEmpty()) o["dateText"] = dateText;
     if (!dateCode.isEmpty()) o["dateCode"] = dateCode;
+    if (dateFromMaster) o["dateFromMaster"] = true;
+    if (numberFromMaster) o["numberFromMaster"] = true;
     return o;
 }
 
@@ -1084,6 +1114,8 @@ FooterOptions FooterOptions::fromJson(const QJsonObject &o)
     f.skipTitleSlide = o["skipTitle"].toBool();
     f.dateText = o["dateText"].toString();
     f.dateCode = o["dateCode"].toString();
+    f.dateFromMaster = o["dateFromMaster"].toBool();
+    f.numberFromMaster = o["numberFromMaster"].toBool();
     return f;
 }
 
@@ -1105,10 +1137,27 @@ QString layoutFooterText(const Document &d, const Page &slide)
     return story ? story->toPlainText().trimmed() : QString();
 }
 
+QString layoutTypedText(const Document &d, const MasterPage &layout, const QString &type, QString *fieldCode)
+{
+    constexpr int kMostLetters = 1000;
+    const Item *place = layoutPlaceholder(d, layout, type);
+    if (fieldCode) fieldCode->clear();
+    if (!place || place->type() != ItemType::Text) return QString();
+    const QTextDocument *story = d.storyDoc(static_cast<const TextItem *>(place)->storyId);
+    if (!story) return QString();
+    const QString held = story->toPlainText().trimmed();
+    if (QString(held).remove(QChar(QChar::ObjectReplacementCharacter)).trimmed().isEmpty()) return QString();
+    if (fieldCode)
+        for (QTextBlock b = story->begin(); b.isValid() && fieldCode->isEmpty(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd() && fieldCode->isEmpty(); ++it) *fieldCode = it.fragment().charFormat().stringProperty(tp::Field);
+    return held.left(kMostLetters);
+}
+
 void addMissingFooters(Document &d, const FooterOptions &o, Page &slide)
 {
     const MasterPage *layout = d.masterFor(slide);
     const QString ltype = layout ? layoutType(*layout) : QString();
+    const FooterOptions filled = forLayout(d, o, layout);
     for (const QString &type : {QStringLiteral("dt"), QStringLiteral("ftr"), QStringLiteral("sldNum")}) {
         if (!o.shows(type, ltype)) continue;
         const bool has = std::any_of(slide.items.cbegin(), slide.items.cend(), [&](const ItemPtr &it) { return placeholderType(*it) == type; });
@@ -1116,7 +1165,7 @@ void addMissingFooters(Document &d, const FooterOptions &o, Page &slide)
         const Item *from = layout ? layoutPlaceholder(d, *layout, type) : nullptr;
         if (!from) continue;
         slide.items.push_back(slidePlaceholder(d, *from));
-        fillFooter(d, *slide.items.back(), type, o);
+        fillFooter(d, *slide.items.back(), type, filled);
     }
 }
 
@@ -1130,6 +1179,7 @@ void applyFooters(Document &d, const FooterOptions &o, Page *only)
         if (only && p.get() != only) continue;
         const MasterPage *layout = d.masterFor(*p);
         const QString ltype = layout ? layoutType(*layout) : QString();
+        const FooterOptions filled = forLayout(d, o, layout);
         for (const QString &type : {QStringLiteral("dt"), QStringLiteral("ftr"), QStringLiteral("sldNum")}) {
             auto at = std::find_if(p->items.begin(), p->items.end(), [&](const ItemPtr &it) { return placeholderType(*it) == type; });
             if (!o.shows(type, ltype)) {
@@ -1144,7 +1194,7 @@ void applyFooters(Document &d, const FooterOptions &o, Page *only)
                 p->items.push_back(slidePlaceholder(d, *from));
                 at = std::prev(p->items.end());
             }
-            fillFooter(d, **at, type, o);
+            fillFooter(d, **at, type, filled);
         }
     }
 }

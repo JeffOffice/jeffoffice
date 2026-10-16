@@ -748,6 +748,11 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     body.valign = s.valign;
     body.noWrap = s.noWrap;
     body.centerBlock = s.centerBlock;
+    if (s.shrinks) {
+        body.autofit = TextItem::ShrinkOnOverflow;
+        body.fitScale = s.fitScale;
+        body.fitLineCut = s.fitLineCut;
+    }
     writeBody(w, body, storyOf(s.storyId, ctx), ph.is, ctx);
     w.writeEndElement();
 }

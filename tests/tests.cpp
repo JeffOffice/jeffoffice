@@ -10485,6 +10485,60 @@ private Q_SLOTS:
         QVERIFY2(pdf.contains("GTS_PDFA1"), "no PDF/A output intent");
     }
 
+    // The words of an SVG picture are in a PDF as text with no ink (a pen with no color, which Qt writes as a transparent fill), but not where the
+    // PDF allows no transparency, PDF/A-1b and PDF/X-1a: there the pen would be drawn black, over the picture. The picture here has words that
+    // are not shown (a text the renderer is told not to draw, as a diagram's are: its class jo-words, its display none) over white, so every page
+    // of every kind shows nothing of them: no dark pixel; and where it can, the PDF has them as text.
+    void pdfSaysSvgWordsOnlyWhereTheyStayInvisible()
+    {
+        const QByteArray svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">"
+                               "<rect x=\"0\" y=\"0\" width=\"300\" height=\"200\" fill=\"#ffffff\"/>"
+                               "<text class=\"jo-words\" display=\"none\" x=\"10\" y=\"100\" font-family=\"Arimo\" font-size=\"40\" fill=\"#000000\" fill-opacity=\"0\">Whitewords</text></svg>";
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto pic = std::make_shared<jp::PictureItem>();
+        pic->imageId = doc->addImage(svg, QStringLiteral("svg"));
+        pic->rect = QRectF(100, 100, 300, 200);
+        pic->imgRect = QRectF(0, 0, 300, 200);
+        doc->pages[0]->items.push_back(pic);
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        struct Kind {
+            const char *name;
+            bool archival, x1a;
+        };
+        for (const Kind &kind : {Kind{"plain", false, false}, Kind{"pdfa", true, false}, Kind{"pdfx1a", false, true}}) {
+            jp::MainWindow::PdfSettings s;
+            s.archival = kind.archival;
+            s.pdfx = kind.x1a;
+            const QString path = dir.filePath(QString::fromLatin1(kind.name) + QStringLiteral(".pdf"));
+            QVERIFY2(w.exportPdfTo(path, s), kind.name);
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            const PdfDocument pdf(bytes);
+            QVERIFY2(pdf.isValid(), kind.name);
+            // (PDFium draws on a clear ground: the page is on white.)
+            QImage page(306, 396, QImage::Format_RGB32);
+            page.fill(Qt::white);
+            const QImage drawn = pdf.render(0, page.size());
+            QVERIFY2(!drawn.isNull(), kind.name);
+            {
+                QPainter on(&page);
+                on.drawImage(0, 0, drawn);
+            }
+            int dark = 0;
+            for (int y = 0; y < page.height(); ++y)
+                for (int x = 0; x < page.width(); ++x) dark += qGray(page.pixel(x, y)) < 250;
+            QVERIFY2(dark == 0, qPrintable(QStringLiteral("%1: %2 dark pixels").arg(QLatin1String(kind.name)).arg(dark)));
+            const bool said = pdf.text(0).contains(QStringLiteral("Whitewords"));
+            if (kind.archival || kind.x1a) QVERIFY2(!said, kind.name);
+            else QVERIFY2(said, qPrintable(pdf.text(0)));
+            if (kind.x1a) QVERIFY2(!bytes.contains("/ca ") && !bytes.contains("/CA "), "PDF/X-1a has no transparency");
+        }
+    }
+
     // PDF/A has no transparency, so see-through picture pixels are flattened
     // onto what lies beneath them instead of turning white.
     void flattenKeepsSeeThroughPictures()

@@ -4,6 +4,7 @@
 #include "render/pdfpage.h"
 #include "render/shapes.h"
 #include "render/textart.h"
+#include "core/drawnwords.h"
 #include "core/fonts.h"
 #include "core/svg.h"
 #include "core/texteffects.h"
@@ -216,6 +217,9 @@ LayoutEnv Renderer::layoutEnv(const Document &doc)
     env.defaultTab = doc.defaultTabStop;
     env.slideLines = doc.slideText;
     env.familyAliases = doc.fontAliases;
+    // A slide's text has no ligatures (the presentation program applies none), wherever it is set: on the screen, on paper, and in a PDF, whose text
+    // then names each letter and whose lines break where the screen's do.
+    env.noLigatures = doc.slideText;
     return env;
 }
 
@@ -387,11 +391,13 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     return out;
 }
 
-const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key)
+const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double fitScale, double lineCut)
 {
     Story *story = doc.story(storyId);
     if (!story) return nullptr;
     LayoutEnv env = Renderer::layoutEnv(doc);
+    env.fontScale = fitScale;
+    env.lineCut = lineCut;
     const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec, false) + fieldsKey(doc, *story, spec.ctx) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {
@@ -797,6 +803,18 @@ static QImage mergePicture(const Document &d, const QString &field, int record)
     return image;
 }
 
+// The words a picture's pixels hold (the text of a Macintosh picture, kept with it as the PNG's own text), said with no ink where they were drawn,
+// the picture shown in `where`: a PDF then has them as text that can be found and copied. Those outside `visible` are left out. (Not said where a PDF
+// allows no transparency, PDF/A-1b and PDF/X-1a, as no ink is a pen with no color, which there is drawn black; the words of an SVG are the same.)
+static void paintDrawnWords(QPainter *p, const QImage &img, const QRectF &where, const QRectF &visible)
+{
+    if (img.isNull() || where.width() <= 0 || where.height() <= 0) return;
+    const QString kept = img.text(QString::fromLatin1(kDrawnWordsKey));
+    if (kept.isEmpty()) return;
+    for (const DrawnWord &w : drawnWordsFromText(kept))
+        drawUnseenText(p, w.family, w.size * where.height(), w.bold, w.italic, QPointF(where.left() + w.at.x() * where.width(), where.top() + w.at.y() * where.height()), w.text, 0, visible);
+}
+
 static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem &pic)
 {
     if (ctx.opt.skipPictures) return;
@@ -857,12 +875,14 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
             mf.play(p, pic.imgRect);
         } else if (ctx.opt.output && plain && data.format == QLatin1String("svg") && svg.load(data.bytes)) {
             svg::paint(svg, data.bytes, p, pic.imgRect);
+            if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) svg::paintText(data.bytes, p, pic.imgRect, r);
         } else if (ctx.opt.output && plain && data.format == QLatin1String("pdf") && PdfDocument::shared(data.bytes)->isValid()) {
             PdfDocument::shared(data.bytes)->play(p, 0, pic.imgRect);
         } else {
             // Into pixels (a screen or an image, not a PDF, which keeps the picture whole): the size it covers.
             const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
             p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : QSizeF()));
+            if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) paintDrawnWords(p, src, pic.imgRect, r);
         }
         p->restore();
     }
@@ -907,12 +927,17 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.valign = s.valign;
     spec.noWrap = s.noWrap;
     spec.centerBlock = s.centerBlock;
+    // A slide's shape shows all its text, running out of the shape that is too small for it, as a slide's text box does, and it isn't hyphenated.
+    spec.runsOver = ctx.doc->slideText;
+    spec.hyphenate = !ctx.doc->slideText;
     spec.ctx.doc = ctx.doc;
     spec.ctx.pageNumber = ctx.pageNumber;
     spec.ctx.pageCount = ctx.pageCount;
     spec.ctx.mergeRecord = ctx.opt.mergeRecord;
     if (origin) *origin = tr.topLeft();
-    return ctx.cache->storyBox(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber));
+    // A shape that says its text shrinks to fit has it at the scale the file gives (and the spacing taken off), as a text box's does.
+    const bool shrunk = ctx.doc->slideText && s.shrinks;
+    return ctx.cache->storyBox(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber), shrunk ? std::clamp(s.fitScale, 0.01, 1.0) : 1.0, shrunk ? std::clamp(s.fitLineCut, 0.0, 99.0) : 0.0);
 }
 
 const StoryLayout *Renderer::cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin, int half)

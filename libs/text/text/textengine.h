@@ -111,6 +111,9 @@ struct LayoutEnv {
     double fontScale = 1.0;
     double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
+    // The text is set without ligatures (a slide's, as the presentation program sets it: a PDF's text then names each letter the page draws, where a
+    // ligature's glyph stands for several letters that a reader that copies the text can't name, and the lines break as the screen's do).
+    bool noLigatures = false;
     // Lines as the presentation program sets a slide's text, as probed in it (a text box per case, line positions read back through its object
     // model and the pictures it draws; 20 fonts, text shrunk to fit and not):
     //  - A single line is 1.2 times the largest text on it whatever the font, a line's extra spacing goes above it, the paragraph at the top

@@ -32,7 +32,7 @@ QDialogButtonBox *applyButtons(QDialog *dlg, bool *all)
 }
 } // namespace
 
-HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *parent) : QDialog(parent)
+HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *parent) : QDialog(parent), m_start(o)
 {
     setWindowTitle(tr("Header & Footer"));
     setObjectName(QStringLiteral("headerFooterDialog"));
@@ -69,7 +69,7 @@ HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *pa
 
 deck::FooterOptions HeaderFooterDialog::options() const
 {
-    deck::FooterOptions o;
+    deck::FooterOptions o = m_start;
     o.date = m_date->isChecked();
     o.slideNumber = m_number->isChecked();
     o.footer = m_footer->isChecked();
