@@ -177,6 +177,36 @@ public:
 
     void build(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env);
 
+    // A footnote cut at the end of a page (a text box, or a column) goes on at the bottom of the next: its
+    // story, its number, and where its text goes on from.
+    struct CarriedNote { QString storyId; int number = 0; int from = 0; };
+    // A stretch of the story laid out instead of all of it: a page of a long document (libs/flow lays out a
+    // page at a time, each from where the one before ended). The defaults are `build` without it.
+    struct Span {
+        // Laying out starts with the paragraph that has this document position, the whole paragraph (its lines
+        // break as they would from its start).
+        int from = 0;
+        // The first paragraph's first lines are already placed, in a frame before the ones that are given: it
+        // goes on in the next frame after this many lines (-1: it doesn't). The caller gives a frame for them
+        // first, as wide as the next, and tall enough, and reads the lines from the frames after it.
+        int firstBreakAfter = -1;
+        // Laying out ends after the paragraph in which a line first lands in this frame or a later one (-1: it
+        // runs to the story's end). The lines of that paragraph are all laid out.
+        int stopAtFrame = -1;
+        // Widow and orphan control, keeping lines together, and keeping with the next paragraph: false leaves
+        // them to the caller, which then decides where the frames end.
+        bool keepRules = true;
+        // Space before the first paragraph at the top of the first frame. A paragraph that goes on from the
+        // page before has none there, nor has one that the text only came to.
+        bool spaceBeforeFirst = true;
+        // Footnotes and endnotes in the story before the first paragraph, whose numbers the notes in this stretch go on from
+        // (the first paragraph's own, in the lines that went before, the layout counts itself).
+        int footnotesBefore = 0, endnotesBefore = 0;
+        // Footnotes cut at the end of the page before: their rest goes first at the bottom of the first frame.
+        QVector<CarriedNote> carried;
+    };
+    void build(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env, const Span &span);
+
     int frameCount() const { return int(m_frames.size()); }
     bool overflow() const { return m_overflow; }
     double usedHeight(int frame) const;      // content height used, including insets
@@ -193,8 +223,22 @@ public:
     int lineEnd(int pos) const;
     QVector<QRectF> rangeRects(int frame, int from, int to) const;
     QVector<QRectF> lineRects(int frame) const;   // every line box in the frame, frame-local
-    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; };   // below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
+    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; };   // docStart: where its paragraph starts; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
     QVector<LineInfo> lineInfo(int frame) const;  // for diagnostics (jpubtool layout)
+    // Every line of the story in order, with where it is and nothing else (no text or fonts): for a caller that
+    // works on the lines of a stretch of text, as the paginator does.
+    struct LineBrief {
+        int frame = -1;           // -1: past the last frame
+        int block = 0;            // where its paragraph starts, a document position
+        int line = 0;             // its place in its paragraph, from 0
+        int lines = 0;            // the lines its paragraph has in all
+        int pos = 0, end = 0;     // document positions: its first character, and just past its last
+        QRectF rect;              // frame-local, with the spacing under the text
+        double below = 0;         // the spacing under the text
+    };
+    QVector<LineBrief> lineBriefs() const;
+    // The footnotes that go on in `frame` or after it from a frame before: with the story's text left of each.
+    QVector<CarriedNote> carriedNotes(int frame) const;
 
     // An object set in the text (tp::InlineObject): where it's drawn,
     // frame-local, and the item as JSON. It sits on the baseline, padded by
@@ -241,7 +285,7 @@ public:
     struct Note {
         // The rest of a cut note in one column: its own layout, starting
         // where the column before left off.
-        struct Piece { int frame = -1, column = 0; QRectF rect; double height = 0; std::shared_ptr<StoryLayout> layout; };
+        struct Piece { int frame = -1, column = 0; QRectF rect; double height = 0; std::shared_ptr<StoryLayout> layout; int from = 0; };   // from: where its text starts in the note's
         QString storyId;
         bool endnote = false;
         int number = 0;
@@ -278,6 +322,7 @@ private:
     Heading m_notesHeading;            // above the endnotes
     QVector<InlineObject> m_inline;
     quint64 m_serial = 0;              // this build's number, to keep what is made of it (pictures of effects) apart from another's
+    Span m_span;                       // the stretch being laid out (all of the story, but for the build that was given one)
 };
 
 // Resolve a character format for display: scheme colors, scheme fonts, scaling.
