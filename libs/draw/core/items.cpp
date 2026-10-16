@@ -204,6 +204,7 @@ QJsonObject TextItem::toJson() const
     if (valign != VAlign::Top) o["valign"] = int(valign);
     if (autofit) o["autofit"] = int(autofit);
     if (vertical) o["vertical"] = true;
+    if (noWrap) o["noWrap"] = true;
     if (continuedOn) o["contOn"] = true;
     if (!hyphenate) o["hyph"] = false;
     if (std::abs(hyphenZone - 18) > 1e-6) o["hyphZone"] = hyphenZone;
@@ -226,6 +227,7 @@ void TextItem::fromJson(const QJsonObject &o)
     valign = VAlign(o["valign"].toInt());
     autofit = Autofit(o["autofit"].toInt());
     vertical = o["vertical"].toBool();
+    noWrap = o["noWrap"].toBool();
     continuedOn = o["contOn"].toBool();
     hyphenate = o["hyph"].toBool(true);
     hyphenZone = o["hyphZone"].toDouble(18);
@@ -476,6 +478,7 @@ void ShapeItem::fromJson(const QJsonObject &o)
     storyId = o["story"].toString();
     insets = marginsFrom(o["insets"], insets);
     valign = VAlign(o["valign"].toInt(int(VAlign::Middle)));
+    noWrap = o["noWrap"].toBool();
 }
 
 // ---------- LineItem ----------

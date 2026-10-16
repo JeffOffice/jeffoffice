@@ -21265,6 +21265,181 @@ private Q_SLOTS:
         QCOMPARE(boxes[4]->rect.height(), 25.0);
     }
 
+    // A text box that doesn't wrap its text (wrapText 0x0085 = 2, the format's "none") keeps each paragraph on one line, however long it is,
+    // and sets the line against the box as its alignment says: a left one starts at the left inset and runs out past the right edge, a
+    // centered one is centered on the box and runs out of both sides, a right one ends at the right inset and runs out of the left. The
+    // same box that says nothing, or "square" (0), wraps, and a drawing group's table that says "none" is not a box that says it.
+    void importBinaryTextWithNoWrapIsSetOnOneLine()
+    {
+        const QString words = QStringLiteral("one two three four five six seven eight nine ten");
+        const int length = int(words.size());
+        // A box 100 points wide (800 master units), the paragraph's alignment (0 left, 1 center, 2 right) and the wrap property.
+        auto textBox = [&](quint32 id, int top, int align, const QVector<QPair<int, quint32>> &more) {
+            QByteArray props;
+            int count = 0;
+            for (const auto &p : more) {
+                props += le(quint16(p.first), 2) + le(p.second, 4);
+                ++count;
+            }
+            const QByteArray styles = pfRun(length + 1, 0, 0x800, le(align, 2)) + cfRun(length + 1, 0);
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 202, 2) + pptRec(0xF00B, props, quint16(count), 3)
+                                      + pptRec(0xF010, le(top, 2) + le(2000, 2) + le(2800, 2) + le(top + 400, 2)) + pptBox(0xF00D, pptText(4, words, styles)));
+        };
+        const QVector<QPair<int, quint32>> none = {{0x0085, 2}}, square = {{0x0085, 0}}, rest = {{0x01BF, 0x00100000}, {0x01FF, 0x00080000}};
+        auto both = [&](const QVector<QPair<int, quint32>> &a) { return a + rest; };
+        const QByteArray shapes = textBox(0x500, 1000, 0, both(none)) + textBox(0x501, 1500, 1, both(none)) + textBox(0x502, 2000, 2, both(none))
+                                  + textBox(0x503, 2500, 0, both(square)) + textBox(0x504, 3000, 0, rest);
+        // A drawing group that says "none" for every shape: it is not read.
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0085, 2}})));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const TextItem *> boxes;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) boxes << static_cast<const TextItem *>(it.get());
+        QCOMPARE(int(boxes.size()), 5);
+        QVERIFY(d->slideText);
+        LayoutCache cache;
+        const RenderOptions opt;
+        // The lines of a box, and the span the characters of the whole text cover from the box's left edge.
+        auto lineCount = [&](const TextItem &t) {
+            const auto fl = cache.textFrame(*d, t, 1, opt);
+            return fl.layout ? int(fl.layout->lineInfo(0).size()) : -1;
+        };
+        auto span = [&](const TextItem &t) {
+            const auto fl = cache.textFrame(*d, t, 1, opt);
+            QRectF all;
+            if (fl.layout)
+                for (const QRectF &r : fl.layout->rangeRects(0, 0, d->storyDoc(t.storyId)->characterCount() - 1)) all = all.united(r);
+            return all;
+        };
+        for (int i : {0, 1, 2}) {
+            QVERIFY2(boxes[i]->noWrap, qPrintable(QString::number(i)));
+            QCOMPARE(boxes[i]->rect.width(), 100.0);
+            QCOMPARE(lineCount(*boxes[i]), 1);
+            QVERIFY2(span(*boxes[i]).width() > 200, qPrintable(QString::number(span(*boxes[i]).width())));
+        }
+        const double inLeft = boxes[0]->insets.left(), inRight = boxes[0]->insets.right();
+        QVERIFY2(std::abs(span(*boxes[0]).left() - inLeft) < 1.0, qPrintable(QString::number(span(*boxes[0]).left())));
+        QVERIFY2(std::abs(span(*boxes[1]).center().x() - 50.0) < 1.0, qPrintable(QString::number(span(*boxes[1]).center().x())));
+        QVERIFY2(std::abs(span(*boxes[2]).right() - (100.0 - inRight)) < 1.0, qPrintable(QString::number(span(*boxes[2]).right())));
+        // Square, and nothing said: wrapped in the box.
+        for (int i : {3, 4}) {
+            QVERIFY2(!boxes[i]->noWrap, qPrintable(QString::number(i)));
+            QVERIFY2(lineCount(*boxes[i]) > 3, qPrintable(QString::number(lineCount(*boxes[i]))));
+            QVERIFY(span(*boxes[i]).right() <= 100.0);
+        }
+    }
+
+    // The same, in a shape that holds text: its frame has the flag too, and its text is set unwrapped.
+    void importBinaryShapesWithNoWrapSetTheirTextOnOneLine()
+    {
+        const QString words = QStringLiteral("one two three four five six seven eight nine ten");
+        auto shape = [&](quint32 id, int top, quint32 wrap) {
+            QByteArray props = le(0x0085, 2) + le(wrap, 4);
+            props += le(0x0087, 2) + le(1, 4);
+            const QByteArray styles = pfRun(int(words.size()) + 1, 0, 0) + cfRun(int(words.size()) + 1, 0);
+            // A rounded rectangle (spt 2) with its text.
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 2, 2) + pptRec(0xF00B, props, 2, 3)
+                                      + pptRec(0xF010, le(top, 2) + le(2000, 2) + le(2800, 2) + le(top + 1600, 2)) + pptBox(0xF00D, pptText(4, words, styles)));
+        };
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shape(0x500, 1000, 2) + shape(0x501, 3000, 0)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const ShapeItem *> shapes;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Shape && it->role.isEmpty()) shapes << static_cast<const ShapeItem *>(it.get());
+        QCOMPARE(int(shapes.size()), 2);
+        QVERIFY(shapes[0]->noWrap);
+        QVERIFY(!shapes[1]->noWrap);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QPointF origin;
+        const StoryLayout *one = Renderer::shapeTextLayout(ctx, *shapes[0], &origin);
+        QVERIFY(one);
+        QCOMPARE(int(one->lineInfo(0).size()), 1);
+        const StoryLayout *many = Renderer::shapeTextLayout(ctx, *shapes[1], &origin);
+        QVERIFY(many);
+        QVERIFY(many->lineInfo(0).size() > 3);
+    }
+
+    // A text frame that doesn't wrap is the file's too, in the formats that have it: a:bodyPr wrap="none" in a .pptx (read from the frame
+    // or the placeholder it takes after, written back, and "square" for the others), fo:wrap-option="no-wrap" in an .odp, and the item's
+    // own data (undo, copies) keep it.
+    void textFramesThatDoNotWrapAreKeptByTheFormats()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        auto box = [&](int id, const QString &name, const QString &bodyPr, bool textBox, int y) {
+            return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\"/><p:cNvSpPr%3/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id).arg(name, textBox ? QStringLiteral(" txBox=\"1\"") : QString())
+                   + xfrm(0, y, 1828800, 457200) + (textBox ? QStringLiteral("<a:noFill/>") : QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst/></a:prstGeom>"))
+                   + QStringLiteral("</p:spPr><p:txBody>") + bodyPr + QStringLiteral("<a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"/><a:t>one two three four five six seven eight nine ten</a:t></a:r></a:p></p:txBody></p:sp>");
+        };
+        xml.replace(QStringLiteral("</p:spTree>"),
+                    box(30, QStringLiteral("NoWrapBox"), QStringLiteral("<a:bodyPr wrap=\"none\"><a:spAutoFit/></a:bodyPr>"), true, 0)
+                        + box(31, QStringLiteral("NoWrapShape"), QStringLiteral("<a:bodyPr wrap=\"none\" rtlCol=\"0\"/>"), false, 600000)
+                        + box(32, QStringLiteral("SquareBox"), QStringLiteral("<a:bodyPr wrap=\"square\"/>"), true, 1200000)
+                        + box(33, QStringLiteral("PlainBox"), QStringLiteral("<a:bodyPr/>"), true, 1800000) + QStringLiteral("</p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto flag = [](const Document &doc, const QString &name, bool *found) {
+            *found = false;
+            for (const auto &it : doc.pages[0]->items) {
+                if (it->name != name) continue;
+                *found = true;
+                if (it->type() == ItemType::Text) return static_cast<const TextItem *>(it.get())->noWrap;
+                if (it->type() == ItemType::Shape) return static_cast<const ShapeItem *>(it.get())->noWrap;
+            }
+            return false;
+        };
+        bool found = false;
+        QVERIFY(flag(*d, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*d, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*d, QStringLiteral("SquareBox"), &found) && found);
+        QVERIFY(!flag(*d, QStringLiteral("PlainBox"), &found) && found);
+        // Written back: wrap="none" for the two, "square" for the others.
+        Exported e;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        auto wrapOf = [](const QString &slide, const QString &name) {
+            const int at = slide.indexOf(QStringLiteral("name=\"") + name + QStringLiteral("\""));
+            const int body = slide.indexOf(QStringLiteral("<a:bodyPr"), at);
+            return slide.mid(body, slide.indexOf(QLatin1Char('>'), body) - body);
+        };
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(wrapOf(slide, QStringLiteral("NoWrapBox")).contains(QStringLiteral("wrap=\"none\"")), qPrintable(wrapOf(slide, QStringLiteral("NoWrapBox"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("NoWrapShape")).contains(QStringLiteral("wrap=\"none\"")), qPrintable(wrapOf(slide, QStringLiteral("NoWrapShape"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("SquareBox")).contains(QStringLiteral("wrap=\"square\"")), qPrintable(wrapOf(slide, QStringLiteral("SquareBox"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("PlainBox")).contains(QStringLiteral("wrap=\"square\"")), qPrintable(wrapOf(slide, QStringLiteral("PlainBox"))));
+        // Read again, the same; and through an .odp.
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(flag(*again, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*again, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*again, QStringLiteral("SquareBox"), &found) && found);
+        const QByteArray odp = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(odp, zip, &err), qPrintable(err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY(content.contains(QStringLiteral("fo:wrap-option=\"no-wrap\"")));
+        auto fromOdp = deck::importOdp(odp, &err);
+        QVERIFY2(fromOdp, qPrintable(err));
+        QVERIFY(flag(*fromOdp, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*fromOdp, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*fromOdp, QStringLiteral("SquareBox"), &found) && found);
+        QVERIFY(!flag(*fromOdp, QStringLiteral("PlainBox"), &found) && found);
+    }
+
     // Spacing as the file has it, set as the presentation program sets it (the text engine's slide lines): a line of a share (100 for a
     // single line) of 1.2 times the text size whatever the font, its extra spacing above it, and no space before the paragraph at the
     // top of the box.

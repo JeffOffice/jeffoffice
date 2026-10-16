@@ -88,6 +88,10 @@ libs/base            colors, fonts, files, PDF
   extra space is above it, the paragraph at the top of a box takes no space
   before it, an empty paragraph shows no bullet, text doesn't wrap around
   objects, and what doesn't fit runs out of its box instead of hiding.
+  A frame whose file says it doesn't wrap its text (`wrap="none"` in a
+  .pptx, `fo:wrap-option="no-wrap"` in an .odp, wrapText 2 in an old .ppt;
+  `TextItem::noWrap` and `ShapeItem::noWrap`) sets each paragraph on one line,
+  against the frame as its alignment says, and writes that back.
   A line that isn't single sits its baseline 3/4 of the way down it when
   it is taller than a single one, and a font's descent above its bottom
   (but no higher than 3/4 down) when shorter, for all slide text; space
