@@ -20,6 +20,10 @@ constexpr double kTall = 100000;
 // How many characters of a paragraph a page lays out to begin with (a page holds a few thousand; if the lines of a longer paragraph need more
 // than that to fill the page and show what comes after it, the page is laid out again with four times as many).
 constexpr int kWindow = 6000;
+// The least of a paragraph a page that begins inside it lays out to begin with, and how many notes in the lines of a paragraph before the page make it
+// laid out from the page on.
+constexpr int kLeastWindow = 300;
+constexpr int kDenseNotes = 64;
 
 } // namespace
 
@@ -125,7 +129,19 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     // it has many lines, the page lays out the rest of it as a paragraph of its own.
     // A page that a break inside a paragraph opens has the rest of the paragraph with its space before again, as the paragraph of its own it is laid out as.
     const bool afterBreak = st.hard && st.skip > 0;
-    const bool tail = afterBreak || st.skip > std::max(0, m_doc->exactLines);
+    // (A paragraph with many notes in the lines before the page is laid out from the page's first line: each of the lines before costs all of its notes
+    // again, on every page after it.)
+    bool denseNotes = false;
+    if (st.skip > 0 && st.pos > 0) {
+        int footnotes = 0, endnotes = 0;
+        countNotes(m_doc->story()->findBlock(st.pos).position(), st.pos, &footnotes, &endnotes);
+        denseNotes = footnotes + endnotes > kDenseNotes;
+    }
+    const bool tail = afterBreak || denseNotes || st.skip > std::max(0, m_doc->exactLines);
+    // How much of the paragraph the page lays out to begin with: a page that holds little of it (one with many notes) needs a few lines more than it
+    // holds, not a page of them. (It is laid out again with more when that isn't enough.)
+    const int heldBefore = index > 0 && index <= m_starts.size() - 1 ? std::max(1, m_starts[index].pos - m_starts[index - 1].pos) : kWindow;
+    const int firstWindow = tail ? std::clamp(3 * heldBefore, kLeastWindow, kWindow) : kWindow + st.skip * 160;
     // Where a section with other columns begins on the page (below the text of the one before, in a column of the page's width): how far down the
     // text area, and the paragraph that ends the first section. (None: -1.)
     double split = -1;
@@ -164,6 +180,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         span.continued = tail;
         span.spaceBeforeContinued = afterBreak;
         span.stopAtFrame = over;
+    span.overLines = wanted + 2;
         // The notes before the page's first paragraph (before its first line, if the paragraph is laid out from there) and the footnotes cut on the page before.
         span.footnotesBefore = st.foot;
         span.endnotesBefore = st.end;
@@ -182,7 +199,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             span.spaceBeforeFirst = space;
             QVector<StoryLayout::LineBrief> all;
             // (A paragraph that is laid out whole from its start, with the lines before the page, needs room for those too.)
-            for (int window = kWindow + (tail ? 0 : st.skip * 160);; window *= 4) {
+            for (int window = firstWindow;; window *= 4) {
                 span.window = window;
                 StoryLayout layout;
                 layout.build(m_doc->story(), frames, m_doc->env, span);
@@ -689,7 +706,9 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     if (index < 0 || index >= m_starts.size()) return nullptr;
     const PageStart st = m_starts[index];
     const Run run = layoutPage(index, st);
-    if (run.kept <= 0 && !run.blank) return nullptr;
+    // (A page with none of the body's lines is a page of notes that go on from the page before, when it has them.)
+    if (run.kept <= 0 && !run.blank && st.carried.isEmpty()) return nullptr;
+    const bool bodyless = run.kept <= 0 && !run.blank;
     const Section &sec = m_doc->section(st.section);
     auto out = std::make_unique<MaterializedPage>();
     m_imageIds.clear();
@@ -719,57 +738,62 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         return out;
     }
 
-    auto story = std::make_shared<Story>();
-    story->id = QStringLiteral("flow-story-%1").arg(index);
-    story->doc = sliceOf(run, st, &out->storyFrom, &out->continuesFromBefore);
-    resolveImages(story->doc.get(), d.get());
-    d->stories.insert(story->id, story);
-    const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
-    out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
+    if (bodyless) {
+        out->storyFrom = st.pos;
+        addFurniture(d.get(), furniture, sec, st.section, out->number);
+    } else {
+        auto story = std::make_shared<Story>();
+        story->id = QStringLiteral("flow-story-%1").arg(index);
+        story->doc = sliceOf(run, st, &out->storyFrom, &out->continuesFromBefore);
+        resolveImages(story->doc.get(), d.get());
+        d->stories.insert(story->id, story);
+        const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
+        out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
 
-    // A text box for each column that has lines, as tall as its lines are: the lines that follow, which went to the next page, don't fit
-    // in it (a frame a line short of the text's bottom is how the page is cut where the paginator cut it).
-    QVector<double> bottom(run.columns, -1), top(run.columns, -1);
-    for (int i = 0; i < run.kept; ++i) {
-        const StoryLayout::LineBrief &ln = run.lines[i];
-        const int col = ln.frame - run.firstFrame;
-        if (col < 0 || col >= run.columns) continue;
-        bottom[col] = std::max(bottom[col], ln.rect.bottom() - ln.below);
-        if (top[col] < 0) top[col] = ln.rect.top();
-    }
-    QVector<std::shared_ptr<TextItem>> boxes;
-    for (int c = 0; c < run.columns && bottom[c] >= 0; ++c) {
-        auto t = std::make_shared<TextItem>();
-        t->id = QStringLiteral("flow-box-%1-%2").arg(index).arg(c);
-        const QRectF col = run.cols[c];
-        t->rect = QRectF(col.left(), furniture.body.top() + col.top(), col.width(), bottom[c] + 0.005);
-        // A paragraph that comes to the top of a column (not the page's) for want of room has no space before it there, but one that the
-        // text engine moved there to keep it with the next, or its lines together, has it. Whatever is above the first line is the top inset.
-        t->insets = QMarginsF(0, c > 0 ? top[c] : 0, 0, 0);
-        t->columns = 1;
-        t->hyphenate = m_doc->hyphenate;
-        t->hyphenZone = m_doc->hyphenZone;
-        t->storyId = story->id;
-        t->wrap.mode = Wrap::None;
-        if (!boxes.isEmpty()) boxes.last()->nextId = t->id;
-        boxes << t;
-        d->pages[0]->items.push_back(t);
-        out->boxes << t->id;
-    }
-    addFurniture(d.get(), furniture, sec, st.section, out->number);
-    // The objects set at places that the page's lines anchor.
-    if (!m_doc->objects.isEmpty()) {
-        QVector<AnchorLine> held;
+        // A text box for each column that has lines, as tall as its lines are: the lines that follow, which went to the next page, don't fit
+        // in it (a frame a line short of the text's bottom is how the page is cut where the paginator cut it).
+        QVector<double> bottom(run.columns, -1), top(run.columns, -1);
         for (int i = 0; i < run.kept; ++i) {
             const StoryLayout::LineBrief &ln = run.lines[i];
-            const int column = ln.frame - run.firstFrame;
-            if (column < 0 || column >= run.columns) continue;
-            const QRectF col = run.cols[column];
-            held << AnchorLine{ln.block, ln.pos, ln.end, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left()};
+            const int col = ln.frame - run.firstFrame;
+            if (col < 0 || col >= run.columns) continue;
+            bottom[col] = std::max(bottom[col], ln.rect.bottom() - ln.below);
+            if (top[col] < 0) top[col] = ln.rect.top();
         }
-        QVector<Anchor> anchors;
-        for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.end, held);
-        if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number);
+        QVector<std::shared_ptr<TextItem>> boxes;
+        for (int c = 0; c < run.columns && bottom[c] >= 0; ++c) {
+            auto t = std::make_shared<TextItem>();
+            t->id = QStringLiteral("flow-box-%1-%2").arg(index).arg(c);
+            const QRectF col = run.cols[c];
+            t->rect = QRectF(col.left(), furniture.body.top() + col.top(), col.width(), bottom[c] + 0.005);
+            // A paragraph that comes to the top of a column (not the page's) for want of room has no space before it there, but one that the
+            // text engine moved there to keep it with the next, or its lines together, has it. Whatever is above the first line is the top inset.
+            t->insets = QMarginsF(0, c > 0 ? top[c] : 0, 0, 0);
+            t->columns = 1;
+            t->hyphenate = m_doc->hyphenate;
+            t->hyphenZone = m_doc->hyphenZone;
+            t->storyId = story->id;
+            t->wrap.mode = Wrap::None;
+            if (!boxes.isEmpty()) boxes.last()->nextId = t->id;
+            boxes << t;
+            d->pages[0]->items.push_back(t);
+            out->boxes << t->id;
+        }
+        addFurniture(d.get(), furniture, sec, st.section, out->number);
+        // The objects set at places that the page's lines anchor.
+        if (!m_doc->objects.isEmpty()) {
+            QVector<AnchorLine> held;
+            for (int i = 0; i < run.kept; ++i) {
+                const StoryLayout::LineBrief &ln = run.lines[i];
+                const int column = ln.frame - run.firstFrame;
+                if (column < 0 || column >= run.columns) continue;
+                const QRectF col = run.cols[column];
+                held << AnchorLine{ln.block, ln.pos, ln.end, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left()};
+            }
+            QVector<Anchor> anchors;
+            for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.end, held);
+            if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number);
+        }
     }
     // The notes the page's lines cite and those that go on from the page before.
     {

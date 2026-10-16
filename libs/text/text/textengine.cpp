@@ -2165,7 +2165,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             m_notes << n;
                         }
                         B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size())};
-                        ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
+                        // (The numbers of references side by side are one run of text: Qt shapes each run of its own, and a paragraph of a
+                        // thousand takes each page more than a tenth of a second.)
+                        if (!ranges.isEmpty() && ranges.last().start + ranges.last().length == int(B->disp.size()) && ranges.last().format == rf) ranges.last().length += int(v.size());
+                        else ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
                         B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                         B->disp += v;
                         continue;
@@ -2510,6 +2513,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (sameStyle(b, b.next())) after = 0;
         }
         const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_used, reserve, m_notes, carry, seeded};
+        const bool windowCut = B->cut;
+        const int windowCutAt = B->cutAt;
         auto placeLines = [&](bool startNext, int breakAfter) {
             // Start in next text box.
             if (!tail && bf.boolProperty(tp::StartInNextBox) && f < nF && (y > 0 || c > 0)) {
@@ -2667,6 +2672,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (gridTabs) B->tl->resetTabs();
             B->tl->beginLayout();
             int lineNo = 0;
+            // (The lines of a paragraph past the stretch's last frame are laid out only as far as the caller asks: the text after them is cut as a
+            // window cuts it. Where the window cut it, or it was not, it is as the window left it.)
+            B->cut = windowCut;
+            B->cutAt = windowCutAt;
+            int overPlaced = 0;
+            bool overFull = false;
             while (true) {
                 PtLine line(B->tl->createLine());
                 if (!line.isValid()) break;
@@ -2871,9 +2882,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // at the bottom of the next column.
                     QVector<int> lineNotes;
                     double pending = 0, notesH = 0;
-                    for (const auto &ref : B->noteRefs)
-                        if (!m_notes[ref.second].endnote && ref.first >= line.textStart() && ref.first < line.textStart() + std::max(1, line.textLength()))
-                            lineNotes << ref.second;
+                    // (A line in the frame that lays out what runs over the stretch isn't on it: its notes are not measured, or the lines of a paragraph
+                    // full of notes cost each page all the notes it has left.)
+                    const bool onStretch = m_span.stopAtFrame < 0 || f < m_span.stopAtFrame;
+                    if (onStretch)
+                        for (const auto &ref : B->noteRefs)
+                            if (!m_notes[ref.second].endnote && ref.first >= line.textStart() && ref.first < line.textStart() + std::max(1, line.textLength()))
+                                lineNotes << ref.second;
                     // A note still going on comes before any later one.
                     if (!lineNotes.isEmpty() && !carry.isEmpty()) {
                         advance();
@@ -2968,8 +2983,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         moveTo = line.textStart() + line.textLength();
                     }
                     placed = true;
+                    if (m_span.overLines > 0 && m_span.stopAtFrame >= 0 && f >= m_span.stopAtFrame && ++overPlaced >= m_span.overLines) {
+                        overFull = true;
+                        B->cutAt = B->docFromDisp(line.textStart() + line.textLength());
+                    }
                 }
                 ++lineNo;
+                if (overFull) {
+                    B->cut = true;
+                    break;
+                }
             }
             B->tl->endLayout();
             if (rowActive) { y += rowH; rowActive = false; }

@@ -132,7 +132,9 @@ struct TestNotes : FieldSource {
 
 bool sameBrief(const StoryLayout::LineBrief &a, const StoryLayout::LineBrief &b, int frameShift = 0, int posShift = 0)
 {
-    return a.frame == b.frame + frameShift && a.block == b.block + posShift && a.line == b.line && a.lines == b.lines && a.pos == b.pos + posShift &&
+    // (A paragraph that goes on past the page by more lines than the page asks for is cut there: how many lines it has isn't known.)
+    const bool sameCount = a.lines == b.lines || a.lines == (1 << 28) || b.lines == (1 << 28);
+    return a.frame == b.frame + frameShift && a.block == b.block + posShift && a.line == b.line && sameCount && a.pos == b.pos + posShift &&
            a.end == b.end + posShift && std::abs(a.rect.top() - b.rect.top()) < 0.001 && std::abs(a.rect.left() - b.rect.left()) < 0.001 &&
            std::abs(a.rect.width() - b.rect.width()) < 0.001 && std::abs(a.rect.height() - b.rect.height()) < 0.001 && std::abs(a.below - b.below) < 0.001;
 }
@@ -2289,6 +2291,71 @@ private Q_SLOTS:
         own.pageCount = 7;
         QCOMPARE(own.resolve(QStringLiteral("pages")), QStringLiteral("7"));
         QCOMPARE(own.resolve(QStringLiteral("sectionpages")), QStringLiteral("7"));
+    }
+
+    // A note longer than the pages the body has goes on over pages of its own, which have no text of the body: every page is made, and the end of the note is
+    // drawn on the last of them.
+    void aNoteLongerThanTheBodyHasPagesOfItsOwn()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("long"), 2000, QStringLiteral("LONGNOTE"));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fillStory(fd.story(), 20, 4, {}, 30, 40);
+        addReference(fd.story(), fd.story()->findBlockByNumber(1).position() + 5, QStringLiteral("long"));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        int noteOnly = 0;
+        QString drawn;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY2(page, qPrintable(QStringLiteral("page %1 of %2 isn't made").arg(k).arg(pages)));
+            if (pg.lines(k).isEmpty()) {
+                ++noteOnly;
+                QVERIFY2(!page->doc->pages[0]->items.empty(), "a page of notes alone has them drawn");
+            }
+            for (const auto &item : page->doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                    if (const Story *st = page->doc->story(t->storyId)) drawn += st->doc->toPlainText() + QLatin1Char('\n');
+        }
+        QVERIFY2(noteOnly > 0, "the note is longer than the body's pages");
+        QVERIFY(drawn.contains(QStringLiteral("word1999")));
+    }
+
+    // References packed in one paragraph cost in step with their number, not its square: the page lays out only what it holds of the paragraph's notes.
+    void denseReferencesTakeTimeInStepWithTheirNumber()
+    {
+        auto seconds = [&](int count) {
+            double best = 1e9;
+            for (int attempt = 0; attempt < 2; ++attempt) {
+                TestNotes notes;
+                FlowDocument fd;
+                fd.env.wordLines = true;
+                fd.fields = &notes;
+                QTextCursor c(fd.story());
+                QTextCharFormat cf;
+                cf.setFontPointSize(11);
+                for (int i = 0; i < count; ++i) {
+                    const QString id = QStringLiteral("n%1").arg(i);
+                    addNote(&notes, id, 3, QStringLiteral("N%1").arg(i));
+                    QTextCharFormat ref = cf;
+                    ref.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+                    ref.setProperty(tp::Field, QStringLiteral("footnote:") + id);
+                    c.insertText(QString(QChar(0xFFFC)), ref);
+                }
+                QElapsedTimer t;
+                t.start();
+                Paginator pg(&fd);
+                const int pages = pg.pageCount();
+                for (int k = 0; k < std::min(pages, 12); ++k) pg.materialize(k);
+                best = std::min(best, t.nsecsElapsed() / 1e9);
+            }
+            return best;
+        };
+        const double small = seconds(400), large = seconds(1600);
+        // (Four times the references: four times the time when it is in step, sixteen when it is the square; it was twenty before.)
+        QVERIFY2(large < small * 8, qPrintable(QStringLiteral("400 references %1 s, 1600 references %2 s").arg(small).arg(large)));
     }
 
     // A footnote is at the foot of the page that cites it, in a text box of its own at the bottom of the text area with a rule above it, and its

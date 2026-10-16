@@ -239,6 +239,10 @@ public:
         // Laying out ends after the paragraph in which a line first lands in this frame or a later one (-1: it
         // runs to the story's end). The lines of that paragraph are all laid out.
         int stopAtFrame = -1;
+        // The most lines of the paragraph that lands in that frame that are laid out: the paragraph is cut after them (LineBrief::cut), as a window cuts it
+        // (0: all of them). A caller that wants only a few lines past its last frame says so, and a paragraph of a thousand lines costs each page only
+        // its own.
+        int overLines = 0;
         // Widow and orphan control, keeping lines together, and keeping with the next paragraph: false leaves
         // them to the caller, which then decides where the frames end.
         bool keepRules = true;
