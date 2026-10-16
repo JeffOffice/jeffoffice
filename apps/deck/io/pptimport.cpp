@@ -946,6 +946,7 @@ private:
     QByteArray m_defaults;   // the drawing group's default property records
     QHash<int, int> m_storeAt;   // by the number a shape gives a picture, the store's entry
     QHash<int, QString> m_pictureIds;
+    qint64 m_pictureWork = office::kOdrawPictWork;   // what the Macintosh pictures may still do between them
     QHash<quint32, QString> m_pictureAtOffset;   // by where it is in the pictures stream, the picture a store entry points to
     qint64 m_writersXmlBytes = 0;   // the XML of shapes read so far
     QHash<QString, QString> m_adjusted;   // pictures with brightness and contrast applied, by picture and the two
@@ -1348,7 +1349,12 @@ QString Importer::pictureId(int blipIndex)
             if (recAt(m_pictures, e.delayOffset, m_pictures.size(), &r) && r.type >= 0xF018 && r.type <= 0xF117) blip = m_pictures.mid(e.delayOffset, qsizetype(r.len + 8));
         }
         QString format;
-        const QByteArray bytes = blip.isEmpty() ? QByteArray() : office::odrawBlip(blip, &format);
+        // Macintosh pictures are drawn from what all of them in the file may do together; those after it is spent are left out, with the note
+        // of pictures left out.
+        const bool pict = blip.size() >= 8 && qFromLittleEndian<quint16>(blip.constData() + 2) == 0xF01C;
+        const bool spent = pict && m_pictureWork <= 0;
+        if (spent) ++m_doc.imagesLeftOut;
+        const QByteArray bytes = blip.isEmpty() || spent ? QByteArray() : office::odrawBlip(blip, &format, &m_pictureWork);
         if (!bytes.isEmpty() && m_pictureIds.size() < 20000) id = m_doc.addImage(bytes, format);
         if (inStream) m_pictureAtOffset.insert(e.delayOffset, id);
     }

@@ -4,6 +4,8 @@
 
 #include "office/odraw_pict.h"
 
+#include "render/paintwork.h"
+
 #include <QFont>
 #include <QFontMetricsF>
 #include <QPainter>
@@ -16,22 +18,35 @@
 #include <cstring>
 #include <map>
 #include <set>
+#include <tuple>
+#include <vector>
 
 namespace jp::office {
 
 namespace {
 
-// The most operations of a picture that are drawn: a chart of some 600 operations takes 12 KB, and a drawing of tens of thousands a few
-// hundred KB, so a picture of this many has been made to be slow.
+// What one picture may do, in units of about a microsecond of work on the computers the pictures were measured on (a rectangle over the
+// whole image costs about 40, a string of text 40 and a font it has not used yet 1,500, a bitmap of a million pixels 10,000, a region of
+// a thousand rectangles 8,000 to clip to): the work of
+// a picture of a real presentation is some tens of thousands at most (a chart of 600 operations takes 30,000), so this is more than ten
+// times that, and about a second.
+constexpr double kPictureWork = 1000000;
+// The most operations of a picture that are read: a chart of some 600 operations takes 12 KB, and a drawing of tens of thousands a few
+// hundred KB.
 constexpr int kMaxOperations = 200000;
-// The most the shapes of a picture fill in all, as a multiple of the image's own area: a picture that paints the page 100 times over has
-// painted it more than any drawing does.
-constexpr double kMaxFilled = 100;
-// The longest side of the image, in pixels, and the most pixels a bitmap in the picture holds: a photo of a few million.
+// The longest side of the image, in pixels.
 constexpr double kMaxSide = 2048;
+// The most pixels of bitmaps in one picture, and in one bitmap: a photo of a few million is the most a picture of a real
+// presentation holds, so these are more than ten times that.
+constexpr qint64 kMaxPictureBitmapPixels = 48 * 1024 * 1024;
 constexpr qint64 kMaxBitmapPixels = 16 * 1024 * 1024;
 // The longest side of a picture's frame: the 16-bit numbers its coordinates are.
 constexpr int kMaxFrame = 32767;
+// The most rectangles of a region: a shape of a few hundred rows has as many runs, and the rows of a region come with each its own
+// places, so a small region can make as many rectangles as it has places times rows.
+constexpr int kMaxRegionRects = 20000;
+// The fonts a picture has at once; a picture of a real presentation has a dozen.
+constexpr size_t kMaxFonts = 128;
 
 // The characters of the Macintosh's own character set from 0x80 up.
 const char16_t kMacRoman[128] = {
@@ -140,17 +155,44 @@ class Picture {
 public:
     explicit Picture(const QByteArray &data) : r{reinterpret_cast<const uchar *>(data.constData()), data.size()} {}
 
-    QImage run()
+    // `shared` is what is left of the work all the pictures of one file may do; this takes from it what it does.
+    QImage run(qint64 *shared)
+    {
+        work = shared ? std::min<double>(kPictureWork, double(*shared)) : kPictureWork;
+        if (work <= 0) return QImage();
+        const double allowed = work;
+        const QImage image = render();
+        if (shared) *shared = std::max<qint64>(0, *shared - qint64(std::min(allowed, allowed - work)));
+        return image;
+    }
+
+private:
+    enum Kind { Frame, Paint, Erase, Invert, Fill };
+
+    QImage render()
     {
         // The size word, the frame, then the version operation of a picture of the second kind.
         r.skip(2);
-        const QRectF f = r.rect();
+        QRectF f = r.rect();
         if (r.bad || f.width() < 1 || f.height() < 1 || f.width() > kMaxFrame || f.height() > kMaxFrame) return QImage();
         if (r.u16() != 0x0011 || r.u16() != 0x02FF) return QImage();
+        // The header that follows tells, for a picture of a finer grid than points (its resolution), the rectangle its operations' numbers
+        // are in; the image is that rectangle, whatever the frame is.
+        const qsizetype afterVersion = r.p;
+        if (r.u16() == 0x0C00) {
+            const int version = r.u16();
+            r.skip(2 + 4 + 4);
+            const QRectF source = r.rect();
+            r.skip(4);
+            if (!r.bad && version == 0xFFFE && source.width() >= 1 && source.height() >= 1 && source.width() <= kMaxFrame && source.height() <= kMaxFrame) f = source;
+        } else {
+            r.p = afterVersion;
+        }
+        if (r.bad) return QImage();
         const double scale = std::min(2.0, kMaxSide / std::max(f.width(), f.height()));
         QImage image(std::max(1, int(std::lround(f.width() * scale))), std::max(1, int(std::lround(f.height() * scale))), QImage::Format_ARGB32_Premultiplied);
+        if (image.isNull()) return QImage();
         image.fill(Qt::transparent);
-        budget = kMaxFilled * double(image.width()) * image.height();
         QPainter painter(&image);
         p = &painter;
         p->setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing | QPainter::SmoothPixmapTransform);
@@ -160,8 +202,9 @@ public:
         QPainterPath whole;
         whole.addRect(f);
         p->setClipPath(whole);
-        for (int i = 0; i < kMaxOperations && !r.bad && !stopped && r.p + 2 <= r.n; ++i) {
-            if (!operation()) break;
+        for (int i = 0; i < kMaxOperations && !r.bad && work >= 0 && r.p + 2 <= r.n; ++i) {
+            charge(1);
+            if (work < 0 || !operation()) break;
             r.p += r.p & 1;   // each one starts on an even offset
         }
         p->end();
@@ -170,8 +213,12 @@ public:
         return drew ? image : QImage();
     }
 
-private:
-    enum Kind { Frame, Paint, Erase, Invert, Fill };
+    // Takes work from what the picture may do; false when that is spent.
+    bool charge(double units)
+    {
+        work -= units;
+        return work >= 0;
+    }
 
     // One operation. False when the picture ends, or goes on in a way this can't follow.
     bool operation()
@@ -182,12 +229,24 @@ private:
         if (op >= 0x30 && op <= 0x8F) return shape(op);
         switch (op) {
         case 0x0000: case 0x001C: case 0x001E: return true;
-        case 0x0001: p->setClipPath(region()); return !r.bad;
+        case 0x0001: {
+            int rects = 0;
+            const QPainterPath path = region(&rects);
+            if (!charge(10 + rects * 8)) return false;
+            p->setClipPath(path);
+            return !r.bad;
+        }
         case 0x0002: bkPattern = pattern(); return true;
         case 0x0003: font = r.u16(); return true;
         case 0x0004: face = r.u8(); return true;
         case 0x0005: case 0x0008: case 0x0015: case 0x0016: r.skip(2); return true;
-        case 0x0006: case 0x000C: r.skip(4); return true;
+        case 0x0006: r.skip(4); return true;
+        case 0x000C: {
+            // The origin moves by an offset: what is drawn from here on is where it was, moved the other way.
+            const int dh = r.i16(), dv = r.i16();
+            p->translate(-dh, -dv);
+            return true;
+        }
         case 0x0007: {
             const int v = r.i16(), h = r.i16();
             penSize = QSizeF(h, v);
@@ -210,9 +269,13 @@ private:
         case 0x001D: case 0x001F: r.skip(6); return true;
         case 0x0020: {
             const QPointF from = point();
-            return line(from, point());
+            const QPointF to = point();
+            return line(from, to);
         }
-        case 0x0021: return line(pen, point());
+        case 0x0021: {
+            const QPointF to = point();
+            return line(pen, to);
+        }
         case 0x0022: {
             const QPointF from = point();
             const int dh = qint8(r.u8()), dv = qint8(r.u8());
@@ -245,7 +308,7 @@ private:
             const qsizetype end = std::min<qsizetype>(r.n, r.p + length);
             const int id = r.u16();
             const int nameLength = r.u8();
-            if (!r.bad && r.p + nameLength <= end) names[id] = QString::fromLatin1(reinterpret_cast<const char *>(r.d + r.p), nameLength);
+            if (!r.bad && r.p + nameLength <= end && names.size() < 1000) names[id] = QString::fromLatin1(reinterpret_cast<const char *>(r.d + r.p), nameLength);
             r.p = end;
             return !r.bad;
         }
@@ -259,7 +322,7 @@ private:
         default: break;
         }
         // Reserved operations carry as many words as their high byte says. The others (patterns made of pictures, one-bit bitmaps, bitmaps
-        // with regions, pictures inside pictures) can't be followed, and the picture ends there.
+        // with regions, pictures inside pictures, and the pictures of the first kind) can't be followed, and the picture ends there.
         if (op >= 0x0100 && op < 0x8000) {
             r.skip(qint64(op >> 8) * 2);
             return true;
@@ -287,44 +350,59 @@ private:
     }
 
     // A region: its size (its own two bytes and the box's eight included), its box, and, when it is not just the box, its rows as the
-    // places where each differs from the row above, each row ended by 0x7FFF as is the region.
-    QPainterPath region()
+    // places where each differs from the row above, each row ended by 0x7FFF as is the region. `rects` gets how many rectangles it is;
+    // the rows that would make more than kMaxRegionRects are left out.
+    QPainterPath region(int *rects)
     {
         QPainterPath path;
+        *rects = 0;
         const int size = r.u16();
         const QRectF box = r.rect();
         if (size <= 10) {
             path.addRect(box);
+            *rects = 1;
             return path;
         }
         const qsizetype end = std::min<qsizetype>(r.n, r.p + (size - 10));
         std::set<int> active;
         int above = 0;
-        bool any = false;
-        while (r.p + 2 <= end) {
+        bool any = false, full = false;
+        while (r.p + 2 <= end && !full) {
             const int y = qint16(r.u16());
             if (y == 0x7FFF) break;
+            std::vector<int> places;
+            while (r.p + 2 <= end) {
+                const int x = qint16(r.u16());
+                if (x == 0x7FFF) break;
+                places.push_back(x);
+            }
+            // A row that differs from the one above in nothing is no new row.
+            if (places.empty()) continue;
             // The runs between the places of the rows above, down to this row.
             if (any) {
                 int from = 0;
                 bool open = false;
                 for (const int x : active) {
-                    if (open) path.addRect(QRectF(QPointF(from, above), QPointF(x, y)));
+                    if (open) {
+                        if (*rects >= kMaxRegionRects) {
+                            full = true;
+                            break;
+                        }
+                        path.addRect(QRectF(QPointF(from, above), QPointF(x, y)));
+                        ++*rects;
+                    }
                     from = x;
                     open = !open;
                 }
             }
-            while (r.p + 2 <= end) {
-                const int x = qint16(r.u16());
-                if (x == 0x7FFF) break;
+            for (const int x : places)
                 if (!active.erase(x)) active.insert(x);
-            }
             above = y;
             any = true;
         }
         r.p = end;
         path.setFillRule(Qt::WindingFill);
-        return path.simplified();
+        return path;
     }
 
     // A polygon's points: a closed one when it ends where it began, else its lines.
@@ -367,39 +445,50 @@ private:
         return path;
     }
 
+    // An arc's start and how far it goes, in degrees (read in order: the order a function's arguments are worked out in is not set).
+    void readAngles()
+    {
+        const int start = r.i16();
+        const int sweep = r.i16();
+        angles = QPointF(start, sweep);
+    }
+
     // A shape's operation: which shape (its own place, or the last one's) and what is done with it.
     bool shape(int op)
     {
         const int family = (op >> 3) & ~1, how = op & 7;
         const bool same = (op >> 3) & 1;
+        int rects = 0;
         if (same) {
-            if (family == 12) angles = QPointF(r.i16(), r.i16());
+            if (family == 12) readAngles();
         } else if (family == 14) {
             lastPolygon = polygon();
         } else if (family == 16) {
-            lastRegion = region();
+            lastRegion = region(&rects);
+            if (!charge(rects * 3)) return false;
         } else {
             lastRect = r.rect();
-            if (family == 12) angles = QPointF(r.i16(), r.i16());
+            if (family == 12) readAngles();
         }
         if (r.bad) return false;
         if (how > Fill || how == Invert) return true;
         if (family == 14 || family == 16) {
             const QPainterPath &path = family == 14 ? lastPolygon : lastRegion;
-            return draw(path, Kind(how), path.boundingRect());
+            return draw(path, Kind(how), path.boundingRect(), family == 16);
         }
         // The outline is drawn inside the shape: the shape inset by half the pen's size.
         QRectF box = lastRect;
         if (how == Frame) box = lastRect.adjusted(penSize.width() / 2, penSize.height() / 2, -penSize.width() / 2, -penSize.height() / 2);
         if (box.width() < 0 || box.height() < 0) return true;
-        return draw(pathOf(family, box, how == Frame), Kind(how), lastRect);
+        return draw(pathOf(family, box, how == Frame), Kind(how), lastRect, false);
     }
 
-    // Paints a path, or draws it as an outline as wide as the pen.
-    bool draw(const QPainterPath &path, Kind kind, const QRectF &box)
+    // Paints a path, or draws it as an outline as wide as the pen. A region is painted without smoothing, which leaves no seam between the
+    // rectangles it is made of.
+    bool draw(const QPainterPath &path, Kind kind, const QRectF &box, bool crisp)
     {
         if (kind == Frame && (penSize.width() <= 0 || penSize.height() <= 0)) return true;
-        if (!spend(box)) return false;
+        if (!spend(box, fillWork(p, path) * (kind == Frame ? 3 : 1))) return false;
         if (kind == Frame) {
             p->setPen(QPen(patternColor(penPattern, fore, back), penWidth(), Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin));
             p->setBrush(Qt::NoBrush);
@@ -408,7 +497,9 @@ private:
         }
         const Pattern &used = kind == Erase ? bkPattern : kind == Fill ? fillPattern : penPattern;
         p->setPen(Qt::NoPen);
+        if (crisp) p->setRenderHint(QPainter::Antialiasing, false);
         p->fillPath(path, patternColor(used, fore, back));
+        if (crisp) p->setRenderHint(QPainter::Antialiasing, true);
         return true;
     }
 
@@ -419,16 +510,12 @@ private:
         return std::max((penSize.width() + penSize.height()) / 2, 0.5 / scale);
     }
 
-    // Counts the area a shape fills against what the picture may fill in all.
-    bool spend(const QRectF &box)
+    // Charges the work of a shape: what painting its box costs, and `more`.
+    bool spend(const QRectF &box, double more = 0)
     {
-        const QRectF device(QPointF(0, 0), QSizeF(p->device()->width(), p->device()->height()));
-        const QRectF mapped = p->transform().mapRect(box).intersected(device);
-        budget -= std::max(1.0, mapped.width() * mapped.height());
+        if (!charge(areaWork(p, box) + more)) return false;
         drew = true;
-        if (budget >= 0) return true;
-        stopped = true;
-        return false;
+        return true;
     }
 
     // A line: the pen's rectangle drawn along it, so one the pen's size from the point (the pen hangs from its top left).
@@ -442,6 +529,27 @@ private:
         p->setPen(QPen(patternColor(penPattern, fore, back), penWidth(), Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin));
         p->drawLine(from + half, to + half);
         return true;
+    }
+
+    struct Face {
+        QFont font;
+        QFontMetricsF metrics;
+    };
+
+    // A font of a family, size (in the picture's units), and style: made once, as making one is most of what drawing a string takes.
+    const Face &faceOf(const QString &family, int size, int style, bool *made)
+    {
+        const auto key = std::make_tuple(family, size, style);
+        auto it = faces.find(key);
+        *made = it == faces.end();
+        if (!*made) return it->second;
+        if (faces.size() >= kMaxFonts) faces.clear();
+        QFont f(family);
+        f.setPixelSize(size);
+        f.setBold(style & 1);
+        f.setItalic(style & 2);
+        f.setUnderline(style & 4);
+        return faces.emplace(key, Face{f, QFontMetricsF(f)}).first->second;
     }
 
     // A string with its baseline at a place, the pen going on to its end.
@@ -467,14 +575,12 @@ private:
         textAt = QPointF(h, v);
         pen = textAt;
         if (textSize <= 0) return true;
-        QFont f(family);
-        f.setPixelSize(textSize);
-        f.setBold(face & 1);
-        f.setItalic(face & 2);
-        f.setUnderline(face & 4);
-        const double width = QFontMetricsF(f).horizontalAdvance(s);
+        bool made = false;
+        const Face &used = faceOf(family, textSize, face & 7, &made);
+        const double width = used.metrics.horizontalAdvance(s);
+        if (!charge(40 + count * 2 + (made ? 1500 : 0))) return false;
         if (!spend(QRectF(h, v - textSize, width, textSize * 1.3))) return false;
-        p->setFont(f);
+        p->setFont(used.font);
         p->setPen(fore);
         p->drawText(QPointF(h, v), s);
         pen.setX(h + width);
@@ -546,7 +652,12 @@ private:
         const QRectF source = r.rect(), destination = r.rect();
         r.skip(2);
         const int width = bounds.width(), height = bounds.height();
-        if (r.bad || width < 1 || height < 1 || qint64(width) * height > kMaxBitmapPixels) return false;
+        if (r.bad || width < 1 || height < 1) return false;
+        // The pixels are paid for, and counted against what the picture may hold, before there is room for them.
+        const qint64 pixels = qint64(width) * height;
+        if (pixels > kMaxBitmapPixels || bitmapPixels + pixels > kMaxPictureBitmapPixels) return false;
+        bitmapPixels += pixels;
+        if (!charge(10 + pixels / 100)) return false;
         const bool indexed = !direct && (pixelSize == 1 || pixelSize == 2 || pixelSize == 4 || pixelSize == 8);
         const bool wide = direct && pixelSize == 32, narrow = direct && pixelSize == 16;
         if (!indexed && !wide && !narrow) return false;
@@ -557,6 +668,7 @@ private:
         const bool planes = wide && packed && packType == 4;
         const int planeCount = components == 3 ? 3 : 4;
         QImage image(width, height, QImage::Format_RGB32);
+        if (image.isNull()) return false;
         QByteArray bytes;
         for (int y = 0; y < height; ++y) {
             if (!row(&bytes, planes ? width * planeCount : rowBytes, rowBytes > 250, narrow ? 2 : 1, packed)) return false;
@@ -577,21 +689,24 @@ private:
                 }
             }
         }
-        if (!spend(destination)) return false;
+        // (Drawn at a size, a bitmap costs what that many pixels do, about as much as a rectangle of the same size and twice.)
+        if (!spend(destination, destination.width() * destination.height() / 1000)) return false;
         p->drawImage(destination, image, source.translated(-bounds.topLeft()));
         return true;
     }
 
     Reader r;
     QPainter *p = nullptr;
-    double budget = 0;
-    bool stopped = false, drew = false;
+    double work = 0;
+    qint64 bitmapPixels = 0;
+    bool drew = false;
     QColor fore = Qt::black, back = Qt::white;
     Pattern penPattern = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, fillPattern = penPattern, bkPattern{};
     QSizeF penSize{1, 1}, oval{0, 0};
     QPointF pen, textAt;
     int font = 0, face = 0, textSize = 12;
     std::map<int, QString> names;
+    std::map<std::tuple<QString, int, int>, Face> faces;
     QRectF lastRect;
     QPointF angles;
     QPainterPath lastPolygon, lastRegion;
@@ -599,9 +714,9 @@ private:
 
 } // namespace
 
-QImage odrawPictImage(const QByteArray &pict)
+QImage odrawPictImage(const QByteArray &pict, qint64 *work)
 {
-    return Picture(pict).run();
+    return Picture(pict).run(work);
 }
 
 } // namespace jp::office

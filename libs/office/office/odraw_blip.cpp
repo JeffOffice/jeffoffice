@@ -89,7 +89,7 @@ QByteArray placeableHeader(qint32 left, qint32 top, qint32 right, qint32 bottom,
 
 } // namespace
 
-QByteArray odrawBlip(const QByteArray &data, QString *format)
+QByteArray odrawBlip(const QByteArray &data, QString *format, qint64 *pictWork)
 {
     if (format) format->clear();
     const QVector<OdrawRecord> records = odrawRecords(data);
@@ -131,7 +131,7 @@ QByteArray odrawBlip(const QByteArray &data, QString *format)
         }
         if (name == QLatin1String("pict")) {
             // A Macintosh picture is drawn once, as a PNG file.
-            const QImage image = odrawPictImage(file);
+            const QImage image = odrawPictImage(file, pictWork);
             file.clear();
             if (image.isNull()) return QByteArray();
             QBuffer buffer(&file);
