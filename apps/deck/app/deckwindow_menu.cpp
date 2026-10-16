@@ -55,12 +55,14 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
     } else {
         add(nullptr, {"edit.paste"});
         menu->addSeparator();
-        QMenu *layout = layoutMenu(menu, true);
-        layout->setTitle(tr("Layout"));
-        layout->setIcon(icon("layout-template"));
-        menu->addMenu(layout);
-        alias(QStringLiteral("slide.reset"), tr("Reset Slide"));
-        menu->addSeparator();
+        if (m_view != View::Master) {   // (a slide's, not a master's)
+            QMenu *layout = layoutMenu(menu, true);
+            layout->setTitle(tr("Layout"));
+            layout->setIcon(icon("layout-template"));
+            menu->addMenu(layout);
+            alias(QStringLiteral("slide.reset"), tr("Reset Slide"));
+            menu->addSeparator();
+        }
         add(nullptr, {"design.formatBackground"});
         QMenu *grid = menu->addMenu(act("view.gridlines")->icon(), tr("Grid and Guides"));
         add(grid, {"view.gridlines", "view.guides"});

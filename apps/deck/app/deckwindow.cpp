@@ -19,6 +19,7 @@
 #include "core/deck.h"
 #include "core/embeddedfonts.h"
 #include "core/sections.h"
+#include "core/themes.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
 
@@ -477,7 +478,7 @@ void DeckWindow::setLayout(const QString &layoutType)
     if (!layout || i < 0 || i >= d->pages.size()) return;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Layout"));
-    deck::applyLayout(*d, *d->pages[i], *layout);
+    deck::moveToLayout(*d, *d->pages[i], *layout);
     m_ed->endChange();
 }
 

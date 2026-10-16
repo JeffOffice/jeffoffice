@@ -76,18 +76,16 @@ void DeckWindow::createMasterActions()
     mk(QStringLiteral("master.close"), tr("Close Master View"), QStringLiteral("x"), QKeySequence(), [this] { closeMasters(); });
 
     m_masterPane->setMenuActions({act("master.insertMaster"), act("master.insertLayout"), nullptr, act("master.rename"), act("master.delete"), act("master.preserve")});
-    // What the undo of an edit that was made in the view shows, the view shows again; and the thumbnails follow the presentation.
+    // What the undo of an edit that was made in the view shows, the view shows again; and the thumbnails follow the presentation while it
+    // shows (they are drawn when it opens, not for each presentation that is opened).
     connect(m_ed, &Editor::pageChanged, this, &DeckWindow::syncMasterView);
     connect(m_ed, &Editor::pageChanged, m_masterPane, &MasterPane::followCurrent);
     connect(m_ed, &Editor::pageChanged, this, &DeckWindow::refreshMasterActions);
     connect(m_ed, &Editor::changed, m_masterPane, [this] {
         if (m_view == View::Master) m_masterPane->refresh(true);
     });
-    connect(m_ed, &Editor::documentReplaced, m_masterPane, [this] { m_masterPane->refresh(); });
     // An edit of a master or layout reaches what stands on it, in the same step.
-    m_ed->masterEdited = [this](Document &now, const Document &before) {
-        if (m_carryEdits) deck::carryMasterEdits(now, before);
-    };
+    m_ed->masterEdited = [this](Document &now, const Document &before) { return m_carryEdits && deck::carryMasterEdits(now, before); };
 }
 
 // The Slide Master tab's check boxes, and the menus of the theme's gallery, colors, fonts, and background styles (the Design tab's own).
@@ -218,7 +216,7 @@ void DeckWindow::refreshMasterActions()
         m_slideLabel->setText((master ? tr("Slide master: %1") : tr("Layout: %1")).arg(page->name));
         m_slideLabel->setMinimumWidth(std::max(110, m_slideLabel->fontMetrics().horizontalAdvance(m_slideLabel->text()) + 12));
     }
-    act("master.preserve")->setChecked(page && deck::isPreserved(*page));
+    act("master.preserve")->setChecked(page && deck::isKept(*d, *page));
     act("master.layout")->setEnabled(master);
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("master.placeholder."))) a->setEnabled(layout);
@@ -229,31 +227,39 @@ void DeckWindow::refreshMasterActions()
     act("master.hideBackground")->setEnabled(layout);
     act("master.hideBackground")->setChecked(layout && !page->showMasterItems);
     // What works on a slide waits while a master or layout is open (the ones that were available come back with the view).
+    // (A command of the ribbon alone, such as Layout and Section, has no entry of the window's: it is found by its name.)
     static const char *const kSlideOnly[] = {"slide.new", "slide.duplicate", "slide.hide", "slide.reset", "slide.reuse", "view.notes", "insert.headerFooter", "insert.video",
-                                             "insert.audio", "comment.new", "section.add", "section.rename", "section.remove", "section.removeAll"};
+                                             "insert.audio", "ribbon.layout", "ribbon.section", "ribbon.video", "ribbon.audio", "comment.new", "section.add", "section.rename",
+                                             "section.remove", "section.removeAll"};
+    auto command = [this](const QString &id) { return act(id) ? act(id) : findChild<QAction *>(id); };
     if (inMaster) {
         for (const char *id : kSlideOnly)
-            if (QAction *a = act(id); a && a->isEnabled()) {
+            if (QAction *a = command(QString::fromLatin1(id)); a && a->isEnabled()) {
                 a->setEnabled(false);
                 m_waiting << QString::fromLatin1(id);
             }
     } else if (!m_waiting.isEmpty()) {
         for (const QString &id : std::as_const(m_waiting))
-            if (QAction *a = act(id)) a->setEnabled(true);
+            if (QAction *a = command(id)) a->setEnabled(true);
         m_waiting.clear();
     }
 }
 
 // ---- the commands
 
-void DeckWindow::changeMasters(const QString &label, const std::function<void(Document &)> &fn)
+void DeckWindow::changeMasters(const QString &label, const std::function<void(Document &)> &fn, const QString &touched)
 {
     Document *d = m_ed->doc();
     if (!d) return;
     m_notes->commit();
     m_ed->endTextEdit();
     m_ed->beginChange(label);
+    // A slide master changed here is the user's own from then on (a change of theme won't take it away), however little the change is.
+    deck::keepMasterOf(*d, m_ed->masterView());
+    deck::keepMasterOf(*d, touched);
     fn(*d);
+    deck::keepMasterOf(*d, m_ed->masterView());
+    deck::keepMasterOf(*d, touched);
     m_ed->endChange();
     if (m_view == View::Master) m_masterPane->refresh();
     refreshMasterActions();
@@ -328,16 +334,16 @@ void DeckWindow::renameMasterPage(const QString &id, const QString &name)
 {
     const MasterPage *page = m_ed->doc() ? m_ed->doc()->master(id) : nullptr;
     if (!page || name.trimmed().isEmpty() || name.trimmed() == page->name) return;
-    changeMasters(tr("Rename"), [&](Document &d) { deck::renameMasterPage(d, id, name); });
+    changeMasters(tr("Rename"), [&](Document &d) { deck::renameMasterPage(d, id, name); }, id);
 }
 
 void DeckWindow::setPreserve(const QString &id, bool on)
 {
     const MasterPage *page = m_ed->doc() ? m_ed->doc()->master(id) : nullptr;
-    if (!page || deck::isPreserved(*page) == on) return;
+    if (!page || deck::isKept(*m_ed->doc(), *page) == on) return;
     changeMasters(tr("Preserve"), [&](Document &d) {
-        if (MasterPage *m = d.master(id)) deck::setPreserved(*m, on);
-    });
+        if (MasterPage *m = d.master(id)) deck::setPreserved(d, *m, on);
+    }, id);
 }
 
 QString DeckWindow::insertPlaceholder(deck::PlaceholderKind kind)
