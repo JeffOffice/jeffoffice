@@ -1,5 +1,6 @@
 // Tests of JeffWrite (apps/write): the document, editing it, the .docx it reads and writes, the page view, and the window.
 
+#include "core/fonts.h"
 #include "app/pageview.h"
 #include "app/filescreen.h"
 #include "app/help.h"
@@ -181,6 +182,7 @@ private Q_SLOTS:
         Q_INIT_RESOURCE(resources);
         Q_INIT_RESOURCE(write);
         setAppInfo(writeAppInfo());
+        initCore();   // the program's own fonts, as JeffWrite loads them (a test machine may have none: Qt on Windows ships no fonts)
     }
 
     // ---------------------------------------------------------------- the app
