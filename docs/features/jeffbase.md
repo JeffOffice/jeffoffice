@@ -1,26 +1,30 @@
 # JeffBase feature list
 
-JeffBase is the desktop database program of JeffOffice, modeled on the one in Office 2021 (Access, the program people use for contact lists, inventories, and small-business records). It keeps its own data in a **SQLite** file by default, opens Access's `.accdb` and `.mdb` files, and saves `.accdb` for people who still use Access. This list is the whole job, laid out the way the original is (File, then each ribbon tab, then what sits under the ribbon), so the work can be planned and tracked. Nothing is built yet except what the suite already does for every app. Last reviewed October 15, 2026.
+JeffBase is the desktop database app of JeffOffice, modeled on Access in Office 2021 (the program people use for contact lists, inventories, and small-business records). It keeps its own data in a **SQLite** file by default, opens Access's `.accdb` and `.mdb` files, and saves `.accdb` for people who still use Access. It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that. This list is the whole job, laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Legend: `[x]` done (the suite already does it for JeffBase's purpose) · `[ ]` not built yet · `[~]` partly there because a shared JeffOffice part already does it (the note says which) · **(alt)** the usual way to do this depends on a proprietary online service or a Windows-only part, so JeffBase offers an open replacement.
+Last reviewed October 16, 2026.
+
+Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
 Every item carries a tier:
 
-- **first release**: the first public build (a preview, as JeffDeck 0.7.0 is). It must be good enough for a contact list, an inventory, or a small record book: make tables, type and edit rows in the datasheet (the grid that shows a table), join tables with relationships, ask questions with select queries, enter data on simple forms, print a simple report, bring data in from and send it out to CSV files and spreadsheets, and open a person's existing `.accdb` or `.mdb` without damaging it.
-- **1.0**: what a full replacement needs. Version 1.0 is ready to ship when Access 2021 opens every `.accdb` JeffBase saves (tables, relationships, and queries), Compact & Repair finishes on it without a message, and JeffBase's forms, reports, and queries give the same answers as Access's on the sample databases.
-- **later**: used by few databases, needs a piece the suite doesn't have yet, runs code, or depends on something outside the program.
-
-## Words used here
-
-A small example carries through the list. A shop keeps a **table** (a list of rows that all have the same fields) named Customers, with one row per customer and fields such as Name, City, and Phone. A second table, Orders, has one row per order. A **primary key** is the field (often an AutoNumber that counts 1, 2, 3, and so on) that tells one row from another. A **relationship** joins Orders.CustomerID to Customers.ID, so each order points to one customer and the program can refuse an order for a customer who isn't there. The **datasheet** is the grid where rows are typed and edited. A **query** is a saved question, such as "orders over $100 from customers in Ohio, newest first"; its answer looks like a table. A **form** is a screen for entering or looking at one row at a time, such as a new order. A **report** is a printed or PDF page built from a table or query, such as each customer's orders with a total. A **macro** is a saved list of steps, and **VBA** is Access's programming language; both can run on their own, which is why they need care. **SQL** is the text language for asking a database questions; a query is SQL underneath. **ODBC** is a Windows-born standard for talking to database servers. **Compact & Repair** rewrites a file to shrink it and fix damage.
+- **first release**: needed in JeffBase's first public release.
+- **1.0**: needed before JeffBase is called finished (version 1.0).
+- **later**: wanted, but not before 1.0.
 
 ## How the tiers were chosen
+
+**First release** is the first public build (a preview, as JeffDeck 0.7.0 is). It must be good enough for a contact list, an inventory, or a small record book: make tables, type and edit rows in the datasheet (the grid that shows a table), join tables with relationships, ask questions with select queries, enter data on simple forms, print a simple report, bring data in from and send it out to CSV files and spreadsheets, and open a person's existing `.accdb` or `.mdb` without damaging it. **1.0** is what a full replacement needs. Version 1.0 is ready to ship when Access 2021 opens every `.accdb` JeffBase saves (tables, relationships, and queries), Compact & Repair finishes on it without a message, and JeffBase's forms, reports, and queries give the same answers as Access's on the sample databases. An item is **later** when it is used by few databases, needs a piece the suite doesn't have yet, runs code, or depends on something outside the program. In this list **(alt)** also marks a usual way that depends on a Windows-only part, not only on an online service.
 
 There are no usage counts for databases. The owner has no Access files, and the public collections used for the other apps hold almost none, so the tiers rest on what a person moving from Access needs on day one, then on what a full replacement needs. Three cautions:
 
 - Microsoft never published the `.accdb` and `.mdb` formats. Writing `.accdb` follows the format knowledge of Jackcess, an open-source Java library, and every claim is proved by opening the saved file in Access 2021 on the Windows test machine.
 - The ribbon below comes from Microsoft's published control list (Office 2019, the closest to 2021): 1,571 controls on the tabs, the Quick Access Toolbar, and the File page. Access's commands for SharePoint, web apps, replication, and source control are collected under "Left out on purpose".
 - How Access's expressions and SQL behave (what `Null` does in arithmetic, how `Like` matches, what `True` equals) is documented only in part. Each such rule is checked against Access 2021 on the Windows test machine before JeffBase copies it.
+
+## Words used here
+
+A small example carries through the list. A shop keeps a **table** (a list of rows that all have the same fields) named Customers, with one row per customer and fields such as Name, City, and Phone. A second table, Orders, has one row per order. A **primary key** is the field (often an AutoNumber that counts 1, 2, 3, and so on) that tells one row from another. A **relationship** joins Orders.CustomerID to Customers.ID, so each order points to one customer and the program can refuse an order for a customer who isn't there. The **datasheet** is the grid where rows are typed and edited. A **query** is a saved question, such as "orders over $100 from customers in Ohio, newest first"; its answer looks like a table. A **form** is a screen for entering or looking at one row at a time, such as a new order. A **report** is a printed or PDF page built from a table or query, such as each customer's orders with a total. A **macro** is a saved list of steps, and **VBA** is Access's programming language; both can run on their own, which is why they need care. **SQL** is the text language for asking a database questions; a query is SQL underneath. **ODBC** is a Windows-born standard for talking to database servers. **Compact & Repair** rewrites a file to shrink it and fix damage.
 
 ## Beyond Access
 
@@ -175,7 +179,11 @@ The commands only; what each import and export does is under Import, export, and
 
 - [~] **1.0** Help (offline), What's New, and Contact Us (a link to the project's pages) *(shared: libs/shell help)*
 
-## Table Fields and Table tabs (datasheet view)
+## Contextual tabs
+
+The tabs that appear only while an object is open or selected: a table in the datasheet or in Design view, a query, a form, a report, the relationships, and a macro, and Layout view, where the form and report tabs apply to the real rows.
+
+### Table Fields and Table tabs (datasheet view)
 
 - [ ] **first release** Fields tab, Add & Delete: Short Text, Number, Currency, Date & Time, and Yes/No buttons add a field of that type at the cursor; a More Fields gallery of ready-made kinds (name, address, phone, priority, status, tag) adds a field with its settings; Delete removes the column after a warning
 - [ ] **first release** Fields tab, Properties and Formatting: Name & Caption, Default Value, Field Size, Modify Lookups, and Modify Expression, each opening the matching small dialog or pane; the Data Type and Format boxes; Currency, Percent, and Comma buttons; and Increase and Decrease Decimals
@@ -183,14 +191,14 @@ The commands only; what each import and export does is under Import, export, and
 - [ ] **1.0** Fields tab: Long Text settings (Append Only, Rich Text), and the Memo Settings menu
 - [ ] **first release** Table tab: Table Properties, and Relationships and Object Dependencies buttons
 
-## Table Design (Design view)
+### Table Design (Design view)
 
 - [ ] **first release** Design view: a grid of Field Name, Data Type, and Description, with the field's property sheet beneath; rows are inserted, deleted, and moved by dragging; the key symbol marks the primary key
 - [ ] **first release** Primary Key button (one field or several selected together), Insert Rows and Delete Rows, and Test Validation Rules (checks existing rows against a new rule and reports the ones that fail)
 - [ ] **first release** Indexes window: name, field, and sort order per row; Primary, Unique, and Ignore Nulls; indexes over several fields
 - [ ] **first release** Property Sheet for the table (see Tables and fields), and Modify Lookups
 
-## Query Design tab
+### Query Design tab
 
 - [ ] **first release** Query Type: Select
 - [ ] **1.0** Query Type: Make Table, Append, Update, Crosstab, and Delete; Union and Data Definition (typed as SQL)
@@ -199,7 +207,7 @@ The commands only; what each import and export does is under Import, export, and
 - [ ] **first release** Show/Hide: Totals (adds the Total row), Parameters (the box that names each prompt and its type), Property Sheet, and Table Names
 - [ ] **first release** The designer and Results group (Run, and the views menu): field lists at the top with join lines, the grid below (Field, Table, Sort, Show, Criteria, Or), columns resized and dragged, a field list's Add All (the star) and double-click to add a field
 
-## Form tabs: Design, Arrange, and Format
+### Form tabs: Design, Arrange, and Format
 
 - [~] **1.0** Design tab, Themes: the Themes, Colors, and Fonts galleries, with Browse for themes and Save Current Theme *(shared: color schemes and font schemes in JeffPub's templates, and the themes format planned for the suite)*
 - [ ] **first release** Design tab, Controls: the gallery of controls (see Forms), Use Control Wizards, Set Control Defaults, and Insert Image with a shared gallery of pictures kept in the database
@@ -212,7 +220,7 @@ The commands only; what each import and export does is under Import, export, and
 - [ ] **1.0** Format tab, Control Formatting: Quick Styles and Change Shape, Conditional Formatting, Shape Fill, Outline (color, thickness, and type), and Shape Effects (shadow, glow, soft edges, and bevel) *(shared: libs/draw effects)*
 - [ ] **1.0** Form Datasheet tab: when a form shows as a datasheet, Themes, the Field List and Property Sheet, background and alternate colors, and Conditional Formatting
 
-## Report tabs: Design, Arrange, Format, and Page Setup
+### Report tabs: Design, Arrange, Format, and Page Setup
 
 - [ ] **first release** Design tab: the same Views, Themes, Controls, Header / Footer, and Tools groups as a form, with Page Numbers added to Header / Footer, and Subreport in New Window
 - [ ] **first release** Design tab, Grouping & Totals: Group & Sort (the pane at the foot), Totals (Sum, Average, Count Records, Count Values, Maximum, Minimum, Standard Deviation, Variance), and Hide Details
@@ -220,33 +228,42 @@ The commands only; what each import and export does is under Import, export, and
 - [ ] **first release** Page Setup tab: page size, margins (Normal, Wide, Narrow, and custom), Show Margins, Print Data Only, Portrait and Landscape, Columns, and the Page Setup dialog *(shared: JeffPub's page setup)*
 - [~] **first release** Print Preview tab: Print, page size and margins, orientation, Columns, zoom (a percent, One Page, Two Pages, and More Pages), refresh, export to Excel, text, PDF, and email, and Close Print Preview *(shared: JeffPub's print preview)*
 
-## Relationship Design tab
+### Relationship Design tab
 
 - [ ] **first release** The Relationships window: each table as a box of its fields with the key marked, lines for relationships with 1 and many marks at the ends, tables dragged where wanted, and the layout saved with the file
 - [ ] **first release** Edit Relationships: choose the tables and fields, Enforce Referential Integrity (the program refuses a row that points nowhere, and refuses to delete a row that others point to), Cascade Update Related Fields, Cascade Delete Related Records, and the join type (rows from both tables that match, all rows of one side, or all rows of the other); the kind (one-to-many, one-to-one) is told from the keys
 - [ ] **first release** Show Table, Hide Table, Show Direct Relationships, Show All Relationships, and Clear Layout; delete a relationship from its line
 - [ ] **1.0** Relationship Report: prints the diagram as a report
 
-## Macro Design tab
+### Macro Design tab
 
 - [ ] **later** Macro builder: the Action Catalog, Run, Single Step, Expand and Collapse for blocks, Show All Actions, and Save, Save As, and Close; offered only if JeffBase ever runs macros (see Macros and code)
 
-## Layout View
+### Layout View
 
 - [ ] **first release** Layout view for forms and reports: the real rows show while the design is changed, so a text box can be sized to the data it holds; fields come from the field list by dragging; controls move and resize in a layout together
 - [ ] **first release** Stacked layouts (label beside box, one under another) and tabular layouts (labels as a header row, boxes as columns) hold controls in a grid, so adding a field keeps everything aligned
 - [ ] **1.0** Report Layout view adds the Group, Sort, and Total pane, column widths from the data, and page breaks drawn as the report will page
 
-## The Navigation pane, tabs, and status bar
+## Shortcut menus (right-click)
+
+What a right-click offers depends on what is under the pointer.
+
+- [ ] **first release** Object actions on a right-click: Open, Design View, Layout View, Rename, Copy, Paste, Delete (with a warning that lists what depends on the object), Hide in This Group, Import, Export, Linked Table Manager, Properties, and Object Dependencies
+- [ ] **first release** In the datasheet: Cut, Copy, Paste, Sort Ascending and Descending, Filter by the value under the pointer, Find, Delete Record, and Row Height and Column Width
+- [ ] **first release** In a form or report design: Cut, Copy, Paste, Delete, Align, Size, Bring to Front and Send to Back, Properties, and Build Event (which only lists code, since nothing runs until allowed)
+- [ ] **1.0** In the query designer: on a field, Build, Properties, and Totals; on a table in the diagram, Remove Table, Add Table, and Join Properties; and on the grid, Cut, Copy, Paste, and Delete
+- [ ] **1.0** On a relationship line in the Relationships window: Edit Relationship, Delete, and Show Table
+
+## Under the ribbon: the Navigation pane, tabs, and status bar
 
 - [ ] **first release** The Navigation pane on the left lists the database's objects (tables, queries, forms, reports, macros, modules) and opens one on a double-click; it can be grouped by object type, by created or modified date, by table and related views, or by custom groups, filtered by name, shown as a narrow strip, and set to show hidden and system objects (the tables Access names with `MSys` and `USys` and JeffBase's own catalog tables, kept and never changed by the person's actions), with custom groups the person drags objects into and shortcuts to objects in other databases
 - [~] **first release** Open objects are tabs in a row above the work area (the default); the person can switch to overlapping windows in Options, with Switch Windows, Size to Fit Form, Fit to Window, Tile, and Cascade *(shared: JeffPub's windows, for the overlapping mode)*
-- [ ] **first release** Object actions on a right-click: Open, Design View, Layout View, Rename, Copy, Paste, Delete (with a warning that lists what depends on the object), Hide in This Group, Import, Export, Linked Table Manager, Properties, and Object Dependencies
 - [ ] **first release** The status bar names the view and its state (Datasheet View, Design View, filtered, num lock) and has the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)*
 - [~] **first release** Collapse the ribbon with Ctrl+F1, a double-click on a tab, or its chevron; KeyTips (Alt, then letters) for every command *(shared: libs/shell ribbon and KeyTips)*
 - [ ] **1.0** Quick Access Toolbar: New, Open, Save, Print Preview, Spelling, Undo, Redo, Refresh All, and the Views button, with room for any command
 
-## Tables and fields
+## Under the ribbon: tables and fields
 
 How a table is made, what a field can hold, and how the rules on it work. In the native file each Access type is stored as the SQLite type that other tools read naturally, and the exact Access type is kept in the file's field catalog, so a field comes back as the same kind after a round trip.
 
@@ -301,7 +318,7 @@ How a table is made, what a field can hold, and how the rules on it work. In the
 - [ ] **first release** Data entry in the datasheet and forms: Tab and Enter to move, F2 to edit a cell, Shift+F2 for a zoom box on long text, Ctrl+; for today's date, Ctrl+' to copy the value above, and Esc once to undo the field and twice to undo the row; a pencil mark shows on a row being edited, and the row commits when the person moves to another, closes the object, or presses Shift+Enter
 - [ ] **1.0** Edit Hyperlink dialog, the Attachments dialog (Add, Remove, Open, Save As, Save All), and a date picker that opens from the calendar button on a date cell
 
-## Queries
+## Under the ribbon: queries
 
 A query is a saved question. A select query shows rows; the other kinds change them. In the native file a select query is saved as a SQLite view (so every other tool can read its answer), and the part a view cannot hold (the designer's drawn layout, the prompts of a parameter query, and the action queries) is kept in JeffBase's catalog.
 
@@ -342,7 +359,7 @@ A query is a saved question. A select query shows rows; the other kinds change t
 - [ ] **first release** Datasheet of the answer: the same sort, filter, find, totals, hide, and freeze as a table; the answer's columns keep the format, caption, and decimals of the fields they come from
 - [ ] **first release** A query can be used wherever a table can: as the source of another query, a form, a report, a lookup, and a mail merge
 
-## Forms
+## Under the ribbon: forms
 
 A form shows one row (or a few) of a table or query in a layout the person arranges. The wizards and the one-click Form button make the usual ones; the designer makes the rest.
 
@@ -370,7 +387,7 @@ A form shows one row (or a few) of a table or query in a layout the person arran
 - [ ] **1.0** Split Form, Multiple Items, Datasheet form, Modal Dialog, and Navigation forms, as created from the Create tab
 - [ ] **first release** Print a form, and save it as PDF *(shared: JeffPub's print and PDF export)*
 
-## Reports
+## Under the ribbon: reports
 
 A report lays the rows of a table or query out on pages, in groups, with totals. It shares JeffWrite's page layout and printing, so pages break and print the same way in both.
 
@@ -394,14 +411,12 @@ A report lays the rows of a table or query out on pages, in groups, with totals.
 - [ ] **first release** Save a report as a PDF (with bookmarks from the groups, and PDF/A) *(shared: JeffPub's PDF export)*
 - [ ] **1.0** Export a report as a JeffWrite document (`.docx`), HTML, or plain text with the page boundaries marked **(alt)** (Access exports to Word's RTF)
 
-## Macros and code
+## Under the ribbon: macros and code
 
 Access databases often hold macros (saved steps) and VBA (programs). They can do anything the person can, so the rule for the whole suite applies in full: nothing in a file runs or reaches out until the person allows it. What JeffBase keeps, shows, and runs is split below.
 
 ### Kept, never lost
 - [ ] **first release** Everything an opened `.accdb` or `.mdb` holds that JeffBase doesn't run is kept untouched and written back on Save: macros (including AutoExec and AutoKeys), data macros on tables, VBA modules, class modules, form and report code, references, the compiled state, and startup settings
-- [ ] **first release** Nothing runs on open: no startup macro, startup form, event handler, or VBA, and no query that reaches another file; an Info panel lists what is waiting and why it was held back
-- [ ] **first release** The person chooses per file: keep disabled (the default), allow for this session, or always allow this file, and a changed file asks again; the choice also covers remote links and pass-through queries, and a Trusted folders list in the Trust Center holds places the person has chosen
 - [ ] **first release** Save a copy without macros and code: a database with only its tables, queries, forms, and reports (no programs), for sharing
 - [ ] **1.0** Read-only listing of what would run: each macro's actions and arguments, each module's source text (VBA source is stored compressed in the file, and the format is documented), and which form events call them, so a person can look before allowing; and the Object Dependencies pane lists the objects that call a macro or module, as far as that can be read
 
@@ -411,7 +426,7 @@ Access databases often hold macros (saved steps) and VBA (programs). They can do
 - [ ] **later** An open scripting language for people who want to automate JeffBase, in place of VBA (see the open questions)
 - [ ] **later** VBA is not run: no VBA engine is planned, since VBA depends on Microsoft's runtime and Windows libraries; a database that needs VBA to work shows what stopped and keeps the code for Access
 
-## Import, export, and linking
+## Under the ribbon: import, export, and linking
 
 Three different things: **import** copies data into a table, **link** leaves the data where it is and reads it from there, and **export** writes data out. The saved-steps buttons and the wizards are the same on every kind.
 
@@ -441,6 +456,31 @@ Three different things: **import** copies data into a table, **link** leaves the
 - [ ] **later** Link to `.accdb` and `.mdb` tables, read-only first
 - [ ] **later** ODBC linked tables for database servers (PostgreSQL, MySQL, MariaDB, SQL Server): a saved connection with no password in the file unless chosen, refresh, and read and write with the key the server shows; always allowed per file, never on open *(shared: the data-source layer JeffCrunch plans)*
 - [ ] **later** Linked tables from SharePoint lists and Microsoft online services: not offered (see Left out on purpose)
+
+## Fidelity and testing
+
+JeffBase will be checked against Access. The Windows test machine has Office 2021 (Word, Excel, PowerPoint, Outlook, Access, and Publisher), so Access judges every file JeffBase saves as `.accdb` and every rule of its expressions, SQL, and sort orders that is only partly documented. Reference pictures stay on the build machine, and the test databases are kept out of the repository.
+
+- [ ] **first release** Access 2021 on the Windows test machine opens every `.accdb` JeffBase saves, and Compact & Repair there finishes on it without a message (see File formats and Decided)
+- [ ] **first release** Databases held out from tuning are scored apart from the ones used for tuning, so the numbers are not flattered by the files the readers were fitted to
+- [ ] **1.0** Queries, forms, and reports give the same answers as Access's on the sample databases: each query's rows are compared with Access's, and each form and report is drawn by JeffBase and by Access and compared as pictures, on the scale JeffPub's comparison uses
+- [ ] **1.0** A collection of real `.accdb` and `.mdb` files is built for the test (the owner has none, and the public collections have almost none): the test databases published with open-source readers (Jackcess is one; licenses checked first), files made in Access 2021 on the Windows machine by script, and files gathered from public sources, kept out of the repository
+
+## Safety and limits
+
+Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs or reaches out until the person allows it, every file reader is fuzzed and held to limits on memory and time, and a damaged file opens as far as it can without crashing. It also holds the list's speed, accessibility, and language items.
+
+- [ ] **first release** Nothing runs on open: no startup macro, startup form, event handler, or VBA, and no query that reaches another file; an Info panel lists what is waiting and why it was held back
+- [ ] **first release** The person chooses per file: keep disabled (the default), allow for this session, or always allow this file, and a changed file asks again; the choice also covers remote links and pass-through queries, and a Trusted folders list in the Trust Center holds places the person has chosen
+- [ ] **first release** Every file reader (SQLite files, `.accdb`, `.mdb`, CSV, spreadsheets, XML, HTML, JSON, and `.odb`) is fuzzed and held to memory and time limits, and a bad file shows an error in place, never a crash or a freeze; the hostile-file sweep that runs before each release covers JeffBase's files too
+- [ ] **first release** Opening a SQLite file from elsewhere runs with the protections SQLite offers: the loading of extensions off, defensive mode on, schema objects allowed to call only functions marked harmless, limits on sizes and depth, a hook that stops a statement that runs too long, and a check that refuses writes to other files (`ATTACH` and the `load_extension` function are shut off for the file's own queries); and a query copied out of a file runs on a read-only connection until the person confirms
+- [ ] **1.0** Readers for `.accdb`, `.mdb`, and other outside formats run in a helper process with no network access and no reach into the person's other files, and a crash there shows an error in the window
+- [ ] **first release** The datasheet is virtual: it fetches only the rows on screen, so a table of ten million rows opens as fast as a small one; counts are taken in the background, and sorts and filters use an index when there is one *(shared: the grid control JeffCrunch plans)*
+- [ ] **first release** Long work (an import, an export, a Compact & Repair, a big action query, a report on a large table) runs off the main thread with progress and Cancel, and a canceled import leaves no half-built table
+- [ ] **1.0** Many users: while the file is open in JeffBase, a second JeffBase on the same computer opens it read-only or waits, and does not corrupt it (see the open questions for sharing across a network)
+- [ ] **first release** Screen readers and the keyboard: every datasheet cell is read with its column name and row, every ribbon command and dialog is named, and everything can be done without a mouse; high contrast and large text follow the system *(shared: libs/shell accessibility)*
+- [~] **first release** Translations and right-to-left layout in the window, the datasheet, forms, and reports *(shared: libs/shell translations)*
+- [ ] **1.0** Dates, numbers, and sort orders follow the person's language and region, with the database's own sort order kept for comparisons, so a file means the same thing on every computer
 
 ## File formats
 
@@ -479,19 +519,6 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 ### What a round trip must keep
 - [ ] **first release** SQLite to JeffBase to SQLite: every table, row, index, view, trigger, and pragma value the other tool wrote, the schema text of the objects not edited, and the file's encoding and page size
 - [ ] **first release** `.accdb` or `.mdb` to JeffBase to `.accdb`: all rows and values, keys and indexes, relationships with their options, field and table properties (including ones JeffBase doesn't use), and query definitions, checked by opening the saved file in Access 2021, running Compact & Repair, and comparing every table and every query's answer with the original
-- [ ] **1.0** A collection of real `.accdb` and `.mdb` files is built for the test (the owner has none, and the public collections have almost none): the test databases published with open-source readers (Jackcess is one; licenses checked first), files made in Access 2021 on the Windows machine by script, and files gathered from public sources, kept out of the repository
-
-## Safety, speed, and limits
-
-- [ ] **first release** Every file reader (SQLite files, `.accdb`, `.mdb`, CSV, spreadsheets, XML, HTML, JSON, and `.odb`) is fuzzed and held to memory and time limits, and a bad file shows an error in place, never a crash or a freeze; the hostile-file sweep that runs before each release covers JeffBase's files too
-- [ ] **first release** Opening a SQLite file from elsewhere runs with the protections SQLite offers: the loading of extensions off, defensive mode on, schema objects allowed to call only functions marked harmless, limits on sizes and depth, a hook that stops a statement that runs too long, and a check that refuses writes to other files (`ATTACH` and the `load_extension` function are shut off for the file's own queries); and a query copied out of a file runs on a read-only connection until the person confirms
-- [ ] **1.0** Readers for `.accdb`, `.mdb`, and other outside formats run in a helper process with no network access and no reach into the person's other files, and a crash there shows an error in the window
-- [ ] **first release** The datasheet is virtual: it fetches only the rows on screen, so a table of ten million rows opens as fast as a small one; counts are taken in the background, and sorts and filters use an index when there is one *(shared: the grid control JeffCrunch plans)*
-- [ ] **first release** Long work (an import, an export, a Compact & Repair, a big action query, a report on a large table) runs off the main thread with progress and Cancel, and a canceled import leaves no half-built table
-- [ ] **1.0** Many users: while the file is open in JeffBase, a second JeffBase on the same computer opens it read-only or waits, and does not corrupt it (see the open questions for sharing across a network)
-- [ ] **first release** Screen readers and the keyboard: every datasheet cell is read with its column name and row, every ribbon command and dialog is named, and everything can be done without a mouse; high contrast and large text follow the system *(shared: libs/shell accessibility)*
-- [~] **first release** Translations and right-to-left layout in the window, the datasheet, forms, and reports *(shared: libs/shell translations)*
-- [ ] **1.0** Dates, numbers, and sort orders follow the person's language and region, with the database's own sort order kept for comparisons, so a file means the same thing on every computer
 
 ## Shared with other JeffOffice apps
 
