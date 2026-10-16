@@ -57,6 +57,9 @@ Editor::Editor(QObject *parent) : QObject(parent)
     m_typingTimer.setInterval(1200);
     connect(&m_typingTimer, &QTimer::timeout, this, &Editor::flushTyping);
     connect(&m_undo, &QUndoStack::cleanChanged, this, [this](bool clean) { Q_EMIT modifiedChanged(!clean); });
+    connect(this, &Editor::pageChanged, this, [this] {
+        if (m_cropOpen) endCrop(true);   // another slide: the crop is done
+    });
 }
 
 Editor::~Editor()
@@ -71,6 +74,8 @@ void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
     m_typingTimer.stop();
     m_typing = false;
     m_changeDepth = 0;
+    if (m_cropOpen) cropItem.clear();
+    m_cropOpen = false;
     m_text = TextTarget();
     m_cursor = QTextCursor();
     m_doc = std::move(d);
@@ -240,6 +245,7 @@ void Editor::select(const QStringList &ids, bool add)
     if (isEditingText() && !next.contains(m_text.itemId)) endTextEdit();
     if (!pointsItem.isEmpty() && !next.contains(pointsItem)) pointsItem.clear();
     if (!wrapItem.isEmpty() && !next.contains(wrapItem)) wrapItem.clear();
+    if (m_cropOpen && next != QStringList{cropItem}) endCrop(true);
     m_sel = next;
     Q_EMIT selectionChanged();
 }
@@ -502,6 +508,31 @@ void Editor::restore(const QByteArray &snap, const QStringList &sel, int page, c
     Q_EMIT changed();
 }
 
+void Editor::setCropItem(const QString &id)
+{
+    if (cropSessions && id != cropItem) {
+        if (m_cropOpen) endCrop(true);
+        if (!id.isEmpty()) {
+            beginChange(tr("Crop"));
+            m_cropOpen = true;
+        }
+    }
+    cropItem = id;
+    Q_EMIT viewChanged();
+}
+
+void Editor::endCrop(bool keep)
+{
+    const bool open = m_cropOpen;
+    m_cropOpen = false;
+    cropItem.clear();
+    if (open) {
+        if (keep) endChange();
+        else cancelChange();
+    }
+    Q_EMIT viewChanged();
+}
+
 void Editor::beginChange(const QString &label)
 {
     if (m_typing && label != tr("Typing")) flushTyping();
@@ -616,6 +647,7 @@ void Editor::deleteItems(const QStringList &ids)
 {
     if (ids.isEmpty()) return;
     endTextEdit();
+    if (m_cropOpen) endCrop(true);
     beginChange(tr("Delete"));
     QStringList all;
     for (const auto &id : ids) {
