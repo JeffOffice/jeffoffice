@@ -344,6 +344,7 @@ private:
     QVector<double> m_frameY;
     QVector<double> m_used;
     bool m_overflow = false;
+    bool m_blankPast = false;   // blank paragraphs ran past the end of a frame that lets text run over (they move centered text, but are no overflow)
     LayoutEnv m_env;
     QVector<Note> m_notes;
     QVector<Rule> m_noteRules;
