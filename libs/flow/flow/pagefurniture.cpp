@@ -3,6 +3,8 @@
 
 #include "flow/paginator.h"
 
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <algorithm>
 #include <cmath>
@@ -95,6 +97,75 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
     };
     place(f.header, sec.headerDistance, f.headerHeight, "header");
     place(f.footer, sec.pageSize().height() - sec.footerDistance - f.footerHeight, f.footerHeight, "footer");
+}
+
+void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
+                         const Section &sec, const QRectF &body)
+{
+    if (!m_doc->fields) return;
+    auto at = [&](int frame) { return frame - firstFrame; };
+    int made = 0;
+    for (const StoryLayout::NotePlace &pl : places) {
+        const int column = at(pl.frame);
+        if (column < 0 || column >= sec.columnCount() || !ids.contains(pl.storyId) || made >= 2000) continue;
+        const QTextDocument *source = m_doc->fields->storyDoc(pl.storyId);
+        if (!source) continue;
+        // The note's text from where this part of it starts, with its number where the text begins.
+        std::unique_ptr<QTextDocument> text(source->clone());
+        if (pl.from > 0) {
+            QTextCursor cut(text.get());
+            cut.setPosition(0);
+            cut.setPosition(std::min(pl.from, text->characterCount() - 1), QTextCursor::KeepAnchor);
+            cut.removeSelectedText();
+            QTextCursor head(text->begin());
+            QTextBlockFormat bf = head.blockFormat();
+            bf.setTextIndent(0);
+            head.setBlockFormat(bf);
+        }
+        QVector<std::pair<int, int>> marks;
+        for (QTextBlock b = text->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("notemark")) marks.push_back({it.fragment().position(), it.fragment().length()});
+        for (const auto &m : marks) {
+            QTextCursor c(text.get());
+            c.setPosition(m.first);
+            c.setPosition(m.first + m.second, QTextCursor::KeepAnchor);
+            QTextCharFormat cf;
+            cf.setProperty(tp::Field, QLatin1String("raw:") + QString::number(pl.number));
+            c.mergeCharFormat(cf);
+        }
+        auto s = std::make_shared<Story>();
+        s->id = QStringLiteral("flow-note-%1-%2").arg(d->pages[0]->id).arg(made);
+        s->doc = std::move(text);
+        d->stories.insert(s->id, s);
+        const QRectF col = sec.columnRect(column);
+        auto t = std::make_shared<TextItem>();
+        t->id = QStringLiteral("flow-note-box-%1-%2").arg(d->pages[0]->id).arg(made);
+        t->rect = QRectF(col.left() + pl.rect.left(), body.top() + pl.rect.top(), pl.rect.width(), pl.rect.height() + 0.005);
+        t->insets = QMarginsF(0, 0, 0, 0);
+        t->columns = 1;
+        t->hyphenate = m_doc->hyphenate;
+        t->hyphenZone = m_doc->hyphenZone;
+        t->storyId = s->id;
+        t->wrap.mode = Wrap::None;
+        d->pages[0]->items.push_back(t);
+        ++made;
+    }
+    // The rule above the notes of each column.
+    int ruled = 0;
+    for (const StoryLayout::Rule &r : rules) {
+        const int column = at(r.frame);
+        if (column < 0 || column >= sec.columnCount() || made == 0 || ruled >= sec.columnCount()) continue;
+        const QRectF col = sec.columnRect(column);
+        auto line = std::make_shared<LineItem>();
+        line->id = QStringLiteral("flow-note-rule-%1-%2").arg(d->pages[0]->id).arg(ruled++);
+        line->p1 = QPointF(col.left() + r.line.x1(), body.top() + r.line.y1());
+        line->p2 = QPointF(col.left() + r.line.x2(), body.top() + r.line.y2());
+        line->stroke.width = 0.5;
+        line->stroke.color = ColorRef::fromString(QStringLiteral("#000000"));
+        line->syncRect();
+        d->pages[0]->items.push_back(line);
+    }
 }
 
 } // namespace jp::flow

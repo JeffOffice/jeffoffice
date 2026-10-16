@@ -15,6 +15,7 @@
 #include <QLineF>
 #include <QPolygonF>
 #include <QSizeF>
+#include <QStringList>
 #include <QTextBlock>
 #include <QTextLayout>
 #include <memory>
@@ -42,6 +43,13 @@ public:
     // (SECTIONPAGES), where the pages drawn are made one at a time; 0 for a publication, whose context counts them.
     virtual int pageTotal() const { return 0; }
     virtual int sectionPageTotal() const { return 0; }
+    // For a word processor's notes where a page of its document is laid out as a story of its own: the footnotes and endnotes before the page's text (the
+    // numbers its own go on from), the footnotes cut at the foot of the page before (each "story|number|from"), and the height of the paragraph that
+    // separates the notes from the text (0: a publication's).
+    virtual int footnotesBefore() const { return 0; }
+    virtual int endnotesBefore() const { return 0; }
+    virtual QStringList carriedNotes() const { return {}; }
+    virtual double noteSeparatorHeight() const { return 0; }
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
@@ -55,6 +63,7 @@ struct FieldContext {
     int mergeRecord = -1;         // -1 shows «Field» codes
     int continuedOnPage = 0, continuedFromPage = 0;
     int nextPage = 0, prevPage = 0;   // pages of the next and previous boxes of a linked chain (0: none)
+    QString noteMark;             // a note's number, for the mark that begins its text ("notemark") in a word processor's note
     QDateTime now = QDateTime::currentDateTime();
     QString resolve(const QString &code) const;
     // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only if `withClock`: a layout is laid out
@@ -144,6 +153,8 @@ struct LayoutEnv {
     // after a paragraph and space before the next are the larger of the two (not their sum), and none between paragraphs of one style that
     // say so (tp::ContextualSpacing). Not set for JeffPub's and JeffDeck's text.
     bool wordLines = false;
+    // A word processor's text doesn't let punctuation hang past the margin (a file's compatibility option); it does otherwise (LayoutEnv::wordLines).
+    bool wordNoHang = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;
@@ -245,6 +256,8 @@ public:
     int frameCount() const { return int(m_frames.size()); }
     bool overflow() const { return m_overflow; }
     double usedHeight(int frame) const;      // content height used, including insets
+    // A word processor's space after the story's last paragraph (LayoutEnv::wordLines; 0 otherwise): a note takes it as part of its height.
+    double trailingSpace() const { return m_trailingAfter; }
     int firstPosition(int frame) const;      // first document position laid out in frame (-1 if none)
     int lastPosition(int frame) const;
 
@@ -346,6 +359,10 @@ public:
     const QVector<Note> &notes() const { return m_notes; }
     struct Rule { int frame; QLineF line; };
     const QVector<Rule> &noteRules() const { return m_noteRules; }   // above each column's footnotes
+    // Where each footnote is laid out (frame-local): the first part of each, and each piece of one that goes on in a later frame (`from`: where its
+    // text starts in the note's story). For a caller that draws the notes of a page itself.
+    struct NotePlace { QString storyId; int number = 0; int frame = -1, column = 0; QRectF rect; int from = 0; };
+    QVector<NotePlace> notePlaces() const;
 
 private:
     const Block *blockAt(int pos, int *rel) const;
@@ -362,6 +379,7 @@ private:
     QVector<double> m_used;
     bool m_overflow = false;
     LayoutEnv m_env;
+    double m_trailingAfter = 0;
     QVector<Note> m_notes;
     QVector<Rule> m_noteRules;
     struct Heading { int frame = -1; QPointF baseline; QFont font; QColor color; };

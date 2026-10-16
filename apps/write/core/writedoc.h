@@ -31,6 +31,27 @@ struct StyleEntry {
     bool quick = false;     // shown in the gallery
 };
 
+class WriteDoc;
+
+// What the notes of a document are to its pages (flow::FlowDocument::fields): the stories of its footnotes, made when they are asked for, and the
+// height of the paragraph the pages set between the text and the notes.
+class NoteFields : public FieldSource {
+public:
+    explicit NoteFields(WriteDoc *doc) : m_doc(doc) {}
+    int firstPageNumber() const override { return 1; }
+    QString pageNumberFormat() const override { return QString(); }
+    QString businessField(const QString &) const override { return QString(); }
+    QStringList mergeFields() const override { return {}; }
+    QString mergeValue(int, const QString &) const override { return QString(); }
+    const QTextDocument *storyDoc(const QString &id) const override;
+    QList<const QTextDocument *> storyDocs() const override;
+    double noteSeparatorHeight() const override { return separator; }
+    double separator = 0;
+
+private:
+    WriteDoc *m_doc;
+};
+
 class WriteDoc : public QObject {
     Q_OBJECT
 public:
@@ -126,6 +147,11 @@ private:
     std::shared_ptr<QTextDocument> headerStory(const QString &relationshipId);
     // Gives the flowing sections from `from` on the stories of their headers and footers, those they state and the section before's for the rest.
     void attachHeaders(int from);
+    // The footnotes of the file (its footnotes part), kept as what they hold and made into stories when a page asks for one ("fn" and the note's Id).
+    void loadNotes();
+    void measureNoteSeparator();
+    const QTextDocument *noteStory(const QString &id);
+    friend class NoteFields;
     void exportBody(QVector<office::wml::Block> *body);
     void setUpEnvironment();
     void storyChanged(int position, int removed, int added);
@@ -142,6 +168,9 @@ private:
     office::wml::SectionProps m_last;
     QVector<int> m_sectionKeys;                    // the key of each section's record (the break paragraphs', then the last's), as of the last sync
     qint64 m_sectionsMade = 0;
+    std::unique_ptr<NoteFields> m_noteFields;
+    QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
+    QHash<QString, std::shared_ptr<QTextDocument>> m_noteStories;     // the stories made of them
     QHash<QString, std::shared_ptr<QTextDocument>> m_headerStories;   // by part name
     QHash<int, office::wml::HeaderRefs> m_headerRefs;                 // by the key of the section's record
     QByteArray m_lastBytes;                        // the first paragraph's record of it (prop::LastSection) as last read

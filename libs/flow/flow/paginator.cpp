@@ -39,6 +39,8 @@ struct Paginator::Run {
     bool firstSpace = true;    // space before the first paragraph is kept (it isn't if the page starts without it, or it was as tall as the page)
     bool hasNext = false;
     bool keepsSpace = false;   // the first paragraph is the rest of one after a break, and has its space before
+    QVector<StoryLayout::NotePlace> notes;   // the footnotes as the page's layout put them
+    QVector<StoryLayout::Rule> rules;        // and the rules above them
     PageStart next;            // where the page after starts
 };
 
@@ -120,6 +122,20 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     span.continued = tail;
     span.spaceBeforeContinued = afterBreak;
     span.stopAtFrame = over;
+    // The notes before the page's first paragraph (before its first line, if the paragraph is laid out from there) and the footnotes cut on the page before.
+    span.footnotesBefore = st.foot;
+    span.endnotesBefore = st.end;
+    if (tail && st.pos > 0) {
+        int footnotes = 0, endnotes = 0;
+        countNotes(m_doc->story()->findBlock(st.pos).position(), st.pos, &footnotes, &endnotes);
+        span.footnotesBefore += footnotes;
+        span.endnotesBefore += endnotes;
+    }
+    for (const QString &c : st.carried) {
+        const QStringList f = c.split(QLatin1Char('|'));
+        if (f.size() == 3) span.carried << StoryLayout::CarriedNote{f[0], f[1].toInt(), f[2].toInt()};
+    }
+    QStringList carriedOut;
     // A paragraph that runs on after the page is laid out as far as the lines wanted need (its window): the lines the rules look at past the page,
     // a line more, and the last, which is cut short.
     const int wanted = std::max({m_doc->widowLines, m_doc->orphanLines, 2}) + 2;
@@ -133,6 +149,10 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             StoryLayout layout;
             layout.build(m_doc->story(), frames, m_doc->env, span);
             all = layout.lineBriefs();
+            run.notes = layout.notePlaces();
+            run.rules = layout.noteRules();
+            carriedOut.clear();
+            for (const auto &cn : layout.carriedNotes(over)) carriedOut << QStringLiteral("%1|%2|%3").arg(cn.storyId).arg(cn.number).arg(cn.from);
             int past = 0;
             bool cut = false;
             for (const auto &l : all) {
@@ -261,7 +281,36 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.next.hard = true;
         run.next.section = nextSection;
     }
+    if (run.hasNext) {
+        // What the page after starts from: the notes through this page's paragraphs (those before the next page's first paragraph), and what was cut.
+        const QTextDocument *story = m_doc->story();
+        const int from = story->findBlock(st.pos).position();
+        const QTextBlock nb = story->findBlock(run.next.pos);
+        const int to = nb.isValid() ? nb.position() : story->characterCount();
+        int footnotes = 0, endnotes = 0;
+        countNotes(from, std::max(from, to), &footnotes, &endnotes);
+        run.next.foot = st.foot + footnotes;
+        run.next.end = st.end + endnotes;
+        if (m_doc->restartNotesInSections && run.next.section != st.section) run.next.foot = run.next.end = 0;
+        run.next.carried = carriedOut;
+    }
     return run;
+}
+
+void Paginator::countNotes(int from, int to, int *footnotes, int *endnotes) const
+{
+    *footnotes = *endnotes = 0;
+    const QTextDocument *story = m_doc->story();
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            const QString code = frag.charFormat().stringProperty(tp::Field);
+            if (code.isEmpty()) continue;
+            const int lo = std::max(frag.position(), from), hi = std::min(frag.position() + frag.length(), to);
+            if (hi <= lo) continue;
+            if (code.startsWith(QLatin1String("footnote:"))) *footnotes += hi - lo;
+            else if (code.startsWith(QLatin1String("endnote:"))) *endnotes += hi - lo;
+        }
 }
 
 void Paginator::extend(int index)
@@ -453,7 +502,7 @@ void Paginator::settleStep()
 // (If the page begins in the middle of a paragraph, that is the rest of it: with no space before it or first-line indent, and no bullet
 // or number.) The paragraph the page ends in is whole, so that its last line on the page is set as it is in the document, the lines that
 // don't fit being left out of the frame.
-std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom, bool *fromBefore) const
+std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore) const
 {
     const QTextDocument *main = m_doc->story();
     const QVector<StoryLayout::LineBrief> &L = run.lines;
@@ -473,6 +522,26 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom
     sd->setUndoRedoEnabled(false);
     QTextCursor dst(sd.get());
     QHash<QTextList *, QTextList *> lists;
+    // The notes' references show their numbers as they are counted through the document (the notes themselves are boxes of their own, below): the
+    // number of the next one, from the notes before the page's first paragraph and those in it before its first line.
+    int footnote = st.foot + 1, endnote = st.end + 1;
+    {
+        int before = 0, endBefore = 0;
+        countNotes(firstBlock.position(), from, &before, &endBefore);
+        footnote += before;
+        endnote += endBefore;
+    }
+    auto roman = [](int n) {
+        static const std::pair<int, const char *> table[] = {{1000, "m"}, {900, "cm"}, {500, "d"}, {400, "cd"}, {100, "c"}, {90, "xc"}, {50, "l"}, {40, "xl"}, {10, "x"}, {9, "ix"}, {5, "v"}, {4, "iv"}, {1, "i"}};
+        QString r;
+        n = std::clamp(n, 1, 3999);
+        for (const auto &t : table)
+            while (n >= t.first) {
+                r += QLatin1String(t.second);
+                n -= t.first;
+            }
+        return r;
+    };
     for (QTextBlock b = firstBlock; b.isValid(); b = b.next()) {
         const bool tail = b == firstBlock && L.first().line > 0;
         QTextBlockFormat bf = b.blockFormat();
@@ -514,6 +583,16 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom
             if (rel >= upto) break;
             if (rel < skip) text = text.mid(skip - rel);
             if (rel + int(text.size()) > upto) text = text.left(upto - std::max(rel, skip));
+            const QString code = frag.charFormat().stringProperty(tp::Field);
+            const bool foot = code.startsWith(QLatin1String("footnote:")), end = code.startsWith(QLatin1String("endnote:"));
+            if (foot || end) {
+                for (const QChar ch : text) {
+                    QTextCharFormat cf = frag.charFormat();
+                    cf.setProperty(tp::Field, QLatin1String("raw:") + (foot ? QString::number(footnote++) : roman(endnote++)));
+                    dst.insertText(QString(ch), cf);
+                }
+                continue;
+            }
             dst.insertText(text, frag.charFormat());
         }
         if (list) {
@@ -567,6 +646,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->fonts = m_doc->env.fonts;
     d->defaultTabStop = m_doc->env.defaultTab;
     d->wordText = m_doc->env.wordLines;
+    d->wordNoHang = m_doc->env.wordNoHang;
     const Furniture furniture = furnitureOf(index, st, out->number);
     d->fontAliases = m_doc->env.familyAliases;
     if (run.blank) {
@@ -578,7 +658,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
 
     auto story = std::make_shared<Story>();
     story->id = QStringLiteral("flow-story-%1").arg(index);
-    story->doc = sliceOf(run, &out->storyFrom, &out->continuesFromBefore);
+    story->doc = sliceOf(run, st, &out->storyFrom, &out->continuesFromBefore);
     d->stories.insert(story->id, story);
     const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
     out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
@@ -613,6 +693,24 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         out->boxes << t->id;
     }
     addFurniture(d.get(), furniture, sec, st.section, out->number);
+    // The notes the page's lines cite and those that go on from the page before.
+    {
+        QStringList ids;
+        for (const QString &c : st.carried) ids << c.section(QLatin1Char('|'), 0, 0);
+        for (int i = 0; i < run.kept; ++i) {
+            const StoryLayout::LineBrief &ln = run.lines[i];
+            for (QTextBlock b = m_doc->story()->findBlock(ln.pos); b.isValid() && b.position() < ln.end; b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextFragment frag = it.fragment();
+                    if (frag.position() >= ln.end || frag.position() + frag.length() <= ln.pos) continue;
+                    const QString code = frag.charFormat().stringProperty(tp::Field);
+                    if (!code.startsWith(QLatin1String("footnote:"))) continue;
+                    const int lo = std::max(frag.position(), ln.pos), hi = std::min(frag.position() + frag.length(), ln.end);
+                    for (int k = lo; k < hi; ++k) ids << code.mid(9);
+                }
+        }
+        if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, sec, furniture.body);
+    }
     out->doc = std::move(d);
     return out;
 }

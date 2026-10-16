@@ -190,9 +190,9 @@ QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, con
     }
     for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
         const QString id = QStringLiteral("rId") + QFileInfo(it.key()).completeBaseName();
-        const bool footer = it.key().contains(QLatin1String("footer"));
-        w.addPart(it.key(), xml(it.value()), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.") + (footer ? "footer" : "header") + "+xml");
-        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), id, rel + (footer ? "footer" : "header"), it.key());
+        const QString kind = it.key().contains(QLatin1String("footnotes")) ? QStringLiteral("footnotes") : it.key().contains(QLatin1String("footer")) ? QStringLiteral("footer") : QStringLiteral("header");
+        w.addPart(it.key(), xml(it.value()), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.") + kind + "+xml");
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), id, rel + kind, it.key());
     }
     return w.finish();
 }
@@ -1377,6 +1377,49 @@ private Q_SLOTS:
         // As one line (the empty paragraph's), the footer leaves the text its bottom margin; as two it takes more.
         QVERIFY2(std::abs(framed.first - (792 - 54)) < 0.01, qPrintable(QString::number(framed.first)));
         QVERIFY2(plain.first < framed.first - 5, qPrintable(QString::number(plain.first)));
+    }
+
+    // A file's footnotes are at the foot of the pages that cite them: the note in a box at the bottom of the text area with a rule above it, its mark
+    // the note's number, and the reference in the text showing the same number; saving keeps the part and the reference as they were.
+    void aFilesFootnotesAreAtTheFootOfItsPages()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First paragraph with a note</w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:t xml:space=\"preserve\"> and more words after it.</w:t></w:r></w:p>" + paragraphs(40, 40);
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> FOOTNOTE TWO says something.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}});
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 2);
+        const auto page = doc->pager().materialize(0);
+        const TextItem *note = boxWithText(*page, QStringLiteral("FOOTNOTE TWO"));
+        QVERIFY(note);
+        const double bottom = 792 - 72;
+        QVERIFY2(std::abs(note->rect.bottom() - bottom) < 0.1, qPrintable(QString::number(note->rect.bottom())));
+        // The mark that begins the note and the reference in the text show the number.
+        auto showsOne = [&](const QString &text) {
+            const TextItem *box = boxWithText(*page, text);
+            if (!box) return false;
+            for (QTextBlock b = page->doc->story(box->storyId)->doc->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it)
+                    if (it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("raw:1")) return true;
+            return false;
+        };
+        QVERIFY(showsOne(QStringLiteral("FOOTNOTE TWO")));
+        QVERIFY(showsOne(QStringLiteral("First paragraph")));
+        bool rule = false;
+        for (const auto &item : page->doc->pages[0]->items) rule |= dynamic_cast<const LineItem *>(item.get()) != nullptr;
+        QVERIFY(rule);
+        // Kept as it was: the part, and the reference in the paragraph.
+        const QByteArray saved = doc->toDocx();
+        office::Package before, after;
+        before.read(zip);
+        after.read(saved);
+        QCOMPARE(after.part(QStringLiteral("/word/footnotes.xml")), before.part(QStringLiteral("/word/footnotes.xml")));
+        QCOMPARE(int(documentXml(saved).count("footnoteReference")), 1);
+        // A page without the reference has no note.
+        const auto next = doc->pager().materialize(1);
+        QVERIFY(!boxWithText(*next, QStringLiteral("FOOTNOTE TWO")));
     }
 
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty

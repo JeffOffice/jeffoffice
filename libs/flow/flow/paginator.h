@@ -50,7 +50,11 @@ public:
         // on the one before: space before its first paragraph is kept.
         bool hard = true;
         int section = 0;
-        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section; }
+        // The footnotes and endnotes before the page's first paragraph (the numbers its own go on from), and the footnotes cut at the foot of the page
+        // before, each as "story|number|from".
+        int foot = 0, end = 0;
+        QStringList carried;
+        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && foot == o.foot && end == o.end && carried == o.carried; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 
@@ -110,7 +114,7 @@ private:
     void settle(int index);                               // lays out again what edits changed, until page `index` is right (-1: all)
     void settleStep();                                    // one page of that
     void extend(int index);                               // lays out forward until `index` is known
-    std::unique_ptr<QTextDocument> sliceOf(const Run &run, int *storyFrom, bool *fromBefore) const;
+    std::unique_ptr<QTextDocument> sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore) const;
 
     // The room a page's text has: the section's text area, less what the header and footer ask for beyond the margins (a header or a footer
     // taller than the margin leaves room for pushes the text away from it, as it does in a word processor), and the stories to draw above and below.
@@ -123,6 +127,12 @@ private:
     double storyHeight(const QTextDocument *story, double width, int number);
     // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
     void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number);
+    // How many footnote and endnote references the story has from `from` to `to`, document positions.
+    void countNotes(int from, int to, int *footnotes, int *endnotes) const;
+    // A page made for painting has the footnotes its lines refer to, each in a text box at the place the layout gave it, with the rule above them: the
+    // places are the layout's own (`places`, `rules`: its notes, and the frames the columns are in) and `ids` the notes the page's lines cite.
+    void addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
+                  const Section &sec, const QRectF &body);
     std::map<std::tuple<const QTextDocument *, int, int>, double> m_storyHeights;   // by story, its width in hundredths of a point, and its revision
 
     FlowDocument *m_doc;
