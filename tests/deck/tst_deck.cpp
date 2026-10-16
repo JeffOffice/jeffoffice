@@ -24819,6 +24819,28 @@ private Q_SLOTS:
         QCOMPARE(beta.textList()->itemNumber(beta), 1);
     }
 
+    // A shape that shows the slide's text (an outline reference) can keep a text ruler beside the reference: the margins it sets are those
+    // of the text in that shape (here the first level's, 720 master units, which is 90 points), where another shape that shows the same
+    // text with no ruler of its own has the master's.
+    void importBinaryTakesTheRulerOfAShapeThatShowsTheSlidesText()
+    {
+        const QByteArray ruled = pptShape(0x430, 0, outlineRef(1) + pptRec(4006, le(0x8, 4) + le(720, 2)), 1000, 200, 5000, 3800);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), ruled), &err);
+        QVERIFY2(d, qPrintable(err));
+        QList<double> margins;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text) continue;
+            const QTextDocument *story = d->storyDoc(static_cast<const TextItem *>(it.get())->storyId);
+            if (!story || story->toPlainText().isEmpty()) continue;
+            if (it->role == QLatin1String("ph:body:1") || it->role.isEmpty()) margins << story->firstBlock().blockFormat().leftMargin();
+        }
+        QCOMPARE(int(margins.size()), 2);
+        std::sort(margins.begin(), margins.end());
+        QVERIFY2(qAbs(margins.last() - 90.0) < 0.01, qPrintable(QString::number(margins.last())));
+        QVERIFY2(qAbs(margins.first() - 90.0) > 1.0, qPrintable(QString::number(margins.first())));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {

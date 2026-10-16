@@ -2758,10 +2758,17 @@ void Importer::clientShape(Item &item, const QByteArray &textbox, const QByteArr
     if (!link.isEmpty()) item.hyperlink = link;
 
     const TextGroup *use = nullptr;
+    TextGroup ruled;
     if (g.outline >= 0) {
         if (st.groups && g.outline < st.groups->size()) {
             use = &st.groups->at(int(g.outline));
             st.used[int(g.outline)] = true;
+            // The ruler the shape keeps beside its reference to the slide's text is that text's (its margins, indents, and tabs).
+            if (g.ruler.has && !use->ruler.has) {
+                ruled = *use;
+                ruled.ruler = g.ruler;
+                use = &ruled;
+            }
         }
     } else if (g.hasText) {
         use = &g;
