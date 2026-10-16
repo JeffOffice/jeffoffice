@@ -592,6 +592,8 @@ void Exporter::writeTable(X &x, Scope &sc, const TableItem &t)
             // The cell's look: its margins, its place for text, its lines on the four sides, and its fill.
             QString props = attrOf("fo:padding-left", cm(cell.margins.left())) + attrOf("fo:padding-right", cm(cell.margins.right())) + attrOf("fo:padding-top", cm(cell.margins.top())) + attrOf("fo:padding-bottom", cm(cell.margins.bottom()));
             props += attrOf("style:vertical-align", cell.valign == VAlign::Middle ? QStringLiteral("middle") : cell.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
+            // Text turned a quarter clockwise (reading downward) is 270 degrees counterclockwise, which is how the other suite counts.
+            if (cell.vertical) props += attrOf("style:rotation-angle", QStringLiteral("270"));
             const int sides[4] = {0, 1, 2, 3};
             static const char *const names[4] = {"fo:border-top", "fo:border-bottom", "fo:border-left", "fo:border-right"};
             for (int k = 0; k < 4; ++k) {

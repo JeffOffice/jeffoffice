@@ -748,6 +748,10 @@ QJsonObject TableItem::toJson() const
     if (lockSize) o["lockSize"] = true;
     o["header"] = header;
     o["banded"] = banded;
+    if (totalRow) o["totalRow"] = true;
+    if (firstCol) o["firstCol"] = true;
+    if (lastCol) o["lastCol"] = true;
+    if (bandedCols) o["bandedCols"] = true;
     return o;
 }
 
@@ -795,6 +799,10 @@ void TableItem::fromJson(const QJsonObject &o)
     lockSize = o["lockSize"].toBool();
     header = o["header"].toBool(true);
     banded = o["banded"].toBool(true);
+    totalRow = o["totalRow"].toBool();
+    firstCol = o["firstCol"].toBool();
+    lastCol = o["lastCol"].toBool();
+    bandedCols = o["bandedCols"].toBool();
 }
 
 // ---------- TextArtItem ----------

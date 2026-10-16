@@ -10,10 +10,32 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 
+#include <QColor>
 #include <QDomElement>
 #include <QXmlStreamWriter>
+#include <optional>
+#include <vector>
 
 namespace jp::office {
+
+// What a table style gives each cell of a table: the fill and the text's bold, italic, and color (an invalid color or no value:
+// the style says nothing), and the line on each edge. Rows and columns count from 0; `above(row, col)` is the line along the top of
+// a cell (`above(rows, col)` along the bottom of the last row) and `leftOf(row, col)` along its left side.
+struct TableStyleEffect {
+    int rows = 0, cols = 0;
+    std::vector<Fill> fill;
+    std::vector<std::optional<bool>> bold, italic;
+    std::vector<QColor> color;
+    std::vector<Stroke> across, down;   // (rows + 1) * cols lines, and rows * (cols + 1)
+    Stroke &above(int row, int col) { return across[size_t(row) * cols + col]; }
+    Stroke &leftOf(int row, int col) { return down[size_t(row) * (cols + 1) + col]; }
+    const Stroke &above(int row, int col) const { return across[size_t(row) * cols + col]; }
+    const Stroke &leftOf(int row, int col) const { return down[size_t(row) * (cols + 1) + col]; }
+};
+
+// What the style with that id (one of tablestyles.h's) gives the cells of `table`, with the parts it has turned on (header row, total
+// row, first and last column, banded rows and columns) and the colors of `theme`. False when the id is not one of those styles.
+bool tableStyleEffect(const QString &styleId, const TableItem &table, const Theme &theme, TableStyleEffect *out);
 
 // Whether the graphic frame (p:graphicFrame) holds a table: its
 // a:graphicData names the table's URI and has an a:tbl in it.

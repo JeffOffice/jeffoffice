@@ -602,6 +602,7 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
                                         lengthOr(cellBag.get(Cell, "fo:padding-right"), pad), lengthOr(cellBag.get(Cell, "fo:padding-bottom"), pad));
                 const QString align = cellBag.has(Cell, "style:vertical-align") ? cellBag.get(Cell, "style:vertical-align") : cellBag.get(Cell, "draw:textarea-vertical-align");
                 out.valign = align == QLatin1String("middle") ? VAlign::Middle : align == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+                if (double angle = 0; parseNumber(cellBag.get(Cell, "style:rotation-angle"), &angle) && std::fmod(angle, 360) == 270) out.vertical = true;
                 // Borders are said on the cell, or (in a file from the standard's reader of tables) in its paragraph properties.
                 auto side = [&](const char *which) {
                     const QString specific = QStringLiteral("fo:border-") + QLatin1String(which), whole = QStringLiteral("fo:border");
