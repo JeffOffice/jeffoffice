@@ -72,6 +72,27 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev libfuse2 libpulse-dev
 
+      # A compiler cache kept from run to run in GitHub's own cache, so a push recompiles what it changed and what
+      # includes that, not everything. Each system's own package manager provides ccache.
+      - name: ccache (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y ccache
+
+      - name: ccache (macOS)
+        if: runner.os == 'macOS'
+        run: brew list ccache >/dev/null 2>&1 || brew install ccache
+
+      - name: ccache (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install ccache -y --no-progress
+
+      - uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.name }}-
+
       # Each shared library uses only the ones below it (libs/base < draw <
       # text < office < shell < page < flow < apps), and no app reaches into another.
       - name: Layer check
@@ -80,14 +101,24 @@ jobs:
 
       - name: Configure
         shell: bash
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then CC=gcc CXX=g++; else CC=cc CXX=c++; fi
           EXTRA=""
           if [ "$RUNNER_OS" = "macOS" ]; then EXTRA="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0"; fi
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX $EXTRA
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache $EXTRA
 
       - name: Build
-        run: cmake --build build --parallel
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CCACHE_MAXSIZE: 1500M
+          CCACHE_COMPILERCHECK: content
+        run: |
+          ccache --zero-stats
+          cmake --build build --parallel
+          ccache --show-stats
 
       - name: Test
         shell: bash
