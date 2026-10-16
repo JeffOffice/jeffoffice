@@ -216,6 +216,38 @@ private Q_SLOTS:
         QVERIFY(!readBlocks("<w:hdr", &blocks));
     }
 
+    // A paragraph's borders and shading are read into their sides and colors, and a side a style states that the paragraph doesn't is the style's;
+    // the elements are kept as written beside that, and written back.
+    void paragraphBordersAndShadingAreReadAndInherited()
+    {
+        Made m;
+        m.styles = R"(<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>)"
+                   R"(<w:style w:type="paragraph" w:styleId="Rule"><w:name w:val="Rule"/><w:basedOn w:val="Normal"/><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="2" w:color="FF0000"/><w:between w:val="dotted" w:sz="4" w:space="1"/></w:pBdr><w:shd w:val="clear" w:color="auto" w:fill="DDDDDD"/></w:pPr></w:style>)";
+        m.body = R"(<w:p><w:pPr><w:pStyle w:val="Rule"/><w:pBdr><w:top w:val="double" w:sz="6" w:space="3" w:color="auto"/><w:bottom w:val="nil"/></w:pBdr></w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Rule"/></w:pPr><w:r><w:t>two</w:t></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const ParaProps &own = d.body[0].para.props;
+        QVERIFY(own.borders && own.borders->top && own.borders->bottom);
+        QCOMPARE(own.borders->top->val, QStringLiteral("double"));
+        QCOMPARE(own.borders->top->size, 6);
+        QCOMPARE(own.borders->top->space, 3);
+        QVERIFY(own.borders->top->visible());
+        QVERIFY(!own.borders->bottom->visible());   // (nil says there is none)
+        QVERIFY(!own.shading);
+        // What the paragraph has in all: its own top, its own "no bottom" over the style's, the style's between and shading.
+        ParaProps all = d.styles.paragraph(QStringLiteral("Rule"));
+        QVERIFY(all.borders && all.borders->bottom && all.borders->bottom->visible() && all.shading);
+        QCOMPARE(all.borders->bottom->color, QStringLiteral("FF0000"));
+        all.overlay(own);
+        QVERIFY(all.borders->top->visible() && !all.borders->bottom->visible());
+        QVERIFY(all.borders->between && all.borders->between->visible());
+        QCOMPARE(all.shading->fill, QStringLiteral("DDDDDD"));
+        // Written back as they were.
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QCOMPARE(count(out, "<w:pBdr>"), 1);
+        QVERIFY(out.contains("w:val=\"double\" w:sz=\"6\" w:space=\"3\""));
+    }
+
     void stylesInheritFromTheStylesTheyAreBasedOnAndTheDefaults()
     {
         Made m;

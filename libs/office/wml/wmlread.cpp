@@ -218,10 +218,34 @@ public:
             } else if (name == "sectPr") {
                 p.section = std::make_shared<SectionProps>(sectPr(c));
             } else {
-                p.extra.push_back({paraChildRank(name), t.raw(c)});
+                if (name == "pBdr") p.borders = borders(c);
+                else if (name == "shd") p.shading = Shading{t.attr(c, "val"), t.attr(c, "color"), t.attr(c, "fill")};
+                p.extra.push_back({paraChildRank(name), t.raw(c)});   // (borders and shading are kept as written as well)
             }
         }
         return p;
+    }
+
+    // The sides of a paragraph's borders: none of the bar or the box a frame has.
+    ParaBorders borders(int n) const
+    {
+        ParaBorders b;
+        auto side = [&](int c) {
+            Border x;
+            x.val = t.attr(c, "val");
+            x.size = std::clamp(intOf(t, c, "sz").value_or(0), 0, 96);
+            x.space = std::clamp(intOf(t, c, "space").value_or(0), 0, 31);
+            x.color = t.attr(c, "color");
+            return x;
+        };
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            if (t.is(c, "top")) b.top = side(c);
+            else if (t.is(c, "left") || t.is(c, "start")) b.left = side(c);
+            else if (t.is(c, "bottom")) b.bottom = side(c);
+            else if (t.is(c, "right") || t.is(c, "end")) b.right = side(c);
+            else if (t.is(c, "between")) b.between = side(c);
+        }
+        return b;
     }
 
     // ---- inside a paragraph

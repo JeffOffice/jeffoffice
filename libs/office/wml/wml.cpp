@@ -245,6 +245,16 @@ void ParaProps::overlay(const ParaProps &t)
     if (t.indFirst) indFirst = t.indFirst;
     if (!t.jc.isEmpty()) jc = t.jc;
     if (t.outlineLvl) outlineLvl = t.outlineLvl;
+    if (t.borders) {
+        ParaBorders b = borders.value_or(ParaBorders());
+        if (t.borders->top) b.top = t.borders->top;
+        if (t.borders->left) b.left = t.borders->left;
+        if (t.borders->bottom) b.bottom = t.borders->bottom;
+        if (t.borders->right) b.right = t.borders->right;
+        if (t.borders->between) b.between = t.borders->between;
+        borders = b;
+    }
+    if (t.shading) shading = t.shading;
 }
 
 ParaProps ParaProps::normalized() const
