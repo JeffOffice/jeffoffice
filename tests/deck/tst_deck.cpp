@@ -5471,7 +5471,7 @@ private Q_SLOTS:
         QVERIFY(documentJson(ed) == styled);
     }
 
-    // A table a file damages (spans larger than the table, a grid of 256 columns, every flag on) is read, styled, and edited without harm: the
+    // A table a file damages (spans far larger than the table, every flag on) is read, styled, and edited without harm: the
     // spans stop at the table's edge, and no command reaches past a row or a column.
     void hostileTablesAreHeldToTheirGrid()
     {
