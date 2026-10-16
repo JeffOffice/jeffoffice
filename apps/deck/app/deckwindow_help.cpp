@@ -84,6 +84,7 @@ QString DeckWindow::helpContext() const
     else if (inside(m_slides)) key = QStringLiteral("pane:slides");
     else if (inside(m_outline)) key = QStringLiteral("view:outline");
     else if (inside(m_sorter)) key = QStringLiteral("view:sorter");
+    else if (m_view == View::Master) key = QStringLiteral("view:master");
     else if (!m_ed->selectionKind().isEmpty()) key = QStringLiteral("item:") + m_ed->selectionKind();
     return key.isEmpty() ? QString() : help::contextTopic(key);
 }

@@ -53,6 +53,7 @@ protected:
     bool viewportEvent(QEvent *e) override;
 
 private:
+    void paintMasterPlaceholders();
     QRectF commentMarker(const QPointF &page) const;
     bool m_guides = false, m_grid = false, m_comments = false;
     QString m_activeComment;

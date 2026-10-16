@@ -258,6 +258,7 @@ void DeckWindow::createActions()
     createShowActions();
     createAnimationActions();
     createViewModeActions();
+    createMasterActions();
     createSaveActions();
     createDialogActions();
     createCommentActions();
@@ -272,7 +273,9 @@ void DeckWindow::refreshUi()
     Editor *ed = m_ed;
     Document *d = ed->doc();
     const int n = d ? int(d->pages.size()) : 0;
-    m_slideLabel->setText(tr("Slide %1 of %2").arg(ed->currentPage() + 1).arg(n));
+    const MasterPage *open = m_view == View::Master && d ? d->master(ed->masterView()) : nullptr;
+    m_slideLabel->setText(open ? (deck::isSlideMaster(*open) ? tr("Slide master: %1") : tr("Layout: %1")).arg(open->name) : tr("Slide %1 of %2").arg(ed->currentPage() + 1).arg(n));
+    m_slideLabel->setMinimumWidth(std::max(110, m_slideLabel->fontMetrics().horizontalAdvance(m_slideLabel->text()) + 12));
     act("slide.delete")->setEnabled(n > 1);
     act("slide.hide")->setChecked(n && d->pages[std::clamp(ed->currentPage(), 0, n - 1)]->hidden);
     act("edit.undo")->setEnabled(ed->undoStack()->canUndo());
@@ -355,6 +358,7 @@ void DeckWindow::refreshUi()
         if (m_canvas->fitMode() != Canvas::Fit::None) m_canvas->zoomToFit(m_canvas->fitMode());
         m_canvas->viewport()->update();
     }
+    refreshMasterActions();
 }
 
 void DeckWindow::updateTitle()
@@ -409,7 +413,7 @@ void DeckWindow::newSlide(const QString &layoutType)
     const int at = m_ed->currentPage();
     // The current slide's slide master's layouts, when the file has several.
     const QString master = deck::slideMasterOf(*d, at);
-    const MasterPage *layout = layoutType.isEmpty() ? nullptr : deck::layoutOfType(*d, layoutType, master);
+    const MasterPage *layout = layoutType.isEmpty() ? nullptr : deck::layoutByKey(*d, layoutType, master);
     if (!layout && at >= 0 && at < d->pages.size()) {
         layout = d->masterFor(*d->pages[at]);
         // After a title slide comes a slide with content, as people expect.
@@ -460,8 +464,8 @@ void DeckWindow::setLayout(const QString &layoutType)
 {
     Document *d = m_ed->doc();
     const int i = m_ed->currentPage();
-    const MasterPage *layout = deck::layoutOfType(*d, layoutType, deck::slideMasterOf(*d, i));
-    if (!layout) layout = deck::layoutOfType(*d, layoutType);
+    const MasterPage *layout = deck::layoutByKey(*d, layoutType, deck::slideMasterOf(*d, i));
+    if (!layout) layout = deck::layoutByKey(*d, layoutType);
     if (!layout || i < 0 || i >= d->pages.size()) return;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Layout"));

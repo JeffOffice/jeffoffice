@@ -4,7 +4,7 @@
 //   JeffDeck --screenshot <png> [--size WxH]
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
-//   JeffDeck --view normal|outline|sorter  start in that view
+//   JeffDeck --view normal|outline|sorter|master  start in that view
 //   JeffDeck --backstage <page>         open on a File page (new, open, print, ...)
 
 #include "app/crash.h"
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
     cli.addVersionOption();
     QCommandLineOption shotOpt(QStringLiteral("screenshot"), QCoreApplication::translate("Main", "Save a screenshot of the window and quit."), QStringLiteral("png"));
     QCommandLineOption sizeOpt(QStringLiteral("size"), QCoreApplication::translate("Main", "Window size for --screenshot."), QStringLiteral("WxH"), QStringLiteral("1440x900"));
-    QCommandLineOption viewOpt(QStringLiteral("view"), QCoreApplication::translate("Main", "Start in this view: normal, outline, or sorter."), QStringLiteral("view"));
+    QCommandLineOption viewOpt(QStringLiteral("view"), QCoreApplication::translate("Main", "Start in this view: normal, outline, sorter, or master."), QStringLiteral("view"));
     QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
     cli.addOptions({shotOpt, sizeOpt, viewOpt, stageOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Presentations to open."), QStringLiteral("[files...]"));
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     }
     if (cli.isSet(viewOpt)) {
         const QString view = cli.value(viewOpt);
-        QTimer::singleShot(0, w, [w, view] { w->setView(view == QLatin1String("sorter") ? jp::DeckWindow::View::Sorter : view == QLatin1String("outline") ? jp::DeckWindow::View::Outline : jp::DeckWindow::View::Normal); });
+        QTimer::singleShot(0, w, [w, view] { w->setView(view == QLatin1String("sorter") ? jp::DeckWindow::View::Sorter : view == QLatin1String("outline") ? jp::DeckWindow::View::Outline : view == QLatin1String("master") ? jp::DeckWindow::View::Master : jp::DeckWindow::View::Normal); });
     }
     if (cli.isSet(shotOpt)) {
         const QStringList wh = cli.value(sizeOpt).split('x');
