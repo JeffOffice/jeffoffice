@@ -13,6 +13,7 @@
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
+#include "core/drawnwords.h"
 #include "core/fontfiles.h"
 #include "core/fonts.h"
 #include "core/sfnt.h"
@@ -4525,6 +4526,37 @@ private Q_SLOTS:
         // What it can't read, or what is cut short, is no picture and no crash.
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, odPict(200, 100, QByteArray()).left(30), true), nullptr).isEmpty());
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, QByteArray("not a picture at all"), true), nullptr).isEmpty());
+    }
+
+    // The words a picture draws are kept with the PNG it is drawn as, in the file's own text: each string, the font's family, style, and size, and
+    // where its baseline starts, as shares of the picture's width and height, for a PDF to say them as text. A picture with no text keeps none.
+    void odrawBlipKeepsTheWordsOfAPict()
+    {
+        // The font with a number (21), a size (12, which is 0.12 of a picture 100 high), bold (1) and italic (2) together as the style 3, and a
+        // string started at 20 across and 90 down, then a second string, at 100 more across, from where the first started.
+        const QByteArray ops = pictU16(0x0003) + pictU16(21) + pictU16(0x000D) + pictU16(12) + pictU16(0x0004) + pictU16(3 << 8)
+                               + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x08" "Axis 2.5") + QByteArray(1, '\0') + pictU16(0x0029) + QByteArray("\x64\x04" "Plot");
+        const QImage img = pictImage(odPict(200, 100, ops));
+        QVERIFY(!img.isNull());
+        const QVector<jp::DrawnWord> words = jp::drawnWordsFromText(img.text(QString::fromLatin1(jp::kDrawnWordsKey)));
+        QCOMPARE(int(words.size()), 2);
+        QCOMPARE(words[0].text, QStringLiteral("Axis 2.5"));
+        QVERIFY(!words[0].family.isEmpty());
+        QVERIFY(qAbs(words[0].at.x() - 20.0 / 200) < 0.002);
+        QVERIFY(qAbs(words[0].at.y() - 90.0 / 100) < 0.002);
+        QVERIFY(qAbs(words[0].size - 0.12) < 0.002);
+        QVERIFY(words[0].bold && words[0].italic);
+        QCOMPARE(words[1].text, QStringLiteral("Plot"));
+        QVERIFY(qAbs(words[1].at.x() - 120.0 / 200) < 0.002);
+        // The numbers of a picture with a finer grid than its frame are shares of the grid's rectangle, as the image is.
+        const QImage fine = pictImage(odPict(200, 100, ops, QRect(0, 0, 400, 200)));
+        const QVector<jp::DrawnWord> shares = jp::drawnWordsFromText(fine.text(QString::fromLatin1(jp::kDrawnWordsKey)));
+        QCOMPARE(int(shares.size()), 2);
+        QVERIFY(qAbs(shares[0].at.x() - 20.0 / 400) < 0.002);
+        // A picture that draws a rectangle only has no words.
+        const QImage plain = pictImage(odPict(200, 100, pictColor(0x001A, 255, 0, 0) + pictU16(0x0031) + pictRect(10, 20, 60, 120)));
+        QVERIFY(!plain.isNull());
+        QVERIFY(plain.text(QString::fromLatin1(jp::kDrawnWordsKey)).isEmpty());
     }
 
     // Arcs go clockwise from north, and an arc as a shape is a pie.

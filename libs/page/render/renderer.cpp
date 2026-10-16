@@ -4,6 +4,7 @@
 #include "render/pdfpage.h"
 #include "render/shapes.h"
 #include "render/textart.h"
+#include "core/drawnwords.h"
 #include "core/fonts.h"
 #include "core/svg.h"
 #include "core/texteffects.h"
@@ -798,6 +799,17 @@ static QImage mergePicture(const Document &d, const QString &field, int record)
     return image;
 }
 
+// The words a picture's pixels hold (the text of a Macintosh picture, kept with it as the PNG's own text), said with no ink where they were drawn,
+// the picture shown in `where`: a PDF then has them as text that can be found and copied. Those outside `visible` are left out.
+static void paintDrawnWords(QPainter *p, const QImage &img, const QRectF &where, const QRectF &visible)
+{
+    if (img.isNull() || where.width() <= 0 || where.height() <= 0) return;
+    const QString kept = img.text(QString::fromLatin1(kDrawnWordsKey));
+    if (kept.isEmpty()) return;
+    for (const DrawnWord &w : drawnWordsFromText(kept))
+        drawUnseenText(p, w.family, w.size * where.height(), w.bold, w.italic, QPointF(where.left() + w.at.x() * where.width(), where.top() + w.at.y() * where.height()), w.text, 0, visible);
+}
+
 static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem &pic)
 {
     if (ctx.opt.skipPictures) return;
@@ -865,6 +877,7 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
             // Into pixels (a screen or an image, not a PDF, which keeps the picture whole): the size it covers.
             const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
             p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : QSizeF()));
+            if (ctx.opt.textOutput == TextOutput::Pdf) paintDrawnWords(p, src, pic.imgRect, r);
         }
         p->restore();
     }

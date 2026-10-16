@@ -48,6 +48,7 @@
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/drawnwords.h"
 #include "core/embeddedfonts.h"
 #include "core/fontfiles.h"
 #include "core/fonts.h"
@@ -31865,6 +31866,29 @@ private Q_SLOTS:
         QVERIFY(svg.contains("<text"));
         QVERIFY(svg.contains("fill-opacity=\"0\""));
         QVERIFY(svg.contains("<path"));
+    }
+
+    // The words a picture's pixels hold (kept with a Macintosh picture's PNG) are in the PDF as text with no ink, where they were drawn, and not the
+    // ones that fall outside the part of the picture the slide shows.
+    void exportPdfCarriesTheWordsKeptWithAPicture()
+    {
+        QImage img(400, 100, QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        img.setText(QString::fromLatin1(kDrawnWordsKey), drawnWordsToText({{QStringLiteral("Outside 1.5"), QStringLiteral("Arimo"), QPointF(0.1, 0.5), 0.1, false, false},
+                                                                           {QStringLiteral("Inside 2.5"), QStringLiteral("Arimo"), QPointF(0.6, 0.5), 0.1, true, false}}));
+        QByteArray png;
+        QBuffer buf(&png);
+        QVERIFY(buf.open(QIODevice::WriteOnly) && img.save(&buf, "PNG"));
+        QVERIFY(QImage::fromData(png).text(QString::fromLatin1(kDrawnWordsKey)).contains(QLatin1String("Inside 2.5")));
+        auto d = deck::newPresentation();
+        // A picture 200 wide that shows the right half of the image (twice its width, cropped): the first word is cropped out.
+        addPicture(*d->pages[0], d->addImage(png, QStringLiteral("png")), QRectF(100, 100, 200, 100), QRectF(-200, 0, 400, 100));
+        QString err;
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        const QString text = pdfText(pdf);
+        QVERIFY2(text.contains(QStringLiteral("Inside 2.5")), qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("Outside")), qPrintable(text));
     }
 
     // A notes page has the slide framed in its upper half and the speaker
