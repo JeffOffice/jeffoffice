@@ -52,7 +52,7 @@ Paginator::~Paginator() = default;
 int Paginator::numberOf(int index) const
 {
     bool restarts = false;
-    for (const Section &s : m_doc->sections) restarts |= s.firstPageNumber > 0;
+    for (const Section &s : m_doc->sections) restarts |= s.firstPageNumber.has_value();
     if (!restarts) return index + 1;
     // The page after the one asked for last, in the same section: one more.
     if (index > 0 && index == m_numberOf + 1 && index < m_starts.size() && m_starts[index].section == m_starts[index - 1].section) {
@@ -62,9 +62,9 @@ int Paginator::numberOf(int index) const
     int number = index + 1;
     for (int p = std::min(index, int(m_starts.size()) - 1); p >= 0; --p, ++m_numberSteps)
         if (p == 0 || m_starts[p].section != m_starts[p - 1].section) {
-            const int first = m_doc->section(m_starts[p].section).firstPageNumber;
-            if (first > 0) {
-                number = first + (index - p);
+            const std::optional<int> first = m_doc->section(m_starts[p].section).firstPageNumber;
+            if (first) {
+                number = *first + (index - p);
                 break;
             }
         }

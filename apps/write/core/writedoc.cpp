@@ -76,7 +76,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.footerDistance = p.footer / 20.0;
     s.differentFirstPage = p.titlePg;
     s.differentOddEven = evenAndOdd;
-    s.firstPageNumber = p.pageStart.value_or(0);   // (the flow has no start at 0: for it, 0 goes on from the section before)
+    s.firstPageNumber = p.pageStart;
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
                          : p.pageFormat == QLatin1String("lowerLetter") ? QStringLiteral("alpha")
@@ -113,10 +113,7 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
     if (s.headerDistance != was.headerDistance) p->header = int(std::lround(s.headerDistance * 20));
     if (s.footerDistance != was.footerDistance) p->footer = int(std::lround(s.footerDistance * 20));
     if (s.differentFirstPage != was.differentFirstPage) p->titlePg = s.differentFirstPage;
-    if (s.firstPageNumber != was.firstPageNumber) {
-        if (s.firstPageNumber > 0) p->pageStart = s.firstPageNumber;
-        else p->pageStart.reset();
-    }
+    if (s.firstPageNumber != was.firstPageNumber) p->pageStart = s.firstPageNumber;
     if (s.pageNumberFormat != was.pageNumberFormat)
         p->pageFormat = s.pageNumberFormat == QLatin1String("roman") ? QStringLiteral("lowerRoman")
                         : s.pageNumberFormat == QLatin1String("ROMAN") ? QStringLiteral("upperRoman")
