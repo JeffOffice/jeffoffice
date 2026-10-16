@@ -72,8 +72,35 @@ void collectPrefixes(const QByteArray &xml, QSet<QByteArray> *used)
     }
 }
 
+// The prefixes a start tag declares, read from its attributes (they may be separated by any white space).
+QSet<QByteArray> declaredPrefixes(const QByteArray &tag)
+{
+    QSet<QByteArray> out;
+    qsizetype i = 1;
+    auto space = [](char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
+    while (i < tag.size() && !space(tag[i]) && tag[i] != '>' && tag[i] != '/') ++i;
+    while (i < tag.size()) {
+        while (i < tag.size() && space(tag[i])) ++i;
+        if (i >= tag.size() || tag[i] == '>' || tag[i] == '/') break;
+        const qsizetype nameAt = i;
+        while (i < tag.size() && !space(tag[i]) && tag[i] != '=' && tag[i] != '>') ++i;
+        const QByteArray name = tag.mid(nameAt, i - nameAt);
+        while (i < tag.size() && space(tag[i])) ++i;
+        if (i >= tag.size() || tag[i] != '=') continue;
+        ++i;
+        while (i < tag.size() && space(tag[i])) ++i;
+        if (i >= tag.size() || (tag[i] != '"' && tag[i] != '\'')) continue;
+        const char quote = tag[i++];
+        while (i < tag.size() && tag[i] != quote) ++i;
+        ++i;
+        if (name.startsWith("xmlns:")) out.insert(name.mid(6));
+    }
+    return out;
+}
+
 QByteArray withKnownPrefixes(QByteArray rootTag, const Document &doc)
 {
+    const QSet<QByteArray> declared = declaredPrefixes(rootTag);
     QSet<QByteArray> used;
     for (const Block &b : doc.body) {
         if (b.isRaw) {
@@ -85,7 +112,7 @@ QByteArray withKnownPrefixes(QByteArray rootTag, const Document &doc)
     }
     for (const auto &known : kKnownPrefixes) {
         const QByteArray prefix(known[0]);
-        if (!used.contains(prefix) || rootTag.contains(" xmlns:" + prefix + "=")) continue;
+        if (!used.contains(prefix) || declared.contains(prefix)) continue;
         rootTag.insert(int(qnameOf(rootTag).size()) + 1, " xmlns:" + prefix + "=\"" + known[1] + "\"");
     }
     return rootTag;

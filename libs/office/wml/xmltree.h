@@ -54,7 +54,8 @@ public:
     // w:val, the usual one.
     QString val(int n) const { return attr(n, "val"); }
     // Every attribute of an element that is not named in `known` (local names), as ` name="value"` text exactly as written, for
-    // attributes a reader keeps without understanding. Namespace declarations are left out.
+    // attributes a reader keeps without understanding, with the namespaces the element declares itself first (what its prefixes
+    // may be bound by).
     QByteArray otherAttributes(int n, const QVector<const char *> &known) const;
 
     // The text of an element: its character data (entities decoded, CDATA included), the elements inside it flattened away.

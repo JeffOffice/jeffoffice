@@ -1572,6 +1572,64 @@ private Q_SLOTS:
         QVERIFY2(marks < 10 * base, qPrintable(QStringLiteral("with bookmarks %1 ms, without %2 ms").arg(marks).arg(base)));
     }
 
+    // The root of the main part declares its prefixes on lines of their own; a piece kept as XML uses one the writer would add if it were missing.
+    void aRootWithDeclarationsOnSeparateLinesGetsNoneTwice()
+    {
+        const QByteArray doc = "<w:document\r\n xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"\r\n\txmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"\n"
+                               "xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"><w:body><w:p><w:sdt><w:sdtPr><w14:checkbox><w14:checked w14:val=\"0\"/></w14:checkbox></w:sdtPr>"
+                               "<w:sdtContent><w:r><w:t>box</w:t></w:r></w:sdtContent></w:sdt></w:p></w:body></w:document>";
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xml(doc), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        const QByteArray original = w.finish();
+        auto d = open(original);
+        QVERIFY(d);
+        const QByteArray saved = d->toDocx();
+        const QStringList strict = rt::strictProblems(saved, original);
+        QVERIFY2(strict.isEmpty(), qPrintable(strict.join(QLatin1Char('\n'))));
+        QVERIFY(documentXml(saved).contains("w14:checkbox"));
+    }
+
+    // A prefix declared on the paragraph itself (not on the root) goes back with the attributes that use it.
+    void aNamespaceDeclaredOnAParagraphStaysDeclared()
+    {
+        auto d = open(makeDocx("<w:p xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\" w14:paraId=\"1234ABCD\"><w:r><w:t>local</w:t></w:r></w:p>"));
+        QVERIFY(d);
+        const QByteArray saved = d->toDocx();
+        const QStringList strict = rt::strictProblems(saved);
+        QVERIFY2(strict.isEmpty(), qPrintable(strict.join(QLatin1Char('\n'))));
+        QVERIFY(documentXml(saved).contains("1234ABCD"));
+    }
+
+    // The styles and the lists have links of their own (a picture bullet's image): they are kept, and the image is not left without one.
+    void theLinksOfTheStylesAndTheListsAreKept()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        office::PackageWriter w;
+        const QByteArray ns = kNs;
+        w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body><w:p><w:r><w:t>text</w:t></w:r></w:p></w:body></w:document>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/styles.xml"), xml("<w:styles " + ns + ">" + kStyles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+        w.addPart(QStringLiteral("/word/numbering.xml"), xml("<w:numbering " + ns + "><w:numPicBullet w:numPicBulletId=\"0\"><w:pict><v:imagedata r:id=\"rIdPic\"/></w:pict></w:numPicBullet></w:numbering>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"));
+        w.addPart(QStringLiteral("/word/media/bullet.png"), QByteArray("\x89PNG-bytes"), QStringLiteral("image/png"));
+        w.addPart(QStringLiteral("/word/media/swatch.png"), QByteArray("\x89PNG-other"), QStringLiteral("image/png"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdSt"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdNum"), rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/numbering.xml"), QStringLiteral("rIdPic"), rel + QStringLiteral("image"), QStringLiteral("/word/media/bullet.png"));
+        w.addRelationshipWithId(QStringLiteral("/word/styles.xml"), QStringLiteral("rIdSw"), rel + QStringLiteral("image"), QStringLiteral("/word/media/swatch.png"));
+        const QByteArray original = w.finish();
+        auto d = open(original);
+        QVERIFY(d);
+        const QByteArray saved = d->toDocx();
+        office::Package p;
+        QVERIFY(p.read(saved));
+        QCOMPARE(p.relationship(QStringLiteral("/word/numbering.xml"), QStringLiteral("rIdPic")).target, QStringLiteral("/word/media/bullet.png"));
+        QCOMPARE(p.relationship(QStringLiteral("/word/styles.xml"), QStringLiteral("rIdSw")).target, QStringLiteral("/word/media/swatch.png"));
+        QVERIFY(p.hasPart(QStringLiteral("/word/media/bullet.png")) && p.hasPart(QStringLiteral("/word/media/swatch.png")));
+    }
+
     void aRichDocumentComesBackFaithfulAndWellFormed()
     {
         const QByteArray original = richDocx();

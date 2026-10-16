@@ -422,6 +422,12 @@ QByteArray XmlTree::otherAttributes(int n, const QVector<const char *> &known) c
 {
     const Node &nd = m_nodes[n];
     QByteArray out;
+    // (The namespaces the element declares itself go with its attributes: they may be what the attributes' prefixes are bound by.)
+    for (quint32 k = 0; k < nd.declCount; ++k) {
+        const Decl &d = m_decls[nd.declBegin + k];
+        out += d.prefix == 0 ? QByteArray(" xmlns=\"") : " xmlns:" + m_names[d.prefix] + "=\"";
+        out += m_src.mid(d.begin, d.end - d.begin) + '"';
+    }
     for (quint32 k = 0; k < nd.attrCount; ++k) {
         const Attr &a = m_attrs[nd.attrBegin + k];
         bool isKnown = false;
