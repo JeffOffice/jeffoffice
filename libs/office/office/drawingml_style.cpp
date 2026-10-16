@@ -468,8 +468,9 @@ TextStyleStack withFontReference(const TextStyleStack &base, const QDomElement &
     const QDomElement ref = childNamed(style, "fontRef");
     if (ref.isNull()) return base;
     const QDomElement color = ref.firstChildElement();
-    const bool major = attr(ref, QStringLiteral("idx")) == QLatin1String("major");
-    if (color.isNull() && !major) return base;
+    // The font the style names is the theme's heading font (major) or body font (minor), over the presentation's default text style's.
+    const bool major = attr(ref, QStringLiteral("idx")) == QLatin1String("major"), minor = attr(ref, QStringLiteral("idx")) == QLatin1String("minor");
+    if (color.isNull() && !major && !minor) return base;
     const QString a(ns::A);
     QDomElement root = keep->createElementNS(a, QStringLiteral("a:fontStyles"));
     keep->appendChild(root);
@@ -483,9 +484,9 @@ TextStyleStack withFontReference(const TextStyleStack &base, const QDomElement &
             fill.appendChild(keep->importNode(color, true));
             run.appendChild(fill);
         }
-        if (major) {
+        if (major || minor) {
             QDomElement latin = keep->createElementNS(a, QStringLiteral("a:latin"));
-            latin.setAttributeNS(QString(), QStringLiteral("typeface"), QStringLiteral("+mj-lt"));
+            latin.setAttributeNS(QString(), QStringLiteral("typeface"), major ? QStringLiteral("+mj-lt") : QStringLiteral("+mn-lt"));
             run.appendChild(latin);
         }
         lvl.appendChild(run);
