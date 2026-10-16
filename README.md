@@ -36,7 +36,7 @@ JeffPub was started in response. It gives the people, small businesses, schools,
 - Rulers, guides, a pages pane, zoom, and a two-page spread view.
 - **Microsoft Publisher files.** Opens `.pub` files from every version of Publisher since Publisher 98, and saves publications back to `.pub` so they can be shared with Publisher users. JeffPub also has its own open format, `.jpub`.
 
-Every feature and where it stands is listed in [FEATURES.md](FEATURES.md).
+Every feature and where it stands is listed in [the feature lists](docs/features/README.md): one per app, starting with [JeffPub's](docs/features/jeffpub.md).
 
 ## JeffDeck
 
