@@ -140,6 +140,30 @@ inline QStringList strictProblems(const QByteArray &saved, const QByteArray &ori
     return out;
 }
 
+// The relationship Ids that the main part refers to (r:id, r:embed, r:link...) and the package does not give it: nothing saved may point at a
+// part that is not there.
+inline QStringList danglingReferences(const QByteArray &zip)
+{
+    office::Package p;
+    if (!p.read(zip)) return {};
+    const QString main = p.mainPart();
+    const QByteArray xml = p.part(main);
+    QStringList out;
+    for (qsizetype i = xml.indexOf("r:"); i >= 0; i = xml.indexOf("r:", i + 1)) {
+        if (i == 0 || (xml[i - 1] != ' ' && xml[i - 1] != '\n' && xml[i - 1] != '\t' && xml[i - 1] != '\r')) continue;
+        qsizetype j = i + 2;
+        while (j < xml.size() && ((xml[j] >= 'a' && xml[j] <= 'z') || (xml[j] >= 'A' && xml[j] <= 'Z'))) ++j;
+        if (j + 1 >= xml.size() || xml[j] != '=' || (xml[j + 1] != '"' && xml[j + 1] != '\'')) continue;
+        const qsizetype from = j + 2, to = xml.indexOf(xml[j + 1], from);
+        if (to < 0) break;
+        const QString id = QString::fromUtf8(xml.mid(from, to - from));
+        const office::Relationship r = p.relationship(main, id);
+        if (r.id.isEmpty() || (!r.external && !p.hasPart(r.target))) out << id;
+        i = to;
+    }
+    return out;
+}
+
 // ---- the paragraphs
 
 namespace detail {

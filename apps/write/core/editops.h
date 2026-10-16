@@ -33,8 +33,31 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back);
 // ---- the clipboard
 // The selection as text and as a fragment that keeps its formats (null fragment when nothing is selected).
 QTextDocumentFragment selectionFragment(const QTextCursor &c);
+// A fragment pasted where the cursor is, as a copy from this same document (what its kept pieces refer to is this document's).
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment);
 void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text);
+// What a fragment says in plain text: with the pieces kept as XML left out, and a line break as a new line.
+QString plainTextOf(const QTextDocumentFragment &fragment);
+
+// A copy that can be pasted into another document: the fragment, and what the pieces kept as XML in it refer to in the document it came from (a
+// picture's bytes, a hyperlink's address). Pasting it into another document carries pictures and hyperlinks over, with relationships of the
+// new document's own; any other piece that refers to a part of the file (a chart, say) the new document would not have is not carried,
+// and the text it had is pasted as text, so that nothing is saved that points at a part the file lacks.
+struct Clip {
+    struct Link {
+        QString id, type, target;
+        bool external = false;
+        QByteArray data;            // the bytes of a part that is a picture
+        QString contentType;
+    };
+    QTextDocumentFragment fragment;
+    quint64 source = 0;             // the document it was copied from
+    quint64 generation = 0;         // the store of kept bytes its formats refer to (when the last document is closed, those are gone)
+    QVector<Link> links;
+    bool isEmpty() const { return fragment.isEmpty(); }
+};
+Clip copySelection(const WriteDoc &doc, const QTextCursor &c);
+void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip);
 
 // ---- moving
 // A move of the cursor that does not stop beside the invisible pieces of the file (a step is a letter and the bookmarks it carries).

@@ -21,17 +21,8 @@ namespace jp::write {
 
 namespace {
 
-// What a copy leaves for programs that don't know the fragment: its text, with the pieces kept as XML left out.
-QString plainTextOf(const QTextDocumentFragment &f)
-{
-    QString t = f.toPlainText();
-    t.remove(QChar::ObjectReplacementCharacter);
-    t.replace(QChar(QChar::LineSeparator), QLatin1Char('\n'));
-    return t;
-}
-
-// The fragment copied in this program: pasting it again keeps every format.
-QTextDocumentFragment s_copied;
+// The copy made in this program (from any of its documents): pasting it again keeps every format, and carries pictures and hyperlinks over.
+Clip s_copied;
 QString s_copiedText;
 
 } // namespace
@@ -55,13 +46,14 @@ void PageView::redo()
 void PageView::copy()
 {
     if (!m_doc || !m_cursor.hasSelection()) return;
-    const QTextDocumentFragment f = selectionFragment(m_cursor);
+    const Clip clip = copySelection(*m_doc, m_cursor);
+    const QTextDocumentFragment &f = clip.fragment;
     auto *mime = new QMimeData;
     const QString text = plainTextOf(f);
     mime->setText(text);
     mime->setHtml(f.toHtml());
     mime->setData(QStringLiteral("application/x-jeffwrite-fragment"), text.toUtf8());
-    s_copied = f;
+    s_copied = clip;
     s_copiedText = text;
     QApplication::clipboard()->setMimeData(mime);
 }
@@ -80,7 +72,7 @@ void PageView::paste()
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     if (!mime) return;
     if (mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty())
-        pasteFragment(*m_doc, m_cursor, s_copied);
+        pasteClip(*m_doc, m_cursor, s_copied);
     else if (mime->hasText())
         pasteText(*m_doc, m_cursor, mime->text());
     else if (mime->hasHtml())

@@ -11,6 +11,7 @@
 
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
+#include "office/package.h"
 #include "wml/wml.h"
 
 #include <QHash>
@@ -84,6 +85,18 @@ public:
     office::wml::ParaProps levelParagraph(int numId, int level) const;   // the indents the level gives its paragraphs
     int deepestLevel(int numId) const;   // the deepest level the definition has (0 to 8), -1 for none
 
+    // ---- the file's links and parts (what a pasted picture or hyperlink needs from the document it goes into)
+    // This document's own number, which tells a copy made from it from one made from another document.
+    quint64 id() const { return m_id; }
+    // A relationship of the main part by its Id (empty Id if there is none).
+    office::Relationship mainRelationship(const QString &id) const;
+    // A kept part's bytes (and its content type); empty if the document has no such part.
+    QByteArray partData(const QString &absoluteName, QString *contentType = nullptr) const;
+    // The Id of a relationship of the main part to an address outside the file, made if the document has none like it.
+    QString addExternalLink(const QString &type, const QString &target);
+    // The Id of an image relationship to a new part with these bytes (named image1.png and on, in word/media).
+    QString addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType);
+
     // ---- the file
     QString filePath;
     bool isModified() const { return story()->isModified(); }
@@ -109,6 +122,7 @@ private:
     const office::wml::StyleSheet &sheetFor(const QString &styleId) const;
     office::wml::SectionProps lastSectionProps() const;
 
+    quint64 m_id = 0;
     std::unique_ptr<flow::FlowDocument> m_flow;
     std::unique_ptr<flow::Paginator> m_pager;
     office::wml::Document m_wml;                   // everything of the file but the body

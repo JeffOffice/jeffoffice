@@ -473,9 +473,17 @@ QTextDocumentFragment selectionFragment(const QTextCursor &c)
     return c.hasSelection() ? QTextDocumentFragment(c) : QTextDocumentFragment();
 }
 
-void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
+QString plainTextOf(const QTextDocumentFragment &f)
 {
-    if (fragment.isEmpty()) return;
+    QString t = f.toPlainText();
+    t.remove(QChar::ObjectReplacementCharacter);
+    t.replace(QChar(QChar::LineSeparator), QLatin1Char('\n'));
+    return t;
+}
+
+// Pastes, and says where what was pasted is (from, to) when the paste is done.
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo)
+{
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
     if (isLocked(c.block())) {
@@ -496,6 +504,7 @@ void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &f
     const int from = c.position();
     c.insertFragment(fragment);
     const int to = c.position();
+    *pastedFrom = from;
     const QTextBlock first = d->findBlock(from), last = d->findBlock(to);
     const bool several = first != last;
     auto sameLook = [](QTextBlockFormat x, QTextBlockFormat y) {
@@ -553,6 +562,180 @@ void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &f
         t.setPosition(strays[i].first);
         t.setPosition(strays[i].first + strays[i].second, QTextCursor::KeepAnchor);
         t.removeSelectedText();
+    }
+    *pastedTo = c.position();
+    c.endEditBlock();
+}
+
+void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
+{
+    if (fragment.isEmpty()) return;
+    int from = 0, to = 0;
+    pasteInto(doc, c, fragment, &from, &to);
+}
+
+namespace {
+
+// The values of the attributes in kept XML that name a relationship of the file (r:id, r:embed, r:link...).
+struct Reference {
+    qsizetype at = 0, length = 0;
+    QString id;
+};
+
+QVector<Reference> referencesIn(const QByteArray &xml)
+{
+    QVector<Reference> out;
+    for (qsizetype i = xml.indexOf("r:"); i >= 0; i = xml.indexOf("r:", i + 1)) {
+        if (i == 0 || (xml[i - 1] != ' ' && xml[i - 1] != '\n' && xml[i - 1] != '\t' && xml[i - 1] != '\r')) continue;
+        qsizetype j = i + 2;
+        while (j < xml.size() && ((xml[j] >= 'a' && xml[j] <= 'z') || (xml[j] >= 'A' && xml[j] <= 'Z'))) ++j;
+        if (j + 1 >= xml.size() || xml[j] != '=') continue;
+        const char quote = xml[j + 1];
+        if (quote != '"' && quote != '\'') continue;
+        const qsizetype from = j + 2, to = xml.indexOf(quote, from);
+        if (to < 0) break;
+        out.push_back({from, to - from, QString::fromUtf8(xml.mid(from, to - from))});
+        i = to;
+    }
+    return out;
+}
+
+} // namespace
+
+Clip copySelection(const WriteDoc &doc, const QTextCursor &c)
+{
+    Clip clip;
+    clip.fragment = selectionFragment(c);
+    clip.source = doc.id();
+    clip.generation = byteStoreGeneration();
+    if (!c.hasSelection()) return clip;
+    QSet<QString> ids;
+    auto collect = [&](const QByteArray &raw) {
+        for (const Reference &r : referencesIn(raw)) ids.insert(r.id);
+    };
+    QTextDocument *d = c.document();
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+        if (isLocked(b)) {
+            for (const Block &r : unpackBlocks(storedBytes(b.blockFormat(), prop::RawBlock))) collect(r.raw);
+            continue;
+        }
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (f.position() + f.length() <= from || f.position() >= to || !f.charFormat().hasProperty(prop::Atom)) continue;
+            collect(unpackAtom(storedBytes(f.charFormat(), prop::Atom)).raw);
+        }
+    }
+    for (const QString &id : std::as_const(ids)) {
+        const Relationship r = doc.mainRelationship(id);
+        if (r.id.isEmpty()) continue;
+        Clip::Link link;
+        link.id = r.id;
+        link.type = r.type;
+        link.target = r.target;
+        link.external = r.external;
+        if (!r.external && r.type.endsWith(QLatin1String("/image"))) link.data = doc.partData(r.target, &link.contentType);
+        clip.links.push_back(link);
+    }
+    return clip;
+}
+
+void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
+{
+    if (clip.isEmpty()) return;
+    const bool same = clip.source == doc.id();
+    if (!same && clip.generation != byteStoreGeneration()) {
+        pasteText(doc, c, plainTextOf(clip.fragment));   // (the kept bytes its formats stood for are gone)
+        return;
+    }
+    c.beginEditBlock();
+    int from = 0, to = 0;
+    pasteInto(doc, c, clip.fragment, &from, &to);
+    if (same) {
+        c.endEditBlock();
+        return;
+    }
+    // From another document: what the pasted pieces refer to by relationship Id is made over in this one's, or the pieces are left out.
+    QTextDocument *d = c.document();
+    QHash<QString, QString> mapped;
+    auto remap = [&](const QByteArray &raw, bool *ok) {
+        *ok = true;
+        QByteArray out;
+        qsizetype last = 0;
+        for (const Reference &r : referencesIn(raw)) {
+            QString id = mapped.value(r.id);
+            if (id.isEmpty()) {
+                const Clip::Link *link = nullptr;
+                for (const Clip::Link &l : clip.links)
+                    if (l.id == r.id) link = &l;
+                if (!link) { *ok = false; return raw; }
+                if (link->external) id = doc.addExternalLink(link->type, link->target);
+                else if (link->type.endsWith(QLatin1String("/image")) && !link->data.isEmpty()) id = doc.addMedia(link->data, link->target.section(QLatin1Char('.'), -1).toLower(), link->contentType);
+                else { *ok = false; return raw; }
+                mapped.insert(r.id, id);
+            }
+            out += raw.mid(last, r.at - last) + id.toUtf8();
+            last = r.at + r.length;
+        }
+        out += raw.mid(last);
+        return out;
+    };
+    struct Fix { int from, to; QTextCharFormat format; bool remove; };
+    QVector<Fix> fixes;
+    QVector<int> standIns;
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
+        if (isLocked(b)) {
+            QVector<Block> blocks = unpackBlocks(storedBytes(b.blockFormat(), prop::RawBlock));
+            bool all = true, changed = false;
+            for (Block &r : blocks) {
+                bool ok = true;
+                const QByteArray raw = remap(r.raw, &ok);
+                all = all && ok;
+                if (ok && raw != r.raw) {
+                    r.raw = raw;
+                    changed = true;
+                }
+            }
+            if (!all) {
+                standIns.push_back(b.position());
+            } else if (changed) {
+                QTextBlockFormat nf = b.blockFormat();
+                setStored(nf, prop::RawBlock, packBlocks(blocks));
+                setBlockFormatKeepingList(b, nf);
+            }
+            continue;
+        }
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.charFormat().hasProperty(prop::Atom)) continue;
+            Inline a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
+            if (referencesIn(a.raw).isEmpty()) continue;
+            bool ok = true;
+            const QByteArray raw = remap(a.raw, &ok);
+            if (!ok) {
+                fixes.push_back({f.position(), f.position() + f.length(), QTextCharFormat(), true});
+            } else if (raw != a.raw) {
+                a.raw = raw;
+                QTextCharFormat nf = f.charFormat();
+                setStored(nf, prop::Atom, packAtom(a));
+                fixes.push_back({f.position(), f.position() + f.length(), nf, false});
+            }
+        }
+    }
+    for (int i = int(fixes.size()) - 1; i >= 0; --i) {
+        QTextCursor t(d);
+        t.setPosition(fixes[i].from);
+        t.setPosition(fixes[i].to, QTextCursor::KeepAnchor);
+        if (fixes[i].remove) t.removeSelectedText();
+        else t.setCharFormat(fixes[i].format);
+    }
+    for (int i = int(standIns.size()) - 1; i >= 0; --i) {
+        const QTextBlock b = d->findBlock(standIns[i]);
+        if (!b.isValid() || !isLocked(b)) continue;
+        QTextCursor t(d);
+        t.setPosition(b.position());
+        t.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
+        removeSelection(doc, t);
     }
     c.endEditBlock();
 }

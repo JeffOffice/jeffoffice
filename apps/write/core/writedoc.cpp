@@ -6,6 +6,7 @@
 
 #include <QDataStream>
 #include <QLocale>
+#include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -142,9 +143,10 @@ QVariant resolveStored(const WriteDoc &, const QVariant &value, int property)
 
 namespace {
 int s_openDocuments = 0;   // (the store of bytes the formats refer to is emptied with the last)
+quint64 s_lastId = 0;
 }
 
-WriteDoc::WriteDoc() : m_flow(std::make_unique<flow::FlowDocument>()) { ++s_openDocuments; }
+WriteDoc::WriteDoc() : m_id(++s_lastId), m_flow(std::make_unique<flow::FlowDocument>()) { ++s_openDocuments; }
 
 WriteDoc::~WriteDoc()
 {
@@ -229,6 +231,71 @@ void WriteDoc::storyChanged(int, int removed, int added)
         m_blockCount = blocks;
         syncSections();
     }
+}
+
+// ---- the file's links and parts
+
+Relationship WriteDoc::mainRelationship(const QString &id) const
+{
+    for (const Relationship &r : m_wml.mainRelationships)
+        if (r.id == id) return r;
+    return {};
+}
+
+QByteArray WriteDoc::partData(const QString &name, QString *contentType) const
+{
+    for (const KeptPart &p : m_wml.parts)
+        if (p.name.compare(name, Qt::CaseInsensitive) == 0) {
+            if (contentType) *contentType = p.contentType;
+            return p.data;
+        }
+    return {};
+}
+
+namespace {
+QString nextRelationshipId(const QVector<Relationship> &links)
+{
+    QSet<QString> used;
+    for (const Relationship &r : links) used.insert(r.id);
+    for (int n = int(links.size()) + 1;; ++n)
+        if (!used.contains(QStringLiteral("rId%1").arg(n))) return QStringLiteral("rId%1").arg(n);
+}
+} // namespace
+
+QString WriteDoc::addExternalLink(const QString &type, const QString &target)
+{
+    for (const Relationship &r : m_wml.mainRelationships)
+        if (r.external && r.type == type && r.target == target) return r.id;
+    Relationship r;
+    r.id = nextRelationshipId(m_wml.mainRelationships);
+    r.type = type;
+    r.target = target;
+    r.external = true;
+    m_wml.mainRelationships.push_back(r);
+    return r.id;
+}
+
+QString WriteDoc::addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType)
+{
+    QSet<QString> taken;
+    for (const KeptPart &p : m_wml.parts) taken.insert(p.name.toLower());
+    taken.insert(m_wml.mainName.toLower());
+    QString name;
+    for (int n = 1;; ++n) {
+        name = QStringLiteral("/word/media/image%1.%2").arg(n).arg(extension);
+        if (!taken.contains(name.toLower())) break;
+    }
+    KeptPart part;
+    part.name = name;
+    part.contentType = contentType;
+    part.data = bytes;
+    m_wml.parts.push_back(part);
+    Relationship r;
+    r.id = nextRelationshipId(m_wml.mainRelationships);
+    r.type = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
+    r.target = name;
+    m_wml.mainRelationships.push_back(r);
+    return r.id;
 }
 
 // ---- sections
