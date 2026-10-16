@@ -14,6 +14,7 @@
 
 class QDockWidget;
 class QLabel;
+class QMenu;
 class QSlider;
 class QSplitter;
 class QStackedWidget;
@@ -174,6 +175,14 @@ public:
     // of slides past the end): the message box, unless this stands in for it
     // (tests). Given the question, it says whether to keep; a notice's answer is ignored.
     void setShowQuestion(const std::function<bool(const QString &)> &ask) { m_showQuestion = ask; }
+    // The right-click menu of the slide (and of Shift+F10 and the Menu key, at the selection): what it offers depends on
+    // whether text is being typed in (spelling suggestions, cut, copy, paste, font, paragraph, bullets, numbering, a link),
+    // an object is selected (cut, copy, paste, delete, edit text, group, order, alignment of its text, a link), or neither
+    // (paste, layout, reset, background, grid and guides, the ruler). Every command is the ribbon's own action, or
+    // calls it. Built each time; the caller owns the menu (deckwindow_menu.cpp).
+    QMenu *slideContextMenu(QWidget *parent = nullptr);
+    // Opens it at a place on the screen, and does nothing while it is already open.
+    void showSlideContextMenu(const QPoint &global);
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
@@ -265,6 +274,7 @@ private:
     void updateTitle();
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
+    QMenu *layoutMenu(QWidget *owner, bool change);
     void createHelpActions();     // deckwindow_help.cpp
     void createMediaActions();    // deckwindow_media.cpp
     void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
@@ -292,6 +302,7 @@ private:
     QDockWidget *m_onlineDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    bool m_menuOpen = false;   // the slide's right-click menu is up
     AnimationPane *m_animPane = nullptr;
     QDockWidget *m_animDock = nullptr;
     std::shared_ptr<void> m_animations;   // what the animation controls do (deckwindow_animations.cpp)

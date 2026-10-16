@@ -5,6 +5,7 @@
 #include "core/comments.h"
 #include "core/deck.h"
 
+#include <QContextMenuEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -130,7 +131,30 @@ void DeckCanvas::keyPressEvent(QKeyEvent *e)
         viewport()->update();
         return;
     }
+    // The menu from the keyboard, where the selection is. (The platforms that send the Menu key on as a request of their
+    // own send it after this, and the window ignores a request while its menu is open.)
+    if (e->key() == Qt::Key_Menu || (e->key() == Qt::Key_F10 && e->modifiers() == Qt::ShiftModifier)) {
+        Q_EMIT contextMenuWanted(menuAnchor());
+        e->accept();
+        return;
+    }
     Canvas::keyPressEvent(e);
+}
+
+void DeckCanvas::contextMenuEvent(QContextMenuEvent *e)
+{
+    if (e->reason() == QContextMenuEvent::Keyboard) Q_EMIT contextMenuWanted(menuAnchor());
+    else Canvas::contextMenuEvent(e);
+}
+
+QPoint DeckCanvas::menuAnchor() const
+{
+    QPointF at = viewport()->rect().center();
+    const QRectF caret = editor()->isEditingText() ? caretViewRect() : QRectF();
+    if (!caret.isNull()) at = caret.bottomLeft() + QPointF(0, 2);
+    else if (const QRectF box = editor()->selectionBounds(); !box.isNull()) at = pageToView(box.center());
+    const QRect in = viewport()->rect().adjusted(0, 0, -1, -1);
+    return viewport()->mapToGlobal(QPoint(std::clamp(int(at.x()), in.left(), in.right()), std::clamp(int(at.y()), in.top(), in.bottom())));
 }
 
 void DeckCanvas::paintEvent(QPaintEvent *e)
