@@ -161,7 +161,11 @@ public:
     bool hasCopiedFormatting() const { return !painterItem.isEmpty() || painterHasText; }
     void pasteFormatting();
     void pasteFormattingTo(const QString &itemId);
-    void setCropItem(const QString &id) { cropItem = id; Q_EMIT viewChanged(); }
+    void setCropItem(const QString &id);
+    // Crop mode as a presentation program has it: with this on, the whole crop (from choosing Crop until Enter, a click away, or a command)
+    // is one step that undoes, and Esc (endCrop(false)) takes all of it back. Off, as in JeffPub, each drag of a handle is a step of its own.
+    bool cropSessions = false;
+    void endCrop(bool keep);
     void setPointsItem(const QString &id) { pointsItem = id; Q_EMIT viewChanged(); }
     void setWrapItem(const QString &id) { wrapItem = id; Q_EMIT viewChanged(); }
 
@@ -320,6 +324,7 @@ private:
     struct SpellEntry { quint64 serial = 0; int revision = -1; QVector<QPair<int, int>> ranges; };
     mutable QHash<QString, SpellEntry> m_spell;
     QUndoStack m_undo;
+    bool m_cropOpen = false;   // a crop session holds a change open (cropSessions)
     QString m_path;
     QString m_untitledName;
     QString m_newName;
