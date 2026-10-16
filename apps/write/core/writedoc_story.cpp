@@ -9,6 +9,7 @@
 
 #include <QCoreApplication>
 #include <QHash>
+#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -65,9 +66,57 @@ struct NumState {
 
 } // namespace
 
-void WriteDoc::buildStory(const QVector<Block> &body)
+void WriteDoc::buildStory(const QVector<Block> &body) { fillStory(story(), body, false); }
+
+// The most fields that nest in one another that a header or footer shows live (deeper ones show what they last read).
+constexpr int kMostFieldNesting = 8;
+// The most paragraphs of a header or footer that are read (the rest is left out).
+constexpr int kMostHeaderParagraphs = 400;
+
+namespace {
+
+// What an instruction of a field asks to be shown as the flowing document's own: the code of the text engine's field for the page's number
+// (in the format the instruction gives, or the section's), the document's page count, or the section's; none for the rest, which show what they read.
+QString liveFieldOf(const QString &instruction)
 {
-    QTextDocument *story = this->story();
+    const QStringList words = instruction.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+    if (words.isEmpty()) return QString();
+    const QString kind = words.first().toUpper();
+    if (kind == QLatin1String("NUMPAGES")) return QStringLiteral("pages");
+    if (kind == QLatin1String("SECTIONPAGES")) return QStringLiteral("sectionpages");
+    if (kind != QLatin1String("PAGE")) return QString();
+    for (int i = 1; i + 1 < words.size(); ++i)
+        if (words[i] == QLatin1String("\\*")) {
+            const QString format = words[i + 1];
+            if (format == QLatin1String("roman") || format == QLatin1String("ROMAN") || format == QLatin1String("alphabetic") || format == QLatin1String("ALPHABETIC"))
+                return QStringLiteral("page:") + (format.startsWith(QLatin1String("alpha"), Qt::CaseInsensitive) ? (format == QLatin1String("alphabetic") ? QStringLiteral("alpha") : QStringLiteral("ALPHA")) : format);
+            if (format.compare(QLatin1String("arabic"), Qt::CaseInsensitive) == 0) return QStringLiteral("page:arabic");
+        }
+    return QStringLiteral("page");
+}
+
+// The text inside an element kept as written (an instruction's words).
+QString textOfXml(const QByteArray &xml)
+{
+    QString text = QString::fromUtf8(xml);
+    text.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
+    return text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\""))
+        .replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+}
+
+// The attribute of a start tag kept as written.
+QString attributeOfTag(const QByteArray &xml, const QString &name)
+{
+    const QRegularExpression re(QStringLiteral("[\\s:]%1\\s*=\\s*\"([^\"]*)\"").arg(QRegularExpression::escape(name)));
+    return re.match(QString::fromUtf8(xml.left(4000))).captured(1);
+}
+
+} // namespace
+
+// Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
+// counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header)
+{
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
     const QString defaultStyle = defaultParagraphStyle();
@@ -103,7 +152,9 @@ void WriteDoc::buildStory(const QVector<Block> &body)
     QHash<QString, ParaProps> baselines;
     QVector<Block> pending;   // body elements kept as XML that wait for the next paragraph
 
+    int paragraphsMade = 0;
     for (const Block &blk : body) {
+        if (header && (blk.isRaw || ++paragraphsMade > kMostHeaderParagraphs)) continue;
         if (blk.isRaw) {
             if (blk.display.isEmpty()) {
                 pending.push_back(blk);
@@ -151,6 +202,17 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         resolved.numId = numId;
         resolved.ilvl = level;
         QTextBlockFormat bf = blockFormatOf(resolved);
+        if (header) {
+            // A paragraph in a frame (the page number's, set to the side or the middle) is set that way, where the next paragraph begins, taking no room.
+            for (const RawChild &ch : direct.extra) {
+                if (!ch.xml.contains("framePr")) continue;
+                const QString at = attributeOfTag(ch.xml, QStringLiteral("xAlign"));
+                if (at == QLatin1String("center")) bf.setAlignment(Qt::AlignHCenter);
+                else if (at == QLatin1String("right") || at == QLatin1String("outside")) bf.setAlignment(Qt::AlignRight);
+                else if (at == QLatin1String("left") || at == QLatin1String("inside")) bf.setAlignment(Qt::AlignLeft);
+                if (!at.isEmpty() && attributeOfTag(ch.xml, QStringLiteral("vAnchor")) != QLatin1String("page")) bf.setProperty(tp::OutOfFlow, true);
+            }
+        }
         if (!p.attrs.isEmpty()) setStored(bf, prop::ParaAttrs, p.attrs);
         // A paragraph that says it is numbered as its style says: that it said so is kept, for it changes whose indents win.
         if (numId > 0 && numberedByItself && base.numId.value_or(0) == numId) bf.setProperty(prop::NumDirect, true);
@@ -215,6 +277,58 @@ void WriteDoc::buildStory(const QVector<Block> &body)
             else continuing->add(c.block());
         }
 
+        if (header) {
+            // A field's instruction and result: the result (the text between its separator and its end) shows, or, for the page's number and the
+            // page counts, one live field takes its place.
+            struct Field {
+                QString instruction;
+                bool inResult = false;
+                QTextCharFormat begin;
+                QVector<std::pair<QString, QTextCharFormat>> result;
+            };
+            QVector<Field> fields;
+            auto put = [&](const QString &text, const QTextCharFormat &format) {
+                if (fields.isEmpty()) c.insertText(text, format);
+                else if (fields.last().inResult) fields.last().result.push_back({text, format});
+            };
+            auto finish = [&] {
+                const Field f = fields.takeLast();
+                const QString live = liveFieldOf(f.instruction);
+                if (!live.isEmpty()) {
+                    QTextCharFormat ff = f.result.isEmpty() ? f.begin : f.result.first().second;
+                    ff.setProperty(tp::Field, live);
+                    put(QString(QChar::ObjectReplacementCharacter), ff);
+                } else {
+                    for (const auto &r : f.result) put(r.first, r.second);
+                }
+            };
+            for (const Inline &in : p.content) {
+                if (in.kind == Inline::Text) {
+                    if (!in.text.isEmpty()) put(in.text, formatOf(styleId, in.props));
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
+                    if (in.key == QLatin1String("begin") && fields.size() < kMostFieldNesting) {
+                        fields.push_back(Field());
+                        fields.last().begin = formatOf(styleId, in.props);
+                    } else if (in.key == QLatin1String("separate") && !fields.isEmpty()) {
+                        fields.last().inResult = true;
+                    } else if (in.key == QLatin1String("end") && !fields.isEmpty()) {
+                        finish();
+                    }
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
+                    if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
+                } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
+                    if (fields.size() < kMostFieldNesting) {
+                        fields.push_back(Field());
+                        fields.last().instruction = attributeOfTag(in.raw, QStringLiteral("instr"));
+                        fields.last().inResult = true;
+                    }
+                } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Close) {
+                    if (!fields.isEmpty()) finish();
+                }
+            }
+            while (!fields.isEmpty()) finish();   // (a field the paragraph ended inside of shows what it read)
+            continue;
+        }
         for (const Inline &in : p.content) {
             if (in.kind == Inline::Text) {
                 if (!in.text.isEmpty()) c.insertText(in.text, formatOf(styleId, in.props));
@@ -236,6 +350,10 @@ void WriteDoc::buildStory(const QVector<Block> &body)
     if (firstBlock) {
         // Nothing in the body: one empty paragraph in the default style.
         startBlock(styleBlockFormat(defaultStyle), styleCharFormat(defaultStyle));
+    }
+    if (header) {
+        c.endEditBlock();
+        return;
     }
     if (!pending.isEmpty()) {
         QTextBlockFormat bf = c.blockFormat();

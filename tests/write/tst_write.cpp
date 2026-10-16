@@ -172,6 +172,49 @@ QByteArray richDocx()
     return w.finish();
 }
 
+
+// A document with headers and footers: `parts` are word/header1.xml and the like (by their part name), each related to the document by the Id
+// its name gives ("rId" and the file's name without its extension), as `sect` (a section's properties, with the references) names them.
+QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, const QMap<QString, QByteArray> &parts, const QByteArray &settings = QByteArray())
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + sect + "</w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), xml(QByteArray("<w:styles ") + kNs + ">" + kStyles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    if (!settings.isEmpty()) {
+        w.addPart(QStringLiteral("/word/settings.xml"), xml(QByteArray("<w:settings ") + kNs + ">" + settings + "</w:settings>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+    }
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+        const QString id = QStringLiteral("rId") + QFileInfo(it.key()).completeBaseName();
+        const bool footer = it.key().contains(QLatin1String("footer"));
+        w.addPart(it.key(), xml(it.value()), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.") + (footer ? "footer" : "header") + "+xml");
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), id, rel + (footer ? "footer" : "header"), it.key());
+    }
+    return w.finish();
+}
+
+// A header or footer part of the paragraphs given (each the XML of a paragraph's contents).
+QByteArray headerPart(const QByteArray &root, const QList<QByteArray> &paragraphs)
+{
+    QByteArray out = "<w:" + root + " " + kNs + ">";
+    for (const QByteArray &p : paragraphs) out += "<w:p>" + p + "</w:p>";
+    return out + "</w:" + root + ">";
+}
+
+// A text box of a materialized page by what its story says, for the header's and the footer's.
+const TextItem *boxWithText(const flow::MaterializedPage &page, const QString &text)
+{
+    for (const auto &item : page.doc->pages[0]->items)
+        if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+            if (const Story *s = page.doc->story(t->storyId))
+                if (s->doc->toPlainText().contains(text)) return t;
+    return nullptr;
+}
+
 } // namespace
 
 class WriteTests : public QObject {
@@ -1236,6 +1279,104 @@ private Q_SLOTS:
         toggleUnderline(*doc, c);
         QVERIFY(!documentXml(doc->toDocx()).contains("themeColor"));
         QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), documentXml(doc->toDocx()));
+    }
+
+    // A file's headers and footers are drawn on its pages: the first-page, even-page, and ordinary ones by the section's titlePg and the file's
+    // evenAndOddHeaders, the page's number and the page counts live; and saving keeps their parts as they were.
+    void aFilesHeadersAndFootersAreDrawnAndKept()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:headerReference w:type=\"first\" r:id=\"rIdheader2\"/>"
+                                "<w:headerReference w:type=\"even\" r:id=\"rIdheader3\"/><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/>"
+                                "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"500\" w:footer=\"600\" w:gutter=\"0\"/>"
+                                "<w:pgNumType w:start=\"4\"/><w:titlePg/></w:sectPr>";
+        const QByteArray footer = headerPart("ftr", {"<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> PAGE \\* ROMAN </w:instrText></w:r>"
+                                                       "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>IV</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r><w:r><w:t xml:space=\"preserve\"> of </w:t></w:r>"
+                                                       "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>1</w:t></w:r></w:fldSimple><w:r><w:t xml:space=\"preserve\"> or </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>"
+                                                       "<w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>4</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"});
+        const QMap<QString, QByteArray> parts{
+            {QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>ORDINARY HEADER</w:t></w:r>"})},
+            {QStringLiteral("/word/header2.xml"), headerPart("hdr", {"<w:r><w:t>FIRST HEADER</w:t></w:r>"})},
+            {QStringLiteral("/word/header3.xml"), headerPart("hdr", {"<w:r><w:t>EVEN HEADER</w:t></w:r>"})},
+            {QStringLiteral("/word/footer1.xml"), footer}};
+        const QByteArray zip = makeDocxWithParts(paragraphs(60, 40), sect, parts, "<w:evenAndOddHeaders/>");
+        auto doc = open(zip);
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY(pages >= 4);
+        // (The numbers go 4, 5, 6, 7: the first page is the section's, the sixth is the even one.)
+        const QStringList want{QStringLiteral("FIRST HEADER"), QStringLiteral("ORDINARY HEADER"), QStringLiteral("EVEN HEADER"), QStringLiteral("ORDINARY HEADER")};
+        for (int k = 0; k < 4; ++k) {
+            const auto page = doc->pager().materialize(k);
+            QVERIFY(page);
+            QCOMPARE(page->number, 4 + k);
+            const TextItem *h = boxWithText(*page, want[k]);
+            QVERIFY2(h, qPrintable(QStringLiteral("page %1 has no header %2").arg(k).arg(want[k])));
+            QVERIFY(std::abs(h->rect.top() - 25) < 0.01);   // the header distance, 500 twentieths of a point
+            // (The footer is the odd pages' only: the first page and the even pages have none.)
+            const TextItem *f = boxWithText(*page, QStringLiteral("Page "));
+            if (k != 1 && k != 3) {
+                QVERIFY(!f);
+                continue;
+            }
+            QVERIFY(f);
+            QVERIFY(std::abs(f->rect.bottom() - (792 - 30)) < 0.02);   // the footer distance
+            // The page's number and the count of the pages are fields the page's document answers.
+            const QString shown = page->doc->story(f->storyId)->doc->toPlainText();
+            QCOMPARE(int(shown.count(QChar::ObjectReplacementCharacter)), 3);
+            FieldContext ctx;
+            ctx.doc = page->doc.get();
+            QCOMPARE(ctx.resolve(QStringLiteral("page:ROMAN")), QStringLiteral("IV|V|VI|VII").split(QLatin1Char('|'))[k]);
+            QCOMPARE(ctx.resolve(QStringLiteral("page")), QString::number(4 + k));
+            QCOMPARE(ctx.resolve(QStringLiteral("pages")), QString::number(pages));
+        }
+        // The parts and the references are kept as they were.
+        const QByteArray saved = doc->toDocx();
+        office::Package before, after;
+        before.read(zip);
+        after.read(saved);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) QCOMPARE(after.part(it.key()), before.part(it.key()));
+        const QByteArray x = documentXml(saved);
+        QCOMPARE(int(x.count("headerReference")), 3);
+        QCOMPARE(int(x.count("footerReference")), 1);
+    }
+
+    // A section that names no header or footer has the section before's; one that names its own has it.
+    void sectionsTakeTheHeadersOfTheSectionBefore()
+    {
+        const QByteArray one = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray two = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray three = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader2\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray body = "<w:p><w:pPr>" + one + "</w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr>" + two + "</w:pPr><w:r><w:t>two</w:t></w:r></w:p><w:p><w:r><w:t>three</w:t></w:r></w:p>";
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>FIRST HEADER</w:t></w:r>"})},
+                                              {QStringLiteral("/word/header2.xml"), headerPart("hdr", {"<w:r><w:t>THIRD HEADER</w:t></w:r>"})}};
+        auto doc = open(makeDocxWithParts(body, three, parts));
+        QVERIFY(doc);
+        QCOMPARE(doc->pager().pageCount(), 3);
+        const QStringList want{QStringLiteral("FIRST HEADER"), QStringLiteral("FIRST HEADER"), QStringLiteral("THIRD HEADER")};
+        for (int k = 0; k < 3; ++k) {
+            const auto page = doc->pager().materialize(k);
+            QVERIFY2(page && boxWithText(*page, want[k]), qPrintable(QString::number(k)));
+        }
+    }
+
+    // A page number in a frame (set in the middle or at the side, anchored to the text) takes no room: a footer of it and an empty paragraph is
+    // one line tall, and the number is set as the frame says.
+    void aFrameParagraphInAFooterTakesNoRoom()
+    {
+        const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1080\" w:right=\"1440\" w:bottom=\"1080\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto footerWith = [](const QByteArray &frame) {
+            return headerPart("ftr", {"<w:pPr>" + frame + "</w:pPr><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>", QByteArray()});
+        };
+        auto bottomOf = [&](const QByteArray &frame) {
+            auto doc = open(makeDocxWithParts(paragraphs(60, 40), sect, {{QStringLiteral("/word/footer1.xml"), footerWith(frame)}}));
+            return std::make_pair(doc->pager().page(0).content.bottom(), doc->pager().materialize(0)->doc->pages[0]->items.size());
+        };
+        const auto framed = bottomOf("<w:framePr w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"center\" w:y=\"1\"/>");
+        const auto plain = bottomOf(QByteArray());
+        // As one line (the empty paragraph's), the footer leaves the text its bottom margin; as two it takes more.
+        QVERIFY2(std::abs(framed.first - (792 - 54)) < 0.01, qPrintable(QString::number(framed.first)));
+        QVERIFY2(plain.first < framed.first - 5, qPrintable(QString::number(plain.first)));
     }
 
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
