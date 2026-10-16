@@ -12,6 +12,7 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
+#include "rtcheck.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
 
@@ -117,6 +118,57 @@ const QByteArray kStyles =
     "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:uiPriority w:val=\"9\"/><w:qFormat/>"
     "<w:pPr><w:keepNext/><w:spacing w:before=\"360\" w:after=\"120\"/><w:outlineLvl w:val=\"0\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Liberation Sans\" w:hAnsi=\"Liberation Sans\"/><w:b/><w:color w:val=\"1F3864\"/><w:sz w:val=\"34\"/></w:rPr></w:style>"
     "<w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:qFormat/><w:rPr><w:b/></w:rPr></w:style>";
+
+
+// A document with every kind of thing a file keeps beside its text, for the checks that nothing is lost: paragraph ids, hyperlinks (outside and
+// inside), fields, content controls (inline and block), tracked changes, bookmarks and comment ranges (one across a kept table, one with an Id
+// used twice), a section that ends on a heading, page breaks, a kept table, and kept parts with their relationships.
+QByteArray richDocx()
+{
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                          "xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+    const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHd\"/><w:pgSz w:w=\"12240\" w:h=\"15840\" w:code=\"1\"/>"
+                            "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/><w:pgNumType w:fmt=\"decimal\" w:chapStyle=\"1\"/></w:sectPr>";
+    QByteArray body;
+    body += "<w:p w14:paraId=\"1A2B3C01\" w14:textId=\"77777777\"><w:pPr><w:pStyle w:val=\"Heading1\"/>" + sect + "</w:pPr><w:r><w:t>Heading that ends a section</w:t></w:r></w:p>";
+    body += "<w:p w14:paraId=\"1A2B3C02\" w14:textId=\"77777777\"><w:r><w:t xml:space=\"preserve\">Before the link </w:t></w:r><w:hyperlink r:id=\"rIdLink\" w:history=\"1\"><w:r><w:t>the link text in the middle</w:t></w:r></w:hyperlink>"
+            "<w:r><w:t xml:space=\"preserve\"> after it, then </w:t></w:r><w:hyperlink w:anchor=\"across\"><w:r><w:t>an anchor link</w:t></w:r></w:hyperlink><w:r><w:t>.</w:t></w:r></w:p>";
+    body += "<w:p w14:paraId=\"1A2B3C03\"><w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r>"
+            "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r><w:r><w:t xml:space=\"preserve\"> and </w:t></w:r>"
+            "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>9</w:t></w:r></w:fldSimple><w:r><w:t xml:space=\"preserve\"> pages.</w:t></w:r></w:p>";
+    body += "<w:p w14:paraId=\"1A2B3C04\"><w:r><w:t xml:space=\"preserve\">A control: </w:t></w:r><w:sdt><w:sdtPr><w:alias w:val=\"Title\"/><w:tag w:val=\"t1\"/></w:sdtPr><w:sdtContent><w:r><w:t>content control text</w:t></w:r></w:sdtContent></w:sdt>"
+            "<w:r><w:t xml:space=\"preserve\"> and a tag: </w:t></w:r><w:smartTag w:uri=\"urn:place\" w:element=\"place\"><w:r><w:t>Paris</w:t></w:r></w:smartTag><w:r><w:t>.</w:t></w:r></w:p>";
+    body += "<w:p w14:paraId=\"1A2B3C05\"><w:r><w:t xml:space=\"preserve\">Changes: </w:t></w:r><w:ins w:id=\"10\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:t>inserted words</w:t></w:r></w:ins>"
+            "<w:del w:id=\"11\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:delText>deleted words</w:delText></w:r></w:del><w:r><w:t xml:space=\"preserve\"> end.</w:t></w:r></w:p>";
+    body += "<w:sdt><w:sdtPr><w:alias w:val=\"Block\"/></w:sdtPr><w:sdtContent><w:p w14:paraId=\"1A2B3C06\"><w:r><w:t>Inside a block control</w:t></w:r></w:p></w:sdtContent></w:sdt>";
+    body += "<w:p w14:paraId=\"1A2B3C07\"><w:r><w:t>After the block control, which Backspace must not eat.</w:t></w:r></w:p>";
+    body += "<w:p w14:paraId=\"1A2B3C08\"><w:bookmarkStart w:id=\"20\" w:name=\"across\"/><w:commentRangeStart w:id=\"5\"/><w:r><w:t>Starts before the table</w:t></w:r></w:p>"
+            "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell a</w:t></w:r></w:p></w:tc>"
+            "<w:tc><w:p><w:r><w:t>cell b</w:t></w:r><w:bookmarkEnd w:id=\"20\"/></w:p></w:tc></w:tr></w:tbl>"
+            "<w:p w14:paraId=\"1A2B3C09\"><w:r><w:t xml:space=\"preserve\">Ends after it</w:t></w:r><w:commentRangeEnd w:id=\"5\"/><w:r><w:commentReference w:id=\"5\"/></w:r></w:p>";
+    body += "<w:p><w:bookmarkStart w:id=\"30\" w:name=\"first\"/><w:r><w:t>one</w:t></w:r><w:bookmarkEnd w:id=\"30\"/></w:p>"
+            "<w:p><w:bookmarkStart w:id=\"30\" w:name=\"second\"/><w:r><w:t>two with the same Id</w:t></w:r><w:bookmarkEnd w:id=\"30\"/></w:p>";
+    body += "<w:p w14:paraId=\"1A2B3C0A\"><w:pPr><w:pBdr><w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"1\" w:color=\"auto\"/></w:pBdr><w:shd w:val=\"clear\" w:fill=\"EEEEEE\"/></w:pPr>"
+            "<w:r><w:rPr><w:u w:val=\"single\" w:color=\"FF0000\" w:themeColor=\"accent2\"/><w:shd w:val=\"clear\" w:fill=\"FFFF00\"/></w:rPr><w:t>Underlined in a theme color, with a border</w:t></w:r></w:p>";
+    body += "<w:p w14:paraId=\"1A2B3C0B\"><w:r><w:t xml:space=\"preserve\">Before the break </w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after the break</w:t></w:r></w:p>";
+    body += "<w:p w14:paraId=\"1A2B3C0C\"><w:r><w:t>Ends with a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+    body += paragraphs(4, 30);
+    const QByteArray header = "<w:hdr " + ns + "><w:p><w:r><w:t>A header</w:t></w:r></w:p></w:hdr>";
+    const QByteArray comments = "<w:comments " + ns + "><w:comment w:id=\"5\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"><w:p><w:r><w:t>A comment</w:t></w:r></w:p></w:comment></w:comments>";
+    office::PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + sect + "</w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), xml("<w:styles " + ns + ">" + kStyles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+    w.addPart(QStringLiteral("/word/header1.xml"), xml(header), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+    w.addPart(QStringLiteral("/word/comments.xml"), xml(comments), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdSt"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdHd"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdCm"), rel + QStringLiteral("comments"), QStringLiteral("/word/comments.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdLink"), rel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/a?b=1&c=2"), true);
+    return w.finish();
+}
 
 } // namespace
 
@@ -711,6 +763,73 @@ private Q_SLOTS:
         qInfo("round trip: %d files, %d opened, %d refused, %d came back changed; the largest %lld bytes, the slowest %.1f s", files, opened, refused, changed, largest, slowest);
         for (const QString &r : std::as_const(refusals)) qInfo("refused: %s", qPrintable(r));
         for (const QString &c : std::as_const(changes)) qInfo("changed: %s", qPrintable(c));
+    }
+
+    // A developer's hook, not a test: the strict round trip. JW_STRICT_IN names a folder (searched through) of .docx files and JW_STRICT_LIST a file
+    // of paths, one to a line; each is opened and written again, and the file written is checked for well-formed XML in every part the program wrote,
+    // for losing or changing what the file held (rtcheck.h), and for a story that is not the one that was opened. The summary counts the files for
+    // each kind of problem; JW_STRICT_OUT keeps the files written; JW_STRICT_LIMIT stops after that many files.
+    void developerStrictRoundTrip()
+    {
+        const QString in = qEnvironmentVariable("JW_STRICT_IN"), list = qEnvironmentVariable("JW_STRICT_LIST"), out = qEnvironmentVariable("JW_STRICT_OUT");
+        if (in.isEmpty() && list.isEmpty()) QSKIP("JW_STRICT_IN and JW_STRICT_LIST are not set");
+        if (!out.isEmpty()) QDir().mkpath(out);
+        const int limit = qEnvironmentVariableIntValue("JW_STRICT_LIMIT") > 0 ? qEnvironmentVariableIntValue("JW_STRICT_LIMIT") : 1 << 30;
+        QStringList paths;
+        if (!in.isEmpty())
+            for (QDirIterator it(in, {QStringLiteral("*.docx"), QStringLiteral("*.docm"), QStringLiteral("*.dotx")}, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) paths << it.next();
+        if (!list.isEmpty()) {
+            QFile lf(list);
+            if (lf.open(QIODevice::ReadOnly))
+                for (const QByteArray &l : lf.readAll().split('\n'))
+                    if (!l.trimmed().isEmpty()) paths << QString::fromLocal8Bit(l.trimmed());
+        }
+        int files = 0, refused = 0, notWritten = 0, malformed = 0, lost = 0, story = 0, clean = 0;
+        QMap<QString, int> kinds;
+        QStringList lines;
+        for (const QString &path : std::as_const(paths)) {
+            if (files >= limit) break;
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) continue;
+            const QByteArray bytes = f.readAll();
+            ++files;
+            QString err;
+            auto doc = WriteDoc::fromDocx(bytes, &err);
+            if (!doc) {
+                ++refused;
+                continue;
+            }
+            const QByteArray zip = doc->toDocx(&err);
+            if (zip.isEmpty()) {
+                ++notWritten;
+                lines << QFileInfo(path).fileName() + QStringLiteral(": not written: ") + err;
+                continue;
+            }
+            const QStringList strict = rt::strictProblems(zip, bytes), loss = rt::lossProblems(bytes, zip);
+            QStringList differs;
+            auto back = WriteDoc::fromDocx(zip, &err);
+            if (!back) differs << QStringLiteral("does not open again: ") + err;
+            else differs = rt::storyProblems(*doc, *back);
+            malformed += !strict.isEmpty();
+            lost += !loss.isEmpty();
+            story += !differs.isEmpty();
+            clean += strict.isEmpty() && loss.isEmpty() && differs.isEmpty();
+            for (const QStringList *l : std::initializer_list<const QStringList *>{&strict, &loss, &differs})
+                for (const QString &p : *l) {
+                    QString kind = p.left(p.indexOf(QRegularExpression(QStringLiteral("[:0-9>-]"))) > 0 ? p.indexOf(QRegularExpression(QStringLiteral("[:0-9>-]"))) : 24);
+                    kind = (l == &strict ? QStringLiteral("strict: ") : l == &loss ? QStringLiteral("loss: ") : QStringLiteral("story: ")) + kind.trimmed();
+                    kinds[kind] += 1;
+                }
+            if (lines.size() < 60 && (!strict.isEmpty() || !loss.isEmpty() || !differs.isEmpty()))
+                lines << QFileInfo(path).fileName() + QStringLiteral(": ") + (strict + loss + differs).join(QStringLiteral(" | ")).left(300);
+            if (!out.isEmpty()) {
+                QFile o(QDir(out).filePath(QFileInfo(path).fileName()));
+                if (o.open(QIODevice::WriteOnly)) o.write(zip);
+            }
+        }
+        qInfo("strict round trip: %d files, %d refused, %d not written, %d not well-formed, %d lost or changed something, %d came back with another story, %d clean", files, refused, notWritten, malformed, lost, story, clean);
+        for (auto it = kinds.cbegin(); it != kinds.cend(); ++it) qInfo("  %s: %d", qPrintable(it.key()), it.value());
+        for (const QString &l : std::as_const(lines)) qInfo("  %s", qPrintable(l));
     }
 
     // A developer's hook, not a test: JW_SHOTS names a folder to put screenshots of the window in (each ribbon tab, the File screen's pages, the
@@ -1416,6 +1535,110 @@ private Q_SLOTS:
         QCOMPARE(big->story()->blockCount(), 30000);
     }
 
+    void aRichDocumentComesBackFaithfulAndWellFormed()
+    {
+        const QByteArray original = richDocx();
+        auto doc = open(original);
+        QVERIFY(doc);
+        QString err;
+        const QByteArray saved = doc->toDocx(&err);
+        QVERIFY2(!saved.isEmpty(), qPrintable(err));
+        const QStringList strict = rt::strictProblems(saved, original), loss = rt::lossProblems(original, saved);
+        QVERIFY2(strict.isEmpty(), qPrintable(strict.join(QLatin1Char('\n'))));
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1Char('\n'))));
+        auto back = open(saved);
+        QVERIFY(back);
+        const QStringList story = rt::storyProblems(*doc, *back);
+        QVERIFY2(story.isEmpty(), qPrintable(story.join(QLatin1Char('\n'))));
+    }
+
+    // Random editing of a document that holds everything a file keeps: after each few commands the file it makes is well-formed, opens again,
+    // writes what it wrote, has a section for each break, and (when the commands only add) has lost nothing that the file had.
+    // JW_FUZZ_SEEDS says how many seeds; JW_FUZZ_FROM where to begin; JW_FUZZ_COUNTS=1 prints how many seeds failed each check.
+    void randomEditingOfARichDocumentKeepsWhatItHolds()
+    {
+        const QByteArray original = richDocx();
+        const int seeds = qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 8;
+        QMap<QString, int> failed;
+        QMap<QString, QString> example;
+        QSet<QString> seedsFailing;
+        for (int mode = 0; mode < 2; ++mode) {   // 0: commands that only add; 1: those that take away too
+            auto base = open(original);
+            QVERIFY(base);
+            const QMap<QString, int> start = rt::keptCountsOf(base->toDocx());
+            for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
+                auto doc = open(original);
+                std::mt19937 rng(seed * 2 + mode);
+                QTextCursor c(doc->story());
+                auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
+                auto place = [&] { c.setPosition(pick(doc->story()->characterCount() - 1)); };
+                auto selectSome = [&] {
+                    const int a = pick(doc->story()->characterCount() - 1), len = pick(60);
+                    c.setPosition(a);
+                    c.setPosition(std::min(a + len, doc->story()->characterCount() - 1), QTextCursor::KeepAnchor);
+                };
+                QTextDocumentFragment held;
+                QStringList log;
+                bool seedFailed = false;   // (the file can't be made or read: no more steps)
+                QSet<QString> thisSeed;
+                auto fail = [&](const QString &check, const QString &detail, bool fatal = false) {
+                    const QString key = QStringLiteral("mode %1: %2").arg(mode).arg(check);
+                    if (!thisSeed.contains(key)) {
+                        thisSeed.insert(key);
+                        failed[key] += 1;
+                        if (!example.contains(key)) example[key] = QStringLiteral("seed %1: %2\nlast steps: %3").arg(seed).arg(detail, log.mid(std::max<qsizetype>(0, log.size() - 4)).join(QStringLiteral(" | ")));
+                    }
+                    seedFailed = seedFailed || fatal;
+                    seedsFailing.insert(QStringLiteral("%1/%2").arg(mode).arg(seed));
+                };
+                for (int step = 0; step < 120 && !seedFailed; ++step) {
+                    const int op = pick(mode == 0 ? 12 : 17);
+                    log << QStringLiteral("op%1@%2").arg(op).arg(c.position());
+                    switch (op) {
+                    case 0: place(); typeText(*doc, c, QStringLiteral("word ")); break;
+                    case 1: place(); insertParagraph(*doc, c); break;
+                    case 2: place(); insertPageBreak(*doc, c); break;
+                    case 3: place(); applyParagraphStyle(*doc, c, pick(2) ? QStringLiteral("Heading1") : QStringLiteral("Normal")); break;
+                    case 4: selectSome(); toggleBold(*doc, c); break;
+                    case 5: selectSome(); toggleList(*doc, c, pick(2)); break;
+                    case 6: selectSome(); held = selectionFragment(c); break;
+                    case 7: case 8: place(); pasteFragment(*doc, c, held); break;
+                    case 9: if (pick(3) == 0) { place(); insertSectionBreak(*doc, c); } break;
+                    case 10: doc->story()->undo(&c); break;
+                    case 11: doc->story()->redo(&c); break;
+                    case 12: place(); deleteBack(*doc, c, false); break;
+                    case 13: place(); deleteForward(*doc, c, false); break;
+                    case 14: selectSome(); removeSelection(*doc, c); break;
+                    case 15: place(); insertParagraph(*doc, c); deleteBack(*doc, c, false); break;
+                    default: selectSome(); c.removeSelectedText(); break;
+                    }
+                    if (step % 6 != 5) continue;
+                    QString err;
+                    const QByteArray zip = doc->toDocx(&err);
+                    if (zip.isEmpty()) { fail(QStringLiteral("not written"), err, true); break; }
+                    const QStringList strict = rt::strictProblems(zip, original);
+                    if (!strict.isEmpty()) { fail(QStringLiteral("not well-formed"), strict.first().left(200), true); break; }
+                    auto back = WriteDoc::fromDocx(zip, &err);
+                    if (!back) { fail(QStringLiteral("does not open again"), err, true); break; }
+                    int breaks = 0;
+                    for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) breaks += b.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+                    if (doc->sectionCount() != breaks + 1 || back->sectionCount() != doc->sectionCount()) fail(QStringLiteral("sections"), QStringLiteral("%1 sections, %2 breaks, %3 after reopening").arg(doc->sectionCount()).arg(breaks).arg(back->sectionCount()));
+                    const QByteArray again = documentXml(back->toDocx());
+                    if (again != documentXml(zip)) fail(QStringLiteral("drifts"), QStringLiteral("the second save differs from the first"));
+                    if (mode == 0) {
+                        const QMap<QString, int> now = rt::keptCountsOf(zip);
+                        for (auto it = start.cbegin(); it != start.cend(); ++it)
+                            if (now.value(it.key()) < it.value()) fail(QStringLiteral("lost ") + it.key(), QStringLiteral("%1 %2->%3").arg(it.key()).arg(it.value()).arg(now.value(it.key())));
+                    }
+                }
+            }
+        }
+        QStringList report;
+        for (auto it = failed.cbegin(); it != failed.cend(); ++it) report << QStringLiteral("%1: %2 seeds\n  %3").arg(it.key()).arg(it.value()).arg(example.value(it.key()));
+        if (qEnvironmentVariableIsSet("JW_FUZZ_COUNTS")) qInfo("fuzz: %d of %d runs failed:\n%s", int(seedsFailing.size()), 2 * seeds, qPrintable(report.join(QLatin1Char('\n'))));
+        QVERIFY2(failed.isEmpty(), qPrintable(QStringLiteral("%1 of %2 runs failed:\n%3").arg(seedsFailing.size()).arg(2 * seeds).arg(report.join(QLatin1Char('\n')))));
+    }
+
     void randomEditingKeepsTheDocumentWhole()
     {
         // A document with lists, a section, pieces kept as XML, and a page break; hundreds of random commands on it, and after each few the
@@ -1483,6 +1706,7 @@ private Q_SLOTS:
                 QString err;
                 const QByteArray zip = doc->toDocx(&err);
                 QVERIFY2(!zip.isEmpty(), qPrintable(QStringLiteral("seed %1 step %2: %3").arg(seed).arg(step).arg(err)));
+                QVERIFY2(rt::strictProblems(zip).isEmpty(), qPrintable(QStringLiteral("seed %1 step %2: %3").arg(seed).arg(step).arg(rt::strictProblems(zip).join(QLatin1Char(';')))));
                 auto back = open(zip);
                 QVERIFY2(back, qPrintable(QStringLiteral("seed %1 step %2").arg(seed).arg(step)));
                 QString a = doc->story()->toPlainText(), b = back->story()->toPlainText();
