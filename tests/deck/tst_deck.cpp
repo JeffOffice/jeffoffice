@@ -9093,6 +9093,32 @@ private Q_SLOTS:
         QVERIFY(!one.applyToAll());
     }
 
+    // The dialog gives back what it doesn't show as it was: a fixed date's text, the date's field, and that the date or the number is the text typed in
+    // the master, so that Apply to All with only the footer's text changed leaves them.
+    void headerFooterDialogKeepsWhatItDoesNotShow()
+    {
+        deck::FooterOptions o;
+        o.date = true;
+        o.slideNumber = true;
+        o.footer = true;
+        o.footerText = QStringLiteral("Quarterly");
+        o.dateText = QStringLiteral("May 19, 2003");
+        o.dateCode = QStringLiteral("datetime:M/d/yyyy");
+        o.dateFromMaster = true;
+        o.numberFromMaster = true;
+        HeaderFooterDialog dlg(o);
+        dlg.findChild<QLineEdit *>(QStringLiteral("footerText"))->setText(QStringLiteral("Q3 review"));
+        const deck::FooterOptions got = dlg.options();
+        QCOMPARE(got.footerText, QStringLiteral("Q3 review"));
+        QVERIFY(got.date && got.slideNumber && got.footer);
+        QCOMPARE(got.dateText, o.dateText);
+        QCOMPARE(got.dateCode, o.dateCode);
+        QVERIFY(got.dateFromMaster && got.numberFromMaster);
+        // What it does show it changes: the date turned off.
+        dlg.findChild<QCheckBox *>(QStringLiteral("date"))->setChecked(false);
+        QVERIFY(!dlg.options().date);
+    }
+
     // New Slide's gallery shows each layout as a picture and says which was chosen.
     void layoutGalleryShowsEachLayout()
     {
