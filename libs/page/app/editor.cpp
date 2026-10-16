@@ -571,6 +571,11 @@ void Editor::finishChange(int page, const QStringList &selection)
     m_doc->routeConnectors();
     // Keep the editing cursor valid if the story was replaced.
     QByteArray after = snapshot();
+    if (after != m_before && masterEdited && !m_master.isEmpty()) {
+        Document earlier;
+        earlier.fromJson(QJsonDocument::fromJson(qUncompress(m_before)).object());
+        if (masterEdited(*m_doc, earlier)) after = snapshot();
+    }
     if (after != m_before) {
         m_undo.push(new SnapshotCommand(this, m_label, m_before, after, m_selBefore, selection, m_pageBefore, page, m_masterBefore, m_master));
     }

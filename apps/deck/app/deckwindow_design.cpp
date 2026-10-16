@@ -62,6 +62,7 @@ void DeckWindow::changeDesign(const QString &label, const std::function<void(Doc
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
+    const OwnEdit own(this);
     m_ed->beginChange(label);
     fn(*d);
     m_ed->endChange();
@@ -80,6 +81,7 @@ bool DeckWindow::applyThemeFrom(const Document &source, bool allSlides)
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
+    const OwnEdit own(this);
     m_ed->beginChange(tr("Theme"));
     const bool ok = allSlides ? deck::applyThemeToAll(*d, source) : deck::applyThemeToSlides(*d, source, slides);
     if (ok) m_ed->endChange();
@@ -163,6 +165,61 @@ void DeckWindow::chooseBackgroundStyle(int style)
     changeDesign(tr("Background Style"), [style](Document &doc) { deck::applyBackgroundStyle(doc, style); });
 }
 
+// The Colors menu (here and in Slide Master view): the presentation's own twelve, then the schemes of the built-in themes.
+void DeckWindow::fillColorsMenu(QMenu *colors)
+{
+    colors->clear();
+    const Document *d = m_ed->doc();
+    if (!d) return;
+    colors->addSection(tr("This Presentation"));
+    auto *now = new QWidgetAction(colors);
+    now->setDefaultWidget(new ThemeColors(m_ed));
+    colors->addAction(now);
+    colors->addSection(tr("Built-In"));
+    const deck::DeckTheme theme = deck::themeOf(*d);
+    auto *group = new QActionGroup(colors);
+    for (const deck::ColorSet &set : deck::colorSets()) {
+        QAction *a = colors->addAction(swatchIcon(set), set.name);
+        a->setCheckable(true);
+        a->setChecked(sameColors(set, theme));
+        group->addAction(a);
+        connect(a, &QAction::triggered, this, [this, set] { chooseColors(set); });
+    }
+}
+
+// The Fonts menu: each scheme's heading and body fonts.
+void DeckWindow::fillFontsMenu(QMenu *fonts)
+{
+    fonts->clear();
+    const Document *d = m_ed->doc();
+    if (!d) return;
+    const deck::DeckTheme theme = deck::themeOf(*d);
+    auto *group = new QActionGroup(fonts);
+    for (const deck::FontSet &set : deck::fontSets()) {
+        QAction *a = fonts->addAction(tr("%1  (%2 / %3)").arg(set.name, set.heading, set.body));
+        a->setCheckable(true);
+        a->setChecked(set.heading == theme.headingFont && set.body == theme.bodyFont);
+        group->addAction(a);
+        connect(a, &QAction::triggered, this, [this, set] { chooseFonts(set); });
+    }
+}
+
+// The Background Styles menu: the twelve of the theme, then Format Background. A choice closes `root`, the menu it is in.
+void DeckWindow::fillBackgroundsMenu(QMenu *styles, QMenu *root)
+{
+    styles->clear();
+    auto *grid = new BackgroundStyles(m_ed);
+    auto *wa = new QWidgetAction(styles);
+    wa->setDefaultWidget(grid);
+    styles->addAction(wa);
+    styles->addSeparator();
+    styles->addAction(act("design.formatBackground"));
+    connect(grid, &BackgroundStyles::chosen, this, [this, root](int style) {
+        root->close();
+        chooseBackgroundStyle(style);
+    });
+}
+
 // The Themes gallery and the Variants gallery with its menu.
 void DeckWindow::addDesignParts(RibbonParts &parts)
 {
@@ -193,58 +250,15 @@ void DeckWindow::addDesignParts(RibbonParts &parts)
         // Colors: the presentation's own twelve, then the schemes of the built-in themes.
         QMenu *colors = menu->addMenu(icon(QStringLiteral("palette")), tr("Colors"));
         colors->setObjectName(QStringLiteral("variantColors"));
-        connect(colors, &QMenu::aboutToShow, colors, [this, colors] {
-            colors->clear();
-            const Document *d = m_ed->doc();
-            if (!d) return;
-            colors->addSection(tr("This Presentation"));
-            auto *now = new QWidgetAction(colors);
-            now->setDefaultWidget(new ThemeColors(m_ed));
-            colors->addAction(now);
-            colors->addSection(tr("Built-In"));
-            const deck::DeckTheme theme = deck::themeOf(*d);
-            auto *group = new QActionGroup(colors);
-            for (const deck::ColorSet &set : deck::colorSets()) {
-                QAction *a = colors->addAction(swatchIcon(set), set.name);
-                a->setCheckable(true);
-                a->setChecked(sameColors(set, theme));
-                group->addAction(a);
-                connect(a, &QAction::triggered, this, [this, set] { chooseColors(set); });
-            }
-        });
+        connect(colors, &QMenu::aboutToShow, colors, [this, colors] { fillColorsMenu(colors); });
         // Fonts: each scheme's heading and body fonts.
         QMenu *fonts = menu->addMenu(icon(QStringLiteral("type")), tr("Fonts"));
         fonts->setObjectName(QStringLiteral("variantFonts"));
-        connect(fonts, &QMenu::aboutToShow, fonts, [this, fonts] {
-            fonts->clear();
-            const Document *d = m_ed->doc();
-            if (!d) return;
-            const deck::DeckTheme theme = deck::themeOf(*d);
-            auto *group = new QActionGroup(fonts);
-            for (const deck::FontSet &set : deck::fontSets()) {
-                QAction *a = fonts->addAction(tr("%1  (%2 / %3)").arg(set.name, set.heading, set.body));
-                a->setCheckable(true);
-                a->setChecked(set.heading == theme.headingFont && set.body == theme.bodyFont);
-                group->addAction(a);
-                connect(a, &QAction::triggered, this, [this, set] { chooseFonts(set); });
-            }
-        });
+        connect(fonts, &QMenu::aboutToShow, fonts, [this, fonts] { fillFontsMenu(fonts); });
         // Background Styles: the twelve of the theme, then Format Background.
         QMenu *styles = menu->addMenu(icon(QStringLiteral("swatch-book")), tr("Background Styles"));
         styles->setObjectName(QStringLiteral("variantBackgrounds"));
-        connect(styles, &QMenu::aboutToShow, styles, [this, styles, menu] {
-            styles->clear();
-            auto *grid = new BackgroundStyles(m_ed);
-            auto *wa = new QWidgetAction(styles);
-            wa->setDefaultWidget(grid);
-            styles->addAction(wa);
-            styles->addSeparator();
-            styles->addAction(act("design.formatBackground"));
-            connect(grid, &BackgroundStyles::chosen, this, [this, menu](int style) {
-                menu->close();
-                chooseBackgroundStyle(style);
-            });
-        });
+        connect(styles, &QMenu::aboutToShow, styles, [this, styles, menu] { fillBackgroundsMenu(styles, menu); });
         gallery->setMenu(menu);
         return gallery;
     };

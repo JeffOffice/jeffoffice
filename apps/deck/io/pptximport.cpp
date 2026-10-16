@@ -1031,6 +1031,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     if (page->name.isEmpty()) page->name = m->theme.name.isEmpty() ? say("Slide Master") : say("%1 Slide Master").arg(m->theme.name);
     page->abbr = n == 1 ? QStringLiteral("SM") : QStringLiteral("SM%1").arg(n);
     page->props[QStringLiteral("kind")] = QStringLiteral("master");
+    if (!office::parseBool(office::attr(root, QStringLiteral("preserve")), true)) page->props[QStringLiteral("preserve")] = false;
     if (n > 1 && !themeBase64.isEmpty()) page->props[QStringLiteral("themeXml")] = themeBase64;
     m->page = page;
 
@@ -1107,6 +1108,7 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
     page->baseId = base->page->id;
     page->showMasterItems = office::parseBool(office::attr(root, QStringLiteral("showMasterSp")), true);
     page->props[QStringLiteral("kind")] = QStringLiteral("layout");
+    if (!office::parseBool(office::attr(root, QStringLiteral("preserve")), true)) page->props[QStringLiteral("preserve")] = false;
     page->props[QStringLiteral("type")] = office::attr(root, QStringLiteral("type"), QStringLiteral("cust"));
     l->page = page;
 
