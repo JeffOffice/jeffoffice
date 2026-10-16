@@ -225,11 +225,12 @@ struct Tab {
     qint16 position = 0, type = 0;
 };
 
-// The bits of the masks that say which fields a TextPFException or TextCFException holds.
+// The bits of the masks that say which fields a TextPFException or TextCFException holds. A character run's style field is there for the style
+// bits and for any of bits 10 to 15, a run counter of which the format names four bits and a long text's count spills into the other two.
 enum : quint32 {
     PfBulletFlags = 0xF, PfBulletFont = 0x10, PfBulletColor = 0x20, PfBulletSize = 0x40, PfBulletChar = 0x80, PfLeft = 0x100, PfIndent = 0x400, PfAlign = 0x800,
     PfLine = 0x1000, PfBefore = 0x2000, PfAfter = 0x4000, PfDefaultTab = 0x8000, PfFontAlign = 0x10000, PfWrap = 0xE0000, PfTabs = 0x100000, PfDirection = 0x200000,
-    CfStyle = 0x3EB7, CfFont = 0x10000, CfSize = 0x20000, CfColor = 0x40000, CfPosition = 0x80000, CfEastAsian = 0x200000, CfAnsi = 0x400000, CfSymbol = 0x800000,
+    CfStyle = 0x3EB7, CfStyleField = 0xFEB7, CfFont = 0x10000, CfSize = 0x20000, CfColor = 0x40000, CfPosition = 0x80000, CfEastAsian = 0x200000, CfAnsi = 0x400000, CfSymbol = 0x800000,
 };
 // The bits of a paragraph's bullet flags and of a character's font style.
 enum : quint16 { BulletOn = 1, BulletOwnFont = 2, BulletOwnColor = 4, BulletOwnSize = 8 };
@@ -289,7 +290,7 @@ bool readCf(Cursor &c, Cf *cf)
 {
     const quint32 m = c.u32();
     cf->has = m;
-    if (m & CfStyle) cf->style = c.u16();
+    if (m & CfStyleField) cf->style = c.u16();
     if (m & CfFont) cf->font = c.u16();
     if (m & CfEastAsian) c.u16();
     if (m & CfAnsi) cf->ansiFont = c.u16();

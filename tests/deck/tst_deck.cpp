@@ -24648,6 +24648,29 @@ private Q_SLOTS:
         QVERIFY(slide.contains(QStringLiteral("dir=\"2700000\"")));
     }
 
+    // A long text's runs of characters each carry a running count in bits 10 and up of the style and of the mask. Past 15 the count spills into
+    // bits 14 and 15, which the format leaves unnamed, and the style is still there: the size after it stays the size of every run that follows.
+    void importBinaryRunsKeepTheirSizeWhenTheStyleCountSpillsPastFourBits()
+    {
+        QString text;
+        QByteArray characters;
+        for (int n = 1; n <= 40; ++n) {
+            text += QStringLiteral("ab ");
+            characters += cfRun(n == 40 ? 4 : 3, 0x20000 | (n << 10), le(0x10 | (n << 10), 2) + le(18, 2));
+        }
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0) + characters);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        int fragments = 0;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it, ++fragments)
+                QVERIFY2(it.fragment().charFormat().fontPointSize() == 18, qPrintable(QString::number(it.fragment().charFormat().fontPointSize())));
+        QVERIFY(fragments > 0);
+    }
+
     // A blank paragraph keeps its bullet as the file has it (text typed in it shows one), and shows none, as in the program.
     void importBinaryBlankParagraphsShowNoBullets()
     {
