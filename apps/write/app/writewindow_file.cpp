@@ -112,19 +112,34 @@ bool WriteWindow::openFile(const QString &path)
     // A template opens as a new document made from it.
     const QString ending = QFileInfo(path).suffix().toLower();
     const bool tmpl = ending == QLatin1String("dotx") || ending == QLatin1String("dotm");
+    const bool leftOut = doc->leftSomethingOut();
     target->setDocument(std::move(doc), tmpl ? QString() : path);
+    target->m_macrosNoted = false;
+    target->m_protectedPath = leftOut && !tmpl ? path : QString();
     if (tmpl) target->m_doc->setModified(true);
     Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.open.") + fileKind(path));
     hideFileScreen();
-    if (!notes.isEmpty()) QMessageBox::warning(target, tr("Open"), tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes.join(QLatin1Char('\n'))));
+    if (!notes.isEmpty()) target->notice(tr("Open"), tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes.join(QLatin1Char('\n'))), true);
     return true;
 }
 
 bool WriteWindow::save()
 {
+    // A file that could not be read whole is not written over: the copy is saved under a name of its own.
+    if (m_doc && m_doc->leftSomethingOut() && !m_protectedPath.isEmpty() && m_path == m_protectedPath) {
+        notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
+        return saveAs();
+    }
     if (m_path.isEmpty() || !isWrittenEnding(m_path)) return saveAs();
     return saveTo(m_path);
+}
+
+void WriteWindow::notice(const QString &title, const QString &text, bool warning)
+{
+    if (m_notifier) m_notifier(title, text);
+    else if (warning) QMessageBox::warning(this, title, text);
+    else QMessageBox::information(this, title, text);
 }
 
 bool WriteWindow::saveAs()
@@ -147,6 +162,15 @@ bool WriteWindow::saveAs()
 bool WriteWindow::saveTo(const QString &path)
 {
     if (!m_doc) return false;
+    // (The same file again, by another way to it: the name is compared as the system sees it.)
+    if (m_doc->leftSomethingOut() && !m_protectedPath.isEmpty() && QFileInfo(path).absoluteFilePath() == QFileInfo(m_protectedPath).absoluteFilePath()) {
+        notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
+        return false;
+    }
+    if (m_doc->hadMacros() && !m_macrosNoted) {
+        m_macrosNoted = true;
+        notice(tr("Save"), tr("The macros in this document aren't saved, because a .docx file can't hold them."));
+    }
     QString err;
     const bool tmpl = QFileInfo(path).suffix().compare(QLatin1String("dotx"), Qt::CaseInsensitive) == 0;
     QApplication::setOverrideCursor(Qt::WaitCursor);

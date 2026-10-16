@@ -7,6 +7,7 @@
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
+#include <QSet>
 #include <QTextBlock>
 #include <algorithm>
 #include <QTextCursor>
@@ -126,16 +127,27 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
         }
         out.mainRelationships.push_back(office::Relationship{QStringLiteral("rId%1").arg(id), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"), out.stylesName, false});
     }
-    // Macros are not kept: a file that had them is saved without, as a plain document.
-    for (int i = int(out.parts.size()) - 1; i >= 0; --i)
-        if (out.parts[i].contentType.startsWith(QLatin1String("application/vnd.ms-office.vba")) || out.parts[i].contentType.contains(QLatin1String("macroEnabled"))) {
+    // Macros are not kept: a file that had them is saved without, as a plain document (the project, its signature, the data it has, and the
+    // links to them).
+    QSet<QString> gone;
+    for (int i = int(out.parts.size()) - 1; i >= 0; --i) {
+        const QString &type = out.parts[i].contentType;
+        if (type.startsWith(QLatin1String("application/vnd.ms-office.vba")) || type.contains(QLatin1String("macroEnabled")) || type.contains(QLatin1String("vbaData"))) {
+            gone.insert(out.parts[i].name.toLower());
             out.partRelationships.remove(out.parts[i].name);
             out.parts.removeAt(i);
         }
-    auto dropMacroLinks = [](QVector<office::Relationship> *rels) {
-        rels->erase(std::remove_if(rels->begin(), rels->end(), [](const office::Relationship &r) { return r.type.endsWith(QLatin1String("/vbaProject")) || r.type.endsWith(QLatin1String("/vbaProjectSignature")); }), rels->end());
+    }
+    auto dropMacroLinks = [&](QVector<office::Relationship> *rels) {
+        rels->erase(std::remove_if(rels->begin(), rels->end(), [&](const office::Relationship &r) {
+                        return r.type.endsWith(QLatin1String("/vbaProject")) || r.type.endsWith(QLatin1String("/vbaProjectSignature")) || r.type.endsWith(QLatin1String("/wordVbaData")) ||
+                               (!r.external && gone.contains(r.target.toLower()));
+                    }),
+                    rels->end());
     };
     dropMacroLinks(&out.mainRelationships);
+    dropMacroLinks(&out.packageRelationships);
+    for (auto it = out.partRelationships.begin(); it != out.partRelationships.end(); ++it) dropMacroLinks(&it.value());
     out.mainContentType = template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
                                     : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
     return writeDocx(out, error);
