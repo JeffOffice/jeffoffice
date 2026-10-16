@@ -238,7 +238,30 @@ if(WIN32)
 endif()
 target_link_libraries(jeffdeck PRIVATE jdcore)
 set_target_properties(jeffdeck PROPERTIES OUTPUT_NAME JeffDeck)
-qt_add_executable(jdtests tests/deck/tst_deck.cpp)
+qt_add_executable(jdtests
+  tests/testrunner.cpp
+  tests/deck/deckhelpers.cpp
+  tests/deck/tst_deck_animation.cpp
+  tests/deck/tst_deck_binaryimport.cpp
+  tests/deck/tst_deck_binaryshapes.cpp
+  tests/deck/tst_deck_file.cpp
+  tests/deck/tst_deck_fonts.cpp
+  tests/deck/tst_deck_master.cpp
+  tests/deck/tst_deck_media.cpp
+  tests/deck/tst_deck_odp.cpp
+  tests/deck/tst_deck_output.cpp
+  tests/deck/tst_deck_pptxexport.cpp
+  tests/deck/tst_deck_pptximport.cpp
+  tests/deck/tst_deck_pptxobjects.cpp
+  tests/deck/tst_deck_review.cpp
+  tests/deck/tst_deck_slidelist.cpp
+  tests/deck/tst_deck_slideshow.cpp
+  tests/deck/tst_deck_tablelimits.cpp
+  tests/deck/tst_deck_tables.cpp
+  tests/deck/tst_deck_texteffects.cpp
+  tests/deck/tst_deck_themes.cpp
+  tests/deck/tst_deck_transitions.cpp
+  tests/deck/tst_deck_window.cpp)
 target_link_libraries(jdtests PRIVATE jdcore Qt6::Test)
 target_compile_definitions(jdtests PRIVATE JD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(jdtests PROPERTIES WIN32_EXECUTABLE OFF)
