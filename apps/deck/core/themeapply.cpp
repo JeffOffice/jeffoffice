@@ -554,6 +554,16 @@ void dropUnusedThemeMasters(Document &d, const MasterPage *keep)
     }
 }
 
+} // namespace
+
+void keepSlideMaster(MasterPage &master)
+{
+    master.props.remove(kMadeByTheme);
+    master.props.remove(kThemeKey);
+}
+
+namespace {
+
 // The layout kind a set of placeholders asks for.
 QString kindOf(const ItemList &items)
 {

@@ -54,12 +54,27 @@ QString layoutType(const MasterPage &m);
 // master `masterId`, or of every master.
 QVector<MasterPage *> layouts(const Document &d, const QString &masterId = QString());
 MasterPage *layoutOfType(const Document &d, const QString &type, const QString &masterId = QString());
+// How the layout galleries name a layout: its type, or, when an earlier layout of its slide master has the same type (custom layouts all
+// have), "id:" and its id. And the layout a key names, among the layouts of `masterId` (or of every master).
+QString layoutKey(const Document &d, const MasterPage &layout);
+MasterPage *layoutByKey(const Document &d, const QString &key, const QString &masterId = QString());
 // The slide master under slide `slide` (its layout's base), or "".
 QString slideMasterOf(const Document &d, int slide);
 
 // A new presentation: 16:9 slides, the default theme, a slide master with
 // the nine standard layouts, and one Title Slide.
 std::unique_ptr<Document> newPresentation();
+// A new slide master with the nine standard layouts, in the presentation's theme and for its slide size, after the slide master
+// `after` and its layouts (a layout names its slide master); the end when `after` names none. Their names are free ones.
+MasterPage *addSlideMaster(Document &d, const QString &after = QString());
+// A new layout, "Custom Layout", of the slide master `masterId` after the layout `after` (the master's last when none): a title and the
+// date, footer, and slide number in the places the slide master has for them. Null if `masterId` is no slide master.
+MasterPage *addLayout(Document &d, const QString &masterId, const QString &after = QString());
+// A master's placeholder of that type ("title", "body", "dt", "ftr", or "sldNum") as a new presentation has it, for the slide size: null
+// for any other type.
+ItemPtr standardPlaceholder(Document &d, const QString &type);
+// A copy of a layout's or a slide master's placeholder; with `empty`, its text is gone and its formatting kept for what is typed.
+ItemPtr copyPlaceholder(Document &d, const Item &place, bool empty);
 
 // A presentation saved with no slides (a template can be) gets one, as a
 // new presentation starts: a Title Slide, or the first layout or master it

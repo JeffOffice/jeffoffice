@@ -3,6 +3,7 @@
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/masteredit.h"
 #include "core/embeddedfonts.h"
 #include "core/fonts.h"
 #include "core/media.h"
@@ -1168,7 +1169,7 @@ void Exporter::writeMaster(int i)
     m_pkg.addRelationship(master.part, kRelBase + QStringLiteral("theme"), master.themePart);
     m_pkg.addPart(master.themePart, withStandardFontNames(master.themeXml), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
 
-    QString xml = QStringLiteral("<p:sldMaster%1 preserve=\"1\"><p:cSld%2>").arg(kNamespaces, page.name.isEmpty() ? QString() : QStringLiteral(" name=\"%1\"").arg(esc(page.name)));
+    QString xml = QStringLiteral("<p:sldMaster%1 preserve=\"%2\"><p:cSld%3>").arg(kNamespaces, isPreserved(page) ? QStringLiteral("1") : QStringLiteral("0"), page.name.isEmpty() ? QString() : QStringLiteral(" name=\"%1\"").arg(esc(page.name)));
     const QString fill = background(page, master.part, true, where);
     xml += fill + tree(page, master.part, where, nullptr) + QStringLiteral("</p:cSld>");
     xml += colorMapXml(isDarkBackground(page.background));
@@ -1188,7 +1189,7 @@ void Exporter::writeLayout(int i)
     QString xml = QStringLiteral("<p:sldLayout%1").arg(kNamespaces);
     if (!custom) xml += QStringLiteral(" type=\"%1\"").arg(type);
     if (!page.showMasterItems) xml += QStringLiteral(" showMasterSp=\"0\"");
-    xml += QStringLiteral(" preserve=\"1\"");
+    xml += isPreserved(page) ? QStringLiteral(" preserve=\"1\"") : QStringLiteral(" preserve=\"0\"");
     if (custom) xml += QStringLiteral(" userDrawn=\"1\"");
     xml += QStringLiteral("><p:cSld name=\"%1\">").arg(esc(page.name));
     const QString fill = background(page, layout.part, false, where);
