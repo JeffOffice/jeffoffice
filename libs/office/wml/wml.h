@@ -94,6 +94,27 @@ struct TabStop {
 
 struct SectionProps;
 
+// One side of a paragraph's borders (w:pBdr), as the paragraph or its style states it.
+struct Border {
+    QString val;                      // single, double, dashed, dotted, thick, nil or none (no border)...
+    int size = 0;                     // eighths of a point
+    int space = 0;                    // points between the border and the text
+    QString color;                    // "RRGGBB", or auto
+    bool operator==(const Border &o) const { return val == o.val && size == o.size && space == o.space && color == o.color; }
+    bool visible() const { return !val.isEmpty() && val != QLatin1String("nil") && val != QLatin1String("none") && size > 0; }
+};
+struct ParaBorders {
+    std::optional<Border> top, left, bottom, right, between;
+    bool operator==(const ParaBorders &o) const { return top == o.top && left == o.left && bottom == o.bottom && right == o.right && between == o.between; }
+};
+
+// A paragraph's shading (w:shd).
+struct Shading {
+    QString val;                      // clear, solid, pct10...
+    QString color, fill;              // "RRGGBB" or auto
+    bool operator==(const Shading &o) const { return val == o.val && color == o.color && fill == o.fill; }
+};
+
 struct ParaProps {
     QString style;                    // pStyle
     std::optional<bool> keepNext, keepLines, pageBreakBefore, widowControl, contextualSpacing;
@@ -107,6 +128,10 @@ struct ParaProps {
     QString jc;                       // left, center, right, both, distribute... as written
     std::optional<int> outlineLvl;    // 0 to 8, 9 for body text
     QByteArray spacingAttrs, indAttrs;   // attributes of w:spacing and w:ind that aren't fields here, as written
+    // The borders and shading the paragraph states, read from w:pBdr and w:shd (which are kept as written in `extra` too, and are what is written): a
+    // side a style states and the paragraph doesn't is the style's.
+    std::optional<ParaBorders> borders;
+    std::optional<Shading> shading;
     std::optional<RunProps> markRun;  // the paragraph mark's own run properties
     std::shared_ptr<SectionProps> section;   // sectPr: this paragraph ends a section
     QVector<RawChild> extra;
