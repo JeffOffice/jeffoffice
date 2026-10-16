@@ -142,6 +142,7 @@ public:
         double height = 0;                  // as tall as its room when more of the row comes after it, else as the cells that are left need
         QVector<double> offsets;            // for each cell of the row: how far down its content the part begins (from the top of the cell's text area)
         bool progress = false;              // some cell has a line in the part (without, the row is not split there: it goes to the next page whole)
+        QVector<double> ends;               // for each cell: how far down its content the part goes (where the lines left for the next part begin; very large when none are)
         int next = 0;                       // the state of the part after it (0: the row ends in this one)
     };
     static int pieceState(int index, double firstRoom) { return (index & 0x3FF) | (int(std::lround(firstRoom * 20)) << 10); }
@@ -229,6 +230,7 @@ private:
         QRectF rect;                        // page coordinates
         QRectF clip;                        // the part of it on the page (a cell joined down may reach past)
         QPointF text;                       // where the cell's text area begins
+        double cut = 1e18;                  // the page height below which its text is not drawn (a part of a row ends there, with lines left for the next)
     };
     std::vector<Placed> place() const;
 };

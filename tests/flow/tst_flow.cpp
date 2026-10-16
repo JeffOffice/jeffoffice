@@ -1718,6 +1718,160 @@ private Q_SLOTS:
         }
     }
 
+    // A row whose cell holds a table goes over the page break inside that table: between its rows, and between the lines of a row of it that may be split. A page
+    // starts where the one before left off, so every line of the table in the cell is shown once and no page is taller than its room.
+    void aRowWithATableInItIsSplitInsideTheTable()
+    {
+        for (const int tall : {30, 300}) {   // (a row of the table in the cell that does not fit the page, and one that is many pages)
+            FlowDocument fd;
+            fd.sections[0].paper = QSizeF(300, 300);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            QTextCursor c(fd.story());
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            auto outerTable = std::make_shared<TableData>();
+            outerTable->columns << 200;
+            outerTable->margins = QMarginsF(4, 3, 4, 3);
+            auto outerRow = std::make_shared<RowData>();
+            CellRecord outer;
+            outer.table = outerTable;
+            outer.row = outerRow;
+            const int outerKey = fd.tables.add(outer);
+            auto paragraph = [&](int key, const QString &text) {
+                QTextBlockFormat bf;
+                bf.setProperty(fp::Cell, key);
+                c.insertBlock(bf, body);
+                c.insertText(text, body);
+            };
+            paragraph(outerKey, QStringLiteral("before the table"));
+            auto innerTable = std::make_shared<TableData>();
+            innerTable->columns << 90 << 90;
+            innerTable->margins = QMarginsF(2, 2, 2, 2);
+            for (int r = 0; r < 3; ++r) {
+                auto row = std::make_shared<RowData>();
+                for (int col = 0; col < 2; ++col) {
+                    CellRecord rec;
+                    rec.table = innerTable;
+                    rec.row = row;
+                    rec.parent = outerKey;
+                    const int key = fd.tables.add(rec);
+                    paragraph(key, QStringLiteral("r%1c%2").arg(r).arg(col));
+                    const int lines = r == 1 ? (col == 0 ? tall : tall / 2) : 0;
+                    for (int i = 0; i < lines; ++i) paragraph(key, QStringLiteral("r%1c%2 line %3").arg(r).arg(col).arg(i));
+                }
+            }
+            paragraph(outerKey, QStringLiteral("after the table"));
+            c.insertBlock(QTextBlockFormat());
+            c.insertText(QStringLiteral("zebra after"));
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY2(pages >= 2 && pages < 60, qPrintable(QString::number(pages)));
+            const double room = fd.section(0).content().height();
+            // The lines of the table in the cell that each page shows (a line is shown by the page whose part of the row has it from its top to its bottom).
+            std::map<QString, int> shown;
+            int partsSeen = 0;
+            for (int k = 0; k < pages; ++k) {
+                const auto page = pg.materialize(k);
+                QVERIFY(page);
+                for (const auto &fragment : page->tables) {
+                    if (fragment->layout->depth() != 0) continue;
+                    QVERIFY2(fragment->height <= room + 0.1, qPrintable(QStringLiteral("page %1: %2 of %3").arg(k).arg(fragment->height).arg(room)));
+                    const auto *part = fragment->partOf(0);
+                    if (part) ++partsSeen;
+                    const double offset = part ? part->piece.offsets[0] : 0;
+                    const double height = part ? part->piece.height : fragment->layout->rowHeight(0);
+                    const double inner = height - 6;
+                    for (const auto &item : fragment->items) {
+                        for (const auto &top : item.content->parts) {
+                            if (!top.table) continue;
+                            const auto &nested = *top.table;
+                            double rowTop = 0;
+                            for (int r = nested.firstRow; r < nested.endRow; ++r) {
+                                const auto &row = nested.layout->row(r);
+                                for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+                                    const auto &cell = nested.layout->cell(i);
+                                    const auto cellContent = nested.layout->contentOf(cell);
+                                    for (const auto &text : cellContent->parts) {
+                                        if (!text.text) continue;
+                                        for (const auto &l : text.text->lineBriefs()) {
+                                            if (l.frame < 0) continue;
+                                            const double y = top.y + rowTop + cell.margins.top() + text.y + l.rect.top();
+                                            if (y >= offset - 0.01 && y + l.rect.height() - offset <= inner + 0.01) ++shown[QStringLiteral("%1/%2/%3").arg(r).arg(i).arg(int(l.pos))];
+                                        }
+                                    }
+                                }
+                                rowTop += nested.heightOf(r);
+                            }
+                        }
+                    }
+                }
+            }
+            QVERIFY2(partsSeen >= 2, qPrintable(QString::number(partsSeen)));
+            // Every line of the table in the cell (a paragraph of each cell and those of the tall row) is shown, once.
+            const int expected = 6 + tall + tall / 2;
+            QCOMPARE(int(shown.size()), expected);
+            for (const auto &entry : shown) QVERIFY2(entry.second == 1, qPrintable(entry.first));
+            const int zebra = fd.story()->toPlainText().indexOf(QLatin1String("zebra"));
+            QVERIFY(pg.pageOfPosition(zebra) >= pages - 1);
+        }
+    }
+
+    // A row that goes over a page break is drawn to the page's foot, but the lines that are left for the next page are not drawn in the space under the last line
+    // that is on this one (a line's top is the part of it that would show).
+    void theLinesLeftForTheNextPageAreNotDrawnUnderTheOnesThatAreOnThisOne()
+    {
+        int gaps = 0;
+        for (int extra = 0; extra < 14; ++extra) {
+            FlowDocument fd;
+            fd.sections[0].paper = QSizeF(300, 300 + extra);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            TestTable spec;
+            spec.rows = 1;
+            spec.cols = 1;
+            spec.columnWidth = 120;
+            spec.text = [](int, int) {
+                QString t = QStringLiteral("first");
+                for (int i = 0; i < 60; ++i) t += QStringLiteral("\nLINE %1").arg(i);
+                return t;
+            };
+            addTable(fd, spec);
+            Paginator pg(&fd);
+            const auto page = pg.materialize(0);
+            QVERIFY(page && page->tables.size() == 1);
+            const TableFragment &fragment = *page->tables[0];
+            const auto *part = fragment.partOf(0);
+            QVERIFY(part && part->piece.next != 0);
+            const auto &cell = fragment.layout->cell(fragment.items[0].cell);
+            const double inner = part->piece.height - cell.margins.top() - cell.margins.bottom();
+            double cut = 0;
+            for (const auto &l : fragment.items[0].content->parts[0].text->lineBriefs())
+                if (l.frame >= 0 && l.rect.bottom() <= inner + 0.01) cut = std::max(cut, l.rect.bottom());
+            if (inner - cut > 3.5) ++gaps;
+            const int scale = 4;
+            QImage image(int(fd.section(0).pageSize().width()) * scale, int(fd.section(0).pageSize().height()) * scale, QImage::Format_ARGB32_Premultiplied);
+            image.fill(Qt::white);
+            {
+                QPainter painter(&image);
+                painter.scale(scale, scale);
+                paintTables(&painter, *page, TablePaint());
+            }
+            // Under the last line of the part, to the foot of the row: nothing is drawn.
+            const int x0 = int((fragment.origin.x() + cell.x) * scale), x1 = int((fragment.origin.x() + cell.x + cell.w) * scale);
+            const int y0 = int((fragment.origin.y() + cell.margins.top() + cut + 0.5) * scale), y1 = int((fragment.origin.y() + part->piece.height - 1.5) * scale);
+            int ink = 0;
+            for (int y = y0; y < y1; ++y)
+                for (int x = x0; x < x1; ++x)
+                    if (qGray(image.pixel(x, y)) < 200) ++ink;
+            QVERIFY2(ink == 0, qPrintable(QStringLiteral("extra %1: %2 dark pixels under the last line").arg(extra).arg(ink)));
+            // (And the lines before it are drawn.)
+            int above = 0;
+            for (int y = int((fragment.origin.y() + cell.margins.top()) * scale); y < y0 - scale; ++y)
+                for (int x = x0; x < x1; ++x) above += qGray(image.pixel(x, y)) < 200;
+            QVERIFY(above > 100);
+        }
+        QVERIFY2(gaps >= 3, qPrintable(QString::number(gaps)));
+    }
+
     // A table whose indent is to the text of its first cell (the way tables were set before the program of 2013) has its left edge left of that by the cell's margin; a
     // centered one is in the middle of the text area, and a right one at its right edge.
     void aTableIsIndentedToTheTextOfItsFirstCellOrCenteredOrRight()
