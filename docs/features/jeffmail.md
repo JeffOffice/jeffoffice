@@ -538,6 +538,8 @@ The three rules decided for the whole suite apply here first: nothing in a messa
 
 ## Shared with other JeffOffice apps
 
+The suite-wide map of shared parts, [shared.md](shared.md), says where each lives, which app builds it first, and who uses it; where this list disagrees with it, the map holds.
+
 What JeffMail builds on, and the pieces it should build so that JeffWrite, JeffCrunch, JeffDeck, JeffPub, and JeffBase can use them.
 
 ### Already there
