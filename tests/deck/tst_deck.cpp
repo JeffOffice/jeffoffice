@@ -25856,7 +25856,7 @@ private Q_SLOTS:
     // without a place of its own has that text with its own number in it. A place that holds only the field is the number alone.
     void importBinaryKeepsTheTextAroundTheFieldOfTheMastersNumberPlace()
     {
-        const QString number = QStringLiteral("sldNum"), ph = QStringLiteral("ph:sldNum"), field(QChar(QChar::ObjectReplacementCharacter));
+        const QString number = QStringLiteral("sldNum"), ph = QStringLiteral("ph:sldNum"), field{QChar(QChar::ObjectReplacementCharacter)};
         auto open = [&](const QByteArray &masterPlaces) {
             QString err;
             auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterPlaces, QByteArray(), 1016, footersBox(0, 0x8)), &err);
@@ -25885,7 +25885,7 @@ private Q_SLOTS:
     // their own, and a slide added on either afterward shows the one its own layout has (not the first slide's master's).
     void importBinaryNumberTextBelongsToEachMaster()
     {
-        const QString number = QStringLiteral("sldNum"), ph = QStringLiteral("ph:sldNum"), field(QChar(QChar::ObjectReplacementCharacter));
+        const QString number = QStringLiteral("sldNum"), ph = QStringLiteral("ph:sldNum"), field{QChar(QChar::ObjectReplacementCharacter)};
         const QByteArray mainPlaces = masterFooterPlaces(QString(), QString(), QStringLiteral("Page * of 12"), 5);
         const QByteArray titlePlaces = masterFooterPlaces(QString(), QString(), QStringLiteral("Slide *"), 6);
         QString err;
