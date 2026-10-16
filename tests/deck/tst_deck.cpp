@@ -22766,6 +22766,93 @@ private Q_SLOTS:
                 QVERIFY2(!static_cast<const TextItem *>(it.get())->noWrap, qPrintable(it->role));
     }
 
+    // A frame that doesn't wrap passes that to what takes after it: a slide's placeholder takes it from its layout's (in a .pptx, where the
+    // placeholder's own a:bodyPr says nothing), a slide moved to a layout takes it from the layout's placeholder, a placeholder made on a
+    // slide from the layout copies it, and a layout's frame is written into the master page's styles of an .odp.
+    void textFramesTakeNoWrapFromTheirLayouts()
+    {
+        auto isFooter = [](const Item &it) {
+            const QString type = deck::placeholderType(it);
+            return type == QLatin1String("dt") || type == QLatin1String("ftr") || type == QLatin1String("sldNum") || type == QLatin1String("hdr");
+        };
+        // The .pptx: the layout's content placeholder says wrap="none"; the slide's, which is on that layout, says nothing.
+        Parts p = samplePptx();
+        QString layout = QString::fromUtf8(p.data["/ppt/slideLayouts/slideLayout2.xml"].xml);
+        const int at = layout.indexOf(QStringLiteral("name=\"Content Placeholder 2\""));
+        QVERIFY(at >= 0);
+        const int body = layout.indexOf(QStringLiteral("<a:bodyPr/>"), at);
+        QVERIFY(body > at);
+        layout.replace(body, int(QStringLiteral("<a:bodyPr/>").size()), QStringLiteral("<a:bodyPr wrap=\"none\"/>"));
+        p.data["/ppt/slideLayouts/slideLayout2.xml"].xml = layout.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto flagOf = [](const Document &doc, const Page &page, const QString &name, bool *found) {
+            *found = false;
+            for (const auto &it : page.items)
+                if (it->name == name && it->type() == ItemType::Text) {
+                    *found = true;
+                    return static_cast<const TextItem *>(it.get())->noWrap;
+                }
+            Q_UNUSED(doc);
+            return false;
+        };
+        bool found = false;
+        QVERIFY(flagOf(*d, *d->pages[0], QStringLiteral("Content Placeholder 2"), &found) && found);
+        QVERIFY(!flagOf(*d, *d->pages[0], QStringLiteral("Title 1"), &found) && found);
+        // And written back with the frame (the slide's own file says it now).
+        Exported e;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(flagOf(*again, *again->pages[0], QStringLiteral("Content Placeholder 2"), &found) && found);
+
+        // A new presentation: its layout "Two Content" has a title with no wrapping and a content place with none.
+        auto fresh = deck::newPresentation();
+        const MasterPage *two = deck::layoutOfType(*fresh, QStringLiteral("twoObj"));
+        QVERIFY(two && two->items.size() >= 3);
+        for (const auto &it : two->items)
+            if (it->type() == ItemType::Text && !isFooter(*it)) static_cast<TextItem *>(it.get())->noWrap = true;
+        Page &slide = *fresh->pages[0];
+        auto *title = static_cast<TextItem *>(slide.items[0].get());
+        QVERIFY(!title->noWrap);
+        deck::applyLayout(*fresh, slide, *two);
+        QVERIFY(title->noWrap);
+        // The places of the layout the slide's own fill and the one made for the place it had none for have the frame too.
+        int texts = 0;
+        for (const auto &it : slide.items)
+            if (it->type() == ItemType::Text && !deck::placeholderType(*it).isEmpty() && !isFooter(*it)) {
+                ++texts;
+                QVERIFY2(static_cast<const TextItem *>(it.get())->noWrap, qPrintable(it->role));
+            }
+        QVERIFY(texts >= 3);
+        // The .odp: the master pages' styles say no-wrap for the placeholders that say it, and wrap for the others.
+        auto wrapStyles = [&](const Document &doc, int *noWrap, int *wrap) {
+            QString why;
+            const QByteArray odp = deck::exportOdp(doc, false, &why);
+            QMap<QString, QByteArray> zip;
+            if (odp.isEmpty() || !readZip(odp, zip, &why)) return false;
+            const QString styles = QString::fromUtf8(zip.value(QStringLiteral("styles.xml")));
+            *noWrap = int(styles.count(QStringLiteral("fo:wrap-option=\"no-wrap\"")));
+            *wrap = int(styles.count(QStringLiteral("fo:wrap-option=\"wrap\"")));
+            return true;
+        };
+        auto framed = deck::newPresentation();
+        for (const auto &m : framed->masters)
+            for (const auto &it : m->items)
+                if (it->type() == ItemType::Text && !isFooter(*it)) static_cast<TextItem *>(it.get())->noWrap = true;
+        int noWrap = 0, wrap = 0;
+        QVERIFY(wrapStyles(*framed, &noWrap, &wrap));
+        QVERIFY2(noWrap >= 1, qPrintable(QString::number(noWrap)));
+        QVERIFY(wrap >= 1);   // (the footers' frames wrap)
+        auto plainDeck = deck::newPresentation();
+        int none = 0, all = 0;
+        QVERIFY(wrapStyles(*plainDeck, &none, &all));
+        QCOMPARE(none, 0);
+        QVERIFY(all >= 1);
+    }
+
     // Spacing as the file has it, set as the presentation program sets it (the text engine's slide lines): a line of a share (100 for a
     // single line) of 1.2 times the text size whatever the font, its extra spacing above it, and no space before the paragraph at the
     // top of the box.
