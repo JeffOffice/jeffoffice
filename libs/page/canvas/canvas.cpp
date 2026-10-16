@@ -447,10 +447,7 @@ void Canvas::paintPageSlot(QPainter &p, const Slot &s, bool current)
     PaintContext ctx = paintContext();
     const Document *d = m_ed->doc();
     if (s.page < 0) {
-        if (MasterPage *m = d->master(m_ed->masterView())) {
-            Renderer::paintBackground(&p, ctx, m->background, QRectF(QPointF(0, 0), s.size));
-            Renderer::paintItems(&p, ctx, m->items);
-        }
+        if (MasterPage *m = d->master(m_ed->masterView())) Renderer::paintMasterView(&p, ctx, *m, QRectF(QPointF(0, 0), s.size));
     } else {
         if (!current) ctx.opt.editStory.clear();
         Renderer::paintPage(&p, ctx, s.page);
