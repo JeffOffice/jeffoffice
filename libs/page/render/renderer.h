@@ -53,13 +53,19 @@ public:
     FrameLayout textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt);
     // Layout for a single story in one box (shape text, table cells).
     const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key);
-    void clear() { m_entries.clear(); m_clocks.clear(); }
+    void clear() { m_entries.clear(); m_fields.clear(); }
 
 private:
-    // Whether a story shows the date or time, found again when the story changes.
-    bool showsClock(const Document &doc, const Story &story);
-    struct ClockNote { int revision = -1; bool shows = false; };
-    QHash<quint64, ClockNote> m_clocks;   // by story serial
+    // What the fields of a story show that its layout's key doesn't say (the date and time, business information, mail merge values), as text,
+    // and its notes' text as a number: both in the key, so that the layout is laid out again when they change. The story's fields are found
+    // again when it, or a note it refers to, changes.
+    QString fieldsKey(const Document &doc, const Story &story, const FieldContext &ctx);
+    struct FieldNote {
+        int revision = -1;
+        quint64 notes = 0;
+        StoryFields fields;
+    };
+    QHash<quint64, FieldNote> m_fields;   // by story serial
     struct Entry {
         QString sig;
         std::shared_ptr<StoryLayout> layout;
