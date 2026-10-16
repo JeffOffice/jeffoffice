@@ -94,6 +94,9 @@ struct FrameSpec {
     // The paragraphs aren't broken to the frame's width (a slide's text box that doesn't wrap): each is one line, against the frame as its
     // alignment says, and out of it where it is longer than the frame. One frame, one column.
     bool noWrap = false;
+    // The block of the frame's text (its widest line, with its bullets) is set in the middle of the frame, the lines in it aligned as their
+    // paragraphs say: a slide's text box whose text is anchored "centered". One column.
+    bool centerBlock = false;
     FieldContext ctx;
 };
 

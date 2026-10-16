@@ -2906,6 +2906,45 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     }
     for (int fi = 0; fi < nF; ++fi) m_used[fi] += frames[fi].insets.bottom();
 
+    // Text anchored centered: the block of a frame's lines (the widest of them, and the bullets before them) sits in the middle of the
+    // frame, each line aligned in it as its paragraph says. A block as wide as the frame stays where it is.
+    for (int fi = 0; fi < nF; ++fi) {
+        if (!frames[fi].centerBlock || frames[fi].columns > 1) continue;
+        const QRectF col = colRect(fi, 0);
+        double left = 1e18, right = -1e18;
+        for (const auto &B : m_blocks) {
+            bool marked = false;
+            for (int i = 0; i < B->lines.size(); ++i) {
+                if (B->lines[i].frame != fi) continue;
+                const PtLine tl(B->tl->lineAt(i));
+                // The line's text without the spaces that hang at its end (an empty line is the place its paragraph starts at), in the
+                // frame's coordinates (the line's place is in them).
+                const int from = tl.textStart();
+                int to = from + tl.textLength();
+                while (to > from && B->disp[to - 1] == QLatin1Char(' ')) --to;
+                const double x0 = tl.cursorToX(from), x1 = tl.cursorToX(to);
+                left = std::min(left, std::min(x0, x1));
+                right = std::max(right, std::max(x0, x1));
+                marked |= i == 0 && !B->marker.isEmpty();
+            }
+            if (marked) left = std::min(left, B->markerX);
+        }
+        if (right < left) continue;
+        const double shift = (col.left() + col.right() - left - right) / 2;
+        if (std::abs(shift) < 0.01) continue;
+        for (auto &B : m_blocks) {
+            bool any = false;
+            for (int i = 0; i < B->lines.size(); ++i)
+                if (B->lines[i].frame == fi) {
+                    PtLine tl(B->tl->lineAt(i));
+                    tl.setPosition(tl.position() + QPointF(shift, 0));
+                    B->lines[i].rect.translate(shift, 0);
+                    any = true;
+                }
+            if (any && !B->marker.isEmpty()) B->markerX += shift;
+        }
+    }
+
     // Where each object set in the text is drawn: on its line's baseline,
     // inside its wrap distances.
     for (const auto &B : m_blocks)

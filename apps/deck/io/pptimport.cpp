@@ -1986,6 +1986,7 @@ ItemPtr textBoxFor(const ShapeItem &s)
 {
     auto t = std::make_shared<TextItem>();
     t->noWrap = s.noWrap;
+    t->centerBlock = s.centerBlock;
     t->name = s.name;
     t->role = s.role;
     t->altText = s.altText;
@@ -2026,6 +2027,8 @@ void Importer::finishItems(ItemList &items, PageState &st, bool slide)
         // A slide's placeholder sits in its text where its master's does, unless it says otherwise.
         if (slide && t->valign == VAlign::Top)
             if (const Item *tpl = masterPlaceholder(source, type); tpl && tpl->type() == ItemType::Text) t->valign = static_cast<const TextItem *>(tpl)->valign;
+        if (slide && !t->centerBlock)
+            if (const Item *tpl = masterPlaceholder(source, type); tpl && tpl->type() == ItemType::Text) t->centerBlock = static_cast<const TextItem *>(tpl)->centerBlock;
         if (t->storyId.isEmpty()) t->storyId = m_doc.createStory();
         const QTextDocument *story = m_doc.storyDoc(t->storyId);
         if (slide && story && story->isEmpty()) t->prompt = promptFor(type);

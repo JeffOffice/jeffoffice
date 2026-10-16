@@ -25004,6 +25004,84 @@ private Q_SLOTS:
         QVERIFY2(std::abs((spaced - plain) - 18) < 0.8, qPrintable(QStringLiteral("%1 wider").arg(spaced - plain)));
     }
 
+    // Text anchored "centered" (the kinds of anchor 3 to 5) sets the block of text in the middle of its box across: the widest line is as far
+    // from one side as from the other, and the shorter lines keep their alignment in it (left aligned, here, at the block's left). Text
+    // anchored in the middle only (1) stays against the left.
+    void importBinaryCenteredAnchorSetsTheTextBlockInTheMiddle()
+    {
+        auto anchored = [&](quint32 id, const QString &text, int anchor) {
+            const QByteArray props = pptRec(0xF00B, le(0x0087, 2) + le(quint32(anchor), 4), 1, 3);
+            return pptShape(id, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)), 1000, 200, 5000, 1500, props);
+        };
+        const QByteArray shapes = anchored(0x460, QStringLiteral("Centered"), 4) + anchored(0x461, QStringLiteral("Plain"), 1)
+                                  + anchored(0x462, QStringLiteral("A longer first line of words\rShort"), 3);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        LayoutCache cache;
+        QHash<QString, QVector<QRectF>> rects;   // by the text's start, the rectangles of its lines
+        double width = 0, inset = 0;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text || !it->role.isEmpty()) continue;
+            const auto *t = static_cast<const TextItem *>(it.get());
+            const QString text = d->storyDoc(t->storyId)->toPlainText();
+            const auto fl = cache.textFrame(*d, *t, 1, RenderOptions());
+            QVERIFY(fl.layout);
+            rects.insert(text.left(5), fl.layout->rangeRects(0, 0, d->storyDoc(t->storyId)->characterCount() - 1));
+            width = t->rect.width();
+            inset = t->insets.left();
+        }
+        QCOMPARE(int(rects.size()), 3);
+        QVERIFY(width > 100);
+        auto whole = [&](const QString &key) {
+            QRectF all;
+            for (const QRectF &r : rects.value(key)) all = all.united(r);
+            return all;
+        };
+        QVERIFY2(std::abs(whole(QStringLiteral("Cente")).center().x() - width / 2) < 1.5, qPrintable(QString::number(whole(QStringLiteral("Cente")).center().x())));
+        QVERIFY2(std::abs(whole(QStringLiteral("Plain")).left() - inset) < 1.5, qPrintable(QString::number(whole(QStringLiteral("Plain")).left())));
+        const QVector<QRectF> block = rects.value(QStringLiteral("A lon"));
+        QVERIFY(block.size() >= 2);
+        QRectF widest = block[0];
+        for (const QRectF &r : block) if (r.width() > widest.width()) widest = r;
+        QVERIFY2(std::abs(widest.center().x() - width / 2) < 4.0, qPrintable(QString::number(widest.center().x())));   // (a line's box takes in its paragraph mark)
+        QVERIFY2(std::abs(block.first().left() - block.last().left()) < 1.0, qPrintable(QString::number(block.first().left() - block.last().left())));
+        QVERIFY(block.first().left() > inset + 10);
+        // The setting goes into a .pptx and comes back (the two boxes anchored centered).
+        const QByteArray pptx = deck::exportPresentation(*d, &err);
+        QVERIFY2(!pptx.isEmpty(), qPrintable(err));
+        auto again = deck::importPresentation(pptx, &err);
+        QVERIFY2(again, qPrintable(err));
+        int centered = 0;
+        for (const auto &it : again->pages[0]->items)
+            if (it->type() == ItemType::Text && static_cast<const TextItem *>(it.get())->centerBlock) ++centered;
+        QCOMPARE(centered, 2);
+    }
+
+    // The block of text anchored centered is as wide as its widest line's words: the spaces that hang at a line's end are not in it. A line of
+    // centered text with spaces after it, in a box anchored centered, has its words in the middle of the box.
+    void importBinaryCenteredBlockLeavesOutTheSpacesAtTheEndOfLines()
+    {
+        const QByteArray props = pptRec(0xF00B, le(0x0087, 2) + le(4, 4), 1, 3);
+        const QString text = QStringLiteral("Spaced      ");
+        // Centered (the paragraph format's alignment 1, mask 0x800).
+        const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0x800, le(1, 2)) + cfRun(int(text.size()) + 1, 0);
+        const QByteArray shapes = pptShape(0x490, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)) + pptRec(4001, styles), 1000, 200, 5000, 1500, props);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        QRectF words;
+        for (const QRectF &r : fl.layout->rangeRects(0, 0, 6)) words = words.united(r);
+        QVERIFY2(std::abs(words.center().x() - box->rect.width() / 2) < 1.5, qPrintable(QString::number(words.center().x() - box->rect.width() / 2)));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
