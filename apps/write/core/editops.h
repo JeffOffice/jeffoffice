@@ -90,6 +90,10 @@ void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment);
 void changeIndent(WriteDoc &doc, QTextCursor &c, double points);             // by a step; in a list, the level
 void setIndents(WriteDoc &doc, QTextCursor &c, double left, double right, double firstLine);
 void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after);
+// The spacing before or after a paragraph, in points, as a person sets it: it replaces the automatic spacing the paragraph had on that side (on the page, and in
+// the file, which keeps no automatic spacing the person has set aside).
+void setSpaceBefore(QTextBlockFormat &bf, double points);
+void setSpaceAfter(QTextBlockFormat &bf, double points);
 // Line spacing: a multiple of a line (1, 1.15, 2...), or exactly or at least that many points.
 void setLineSpacing(WriteDoc &doc, QTextCursor &c, QTextBlockFormat::LineHeightTypes type, double value);
 

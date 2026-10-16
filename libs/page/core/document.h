@@ -329,6 +329,18 @@ public:
     // or hiding as a publication's does. Set by the app that makes the
     // document; not saved.
     bool slideText = false;
+    // The pages a flowing document (libs/flow) has, and the pages of the section this page is in, which its NUMPAGES and SECTIONPAGES fields show;
+    // 0 leaves them to the document's own page count. Set by the app that makes the document; not saved.
+    int flowPageTotal = 0, flowSectionPageTotal = 0;
+    // And what the page's notes need from the document it is a page of: the notes before its text, the footnotes cut at the foot of the page before
+    // ("story|number|from" each), and the height of the paragraph between the notes and the text.
+    int flowFootnotesBefore = 0, flowEndnotesBefore = 0;
+    QStringList flowCarriedNotes;
+    double flowNoteSeparator = 0;
+    // Text is set as a word processor sets its lines (LayoutEnv::wordLines). Set by the app that makes the document; not saved.
+    bool wordText = false;
+    bool wordNoHang = false;   // (LayoutEnv::wordNoHang)
+    QHash<QString, QString> wordStandIns;   // (LayoutEnv::standIns)
     // A picture's brightness, contrast, black and white, and transparent color change its colors as the presentation program changes a
     // slide's pictures (PictureItem::colorEffects), not as Publisher changes a publication's. Set by the app that makes the document; not saved.
     bool slidePictures = false;
@@ -356,6 +368,12 @@ public:
     // What its fields read (FieldSource).
     int firstPageNumber() const override { return setup.firstPageNumber; }
     QString pageNumberFormat() const override { return setup.pageNumberFormat; }
+    int pageTotal() const override { return flowPageTotal; }
+    int footnotesBefore() const override { return flowFootnotesBefore; }
+    int endnotesBefore() const override { return flowEndnotesBefore; }
+    QStringList carriedNotes() const override { return flowCarriedNotes; }
+    double noteSeparatorHeight() const override { return flowNoteSeparator; }
+    int sectionPageTotal() const override { return flowSectionPageTotal; }
     QString businessField(const QString &key) const override { return business().field(key); }
     QStringList mergeFields() const override { return merge.fields; }
     QString mergeValue(int record, const QString &field) const override { return merge.value(record, field); }

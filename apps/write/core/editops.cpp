@@ -1,5 +1,6 @@
 #include "core/editops.h"
 
+#include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -269,7 +270,9 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
         // After the element kept as XML: a paragraph of the default style.
         c.movePosition(QTextCursor::EndOfBlock);
         const QString style = doc.defaultParagraphStyle();
-        c.insertBlock(doc.styleBlockFormat(style), doc.styleCharFormat(style));
+        QTextBlockFormat nf = doc.styleBlockFormat(style);
+        if (cur.blockFormat().hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, cur.blockFormat().property(flow::fp::Cell));   // (in the cell the element is in)
+        c.insertBlock(nf, doc.styleCharFormat(style));
         c.endEditBlock();
         return;
     }
@@ -292,6 +295,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
             const QTextBlockFormat tailOwner = b.blockFormat();
             QTextBlockFormat nf = doc.styleBlockFormat(s->next);
             copyTail(tailOwner, &nf);
+            if (tailOwner.hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, tailOwner.property(flow::fp::Cell));   // (the paragraph after it is in its cell)
             setBlockFormatInList(b, nf, nullptr);
             setMarkFormat(b, doc.styleCharFormat(s->next));
             c.setCharFormat(doc.styleCharFormat(s->next));
@@ -314,7 +318,7 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 
 void insertSectionBreak(WriteDoc &doc, QTextCursor &c)
 {
-    if (isLocked(c.block())) return;
+    if (isLocked(c.block()) || inTable(c.block())) return;   // (a section ends in a paragraph that is not in a table's cell)
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
     // The paragraph the cursor is in ends the section; the cursor goes to a new paragraph in the section that follows.
@@ -325,8 +329,8 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c)
 
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
-    Q_UNUSED(doc);
     if (!c.hasSelection()) return;
+    if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
     QTextDocument *d = c.document();
     c.beginEditBlock();
     const int from = c.selectionStart(), to = c.selectionEnd();
@@ -436,7 +440,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextBlock prev = b.previous();
-    if (!prev.isValid() || isLocked(prev)) return;
+    if (!prev.isValid() || isLocked(prev) || !canJoinBlocks(prev, b)) return;
     QTextCursor t(d);
     t.setPosition(b.position());
     t.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
@@ -472,7 +476,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextBlock next = c.block().next();
-    if (!next.isValid() || isLocked(next)) return;
+    if (!next.isValid() || isLocked(next) || !canJoinBlocks(c.block(), next)) return;
     c.movePosition(QTextCursor::EndOfBlock);
     c.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
     removeSelection(doc, c);
@@ -485,6 +489,7 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
         changeIndent(doc, c, back ? -36 : 36);
         return;
     }
+    if (tabThroughCells(doc, c, back)) return;
     if (back) return;
     insertText(doc, c, QStringLiteral("\t"));
 }
@@ -512,7 +517,9 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     if (isLocked(c.block())) {
         c.movePosition(QTextCursor::EndOfBlock);
         const QString style = doc.defaultParagraphStyle();
-        c.insertBlock(doc.styleBlockFormat(style), doc.styleCharFormat(style));
+        QTextBlockFormat nf = doc.styleBlockFormat(style);
+        if (c.block().blockFormat().hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, c.block().blockFormat().property(flow::fp::Cell));
+        c.insertBlock(nf, doc.styleCharFormat(style));
     }
     QTextDocument *d = c.document();
     // The paragraph pasted into: its paragraph's look and what it keeps stay with the part of it that is there after the paste (the text
@@ -520,12 +527,14 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     // look of what was copied where the cursor is at its start, and takes its section break away.)
     const QTextBlock target = c.block();
     const QTextBlockFormat tf = target.blockFormat();
+    const int targetCell = cellKeyOf(target);
     const QTextCharFormat tmark = markFormat(target);
-    QTextList *targetList = target.textList();
+    const int targetListId = target.textList() ? target.blockFormat().objectIndex() : -1;   // (the list, found again after the paste: it may be gone with the paragraph that was its only one)
     const bool atStart = c.position() == target.position();
     const QVector<Wrapper> wrappers = wrappersOpenAt(target, c.position());
     const int from = c.position();
     c.insertFragment(fragment);
+    QTextList *targetList = targetListId >= 0 ? qobject_cast<QTextList *>(d->object(targetListId)) : nullptr;
     const int to = c.position();
     *pastedFrom = from;
     const QTextBlock first = d->findBlock(from), last = d->findBlock(to);
@@ -562,6 +571,8 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
         }
         rewrap(wrappers, first, last);
     }
+    // What is pasted is in the cell it was pasted into (or in none).
+    giveCellKey(d->findBlock(from), d->findBlock(to), targetCell);
     // The ids a paragraph carries in the file are its own: a copy has none (the first, if it is the target's, kept them above).
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();
@@ -730,19 +741,37 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         }
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
-            if (!f.charFormat().hasProperty(prop::Atom)) continue;
-            Inline a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
-            if (referencesIn(a.raw).isEmpty()) continue;
-            bool ok = true;
-            const QByteArray raw = remap(a.raw, &ok);
-            if (!ok) {
+            // A reference to one of the other document's notes points at nothing here (its text isn't), and an object's place on the page is a place in the
+            // other's objects: the first is left out, and the second isn't carried (what the object is as the file has it is kept).
+            const QString field = f.charFormat().stringProperty(tp::Field);
+            const bool referenceToNote = field.startsWith(QLatin1String("footnote:"));
+            Inline a;
+            const bool atom = f.charFormat().hasProperty(prop::Atom);
+            if (atom) a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
+            if (referenceToNote || (atom && (a.tag == QLatin1String("footnoteReference") || a.tag == QLatin1String("endnoteReference")))) {
                 fixes.push_back({f.position(), f.position() + f.length(), QTextCharFormat(), true});
-            } else if (raw != a.raw) {
-                a.raw = raw;
-                QTextCharFormat nf = f.charFormat();
-                setStored(nf, prop::Atom, packAtom(a));
-                fixes.push_back({f.position(), f.position() + f.length(), nf, false});
+                continue;
             }
+            QTextCharFormat nf = f.charFormat();
+            bool changed = false;
+            if (nf.hasProperty(flow::fp::AnchorId)) {
+                nf.clearProperty(flow::fp::AnchorId);
+                changed = true;
+            }
+            if (atom && !referencesIn(a.raw).isEmpty()) {
+                bool ok = true;
+                const QByteArray raw = remap(a.raw, &ok);
+                if (!ok) {
+                    fixes.push_back({f.position(), f.position() + f.length(), QTextCharFormat(), true});
+                    continue;
+                }
+                if (raw != a.raw) {
+                    a.raw = raw;
+                    setStored(nf, prop::Atom, packAtom(a));
+                    changed = true;
+                }
+            }
+            if (changed) fixes.push_back({f.position(), f.position() + f.length(), nf, false});
         }
     }
     for (int i = int(fixes.size()) - 1; i >= 0; --i) {
@@ -983,7 +1012,7 @@ namespace {
 const int kStyleDriven[] = {QTextFormat::FontFamilies,   QTextFormat::FontPointSize,    QTextFormat::FontWeight,   QTextFormat::FontItalic,   QTextFormat::TextUnderlineStyle,
                             QTextFormat::FontStrikeOut,  QTextFormat::ForegroundBrush,  QTextFormat::FontCapitalization, QTextFormat::TextVerticalAlignment,
                             QTextFormat::FontLetterSpacing, QTextFormat::FontLetterSpacingType, QTextFormat::TextUnderlineColor,
-                            tp::ThemeFont, tp::ColorRefP, tp::HighlightRefP, tp::UnderlineKind, prop::UnderlineAttrs, prop::ColorAttrs, prop::ColorAttrsRgb, prop::DoubleStrike, prop::Hidden, prop::Raised, tp::NoProof};
+                            tp::ThemeFont, tp::ColorRefP, tp::HighlightRefP, tp::UnderlineKind, prop::UnderlineAttrs, prop::ColorAttrs, prop::ColorAttrsRgb, prop::DoubleStrike, tp::HiddenText, prop::Raised, tp::NoProof};
 
 // The format with what `was` gave it (and it still has) taken for what `now` gives.
 QTextCharFormat restyled(const QTextCharFormat &f, const QTextCharFormat &was, const QTextCharFormat &now)
@@ -1067,11 +1096,44 @@ void setIndents(WriteDoc &doc, QTextCursor &c, double left, double right, double
     });
 }
 
+namespace {
+// What the paragraph's spacing says on one side that a measure set by a person replaces: that the spacing is automatic, and a number of lines.
+void dropSpacingAttributes(QTextBlockFormat &bf, const char *side)
+{
+    if (!bf.hasProperty(prop::SpacingAttrs)) return;
+    QByteArray attrs = storedBytes(bf, prop::SpacingAttrs);
+    for (const char *suffix : {"Autospacing", "Lines"}) {
+        const QByteArray name = QByteArray(" w:") + side + suffix + "=\"";
+        for (int at = attrs.indexOf(name); at >= 0; at = attrs.indexOf(name)) {
+            const int end = attrs.indexOf('"', at + name.size());
+            if (end < 0) break;
+            attrs.remove(at, end + 1 - at);
+        }
+    }
+    if (attrs.isEmpty()) bf.clearProperty(prop::SpacingAttrs);
+    else setStored(bf, prop::SpacingAttrs, attrs);
+}
+} // namespace
+
+void setSpaceBefore(QTextBlockFormat &bf, double points)
+{
+    bf.setTopMargin(std::max(0.0, points));
+    bf.clearProperty(tp::SpaceBeforeAuto);
+    dropSpacingAttributes(bf, "before");
+}
+
+void setSpaceAfter(QTextBlockFormat &bf, double points)
+{
+    bf.setBottomMargin(std::max(0.0, points));
+    bf.clearProperty(tp::SpaceAfterAuto);
+    dropSpacingAttributes(bf, "after");
+}
+
 void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 {
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
-        bf.setTopMargin(std::max(0.0, before));
-        bf.setBottomMargin(std::max(0.0, after));
+        setSpaceBefore(bf, before);
+        setSpaceAfter(bf, after);
     });
 }
 
@@ -1177,7 +1239,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
     const bool wasList = bf.hasProperty(prop::NumId);

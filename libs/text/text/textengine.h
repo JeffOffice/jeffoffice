@@ -7,6 +7,7 @@
 
 #include "core/color.h"
 #include "core/items.h"
+#include "text/textprops.h"
 
 #include <QDateTime>
 #include <QFont>
@@ -14,6 +15,7 @@
 #include <QLineF>
 #include <QPolygonF>
 #include <QSizeF>
+#include <QStringList>
 #include <QTextBlock>
 #include <QTextLayout>
 #include <memory>
@@ -37,6 +39,17 @@ public:
     virtual QString mergeValue(int record, const QString &field) const = 0;
     virtual const QTextDocument *storyDoc(const QString &id) const = 0;
     virtual QList<const QTextDocument *> storyDocs() const = 0;   // every story, in the publication's order
+    // For a word processor's page numbers: how many pages the whole document has (NUMPAGES), and how many the section of the page has
+    // (SECTIONPAGES), where the pages drawn are made one at a time; 0 for a publication, whose context counts them.
+    virtual int pageTotal() const { return 0; }
+    virtual int sectionPageTotal() const { return 0; }
+    // For a word processor's notes where a page of its document is laid out as a story of its own: the footnotes and endnotes before the page's text (the
+    // numbers its own go on from), the footnotes cut at the foot of the page before (each "story|number|from"), and the height of the paragraph that
+    // separates the notes from the text (0: a publication's).
+    virtual int footnotesBefore() const { return 0; }
+    virtual int endnotesBefore() const { return 0; }
+    virtual QStringList carriedNotes() const { return {}; }
+    virtual double noteSeparatorHeight() const { return 0; }
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
@@ -55,6 +68,7 @@ struct FieldContext {
     int mergeRecord = -1;         // -1 shows «Field» codes
     int continuedOnPage = 0, continuedFromPage = 0;
     int nextPage = 0, prevPage = 0;   // pages of the next and previous boxes of a linked chain (0: none)
+    QString noteMark;             // a note's number, for the mark that begins its text ("notemark") in a word processor's note
     QDateTime now = fieldNow();
     QString resolve(const QString &code) const;
     // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only if `withClock`: a layout is laid out
@@ -144,6 +158,14 @@ struct LayoutEnv {
     //    a 1.2 em line), not a share of it. An exact spacing isn't reduced.
     //  - What is stored (fontScale, lnSpcReduction) is drawn as it is on opening: the program doesn't fit it again until the text is edited.
     bool slideLines = false;
+    // Lines as a word processor sets them (JeffWrite): a single line is the font's Windows ascent and descent plus the leading its tables
+    // ask for (a font's line, as the word processor measured it on Times New Roman, Arial, Calibri, and the fonts of its reference
+    // documents); a line of several times single spacing has the extra below its text, and an exact or at-least height is as asked. Space
+    // after a paragraph and space before the next are the larger of the two (not their sum), and none between paragraphs of one style that
+    // say so (tp::ContextualSpacing). Not set for JeffPub's and JeffDeck's text.
+    bool wordLines = false;
+    // A word processor's text doesn't let punctuation hang past the margin (a file's compatibility option); it does otherwise (LayoutEnv::wordLines).
+    bool wordNoHang = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;
@@ -151,6 +173,9 @@ struct LayoutEnv {
     // font was added to the font database under. A run that names one of these is drawn with that font, whatever the computer has under the
     // name; no other document, and no menu, sees them.
     QHash<QString, QString> familyAliases;
+    // What a word processor sets a family it doesn't have in (wordLines): the family the file's font table names for each (lower-cased), if that is one
+    // it has; any other is set in Calibri.
+    QHash<QString, QString> standIns;
     QString aliasOf(const QString &family) const { return familyAliases.isEmpty() ? family : familyAliases.value(family.toLower(), family); }
     QString key() const;
 };
@@ -201,7 +226,7 @@ public:
 
     // A footnote cut at the end of a page (a text box, or a column) goes on at the bottom of the next: its
     // story, its number, and where its text goes on from.
-    struct CarriedNote { QString storyId; int number = 0; int from = 0; };
+    struct CarriedNote { QString storyId; int number = 0; int from = 0; int refPos = -1; };   // refPos: where the note's reference is in the story (-1: a note carried in, whose reference is before)
     // A stretch of the story laid out instead of all of it: a page of a long document (libs/flow lays out a
     // page at a time, each from where the one before ended). The defaults are `build` without it.
     struct Span {
@@ -225,12 +250,28 @@ public:
         // Laying out ends after the paragraph in which a line first lands in this frame or a later one (-1: it
         // runs to the story's end). The lines of that paragraph are all laid out.
         int stopAtFrame = -1;
+        // Laying out ends before the first paragraph that starts at this document position or after it (-1: it runs to the
+        // story's end): for a stretch that is laid out apart from what follows it (the cells of a table).
+        int end = -1;
+        // The most lines of the paragraph that lands in that frame that are laid out: the paragraph is cut after them (LineBrief::cut), as a window cuts it
+        // (0: all of them). A caller that wants only a few lines past its last frame says so, and a paragraph of a thousand lines costs each page only
+        // its own.
+        int overLines = 0;
+        // Where the numbers of the notes begin again at 1: the document positions of the first characters of the paragraphs that do (a word processor's notes
+        // that restart in each section), in order.
+        QVector<int> restartNotesAt;
+        // Room at the foot of each frame (its first column) that the notes of the lines before this stretch already take, rule included (a stretch of a page's text that
+        // follows a table, the notes the text before and the table cited are at the foot): the notes of this stretch go above them, under no rule of their own.
+        QVector<double> noteReserves;
         // Widow and orphan control, keeping lines together, and keeping with the next paragraph: false leaves
         // them to the caller, which then decides where the frames end.
         bool keepRules = true;
         // Space before the first paragraph at the top of the first frame. A paragraph that goes on from the
         // page before has none there, nor has one that the text only came to.
         bool spaceBeforeFirst = true;
+        // The first paragraph is the rest of one (`continued`) and keeps its space before, as a word processor sets the text of a paragraph that a page
+        // break inside it moves to the top of a page.
+        bool spaceBeforeContinued = false;
         // Footnotes and endnotes in the story before the first paragraph, whose numbers the notes in this stretch go on from
         // (the first paragraph's own, in the lines that went before, the layout counts itself).
         int footnotesBefore = 0, endnotesBefore = 0;
@@ -242,6 +283,10 @@ public:
     int frameCount() const { return int(m_frames.size()); }
     bool overflow() const { return m_overflow; }
     double usedHeight(int frame) const;      // content height used, including insets
+    // A word processor's space after the story's last paragraph (LayoutEnv::wordLines; 0 otherwise): a note takes it as part of its height.
+    double trailingSpace() const { return m_trailingAfter; }
+    // The room under the story's last paragraph, as the next paragraph would find it: the lower edge of the paragraph's box (borders, shading) and the space after it.
+    double trailingRoom() const { return m_trailingRoom; }
     int firstPosition(int frame) const;      // first document position laid out in frame (-1 if none)
     int lastPosition(int frame) const;
 
@@ -281,7 +326,7 @@ public:
     struct InlineObject { int frame = -1; QRectF rect; QString json; int docPos = 0; };
     const QVector<InlineObject> &inlineObjects() const { return m_inline; }
 
-    struct Seg { int docPos, docLen, dispPos, dispLen; };
+    struct Seg { int docPos, docLen, dispPos, dispLen; bool hidden = false; };   // hidden: text a word processor hides (it shows nothing, and belongs to the line that follows)
     struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; };   // below: the spacing under the text
     struct Block {
         int docStart = 0, docLen = 0;
@@ -306,6 +351,11 @@ public:
         QVector<QPair<int, int>> noteRefs;           // a note reference's display position, and its index in notes()
         struct Box { int disp = 0; int docPos = 0; QString json; QSizeF size; QMarginsF pad; };
         QVector<Box> objects;                        // objects set in the text, by display position
+        // A word processor's paragraph borders and shading (tp::Borders): the box, whether the paragraph is in one with the one before and after
+        // (the same borders and indents), and the room its top and bottom lines take in the layout, and where its sides are (frame-local).
+        tp::ParaBox box;
+        bool boxJoinedBefore = false, boxJoinedAfter = false, boxTopOff = false;
+        double boxTopRoom = 0, boxBottomRoom = 0, boxLeft = 0, boxRight = 0;
         int dispFromDoc(int rel) const;
         int docFromDisp(int d) const;
     };
@@ -334,16 +384,27 @@ public:
         std::shared_ptr<StoryLayout> layout;   // the part with the number (all of a note that isn't cut)
         QVector<Piece> more;           // the rest of a cut note, a piece for each column it goes on in
         int from = 0;                  // while a cut note goes on: where its rest starts in the note's text
+        int refPos = -1;               // where its reference is, a document position (-1: a note carried in from before)
     };
     const QVector<Note> &notes() const { return m_notes; }
     struct Rule { int frame; QLineF line; };
     const QVector<Rule> &noteRules() const { return m_noteRules; }   // above each column's footnotes
+    // Where each footnote is laid out (frame-local): the first part of each, and each piece of one that goes on in a later frame (`from`: where its
+    // text starts in the note's story). For a caller that draws the notes of a page itself.
+    struct NotePlace { QString storyId; int number = 0; int frame = -1, column = 0; QRectF rect; int from = 0; };
+    QVector<NotePlace> notePlaces() const;
+    // The room the footnotes take at the foot of each frame (its first column), the rule's gap above them included (0: none), and the gaps the layout leaves: above the
+    // first note (the rule is a part of it) and between notes. For a caller that sets notes of its own among them.
+    QVector<double> noteReserves() const { return m_noteReserves; }
+    double noteRuleGap() const { return m_ruleGap; }
+    double noteGap() const { return m_noteGap; }
 
 private:
     const Block *blockAt(int pos, int *rel) const;
     double frameY(int frame) const;   // where a frame's lines start in the paragraph layouts (frameCount() for overflow)
     // The effect lists of runs (tp::TextFx): under the letters (shadows beside them, glow, reflection) or over them (an inner shadow).
     void paintTextEffects(QPainter *p, int frame, bool over) const;
+    void paintBox(QPainter *p, int block, int frame) const;   // a paragraph's borders and shading
     // One layout pass; returns how far each frame's text moved down for its
     // vertical alignment.
     QVector<double> buildOnce(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env);
@@ -354,6 +415,10 @@ private:
     bool m_overflow = false;
     bool m_blankPast = false;   // blank paragraphs ran past the end of a frame that lets text run over (they move centered text, but are no overflow)
     LayoutEnv m_env;
+    double m_trailingAfter = 0;
+    double m_trailingRoom = 0;
+    QVector<double> m_noteReserves;
+    double m_ruleGap = 0, m_noteGap = 0;
     QVector<Note> m_notes;
     QVector<Rule> m_noteRules;
     struct Heading { int frame = -1; QPointF baseline; QFont font; QColor color; };
