@@ -54,12 +54,23 @@ int Paginator::numberOf(int index) const
     bool restarts = false;
     for (const Section &s : m_doc->sections) restarts |= s.firstPageNumber > 0;
     if (!restarts) return index + 1;
-    for (int p = std::min(index, int(m_starts.size()) - 1); p >= 0; --p)
+    // The page after the one asked for last, in the same section: one more.
+    if (index > 0 && index == m_numberOf + 1 && index < m_starts.size() && m_starts[index].section == m_starts[index - 1].section) {
+        m_numberOf = index;
+        return ++m_number;
+    }
+    int number = index + 1;
+    for (int p = std::min(index, int(m_starts.size()) - 1); p >= 0; --p, ++m_numberSteps)
         if (p == 0 || m_starts[p].section != m_starts[p - 1].section) {
             const int first = m_doc->section(m_starts[p].section).firstPageNumber;
-            if (first > 0) return first + (index - p);
+            if (first > 0) {
+                number = first + (index - p);
+                break;
+            }
         }
-    return index + 1;
+    m_numberOf = index;
+    m_number = number;
+    return number;
 }
 
 Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
@@ -279,6 +290,7 @@ bool Paginator::complete()
 
 void Paginator::invalidate()
 {
+    m_numberOf = -1;
     m_starts.clear();
     m_starts << PageStart();
     m_complete = false;
@@ -322,6 +334,7 @@ int Paginator::pageOfPosition(int position)
 void Paginator::changed(int position, int removed, int added)
 {
     const int delta = added - removed;
+    m_numberOf = -1;
     // The pages' places move with the text; one that began inside what was taken out is gone.
     int w = 0, goneBefore = 0;
     for (int r = 0; r < m_starts.size(); ++r) {
@@ -369,6 +382,7 @@ void Paginator::settleStep()
 {
     const int k = m_valid;
     const Run run = layoutPage(k, m_starts[k]);
+    if (m_numberOf > k) m_numberOf = -1;   // (the pages after this one are about to change)
     if (!run.hasNext || run.next == m_starts[k]) {
         m_starts.resize(k + 1);
         m_high = std::min(m_high, k);

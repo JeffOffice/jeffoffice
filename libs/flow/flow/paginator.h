@@ -93,6 +93,8 @@ public:
 
     // How many pages have been laid out since this was made, to see how much an edit costs.
     qint64 pagesLaidOut() const { return m_laidOut; }
+    // How many pages the page numbers have been walked back over to find where their section began, for tests.
+    qint64 numberStepsForTest() const { return m_numberSteps; }
 
 private:
     struct Run;
@@ -116,6 +118,9 @@ private:
     bool m_pending = false;
     int m_valid = 0, m_high = 0, m_dirtyEnd = 0;
     qint64 m_laidOut = 0;
+    // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
+    mutable int m_numberOf = -1, m_number = 0;
+    mutable qint64 m_numberSteps = 0;
 };
 
 } // namespace jp::flow
