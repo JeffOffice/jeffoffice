@@ -1807,6 +1807,81 @@ private Q_SLOTS:
         }
     }
 
+    // A copy made in one document and pasted into another carries its pictures (the bytes, in a part of the new file, with a relationship of its
+    // own) and its hyperlinks (a relationship); a piece that refers to a part the new file can't be given (a chart) is not carried, and its
+    // text is pasted as text. Nothing saved points at a part that is not there.
+    void pastingFromAnotherDocumentCarriesPicturesAndLinksAndNothingDangles()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"";
+        const QByteArray png("\x89PNG\r\n\x1a\n-picture-bytes-");
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">A picture: </w:t></w:r><w:r><w:drawing><wp:inline><wp:extent cx=\"100\" cy=\"100\"/><wp:docPr id=\"1\" name=\"Pic\"/><a:graphic>"
+                                "<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                                "<pic:blipFill><a:blip r:embed=\"rIdImg\"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"
+                                "<w:r><w:t xml:space=\"preserve\"> a </w:t></w:r><w:hyperlink r:id=\"rIdLink\"><w:r><w:t>link</w:t></w:r></w:hyperlink><w:r><w:t xml:space=\"preserve\"> a chart: </w:t></w:r>"
+                                "<w:r><w:drawing><wp:inline><wp:extent cx=\"100\" cy=\"100\"/><wp:docPr id=\"2\" name=\"Chart\"/><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">"
+                                "<c:chart r:id=\"rIdChart\"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r><w:r><w:t> end.</w:t></w:r></w:p>";
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/media/image1.png"), png, QStringLiteral("image/png"));
+        w.addPart(QStringLiteral("/word/charts/chart1.xml"), xml("<c:chartSpace " + ns + "/>"), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdImg"), rel + QStringLiteral("image"), QStringLiteral("/word/media/image1.png"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdLink"), rel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/target"), true);
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdChart"), rel + QStringLiteral("chart"), QStringLiteral("/word/charts/chart1.xml"));
+        Clip clip;
+        {
+            auto source = open(w.finish());
+            QVERIFY(source);
+            QTextCursor sel(source->story());
+            sel.select(QTextCursor::Document);
+            clip = copySelection(*source, sel);
+            QCOMPARE(int(clip.links.size()), 3);
+            // (The same document: nothing is made over.)
+            auto same = open(w.finish());
+            QTextCursor at(same->story());
+            at.movePosition(QTextCursor::End);
+            auto target = open(makeDocx("<w:p><w:r><w:t>Target.</w:t></w:r></w:p>", kStyles));
+            QVERIFY(target);
+            QTextCursor t(target->story());
+            t.movePosition(QTextCursor::End);
+            pasteClip(*target, t, clip);
+            const QByteArray saved = target->toDocx();
+            const QStringList strict = rt::strictProblems(saved);
+            QVERIFY2(strict.isEmpty(), qPrintable(strict.join(QLatin1Char('\n'))));
+            QVERIFY2(rt::danglingReferences(saved).isEmpty(), qPrintable(rt::danglingReferences(saved).join(QLatin1Char(' '))));
+            office::Package p;
+            QVERIFY(p.read(saved));
+            const QByteArray x = p.part(p.mainPart());
+            QVERIFY(x.contains("A picture: ") && x.contains("link") && x.contains(" end."));
+            // The picture: a part of the new file with the bytes, a link to it of the new file's own.
+            QStringList images;
+            for (const QString &n : p.partNames())
+                if (n.startsWith(QLatin1String("/word/media/"))) images << n;
+            QCOMPARE(images.size(), 1);
+            QCOMPARE(p.part(images[0]), png);
+            QCOMPARE(int(x.count("r:embed=")), 1);
+            // The hyperlink: its address, in a relationship of the new file.
+            const QVector<office::Relationship> links = p.relationshipsOfType(p.mainPart(), QStringLiteral("/hyperlink"));
+            QCOMPARE(links.size(), 1);
+            QCOMPARE(links[0].target, QStringLiteral("https://example.com/target"));
+            QVERIFY(links[0].external);
+            // The chart: not carried; the file has no chart part and no reference to one.
+            QVERIFY(!x.contains("c:chart"));
+            for (const QString &n : p.partNames()) QVERIFY(!n.contains(QLatin1String("chart")));
+        }
+        // The last document is closed: the kept bytes a copy's formats stood for are gone, and a paste of it is the text.
+        auto later = open(makeDocx("<w:p><w:r><w:t>Later.</w:t></w:r></w:p>", kStyles));
+        QTextCursor lc(later->story());
+        lc.movePosition(QTextCursor::End);
+        pasteClip(*later, lc, clip);
+        QVERIFY(later->story()->toPlainText().contains(QStringLiteral("link")));
+        const QByteArray lsaved = later->toDocx();
+        QVERIFY(rt::strictProblems(lsaved).isEmpty() && rt::danglingReferences(lsaved).isEmpty());
+    }
+
     // A copy that took the start of a tag (a content control) and not its end, pasted inside another tag (a hyperlink), leaves the other tag as
     // it was: the stray start is the one that is left out.
     void aStrayStartOfATagPastedInsideAnotherLeavesTheOthersWhole()
