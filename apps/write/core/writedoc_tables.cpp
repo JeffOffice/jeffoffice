@@ -342,8 +342,11 @@ Block structureBlock(const char *tag, Inline::Role role, const QByteArray &raw)
 
 } // namespace
 
-void TableExporter::moveTo(int key, QVector<Block> *out)
+void TableExporter::moveTo(int key, BlockSink &out)
 {
+    auto addAll = [&](const QVector<Block> &blocks) {
+        for (const Block &b : blocks) out.add(Block(b));
+    };
     const QVector<const flow::CellRecord *> now = key ? chainOf(m_flow->tables, key) : QVector<const flow::CellRecord *>();
     // The first level where the cell is another one.
     int same = 0;
@@ -352,21 +355,22 @@ void TableExporter::moveTo(int key, QVector<Block> *out)
     for (int i = int(m_open.size()) - 1; i >= same; --i) {
         const flow::CellRecord *c = m_open[i];
         const CellPart *cp = static_cast<const CellPart *>(c->cell.app.get());
-        if (cp) *out += cp->tail;
-        out->push_back(structureBlock("tc", Inline::Close, "</w:tc>"));
+        if (cp) addAll(cp->tail);
+        out.add(structureBlock("tc", Inline::Close, "</w:tc>"));
         // The row ends if the cell that comes next at this level is in another row (or there is none); and the table with it, if that is in another table.
         const flow::CellRecord *next = i < now.size() ? now[i] : nullptr;
         const bool rowEnds = !next || next->row != c->row || i > same;
         const bool tableEnds = !next || next->table != c->table || i > same;
         if (rowEnds) {
             const RowPart *rp = static_cast<const RowPart *>(c->row->app.get());
-            if (rp) *out += rp->after;
-            out->push_back(structureBlock("tr", Inline::Close, "</w:tr>"));
+            if (rp) addAll(rp->after);
+            out.add(structureBlock("tr", Inline::Close, "</w:tr>"));
         }
         if (tableEnds) {
             const TablePart *tp = static_cast<const TablePart *>(c->table->app.get());
-            if (tp) *out += tp->after;
-            out->push_back(structureBlock("tbl", Inline::Close, "</w:tbl>"));
+            if (tp) addAll(tp->after);
+            out.add(structureBlock("tbl", Inline::Close, "</w:tbl>"));
+            out.tableClosed(const_cast<TablePart *>(tp));
         }
     }
     // Opens what is new, from the level where it differs down to the paragraph's own cell.
@@ -378,7 +382,7 @@ void TableExporter::moveTo(int key, QVector<Block> *out)
         const bool newRow = newTable || !was || was->row != c->row || i > same;
         if (newTable) {
             const TablePart *tp = static_cast<const TablePart *>(c->table->app.get());
-            if (tp) *out += tp->before;
+            if (tp) addAll(tp->before);
             Block b = structureBlock("tbl", Inline::Open, tp ? tp->open : QByteArray("<w:tbl>"));
             if (tp && tp->mark) {
                 auto mark = std::make_shared<TableMark>(*tp->mark);
@@ -386,17 +390,17 @@ void TableExporter::moveTo(int key, QVector<Block> *out)
                 mark->fingerprint = tp->fingerprint;
                 b.table = mark;
             }
-            m_opened.push_back({out->size(), const_cast<TablePart *>(tp)});
-            out->push_back(b);
+            out.tableOpened(const_cast<TablePart *>(tp));
+            out.add(std::move(b));
         }
         if (newRow) {
             const RowPart *rp = static_cast<const RowPart *>(c->row->app.get());
-            if (rp) *out += rp->before;
-            out->push_back(structureBlock("tr", Inline::Open, rp ? rp->open : QByteArray("<w:tr>")));
+            if (rp) addAll(rp->before);
+            out.add(structureBlock("tr", Inline::Open, rp ? rp->open : QByteArray("<w:tr>")));
         }
         const CellPart *cp = static_cast<const CellPart *>(c->cell.app.get());
-        if (cp) *out += cp->before;
-        out->push_back(structureBlock("tc", Inline::Open, cp ? cp->open : QByteArray("<w:tc>")));
+        if (cp) addAll(cp->before);
+        out.add(structureBlock("tc", Inline::Open, cp ? cp->open : QByteArray("<w:tc>")));
     }
     m_open = now;
 }
@@ -406,19 +410,28 @@ void TableExporter::moveTo(int key, QVector<Block> *out)
 void WriteDoc::settleTables()
 {
     if (m_flow->tables.isEmpty()) return;
-    QVector<Block> out;
-    QVector<TableExporter::Opened> opened;
-    exportBody(&out, &opened);
-    for (const TableExporter::Opened &o : std::as_const(opened)) {
-        qsizetype depth = 0, end = o.at;
-        for (; end < out.size(); ++end) {
-            const Block &x = out[end];
-            if (!x.isRaw || x.tag != QLatin1String("tbl")) continue;
-            depth += x.role == Inline::Open ? 1 : x.role == Inline::Close ? -1 : 0;
-            if (depth == 0) break;
+    // The blocks are not kept: each goes into the fingerprint of every table it is in (a table in a cell is in the table around it as well).
+    class Fingerprints : public BlockSink {
+    public:
+        void add(Block &&block) override {
+            for (Active &a : m_active) a.hash.add(block);
         }
-        if (end < out.size() && o.part) o.part->fingerprint = blocksFingerprint(out, o.at, end + 1);
-    }
+        void tableOpened(TablePart *part) override { m_active.push_back({part, BlocksFingerprint()}); }
+        void tableClosed(TablePart *) override {
+            if (m_active.empty()) return;
+            Active a = std::move(m_active.back());
+            m_active.pop_back();
+            if (a.part) a.part->fingerprint = a.hash.finish();
+        }
+
+    private:
+        struct Active {
+            TablePart *part;
+            BlocksFingerprint hash;
+        };
+        std::vector<Active> m_active;
+    } sink;
+    exportInto(sink);
 }
 
 const TableLayer *WriteDoc::tableLayerOf(int cellKey) const

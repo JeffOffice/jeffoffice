@@ -127,7 +127,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             span.window = window;
             bool windowShort = false;
             if (m_tables->any()) {
-                all = linesWithTables(frames, span, run.firstFrame, st.piece, &windowShort);   // (tables are laid out beside the text: paginator_tables.cpp)
+                all = linesWithTables(frames, span, run.firstFrame, st.piece, st.pieceRoom, &windowShort);   // (tables are laid out beside the text: paginator_tables.cpp)
             } else {
                 StoryLayout layout;
                 layout.build(m_doc->story(), frames, m_doc->env, span);
@@ -262,6 +262,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.next.skip = L[c].line;
         if (m_tables->any() && m_tables->index().spanAt(L[c].pos) >= 0) {   // (a row of a table: the line's number is the part of it)
             run.next.piece = L[c].line;
+            run.next.pieceRoom = L[c].line != 0 ? m_roomOut : 0;
             run.next.skip = 0;
         }
         run.next.hard = hard;
@@ -399,10 +400,27 @@ void Paginator::changed(int position, int removed, int added)
     const QTextDocument *story = m_doc->story();
     const int last = std::max(0, story->characterCount() - 1);
     const QTextBlock b0 = story->findBlock(std::min(position, last)), b1 = story->findBlock(std::min(position + added, last));
-    const int from = b0.isValid() ? b0.position() : 0;
-    const int to = b1.isValid() ? b1.position() + b1.length() : last + 1;
+    int from = b0.isValid() ? b0.position() : 0;
+    int to = b1.isValid() ? b1.position() + b1.length() : last + 1;
+    // The rows of tables that the edit touched, with those that cells joined down tie them to: what a page in them is laid out as depends on all of them.
+    if (m_tables->any()) {
+        m_tables->settleEdits();
+        int dirtyFrom = 0, dirtyTo = 0;
+        if (m_tables->takeDirty(&dirtyFrom, &dirtyTo)) {
+            const QTextBlock d0 = story->findBlock(std::clamp(dirtyFrom, 0, last)), d1 = story->findBlock(std::clamp(dirtyTo - 1, 0, last));
+            if (d0.isValid()) from = std::min(from, d0.position());
+            if (d1.isValid()) to = std::max(to, d1.position() + d1.length());
+        }
+    }
     const auto at = std::upper_bound(m_starts.begin(), m_starts.end(), from, [](int pos, const PageStart &s) { return pos < s.pos; });
-    const int page = std::max(0, std::max(0, int(at - m_starts.begin()) - 1) - 1);
+    int held = std::max(0, int(at - m_starts.begin()) - 1);
+    // (Pages that begin in one place, as when what stood between them was taken out: the first of them is the one the edit is on.)
+    while (held > 0 && m_starts[held - 1].pos == m_starts[held].pos) --held;
+    // An edit in a cell of a row that goes over page breaks may change every part of the row: the pages that start in it all begin at its first paragraph, so the page that
+    // holds the edit is the last of them. The row is laid out again from the page it began on.
+    if (m_tables->any() && b0.isValid() && b0.blockFormat().intProperty(fp::Cell) != 0)
+        while (held > 0 && m_starts[held].piece != 0) --held;
+    const int page = std::max(0, held - 1);
     if (!m_pending) {
         m_pending = true;
         m_valid = m_high = page;
@@ -438,10 +456,18 @@ void Paginator::settleStep()
     }
     const PageStart next = run.next;
     int i = k + 1;
-    while (i < m_starts.size() && m_starts[i].pos < next.pos) ++i;   // (pages that began where the text no longer has a page begin)
-    const int gone = i - (k + 1);
-    m_starts.remove(k + 1, gone);
-    if (m_high > k) m_high -= std::min(gone, m_high - k);
+    // Pages that began where the text no longer has a page begin: before the place the next begins at, and at it, those that start in a row that is not set as it was (a row of a
+    // table that goes over page breaks is on all the pages that start in it, at the place of its first paragraph: the parts after the one that is next, when the room
+    // the first part had is not what it was, are not the parts there are now).
+    auto gone = [&](const PageStart &e) {
+        if (e.pos != next.pos) return e.pos < next.pos;
+        if (e == next) return false;
+        return next.piece == 0 || e.piece == 0 || e.pieceRoom != next.pieceRoom || e.piece < next.piece;
+    };
+    while (i < m_starts.size() && gone(m_starts[i])) ++i;
+    const int goneCount = i - (k + 1);
+    m_starts.remove(k + 1, goneCount);
+    if (m_high > k) m_high -= std::min(goneCount, m_high - k);
     i = k + 1;
     if (i < m_starts.size() && m_starts[i] == next) {
         m_valid = i;

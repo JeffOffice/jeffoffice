@@ -12,8 +12,11 @@ namespace jp::flow {
 
 namespace {
 
-// A frame is this tall for a cell's paragraphs: more than any cell takes (a cell is not cut; a row is as tall as what is in it).
+// A frame is this tall for a cell's paragraphs, to begin with: more than most cells take. A cell that takes more is laid out again in a frame eight times as tall, and so
+// on (a cell is not cut; a row is as tall as what is in it) until the frame is the tallest: more than the lines of the most paragraphs a cell may have (wml.h), each
+// as tall as a page.
 constexpr double kTall = 100000;
+constexpr double kTallest = 6.4e9;
 // The smallest width a cell's text area has.
 constexpr double kLeastWidth = 1;
 // The most columns a table's grid has (the reader of a file holds to as many).
@@ -114,14 +117,25 @@ std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, dou
     span.from = from;
     span.end = to;
     span.keepRules = false;
-    auto layout = std::make_shared<StoryLayout>();
-    layout->build(doc->story(), {fs}, doc->env, span);
+    std::shared_ptr<StoryLayout> layout;
     double bottom = 0;
     int lastBlock = -1;
-    for (const StoryLayout::LineBrief &l : layout->lineBriefs()) {
-        if (l.frame < 0) continue;
-        bottom = std::max(bottom, l.rect.bottom());
-        lastBlock = l.block;
+    for (;;) {
+        layout = std::make_shared<StoryLayout>();
+        layout->build(doc->story(), {fs}, doc->env, span);
+        bottom = 0;
+        lastBlock = -1;
+        bool cut = false;
+        for (const StoryLayout::LineBrief &l : layout->lineBriefs()) {
+            if (l.frame < 0) {
+                cut = true;
+                continue;
+            }
+            bottom = std::max(bottom, l.rect.bottom());
+            lastBlock = l.block;
+        }
+        if (!cut || fs.size.height() >= kTallest) break;
+        fs.size.setHeight(std::min(kTallest, fs.size.height() * 8));
     }
     if (lastBlock >= 0) bottom += std::max(0.0, doc->story()->findBlock(lastBlock).blockFormat().bottomMargin());
     *height = bottom;
@@ -305,11 +319,61 @@ double TableLayout::leftEdgeIn(double area) const
 
 double TableLayout::innerWidth(const Cell &c) const { return std::max(kLeastWidth, c.w - c.margins.left() - c.margins.right()); }
 
-std::shared_ptr<CellContent> TableLayout::contentOf(const Cell &c) const { return layoutCellContent(m_ctx, c.r0, c.r1, m_depth + 1, innerWidth(c)); }
+std::shared_ptr<CellContent> TableLayout::contentFor(const Cell &c, bool keep) const
+{
+    CellContentCache *cache = m_ctx.valid() ? m_ctx.contents : nullptr;
+    const double width = innerWidth(c);
+    if (cache && c.rec) {
+        if (auto found = cache->find(c.rec->key, width)) return found;
+    }
+    auto content = layoutCellContent(m_ctx, c.r0, c.r1, m_depth + 1, width);
+    if (cache && c.rec && keep) cache->insert(c.rec->key, width, content, std::max(1, c.r1 - c.r0));
+    return content;
+}
+
+// ---- the cells laid out lately
+
+namespace {
+// What the cells laid out lately hold between them, in paragraphs, at the most (one that is more than that is kept as the only one).
+constexpr int kContentBudget = 8192;
+} // namespace
+
+std::shared_ptr<CellContent> CellContentCache::find(int key, double width)
+{
+    const auto it = m_entries.find(keyOf(key, width));
+    if (it == m_entries.end()) return nullptr;
+    m_order.splice(m_order.begin(), m_order, it->at);
+    return it->content;
+}
+
+void CellContentCache::insert(int key, double width, const std::shared_ptr<CellContent> &content, int paragraphs)
+{
+    const qint64 k = keyOf(key, width);
+    if (m_entries.contains(k)) return;
+    m_order.push_front(k);
+    m_entries.insert(k, Entry{content, m_order.begin(), paragraphs});
+    m_paragraphs += paragraphs;
+    while (m_paragraphs > kContentBudget && m_order.size() > 1) {
+        const qint64 last = m_order.back();
+        m_order.pop_back();
+        const auto it = m_entries.find(last);
+        if (it != m_entries.end()) {
+            m_paragraphs -= it->paragraphs;
+            m_entries.erase(it);
+        }
+    }
+}
+
+void CellContentCache::clear()
+{
+    m_order.clear();
+    m_entries.clear();
+    m_paragraphs = 0;
+}
 
 double TableLayout::measureCell(Cell &c)
 {
-    if (c.need < 0) c.need = contentOf(c)->height + c.margins.top() + c.margins.bottom();
+    if (c.need < 0) c.need = contentFor(c, c.r1 - c.r0 >= 16)->height + c.margins.top() + c.margins.bottom();
     return c.need;
 }
 
@@ -330,6 +394,7 @@ void TableLayout::measure(int r)
                 continue;
             }
         }
+        if (m_ctx.measured) ++*m_ctx.measured;
         double need = 0;
         if (!exact)
             for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
@@ -344,11 +409,12 @@ void TableLayout::measure(int r)
             for (int k = std::max(0, m_measured - m_maxRows + 1); k < m_measured; ++k) {
                 const Row &above = m_rows[size_t(k)];
                 for (int i = above.cell0; i < above.cell0 + above.cells; ++i) {
-                    const Cell &c = m_cells[size_t(i)];
-                    if (c.covered || c.rows <= 1 || c.row + c.rows - 1 != m_measured || c.need < 0) continue;
+                    Cell &c = m_cells[size_t(i)];
+                    if (c.covered || c.rows <= 1 || c.row + c.rows - 1 != m_measured) continue;
+                    const double need = measureCell(c);   // (a joined cell's rows above may have come from what was measured before: it is not known yet)
                     double given = 0;
                     for (int q = c.row; q < m_measured; ++q) given += m_rows[size_t(q)].height;
-                    h = std::max(h, c.need - given);
+                    h = std::max(h, need - given);
                 }
             }
         row.height = h;
@@ -374,6 +440,38 @@ double TableLayout::headerHeight()
 }
 
 // ---- a row over a page break
+
+namespace {
+
+double lineTopInContent(const CellContent &content, int pos)
+{
+    for (const CellContent::Part &part : content.parts) {
+        if (pos < part.from || pos >= part.to) continue;
+        if (part.text) {
+            int frame = -1;
+            QRectF rect;
+            if (part.text->caretRect(pos, &frame, &rect) && frame == 0) return part.y + rect.top();
+        } else if (part.table) {
+            const TableFragment &nested = *part.table;
+            const int i = nested.layout->cellOfPosition(pos);
+            if (i < 0) continue;
+            const TableLayout::Cell &c = nested.layout->cell(i);
+            double top = 0;
+            for (int r = nested.firstRow; r < c.row && r < nested.endRow; ++r) top += nested.heightOf(r);
+            const double inside = nested.layout->lineTopIn(i, pos);
+            if (inside >= 0) return part.y + top + c.margins.top() + inside;
+        }
+    }
+    return -1;
+}
+
+} // namespace
+
+double TableLayout::lineTopIn(int cell, int position) const
+{
+    if (cell < 0 || cell >= int(m_cells.size())) return -1;
+    return lineTopInContent(*contentOf(m_cells[size_t(cell)]), position);
+}
 
 bool TableLayout::splittable(int r) const
 {
@@ -463,73 +561,86 @@ std::shared_ptr<const TableLayout::Units> TableLayout::unitsOf(int index)
     return u;
 }
 
-TableLayout::Piece TableLayout::pieceOf(int r, int state, double room, double fullRoom, bool force)
+TableLayout::Piece TableLayout::pieceOf(int r, int index, double first, double room, double fullRoom, bool force)
 {
     constexpr double kEnd = 1e18;
     Piece piece;
     const Row &row = m_rows[size_t(r)];
-    const int n = row.cells, k = state == 0 ? 0 : pieceIndex(state);
-    const double first = state == 0 ? room : pieceFirstRoom(state);
+    const int n = row.cells, k = std::clamp(index, 0, kMostParts - 1);
+    if (k == 0) first = room;
     std::vector<std::shared_ptr<const Units>> units(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i)
         if (!m_cells[size_t(row.cell0 + i)].covered) units[size_t(i)] = unitsOf(row.cell0 + i);
-    QVector<double> offs(n, 0.0);
-    for (int j = 0; j <= k; ++j) {
-        const double avail = j == 0 ? first : fullRoom;
-        // Each cell's lines that fit, and where the rest begins.
-        QVector<double> next(n, kEnd);
-        std::vector<int> begin(static_cast<size_t>(n), -1);
+    // The part that begins at `offs` (each cell's place) as the j-th: where the next begins, whether any cell has a line in it, and whether any has lines left.
+    struct Step {
+        QVector<double> next;
         bool progress = false, more = false;
+        double avail = 0;
+    };
+    auto stepFrom = [&](int j, const QVector<double> &offs) {
+        Step st;
+        st.avail = j == 0 ? first : fullRoom;
+        st.next = QVector<double>(n, kEnd);
+        std::vector<int> begin(static_cast<size_t>(n), -1);
+        // Each cell's lines that fit, and where the rest begins.
         for (int i = 0; i < n; ++i) {
             if (!units[size_t(i)]) continue;
             const Cell &c = m_cells[size_t(row.cell0 + i)];
             const auto &lines = units[size_t(i)]->lines;
-            const double inner = std::max(0.0, avail - c.margins.top() - c.margins.bottom());
+            const double inner = std::max(0.0, st.avail - c.margins.top() - c.margins.bottom());
             int a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const std::pair<double, double> &l, double off) { return l.first < off; }) - lines.begin());
             begin[size_t(i)] = a;
             if (a >= int(lines.size())) continue;
             int b = a;
             while (b < int(lines.size()) && lines[size_t(b)].second - offs[i] <= inner + 0.01) ++b;
-            progress |= b > a;
-            next[i] = b < int(lines.size()) ? lines[size_t(b)].first : kEnd;
-            more |= b < int(lines.size());
+            st.progress |= b > a;
+            st.next[i] = b < int(lines.size()) ? lines[size_t(b)].first : kEnd;
+            st.more |= b < int(lines.size());
         }
         // A part at the top of a page has a line of each cell that has one left, however tall: a row taller than a page ends.
-        const bool forced = !progress && more && (force || j > 0);
+        const bool forced = !st.progress && st.more && (force || j > 0);
         if (forced) {
-            more = false;
+            st.more = false;
             for (int i = 0; i < n; ++i) {
                 if (!units[size_t(i)] || begin[size_t(i)] < 0 || begin[size_t(i)] >= int(units[size_t(i)]->lines.size())) continue;
                 const auto &lines = units[size_t(i)]->lines;
                 const int b = begin[size_t(i)] + 1;
-                next[i] = b < int(lines.size()) ? lines[size_t(b)].first : kEnd;
-                more |= b < int(lines.size());
+                st.next[i] = b < int(lines.size()) ? lines[size_t(b)].first : kEnd;
+                st.more |= b < int(lines.size());
             }
-            progress = true;
+            st.progress = true;
         }
-        if (j == k) {
-            piece.progress = progress;
-            piece.offsets = offs;
-            piece.ends = more ? next : QVector<double>(n, kEnd);
-            if (more) {
-                piece.height = avail;
-                piece.next = pieceState(k + 1, first);
-            } else {
-                // The row ends here: as tall as what is left of the cells, but not past its room when the lines fit it (the space after the last is let go at a page's foot).
-                double need = 0, lines = 0;
-                for (int i = 0; i < n; ++i) {
-                    if (!units[size_t(i)] || offs[i] >= kEnd) continue;
-                    const Cell &c = m_cells[size_t(row.cell0 + i)];
-                    const auto &ls = units[size_t(i)]->lines;
-                    need = std::max(need, units[size_t(i)]->height - offs[i] + c.margins.top() + c.margins.bottom());
-                    if (!ls.empty()) lines = std::max(lines, ls.back().second - offs[i] + c.margins.top() + c.margins.bottom());
-                }
-                piece.height = lines <= avail + 0.01 ? std::min(need, avail) : need;
-                piece.next = 0;
-            }
-            break;
+        return st;
+    };
+    // Where the part begins, from where the one before did (the parts before it, found once for the rooms the row has).
+    const qint64 key = (qint64(r) << 42) | (qint64(std::clamp(int(std::lround(first * 20)), 0, (1 << 21) - 1)) << 21) | qint64(std::clamp(int(std::lround(fullRoom * 20)), 0, (1 << 21) - 1));
+    std::vector<QVector<double>> &starts = m_partStarts[key];
+    if (starts.empty()) starts.push_back(QVector<double>(n, 0.0));
+    while (int(starts.size()) <= k) {
+        const int j = int(starts.size()) - 1;
+        starts.push_back(stepFrom(j, starts[size_t(j)]).next);
+    }
+    const QVector<double> offs = starts[size_t(k)];
+    Step st = stepFrom(k, offs);
+    if (k >= kMostParts - 1) st.more = false;   // (the part the parts end in has all that is left)
+    piece.progress = st.progress;
+    piece.offsets = offs;
+    piece.ends = st.more ? st.next : QVector<double>(n, kEnd);
+    if (st.more) {
+        piece.height = st.avail;
+        piece.next = k + 1;
+    } else {
+        // The row ends here: as tall as what is left of the cells, but not past its room when the lines fit it (the space after the last is let go at a page's foot).
+        double need = 0, lines = 0;
+        for (int i = 0; i < n; ++i) {
+            if (!units[size_t(i)] || offs[i] >= kEnd) continue;
+            const Cell &c = m_cells[size_t(row.cell0 + i)];
+            const auto &ls = units[size_t(i)]->lines;
+            need = std::max(need, units[size_t(i)]->height - offs[i] + c.margins.top() + c.margins.bottom());
+            if (!ls.empty()) lines = std::max(lines, ls.back().second - offs[i] + c.margins.top() + c.margins.bottom());
         }
-        offs = next;
+        piece.height = lines <= st.avail + 0.01 ? std::min(need, st.avail) : need;
+        piece.next = 0;
     }
     return piece;
 }
@@ -553,7 +664,7 @@ void addItems(TableFragment *f, int r0, int r1, std::set<int> *added)
     }
 }
 
-std::shared_ptr<TableFragment> makeFragment(const std::shared_ptr<TableLayout> &layout, int first, int end, const std::vector<TableFragment::Part> &parts = {})
+std::shared_ptr<TableFragment> makeFragment(const std::shared_ptr<TableLayout> &layout, int first, int end, double columnHeight, const std::vector<TableFragment::Part> &parts = {})
 {
     if (!layout || layout->rowCount() == 0) return nullptr;
     auto f = std::make_shared<TableFragment>();
@@ -563,7 +674,7 @@ std::shared_ptr<TableFragment> makeFragment(const std::shared_ptr<TableLayout> &
     f->firstRow = first;
     f->endRow = end;
     layout->measure(end - 1);
-    f->header = TableFlow::repeatsHeader(*layout, first);
+    f->header = columnHeight > 0 && TableFlow::repeatsHeader(*layout, first, columnHeight);
     f->parts = parts;
     double h = f->header ? layout->headerHeight() : 0;
     for (int r = first; r < end; ++r) h += f->heightOf(r);
@@ -577,7 +688,7 @@ std::shared_ptr<TableFragment> makeFragment(const std::shared_ptr<TableLayout> &
 std::shared_ptr<TableFragment> wholeFragment(const std::shared_ptr<TableLayout> &layout)
 {
     if (!layout) return nullptr;
-    return makeFragment(layout, 0, layout->rowCount());
+    return makeFragment(layout, 0, layout->rowCount(), 0);
 }
 
 } // namespace
@@ -927,34 +1038,152 @@ TableFlow::TableFlow(FlowDocument *doc) : m_doc(doc), m_live(std::make_shared<Ta
 
 TableFlow::~TableFlow() { ++m_live->epoch; }
 
-void TableFlow::edited(int position, int removed, int added)
+bool TableFlow::dropHeights(int lo, int hi)
 {
     bool near = false;
-    if (m_valid) {
-        // The rows that the edit touched (and those beside them, and the rows that cells joined down in them cover) are measured again; the others are as tall as they were.
-        const int lo = position - 1, hi = position + removed + 1;
-        for (int si = 0; si < int(m_index.spans().size()); ++si) {
-            const TableIndex::Span &s = m_index.spans()[size_t(si)];
-            if (s.to < lo || s.from > hi) continue;
+    const int spans = int(m_index.spans().size());
+    for (int si = m_index.firstFrom(lo - 1); si < spans; ++si) {
+        const TableIndex::Span &s = m_index.spans()[size_t(si)];
+        if (s.from > hi) break;
+        if (s.to < lo) continue;
+        near = true;
+        if (const std::shared_ptr<TableLayout> t = layout(si)) dropHeightsIn(t, lo, hi);
+    }
+    // (A span that began before `lo` and goes on past it is not the first one `firstFrom` finds.)
+    if (const int before = m_index.firstFrom(lo - 1) - 1; before >= 0 && before < spans) {
+        const TableIndex::Span &s = m_index.spans()[size_t(before)];
+        if (s.to >= lo && s.from <= hi && s.from < lo - 1) {
             near = true;
-            const std::shared_ptr<TableLayout> t = layout(si);
-            if (!t) continue;
-            const int r0 = std::max(0, t->rowOfPosition(std::max(lo, s.from)) - 1), r1 = std::min(t->rowCount() - 1, t->rowOfPosition(std::min(hi, s.to - 1)) + 1);
-            for (int r = r0; r <= r1; ++r) {
-                const TableLayout::Row &row = t->row(r);
-                m_heights.remove(qMakePair(row.data, &t->data()));
-                for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
-                    const TableLayout::Cell &c = t->cell(i);
-                    for (int k = c.row; k < std::min(c.row + c.rows, t->rowCount()); ++k) m_heights.remove(qMakePair(t->row(k).data, &t->data()));
+            if (const std::shared_ptr<TableLayout> t = layout(before)) dropHeightsIn(t, lo, hi);
+        }
+    }
+    return near;
+}
+
+// The rows of the table that the places are in, and those beside them, and the rows that cells joined down in those are joined to (and so on: the rows a joined cell
+// covers are as tall as it and they make), and the rows of the tables in the cells that the places are in.
+void TableFlow::dropHeightsIn(const std::shared_ptr<TableLayout> &t, int lo, int hi)
+{
+    if (t->rowCount() == 0) return;
+    const int first = t->row(0).from, last = t->row(t->rowCount() - 1).to;
+    int a = std::max(0, t->rowOfPosition(std::max(lo, first)) - 1), b = std::min(t->rowCount() - 1, t->rowOfPosition(std::min(hi, last - 1)) + 1);
+    const int reach = t->mostRowsJoined();
+    for (bool grew = reach > 1; grew;) {
+        grew = false;
+        for (int k = std::max(0, a - reach + 1); k <= b; ++k) {
+            const TableLayout::Row &row = t->row(k);
+            for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+                const TableLayout::Cell &c = t->cell(i);
+                if (c.covered || c.rows <= 1) continue;
+                const int end = std::min(c.row + c.rows - 1, t->rowCount() - 1);
+                if (c.row <= b && end >= a && (c.row < a || end > b)) {
+                    a = std::min(a, c.row);
+                    b = std::max(b, end);
+                    grew = true;
                 }
             }
         }
+    }
+    for (int r = a; r <= b; ++r) m_heights.remove(qMakePair(t->row(r).data, &t->data()));
+    if (t->depth() == 0) {
+        m_dirtyFrom = std::min(m_dirtyFrom, t->row(a).from);
+        // (The header rows are on every page the table goes on to, and take their room: a change in them is a change on all those pages.)
+        const int end = t->headerRows() > 0 && a < t->headerRows() ? t->rowCount() - 1 : b;
+        m_dirtyTo = std::max(m_dirtyTo, t->row(end).to);
+    }
+    // The tables in the cells that the places are in.
+    const TableIndex &ix = m_index;
+    for (int r = std::max(0, t->rowOfPosition(std::max(lo, first)) - 1); r <= std::min(t->rowCount() - 1, t->rowOfPosition(std::min(hi, last - 1)) + 1); ++r) {
+        const TableLayout::Row &row = t->row(r);
+        for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+            const TableLayout::Cell &c = t->cell(i);
+            if (c.to < lo || c.from > hi) continue;
+            for (int p = c.r0; p < c.r1;) {
+                const auto &up = ix.chain(ix.refs()[size_t(p)].key);
+                if (int(up.size()) <= t->depth() + 1) {
+                    ++p;
+                    continue;
+                }
+                const TableData *table = up[size_t(t->depth() + 1)]->table.get();
+                int q = p;
+                while (q < c.r1) {
+                    const auto &uq = ix.chain(ix.refs()[size_t(q)].key);
+                    if (int(uq.size()) <= t->depth() + 1 || uq[size_t(t->depth() + 1)]->table.get() != table) break;
+                    ++q;
+                }
+                if (const std::shared_ptr<TableLayout> nested = TableLayout::make(context(), p, q, t->depth() + 1)) dropHeightsIn(nested, lo, hi);
+                p = q;
+            }
+        }
+    }
+}
+
+bool TableFlow::takeDirty(int *from, int *to)
+{
+    const bool any = m_dirtyTo >= 0;
+    if (any) {
+        *from = m_dirtyFrom;
+        *to = m_dirtyTo;
+    }
+    m_dirtyFrom = 0x7fffffff;
+    m_dirtyTo = -1;
+    return any;
+}
+
+void TableFlow::settleEdits()
+{
+    if (!m_valid && !m_touched.empty()) index();
+}
+
+void TableFlow::edited(int position, int removed, int added)
+{
+    bool near = false;
+    const int delta = added - removed;
+    if (m_valid) {
+        // The rows that the edit touched (and those beside them, and the rows that cells joined down in them cover) are measured again; the others are as tall as they were.
+        const int dirtyFrom = m_dirtyFrom, dirtyTo = m_dirtyTo;
+        m_dirtyFrom = 0x7fffffff;
+        m_dirtyTo = -1;
+        near = dropHeights(position - 1, position + removed + 1);
+        // (The places that came of it are the ones before the edit made: they are said as the places now.)
+        if (m_dirtyTo >= 0) {
+            auto now = [&](int p) { return p <= position ? p : p >= position + removed ? p + delta : position + added; };
+            m_dirtyFrom = now(m_dirtyFrom);
+            m_dirtyTo = std::max(now(m_dirtyTo), m_dirtyFrom);
+        }
+        if (dirtyTo >= 0) {
+            m_dirtyFrom = std::min(m_dirtyFrom, dirtyFrom);
+            m_dirtyTo = std::max(m_dirtyTo, dirtyTo);
+        }
+        // Paragraphs that are in a cell where no table was (a table pasted, the taking out of one undone, a paragraph given a cell): the tables are found afresh as well.
+        if (!near && added > 0) {
+            const QTextDocument *story = m_doc->story();
+            for (QTextBlock b = story->findBlock(std::max(0, position)); b.isValid() && b.position() <= position + added && !near; b = b.next())
+                near = b.blockFormat().intProperty(fp::Cell) != 0;
+        }
         // (Rows that have gone from the story leave their heights behind: not many, and they go when there are.)
         if (m_heights.size() > 400000) m_heights.clear();
+    } else {
+        // The tables are not found: the places of the edits before this one move with it, and this one is kept to be dealt with when they are.
+        for (std::pair<int, int> &t : m_touched) {
+            if (t.second > position + removed) t.second += delta;
+            else t.second = std::max(t.second, position);
+            if (t.first >= position + removed) t.first += delta;
+            else t.first = std::min(t.first, position);
+            t.second = std::max(t.second, t.first);
+        }
+        m_touched.push_back({position - 1, position + added + 1});
+        if (m_touched.size() > 64) {
+            m_heights.clear();
+            m_touched.clear();
+        }
     }
     ++m_live->epoch;
     m_layouts.clear();
+    m_contents.clear();
     if (m_valid && !near && m_index.shift(position, removed, added)) return;   // (the tables are where the text left them)
+    // The tables are found again, and then the rows the edit touched are looked at as they are: a table may have other header rows than it had.
+    if (m_valid) m_touched.push_back({position - 1, position + added + 1});
     m_valid = false;
 }
 
@@ -963,6 +1192,8 @@ void TableFlow::reset()
     m_valid = false;
     m_layouts.clear();
     m_heights.clear();
+    m_touched.clear();
+    m_contents.clear();
     ++m_live->epoch;
 }
 
@@ -971,6 +1202,10 @@ const TableIndex &TableFlow::index()
     if (!m_valid) {
         m_index.rebuild(m_doc->story(), m_doc->tables);
         m_valid = true;
+        // The edits made since the tables were last found: the rows they touched are measured again.
+        std::vector<std::pair<int, int>> touched;
+        touched.swap(m_touched);
+        for (const std::pair<int, int> &t : touched) dropHeights(t.first, t.second);
     }
     return m_index;
 }
@@ -982,6 +1217,8 @@ TableContext TableFlow::context()
     c.doc = m_doc;
     c.index = &m_index;
     c.heights = &m_heights;
+    c.measured = &m_measured;
+    c.contents = &m_contents;
     c.live = m_live;
     c.at = m_live->epoch;
     return c;
@@ -999,9 +1236,9 @@ std::shared_ptr<TableLayout> TableFlow::layout(int span)
     return t;
 }
 
-std::shared_ptr<TableFragment> TableFlow::fragment(const std::shared_ptr<TableLayout> &layout, int firstRow, int endRow, const std::vector<TableFragment::Part> &parts)
+std::shared_ptr<TableFragment> TableFlow::fragment(const std::shared_ptr<TableLayout> &layout, int firstRow, int endRow, double columnHeight, const std::vector<TableFragment::Part> &parts)
 {
-    return makeFragment(layout, firstRow, endRow, parts);
+    return makeFragment(layout, firstRow, endRow, columnHeight, parts);
 }
 
 } // namespace jp::flow

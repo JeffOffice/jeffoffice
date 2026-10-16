@@ -270,7 +270,9 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
         // After the element kept as XML: a paragraph of the default style.
         c.movePosition(QTextCursor::EndOfBlock);
         const QString style = doc.defaultParagraphStyle();
-        c.insertBlock(doc.styleBlockFormat(style), doc.styleCharFormat(style));
+        QTextBlockFormat nf = doc.styleBlockFormat(style);
+        if (cur.blockFormat().hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, cur.blockFormat().property(flow::fp::Cell));   // (in the cell the element is in)
+        c.insertBlock(nf, doc.styleCharFormat(style));
         c.endEditBlock();
         return;
     }
@@ -293,6 +295,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
             const QTextBlockFormat tailOwner = b.blockFormat();
             QTextBlockFormat nf = doc.styleBlockFormat(s->next);
             copyTail(tailOwner, &nf);
+            if (tailOwner.hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, tailOwner.property(flow::fp::Cell));   // (the paragraph after it is in its cell)
             setBlockFormatInList(b, nf, nullptr);
             setMarkFormat(b, doc.styleCharFormat(s->next));
             c.setCharFormat(doc.styleCharFormat(s->next));
@@ -514,7 +517,9 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     if (isLocked(c.block())) {
         c.movePosition(QTextCursor::EndOfBlock);
         const QString style = doc.defaultParagraphStyle();
-        c.insertBlock(doc.styleBlockFormat(style), doc.styleCharFormat(style));
+        QTextBlockFormat nf = doc.styleBlockFormat(style);
+        if (c.block().blockFormat().hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, c.block().blockFormat().property(flow::fp::Cell));
+        c.insertBlock(nf, doc.styleCharFormat(style));
     }
     QTextDocument *d = c.document();
     // The paragraph pasted into: its paragraph's look and what it keeps stay with the part of it that is there after the paste (the text
@@ -524,11 +529,12 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     const QTextBlockFormat tf = target.blockFormat();
     const int targetCell = cellKeyOf(target);
     const QTextCharFormat tmark = markFormat(target);
-    QTextList *targetList = target.textList();
+    const int targetListId = target.textList() ? target.blockFormat().objectIndex() : -1;   // (the list, found again after the paste: it may be gone with the paragraph that was its only one)
     const bool atStart = c.position() == target.position();
     const QVector<Wrapper> wrappers = wrappersOpenAt(target, c.position());
     const int from = c.position();
     c.insertFragment(fragment);
+    QTextList *targetList = targetListId >= 0 ? qobject_cast<QTextList *>(d->object(targetListId)) : nullptr;
     const int to = c.position();
     *pastedFrom = from;
     const QTextBlock first = d->findBlock(from), last = d->findBlock(to);
@@ -1182,7 +1188,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
     const bool wasList = bf.hasProperty(prop::NumId);

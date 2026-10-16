@@ -51,6 +51,7 @@ public:
     // What the body holds so far; past the limits (wml.h) the rest is left out.
     int paragraphs = 0, inlines = 0;
     bool truncated = false;
+    int standIns = 0;                 // the tables that are kept whole as XML, for want of room (or rows)
 
     RunProps rPr(int n) const
     {
@@ -588,7 +589,8 @@ public:
             open.raw += t.raw(first);
         }
         open.table = mark;
-        out->push_back(open);
+        Block close = closeOf(open, t.endTag(tc));
+        out->push_back(std::move(open));
         const qsizetype from = out->size();
         ++tableDepth;
         bodyContent(tc, out, depth + 1, nullptr, nullptr, true);
@@ -600,7 +602,7 @@ public:
             ++paragraphs;
             out->push_back(Block());
         }
-        out->push_back(closeOf(open, t.endTag(tc)));
+        out->push_back(std::move(close));
     }
 
     void rowBlocks(int tr, QVector<Block> *out, int depth)
@@ -618,7 +620,8 @@ public:
             open.raw += t.raw(c);
         }
         open.table = mark;
-        out->push_back(open);
+        Block close = closeOf(open, t.endTag(tr));
+        out->push_back(std::move(open));
         for (; c >= 0; c = t.next(c)) {
             if (t.is(c, "tc")) {
                 ++tableCells;
@@ -627,13 +630,16 @@ public:
                 out->push_back(rawBlock(c));
             }
         }
-        out->push_back(closeOf(open, t.endTag(tr)));
+        out->push_back(std::move(close));
     }
 
     // A table as the blocks of its parts (see Block): false, with nothing added, when it is to be kept whole instead.
     bool tableBlocks(int tbl, QVector<Block> *out, int depth)
     {
-        if (!tableFits(tbl)) return false;
+        if (!tableFits(tbl)) {
+            ++standIns;
+            return false;
+        }
         const qsizetype openAt = out->size();
         Block open;
         open.isRaw = true;
@@ -695,7 +701,7 @@ public:
                 ++paragraphs;
                 Block b;
                 b.para = paragraph(c);
-                out->push_back(b);
+                out->push_back(std::move(b));
             } else if (name == "sectPr") {
                 if (last) {
                     *last = sectPr(c);
@@ -1128,6 +1134,8 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
         noteIt(QCoreApplication::translate("jp::office::wml", "The document is longer than this program can open: the end of it was left out."));
         if (notes) notes->leftOut = true;
     }
+    if (reader.standIns > 0)
+        noteIt(QCoreApplication::translate("jp::office::wml", "%n table could not be shown as a table (it has more rows, columns, or cells than this program can lay out, or is nested too deeply, or has no rows): it is kept as it was and shown as a stand-in.", nullptr, reader.standIns));
 
     // The package: every relationship as read, and every part but the ones above.
     doc->packageRelationships = pkg.relationships(QStringLiteral("/"));

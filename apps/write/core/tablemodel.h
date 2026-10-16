@@ -79,24 +79,37 @@ private:
     QVector<office::wml::Block> m_between;              // kept pieces seen between a table's rows or a row's cells
 };
 
+// Where the blocks that a story is made into go.
+class BlockSink {
+public:
+    virtual ~BlockSink() = default;
+    virtual void add(office::wml::Block &&block) = 0;
+    // A table's blocks begin (its start is the next block added) and end (its end was the last): for what is made of the blocks of a table alone.
+    virtual void tableOpened(TablePart *) {}
+    virtual void tableClosed(TablePart *) {}
+};
+
+// The blocks in a vector.
+class VectorSink : public BlockSink {
+public:
+    explicit VectorSink(QVector<office::wml::Block> *out) : m_out(out) {}
+    void add(office::wml::Block &&block) override { m_out->push_back(std::move(block)); }
+
+private:
+    QVector<office::wml::Block> *m_out;
+};
+
 // Makes the blocks of the tables again from the story: for each paragraph, what it needs closed and opened of the cells, rows, and tables around it.
 class TableExporter {
 public:
     explicit TableExporter(const flow::FlowDocument *flow) : m_flow(flow) {}
-    // Appends to `out` the blocks that close and open the parts of tables between the cell the last paragraph was in and the one of `key` (0: none).
-    void moveTo(int key, QVector<office::wml::Block> *out);
-    void finish(QVector<office::wml::Block> *out) { moveTo(0, out); }
-    // The tables that were opened: where their Open block is in `out`, and the table's part.
-    struct Opened {
-        qsizetype at = 0;
-        TablePart *part = nullptr;
-    };
-    const QVector<Opened> &opened() const { return m_opened; }
+    // Adds to `out` the blocks that close and open the parts of tables between the cell the last paragraph was in and the one of `key` (0: none).
+    void moveTo(int key, BlockSink &out);
+    void finish(BlockSink &out) { moveTo(0, out); }
 
 private:
     const flow::FlowDocument *m_flow;
     QVector<const flow::CellRecord *> m_open;
-    QVector<Opened> m_opened;
 };
 
 } // namespace jp::write

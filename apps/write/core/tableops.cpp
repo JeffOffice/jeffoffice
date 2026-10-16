@@ -91,22 +91,96 @@ Area areaOf(const View &v, const QTextCursor &c)
 
 // ---- the file's bytes of a table's parts
 
+// The start of a row, a cell, or a table as the file's bytes (see tablemodel.h) read as XML: they are written under the declarations of the root of the part they
+// came from, so they are read under a root that has the usual ones. `element` is the element they are the start of; false when they can't be read.
+bool parseKept(XmlTree *t, const QByteArray &start, const char *closing, int *element)
+{
+    static const QByteArray declarations =
+        " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""
+        " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+        " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\""
+        " xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\""
+        " xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\""
+        " xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" xmlns:wp14=\"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing\""
+        " xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"";
+    if (!t->parse("<w:keep" + declarations + ">" + start + closing + "</w:keep>", nullptr)) return false;
+    *element = t->firstChild(t->root());
+    return *element >= 0;
+}
+
 // The start of a row for a new one beside it: no attributes, and what the row says of its height and of keeping its cells together, not that it is a header.
 QByteArray rowOpenFor(const QByteArray &open)
 {
     XmlTree t;
-    if (!t.parse(open + "</w:tr>", nullptr)) return "<w:tr>";
+    int tr = -1;
+    if (!parseKept(&t, open, "</w:tr>", &tr)) return "<w:tr>";
     QByteArray out = "<w:tr>", pr;
-    for (int c = t.firstChild(t.root()); c >= 0; c = t.next(c)) {
+    for (int c = t.firstChild(tr); c >= 0; c = t.next(c)) {
         if (t.is(c, "tblPrEx")) {
             out += t.raw(c);
         } else if (t.is(c, "trPr")) {
             for (int k = t.firstChild(c); k >= 0; k = t.next(k))
-                if (t.is(k, "cantSplit") || t.is(k, "trHeight")) pr += t.raw(k);
+                if (t.is(k, "cantSplit") || t.is(k, "trHeight") || t.is(k, "gridBefore") || t.is(k, "wBefore") || t.is(k, "gridAfter") || t.is(k, "wAfter")) pr += t.raw(k);
         }
     }
     if (!pr.isEmpty()) out += "<w:trPr>" + pr + "</w:trPr>";
     return out;
+}
+
+// A row's start with the gaps it leaves before its first cell and after its last said as given (grid columns, and the widths in twentieths of a point that the row
+// says of them: a width the row did not say is not added), and what else the row said as it was.
+QByteArray rowOpenWithGaps(const QByteArray &open, int before, int beforeTwips, int after, int afterTwips)
+{
+    XmlTree t;
+    int tr = -1;
+    if (!parseKept(&t, open, "</w:tr>", &tr)) return open;
+    QByteArray out = t.startTag(tr), pr;
+    bool saidBefore = false, saidAfter = false;
+    for (int c = t.firstChild(tr); c >= 0; c = t.next(c)) {
+        if (t.is(c, "trPr")) {
+            for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
+                if (t.is(k, "gridBefore") || t.is(k, "gridAfter")) continue;
+                if (t.is(k, "wBefore")) saidBefore = true;
+                else if (t.is(k, "wAfter")) saidAfter = true;
+                else pr += t.raw(k);
+            }
+        } else {
+            out += t.raw(c);
+        }
+    }
+    QByteArray gaps;
+    if (before > 0) {
+        gaps += "<w:gridBefore w:val=\"" + QByteArray::number(before) + "\"/>";
+        if (saidBefore) gaps += "<w:wBefore w:w=\"" + QByteArray::number(std::max(0, beforeTwips)) + "\" w:type=\"dxa\"/>";
+    }
+    if (after > 0) {
+        gaps += "<w:gridAfter w:val=\"" + QByteArray::number(after) + "\"/>";
+        if (saidAfter) gaps += "<w:wAfter w:w=\"" + QByteArray::number(std::max(0, afterTwips)) + "\" w:type=\"dxa\"/>";
+    }
+    pr = gaps + pr;
+    if (!pr.isEmpty()) out += "<w:trPr>" + pr + "</w:trPr>";
+    return out;
+}
+
+int twipsOf(const QVector<double> &columns, int first, int count)
+{
+    double w = 0;
+    for (int i = first; i < first + count && i < columns.size(); ++i)
+        if (i >= 0) w += columns[i];
+    return int(std::lround(w * 20));
+}
+
+// The same row with other gaps (its cells are the new table's, so it is another row for the table): `columns` are the new grid's widths.
+std::shared_ptr<flow::RowData> rowWithGaps(const flow::RowData &old, int before, int after, const QVector<double> &columns)
+{
+    auto row = std::make_shared<flow::RowData>(old);
+    row->before = before;
+    row->after = after;
+    const RowPart *rp = static_cast<const RowPart *>(old.app.get());
+    auto np = std::make_shared<RowPart>(rp ? *rp : RowPart());
+    np->open = rowOpenWithGaps(rp ? rp->open : QByteArray("<w:tr>"), before, twipsOf(columns, 0, before), after, twipsOf(columns, int(columns.size()) - after, after));
+    row->app = np;
+    return row;
 }
 
 int tcPrRank(const QByteArray &name)
@@ -123,8 +197,9 @@ QByteArray cellOpenFor(const QByteArray &open, int widthTwips, int span, const Q
 {
     XmlTree t;
     QVector<std::pair<int, QByteArray>> kids;
-    if (t.parse(open + "</w:tc>", nullptr)) {
-        const int pr = t.child(t.root(), "tcPr");
+    int tc = -1;
+    if (parseKept(&t, open, "</w:tc>", &tc)) {
+        const int pr = t.child(tc, "tcPr");
         for (int c = pr >= 0 ? t.firstChild(pr) : -1; c >= 0; c = t.next(c)) {
             const QByteArray name = t.localName(c);
             if (name == "tcW" || name == "gridSpan" || name == "vMerge") continue;
@@ -305,8 +380,9 @@ void applyRekey(WriteDoc &doc, const flow::TableData *table, Rekey *rekey)
     }
 }
 
-// What a table the columns of which change is: the same with other columns, its start's grid written as them.
-std::shared_ptr<flow::TableData> tableWithColumns(const flow::TableData &old, const QVector<double> &columns)
+// What a table the columns of which change is: the same with other columns, its start's grid written as them, and its width (when it says one in twentieths of a point)
+// as much more or less as the columns came to. `was` are the columns it had.
+std::shared_ptr<flow::TableData> tableWithColumns(const flow::TableData &old, const QVector<double> &columns, const QVector<double> &was)
 {
     auto t = std::make_shared<flow::TableData>(old);
     t->columns = columns;
@@ -316,22 +392,45 @@ std::shared_ptr<flow::TableData> tableWithColumns(const flow::TableData &old, co
         np->original.clear();
         np->fingerprint.clear();
         const QByteArray grid = gridXml(columns);
-        if (part->mark && part->mark->gridBegin >= 0) {
-            np->open = part->open.left(part->mark->gridBegin) + grid + part->open.mid(part->mark->gridEnd);
-            auto mark = std::make_shared<TableMark>(*part->mark);
-            mark->gridEnd = mark->gridBegin + int(grid.size());
+        auto mark = std::make_shared<TableMark>(part->mark ? *part->mark : TableMark());
+        QByteArray open = part->open;
+        qsizetype gridBegin = mark->gridBegin, gridEnd = mark->gridEnd;
+        // The width the table says: it goes with the columns.
+        if (part->mark && mark->width.stated() && mark->width.isDxa() && mark->width.w > 0 && mark->width.type == QLatin1String("dxa")) {
+            XmlTree x;
+            int tbl = -1;
+            if (parseKept(&x, part->open, "</w:tbl>", &tbl)) {
+                const int pr = x.child(tbl, "tblPr");
+                const int w = pr >= 0 ? x.child(pr, "tblW") : -1;
+                if (w >= 0) {
+                    const QByteArray was2 = x.raw(w);
+                    const int width = std::max(1, mark->width.w + twipsOf(columns, 0, int(columns.size())) - twipsOf(was, 0, int(was.size())));
+                    const QByteArray now = "<w:tblW w:w=\"" + QByteArray::number(width) + "\" w:type=\"dxa\"/>";
+                    const qsizetype at = open.indexOf(was2);
+                    if (at >= 0) {
+                        open.replace(at, was2.size(), now);
+                        if (gridBegin >= 0 && at < gridBegin) {
+                            gridBegin += now.size() - was2.size();
+                            gridEnd += now.size() - was2.size();
+                        }
+                        mark->width.w = width;
+                    }
+                }
+            }
+        }
+        if (gridBegin >= 0) {
+            np->open = open.left(gridBegin) + grid + open.mid(gridEnd);
+            mark->gridBegin = gridBegin;
+            mark->gridEnd = gridBegin + int(grid.size());
             mark->grid.clear();
             for (double w : columns) mark->grid.push_back(int(std::lround(w * 20)));
-            // (A width said in twentieths of a point is the grid's: it grows and shrinks with it.)
-            np->mark = mark;
         } else {
             // (A file that had no grid: it has one now, after the table's properties.)
-            np->open = part->open + grid;
-            auto mark = std::make_shared<TableMark>(part->mark ? *part->mark : TableMark());
-            mark->gridBegin = int(part->open.size());
+            np->open = open + grid;
+            mark->gridBegin = int(open.size());
             mark->gridEnd = mark->gridBegin + int(grid.size());
-            np->mark = mark;
         }
+        np->mark = mark;
         t->app = np;
     }
     return t;
@@ -432,15 +531,19 @@ void addRow(WriteDoc &doc, View &v, int ref, bool below)
         const QTextBlock like = d->findBlock(cell.from);
         made.push_back({emptyLike(like.blockFormat(), key), markOf(like)});
     }
+    // (Each new paragraph is an empty one, a place on from the one before it: they are put by place, not by the paragraph they go beside, for that one may be as empty as they are.)
     if (below) {
-        QTextBlock last = d->findBlock(refRow.to - 1);
+        int at = refRow.to - 1;
         for (const NewParagraph &n : std::as_const(made)) {
-            insertAfter(d, last, n.bf, n.cf);
-            last = last.next();
+            insertAfter(d, d->findBlock(at), n.bf, n.cf);
+            ++at;
         }
     } else {
-        QTextBlock first = d->findBlock(refRow.from);
-        for (const NewParagraph &n : std::as_const(made)) insertBefore(d, first, n.bf, n.cf);
+        int at = refRow.from;
+        for (const NewParagraph &n : std::as_const(made)) {
+            insertBefore(d, d->findBlock(at), n.bf, n.cf);
+            ++at;
+        }
     }
 }
 
@@ -570,7 +673,7 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
     const double width = columns.value(std::min(refColumn, int(columns.size()) - 1), 72.0);
     QVector<double> wider = columns;
     wider.insert(std::min(gc, int(wider.size())), width);
-    std::shared_ptr<flow::TableData> table = tableWithColumns(t.data(), wider);
+    std::shared_ptr<flow::TableData> table = tableWithColumns(t.data(), wider, columns);
     c.beginEditBlock();
     // A cell in each row: before the cell that begins at the new column, or after the last; a cell the new column is inside of is made one wider.
     struct Add {
@@ -582,8 +685,18 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
     };
     QVector<Add> adds;
     QHash<const flow::CellRecord *, int> widened;
+    QHash<const flow::RowData *, std::shared_ptr<flow::RowData>> newRows;   // rows whose gap the new column is in: the gap is a column wider and the row has no new cell
+    const int was = int(columns.size());
     for (int r = 0; r < t.rowCount(); ++r) {
         const flow::TableLayout::Row &row = t.row(r);
+        {
+            const flow::RowData &rd = *row.data;
+            const bool inBefore = rd.before > 0 && gc < rd.before, inAfter = !inBefore && rd.after > 0 && gc > was - rd.after;
+            if (inBefore || inAfter) {
+                newRows.insert(row.data, rowWithGaps(rd, rd.before + (inBefore ? 1 : 0), rd.after + (inAfter ? 1 : 0), wider));
+                continue;
+            }
+        }
         int cover = -1, last = -1;
         for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
             const flow::TableLayout::Cell &cell = t.cell(i);
@@ -629,6 +742,8 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
     const int stop = parentOf(*v);
     const int at = c.selectionStart();
     auto changed = [&](const flow::CellRecord &old, flow::CellRecord *rec) {
+        const auto row = newRows.constFind(old.row.get());
+        if (row != newRows.constEnd()) rec->row = row.value();
         if (!widened.contains(&old)) return;
         ++rec->cell.span;
         const CellPart *cp = static_cast<const CellPart *>(old.cell.app.get());
@@ -720,7 +835,7 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
     const int gone = area.c1 - area.c0 + 1;
     QVector<double> narrower = columns;
     narrower.remove(area.c0, std::min(gone, int(narrower.size()) - area.c0));
-    std::shared_ptr<flow::TableData> table = tableWithColumns(t.data(), narrower);
+    std::shared_ptr<flow::TableData> table = tableWithColumns(t.data(), narrower, columns);
     c.beginEditBlock();
     // A cell that is wholly in the columns goes, one that is partly in them has fewer; a row that has no cell left goes.
     struct Cut {
@@ -729,39 +844,49 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
     QVector<Cut> cuts;
     QVector<Cut> rowsGone;
     QHash<const flow::CellRecord *, int> overlap;
+    QHash<const flow::RowData *, std::shared_ptr<flow::RowData>> newRows;   // rows that lose some of a gap before or after their cells
+    const int n = int(columns.size());
+    auto overlapOf = [&](int a, int b) { return std::max(0, std::min(b, area.c1) - std::max(a, area.c0) + 1); };   // the columns [a, b] that are among the ones taken
     for (int r = 0; r < t.rowCount(); ++r) {
         const flow::TableLayout::Row &row = t.row(r);
         int kept = 0;
         for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
             const flow::TableLayout::Cell &cell = t.cell(i);
             const int lo = std::max(cell.col, area.c0), hi = std::min(cell.col + cell.span - 1, area.c1);
-            const int n = hi - lo + 1;
-            if (n <= 0) {
+            const int count = hi - lo + 1;
+            if (count <= 0) {
                 ++kept;
-            } else if (n >= cell.span) {
+            } else if (count >= cell.span) {
                 cuts.push_back({cell.from, cell.to});
             } else {
-                overlap.insert(cell.rec, n);
+                overlap.insert(cell.rec, count);
                 ++kept;
             }
         }
-        if (kept == 0) rowsGone.push_back({row.from, row.to});
+        if (kept == 0) {
+            rowsGone.push_back({row.from, row.to});
+            continue;
+        }
+        const flow::RowData &rd = *row.data;
+        const int lostBefore = overlapOf(0, rd.before - 1), lostAfter = overlapOf(n - rd.after, n - 1);
+        if (lostBefore > 0 || lostAfter > 0) newRows.insert(row.data, rowWithGaps(rd, rd.before - lostBefore, rd.after - lostAfter, narrower));
     }
-    // (Whole rows go first and then the cells in them are not cut twice.)
-    QVector<Cut> all = cuts;
-    std::sort(all.begin(), all.end(), [](const Cut &a, const Cut &b) { return a.from > b.from; });
-    for (const Cut &g : std::as_const(all)) {
+    // The cells and the rows go together, last first: a paragraph's place is where it was when everything before it is still there. (The cells in a row that goes are
+    // not cut twice.)
+    QVector<Cut> all = rowsGone;
+    for (const Cut &g : std::as_const(cuts)) {
         bool inGoneRow = false;
         for (const Cut &r : std::as_const(rowsGone)) inGoneRow |= g.from >= r.from && g.to <= r.to;
-        if (inGoneRow) continue;
-        removeParagraphs(d, d->findBlock(g.from), d->findBlock(g.to - 1));
+        if (!inGoneRow) all.push_back(g);
     }
-    std::sort(rowsGone.begin(), rowsGone.end(), [](const Cut &a, const Cut &b) { return a.from > b.from; });
-    for (const Cut &r : std::as_const(rowsGone)) removeParagraphs(d, d->findBlock(r.from), d->findBlock(r.to - 1));
+    std::sort(all.begin(), all.end(), [](const Cut &a, const Cut &b) { return a.from > b.from; });
+    for (const Cut &g : std::as_const(all)) removeParagraphs(d, d->findBlock(g.from), d->findBlock(g.to - 1));
     const int stop = parentOf(*v);
     const int at = std::clamp(c.selectionStart(), 0, std::max(0, d->characterCount() - 1));
     {
         auto changed = [&](const flow::CellRecord &old, flow::CellRecord *rec) {
+            const auto row = newRows.constFind(old.row.get());
+            if (row != newRows.constEnd()) rec->row = row.value();
             const auto it = overlap.constFind(&old);
             if (it == overlap.constEnd()) return;
             rec->cell.span = std::max(1, rec->cell.span - it.value());
@@ -794,14 +919,14 @@ bool tabThroughCells(WriteDoc &doc, QTextCursor &c, bool back)
     while (j >= 0 && j < t.cellCount() && t.cell(j).covered);
     if (j < 0) return true;
     if (j >= t.cellCount()) {
-        // After the last cell: a row more, and the cursor in its first cell.
-        const int row = t.cell(i).row;
-        QTextCursor at = c;
-        at.clearSelection();
-        insertTableRow(doc, at, true);
+        // After the last cell: one row after the table's last (whatever cells are joined down in it), and the cursor in its first cell.
+        const int rows = t.rowCount();
+        c.beginEditBlock();
+        addRow(doc, *v, rows - 1, true);
+        c.endEditBlock();
         if (auto fresh = viewAt(doc, c.position())) {
             const flow::TableLayout &u = *fresh->layout;
-            const int r = std::min(row + 1, u.rowCount() - 1);
+            const int r = std::min(rows, u.rowCount() - 1);
             c.setPosition(u.cell(u.row(r).cell0).from);
         }
         return true;

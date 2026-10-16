@@ -8,26 +8,24 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
+#include <cmath>
 
 namespace jp::flow {
 
-namespace {
-// A page that has row `r` of a table as its first line has the header rows above it when the table has gone on from an earlier page.
-bool repeatsHeaderAt(const TableLayout &t, int r) { return TableFlow::repeatsHeader(t, r); }
-} // namespace
 
 void paintTables(QPainter *p, const MaterializedPage &page, const TablePaint &options)
 {
     for (const std::shared_ptr<TableFragment> &f : page.tables) f->paint(p, options);
 }
 
-QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, int piece, bool *windowShort)
+QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, int piece, int pieceRoom, bool *windowShort)
 {
     m_pieces.clear();
     const TableIndex &ix = m_tables->index();
     const QTextDocument *story = m_doc->story();
     const int over = int(frames.size()) - 1;
     const double colW = frames[firstFrame].size.width();
+    const double bodyH = frames[std::max(0, over - 1)].size.height();   // (a column's height: the same in each)
     QVector<StoryLayout::LineBrief> out;
     int pos = span.from, f = 0;      // where the next lines begin in the story, and the frame and the height used in it by then
     double y = 0;
@@ -42,11 +40,12 @@ QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSp
                 const TableLayout::Row &row = table->row(r);
                 const double height = table->rowHeight(r);
                 int state = r == first ? piece : 0;
+                double rowFirst = state != 0 ? pieceRoom / 20.0 : 0;   // (the room the row's first part had)
                 // The header rows go above the first line of a page that the table goes on to, and take from the room of the parts of a row there.
-                const double headers = r >= table->headerRows() ? table->headerHeight() : 0;
+                const double headers = TableFlow::repeatsHeader(*table, r, bodyH) ? table->headerHeight() : 0;
                 for (bool placed = false; !placed;) {
                     // (A page that the table goes on to has the header rows above its first line.)
-                    const double extra = out.isEmpty() && repeatsHeaderAt(*table, r) ? headers : 0;
+                    const double extra = out.isEmpty() ? headers : 0;
                     StoryLayout::LineBrief ln;
                     ln.block = row.from;
                     ln.pos = row.from;
@@ -59,6 +58,7 @@ QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSp
                         ln.lines = state + 1;
                         ln.rect = QRectF(0, 0, colW, height + extra);
                         out << ln;
+                        m_roomOut = int(std::lround(rowFirst * 20));
                         return out;
                     }
                     const double colH = frames[f].size.height();
@@ -76,7 +76,8 @@ QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSp
                     }
                     if (state != 0 || table->splittable(r)) {
                         // The row, or what is left of it, over the foot of the column: the lines of its cells that fit, and the rest on the next.
-                        const TableLayout::Piece part = table->pieceOf(r, state, colH - y - extra, fullRoom, atTop || state != 0);
+                        if (state == 0) rowFirst = colH - y - extra;
+                        const TableLayout::Piece part = table->pieceOf(r, state, rowFirst, colH - y - extra, fullRoom, atTop || state != 0);
                         if (part.progress) {
                             ln.frame = f;
                             ln.line = state;
@@ -88,6 +89,7 @@ QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSp
                             if (!part.next) placed = true;
                             state = part.next;
                             if (part.next) {
+                                m_roomOut = int(std::lround(rowFirst * 20));
                                 ++f;   // (the rest of the row is in the next column, or on the next page)
                                 y = 0;
                             }
@@ -224,14 +226,45 @@ QTextBlock Paginator::lastBlockWithTables(const QVector<StoryLayout::LineBrief> 
     return m_doc->story()->findBlock(last.block);
 }
 
+int Paginator::pageOfTablePosition(int position)
+{
+    if (!m_tables->any()) return -1;
+    const TableIndex &ix = m_tables->index();
+    const int span = ix.spanAt(position);
+    if (span < 0) return -1;
+    const std::shared_ptr<TableLayout> table = m_tables->layout(span);
+    if (!table) return -1;
+    const int home = pageOfPosition(position);
+    const int parts = page(home).start.piece;
+    if (parts == 0) return home;
+    // The row is in parts on the pages before this one, which is its last: its first is `parts` pages back, and the part that has the position's line is the first whose cell ends below it.
+    const int r = table->rowOfPosition(position), cell = table->cellOfPosition(position);
+    if (cell < 0) return home;
+    const double y = table->lineTopIn(cell, position);
+    if (y < 0) return home;
+    const int first = home - parts;
+    const double colH = m_doc->section(page(home).start.section).content().height();
+    const double fullRoom = colH - (TableFlow::repeatsHeader(*table, r, colH) ? table->headerHeight() : 0);
+    const double firstRoom = page(first + 1).start.pieceRoom / 20.0;
+    const int at = cell - table->row(r).cell0;
+    int lo = 0, hi = parts;
+    while (lo < hi) {
+        const int mid = (lo + hi) / 2;
+        const TableLayout::Piece p = table->pieceOf(r, mid, firstRoom, firstRoom, fullRoom, true);
+        if (at >= 0 && at < p.ends.size() && p.ends[at] > y) hi = mid;
+        else lo = mid + 1;
+    }
+    return first + lo;
+}
+
 void Paginator::addTableFragments(MaterializedPage *page, const Section &sec, const std::vector<TableGroup> &groups)
 {
     for (const TableGroup &g : groups) {
         const std::shared_ptr<TableLayout> table = m_tables->layout(g.span);
         if (!table) continue;
-        const std::shared_ptr<TableFragment> fragment = m_tables->fragment(table, g.firstRow, g.endRow, g.parts);
-        if (!fragment) continue;
         const QRectF col = sec.columnRect(std::clamp(g.frame, 0, sec.columnCount() - 1));
+        const std::shared_ptr<TableFragment> fragment = m_tables->fragment(table, g.firstRow, g.endRow, col.height(), g.parts);
+        if (!fragment) continue;
         fragment->origin = QPointF(col.left() + table->leftEdgeIn(col.width()), col.top() + g.rect.top());
         page->tables.push_back(fragment);
     }

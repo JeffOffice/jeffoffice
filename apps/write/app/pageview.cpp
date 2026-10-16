@@ -472,9 +472,11 @@ bool PageView::caretLine(int position, int *pageOut, QLineF *line)
     if (!m_doc) return false;
     flow::Paginator &pg = m_doc->pager();
     const int home = pg.pageOfPosition(std::clamp(position, 0, std::max(0, m_doc->story()->characterCount() - 1)));
-    QVector<int> candidates{home, home - 1, home + 1};
-    // (A row of a table that goes over page breaks is on every page that starts in it: the position may be on any of them.)
-    for (int p = home - 2; p >= 0 && pg.page(p + 1).start.piece != 0; --p) candidates << p;
+    QVector<int> candidates;
+    // (A row of a table that goes over page breaks is on every page that starts in it: the page that has the part with the position's line is the one to look on first.)
+    const int direct = pg.pageOfTablePosition(std::clamp(position, 0, std::max(0, m_doc->story()->characterCount() - 1)));
+    if (direct >= 0) candidates << direct;
+    candidates << home << home - 1 << home + 1;
     for (int page : candidates) {
         if (page < 0) continue;
         const auto r = rendered(page);

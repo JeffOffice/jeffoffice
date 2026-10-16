@@ -59,9 +59,10 @@ public:
         // on the one before: space before its first paragraph is kept.
         bool hard = true;
         int section = 0;
-        // A page that starts in the middle of a row of a table that goes over the break: which part of the row it starts with (TableLayout::Piece's state).
-        int piece = 0;
-        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece; }
+        // A page that starts in the middle of a row of a table that goes over the break: which part of the row it starts with (the number of the part, from 1), and the room
+        // the row's first part had, in twentieths of a point (the later parts are found from it).
+        int piece = 0, pieceRoom = 0;
+        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceRoom == o.pieceRoom; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 
@@ -108,7 +109,12 @@ public:
     QVector<StoryLayout::LineBrief> lines(int index);
 
     // How many pages have been laid out since this was made, to see how much an edit costs.
+    // The page that shows a position that is in a cell of a table: for a row that goes over page breaks, the page that has the part of the row with that line (which may not
+    // be the one that has the paragraph's place in the story: -1 when the position is not in a table).
+    int pageOfTablePosition(int position);
     qint64 pagesLaidOut() const { return m_laidOut; }
+    // How many rows of tables were measured since it was made (what is measured again after an edit is the rows it touched): for tests of what edits cost.
+    qint64 tableRowsMeasured() const { return m_tables ? m_tables->rowsMeasured() : 0; }
     // How many pages the page numbers have been walked back over to find where their section began, for tests.
     qint64 numberStepsForTest() const { return m_numberSteps; }
 
@@ -130,7 +136,8 @@ private:
         TableLayout::Piece piece;
     };
     std::vector<PieceRecord> m_pieces;
-    QVector<StoryLayout::LineBrief> linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, int piece, bool *windowShort);
+    QVector<StoryLayout::LineBrief> linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, int piece, int pieceRoom, bool *windowShort);
+    int m_roomOut = 0;   // the room the first part of the row that goes on to the next page had (twentieths of a point), as the last lines of a page left it
     std::vector<TableGroup> tableGroups(const QVector<StoryLayout::LineBrief> &lines, int kept, int firstFrame);
     bool tablePlaceholder(QTextCursor &dst, QTextBlock &b, bool first, const std::vector<TableGroup> &groups) const;
     QTextBlock lastBlockWithTables(const QVector<StoryLayout::LineBrief> &lines, int kept, const std::vector<TableGroup> &groups) const;
