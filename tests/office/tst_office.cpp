@@ -4422,6 +4422,26 @@ private Q_SLOTS:
         img = draw(flood);
         QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
         QVERIFY(is(at(img, 100, 50), 255, 0, 0));
+        // A picture with bytes changed at random, and cut short, is drawn as far as it can be or not at all, each time in no more work than
+        // a picture of its size takes.
+        {
+            const QByteArray whole = odPict(200, 100, red + pictU16(0x0031) + pictRect(10, 20, 60, 120) + pictU16(0x0051) + pictRect(10, 10, 90, 90)
+                                                          + pictU16(0x0071) + pictU16(22) + pictRect(10, 100, 90, 190) + pictU16(90) + pictU16(100) + pictU16(90) + pictU16(190) + pictU16(10) + pictU16(145)
+                                                          + pictU16(0x0081) + pictU16(10 + 26) + pictRect(20, 30, 40, 60) + pictU16(20) + pictU16(30) + pictU16(40) + pictU16(0x7FFF)
+                                                          + pictU16(30) + pictU16(40) + pictU16(60) + pictU16(0x7FFF) + pictU16(40) + pictU16(30) + pictU16(60) + pictU16(0x7FFF) + pictU16(0x7FFF)
+                                                          + pictU16(0x0020) + pictU16(50) + pictU16(20) + pictU16(50) + pictU16(180) + text
+                                                          + pictU16(0x0098) + pixmapHeader(8, 0, 8, 1) + table + pictRect(0, 0, 1, 8) + pictRect(10, 10, 30, 90) + pictU16(0) + QByteArray(1, char(indexes.size())) + indexes);
+            QRandomGenerator g(11);
+            QElapsedTimer damaged;
+            damaged.start();
+            for (int i = 0; i < 400; ++i) {
+                QByteArray b = whole;
+                for (int k = 0; k < 1 + i % 6; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
+                if (i % 5 == 0) b.truncate(int(g.bounded(quint32(b.size()))));
+                odrawBlip(odMetafileBlip(0xF01C, 0x542, b, true), nullptr);
+            }
+            QVERIFY2(damaged.elapsed() < 20000, qPrintable(QString::number(damaged.elapsed())));
+        }
         // What it can't read, or what is cut short, is no picture and no crash.
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, odPict(200, 100, QByteArray()).left(30), true), nullptr).isEmpty());
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, QByteArray("not a picture at all"), true), nullptr).isEmpty());
