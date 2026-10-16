@@ -63,6 +63,9 @@ constexpr int kMaxNotes = 20;
 constexpr qint64 kMaxAdjustedPixels = 16'000'000;
 // A pattern is a bitmap of a few pixels (8 by 8); one this large is not taken for one.
 constexpr qint64 kMaxPatternPixels = 65'536;
+// The pieces that splitting a paragraph's text in symbol fonts may add to it: real text has a few (a symbol among words), and a paragraph
+// that would have more keeps the rest of its run as it is.
+constexpr int kMaxSymbolPieces = 256;
 // A shape's is a few kilobytes, packed and unpacked; a theme's package may
 // hold the theme's pictures as well. Each is held to its size unpacked too
 // (a few packed bytes can unpack to gigabytes), and all of them together.
@@ -419,11 +422,20 @@ struct TextGroup {
     QVector<FieldMark> fields;
     QVector<LinkMark> links;
     qint64 outline = -1;        // the text of the slide this shape shows (OutlineTextRefAtom)
+    bool bytes = false;         // the text is 8-bit (a TextBytesAtom), its codes 0x80 to 0x9F read as Windows-1252's characters
 };
 
 // Windows-1252's characters from 0x80 to 0x9F; the 8-bit text of the format has been written by programs that used them.
 const quint16 kWin1252[32] = {0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x8D, 0x017D, 0x8F,
                               0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x9D, 0x017E, 0x0178};
+
+// The byte of 8-bit text that read as `u`: Windows-1252's characters at 0x80 to 0x9F go back to their codes, the others are their own.
+ushort rawByteOf(ushort u)
+{
+    for (int i = 0; i < 32; ++i)
+        if (kWin1252[i] == u) return ushort(0x80 + i);
+    return u;
+}
 
 QString readChars(const QByteArray &d, const Rec &r, bool wide)
 {
@@ -1273,8 +1285,8 @@ TextGroup Importer::readTextGroup(Records &rs, const QVector<Rec> &recs)
             g.type = int(std::min<quint32>(c.u32(), 100));
             break;
         }
-        case RT_TextCharsAtom: g.text = readChars(d, r, true); g.hasText = true; break;
-        case RT_TextBytesAtom: g.text = readChars(d, r, false); g.hasText = true; break;
+        case RT_TextCharsAtom: g.text = readChars(d, r, true); g.hasText = true; g.bytes = false; break;
+        case RT_TextBytesAtom: g.text = readChars(d, r, false); g.hasText = true; g.bytes = true; break;
         case RT_StyleTextPropAtom: style = &r; break;
         case RT_MasterTextPropAtom: {
             Cursor c(d, r.off, r.end());
@@ -2279,6 +2291,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             QTextCharFormat format;
         };
         QVector<Piece> pieces;
+        int symbolPieces = 0;   // the pieces the split of text in symbol fonts has added to this paragraph
         qint64 pos = start;
         while (pos < end) {
             qint64 next = end;
@@ -2333,8 +2346,10 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
                 fmt.setUnderlineStyle(QTextCharFormat::SingleUnderline);
             }
             // Text in a symbol font is shown as the font's own pictures: a character of the font the run names for symbols (kept at
-            // 0xF020 to 0xF0FF), or of a run set in the font itself (the plain code), that has a look-alike in Unicode (a Greek letter, an
-            // arrow) is that, in the text's own font; a private one that has none stays in a piece of the font's own, where the font is.
+            // 0xF020 to 0xF0FF), or of a run set in the font itself (the plain code: in 8-bit text the byte itself, not the Windows-1252
+            // character it reads as), that has a look-alike in Unicode (a Greek letter, an arrow) is that, in the text's own font; a private
+            // one that has none stays in a piece of the font's own, where the font is. A paragraph that would be cut into more than
+            // kMaxSymbolPieces pieces keeps the rest of its text as it is.
             const QString symbolFamily = (cf.has & CfSymbol) && cf.symbolFont < m_fonts.size() ? m_fonts.at(cf.symbolFont) : QString();
             const QString runFont = fontName(cf);
             const bool setInSymbols = isSymbolFont(runFont);
@@ -2352,6 +2367,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
                     pieces.push_back({held, format});
                     held.clear();
                     ++m_pieces;
+                    ++symbolPieces;
                 };
                 auto put = [&](const QString &text, Look look, const QString &family = QString()) {
                     if (look != heldLook || family != heldFamily) flush();
@@ -2360,10 +2376,11 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
                     heldFamily = family;
                 };
                 for (const QChar ch : std::as_const(piece)) {
-                    const ushort u = ch.unicode();
+                    ushort u = ch.unicode();
                     const bool inPrivateUse = u >= 0xF020 && u <= 0xF0FF;
-                    // (Past the limit on pieces, the rest is as it stands.)
-                    const QString family = m_pieces >= kMaxTotalPieces ? QString()
+                    if (g.bytes && setInSymbols && !inPrivateUse) u = rawByteOf(u);
+                    // (Past the limits on pieces, the rest is as it stands.)
+                    const QString family = m_pieces >= kMaxTotalPieces || symbolPieces >= kMaxSymbolPieces ? QString()
                                            : inPrivateUse && !symbolFamily.isEmpty() ? symbolFamily
                                            : setInSymbols && (inPrivateUse || (u >= 0x20 && u <= 0xFF)) ? runFont : QString();
                     const QString mapped = family.isEmpty() ? QString() : symbolTextToUnicode(family, u);
