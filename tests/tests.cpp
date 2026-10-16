@@ -5160,6 +5160,36 @@ private Q_SLOTS:
         QVERIFY(jp::publicationThumbnail(junk.fileName()).isNull());
     }
 
+    // The margins and vertical alignment set for a shape in Format Shape are kept through a save, with no text in it: they were written only
+    // for a shape that held text, so an empty shape came back with a new shape's.
+    void emptyShapeKeepsItsMarginsAndAnchorWhenSaved()
+    {
+        Editor ed;
+        ed.setDocument(Document::blank(QSizeF(612, 792)));
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = QRectF(72, 72, 200, 100);
+        ed.addItem(s);
+        QVERIFY(s->storyId.isEmpty());
+        // As the dialog sets them.
+        ed.change(QStringLiteral("Format Shape"), [&] {
+            s->insets = QMarginsF(1, 2, 3, 4);
+            s->valign = VAlign::Bottom;
+        });
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("shape.jpub"));
+        QString err;
+        QVERIFY2(savePublication(*ed.doc(), path, QImage(), &err), qPrintable(err));
+        auto back = loadPublication(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const ShapeItem *again = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->type() == ItemType::Shape) again = static_cast<const ShapeItem *>(it.get());
+        QVERIFY(again);
+        QVERIFY(again->storyId.isEmpty());
+        QCOMPARE(again->insets, QMarginsF(1, 2, 3, 4));
+        QCOMPARE(int(again->valign), int(VAlign::Bottom));
+    }
+
     // A publication's name goes into an email's headers: a line break must
     // not start a header of its own, and accented names are encoded.
     void emailHeaderNames()
