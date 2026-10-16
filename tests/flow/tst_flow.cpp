@@ -531,6 +531,34 @@ QString differsFromFresh(FlowDocument &fd, Paginator &pg)
     return QString();
 }
 
+// Where the text of page `k`, as the page's own story is laid out, puts its lines, against where the paginator put them (the rows of a table are one item in the page's story).
+QString tableAwareDiffers(FlowDocument &fd, Paginator &pg, int k, LayoutCache &cache)
+{
+    const auto mine = pg.lines(k);
+    const std::unique_ptr<MaterializedPage> page = pg.materialize(k);
+    if (!page) return QStringLiteral("page %1 not made").arg(k);
+    struct W { int frame; double top, bottom; bool cell; };
+    QVector<W> want;
+    for (const auto &l : mine) {
+        const bool cell = fd.story()->findBlock(l.block).blockFormat().intProperty(fp::Cell) != 0;
+        if (cell && !want.isEmpty() && want.last().cell && want.last().frame == l.frame) want.last().bottom = l.rect.bottom();
+        else want.push_back({l.frame, l.rect.top(), l.rect.bottom(), cell});
+    }
+    QVector<W> got;
+    for (int c = 0; c < page->boxes.size(); ++c) {
+        auto *box = dynamic_cast<TextItem *>(page->doc->item(page->boxes[c]));
+        if (!box) return QStringLiteral("no box");
+        const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, 1, RenderOptions());
+        if (!fl.layout) return QStringLiteral("no layout");
+        for (const auto &li : fl.layout->lineInfo(fl.frame)) got.push_back({c, li.rect.top(), li.rect.bottom(), false});
+    }
+    if (got.size() != want.size()) return QStringLiteral("page %1: %2 lines (with a row group as one), the paginator has %3").arg(k).arg(got.size()).arg(want.size());
+    for (int i = 0; i < got.size(); ++i)
+        if (std::abs(got[i].top - want[i].top) > 0.02 || std::abs(got[i].bottom - want[i].bottom) > 0.02)
+            return QStringLiteral("page %1 item %2 (%3): materialized %4..%5, paginator %6..%7").arg(k).arg(i).arg(want[i].cell ? "table rows" : "text").arg(got[i].top).arg(got[i].bottom).arg(want[i].top).arg(want[i].bottom);
+    return QString();
+}
+
 // Paragraphs set the way a word processor sets lines (LayoutEnv::wordLines), each a line of text in the family and size given: the lines of
 // the story, in a frame of one page. `shape` sets a paragraph's format (spacing, line height, style).
 QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, double>> &fonts, const std::function<void(int, QTextBlockFormat &)> &shape = {}, bool word = true)
@@ -4331,6 +4359,269 @@ private Q_SLOTS:
         QCOMPARE(pageOf[2], 0);
         QCOMPARE(pageOf[0], pg.pageOfTablePosition(anchorAt[0]));
         QCOMPARE(pageOf[1], pg.pageOfTablePosition(anchorAt[1]));
+    }
+
+    // The page that a position in a row cut between pages is on is the one whose part of the row shows its line, also where the furniture takes room from the text area.
+    void thePageOfAPositionInARowInPartsIsTheOneThatShowsItsLineWithFurniture()
+    {
+        for (const bool header : {false, true}) {
+            FlowDocument fd;
+            fd.sections[0].paper = QSizeF(300, 300);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            if (header) fd.sections[0].header.odd = furnitureStory({QStringLiteral("H1"), QStringLiteral("H2"), QStringLiteral("H3"), QStringLiteral("H4"), QStringLiteral("H5")});
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            spec.text = [](int r, int c) {
+                QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
+                if (r == 1)
+                    for (int i = 0; i < (c == 0 ? 300 : 120); ++i) t += QStringLiteral("\nr%1c%2 ln %3").arg(r).arg(c).arg(i);
+                return t;
+            };
+            const TestTable table = addTable(fd, spec);
+            QTextCursor t(fd.story());
+            t.movePosition(QTextCursor::End);
+            t.insertBlock(QTextBlockFormat());
+            t.insertText(QStringLiteral("after the table"));
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            auto shownOn = [&](int position) {
+                QVector<int> on;
+                for (int k = 0; k < pages; ++k) {
+                    const auto page = pg.materialize(k);
+                    if (!page) continue;
+                    for (const auto &fragment : page->tables) {
+                        const int cell = fragment->layout->cellOfPosition(position);
+                        if (cell < 0) continue;
+                        const TableLayout::Cell &c = fragment->layout->cell(cell);
+                        const auto *part = fragment->partOf(c.row);
+                        if (!part) continue;
+                        const double y = fragment->layout->lineTopIn(cell, position);
+                        const int at = cell - fragment->layout->row(c.row).cell0;
+                        if (y >= part->piece.offsets[at] - 0.01 && y < part->piece.ends[at]) on << k;
+                    }
+                }
+                return on;
+            };
+            QTextBlock b = fd.story()->findBlock(table.rowStarts[1]);
+            int index = 0, checked = 0;
+            for (; b.isValid() && index < 330; b = b.next(), ++index) {
+                if (index % 7 != 3) continue;
+                const int position = b.position() + 1;
+                const QVector<int> on = shownOn(position);
+                const int direct = pg.pageOfTablePosition(position);
+                ++checked;
+                QVERIFY2(on.size() == 1 && on[0] == direct, qPrintable(QStringLiteral("%1: paragraph %2 of the row is shown on %3 page(s) (the first %4), found on %5").arg(header ? "with a header" : "bare").arg(index).arg(on.size()).arg(on.isEmpty() ? -1 : on[0]).arg(direct)));
+            }
+            QVERIFY(checked > 30 && pages > 8);
+        }
+    }
+
+    // The page's own story, with a stand-in for the rows of a table, is laid out where the paginator put its lines: the stand-in is as tall as the rows are, also where the lines are set
+    // at a word processor's heights and the furniture takes room.
+    void theStoryOfAPageWithTablesIsLaidOutWhereThePaginatorPutItsLines()
+    {
+        for (int variant = 0; variant < 3; ++variant) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            if (variant >= 1) {
+                fd.sections[0].header.odd = furnitureStory({QStringLiteral("H1"), QStringLiteral("H2"), QStringLiteral("H3"), QStringLiteral("H4")});
+                fd.sections[0].footer.odd = furnitureStory({QStringLiteral("F1"), QStringLiteral("F2")});
+            }
+            fillStory(fd.story(), 20, 5, [variant](int i, QTextBlockFormat &bf) { if (variant == 2) { bf.setTopMargin(i % 3 * 3); bf.setBottomMargin(6); } }, 40, 40);
+            TestTable spec;
+            spec.rows = 12;
+            spec.cols = 3;
+            spec.columnWidth = 120;
+            spec.text = [](int r, int c) {
+                QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
+                if (r % 4 == 1) for (int i = 0; i < 4 + c * 3; ++i) t += QStringLiteral("\nr%1c%2 ln %3").arg(r).arg(c).arg(i);
+                return t;
+            };
+            addTable(fd, spec);
+            QTextCursor t(fd.story());
+            t.movePosition(QTextCursor::End);
+            for (int i = 0; i < 25; ++i) {
+                QTextBlockFormat bf;
+                if (variant == 2) { bf.setTopMargin(i % 3 * 3); bf.setBottomMargin(6); }
+                t.insertBlock(bf);
+                QTextCharFormat cf;
+                cf.setFontPointSize(11);
+                t.insertText(QStringLiteral("after the table paragraph %1 with some more words to make it wrap onto a second line of the page text area here").arg(i), cf);
+            }
+            Paginator pg(&fd);
+            LayoutCache cache;
+            QVERIFY(pg.pageCount() > 3);
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const QString d = tableAwareDiffers(fd, pg, k, cache);
+                QVERIFY2(d.isEmpty(), qPrintable(QStringLiteral("variant %1: %2").arg(variant).arg(d)));
+            }
+        }
+    }
+
+    // A note cited in text before a table, in text after one (with a table or none before the text on the page), or in a table's page, is seated at the foot of the page, under the
+    // rows and the text, whatever comes before it on the page.
+    void aNoteBesideATableIsSeatedAtTheFootOfItsPage()
+    {
+        for (int variant = 0; variant < 4; ++variant) {
+            TestNotes notes;
+            addNote(&notes, QStringLiteral("a"), 12, QStringLiteral("NOTEA"));
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            // 0: text with the reference, then a table.  1: a table, then text with the reference.  2: text, a table, then text with the reference.  3: as 1, with nothing before.
+            fillStory(fd.story(), variant == 1 ? 1 : 3, 3);
+            if (variant == 0) addReference(fd.story(), fd.story()->findBlockByNumber(1).position() + 2, QStringLiteral("a"));
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            if (variant == 1 || variant == 3) {
+                QTextCursor c(fd.story());
+                c.select(QTextCursor::Document);
+                c.removeSelectedText();
+            }
+            const TestTable table = addTable(fd, spec);
+            if (variant == 3) {
+                // (the story starts with the table: the paragraph that was left of the filler goes)
+                const QTextBlockFormat bf1 = fd.story()->begin().next().blockFormat();
+                QTextCursor rm(fd.story());
+                rm.setPosition(0);
+                rm.setPosition(fd.story()->begin().next().position(), QTextCursor::KeepAnchor);
+                rm.removeSelectedText();
+                QTextCursor fix(fd.story());
+                fix.setPosition(0);
+                fix.setBlockFormat(bf1);
+            }
+            QTextCursor t(fd.story());
+            t.movePosition(QTextCursor::End);
+            t.insertBlock(QTextBlockFormat());
+            t.insertText(QStringLiteral("after the table with a reference"));
+            if (variant >= 1) addReference(fd.story(), fd.story()->characterCount() - 2, QStringLiteral("a"));
+            Paginator pg(&fd);
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            const double bottom = fd.sections[0].content().bottom();
+            const TextItem *note = boxHolding(*page, QStringLiteral("NOTEA"));
+            QVERIFY2(note, qPrintable(QStringLiteral("variant %1: the note is not on the page").arg(variant)));
+            double tablesBottom = 0;
+            for (const auto &f : page->tables) tablesBottom = std::max(tablesBottom, f->origin.y() + f->height);
+            QVERIFY2(note->rect.bottom() <= bottom + 0.01 && note->rect.bottom() > bottom - 30, qPrintable(QStringLiteral("variant %1: the note ends at %2, the text area at %3").arg(variant).arg(note->rect.bottom()).arg(bottom)));
+            QVERIFY2(note->rect.top() >= tablesBottom - 0.01, qPrintable(QStringLiteral("variant %1: the note begins at %2, the table ends at %3").arg(variant).arg(note->rect.top()).arg(tablesBottom)));
+            Q_UNUSED(table);
+        }
+    }
+
+    // A picture set in the text of a cell is in the page's document and is drawn with the table, where its line is.
+    void aPictureInTheTextOfACellIsDrawnWithTheTable()
+    {
+        FlowDocument fd;
+        fd.images.push_back({tinyPng(6, 6, Qt::blue), QStringLiteral("png")});
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        const TestTable table = addTable(fd, spec);
+        auto item = std::make_shared<PictureItem>();
+        item->rect = QRectF(0, 0, 30, 20);
+        item->imgRect = QRectF(0, 0, 30, 20);
+        item->imageId = QStringLiteral("flow-img:0");
+        item->wrap.left = item->wrap.right = item->wrap.top = item->wrap.bottom = 0;
+        const int at = table.rowStarts[1] + 2;
+        {
+            QTextCursor c(fd.story());
+            c.setPosition(at);
+            QTextCharFormat inl;
+            inl.setFontPointSize(11);
+            inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
+            c.insertText(QString(QChar(0xFFFC)), inl);
+        }
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1);
+        QCOMPARE(page->cellImages.size(), 1);
+        const QString id = page->cellImages.value(QStringLiteral("flow-img:0"));
+        QVERIFY(!id.isEmpty() && !id.startsWith(QStringLiteral("flow-img:")));
+        QVERIFY(page->doc->images.contains(id));
+        QImage img(int(page->size.width()), int(page->size.height()), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        {
+            QPainter painter(&img);
+            paintTables(&painter, *page, TablePaint());
+        }
+        QLineF caret;
+        QVERIFY(page->tables[0]->caretLine(at, &caret));
+        // The picture stands on the line's baseline, to the right of the caret's place, as tall as it is: its middle is blue, and the cell's other places are not.
+        int blue = 0;
+        for (int y = int(caret.y1()); y < int(caret.y2()); ++y)
+            for (int x = int(caret.x1()); x < int(caret.x1()) + 30; ++x) blue += qBlue(img.pixel(x, y)) > 200 && qRed(img.pixel(x, y)) < 60 ? 1 : 0;
+        QVERIFY2(blue > 300, qPrintable(QStringLiteral("%1 blue pixels near the caret at %2, %3").arg(blue).arg(caret.x1()).arg(caret.y1())));
+        int elsewhere = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = int(page->tables[0]->origin.x() + 160); x < img.width(); ++x) elsewhere += qBlue(img.pixel(x, y)) > 200 && qRed(img.pixel(x, y)) < 60 ? 1 : 0;
+        QCOMPARE(elsewhere, 0);
+    }
+
+    // Whether a table's header rows are repeated on a page that a section with other columns shares is decided by the room the table has there (the lines are found with it, and
+    // the fragment is made with it): the text under the table begins where the table ends, whichever the room is.
+    void repeatedHeaderRowsAreDecidedByTheRoomOfTheColumnTheTableIsIn()
+    {
+        int repeating = 0, notRepeating = 0;
+        for (int rows = 28; rows < 50; ++rows) {
+            FlowDocument fd;
+            Section &one = fd.sections[0];
+            Section two = one;
+            two.continuous = true;
+            two.columns = 2;
+            two.columnGap = 20;
+            fd.sections << two;
+            TestTable spec;
+            spec.rows = rows;
+            spec.cols = 2;
+            spec.columnWidth = 150;
+            spec.setRow = [](int r, RowData &row) { row.header = r == 0; };
+            spec.text = [](int r, int c) {
+                QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
+                if (r == 0) for (int i = 1; i < 5; ++i) t += QStringLiteral("\nheader line %1").arg(i);
+                return t;
+            };
+            addTable(fd, spec);
+            {
+                QTextCursor c(fd.story());
+                c.movePosition(QTextCursor::End);
+                QTextBlockFormat bf;
+                bf.setProperty(flow::fp::SectionBreakAfter, true);
+                c.insertBlock(bf);
+                c.insertText(QStringLiteral("END OF ONE"));
+                QTextBlockFormat plain;
+                plain.setBottomMargin(6);
+                for (int i = 0; i < 6; ++i) {
+                    c.insertBlock(plain);
+                    c.insertText(QStringLiteral("Text in the two columns that takes a few lines of the narrow column, and goes on for some more words than that."));
+                }
+            }
+            Paginator pg(&fd);
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const auto lines = pg.lines(k);
+                const auto page = pg.materialize(k);
+                QVERIFY(page);
+                for (const auto &fragment : page->tables) {
+                    // The first text line under the table's rows: it begins at or below the fragment's foot.
+                    double textTop = -1;
+                    bool seenRow = false;
+                    for (const auto &l : lines) {
+                        const bool cell = fd.story()->findBlock(l.block).blockFormat().intProperty(fp::Cell) != 0;
+                        if (cell) seenRow = true;
+                        else if (seenRow) { textTop = l.rect.top() + pg.page(k).content.top(); break; }
+                    }
+                    if (k > 0) (fragment->header ? repeating : notRepeating)++;
+                    if (textTop < 0) continue;
+                    QVERIFY2(textTop >= fragment->origin.y() + fragment->height - 0.01, qPrintable(QStringLiteral("%1 rows, page %2: the text under the table begins at %3, the table (%4 header) ends at %5").arg(rows).arg(k).arg(textTop).arg(fragment->header ? "with a" : "without a").arg(fragment->origin.y() + fragment->height)));
+                }
+            }
+        }
+        QVERIFY2(repeating > 0 && notRepeating > 0, qPrintable(QStringLiteral("%1 pages repeat the header, %2 do not").arg(repeating).arg(notRepeating)));
     }
 
     // A table whose indent is to the text of its first cell (the way tables were set before the program of 2013) has its left edge left of that by the cell's margin; a

@@ -989,6 +989,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
             p->translate(pl.text.x(), pl.text.y() + part.y);
             if (part.text) {
                 part.text->paint(p, 0, po);
+                if (o.objects && !part.text->inlineObjects().isEmpty()) o.objects(p, *part.text);
             } else if (part.table) {
                 TableFragment nested = *part.table;
                 nested.origin = QPointF(0, 0);
@@ -1057,6 +1058,15 @@ bool TableFragment::caretLine(int pos, QLineF *line) const
         }
     }
     return false;
+}
+
+void TableFragment::forTexts(const std::function<void(const StoryLayout &text)> &visit) const
+{
+    for (const Item &item : items)
+        for (const CellContent::Part &part : item.content->parts) {
+            if (part.text) visit(*part.text);
+            else if (part.table) part.table->forTexts(visit);
+        }
 }
 
 void TableFragment::forLines(const std::function<void(const StoryLayout::LineBrief &line, const QRectF &rect)> &visit) const

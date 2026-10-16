@@ -50,6 +50,8 @@ struct MaterializedPage {
     // made again when the document has another.
     bool showsTotal = false;
     int pageTotal = 0;
+    // The pictures in the text of the table cells on the page: the id each has in the flow ("flow-img:" and its place in the document's images) and in the page's document.
+    QHash<QString, QString> cellImages;
 };
 
 // Draws the rows of tables that a page has: the page layer's drawing of the page leaves them, as they are not among its items. (Under or over the text, as
@@ -221,6 +223,8 @@ private:
     // Changes the pictures of the inline objects in a story to the Ids they have in the page's document.
     void resolveImages(QTextDocument *story, Document *d);
     QString imageIdOf(Document *d, int image);
+    // Adds the pictures set in the text of the cells of a page's tables to the page's document (the ids they have there are the page's `cellImages`).
+    void resolveCellImages(MaterializedPage *page, Document *d);
     QHash<int, QString> m_imageIds;   // the Ids of the pictures in the page being made
     bool m_wrapObjects = false;       // the text goes round the objects that ask it
     // How many footnote and endnote references the story has from `from` to `to`, document positions.

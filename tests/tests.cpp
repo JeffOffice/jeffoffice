@@ -6736,6 +6736,43 @@ private Q_SLOTS:
         QVERIFY(!jp::substituteFor(QStringLiteral("Arial")).isEmpty());
     }
 
+    // Whether a family is here is remembered for the text engine (it is asked for every run of a word processor's text, and a font match costs), and forgotten when fonts
+    // are added or taken away: a family that was missing is used once its font is added, and not after it is taken away; the usual way of adding fonts says so.
+    void aFontAddedOrRemovedChangesWhichFamiliesTheTextEngineKnows()
+    {
+        // The program's own fonts, added the usual way, are a change.
+        const int generation = jp::fontGeneration();
+        jp::loadBundledFonts();
+        QVERIFY(jp::fontGeneration() > generation);
+        const QString fam = QStringLiteral("Zrimo");
+        QVERIFY(!QFontDatabase::hasFamily(fam));
+        jp::LayoutEnv env;
+        env.wordLines = true;
+        auto familyOf = [&]() {
+            QTextCharFormat cf;
+            cf.setFontFamilies({fam});
+            return jp::resolveCharFormat(cf, env).fontFamilies().toStringList().value(0);
+        };
+        // (Not here: set in the word processor's stand-in, and asked about twice, which the second time is remembered.)
+        QCOMPARE(familyOf(), QStringLiteral("Calibri"));
+        QCOMPARE(familyOf(), QStringLiteral("Calibri"));
+        QFile f(QStringLiteral(JP_TEST_DATA "/../../resources/fonts/Arimo-Regular.ttf"));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QByteArray font = f.readAll();
+        font.replace(QByteArray("\x00" "A\x00r\x00i\x00m\x00o", 10), QByteArray("\x00" "Z\x00r\x00i\x00m\x00o", 10));
+        font.replace(QByteArray("Arimo"), QByteArray("Zrimo"));
+        const int id = QFontDatabase::addApplicationFontFromData(font);
+        QVERIFY(id >= 0);
+        QVERIFY(QFontDatabase::applicationFontFamilies(id).contains(fam));
+        jp::fontsChanged();
+        const QString added = familyOf();
+        QFontDatabase::removeApplicationFont(id);
+        jp::fontsChanged();
+        const QString removed = familyOf();
+        QCOMPARE(added, fam);
+        QCOMPARE(removed, QStringLiteral("Calibri"));
+    }
+
     // Franklin Gothic Heavy, the missing font Publisher's own designs use
     // most, is drawn in Libre Franklin ExtraBold, narrowed to its width
     // (98.30 ems for this sample in the Windows font).

@@ -50,7 +50,7 @@ struct Paginator::Run {
     QVector<StoryLayout::LineBrief> lines;
     int firstFrame = 0;        // the frame of the first column
     int columns = 1;
-    // Each column's place on the page: its left, its top below the text area's, and its width. (A page where a section with other columns begins below
+    // Each column's place on the page: its left, its top below the text area's, its width, and its height. (A page where a section with other columns begins below
     // the one before has the first's column, then the second's.)
     QVector<QRectF> cols;
     int kept = 0;              // the lines on the page
@@ -179,16 +179,16 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.cols.clear();
         if (split >= 0) {
             frames << frame(colW, split + 0.01);
-            run.cols << QRectF(sec.columnRect(0).left(), 0, colW, 0);
+            run.cols << QRectF(sec.columnRect(0).left(), 0, colW, split + 0.01);
             const Section &next = m_doc->section(st.section + 1);
             for (int c = 0; c < next.columnCount(); ++c) {
                 frames << frame(next.columnWidth(), std::max(1.0, colH - split));
-                run.cols << QRectF(next.columnRect(c).left(), split, next.columnWidth(), 0);
+                run.cols << QRectF(next.columnRect(c).left(), split, next.columnWidth(), std::max(1.0, colH - split));
             }
         } else {
             for (int c = 0; c < sec.columnCount(); ++c) {
                 frames << frame(colW, colH);
-                run.cols << QRectF(sec.columnRect(c).left(), 0, colW, 0);
+                run.cols << QRectF(sec.columnRect(c).left(), 0, colW, colH);
             }
         }
         run.columns = int(run.cols.size());
@@ -893,7 +893,10 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         story->doc = sliceOf(run, st, &out->storyFrom, &out->continuesFromBefore);
         resolveImages(story->doc.get(), d.get());
         d->stories.insert(story->id, story);
-        if (!run.groups.empty()) addTableFragments(out.get(), run.cols, furniture.body, run.groups);
+        if (!run.groups.empty()) {
+            addTableFragments(out.get(), run.cols, furniture.body, run.groups);
+            if (!m_doc->images.isEmpty()) resolveCellImages(out.get(), d.get());
+        }
         const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
         out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
 

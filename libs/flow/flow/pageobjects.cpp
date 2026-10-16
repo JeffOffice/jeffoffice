@@ -18,9 +18,6 @@ namespace {
 // The most objects one page is given (a file with more of them has the rest left off its pages).
 constexpr int kMostObjects = 500;
 
-// The prefix of the picture a story's inline object names, until the page changes it to the Id of the picture in its own document.
-const QLatin1String kImagePrefix("flow-img:");
-
 } // namespace
 
 QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines) const
@@ -75,11 +72,11 @@ void Paginator::resolveImages(QTextDocument *story, Document *d)
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QString json = it.fragment().charFormat().stringProperty(tp::InlineObject);
-            if (json.isEmpty() || !json.contains(kImagePrefix)) continue;
+            if (json.isEmpty() || !json.contains(kFlowImagePrefix)) continue;
             QJsonObject o = QJsonDocument::fromJson(json.toUtf8()).object();
             const QString ref = o.value(QStringLiteral("image")).toString();
-            if (!ref.startsWith(kImagePrefix)) continue;
-            o.insert(QStringLiteral("image"), imageIdOf(d, ref.mid(kImagePrefix.size()).toInt()));
+            if (!ref.startsWith(kFlowImagePrefix)) continue;
+            o.insert(QStringLiteral("image"), imageIdOf(d, ref.mid(kFlowImagePrefix.size()).toInt()));
             changes.push_back({it.fragment().position(), it.fragment().length(), QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact))});
         }
     for (const auto &c : changes) {
@@ -90,6 +87,20 @@ void Paginator::resolveImages(QTextDocument *story, Document *d)
         cf.setProperty(tp::InlineObject, std::get<2>(c));
         cur.mergeCharFormat(cf);
     }
+}
+
+void Paginator::resolveCellImages(MaterializedPage *page, Document *d)
+{
+    for (const auto &fragment : page->tables)
+        fragment->forTexts([&](const StoryLayout &text) {
+            for (const StoryLayout::InlineObject &ob : text.inlineObjects()) {
+                if (!ob.json.contains(kFlowImagePrefix) || page->cellImages.size() >= 1000) continue;
+                const QString ref = QJsonDocument::fromJson(ob.json.toUtf8()).object().value(QStringLiteral("image")).toString();
+                if (!ref.startsWith(kFlowImagePrefix) || page->cellImages.contains(ref)) continue;
+                const QString id = imageIdOf(d, ref.mid(kFlowImagePrefix.size()).toInt());
+                if (!id.isEmpty()) page->cellImages.insert(ref, id);
+            }
+        });
 }
 
 void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number)

@@ -66,6 +66,9 @@ struct FlowImage {
     QString format;
 };
 
+// What the id of an inline picture begins with, until a page changes it to the picture's id in the page's own document.
+inline const QLatin1String kFlowImagePrefix("flow-img:");
+
 // The character in a story that ends the page. A paragraph that holds one is still one block: the text engine ends the line with it (as it does
 // with U+2028), and the paginator ends the page after that line, so the rest of the paragraph is the first lines of the next page (that it
 // "continues" is only that its next line is its line 1, never stored). A paragraph that ends with one leaves the next paragraph at the top of the

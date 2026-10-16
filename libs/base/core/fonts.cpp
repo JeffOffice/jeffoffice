@@ -47,6 +47,8 @@ QStringList bundledFontDirs()
     return dirs;
 }
 
+// Every place that adds a font to the application's database or takes one away calls fontsChanged() after (the text engine remembers which families there are, and
+// forgets when this number changes): addFontFile below, and the callers of QFontDatabase::addApplicationFont*/removeApplicationFont elsewhere.
 static std::atomic<int> g_fontGeneration{0};
 int fontGeneration() { return g_fontGeneration.load(); }
 void fontsChanged() { ++g_fontGeneration; }
