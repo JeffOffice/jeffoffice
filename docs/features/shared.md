@@ -124,7 +124,9 @@ These stay in `apps/<app>` until a second app asks for them.
 
 ## 4. Disagreements found
 
-Where the six lists disagree with each other, or with the code. Each item gives what the lists say (by app and item), and a recommended answer. None of the lists was changed.
+Where the six lists disagree with each other, or with the code. Each item gives what the lists say (by app and item), and a recommended answer.
+
+**Decided October 16, 2026:** every recommended answer below is adopted, except D3 (where the flowing-page engine lives and what it's called), which waits for the flowing-page design, made when JeffWrite's building starts. Where a feature list disagrees with this page, this page holds; each list is brought in line as its app is built.
 
 **Names.** The same piece is called different things. This page uses the left-hand name.
 

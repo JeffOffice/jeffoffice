@@ -366,6 +366,8 @@ A web site of several linked pages is not offered; see the Web tab section.
 
 ## Shared with other JeffOffice apps
 
+The suite-wide map of shared parts, [shared.md](shared.md), says where each lives, which app builds it first, and who uses it; where this list disagrees with it, the map holds.
+
 What JeffPub is built on, what its work gave the other apps, and the pieces to build once so that JeffDeck, JeffWrite, JeffCrunch, JeffMail, and JeffBase can use them too. Since October 11, JeffPub's source has been split into shared libraries and the app.
 
 ### Already there

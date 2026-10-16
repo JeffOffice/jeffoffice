@@ -583,6 +583,8 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 
 ## Shared with other JeffOffice apps
 
+The suite-wide map of shared parts, [shared.md](shared.md), says where each lives, which app builds it first, and who uses it; where this list disagrees with it, the map holds.
+
 What JeffWrite builds on, and the pieces it should build so that JeffCrunch, JeffDeck, JeffMail, and JeffBase can use them.
 
 ### Already there
