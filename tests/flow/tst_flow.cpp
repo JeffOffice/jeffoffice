@@ -1129,6 +1129,106 @@ private Q_SLOTS:
         QVERIFY(pg.page(pg.pageOfPosition(fd.story()->findBlockByNumber(21).position())).start.hard);
     }
 
+    // The page break character (flow::kPageBreak) in a paragraph ends the page after the line that holds it; the rest of the paragraph goes on
+    // the next page. The paragraph stays one block: that it goes on is only that its next line is its line 1.
+    void aPageBreakCharacterEndsThePageAfterItsLine()
+    {
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        c.insertText(QStringLiteral("first words ") + flow::kPageBreak + QStringLiteral("second words"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("a paragraph after"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        const auto first = pg.lines(0), second = pg.lines(1);
+        QCOMPARE(first.size(), 1);
+        QCOMPARE(first[0].pos, 0);
+        QCOMPARE(first[0].end, 13);                 // (the line ends with the break)
+        QCOMPARE(second.size(), 2);
+        QCOMPARE(second[0].pos, 13);
+        QCOMPARE(second[0].line, 1);                // the same paragraph's next line
+        QCOMPARE(second[0].block, 0);
+        QCOMPARE(second[1].block, fd.story()->findBlockByNumber(1).position());
+        QVERIFY(pg.page(1).start.hard);
+        QCOMPARE(pg.page(1).start.skip, 1);
+        auto before = pg.materialize(0), after = pg.materialize(1);
+        QVERIFY(before && after);
+        QVERIFY(before->continuesOnAfter && !before->continuesFromBefore);
+        QVERIFY(after->continuesFromBefore);
+        QCOMPARE(after->storyFrom, 13);
+    }
+
+    // A break at the end of a paragraph leaves the next paragraph the top of the next page, with no empty line before it; at the end of the
+    // last paragraph, it makes no page of its own.
+    void aPageBreakAtTheEndOfAParagraphMakesNoEmptyLine()
+    {
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        c.insertText(QStringLiteral("ends with a break") + flow::kPageBreak);
+        c.insertBlock();
+        c.insertText(QStringLiteral("next"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        for (const auto &l : pg.lines(0)) QCOMPARE(l.block, 0);
+        QCOMPARE(pg.lines(1).size(), 1);
+        QCOMPARE(pg.lines(1)[0].block, fd.story()->findBlockByNumber(1).position());
+        QCOMPARE(pg.lines(1)[0].line, 0);
+        // The last paragraph ending in a break: the text has no more pages.
+        FlowDocument last;
+        QTextCursor lc(last.story());
+        lc.insertText(QStringLiteral("only a break") + flow::kPageBreak);
+        Paginator lp(&last);
+        QCOMPARE(lp.pageCount(), 1);
+    }
+
+    // Two breaks in a row make the page between them; one at the start of a paragraph moves its text to the next page.
+    void pageBreakCharactersFollowOneAnotherAndOpenAParagraph()
+    {
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        c.insertText(QStringLiteral("a") + flow::kPageBreak + flow::kPageBreak + QStringLiteral("b"));
+        c.insertBlock();
+        c.insertText(flow::kPageBreak + QStringLiteral("moved"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 4);
+        QCOMPARE(pg.lines(1).size(), 1);            // (the page that only the second break is on)
+        QCOMPARE(pg.lines(1)[0].pos, 2);
+        QCOMPARE(pg.lines(1)[0].end, 3);
+        QCOMPARE(pg.lines(2)[0].pos, 3);            // b
+        const int second = fd.story()->findBlockByNumber(1).position();
+        QCOMPARE(pg.lines(2).size(), 2);            // b, and the line the next paragraph's break is on, which ends the page
+        QCOMPARE(pg.lines(2)[0].end, second - 1);
+        QCOMPARE(pg.lines(2)[1].block, second);
+        QCOMPARE(pg.lines(3)[0].pos, second + 1);   // moved
+    }
+
+    // Editing the break: taking it out joins the pages, typing it in splits them, and the pages after an edit are as the text makes them.
+    void editingAPageBreakCharacterRepaginates()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 30, 8, {}, 20, 30);
+        Paginator pg(&fd);
+        const int plain = pg.pageCount();
+        QTextCursor c(fd.story());
+        c.setPosition(fd.story()->findBlockByNumber(12).position() + 10);
+        const int was = pg.pageOfPosition(c.position());
+        c.insertText(flow::kPageBreak);
+        QVERIFY(pg.pageCount() >= plain);
+        const int at = pg.pageOfPosition(c.position());
+        QVERIFY(at == was + 1);                      // (what comes after the break is on the page after)
+        const auto lines = pg.lines(was);
+        QCOMPARE(lines.last().end, c.position());    // the page before ends where the break is
+        c.setPosition(c.position() - 1);
+        c.deleteChar();
+        QCOMPARE(pg.pageCount(), plain);
+        // The same pages as a document that never had it.
+        FlowDocument other;
+        fillStory(other.story(), 30, 8, {}, 20, 30);
+        Paginator po(&other);
+        QCOMPARE(po.pageCount(), plain);
+        for (int k = 0; k < plain; ++k) QCOMPARE(pg.page(k).start.pos, po.page(k).start.pos);
+    }
+
     // A section break starts the next section on a new page with its own size, margins, and columns.
     void paginatorStartsSectionsOnNewPages()
     {
