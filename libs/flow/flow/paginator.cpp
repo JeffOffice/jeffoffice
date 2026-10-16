@@ -172,7 +172,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 
     // Where the page ends: where the text ran out of room, unless a break asks for less.
     int c = kept;
-    bool hard = false, sectionEnds = false, forced = false;
+    bool hard = false, sectionEnds = false, forced = false, byCharacter = false;
     for (int i = 0; i < c; ++i) {
         const StoryLayout::LineBrief &ln = L[i];
         const BlockFlags &bf = flags(ln.block);
@@ -185,6 +185,15 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             c = i + 1;
             hard = forced = true;
             sectionEnds = bf.sectionAfter;
+            break;
+        }
+        // A page break character: the page ends after the line that holds it.
+        if (!ln.cut && ln.end > ln.pos && m_doc->story()->characterAt(ln.end - 1) == kPageBreak) {
+            c = i + 1;
+            hard = forced = byCharacter = true;
+            // (The empty line the text engine puts after a break that ends its paragraph stays with the page: the next paragraph is at the top
+            // of the next.)
+            if (c < L.size() && L[c].block == L[i].block && L[c].line == L[i].line + 1 && L[c].pos == L[c].end && L[c].line == L[c].lines - 1) ++c;
             break;
         }
     }
@@ -238,7 +247,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.next.skip = L[c].line;
         run.next.hard = hard;
         run.next.section = nextSection;
-    } else if (forced && c > 0) {
+    } else if (forced && !byCharacter && c > 0) {
         // A break after the text's last line: the pages go on with one that has nothing on it.
         run.hasNext = true;
         run.next.pos = m_doc->story()->characterCount();
