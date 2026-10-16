@@ -4,6 +4,7 @@
 
 #include "core/document.h"
 #include "flow/flowdocument.h"
+#include "flow/paginator.h"
 #include "render/renderer.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
@@ -22,6 +23,8 @@
 
 using namespace jp;
 using jp::flow::FlowDocument;
+using jp::flow::MaterializedPage;
+using jp::flow::Paginator;
 using jp::flow::Section;
 
 namespace {
@@ -197,6 +200,98 @@ QString carriedFootnoteCheck(double height, unsigned seed, bool *cut)
         while (g < got.size() && got[g].frame < l.frame - shift) ++g;
         if (g >= got.size() || !sameBrief(got[g], l, -shift)) return QStringLiteral("a line of the second or third page differs");
         ++g;
+    }
+    return QString();
+}
+
+// The pages of a story laid out whole, in frames the size of the section's columns, for the lines a paginator should find on each page.
+QVector<QVector<StoryLayout::LineBrief>> oneShotPages(const FlowDocument &fd, int pages)
+{
+    const Section &sec = fd.section(0);
+    const int columns = std::max(1, sec.columns);
+    QVector<FrameSpec> frames;
+    for (int p = 0; p < pages; ++p)
+        for (int c = 0; c < columns; ++c) frames << plainFrame(sec.columnWidth(), sec.content().height());
+    StoryLayout lay;
+    lay.build(fd.story(), frames, fd.env);
+    QVector<QVector<StoryLayout::LineBrief>> out(pages);
+    for (const auto &l : lay.lineBriefs())
+        if (l.frame >= 0) {
+            StoryLayout::LineBrief b = l;
+            b.frame = l.frame % columns;
+            out[l.frame / columns] << b;
+        }
+    return out;
+}
+
+// The first difference between a paginator's pages and the one-shot layout's, or nothing.
+QString differenceFromOneShot(FlowDocument &fd, Paginator &pg)
+{
+    const int pages = pg.pageCount();
+    const auto whole = oneShotPages(fd, pages + 1);
+    for (int k = 0; k < pages; ++k) {
+        const auto mine = pg.lines(k);
+        const auto &want = whole[k];
+        if (mine.size() != want.size()) return QStringLiteral("page %1 has %2 lines, the one-shot layout's has %3").arg(k).arg(mine.size()).arg(want.size());
+        for (int i = 0; i < mine.size(); ++i)
+            if (!sameBrief(mine[i], want[i])) return QStringLiteral("line %1 of page %2 differs").arg(i).arg(k);
+    }
+    if (!whole[pages].isEmpty()) return QStringLiteral("the one-shot layout has more pages than %1").arg(pages);
+    return QString();
+}
+
+QTextBlockFormat formatAt(const FlowDocument &fd, int position) { return fd.story()->findBlock(position).blockFormat(); }
+
+// A paragraph split between two pages leaves at least `lines` of its lines on each side of the break (if it began on the page: of the first
+// page's, however many it has); empty if every one does.
+QString splitsLeaveLines(FlowDocument &fd, Paginator &pg, int lines)
+{
+    const int pages = pg.pageCount();
+    for (int k = 0; k + 1 < pages; ++k) {
+        const auto a = pg.lines(k), b = pg.lines(k + 1);
+        if (a.isEmpty() || b.isEmpty() || a.last().block != b.first().block) continue;
+        if (!formatAt(fd, a.last().block).boolProperty(tp::WidowControl)) continue;
+        int onPage = 0;
+        for (const auto &l : a) onPage += l.block == a.last().block;
+        const bool began = a.last().line - onPage + 1 == 0;
+        const int left = a.last().lines - (a.last().line + 1);
+        if (left < lines) return QStringLiteral("page %1 leaves %2 line(s) of a paragraph for the next").arg(k).arg(left);
+        if (began && onPage < lines) return QStringLiteral("page %1 holds %2 line(s) of a paragraph that goes on").arg(k).arg(onPage);
+    }
+    return QString();
+}
+
+// What differs between a page made into a document and the lines the paginator found for it, or nothing.
+QString materializedDiffers(FlowDocument &fd, Paginator &pg, int k, LayoutCache &cache)
+{
+    const auto mine = pg.lines(k);
+    const std::unique_ptr<MaterializedPage> page = pg.materialize(k);
+    if (!page) return QStringLiteral("page %1 not made").arg(k);
+    if (page->doc->pages.size() != 1) return QStringLiteral("page %1 has %2 pages").arg(k).arg(page->doc->pages.size());
+    const QString text = fd.story()->toPlainText();
+    QVector<int> perColumn;
+    for (const auto &l : mine) {
+        while (perColumn.size() <= l.frame) perColumn << 0;
+        ++perColumn[l.frame];
+    }
+    if (page->boxes.size() != perColumn.size()) return QStringLiteral("page %1: %2 boxes for %3 columns with lines").arg(k).arg(page->boxes.size()).arg(perColumn.size());
+    int at = 0;
+    for (int c = 0; c < page->boxes.size(); ++c) {
+        auto *box = dynamic_cast<TextItem *>(page->doc->item(page->boxes[c]));
+        if (!box) return QStringLiteral("page %1: no box %2").arg(k).arg(c);
+        const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, 1, RenderOptions());
+        if (!fl.layout) return QStringLiteral("page %1: no layout").arg(k);
+        const auto got = fl.layout->lineInfo(fl.frame);
+        if (got.size() != perColumn[c]) return QStringLiteral("page %1 column %2: %3 lines, the paginator found %4").arg(k).arg(c).arg(got.size()).arg(perColumn[c]);
+        for (int i = 0; i < got.size(); ++i, ++at) {
+            const auto &want = mine[at];
+            if (std::abs(got[i].rect.top() - want.rect.top()) > 0.01 || std::abs(got[i].rect.left() - want.rect.left()) > 0.01 ||
+                std::abs(got[i].rect.width() - want.rect.width()) > 0.01 || std::abs(got[i].rect.height() - want.rect.height()) > 0.01)
+                return QStringLiteral("page %1 column %2 line %3 is in another place").arg(k).arg(c).arg(i);
+            if (got[i].docPos + page->storyFrom != want.pos || got[i].docEnd + page->storyFrom != want.end)
+                return QStringLiteral("page %1 column %2 line %3 is another part of the text").arg(k).arg(c).arg(i);
+            if (got[i].text != text.mid(want.pos, want.end - want.pos)) return QStringLiteral("page %1 column %2 line %3 has other words").arg(k).arg(c).arg(i);
+        }
     }
     return QString();
 }
@@ -607,6 +702,562 @@ private Q_SLOTS:
                 compared += cut;
             }
         QVERIFY2(compared >= 6, qPrintable(QString::number(compared)));
+    }
+
+    // ---- the paginator ----
+
+    // The pages are the lines the whole story gets when it is laid out in one run of frames (where that is right: the story is short, and nothing
+    // asks more of a page than the text engine gives).
+    void paginatorMatchesTheOneShotLayout()
+    {
+        for (int columns : {1, 2})
+            for (unsigned seed : {1u, 2u, 3u, 4u}) {
+                FlowDocument fd;
+                fd.sections[0].columns = columns;
+                fd.widowLines = fd.orphanLines = 1;
+                // (Keeping with the next paragraph, and widow control, each on its own: asking both of a heading and the paragraph after it
+                // lets the text engine leave a heading at the foot of a page, where the paginator moves it on.)
+                fillStory(fd.story(), 150, seed, [seed](int i, QTextBlockFormat &bf) {
+                    if (i % 9 == 0) {
+                        if (seed % 2) { bf.setProperty(tp::KeepWithNext, true); bf.setProperty(tp::KeepTogether, true); }
+                    } else if (seed % 2 == 0) {
+                        bf.setProperty(tp::WidowControl, true);
+                    }
+                });
+                Paginator pg(&fd);
+                QVERIFY(pg.pageCount() > 6);
+                const QString bad = differenceFromOneShot(fd, pg);
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 columns, seed %2: %3").arg(columns).arg(seed).arg(bad)));
+            }
+    }
+
+    // A document with one page is one page, and an empty one is too.
+    void paginatorHandlesTinyDocuments()
+    {
+        FlowDocument fd;
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 1);
+        QVERIFY(pg.complete());
+        fillStory(fd.story(), 2, 4);
+        QCOMPARE(pg.pageCount(), 1);
+        QCOMPARE(pg.lines(0).first().pos, 0);
+    }
+
+    // The pages that cross a paragraph leave two lines of it on each side (the text engine keeps two lines but for a paragraph of three).
+    void paginatorKeepsWidowsAndOrphans()
+    {
+        int splits = 0;
+        for (unsigned seed : {5u, 6u, 7u, 8u, 9u, 10u})
+            for (double margin : {72.0, 79.0, 85.0}) {
+                FlowDocument fd;
+                fd.sections[0].margins = QMarginsF(72, margin, 72, margin);
+                fillStory(fd.story(), 120, seed, [](int, QTextBlockFormat &bf) { bf.setProperty(tp::WidowControl, true); }, 24, 140);
+                Paginator pg(&fd);
+                const QString bad = splitsLeaveLines(fd, pg, 2);
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("seed %1, margin %2: %3").arg(seed).arg(margin).arg(bad)));
+                for (int k = 0; k + 1 < pg.pageCount(); ++k) splits += pg.lines(k).last().block == pg.lines(k + 1).first().block;
+            }
+        QVERIFY2(splits > 10, "the stories hardly split a paragraph, so the test proves little");
+    }
+
+    // More lines kept than the text engine does.
+    void paginatorKeepsMoreLinesWhenAsked()
+    {
+        for (unsigned seed : {5u, 6u, 7u}) {
+            FlowDocument fd;
+            fd.widowLines = fd.orphanLines = 3;
+            fillStory(fd.story(), 120, seed, [](int, QTextBlockFormat &bf) { bf.setProperty(tp::WidowControl, true); }, 24, 140);
+            Paginator pg(&fd);
+            const QString bad = splitsLeaveLines(fd, pg, 3);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("seed %1: %2").arg(seed).arg(bad)));
+        }
+    }
+
+    // A paragraph that is kept with the next one is not the last on a page, unless it is all the page holds.
+    void paginatorKeepsParagraphsWithTheNext()
+    {
+        int moved = 0;
+        for (unsigned seed : {1u, 2u, 3u, 4u}) {
+            FlowDocument fd;
+            fillStory(fd.story(), 160, seed, [](int i, QTextBlockFormat &bf) {
+                bf.setProperty(tp::WidowControl, true);
+                if (i % 5 == 4) { bf.setProperty(tp::KeepWithNext, true); bf.setProperty(tp::KeepTogether, true); }
+            }, 8, 70);
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            for (int k = 0; k + 1 < pages; ++k) {
+                const auto lines = pg.lines(k);
+                if (!formatAt(fd, lines.last().block).boolProperty(tp::KeepWithNext)) continue;
+                QVERIFY2(lines.first().block == lines.last().block, qPrintable(QStringLiteral("page %1 ends with a paragraph kept with the next").arg(k)));
+            }
+            // (A page that ends just before a paragraph kept with the next that was moved to the next page.)
+            for (int k = 1; k < pages; ++k) moved += formatAt(fd, pg.lines(k).first().block).boolProperty(tp::KeepWithNext) && pg.lines(k).first().line == 0;
+        }
+        QVERIFY2(moved > 3, "no paragraph was ever moved to keep it with the next");
+    }
+
+    // A page break before a paragraph starts a page with it, and one after ends a page; no page comes out empty.
+    void paginatorBreaksPagesWhereAsked()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 60, 12, [](int i, QTextBlockFormat &bf) {
+            if (i == 3 || i == 20 || i == 21) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
+            if (i == 30 || i == 45) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+        });
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        auto blockNumber = [&](int position) { return fd.story()->findBlock(position).blockNumber(); };
+        QSet<int> startsWith, endsWith;
+        for (int k = 0; k < pages; ++k) {
+            const auto lines = pg.lines(k);
+            QVERIFY2(!lines.isEmpty(), "an empty page");
+            if (lines.first().line == 0) startsWith.insert(blockNumber(lines.first().block));
+            if (lines.last().line == lines.last().lines - 1) endsWith.insert(blockNumber(lines.last().block));
+        }
+        for (int block : {3, 20, 21}) QVERIFY2(startsWith.contains(block), qPrintable(QStringLiteral("a page begins with paragraph %1").arg(block)));
+        for (int block : {30, 45}) QVERIFY2(endsWith.contains(block), qPrintable(QStringLiteral("a page ends with paragraph %1").arg(block)));
+        QVERIFY(startsWith.contains(31) && startsWith.contains(46));
+        // Paragraphs 20 and 21 each have a page; 21's does not follow an empty one.
+        QVERIFY(pg.page(pg.pageOfPosition(fd.story()->findBlockByNumber(21).position())).start.pos == fd.story()->findBlockByNumber(21).position());
+        QVERIFY(pg.page(pg.pageOfPosition(fd.story()->findBlockByNumber(21).position())).start.hard);
+    }
+
+    // A section break starts the next section on a new page with its own size, margins, and columns.
+    void paginatorStartsSectionsOnNewPages()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 90, 14, [](int i, QTextBlockFormat &bf) { if (i == 24 || i == 50) bf.setProperty(flow::fp::SectionBreakAfter, true); });
+        Section second;
+        second.orientation = Section::Orientation::Landscape;
+        second.margins = QMarginsF(54, 36, 54, 36);
+        second.columns = 2;
+        second.columnGap = 24;
+        Section third;
+        third.paper = QSizeF(420, 595);
+        third.margins = QMarginsF(40, 40, 40, 40);
+        fd.sections << second << third;
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QSet<int> sections;
+        int firstOfSecond = -1, firstOfThird = -1;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.page(k);
+            sections.insert(page.start.section);
+            const Section &sec = fd.section(page.start.section);
+            QCOMPARE(page.size, sec.pageSize());
+            QCOMPARE(page.content, sec.content());
+            if (page.start.section == 1 && firstOfSecond < 0) firstOfSecond = k;
+            if (page.start.section == 2 && firstOfThird < 0) firstOfThird = k;
+            // The lines are in the columns the section has, and no wider.
+            for (const auto &l : pg.lines(k)) {
+                QVERIFY(l.frame >= 0 && l.frame < sec.columns);
+                QVERIFY(l.rect.right() <= sec.columnWidth() + 0.01);
+                QVERIFY(l.rect.bottom() - l.below <= sec.content().height() + 0.02);
+            }
+        }
+        QCOMPARE(sections.size(), 3);
+        QVERIFY(firstOfSecond > 0 && firstOfThird > firstOfSecond);
+        // The section's first page starts with its first paragraph, and the one before ends with the break's.
+        QCOMPARE(fd.story()->findBlock(pg.page(firstOfSecond).start.pos).blockNumber(), 25);
+        QCOMPARE(fd.story()->findBlock(pg.page(firstOfThird).start.pos).blockNumber(), 51);
+        QCOMPARE(fd.story()->findBlock(pg.lines(firstOfSecond - 1).last().block).blockNumber(), 24);
+        QVERIFY(pg.page(firstOfSecond).start.hard);
+        QCOMPARE(pg.page(firstOfSecond).size, QSizeF(792, 612));
+        QCOMPARE(pg.page(firstOfThird).size, QSizeF(420, 595));
+    }
+
+    // The space before a paragraph is kept at the top of the first page and after a break asked for, and left out where the text came
+    // to the top of a page for want of room.
+    void paginatorLeavesOutSpaceBeforeAtTheTopOfAPage()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 80, 15, [](int i, QTextBlockFormat &bf) {
+            bf.setTopMargin(20);
+            if (i == 33) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
+        });
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages > 5);
+        bool natural = false, asked = false;
+        for (int k = 0; k < pages; ++k) {
+            const auto lines = pg.lines(k);
+            const double top = lines.first().rect.top();
+            const bool begins = lines.first().line == 0;
+            if (k == 0) { QVERIFY2(std::abs(top - 20) < 0.01, qPrintable(QString::number(top))); continue; }
+            if (!begins) { QVERIFY2(std::abs(top) < 0.01, "the rest of a paragraph has nothing above it"); continue; }
+            const bool hard = pg.page(k).start.hard;
+            QVERIFY2(std::abs(top - (hard ? 20 : 0)) < 0.01, qPrintable(QStringLiteral("page %1: first line at %2, hard %3").arg(k).arg(top).arg(hard)));
+            natural |= !hard;
+            asked |= hard;
+        }
+        QVERIFY(natural && asked);
+    }
+
+    // Where a position is on the pages.
+    void paginatorFindsThePageOfAPosition()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 100, 16);
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageOfPosition(0), 0);
+        // Asking for a place far on lays out as far as it needs, not more.
+        const int far = fd.story()->findBlockByNumber(60).position() + 5;
+        const int k = pg.pageOfPosition(far);
+        QVERIFY(k > 3);
+        QVERIFY(!pg.complete());
+        QVERIFY(pg.page(k).start.pos <= far);
+        QVERIFY(k + 1 >= pg.pagesKnown() || pg.page(k + 1).start.pos > far);
+        QVERIFY(pg.pageCount() > k);
+        QCOMPARE(pg.pageOfPosition(fd.story()->characterCount() - 1), pg.pageCount() - 1);
+    }
+
+    // 2,600 pages of text: past the 2,340 the one-shot layout can place, every page is whole.
+    void paginatorLaysOutMoreThanTwoThousandPages()
+    {
+        FlowDocument fd;
+        Section &sec = fd.sections[0];
+        sec.paper = QSizeF(300, 300);
+        sec.margins = QMarginsF(50, 50, 50, 50);
+        fillStory(fd.story(), 34000, 17, {}, 2, 4);   // a line each
+        Paginator pg(&fd);
+        QElapsedTimer t;
+        t.start();
+        const int pages = pg.pageCount();
+        QVERIFY2(pages > 2400, qPrintable(QString::number(pages)));
+        qInfo("%d pages in %.1f s", pages, t.elapsed() / 1000.0);
+        // Every page from the middle to the last has the lines of an ordinary page, and each line is inside it.
+        const int perPage = pg.lines(100).size();
+        QVERIFY(perPage > 8);
+        for (int k : {1000, 2339, 2340, 2341, 2500, pages - 2}) {
+            const auto lines = pg.lines(k);
+            QVERIFY2(std::abs(lines.size() - perPage) <= 2, qPrintable(QStringLiteral("page %1 has %2 lines, not about %3").arg(k).arg(lines.size()).arg(perPage)));
+            for (const auto &l : lines) {
+                QVERIFY(l.rect.top() >= -0.01 && l.rect.bottom() <= sec.content().height() + 0.5);
+                QVERIFY(l.rect.width() > 10);
+            }
+        }
+        // Pages go on in order through the text.
+        QVERIFY(pg.page(pages - 1).start.pos > pg.page(pages - 2).start.pos);
+        QVERIFY(pg.page(pages - 1).start.pos < fd.story()->characterCount());
+    }
+
+    // ---- the pages that are looked at ----
+
+    // A page made into a document of its own is laid out by the page layer in the lines the paginator found: whole paragraphs, the rest of
+    // one that began on the page before, and the beginning of one that goes on, in one column and in two.
+    void materializedPagesHaveTheLinesThePaginatorFound()
+    {
+        LayoutCache cache;
+        int tails = 0, heads = 0;
+        for (int columns : {1, 2, 3})
+            for (unsigned seed : {31u, 32u, 36u}) {
+                FlowDocument fd;
+                fd.sections[0].columns = columns;
+                fd.sections[0].columnGap = 18;
+                fd.sections[0].margins = QMarginsF(60, 66, 60, 70);
+                fillStory(fd.story(), 70, seed, [](int i, QTextBlockFormat &bf) {
+                    bf.setProperty(tp::WidowControl, true);
+                    bf.setAlignment(i % 3 ? Qt::AlignJustify : Qt::AlignLeft);
+                    if (i % 5 == 0) bf.setTextIndent(24);
+                    if (i % 11 == 0) bf.setTopMargin(14);
+                    if (i % 13 == 0) { bf.setProperty(tp::KeepWithNext, true); bf.setProperty(tp::KeepTogether, true); }
+                }, 20, 120);
+                Paginator pg(&fd);
+                const int pages = pg.pageCount();
+                QVERIFY(pages > 6);
+                for (int k = 0; k < pages; ++k) {
+                    const QString bad = materializedDiffers(fd, pg, k, cache);
+                    QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 columns, seed %2: %3").arg(columns).arg(seed).arg(bad)));
+                    const auto page = pg.materialize(k);
+                    tails += page->continuesFromBefore;
+                    heads += page->continuesOnAfter;
+                }
+            }
+        QVERIFY2(tails > 4 && heads > 4, "no page ever began or ended in the middle of a paragraph");
+    }
+
+    // Lists go on across pages with their numbers, and the rest of an item that goes on has no number of its own.
+    void materializedPagesKeepListNumbers()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 60, 33, [](int, QTextBlockFormat &bf) { bf.setProperty(tp::WidowControl, true); }, 18, 90);
+        {
+            QTextCursor c(fd.story());
+            c.setPosition(fd.story()->findBlockByNumber(8).position());
+            c.setPosition(fd.story()->findBlockByNumber(50).position(), QTextCursor::KeepAnchor);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setIndent(1);
+            c.createList(lf);
+        }
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages > 5);
+        LayoutCache cache;
+        int checked = 0;
+        for (int k = 0; k < pages; ++k) {
+            const QString bad = materializedDiffers(fd, pg, k, cache);
+            QVERIFY2(bad.isEmpty(), qPrintable(bad));
+            const auto page = pg.materialize(k);
+            // Each item's number is what it is in the document.
+            QTextDocument *slice = page->doc->storyDoc(QStringLiteral("flow-story-%1").arg(k));
+            QVERIFY(slice);
+            for (QTextBlock b = slice->begin(); b.isValid(); b = b.next()) {
+                const QTextBlock original = fd.story()->findBlock(b.position() + page->storyFrom);
+                const bool tail = b == slice->begin() && page->continuesFromBefore;
+                if (tail) { QVERIFY(!b.textList()); continue; }
+                QCOMPARE(b.textList() != nullptr, original.textList() != nullptr);
+                if (b.textList()) {
+                    QCOMPARE(b.textList()->itemText(b), original.textList()->itemText(original));
+                    ++checked;
+                }
+            }
+        }
+        QVERIFY(checked > 20);
+    }
+
+    // Making a page again gives the same ids; each page's are its own.
+    void materializedPagesHaveStableIds()
+    {
+        FlowDocument fd;
+        fd.sections[0].columns = 2;
+        fillStory(fd.story(), 120, 34);
+        Paginator pg(&fd);
+        const auto a = pg.materialize(2), b = pg.materialize(2), c = pg.materialize(3);
+        QVERIFY(a && b && c);
+        QCOMPARE(a->boxes, b->boxes);
+        QCOMPARE(a->doc->pages[0]->id, b->doc->pages[0]->id);
+        QVERIFY(a->boxes != c->boxes);
+        QVERIFY(a->doc->pages[0]->id != c->doc->pages[0]->id);
+        QVERIFY(a->doc->item(a->boxes.first()));
+        // The boxes are in the columns of the section, in a chain.
+        QCOMPARE(a->boxes.size(), 2);
+        auto *first = static_cast<TextItem *>(a->doc->item(a->boxes[0]));
+        auto *second = static_cast<TextItem *>(a->doc->item(a->boxes[1]));
+        QCOMPARE(first->nextId, second->id);
+        QCOMPARE(first->rect.left(), fd.sections[0].columnRect(0).left());
+        QCOMPARE(second->rect.left(), fd.sections[0].columnRect(1).left());
+        QVERIFY(pg.materialize(9999) == nullptr);
+    }
+
+    // The page layer draws a page: the text is on the paper, inside the margins, and each section's page is its own size.
+    void materializedPagesPaint()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 50, 35, [](int i, QTextBlockFormat &bf) { if (i == 19) bf.setProperty(flow::fp::SectionBreakAfter, true); });
+        Section wide;
+        wide.orientation = Section::Orientation::Landscape;
+        wide.margins = QMarginsF(100, 80, 100, 80);
+        fd.sections << wide;
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        LayoutCache cache;
+        bool sawWide = false;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            const QSizeF size = page->doc->pageSize();
+            QCOMPARE(size, fd.section(page->section).pageSize());
+            sawWide |= size.width() > size.height();
+            QImage image(int(size.width()), int(size.height()), QImage::Format_ARGB32_Premultiplied);
+            image.fill(Qt::white);
+            {
+                QPainter painter(&image);
+                PaintContext ctx;
+                ctx.doc = page->doc.get();
+                ctx.cache = &cache;
+                Renderer::paintPage(&painter, ctx, 0);
+            }
+            // Dark pixels only inside the margins, and some there.
+            const QMarginsF m = fd.section(page->section).margins;
+            int inside = 0, outside = 0;
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = 0; x < image.width(); ++x) {
+                    if (qGray(image.pixel(x, y)) > 128) continue;
+                    const bool in = x >= m.left() - 1 && x <= size.width() - m.right() + 1 && y >= m.top() - 1 && y <= size.height() - m.bottom() + 1;
+                    (in ? inside : outside)++;
+                }
+            QVERIFY2(inside > 200, qPrintable(QStringLiteral("page %1: %2 dark pixels").arg(k).arg(inside)));
+            QCOMPARE(outside, 0);
+        }
+        QVERIFY(sawWide);
+    }
+
+    // ---- editing ----
+
+    // After any edit, the pages are the ones a new paginator finds, and little was laid out again to get them.
+    void paginatorFollowsEditsAndLaysOutOnlyNearby()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 3500, 41, [](int i, QTextBlockFormat &bf) {
+            bf.setProperty(tp::WidowControl, true);
+            if (i % 20 == 0) { bf.setProperty(tp::KeepWithNext, true); bf.setTopMargin(10); }
+        }, 30, 90);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages > 300);
+        std::mt19937 rng(3);
+        auto sameAsFresh = [&](const QString &what) {
+            Paginator fresh(&fd);
+            const int want = fresh.pageCount(), got = pg.pageCount();
+            if (want != got) return QStringLiteral("%1: %2 pages, a new paginator finds %3").arg(what).arg(got).arg(want);
+            for (int k = 0; k < want; ++k)
+                if (fresh.page(k).start != pg.page(k).start) {
+                    const auto a = fresh.page(k).start, b = pg.page(k).start;
+                    return QStringLiteral("%1: page %2 starts elsewhere than a new paginator has it (new: %3/%4/%5/%6, kept: %7/%8/%9/%10)").arg(what).arg(k)
+                        .arg(a.pos).arg(a.skip).arg(a.hard).arg(a.section).arg(b.pos).arg(b.skip).arg(b.hard).arg(b.section);
+                }
+            return QString();
+        };
+        const int last = fd.story()->characterCount() - 1;
+        struct Edit { QString what; std::function<void(QTextCursor &)> make; int where; };
+        const std::vector<Edit> edits = {
+            {"a letter in the middle", [](QTextCursor &c) { c.insertText(QStringLiteral("x")); }, last / 2},
+            {"a letter at the start", [](QTextCursor &c) { c.insertText(QStringLiteral("x")); }, 0},
+            {"a letter at the end", [](QTextCursor &c) { c.insertText(QStringLiteral("x")); }, last},
+            {"a paragraph break", [](QTextCursor &c) { c.insertBlock(); }, last / 3},
+            {"a line of words", [](QTextCursor &c) { c.insertText(QStringLiteral("An added sentence that makes the paragraph a line longer than it was before. ")); }, last / 4},
+            {"a paragraph taken out", [](QTextCursor &c) { c.select(QTextCursor::BlockUnderCursor); c.removeSelectedText(); }, last * 3 / 5},
+            {"three pages taken out", [last](QTextCursor &c) { c.setPosition(c.position() + 9000, QTextCursor::KeepAnchor); c.removeSelectedText(); Q_UNUSED(last); }, last / 5},
+            {"a page break before", [](QTextCursor &c) { QTextBlockFormat bf = c.blockFormat(); bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); c.setBlockFormat(bf); }, last * 2 / 3},
+            {"a section break", [](QTextCursor &c) { QTextBlockFormat bf = c.blockFormat(); bf.setProperty(flow::fp::SectionBreakAfter, true); c.setBlockFormat(bf); }, last / 2},
+            {"a heading's format", [](QTextCursor &c) { QTextBlockFormat bf = c.blockFormat(); bf.setTopMargin(40); bf.setProperty(tp::KeepWithNext, true); c.setBlockFormat(bf); }, last / 7},
+        };
+        fd.sections << fd.sections[0];
+        QVERIFY2(sameAsFresh("before editing").isEmpty(), "starts");
+        for (const Edit &e : edits) {
+            QTextCursor c(fd.story());
+            c.setPosition(std::min(e.where, fd.story()->characterCount() - 1));
+            const int at = c.position();
+            e.make(c);
+            // What the page on the screen needs: the pages from before the edit to the one after it.
+            const qint64 before = pg.pagesLaidOut();
+            QElapsedTimer timer;
+            timer.start();
+            pg.paginate(pg.pageOfPosition(std::min(at, fd.story()->characterCount() - 1)) + 1);
+            const qint64 near = pg.pagesLaidOut() - before;
+            qInfo("%s: %lld pages laid out for the pages near it, %.1f ms", qPrintable(e.what), (long long)near, timer.nsecsElapsed() / 1e6);
+            QVERIFY2(near <= 6, qPrintable(QStringLiteral("%1: %2 pages near the edit").arg(e.what).arg(near)));
+            // The rest, which goes on in the background.
+            pg.pageCount();
+            QVERIFY(pg.settled());
+            const qint64 all = pg.pagesLaidOut() - before;
+            const QString bad = sameAsFresh(e.what);
+            QVERIFY2(bad.isEmpty(), qPrintable(bad));
+            // (An edit that moves the pages after it, a new line or a break, lays them out again until the pages settle.)
+            if (e.what.startsWith("a letter")) QVERIFY2(all <= 8, qPrintable(QStringLiteral("%1: %2 pages in all").arg(e.what).arg(all)));
+        }
+    }
+
+    // A paragraph that is kept together is never split between pages (these are all shorter than a page).
+    void paginatorKeepsLinesTogether()
+    {
+        int boundaries = 0;
+        for (unsigned seed : {51u, 52u, 53u}) {
+            FlowDocument fd;
+            fillStory(fd.story(), 150, seed, [](int i, QTextBlockFormat &bf) { if (i % 3 == 1) bf.setProperty(tp::KeepTogether, true); }, 10, 90);
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            for (int k = 0; k + 1 < pages; ++k) {
+                const auto a = pg.lines(k), b = pg.lines(k + 1);
+                if (a.last().block != b.first().block) { ++boundaries; continue; }
+                QVERIFY2(!formatAt(fd, a.last().block).boolProperty(tp::KeepTogether), qPrintable(QStringLiteral("seed %1: a paragraph kept together is split after page %2").arg(seed).arg(k)));
+            }
+        }
+        QVERIFY(boundaries > 10);
+    }
+
+    // The long story the speed targets are set by: paragraphs of about 380 characters and a heading in every twenty, 26,443 of them. The bounds are
+    // ten times the targets (a full pagination in 5 seconds, the first page in 0.3, a typed character in 50 milliseconds), for machines slower than
+    // this one; `writetool bench` measures it.
+    void paginatorMeetsTheSpeedTargets()
+    {
+        FlowDocument fd;
+        std::mt19937 rng(42);
+        {
+            static const char *const words[] = {"the", "of", "and", "to", "in", "a", "is", "that", "for", "it", "as", "was", "with", "be", "by", "on", "not", "this", "are", "or", "court",
+                                                "statute", "section", "rule", "appeal", "judgment", "evidence", "applicable", "jurisdiction", "pursuant", "therefore", "defendant"};
+            QTextCursor c(fd.story());
+            QTextCharFormat body, head;
+            body.setFontPointSize(11);
+            head.setFontPointSize(16);
+            head.setFontWeight(QFont::Bold);
+            c.beginEditBlock();
+            for (int i = 0; i < 26443; ++i) {
+                const bool isHead = i % 20 == 0;
+                QTextBlockFormat bf;
+                bf.setBottomMargin(6);
+                if (isHead) { bf.setTopMargin(12); bf.setProperty(tp::KeepWithNext, true); bf.setProperty(tp::KeepTogether, true); }
+                else bf.setProperty(tp::WidowControl, true);
+                if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+                c.setBlockCharFormat(isHead ? head : body);
+                QString text;
+                const int n = isHead ? 4 : 40 + int(rng() % 41);
+                for (int k = 0; k < n; ++k) text += (k ? " " : "") + QString::fromLatin1(words[rng() % (sizeof words / sizeof *words)]);
+                c.insertText(text + QLatin1Char('.'), isHead ? head : body);
+            }
+            c.endEditBlock();
+        }
+        Paginator pg(&fd);
+        QElapsedTimer t;
+        t.start();
+        const auto first = pg.materialize(0);
+        const double firstMs = t.nsecsElapsed() / 1e6;
+        QVERIFY(first && !first->boxes.isEmpty());
+        t.restart();
+        const int pages = pg.pageCount();
+        const double allMs = t.nsecsElapsed() / 1e6;
+        QVERIFY(pages > 1500);
+        // A typed character in the middle, and what the page needs of it.
+        const int at = fd.story()->characterCount() / 2;
+        double worst = 0;
+        for (int i = 0; i < 5; ++i) {
+            QTextCursor c(fd.story());
+            c.setPosition(at + i * 101);
+            const qint64 before = pg.pagesLaidOut();
+            t.restart();
+            c.insertText(QStringLiteral("x"));
+            pg.paginate(pg.pageOfPosition(at + i * 101) + 1);
+            const auto page = pg.materialize(pg.pageOfPosition(at + i * 101));
+            worst = std::max(worst, t.nsecsElapsed() / 1e6);
+            QVERIFY(page);
+            // Only the pages by the edit are laid out again (and the page that is drawn).
+            QVERIFY2(pg.pagesLaidOut() - before <= 7, qPrintable(QString::number(pg.pagesLaidOut() - before)));
+        }
+        pg.pageCount();
+        qInfo("%d pages: the first page in %.0f ms, all of them in %.1f s, a typed character in %.1f ms (at most)", pages, firstMs, allMs / 1000, worst);
+        QVERIFY2(firstMs < 3000, qPrintable(QString::number(firstMs)));
+        QVERIFY2(allMs < 50000, qPrintable(QString::number(allMs)));
+        QVERIFY2(worst < 500, qPrintable(QString::number(worst)));
+    }
+
+    // Several edits before the pages are laid out again are settled together.
+    void paginatorSettlesSeveralEditsAtOnce()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 1500, 61, [](int i, QTextBlockFormat &bf) {
+            bf.setProperty(tp::WidowControl, true);
+            if (i % 15 == 0) bf.setProperty(tp::KeepWithNext, true);
+        }, 20, 90);
+        Paginator pg(&fd);
+        pg.pageCount();
+        std::mt19937 rng(8);
+        for (int round = 0; round < 6; ++round) {
+            for (int e = 0; e < 4; ++e) {
+                QTextCursor c(fd.story());
+                c.setPosition(int(rng() % unsigned(fd.story()->characterCount() - 1)));
+                switch (rng() % 4) {
+                case 0: c.insertText(QStringLiteral("more words here")); break;
+                case 1: c.insertBlock(); break;
+                case 2: c.setPosition(std::min(c.position() + 700, fd.story()->characterCount() - 1), QTextCursor::KeepAnchor); c.removeSelectedText(); break;
+                default: c.insertText(QStringLiteral("x")); break;
+                }
+            }
+            if (round % 2) pg.paginate(3);   // (some of it settled, some not)
+            Paginator fresh(&fd);
+            const int want = fresh.pageCount(), got = pg.pageCount();
+            QVERIFY2(want == got, qPrintable(QStringLiteral("round %1: %2 pages, a new paginator finds %3").arg(round).arg(got).arg(want)));
+            for (int k = 0; k < want; ++k) QVERIFY2(fresh.page(k).start == pg.page(k).start, qPrintable(QStringLiteral("round %1: page %2").arg(round).arg(k)));
+        }
     }
 };
 
