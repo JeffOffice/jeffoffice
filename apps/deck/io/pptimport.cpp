@@ -2457,7 +2457,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
     bool firstBlock = true;
     QTextList *list = nullptr;
     QString listKey;
-    int inList = 0;
+    int inList = 0, counted = 0;   // the paragraphs in the list now, and the numbered ones counted in the run of lists it goes on from
     qint64 start = 0;
     int paragraphs = 0;
     for (;;) {
@@ -2669,7 +2669,11 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             } else if (list && key == listKey && inList < 400) {
                 list->add(cur.block());
                 ++inList;
+                if (numbered) ++counted;
             } else {
+                // (A run of numbered paragraphs cut for its length goes on counting where the list before stopped.)
+                const bool goesOn = numbered && list && key == listKey;
+                if (!goesOn) counted = 0;
                 inList = 1;
                 QTextListFormat lf;
                 lf.setStyle(QTextListFormat::ListDisc);
@@ -2680,7 +2684,8 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
                     lf.setStyle(scheme.style);
                     lf.setNumberPrefix(scheme.prefix);
                     lf.setNumberSuffix(scheme.suffix);
-                    if (numbered->start > 1) lf.setStart(std::min(numbered->start, 32767));
+                    if (const int first = numbered->start + (goesOn ? counted : 0); first > 1) lf.setStart(std::min(first, 32767));
+                    ++counted;
                     if (scheme.format) lf.setProperty(tp::NumberFormat, scheme.format);
                 } else {
                     if (ch != 0x2022 || !font.isEmpty()) lf.setProperty(tp::BulletChar, QString(QChar(ch)));
