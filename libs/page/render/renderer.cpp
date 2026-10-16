@@ -247,6 +247,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.ctx.pageNumber = loc.page >= 0 ? loc.page + 1 : pageNumber;
     s.ctx.pageCount = doc.pages.size();
     s.ctx.mergeRecord = opt.mergeRecord;
+    if (opt.now.isValid()) s.ctx.now = opt.now;
     // For "next page" and "previous page" numbers: the linked boxes' pages.
     if (!t.nextId.isEmpty()) {
         const auto nl = doc.find(t.nextId);
@@ -268,10 +269,10 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     return s;
 }
 
-static QString specSig(const FrameSpec &s)
+static QString specSig(const FrameSpec &s, bool withClock)
 {
     QString k = QStringLiteral("%1x%2|%3,%4,%5,%6|%7|%8|%9|%10;").arg(s.size.width()).arg(s.size.height()).arg(s.insets.left()).arg(s.insets.top())
-                    .arg(s.insets.right()).arg(s.insets.bottom()).arg(s.columns).arg(s.gap).arg(int(s.valign)).arg(s.ctx.key());
+                    .arg(s.insets.right()).arg(s.insets.bottom()).arg(s.columns).arg(s.gap).arg(int(s.valign)).arg(s.ctx.key(withClock));
     k += QStringLiteral("h%1,%2|b%3,%4;").arg(int(s.hyphenate)).arg(s.hyphenZone).arg(s.baselineGrid).arg(s.baselineOrigin);
     if (s.fitToShape) k += QLatin1Char('s');
     if (s.runsOver) k += QLatin1Char('r');
@@ -285,6 +286,18 @@ static QString specSig(const FrameSpec &s)
     return k;
 }
 
+bool LayoutCache::showsClock(const Document &doc, const Story &story)
+{
+    ClockNote &n = m_clocks[story.serial];
+    const int revision = story.doc->revision();
+    if (n.revision != revision) {
+        // (A note edited later to hold a date is noticed when its story next changes.)
+        n.shows = storyHasClock(story.doc.get(), &doc);
+        n.revision = revision;
+    }
+    return n.shows;
+}
+
 LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt)
 {
     FrameLayout out;
@@ -296,10 +309,11 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     if (!story) return out;
     QVector<FrameSpec> specs;
     QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision());
+    const bool clock = showsClock(doc, *story);
     for (int i = 0; i < chain.size(); ++i) {
         if (chain[i]->id == frame.id) out.frame = i;
         specs << Renderer::frameSpec(doc, *chain[i], pageNumber, opt);
-        sig += specSig(specs.last());
+        sig += specSig(specs.last(), clock);
     }
     LayoutEnv env = Renderer::layoutEnv(doc);
     sig += env.key();
@@ -372,7 +386,7 @@ const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &sto
     Story *story = doc.story(storyId);
     if (!story) return nullptr;
     LayoutEnv env = Renderer::layoutEnv(doc);
-    const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec) + env.key();
+    const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec, showsClock(doc, *story)) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {
         e.layout = std::make_shared<StoryLayout>();

@@ -52,8 +52,15 @@ struct FieldContext {
     int nextPage = 0, prevPage = 0;   // pages of the next and previous boxes of a linked chain (0: none)
     QDateTime now = QDateTime::currentDateTime();
     QString resolve(const QString &code) const;
-    QString key() const;
+    // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only for a story with a
+    // date or time field (see storyHasClock): any other is the same layout all day.
+    QString key(bool withClock = true) const;
 };
+
+// Whether a story shows the date or time (a date, time, or date and time field), in its own text or in a note it
+// refers to: the layouts of other stories don't change with the minute. `notes` finds the notes' text; without it
+// only the story's own text is looked at.
+bool storyHasClock(const QTextDocument *doc, const FieldSource *notes);
 
 struct FrameSpec {
     QSizeF size;
