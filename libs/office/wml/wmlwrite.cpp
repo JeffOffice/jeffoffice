@@ -158,10 +158,19 @@ public:
         }
         for (int b : std::as_const(stack)) m_blocks[b] = false;
 
-        // A bookmark or a range begins before it ends; the first of the same Id stands.
-        struct Open { int block, inl; };
-        QHash<QString, Open> open;
-        QSet<QString> done;
+        // Bookmarks and ranges begin before they end. A start and an end may be on either side of a piece kept as XML (a bookmark that begins in
+        // a paragraph and ends in a table): what is inside such a piece is read as written, and can't be left out, but its partner can be
+        // found. A start that has no end, and an end that has no start, are left out. An Id used by two bookmarks is a mistake that a
+        // program may have made (it is no use for telling them apart): the second bookmark stays and has an Id of its own; and so does the
+        // second revision mark (w:ins, w:del) of an Id.
+        struct Event { QString kind, id; bool start; int block, inl; bool droppable; };
+        QVector<Event> events;
+        long long mostId = 0;
+        auto noteId = [&](const QString &id) {
+            bool ok = false;
+            const long long v = id.toLongLong(&ok);
+            if (ok) mostId = std::max(mostId, v);
+        };
         auto base = [](const QString &tag, bool *start) {
             static const char *const pairs[][2] = {{"bookmarkStart", "bookmarkEnd"},
                                                    {"commentRangeStart", "commentRangeEnd"},
@@ -174,37 +183,108 @@ public:
             }
             return QString();
         };
-        auto visit = [&](const QString &tag, const QString &id, int block, int inl) {
+        auto isRevision = [](const QString &tag) { return tag == QLatin1String("ins") || tag == QLatin1String("del") || tag == QLatin1String("moveFrom") || tag == QLatin1String("moveTo"); };
+        QVector<Event> revisions;
+        auto add = [&](const QString &tag, const QString &id, int block, int inl, bool droppable) {
+            noteId(id);
             bool start = false;
             const QString kind = base(tag, &start);
-            if (kind.isEmpty()) return;
-            const QString key = kind + QLatin1Char('/') + id;
-            auto drop = [&](int b, int i) {
-                if (i < 0) m_blocks[b] = false;
-                else m_inlines[b][i] = false;
-            };
-            if (start) {
-                if (open.contains(key) || done.contains(key)) drop(block, inl);
-                else open.insert(key, {block, inl});
-            } else if (open.contains(key)) {
-                open.remove(key);
-                done.insert(key);
-            } else {
-                drop(block, inl);
+            if (!kind.isEmpty()) events.push_back({kind, id, start, block, inl, droppable});
+        };
+        auto scanRaw = [&](const QByteArray &raw, int block) {
+            if (!raw.contains("bookmark") && !raw.contains("commentRange") && !raw.contains("perm") && !raw.contains("moveFromRange") && !raw.contains("moveToRange") && !raw.contains("w:id")) return;
+            for (qsizetype at = raw.indexOf('<'); at >= 0; at = raw.indexOf('<', at + 1)) {
+                qsizetype e = at + 1;
+                while (e < raw.size() && raw[e] != ' ' && raw[e] != '/' && raw[e] != '>' && raw[e] != '\r' && raw[e] != '\n' && raw[e] != '\t') ++e;
+                const QByteArray qname = raw.mid(at + 1, e - at - 1);
+                const QByteArray local = qname.mid(qname.indexOf(':') + 1);
+                const QString tag = QString::fromLatin1(local);
+                bool start = false;
+                const bool pair = !base(tag, &start).isEmpty();
+                if (!pair && !isRevision(tag)) continue;
+                const qsizetype close = raw.indexOf('>', e);
+                if (close < 0) break;
+                const qsizetype idAt = raw.indexOf(":id=\"", e);
+                QString id;
+                if (idAt >= 0 && idAt < close) {
+                    const qsizetype from = idAt + 5, to = raw.indexOf('"', from);
+                    if (to > from && to <= close) id = QString::fromLatin1(raw.mid(from, to - from));
+                }
+                noteId(id);
+                if (pair) events.push_back({base(tag, &start), id, start, block, -2, false});
             }
         };
         for (int b = 0; b < n; ++b) {
             const Block &blk = doc.body[b];
             if (blk.isRaw) {
-                visit(blk.tag, blk.key, b, -1);
+                if (blk.role == Inline::Open || blk.role == Inline::Close) {
+                    if (blk.role == Inline::Open && isRevision(blk.tag)) {
+                        noteId(blk.key);
+                        revisions.push_back({blk.tag, blk.key, true, b, -1, true});
+                    }
+                } else {
+                    bool start = false;
+                    if (!base(blk.tag, &start).isEmpty()) add(blk.tag, blk.key, b, -1, true);
+                    else scanRaw(blk.raw, b);
+                }
                 continue;
             }
-            for (int i = 0; i < blk.para.content.size(); ++i)
-                if (blk.para.content[i].kind == Inline::ParaAtom) visit(blk.para.content[i].tag, blk.para.content[i].key, b, i);
+            for (int i = 0; i < blk.para.content.size(); ++i) {
+                const Inline &a = blk.para.content[i];
+                if (a.kind == Inline::ParaAtom && a.role == Inline::Single) {
+                    add(a.tag, a.key, b, i, true);
+                } else if (a.kind == Inline::ParaAtom && a.role == Inline::Open && isRevision(a.tag)) {
+                    noteId(a.key);
+                    revisions.push_back({a.tag, a.key, true, b, i, true});
+                }
+            }
         }
-        for (auto it = open.cbegin(); it != open.cend(); ++it) {
-            if (it.value().inl < 0) m_blocks[it.value().block] = false;
-            else m_inlines[it.value().block][it.value().inl] = false;
+        auto drop = [&](int b, int i) {
+            if (i == -1) m_blocks[b] = false;
+            else if (i >= 0) m_inlines[b][i] = false;
+        };
+        struct Open { int block, inl; QString newId; };
+        QHash<QString, QVector<Open>> open;
+        QSet<QString> started;
+        for (const Event &ev : std::as_const(events)) {
+            const QString key = ev.kind + QLatin1Char('/') + ev.id;
+            if (ev.start) {
+                const bool again = started.contains(key);
+                started.insert(key);
+                Open o{ev.block, ev.inl, QString()};
+                if (again) {
+                    // (Another of the Id. A bookmark gets an Id of its own; the others of the kind, tied to what has the Id, can't.)
+                    if (ev.kind == QLatin1String("bookmarkStart") && ev.droppable) {
+                        o.newId = QString::number(++mostId);
+                        m_newId.insert(coord(ev.block, ev.inl), o.newId.toLatin1());
+                    } else if (ev.droppable) {
+                        drop(ev.block, ev.inl);
+                        continue;
+                    }
+                }
+                open[key].push_back(o);
+            } else {
+                auto it = open.find(key);
+                if (it == open.end() || it->isEmpty()) {
+                    if (ev.droppable) drop(ev.block, ev.inl);
+                    continue;
+                }
+                const Open o = it->takeLast();
+                if (!o.newId.isEmpty() && ev.droppable) m_newId.insert(coord(ev.block, ev.inl), o.newId.toLatin1());
+            }
+        }
+        for (auto it = open.cbegin(); it != open.cend(); ++it)
+            for (const Open &o : it.value())
+                if (o.inl != -2) drop(o.block, o.inl);
+        // (An end that came for a start of a raw piece, and the like, that never ended, is the piece's own.)
+        QSet<QString> usedRevisions;
+        for (const Event &r : std::as_const(revisions)) {
+            if (r.id.isEmpty()) continue;
+            if (usedRevisions.contains(r.id)) {
+                m_newId.insert(coord(r.block, r.inl), QByteArray::number(++mostId));
+            } else {
+                usedRevisions.insert(r.id);
+            }
         }
 
         // Fields: a begin, its code, its separator, and its end go together or not at all.
@@ -238,11 +318,30 @@ public:
 
     bool block(int b) const { return m_blocks[b]; }
     bool inlineKept(int b, int i) const { return m_inlines[b][i]; }
+    // The Id a kept piece is written with when it isn't the one it was read with (inl -1 for a body element); empty for none.
+    QByteArray newId(int b, int i) const
+    {
+        const auto it = m_newId.constFind(coord(b, i));
+        return it == m_newId.cend() ? QByteArray() : it.value();
+    }
 
 private:
     std::vector<bool> m_blocks;
     QVector<std::vector<bool>> m_inlines;
+    QHash<quint64, QByteArray> m_newId;
 };
+
+// A kept element's text with the value of its first Id attribute replaced.
+QByteArray withId(const QByteArray &raw, const QByteArray &id)
+{
+    if (id.isEmpty()) return raw;
+    const qsizetype tagEnd = raw.indexOf('>');
+    const qsizetype at = raw.indexOf(":id=\"");
+    if (at < 0 || (tagEnd >= 0 && at > tagEnd)) return raw;
+    const qsizetype from = at + 5, to = raw.indexOf('"', from);
+    if (to < 0) return raw;
+    return raw.left(from) + id + raw.mid(to);
+}
 
 // Text made fit for a w:t: the characters XML has no place for left out.
 QString xmlSafe(const QString &s)
@@ -296,7 +395,7 @@ QByteArray documentXml(const Document &doc)
         const Block &blk = doc.body[b];
         if (!whole.block(b)) continue;
         if (blk.isRaw) {
-            out += blk.raw;
+            out += withId(blk.raw, whole.newId(b, -1));
             continue;
         }
         out += "<w:p" + blk.para.attrs + ">";
@@ -332,7 +431,7 @@ QByteArray documentXml(const Document &doc)
                 if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
                 out += a.raw + "</w:r>";
             } else {
-                out += a.raw;
+                out += withId(a.raw, whole.newId(b, i));
             }
         }
         flush();
