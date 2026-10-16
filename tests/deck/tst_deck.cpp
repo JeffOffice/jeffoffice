@@ -2175,11 +2175,11 @@ private:
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
     // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
     // a shape for its drawing, `masterExtra` more records for the main master, `documentExtra` more records for the document, and `firstSlideExtra` more
-    // records for the first slide (a headers and footers record of its own).
+    // records for the first slide (a headers and footers record of its own), and `titleMasterShapes` shapes for the title master's drawing.
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                                const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
                                const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),
-                               const QByteArray &firstSlideExtra = QByteArray())
+                               const QByteArray &firstSlideExtra = QByteArray(), const QByteArray &titleMasterShapes = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
@@ -2225,7 +2225,7 @@ private:
             // The centered title and the subtitle, with only their sizes (the levels of these two start with their number).
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0x800, 4) + le(1, 2) + le(0x20000, 4) + le(54, 2), 6)
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0, 4) + le(0x20000, 4) + le(30, 2), 5)
-            + pptDrawing());
+            + pptDrawing(titleMasterShapes));
 
         auto slide = [&](int geom, const QByteArray &placeholders, quint32 master, quint32 notes, bool hidden, const QByteArray &shapes, const QByteArray &transition = QByteArray(), const QByteArray &extra = QByteArray()) {
             QByteArray info = le(0, 4) + le(0, 4) + raw({2, 0}) + le(hidden ? 0x4 : 0x400, 2) + raw({2, 0, 0, 0});
@@ -25781,9 +25781,9 @@ private Q_SLOTS:
         auto own = open(footersBox(0, 0x1 | 0x4));
         QVERIFY(own);
         for (const auto &p : own->pages) QCOMPARE(placeholderText(*own, *p, ph), line);
-        // New slides will show it too: the options kept for them.
-        QCOMPARE(deck::footerOptions(*shown).dateText, line);
-        QVERIFY(deck::footerOptions(*shown).date);
+        // New slides will show it too: the options kept for them say the date is the one typed in the slide's own master.
+        QVERIFY(deck::footerOptions(*shown).date && deck::footerOptions(*shown).dateFromMaster);
+        QVERIFY(deck::footerOptions(*shown).dateText.isEmpty());
         // The first slide has a record of its own that shows only the number (8): no date there, the line on the second.
         auto hidden = open(footersBox(0, 0x1), footersBox(0, 0x8));
         QVERIFY(hidden);
@@ -25846,6 +25846,33 @@ private Q_SLOTS:
         QVERIFY(alone);
         QCOMPARE(placeholderText(*alone, *alone->pages[1], ph), field);
         QCOMPARE(storyFieldCode(placeholderStory(*alone, *alone->pages[1], ph)), QStringLiteral("page"));
+    }
+
+    // The text a master's number place holds around its field belongs to that master: slides on the main master and on the title master each show
+    // their own, and a slide added on either afterward shows the one its own layout has (not the first slide's master's).
+    void importBinaryNumberTextBelongsToEachMaster()
+    {
+        const QString number = QStringLiteral("sldNum"), ph = QStringLiteral("ph:sldNum"), field(QChar(QChar::ObjectReplacementCharacter));
+        const QByteArray mainPlaces = masterFooterPlaces(QString(), QString(), QStringLiteral("Page * of 12"), 5);
+        const QByteArray titlePlaces = masterFooterPlaces(QString(), QString(), QStringLiteral("Slide *"), 6);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(true, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), mainPlaces, QByteArray(), 1016, footersBox(0, 0x8), QByteArray(), titlePlaces), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 3);
+        const QString onMain = QStringLiteral("Page ") + field + QStringLiteral(" of 12"), onTitle = QStringLiteral("Slide ") + field;
+        QCOMPARE(placeholderText(*d, *d->pages[0], ph), onMain);
+        QCOMPARE(placeholderText(*d, *d->pages[2], ph), onTitle);
+        // Slides added now, one on each master's layout.
+        const MasterPage *mainLayout = d->masterFor(*d->pages[0]), *titleLayout = d->masterFor(*d->pages[2]);
+        QVERIFY(mainLayout && titleLayout && mainLayout != titleLayout);
+        const int onTitleLayout = deck::addSlide(*d, *titleLayout), onMainLayout = deck::addSlide(*d, *mainLayout);
+        QCOMPARE(placeholderText(*d, *d->pages[onTitleLayout], ph), onTitle);
+        QCOMPARE(placeholderText(*d, *d->pages[onMainLayout], ph), onMain);
+        // And the footers applied again (the dialog's Apply to All) keep each as it is.
+        deck::applyFooters(*d, deck::footerOptions(*d));
+        QCOMPARE(placeholderText(*d, *d->pages[0], ph), onMain);
+        QCOMPARE(placeholderText(*d, *d->pages[2], ph), onTitle);
+        Q_UNUSED(number);
     }
 
     // A slide can set its own footers in a record of its own: its date (the user's, here), its footer text, and no number, where the next slide

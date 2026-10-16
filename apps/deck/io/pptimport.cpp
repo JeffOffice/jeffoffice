@@ -945,8 +945,8 @@ private:
     FooterSpec readFooterSpec(const Rec &box);
     void showFooters(const FooterSpec &document);
     QString masterFooterText(const Page &slide) const;
-    QString masterPlaceText(const Page &slide, const QString &type, QString *fieldCode = nullptr) const;
-    void takeMasterTexts(const FooterSpec &f, const Page &slide, FooterOptions *o) const;
+    bool masterHoldsText(const Page *slide, const QString &type) const;
+    void takeMasterTexts(const FooterSpec &f, const Page *slide, FooterOptions *o) const;
     MasterInfo *masterByRef(quint32 ref) const;
     void finishItems(ItemList &items, PageState &st, bool slide);
     QString readNotes(const SlideEntry &slide, quint32 notesRef, const MasterInfo &master);
@@ -2256,29 +2256,30 @@ QString Importer::masterFooterText(const Page &slide) const
     return held == QLatin1String("*") ? QString() : held.left(kMaxFooterChars);
 }
 
-// The text typed in the place of that type ("dt" or "sldNum") of a slide's master (a field in it is U+FFFC), cut at a footer's most; empty when the
-// place holds only fields, which is the program's own date or number, not text.
-QString Importer::masterPlaceText(const Page &slide, const QString &type, QString *fieldCode) const
+// Whether the master of a slide (of any slide, when it is null) has text typed in its place of that type ("dt" or "sldNum"), not only the field that
+// is the program's own date or number.
+bool Importer::masterHoldsText(const Page *slide, const QString &type) const
 {
-    const QString held = layoutPlaceText(m_doc, slide, type, fieldCode);
-    if (QString(held).remove(QChar(QChar::ObjectReplacementCharacter)).trimmed().isEmpty()) return QString();
-    return held.left(kMaxFooterChars);
+    if (slide) {
+        const MasterPage *layout = m_doc.masterFor(*slide);
+        return layout && !layoutTypedText(m_doc, *layout, type).isEmpty();
+    }
+    for (const auto &m : m_doc.masters)
+        if (!layoutTypedText(m_doc, *m, type).isEmpty()) return true;
+    return false;
 }
 
 // What the master's places for the date and the slide number say a slide shows, where the record leaves it to them: a date the record shows
 // without saying which (not today's, and none of its own) is the text typed in the master's date place, and the number takes the text the master's
-// number place holds around its field.
-void Importer::takeMasterTexts(const FooterSpec &f, const Page &slide, FooterOptions *o) const
+// number place holds around its field. Each slide gets its own master's (the options say the date or number is the master's; the text is its
+// layout's when they are used).
+void Importer::takeMasterTexts(const FooterSpec &f, const Page *slide, FooterOptions *o) const
 {
-    if ((f.flags & FootHasDate) && !o->date) {
-        QString code;
-        if (const QString text = masterPlaceText(slide, QStringLiteral("dt"), &code); !text.isEmpty()) {
-            o->date = true;
-            o->dateText = text;
-            o->dateCode = code;
-        }
+    if ((f.flags & FootHasDate) && !o->date && masterHoldsText(slide, QStringLiteral("dt"))) {
+        o->date = true;
+        o->dateFromMaster = true;
     }
-    if (o->slideNumber) o->numberText = masterPlaceText(slide, QStringLiteral("sldNum"));
+    if (o->slideNumber && masterHoldsText(slide, QStringLiteral("sldNum"))) o->numberFromMaster = true;
 }
 
 // The date, slide number, and footer the document (or a slide) says its slides show, each on the slides that lack it, where their layout has the
@@ -2287,7 +2288,7 @@ void Importer::showFooters(const FooterSpec &document)
 {
     if (document.set) {
         FooterOptions all = footerOptionsOf(document);
-        if (!m_doc.pages.isEmpty()) takeMasterTexts(document, *m_doc.pages.first(), &all);
+        takeMasterTexts(document, nullptr, &all);
         // (What new slides will show: the footer's text, if the record has none, is the first slide's master's.)
         if (all.footer && all.footerText.isEmpty() && !m_doc.pages.isEmpty()) all.footerText = masterFooterText(*m_doc.pages.first());
         if (all.footer && all.footerText.isEmpty()) all.footer = false;
@@ -2307,7 +2308,7 @@ void Importer::showFooters(const FooterSpec &document)
             for (const auto &it : page->items)
                 if (placeholderType(*it) == QLatin1String("dt") && it->type() == ItemType::Text)
                     if (QTextDocument *story = m_doc.storyDoc(static_cast<TextItem &>(*it).storyId)) retargetGenericDate(story, o.dateCode);
-        takeMasterTexts(spec, *page, &o);
+        takeMasterTexts(spec, page.get(), &o);
         if (!o.any()) continue;
         addMissingFooters(m_doc, o, *page);
     }
