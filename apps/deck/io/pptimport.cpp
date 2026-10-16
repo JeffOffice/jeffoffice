@@ -924,6 +924,7 @@ private:
     QString pictureId(int blipIndex);
     QString adjustedPicture(const QString &id, double brightness, double contrast);
     QString patternedPicture(const QString &id, const QColor &fillColor, const QColor &backColor);
+    QString duotonedPicture(const QString &id, const QColor &dark, const QColor &light);
 
     // The masters.
     void readMasters();
@@ -1523,6 +1524,37 @@ QString Importer::patternedPicture(const QString &id, const QColor &fillColor, c
             buffer.open(QIODevice::WriteOnly);
             if (tile.save(&buffer, "PNG")) result = m_doc.addImage(png, QStringLiteral("png"), QString(), tile);
         }
+    }
+    m_adjusted.insert(key, result);
+    return result;
+}
+
+// A picture in two colors, as the presentation program draws a picture fill that is recolored as a picture: each pixel as light as the picture's
+// gray (by the weights of the sRGB colors of a screen) from the dark color, for black, to the light one, for white. The picture itself when it
+// is too big (past kMaxAdjustedPixels) or when too many have been made.
+QString Importer::duotonedPicture(const QString &id, const QColor &dark, const QColor &light)
+{
+    const QString key = QStringLiteral("duotone|%1|%2|%3").arg(id, dark.name(), light.name());
+    if (const auto it = m_adjusted.constFind(key); it != m_adjusted.constEnd()) return it.value();
+    QString result = id;
+    const QSize size = m_doc.imageSize(id);
+    QImage img = size.isValid() && qint64(size.width()) * size.height() <= kMaxAdjustedPixels && m_adjusted.size() < 200 ? m_doc.image(id) : QImage();
+    if (!img.isNull()) {
+        img = img.convertToFormat(QImage::Format_ARGB32);
+        QRgb ramp[256];
+        for (int i = 0; i < 256; ++i)
+            ramp[i] = qRgb(dark.red() + (light.red() - dark.red()) * i / 255, dark.green() + (light.green() - dark.green()) * i / 255, dark.blue() + (light.blue() - dark.blue()) * i / 255);
+        for (int y = 0; y < img.height(); ++y) {
+            QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
+            for (int x = 0; x < img.width(); ++x) {
+                const int gray = int(std::lround(0.2126 * qRed(line[x]) + 0.7152 * qGreen(line[x]) + 0.0722 * qBlue(line[x])));
+                line[x] = qRgba(qRed(ramp[gray]), qGreen(ramp[gray]), qBlue(ramp[gray]), qAlpha(line[x]));
+            }
+        }
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        if (img.save(&buffer, "PNG")) result = m_doc.addImage(png, QStringLiteral("png"), QString(), img);
     }
     m_adjusted.insert(key, result);
     return result;
@@ -2689,6 +2721,7 @@ office::OdrawContext Importer::drawingContext()
     ctx.picture = [this](int index) { return pictureId(index); };
     ctx.adjusted = [this](const QString &id, double brightness, double contrast) { return adjustedPicture(id, brightness, contrast); };
     ctx.patterned = [this](const QString &id, const QColor &fillColor, const QColor &backColor) { return patternedPicture(id, fillColor, backColor); };
+    ctx.duotoned = [this](const QString &id, const QColor &dark, const QColor &light) { return duotonedPicture(id, dark, light); };
     ctx.client = [this](Item &item, const QByteArray &textbox, const QByteArray &clientData) {
         if (m_state) clientShape(item, textbox, clientData);
     };

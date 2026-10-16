@@ -60,6 +60,10 @@ struct OdrawContext {
     // in the fill color and its black in the back color (each with its opacity as its alpha), as the presentation program draws it; the
     // same image id if it can't be done. A host that leaves this out has the bitmap drawn as it stands.
     std::function<QString(const QString &imageId, const QColor &fillColor, const QColor &backColor)> patterned;
+    // The picture of a picture or texture fill set to be recolored as a picture (fRecolorFillAsPicture) in two colors: each pixel as light as
+    // the picture's gray, from `dark` (for black) to `light` (for white); the same image id if it can't be done. A host that leaves this out
+    // has the picture drawn as it stands.
+    std::function<QString(const QString &imageId, const QColor &dark, const QColor &light)> duotoned;
     // The shape another takes after: from a shape's client data record's
     // contents, the property records (0xF00B, 0xF121, 0xF122, header included)
     // of the shape whose properties it has for those it leaves out (a slide's

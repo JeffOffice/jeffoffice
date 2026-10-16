@@ -24841,6 +24841,52 @@ private Q_SLOTS:
         QVERIFY2(qAbs(margins.first() - 90.0) > 1.0, qPrintable(QString::number(margins.first())));
     }
 
+    // A fill that is a picture and is set to be recolored as a picture, with the color to recolor it in (a master's background, in the clouds
+    // of one deck), is drawn in two colors, as the presentation program draws it: each pixel as light as the picture's gray, from that color (for
+    // black) to the back color (for white). A picture fill that isn't set so, or that has no such color (another deck's textured background
+    // is set so and keeps its colors), is as it is.
+    void importBinaryRecolorsAPictureFillAsTwoColors()
+    {
+        QImage photo(2, 1, QImage::Format_ARGB32);
+        photo.setPixelColor(0, 0, QColor(255, 0, 0));
+        photo.setPixelColor(1, 0, QColor(0, 0, 128));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        photo.save(&buffer, "PNG");
+        const QByteArray picture = pptRec(0xF01E, QByteArray(16, 'v') + QByteArray(1, '\xFF') + png, 0x6E0);
+        const QByteArray entry = pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, 't') + le(0xFF, 2) + le(quint32(picture.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + picture, 6, 2);
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry, 1)));
+        auto pixels = [&](quint32 styleFlags, bool recolorTo) {
+            QByteArray t;
+            // A picture fill of the first picture, the fill color green, the color to recolor it in red (when it has one), and the back color blue
+            // (a color is stored blue, green, red).
+            QVector<QPair<int, quint32>> props{{0x0180, 3}, {0x4186, 1}, {0x0181, 0x00FF00}, {0x0183, 0xFF0000}, {0x01BF, styleFlags}};
+            if (recolorTo) props.insert(1, {0x011A, 0x0000FF});
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x1000, 4) + le(0xC00, 4), 1, 2) + pptRec(0xF00B, t, quint16(props.size()), 3));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, QByteArray(), QByteArray(), background), &err);
+            QList<QColor> out;
+            if (!d) qWarning("%s", qPrintable(err));
+            if (!d || d->masters.isEmpty() || d->masters.first()->background.type != Fill::Picture) return out;
+            const QImage im = d->image(d->masters.first()->background.imageId);
+            for (int x = 0; x < im.width(); ++x) out << im.pixelColor(x, 0);
+            return out;
+        };
+        // Set to recolor: red's gray is 0.2126 of the way from the fill color to the back color, and dark blue's 0.0362.
+        const QList<QColor> two = pixels(0x00500050, true);
+        QCOMPARE(int(two.size()), 2);
+        QVERIFY2(colorsNear(two[0], QColor(201, 0, 54), 2), qPrintable(two[0].name()));
+        QVERIFY2(colorsNear(two[1], QColor(246, 0, 9), 2), qPrintable(two[1].name()));
+        // Not set to, or set to with no color to recolor it in: as it is.
+        for (const QList<QColor> &kept : {pixels(0x00100010, true), pixels(0x00500050, false)}) {
+            QCOMPARE(int(kept.size()), 2);
+            QCOMPARE(kept[0], QColor(255, 0, 0));
+            QCOMPARE(kept[1], QColor(0, 0, 128));
+        }
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
