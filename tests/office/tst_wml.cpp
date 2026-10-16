@@ -216,6 +216,30 @@ private Q_SLOTS:
         QVERIFY(!readBlocks("<w:hdr", &blocks));
     }
 
+    // The notes of a footnotes part come with their Ids, types, and paragraphs.
+    void readsTheNotesOfAPart()
+    {
+        const QByteArray part = xmlDoc(QByteArray("<w:footnotes ") + kW + R"(><w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id="2"><w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> note two</w:t></w:r></w:p><w:p><w:r><w:t>second paragraph</w:t></w:r></w:p></w:footnote></w:footnotes>)");
+        QVector<NotePart> notes;
+        QVERIFY(readNotes(part, &notes));
+        QCOMPARE(int(notes.size()), 2);
+        QCOMPARE(notes[0].id, -1);
+        QCOMPARE(notes[0].type, QStringLiteral("separator"));
+        QCOMPARE(notes[1].id, 2);
+        QVERIFY(notes[1].type.isEmpty());
+        QCOMPARE(int(notes[1].blocks.size()), 2);
+        QCOMPARE(notes[1].blocks[0].para.content.first().tag, QStringLiteral("footnoteRef"));
+        QCOMPARE(notes[1].blocks[1].para.content.first().text, QStringLiteral("second paragraph"));
+        QVERIFY(!readNotes("<w:footnotes", &notes));
+        // A part with more notes than the limit has the rest left out.
+        QByteArray many = QByteArray("<w:footnotes ") + kW + ">";
+        for (int i = 0; i < kMaxNotes + 50; ++i) many += "<w:footnote w:id=\"" + QByteArray::number(i + 1) + "\"><w:p/></w:footnote>";
+        many += "</w:footnotes>";
+        QVector<NotePart> capped;
+        QVERIFY(readNotes(many, &capped));
+        QCOMPARE(int(capped.size()), kMaxNotes);
+    }
+
     // A paragraph's borders and shading are read into their sides and colors, and a side a style states that the paragraph doesn't is the style's;
     // the elements are kept as written beside that, and written back.
     void paragraphBordersAndShadingAreReadAndInherited()
