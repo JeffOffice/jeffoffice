@@ -4319,10 +4319,35 @@ private Q_SLOTS:
     }
     static QByteArray pictRect(int top, int left, int bottom, int right) { return pictU16(top) + pictU16(left) + pictU16(bottom) + pictU16(right); }
     // A version 2 picture of `width` by `height` points that does `ops`: its size and frame, the version, and the header.
-    static QByteArray odPict(int width, int height, const QByteArray &ops)
+    // (`source` is the rectangle the header says the operations' numbers are in, the frame when it is not given.)
+    static QByteArray odPict(int width, int height, const QByteArray &ops, const QRect &source = QRect())
     {
+        const QRect in = source.isNull() ? QRect(0, 0, width, height) : source;
         return pictU16(0) + pictRect(0, 0, height, width) + pictU16(0x0011) + pictU16(0x02FF) + pictU16(0x0C00) + pictU16(0xFFFE) + pictU16(0) + pictU32(0x00480000)
-               + pictU32(0x00480000) + pictRect(0, 0, height, width) + pictU32(0) + ops + pictU16(0x00FF);
+               + pictU32(0x00480000) + pictRect(in.top(), in.left(), in.top() + in.height(), in.left() + in.width()) + pictU32(0) + ops + pictU16(0x00FF);
+    }
+    // A picture as the PNG it is drawn as, from a picture of 200 by 100 points (null when it draws nothing); `work` is the work the pictures of the
+    // file may do together, when it is given.
+    static QImage pictImage(const QByteArray &pict, qint64 *work = nullptr)
+    {
+        QString format;
+        const QByteArray png = odrawBlip(odMetafileBlip(0xF01C, 0x542, pict, true), &format, work);
+        return png.isEmpty() || format != QLatin1String("png") ? QImage() : QImage::fromData(png, "PNG");
+    }
+    // The header of a pixel map (8 across and 1 high unless said): how wide a row is, how it is packed, the bits to a pixel, and its colors' parts.
+    static QByteArray pictPixmap(int rowBytes, int packType, int pixelSize, int components, int width = 8, int height = 1)
+    {
+        return pictU16(0x8000 | rowBytes) + pictRect(0, 0, height, width) + pictU16(0) + pictU16(packType) + pictU32(0) + pictU32(0x00480000) + pictU32(0x00480000)
+               + pictU16(pixelSize == 32 || pixelSize == 16 ? 0x10 : 0) + pictU16(pixelSize) + pictU16(components) + pictU16(pixelSize == 32 ? 8 : pixelSize == 16 ? 5 : pixelSize)
+               + pictU32(0) + pictU32(0) + pictU32(0);
+    }
+    // A table of colors: the first `count` of red, green, blue, and black (for the picture's own index, not the place).
+    static QByteArray pictColors(int count)
+    {
+        QByteArray table = pictU32(0) + pictU16(0) + pictU16(count - 1);
+        static const int parts[4][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 0}};
+        for (int i = 0; i < count; ++i) table += pictU16(i) + pictU16(parts[i % 4][0] * 257) + pictU16(parts[i % 4][1] * 257) + pictU16(parts[i % 4][2] * 257);
+        return table;
     }
     static QByteArray pictColor(int op, int r, int g, int b) { return pictU16(op) + pictU16(r * 257) + pictU16(g * 257) + pictU16(b * 257); }
 
@@ -4445,6 +4470,155 @@ private Q_SLOTS:
         // What it can't read, or what is cut short, is no picture and no crash.
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, odPict(200, 100, QByteArray()).left(30), true), nullptr).isEmpty());
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, QByteArray("not a picture at all"), true), nullptr).isEmpty());
+    }
+
+    // Arcs go clockwise from north, and an arc as a shape is a pie.
+    void odrawBlipDrawsAPictsArcs()
+    {
+        auto at = [](const QImage &img, int x, int y) { return img.pixelColor(x * img.width() / 200, y * img.height() / 100); };
+        auto is = [](const QColor &c, int r, int g, int b) { return c.alpha() > 250 && std::abs(c.red() - r) < 12 && std::abs(c.green() - g) < 12 && std::abs(c.blue() - b) < 12; };
+        const QByteArray red = pictColor(0x001A, 255, 0, 0);
+        // From north (0) a quarter of the way round (90): the top right quarter of the oval, as a pie.
+        QImage img = pictImage(odPict(200, 100, red + pictU16(0x0061) + pictRect(0, 0, 100, 200) + pictU16(0) + pictU16(90)));
+        QVERIFY(!img.isNull());
+        QVERIFY(is(at(img, 150, 25), 255, 0, 0));
+        QCOMPARE(at(img, 50, 25).alpha(), 0);
+        QCOMPARE(at(img, 150, 75).alpha(), 0);
+        QCOMPARE(at(img, 50, 75).alpha(), 0);
+        // From east (90) half way round (180): the bottom half. The next arc names its angles but not its rectangle.
+        img = pictImage(odPict(200, 100, red + pictU16(0x0061) + pictRect(0, 0, 100, 200) + pictU16(90) + pictU16(180)));
+        QVERIFY(is(at(img, 100, 80), 255, 0, 0));
+        QCOMPARE(at(img, 100, 20).alpha(), 0);
+        img = pictImage(odPict(200, 100, red + pictU16(0x0061) + pictRect(0, 0, 100, 200) + pictU16(0) + pictU16(90) + pictU16(0x0069) + pictU16(180) + pictU16(90)));
+        QVERIFY(is(at(img, 150, 25), 255, 0, 0));
+        QVERIFY(is(at(img, 50, 75), 255, 0, 0));   // (south to west, the second arc)
+        QCOMPARE(at(img, 50, 25).alpha(), 0);
+        // Framed, a quarter is its edge as wide as the pen (6 across), and not what is inside.
+        img = pictImage(odPict(200, 100, pictU16(0x0007) + pictU16(6) + pictU16(6) + pictU16(0x0060) + pictRect(0, 0, 100, 200) + pictU16(0) + pictU16(90)));
+        QVERIFY(is(at(img, 169, 17), 0, 0, 0));
+        QCOMPARE(at(img, 100, 50).alpha(), 0);
+        QCOMPARE(at(img, 31, 83).alpha(), 0);
+    }
+
+    // The origin moves what follows; the header of a picture of a finer grid says what its numbers are in; and bitmaps of every depth show.
+    void odrawBlipDrawsAPictsOriginHeaderAndBitmaps()
+    {
+        auto at = [](const QImage &img, int x, int y) { return img.pixelColor(x * img.width() / 200, y * img.height() / 100); };
+        auto is = [](const QColor &c, int r, int g, int b) { return c.alpha() > 250 && std::abs(c.red() - r) < 12 && std::abs(c.green() - g) < 12 && std::abs(c.blue() - b) < 12; };
+        const QByteArray red = pictColor(0x001A, 255, 0, 0);
+        // An origin 20 across and 10 down moves a rectangle from 40 to 100 across and 30 to 70 down to 20 to 80 and 20 to 60.
+        QImage img = pictImage(odPict(200, 100, pictU16(0x000C) + pictU16(20) + pictU16(10) + red + pictU16(0x0031) + pictRect(30, 40, 70, 100)));
+        QVERIFY(is(at(img, 30, 40), 255, 0, 0));
+        QCOMPARE(at(img, 90, 40).alpha(), 0);
+        QCOMPARE(at(img, 30, 70).alpha(), 0);
+        // A picture whose numbers are in a grid ten times as fine (2000 by 1000), its frame 200 by 100 points: a rectangle from 200 to 1200 across
+        // and 100 to 600 down is the one from 20 to 120 and 10 to 60 of the frame.
+        img = pictImage(odPict(200, 100, red + pictU16(0x0031) + pictRect(100, 200, 600, 1200), QRect(0, 0, 2000, 1000)));
+        QVERIFY(!img.isNull());
+        QVERIFY(is(at(img, 70, 35), 255, 0, 0));
+        QCOMPARE(at(img, 150, 80).alpha(), 0);
+        QCOMPARE(at(img, 10, 35).alpha(), 0);
+        // The image has the shape of the numbers' rectangle (a square here) and not of the frame.
+        img = pictImage(odPict(200, 100, red + pictU16(0x0031) + pictRect(0, 0, 100, 100), QRect(0, 0, 100, 100)));
+        QVERIFY(!img.isNull());
+        QCOMPARE(img.width(), img.height());
+        QVERIFY(is(img.pixelColor(img.width() / 2, img.height() / 2), 255, 0, 0));
+        // Bitmaps, 8 pixels across drawn over 10 to 90 (so each is 10 wide). Indexed at 1 bit: red (0) and green (1) in the pattern 10100101.
+        const QByteArray dest = pictRect(10, 10, 30, 90);
+        img = pictImage(odPict(200, 100, pictU16(0x0098) + pictPixmap(1, 0, 1, 1) + pictColors(2) + pictRect(0, 0, 1, 8) + dest + pictU16(0) + QByteArray("\xA5", 1)));
+        QVERIFY(!img.isNull());
+        const bool bits1[8] = {true, false, true, false, false, true, false, true};
+        for (int i = 0; i < 8; ++i) QVERIFY2(is(at(img, 15 + i * 10, 20), bits1[i] ? 0 : 255, bits1[i] ? 255 : 0, 0), qPrintable(QString::number(i)));
+        // At 2 bits (four pixels a byte: 0, 1, 2, 3, then 3, 2, 1, 0) and at 4 bits (two to a byte), with red, green, blue, and black for 0 to 3.
+        const QColor four[4] = {QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255), QColor(0, 0, 0)};
+        img = pictImage(odPict(200, 100, pictU16(0x0098) + pictPixmap(2, 0, 2, 1) + pictColors(4) + pictRect(0, 0, 1, 8) + dest + pictU16(0) + QByteArray("\x1B\xE4", 2)));
+        QVERIFY(!img.isNull());
+        for (int i = 0; i < 8; ++i) {
+            const QColor want = four[i < 4 ? i : 7 - i];
+            QVERIFY2(is(at(img, 15 + i * 10, 20), want.red(), want.green(), want.blue()), qPrintable(QString::number(i)));
+        }
+        img = pictImage(odPict(200, 100, pictU16(0x0098) + pictPixmap(4, 0, 4, 1) + pictColors(4) + pictRect(0, 0, 1, 8) + dest + pictU16(0) + QByteArray("\x01\x23\x32\x10", 4)));
+        QVERIFY(!img.isNull());
+        for (int i = 0; i < 8; ++i) {
+            const QColor want = four[i < 4 ? i : 7 - i];
+            QVERIFY2(is(at(img, 15 + i * 10, 20), want.red(), want.green(), want.blue()), qPrintable(QString::number(i)));
+        }
+        // At 16 bits (5 bits each of red, green, and blue), as they come, and in the runs of two-byte units: red, green, blue, and white, twice.
+        QByteArray units;
+        for (int i = 0; i < 2; ++i)
+            for (const int v : {0x7C00, 0x03E0, 0x001F, 0x7FFF}) units += pictU16(v);
+        img = pictImage(odPict(200, 100, pictU16(0x009A) + pictU32(0) + pictPixmap(16, 1, 16, 3) + pictRect(0, 0, 1, 8) + dest + pictU16(0) + units));
+        QVERIFY(!img.isNull());
+        for (int i = 0; i < 8; ++i) {
+            const QColor want = i % 4 == 3 ? QColor(255, 255, 255) : four[i % 4];
+            QVERIFY2(is(at(img, 15 + i * 10, 20), want.red(), want.green(), want.blue()), qPrintable(QString::number(i)));
+        }
+        // (a run of 8 units, then a row of three runs: 2 literal units, a unit three times, a unit three times)
+        const QByteArray packed = QByteArray("\x01", 1) + pictU16(0x7C00) + pictU16(0x03E0) + QByteArray("\xFE", 1) + pictU16(0x001F) + QByteArray("\xFE", 1) + pictU16(0x7FFF);
+        img = pictImage(odPict(200, 100, pictU16(0x009A) + pictU32(0) + pictPixmap(16, 3, 16, 3) + pictRect(0, 0, 1, 8) + dest + pictU16(0) + QByteArray(1, char(packed.size())) + packed));
+        QVERIFY(!img.isNull());
+        const QColor sixteen[8] = {four[0], four[1], four[2], four[2], four[2], QColor(255, 255, 255), QColor(255, 255, 255), QColor(255, 255, 255)};
+        for (int i = 0; i < 8; ++i) QVERIFY2(is(at(img, 15 + i * 10, 20), sixteen[i].red(), sixteen[i].green(), sixteen[i].blue()), qPrintable(QString::number(i)));
+    }
+
+    // What a picture may take is held: a region of rows that each split all its runs, a clip of the same, bitmaps of sixteen million pixels
+    // from a few bytes, a hundred thousand fonts, and polygons that cross themselves all finish in no more time than a picture of that size does (each
+    // took a minute or more, or more memory than there was, before), and the work all of a file's pictures do together is held too.
+    void odrawBlipHoldsAPictToLimits()
+    {
+        const QByteArray red = pictColor(0x001A, 255, 0, 0);
+        QElapsedTimer timer;
+        auto within = [&](const char *what, const QByteArray &ops) {
+            timer.start();
+            pictImage(odPict(200, 100, red + ops));
+            QVERIFY2(timer.elapsed() < 10000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(what)).arg(timer.elapsed())));
+        };
+        // A region of 4,000 places in a row that every one of 500 rows after it shifts one of (a million rectangles).
+        QByteArray region = pictU16(0) + pictRect(0, 0, 100, 200) + pictU16(1);
+        for (int i = 0; i < 4000; ++i) region += pictU16(i + 2);
+        region += pictU16(0x7FFF);
+        for (int j = 0; j < 500; ++j) region += pictU16(2 + j) + pictU16(2) + pictU16(0x7FFF);
+        region += pictU16(0x7FFF);
+        qToBigEndian<quint16>(quint16(region.size()), region.data());
+        within("region", pictU16(0x0081) + region);
+        within("clip", pictU16(0x0001) + region + pictU16(0x0031) + pictRect(0, 0, 100, 200));
+        // Four hundred bitmaps of 16,383 by 1,024 pixels, whose rows hold nothing (2 KB each).
+        QByteArray bitmap = pictU16(0x0098) + pictPixmap(16383, 0, 8, 1, 16383, 1024) + pictColors(2) + pictRect(0, 0, 1024, 16383) + pictRect(0, 0, 2, 2) + pictU16(0);
+        for (int y = 0; y < 1024; ++y) bitmap += pictU16(0);
+        QByteArray bitmaps;
+        for (int i = 0; i < 400; ++i) bitmaps += bitmap;
+        within("bitmaps", bitmaps);
+        // A hundred thousand strings, each in a font and size of its own.
+        QByteArray strings;
+        for (int i = 0; i < 100000; ++i) {
+            const QByteArray name = QStringLiteral("Fn%1").arg(i, 6, 10, QLatin1Char('0')).toLatin1();
+            strings += pictU16(0x002C) + pictU16(2 + 1 + 8) + pictU16(100 + i) + QByteArray(1, char(8)) + name + QByteArray(1, '\0');
+            strings += pictU16(0x0003) + pictU16(100 + i) + pictU16(0x000D) + pictU16(4 + i % 4);
+            strings += pictU16(0x0028) + pictU16(50) + pictU16(10) + QByteArray("\x05" "Hello") + QByteArray(1, '\0');
+        }
+        within("fonts", strings);
+        // Three polygons of 16,001 points that each go all the way across the picture to the next but one (a star).
+        QByteArray star = pictU16(0) + pictRect(0, 0, 100, 200);
+        for (int i = 0; i < 16001; ++i) {
+            const double angle = 2 * M_PI * ((i * 8000) % 16001) / 16001.0;
+            star += pictU16(int(50 + 49 * std::sin(angle))) + pictU16(int(100 + 99 * std::cos(angle)));
+        }
+        qToBigEndian<quint16>(quint16(star.size()), star.data());
+        within("polygons", pictU16(0x0071) + star + pictU16(0x0071) + star + pictU16(0x0071) + star);
+        // The work of one picture comes out of what the file's pictures may do together, and pictures after it is spent are left out.
+        qint64 work = 100000;
+        const QByteArray one = odPict(200, 100, red + pictU16(0x0031) + pictRect(10, 20, 60, 120));
+        QVERIFY(!pictImage(one, &work).isNull());
+        QVERIFY2(work > 0 && work < 100000, qPrintable(QString::number(work)));
+        work = 0;
+        QVERIFY(pictImage(one, &work).isNull());
+        QCOMPARE(work, qint64(0));
+        // A picture that is cut off by what is left of the work is what it drew before it, and what is left is none.
+        work = 700;
+        QByteArray page;
+        for (int i = 0; i < 20; ++i) page += pictU16(0x0031) + pictRect(0, 0, 100, 200);
+        QVERIFY(!pictImage(odPict(200, 100, red + pictU16(0x0031) + pictRect(10, 20, 60, 120) + page), &work).isNull());
+        QCOMPARE(work, qint64(0));
     }
 
     void odrawBlipInflatesMetafiles()

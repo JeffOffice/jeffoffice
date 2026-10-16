@@ -2809,6 +2809,49 @@ private Q_SLOTS:
         QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
     }
 
+    // The Macintosh pictures of a presentation are drawn from what they may do between them: pictures that are as slow as one may be, six of
+    // them (a polygon of 16,001 points that crosses itself, which took 15 seconds to paint), use up the file's share by the fourth, and the
+    // fifth and sixth are left out, with the note of pictures that were. Three of them are within it, and need no note.
+    void binaryPresentationLeavesMacintoshPicturesOutWhenTheyHaveDoneTooMuch()
+    {
+        auto big = [](int value) { QByteArray b(2, '\0'); qToBigEndian<quint16>(quint16(value), b.data()); return b; };
+        // A picture of 200 by 100 points that paints a star polygon: its size and frame, the version and header, and the polygon.
+        QByteArray star = big(0) + big(0) + big(0) + big(100) + big(200);
+        for (int i = 0; i < 16001; ++i) {
+            const double angle = 2 * M_PI * ((i * 8000) % 16001) / 16001.0;
+            star += big(int(50 + 49 * std::sin(angle))) + big(int(100 + 99 * std::cos(angle)));
+        }
+        qToBigEndian<quint16>(quint16(star.size()), star.data());
+        const QByteArray pict = big(0) + big(0) + big(0) + big(100) + big(200) + big(0x0011) + big(0x02FF) + big(0x0C00) + big(0xFFFE) + big(0) + QByteArray(8, '\0') + big(0) + big(0) + big(100)
+                                + big(200) + QByteArray(4, '\0') + big(0x0071) + star + big(0x00FF);
+        // (the record: two uids' worth of one, then the 34 bytes that tell its size and that it is stored, not deflated)
+        auto blip = [&] {
+            return pptRec(0xF01C, QByteArray(16, 'u') + le(quint32(pict.size()), 4) + le(0, 4) + le(0, 4) + le(200, 4) + le(100, 4) + le(0, 4) + le(0, 4) + le(quint32(pict.size()), 4)
+                                      + QByteArray("\xFE\xFE", 2) + pict, 0x542);
+        };
+        auto import = [&](int pictures) {
+            QByteArray entries, frames;
+            for (int i = 1; i <= pictures; ++i) {
+                const QByteArray one = blip();
+                entries += pptRec(0xF007, QByteArray(1, '\x04') + QByteArray(1, '\0') + QByteArray(16, char('a' + i)) + le(0xFF, 2) + le(quint32(one.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + one, 4, 2);
+                frames += pptPictureShape(i);
+            }
+            const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entries, quint16(pictures))));
+            QString err;
+            auto d = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(frames)}}, group), &err);
+            return std::make_pair(std::move(d), err);
+        };
+        QElapsedTimer timer;
+        timer.start();
+        const auto six = import(6);
+        QVERIFY2(six.first, qPrintable(six.second));
+        QVERIFY2(six.second.contains(QStringLiteral("2 pictures were left out")), qPrintable(six.second));
+        const auto three = import(3);
+        QVERIFY2(three.first, qPrintable(three.second));
+        QVERIFY2(!three.second.contains(QStringLiteral("were left out")), qPrintable(three.second));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+    }
+
     // The notes pages that slides name are found by their slide id in one step: 8,000 slides naming pages in a list of 500,000 each had
     // the list gone through for it (a file of 15 MB took fifteen seconds).
     void binaryPresentationFindsNotesWithoutScanningTheList()
