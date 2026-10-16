@@ -156,6 +156,9 @@ struct FooterOptions {
     // The date shows as the field that keeps it current ("date", or the field's code, say "datetime:M/d/yyyy", in `dateCode`); a fixed date is
     // the text it is, in `dateText`.
     QString dateText, dateCode;
+    // The text of the slide number's place when it holds more than the field (a word before it, say): the field is where U+FFFC stands. A date's
+    // text may hold the date's field the same way (`dateCode` names it).
+    QString numberText;
     bool skipTitleSlide = false;   // not on slides whose layout is Title Slide
     bool any() const { return date || slideNumber || footer; }
     // Whether a slide with this layout type shows the placeholder of that type ("dt", "ftr", "sldNum").
@@ -175,6 +178,9 @@ void applyFooters(Document &d, const FooterOptions &o, Page *only = nullptr);
 void addMissingFooters(Document &d, const FooterOptions &o, Page &slide);
 // The text the footer place of a slide's layout (or its master) holds: empty when it has no footer place, or none in it.
 QString layoutFooterText(const Document &d, const Page &slide);
+// The text the place of that type ("dt", "sldNum") of a slide's layout (or its master) holds, with U+FFFC where it holds a field (the code of the
+// first is given in `fieldCode`); empty when it has no such place, or none in it.
+QString layoutPlaceText(const Document &d, const Page &slide, const QString &type, QString *fieldCode = nullptr);
 
 // A solid background for one slide; for all of them, the slide master's,
 // with the slides' and layouts' own cleared so they follow it.
