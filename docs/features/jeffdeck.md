@@ -262,7 +262,7 @@ The Draw tab of Office 2021 is for ink on slides while editing. JeffDeck has ink
 ### Customize
 - [~] **1.0** Slide Size: Standard (4:3, 10 by 7.5 inches) and Widescreen (16:9, 13.333 by 7.5), with Ensure Fit scaling text, line weights, and layouts *(no Maximize; a file's other size is kept but can't be chosen; 4:3: ours 17 of 19 .pptx and 52 of 54 in all)*
 - [ ] **1.0** Custom Slide Size: width, height, orientation (including portrait slides), the first slide number, and the orientation of notes and handouts
-- [~] **1.0** Format Background: a solid color for this slide or all, applied to slides and layouts that had their own *(no gradient, picture, texture, pattern, or Hide Background Graphics, and no Reset Background; backgrounds are drawn)*
+- [~] **1.0** Format Background: a solid color for this slide or all, applied to slides and layouts that had their own *(no gradient, picture, texture, or pattern, and no Reset Background; backgrounds are drawn; in Slide Master view it formats the master or layout being edited)*
 - [ ] **1.0** The Format Background pane (see Shape Format)
 
 ## Transitions tab
@@ -343,7 +343,7 @@ Office 2021 has a Record tab that records a show with the speaker's voice, ink, 
 - [x] **1.0** Normal, Outline View, and Slide Sorter (the same buttons are on the status bar); each switch keeps the current slide
 - [ ] **1.0** Notes Page: work on the notes in the shape of a printed page *(on the tab, not available)*
 - [ ] **1.0** Reading View: the show in a window with a bar, for reading a presentation *(on the tab, not available; the Browsed by an individual show type exists)*
-- [ ] **1.0** Slide Master, Handout Master, and Notes Master views (see the Slide Master tab)
+- [~] **1.0** Slide Master, Handout Master, and Notes Master views (see the Slide Master tab) *(Slide Master view is there, on View > Master Views; the other two wait)*
 - [x] **1.0** Show: Ruler, Gridlines, and Guides check boxes; Notes shows or hides the notes box under the slide
 - [~] **1.0** Grid and guide settings: spacing, snap to grid, drag guides, and add or remove a guide *(Guides can be shown and objects snap to others; whether a guide can be dragged out of the ruler could not be confirmed)*
 - [x] **1.0** Zoom: a menu from 400% to 10%, Fit to Window, a slider and buttons on the status bar, and Ctrl with the mouse wheel; in the Slide Sorter the same controls size the pictures
@@ -448,13 +448,13 @@ These tabs are shown while something is selected. JeffDeck has one: Playback, wh
 - [ ] **later** Zoom tools: choose the Zoom image and Return to Zoom
 
 ### Slide Master, Handout Master, and Notes Master views
-- [ ] **1.0** (needed to drop Preview) Slide Master view: the master and each layout opened and edited like slides, with a pane of them *(you can't edit slide masters or layouts yet; they are read, kept, written, and applied)*
-- [ ] **1.0** (needed to drop Preview) Edit Master: Insert Slide Master, Insert Layout, Delete, Rename, and Preserve; more than one master per file *(more than one master: ours 2 of 19; 234 layouts in 21 masters across the 19 .pptx)*
-- [ ] **1.0** (needed to drop Preview) Master Layout and Insert Placeholder: which placeholders a layout has and where (title, text, content, picture, chart, table, diagram, media, date, footer, and slide number), and Title and Footers check boxes
-- [ ] **1.0** (needed to drop Preview) Edit the master's text styles: each level's bullet, font, size, color, indent, and spacing
-- [ ] **1.0** (needed to drop Preview) Draw shapes and pictures on a master or a layout (a logo, a band, a line), and Hide Background Graphics on a slide
-- [ ] **1.0** Edit Theme and Background groups in master view: Themes, Colors, Fonts, Effects, Background Styles, and Slide Size *(see Design)*
-- [ ] **1.0** (needed to drop Preview) Close Master View
+- [x] **1.0** (needed to drop Preview) Slide Master view: the master and each layout opened and edited like slides, with a pane of them *(the pane lists each slide master with its layouts under it; what is changed on a master or layout reaches the layouts and slides that followed it, in the same step that undoes; .pptx keeps every master and layout, .odp the master pages and the layouts slides use)*
+- [x] **1.0** (needed to drop Preview) Edit Master: Insert Slide Master, Insert Layout, Delete, Rename, and Preserve; more than one master per file *(Delete says why when slides use the master or layout, and keeps the last master and each master's last layout; more than one master: ours 2 of 19; 234 layouts in 21 masters across the 19 .pptx)*
+- [x] **1.0** (needed to drop Preview) Master Layout and Insert Placeholder: which placeholders a layout has and where (title, text, content, picture, chart, table, media, online image, date, footer, and slide number), and Title and Footers check boxes *(a diagram place waits for SmartArt editing)*
+- [~] **1.0** (needed to drop Preview) Edit the master's text styles: each level's bullet, font, size, color, indent, and spacing *(the text of the master's placeholders is edited with the Home tab's tools, and what a level looks like reaches the layouts and slides that had it; the lines of a new presentation's master all stand at the first level, so they share one style)*
+- [x] **1.0** (needed to drop Preview) Draw shapes and pictures on a master or a layout (a logo, a band, a line), and Hide Background Graphics on a slide *(Hide Background Graphics is on the Slide Master tab for a layout and on the Design tab for a slide, and is saved)*
+- [~] **1.0** Edit Theme and Background groups in master view: Themes, Colors, Fonts, Effects, Background Styles, and Slide Size *(the Design tab's, changing the whole presentation; Effects is on the tab but not available; see Design)*
+- [x] **1.0** (needed to drop Preview) Close Master View
 - [ ] **1.0** Notes Master view: the notes page's slide image, notes body, header, date, footer, and page number, its text styles, and its background *(ours: notes master in 12 of 19)*
 - [ ] **1.0** Handout Master view: slides per page, orientation, header, date, footer, and page number, and its background *(ours: handout master in 3 of 19)*
 - [~] **1.0** Notes with formatting: bold, italic, lists, links, and pictures in speaker notes *(notes are plain text; what happens to a formatted note in a file when it is edited could not be confirmed; notes with text: ours 12 of 19, 138 slides)*
@@ -507,7 +507,7 @@ JeffDeck has right-click menus in the slides pane, the Slide Sorter, and the sho
 - [x] **1.0** Colors are plain colors on the objects, as files hold them; saving finds the theme's colors in them again; a change of colors swaps each old color for the new scheme's; text and shapes on a dark background use the four dark and light colors, so they trade places when the background turns light or dark; dark masters are saved with the dark color map
 - [x] **1.0** Text on a picture, a table cell, or a shape with its own color does not turn light or dark with the slide's background; a color that would read below 4.5 to 1 moves toward light or dark just far enough
 - [ ] **1.0** Theme effects, custom color and font schemes, and theme files (see Design)
-- [ ] **1.0** (needed to drop Preview) Edit masters and layouts (see the Slide Master view)
+- [x] **1.0** (needed to drop Preview) Edit masters and layouts (see the Slide Master view)
 - [x] **1.0** Footers: the date, slide number, and footer text placed from the Header and Footer window, applied to all slides and to new ones
 - [x] **1.0** Slide size changes scale text, line weights, layouts, and placeholders to the new shape, and other objects keep their own shape and stay centered
 - [ ] **later** Section Zoom and Slide Zoom targets, and the first slide number
