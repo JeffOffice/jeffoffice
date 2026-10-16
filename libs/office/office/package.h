@@ -12,6 +12,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <QMap>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -127,8 +128,11 @@ public:
 private:
     struct Part { QString name; QByteArray data; QString contentType; };
     QVector<Part> m_parts;
+    QHash<QString, int> m_partAt;                   // lower-cased part name -> its place in m_parts
     QMap<QString, QString> m_defaults;              // lower-cased extension -> content type
     QMap<QString, QVector<Relationship>> m_rels;    // by source; targets as written to the file
+    QHash<QString, QSet<QString>> m_relIds;         // the Ids each source's links have
+    QHash<QString, int> m_nextRelId;                // where the next Id to try is, for each source
 };
 
 // The part a relationship target names, from the part that holds the link
