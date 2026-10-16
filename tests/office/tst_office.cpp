@@ -4304,6 +4304,129 @@ private Q_SLOTS:
         QCOMPARE(odrawBlip(odBitmapBlip(0xF01E, 0x6E0, png) + QByteArray(9, 'x'), nullptr), png);
     }
 
+    // The QuickDraw pictures of a Macintosh (a PICT): numbers big-endian, a point vertical first, then horizontal.
+    static QByteArray pictU16(int v)
+    {
+        QByteArray b(2, 0);
+        qToBigEndian<quint16>(quint16(v), b.data());
+        return b;
+    }
+    static QByteArray pictU32(quint32 v)
+    {
+        QByteArray b(4, 0);
+        qToBigEndian<quint32>(v, b.data());
+        return b;
+    }
+    static QByteArray pictRect(int top, int left, int bottom, int right) { return pictU16(top) + pictU16(left) + pictU16(bottom) + pictU16(right); }
+    // A version 2 picture of `width` by `height` points that does `ops`: its size and frame, the version, and the header.
+    static QByteArray odPict(int width, int height, const QByteArray &ops)
+    {
+        return pictU16(0) + pictRect(0, 0, height, width) + pictU16(0x0011) + pictU16(0x02FF) + pictU16(0x0C00) + pictU16(0xFFFE) + pictU16(0) + pictU32(0x00480000)
+               + pictU32(0x00480000) + pictRect(0, 0, height, width) + pictU32(0) + ops + pictU16(0x00FF);
+    }
+    static QByteArray pictColor(int op, int r, int g, int b) { return pictU16(op) + pictU16(r * 257) + pictU16(g * 257) + pictU16(b * 257); }
+
+    // A picture from a Macintosh is drawn as a PNG file: the rectangles, ovals, polygons, regions, lines, and text its operations make.
+    void odrawBlipDrawsAPictAsAPng()
+    {
+        // The picture of `ops` (200 by 100 points) as an image, and the color of the pixel at a point of it.
+        auto draw = [&](const QByteArray &ops) {
+            QString format;
+            const QByteArray png = odrawBlip(odMetafileBlip(0xF01C, 0x542, odPict(200, 100, ops), true), &format);
+            if (png.isEmpty()) return QImage();
+            if (format != QLatin1String("png")) return QImage();
+            return QImage::fromData(png, "PNG");
+        };
+        auto at = [](const QImage &img, int x, int y) { return img.pixelColor(x * img.width() / 200, y * img.height() / 100); };
+        auto is = [](const QColor &c, int r, int g, int b) { return c.alpha() > 250 && std::abs(c.red() - r) < 12 && std::abs(c.green() - g) < 12 && std::abs(c.blue() - b) < 12; };
+        const QByteArray red = pictColor(0x001A, 255, 0, 0), blue = pictColor(0x001A, 0, 0, 255);
+        // A rectangle, with nothing around it.
+        QImage img = draw(red + pictU16(0x0031) + pictRect(10, 20, 60, 120));
+        QVERIFY(!img.isNull());
+        QVERIFY(img.width() >= 200 && img.height() >= 100);
+        QCOMPARE(img.width() * 100, img.height() * 200);
+        QVERIFY(is(at(img, 70, 35), 255, 0, 0));
+        QCOMPARE(at(img, 150, 80).alpha(), 0);
+        QCOMPARE(at(img, 10, 35).alpha(), 0);
+        // An oval, a rounded rectangle, a polygon (a triangle), and a region (a rectangle), each filled.
+        img = draw(blue + pictU16(0x0051) + pictRect(10, 10, 90, 90));
+        QVERIFY(is(at(img, 50, 50), 0, 0, 255));
+        QCOMPARE(at(img, 12, 12).alpha(), 0);                 // the corner of the oval's box
+        img = draw(blue + pictU16(0x0041) + pictRect(10, 10, 90, 90));
+        QVERIFY(is(at(img, 50, 50), 0, 0, 255));
+        img = draw(red + pictU16(0x0071) + pictU16(8 + 2 + 4 * 3) + pictRect(10, 100, 90, 190) + pictU16(90) + pictU16(100) + pictU16(90) + pictU16(190) + pictU16(10) + pictU16(145));
+        QVERIFY(is(at(img, 145, 70), 255, 0, 0));
+        QCOMPARE(at(img, 105, 20).alpha(), 0);
+        img = draw(red + pictU16(0x0081) + pictU16(10) + pictRect(20, 30, 70, 80));
+        QVERIFY(is(at(img, 55, 45), 255, 0, 0));
+        QCOMPARE(at(img, 90, 45).alpha(), 0);
+        // A region that is not a rectangle: from row 20 the run 30 to 40, from row 30 the run 30 to 60, and from row 40 nothing (each row
+        // names the places the row differs from the one above in, and ends with 0x7FFF; so does the region).
+        img = draw(red + pictU16(0x0081) + pictU16(10 + 26) + pictRect(20, 30, 40, 60)
+                   + pictU16(20) + pictU16(30) + pictU16(40) + pictU16(0x7FFF) + pictU16(30) + pictU16(40) + pictU16(60) + pictU16(0x7FFF) + pictU16(40) + pictU16(30) + pictU16(60) + pictU16(0x7FFF) + pictU16(0x7FFF));
+        QVERIFY(is(at(img, 35, 25), 255, 0, 0));
+        QCOMPARE(at(img, 50, 25).alpha(), 0);
+        QVERIFY(is(at(img, 50, 35), 255, 0, 0));
+        // A line, as wide as the pen (8 across), from one point to another, and the words drawn in the font and size the picture names.
+        img = draw(pictU16(0x0007) + pictU16(8) + pictU16(8) + pictU16(0x0020) + pictU16(50) + pictU16(20) + pictU16(50) + pictU16(180));
+        QVERIFY(is(at(img, 100, 52), 0, 0, 0));
+        QCOMPARE(at(img, 100, 64).alpha(), 0);
+        QCOMPARE(at(img, 100, 40).alpha(), 0);
+        const QByteArray text = pictU16(0x0003) + pictU16(21) + pictU16(0x000D) + pictU16(60) + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x01" "H");
+        img = draw(text);
+        int ink = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) ink += qAlpha(img.pixel(x, y)) > 128 && qRed(img.pixel(x, y)) < 100;
+        QVERIFY2(ink > 200, qPrintable(QString::number(ink)));
+        // The strings of a picture that goes on from the last one's start (the pen is at its end): a second "I" 100 points after the first,
+        // which is no more than 40 points wide, stands at 120, not after the first one's end.
+        const QByteArray bigI = pictU16(0x000D) + pictU16(60) + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x01" "I")
+                                + pictU16(0x0029) + QByteArray("\x64\x01" "I") + QByteArray(1, '\0');
+        img = draw(bigI);
+        auto inkIn = [&](int x0, int x1) {
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = x0 * img.width() / 200; x < x1 * img.width() / 200; ++x) n += qAlpha(img.pixel(x, y)) > 128;
+            return n;
+        };
+        QVERIFY(inkIn(20, 45) > 50);
+        QVERIFY(inkIn(120, 145) > 50);
+        QCOMPARE(inkIn(47, 118), 0);
+        QCOMPARE(inkIn(150, 200), 0);
+        // A bitmap with a color table (here 8 pixels in a row at 8 bits each, red, green, then blue, over 10 to 90 across), and a direct one
+        // (32 bits to the pixel in rows of each color: 4 pixels red, then 4 blue).
+        auto pixmapHeader = [&](int rowBytes, int packType, int pixelSize, int components) {
+            return pictU16(0x8000 | rowBytes) + pictRect(0, 0, 1, 8) + pictU16(0) + pictU16(packType) + pictU32(0) + pictU32(0x00480000) + pictU32(0x00480000)
+                   + pictU16(pixelSize == 32 ? 0x10 : 0) + pictU16(pixelSize) + pictU16(components) + pictU16(pixelSize == 32 ? 8 : pixelSize) + pictU32(0) + pictU32(0) + pictU32(0);
+        };
+        QByteArray table = pictU32(0) + pictU16(0) + pictU16(7);
+        for (int i = 0; i < 8; ++i) table += pictU16(i) + pictU16(i == 0 ? 0xFFFF : 0) + pictU16(i == 1 ? 0xFFFF : 0) + pictU16(i == 2 ? 0xFFFF : 0);
+        const QByteArray indexes("\x07\x00\x01\x02\x03\x04\x05\x06\x07", 9);   // one run of 8
+        img = draw(pictU16(0x0098) + pixmapHeader(8, 0, 8, 1) + table + pictRect(0, 0, 1, 8) + pictRect(10, 10, 30, 90) + pictU16(0) + QByteArray(1, char(indexes.size())) + indexes);
+        QVERIFY(!img.isNull());
+        QVERIFY(is(at(img, 15, 20), 255, 0, 0));
+        QVERIFY(is(at(img, 25, 20), 0, 255, 0));
+        QVERIFY(is(at(img, 35, 20), 0, 0, 255));
+        const QByteArray planes("\x17\xFF\xFF\xFF\xFF\x00\x00\x00\x00" "\x00\x00\x00\x00\x00\x00\x00\x00" "\x00\x00\x00\x00\xFF\xFF\xFF\xFF", 25);   // one run of 24
+        img = draw(pictU16(0x009A) + pictU32(0) + pixmapHeader(32, 4, 32, 3) + pictRect(0, 0, 1, 8) + pictRect(10, 10, 30, 90) + pictU16(0) + QByteArray(1, char(planes.size())) + planes);
+        QVERIFY(!img.isNull());
+        QVERIFY(is(at(img, 20, 20), 255, 0, 0));
+        QVERIFY(is(at(img, 80, 20), 0, 0, 255));
+        // A picture that paints the whole page again and again, three hundred thousand times, is stopped soon after it has: what it has drawn
+        // stays, and it takes no longer than any picture.
+        QByteArray flood = red;
+        const QByteArray page = pictU16(0x0031) + pictRect(0, 0, 100, 200);
+        for (int i = 0; i < 300000; ++i) flood += page;
+        QElapsedTimer timer;
+        timer.start();
+        img = draw(flood);
+        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY(is(at(img, 100, 50), 255, 0, 0));
+        // What it can't read, or what is cut short, is no picture and no crash.
+        QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, odPict(200, 100, QByteArray()).left(30), true), nullptr).isEmpty());
+        QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, QByteArray("not a picture at all"), true), nullptr).isEmpty());
+    }
+
     void odrawBlipInflatesMetafiles()
     {
         const QByteArray emf = odFakeEmf();
@@ -7031,7 +7154,7 @@ private Q_SLOTS:
         const int before = jp::blipAdjustedMade();
         timer.restart();
         const QImage turned = jp::blipAdjusted(large, {hslEffect(120, 0, 0)});
-        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
         QVERIFY(turned.cacheKey() != large.cacheKey());
         QCOMPARE(jp::blipAdjustedMade(), before + 1);
         QCOMPARE(jp::blipAdjusted(large, {hslEffect(120, 0, 0)}).cacheKey(), turned.cacheKey());
