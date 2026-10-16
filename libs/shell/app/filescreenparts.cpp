@@ -207,7 +207,7 @@ QWidget *suiteCard(QWidget *parent, const QWidget *screen)
     struct App { const char *name, *letters, *color; QString what; Stage stage; };
     const App apps[] = {
         {"JeffPub", "JP", "#9E1F63", QCoreApplication::translate("jp::FileScreen", "Publications"), Out},
-        {"JeffDeck", "JD", "#B6420F", QCoreApplication::translate("jp::FileScreen", "Presentations"), Preview},
+        {"JeffDeck", "JD", "#B6420F", QCoreApplication::translate("jp::FileScreen", "Presentations"), Out},
         {"JeffWrite", "JW", "#1D55C4", QCoreApplication::translate("jp::FileScreen", "Documents"), Soon},
         {"JeffCrunch", "JC", "#13773A", QCoreApplication::translate("jp::FileScreen", "Spreadsheets"), Soon},
         {"JeffMail", "JM", "#0A6C8C", QCoreApplication::translate("jp::FileScreen", "Email and calendar"), Soon},
