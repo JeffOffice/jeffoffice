@@ -1,22 +1,28 @@
 # JeffDeck feature list
 
-JeffDeck is the presentation app of JeffOffice, modeled on the one in Office 2021: it saves `.pptx` by default, opens `.pptx`, `.potx`, `.ppsx`, `.ppt`, `.pps`, `.pot`, `.odp`, and `.otp`, and also saves `.potx`, `.ppsx`, `.odp`, and `.otp`. Unlike the lists for JeffWrite and JeffCrunch, this one describes a program that exists: JeffDeck shipped as a preview in 0.7.0 and again in 0.8.0, so every item carries a status checked against the code, the tests, the ribbon file, and Help on October 15, 2026 (see [docs/jeffdeck.md](../jeffdeck.md) for the design and status notes, which this list does not replace). It is laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, the slide show, then what sits under the ribbon), so that the work can be planned and tracked, and so that it can settle one question: when does JeffDeck stop being a preview?
+JeffDeck is the presentation app of JeffOffice, modeled on PowerPoint in Office 2021: it saves `.pptx` by default, opens `.pptx`, `.potx`, `.ppsx`, `.ppt`, `.pps`, `.pot`, `.odp`, and `.otp`, and also saves `.potx`, `.ppsx`, `.odp`, and `.otp`. It is a preview (it shipped in 0.7.0 and again in 0.8.0), so unlike the lists for the apps not built yet, this one describes a program that exists, a box is checked only when the feature works in JeffDeck today, and every item carries a status checked against the code, the tests, the ribbon file, and Help on October 15, 2026 (see [docs/jeffdeck.md](../jeffdeck.md) for the design and status notes, which this list does not replace). It is laid out the way the original is (File, then each ribbon tab, the slide show, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked, and so that it can settle one question: when does JeffDeck stop being a preview?
 
-Legend: `[x]` works in JeffDeck today · `[~]` partly there (the note says exactly what is missing, or what could not be confirmed) · `[ ]` not yet · **(alt)** the usual way to do this depends on a proprietary online service, so JeffDeck offers, or plans, an open replacement.
+Last reviewed October 16, 2026.
 
-Every item carries a tier, measured against dropping the Preview label:
+Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
-- **1.0**: needed before JeffDeck stops being a preview. A finished item is usually **1.0** too, since it counts toward the bar. The label comes off when every **1.0** item below is `[x]`, or has been moved to **later** by a decision written under Decided.
-- **later**: used by few presentations, needs a piece the suite doesn't have yet, or depends on something outside the program.
+Every item carries a tier:
 
-There is no "first release" tier here, because JeffDeck already shipped. Version 1.0 is ready when PowerPoint opens every file JeffDeck saves (met so far for all 64 reference presentations) and JeffDeck's slides match PowerPoint's own pictures about as closely as JeffPub's pages match Publisher's (see Fidelity, where JeffDeck is close on average and not yet on the median).
+- **1.0**: needed before JeffDeck is called finished (for JeffDeck, the items beyond what it needs to drop its Preview label).
+- **later**: wanted, but not before 1.0.
+
+## How the tiers were chosen
+
+Dropping the Preview label needs the old `.ppt` fidelity gaps fixed (the first four gaps under Fidelity and testing, measured on decks never used for tuning) plus five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing (decided October 16, 2026). The items that make up those five basics are marked "(needed to drop Preview)".
+
+There is no "first release" tier here, because JeffDeck already shipped. Version 1.0 asks for more: it is ready when PowerPoint opens every file JeffDeck saves (met so far for all 64 reference presentations) and JeffDeck's slides match PowerPoint's own pictures about as closely as JeffPub's pages match Publisher's (see Fidelity and testing, where JeffDeck is close on average and not yet on the median). A finished item is usually **1.0** too, since it counts toward the bar for version 1.0. An item is **later** when few presentations use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
 
 How the evidence reads. A count reads "ours 4 of 19": the number of decks among our 19 real `.pptx` files that use the feature. Our reference collection is 54 real presentations (1,028 slides: 35 old `.ppt` and 19 `.pptx`) plus PowerPoint's 10 built-in designs; the 64 are the ones every score below is measured on. Only the `.pptx` were counted, by reading their XML (390 slides); the `.ppt` are binary and were not, and the held-out test set was not opened. Nothing is counted yet for public presentations: the 40 old `.ppt` files from the U.S. government collection Govdocs1 were used only to measure fidelity, so **public** figures do not exist yet. Four cautions:
 
 - The collection is old. 52 of the 54 real presentations are 4:3 (the other two are 16:9), 12 of the 19 `.pptx` have speaker notes, and almost none use the newer features (SmartArt, equations, sections, comments, custom shows, embedded fonts, and macros all read 0 of 19). A zero here means "not in the sample", not "nobody uses it".
 - Counts of a feature are decks, not occurrences: "ours 3 of 19" means 3 decks, and the item says how many uses when that helps. Where a count could be thrown off (for example, an old `.ppt` that PowerPoint converted writes empty timing parts), the item says which figure is trusted.
 - Slides, not presentations, are the unit of the fidelity scores; the two are kept apart below.
-- The README's "Not yet in the preview" list is older than the code in places: it still names text shrunk to fit its box, a picture's brightness and contrast, and some text shadows as gaps, and recent work on all three is in the tests (see Fidelity). This list follows the code.
+- The README's "Not yet in the preview" list is older than the code in places: it still names text shrunk to fit its box, a picture's brightness and contrast, and some text shadows as gaps, and recent work on all three is in the tests (see Fidelity and testing). This list follows the code.
 
 ## Beyond PowerPoint
 
@@ -26,7 +32,6 @@ What JeffDeck offers that the original doesn't, then the plans that go past Powe
 - [x] **1.0** Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, nothing that has to be online
 - [~] **1.0** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
 - [x] **1.0** Nothing in a file is lost: what JeffDeck can't edit yet (charts, SmartArt diagrams, equations, animation effects it has no form for, transition effects it has no form for, and parts it doesn't know) is kept with its slide and written back whole; a duplicated slide keeps them too
-- [x] **1.0** A damaged or hostile file never crashes the program: it opens what it can and lists what it left out, checked with random damage on `.ppt` and with hostile `.pptx` and `.odp` files
 - [x] **1.0** Bundled open fonts, with stand-ins that keep the widths of Calibri, Arial, and the other common fonts, so a slide wraps where the original wraps on a computer without Microsoft's fonts
 - [x] **1.0** Embedded fonts that cannot clash: a saved `.pptx` carries the bundled fonts its text uses (never a font everyone has, never one whose license forbids it), and the fonts a file carries are used only while that presentation is open, under private names, so they never replace another presentation's font
 - [x] **1.0** Nine original themes (JeffOffice, Harbor, Ember, Almanac, Confetti, Granite, Orchard, Marquee, and Tideline), each with four variants, drawn by JeffOffice, with no Microsoft artwork
@@ -177,8 +182,8 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **later** Shape Effects: bevel and 3-D rotation, which are not drawn yet *(ours 1 of 19)*
 
 ### Editing
-- [ ] **1.0** Find (Ctrl+F) in slide text, tables, and notes, with whole word and match case *(shared: JeffPub has a Find and Replace pane in apps/pub; JeffDeck has none)*
-- [ ] **1.0** Replace (Ctrl+H) and Replace Fonts
+- [ ] **1.0** (needed to drop Preview) Find (Ctrl+F) in slide text, tables, and notes, with whole word and match case *(shared: JeffPub has a Find and Replace pane in apps/pub; JeffDeck has none)*
+- [ ] **1.0** (needed to drop Preview) Replace (Ctrl+H) and Replace Fonts
 - [x] **1.0** Select All (Ctrl+A) in an object, on a slide, and in the Slide Sorter
 - [ ] **1.0** Select Objects and the Selection Pane (see Drawing)
 - [x] **1.0** Undo and Redo: every change is one step that restores the whole presentation
@@ -353,9 +358,30 @@ Office 2021 has a Record tab that records a show with the speaker's voice, ink, 
 - [ ] **1.0** Tell Me: a box on the ribbon that finds a command and runs it *(Help topics have keywords; there is no command search)*
 - [ ] **later** What's New, a link to a community page, and Report a Problem from the Help tab *(About has links to the source, downloads, and problem reports)*
 
-## Contextual tabs (shown while something is selected)
+## The slide show and Presenter View
 
-JeffDeck has one: Playback, while a single movie or sound is selected. The rest below do not exist yet. Most of their commands act on pieces the shared drawing engine already draws, so a good share of the work is a way to reach them (a tab, a menu, or a pane) rather than a new renderer; the notes say where that holds.
+- [x] **1.0** Full-screen show drawn by the same code as the editor, the print, and the PDF, so a slide shows as it prints; after the last slide a black screen says the show is over; hidden slides are skipped; the window returns on the last slide the show showed
+- [x] **1.0** Move on by click or by Right, Down, Space, Enter, Page Down, or N; back by Left, Up, Backspace, Page Up, or P (one animation step back, or the slide before); Home and End; a slide's number then Enter; B or the period for black, W or the comma for white; Esc ends the show
+- [x] **1.0** The right-click menu: Next, Previous, Go to Slide, Pointer Options (the tool and the ink color), Screen (black or white), and End Show
+- [ ] **1.0** More of the show menu: See All Slides, Last Viewed, Show Presenter View, Zoom into the slide, Arrow Options (hide the pointer), Speaker Notes, and Subtitle Settings
+- [x] **1.0** Animations play click by click: a click while a step plays finishes it and does no more; steps that start by themselves start when the slide appears; the next click plays the next step before the show moves on; Slide Show without animation shows slides whole
+- [x] **1.0** Transitions play on the way forward onto a slide, Morph among them; Esc during one stops it
+- [x] **1.0** Ink: Pen (Ctrl+P), Highlighter (Ctrl+I), Laser Pointer (Ctrl+L, or hold Ctrl and the mouse button), and Eraser (Ctrl+E), E to erase all the ink on the slide, Ctrl+A or Esc for the arrow, a color for each tool; ink stays on its slide while the show runs; at the end Keep puts each stroke on its slide as a shape and Discard leaves the slides as they were
+- [x] **1.0** Movies and sounds play as the file says (in the click sequence, by themselves, or when clicked on; volume, trim, loop, rewind, full screen, hidden while stopped, across slides); the control bar shows when you point at a movie, and a click plays or pauses it
+- [x] **1.0** A click on a link opens a web page or an email address
+- [ ] **1.0** A click on a link to a slide, a custom show, another presentation, or a file, and on an action button (see Insert > Links)
+- [ ] **1.0** Animations that wait for a click on a shape (triggers), and sounds with effects *(see Animations)*
+- [x] **1.0** Presenter View on a second screen: the slide the audience sees, large (a click moves on); the next slide, or the same slide when steps remain; the notes, with A+ and A- for their size; a timer from the start with Pause (then Resume) and Reset; the time of day; the slide number; Previous and Next; Pen and Pointer; Black Screen; See All Slides (a grid; click one to go there); and End Slide Show; closing it ends the show
+- [x] **1.0** Ink drawn in Presenter View appears on the audience's screen, and so does the laser dot
+- [ ] **1.0** Edit the notes in Presenter View *(read only there; edited in the main window)*
+- [ ] **later** Presenter View extras: zoom into the slide, swap the two screens, show the taskbar, and a strip of slide thumbnails
+- [x] **1.0** The show of a presentation being edited: a Browsed by an individual window stays on its slide, follows the edits, and ends if the document is replaced
+- [ ] **later** Run the show from a phone or another device as a remote (next, back, laser, and notes)
+- [ ] **later** Live captions and the speaker's camera in a corner of the show *(see Beyond PowerPoint and Record)*
+
+## Contextual tabs
+
+These tabs are shown while something is selected. JeffDeck has one: Playback, while a single movie or sound is selected. The rest below do not exist yet. Most of their commands act on pieces the shared drawing engine already draws, so a good share of the work is a way to reach them (a tab, a menu, or a pane) rather than a new renderer; the notes say where that holds.
 
 ### Shape Format (shapes, text boxes, lines, and connectors)
 - [ ] **1.0** The Shape Format tab itself, and a Format Shape pane with Fill & Line (solid, gradient with stops, picture or texture, and pattern fills; line color, width, compound type, dash, cap, join, and arrowheads), Effects (shadow, reflection, glow, soft edges), and Size & Properties (size, position, rotation, lock aspect ratio, and, for text, margins, wrap, columns, and autofit) *(the engine draws all of these; today only a solid fill color, an outline color, and the Shadow button are reachable)*
@@ -369,7 +395,7 @@ JeffDeck has one: Playback, while a single movie or sound is selected. The rest 
 
 ### Picture Format (pictures, icons, and screenshots)
 - [ ] **1.0** The Picture Format tab itself, and a Format Picture pane
-- [~] **1.0** Crop with handles, Crop to Shape, Aspect Ratio, and Fill and Fit *(a crop in a file is drawn and saved, and a picture dropped in a picture placeholder is cropped to fill it from the middle; no tool crops, though JeffPub has one in apps/pub; ours: crops 7 of 19 decks, 227 pictures)*
+- [~] **1.0** (needed to drop Preview) Crop with handles, Crop to Shape, Aspect Ratio, and Fill and Fit *(a crop in a file is drawn and saved, and a picture dropped in a picture placeholder is cropped to fill it from the middle; no tool crops, though JeffPub has one in apps/pub; ours: crops 7 of 19 decks, 227 pictures)*
 - [~] **1.0** Corrections, Color, and Transparency: brightness and contrast, sharpen and soften, recolor, saturation, temperature, set transparent color, and picture transparency *(a brightness and contrast, gray, black and white, a color made clear, a duotone, a turned hue, and a tint are read, drawn as the original draws them, and saved as listed, with the picture's bytes untouched; none can be made; ours: any in 1 of 19, 4 uses)*
 - [ ] **1.0** Change Picture (keeping size, place, and formatting) and Reset Picture
 - [ ] **1.0** Picture Styles (frames, shadow, reflection, and rounded corners), Picture Border, and Picture Effects
@@ -384,11 +410,11 @@ JeffDeck has one: Playback, while a single movie or sound is selected. The rest 
 ### Table Design and Table Layout (tables)
 - [~] **1.0** Tables from a file show and save as made, with rows that grow to their text *(the editing tools below are not there; rows that grow with typing could not be confirmed)*
 - [ ] **1.0** Table Style Options (Header Row, Total Row, Banded Rows, First Column, Last Column, and Banded Columns) and the Table Styles gallery (Light, Medium, and Dark, from the theme) *(a table style id in files: ours 1 of 19)*
-- [ ] **1.0** Shading, Borders (all, outside, inside, top, bottom, left, and right, none), and Draw Borders (pen style, weight, and color; Draw Table; Eraser)
-- [ ] **1.0** Select (table, column, row, and cell), View Gridlines, Delete, and Insert Above, Below, Left, and Right
-- [ ] **1.0** Merge Cells and Split Cells *(merged cells in files: ours 0 of 19)*
-- [ ] **1.0** Cell Size: row height and column width by number and by dragging the borders, Distribute Rows and Columns
-- [ ] **1.0** Alignment: align left, center, right, top, middle, and bottom, text direction, and cell margins
+- [ ] **1.0** (needed to drop Preview) Shading, Borders (all, outside, inside, top, bottom, left, and right, none), and Draw Borders (pen style, weight, and color; Draw Table; Eraser)
+- [ ] **1.0** (needed to drop Preview) Select (table, column, row, and cell), View Gridlines, Delete, and Insert Above, Below, Left, and Right
+- [ ] **1.0** (needed to drop Preview) Merge Cells and Split Cells *(merged cells in files: ours 0 of 19)*
+- [ ] **1.0** (needed to drop Preview) Cell Size: row height and column width by number and by dragging the borders, Distribute Rows and Columns
+- [ ] **1.0** (needed to drop Preview) Alignment: align left, center, right, top, middle, and bottom, text direction, and cell margins
 - [ ] **1.0** Table Size, Arrange, and Table Effects (shadow, reflection, cell bevel)
 - [ ] **1.0** Cells copied from JeffCrunch or a document land as a table with fonts, fills, borders, and number formats *(shared: the table engine; see Shared)*
 
@@ -422,44 +448,26 @@ JeffDeck has one: Playback, while a single movie or sound is selected. The rest 
 - [ ] **later** Zoom tools: choose the Zoom image and Return to Zoom
 
 ### Slide Master, Handout Master, and Notes Master views
-- [ ] **1.0** Slide Master view: the master and each layout opened and edited like slides, with a pane of them *(you can't edit slide masters or layouts yet; they are read, kept, written, and applied)*
-- [ ] **1.0** Edit Master: Insert Slide Master, Insert Layout, Delete, Rename, and Preserve; more than one master per file *(more than one master: ours 2 of 19; 234 layouts in 21 masters across the 19 .pptx)*
-- [ ] **1.0** Master Layout and Insert Placeholder: which placeholders a layout has and where (title, text, content, picture, chart, table, diagram, media, date, footer, and slide number), and Title and Footers check boxes
-- [ ] **1.0** Edit the master's text styles: each level's bullet, font, size, color, indent, and spacing
-- [ ] **1.0** Draw shapes and pictures on a master or a layout (a logo, a band, a line), and Hide Background Graphics on a slide
+- [ ] **1.0** (needed to drop Preview) Slide Master view: the master and each layout opened and edited like slides, with a pane of them *(you can't edit slide masters or layouts yet; they are read, kept, written, and applied)*
+- [ ] **1.0** (needed to drop Preview) Edit Master: Insert Slide Master, Insert Layout, Delete, Rename, and Preserve; more than one master per file *(more than one master: ours 2 of 19; 234 layouts in 21 masters across the 19 .pptx)*
+- [ ] **1.0** (needed to drop Preview) Master Layout and Insert Placeholder: which placeholders a layout has and where (title, text, content, picture, chart, table, diagram, media, date, footer, and slide number), and Title and Footers check boxes
+- [ ] **1.0** (needed to drop Preview) Edit the master's text styles: each level's bullet, font, size, color, indent, and spacing
+- [ ] **1.0** (needed to drop Preview) Draw shapes and pictures on a master or a layout (a logo, a band, a line), and Hide Background Graphics on a slide
 - [ ] **1.0** Edit Theme and Background groups in master view: Themes, Colors, Fonts, Effects, Background Styles, and Slide Size *(see Design)*
-- [ ] **1.0** Close Master View
+- [ ] **1.0** (needed to drop Preview) Close Master View
 - [ ] **1.0** Notes Master view: the notes page's slide image, notes body, header, date, footer, and page number, its text styles, and its background *(ours: notes master in 12 of 19)*
 - [ ] **1.0** Handout Master view: slides per page, orientation, header, date, footer, and page number, and its background *(ours: handout master in 3 of 19)*
 - [~] **1.0** Notes with formatting: bold, italic, lists, links, and pictures in speaker notes *(notes are plain text; what happens to a formatted note in a file when it is edited could not be confirmed; notes with text: ours 12 of 19, 138 slides)*
 
-### Shortcut menus (right-click)
+## Shortcut menus (right-click)
+
+JeffDeck has right-click menus in the slides pane, the Slide Sorter, and the show, but not yet on the slide itself.
+
 - [x] **1.0** In the slides pane and the Slide Sorter: New Slide, Duplicate Slide, Delete Slide, Hide Slide, and Add Section; on a section heading: Rename, Remove, Move Up and Down, Collapse All, and Expand All; a theme, an Animation Pane row, and a file in the Open list have menus of their own, and so does the show
-- [ ] **1.0** On an object on the slide: cut, copy, paste options, group and order, edit text, hyperlink, save as picture, size and position, format, alt text, and new comment *(the canvas offers the request and JeffDeck has no handler, so a right-click on a slide shows nothing)*
+- [ ] **1.0** (needed to drop Preview) On an object on the slide: cut, copy, paste options, group and order, edit text, hyperlink, save as picture, size and position, format, alt text, and new comment *(the canvas offers the request and JeffDeck has no handler, so a right-click on a slide shows nothing)*
 - [ ] **1.0** On text being edited: spelling suggestions, Ignore, and Add to Dictionary, with font, paragraph, bullets, link, and Look Up
 - [ ] **1.0** On the slide's background: paste options, grid and guides, ruler, Format Background, Layout, and Reset
 - [ ] **later** The mini toolbar that floats by selected text, with the font, size, bold, italic, color, alignment, and bullet buttons
-
-## The slide show and Presenter View
-
-- [x] **1.0** Full-screen show drawn by the same code as the editor, the print, and the PDF, so a slide shows as it prints; after the last slide a black screen says the show is over; hidden slides are skipped; the window returns on the last slide the show showed
-- [x] **1.0** Move on by click or by Right, Down, Space, Enter, Page Down, or N; back by Left, Up, Backspace, Page Up, or P (one animation step back, or the slide before); Home and End; a slide's number then Enter; B or the period for black, W or the comma for white; Esc ends the show
-- [x] **1.0** The right-click menu: Next, Previous, Go to Slide, Pointer Options (the tool and the ink color), Screen (black or white), and End Show
-- [ ] **1.0** More of the show menu: See All Slides, Last Viewed, Show Presenter View, Zoom into the slide, Arrow Options (hide the pointer), Speaker Notes, and Subtitle Settings
-- [x] **1.0** Animations play click by click: a click while a step plays finishes it and does no more; steps that start by themselves start when the slide appears; the next click plays the next step before the show moves on; Slide Show without animation shows slides whole
-- [x] **1.0** Transitions play on the way forward onto a slide, Morph among them; Esc during one stops it
-- [x] **1.0** Ink: Pen (Ctrl+P), Highlighter (Ctrl+I), Laser Pointer (Ctrl+L, or hold Ctrl and the mouse button), and Eraser (Ctrl+E), E to erase all the ink on the slide, Ctrl+A or Esc for the arrow, a color for each tool; ink stays on its slide while the show runs; at the end Keep puts each stroke on its slide as a shape and Discard leaves the slides as they were
-- [x] **1.0** Movies and sounds play as the file says (in the click sequence, by themselves, or when clicked on; volume, trim, loop, rewind, full screen, hidden while stopped, across slides); the control bar shows when you point at a movie, and a click plays or pauses it
-- [x] **1.0** A click on a link opens a web page or an email address
-- [ ] **1.0** A click on a link to a slide, a custom show, another presentation, or a file, and on an action button (see Insert > Links)
-- [ ] **1.0** Animations that wait for a click on a shape (triggers), and sounds with effects *(see Animations)*
-- [x] **1.0** Presenter View on a second screen: the slide the audience sees, large (a click moves on); the next slide, or the same slide when steps remain; the notes, with A+ and A- for their size; a timer from the start with Pause (then Resume) and Reset; the time of day; the slide number; Previous and Next; Pen and Pointer; Black Screen; See All Slides (a grid; click one to go there); and End Slide Show; closing it ends the show
-- [x] **1.0** Ink drawn in Presenter View appears on the audience's screen, and so does the laser dot
-- [ ] **1.0** Edit the notes in Presenter View *(read only there; edited in the main window)*
-- [ ] **later** Presenter View extras: zoom into the slide, swap the two screens, show the taskbar, and a strip of slide thumbnails
-- [x] **1.0** The show of a presentation being edited: a Browsed by an individual window stays on its slide, follows the edits, and ends if the document is replaced
-- [ ] **later** Run the show from a phone or another device as a remote (next, back, laser, and notes)
-- [ ] **later** Live captions and the speaker's camera in a corner of the show *(see Beyond PowerPoint and Record)*
 
 ## Under the ribbon: the rendering engine
 
@@ -499,7 +507,7 @@ JeffDeck has one: Playback, while a single movie or sound is selected. The rest 
 - [x] **1.0** Colors are plain colors on the objects, as files hold them; saving finds the theme's colors in them again; a change of colors swaps each old color for the new scheme's; text and shapes on a dark background use the four dark and light colors, so they trade places when the background turns light or dark; dark masters are saved with the dark color map
 - [x] **1.0** Text on a picture, a table cell, or a shape with its own color does not turn light or dark with the slide's background; a color that would read below 4.5 to 1 moves toward light or dark just far enough
 - [ ] **1.0** Theme effects, custom color and font schemes, and theme files (see Design)
-- [ ] **1.0** Edit masters and layouts (see the Slide Master view)
+- [ ] **1.0** (needed to drop Preview) Edit masters and layouts (see the Slide Master view)
 - [x] **1.0** Footers: the date, slide number, and footer text placed from the Header and Footer window, applied to all slides and to new ones
 - [x] **1.0** Slide size changes scale text, line weights, layouts, and placeholders to the new shape, and other objects keep their own shape and stay centered
 - [ ] **later** Section Zoom and Slide Zoom targets, and the first slide number
@@ -526,7 +534,7 @@ JeffDeck has one: Playback, while a single movie or sound is selected. The rest 
 - [ ] **later** Fades, bookmarks, captions, a chosen poster frame, and Compress Media
 - [ ] **later** Record audio and screen recordings placed on a slide
 
-## Fidelity
+## Fidelity and testing
 
 JeffDeck is measured against the original's own pictures of each slide. PowerPoint on the Windows test machine draws every slide of the reference presentations; JeffDeck draws the same slides, and a score for each slide says how far apart the two pictures are (the average difference of the two blurred pictures in gray, at a small size, the scale JeffPub's comparison uses: lower is closer, and 2 is the line the percentages below use). The reference pictures stay on the build machine and never go in the repository.
 
@@ -556,6 +564,17 @@ Reading it: on its own decks JeffDeck's mean and its share under 2 are already b
 - [ ] **1.0** A repeatable slide comparison anyone can run: the scoring of the 64 was done on the build machine, and `tools/fidelity.py` in this repository scores `.pub` files only; add the slide version, made from `jdecktool render` and PowerPoint's pictures, and write the numbers into each release's notes
 - [ ] **1.0** A list of the lowest-scoring tenth of slides after each release, each with its cause, kept until the median is under 1
 - [x] **1.0** Fonts do not move text: bundled stand-ins keep the widths of Calibri, Arial, and the other common fonts, and a file's own embedded fonts are used while it is open
+- [x] **1.0** Files JeffDeck saves open in PowerPoint on the Windows test machine (Office 2021) without a repair message *(met so far for all 64 reference presentations)*
+- [~] **1.0** Decks held out from tuning are scored apart from the ones used for tuning *(the 40 old `.ppt` files from Govdocs1 are; the held-out test set of our own decks has not been opened)*
+- [ ] **1.0** The public test collections that hold presentations (Apache POI's slideshow test files, and the rest of Govdocs1's `.ppt` files) run through the readers and the save-and-reopen check, each file that does not open or does not save back listed with its cause
+
+## Safety and limits
+
+Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs or reaches out until the person allows it, every file reader is fuzzed and held to limits on memory and time, and a damaged file opens as far as it can without crashing.
+
+- [x] **1.0** A damaged or hostile file never crashes the program: it opens what it can and lists what it left out, checked with random damage on `.ppt` and with hostile `.pptx` and `.odp` files
+- [~] **1.0** Nothing in a presentation runs or reaches out until the person allows it: macros, links, linked media, and remote content *(macros are kept and never run, and a link opens only when it is clicked in the show; what happens with linked files and linked media is the Trust Center item in Options)*
+- [~] **1.0** Every file reader is fuzzed and held to limits on memory and time *(random damage on `.ppt`, hostile `.pptx` and `.odp` files, and pictures held to budgets are done; limits on memory and time for every reader could not be confirmed)*
 
 ## File formats
 
@@ -648,6 +667,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 - Old and open formats (October 11, 2026, for all the apps): the first release opens the old and the open kinds, and saving them follows once the main kind is solid. Until then, Save on an old file asks for a new name in the new kind. JeffDeck has since added saving `.odp` and `.otp`; saving `.ppt`, `.pps`, and `.pot` is **later**.
 - Embedded fonts (October 11, 2026): saving embeds, by default, the fonts JeffOffice brings that other computers may lack; fonts drawn in place of common ones are saved under the common name.
 - Reference pictures: PowerPoint is installed on the Windows test machine (Office LTSC Professional Plus 2021), as Word, Excel, and Publisher are.
+- Dropping the Preview label (October 16, 2026): it needs the old `.ppt` fidelity gaps fixed, measured on decks never used for tuning, plus five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing. The items that make them up carry "(needed to drop Preview)"; every other **1.0** item is needed before JeffDeck is called finished.
 
 ## Open questions
 
