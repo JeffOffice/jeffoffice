@@ -171,6 +171,25 @@ QByteArray PdfDocument::extractPage(int page) const
     return out;
 }
 
+QString PdfDocument::text(int page) const
+{
+    QMutexLocker lock(&pdfiumLock());
+    if (!d->doc || page < 0 || page >= FPDF_GetPageCount(d->doc)) return {};
+    FPDF_PAGE pg = FPDF_LoadPage(d->doc, page);
+    if (!pg) return {};
+    QString out;
+    if (FPDF_TEXTPAGE tp = FPDFText_LoadPage(pg)) {
+        if (const int n = FPDFText_CountChars(tp); n > 0) {
+            QVector<unsigned short> chars(n + 1);
+            const int got = FPDFText_GetText(tp, 0, n, chars.data());
+            out = QString::fromUtf16(reinterpret_cast<const char16_t *>(chars.constData()), std::max(0, got - 1));
+        }
+        FPDFText_ClosePage(tp);
+    }
+    FPDF_ClosePage(pg);
+    return out;
+}
+
 QImage PdfDocument::render(int page, const QSize &px) const
 {
     QMutexLocker lock(&pdfiumLock());

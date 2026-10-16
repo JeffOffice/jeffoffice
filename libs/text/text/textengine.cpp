@@ -221,7 +221,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (noLigatures ? "|n" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (int i = 0; i < SlotCount; ++i) k += colors.c[i].name();
@@ -906,7 +906,7 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (num == 2) f.setFeature(QFont::Tag("onum"), 1);
     if (sp == 1) f.setFeature(QFont::Tag("pnum"), 1);
     if (sp == 2) f.setFeature(QFont::Tag("tnum"), 1);
-    if (lig == 1) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
+    if (lig == 1 || env.noLigatures) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
     if (lig == 2) { f.setFeature(QFont::Tag("dlig"), 1); f.setFeature(QFont::Tag("hlig"), 1); }
     const int ss = cf.intProperty(tp::StylisticSet);
     if (ss > 0 && ss <= 20) f.setFeature(QFont::Tag::fromString(QStringLiteral("ss%1").arg(ss, 2, 10, QChar('0'))).value_or(QFont::Tag()), 1);

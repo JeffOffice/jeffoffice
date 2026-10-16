@@ -208,7 +208,7 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
     return out;
 }
 
-LayoutEnv Renderer::layoutEnv(const Document &doc)
+LayoutEnv Renderer::layoutEnv(const Document &doc, const RenderOptions *opt)
 {
     LayoutEnv env;
     env.colors = doc.colors;
@@ -216,6 +216,7 @@ LayoutEnv Renderer::layoutEnv(const Document &doc)
     env.defaultTab = doc.defaultTabStop;
     env.slideLines = doc.slideText;
     env.familyAliases = doc.fontAliases;
+    env.noLigatures = opt && opt->plainLetters;
     return env;
 }
 
@@ -321,7 +322,7 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
         sig += specSig(specs.last(), false);
     }
     sig += fieldsKey(doc, *story, specs.first().ctx);
-    LayoutEnv env = Renderer::layoutEnv(doc);
+    LayoutEnv env = Renderer::layoutEnv(doc, &opt);
     sig += env.key();
     // A slide's text the presentation program shrank keeps the size it was given (its file says it) until it is edited here.
     const bool asStored = doc.slideText && chain.size() == 1 && head->autofit == TextItem::ShrinkOnOverflow && head->fitAsStored;
@@ -387,11 +388,11 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     return out;
 }
 
-const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key)
+const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, const RenderOptions *opt)
 {
     Story *story = doc.story(storyId);
     if (!story) return nullptr;
-    LayoutEnv env = Renderer::layoutEnv(doc);
+    LayoutEnv env = Renderer::layoutEnv(doc, opt);
     const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec, false) + fieldsKey(doc, *story, spec.ctx) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {
@@ -912,7 +913,7 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.ctx.pageCount = ctx.pageCount;
     spec.ctx.mergeRecord = ctx.opt.mergeRecord;
     if (origin) *origin = tr.topLeft();
-    return ctx.cache->storyBox(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber));
+    return ctx.cache->storyBox(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber), &ctx.opt);
 }
 
 const StoryLayout *Renderer::cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin, int half)
@@ -943,7 +944,7 @@ const StoryLayout *Renderer::cellLayout(const PaintContext &ctx, const TableItem
         spec.fitToShape = true;
     }
     if (origin) *origin = cr.topLeft();
-    return ctx.cache->storyBox(*ctx.doc, story, spec, t.id + QStringLiteral("/%1/%2/%3%4").arg(row).arg(col).arg(ctx.pageNumber).arg(half && c.divided() ? QStringLiteral("/h2") : QString()));
+    return ctx.cache->storyBox(*ctx.doc, story, spec, t.id + QStringLiteral("/%1/%2/%3%4").arg(row).arg(col).arg(ctx.pageNumber).arg(half && c.divided() ? QStringLiteral("/h2") : QString()), &ctx.opt);
 }
 
 static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
