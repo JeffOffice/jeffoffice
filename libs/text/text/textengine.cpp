@@ -150,26 +150,56 @@ const QStringList &dateTimeFormats()
     return formats;
 }
 
-bool storyHasClock(const QTextDocument *doc, const FieldSource *notes)
+StoryFields storyFields(const QTextDocument *doc, const FieldSource *source)
 {
-    auto scan = [](const QTextDocument *d, QStringList *noteStories) {
+    StoryFields out;
+    QSet<QString> seen;
+    auto scan = [&](const QTextDocument *d, bool own) {
         for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
             for (auto it = b.begin(); !it.atEnd(); ++it) {
                 const QString field = it.fragment().charFormat().stringProperty(tp::Field);
                 if (field.isEmpty()) continue;
                 const QString kind = field.section(QLatin1Char(':'), 0, 0);
-                if (kind == QLatin1String("date") || kind == QLatin1String("time") || kind == QLatin1String("datetime")) return true;
-                if (noteStories && (kind == QLatin1String("footnote") || kind == QLatin1String("endnote"))) *noteStories << field.section(QLatin1Char(':'), 1);
+                if (kind == QLatin1String("footnote") || kind == QLatin1String("endnote")) {
+                    const QString id = field.section(QLatin1Char(':'), 1);
+                    if (own && !seen.contains(id)) {
+                        seen.insert(id);
+                        out.notes << id;
+                    }
+                } else if (kind == QLatin1String("date") || kind == QLatin1String("time") || kind == QLatin1String("datetime") || kind == QLatin1String("biz") ||
+                           kind == QLatin1String("merge") || kind == QLatin1String("mergeblock")) {
+                    if (!seen.contains(QLatin1Char('#') + field)) {
+                        seen.insert(QLatin1Char('#') + field);
+                        out.codes << field;
+                    }
+                }
             }
-        return false;
     };
-    QStringList noteStories;
-    if (scan(doc, notes ? &noteStories : nullptr)) return true;
+    scan(doc, true);
     // (A note's own notes are not laid out, so a note is looked at for its own fields only.)
-    for (const QString &id : noteStories)
-        if (const QTextDocument *nd = notes->storyDoc(id))
-            if (scan(nd, nullptr)) return true;
-    return false;
+    if (source)
+        for (const QString &id : out.notes)
+            if (const QTextDocument *nd = source->storyDoc(id)) scan(nd, false);
+    return out;
+}
+
+QString fieldValuesKey(const StoryFields &fields, const FieldContext &ctx)
+{
+    QString k;
+    for (const QString &code : fields.codes) k += code + QLatin1Char('=') + ctx.resolve(code) + QLatin1Char('\n');
+    return k;
+}
+
+quint64 notesKey(const QStringList &notes, const FieldSource *source)
+{
+    quint64 h = 1469598103934665603ull;
+    auto mix = [&](quint64 x) { h = (h ^ x) * 1099511628211ull; };
+    for (const QString &id : notes) {
+        const QTextDocument *nd = source ? source->storyDoc(id) : nullptr;
+        mix(quint64(quintptr(nd)));
+        mix(nd ? quint64(nd->revision()) : 0);
+    }
+    return h;
 }
 
 QString FieldContext::key(bool withClock) const

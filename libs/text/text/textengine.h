@@ -52,15 +52,23 @@ struct FieldContext {
     int nextPage = 0, prevPage = 0;   // pages of the next and previous boxes of a linked chain (0: none)
     QDateTime now = QDateTime::currentDateTime();
     QString resolve(const QString &code) const;
-    // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only for a story with a
-    // date or time field (see storyHasClock): any other is the same layout all day.
+    // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only if `withClock`: a layout is laid out
+    // again when the date or time it shows changes, which fieldValuesKey says (not every minute).
     QString key(bool withClock = true) const;
 };
 
-// Whether a story shows the date or time (a date, time, or date and time field), in its own text or in a note it
-// refers to: the layouts of other stories don't change with the minute. `notes` finds the notes' text; without it
-// only the story's own text is looked at.
-bool storyHasClock(const QTextDocument *doc, const FieldSource *notes);
+// What a story's layout depends on besides its own text and its frames: the fields that show what nothing else in a layout's key says (the
+// date and time, business information, mail merge values), and the stories of the notes it refers to.
+struct StoryFields {
+    QStringList codes;   // the code of each such field (in the story or in a note), once
+    QStringList notes;   // the notes' stories
+};
+// The story's fields of that kind. `source` finds the notes' text; without it only the story's own is looked at.
+StoryFields storyFields(const QTextDocument *doc, const FieldSource *source);
+// What those fields show in a frame (`ctx`), as text. A layout changes when this does, though the story did not.
+QString fieldValuesKey(const StoryFields &fields, const FieldContext &ctx);
+// A number for the notes' text as it is (it changes when a note's story is edited or replaced).
+quint64 notesKey(const QStringList &notes, const FieldSource *source);
 
 struct FrameSpec {
     QSizeF size;

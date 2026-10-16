@@ -513,6 +513,100 @@ private Q_SLOTS:
         QVERIFY(cache.textFrame(*d, *box, 1, opt).layout != a);
     }
 
+    // A layout shows more than the story's own text: business information, mail merge values, and the text of its notes, which no edit of the
+    // story touches. (The minute in the layout's key used to bring these up to date, by laying everything out again every minute.) What the
+    // fields show, and the notes' text, are in the key now: a change to one lays the story out again, and the minute does not.
+    void layoutFollowsWhatItsFieldsShow()
+    {
+        auto d = Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 1);
+        d->business().name = QStringLiteral("Old Name LLC");
+        d->merge.fields = {QStringLiteral("Name")};
+        d->merge.rows = {{QStringLiteral("Ann")}};
+        d->merge.include = {true};
+        const QString note = d->createStory(QStringLiteral("old footnote text"));
+        const QString sid = d->createStory(QStringLiteral("Body:"));
+        QTextCursor c(d->storyDoc(sid));
+        c.movePosition(QTextCursor::End);
+        for (const QString &code : {QStringLiteral("biz:name"), QStringLiteral("merge:Name"), QStringLiteral("footnote:") + note}) {
+            QTextCharFormat field;
+            field.setProperty(tp::Field, code);
+            c.insertText(QString(QChar(0xFFFC)), field);
+            c.insertText(QStringLiteral(" "));
+        }
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(72, 72, 300, 200);
+        box->storyId = sid;
+        box->hyphenate = false;
+        d->pages[0]->items.push_back(box);
+        LayoutCache cache;
+        RenderOptions opt;
+        opt.mergeRecord = 0;
+        opt.now = QDateTime(QDate(2026, 10, 16), QTime(12, 0));
+        auto shown = [&] {
+            const StoryLayout *lay = cache.textFrame(*d, *box, 1, opt).layout;
+            QString all;
+            for (const auto &li : lay->lineInfo(0)) all += li.text + QLatin1Char('|');
+            for (const auto &n : lay->notes())
+                if (n.layout)
+                    for (const auto &li : n.layout->lineInfo(0)) all += QStringLiteral("[note: ") + li.text + QLatin1Char(']');
+            return all;
+        };
+        auto layout = [&] { return cache.textFrame(*d, *box, 1, opt).layout; };
+        const StoryLayout *first = layout();
+        QVERIFY(shown().contains(QStringLiteral("Old Name LLC")) && shown().contains(QStringLiteral("Ann")) && shown().contains(QStringLiteral("old footnote")));
+        // A minute later: the same layout (none of it is the time).
+        opt.now = QDateTime(QDate(2026, 10, 16), QTime(12, 1));
+        QCOMPARE(layout(), first);
+        // Business Information edited.
+        d->business().name = QStringLiteral("New Name Inc");
+        const StoryLayout *second = layout();
+        QVERIFY(second != first);
+        QVERIFY2(shown().contains(QStringLiteral("New Name Inc")), qPrintable(shown()));
+        QCOMPARE(layout(), second);
+        // A value of the merge list edited.
+        d->merge.rows[0][0] = QStringLiteral("Bob");
+        const StoryLayout *third = layout();
+        QVERIFY(third != second);
+        QVERIFY2(shown().contains(QStringLiteral("Bob")), qPrintable(shown()));
+        QCOMPARE(layout(), third);
+        // The text of a note edited (as Edit Note does: the story that refers to it is not touched).
+        d->storyDoc(note)->setPlainText(QStringLiteral("new footnote text"));
+        const StoryLayout *fourth = layout();
+        QVERIFY(fourth != third);
+        QVERIFY2(shown().contains(QStringLiteral("new footnote")), qPrintable(shown()));
+        QCOMPARE(layout(), fourth);
+        // Another record of the list.
+        d->merge.rows << QStringList{QStringLiteral("Cy")};
+        d->merge.include << true;
+        opt.mergeRecord = 1;
+        QVERIFY(layout() != fourth);
+        QVERIFY2(shown().contains(QStringLiteral("Cy")), qPrintable(shown()));
+    }
+
+    // A date is laid out again when the day changes, not every minute of it; a time, when the minute does.
+    void layoutIsKeptWhileADateShowsTheSameDay()
+    {
+        auto d = Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 1);
+        const QString sid = d->createStory(QStringLiteral("Today is "));
+        QTextCursor c(d->storyDoc(sid));
+        c.movePosition(QTextCursor::End);
+        QTextCharFormat date;
+        date.setProperty(tp::Field, QStringLiteral("date"));
+        c.insertText(QString(QChar(0xFFFC)), date);
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(72, 72, 300, 200);
+        box->storyId = sid;
+        d->pages[0]->items.push_back(box);
+        LayoutCache cache;
+        RenderOptions opt;
+        opt.now = QDateTime(QDate(2026, 10, 16), QTime(12, 0));
+        const StoryLayout *a = cache.textFrame(*d, *box, 1, opt).layout;
+        opt.now = QDateTime(QDate(2026, 10, 16), QTime(23, 59));
+        QCOMPARE(cache.textFrame(*d, *box, 1, opt).layout, a);
+        opt.now = QDateTime(QDate(2026, 10, 17), QTime(0, 0));
+        QVERIFY(cache.textFrame(*d, *box, 1, opt).layout != a);
+    }
+
     // ---- the text engine, for laying out a page at a time ----
 
     // Each line says where its text is in the document, and the lines of a paragraph follow on from one another.

@@ -286,16 +286,16 @@ static QString specSig(const FrameSpec &s, bool withClock)
     return k;
 }
 
-bool LayoutCache::showsClock(const Document &doc, const Story &story)
+QString LayoutCache::fieldsKey(const Document &doc, const Story &story, const FieldContext &ctx)
 {
-    ClockNote &n = m_clocks[story.serial];
+    FieldNote &n = m_fields[story.serial];
     const int revision = story.doc->revision();
-    if (n.revision != revision) {
-        // (A note edited later to hold a date is noticed when its story next changes.)
-        n.shows = storyHasClock(story.doc.get(), &doc);
+    if (n.revision != revision || n.notes != notesKey(n.fields.notes, &doc)) {
+        n.fields = storyFields(story.doc.get(), &doc);
         n.revision = revision;
+        n.notes = notesKey(n.fields.notes, &doc);
     }
-    return n.shows;
+    return fieldValuesKey(n.fields, ctx) + QString::number(n.notes);
 }
 
 LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt)
@@ -309,12 +309,12 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     if (!story) return out;
     QVector<FrameSpec> specs;
     QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision());
-    const bool clock = showsClock(doc, *story);
     for (int i = 0; i < chain.size(); ++i) {
         if (chain[i]->id == frame.id) out.frame = i;
         specs << Renderer::frameSpec(doc, *chain[i], pageNumber, opt);
-        sig += specSig(specs.last(), clock);
+        sig += specSig(specs.last(), false);
     }
+    sig += fieldsKey(doc, *story, specs.first().ctx);
     LayoutEnv env = Renderer::layoutEnv(doc);
     sig += env.key();
     // A slide's text the presentation program shrank keeps the size it was given (its file says it) until it is edited here.
@@ -386,7 +386,7 @@ const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &sto
     Story *story = doc.story(storyId);
     if (!story) return nullptr;
     LayoutEnv env = Renderer::layoutEnv(doc);
-    const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec, showsClock(doc, *story)) + env.key();
+    const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec, false) + fieldsKey(doc, *story, spec.ctx) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {
         e.layout = std::make_shared<StoryLayout>();
