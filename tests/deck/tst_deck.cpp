@@ -25448,6 +25448,23 @@ private Q_SLOTS:
         }
     }
 
+    // A slide's text box that says its text isn't centered across the box (anchored in the middle only) keeps that when its master's is centered: a
+    // title the master centers across its box is centered on the slide, and a second title shape on the slide that sets its anchor itself is not.
+    void importBinaryASlideCanTurnOffTheCenteredBlockItsMasterSets()
+    {
+        // The master's title anchored centered (4); the slide's own shape anchored in the middle only (1).
+        const QByteArray masterTitle = pptRec(0xF00B, le(0x0087, 2) + le(4, 4), 1, 3);
+        const QByteArray own = pptShape(0x430, 0xD, outlineRef(0), 1000, 200, 5000, 1500, pptRec(0xF00B, le(0x0087, 2) + le(1, 4), 1, 3));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), own, masterTitle), &err);
+        QVERIFY2(d, qPrintable(err));
+        int centered = 0, plain = 0;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:title")) (static_cast<const TextItem *>(it.get())->centerBlock ? centered : plain)++;
+        QCOMPARE(centered, 1);
+        QCOMPARE(plain, 1);
+    }
+
     // Blank paragraphs that end a slide's text count in the place the text is centered at, but not as text that runs over: the text of two lines in
     // a box that holds them, with the empty paragraph after them that it doesn't, is not too tall for it (nothing is shrunk or marked for it), and
     // the same text in a .pptx.
