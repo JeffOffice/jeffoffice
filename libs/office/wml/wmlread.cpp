@@ -48,6 +48,9 @@ public:
     explicit Reader(const XmlTree &tree) : t(tree) {}
     const XmlTree &t;
     int footnotes = 0, endnotes = 0;
+    // What the body holds so far; past the limits (wml.h) the rest is left out.
+    int paragraphs = 0, inlines = 0;
+    bool truncated = false;
 
     RunProps rPr(int n) const
     {
@@ -217,8 +220,6 @@ public:
 
     // ---- inside a paragraph
 
-    static QString tr(const char *text) { return QCoreApplication::translate("jp::office::wml", text); }
-
     Inline atom(int c, Inline::Kind kind) const
     {
         Inline a;
@@ -274,7 +275,7 @@ public:
                 else if (name == "sym") a.display = QString(QChar(0x25A1));
                 else if (name == "drawing") {
                     for (int k = t.firstChild(c); k >= 0; k = t.next(k))
-                        if (t.localName(k) == "inline") a.display = tr("[picture]");
+                        if (t.localName(k) == "inline") a.display = QCoreApplication::translate("jp::office::wml", "[picture]");
                 }
                 out->push_back(a);
             }
@@ -292,6 +293,10 @@ public:
     void paragraphContent(int n, QVector<Inline> *out, int depth)
     {
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            if (inlines >= kMaxInlines) {
+                truncated = true;
+                return;
+            }
             const QByteArray name = t.localName(c);
             if (t.ns(c) != NsW) {
                 out->push_back(atom(c, Inline::ParaAtom));
@@ -342,6 +347,7 @@ public:
         const int pr = t.child(n, "pPr");
         if (pr >= 0) p.props = pPr(pr);
         paragraphContent(n, &p.content, 0);
+        inlines += int(p.content.size());
         return p;
     }
 
@@ -361,10 +367,15 @@ public:
     void bodyContent(int n, QVector<Block> *out, int depth, SectionProps *last, bool *lastStated)
     {
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            if (paragraphs >= kMaxParagraphs || inlines >= kMaxInlines) {
+                truncated = true;
+                return;
+            }
             const QByteArray name = t.localName(c);
             if (t.ns(c) != NsW) {
                 out->push_back(rawBlock(c));
             } else if (name == "p") {
+                ++paragraphs;
                 Block b;
                 b.para = paragraph(c);
                 out->push_back(b);
@@ -381,7 +392,7 @@ public:
                         for (int cell = t.firstChild(r); cell >= 0; cell = t.next(cell))
                             if (t.is(cell, "tc")) ++cols;
                 }
-                out->push_back(rawBlock(c, tr("[Table: %1 rows by %2 columns]").arg(rows).arg(cols)));
+                out->push_back(rawBlock(c, QCoreApplication::translate("jp::office::wml", "[Table: %1 rows by %2 columns]").arg(rows).arg(cols)));
             } else if (name == "sdt" && depth < kMaxContainerDepth && t.child(c, "sdtContent") >= 0) {
                 const int content = t.child(c, "sdtContent");
                 Block open;
@@ -623,6 +634,7 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
         }
     }
     reader.bodyContent(body, &doc->body, 0, &doc->lastSection, &doc->lastSectionStated);
+    if (reader.truncated) noteIt(QCoreApplication::translate("jp::office::wml", "The document is longer than this program can open: the end of it was left out."));
 
     // The package: every relationship as read, and every part but the ones above.
     doc->packageRelationships = pkg.relationships(QStringLiteral("/"));

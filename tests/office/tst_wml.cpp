@@ -328,6 +328,36 @@ private Q_SLOTS:
         QVERIFY2(t.parse(out), "the written document is well formed with its prefixes declared");
     }
 
+    void piecesFromAnotherFileGetTheirPrefixesDeclared()
+    {
+        // A picture kept as XML came from a file whose root declared wp and a; put in a document whose root does not, the prefixes are declared.
+        Document d = newDocument();
+        Block b;
+        Inline pic;
+        pic.kind = Inline::RunAtom;
+        pic.tag = QStringLiteral("drawing");
+        pic.raw = "<w:drawing><wp:inline><wp:extent cx=\"1\" cy=\"1\"/><a:graphic><a:graphicData uri=\"x\"/></a:graphic></wp:inline></w:drawing>";
+        b.para.content.push_back(pic);
+        Inline mark;
+        mark.kind = Inline::ParaAtom;
+        mark.tag = QStringLiteral("x");
+        mark.raw = "<w14:foo w14:val=\"1\"/>";
+        b.para.content.push_back(mark);
+        d.body = {b};
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        XmlTree t;
+        QString why;
+        QVERIFY2(t.parse(out, &why), qPrintable(why));
+        QVERIFY(out.contains("xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""));
+        QVERIFY(out.contains("xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""));
+        QVERIFY(out.contains("xmlns:w14="));
+        QCOMPARE(count(out, "xmlns:wp="), 1);
+        // A root that declares them already is left as it is.
+        Document again;
+        QVERIFY(readDocx(writeDocx(d), &again));
+        QCOMPARE(count(documentXmlOf(writeDocx(again)), "xmlns:wp="), 1);
+    }
+
     void unpairedPiecesAreLeftOut()
     {
         Document d;
@@ -528,14 +558,23 @@ private Q_SLOTS:
         QCOMPARE(d.body.size(), 200000);
         QVERIFY2(timer.elapsed() < 20000, "reading 200,000 paragraphs");
         QVERIFY(!writeDocx(d).isEmpty());
-        // More elements than the limit allows are refused before the memory goes: 2,000,001 empty ones.
+        // More elements than the limit allows are refused before the memory goes: 8,000,001 empty ones.
         QByteArray tooMany;
-        tooMany.reserve(2000100 * 4);
+        tooMany.reserve(8000100 * 6);
         tooMany += "<w:p>";
-        for (int i = 0; i < 2000001; ++i) tooMany += "<w:r/>";
+        for (int i = 0; i < 8000001; ++i) tooMany += "<w:r/>";
         tooMany += "</w:p>";
         QVERIFY(!readDocx(Made{tooMany, {}, {}, {}}.build(), &d, &err));
         QVERIFY(err.contains(QLatin1String("elements")));
+        tooMany.clear();
+        // A body longer than the limit of paragraphs is read as far as the limit, with a note, not refused.
+        QByteArray longBody;
+        longBody.reserve((kMaxParagraphs + 10) * 12);
+        for (int i = 0; i < kMaxParagraphs + 10; ++i) longBody += "<w:p/>";
+        ReadNotes notes;
+        QVERIFY(readDocx(Made{longBody, {}, {}, {}}.build(), &d, &err, &notes));
+        QCOMPARE(d.body.size(), kMaxParagraphs);
+        QCOMPARE(notes.notes.size(), 1);
         // Sizes a file states are held to what a page can have, and a style that is its own ancestor is no loop.
         Made sizes;
         sizes.body = R"(<w:p><w:pPr><w:ind w:left="99999999999"/></w:pPr><w:r><w:rPr><w:sz w:val="9999999"/></w:rPr><w:t>x</w:t></w:r></w:p><w:sectPr><w:pgSz w:w="2000000000" w:h="1"/><w:cols w:num="999999"/></w:sectPr>)";

@@ -281,12 +281,14 @@ ParaProps ParaProps::differences(const ParaProps &base) const
 void StyleSheet::reindex() const
 {
     m_index.clear();
-    for (int i = 0; i < styles.size(); ++i) m_index.insert(styles[i].id, i);
+    for (int i = 0; i < styles.size(); ++i)
+        if (!m_index.contains(styles[i].id)) m_index.insert(styles[i].id, i);   // (the first of an id stands)
+    m_indexed = styles.size();
 }
 
 const Style *StyleSheet::find(const QString &id) const
 {
-    if (m_index.size() != styles.size()) reindex();
+    if (m_indexed != styles.size()) reindex();
     const auto it = m_index.constFind(id);
     return it == m_index.constEnd() ? nullptr : &styles[it.value()];
 }
@@ -367,20 +369,32 @@ RunProps StyleSheet::run(const QString &paragraphStyle, const QString &character
 
 // ---- Numbering
 
+void Numbering::index() const
+{
+    if (m_numCount == nums.size() && m_abstractCount == abstracts.size()) return;
+    m_nums.clear();
+    m_abstracts.clear();
+    for (int i = 0; i < nums.size(); ++i)
+        if (!m_nums.contains(nums[i].id)) m_nums.insert(nums[i].id, i);
+    for (int i = 0; i < abstracts.size(); ++i)
+        if (!m_abstracts.contains(abstracts[i].id)) m_abstracts.insert(abstracts[i].id, i);
+    m_numCount = nums.size();
+    m_abstractCount = abstracts.size();
+}
+
 const Num *Numbering::num(int numId) const
 {
-    for (const Num &n : nums)
-        if (n.id == numId) return &n;
-    return nullptr;
+    index();
+    const auto it = m_nums.constFind(numId);
+    return it == m_nums.constEnd() ? nullptr : &nums[it.value()];
 }
 
 const AbstractNum *Numbering::abstractOf(int numId) const
 {
     const Num *n = num(numId);
     if (!n) return nullptr;
-    for (const AbstractNum &a : abstracts)
-        if (a.id == n->abstractId) return &a;
-    return nullptr;
+    const auto it = m_abstracts.constFind(n->abstractId);
+    return it == m_abstracts.constEnd() ? nullptr : &abstracts[it.value()];
 }
 
 int Numbering::nextNumId() const

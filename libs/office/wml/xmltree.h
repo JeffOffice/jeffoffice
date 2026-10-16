@@ -7,9 +7,12 @@
 // the bytes; text is read from the bytes when asked for. A document of 2,000,000 elements takes about 150 MB, against the 2 GB
 // that the same file takes as a DOM.
 //
-// What the XML may hold is limited as the other readers' are (office/xml.h): a part over kMaxXmlBytes, more than kMaxXmlNodes
-// elements, more than kMaxAttributesPerElement attributes on one, or nesting past kMaxXmlDepth is refused, as is a DOCTYPE (so
-// no entity is ever defined or loaded) or XML that is not well formed. Nothing here recurses.
+// What a part may hold is limited: more than kMaxTreeBytes, kMaxTreeNodes elements, or kMaxTreeAttributes attributes, more than
+// kMaxAttributesPerElement attributes on one element, or nesting past kMaxXmlDepth (office/xml.h has the last two) is refused, as is a
+// DOCTYPE (so no entity is ever defined or loaded) or XML that is not well formed. Nothing here recurses. Real files, measured in 1,795
+// .docx files of public collections: word/document.xml is 55 KB in the middle, 4 MB for 99 of 100, and 20.6 MB at the most, with
+// 736,000 elements and 840,000 attributes, and the eight largest are nested 25 deep at the most. Each limit is more than 10 times the
+// most, and bounds the tree at about a gigabyte (64 bytes an element, 24 an attribute).
 
 #include <QByteArray>
 #include <QHash>
@@ -21,6 +24,11 @@ namespace jp::office::wml {
 // The namespaces the tree knows by number; the transitional and the strict forms of each are one. Any other namespace has a number
 // of 3 or more.
 enum : int { NsNone = 0, NsW = 1, NsR = 2 };
+
+// The limits of what a part may hold (see above).
+constexpr qint64 kMaxTreeBytes = qint64(256) << 20;
+constexpr qint64 kMaxTreeNodes = 8000000;
+constexpr qint64 kMaxTreeAttributes = 10000000;
 
 class XmlTree {
 public:
