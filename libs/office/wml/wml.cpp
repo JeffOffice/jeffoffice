@@ -577,10 +577,10 @@ QByteArray sectionPropsXml(const SectionProps &s)
     parts.add(sectionChildRank("pgSz"), sz + "/>");
     parts.add(sectionChildRank("pgMar"), "<w:pgMar" + intAttr("top", s.top) + intAttr("right", s.right) + intAttr("bottom", s.bottom) + intAttr("left", s.left) +
                                              intAttr("header", s.header) + intAttr("footer", s.footer) + intAttr("gutter", s.gutter) + "/>");
-    if (s.pageStart > 0 || !s.pageFormat.isEmpty()) {
+    if (s.pageStart || !s.pageFormat.isEmpty()) {
         QByteArray e = "<w:pgNumType";
         if (!s.pageFormat.isEmpty()) e += valAttr("fmt", s.pageFormat);
-        if (s.pageStart > 0) e += intAttr("start", s.pageStart);
+        if (s.pageStart) e += intAttr("start", *s.pageStart);
         parts.add(sectionChildRank("pgNumType"), e + "/>");
     }
     if (s.cols > 1 || s.hasCols || !s.colDefs.isEmpty()) {

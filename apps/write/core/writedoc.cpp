@@ -27,7 +27,7 @@ QByteArray packSection(const SectionProps &s)
     d << s.type << qint32(s.pageW) << qint32(s.pageH) << s.orient << qint32(s.top) << qint32(s.right) << qint32(s.bottom) << qint32(s.left) << qint32(s.header)
       << qint32(s.footer) << qint32(s.gutter) << qint32(s.cols) << qint32(s.colSpace) << s.colSep << s.colEqual << qint32(s.colDefs.size());
     for (const ColumnDef &c : s.colDefs) d << qint32(c.width) << qint32(c.space);
-    d << qint32(s.pageStart) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra);
+    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra);
     return out;
 }
 
@@ -56,7 +56,7 @@ SectionProps unpackSection(const QByteArray &packed)
     }
     QByteArray extra;
     d >> start >> s.pageFormat >> s.titlePg >> s.hasPgSz >> s.hasPgMar >> s.hasCols >> s.attrs >> extra;
-    s.pageStart = start;
+    if (start >= 0) s.pageStart = start;
     s.extra = unpackRaw(extra);
     return s;
 }
@@ -75,7 +75,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.footerDistance = p.footer / 20.0;
     s.differentFirstPage = p.titlePg;
     s.differentOddEven = evenAndOdd;
-    s.firstPageNumber = p.pageStart;
+    s.firstPageNumber = p.pageStart.value_or(0);   // (the flow has no start at 0: for it, 0 goes on from the section before)
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
                          : p.pageFormat == QLatin1String("lowerLetter") ? QStringLiteral("alpha")
@@ -112,7 +112,10 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
     if (s.headerDistance != was.headerDistance) p->header = int(std::lround(s.headerDistance * 20));
     if (s.footerDistance != was.footerDistance) p->footer = int(std::lround(s.footerDistance * 20));
     if (s.differentFirstPage != was.differentFirstPage) p->titlePg = s.differentFirstPage;
-    if (s.firstPageNumber != was.firstPageNumber) p->pageStart = s.firstPageNumber;
+    if (s.firstPageNumber != was.firstPageNumber) {
+        if (s.firstPageNumber > 0) p->pageStart = s.firstPageNumber;
+        else p->pageStart.reset();
+    }
     if (s.pageNumberFormat != was.pageNumberFormat)
         p->pageFormat = s.pageNumberFormat == QLatin1String("roman") ? QStringLiteral("lowerRoman")
                         : s.pageNumberFormat == QLatin1String("ROMAN") ? QStringLiteral("upperRoman")

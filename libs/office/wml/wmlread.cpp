@@ -142,7 +142,7 @@ public:
                 s.gutter = m("gutter", 0);
             } else if (name == "pgNumType") {
                 s.pageFormat = t.attr(c, "fmt");
-                s.pageStart = std::clamp(intOf(t, c, "start").value_or(0), 0, 100000);
+                if (const std::optional<int> start = intOf(t, c, "start")) s.pageStart = std::clamp(*start, 0, 100000);
             } else if (name == "cols") {
                 s.hasCols = true;
                 s.cols = std::clamp(intOf(t, c, "num").value_or(1), 1, 45);
