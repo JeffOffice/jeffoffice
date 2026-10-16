@@ -1574,6 +1574,33 @@ private Q_SLOTS:
         QCOMPARE(seen, table.rowStarts);
     }
 
+    // A page break before the first paragraph of a table's first cell starts the table on a page of its own; the same on a later row does nothing.
+    void aPageBreakBeforeATableStartsItOnANewPage()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 6, {}, 6, 8);
+        TestTable spec;
+        spec.rows = 4;
+        spec.cols = 2;
+        const TestTable table = addTable(fd, spec);
+        for (const int row : {0, 2}) {
+            for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next()) {
+                QTextBlockFormat bf = b.blockFormat();
+                if (bf.intProperty(fp::Cell) && b.position() == table.rowStarts[row]) {
+                    bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
+                    QTextCursor(b).setBlockFormat(bf);
+                }
+            }
+        }
+        Paginator pg(&fd);
+        // The first row is on the second page, with the rows after it; the break before the third row changes nothing.
+        QCOMPARE(pg.pageCount(), 2);
+        QCOMPARE(rowLines(pg, fd, 0).size(), 0);
+        QCOMPARE(rowLines(pg, fd, 1).size(), 4);
+        QCOMPARE(pg.page(1).start.pos, table.rowStarts[0]);
+        QVERIFY(pg.page(1).start.hard);
+    }
+
     // A row that says it can't be split, and is taller than a page, is placed at the top of a page by itself and the layout goes on after it; it makes no
     // endless pages.
     void aRowThatCantBeSplitAndIsTallerThanAPageStillLaysOut()

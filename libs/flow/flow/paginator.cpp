@@ -167,7 +167,10 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         if (it == cache.end()) {
             const QTextBlockFormat bf = m_doc->story()->findBlock(blockStart).blockFormat();
             BlockFlags f;
-            if (bf.intProperty(fp::Cell)) {   // (a row of a table: nothing of its paragraphs asks anything of the page)
+            if (bf.intProperty(fp::Cell)) {
+                // A row of a table: of its paragraphs only a page break before the table's first asks anything of the page.
+                const int span = m_tables->index().spanAt(blockStart);
+                f.breakBefore = span >= 0 && m_tables->index().spans()[size_t(span)].from == blockStart && (bf.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore);
                 it = cache.insert(blockStart, f);
                 return it.value();
             }

@@ -595,9 +595,10 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
             widened.insert(t.cell(cover).rec, 1);
             continue;
         }
-        // The cell that is beside the new one: the one the column begins at, or the last.
-        const flow::TableLayout::Cell &beside = t.cell(cover >= 0 ? cover : last);
-        if (cover < 0 && t.cell(last).col + t.cell(last).span < gc) continue;   // (a row that stops short of the column)
+        // The cell that is beside the new one: the one the column begins at (or, in the gap a row leaves before its first cell, that cell), or the last.
+        const bool before = cover >= 0 || gc <= t.cell(row.cell0).col;
+        const flow::TableLayout::Cell &beside = t.cell(cover >= 0 ? cover : before ? row.cell0 : last);
+        if (cover < 0 && !before && t.cell(last).col + t.cell(last).span < gc) continue;   // (a row that stops short of the column)
         flow::CellRecord rec = *beside.rec;
         rec.table = table;
         rec.cell.span = 1;
@@ -610,8 +611,8 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
         const int key = store.add(rec);
         const QTextBlock like = d->findBlock(beside.from);
         Add add;
-        add.before = cover >= 0;
-        add.position = cover >= 0 ? beside.from : t.cell(last).to - 1;
+        add.before = before;
+        add.position = before ? beside.from : t.cell(last).to - 1;
         add.rec = rec;
         add.bf = emptyLike(like.blockFormat(), key);
         add.cf = markOf(like);
