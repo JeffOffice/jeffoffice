@@ -13,6 +13,7 @@
   "pane:comments": "comments",
   "pane:reuse": "reuse",
   "pane:online": "objects",
+  "pane:find": "text",
   "pane:animation": "animations",
   "pane:help": "index",
   "view:outline": "views",
