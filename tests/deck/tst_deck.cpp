@@ -25119,6 +25119,21 @@ private Q_SLOTS:
         QVERIFY2(reach * 10 >= (int(lines.size()) - 1) * 7, qPrintable(QStringLiteral("%1 of %2 lines reach the edge").arg(reach).arg(lines.size() - 1)));
     }
 
+    // The arrowhead that points left (code 0xD7 in Wingdings), the mirror of the one that points right (0xD8, which a theme sets at the end of a
+    // line), has its own character in Unicode (the black leftwards equilateral arrowhead); a run in the font shows that and not a box.
+    void importBinaryWingdingsLeftArrowheadIsAnArrowhead()
+    {
+        const QByteArray raw8 = QByteArray("\xD7\xD8");
+        const QByteArray styles = pfRun(int(raw8.size()) + 1, 0, 0) + cfRun(int(raw8.size()) + 1, 0x10000, le(4, 2));   // font 4: Wingdings
+        const QByteArray text = pptRec(3999, le(1, 4)) + pptRec(4008, raw8) + pptRec(4001, styles);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, text), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QCOMPARE(body->toPlainText(), QString(QChar(0x2B9C)) + QChar(0x27A2));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
