@@ -267,6 +267,8 @@ public:
                 text += QChar(0x00AD);
             } else if (name == "br" && (t.attr(c, "type").isEmpty() || t.attr(c, "type") == QLatin1String("textWrapping")) && !t.has(c, "clear")) {
                 text += QChar(QChar::LineSeparator);
+            } else if (name == "br" && t.attr(c, "type") == QLatin1String("page")) {
+                text += QChar(0x000C);   // (a page break is the character U+000C in text)
             } else {
                 flush();
                 Inline a = atom(c, Inline::RunAtom);
