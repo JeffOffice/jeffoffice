@@ -274,7 +274,7 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
         if (overflowsAsStored(m_doc, t, number)) shrinks = false;
     }
     extra += attrOf("style:shrink-to-fit", shrinks ? QStringLiteral("true") : QStringLiteral("false"));
-    extra += attrOf("fo:min-height", cm(t.autofit == TextItem::GrowBox ? t.rect.height() : 0.0)) + attrOf("fo:wrap-option", QStringLiteral("wrap"));
+    extra += attrOf("fo:min-height", cm(t.autofit == TextItem::GrowBox ? t.rect.height() : 0.0)) + attrOf("fo:wrap-option", t.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
     QString children;
     if (t.columns > 1) children = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(t.columns, 1, 16)).arg(cm(t.columnGap));
     const QString paragraph = attrOf("style:writing-mode", t.vertical ? QStringLiteral("tb-rl") : QStringLiteral("lr-tb"));
@@ -367,7 +367,7 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
     extra += attrOf("fo:padding-top", cm(s.insets.top())) + attrOf("fo:padding-bottom", cm(s.insets.bottom())) + attrOf("fo:padding-left", cm(s.insets.left())) + attrOf("fo:padding-right", cm(s.insets.right()));
     extra += attrOf("draw:textarea-vertical-align", s.valign == VAlign::Middle ? QStringLiteral("middle") : s.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
     extra += attrOf("draw:textarea-horizontal-align", QStringLiteral("justify")) + attrOf("draw:auto-grow-height", QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
-    extra += attrOf("fo:wrap-option", QStringLiteral("wrap"));
+    extra += attrOf("fo:wrap-option", s.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
     const QString style = frameStyle(sc, s, QString(), extra, QString(), attrOf("style:writing-mode", QStringLiteral("lr-tb")), true);
 
     x.open("draw:custom-shape").attr("draw:style-name", style);
@@ -592,6 +592,8 @@ void Exporter::writeTable(X &x, Scope &sc, const TableItem &t)
             // The cell's look: its margins, its place for text, its lines on the four sides, and its fill.
             QString props = attrOf("fo:padding-left", cm(cell.margins.left())) + attrOf("fo:padding-right", cm(cell.margins.right())) + attrOf("fo:padding-top", cm(cell.margins.top())) + attrOf("fo:padding-bottom", cm(cell.margins.bottom()));
             props += attrOf("style:vertical-align", cell.valign == VAlign::Middle ? QStringLiteral("middle") : cell.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
+            // Text turned a quarter clockwise (reading downward) is 270 degrees counterclockwise, which is how the other suite counts.
+            if (cell.vertical) props += attrOf("style:rotation-angle", QStringLiteral("270"));
             const int sides[4] = {0, 1, 2, 3};
             static const char *const names[4] = {"fo:border-top", "fo:border-bottom", "fo:border-left", "fo:border-right"};
             for (int k = 0; k < 4; ++k) {

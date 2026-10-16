@@ -40,9 +40,12 @@ void DeckWindow::buildRibbon()
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
     addShowParts(parts);
     addMediaParts(parts);
+    addTableParts(parts);
+    addCropParts(parts);
     addInsertParts(parts);
     addAnimationParts(parts);
     addDesignParts(parts);
+    addMasterParts(parts);
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
@@ -108,18 +111,7 @@ void DeckWindow::ribbonControlParts(RibbonParts &parts)
     };
 
     // The View tab's check boxes, each one a command's.
-    auto check = [this](const QString &id) -> QWidget * {
-        QAction *a = act(id);
-        auto *box = new QCheckBox(a->text());
-        box->setToolTip(a->toolTip());
-        box->setChecked(a->isChecked());
-        connect(box, &QCheckBox::clicked, a, [a] { a->trigger(); });
-        connect(a, &QAction::toggled, box, [box](bool on) {
-            const QSignalBlocker block(box);
-            box->setChecked(on);
-        });
-        return box;
-    };
+    auto check = [this](const QString &id) -> QWidget * { return actionCheckBox(id); };
     parts.widgets[QStringLiteral("rulerCheck")] = [check]() -> QWidget * { return check(QStringLiteral("view.rulers")); };
     parts.widgets[QStringLiteral("gridlinesCheck")] = [check]() -> QWidget * { return check(QStringLiteral("view.gridlines")); };
     parts.widgets[QStringLiteral("guidesCheck")] = [check]() -> QWidget * { return check(QStringLiteral("view.guides")); };
@@ -145,6 +137,23 @@ void DeckWindow::ribbonControlParts(RibbonParts &parts)
         tableBtn->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
         return tableBtn;
     };
+}
+
+// A check box for a command that can be checked: it shows the command's name and state, and clicking it triggers the command.
+QWidget *DeckWindow::actionCheckBox(const QString &id)
+{
+    QAction *a = act(id);
+    auto *box = new QCheckBox(a->text());
+    box->setToolTip(a->toolTip());
+    box->setChecked(a->isChecked());
+    box->setEnabled(a->isEnabled());
+    connect(box, &QCheckBox::clicked, a, [a] { a->trigger(); });
+    connect(a, &QAction::toggled, box, [box](bool on) {
+        const QSignalBlocker block(box);
+        box->setChecked(on);
+    });
+    connect(a, &QAction::changed, box, [box, a] { box->setEnabled(a->isEnabled()); });
+    return box;
 }
 
 // Galleries: the button that opens the grid of shapes.
@@ -186,29 +195,35 @@ void DeckWindow::ribbonGalleryParts(RibbonParts &parts)
     };
 }
 
+// The layouts to choose from, for a new slide or to change the slide being edited to.
+QMenu *DeckWindow::layoutMenu(QWidget *owner, bool change)
+{
+    auto *menu = new QMenu(owner);
+    auto *gallery = new LayoutGallery(m_ed, menu);
+    auto *wa = new QWidgetAction(menu);
+    wa->setDefaultWidget(gallery);
+    menu->addAction(wa);
+    if (!change) {
+        menu->addSeparator();
+        menu->addAction(act("slide.reuse"));
+    }
+    connect(menu, &QMenu::aboutToShow, gallery, &LayoutGallery::reload);
+    connect(gallery, &LayoutGallery::chosen, this, [this, menu, change](const QString &type) {
+        // Shut the menus it hangs from too (this one is a submenu of the slide's right-click menu there).
+        QWidget *top = menu;
+        while (auto *parentMenu = qobject_cast<QMenu *>(top->parentWidget())) top = parentMenu;
+        top->close();
+        if (change) setLayout(type);
+        else newSlide(type);
+    });
+    return menu;
+}
+
 // Menus the ribbon can't describe in data: the layouts to choose from.
 void DeckWindow::ribbonMenuParts(RibbonParts &parts)
 {
-    auto layoutMenu = [this](QWidget *owner, bool change) {
-        auto *menu = new QMenu(owner);
-        auto *gallery = new LayoutGallery(m_ed, menu);
-        auto *wa = new QWidgetAction(menu);
-        wa->setDefaultWidget(gallery);
-        menu->addAction(wa);
-        if (!change) {
-            menu->addSeparator();
-            menu->addAction(act("slide.reuse"));
-        }
-        connect(menu, &QMenu::aboutToShow, gallery, &LayoutGallery::reload);
-        connect(gallery, &LayoutGallery::chosen, this, [this, menu, change](const QString &type) {
-            menu->close();
-            if (change) setLayout(type);
-            else newSlide(type);
-        });
-        return menu;
-    };
-    parts.menus[QStringLiteral("newSlideLayouts")] = [layoutMenu](QWidget *owner) { return layoutMenu(owner, false); };
-    parts.menus[QStringLiteral("changeLayout")] = [layoutMenu](QWidget *owner) { return layoutMenu(owner, true); };
+    parts.menus[QStringLiteral("newSlideLayouts")] = [this](QWidget *owner) { return layoutMenu(owner, false); };
+    parts.menus[QStringLiteral("changeLayout")] = [this](QWidget *owner) { return layoutMenu(owner, true); };
     // Slide Size: the two sizes, one checked.
     parts.menus[QStringLiteral("slideSizes")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);

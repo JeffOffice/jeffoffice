@@ -307,6 +307,7 @@ ItemPtr Reader::readTextBox(const QDomElement &frame, const QDomElement &box, Sc
                           lengthOr(bag.get(Graphic, "fo:padding-right"), pad), lengthOr(bag.get(Graphic, "fo:padding-bottom"), pad));
     const QString anchor = bag.get(Graphic, "draw:textarea-vertical-align");
     t->valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+    t->noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
     if (bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true") || bag.get(Graphic, "draw:fit-to-size") == QLatin1String("shrink")) t->autofit = TextItem::ShrinkOnOverflow;
     else if (bag.get(Graphic, "draw:auto-grow-height") == QLatin1String("true")) t->autofit = TextItem::GrowBox;
     const QString mode = bag.get(Para, "style:writing-mode");
@@ -602,6 +603,7 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
                                         lengthOr(cellBag.get(Cell, "fo:padding-right"), pad), lengthOr(cellBag.get(Cell, "fo:padding-bottom"), pad));
                 const QString align = cellBag.has(Cell, "style:vertical-align") ? cellBag.get(Cell, "style:vertical-align") : cellBag.get(Cell, "draw:textarea-vertical-align");
                 out.valign = align == QLatin1String("middle") ? VAlign::Middle : align == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+                if (double angle = 0; parseNumber(cellBag.get(Cell, "style:rotation-angle"), &angle) && std::fmod(std::fmod(angle, 360) + 360, 360) == 270) out.vertical = true;
                 // Borders are said on the cell, or (in a file from the standard's reader of tables) in its paragraph properties.
                 auto side = [&](const char *which) {
                     const QString specific = QStringLiteral("fo:border-") + QLatin1String(which), whole = QStringLiteral("fo:border");
@@ -786,6 +788,7 @@ ItemPtr Reader::readCustomShape(const QDomElement &e, Scope &sc, const QTransfor
                             lengthOr(bag.get(Graphic, "fo:padding-right"), pad), lengthOr(bag.get(Graphic, "fo:padding-bottom"), pad));
     const QString anchor = bag.get(Graphic, "draw:textarea-vertical-align");
     base.valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
+    base.noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
     base.shape = QStringLiteral("rect");
 
     // The preset the type stands for: the standard's own names, and the shape library or its definition for the preset.

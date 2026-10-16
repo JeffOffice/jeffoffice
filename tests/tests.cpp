@@ -41,6 +41,8 @@
 #include <QTabWidget>
 #include "app/dialogs.h"
 #include "app/editor.h"
+#include "app/findreplace.h"
+#include "app/proofingdialogs.h"
 #include "app/mainwindow.h"
 #include "app/recovery.h"
 #include "app/i18n.h"
@@ -88,6 +90,7 @@
 #include <QDialog>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <limits>
 #include <QBuffer>
 #include <QAbstractItemView>
 #include <QPainter>
@@ -5157,6 +5160,36 @@ private Q_SLOTS:
         QVERIFY(jp::publicationThumbnail(junk.fileName()).isNull());
     }
 
+    // The margins and vertical alignment set for a shape in Format Shape are kept through a save, with no text in it: they were written only
+    // for a shape that held text, so an empty shape came back with a new shape's.
+    void emptyShapeKeepsItsMarginsAndAnchorWhenSaved()
+    {
+        Editor ed;
+        ed.setDocument(Document::blank(QSizeF(612, 792)));
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = QRectF(72, 72, 200, 100);
+        ed.addItem(s);
+        QVERIFY(s->storyId.isEmpty());
+        // As the dialog sets them.
+        ed.change(QStringLiteral("Format Shape"), [&] {
+            s->insets = QMarginsF(1, 2, 3, 4);
+            s->valign = VAlign::Bottom;
+        });
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("shape.jpub"));
+        QString err;
+        QVERIFY2(savePublication(*ed.doc(), path, QImage(), &err), qPrintable(err));
+        auto back = loadPublication(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const ShapeItem *again = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->type() == ItemType::Shape) again = static_cast<const ShapeItem *>(it.get());
+        QVERIFY(again);
+        QVERIFY(again->storyId.isEmpty());
+        QCOMPARE(again->insets, QMarginsF(1, 2, 3, 4));
+        QCOMPARE(int(again->valign), int(VAlign::Bottom));
+    }
+
     // A publication's name goes into an email's headers: a line break must
     // not start a header of its own, and accented names are encoded.
     void emailHeaderNames()
@@ -6485,6 +6518,28 @@ private Q_SLOTS:
         // A Unicode check mark is saved as Wingdings' own.
         QCOMPARE(b.next().textList()->format().stringProperty(jp::tp::BulletFont), QStringLiteral("Wingdings"));
         QCOMPARE(b.next().textList()->format().stringProperty(jp::tp::BulletChar), QString(QChar(0xF0FC)));
+    }
+
+    // The letters and signs of a symbol font in running text come to the Unicode character that looks like them; the ones that have a picture
+    // of their own as emoji (the hands, the card suits) carry U+FE0E after them, which asks for the plain glyph, so they aren't drawn in
+    // color; the others carry nothing. A circled number set in Wingdings, from the code itself (0x8C), is one in a dark circle.
+    void symbolTextKeepsEmojiPlain()
+    {
+        const QChar plain(0xFE0E);
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xF061), QString(QChar(0x3B1)));                       // alpha
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAE), QString(QChar(0x2192)));                        // an arrow
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAA), QString(QChar(0x2660)) + plain);                // a spade
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Symbol"), 0xAB), QString(QChar(0x2194)) + plain);                // a double arrow
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x43), QString::fromUcs4(U"\U0001F44D") + plain);     // a thumb up
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x44), QString::fromUcs4(U"\U0001F44E") + plain);     // a thumb down
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x42), QString::fromUcs4(U"\U0001F44C") + plain);     // a hand
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x41), QString(QChar(0x270C)) + plain);             // a victory sign
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x47), QString(QChar(0x261D)) + plain);             // a hand pointing up
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x46), QString(QChar(0x261E)));                     // a hand pointing right: no emoji
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0xFC), QString(QChar(0x2714)) + plain);             // a check mark
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x8C), QString(QChar(0x2776)));                     // 1 in a dark circle
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), 0x9F), QString(QChar(0x2022)));                     // a bullet
+        QVERIFY(jp::symbolTextToUnicode(QStringLiteral("Arial"), 0x41).isEmpty());
     }
 
     // A Symbol bullet (as .pub lists have) sets the height of its item's
@@ -14558,6 +14613,411 @@ private Q_SLOTS:
         QVERIFY(w.editor()->renderOptions().misspelled.contains(t->storyId));
     }
 
+    // The Find and Replace pane: Find Next walks the pages and shows each match
+    // typed-in and selected, Replace swaps the one shown, and Replace All is one
+    // undo step that says how many it made.
+    void findPaneFindsAcrossPagesAndReplaces()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->addPage();
+        QStringList stories;
+        for (int p = 0; p < 2; ++p) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(72, 72, 300, 100);
+            t->storyId = doc->createStory(p == 0 ? QStringLiteral("One Cat and a cat.") : QStringLiteral("Another cat, and a catalog."));
+            doc->pages[p]->items.push_back(t);
+            stories << t->storyId;
+        }
+        ed->setDocument(std::move(doc));
+        w.showTaskPane(QStringLiteral("find"));
+        auto *tp = w.findChild<jp::TaskPane *>();
+        QVERIFY(tp);
+        auto edit = [&](const QString &name) -> QLineEdit * {
+            for (QLineEdit *e : tp->findChildren<QLineEdit *>())
+                if (name.isEmpty() ? e->objectName() != QLatin1String("replace") : e->objectName() == name) return e;
+            return nullptr;
+        };
+        auto button = [&](const QString &text) -> QPushButton * {
+            for (QPushButton *b : tp->findChildren<QPushButton *>())
+                if (b->text() == text) return b;
+            return nullptr;
+        };
+        auto check = [&](const QString &text) -> QCheckBox * {
+            for (QCheckBox *c : tp->findChildren<QCheckBox *>())
+                if (c->text() == text) return c;
+            return nullptr;
+        };
+        QVERIFY(edit(QString()) && edit(QStringLiteral("replace")) && button(QStringLiteral("Find Next")) && check(QStringLiteral("Match case")));
+        auto status = [&] {
+            QString s;
+            for (QLabel *l : tp->findChildren<QLabel *>())
+                if (l->wordWrap()) s = l->text();
+            return s;
+        };
+        edit(QString())->setText(QStringLiteral("cat"));
+        // Case is ignored unless asked; the first match is the capital one, then each after it, then round to the first.
+        QStringList seen;
+        for (int i = 0; i < 6; ++i) {
+            button(QStringLiteral("Find Next"))->click();
+            QVERIFY(ed->isEditingText());
+            seen << QStringLiteral("%1:%2@%3").arg(ed->currentPage()).arg(ed->cursor().selectedText()).arg(ed->cursor().selectionStart());
+        }
+        QCOMPARE(seen, (QStringList{QStringLiteral("0:Cat@4"), QStringLiteral("0:cat@14"), QStringLiteral("1:cat@8"), QStringLiteral("1:cat@19"),
+                                    QStringLiteral("0:Cat@4"), QStringLiteral("0:cat@14")}));
+        check(QStringLiteral("Match case"))->setChecked(true);
+        edit(QString())->setText(QStringLiteral("Cat"));
+        ed->setCurrentPage(1);
+        button(QStringLiteral("Find Next"))->click();
+        QCOMPARE(ed->currentPage(), 0);
+        QCOMPARE(ed->cursor().selectionStart(), 4);
+        check(QStringLiteral("Match case"))->setChecked(false);
+        check(QStringLiteral("Find whole words only"))->setChecked(true);
+        edit(QString())->setText(QStringLiteral("cat"));
+        edit(QStringLiteral("replace"))->setText(QStringLiteral("dog"));
+        button(QStringLiteral("Replace All"))->click();
+        QCOMPARE(ed->doc()->storyDoc(stories[0])->toPlainText(), QStringLiteral("One dog and a dog."));
+        QCOMPARE(ed->doc()->storyDoc(stories[1])->toPlainText(), QStringLiteral("Another dog, and a catalog."));
+        QVERIFY2(status().contains(QLatin1String("3 replacement")), qPrintable(status()));
+        ed->undo();
+        QCOMPARE(ed->doc()->storyDoc(stories[0])->toPlainText(), QStringLiteral("One Cat and a cat."));
+        QCOMPARE(ed->doc()->storyDoc(stories[1])->toPlainText(), QStringLiteral("Another cat, and a catalog."));
+        // Replace swaps the match that is shown, then moves to the next.
+        edit(QString())->setText(QStringLiteral("a cat"));
+        edit(QStringLiteral("replace"))->setText(QStringLiteral("the cat"));
+        check(QStringLiteral("Find whole words only"))->setChecked(false);
+        button(QStringLiteral("Find Next"))->click();
+        button(QStringLiteral("Replace"))->click();
+        QCOMPARE(ed->doc()->storyDoc(stories[0])->toPlainText(), QStringLiteral("One Cat and the cat."));
+        QCOMPARE(ed->currentPage(), 1);
+        edit(QString())->setText(QStringLiteral("zzz"));
+        button(QStringLiteral("Find Next"))->click();
+        QVERIFY2(status().contains(QLatin1String("\"zzz\" was not found")), qPrintable(status()));
+    }
+
+    // The shared search: stories in the order to search them (the pages from the one asked for round to the
+    // ones before it, a page's speaker notes after its own, the master pages last), the next match round the
+    // end, backward too, and Replace All's count.
+    void findEngineWalksStoriesInOrder()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->addPage();
+        doc->addPage();
+        QStringList boxes, notes;
+        for (int p = 0; p < 3; ++p) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(72, 72, 300, 100);
+            t->storyId = doc->createStory(QStringLiteral("Box %1 has red and Red.").arg(p));
+            doc->pages[p]->items.push_back(t);
+            boxes << t->storyId;
+            if (p == 1) {
+                auto tb = std::make_shared<jp::TableItem>();
+                tb->rows = 1;
+                tb->cols = 2;
+                tb->rect = QRectF(72, 300, 300, 40);
+                tb->cells.resize(2);
+                tb->cells[0].storyId = doc->createStory(QStringLiteral("cell one red"));
+                tb->cells[1].storyId = doc->createStory(QStringLiteral("cell two"));
+                doc->pages[p]->items.push_back(tb);
+                boxes << tb->cells[0].storyId << tb->cells[1].storyId;
+            }
+            if (p > 0) {
+                doc->pages[p]->notesStoryId = doc->createStory(QStringLiteral("notes %1: red").arg(p));
+                notes << doc->pages[p]->notesStoryId;
+            }
+        }
+        auto ids = [](const QVector<jp::FindStory> &v) {
+            QStringList out;
+            for (const auto &s : v) out << s.storyId;
+            return out;
+        };
+        QCOMPARE(ids(jp::findStories(*doc)), (QStringList{boxes[0], boxes[1], boxes[2], boxes[3], boxes[4]}));
+        const auto from1 = jp::findStories(*doc, jp::FindScope{false, true, 1});
+        QCOMPARE(ids(from1), (QStringList{boxes[1], boxes[2], boxes[3], notes[0], boxes[4], notes[1], boxes[0]}));
+        QVERIFY(from1[3].notes && from1[3].page == 1 && from1[3].itemId.isEmpty());
+        QVERIFY(!from1[0].notes && from1[1].row == 0 && from1[2].col == 1 && from1[1].itemId == from1[2].itemId);
+        const auto plain = jp::findStories(*doc);
+        const QTextDocument::FindFlags none;
+        int story = -1;
+        QTextCursor found;
+        // Forward from the end of the first box, then from the end of the last: round to the start.
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), none, 0, 11, &story, &found));
+        QCOMPARE(story, 0);
+        QCOMPARE(found.selectedText(), QStringLiteral("Red"));
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), none, 0, 22, &story, &found));
+        QCOMPARE(story, 1);
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), none, 4, 22, &story, &found));
+        QCOMPARE(story, 0);
+        QCOMPARE(found.selectionStart(), 10);
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), QTextDocument::FindBackward, 1, 0, &story, &found));
+        QCOMPARE(story, 0);
+        QCOMPARE(found.selectionStart(), 18);
+        QVERIFY(!jp::findInStories(*doc, plain, QStringLiteral("blue"), none, 0, 0, &story, &found));
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("red"), QTextDocument::FindCaseSensitively, 0, 0, &story, &found));
+        QCOMPARE(found.selectionStart(), 10);
+        QVERIFY(jp::findInStories(*doc, plain, QStringLiteral("Box 1 has red"), QTextDocument::FindWholeWords, 0, 0, &story, &found));
+        QCOMPARE(story, 1);
+        QVERIFY(!jp::findInStories(*doc, plain, QStringLiteral("has re"), QTextDocument::FindWholeWords, 0, 0, &story, &found));
+        // Replace All counts every match (case ignored unless asked) in the stories it is given.
+        QCOMPARE(jp::replaceInStories(*doc, from1, QStringLiteral("red"), none, QStringLiteral("blue")), 2 + 1 + 0 + 1 + 2 + 1 + 2);
+        QCOMPARE(doc->storyDoc(boxes[0])->toPlainText(), QStringLiteral("Box 0 has blue and blue."));
+        QCOMPARE(doc->storyDoc(notes[1])->toPlainText(), QStringLiteral("notes 2: blue"));
+        QCOMPARE(jp::replaceInStories(*doc, plain, QStringLiteral("red"), none, QStringLiteral("x")), 0);
+    }
+
+    // The spelling help for the right-click menu: nothing and false off a misspelled word.
+    void spellingMenuHelpNeedsAMisspelledWord()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("This is teh test."));
+        doc->pages[0]->items.push_back(t);
+        ed->setDocument(std::move(doc));
+        ed->beginTextEdit(t->id, 2);
+        QMenu none;
+        QVERIFY(!jp::addSpellingSuggestions(none, ed));
+        QVERIFY(none.isEmpty());
+        ed->beginTextEdit(t->id, 10);
+        QMenu menu;
+        QVERIFY(jp::addSpellingSuggestions(menu, ed));
+        QVERIFY(menu.actions().size() > 3);
+        QVERIFY(menu.actions().last()->isSeparator());
+        // The first suggestion replaces the word, as one change.
+        QAction *first = menu.actions().first();
+        QVERIFY(jp::spellingSuggestions(QStringLiteral("teh")).contains(first->text()));
+        first->trigger();
+        QVERIFY(!w.editor()->doc()->storyDoc(t->storyId)->toPlainText().contains(QLatin1String("teh")));
+    }
+
+    // A linked chain is searched once, at its first frame, wherever its frames sit in the page's list.
+    void findStoriesUseTheFirstFrameOfAChain()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto a = std::make_shared<jp::TextItem>(), b = std::make_shared<jp::TextItem>(), c = std::make_shared<jp::TextItem>();
+        a->rect = QRectF(72, 72, 200, 100);
+        b->rect = QRectF(300, 72, 200, 100);
+        c->rect = QRectF(72, 300, 200, 100);
+        a->storyId = b->storyId = doc->createStory(QStringLiteral("one story in two frames"));
+        c->storyId = doc->createStory(QStringLiteral("alone"));
+        a->nextId = b->id;
+        doc->pages[0]->items.push_back(c);
+        doc->pages[0]->items.push_back(b);
+        doc->pages[0]->items.push_back(a);
+        const auto stories = jp::findStories(*doc);
+        QCOMPARE(stories.size(), 2);
+        QCOMPARE(stories[0].itemId, c->id);
+        QCOMPARE(stories[1].itemId, a->id);
+        QCOMPARE(stories[1].storyId, a->storyId);
+    }
+
+    // The walk over the stories takes about as long again for each slide: four times the slides take about four times as long,
+    // not sixteen (every text box once asked the whole document for the frame before it).
+    void findStoriesTakesTimeInProportionToThePages()
+    {
+        auto timeFor = [](int pages) {
+            auto doc = jp::Document::blank(QSizeF(960, 540));
+            for (int p = 0; p < pages; ++p) {
+                if (p) doc->addPage();
+                for (int k = 0; k < 2; ++k) {
+                    auto t = std::make_shared<jp::TextItem>();
+                    t->rect = QRectF(72, 72 + k * 200, 300, 100);
+                    t->storyId = doc->createStory(QStringLiteral("text %1").arg(p));
+                    doc->pages[p]->items.push_back(t);
+                }
+            }
+            qint64 best = std::numeric_limits<qint64>::max();
+            for (int i = 0; i < 5; ++i) {
+                QElapsedTimer timer;
+                timer.start();
+                const auto stories = jp::findStories(*doc);
+                best = std::min(best, timer.nsecsElapsed());
+                if (stories.size() != pages * 2) return qint64(-1);
+            }
+            return best;
+        };
+        // Eight times the pages: linear work grows about 8 times (more with caches spilling), the old quadratic walk 64 times.
+        const qint64 small = timeFor(500), big = timeFor(4000);
+        QVERIFY(small > 0 && big > 0);
+        QVERIFY2(big < small * 24, qPrintable(QStringLiteral("500 pages: %1 us, 4000 pages: %2 us").arg(small / 1000).arg(big / 1000)));
+    }
+
+    // A Text Art's words are searched when the scope says so (not for JeffPub, whose pane does not follow a match into one): found,
+    // replaced as a whole pass, and put back in the Text Art; a single match replaced where the search found it.
+    void findEngineSearchesTextArtWhenAsked()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("a red box"));
+        auto art = std::make_shared<jp::TextArtItem>();
+        art->rect = QRectF(72, 300, 300, 100);
+        art->text = QStringLiteral("Red and\nred again");
+        auto empty = std::make_shared<jp::TextArtItem>();
+        empty->rect = QRectF(72, 500, 300, 100);
+        empty->text.clear();
+        doc->pages[0]->items.push_back(art);
+        doc->pages[0]->items.push_back(t);
+        doc->pages[0]->items.push_back(empty);
+        QCOMPARE(jp::findStories(*doc).size(), 1);
+        jp::FindScope scope;
+        scope.textArt = true;
+        const auto stories = jp::findStories(*doc, scope);
+        QCOMPARE(stories.size(), 2);   // not the empty one
+        QVERIFY(stories[0].art && stories[0].itemId == art->id && stories[0].storyId.isEmpty());
+        QVERIFY(!stories[1].art);
+        int story = -1;
+        QTextCursor found;
+        const QTextDocument::FindFlags none;
+        QVERIFY(jp::findInStories(*doc, stories, QStringLiteral("red"), none, 0, 4, &story, &found));
+        QCOMPARE(story, 0);
+        QCOMPARE(found.selectionStart(), 8);   // after the line break, which counts as one
+        QVERIFY(!jp::replaceArtWords(*doc, art->id, 8, 11, QStringLiteral("blue"), Qt::CaseInsensitive, QStringLiteral("x")));
+        QVERIFY(jp::replaceArtWords(*doc, art->id, 8, 11, QStringLiteral("RED"), Qt::CaseInsensitive, QStringLiteral("blue")));
+        QCOMPARE(art->text, QStringLiteral("Red and\nblue again"));
+        QVector<jp::FindStory> changed;
+        // (The Text Art's words in a story are a copy made when the stories were listed: list them again.)
+        QCOMPARE(jp::replaceInStories(*doc, jp::findStories(*doc, scope), QStringLiteral("red"), none, QStringLiteral("green"), &changed), 2);
+        QCOMPARE(art->text, QStringLiteral("green and\nblue again"));
+        QCOMPARE(doc->storyDoc(t->storyId)->toPlainText(), QStringLiteral("a green box"));
+        QCOMPARE(changed.size(), 2);
+    }
+
+    // What a message says of a search text: short, and breakable where it has no spaces.
+    void findTextForMessageIsShortAndBreakable()
+    {
+        QCOMPARE(jp::findTextForMessage(QStringLiteral("two short words")), QStringLiteral("two short words"));
+        QCOMPARE(jp::findTextForMessage(QString()), QString());
+        const QString cut = jp::findTextForMessage(QString(100, QLatin1Char('x')));
+        QString plain = cut;
+        plain.remove(QChar(0x200B));
+        QCOMPARE(plain, QString(40, QLatin1Char('x')) + QChar(0x2026));
+        QVERIFY(cut.size() > plain.size());
+        for (const QString &run : cut.split(QChar(0x200B))) QVERIFY(run.size() <= 13);
+        // A pair of UTF-16 units is not cut in two.
+        const QString emoji = QString(39, QLatin1Char('x')) + QStringLiteral("\U0001F600\U0001F600");
+        const QString shown = jp::findTextForMessage(emoji);
+        QVERIFY(!shown.contains(QChar::ReplacementCharacter));
+        QVERIFY(shown.endsWith(QChar(0x2026)));
+        QVERIFY(!QChar::isHighSurrogate(shown.at(shown.size() - 2).unicode()));
+    }
+
+    // Replace All fits a box that grows to fit its words and a table's rows to the new words, as typing them would, in the same
+    // step (so one Undo gives back the sizes too).
+    void findPaneReplaceAllRefitsBoxesAndTables()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        ed->setDocument(std::move(doc));
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 200, 30), QStringLiteral("word")));
+        box->autofit = jp::TextItem::GrowBox;
+        ed->addItem(box);
+        auto table = std::static_pointer_cast<jp::TableItem>(ed->newTable(QRectF(72, 300, 300, 40), 1, 2));
+        ed->addItem(table);
+        QTextCursor(ed->doc()->storyDoc(table->cell(0, 0).storyId)).insertText(QStringLiteral("word"));
+        const QString boxId = box->id, tableId = table->id;
+        const double boxHeight = box->rect.height(), rowHeight = table->rowH[0];
+        w.showTaskPane(QStringLiteral("find"));
+        auto *tp = w.findChild<jp::TaskPane *>();
+        QVERIFY(tp);
+        QLineEdit *find = nullptr, *replace = nullptr;
+        for (QLineEdit *e : tp->findChildren<QLineEdit *>()) (e->objectName() == QLatin1String("replace") ? replace : find) = e;
+        QVERIFY(find && replace);
+        find->setText(QStringLiteral("word"));
+        QString longer;
+        for (int i = 0; i < 40; ++i) longer += QStringLiteral("longer words ");
+        replace->setText(longer);
+        for (QPushButton *b : tp->findChildren<QPushButton *>())
+            if (b->text() == QLatin1String("Replace All")) b->click();
+        auto *grown = static_cast<jp::TextItem *>(ed->doc()->item(boxId));
+        auto *fitted = static_cast<jp::TableItem *>(ed->doc()->item(tableId));
+        QVERIFY2(grown->rect.height() > boxHeight + 50, qPrintable(QString::number(grown->rect.height())));
+        QVERIFY2(fitted->rowH[0] > rowHeight + 50, qPrintable(QString::number(fitted->rowH[0])));
+        // Already fitted: fitting again changes nothing.
+        const double h = grown->rect.height(), r = fitted->rowH[0];
+        ed->autoGrowText(grown);
+        ed->fitTableRows(fitted);
+        QCOMPARE(grown->rect.height(), h);
+        QCOMPARE(fitted->rowH[0], r);
+        ed->undo();
+        QCOMPARE(static_cast<jp::TextItem *>(ed->doc()->item(boxId))->rect.height(), boxHeight);
+        QCOMPARE(static_cast<jp::TableItem *>(ed->doc()->item(tableId))->rowH[0], rowHeight);
+    }
+
+    // The pane's message is plain text, and a long search text can't stretch the pane: it is cut short and may break anywhere.
+    void findPaneMessageIsPlainTextAndNarrow()
+    {
+        jp::MainWindow w;
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("some words"));
+        doc->pages[0]->items.push_back(t);
+        w.editor()->setDocument(std::move(doc));
+        w.showTaskPane(QStringLiteral("find"));
+        auto *tp = w.findChild<jp::TaskPane *>();
+        QVERIFY(tp);
+        QLineEdit *find = nullptr;
+        for (QLineEdit *e : tp->findChildren<QLineEdit *>())
+            if (e->objectName() != QLatin1String("replace")) find = e;
+        QLabel *status = nullptr;
+        for (QLabel *l : tp->findChildren<QLabel *>())
+            if (l->wordWrap()) status = l;
+        QPushButton *next = nullptr;
+        for (QPushButton *b : tp->findChildren<QPushButton *>())
+            if (b->text() == QLatin1String("Find Next")) next = b;
+        QVERIFY(find && status && next);
+        find->setText(QStringLiteral("<b>x"));
+        next->click();
+        QCOMPARE(status->textFormat(), Qt::PlainText);
+        QVERIFY2(status->text().contains(QStringLiteral("\"<b>x\" was not found")), qPrintable(status->text()));
+        find->setText(QString(120, QLatin1Char('x')));
+        next->click();
+        QVERIFY2(status->text().size() < 200, qPrintable(QString::number(status->text().size())));
+        QVERIFY2(status->minimumSizeHint().width() < 300, qPrintable(QString::number(status->minimumSizeHint().width())));
+    }
+
+    // Right-clicking a misspelled word in the text being typed offers the dictionary's
+    // suggestions first, in bold, then Ignore All and Add to Dictionary.
+    void contextMenuOffersSpellingSuggestions()
+    {
+        jp::MainWindow w;
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("This is teh test."));
+        doc->pages[0]->items.push_back(t);
+        ed->setDocument(std::move(doc));
+        ed->beginTextEdit(t->id, 9);
+        QStringList texts;
+        QList<bool> bold;
+        QTimer::singleShot(100, [&] {
+            if (auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+                for (QAction *a : m->actions()) {
+                    texts << a->text();
+                    bold << a->font().bold();
+                }
+                m->close();
+            }
+        });
+        Q_EMIT w.canvas()->contextMenuWanted(w.mapToGlobal(QPoint(300, 300)));
+        QVERIFY(texts.size() > 6);
+        QVERIFY2(texts.first().compare(QLatin1String("the"), Qt::CaseInsensitive) == 0 || jp::spellingSuggestions(QStringLiteral("teh")).contains(texts.first()), qPrintable(texts.join(QLatin1Char('|'))));
+        QVERIFY(bold.first());
+        const int ignore = int(texts.indexOf(QStringLiteral("Ignore All")));
+        QVERIFY(ignore > 0);
+        QCOMPARE(texts[ignore + 1], QStringLiteral("Add to Dictionary"));
+        QVERIFY(!bold[ignore]);
+        QVERIFY(jp::spellingSuggestions(QStringLiteral("teh")).mid(0, 6).contains(texts.first()));
+        QCOMPARE(ignore, int(qMin<qsizetype>(6, jp::spellingSuggestions(QStringLiteral("teh")).size())));
+    }
+
     // Saving as .pub: pages, formatted text boxes, rectangles and ovals
     // come back through the independent .pub reader (libmspub).
     void pubWriterRoundTrip()
@@ -21677,6 +22137,74 @@ private Q_SLOTS:
             QVERIFY(near(img.pixel(225, 125), QColor(255, 255, 255)));
             QVERIFY(near(img.pixel(175, 175), QColor(255, 0, 0)));
             QVERIFY(near(img.pixel(225, 175), QColor(0, 255, 0)));
+        }
+        // PatBlt fills a rectangle (here 150 to 250 across and 200 to 260 down) with the brush, as table cells in a pasted table are.
+        QByteArray patBlt;
+        le32(patBlt, 0x00F00021);   // copy the brush
+        for (int v : {60, 100, 200, 150}) le16(patBlt, v);   // height, width, y, x
+        const QImage filled = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, wmfRecord(0x012D, words({0})) + wmfRecord(0x061D, patBlt)));
+        QVERIFY(near(filled.pixel(200, 230), QColor(0, 0, 255)));
+        QCOMPARE(qAlpha(filled.pixel(100, 230)), 0);
+        // Text in a font of the Greek character set is Greek: the byte 0xF4 is a tau there, where in the Western set it is an o with a
+        // circumflex.
+        {
+            QRect greek, tau;
+            ink(picture(wmf(QStringLiteral("Arial"), 161, "\xF4", 120, 150, 120)), QRect(0, 100, 400, 200), &greek);
+            ink(picture(emf(QStringLiteral("Arial"), 0, QString(QChar(0x03C4)), 120, 150, 120)), QRect(0, 100, 400, 200), &tau);
+            QVERIFY(!greek.isEmpty() && !tau.isEmpty());
+            QVERIFY2(std::abs(greek.height() - tau.height()) <= 2 && std::abs(greek.width() - tau.width()) <= 2, qPrintable(QStringLiteral("greek %1 x %2, tau %3 x %4").arg(greek.width()).arg(greek.height()).arg(tau.width()).arg(tau.height())));
+        }
+        // The other letters of those sets that are not where the Western set has them: Greek capital alpha with a tonos (0xA2), and the Cyrillic
+        // capital and small yo (0xA8 and 0xB8, in the Western set a diaeresis and a cedilla).
+        for (const auto &letter : {std::make_tuple(161, "\xA2", 0x0386), std::make_tuple(204, "\xA8", 0x0401), std::make_tuple(204, "\xB8", 0x0451)}) {
+            QRect fromBytes, fromUnicode;
+            ink(picture(wmf(QStringLiteral("Arial"), std::get<0>(letter), std::get<1>(letter), 120, 150, 120)), QRect(0, 100, 400, 200), &fromBytes);
+            ink(picture(emf(QStringLiteral("Arial"), 0, QString(QChar(std::get<2>(letter))), 120, 150, 120)), QRect(0, 100, 400, 200), &fromUnicode);
+            QVERIFY(!fromBytes.isEmpty() && !fromUnicode.isEmpty());
+            QVERIFY2(std::abs(fromBytes.height() - fromUnicode.height()) <= 2 && std::abs(fromBytes.width() - fromUnicode.width()) <= 2,
+                     qPrintable(QStringLiteral("0x%1: %2 x %3 instead of %4 x %5").arg(std::get<2>(letter), 0, 16).arg(fromBytes.width()).arg(fromBytes.height()).arg(fromUnicode.width()).arg(fromUnicode.height())));
+        }
+        // Text drawn with an opaque background (a label's white box on a map) fills the string's cell with the background color, in a
+        // metafile as in an enhanced one.
+        {
+            QByteArray colorRecord = QByteArray();
+            le32(colorRecord, 0x0000FFFF);   // yellow (red 255, green 255, blue 0)
+            QByteArray line = words({1}) + "I";
+            line.append('\0');
+            le16(line, 150);
+            le16(line, 150);
+            const QByteArray more = wmfRecord(0x0102, words({2})) + wmfRecord(0x0201, colorRecord) + wmfRecord(0x0521, line);
+            const QImage opaque = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 120, more));
+            QVERIFY(near(opaque.pixel(152, 152), QColor(255, 255, 0)));
+            QCOMPARE(qAlpha(opaque.pixel(120, 152)), 0);   // (left of the cell)
+        }
+        // A flood of records that each paint the whole picture (400,000 of them, 7 MB, over a minute before) is stopped after the work a
+        // picture may take, with what it drew before it still there, and so is one of records that each nest a saved state.
+        {
+            QByteArray patBlt;
+            le32(patBlt, 0x00F00021);
+            for (int v : {300, 400, 0, 0}) le16(patBlt, v);   // height, width, y, x
+            QByteArray flood = wmfRecord(0x012D, words({0}));
+            const QByteArray fill = wmfRecord(0x061D, patBlt);
+            for (int i = 0; i < 400000; ++i) flood += fill;
+            QElapsedTimer timer;
+            timer.start();
+            const QImage drawn = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, flood));
+            QVERIFY2(timer.elapsed() < 6000, qPrintable(QString::number(timer.elapsed())));
+            QVERIFY(near(drawn.pixel(200, 150), QColor(0, 0, 255)));
+            QByteArray nested;
+            for (int i = 0; i < 200000; ++i) nested += wmfRecord(0x001E, QByteArray());
+            timer.restart();
+            const QImage deep = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, nested + wmfRecord(0x012D, words({0})) + fill));
+            QVERIFY2(timer.elapsed() < 6000, qPrintable(QString::number(timer.elapsed())));
+            QVERIFY(near(deep.pixel(200, 150), QColor(0, 0, 255)));
+            // Saves past the cap are counted, so their restores undo nothing: a clip set after the first save
+            // still holds once as many restores as later saves have run (before, they unwound past it).
+            QByteArray balanced = wmfRecord(0x001E, QByteArray()) + wmfRecord(0x0416, words({10, 10, 0, 0}));
+            for (int i = 0; i < 1005; ++i) balanced += wmfRecord(0x001E, QByteArray());
+            for (int i = 0; i < 1005; ++i) balanced += wmfRecord(0x0127, words({0xFFFF}));
+            const QImage kept = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, balanced + wmfRecord(0x012D, words({0})) + fill));
+            QVERIFY(!near(kept.pixel(200, 150), QColor(0, 0, 255)));
         }
         // Insert Picture takes both from files, whatever the case of the
         // extension, and the page shows the picture on screen and in print.

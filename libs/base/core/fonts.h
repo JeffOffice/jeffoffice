@@ -83,6 +83,10 @@ QStringList bundledFamilies();
 // this is the same picture as a Unicode character, or an empty string.
 bool isSymbolFont(const QString &family);
 QString symbolToUnicode(const QString &family, uint code);
+// A character of running text in a symbol font (a Greek letter or a sign set in Symbol, a hand or a number in a circle set in Wingdings) as
+// the Unicode character that looks like it, or an empty string: what symbolToUnicode gives for a bullet, and the rest of the letters and
+// signs the fonts hold that it leaves out. The code may be 0x20-0xFF or 0xF020-0xF0FF.
+QString symbolTextToUnicode(const QString &family, uint code);
 // The other way: the symbol font and code (0xF020-0xF0FF) for a Unicode
 // picture, or 0 when no symbol font has it.
 uint unicodeToSymbol(QChar c, QString *family);

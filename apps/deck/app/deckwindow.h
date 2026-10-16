@@ -8,12 +8,14 @@
 #include <QHash>
 #include <QKeySequence>
 #include <QPointer>
+#include <QSet>
 #include <QTimer>
 #include <functional>
 #include <memory>
 
 class QDockWidget;
 class QLabel;
+class QMenu;
 class QSlider;
 class QSplitter;
 class QStackedWidget;
@@ -22,14 +24,19 @@ namespace jp {
 
 class AnimationPane;
 class ColorButton;
+class ColorRef;
 class Document;
 class CommentsPane;
 class DeckCanvas;
 class DeckFileScreen;
 class Editor;
+class DeckFindPane;
 class FontCombo;
 class HelpView;
+class MeasureSpin;
+class TableItem;
 class HelpWindow;
+class MasterPane;
 class NotesPane;
 class OnlinePicturesPane;
 class OutlineView;
@@ -41,9 +48,11 @@ class SlideSorter;
 class SlidesPane;
 
 namespace deck {
+enum class PlaceholderKind;
 struct ColorSet;
 struct FontSet;
 struct FooterOptions;
+struct MasterParts;
 struct MediaPlay;
 struct OutputOptions;
 }
@@ -75,10 +84,34 @@ public:
     void showReusePane();
     void reuseSlide(int slide, bool keepFormatting);
     // The ways to see the slides: Normal (the thumbnails, the slide, and its
-    // notes), Outline (the text in the thumbnails' place), and the Slide Sorter.
-    enum class View { Normal, Outline, Sorter };
+    // notes), Outline (the text in the thumbnails' place), the Slide Sorter, and
+    // Slide Master view (the slide masters and layouts in the thumbnails' place,
+    // the one chosen on the canvas, and the Slide Master tab).
+    enum class View { Normal, Outline, Sorter, Master };
     View view() const { return m_view; }
     void setView(View view);
+    // Slide Master view (deckwindow_master.cpp). It opens on a slide master or layout (the layout of the slide being edited when none is
+    // named), and Close Master View returns to the slide. Each command is one step that undoes. Insert Slide Master and Insert Layout
+    // open what they made (after the master or layout being edited) and return its id; Delete says why in `why` when it won't (the
+    // master or layout that slides stand on); Preserve is for the master or layout named. Insert Placeholder (on a layout) selects the
+    // new placeholder and returns its id, or "" when there is no layout open.
+    MasterPane *masterPane() const { return m_masterPane; }
+    void editMasters(const QString &page = QString());
+    void closeMasters();
+    QString insertSlideMaster();
+    QString insertLayout();
+    bool deleteMasterPage(const QString &id, QString *why = nullptr);
+    void renameMasterPage(const QString &id, const QString &name);
+    void setPreserve(const QString &id, bool on);
+    QString insertPlaceholder(deck::PlaceholderKind kind);
+    void setLayoutTitle(bool on);
+    void setLayoutFooters(bool on);
+    void setMasterParts(const deck::MasterParts &parts);
+    // Hide Background Graphics: on the layout being edited, or, outside Slide Master view, on the slide being edited. The pictures and shapes of
+    // the slide masters under it stop showing.
+    void hideBackgroundGraphics(bool hide);
+    // What Delete says when it won't take the page away: the message box, unless this stands in for it (tests).
+    void setMasterNotice(const std::function<void(const QString &)> &tell) { m_masterNotice = tell; }
     // The Animation Pane on the right (Animations tab > Animation Pane), with the effects of the slide being edited; the
     // numbers by the shapes show while it, or the tab, does (deckwindow_animations.cpp).
     AnimationPane *animationPane() const { return m_animPane; }
@@ -146,6 +179,13 @@ public:
     void showOnlinePictures();
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
+    // The Table Design and Table Layout tabs (deckwindow_table.cpp), each one step that undoes. A style is one of the Table Styles gallery's, by
+    // its id: the selected table takes its look, whatever it was shaded or lined with before. Shading colors the selected cells (or the
+    // cell the cursor is in, or with the table selected every cell).
+    void applyTableStyle(const QString &styleId);
+    void setCellShading(const ColorRef &color);
+    // The Picture Format tab's Crop to Shape (deckwindow_picture.cpp), for the selected pictures: a shape's id, as the Shapes gallery has it.
+    void cropPictureToShape(const QString &shape);
     // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
     // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
@@ -174,6 +214,18 @@ public:
     // of slides past the end): the message box, unless this stands in for it
     // (tests). Given the question, it says whether to keep; a notice's answer is ignored.
     void setShowQuestion(const std::function<bool(const QString &)> &ask) { m_showQuestion = ask; }
+    // The right-click menu of the slide (and of Shift+F10 and the Menu key, at the selection): what it offers depends on
+    // whether text is being typed in (spelling suggestions, cut, copy, paste, font, paragraph, bullets, numbering, a link),
+    // an object is selected (cut, copy, paste, delete, edit text, group, order, alignment of its text, a link), or neither
+    // (paste, layout, reset, background, grid and guides, the ruler). Every command is the ribbon's own action, or
+    // calls it. Built each time; the caller owns the menu (deckwindow_menu.cpp).
+    QMenu *slideContextMenu(QWidget *parent = nullptr);
+    // Opens it at a place on the screen, and does nothing while it is already open.
+    void showSlideContextMenu(const QPoint &global);
+    // Find and Replace (Home > Editing, Ctrl+F and Ctrl+H): the pane on the right, with the cursor in Find what, or
+    // in Replace with. (deckwindow_find.cpp)
+    DeckFindPane *findPane() const { return m_find; }
+    void showFindPane(bool replace = false);
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
@@ -235,6 +287,19 @@ private:
     bool askAboutShow(const QString &question, const QString &keep, const QString &discard);
     void tellAboutShow(const QString &text);
     void createViewModeActions();   // deckwindow_views.cpp
+    void createMasterActions();     // deckwindow_master.cpp
+    void addMasterParts(struct RibbonParts &parts);
+    bool enterMasterView();
+    void leaveMasterView();
+    void syncMasterView();
+    void ensureMasterView();
+    QWidget *actionCheckBox(const QString &id);
+    void fillColorsMenu(QMenu *menu);
+    void fillFontsMenu(QMenu *menu);
+    void fillBackgroundsMenu(QMenu *menu, QMenu *root);
+    void changeMasters(const QString &label, const std::function<void(Document &)> &fn, const QString &touched = QString());
+    void refreshMasterActions();
+    void askMasterLayout();
     void addShowParts(struct RibbonParts &parts);
     void addDesignParts(struct RibbonParts &parts);   // deckwindow_design.cpp
     bool applyThemeFrom(const Document &source, bool allSlides);
@@ -265,8 +330,17 @@ private:
     void updateTitle();
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
+    void createEditingActions();  // deckwindow_find.cpp: Find, Replace, Select Objects
+    QMenu *layoutMenu(QWidget *owner, bool change);
     void createHelpActions();     // deckwindow_help.cpp
     void createMediaActions();    // deckwindow_media.cpp
+    void createTableActions();    // deckwindow_table.cpp
+    void addTableParts(struct RibbonParts &parts);
+    void refreshTable();
+    void styleNewTable(TableItem *table);
+    void createCropActions();     // deckwindow_picture.cpp
+    void addCropParts(struct RibbonParts &parts);
+    void refreshCrop();
     void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
     void addInsertParts(struct RibbonParts &parts);
     void addMediaParts(struct RibbonParts &parts);
@@ -292,10 +366,27 @@ private:
     QDockWidget *m_onlineDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    DeckFindPane *m_find = nullptr;
+    QDockWidget *m_findDock = nullptr;
+    bool m_menuOpen = false;   // the slide's right-click menu is up
     AnimationPane *m_animPane = nullptr;
     QDockWidget *m_animDock = nullptr;
     std::shared_ptr<void> m_animations;   // what the animation controls do (deckwindow_animations.cpp)
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
+    MasterPane *m_masterPane = nullptr;  // in the split, in Slide Master view
+    bool m_notesWereShown = true;        // the notes box before Slide Master view hid it
+    QSet<QString> m_waiting;             // the commands Slide Master view turned off
+    bool m_switchingView = false;        // setView is changing what the editor shows: its signals are its own
+    QString m_masterFirst;               // the page Slide Master view opens on, when asked for one
+    bool m_carryEdits = true;            // an edit of a master or layout reaches what follows it (not a change of theme, colors, fonts, or size, which do)
+    // While one lives, what is changed in Slide Master view is not carried that way.
+    struct OwnEdit {
+        explicit OwnEdit(DeckWindow *w) : m_w(w), m_was(w->m_carryEdits) { w->m_carryEdits = false; }
+        ~OwnEdit() { m_w->m_carryEdits = m_was; }
+        DeckWindow *m_w;
+        bool m_was;
+    };
+    std::function<void(const QString &)> m_masterNotice;
     View m_view = View::Normal;
     // Normal view's zoom while the Slide Sorter borrows the zoom controls: its Canvas::Fit and the zoom.
     int m_normalFit = 0;
@@ -305,6 +396,7 @@ private:
     QList<FontCombo *> m_fontCombos;
     QList<SizeCombo *> m_sizeCombos;
     QList<ColorButton *> m_colorButtons;
+    QList<MeasureSpin *> m_tableSizeBoxes;   // Table Layout's Row Height and Column Width
     QSizeF m_shownSize;   // the slide size the view was last fitted to
     QPointer<SlideShow> m_show;
     const Document *m_fontsOf = nullptr;   // the presentation whose embedded fonts this window holds open (core/embeddedfonts.h)

@@ -152,6 +152,7 @@ private:
     void paintPrompts(QPainter &p, const Slot &s);
     void paintOverlay(QPainter &p);
     void paintHandles(QPainter &p, Item *it);
+    void paintCroppedAway(QPainter &p, PictureItem *pic);
     QVector<QPointF> handlePoints(const Item *it) const;     // 8 resize handles in view coordinates
     QPointF rotateHandle(const Item *it) const;
     PaintContext paintContext() const;

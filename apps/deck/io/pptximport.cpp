@@ -8,6 +8,7 @@
 #include "io/pptxdiagram.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
+#include "io/pptxtablestyles.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
 #include "office/chart.h"
@@ -1030,6 +1031,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     if (page->name.isEmpty()) page->name = m->theme.name.isEmpty() ? say("Slide Master") : say("%1 Slide Master").arg(m->theme.name);
     page->abbr = n == 1 ? QStringLiteral("SM") : QStringLiteral("SM%1").arg(n);
     page->props[QStringLiteral("kind")] = QStringLiteral("master");
+    if (!office::parseBool(office::attr(root, QStringLiteral("preserve")), true)) page->props[QStringLiteral("preserve")] = false;
     if (n > 1 && !themeBase64.isEmpty()) page->props[QStringLiteral("themeXml")] = themeBase64;
     m->page = page;
 
@@ -1106,6 +1108,7 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
     page->baseId = base->page->id;
     page->showMasterItems = office::parseBool(office::attr(root, QStringLiteral("showMasterSp")), true);
     page->props[QStringLiteral("kind")] = QStringLiteral("layout");
+    if (!office::parseBool(office::attr(root, QStringLiteral("preserve")), true)) page->props[QStringLiteral("preserve")] = false;
     page->props[QStringLiteral("type")] = office::attr(root, QStringLiteral("type"), QStringLiteral("cust"));
     l->page = page;
 
@@ -1814,6 +1817,11 @@ bool Importer::run(const QString &mainPart, QString *error)
     if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
     readSections(root, pageOfSlideId);
     readShowSettings(root, pageOfRel);
+    {
+        QStringList notes;
+        readTableStyleDefs(tableStyles(), [](const QDomElement &e) { return standaloneXml(e); }, m_doc, &notes);
+        for (const QString &text : std::as_const(notes)) note(text);
+    }
     m_doc.appData[QStringLiteral("footers")] = m_footers;
     sayWhatRanOut();
     for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);

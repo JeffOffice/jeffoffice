@@ -3,6 +3,7 @@
 #include "office/drawingml_table.h"
 
 #include "office/drawingml_style.h"
+#include "office/tablestyles.h"
 #include "office/xml.h"
 
 #include <QDomDocument>
@@ -29,52 +30,6 @@ constexpr double kMaxPoint = 1e6;   // points: the farthest a position or a size
 
 const QLatin1String kTableUri("http://schemas.openxmlformats.org/drawingml/2006/table");
 const QLatin1String kStrictTableUri("http://purl.oclc.org/ooxml/drawingml/table");
-
-// The id of the style a table without a definition of its own is approximated by.
-const QLatin1String kMediumStyle2("{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}");
-
-// Table styles the file may not define: the presentation program has them by
-// id. The first is the style new tables get ("Medium Style 2 - Accent 1"); it
-// also stands in for any other style id the file doesn't define, which is an
-// APPROXIMATION: the program's other styles differ in their colors and lines,
-// but most have the same parts (an accent header, banded rows in tints, white
-// lines), and a table with these is nearer its look than one with none. The
-// other two are what their names say.
-const char *const kBuiltinStyles =
-    "<a:tblStyleLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">"
-    "<a:tblStyle styleId=\"{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}\" styleName=\"Medium Style 2 - Accent 1\">"
-    "<a:wholeTbl><a:tcTxStyle><a:fontRef idx=\"minor\"/><a:schemeClr val=\"dk1\"/></a:tcTxStyle><a:tcStyle><a:tcBdr>"
-    "<a:left><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"lt1\"/></a:solidFill></a:ln></a:left>"
-    "<a:right><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"lt1\"/></a:solidFill></a:ln></a:right>"
-    "<a:top><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"lt1\"/></a:solidFill></a:ln></a:top>"
-    "<a:bottom><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"lt1\"/></a:solidFill></a:ln></a:bottom>"
-    "<a:insideH><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"lt1\"/></a:solidFill></a:ln></a:insideH>"
-    "<a:insideV><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"lt1\"/></a:solidFill></a:ln></a:insideV>"
-    "</a:tcBdr><a:fill><a:solidFill><a:schemeClr val=\"accent1\"><a:tint val=\"20000\"/></a:schemeClr></a:solidFill></a:fill></a:tcStyle></a:wholeTbl>"
-    "<a:band1H><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:schemeClr val=\"accent1\"><a:tint val=\"40000\"/></a:schemeClr></a:solidFill></a:fill></a:tcStyle></a:band1H>"
-    "<a:band1V><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:schemeClr val=\"accent1\"><a:tint val=\"40000\"/></a:schemeClr></a:solidFill></a:fill></a:tcStyle></a:band1V>"
-    "<a:lastCol><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:schemeClr val=\"lt1\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill></a:fill></a:tcStyle></a:lastCol>"
-    "<a:firstCol><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:schemeClr val=\"lt1\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill></a:fill></a:tcStyle></a:firstCol>"
-    "<a:lastRow><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:schemeClr val=\"lt1\"/></a:tcTxStyle><a:tcStyle><a:tcBdr>"
-    "<a:top><a:ln w=\"38100\"><a:solidFill><a:schemeClr val=\"lt1\"/></a:solidFill></a:ln></a:top></a:tcBdr><a:fill><a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill></a:fill></a:tcStyle></a:lastRow>"
-    "<a:firstRow><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:schemeClr val=\"lt1\"/></a:tcTxStyle><a:tcStyle><a:tcBdr>"
-    "<a:bottom><a:ln w=\"38100\"><a:solidFill><a:schemeClr val=\"lt1\"/></a:solidFill></a:ln></a:bottom></a:tcBdr><a:fill><a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill></a:fill></a:tcStyle></a:firstRow>"
-    "</a:tblStyle>"
-    "<a:tblStyle styleId=\"{2D5ABB26-0587-4C30-8999-92F81FD0307C}\" styleName=\"No Style, No Grid\">"
-    "<a:wholeTbl><a:tcTxStyle><a:fontRef idx=\"minor\"/><a:schemeClr val=\"tx1\"/></a:tcTxStyle><a:tcStyle><a:tcBdr>"
-    "<a:left><a:ln><a:noFill/></a:ln></a:left><a:right><a:ln><a:noFill/></a:ln></a:right><a:top><a:ln><a:noFill/></a:ln></a:top><a:bottom><a:ln><a:noFill/></a:ln></a:bottom>"
-    "<a:insideH><a:ln><a:noFill/></a:ln></a:insideH><a:insideV><a:ln><a:noFill/></a:ln></a:insideV>"
-    "</a:tcBdr><a:fill><a:noFill/></a:fill></a:tcStyle></a:wholeTbl></a:tblStyle>"
-    "<a:tblStyle styleId=\"{5940675A-B579-460E-94D1-54222C63F5DA}\" styleName=\"No Style, Table Grid\">"
-    "<a:wholeTbl><a:tcTxStyle><a:fontRef idx=\"minor\"/><a:schemeClr val=\"tx1\"/></a:tcTxStyle><a:tcStyle><a:tcBdr>"
-    "<a:left><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:ln></a:left>"
-    "<a:right><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:ln></a:right>"
-    "<a:top><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:ln></a:top>"
-    "<a:bottom><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:ln></a:bottom>"
-    "<a:insideH><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:ln></a:insideH>"
-    "<a:insideV><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:ln></a:insideV>"
-    "</a:tcBdr><a:fill><a:noFill/></a:fill></a:tcStyle></a:wholeTbl></a:tblStyle>"
-    "</a:tblStyleLst>";
 
 double position(double v)
 {
@@ -176,6 +131,70 @@ Look readLook(const QDomElement &region, const DrawingContext &ctx)
         look.fill = readFill(QDomElement(), cell, ctx);
     }
     return look;
+}
+
+std::array<Look, RegionCount> looksOf(const QDomElement &style, const DrawingContext &ctx)
+{
+    std::array<Look, RegionCount> looks;
+    for (int k = 0; k < RegionCount; ++k) looks[k] = readLook(childNamed(style, kRegionNames[k]), ctx);
+    return looks;
+}
+
+// What a style gives every cell of a table with these parts: the borders first, each region over the ones before, then the fill and the text.
+TableStyleEffect effectOf(const std::array<Look, RegionCount> &looks, const Flags &flags)
+{
+    const int rows = flags.rows, cols = flags.cols;
+    TableStyleEffect fx;
+    fx.rows = rows;
+    fx.cols = cols;
+    fx.across.resize(size_t(rows + 1) * cols);
+    fx.down.resize(size_t(rows) * (cols + 1));
+    fx.fill.resize(size_t(rows) * cols);
+    fx.bold.resize(size_t(rows) * cols);
+    fx.italic.resize(size_t(rows) * cols);
+    fx.color.resize(size_t(rows) * cols);
+    for (int k = 0; k < RegionCount; ++k) {
+        const Look &look = looks[k];
+        const bool any = std::any_of(std::begin(look.hasBorder), std::end(look.hasBorder), [](bool b) { return b; });
+        if (!any) continue;
+        const auto in = [&](int r, int c) { return r >= 0 && r < rows && c >= 0 && c < cols && inRegion(Region(k), r, c, flags); };
+        for (int r = 0; r < rows; ++r)
+            for (int c = 0; c < cols; ++c) {
+                if (!in(r, c)) continue;
+                const int left = in(r, c - 1) ? InsideV : Left, right = in(r, c + 1) ? InsideV : Right;
+                const int top = in(r - 1, c) ? InsideH : Top, bottom = in(r + 1, c) ? InsideH : Bottom;
+                if (look.hasBorder[left]) fx.leftOf(r, c) = look.border[left];
+                if (look.hasBorder[right]) fx.leftOf(r, c + 1) = look.border[right];
+                if (look.hasBorder[top]) fx.above(r, c) = look.border[top];
+                if (look.hasBorder[bottom]) fx.above(r + 1, c) = look.border[bottom];
+            }
+    }
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; c < cols; ++c) {
+            const size_t at = size_t(r) * cols + c;
+            for (int k = 0; k < RegionCount; ++k) {
+                if (!inRegion(Region(k), r, c, flags)) continue;
+                if (looks[k].hasFill) fx.fill[at] = looks[k].fill;
+                if (looks[k].bold) fx.bold[at] = looks[k].bold;
+                if (looks[k].italic) fx.italic[at] = looks[k].italic;
+                if (looks[k].color.isValid()) fx.color[at] = looks[k].color;
+            }
+        }
+    return fx;
+}
+
+Flags flagsOf(const TableItem &t)
+{
+    Flags f;
+    f.rows = t.rows;
+    f.cols = t.cols;
+    f.firstRow = t.header;
+    f.lastRow = t.totalRow;
+    f.firstCol = t.firstCol;
+    f.lastCol = t.lastCol;
+    f.bandRow = t.banded;
+    f.bandCol = t.bandedCols;
+    return f;
 }
 
 // A cell's border line (a:lnL and its kin are lines themselves, as a:ln is).
@@ -282,6 +301,10 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
     flags.bandCol = parseBool(attr(tblPr, QStringLiteral("bandCol")));
     t->header = flags.firstRow;
     t->banded = flags.bandRow;
+    t->totalRow = flags.lastRow;
+    t->firstCol = flags.firstCol;
+    t->lastCol = flags.lastCol;
+    t->bandedCols = flags.bandCol;
     t->format = childNamed(tblPr, "tableStyleId").text().trimmed();
     if (hasOwnFill(tblPr)) t->fill = readFill(tblPr, QDomElement(), ctx);
 
@@ -295,12 +318,14 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
             if (!rels.isEmpty() && !rels[0].external && parseXml(ctx.package->part(rels[0].target), &fileStyles)) list = fileStyles.documentElement();
         }
         QDomElement style = styleById(list, t->format);
-        if (style.isNull() && parseXml(QByteArray(kBuiltinStyles), &builtinStyles)) {
-            style = styleById(builtinStyles.documentElement(), t->format);
-            if (style.isNull()) style = styleById(builtinStyles.documentElement(), kMediumStyle2);   // an approximation of the style
+        if (style.isNull()) {
+            const QByteArray known = tableStyleXml(t->format);
+            const QString id = known.isEmpty() ? defaultTableStyleId() : t->format;   // the usual style stands in for one we don't know: an approximation
+            if (parseXml(known.isEmpty() ? tableStyleXml(id) : known, &builtinStyles)) style = styleById(builtinStyles.documentElement(), id);
         }
-        for (int k = 0; k < RegionCount; ++k) looks[k] = readLook(childNamed(style, kRegionNames[k]), ctx);
+        looks = looksOf(style, ctx);
     }
+    const TableStyleEffect fx = effectOf(looks, flags);
 
     // The cells' own spans first, so that what a merged cell covers is known.
     QDomDocument scratch;
@@ -327,26 +352,10 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
                 }
         }
 
-    // The borders: the style's first, each region over the ones before, then those the cells name.
-    std::vector<Stroke> across(size_t(rows + 1) * cols), down(size_t(rows) * (cols + 1));   // the lines above each row's cells; left of each column's
+    // The borders: the style's, then those the cells name.
+    std::vector<Stroke> across = fx.across, down = fx.down;   // the lines above each row's cells; left of each column's
     const auto edgeAbove = [&](int r, int c) -> Stroke & { return across[size_t(r) * cols + c]; };
     const auto edgeLeft = [&](int r, int c) -> Stroke & { return down[size_t(r) * (cols + 1) + c]; };
-    for (int k = 0; k < RegionCount; ++k) {
-        const Look &look = looks[k];
-        const bool any = std::any_of(std::begin(look.hasBorder), std::end(look.hasBorder), [](bool b) { return b; });
-        if (!any) continue;
-        const auto in = [&](int r, int c) { return r >= 0 && r < rows && c >= 0 && c < cols && inRegion(Region(k), r, c, flags); };
-        for (int r = 0; r < rows; ++r)
-            for (int c = 0; c < cols; ++c) {
-                if (!in(r, c)) continue;
-                const int left = in(r, c - 1) ? InsideV : Left, right = in(r, c + 1) ? InsideV : Right;
-                const int top = in(r - 1, c) ? InsideH : Top, bottom = in(r + 1, c) ? InsideH : Bottom;
-                if (look.hasBorder[left]) edgeLeft(r, c) = look.border[left];
-                if (look.hasBorder[right]) edgeLeft(r, c + 1) = look.border[right];
-                if (look.hasBorder[top]) edgeAbove(r, c) = look.border[top];
-                if (look.hasBorder[bottom]) edgeAbove(r + 1, c) = look.border[bottom];
-            }
-    }
     for (int r = 0; r < rows; ++r)
         for (int c = 0; c < cols; ++c) {
             const QDomElement pr = childNamed(tcs[size_t(r) * cols + c], "tcPr");
@@ -378,16 +387,9 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
             TableCell &cell = t->cell(r, c);
             cell.hyphenate = false;
 
-            Fill fill;
-            std::optional<bool> bold, italic;
-            QColor color;
-            for (int k = 0; k < RegionCount; ++k) {
-                if (!inRegion(Region(k), r, c, flags)) continue;
-                if (looks[k].hasFill) fill = looks[k].fill;
-                if (looks[k].bold) bold = looks[k].bold;
-                if (looks[k].italic) italic = looks[k].italic;
-                if (looks[k].color.isValid()) color = looks[k].color;
-            }
+            Fill fill = fx.fill[size_t(r) * cols + c];
+            const std::optional<bool> bold = fx.bold[size_t(r) * cols + c], italic = fx.italic[size_t(r) * cols + c];
+            const QColor color = fx.color[size_t(r) * cols + c];
             TextStyleStack stack = styles;
             if (bold || italic || color.isValid()) {
                 const QString key = QStringLiteral("%1/%2/%3").arg(bold ? int(*bold) : -1).arg(italic ? int(*italic) : -1).arg(color.isValid() ? color.name() : QString());
@@ -417,6 +419,24 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
             cell.border.bottom = edgeAbove(r + cell.rowSpan, c);
         }
     return t;
+}
+
+bool tableStyleEffect(const QString &styleId, const TableItem &table, const Theme &theme, TableStyleEffect *out, const TableStyleDefs *defs)
+{
+    if (table.rows <= 0 || table.cols <= 0) return false;
+    QDomDocument doc;
+    QDomElement style;
+    const QByteArray defined = defs ? defs->value(styleId.toUpper()) : QByteArray();
+    if (!defined.isEmpty()) {
+        if (parseXml(defined, &doc)) style = doc.documentElement();
+    } else if (const QByteArray xml = tableStyleXml(styleId); !xml.isEmpty() && parseXml(xml, &doc)) {
+        style = styleById(doc.documentElement(), styleId);
+    }
+    if (style.isNull() || style.localName() != QLatin1String("tblStyle")) return false;
+    DrawingContext ctx;
+    ctx.theme = theme;
+    *out = effectOf(looksOf(style, ctx), flagsOf(table));
+    return true;
 }
 
 namespace {
@@ -454,12 +474,9 @@ void writeRenamed(QXmlStreamWriter &w, const QByteArray &xml, const QString &nam
     while (!r.atEnd()) {
         r.readNext();
         if (r.isStartElement()) {
-            if (depth++ == 0) {
-                w.writeStartElement(name);
-                w.writeAttributes(r.attributes());
-            } else {
-                w.writeCurrentToken(r);
-            }
+            // With namespace processing off the names keep their prefixes, but writeCurrentToken would drop them.
+            w.writeStartElement(depth++ == 0 ? name : r.qualifiedName().toString());
+            w.writeAttributes(r.attributes());
         } else if (r.isEndElement()) {
             --depth;
             w.writeEndElement();
@@ -548,7 +565,11 @@ void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ct
     w.writeStartElement(QStringLiteral("a:tbl"));
     w.writeStartElement(QStringLiteral("a:tblPr"));
     if (t.header) w.writeAttribute(QStringLiteral("firstRow"), QStringLiteral("1"));
+    if (t.totalRow) w.writeAttribute(QStringLiteral("lastRow"), QStringLiteral("1"));
+    if (t.firstCol) w.writeAttribute(QStringLiteral("firstCol"), QStringLiteral("1"));
+    if (t.lastCol) w.writeAttribute(QStringLiteral("lastCol"), QStringLiteral("1"));
     if (t.banded) w.writeAttribute(QStringLiteral("bandRow"), QStringLiteral("1"));
+    if (t.bandedCols) w.writeAttribute(QStringLiteral("bandCol"), QStringLiteral("1"));
     if (!t.fill.isNone()) writeCellFill(w, t.fill, ctx);
     // Only a style the presentation program has by id (a GUID) can be named.
     static const QRegularExpression guid(QStringLiteral("^\\{[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}\\}$"));

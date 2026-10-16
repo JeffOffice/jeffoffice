@@ -4,10 +4,12 @@
 #include "app/deckcanvas.h"
 #include "app/deckwindow.h"
 #include "app/editor.h"
+#include "app/masterpane.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
+#include "core/deck.h"
 
 #include <QActionGroup>
 #include <QSplitter>
@@ -32,6 +34,10 @@ void DeckWindow::createViewModeActions()
     m_split->insertWidget(1, m_outline);
     m_split->setCollapsible(1, false);
     m_outline->hide();
+    m_masterPane = new MasterPane(m_ed, this);
+    m_split->insertWidget(2, m_masterPane);
+    m_split->setCollapsible(2, false);
+    m_masterPane->hide();
 
     // One view at a time; Notes Page and Reading View wait.
     auto *views = new QActionGroup(this);
@@ -43,6 +49,7 @@ void DeckWindow::createViewModeActions()
     view("view.normal", tr("Normal"), "layout-panel-top", View::Normal)->setChecked(true);
     view("view.outline", tr("Outline View"), "list-tree", View::Outline);
     view("view.sorter", tr("Slide Sorter"), "layout-grid", View::Sorter);
+    view("view.master", tr("Slide Master"), "layout-template", View::Master);
     for (QAction *a : {view("view.notesPage", tr("Notes Page"), "notebook-text", View::Normal), view("view.reading", tr("Reading View"), "book-open", View::Normal)}) {
         a->setEnabled(false);
         a->setToolTip(tr("%1 is coming.").arg(a->text()));
@@ -71,6 +78,16 @@ void DeckWindow::setView(View view)
     m_notes->commit();
     if (m_outline) m_outline->commit();
     const View was = m_view;
+    const bool toMaster = view == View::Master && was != View::Master, fromMaster = view != View::Master && was == View::Master;
+    m_switchingView = true;
+    const bool opened = !toMaster || enterMasterView();
+    if (fromMaster) leaveMasterView();
+    m_switchingView = false;
+    if (!opened) {
+        // Nothing to edit: the view stays as it was.
+        act(was == View::Normal ? "view.normal" : was == View::Outline ? "view.outline" : "view.sorter")->setChecked(true);
+        return;
+    }
     m_view = view;
     if (view != was) {
         if (view == View::Sorter) {
@@ -81,8 +98,11 @@ void DeckWindow::setView(View view)
         m_views->setCurrentWidget(view == View::Sorter ? static_cast<QWidget *>(m_sorter) : m_split);
         m_slides->setVisible(view == View::Normal);
         m_outline->setVisible(view == View::Outline);
-        const int width = std::max(m_split->width(), 600), outline = std::min(440, width * 2 / 5);
-        m_split->setSizes(view == View::Outline ? QList<int>{0, outline, width - outline} : QList<int>{250, 0, width - 250});
+        m_masterPane->setVisible(view == View::Master);
+        const int width = std::max(m_split->width(), 600), outline = std::min(440, width * 2 / 5), masters = std::min(300, width / 3);
+        m_split->setSizes(view == View::Outline ? QList<int>{0, outline, 0, width - outline}
+                          : view == View::Master ? QList<int>{0, 0, masters, width - masters}
+                                                 : QList<int>{250, 0, 0, width - 250});
         if (view == View::Sorter) {
             m_canvas->zoomToFit(Canvas::Fit::None);
             m_canvas->setZoom(m_sorter->zoom());
@@ -93,7 +113,7 @@ void DeckWindow::setView(View view)
         }
         act("view.fit")->setEnabled(view != View::Sorter);
     }
-    act(view == View::Normal ? "view.normal" : view == View::Outline ? "view.outline" : "view.sorter")->setChecked(true);
+    act(view == View::Normal ? "view.normal" : view == View::Outline ? "view.outline" : view == View::Master ? "view.master" : "view.sorter")->setChecked(true);
     if (view == View::Sorter) m_sorter->setFocus();
     else if (view == View::Outline) m_outline->setFocus();
     else if (was != View::Normal) m_canvas->setFocus(Qt::OtherFocusReason);

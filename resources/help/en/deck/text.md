@@ -1,5 +1,5 @@
 # Type and format text
-<!-- keywords: text, type, placeholder, title, subtitle, text box, font, size, bold, italic, underline, color, bullets, numbering, list level, alignment, line spacing, columns, character spacing, change case, format painter, clear formatting, shrink, symbol, date, link, hyperlink, spelling -->
+<!-- keywords: text, type, placeholder, title, subtitle, text box, font, size, bold, italic, underline, color, bullets, numbering, list level, alignment, line spacing, columns, character spacing, change case, format painter, clear formatting, shrink, symbol, date, link, hyperlink, spelling, find, replace, replace all, search, match case, whole words, right-click, shortcut menu, context menu, shift+f10, menu key -->
 
 Most slides are mostly words. This topic shows where text goes on a slide and how to format it.
 
@@ -44,6 +44,28 @@ Click in a paragraph, or select several. Then use the **Home > Paragraph** group
 A text place on a new slide already has the bullets of its layout, so what you type there is bulleted from the start. The first theme, JeffOffice, has none, and a layout that has none gives none.
 
 Three buttons change the whole box and not just a paragraph. **Text Direction** sets **Horizontal** or **Rotate All Text 90°**. **Align Text** puts the text at the **Top**, **Middle**, or **Bottom** of its box. **Columns** sets one, two, or three columns in a text box.
+
+## Find and replace words
+
+To look for words, press **Ctrl+F**, or click **Home > Editing > Find**. The **Find and Replace** pane opens on the right. Type the words in **Find what**. Then press Enter, or click **Find Next**.
+
+JeffDeck starts on the slide you are on. It looks at titles, text boxes, shapes, tables, Text Art, and speaker notes. It also looks at hidden slides. When it finds the words, it shows that slide and selects the words. For Text Art, it selects the whole Text Art. A match in the speaker notes is selected in the notes box under the slide. Click **Find Next** again to go to the next match. After the last slide, it goes back to the first.
+
+- **Match case** finds only words with the same capital letters. "Plan" does not find "plan."
+- **Find whole words only** skips longer words that hold yours. "plan" does not find "planet."
+- **Search speaker notes** is on at first. Turn it off to search the slides only.
+
+To change words, press **Ctrl+H**, or click **Home > Editing > Replace**. Type the new words in **Replace with**. Click **Replace** to change the match you see and move to the next one. Click **Replace All** to change every match. The pane tells you how many it changed. Replace All is one step, so one **Undo** (Ctrl+Z) puts every word back.
+
+## The right-click menu
+
+Right-click the slide to see the commands that fit what you are doing. You can also press **Shift+F10**, or the **Menu** key on your keyboard. The menu opens at the text cursor, or at the selected object.
+
+- **On words you are typing:** if a word is marked as misspelled, the menu starts with spelling suggestions. Click one to fix the word. **Ignore All** leaves the word alone for now, and **Add to Dictionary** keeps it. Then come **Cut**, **Copy**, **Paste**, **Font…**, **Paragraph…**, **Bullets**, **Numbering**, **Link**, **Thesaurus**, and **New Comment**.
+- **On an object:** **Cut**, **Copy**, **Paste**, **Delete**, **Edit Text**, **Group** or **Ungroup**, **Order** (Bring to Front, Bring Forward, Send Backward, and Send to Back), **Alignment**, **Link**, and **New Comment**. **Edit Text** puts the cursor in the box, shape, or table so you can type. **Alignment** is there when the object holds words. It lines the words up at the left, center, or right, or spreads them to fill the line.
+- **On an empty part of the slide:** **Paste**, **Layout**, **Reset Slide**, **Format Background**, **Grid and Guides**, **Ruler**, and **New Comment**.
+
+Each command is the same one that is on the ribbon, so it works the same way.
 
 ## More to put in text
 

@@ -532,6 +532,7 @@ struct Body {
     int columns = 1;
     double columnGap = 0;
     bool vertical = false;
+    bool noWrap = false;
     TextItem::Autofit autofit = TextItem::NoAutofit;
     double fitScale = 1.0;
     double fitLineCut = 0;
@@ -542,7 +543,7 @@ void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, boo
     begin(w, "p:txBody");
     begin(w, "a:bodyPr");
     if (b.vertical) attribute(w, "vert", QStringLiteral("vert"));
-    attribute(w, "wrap", QStringLiteral("square"));
+    attribute(w, "wrap", b.noWrap ? QStringLiteral("none") : QStringLiteral("square"));
     attribute(w, "lIns", inset(b.insets.left()));
     attribute(w, "tIns", inset(b.insets.top()));
     attribute(w, "rIns", inset(b.insets.right()));
@@ -616,6 +617,7 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     body.columns = t.columns;
     body.columnGap = t.columnGap;
     body.vertical = t.vertical;
+    body.noWrap = t.noWrap;
     body.autofit = t.autofit;
     body.fitScale = t.fitScale;
     body.fitLineCut = t.fitLineCut;
@@ -741,6 +743,7 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     Body body;
     body.insets = s.insets;
     body.valign = s.valign;
+    body.noWrap = s.noWrap;
     writeBody(w, body, storyOf(s.storyId, ctx), ph.is, ctx);
     w.writeEndElement();
 }

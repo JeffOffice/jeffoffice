@@ -2169,7 +2169,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             else if (al & Qt::AlignRight) al = (al & ~Qt::AlignRight) | Qt::AlignLeft;
         }
         opt.setAlignment(al);
-        opt.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+        opt.setWrapMode(frames.size() == 1 && frames[0].noWrap && frames[0].columns <= 1 ? QTextOption::NoWrap : QTextOption::WrapAtWordBoundaryOrAnywhere);
         QList<QTextOption::Tab> tabs = bf.tabPositions();
         for (auto &t : tabs) t.position *= scale * kFine;
         opt.setTabs(tabs);

@@ -12,6 +12,7 @@
 #include "app/deckwindow.h"
 #include "app/editor.h"
 #include "app/filescreen.h"
+#include "app/deckfindpane.h"
 #include "app/help.h"
 #include "app/i18n.h"
 #include "app/editormedia.h"
@@ -19,6 +20,8 @@
 #include "app/mediaplayer.h"
 #include "app/onlinepictures.h"
 #include "app/iconpicker.h"
+#include "app/masterdialogs.h"
+#include "app/masterpane.h"
 #include "app/morph.h"
 #include "app/icons.h"
 #include "app/notespane.h"
@@ -29,6 +32,7 @@
 #include "app/reusepane.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/spelling.h"
 #include "app/showdialogs.h"
 #include "app/slideshow.h"
 #include "app/showmedia.h"
@@ -37,6 +41,7 @@
 #include "app/textartgallery.h"
 #include "app/textdialogs.h"
 #include "app/themegallery.h"
+#include "app/tableedit.h"
 #include "app/telemetry.h"
 #include "app/updater.h"
 #include "app/widgets.h"
@@ -48,6 +53,7 @@
 #include "core/fonts.h"
 #include "core/texteffects.h"
 #include "core/ink.h"
+#include "core/masteredit.h"
 #include "core/media.h"
 #include "core/reuse.h"
 #include "core/sections.h"
@@ -67,7 +73,9 @@
 #include "io/zip.h"
 #include "office/chart.h"
 #include "office/drawingml.h"
+#include "office/drawingml_table.h"
 #include "office/drawingml_write.h"
+#include "office/tablestyles.h"
 #include "office/eot.h"
 #include "office/package.h"
 #include "office/xml.h"
@@ -80,6 +88,7 @@
 #include <QAbstractButton>
 #include <QApplication>
 #include <QBuffer>
+#include <QColorSpace>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
@@ -133,6 +142,8 @@
 #include <QTranslator>
 #include <QToolButton>
 #include <QUrl>
+#include <QAccessible>
+#include <QWidgetAction>
 #include <QXmlStreamWriter>
 #include <cmath>
 #include <functional>
@@ -2155,15 +2166,16 @@ private:
     // has a field, a link, a language, and a ruler, and that fades in. `cycle`
     // makes the older edit point back at the newer. `notesByAtom` leaves the
     // first slide without the id of its notes, which then name the slide.
+    // `titleMasterRecord` is the kind of record the title master is kept in (the presentation program keeps it as a slide record).
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
     // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
     // a shape for its drawing, and `masterExtra` more records for the main master.
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                                const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
-                               const QByteArray &masterExtra = QByteArray())
+                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016)
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
-        const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
+        const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
         // The default body text: bullets, 28 and 24 points, the first font, the text color.
         const QByteArray bodyStyle = le(2, 2)
             + le(0x593, 4) + le(3, 2) + le(0x2022, 2) + le(0, 2) + le(360, 2) + le(0, 2)
@@ -2201,7 +2213,7 @@ private:
             + pptRec(4003, le(1, 2) + le(0x800, 4) + le(1, 2) + le(0x70000, 4) + le(1, 2) + le(44, 2) + pptColor(0, 0, 0, 3), 0)
             + masterExtra
             + pptDrawing(pptShape(0x402, 1, QByteArray(), 100, 200, 5000, 900, masterTitleProps) + pptShape(0x403, 2, QByteArray()) + masterBackground));
-        const QByteArray titleMasterRec = pptBox(1016, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
+        const QByteArray titleMasterRec = pptBox(titleMasterRecord, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
             // The centered title and the subtitle, with only their sizes (the levels of these two start with their number).
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0x800, 4) + le(1, 2) + le(0x20000, 4) + le(54, 2), 6)
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0, 4) + le(0x20000, 4) + le(30, 2), 5)
@@ -2439,6 +2451,24 @@ private Q_SLOTS:
         QVERIFY(ctr);
         QCOMPARE(ctr->begin().begin().fragment().charFormat().fontPointSize(), 54.0);
         QVERIFY((ctr->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask) == Qt::AlignHCenter);
+    }
+
+    // The presentation program keeps a title master in a slide record, not in a master record: it is found all the same, and its
+    // own objects and sizes make the title layout.
+    void binaryPresentationTitleMasterKeptAsASlideRecord()
+    {
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(true, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1006), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(!err.contains(QStringLiteral("master was left out")), qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 3);
+        const Page &welcome = *d->pages[2];
+        const MasterPage *layout = d->masterFor(welcome);
+        QVERIFY(layout);
+        QCOMPARE(deck::layoutType(*layout), QStringLiteral("title"));
+        QTextDocument *ctr = placeholderStory(*d, welcome, QStringLiteral("ph:ctrTitle"));
+        QVERIFY(ctr);
+        QCOMPARE(ctr->begin().begin().fragment().charFormat().fontPointSize(), 54.0);
     }
 
     // A text's fields, links, languages, and ruler come through, and so does how a
@@ -2787,6 +2817,49 @@ private Q_SLOTS:
         QCOMPARE(int(d->pages.size()), 1);
         QCOMPARE(int(d->pages[0]->items.size()), kPictures);
         QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // The Macintosh pictures of a presentation are drawn from what they may do between them: pictures that are as slow as one may be, six of
+    // them (a polygon of 16,001 points that crosses itself, which took 15 seconds to paint), use up the file's share by the fourth, and the
+    // fifth and sixth are left out, with the note of pictures that were. Three of them are within it, and need no note.
+    void binaryPresentationLeavesMacintoshPicturesOutWhenTheyHaveDoneTooMuch()
+    {
+        auto big = [](int value) { QByteArray b(2, '\0'); qToBigEndian<quint16>(quint16(value), b.data()); return b; };
+        // A picture of 200 by 100 points that paints a star polygon: its size and frame, the version and header, and the polygon.
+        QByteArray star = big(0) + big(0) + big(0) + big(100) + big(200);
+        for (int i = 0; i < 16001; ++i) {
+            const double angle = 2 * M_PI * ((i * 8000) % 16001) / 16001.0;
+            star += big(int(50 + 49 * std::sin(angle))) + big(int(100 + 99 * std::cos(angle)));
+        }
+        qToBigEndian<quint16>(quint16(star.size()), star.data());
+        const QByteArray pict = big(0) + big(0) + big(0) + big(100) + big(200) + big(0x0011) + big(0x02FF) + big(0x0C00) + big(0xFFFE) + big(0) + QByteArray(8, '\0') + big(0) + big(0) + big(100)
+                                + big(200) + QByteArray(4, '\0') + big(0x0071) + star + big(0x00FF);
+        // (the record: two uids' worth of one, then the 34 bytes that tell its size and that it is stored, not deflated)
+        auto blip = [&] {
+            return pptRec(0xF01C, QByteArray(16, 'u') + le(quint32(pict.size()), 4) + le(0, 4) + le(0, 4) + le(200, 4) + le(100, 4) + le(0, 4) + le(0, 4) + le(quint32(pict.size()), 4)
+                                      + QByteArray("\xFE\xFE", 2) + pict, 0x542);
+        };
+        auto import = [&](int pictures) {
+            QByteArray entries, frames;
+            for (int i = 1; i <= pictures; ++i) {
+                const QByteArray one = blip();
+                entries += pptRec(0xF007, QByteArray(1, '\x04') + QByteArray(1, '\0') + QByteArray(16, char('a' + i)) + le(0xFF, 2) + le(quint32(one.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + one, 4, 2);
+                frames += pptPictureShape(i);
+            }
+            const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entries, quint16(pictures))));
+            QString err;
+            auto d = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(frames)}}, group), &err);
+            return std::make_pair(std::move(d), err);
+        };
+        QElapsedTimer timer;
+        timer.start();
+        const auto six = import(6);
+        QVERIFY2(six.first, qPrintable(six.second));
+        QVERIFY2(six.second.contains(QStringLiteral("2 pictures were left out")), qPrintable(six.second));
+        const auto three = import(3);
+        QVERIFY2(three.first, qPrintable(three.second));
+        QVERIFY2(!three.second.contains(QStringLiteral("were left out")), qPrintable(three.second));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
     }
 
     // The notes pages that slides name are found by their slide id in one step: 8,000 slides naming pages in a list of 500,000 each had
@@ -4579,6 +4652,1302 @@ private Q_SLOTS:
         };
         QVERIFY2(std::abs(firstLeft(false) - firstLeft(true) - 4) < 0.01, qPrintable(QString::number(firstLeft(false)) + QLatin1Char(' ') + QString::number(firstLeft(true))));
         QVERIFY(firstLeft(true) > 5);
+    }
+
+    // ---- Picture Format > Crop, and the Table Design and Table Layout tabs ----
+
+private:
+    // The colors of the presentation's theme, as a table style takes them.
+    static office::Theme tableThemeOf(const Document &d)
+    {
+        office::Theme theme;
+        const deck::DeckTheme t = deck::themeOf(d);
+        for (int i = 0; i < office::Theme::ColorCount; ++i) theme.colors[i] = t.colors[i];
+        return theme;
+    }
+
+    // The whole document as an undo step keeps it: equal before and after an undo when the undo took everything back.
+    static QByteArray documentJson(const Editor *ed) { return QJsonDocument(ed->doc()->toJson()).toJson(QJsonDocument::Compact); }
+
+    // The first table on the slide being edited, and the last picture (an undo makes the objects over again, so these are looked up each time).
+    static TableItem *theTable(Editor *ed)
+    {
+        for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)
+            if (it->type() == ItemType::Table) return static_cast<TableItem *>(it.get());
+        return nullptr;
+    }
+
+    static PictureItem *thePicture(Editor *ed)
+    {
+        const auto &items = ed->doc()->pages[ed->currentPage()]->items;
+        for (auto it = items.rbegin(); it != items.rend(); ++it)
+            if ((*it)->type() == ItemType::Picture) return static_cast<PictureItem *>(it->get());
+        return nullptr;
+    }
+
+    // A table on the window's slide, a letter and a number in each cell (A1, A2, ... B1), selected as an object.
+    static void tableOnSlide(DeckWindow &w, int rows, int cols)
+    {
+        w.insertTable(rows, cols);
+        TableItem *t = theTable(w.editor());
+        for (int r = 0; r < rows; ++r)
+            for (int c = 0; c < cols; ++c)
+                QTextCursor(w.editor()->doc()->storyDoc(t->cell(r, c).storyId)).insertText(QStringLiteral("%1%2").arg(QChar('A' + r)).arg(c + 1));   // in the cell's own look
+        w.editor()->endTextEdit();
+        w.editor()->select(t->id);
+    }
+
+    static QString cellText(Editor *ed, int r, int c) { return ed->doc()->storyDoc(theTable(ed)->cell(r, c).storyId)->toPlainText(); }
+
+    static bool cellIsBold(Editor *ed, int r, int c)
+    {
+        QTextCursor cur(ed->doc()->storyDoc(theTable(ed)->cell(r, c).storyId));
+        cur.select(QTextCursor::Document);
+        return cur.charFormat().fontWeight() >= QFont::DemiBold;
+    }
+
+    // Runs a command by its id; false (and a failure that names it) when the window has none.
+    static bool command(DeckWindow &w, const char *id)
+    {
+        QAction *a = w.act(QString::fromLatin1(id));
+        if (!a) {
+            QTest::qFail(id, __FILE__, __LINE__);
+            return false;
+        }
+        a->trigger();
+        return true;
+    }
+
+    // The presentation as a saved .pptx (or .odp) gives it back; null when it isn't written.
+    static std::unique_ptr<Document> savedAndRead(const Document &d, bool odp)
+    {
+        QString err;
+        const QByteArray bytes = odp ? deck::exportOdp(d, false, &err) : deck::exportPresentation(d, &err);
+        return bytes.isEmpty() ? nullptr : odp ? deck::importOdp(bytes, &err) : deck::importPresentation(bytes, &err);
+    }
+
+    static const TableItem *firstTable(const Document &d)
+    {
+        for (const auto &p : d.pages)
+            for (const auto &it : p->items)
+                if (it->type() == ItemType::Table) return static_cast<const TableItem *>(it.get());
+        return nullptr;
+    }
+
+    static const PictureItem *firstPicture(const Document &d)
+    {
+        for (const auto &p : d.pages)
+            for (const auto &it : p->items)
+                if (it->type() == ItemType::Picture) return static_cast<const PictureItem *>(it.get());
+        return nullptr;
+    }
+
+    static QString savedSlideXml(const Document &d)
+    {
+        QMap<QString, QByteArray> zip;
+        QString err;
+        if (!readZip(deck::exportPresentation(d, &err), zip, &err)) return QString();
+        return QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+    }
+
+private Q_SLOTS:
+    // Insert Above, Below, Left, and Right put a row or column beside the one the cursor is in; Delete takes the rows or columns of the
+    // selected cells away, keeps one of each, and Delete Table removes the table. Each is one step that undoes.
+    void tableToolsInsertAndDeleteRowsAndColumns()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 3, 4);
+        const QString id = theTable(ed)->id;
+        ed->selectCells(id, 1, 1, 1, 1);
+        QVERIFY(command(w, "tbl.insAbove"));
+        QCOMPARE(theTable(ed)->rows, 4);
+        QCOMPARE(cellText(ed, 1, 0), QString());   // the new row is row 1; B moved down
+        QCOMPARE(cellText(ed, 2, 0), QStringLiteral("B1"));
+        ed->undo();
+        QCOMPARE(theTable(ed)->rows, 3);
+        ed->selectCells(id, 1, 1, 1, 1);
+        QVERIFY(command(w, "tbl.insBelow"));
+        QCOMPARE(theTable(ed)->rows, 4);
+        QCOMPARE(cellText(ed, 1, 0), QStringLiteral("B1"));
+        QCOMPARE(cellText(ed, 2, 0), QString());
+        ed->undo();
+        ed->selectCells(id, 1, 1, 1, 1);
+        QVERIFY(command(w, "tbl.insLeft"));
+        QCOMPARE(theTable(ed)->cols, 5);
+        QCOMPARE(cellText(ed, 0, 1), QString());
+        QCOMPARE(cellText(ed, 0, 2), QStringLiteral("A2"));
+        ed->undo();
+        ed->selectCells(id, 1, 1, 1, 1);
+        QVERIFY(command(w, "tbl.insRight"));
+        QCOMPARE(theTable(ed)->cols, 5);
+        QCOMPARE(cellText(ed, 0, 1), QStringLiteral("A2"));
+        QCOMPARE(cellText(ed, 0, 2), QString());
+        ed->undo();
+        QCOMPARE(theTable(ed)->cols, 4);
+        ed->selectCells(id, 1, 1, 1, 2);
+        QVERIFY(command(w, "tbl.delRow"));
+        QCOMPARE(theTable(ed)->rows, 2);
+        QCOMPARE(cellText(ed, 1, 0), QStringLiteral("C1"));
+        ed->undo();
+        QCOMPARE(theTable(ed)->rows, 3);
+        ed->selectCells(id, 0, 1, 2, 2);
+        QVERIFY(command(w, "tbl.delCol"));
+        QCOMPARE(theTable(ed)->cols, 2);
+        QCOMPARE(cellText(ed, 0, 1), QStringLiteral("A4"));
+        ed->undo();
+        QCOMPARE(theTable(ed)->cols, 4);
+        // A table keeps a row and a column: all the rows can't go.
+        ed->selectCells(id, 0, 0, 2, 0);
+        QVERIFY(command(w, "tbl.delRow"));
+        QCOMPARE(theTable(ed)->rows, 3);
+        const int items = int(ed->doc()->pages[0]->items.size());
+        ed->select(id);
+        QVERIFY(command(w, "tbl.delTable"));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), items - 1);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), items);
+    }
+
+    // Merge Cells joins the selected cells into one with all their words, Split Cells makes them cells again, each as one step; the merged
+    // cell is saved as the formats write one and read back as it was.
+    void tableToolsMergeAndSplitCells()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 3, 4);
+        const QString id = theTable(ed)->id;
+        ed->selectCells(id, 0, 0, 1, 1);
+        QVERIFY(command(w, "tbl.merge"));
+        {
+            const TableItem *t = theTable(ed);
+            QCOMPARE(t->cell(0, 0).rowSpan, 2);
+            QCOMPARE(t->cell(0, 0).colSpan, 2);
+            QVERIFY(t->cell(0, 1).covered && t->cell(1, 0).covered && t->cell(1, 1).covered);
+            QVERIFY(!t->cell(0, 2).covered && !t->cell(2, 0).covered);
+            QCOMPARE(cellText(ed, 0, 0).split(QLatin1Char('\n')), (QStringList{QStringLiteral("A1"), QStringLiteral("A2"), QStringLiteral("B1"), QStringLiteral("B2")}));
+        }
+        for (bool odp : {false, true}) {
+            auto back = savedAndRead(*ed->doc(), odp);
+            QVERIFY(back);
+            const TableItem *bt = firstTable(*back);
+            QVERIFY(bt);
+            QCOMPARE(bt->cell(0, 0).rowSpan, 2);
+            QCOMPARE(bt->cell(0, 0).colSpan, 2);
+            QVERIFY(bt->cell(0, 1).covered && bt->cell(1, 0).covered && bt->cell(1, 1).covered);
+            QVERIFY(!bt->cell(0, 2).covered && !bt->cell(2, 0).covered);
+            QVERIFY(back->storyDoc(bt->cell(0, 0).storyId)->toPlainText().contains(QStringLiteral("B2")));
+        }
+        const QString slide = savedSlideXml(*ed->doc());
+        QVERIFY(slide.contains(QStringLiteral("gridSpan=\"2\"")));
+        QVERIFY(slide.contains(QStringLiteral("rowSpan=\"2\"")));
+        QVERIFY(slide.contains(QStringLiteral("hMerge=\"1\"")));
+        QVERIFY(slide.contains(QStringLiteral("vMerge=\"1\"")));
+        ed->undo();
+        QCOMPARE(theTable(ed)->cell(0, 0).rowSpan, 1);
+        QVERIFY(!theTable(ed)->cell(1, 1).covered);
+        ed->redo();
+        QVERIFY(theTable(ed)->cell(1, 1).covered);
+        ed->selectCells(id, 0, 0, 0, 0);
+        QVERIFY(command(w, "tbl.split"));
+        QCOMPARE(theTable(ed)->cell(0, 0).rowSpan, 1);
+        QCOMPARE(theTable(ed)->cell(0, 0).colSpan, 1);
+        QVERIFY(!theTable(ed)->cell(0, 1).covered && !theTable(ed)->cell(1, 1).covered);
+        // The words stay in the first cell, the others are empty; and every cell is as the table's style has it.
+        QCOMPARE(cellText(ed, 0, 0).split(QLatin1Char('\n')).size(), 4);
+        QCOMPARE(cellText(ed, 0, 1), QString());
+        QCOMPARE(cellText(ed, 1, 1), QString());
+        {
+            office::TableStyleEffect fx;
+            QVERIFY(office::tableStyleEffect(theTable(ed)->format, *theTable(ed), tableThemeOf(*ed->doc()), &fx));
+            for (int r = 0; r < theTable(ed)->rows; ++r)
+                for (int c = 0; c < theTable(ed)->cols; ++c)
+                    QVERIFY2(theTable(ed)->cell(r, c).fill == fx.fill[size_t(r) * theTable(ed)->cols + c], qPrintable(QStringLiteral("%1,%2").arg(r).arg(c)));
+        }
+        ed->undo();
+        QCOMPARE(theTable(ed)->cell(0, 0).colSpan, 2);
+        // One cell on its own joins the cell on its right.
+        ed->selectCells(id, 2, 0, 2, 0);
+        QVERIFY(command(w, "tbl.merge"));
+        QCOMPARE(theTable(ed)->cell(2, 0).colSpan, 2);
+    }
+
+    // Select Row, Column, and Table choose cells; Distribute makes the rows or columns the same size, and Row Height and Column Width set
+    // the size of those of the selected cells.
+    void tableToolsSelectAndSizeCells()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 3, 4);
+        TableItem *t = theTable(ed);
+        const QString id = t->id;
+        ed->beginChange(QStringLiteral("Size"));
+        const double first = t->rowH[0];   // as tall as its words need (the font here or on any machine)
+        t->rowH = {first, first + 30, first + 10};
+        t->colW = {50, 100, 150, 200};
+        t->syncRect();
+        ed->endChange();
+        ed->selectCells(id, 1, 2, 1, 2);
+        QVERIFY(command(w, "tbl.selectRow"));
+        QCOMPARE(ed->cellBlock().range, (CellRange{1, 0, 1, 3}));
+        ed->selectCells(id, 1, 2, 1, 2);
+        QVERIFY(command(w, "tbl.selectCol"));
+        QCOMPARE(ed->cellBlock().range, (CellRange{0, 2, 2, 2}));
+        QVERIFY(command(w, "tbl.selectTable"));
+        QVERIFY(!ed->hasCellBlock());
+        QCOMPARE(ed->selection(), QStringList{id});
+        t = theTable(ed);
+        const double height = t->rect.height(), width = t->rect.width();
+        QVERIFY(command(w, "tbl.distributeRows"));
+        QVERIFY(std::abs(theTable(ed)->rowH[0] - height / 3) < 0.01 && std::abs(theTable(ed)->rowH[2] - height / 3) < 0.01);
+        QVERIFY(command(w, "tbl.distributeCols"));
+        QVERIFY(std::abs(theTable(ed)->colW[0] - width / 4) < 0.01 && std::abs(theTable(ed)->colW[3] - width / 4) < 0.01);
+        ed->undo();
+        QCOMPARE(theTable(ed)->colW[0], 50.0);
+        ed->undo();
+        QCOMPARE(theTable(ed)->rowH[1], first + 30);
+        // Typed sizes: the height of the rows, and the width of the columns, of the selected cells.
+        ed->selectCells(id, 1, 1, 2, 2);
+        setTableRowHeight(ed, first + 40);
+        QCOMPARE(theTable(ed)->rowH[1], first + 40);
+        QCOMPARE(theTable(ed)->rowH[2], first + 40);
+        QCOMPARE(theTable(ed)->rowH[0], first);
+        setTableColumnWidth(ed, 90);
+        QCOMPARE(theTable(ed)->colW[1], 90.0);
+        QCOMPARE(theTable(ed)->colW[2], 90.0);
+        QCOMPARE(theTable(ed)->colW[3], 200.0);
+        QCOMPARE(theTable(ed)->rect.width(), 50.0 + 90 + 90 + 200);
+        ed->undo();
+        QCOMPARE(theTable(ed)->colW[2], 150.0);
+    }
+
+    // Shading, Borders, alignment, text direction, and cell margins act on the selected cells; saved, each is written as the formats have it.
+    void tableToolsBordersShadingAndAlignment()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 3, 3);
+        const QString id = theTable(ed)->id;
+        ed->beginChange(QStringLiteral("Plain"));
+        for (auto &cell : theTable(ed)->cells) {
+            cell.fill = Fill();
+            cell.border = CellBorder();
+        }
+        ed->endChange();
+        ed->selectCells(id, 0, 0, 1, 1);
+        QVERIFY(command(w, "border.outside"));
+        const TableItem *t = theTable(ed);
+        QVERIFY(!t->cell(0, 0).border.top.isNone() && !t->cell(0, 0).border.left.isNone());
+        QVERIFY(t->cell(0, 0).border.bottom.isNone() && t->cell(0, 0).border.right.isNone());
+        QVERIFY(!t->cell(1, 1).border.bottom.isNone() && !t->cell(1, 1).border.right.isNone());
+        QVERIFY(t->cell(2, 2).border.top.isNone());
+        QVERIFY(command(w, "border.insideH"));
+        QVERIFY(!theTable(ed)->cell(0, 0).border.bottom.isNone() && !theTable(ed)->cell(1, 0).border.top.isNone());
+        QVERIFY(theTable(ed)->cell(0, 0).border.right.isNone());
+        QVERIFY(command(w, "border.insideV"));
+        QVERIFY(!theTable(ed)->cell(0, 0).border.right.isNone());
+        QVERIFY(command(w, "border.none"));
+        QVERIFY(theTable(ed)->cell(0, 0).border.top.isNone() && theTable(ed)->cell(1, 1).border.right.isNone());
+        ed->undo();
+        QVERIFY(!theTable(ed)->cell(0, 0).border.right.isNone());
+        ed->selectCells(id, 0, 0, 1, 1);
+        QVERIFY(command(w, "border.all"));
+        QVERIFY(!theTable(ed)->cell(1, 1).border.left.isNone());
+        QVERIFY(theTable(ed)->cell(2, 2).border.left.isNone());
+        // Shading: a color for the cells chosen.
+        ed->selectCells(id, 2, 0, 2, 2);
+        w.setCellShading(ColorRef::rgb(QColor(0x12, 0x34, 0x56)));
+        QCOMPARE(theTable(ed)->cell(2, 1).fill.color.rgbValue(), QColor(0x12, 0x34, 0x56));
+        QVERIFY(theTable(ed)->cell(1, 1).fill.isNone());
+        // Alignment (up, middle, down), text direction, and margins, for the same cells.
+        QVERIFY(command(w, "tbl.alignMiddle"));
+        QCOMPARE(int(theTable(ed)->cell(2, 0).valign), int(VAlign::Middle));
+        QCOMPARE(int(theTable(ed)->cell(0, 0).valign), int(VAlign::Top));
+        QVERIFY(command(w, "tbl.alignBottom"));
+        QCOMPARE(int(theTable(ed)->cell(2, 2).valign), int(VAlign::Bottom));
+        QVERIFY(command(w, "tbl.direction"));
+        QVERIFY(theTable(ed)->cell(2, 1).vertical && !theTable(ed)->cell(1, 1).vertical);
+        QVERIFY(command(w, "tbl.marginWide"));
+        QCOMPARE(theTable(ed)->cell(2, 1).margins, QMarginsF(14.4, 7.2, 14.4, 7.2));
+        QVERIFY(theTable(ed)->cell(0, 1).margins != QMarginsF(14.4, 7.2, 14.4, 7.2));
+        for (bool odp : {false, true}) {
+            auto back = savedAndRead(*ed->doc(), odp);
+            QVERIFY(back);
+            const TableItem *bt = firstTable(*back);
+            QVERIFY(bt);
+            const char *format = odp ? "odp" : "pptx";
+            QVERIFY2(!bt->cell(0, 0).border.top.isNone(), format);
+            QVERIFY2(!bt->cell(1, 1).border.left.isNone(), format);
+            QVERIFY2(bt->cell(2, 2).border.bottom.isNone() && bt->cell(2, 2).border.right.isNone(), format);   // a cell outside the ones that were lined
+            QCOMPARE(bt->cell(2, 1).fill.color.rgbValue(), QColor(0x12, 0x34, 0x56));
+            QCOMPARE(int(bt->cell(2, 2).valign), int(VAlign::Bottom));
+            QVERIFY2(bt->cell(2, 1).vertical, format);
+        }
+        const QString slide = savedSlideXml(*ed->doc());
+        QVERIFY(QRegularExpression(QStringLiteral("<a:tcPr[^>]*anchor=\"b\"")).match(slide).hasMatch());
+        QVERIFY(QRegularExpression(QStringLiteral("<a:tcPr[^>]*vert=\"vert\"")).match(slide).hasMatch());
+        QVERIFY(slide.contains(QStringLiteral("marL=\"182880\"")));   // 14.4 points
+        QVERIFY(slide.contains(QStringLiteral("<a:lnL")) && slide.contains(QStringLiteral("123456")));
+    }
+
+    // A new table has the program's usual style (Medium Style 2, Accent 1), and the Table Design tab's boxes turn its parts on and off:
+    // each is one step that undoes, what the person shaded by hand stays, and the saved file names the style and the parts.
+    void tableStyleOptionsAndTheStylesGallery()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 4, 3);
+        const QString id = theTable(ed)->id;
+        const QString medium = QStringLiteral("{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}");
+        QCOMPARE(theTable(ed)->format, medium);
+        QVERIFY(theTable(ed)->header && theTable(ed)->banded);
+        QVERIFY(!theTable(ed)->cell(0, 0).fill.isNone());
+        QVERIFY(!theTable(ed)->cell(1, 0).fill.isNone());
+        QVERIFY(!theTable(ed)->cell(2, 0).fill.isNone());
+        // The header row's words are bold, the others' plain; the bands alternate.
+        QVERIFY(cellIsBold(ed, 0, 1));
+        QVERIFY(!cellIsBold(ed, 1, 1));
+        const Fill band1 = theTable(ed)->cell(1, 0).fill, band2 = theTable(ed)->cell(2, 0).fill;
+        QVERIFY(!(band1 == band2));
+        // Banded Rows off: the rows below the header are all one fill.
+        QVERIFY(command(w, "tbl.optBanded"));
+        QVERIFY(!theTable(ed)->banded);
+        QVERIFY(theTable(ed)->cell(1, 0).fill == theTable(ed)->cell(2, 0).fill);
+        ed->undo();
+        QVERIFY(theTable(ed)->banded);
+        QVERIFY(theTable(ed)->cell(1, 0).fill == band1 && theTable(ed)->cell(2, 0).fill == band2);
+        // Total Row on: the last row is like the header. First Column, Last Column, Banded Columns, and Header Row likewise.
+        QVERIFY(command(w, "tbl.optTotal"));
+        QVERIFY(theTable(ed)->totalRow);
+        QVERIFY(theTable(ed)->cell(3, 1).fill == theTable(ed)->cell(0, 1).fill);
+        QVERIFY(cellIsBold(ed, 3, 1));
+        QVERIFY(command(w, "tbl.optFirstCol"));
+        QVERIFY(theTable(ed)->firstCol && theTable(ed)->cell(1, 0).fill == theTable(ed)->cell(0, 1).fill);
+        QVERIFY(command(w, "tbl.optLastCol"));
+        QVERIFY(theTable(ed)->lastCol && theTable(ed)->cell(1, 2).fill == theTable(ed)->cell(0, 1).fill);
+        QVERIFY(command(w, "tbl.optBandedCols"));
+        QVERIFY(theTable(ed)->bandedCols);
+        QVERIFY(command(w, "tbl.optHeader"));
+        QVERIFY(!theTable(ed)->header);
+        QVERIFY(!cellIsBold(ed, 0, 1));
+        QVERIFY(!(theTable(ed)->cell(0, 1).fill == theTable(ed)->cell(3, 1).fill));
+        QVERIFY(command(w, "tbl.optHeader"));
+        QVERIFY(theTable(ed)->header && cellIsBold(ed, 0, 1));
+        // A cell shaded by hand keeps its shade when a part is turned off.
+        ed->selectCells(id, 2, 1, 2, 1);
+        w.setCellShading(ColorRef::rgb(QColor(250, 200, 0)));
+        ed->select(id);
+        QVERIFY(command(w, "tbl.optBandedCols"));
+        QVERIFY(!theTable(ed)->bandedCols);
+        QCOMPARE(theTable(ed)->cell(2, 1).fill.color.rgbValue(), QColor(250, 200, 0));
+        QVERIFY(command(w, "tbl.optBandedCols"));
+        // The gallery: a style gives every cell its look (the shading by hand too), and is saved by its id with the parts that show.
+        const QString light1 = QStringLiteral("{9D7B26C5-4107-4FEC-AEDC-1716B250A1EF}");
+        w.applyTableStyle(light1);
+        QCOMPARE(theTable(ed)->format, light1);
+        QVERIFY(theTable(ed)->cell(2, 1).fill.color.rgbValue() != QColor(250, 200, 0));
+        QVERIFY(theTable(ed)->cell(0, 0).fill.isNone() || theTable(ed)->cell(0, 0).fill.transparency > 0);
+        ed->undo();
+        QCOMPARE(theTable(ed)->format, medium);
+        QCOMPARE(theTable(ed)->cell(2, 1).fill.color.rgbValue(), QColor(250, 200, 0));
+        w.applyTableStyle(QStringLiteral("{93296810-A885-4BE3-A3E7-6D5BEEA58F35}"));   // Medium Style 2, Accent 6
+        QCOMPARE(theTable(ed)->cell(0, 0).fill.color.rgbValue(), deck::themeOf(*ed->doc()).colors[9]);
+        const QString slide = savedSlideXml(*ed->doc());
+        QVERIFY(slide.contains(QStringLiteral("<a:tableStyleId>{93296810-A885-4BE3-A3E7-6D5BEEA58F35}</a:tableStyleId>")));
+        for (const char *attribute : {"firstRow", "lastRow", "firstCol", "lastCol", "bandRow", "bandCol"})
+            QVERIFY2(slide.contains(QStringLiteral("%1=\"1\"").arg(QLatin1String(attribute))), attribute);
+        auto back = savedAndRead(*ed->doc(), false);
+        QVERIFY(back);
+        const TableItem *bt = firstTable(*back);
+        QVERIFY(bt);
+        QCOMPARE(bt->format, theTable(ed)->format);
+        QVERIFY(bt->header && bt->totalRow && bt->firstCol && bt->lastCol && bt->banded && bt->bandedCols);
+        QVERIFY(bt->cell(0, 0).fill == theTable(ed)->cell(0, 0).fill);
+        // A style the program doesn't have by this id is kept as it was named.
+        const QString unknown = QStringLiteral("{11111111-2222-3333-4444-555555555555}");
+        ed->beginChange(QStringLiteral("Rename"));
+        theTable(ed)->format = unknown;
+        ed->endChange();
+        back = savedAndRead(*ed->doc(), false);
+        QVERIFY(back);
+        QCOMPARE(firstTable(*back)->format, unknown);
+    }
+
+    // The style goes on through rows and columns that come and go: the bands still alternate, a new row has the look its place gives it, the
+    // header row stays the first row, and the words of a dark style stay light in the new cells.
+    void tableStyleGoesOnThroughNewAndDeletedRowsAndColumns()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 4, 3);
+        const QString id = theTable(ed)->id;
+        const Fill head = theTable(ed)->cell(0, 1).fill, band1 = theTable(ed)->cell(1, 0).fill, band2 = theTable(ed)->cell(2, 0).fill;
+        QVERIFY(!(band1 == band2) && !(head == band1));
+        // A row below the last: the bands go on (rows 1 and 3 are one band, row 2 the other, so row 4 is the second).
+        ed->selectCells(id, 3, 0, 3, 0);
+        QVERIFY(command(w, "tbl.insBelow"));
+        QCOMPARE(theTable(ed)->rows, 5);
+        QVERIFY(theTable(ed)->cell(4, 1).fill == band2);
+        QVERIFY(theTable(ed)->cell(3, 1).fill == band1);
+        // A row in the middle: every row below it takes the band its place now gives it.
+        ed->selectCells(id, 1, 0, 1, 0);
+        QVERIFY(command(w, "tbl.insAbove"));
+        QCOMPARE(theTable(ed)->rows, 6);
+        for (int r = 1; r < 6; ++r) QVERIFY2(theTable(ed)->cell(r, 2).fill == (r % 2 ? band1 : band2), qPrintable(QString::number(r)));
+        QVERIFY(theTable(ed)->cell(0, 1).fill == head);
+        // Taking a row away does the same; and a row above the first is the header, the old one a row of the bands.
+        ed->selectCells(id, 2, 0, 2, 0);
+        QVERIFY(command(w, "tbl.delRow"));
+        for (int r = 1; r < 5; ++r) QVERIFY2(theTable(ed)->cell(r, 2).fill == (r % 2 ? band1 : band2), qPrintable(QString::number(r)));
+        ed->selectCells(id, 0, 0, 0, 0);
+        QVERIFY(command(w, "tbl.insAbove"));
+        QVERIFY(theTable(ed)->cell(0, 1).fill == head && cellIsBold(ed, 0, 1));
+        QVERIFY(theTable(ed)->cell(1, 1).fill == band1);
+        QVERIFY(!cellIsBold(ed, 1, 1));   // "A2", the old header's words, are a body row's now
+        QCOMPARE(cellText(ed, 1, 1), QStringLiteral("A2"));
+        // Tab in the last cell adds a row, with the band its place gives it.
+        const int rows = theTable(ed)->rows;
+        ed->beginTextEdit(id, 0, rows - 1, theTable(ed)->cols - 1);
+        QTest::keyClick(w.canvas(), Qt::Key_Tab);
+        QCOMPARE(theTable(ed)->rows, rows + 1);
+        QVERIFY(theTable(ed)->cell(rows, 0).fill == ((rows) % 2 ? band1 : band2));
+        // A dark style: the words of a new row and column are light, whatever the table copied from its neighbors.
+        ed->endTextEdit();
+        ed->select(id);
+        w.applyTableStyle(QStringLiteral("{E8034E78-7F5D-4C2E-B375-FC64B27BC917}"));   // Dark Style 1
+        ed->selectCells(id, 1, 1, 1, 1);
+        QVERIFY(command(w, "tbl.insRight"));
+        QTextCursor cur(ed->doc()->storyDoc(theTable(ed)->cell(2, 2).storyId));
+        QVERIFY(cur.charFormat().stringProperty(tp::ColorRefP).size() > 0);
+        QVERIFY(QColor(cur.charFormat().stringProperty(tp::ColorRefP)).lightness() > 128);
+        // And undo takes the new column and its look back in one step.
+        ed->undo();
+        QCOMPARE(theTable(ed)->cols, 3);
+    }
+
+    // Dragging the line between two columns of a table moves it: the column on its left widens, and the table's width stays.
+    void tableColumnBorderDragResizesTheColumns()
+    {
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        tableOnSlide(w, 3, 3);
+        const TableItem *t = theTable(ed);
+        const QRectF r = t->rect;
+        const double x = r.left() + t->colW[0];
+        const QPoint a = w.canvas()->pageToView(QPointF(x, r.center().y())).toPoint(), b = w.canvas()->pageToView(QPointF(x + 40, r.center().y())).toPoint();
+        const double before = theTable(ed)->colW[0], width = theTable(ed)->rect.width();
+        QWidget *vp = w.canvas()->viewport();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, a);
+        QTest::mouseMove(vp, a + QPoint(5, 0));
+        QTest::mouseMove(vp, b);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, b);
+        QVERIFY(theTable(ed)->colW[0] > before + 20);
+        QVERIFY(std::abs(theTable(ed)->rect.width() - width) < 0.01);
+        ed->undo();
+        QCOMPARE(theTable(ed)->colW[0], before);
+    }
+
+    // Crop to Shape offers closed shapes only, and only those a presentation file has by name (a shape without one would be saved as a rectangle).
+    void everyCropShapeIsSavedByItsName()
+    {
+        DeckWindow w;
+        auto *button = w.ribbon()->findChild<GalleryButton *>(QStringLiteral("cropToShapeButton"));
+        QVERIFY(button);
+        const QVector<GalleryItem> items = button->items();
+        QVERIFY(items.size() > 50);
+        QStringList ids;
+        for (const GalleryItem &item : items) {
+            QVERIFY2(!office::presetForShape(item.id).isEmpty(), qPrintable(item.id));
+            const ShapeDef *shape = shapeDef(item.id);
+            QVERIFY2(shape && !shape->open, qPrintable(item.id));
+            ids << item.id;
+        }
+        QVERIFY(ids.contains(QStringLiteral("ellipse")) && ids.contains(QStringLiteral("rect")) && ids.contains(QStringLiteral("roundRect")));
+    }
+
+    // Typing, or choosing another object, while a crop is going on is not part of the crop: the crop ends as a step of its own, then the other
+    // thing is a step, and Undo takes back the last of them only.
+    void editsDuringACropAreSeparateSteps()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id;
+        const QString title = ed->doc()->pages[0]->items.front()->id;
+        const QRectF frame = pic->rect;
+        const int steps = ed->undoStack()->index();
+        // Typing in a text box.
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        ed->beginTextEdit(title);
+        QVERIFY(ed->cropItem.isEmpty());
+        ed->typeText(QStringLiteral("ZQ"));
+        ed->flushTyping();
+        QCOMPARE(ed->undoStack()->index(), steps + 2);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Typing"));
+        ed->endTextEdit();
+        ed->undo();   // takes back the typing only
+        QCOMPARE(thePicture(ed)->rect.width(), frame.width() - 30);
+        QVERIFY(ed->doc()->storyDoc(static_cast<TextItem *>(ed->doc()->item(title))->storyId)->toPlainText().isEmpty());
+        ed->undo();   // and then the crop
+        QCOMPARE(thePicture(ed)->rect, frame);
+        // Shift+click on another object.
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        const int before = ed->undoStack()->index();
+        ed->toggleSelect(title);
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(ed->undoStack()->index(), before + 1);
+        QCOMPARE(thePicture(ed)->rect.width(), frame.width() - 30);
+    }
+
+    // The slides pane's moving a slide while a crop is going on is a step of its own, labeled for what it is, and the crop is a step before it.
+    void aSlideMoveDuringACropIsItsOwnStep()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id;
+        w.newSlide();
+        ed->setCurrentPage(0);
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        const int beforeMove = ed->undoStack()->index();
+        ed->movePage(0, 1);
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(ed->undoStack()->index(), beforeMove + 2);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Move Page"));
+        ed->undo();
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Crop"));
+    }
+
+    // Going to another slide while cropping ends the crop on the slide it was made on: redone, it is on that slide with the picture selected.
+    void aCropRedoesOnItsOwnSlide()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id;
+        const QRectF frame = pic->rect;
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        ed->setCurrentPage(1);
+        QVERIFY(ed->cropItem.isEmpty());
+        ed->undo();
+        QCOMPARE(ed->currentPage(), 0);
+        QCOMPARE(thePicture(ed)->rect, frame);
+        ed->redo();
+        QCOMPARE(ed->currentPage(), 0);
+        QCOMPARE(ed->selection(), QStringList{id});
+        QCOMPARE(thePicture(ed)->rect.width(), frame.width() - 30);
+    }
+
+    // A crop still going on when the window closes (or saves) is a change: it is asked about, and what is written has it.
+    void aCropInProgressIsAChangeToSave()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const double width = pic->rect.width();
+        ed->markSaved();
+        QVERIFY(!ed->isModified());
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        QVERIFY(ed->isModified());
+        bool asked = false;
+        QTimer::singleShot(0, &w, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                asked = true;
+                box->button(QMessageBox::Cancel)->click();
+            }
+        });
+        w.show();
+        QVERIFY(!w.close());   // asked, and told to keep the window
+        QVERIFY(asked);
+        QVERIFY(ed->cropItem.isEmpty());   // the crop is over, and kept
+        QCOMPARE(thePicture(ed)->rect.width(), width - 30);
+        QVERIFY(ed->isModified());
+        // Saved in the middle of a crop, the file has the crop and the window is no longer modified.
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 10);
+        ed->endChange();
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("cropped.pptx"))));
+        Settings::get().removeRecentFile(dir.filePath(QStringLiteral("cropped.pptx")));   // the file goes with the folder, and the list of recent ones doesn't keep it
+        QVERIFY(!ed->isModified());
+        QString err;
+        auto back = deck::importPresentationFile(dir.filePath(QStringLiteral("cropped.pptx")), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(std::abs(firstPicture(*back)->rect.width() - (width - 40)) < 0.1);
+    }
+
+    // A table has at most 256 rows and 256 columns (a file with more is not read back): Insert and Tab stop there and say so, and what is
+    // redone is what was done.
+    void tableCommandsStopAtTheLimit()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.insertTable(60, 2);
+        const QString id = theTable(ed)->id;
+        ed->beginChange(QStringLiteral("Grow"));
+        while (theTable(ed)->rows < 255) tableInsertRow(ed, theTable(ed), theTable(ed)->rows);
+        while (theTable(ed)->cols < 255) tableInsertCol(ed, theTable(ed), theTable(ed)->cols);
+        ed->endChange();
+        ed->selectCells(id, 254, 254, 254, 254);
+        QVERIFY(command(w, "tbl.insBelow"));
+        QCOMPARE(theTable(ed)->rows, 256);
+        QVERIFY(command(w, "tbl.insRight"));
+        QCOMPARE(theTable(ed)->cols, 256);
+        ed->undo();
+        ed->redo();   // as it was done, not as a file would clamp it
+        QCOMPARE(theTable(ed)->cols, 256);
+        QCOMPARE(theTable(ed)->rows, 256);
+        const int steps = ed->undoStack()->index();
+        QSignalSpy status(ed, &Editor::status);
+        ed->selectCells(id, 255, 255, 255, 255);
+        QVERIFY(command(w, "tbl.insBelow"));
+        QVERIFY(command(w, "tbl.insAbove"));
+        QVERIFY(command(w, "tbl.insLeft"));
+        QVERIFY(command(w, "tbl.insRight"));
+        QCOMPARE(theTable(ed)->rows, 256);
+        QCOMPARE(theTable(ed)->cols, 256);
+        QCOMPARE(ed->undoStack()->index(), steps);
+        QCOMPARE(status.size(), 4);
+        QVERIFY(status.first().first().toString().contains(QStringLiteral("256")));
+        // Tab in the last cell adds no row either.
+        ed->beginTextEdit(id, 0, 255, 255);
+        QTest::keyClick(w.canvas(), Qt::Key_Tab);
+        QCOMPARE(theTable(ed)->rows, 256);
+        QCOMPARE(ed->undoStack()->index(), steps);
+        // And a damaged span (a file that says a cell is a million rows tall) stops at the table's last row.
+        QJsonObject json = theTable(ed)->toJson();
+        QJsonArray cells = json["cells"].toArray();
+        QJsonObject last = cells.last().toObject();
+        last["rs"] = 1000000;
+        last["cs"] = 1000000;
+        cells[cells.size() - 1] = last;
+        json["cells"] = cells;
+        TableItem damaged;
+        damaged.fromJson(json);
+        QCOMPARE(damaged.cell(255, 255).rowSpan, 1);
+        QCOMPARE(damaged.cell(255, 255).colSpan, 1);
+        QJsonObject middle = cells[255 * 256 + 250].toObject();
+        middle["cs"] = 100;
+        cells[255 * 256 + 250] = middle;
+        json["cells"] = cells;
+        damaged.fromJson(json);
+        QCOMPARE(damaged.cell(255, 250).colSpan, 6);
+    }
+
+    // A style the file defines is the one a table is drawn and edited with, and is written back: a first column the file makes orange goes when
+    // First Column is turned off, and the file's version of the style stays in the saved file.
+    void tableStylesTheFileDefinesAreKeptAndUsed()
+    {
+        const QString id = QStringLiteral("{85BE263C-DBD7-4A20-BB59-AAB30ACAA65A}");   // a style this suite also has (Medium Style 3, Accent 2), but not like this
+        const QString definition = QStringLiteral(
+            "<a:tblStyleLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" def=\"%1\"><a:tblStyle styleId=\"%1\" styleName=\"The file's own\">"
+            "<a:wholeTbl><a:tcTxStyle><a:fontRef idx=\"minor\"/><a:srgbClr val=\"000000\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:srgbClr val=\"FFEEDD\"/></a:solidFill></a:fill></a:tcStyle></a:wholeTbl>"
+            "<a:firstCol><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:srgbClr val=\"000000\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:srgbClr val=\"FF8800\"/></a:solidFill></a:fill></a:tcStyle></a:firstCol>"
+            "<a:firstRow><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:srgbClr val=\"FFFFFF\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill></a:fill></a:tcStyle></a:firstRow>"
+            "</a:tblStyle></a:tblStyleLst>").arg(id);
+        // A file as the other program writes one: the cells say nothing of their own, and the style is defined in the file.
+        QString err;
+        std::unique_ptr<Document> d;
+        {
+            DeckWindow maker;
+            tableOnSlide(maker, 3, 3);
+            maker.applyTableStyle(id);
+            d = deck::importPresentation(deck::exportPresentation(*maker.editor()->doc(), &err), &err);
+            QVERIFY(d);
+        }
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(deck::exportPresentation(*d, &err), zip, &err));
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        slide.replace(QRegularExpression(QStringLiteral("<a:tcPr[^>]*>.*?</a:tcPr>")), QStringLiteral("<a:tcPr/>"));
+        slide.replace(QStringLiteral("<a:tableStyleId>%1</a:tableStyleId>").arg(QStringLiteral("{85BE263C-DBD7-4A20-BB59-AAB30ACAA65A}")), QStringLiteral("<a:tableStyleId>%1</a:tableStyleId>").arg(id));
+        if (!slide.contains(QStringLiteral("firstCol=\"1\""))) slide.replace(QStringLiteral("<a:tblPr "), QStringLiteral("<a:tblPr firstCol=\"1\" "));
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        zip[QStringLiteral("ppt/tableStyles.xml")] = definition.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        const QByteArray file = z.finish();
+        auto opened = deck::importPresentation(file, &err);
+        QVERIFY2(opened, qPrintable(err));
+        QCOMPARE(firstTable(*opened)->cell(1, 0).fill.color.rgbValue(), QColor(0xFF, 0x88, 0x00));   // the file's, read
+        QCOMPARE(firstTable(*opened)->cell(1, 1).fill.color.rgbValue(), QColor(0xFF, 0xEE, 0xDD));
+        // The window opens it, and First Column off makes the column what the file's style says the whole table is.
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->setDocument(std::move(opened));
+        ed->select(theTable(ed)->id);
+        QVERIFY(command(w, "tbl.optFirstCol"));
+        QVERIFY(!theTable(ed)->firstCol);
+        QCOMPARE(theTable(ed)->cell(1, 0).fill.color.rgbValue(), QColor(0xFF, 0xEE, 0xDD));
+        QCOMPARE(theTable(ed)->cell(1, 1).fill.color.rgbValue(), QColor(0xFF, 0xEE, 0xDD));
+        QCOMPARE(theTable(ed)->cell(0, 1).fill.color.rgbValue(), QColor(0x11, 0x22, 0x33));
+        QVERIFY(command(w, "tbl.optFirstCol"));
+        QCOMPARE(theTable(ed)->cell(1, 0).fill.color.rgbValue(), QColor(0xFF, 0x88, 0x00));
+        // Saved, the file's definition goes back, and the file reads the same again.
+        QMap<QString, QByteArray> out;
+        QVERIFY(readZip(deck::exportPresentation(*ed->doc(), &err), out, &err));
+        const QString styles = QString::fromUtf8(out.value(QStringLiteral("ppt/tableStyles.xml")));
+        QVERIFY(styles.contains(QStringLiteral("FF8800")) && styles.contains(QStringLiteral("FFEEDD")) && styles.contains(id));
+        QVERIFY(styles.contains(QStringLiteral("The file's own")));
+        auto again = savedAndRead(*ed->doc(), false);
+        QVERIFY(again);
+        QCOMPARE(firstTable(*again)->cell(1, 0).fill.color.rgbValue(), QColor(0xFF, 0x88, 0x00));
+        // A table of a presentation with no styles of its own is written as before: the default, and none defined.
+        QVERIFY(readZip(deck::exportPresentation(*deck::newPresentation(), &err), out, &err));
+        QVERIFY(!QString::fromUtf8(out.value(QStringLiteral("ppt/tableStyles.xml"))).contains(QStringLiteral("tblStyle ")));
+    }
+
+    // Every table command is one step that takes everything back: after Undo the document is what it was, and after Redo what it was after the
+    // command (the table here has a style, merged cells, text, and a block of cells selected).
+    void tableCommandsUndoAndRedoExactly()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 4, 4);
+        const QString id = theTable(ed)->id;
+        ed->selectCells(id, 0, 0, 1, 1);
+        QVERIFY(command(w, "tbl.merge"));
+        struct Case { const char *command; int r0, c0, r1, c1; };
+        const Case cases[] = {{"tbl.insAbove", 2, 2, 2, 2}, {"tbl.insBelow", 3, 1, 3, 1}, {"tbl.insLeft", 2, 2, 2, 2}, {"tbl.insRight", 1, 3, 1, 3},
+                              {"tbl.delRow", 3, 0, 3, 3}, {"tbl.delCol", 0, 3, 3, 3}, {"tbl.split", 0, 0, 0, 0}, {"tbl.merge", 2, 0, 3, 1},
+                              {"tbl.distributeRows", 2, 2, 2, 2}, {"tbl.distributeCols", 2, 2, 2, 2}, {"border.all", 2, 2, 3, 3}, {"border.none", 2, 2, 3, 3},
+                              {"tbl.alignMiddle", 2, 2, 3, 3}, {"tbl.direction", 2, 2, 3, 3}, {"tbl.marginWide", 2, 2, 3, 3}, {"tbl.optBanded", 2, 2, 2, 2},
+                              {"tbl.optTotal", 2, 2, 2, 2}, {"tbl.optFirstCol", 2, 2, 2, 2}, {"tbl.optHeader", 2, 2, 2, 2}};
+        for (const Case &c : cases) {
+            if (QLatin1String(c.command).startsWith(QLatin1String("tbl.distribute"))) {   // made unequal first, as there is something to distribute
+                ed->change(QStringLiteral("Size"), [&] {
+                    theTable(ed)->colW[0] += 10;
+                    theTable(ed)->rowH[0] += 10;
+                    theTable(ed)->syncRect();
+                });
+            }
+            ed->selectCells(id, c.r0, c.c0, c.r1, c.c1);
+            const QByteArray before = documentJson(ed);
+            const int steps = ed->undoStack()->index();
+            QVERIFY(command(w, c.command));
+            QVERIFY2(ed->undoStack()->index() == steps + 1, c.command);
+            const QByteArray after = documentJson(ed);
+            QVERIFY2(after != before, c.command);
+            ed->undo();
+            QVERIFY2(documentJson(ed) == before, c.command);
+            ed->redo();
+            QVERIFY2(documentJson(ed) == after, c.command);
+        }
+        w.applyTableStyle(QStringLiteral("{E8034E78-7F5D-4C2E-B375-FC64B27BC917}"));
+        const QByteArray styled = documentJson(ed);
+        ed->undo();
+        QVERIFY(documentJson(ed) != styled);
+        ed->redo();
+        QVERIFY(documentJson(ed) == styled);
+    }
+
+    // A table a file damages (spans far larger than the table, every flag on) is read, styled, and edited without harm: the
+    // spans stop at the table's edge, and no command reaches past a row or a column.
+    void hostileTablesAreHeldToTheirGrid()
+    {
+        DeckWindow maker;
+        tableOnSlide(maker, 3, 3);
+        QString err;
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(deck::exportPresentation(*maker.editor()->doc(), &err), zip, &err));
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        slide.replace(QRegularExpression(QStringLiteral("<a:tc>")), QStringLiteral("<a:tc gridSpan=\"1000000000\" rowSpan=\"2000000000\">"));
+        slide.replace(QStringLiteral("<a:tblPr "), QStringLiteral("<a:tblPr lastRow=\"1\" firstCol=\"1\" lastCol=\"1\" bandCol=\"1\" "));
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto d = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TableItem *read = firstTable(*d);
+        QVERIFY(read);
+        for (int r = 0; r < read->rows; ++r)
+            for (int c = 0; c < read->cols; ++c) {
+                QVERIFY(r + read->cell(r, c).rowSpan <= read->rows);
+                QVERIFY(c + read->cell(r, c).colSpan <= read->cols);
+            }
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->setDocument(std::move(d));
+        ed->select(theTable(ed)->id);
+        w.applyTableStyle(QStringLiteral("{9D7B26C5-4107-4FEC-AEDC-1716B250A1EF}"));
+        for (const char *name : {"tbl.optBanded", "tbl.optTotal", "tbl.insBelow", "tbl.insRight", "tbl.split", "tbl.distributeRows", "border.all"}) {
+            ed->select(theTable(ed)->id);
+            QVERIFY(command(w, name));
+        }
+        QVERIFY(theTable(ed)->rows >= 3 && theTable(ed)->cols >= 3);
+        QVERIFY(!savedSlideXml(*ed->doc()).isEmpty());
+        auto saved = savedAndRead(*ed->doc(), true);
+        QVERIFY(saved);
+    }
+
+    // A crop of a picture that is turned and flipped keeps the picture where it is on the slide, and is saved with its turn and flips; a picture
+    // that is fitted (room round it, a negative a:srcRect) is saved and read back the same.
+    void pictureCropOfATurnedPictureAndANegativeSrcRect()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        ed->beginChange(QStringLiteral("Turn"));
+        pic->rotation = 30;
+        pic->flipH = true;
+        ed->endChange();
+        const QPointF whereTheTopLeftIs = thePicture(ed)->transform().map(thePicture(ed)->imgRect.topLeft());
+        const QPointF whereTheBottomRightIs = thePicture(ed)->transform().map(thePicture(ed)->imgRect.bottomRight());
+        QVERIFY(command(w, "pic.aspect.1x1"));
+        QCOMPARE(thePicture(ed)->rect.size(), QSizeF(75, 75));
+        QVERIFY((thePicture(ed)->transform().map(thePicture(ed)->imgRect.topLeft()) - whereTheTopLeftIs).manhattanLength() < 0.001);
+        QVERIFY((thePicture(ed)->transform().map(thePicture(ed)->imgRect.bottomRight()) - whereTheBottomRightIs).manhattanLength() < 0.001);
+        QString slide = savedSlideXml(*ed->doc());
+        QVERIFY(slide.contains(QStringLiteral("rot=\"1800000\"")));
+        QVERIFY(slide.contains(QStringLiteral("flipH=\"1\"")));
+        QVERIFY(slide.contains(QStringLiteral("<a:srcRect")));
+        auto back = savedAndRead(*ed->doc(), false);
+        QVERIFY(back);
+        const PictureItem *p = firstPicture(*back);
+        QVERIFY(p);
+        QVERIFY(p->flipH);
+        QVERIFY(std::abs(p->rotation - 30) < 0.01);
+        QVERIFY((p->transform().map(p->imgRect.topLeft()) - whereTheTopLeftIs).manhattanLength() < 0.05);
+        QVERIFY((p->transform().map(p->imgRect.bottomRight()) - whereTheBottomRightIs).manhattanLength() < 0.05);
+        // Fit: a picture 150 by 75 in a frame 100 by 100 has room above and below, which the file says with negative cuts.
+        ed->beginChange(QStringLiteral("Frame"));
+        thePicture(ed)->rotation = 0;
+        thePicture(ed)->flipH = false;
+        thePicture(ed)->rect = QRectF(thePicture(ed)->rect.topLeft(), QSizeF(100, 100));
+        thePicture(ed)->imgRect = QRectF(0, 0, 100, 100);
+        ed->endChange();
+        QVERIFY(command(w, "pic.fit"));
+        const QRectF fitted = thePicture(ed)->imgRect;
+        QCOMPARE(fitted.size(), QSizeF(100, 50));
+        slide = savedSlideXml(*ed->doc());
+        QVERIFY(slide.contains(QStringLiteral("t=\"-50000\"")) && slide.contains(QStringLiteral("b=\"-50000\"")));   // each is half the height of the picture
+        for (bool odp : {false, true}) {
+            back = savedAndRead(*ed->doc(), odp);
+            QVERIFY(back);
+            p = firstPicture(*back);
+            QVERIFY(p);
+            QVERIFY2(std::abs(p->imgRect.height() - fitted.height()) < 0.5 && std::abs(p->imgRect.width() - fitted.width()) < 0.5, odp ? "odp" : "pptx");
+            QVERIFY2(std::abs(p->imgRect.top() - fitted.top()) < 0.5, odp ? "odp" : "pptx");
+        }
+    }
+
+    // A style is given to every cell, the ones a merged cell covers too: what a split uncovers is as the style has it, whether the style was
+    // chosen, or a row came, while the cells were merged.
+    void aStyleReachesTheCellsAMergeCovers()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 4, 4);
+        const QString id = theTable(ed)->id;
+        auto allAsTheStyleHasThem = [&](const char *what) {
+            office::TableStyleEffect fx;
+            if (!office::tableStyleEffect(theTable(ed)->format, *theTable(ed), tableThemeOf(*ed->doc()), &fx)) return false;
+            for (int r = 0; r < theTable(ed)->rows; ++r)
+                for (int c = 0; c < theTable(ed)->cols; ++c)
+                    if (!(theTable(ed)->cell(r, c).fill == fx.fill[size_t(r) * theTable(ed)->cols + c])) {
+                        qWarning("%s: cell %d,%d", what, r, c);
+                        return false;
+                    }
+            return true;
+        };
+        ed->selectCells(id, 0, 0, 1, 1);
+        QVERIFY(command(w, "tbl.merge"));
+        w.applyTableStyle(QStringLiteral("{E8034E78-7F5D-4C2E-B375-FC64B27BC917}"));   // Dark Style 1
+        ed->selectCells(id, 0, 0, 0, 0);
+        QVERIFY(command(w, "tbl.split"));
+        QVERIFY(allAsTheStyleHasThem("chosen while merged"));
+        // A row that comes while cells are merged, and an option turned off.
+        ed->selectCells(id, 2, 2, 3, 3);
+        QVERIFY(command(w, "tbl.merge"));
+        ed->selectCells(id, 0, 0, 0, 0);
+        QVERIFY(command(w, "tbl.insAbove"));
+        ed->select(id);
+        QVERIFY(command(w, "tbl.optBanded"));
+        ed->selectCells(id, 3, 2, 3, 2);
+        QVERIFY(command(w, "tbl.split"));
+        QVERIFY(allAsTheStyleHasThem("row and option while merged"));
+    }
+
+    // Every style in the gallery is one the reader and the tab know: Light, Medium, and Dark, plain and in the six accent colors, with the
+    // theme's colors in them.
+    void tableStylesAreDrawnFromTheTheme()
+    {
+        const QVector<office::TableStyleInfo> &styles = office::tableStyleList();
+        QVERIFY(styles.size() >= 60);
+        QSet<QString> ids;
+        office::Theme theme;
+        for (int i = 0; i < office::Theme::ColorCount; ++i) theme.colors[i] = QColor::fromHsv(i * 30, 200, 200);
+        TableItem t;
+        t.rows = 4;
+        t.cols = 3;
+        t.header = t.banded = true;
+        for (const auto &s : styles) {
+            QVERIFY2(!ids.contains(s.id), qPrintable(s.id));
+            ids.insert(s.id);
+            QVERIFY2(!office::tableStyleXml(s.id).isEmpty(), qPrintable(s.name));
+            office::TableStyleEffect fx;
+            QVERIFY2(office::tableStyleEffect(s.id, t, theme, &fx), qPrintable(s.name));
+            QCOMPARE(int(fx.fill.size()), 12);
+        }
+        // Medium Style 2 - Accent 3 has the third accent in its header row and tints of it in the bands.
+        office::TableStyleEffect fx;
+        QVERIFY(office::tableStyleEffect(QStringLiteral("{F5AB1C69-6EDB-4FF4-983F-18BD219EF322}"), t, theme, &fx));
+        QCOMPARE(fx.fill[0].color.rgbValue().rgb(), theme.colors[office::Theme::Accent3].rgb());
+        QVERIFY(fx.fill[3].color.rgbValue().rgb() != theme.colors[office::Theme::Accent3].rgb());   // a band
+        QVERIFY(!(fx.fill[3] == fx.fill[6]));
+        QVERIFY(!office::tableStyleEffect(QStringLiteral("{11111111-2222-3333-4444-555555555555}"), t, theme, &fx));
+    }
+
+private:
+    // A red picture 200 by 100, put on the slide of a window.
+    static PictureItem *pictureOnSlide(DeckWindow &w, const QTemporaryDir &dir)
+    {
+        QImage image(200, 100, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        if (!image.save(path) || !w.insertPicture(path)) return nullptr;
+        return thePicture(w.editor());
+    }
+
+private Q_SLOTS:
+    // The Table Design and Table Layout tabs show while a table or a cell of one is selected, the Picture Format tab while a picture is; their
+    // boxes, gallery, and sizes act on the table.
+    void tableAndPictureTabsFollowTheSelection()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto shown = [&](const QString &name) {
+            for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+                if (w.ribbon()->tabName(i) == name) return w.ribbon()->tabVisible(i);
+            return false;
+        };
+        QVERIFY(!shown(QStringLiteral("Table Design")) && !shown(QStringLiteral("Table Layout")) && !shown(QStringLiteral("Picture Format")));
+        tableOnSlide(w, 3, 3);
+        const QString id = theTable(ed)->id;
+        QVERIFY(shown(QStringLiteral("Table Design")) && shown(QStringLiteral("Table Layout")));
+        QVERIFY(!shown(QStringLiteral("Picture Format")));
+        ed->clearSelection();
+        QVERIFY(!shown(QStringLiteral("Table Design")));
+        ed->beginTextEdit(id, 0, 1, 1);   // typing in a cell is enough
+        QVERIFY(shown(QStringLiteral("Table Layout")));
+        ed->endTextEdit();
+        ed->select(id);
+        // The boxes are the commands'.
+        auto *banded = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("tbl.optBanded"));
+        QVERIFY(banded);
+        QVERIFY(banded->isChecked());
+        banded->click();
+        QVERIFY(!theTable(ed)->banded);
+        QVERIFY(!banded->isChecked());
+        // The gallery lists the styles and applies one.
+        auto *gallery = w.ribbon()->findChild<Gallery *>(QStringLiteral("tableStyles"));
+        QVERIFY(gallery);
+        Q_EMIT gallery->activated(QStringLiteral("{3B4B98B0-60AC-42C2-AFA5-B58CD77FA1E5}"));
+        QCOMPARE(theTable(ed)->format, QStringLiteral("{3B4B98B0-60AC-42C2-AFA5-B58CD77FA1E5}"));
+        // The row height and column width show those of the cell chosen, and typing one changes the rows or columns chosen.
+        ed->selectCells(id, 2, 1, 2, 1);
+        auto *height = w.ribbon()->findChild<MeasureSpin *>(QStringLiteral("tableRowHeight"));
+        auto *width = w.ribbon()->findChild<MeasureSpin *>(QStringLiteral("tableColumnWidth"));
+        QVERIFY(height && width);
+        QVERIFY(std::abs(height->value() - theTable(ed)->rowH[2]) < 0.5);
+        QVERIFY(std::abs(width->value() - theTable(ed)->colW[1]) < 0.5);
+        height->setValue(90);
+        width->setValue(120);
+        QCOMPARE(theTable(ed)->rowH[2], 90.0);
+        QCOMPARE(theTable(ed)->rowH[1] == 90.0, false);
+        QCOMPARE(theTable(ed)->colW[1], 120.0);
+        ed->clearSelection();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        QVERIFY(shown(QStringLiteral("Picture Format")));
+        QVERIFY(!shown(QStringLiteral("Table Design")));
+        ed->clearSelection();
+        QVERIFY(!shown(QStringLiteral("Picture Format")));
+    }
+
+    // A picture is cropped by its handles: the crop starts with the Crop button, the hidden part of the picture is kept, and the whole crop
+    // is one step that undoes. Enter ends it, or a click away; Esc takes it back.
+    void pictureCropIsOneStepWithEnterAndEsc()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id;
+        const QRectF frame = pic->rect, whole = pic->imgRect;
+        const int steps = ed->undoStack()->count();
+        QVERIFY(command(w, "pic.crop"));
+        QCOMPARE(ed->cropItem, id);
+        // Two drags of two handles, as the canvas makes them.
+        for (int drag = 0; drag < 2; ++drag) {
+            PictureItem *p = thePicture(ed);
+            ed->beginCropChange(QStringLiteral("Crop"));
+            if (drag == 0) {
+                p->rect.setLeft(p->rect.left() + 30);
+                p->imgRect.translate(-30, 0);
+            } else {
+                p->rect.setBottom(p->rect.bottom() - 10);
+            }
+            ed->endChange();
+        }
+        QCOMPARE(ed->undoStack()->count(), steps);   // nothing is a step until the crop is done
+        QTest::keyClick(w.canvas(), Qt::Key_Return);
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Crop"));
+        QCOMPARE(thePicture(ed)->rect.width(), frame.width() - 30);
+        QCOMPARE(thePicture(ed)->rect.height(), frame.height() - 10);
+        QCOMPARE(thePicture(ed)->imgRect.size(), whole.size());   // the picture itself keeps its size
+        ed->undo();
+        QCOMPARE(thePicture(ed)->rect, frame);
+        QCOMPARE(thePicture(ed)->imgRect, whole);
+        ed->redo();
+        QCOMPARE(thePicture(ed)->rect.width(), frame.width() - 30);
+        // Esc: the crop that was begun is taken back whole, and leaves no step.
+        const QRectF cropped = thePicture(ed)->rect;
+        const int stepsNow = ed->undoStack()->count();
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 40);
+        ed->endChange();
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(thePicture(ed)->rect, cropped);
+        QCOMPARE(ed->undoStack()->count(), stepsNow);
+        QCOMPARE(ed->selection(), QStringList{id});
+        // Choosing something else ends it too, keeping the crop.
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 20);
+        ed->endChange();
+        ed->clearSelection();
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(thePicture(ed)->rect.width(), cropped.width() - 20);
+        QCOMPARE(ed->undoStack()->count(), stepsNow + 1);
+        ed->undo();   // the crop is one step; undo is not stuck inside it
+        QCOMPARE(thePicture(ed)->rect, cropped);
+        // Undo while cropping takes the crop back; another command ends the crop, keeping it, and then does its own work.
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 25);
+        ed->endChange();
+        QTRY_VERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());   // the window's commands follow the editor a moment later
+        QVERIFY(command(w, "edit.undo"));
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(thePicture(ed)->rect, cropped);
+        const int before = ed->undoStack()->index();   // steps taken (a step that was undone is in the way of the next one, and is dropped)
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 25);
+        ed->endChange();
+        QVERIFY(command(w, "arr.flipH"));
+        QVERIFY(ed->cropItem.isEmpty());
+        QVERIFY(thePicture(ed)->flipH);
+        QCOMPARE(ed->undoStack()->index(), before + 2);
+        ed->undo();
+        QVERIFY(!thePicture(ed)->flipH);
+        QCOMPARE(thePicture(ed)->rect.width(), cropped.width() - 25);
+    }
+
+    // The same with the mouse: a handle of the frame is dragged in, and a drag inside moves the picture in its frame; Enter ends the crop, which
+    // is one step.
+    void pictureCropByDraggingTheHandles()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QRectF frame = pic->rect, whole = pic->imgRect;
+        const QPointF whereTheTopLeftIs = pic->transform().map(whole.topLeft());
+        Canvas *canvas = w.canvas();
+        QWidget *vp = canvas->viewport();
+        const int steps = ed->undoStack()->count();
+        QVERIFY(command(w, "pic.crop"));
+        auto drag = [&](const QPointF &from, const QPointF &to) {
+            const QPoint a = canvas->pageToView(from).toPoint(), b = canvas->pageToView(to).toPoint();
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, a);
+            QTest::mouseMove(vp, a + (b - a) / 3);
+            QTest::mouseMove(vp, a + (b - a) * 2 / 3);
+            QTest::mouseMove(vp, b);
+            QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, b);
+        };
+        // The right edge in by 30 points, then the top edge down by 15.
+        drag(QPointF(frame.right(), frame.center().y()), QPointF(frame.right() - 30, frame.center().y()));
+        QVERIFY(std::abs(thePicture(ed)->rect.width() - (frame.width() - 30)) < 2);
+        drag(QPointF(thePicture(ed)->rect.center().x(), frame.top()), QPointF(thePicture(ed)->rect.center().x(), frame.top() + 15));
+        QVERIFY(std::abs(thePicture(ed)->rect.height() - (frame.height() - 15)) < 2);
+        // The picture stayed where it was on the slide while the frame closed in.
+        QVERIFY((thePicture(ed)->transform().map(thePicture(ed)->imgRect.topLeft()) - whereTheTopLeftIs).manhattanLength() < 0.01);
+        QCOMPARE(thePicture(ed)->imgRect.size(), whole.size());
+        // A drag inside the frame moves the picture in it.
+        const QPointF inside = thePicture(ed)->rect.center();
+        drag(inside, inside + QPointF(-6, 0));
+        QVERIFY(thePicture(ed)->transform().map(thePicture(ed)->imgRect.topLeft()).x() < whereTheTopLeftIs.x() - 3);
+        QCOMPARE(ed->cropItem, thePicture(ed)->id);
+        QCOMPARE(ed->undoStack()->count(), steps);   // still one crop in progress
+        QTest::keyClick(canvas, Qt::Key_Enter);
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QVERIFY(ed->cropItem.isEmpty());
+        ed->undo();
+        QCOMPARE(thePicture(ed)->rect, frame);
+        QCOMPARE(thePicture(ed)->imgRect, whole);
+        // A click on the empty slide ends a crop too.
+        ed->select(thePicture(ed)->id);
+        QVERIFY(command(w, "pic.crop"));
+        drag(QPointF(frame.right(), frame.center().y()), QPointF(frame.right() - 20, frame.center().y()));
+        const QPoint away = canvas->pageToView(QPointF(8, 8)).toPoint();
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, away);
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QVERIFY(std::abs(thePicture(ed)->rect.width() - (frame.width() - 20)) < 2);
+    }
+
+    // Aspect Ratio crops the frame to the ratio around its middle, the picture staying where it is on the slide; Fill and Fit make the
+    // picture cover or fit in the frame; Clear Crop shows all of it; Crop to Shape trims it to a shape. Each is one step.
+    void pictureCropAspectRatioFillFitAndShape()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QRectF frame = pic->rect;   // 150 by 75: the 200 by 100 pixels at the screen's 96 to the inch
+        QCOMPARE(frame.size(), QSizeF(150, 75));
+        const QPointF middle = frame.center();
+        const QPointF whereTheTopLeftIs = pic->transform().map(pic->imgRect.topLeft());
+        QVERIFY(command(w, "pic.aspect.1x1"));
+        QCOMPARE(thePicture(ed)->rect.size(), QSizeF(75, 75));
+        QCOMPARE(thePicture(ed)->rect.center(), middle);
+        QCOMPARE(thePicture(ed)->transform().map(thePicture(ed)->imgRect.topLeft()), whereTheTopLeftIs);
+        QCOMPARE(thePicture(ed)->imgRect.size(), QSizeF(150, 75));
+        ed->undo();
+        QCOMPARE(thePicture(ed)->rect, frame);
+        QVERIFY(command(w, "pic.aspect.16x9"));
+        QVERIFY(std::abs(thePicture(ed)->rect.width() / thePicture(ed)->rect.height() - 16.0 / 9) < 1e-6);
+        QCOMPARE(thePicture(ed)->rect.height(), 75.0);   // the frame is wider than 16:9: its height stays and the width goes down
+        ed->undo();
+        QVERIFY(command(w, "pic.aspect.9x16"));
+        QVERIFY(std::abs(thePicture(ed)->rect.width() / thePicture(ed)->rect.height() - 9.0 / 16) < 1e-6);
+        QCOMPARE(thePicture(ed)->rect.height(), 75.0);
+        // Fill: the picture covers the frame (a crop from the middle); Fit: it is all in the frame.
+        ed->undo();
+        ed->beginChange(QStringLiteral("Frame"));
+        thePicture(ed)->rect = QRectF(frame.topLeft(), QSizeF(100, 100));
+        thePicture(ed)->imgRect = QRectF(0, 0, 100, 100);
+        ed->endChange();
+        QVERIFY(command(w, "pic.fill"));
+        QCOMPARE(thePicture(ed)->imgRect.height(), 100.0);
+        QCOMPARE(thePicture(ed)->imgRect.width(), 200.0);
+        QCOMPARE(thePicture(ed)->imgRect.center(), QPointF(50, 50));
+        QVERIFY(command(w, "pic.fit"));
+        QCOMPARE(thePicture(ed)->imgRect.width(), 100.0);
+        QCOMPARE(thePicture(ed)->imgRect.height(), 50.0);
+        QVERIFY(command(w, "pic.fill"));
+        QVERIFY(command(w, "pic.clearCrop"));
+        QCOMPARE(thePicture(ed)->rect.size(), QSizeF(200, 100));
+        QCOMPARE(thePicture(ed)->imgRect, QRectF(0, 0, 200, 100));
+        // Crop to Shape.
+        w.cropPictureToShape(QStringLiteral("ellipse"));
+        QCOMPARE(thePicture(ed)->maskShape, QStringLiteral("ellipse"));
+        ed->undo();
+        QCOMPARE(thePicture(ed)->maskShape, QStringLiteral("rect"));
+        w.cropPictureToShape(QStringLiteral("ellipse"));
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Crop to Shape"));
+    }
+
+    // A crop is saved as the formats have it and read back the same: a:srcRect on the picture's blip and the shape's geometry in a .pptx,
+    // fo:clip in an .odp (which draws a picture cropped to a shape into the picture itself).
+    void pictureCropIsSavedAndReadBack()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        // Trimmed 40 off the left, 10 off the top, and 20 off the bottom of a picture 200 by 100, and to an ellipse.
+        ed->beginChange(QStringLiteral("Crop"));
+        pic->rect = QRectF(pic->rect.left() + 40, pic->rect.top() + 10, 160, 70);
+        pic->imgRect = QRectF(-40, -10, 200, 100);
+        ed->endChange();
+        w.cropPictureToShape(QStringLiteral("ellipse"));
+        const QRectF frame = thePicture(ed)->rect, whole = thePicture(ed)->imgRect;
+        const QString slide = savedSlideXml(*ed->doc());
+        QVERIFY(slide.contains(QStringLiteral("<a:srcRect l=\"20000\" t=\"10000\" b=\"20000\"/>")));
+        QVERIFY(slide.contains(QStringLiteral("<a:prstGeom prst=\"ellipse\">")));
+        auto back = savedAndRead(*ed->doc(), false);
+        QVERIFY(back);
+        const PictureItem *p = firstPicture(*back);
+        QVERIFY(p);
+        QCOMPARE(p->maskShape, QStringLiteral("ellipse"));
+        QCOMPARE(p->rect.size(), frame.size());
+        QVERIFY(std::abs(p->imgRect.left() - whole.left()) < 0.01 && std::abs(p->imgRect.top() - whole.top()) < 0.01);
+        QVERIFY(std::abs(p->imgRect.width() - whole.width()) < 0.01 && std::abs(p->imgRect.height() - whole.height()) < 0.01);
+        // The .odp: the crop of a picture with the usual shape.
+        ed->beginChange(QStringLiteral("Square"));
+        thePicture(ed)->maskShape = QStringLiteral("rect");
+        ed->endChange();
+        back = savedAndRead(*ed->doc(), true);
+        QVERIFY(back);
+        p = firstPicture(*back);
+        QVERIFY(p);
+        QVERIFY(std::abs(p->rect.width() - frame.width()) < 0.1 && std::abs(p->rect.height() - frame.height()) < 0.1);
+        QVERIFY(std::abs(p->imgRect.left() - whole.left()) < 0.2 && std::abs(p->imgRect.top() - whole.top()) < 0.2);
+        QVERIFY(std::abs(p->imgRect.width() - whole.width()) < 0.2 && std::abs(p->imgRect.height() - whole.height()) < 0.2);
+        // Cropped to a shape, an .odp keeps what the slide shows: a picture that is round at the corners shows nothing there.
+        ed->beginChange(QStringLiteral("Round"));
+        thePicture(ed)->maskShape = QStringLiteral("ellipse");
+        ed->endChange();
+        back = savedAndRead(*ed->doc(), true);
+        QVERIFY(back);
+        QVERIFY(firstPicture(*back));
     }
 
     // The other suite mirrors a picture side to side only (a mirror from top to bottom is ignored): a picture turned over is written as turned
@@ -21052,22 +22421,26 @@ private Q_SLOTS:
         QCOMPARE(d->appData.value(QStringLiteral("notesSize")).toObject().value(QStringLiteral("h")).toDouble(), 720.0);
     }
 
-    // The presentation's drawing group keeps the properties a shape starts from: a shape of a slide that names no colors has the
-    // fills color and the text color of the scheme (the master's), not white and black.
-    void importBinaryShapesTakeTheDrawingGroupsDefaults()
+    // The presentation's drawing group holds the properties of a new shape in the program that wrote the file, and the program that draws
+    // the file never reads them: a shape of a slide that names no colors is white with a black line, as the format has it, and text sits at
+    // the top, however the group's table says the fills color is the scheme's, the line the text color, and text is centered in its shape.
+    void importBinaryShapesIgnoreTheDrawingGroupsDefaults()
     {
         auto table = [&](const QVector<QPair<int, quint32>> &props) {
             QByteArray t;
             for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
             return pptRec(0xF00B, t, quint16(props.size()), 3);
         };
-        // Filled in scheme color 4 (the fills color), a line in scheme color 1 (the text color).
-        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
-        // A rectangle that says nothing of its look, and one that has its own fill.
-        auto rectangle = [&](quint32 id, int top, const QByteArray &props) {
-            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2)));
+        // Filled in scheme color 4 (the fills color), a line in scheme color 1 (the text color), text anchored in the middle.
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0'))
+                                                                 + table({{0x0087, 1}, {0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
+        // A rectangle that says nothing of its look, one that has its own fill, and a text box that says nothing of its text.
+        auto rectangle = [&](quint32 id, int top, const QByteArray &props, const QByteArray &textbox = QByteArray()) {
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + props + pptRec(0xF010, le(top, 2) + le(100, 2) + le(2000, 2) + le(top + 500, 2))
+                                      + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
         };
-        const QByteArray shapes = rectangle(0x500, 100, QByteArray()) + rectangle(0x501, 800, table({{0x0181, 0x0000FF}}));
+        const QByteArray shapes = rectangle(0x500, 100, QByteArray()) + rectangle(0x501, 800, table({{0x0181, 0x0000FF}}))
+                                  + rectangle(0x502, 1500, table({{0x01BF, 0x00100000}, {0x01FF, 0x00080000}}), pptText(4, QStringLiteral("Words")));
         auto look = [&](const QByteArray &file) {
             QString err;
             auto d = deck::importBinaryPresentation(file, &err);
@@ -21079,20 +22452,31 @@ private Q_SLOTS:
                     out << qMakePair(it->fill.color.kind() == ColorRef::Rgb ? it->fill.color.rgbValue() : QColor(), it->stroke.color.kind() == ColorRef::Rgb ? it->stroke.color.rgbValue() : QColor());
             return out;
         };
+        auto anchorOfTheTextBox = [&](const QByteArray &file) {
+            QString err;
+            auto d = deck::importBinaryPresentation(file, &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            if (d)
+                for (const auto &it : d->pages[0]->items)
+                    if (it->role.isEmpty() && it->type() == ItemType::Text) return int(static_cast<const TextItem *>(it.get())->valign);
+            return -1;
+        };
         const auto withGroup = look(buildPpt(false, false, false, false, QByteArray(), group, shapes));
         QCOMPARE(int(withGroup.size()), 2);
-        QCOMPARE(withGroup[0].first, QColor(0x77, 0x88, 0x99));
-        QCOMPARE(withGroup[0].second, QColor(0x11, 0x22, 0x33));
+        QCOMPARE(withGroup[0].first, QColor(Qt::white));
+        QCOMPARE(withGroup[0].second, QColor(Qt::black));
         QCOMPARE(withGroup[1].first, QColor(255, 0, 0));
-        // With no drawing group, the format's own: white, and black.
+        QCOMPARE(anchorOfTheTextBox(buildPpt(false, false, false, false, QByteArray(), group, shapes)), int(VAlign::Top));
+        // With no drawing group, the same.
         const auto without = look(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes));
         QCOMPARE(int(without.size()), 2);
         QCOMPARE(without[0].first, QColor(Qt::white));
         QCOMPARE(without[0].second, QColor(Qt::black));
+        QCOMPARE(anchorOfTheTextBox(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes)), int(VAlign::Top));
     }
 
-    // A slide's placeholder takes what it leaves out of its look from the master's shape of its kind, and then from the drawing group's
-    // defaults: the master's title says what the slides' titles look like.
+    // A slide's placeholder takes what it leaves out of its look from the master's shape of its kind, and then from the format's own (the
+    // drawing group's default tables are not read): the master's title says what the slides' titles look like.
     void importBinaryPlaceholdersTakeAfterTheirMastersShapes()
     {
         auto table = [&](const QVector<QPair<int, quint32>> &props) {
@@ -21100,7 +22484,7 @@ private Q_SLOTS:
             for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
             return pptRec(0xF00B, t, quint16(props.size()), 3);
         };
-        // The defaults: filled in the fills color, with a line in the text color.
+        // The group's defaults, which are not read: filled in the fills color, with a line in the text color.
         const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0181, 0x08000004}, {0x01BF, 0x00100010}, {0x01C0, 0x08000001}, {0x01FF, 0x00080008}})));
         // The master's title: a green fill and no line. Its body says nothing.
         const QByteArray title = table({{0x0181, 0x00FF00}, {0x01BF, 0x00100010}, {0x01FF, 0x00080000}});
@@ -21183,6 +22567,295 @@ private Q_SLOTS:
         QCOMPARE(boxes[4]->rect.height(), 25.0);
     }
 
+    // A text box that doesn't wrap its text (wrapText 0x0085 = 2, the format's "none") keeps each paragraph on one line, however long it is,
+    // and sets the line against the box as its alignment says: a left one starts at the left inset and runs out past the right edge, a
+    // centered one is centered on the box and runs out of both sides, a right one ends at the right inset and runs out of the left. The
+    // same box that says nothing, or "square" (0), wraps, and a drawing group's table that says "none" is not a box that says it.
+    void importBinaryTextWithNoWrapIsSetOnOneLine()
+    {
+        const QString words = QStringLiteral("one two three four five six seven eight nine ten");
+        const int length = int(words.size());
+        // A box 100 points wide (800 master units), the paragraph's alignment (0 left, 1 center, 2 right) and the wrap property.
+        auto textBox = [&](quint32 id, int top, int align, const QVector<QPair<int, quint32>> &more) {
+            QByteArray props;
+            int count = 0;
+            for (const auto &p : more) {
+                props += le(quint16(p.first), 2) + le(p.second, 4);
+                ++count;
+            }
+            const QByteArray styles = pfRun(length + 1, 0, 0x800, le(align, 2)) + cfRun(length + 1, 0);
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 202, 2) + pptRec(0xF00B, props, quint16(count), 3)
+                                      + pptRec(0xF010, le(top, 2) + le(2000, 2) + le(2800, 2) + le(top + 400, 2)) + pptBox(0xF00D, pptText(4, words, styles)));
+        };
+        const QVector<QPair<int, quint32>> none = {{0x0085, 2}}, square = {{0x0085, 0}}, rest = {{0x01BF, 0x00100000}, {0x01FF, 0x00080000}};
+        auto both = [&](const QVector<QPair<int, quint32>> &a) { return a + rest; };
+        const QByteArray shapes = textBox(0x500, 1000, 0, both(none)) + textBox(0x501, 1500, 1, both(none)) + textBox(0x502, 2000, 2, both(none))
+                                  + textBox(0x503, 2500, 0, both(square)) + textBox(0x504, 3000, 0, rest);
+        // A drawing group that says "none" for every shape: it is not read.
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + table({{0x0085, 2}})));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const TextItem *> boxes;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) boxes << static_cast<const TextItem *>(it.get());
+        QCOMPARE(int(boxes.size()), 5);
+        QVERIFY(d->slideText);
+        LayoutCache cache;
+        const RenderOptions opt;
+        // The lines of a box, and the span the characters of the whole text cover from the box's left edge.
+        auto lineCount = [&](const TextItem &t) {
+            const auto fl = cache.textFrame(*d, t, 1, opt);
+            return fl.layout ? int(fl.layout->lineInfo(0).size()) : -1;
+        };
+        auto span = [&](const TextItem &t) {
+            const auto fl = cache.textFrame(*d, t, 1, opt);
+            QRectF all;
+            if (fl.layout)
+                for (const QRectF &r : fl.layout->rangeRects(0, 0, d->storyDoc(t.storyId)->characterCount() - 1)) all = all.united(r);
+            return all;
+        };
+        for (int i : {0, 1, 2}) {
+            QVERIFY2(boxes[i]->noWrap, qPrintable(QString::number(i)));
+            QCOMPARE(boxes[i]->rect.width(), 100.0);
+            QCOMPARE(lineCount(*boxes[i]), 1);
+            QVERIFY2(span(*boxes[i]).width() > 200, qPrintable(QString::number(span(*boxes[i]).width())));
+        }
+        const double inLeft = boxes[0]->insets.left(), inRight = boxes[0]->insets.right();
+        QVERIFY2(std::abs(span(*boxes[0]).left() - inLeft) < 1.0, qPrintable(QString::number(span(*boxes[0]).left())));
+        QVERIFY2(std::abs(span(*boxes[1]).center().x() - 50.0) < 1.0, qPrintable(QString::number(span(*boxes[1]).center().x())));
+        QVERIFY2(std::abs(span(*boxes[2]).right() - (100.0 - inRight)) < 1.0, qPrintable(QString::number(span(*boxes[2]).right())));
+        // Square, and nothing said: wrapped in the box.
+        for (int i : {3, 4}) {
+            QVERIFY2(!boxes[i]->noWrap, qPrintable(QString::number(i)));
+            QVERIFY2(lineCount(*boxes[i]) > 3, qPrintable(QString::number(lineCount(*boxes[i]))));
+            QVERIFY(span(*boxes[i]).right() <= 100.0);
+        }
+    }
+
+    // The same, in a shape that holds text: its frame has the flag too, and its text is set unwrapped.
+    void importBinaryShapesWithNoWrapSetTheirTextOnOneLine()
+    {
+        const QString words = QStringLiteral("one two three four five six seven eight nine ten");
+        auto shape = [&](quint32 id, int top, quint32 wrap) {
+            QByteArray props = le(0x0085, 2) + le(wrap, 4);
+            props += le(0x0087, 2) + le(1, 4);
+            const QByteArray styles = pfRun(int(words.size()) + 1, 0, 0) + cfRun(int(words.size()) + 1, 0);
+            // A rounded rectangle (spt 2) with its text.
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 2, 2) + pptRec(0xF00B, props, 2, 3)
+                                      + pptRec(0xF010, le(top, 2) + le(2000, 2) + le(2800, 2) + le(top + 1600, 2)) + pptBox(0xF00D, pptText(4, words, styles)));
+        };
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shape(0x500, 1000, 2) + shape(0x501, 3000, 0)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const ShapeItem *> shapes;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Shape && it->role.isEmpty()) shapes << static_cast<const ShapeItem *>(it.get());
+        QCOMPARE(int(shapes.size()), 2);
+        QVERIFY(shapes[0]->noWrap);
+        QVERIFY(!shapes[1]->noWrap);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QPointF origin;
+        const StoryLayout *one = Renderer::shapeTextLayout(ctx, *shapes[0], &origin);
+        QVERIFY(one);
+        QCOMPARE(int(one->lineInfo(0).size()), 1);
+        const StoryLayout *many = Renderer::shapeTextLayout(ctx, *shapes[1], &origin);
+        QVERIFY(many);
+        QVERIFY(many->lineInfo(0).size() > 3);
+    }
+
+    // A text frame that doesn't wrap is the file's too, in the formats that have it: a:bodyPr wrap="none" in a .pptx (read from the frame
+    // or the placeholder it takes after, written back, and "square" for the others), fo:wrap-option="no-wrap" in an .odp, and the item's
+    // own data (undo, copies) keep it.
+    void textFramesThatDoNotWrapAreKeptByTheFormats()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        auto box = [&](int id, const QString &name, const QString &bodyPr, bool textBox, int y) {
+            return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\"/><p:cNvSpPr%3/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id).arg(name, textBox ? QStringLiteral(" txBox=\"1\"") : QString())
+                   + xfrm(0, y, 1828800, 457200) + (textBox ? QStringLiteral("<a:noFill/>") : QStringLiteral("<a:prstGeom prst=\"roundRect\"><a:avLst/></a:prstGeom>"))
+                   + QStringLiteral("</p:spPr><p:txBody>") + bodyPr + QStringLiteral("<a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\"/><a:t>one two three four five six seven eight nine ten</a:t></a:r></a:p></p:txBody></p:sp>");
+        };
+        xml.replace(QStringLiteral("</p:spTree>"),
+                    box(30, QStringLiteral("NoWrapBox"), QStringLiteral("<a:bodyPr wrap=\"none\"><a:spAutoFit/></a:bodyPr>"), true, 0)
+                        + box(31, QStringLiteral("NoWrapShape"), QStringLiteral("<a:bodyPr wrap=\"none\" rtlCol=\"0\"/>"), false, 600000)
+                        + box(32, QStringLiteral("SquareBox"), QStringLiteral("<a:bodyPr wrap=\"square\"/>"), true, 1200000)
+                        + box(33, QStringLiteral("PlainBox"), QStringLiteral("<a:bodyPr/>"), true, 1800000) + QStringLiteral("</p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto flag = [](const Document &doc, const QString &name, bool *found) {
+            *found = false;
+            for (const auto &it : doc.pages[0]->items) {
+                if (it->name != name) continue;
+                *found = true;
+                if (it->type() == ItemType::Text) return static_cast<const TextItem *>(it.get())->noWrap;
+                if (it->type() == ItemType::Shape) return static_cast<const ShapeItem *>(it.get())->noWrap;
+            }
+            return false;
+        };
+        bool found = false;
+        QVERIFY(flag(*d, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*d, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*d, QStringLiteral("SquareBox"), &found) && found);
+        QVERIFY(!flag(*d, QStringLiteral("PlainBox"), &found) && found);
+        // Written back: wrap="none" for the two, "square" for the others.
+        Exported e;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        auto wrapOf = [](const QString &slide, const QString &name) {
+            const int at = slide.indexOf(QStringLiteral("name=\"") + name + QStringLiteral("\""));
+            const int body = slide.indexOf(QStringLiteral("<a:bodyPr"), at);
+            return slide.mid(body, slide.indexOf(QLatin1Char('>'), body) - body);
+        };
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(wrapOf(slide, QStringLiteral("NoWrapBox")).contains(QStringLiteral("wrap=\"none\"")), qPrintable(wrapOf(slide, QStringLiteral("NoWrapBox"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("NoWrapShape")).contains(QStringLiteral("wrap=\"none\"")), qPrintable(wrapOf(slide, QStringLiteral("NoWrapShape"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("SquareBox")).contains(QStringLiteral("wrap=\"square\"")), qPrintable(wrapOf(slide, QStringLiteral("SquareBox"))));
+        QVERIFY2(wrapOf(slide, QStringLiteral("PlainBox")).contains(QStringLiteral("wrap=\"square\"")), qPrintable(wrapOf(slide, QStringLiteral("PlainBox"))));
+        // Read again, the same; and through an .odp.
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(flag(*again, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*again, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*again, QStringLiteral("SquareBox"), &found) && found);
+        const QByteArray odp = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(odp, zip, &err), qPrintable(err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        QVERIFY(content.contains(QStringLiteral("fo:wrap-option=\"no-wrap\"")));
+        auto fromOdp = deck::importOdp(odp, &err);
+        QVERIFY2(fromOdp, qPrintable(err));
+        QVERIFY(flag(*fromOdp, QStringLiteral("NoWrapBox"), &found) && found);
+        QVERIFY(flag(*fromOdp, QStringLiteral("NoWrapShape"), &found) && found);
+        QVERIFY(!flag(*fromOdp, QStringLiteral("SquareBox"), &found) && found);
+        QVERIFY(!flag(*fromOdp, QStringLiteral("PlainBox"), &found) && found);
+    }
+
+    // A placeholder the drawing gives as a plain rectangle, with no text of its own in the drawing, is a text box in place of it, and keeps
+    // what the rectangle said of its text: a title and a body that say wrapText 2 don't wrap.
+    void importBinaryRectanglePlaceholdersKeepNoWrap()
+    {
+        const QByteArray none = pptRec(0xF00B, le(0x0085, 2) + le(2, 4), 1, 3);
+        // A title (0xD) and a body (0xE) of their own, below the slide's, each a rectangle with no text in its record.
+        const QByteArray shapes = pptShape(0x600, 0xD, QByteArray(), 2000, 200, 5000, 2400, none) + pptShape(0x601, 0xE, QByteArray(), 2600, 200, 5000, 3800, none);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *title = nullptr, *body = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text) continue;
+            if (std::abs(it->rect.top() - 250) < 0.5) title = static_cast<const TextItem *>(it.get());
+            if (std::abs(it->rect.top() - 325) < 0.5) body = static_cast<const TextItem *>(it.get());
+        }
+        QVERIFY(title && body);
+        QVERIFY(title->role.startsWith(QLatin1String("ph:title")));
+        QVERIFY(body->role.startsWith(QLatin1String("ph:body")));
+        QVERIFY(title->noWrap);
+        QVERIFY(body->noWrap);
+        // The slide's own placeholders, which say nothing of it, wrap.
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.startsWith(QLatin1String("ph:")) && it.get() != title && it.get() != body)
+                QVERIFY2(!static_cast<const TextItem *>(it.get())->noWrap, qPrintable(it->role));
+    }
+
+    // A frame that doesn't wrap passes that to what takes after it: a slide's placeholder takes it from its layout's (in a .pptx, where the
+    // placeholder's own a:bodyPr says nothing), a slide moved to a layout takes it from the layout's placeholder, a placeholder made on a
+    // slide from the layout copies it, and a layout's frame is written into the master page's styles of an .odp.
+    void textFramesTakeNoWrapFromTheirLayouts()
+    {
+        auto isFooter = [](const Item &it) {
+            const QString type = deck::placeholderType(it);
+            return type == QLatin1String("dt") || type == QLatin1String("ftr") || type == QLatin1String("sldNum") || type == QLatin1String("hdr");
+        };
+        // The .pptx: the layout's content placeholder says wrap="none"; the slide's, which is on that layout, says nothing.
+        Parts p = samplePptx();
+        QString layout = QString::fromUtf8(p.data["/ppt/slideLayouts/slideLayout2.xml"].xml);
+        const int at = layout.indexOf(QStringLiteral("name=\"Content Placeholder 2\""));
+        QVERIFY(at >= 0);
+        const int body = layout.indexOf(QStringLiteral("<a:bodyPr/>"), at);
+        QVERIFY(body > at);
+        layout.replace(body, int(QStringLiteral("<a:bodyPr/>").size()), QStringLiteral("<a:bodyPr wrap=\"none\"/>"));
+        p.data["/ppt/slideLayouts/slideLayout2.xml"].xml = layout.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto flagOf = [](const Document &doc, const Page &page, const QString &name, bool *found) {
+            *found = false;
+            for (const auto &it : page.items)
+                if (it->name == name && it->type() == ItemType::Text) {
+                    *found = true;
+                    return static_cast<const TextItem *>(it.get())->noWrap;
+                }
+            Q_UNUSED(doc);
+            return false;
+        };
+        bool found = false;
+        QVERIFY(flagOf(*d, *d->pages[0], QStringLiteral("Content Placeholder 2"), &found) && found);
+        QVERIFY(!flagOf(*d, *d->pages[0], QStringLiteral("Title 1"), &found) && found);
+        // And written back with the frame (the slide's own file says it now).
+        Exported e;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(flagOf(*again, *again->pages[0], QStringLiteral("Content Placeholder 2"), &found) && found);
+
+        // A new presentation: its layout "Two Content" has a title with no wrapping and a content place with none.
+        auto fresh = deck::newPresentation();
+        const MasterPage *two = deck::layoutOfType(*fresh, QStringLiteral("twoObj"));
+        QVERIFY(two && two->items.size() >= 3);
+        for (const auto &it : two->items)
+            if (it->type() == ItemType::Text && !isFooter(*it)) static_cast<TextItem *>(it.get())->noWrap = true;
+        Page &slide = *fresh->pages[0];
+        auto *title = static_cast<TextItem *>(slide.items[0].get());
+        QVERIFY(!title->noWrap);
+        deck::applyLayout(*fresh, slide, *two);
+        QVERIFY(title->noWrap);
+        // The places of the layout the slide's own fill and the one made for the place it had none for have the frame too.
+        int texts = 0;
+        for (const auto &it : slide.items)
+            if (it->type() == ItemType::Text && !deck::placeholderType(*it).isEmpty() && !isFooter(*it)) {
+                ++texts;
+                QVERIFY2(static_cast<const TextItem *>(it.get())->noWrap, qPrintable(it->role));
+            }
+        QVERIFY(texts >= 3);
+        // The .odp: the master pages' styles say no-wrap for the placeholders that say it, and wrap for the others.
+        auto wrapStyles = [&](const Document &doc, int *noWrap, int *wrap) {
+            QString why;
+            const QByteArray odp = deck::exportOdp(doc, false, &why);
+            QMap<QString, QByteArray> zip;
+            if (odp.isEmpty() || !readZip(odp, zip, &why)) return false;
+            const QString styles = QString::fromUtf8(zip.value(QStringLiteral("styles.xml")));
+            *noWrap = int(styles.count(QStringLiteral("fo:wrap-option=\"no-wrap\"")));
+            *wrap = int(styles.count(QStringLiteral("fo:wrap-option=\"wrap\"")));
+            return true;
+        };
+        auto framed = deck::newPresentation();
+        for (const auto &m : framed->masters)
+            for (const auto &it : m->items)
+                if (it->type() == ItemType::Text && !isFooter(*it)) static_cast<TextItem *>(it.get())->noWrap = true;
+        int noWrap = 0, wrap = 0;
+        QVERIFY(wrapStyles(*framed, &noWrap, &wrap));
+        QVERIFY2(noWrap >= 1, qPrintable(QString::number(noWrap)));
+        QVERIFY(wrap >= 1);   // (the footers' frames wrap)
+        auto plainDeck = deck::newPresentation();
+        int none = 0, all = 0;
+        QVERIFY(wrapStyles(*plainDeck, &none, &all));
+        QCOMPARE(none, 0);
+        QVERIFY(all >= 1);
+    }
+
     // Spacing as the file has it, set as the presentation program sets it (the text engine's slide lines): a line of a share (100 for a
     // single line) of 1.2 times the text size whatever the font, its extra spacing above it, and no space before the paragraph at the
     // top of the box.
@@ -21219,6 +22892,1312 @@ private Q_SLOTS:
         const double descent = lines[0].rect.bottom() - lines[0].baseline, shorter = 0.8 * 1.2 * 28;
         const double wanted = descent + 0.2 * 1.2 * 28 + std::max(0.75 * shorter, shorter - descent);
         QVERIFY2(qAbs(lines[1].baseline - lines[0].baseline - wanted) < 0.05, qPrintable(QString::number(lines[1].baseline - lines[0].baseline) + QStringLiteral(" vs ") + QString::number(wanted)));
+    }
+
+private:
+    // The text placeholder of that type on a slide, slide master, or layout.
+    static TextItem *holderOn(const PageBase &page, const QString &type)
+    {
+        for (const auto &it : page.items)
+            if (it->type() == ItemType::Text && deck::placeholderType(*it) == type) return static_cast<TextItem *>(it.get());
+        return nullptr;
+    }
+    // The font family the first letter of a placeholder's text is set in, and its size.
+    static QTextCharFormat firstLetterOf(const Document &d, const TextItem &t)
+    {
+        const QTextDocument *sd = d.storyDoc(t.storyId);
+        if (!sd) return QTextCharFormat();
+        const QTextBlock b = sd->begin();
+        return b.begin().atEnd() ? b.charFormat() : b.begin().fragment().charFormat();
+    }
+    static QString familyOfHolder(const Document &d, const TextItem &t) { return firstLetterOf(d, t).fontFamilies().toStringList().value(0); }
+    // The tab of the ribbon with that name, or -1.
+    static int tabNumber(const Ribbon &r, const QString &name)
+    {
+        for (int i = 0; i < r.tabCount(); ++i)
+            if (r.tabName(i) == name) return i;
+        return -1;
+    }
+    static std::unique_ptr<Document> throughPptx(const Document &d, QMap<QString, QByteArray> *zip = nullptr)
+    {
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(d, &err);
+        if (zip) readZip(bytes, *zip, &err);
+        return deck::importPresentation(bytes, &err);
+    }
+
+private Q_SLOTS:
+    // View > Slide Master opens Slide Master view on the layout of the slide being edited: the thumbnails pane lists each slide master with its
+    // layouts indented under it, the Slide Master tab comes first and is the one shown, and Close Master View goes back to the slide.
+    void slideMasterViewOpensAndCloses()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        w.editor()->setCurrentPage(1);
+        QAction *open = w.act(QStringLiteral("view.master"));
+        QVERIFY(open && w.act(QStringLiteral("master.close")));
+        const int tab = tabNumber(*w.ribbon(), QStringLiteral("Slide Master"));
+        QVERIFY(tab >= 0);
+        QVERIFY(!w.ribbon()->tabVisible(tab));
+        open->trigger();
+        QCOMPARE(w.view(), DeckWindow::View::Master);
+        Document *d = w.editor()->doc();
+        const QString layout = d->pages[1]->masterId;
+        QCOMPARE(w.editor()->masterView(), layout);
+        QVERIFY(w.ribbon()->tabVisible(tab));
+        QCOMPARE(w.ribbon()->current(), w.ribbon()->tab(QStringLiteral("Slide Master")));
+        QVERIFY(w.slidesPane()->isHidden() && !w.masterPane()->isHidden() && w.notesPane()->isHidden());
+        MasterPane *pane = w.masterPane();
+        QCOMPARE(pane->ids().size(), 10);
+        QCOMPARE(pane->ids().first(), QStringLiteral("SM1"));
+        QCOMPARE(pane->depthOf(QStringLiteral("SM1")), 0);
+        QCOMPARE(pane->depthOf(layout), 1);
+        QCOMPARE(pane->currentId(), layout);
+        // The tabs that work on slides wait.
+        QVERIFY(!w.ribbon()->tabVisible(tabNumber(*w.ribbon(), QStringLiteral("Transitions"))));
+        QVERIFY(!w.act(QStringLiteral("slide.new"))->isEnabled());
+        // Another row in the pane is edited on the canvas.
+        pane->selectPage(QStringLiteral("SM1"));
+        QCOMPARE(w.editor()->masterView(), QStringLiteral("SM1"));
+        QCOMPARE(w.editor()->surface(), d->master(QStringLiteral("SM1")));
+        w.act(QStringLiteral("master.close"))->trigger();
+        QCOMPARE(w.view(), DeckWindow::View::Normal);
+        QVERIFY(w.editor()->masterView().isEmpty());
+        QCOMPARE(w.editor()->currentPage(), 1);
+        QVERIFY(!w.slidesPane()->isHidden() && w.masterPane()->isHidden() && !w.notesPane()->isHidden());
+        QVERIFY(!w.ribbon()->tabVisible(tab));
+        QVERIFY(w.ribbon()->tabVisible(tabNumber(*w.ribbon(), QStringLiteral("Transitions"))));
+        QVERIFY(w.act(QStringLiteral("slide.new"))->isEnabled());
+    }
+
+    // The title font of the slide master, changed in Slide Master view, is the title font of every layout and slide whose title looked as the
+    // master's did; a slide whose title was set in a font by hand keeps it. It is one step that undoes.
+    void masterTitleFontReachesTheSlidesThatFollowIt()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two", "Three"});
+        Document *d = w.editor()->doc();
+        const QString heading = deck::themeOf(*d).headingFont;
+        {
+            const TextItem *own = holderOn(*d->pages[2], QStringLiteral("title"));
+            QVERIFY(own);
+            QTextCursor c(d->storyDoc(own->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies({QStringLiteral("Courier New")});
+            c.mergeCharFormat(f);
+        }
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), heading);
+        const int steps = w.editor()->undoStack()->count();
+        w.editMasters(QStringLiteral("SM1"));
+        w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->id);
+        w.editor()->setFontFamily(QStringLiteral("Georgia"));
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))), QStringLiteral("Georgia"));
+        for (const MasterPage *l : deck::layouts(*d, QStringLiteral("SM1"))) {
+            const TextItem *title = holderOn(*l, QStringLiteral("title")) ? holderOn(*l, QStringLiteral("title")) : holderOn(*l, QStringLiteral("ctrTitle"));
+            if (title) QCOMPARE(familyOfHolder(*d, *title), QStringLiteral("Georgia"));
+        }
+        // The Title Slide's title, and the slide whose title follows the layout.
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[0], QStringLiteral("ctrTitle"))), QStringLiteral("Georgia"));
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), QStringLiteral("Georgia"));
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[2], QStringLiteral("title"))), QStringLiteral("Courier New"));
+        // What the text says is still what it said.
+        QCOMPARE(titlesOf(*d), QStringList({"One", "Two", "Three"}));
+        w.editor()->undo();
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))), heading);
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), heading);
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[0], QStringLiteral("ctrTitle"))), heading);
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[2], QStringLiteral("title"))), QStringLiteral("Courier New"));
+        w.editor()->redo();
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), QStringLiteral("Georgia"));
+    }
+
+    // The size of the slide master's text is the size of the text of the layouts and slides that had its size, and not of the ones that had
+    // their own (Content with Caption sets its text at 32).
+    void masterBodySizeReachesTheSlidesThatFollowIt()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"}, {{"sub"}, {"a", "b"}});
+        Document *d = w.editor()->doc();
+        auto sizeOf = [&](const PageBase &page, const QString &type) { return firstLetterOf(*d, *holderOn(page, type)).fontPointSize(); };
+        QCOMPARE(sizeOf(*d->pages[1], QStringLiteral("obj")), 28.0);
+        w.editMasters(QStringLiteral("SM1"));
+        w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))->id);
+        w.editor()->setFontSize(40);
+        QCOMPARE(sizeOf(*d->master(QStringLiteral("SM1")), QStringLiteral("body")), 40.0);
+        QCOMPARE(sizeOf(*d->pages[1], QStringLiteral("obj")), 40.0);
+        QCOMPARE(sizeOf(*deck::layoutOfType(*d, QStringLiteral("twoObj")), QStringLiteral("obj")), 40.0);
+        QCOMPARE(sizeOf(*deck::layoutOfType(*d, QStringLiteral("objTx")), QStringLiteral("obj")), 32.0);
+        // Every paragraph of the slide's text, not just the first.
+        QTextDocument *story = bodyOfSlide(*d, 1);
+        QVERIFY(story && story->blockCount() == 2);
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) QCOMPARE(b.begin().fragment().charFormat().fontPointSize(), 40.0);
+    }
+
+    // A change to a layout shows on every slide that stands on it at once: a placeholder where the layout had it moves with it (one a slide
+    // moved by hand stays), and what the layout draws is drawn under the slides. Slides on other layouts don't change.
+    void layoutEditShowsOnItsSlidesAtOnce()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two", "Three"});
+        Document *d = w.editor()->doc();
+        const QString layout = d->pages[1]->masterId;
+        QCOMPARE(d->pages[2]->masterId, layout);
+        const QRectF was = holderOn(*d->pages[1], QStringLiteral("title"))->rect;
+        QCOMPARE(holderOn(*d->master(layout), QStringLiteral("title"))->rect, was);
+        holderOn(*d->pages[2], QStringLiteral("title"))->rect = QRectF(10, 10, 300, 40);
+        const QRectF titleSlide = holderOn(*d->pages[0], QStringLiteral("ctrTitle"))->rect;
+        w.editMasters(layout);
+        const QRectF moved(66, 60, 600, 80);
+        w.editor()->change(QStringLiteral("Move"), [&] { holderOn(*d->master(layout), QStringLiteral("title"))->rect = moved; });
+        QCOMPARE(holderOn(*d->pages[1], QStringLiteral("title"))->rect, moved);
+        QCOMPARE(holderOn(*d->pages[2], QStringLiteral("title"))->rect, QRectF(10, 10, 300, 40));
+        QCOMPARE(holderOn(*d->pages[0], QStringLiteral("ctrTitle"))->rect, titleSlide);
+        // A band across the foot of the layout.
+        auto band = std::make_shared<ShapeItem>();
+        band->shape = QStringLiteral("rect");
+        band->rect = QRectF(0, 480, 960, 60);
+        band->fill = Fill::solid(ColorRef::rgb(QColor(0x12, 0x34, 0x56)));
+        band->stroke = Stroke();
+        w.editor()->addItem(band, false);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d;
+        ctx.cache = &cache;
+        auto bandAt = [&](int slide) { return Renderer::renderToImage(ctx, slide, 1).pixelColor(480, 510) == QColor(0x12, 0x34, 0x56); };
+        QVERIFY(bandAt(1) && bandAt(2));
+        QVERIFY(!bandAt(0));
+        w.editor()->undo();
+        QVERIFY(!bandAt(1));
+    }
+
+    // Insert Layout adds a layout to the slide master (a title and the footers, as the slide master has them) after the one being edited, and
+    // opens it; Delete takes away a layout nothing stands on, and says why it won't take away one that slides stand on. Each is one step.
+    void layoutsAreInsertedAndDeleted()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        const QString used = d->pages[1]->masterId;
+        const int pages = int(d->masters.size());
+        w.editMasters(used);
+        const QString made = w.insertLayout();
+        QVERIFY(!made.isEmpty());
+        const MasterPage *layout = d->master(made);
+        QVERIFY(layout && deck::isLayout(*layout));
+        QCOMPARE(layout->baseId, QStringLiteral("SM1"));
+        QCOMPARE(layout->name, QStringLiteral("Custom Layout"));
+        QCOMPARE(int(d->masters.size()), pages + 1);
+        QCOMPARE(w.editor()->masterView(), made);
+        // Right after the layout that was open.
+        int at = -1, after = -1;
+        for (int i = 0; i < d->masters.size(); ++i) {
+            if (d->masters[i]->id == used) at = i;
+            if (d->masters[i]->id == made) after = i;
+        }
+        QCOMPARE(after, at + 1);
+        QVERIFY(holderOn(*layout, QStringLiteral("title")) && holderOn(*layout, QStringLiteral("dt")) && holderOn(*layout, QStringLiteral("ftr")) && holderOn(*layout, QStringLiteral("sldNum")));
+        QCOMPARE(holderOn(*layout, QStringLiteral("title"))->rect, holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->rect);
+        QCOMPARE(w.masterPane()->ids().size(), 11);
+        QCOMPARE(w.masterPane()->depthOf(made), 1);
+        // A second one is named another way, and a slide can stand on it.
+        const QString second = w.insertLayout();
+        QCOMPARE(d->master(second)->name, QStringLiteral("Custom Layout 2"));
+        w.editor()->setCurrentPage(1);
+        w.newSlide(QStringLiteral("id:") + second);
+        QCOMPARE(d->pages[2]->masterId, second);
+        QVERIFY(holderOn(*d->pages[2], QStringLiteral("title")));
+        // What a slide stands on stays, and the reason is given.
+        w.editMasters(made);
+        QString why;
+        QVERIFY(!w.deleteMasterPage(used, &why));
+        QVERIFY2(why.contains(QLatin1String("slide")), qPrintable(why));
+        QVERIFY(d->master(used));
+        QVERIFY(!w.deleteMasterPage(second, &why));
+        QVERIFY(w.deleteMasterPage(made, &why));
+        QVERIFY2(why.isEmpty(), qPrintable(why));
+        QVERIFY(!d->master(made) && d->master(second));
+        // The page being edited was taken away: the one before it is shown.
+        QCOMPARE(w.editor()->masterView(), used);
+        // Its text went with it.
+        w.editor()->setCurrentPage(2);
+        w.deleteSlide();
+        const int storiesNow = int(d->stories.size());
+        QVERIFY(w.deleteMasterPage(second, &why));
+        QCOMPARE(int(d->masters.size()), pages);
+        QCOMPARE(int(d->stories.size()), storiesNow - 4);   // its title, date, footer, and slide number
+        w.editor()->undo();
+        QVERIFY(d->master(second));
+        w.editor()->undo();   // the slide
+        w.editor()->undo();
+        QVERIFY(d->master(made));
+    }
+
+    // Insert Slide Master adds a slide master with the nine layouts after the one being edited, and opens it; a slide master no slide stands on
+    // can be deleted (with its layouts), the last one cannot, and neither can one with slides on it.
+    void slideMastersAreInsertedAndDeleted()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        QString why;
+        QVERIFY(!w.deleteMasterPage(QStringLiteral("SM1"), &why));
+        QVERIFY2(!why.isEmpty(), "the only slide master stays");
+        w.editMasters(d->pages[0]->masterId);
+        const QString made = w.insertSlideMaster();
+        const MasterPage *master = d->master(made);
+        QVERIFY(master && deck::isSlideMaster(*master));
+        QCOMPARE(master->name, QStringLiteral("Slide Master 2"));
+        QCOMPARE(deck::layouts(*d, made).size(), 9);
+        QCOMPARE(int(d->masters.size()), 20);
+        QCOMPARE(w.editor()->masterView(), made);
+        QCOMPARE(w.masterPane()->ids().size(), 20);
+        QCOMPARE(w.masterPane()->depthOf(made), 0);
+        // Its pages come right after the first master's, and the ids are all different.
+        QSet<QString> ids;
+        for (const auto &m : d->masters) ids.insert(m->id);
+        QCOMPARE(ids.size(), 20);
+        QCOMPARE(d->masters[10]->id, made);
+        // A slide on one of its layouts keeps it from being deleted.
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("obj"), made);
+        QVERIFY(layout);
+        w.editor()->setCurrentPage(1);
+        w.setLayout(QStringLiteral("id:") + layout->id);
+        QCOMPARE(d->pages[1]->masterId, layout->id);
+        QCOMPARE(deck::slideMasterOf(*d, 1), made);
+        QVERIFY(!w.deleteMasterPage(made, &why));
+        QVERIFY2(why.contains(QLatin1String("slide")), qPrintable(why));
+        w.setLayout(QStringLiteral("id:") + deck::layoutOfType(*d, QStringLiteral("obj"), QStringLiteral("SM1"))->id);
+        QCOMPARE(deck::slideMasterOf(*d, 1), QStringLiteral("SM1"));
+        const int stories = int(d->stories.size());
+        QVERIFY(w.deleteMasterPage(made, &why));
+        QCOMPARE(int(d->masters.size()), 10);
+        QVERIFY(d->stories.size() < stories);
+        QVERIFY(w.editor()->masterView().isEmpty() || d->master(w.editor()->masterView()));
+        w.editor()->undo();
+        QCOMPARE(int(d->masters.size()), 20);
+        QVERIFY(d->master(made));
+    }
+
+    // Deleting the first slide master hands the presentation's theme to the next one.
+    void deletingTheFirstSlideMasterKeepsTheTheme()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        w.editMasters(QStringLiteral("SM1"));
+        const QString made = w.insertSlideMaster();
+        w.closeMasters();
+        const QString theme = deck::themeOf(*d).name;
+        w.setLayout(QStringLiteral("id:") + deck::layoutOfType(*d, QStringLiteral("obj"), made)->id);
+        w.setLayout(QStringLiteral("id:") + deck::layoutOfType(*d, QStringLiteral("title"), made)->id);
+        QString why;
+        QVERIFY2(w.deleteMasterPage(QStringLiteral("SM1"), &why), qPrintable(why));
+        QCOMPARE(int(d->masters.size()), 10);
+        QCOMPARE(deck::themeOf(*d).name, theme);
+        QCOMPARE(deck::slideMasterOf(*d, 0), made);
+        QVERIFY(!deck::exportPresentation(*d).isEmpty());
+    }
+
+    // The slide master that has the presentation's theme can be deleted once no slide stands on it: the next slide master's theme becomes the
+    // presentation's.
+    void deletingTheFirstSlideMasterHandsOnTheThemeOfTheNext()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        const QString first = deck::themeOf(*d).name;
+        // Both slides go to a slide master of a theme of their own (the second time reuses the first's).
+        w.editor()->setCurrentPage(0);
+        w.applyTheme(1, false);
+        w.editor()->setCurrentPage(1);
+        w.applyTheme(1, false);
+        QCOMPARE(deck::themeOf(*d).name, first);
+        QString second;
+        for (const auto &m : d->masters)
+            if (deck::isSlideMaster(*m) && m->id != QLatin1String("SM1")) second = m->id;
+        QVERIFY(!second.isEmpty());
+        QCOMPARE(deck::slideMasterOf(*d, 0), second);
+        QCOMPARE(deck::slideMasterOf(*d, 1), second);
+        QString why;
+        QVERIFY2(w.deleteMasterPage(QStringLiteral("SM1"), &why), qPrintable(why));
+        QCOMPARE(deck::themeOf(*d).name, deck::builtinThemeName(1));
+        QCOMPARE(deck::themeOf(*d).headingFont, deck::builtinThemeFonts(1).heading);
+        QCOMPARE(d->fonts.heading, deck::builtinThemeFonts(1).heading);
+        // Saved and read again, the presentation has that theme.
+        auto back = throughPptx(*d);
+        QVERIFY(back);
+        QCOMPARE(deck::themeOf(*back).headingFont, deck::builtinThemeFonts(1).heading);
+        QCOMPARE(int(deck::layouts(*back).size()), 9);
+    }
+
+    // The commands that work on a slide wait while a master or layout is open, and come back as they were (Delete Slide stays off in a
+    // presentation of one slide).
+    void slideCommandsComeBackWithTheirOwnState()
+    {
+        DeckWindow w;
+        QVERIFY(!w.act(QStringLiteral("slide.delete"))->isEnabled());
+        w.editMasters();
+        for (const char *id : {"slide.new", "slide.duplicate", "slide.reset", "insert.headerFooter", "insert.video", "section.add", "comment.new"})
+            QVERIFY2(!w.act(QString::fromLatin1(id))->isEnabled(), id);
+        w.closeMasters();
+        for (const char *id : {"slide.new", "slide.duplicate", "slide.reset", "insert.headerFooter", "insert.video", "section.add", "comment.new"})
+            QVERIFY2(w.act(QString::fromLatin1(id))->isEnabled(), id);
+        QVERIFY(!w.act(QStringLiteral("slide.delete"))->isEnabled());
+        w.newSlide();
+        w.editMasters();
+        QVERIFY(!w.act(QStringLiteral("slide.delete"))->isEnabled());
+        w.closeMasters();
+        QVERIFY(w.act(QStringLiteral("slide.delete"))->isEnabled());
+    }
+
+    // Master Layout's dialog has a box for each place of the slide master, and says which are checked.
+    void masterLayoutDialogHasABoxForEachPlace()
+    {
+        deck::MasterParts parts;
+        parts.title = parts.date = true;
+        MasterLayoutDialog dlg(parts);
+        QCOMPARE(dlg.findChildren<QCheckBox *>().size(), 5);
+        QCOMPARE(dlg.parts(), parts);
+        dlg.findChild<QCheckBox *>(QStringLiteral("footer"))->setChecked(true);
+        dlg.findChild<QCheckBox *>(QStringLiteral("title"))->setChecked(false);
+        parts.footer = true;
+        parts.title = false;
+        QCOMPARE(dlg.parts(), parts);
+    }
+
+    // Rename changes the name of a slide master or layout, as one step; nothing is renamed to nothing.
+    void masterPagesAreRenamed()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        const QString layout = d->pages[0]->masterId;
+        w.editMasters(layout);
+        const int steps = w.editor()->undoStack()->count();
+        w.renameMasterPage(layout, QStringLiteral("Opening"));
+        w.renameMasterPage(QStringLiteral("SM1"), QStringLiteral("House Style"));
+        QCOMPARE(d->master(layout)->name, QStringLiteral("Opening"));
+        QCOMPARE(d->master(QStringLiteral("SM1"))->name, QStringLiteral("House Style"));
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 2);
+        w.renameMasterPage(layout, QStringLiteral("   "));
+        QCOMPARE(d->master(layout)->name, QStringLiteral("Opening"));
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 2);
+        QCOMPARE(w.masterPane()->nameOf(layout), QStringLiteral("Opening"));
+        w.editor()->undo();
+        QCOMPARE(d->master(QStringLiteral("SM1"))->name, QStringLiteral("Slide Master"));
+        // The names are what a saved file calls them: the new one of the layout (and not the old), and the master's own.
+        w.renameMasterPage(QStringLiteral("SM1"), QStringLiteral("House Style"));
+        QMap<QString, QByteArray> zip;
+        auto back = throughPptx(*d, &zip);
+        QVERIFY(back);
+        QStringList masters, layouts;
+        for (const auto &m : back->masters) (deck::isSlideMaster(*m) ? masters : layouts) << m->name;
+        QCOMPARE(masters, QStringList{"House Style"});
+        QVERIFY(layouts.contains(QStringLiteral("Opening")));
+        QVERIFY(!layouts.contains(QStringLiteral("Title Slide")));
+        QCOMPARE(layouts.size(), 9);
+        QVERIFY(zip.value(QStringLiteral("ppt/slideMasters/slideMaster1.xml")).contains("<p:cSld name=\"House Style\">"));
+        QVERIFY(zip.value(QStringLiteral("ppt/slideLayouts/slideLayout1.xml")).contains("<p:cSld name=\"Opening\">"));
+    }
+
+    // Insert Placeholder puts a placeholder of the kind on the layout, selected and ready to place, with the next number its placeholders
+    // have; a slide put on the layout has it, empty. Each is one step.
+    void placeholdersAreInsertedOnALayout()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("titleOnly"));
+        QVERIFY(layout);
+        const QString id = layout->id;
+        w.editMasters(id);
+        const int items = int(layout->items.size());
+        struct Kind { deck::PlaceholderKind kind; const char *role; };
+        int n = 0;
+        for (const Kind &k : {Kind{deck::PlaceholderKind::Content, "ph:obj:1"}, Kind{deck::PlaceholderKind::Text, "ph:body:2"}, Kind{deck::PlaceholderKind::Picture, "ph:pic:3"},
+                              Kind{deck::PlaceholderKind::Chart, "ph:chart:4"}, Kind{deck::PlaceholderKind::Table, "ph:tbl:5"}, Kind{deck::PlaceholderKind::Media, "ph:media:6"},
+                              Kind{deck::PlaceholderKind::OnlineImage, "ph:clipArt:7"}}) {
+            const int steps = w.editor()->undoStack()->count();
+            const QString made = w.insertPlaceholder(k.kind);
+            QVERIFY2(!made.isEmpty(), k.role);
+            const Item *it = d->item(made);
+            QVERIFY(it);
+            QCOMPARE(it->role, QString::fromLatin1(k.role));
+            QCOMPARE(w.editor()->selection(), QStringList{made});
+            QVERIFY(it->rect.width() > 50 && it->rect.height() > 30 && QRectF(0, 0, 960, 540).contains(it->rect));
+            QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
+            QCOMPARE(int(d->master(id)->items.size()), items + ++n);
+        }
+        // A second one of a kind doesn't sit exactly on the first.
+        const QString again = w.insertPlaceholder(deck::PlaceholderKind::Content);
+        QCOMPARE(d->item(again)->role, QStringLiteral("ph:obj:8"));
+        for (const auto &it : d->master(id)->items)
+            if (it->id != again && it->role == QLatin1String("ph:obj:1")) QVERIFY(it->rect != d->item(again)->rect);
+        // A slide on the layout has the places, with nothing in them.
+        w.editor()->setCurrentPage(1);
+        w.setLayout(QStringLiteral("id:") + id);
+        QVERIFY(holderOn(*d->pages[1], QStringLiteral("chart")) && holderOn(*d->pages[1], QStringLiteral("pic")) && holderOn(*d->pages[1], QStringLiteral("media")));
+        QVERIFY(d->storyDoc(holderOn(*d->pages[1], QStringLiteral("tbl"))->storyId)->isEmpty());
+        // On a layout only: a slide master has none of these.
+        w.editMasters(QStringLiteral("SM1"));
+        QVERIFY(w.insertPlaceholder(deck::PlaceholderKind::Chart).isEmpty());
+        QVERIFY(!w.act(QStringLiteral("master.placeholder.chart"))->isEnabled());
+    }
+
+    // The Title and Footers boxes of a layout give it a title and the date, footer, and slide number, as the slide master has them, and
+    // take them away.
+    void layoutTitleAndFootersAreBoxes()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        const MasterPage *blank = deck::layoutOfType(*d, QStringLiteral("blank"));
+        QVERIFY(blank);
+        const QString id = blank->id;
+        w.editMasters(id);
+        QVERIFY(!w.act(QStringLiteral("master.title"))->isChecked() && w.act(QStringLiteral("master.footers"))->isChecked());
+        QVERIFY(!deck::layoutHasTitle(*blank) && deck::layoutHasFooters(*blank));
+        w.setLayoutTitle(true);
+        QVERIFY(deck::layoutHasTitle(*d->master(id)));
+        QCOMPARE(holderOn(*d->master(id), QStringLiteral("title"))->rect, holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->rect);
+        QVERIFY(w.act(QStringLiteral("master.title"))->isChecked());
+        w.setLayoutFooters(false);
+        QVERIFY(!deck::layoutHasFooters(*d->master(id)));
+        QVERIFY(!holderOn(*d->master(id), QStringLiteral("dt")) && !holderOn(*d->master(id), QStringLiteral("ftr")) && !holderOn(*d->master(id), QStringLiteral("sldNum")));
+        QVERIFY(!w.act(QStringLiteral("master.footers"))->isChecked());
+        w.setLayoutFooters(true);
+        QVERIFY(holderOn(*d->master(id), QStringLiteral("dt")) && holderOn(*d->master(id), QStringLiteral("ftr")) && holderOn(*d->master(id), QStringLiteral("sldNum")));
+        w.setLayoutTitle(false);
+        QVERIFY(!deck::layoutHasTitle(*d->master(id)));
+        w.editor()->undo();
+        QVERIFY(deck::layoutHasTitle(*d->master(id)));
+        // Not on a slide master, which has its own boxes.
+        w.editMasters(QStringLiteral("SM1"));
+        QVERIFY(!w.act(QStringLiteral("master.title"))->isEnabled() && !w.act(QStringLiteral("master.footers"))->isEnabled());
+    }
+
+    // Master Layout says which places the slide master has: the title, text, date, slide number, and footer.
+    void masterLayoutChoosesThePlacesOfTheMaster()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        w.editMasters(QStringLiteral("SM1"));
+        const MasterPage *master = d->master(QStringLiteral("SM1"));
+        deck::MasterParts parts = deck::masterParts(*master);
+        QVERIFY(parts.title && parts.text && parts.date && parts.number && parts.footer);
+        const int steps = w.editor()->undoStack()->count();
+        parts.date = parts.footer = false;
+        w.setMasterParts(parts);
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
+        QVERIFY(!holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("dt")) && !holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("ftr")));
+        QVERIFY(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("sldNum")));
+        // The layouts keep theirs.
+        QVERIFY(holderOn(*deck::layoutOfType(*d, QStringLiteral("obj")), QStringLiteral("dt")));
+        parts.date = true;
+        parts.text = false;
+        w.setMasterParts(parts);
+        QCOMPARE(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("dt"))->rect, QRectF(66, 500.5, 216, 28.75));
+        QVERIFY(!holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body")));
+        QCOMPARE(deck::masterParts(*d->master(QStringLiteral("SM1"))), parts);
+        // Saved without them, and read back without them.
+        auto back = throughPptx(*d);
+        QVERIFY(back);
+        QCOMPARE(deck::masterParts(*back->masters[0]), parts);
+        // Only on a slide master.
+        w.editMasters(d->pages[0]->masterId);
+        QVERIFY(!w.act(QStringLiteral("master.layout"))->isEnabled());
+    }
+
+    // Hide Background Graphics on a layout stops the slide master's graphics showing on its slides, and is written to the file.
+    void hidingBackgroundGraphicsOnALayout()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        w.editMasters(QStringLiteral("SM1"));
+        auto band = std::make_shared<ShapeItem>();
+        band->shape = QStringLiteral("rect");
+        band->rect = QRectF(0, 480, 960, 60);
+        band->fill = Fill::solid(ColorRef::rgb(QColor(0x65, 0x43, 0x21)));
+        band->stroke = Stroke();
+        w.editor()->addItem(band, false);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d;
+        ctx.cache = &cache;
+        auto bandAt = [&](int slide) { return Renderer::renderToImage(ctx, slide, 1).pixelColor(480, 510) == QColor(0x65, 0x43, 0x21); };
+        QVERIFY(bandAt(1));
+        const QString layout = d->pages[1]->masterId;
+        w.editMasters(layout);
+        QVERIFY(!w.act(QStringLiteral("master.hideBackground"))->isChecked());
+        w.hideBackgroundGraphics(true);
+        QVERIFY(!d->master(layout)->showMasterItems);
+        QVERIFY(w.act(QStringLiteral("master.hideBackground"))->isChecked());
+        QVERIFY(!bandAt(1) && bandAt(0));
+        QMap<QString, QByteArray> zip;
+        auto back = throughPptx(*d, &zip);
+        QVERIFY(back);
+        QStringList hidden;
+        for (const auto &m : back->masters)
+            if (deck::isLayout(*m) && !m->showMasterItems) hidden << m->name;
+        QCOMPARE(hidden, QStringList{"Title and Content"});
+        w.editor()->undo();
+        QVERIFY(bandAt(1));
+    }
+
+    // Hide Background Graphics on a slide (the Format Background box) does the same for that slide alone, and is saved with it.
+    void hidingBackgroundGraphicsOnASlide()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        w.editMasters(QStringLiteral("SM1"));
+        auto band = std::make_shared<ShapeItem>();
+        band->shape = QStringLiteral("rect");
+        band->rect = QRectF(0, 480, 960, 60);
+        band->fill = Fill::solid(ColorRef::rgb(QColor(0x65, 0x43, 0x21)));
+        band->stroke = Stroke();
+        w.editor()->addItem(band, false);
+        w.closeMasters();
+        w.editor()->setCurrentPage(1);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d;
+        ctx.cache = &cache;
+        auto bandAt = [&](int slide) { return Renderer::renderToImage(ctx, slide, 1).pixelColor(480, 510) == QColor(0x65, 0x43, 0x21); };
+        QVERIFY(!w.act(QStringLiteral("master.hideBackground"))->isEnabled());
+        QVERIFY(bandAt(0) && bandAt(1));
+        w.hideBackgroundGraphics(true);
+        QVERIFY(!d->pages[1]->showMasterItems && d->pages[0]->showMasterItems);
+        QVERIFY(bandAt(0) && !bandAt(1));
+        QMap<QString, QByteArray> zip;
+        auto back = throughPptx(*d, &zip);
+        QVERIFY(back);
+        QVERIFY(back->pages[0]->showMasterItems && !back->pages[1]->showMasterItems);
+        QVERIFY(zip.value(QStringLiteral("ppt/slides/slide2.xml")).contains("showMasterSp=\"0\""));
+        w.editor()->undo();
+        QVERIFY(d->pages[1]->showMasterItems && bandAt(1));
+        // The Format Background box says what the slide has, and sets it.
+        BackgroundDialog dlg(Qt::white, d->colors);
+        dlg.setHideGraphics(true);
+        QVERIFY(dlg.hideGraphics());
+        QVERIFY(dlg.findChild<QCheckBox *>(QStringLiteral("hideGraphics")));
+    }
+
+    // Colors, fonts, and background styles chosen while a slide master is open change the presentation as they do in Normal view: text that
+    // lies on a picture stays as the readable color it was kept in, and is not carried to the layout's new color as an edit of the layout.
+    void designChangesInMasterViewAreTheSameAsInNormalView()
+    {
+        auto run = [&](bool inMaster) {
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"}, {{"sub"}, {"a", "b"}});
+            Document *d = w.editor()->doc();
+            // A white picture over the whole of slide 2, under its words.
+            auto picture = std::make_shared<PictureItem>();
+            picture->imageId = d->addImage(odptest::png(40, 30, Qt::white), QStringLiteral("png"));
+            picture->rect = QRectF(0, 0, 960, 540);
+            picture->imgRect = QRectF(0, 0, 960, 540);
+            d->pages[1]->items.insert(d->pages[1]->items.begin(), picture);
+            if (inMaster) w.editMasters(d->pages[1]->masterId);
+            w.chooseFonts(deck::fontSets().value(2));
+            w.chooseColors(deck::colorSets().value(3));
+            w.chooseBackgroundStyle(11);   // Dark 1
+            const TextItem *title = holderOn(*d->pages[1], QStringLiteral("title"));
+            const TextItem *body = holderOn(*d->pages[1], QStringLiteral("obj"));
+            const TextItem *first = holderOn(*d->pages[0], QStringLiteral("ctrTitle"));
+            const TextItem *master = holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"));
+            auto color = [&](const TextItem *t) { return firstLetterOf(*d, *t).foreground().color().name(); };
+            return QStringList{familyOfHolder(*d, *title), color(title), color(body), color(first), familyOfHolder(*d, *master), color(master),
+                               d->master(QStringLiteral("SM1"))->background.color.resolve(d->colors).name(), QString::number(w.editor()->undoStack()->count())};
+        };
+        const QStringList normal = run(false);
+        QCOMPARE(run(true), normal);
+        // (The words on the picture did stay a color that reads on it, and the others turned light on the dark background.)
+        QVERIFY(normal[1] != normal[3]);
+    }
+
+    // Preserve keeps a slide master or layout in the file whether or not slides stand on it; it is on unless it was turned off, and the file
+    // says so either way.
+    void preserveIsKeptInTheFile()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        w.editMasters(QStringLiteral("SM1"));
+        QVERIFY(w.act(QStringLiteral("master.preserve"))->isChecked());
+        const QString layout = deck::layoutOfType(*d, QStringLiteral("blank"))->id;
+        QMap<QString, QByteArray> zip;
+        auto same = throughPptx(*d, &zip);
+        QVERIFY(same && zip.value(QStringLiteral("ppt/slideMasters/slideMaster1.xml")).contains("preserve=\"1\""));
+        w.setPreserve(layout, false);
+        QVERIFY(!deck::isPreserved(*d->master(layout)));
+        w.editMasters(layout);
+        QVERIFY(!w.act(QStringLiteral("master.preserve"))->isChecked());
+        auto back = throughPptx(*d, &zip);
+        QVERIFY(back);
+        int off = 0, on = 0;
+        for (const auto &m : back->masters) {
+            if (!deck::isLayout(*m)) continue;
+            if (deck::isPreserved(*m)) ++on;
+            else {
+                ++off;
+                QCOMPARE(m->name, QStringLiteral("Blank"));
+            }
+        }
+        QCOMPARE(off, 1);
+        QCOMPARE(on, 8);
+        QVERIFY(zip.value(QStringLiteral("ppt/slideLayouts/slideLayout7.xml")).contains("preserve=\"0\""));
+        w.setPreserve(layout, true);
+        QVERIFY(deck::isPreserved(*d->master(layout)));
+    }
+
+    // An edited slide master, a second slide master, and a new layout with its own graphic and places are saved to a .pptx as the other program
+    // writes them (the parts, their links, the layouts' ids, the places' types and numbers) and read back as they were.
+    void editedMastersRoundTripThroughPptx()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        w.editMasters(QStringLiteral("SM1"));
+        w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->id);
+        w.editor()->setFontFamily(QStringLiteral("Georgia"));
+        const QString second = w.insertSlideMaster();
+        w.renameMasterPage(second, QStringLiteral("Annual Report"));
+        const QString custom = w.insertLayout();
+        w.renameMasterPage(custom, QStringLiteral("Big Chart"));
+        w.insertPlaceholder(deck::PlaceholderKind::Chart);
+        w.insertPlaceholder(deck::PlaceholderKind::Text);
+        auto bar = std::make_shared<ShapeItem>();
+        bar->shape = QStringLiteral("rect");
+        bar->name = QStringLiteral("Bar");
+        bar->rect = QRectF(0, 0, 960, 20);
+        bar->fill = Fill::solid(ColorRef::rgb(QColor(0xAA, 0x22, 0x22)));
+        w.editor()->addItem(bar, false);
+        w.hideBackgroundGraphics(true);
+        w.setPreserve(second, false);
+        w.editor()->setCurrentPage(1);
+        w.setLayout(QStringLiteral("id:") + custom);
+        w.closeMasters();
+
+        QMap<QString, QByteArray> zip;
+        auto back = throughPptx(*d, &zip);
+        QVERIFY(back);
+        // The parts: two slide masters, nineteen layouts, each layout linked from its master with an id of its own.
+        QStringList masterParts, layoutParts;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) {
+            if (it.key().startsWith(QLatin1String("ppt/slideMasters/slideMaster")) && it.key().endsWith(QLatin1String(".xml"))) masterParts << it.key();
+            if (it.key().startsWith(QLatin1String("ppt/slideLayouts/slideLayout")) && it.key().endsWith(QLatin1String(".xml"))) layoutParts << it.key();
+        }
+        QCOMPARE(masterParts.size(), 2);
+        QCOMPARE(layoutParts.size(), 19);
+        QSet<QString> ids;
+        int listed = 0;
+        for (const QString &part : masterParts) {
+            const QString xml = QString::fromUtf8(zip.value(part));
+            QVERIFY(xml.contains(QLatin1String("<p:sldLayoutIdLst>")));
+            QRegularExpressionMatchIterator m = QRegularExpression(QStringLiteral("<p:sldLayoutId id=\"(\\d+)\" r:id=\"(rId\\d+)\"/>")).globalMatch(xml);
+            while (m.hasNext()) {
+                const auto match = m.next();
+                QVERIFY2(!ids.contains(match.captured(1)), "the layout ids are all different");
+                ids.insert(match.captured(1));
+                QVERIFY(match.captured(1).toLongLong() >= 2147483648LL && match.captured(1).toLongLong() <= 4294967295LL);
+                ++listed;
+                const QString rels = QString::fromUtf8(zip.value(part.section('/', 0, -2) + QStringLiteral("/_rels/") + part.section('/', -1) + QStringLiteral(".rels")));
+                QVERIFY2(rels.contains(QLatin1String("Id=\"") + match.captured(2) + QLatin1String("\"")), qPrintable(part));
+            }
+        }
+        QCOMPARE(listed, 19);
+        // The custom layout: not one of the standard types, drawn by the user, with its places named by type and number.
+        QString customXml;
+        for (const QString &part : layoutParts) {
+            const QString xml = QString::fromUtf8(zip.value(part));
+            if (xml.contains(QLatin1String("name=\"Big Chart\""))) customXml = xml;
+        }
+        QVERIFY(!customXml.isEmpty());
+        QVERIFY(customXml.contains(QLatin1String("userDrawn=\"1\"")) && !customXml.contains(QLatin1String(" type=\"cust\"")));
+        QVERIFY(customXml.contains(QLatin1String("showMasterSp=\"0\"")));
+        QVERIFY(customXml.contains(QRegularExpression(QStringLiteral("<p:ph type=\"chart\" idx=\"1\"/>"))));
+        QVERIFY(customXml.contains(QRegularExpression(QStringLiteral("<p:ph type=\"body\" idx=\"2\"/>"))));
+        QVERIFY(customXml.contains(QLatin1String("<p:ph type=\"title\"/>")));
+        // Read back.
+        QStringList masters, layouts;
+        for (const auto &m : back->masters) (deck::isSlideMaster(*m) ? masters : layouts) << m->name;
+        QCOMPARE(masters, QStringList({"Slide Master", "Annual Report"}));
+        QCOMPARE(layouts.size(), 19);
+        QVERIFY(layouts.contains(QStringLiteral("Big Chart")));
+        const MasterPage *again = nullptr;
+        for (const auto &m : back->masters)
+            if (m->name == QLatin1String("Big Chart")) again = m.get();
+        QVERIFY(again);
+        QVERIFY(!again->showMasterItems);
+        QVERIFY(holderOn(*again, QStringLiteral("chart")) && holderOn(*again, QStringLiteral("body")) && holderOn(*again, QStringLiteral("title")));
+        QCOMPARE(holderOn(*again, QStringLiteral("chart"))->rect, holderOn(*d->master(custom), QStringLiteral("chart"))->rect);
+        QCOMPARE(holderOn(*again, QStringLiteral("body"))->role, QStringLiteral("ph:body:2"));
+        bool bar2 = false;
+        for (const auto &it : again->items) bar2 = bar2 || it->name == QLatin1String("Bar");
+        QVERIFY(bar2);
+        QCOMPARE(back->pages[1]->masterId, again->id);
+        QCOMPARE(back->masterFor(*back->pages[1])->name, QStringLiteral("Big Chart"));
+        QCOMPARE(familyOfHolder(*back, *holderOn(*back->master(back->masters[0]->id), QStringLiteral("title"))), QStringLiteral("Georgia"));
+        QCOMPARE(deck::slideMasterOf(*back, 1), back->masters[10]->id);
+        // Preserve, as set.
+        int notPreserved = 0;
+        for (const auto &m : back->masters) notPreserved += deck::isPreserved(*m) ? 0 : 1;
+        QCOMPARE(notPreserved, 1);
+        QVERIFY(!deck::isPreserved(*back->masters[10]));
+        // Saved again, the same.
+        QMap<QString, QByteArray> zip2;
+        auto twice = throughPptx(*back, &zip2);
+        QVERIFY(twice);
+        QCOMPARE(twice->masters.size(), back->masters.size());
+        for (int i = 0; i < back->masters.size(); ++i) {
+            QCOMPARE(twice->masters[i]->name, back->masters[i]->name);
+            QCOMPARE(twice->masters[i]->baseId == back->masters[i]->baseId, true);
+            QCOMPARE(deck::isPreserved(*twice->masters[i]), deck::isPreserved(*back->masters[i]));
+            QCOMPARE(twice->masters[i]->showMasterItems, back->masters[i]->showMasterItems);
+            QCOMPARE(twice->masters[i]->items.size(), back->masters[i]->items.size());
+        }
+        QCOMPARE(layoutParts.size(), 19);
+    }
+
+    // The same through a .odp: the slide master's edited title, and a layout with a graphic of its own that a slide stands on.
+    void editedMastersRoundTripThroughOdp()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        w.editMasters(QStringLiteral("SM1"));
+        w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->id);
+        w.editor()->setFontFamily(QStringLiteral("Georgia"));
+        w.editor()->setFontSize(36);
+        const QString custom = w.insertLayout();
+        w.renameMasterPage(custom, QStringLiteral("Banner"));
+        auto bar = std::make_shared<ShapeItem>();
+        bar->shape = QStringLiteral("rect");
+        bar->name = QStringLiteral("Bar");
+        bar->rect = QRectF(0, 0, 960, 20);
+        bar->fill = Fill::solid(ColorRef::rgb(QColor(0xAA, 0x22, 0x22)));
+        w.editor()->addItem(bar, false);
+        w.editor()->setCurrentPage(1);
+        w.setLayout(QStringLiteral("id:") + custom);
+        w.closeMasters();
+        QString err;
+        QStringList skipped;
+        const QByteArray odp = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        auto back = deck::importOdp(odp, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(back->pages.size(), 2);
+        const MasterPage *master = nullptr;
+        for (const auto &m : back->masters)
+            if (deck::isSlideMaster(*m)) master = m.get();
+        QVERIFY(master);
+        const TextItem *title = holderOn(*master, QStringLiteral("title"));
+        QVERIFY(title);
+        QCOMPARE(familyOfHolder(*back, *title), QStringLiteral("Georgia"));
+        QCOMPARE(firstLetterOf(*back, *title).fontPointSize(), 36.0);
+        // The slide on the layout with the bar has the bar under it, as before.
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = back.get();
+        ctx.cache = &cache;
+        const QImage first = Renderer::renderToImage(ctx, 1, 1);
+        QCOMPARE(first.pixelColor(480, 10), QColor(0xAA, 0x22, 0x22));
+        QVERIFY(Renderer::renderToImage(ctx, 0, 1).pixelColor(480, 10) != QColor(0xAA, 0x22, 0x22));
+        // The first slide of the original is the same.
+        QCOMPARE(titlesOf(*back), QStringList({"One", "Two"}));
+    }
+
+    // Every edit of Slide Master view is one step: a command of the tab, a change of the canvas, and nothing for opening and closing.
+    void masterViewEditsAreOneStepEach()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        const int steps = w.editor()->undoStack()->count();
+        w.editMasters(QStringLiteral("SM1"));
+        w.closeMasters();
+        QCOMPARE(w.editor()->undoStack()->count(), steps);
+        w.editMasters(QStringLiteral("SM1"));
+        const QString layout = w.insertLayout();
+        w.insertPlaceholder(deck::PlaceholderKind::Picture);
+        w.setLayoutFooters(false);
+        w.hideBackgroundGraphics(true);
+        w.renameMasterPage(layout, QStringLiteral("X"));
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 5);
+        for (int i = 0; i < 5; ++i) w.editor()->undo();
+        QVERIFY(!d->master(layout));
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 5);
+        QCOMPARE(w.editor()->undoStack()->index(), steps);
+        for (int i = 0; i < 5; ++i) w.editor()->redo();
+        QCOMPARE(d->master(layout)->name, QStringLiteral("X"));
+        w.closeMasters();
+        QCOMPARE(w.view(), DeckWindow::View::Normal);
+        w.editor()->undo();
+        QCOMPARE(d->master(layout)->name, QStringLiteral("Custom Layout"));
+        // The page that edit was made on is shown again.
+        QCOMPARE(w.view(), DeckWindow::View::Master);
+        QCOMPARE(w.editor()->masterView(), layout);
+    }
+
+    // The presentations a person checks in the other program (saved into the folder JP_SHOT_DIR names, when it is set): an edited slide master, a
+    // second slide master with a custom layout, every kind of placeholder, a slide master without its places, one with the first slide master
+    // deleted, and a slide that hides the background graphics. Each is saved, read again, and found as it was.
+    void savedMasterCasesForTheOtherProgram()
+    {
+        const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+        auto save = [&](Document &d, const QString &name) {
+            QString err;
+            const QByteArray bytes = deck::exportPresentation(d, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            if (dir.isEmpty()) return;
+            QDir().mkpath(dir);
+            QFile f(dir + QLatin1Char('/') + name + QStringLiteral(".pptx"));
+            if (f.open(QIODevice::WriteOnly)) f.write(bytes);
+        };
+        auto band = [](const QRectF &r, const QColor &c) {
+            auto b = std::make_shared<ShapeItem>();
+            b->shape = QStringLiteral("rect");
+            b->name = QStringLiteral("Band");
+            b->rect = r;
+            b->fill = Fill::solid(ColorRef::rgb(c));
+            b->stroke = Stroke();
+            return b;
+        };
+        {   // The slide master's title in another font and size, and a slide of its own.
+            DeckWindow w;
+            fillSlides(w, {"Opening", "Following the master", "Setting its own"}, {{"sub"}, {"Body text"}, {"Body text"}});
+            Document *d = w.editor()->doc();
+            QTextCursor c(d->storyDoc(holderOn(*d->pages[2], QStringLiteral("title"))->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat own;
+            own.setFontFamilies({QStringLiteral("Courier New")});
+            c.mergeCharFormat(own);
+            w.editMasters(QStringLiteral("SM1"));
+            w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->id);
+            w.editor()->setFontFamily(QStringLiteral("Georgia"));
+            w.editor()->setFontSize(36);
+            w.editor()->toggleBold();
+            w.closeMasters();
+            save(*d, QStringLiteral("master-edited-title"));
+            auto back = throughPptx(*d);
+            QVERIFY(back);
+            QCOMPARE(familyOfHolder(*back, *holderOn(*back->master(back->masters[0]->id), QStringLiteral("title"))), QStringLiteral("Georgia"));
+            QCOMPARE(familyOfHolder(*back, *holderOn(*back->pages[1], QStringLiteral("title"))), QStringLiteral("Georgia"));
+            QCOMPARE(familyOfHolder(*back, *holderOn(*back->pages[2], QStringLiteral("title"))), QStringLiteral("Courier New"));
+        }
+        {   // A second slide master with a custom layout: a chart place, a text place, a bar, no master graphics; not preserved.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editMasters(QStringLiteral("SM1"));
+            w.editor()->addItem(band(QRectF(0, 0, 960, 12), QColor(0x2B, 0x7A, 0x78)), false);
+            const QString second = w.insertSlideMaster();
+            w.renameMasterPage(second, QStringLiteral("Annual Report"));
+            const QString custom = w.insertLayout();
+            w.renameMasterPage(custom, QStringLiteral("Big Chart"));
+            w.insertPlaceholder(deck::PlaceholderKind::Chart);
+            w.insertPlaceholder(deck::PlaceholderKind::Text);
+            w.editor()->addItem(band(QRectF(0, 520, 960, 20), QColor(0xAA, 0x22, 0x22)), false);
+            w.hideBackgroundGraphics(true);
+            w.setPreserve(second, false);
+            w.closeMasters();
+            w.editor()->setCurrentPage(1);
+            w.setLayout(QStringLiteral("id:") + custom);
+            save(*d, QStringLiteral("master-second-master-custom-layout"));
+        }
+        {   // A layout with a place of every kind, and a slide on it.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editMasters(deck::layoutOfType(*d, QStringLiteral("titleOnly"))->id);
+            for (auto kind : {deck::PlaceholderKind::Content, deck::PlaceholderKind::Text, deck::PlaceholderKind::Picture, deck::PlaceholderKind::Chart, deck::PlaceholderKind::Table,
+                              deck::PlaceholderKind::Media, deck::PlaceholderKind::OnlineImage}) {
+                const QString id = w.insertPlaceholder(kind);
+                const double n = d->item(id)->role.section(':', 2).toDouble();
+                d->item(id)->rect = QRectF(40 + 90 * (n - 1), 200, 80, 120);
+            }
+            const QString layout = w.editor()->masterView();
+            w.closeMasters();
+            w.editor()->setCurrentPage(1);
+            w.setLayout(QStringLiteral("id:") + layout);
+            save(*d, QStringLiteral("master-every-kind-of-place"));
+            auto back = throughPptx(*d);
+            QVERIFY(back);
+            int kinds = 0;
+            for (const char *type : {"obj", "body", "pic", "chart", "tbl", "media", "clipArt"})
+                if (holderOn(*back->masterFor(*back->pages[1]), QString::fromLatin1(type))) ++kinds;
+            QCOMPARE(kinds, 6);   // (a content place reads back as a text place of the same number: both are a place with no type)
+        }
+        {   // A slide master without its text, date, and footer places.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editMasters(QStringLiteral("SM1"));
+            deck::MasterParts parts = deck::masterParts(*d->master(QStringLiteral("SM1")));
+            parts.text = parts.date = parts.footer = false;
+            w.setMasterParts(parts);
+            w.closeMasters();
+            save(*d, QStringLiteral("master-without-places"));
+        }
+        {   // The first slide master deleted, its theme handed on.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editor()->setCurrentPage(0);
+            w.applyTheme(1, false);
+            w.editor()->setCurrentPage(1);
+            w.applyTheme(1, false);
+            QString why;
+            QVERIFY2(w.deleteMasterPage(QStringLiteral("SM1"), &why), qPrintable(why));
+            save(*d, QStringLiteral("master-first-deleted"));
+        }
+        {   // A slide that hides the background graphics.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editMasters(QStringLiteral("SM1"));
+            w.editor()->addItem(band(QRectF(0, 480, 960, 60), QColor(0x65, 0x43, 0x21)), false);
+            w.closeMasters();
+            w.editor()->setCurrentPage(1);
+            w.hideBackgroundGraphics(true);
+            save(*d, QStringLiteral("slide-hides-background-graphics"));
+        }
+    }
+
+    // A slide whose text place says "text" over a layout whose place says "content" (what an old binary file gives, and some .pptx) follows
+    // the slide master's edits as any other does: its text's size, and then its place.
+    void masterEditsReachATextPlaceOverAContentPlace()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"}, {{"sub"}, {"a", "b"}});
+        Document *d = w.editor()->doc();
+        const QString layout = d->pages[1]->masterId;
+        holderOn(*d->pages[1], QStringLiteral("obj"))->role = QStringLiteral("ph:body:1");
+        QVERIFY(holderOn(*d->master(layout), QStringLiteral("obj")) && !holderOn(*d->master(layout), QStringLiteral("body")));
+        w.editMasters(QStringLiteral("SM1"));
+        w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))->id);
+        w.editor()->setFontSize(40);
+        QCOMPARE(firstLetterOf(*d, *holderOn(*d->pages[1], QStringLiteral("body"))).fontPointSize(), 40.0);
+        const QRectF moved(100, 200, 700, 250);
+        w.editor()->change(QStringLiteral("Move"), [&] { holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))->rect = moved; });
+        QCOMPARE(holderOn(*d->master(layout), QStringLiteral("obj"))->rect, moved);
+        QCOMPARE(holderOn(*d->pages[1], QStringLiteral("body"))->rect, moved);
+    }
+
+    // The same on a file that is read: a .pptx made in code whose slide says "body" over the layout's content place.
+    void masterEditsReachTheSlidesOfAReadFile()
+    {
+        auto src = deck::newPresentation();
+        deck::addSlide(*src, *deck::layoutOfType(*src, QStringLiteral("obj")));
+        QString err;
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(deck::exportPresentation(*src), zip, &err));
+        QByteArray &slide = zip[QStringLiteral("ppt/slides/slide2.xml")];
+        QVERIFY(slide.contains("<p:ph idx=\"1\"/>"));
+        slide.replace("<p:ph idx=\"1\"/>", "<p:ph type=\"body\" idx=\"1\"/>");
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto doc = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(doc, qPrintable(err));
+        QCOMPARE(doc->pages.size(), 2);
+        QVERIFY(holderOn(*doc->pages[1], QStringLiteral("body")) && !holderOn(*doc->pages[1], QStringLiteral("obj")));
+        DeckWindow w;
+        w.editor()->setDocument(std::move(doc));
+        Document *d = w.editor()->doc();
+        const QString master = deck::slideMasterOf(*d, 1);
+        const QString layout = d->pages[1]->masterId;
+        const TextItem *was = holderOn(*d->pages[1], QStringLiteral("body"));
+        const QRectF where = was->rect;
+        const double size = firstLetterOf(*d, *was).fontPointSize();
+        w.editMasters(master);
+        TextItem *place = holderOn(*d->master(master), QStringLiteral("body"));
+        QVERIFY(place);
+        w.editor()->select(place->id);
+        w.editor()->setFontSize(size + 6);
+        QCOMPARE(firstLetterOf(*d, *holderOn(*d->pages[1], QStringLiteral("body"))).fontPointSize(), size + 6);
+        const QRectF moved = where.translated(0, 12);
+        w.editor()->change(QStringLiteral("Move"), [&] { place->rect = moved; });
+        QVERIFY(holderOn(*d->master(layout), QStringLiteral("obj")) || holderOn(*d->master(layout), QStringLiteral("body")));
+        QCOMPARE(holderOn(*d->pages[1], QStringLiteral("body"))->rect, moved);
+    }
+
+    // A slide master (or its layouts) changed in Slide Master view is the user's from then on: the next change of theme for some slides does not
+    // take it away, and Preserve says so. One that was only looked at is still the theme's.
+    void aSlideMasterChangedInMasterViewIsKept()
+    {
+        auto run = [&](const std::function<void(DeckWindow &, const QString &)> &edit, bool kept) {
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            // A theme for the first slide only: it stands on a slide master of its own.
+            w.editor()->setCurrentPage(0);
+            w.applyTheme(1, false);
+            const QString own = deck::slideMasterOf(*d, 0);
+            QVERIFY(!own.isEmpty() && own != QLatin1String("SM1"));
+            const int layouts = int(deck::layouts(*d, own).size());
+            w.editMasters(d->pages[0]->masterId);
+            QVERIFY(!w.act(QStringLiteral("master.preserve"))->isChecked());
+            edit(w, own);
+            QCOMPARE(w.act(QStringLiteral("master.preserve"))->isChecked(), kept);
+            w.closeMasters();
+            w.editor()->setCurrentPage(0);
+            w.applyTheme(2, false);
+            QCOMPARE(d->master(own) != nullptr, kept);
+            if (kept) QVERIFY(int(deck::layouts(*d, own).size()) >= layouts);
+        };
+        run([](DeckWindow &, const QString &) {}, false);
+        run([](DeckWindow &w, const QString &) { QVERIFY(!w.insertLayout().isEmpty()); }, true);
+        run([](DeckWindow &w, const QString &own) { w.renameMasterPage(own, QStringLiteral("Mine")); }, true);
+        run([](DeckWindow &w, const QString &) { w.insertPlaceholder(deck::PlaceholderKind::Picture); w.setLayoutFooters(false); }, true);
+        run([](DeckWindow &w, const QString &own) { w.setPreserve(own, true); }, true);
+    }
+
+    // Every command that works on a slide is off while a master or layout is open, in the ribbon and in the slide's menu; each is on again
+    // when the view closes.
+    void everyCommandThatActsOnASlideIsOffInMasterView()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        w.editor()->setCurrentPage(1);
+        auto command = [&](const QString &id) -> QAction * {
+            QAction *a = w.act(id);
+            return a ? a : w.findChild<QAction *>(id);
+        };
+        const QStringList ids = {"slide.new", "slide.duplicate", "slide.delete", "slide.hide", "slide.reset", "slide.reuse", "ribbon.layout", "ribbon.section", "section.add",
+                                 "comment.new", "insert.headerFooter", "insert.video", "insert.audio", "ribbon.video", "ribbon.audio"};
+        for (const QString &id : ids) {
+            QVERIFY2(command(id), qPrintable(id));
+            QTRY_VERIFY2(command(id)->isEnabled(), qPrintable(id + " off in Normal view"));
+        }
+        w.editMasters();
+        for (const QString &id : ids) QVERIFY2(!command(id)->isEnabled(), qPrintable(id + " on in master view"));
+        // Their buttons too.
+        int buttons = 0;
+        for (const QString &tab : {QStringLiteral("Home"), QStringLiteral("Insert")})
+            for (const QToolButton *b : w.ribbon()->tab(tab)->findChildren<QToolButton *>())
+                if (b->defaultAction() && ids.contains(b->defaultAction()->objectName())) {
+                    ++buttons;
+                    QVERIFY2(!b->isEnabled(), qPrintable(b->defaultAction()->objectName() + " button"));
+                }
+        QVERIFY(buttons >= 8);
+        // The menu of an empty place on the canvas has no Layout or Reset Slide.
+        w.editor()->clearSelection();
+        std::unique_ptr<QMenu> menu(w.slideContextMenu(&w));
+        for (const QAction *a : menu->actions()) {
+            QVERIFY2(a->text() != QLatin1String("Layout") && a->text() != QLatin1String("Reset Slide"), qPrintable(a->text()));
+        }
+        w.closeMasters();
+        for (const QString &id : ids)
+            if (id != QLatin1String("section.add")) QVERIFY2(command(id)->isEnabled(), qPrintable(id + " off after"));
+        w.editor()->clearSelection();
+        menu.reset(w.slideContextMenu(&w));
+        QStringList texts;
+        for (const QAction *a : menu->actions()) texts << a->text();
+        QVERIFY(texts.contains(QStringLiteral("Layout")) && texts.contains(QStringLiteral("Reset Slide")));
+    }
+
+    // Insert Placeholder takes a number no other place on the layout has, the smallest from 1 up, however large the others are (a file may
+    // number a place 4294967295); none gets the title's 0.
+    void insertedPlaceholdersGetFreeNumbers()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        const MasterPage *layout = deck::layoutOfType(*d, QStringLiteral("titleOnly"));
+        const QString id = layout->id;
+        holderOn(*layout, QStringLiteral("ftr"))->role = QStringLiteral("ph:ftr:4294967295");
+        w.editMasters(id);
+        QStringList made;
+        for (auto kind : {deck::PlaceholderKind::Content, deck::PlaceholderKind::Picture, deck::PlaceholderKind::Chart}) made << w.insertPlaceholder(kind);
+        QSet<qint64> numbers;
+        for (const auto &it : d->master(id)->items) {
+            const QString n = it->role.section(':', 2);
+            const qint64 number = n.isEmpty() ? 0 : n.toLongLong();
+            if (number == 0) QVERIFY2(deck::placeholderType(*it) == QLatin1String("title") || deck::placeholderType(*it) == QLatin1String("dt") || deck::placeholderType(*it) == QLatin1String("sldNum"), qPrintable(it->role));
+            else QVERIFY2(!numbers.contains(number), qPrintable(it->role));
+            numbers.insert(number);
+        }
+        QVERIFY(numbers.contains(4294967295LL));
+        QStringList roles;
+        for (const QString &m : made) roles << d->item(m)->role;
+        QCOMPARE(roles, QStringList({"ph:obj:1", "ph:pic:2", "ph:chart:3"}));
+    }
+
+    // Master Layout: a place unchecked and checked again comes back in the slide master's own look for it (a Georgia title of 60 points stays so),
+    // as the slide master's own text style, not the stock one.
+    void aMasterPlaceComesBackInTheMastersOwnStyle()
+    {
+        DeckWindow w;
+        Document *d = w.editor()->doc();
+        w.editMasters(QStringLiteral("SM1"));
+        w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->id);
+        w.editor()->setFontFamily(QStringLiteral("Georgia"));
+        w.editor()->setFontSize(60);
+        deck::MasterParts parts = deck::masterParts(*d->master(QStringLiteral("SM1")));
+        parts.title = false;
+        w.setMasterParts(parts);
+        QVERIFY(!holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title")));
+        parts.title = true;
+        w.setMasterParts(parts);
+        const TextItem *title = holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"));
+        QVERIFY(title);
+        QCOMPARE(familyOfHolder(*d, *title), QStringLiteral("Georgia"));
+        QCOMPARE(firstLetterOf(*d, *title).fontPointSize(), 60.0);
+        // The same for the text place, and where no look was kept it is the stock one.
+        w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))->id);
+        w.editor()->setFontSize(31);
+        parts.text = false;
+        w.setMasterParts(parts);
+        parts.text = true;
+        w.setMasterParts(parts);
+        QCOMPARE(firstLetterOf(*d, *holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))).fontPointSize(), 31.0);
+        QVERIFY(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->rect == QRectF(66, 28.75, 828, 104.4));
+        // Undone, the title is the one before.
+        w.editor()->undo();
+        w.editor()->undo();
+        QCOMPARE(firstLetterOf(*d, *holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))).fontPointSize(), 31.0);
+    }
+
+    // An edit that touches no placeholder (a band drawn on a layout, Preserve) leaves every slide as it was: its text is not set again, so the
+    // lists in it are not regrouped.
+    void anEditThatTouchesNoPlaceholderLeavesTheSlidesAlone()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two", "Three"}, {{"sub"}, {"a", "b", "c"}, {"d", "e"}});
+        Document *d = w.editor()->doc();
+        const QString layout = d->pages[1]->masterId;
+        // The layout's text place and the slides' bodies are bulleted lists.
+        auto bulleted = [&](QTextDocument *story) {
+            QTextCursor c(story);
+            c.select(QTextCursor::Document);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setIndent(1);
+            c.createList(lf);
+        };
+        bulleted(d->storyDoc(holderOn(*d->master(layout), QStringLiteral("obj"))->storyId));
+        for (int i : {1, 2}) bulleted(d->storyDoc(holderOn(*d->pages[i], QStringLiteral("obj"))->storyId));
+        QSignalSpy spy(d->storyDoc(holderOn(*d->pages[1], QStringLiteral("obj"))->storyId), &QTextDocument::contentsChanged);
+        auto pagesJson = [&] { return QJsonDocument(QJsonObject{{"pages", d->toJson().value(QStringLiteral("pages"))}, {"stories", d->toJson().value(QStringLiteral("stories"))}}).toJson(QJsonDocument::Compact); };
+        const QByteArray before = pagesJson();
+        w.editMasters(layout);
+        auto band = std::make_shared<ShapeItem>();
+        band->shape = QStringLiteral("rect");
+        band->rect = QRectF(0, 0, 36, 540);
+        band->fill = Fill::solid(ColorRef::rgb(QColor(0x2B, 0x7A, 0x78)));
+        band->stroke = Stroke();
+        w.editor()->addItem(band, false);
+        w.setPreserve(layout, false);
+        w.setPreserve(layout, true);
+        QCOMPARE(pagesJson(), before);
+        QCOMPARE(spy.count(), 0);
+        // A change to the place itself still reaches them.
+        w.editor()->select(holderOn(*d->master(layout), QStringLiteral("obj"))->id);
+        w.editor()->setFontSize(33);
+        QCOMPARE(firstLetterOf(*d, *holderOn(*d->pages[1], QStringLiteral("obj"))).fontPointSize(), 33.0);
+    }
+
+    // A slide that goes to a layout of another slide master takes that slide master's theme (its fonts and colors), as a change of theme from the
+    // Design tab gives it, so that deleting the first slide master afterwards changes nothing that shows.
+    void aSlideMovedToAnotherMastersLayoutTakesItsTheme()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"}, {{"sub"}, {"a", "b"}});
+        Document *d = w.editor()->doc();
+        const deck::DeckTheme first = deck::themeOf(*d);
+        // A theme with other fonts, for the first slide only: it stands on a slide master of its own.
+        int other = -1;
+        for (int i = 0; i < deck::builtinThemeCount() && other < 0; ++i)
+            if (deck::builtinThemeFonts(i).heading != first.headingFont && deck::builtinThemeFonts(i).body != first.bodyFont) other = i;
+        QVERIFY(other >= 0);
+        const deck::FontSet fonts = deck::builtinThemeFonts(other);
+        w.editor()->setCurrentPage(0);
+        w.applyTheme(other, false);
+        const QString second = deck::slideMasterOf(*d, 0);
+        QVERIFY(second != QLatin1String("SM1"));
+        w.editor()->setCurrentPage(1);
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), first.headingFont);
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("obj"))), first.bodyFont);
+        w.setLayout(QStringLiteral("id:") + deck::layoutOfType(*d, QStringLiteral("obj"), second)->id);
+        QCOMPARE(deck::slideMasterOf(*d, 1), second);
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), fonts.heading);
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("obj"))), fonts.body);
+        QCOMPARE(titleOfSlide(*d, 1), QStringLiteral("Two"));
+        // One step; and deleting the first slide master now changes nothing that is drawn.
+        w.editor()->undo();
+        QCOMPARE(deck::slideMasterOf(*d, 1), QStringLiteral("SM1"));
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), first.headingFont);
+        w.editor()->redo();
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d;
+        ctx.cache = &cache;
+        const QImage a = Renderer::renderToImage(ctx, 0, 0.5), b = Renderer::renderToImage(ctx, 1, 0.5);
+        QString why;
+        QVERIFY2(w.deleteMasterPage(QStringLiteral("SM1"), &why), qPrintable(why));
+        QCOMPARE(Renderer::renderToImage(ctx, 0, 0.5), a);
+        QCOMPARE(Renderer::renderToImage(ctx, 1, 0.5), b);
+    }
+
+    // Slide Master view as it looks, saved as pictures in the folder JP_SHOT_DIR names (for looking at it): the master with its layouts, a layout
+    // being edited, and a slide that shows the change.
+    void slideMasterViewLooksRight()
+    {
+        setUiDark(false);
+        DeckWindow w;
+        // The window has settled (the ribbon has laid itself out) when the picture is taken.
+        auto look = [&w](const QString &name) {
+            if (qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) return;
+            QTest::qWait(150);   // only when looking: the layout and the timers have run
+            shot(&w, name);
+        };
+        w.resize(1440, 900);
+        w.show();
+        fillSlides(w, {"Quarterly results", "Revenue by region", "Next steps"}, {{"Prepared for the board"}, {"North: up 8%", "South: flat", "West: up 12%"}, {"Hire two analysts", "Launch in March"}});
+        Document *d = w.editor()->doc();
+        w.editor()->setCurrentPage(1);
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        // The tabs that have the commands that open it and Hide Background Graphics.
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("View")));
+        look(QStringLiteral("master-view-view-tab"));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Design")));
+        look(QStringLiteral("master-view-design-tab"));
+        w.editMasters(QStringLiteral("SM1"));
+        QTRY_COMPARE(w.masterPane()->ids().size(), 10);
+        look(QStringLiteral("master-view-master"));
+        const QString layout = d->pages[1]->masterId;
+        w.editMasters(layout);
+        // A band down the left side, and a bold title in another font.
+        auto band = std::make_shared<ShapeItem>();
+        band->shape = QStringLiteral("rect");
+        band->name = QStringLiteral("Band");
+        band->rect = QRectF(0, 0, 36, 540);
+        band->fill = Fill::solid(ColorRef::rgb(QColor(0x2B, 0x7A, 0x78)));
+        band->stroke = Stroke();
+        w.editor()->addItem(band, false);
+        w.editor()->select(holderOn(*d->master(layout), QStringLiteral("title"))->id);
+        w.editor()->setFontFamily(QStringLiteral("Georgia"));
+        w.editor()->toggleBold();
+        w.insertPlaceholder(deck::PlaceholderKind::Picture);
+        w.renameMasterPage(layout, QStringLiteral("Title, Text, and Picture"));
+        w.editor()->clearSelection();
+        QTRY_VERIFY(w.masterPane()->thumbnailRect(layout).isValid());
+        look(QStringLiteral("master-view-edited-layout"));
+        w.closeMasters();
+        QTRY_VERIFY(!w.slidesPane()->isHidden());
+        w.slidesPane()->refresh();
+        look(QStringLiteral("master-view-slide"));
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d;
+        ctx.cache = &cache;
+        // The presentation as it is saved, for looking at in the other programs.
+        if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+            QFile pptx(dir + QStringLiteral("/master-view.pptx")), odp(dir + QStringLiteral("/master-view.odp"));
+            if (pptx.open(QIODevice::WriteOnly)) pptx.write(deck::exportPresentation(*d));
+            if (odp.open(QIODevice::WriteOnly)) odp.write(deck::exportOdp(*d));
+        }
+        QCOMPARE(Renderer::renderToImage(ctx, 1, 1).pixelColor(10, 270), QColor(0x2B, 0x7A, 0x78));
+        QCOMPARE(familyOfHolder(*d, *holderOn(*d->pages[1], QStringLiteral("title"))), QStringLiteral("Georgia"));
+        QVERIFY(firstLetterOf(*d, *holderOn(*d->pages[1], QStringLiteral("title"))).fontWeight() >= QFont::DemiBold);
     }
 
     // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.
@@ -21477,6 +24456,221 @@ private Q_SLOTS:
         QCOMPARE(int(washed.size()), 2);
         QVERIFY2(washed[0].green() > 185 && washed[0].green() < 195, qPrintable(washed[0].name()));
         QCOMPARE(washed[0].red(), 255);
+    }
+
+    // A pattern fill (fillType 1) is a bitmap of black and white that the shape's own colors are put in, as the presentation program draws
+    // it: the bitmap's white bits in the fill color, its black ones in the back color (a master's striped background has three rows of black
+    // to one of white, and is drawn with three rows of the back color to one of the fill color), each with its opacity. A bitmap of
+    // more colors is a picture and keeps them.
+    void importBinaryPatternsTakeTheShapesColors()
+    {
+        // An 8 by 8 bitmap of one bit a pixel: white on its left half, black on its right (a DIB's palette is white, then black).
+        QByteArray dib = le(40, 4) + le(8, 4) + le(8, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(32, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                         + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        for (int row = 0; row < 8; ++row) dib += raw({0x0F, 0, 0, 0});
+        QImage photo(2, 1, QImage::Format_ARGB32);
+        photo.setPixelColor(0, 0, QColor(255, 0, 0));
+        photo.setPixelColor(1, 0, QColor(0, 0, 128));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        photo.save(&buffer, "PNG");
+        const QByteArray bitmap = pptRec(0xF01F, QByteArray(16, 'u') + QByteArray(1, '\xFF') + dib, 0x7A0), picture = pptRec(0xF01E, QByteArray(16, 'v') + QByteArray(1, '\xFF') + png, 0x6E0);
+        auto entry = [&](const QByteArray &blip, char uid) {
+            return pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, uid) + le(0xFF, 2) + le(quint32(blip.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + blip, 6, 2);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry(bitmap, 's') + entry(picture, 't'), 2)));
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        // The background's pixels in its first row: red where the fill color shows (the fill color is red, the back color blue).
+        double transparency = -1;
+        auto pixels = [&](int blip, const QVector<QPair<int, quint32>> &more) {
+            QVector<QPair<int, quint32>> props = {{0x0180, 1}, {0x4186, quint32(blip)}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x01BF, 0x00100010}};
+            props += more;
+            const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x1000, 4) + le(0xC00, 4), 1, 2) + table(props));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, QByteArray(), QByteArray(), background), &err);
+            QList<QColor> out;
+            if (!d) qWarning("%s", qPrintable(err));
+            if (!d || d->masters.isEmpty() || d->masters.first()->background.type != Fill::Texture) return out;
+            transparency = d->masters.first()->background.transparency;
+            const QImage im = d->image(d->masters.first()->background.imageId);
+            for (int x = 0; x < im.width(); ++x) out << im.pixelColor(x, 0);
+            return out;
+        };
+        const QList<QColor> plain = pixels(1, {});
+        QCOMPARE(transparency, 0.0);   // (the colors hold the opacity)
+        QCOMPARE(int(plain.size()), 8);
+        for (int x = 0; x < 8; ++x) QCOMPARE(plain[x], x < 4 ? QColor(255, 0, 0) : QColor(0, 0, 255));
+        // Half as opaque a fill color, and a back color half as opaque.
+        const QList<QColor> half = pixels(1, {{0x0182, 0x8000}, {0x0184, 0x4000}});
+        QCOMPARE(int(half.size()), 8);
+        QCOMPARE(half[0].rgb(), QColor(255, 0, 0).rgb());
+        QVERIFY2(std::abs(half[0].alpha() - 128) <= 1, qPrintable(QString::number(half[0].alpha())));
+        QCOMPARE(half[7].rgb(), QColor(0, 0, 255).rgb());
+        QVERIFY2(std::abs(half[7].alpha() - 64) <= 1, qPrintable(QString::number(half[7].alpha())));
+        // A picture of other colors than black and white is drawn as it is.
+        const QList<QColor> kept = pixels(2, {});
+        QCOMPARE(int(kept.size()), 2);
+        QCOMPARE(kept[0], QColor(255, 0, 0));
+        QCOMPARE(kept[1], QColor(0, 0, 128));
+    }
+
+    // A file with a pattern fill for each of hundreds of colors makes a picture for no more than 200 of them: the others keep the bitmap, so
+    // no file can make the reader do the work again and again. A bitmap bigger than a pattern (257 by 256, 65,792 pixels, past the 65,536 a
+    // pattern may have) is a picture, and keeps its pixels.
+    void importBinaryPatternsInManyColorsAreBounded()
+    {
+        QByteArray dib = le(40, 4) + le(8, 4) + le(8, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(32, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                         + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        for (int row = 0; row < 8; ++row) dib += raw({0x0F, 0, 0, 0});
+        const QByteArray blip = pptRec(0xF01F, QByteArray(16, 'u') + QByteArray(1, '\xFF') + dib, 0x7A0);
+        // The big one: 257 pixels a row (36 bytes with the padding), 256 rows, all of its bits set (black).
+        QByteArray bigDib = le(40, 4) + le(257, 4) + le(256, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(0, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                            + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        bigDib += QByteArray(36 * 256, '\xFF');
+        const QByteArray bigBlip = pptRec(0xF01F, QByteArray(16, 'v') + QByteArray(1, '\xFF') + bigDib, 0x7A0);
+        auto storeEntry = [&](const QByteArray &record, char uid) {
+            return pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, uid) + le(0xFF, 2) + le(quint32(record.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + record, 6, 2);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, storeEntry(blip, 's') + storeEntry(bigBlip, 't'), 2)));
+        QByteArray shapes;
+        for (int i = 0; i < 400; ++i) {
+            const QByteArray props = le(0x0180, 2) + le(1, 4) + le(0x4186, 2) + le(1, 4) + le(0x0181, 2) + le(quint32(0x010000 + i * 0x300), 4) + le(0x01BF, 2) + le(0x00100010, 4);
+            shapes += pptBox(0xF004, pptRec(0xF00A, le(0x500 + i, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 4, 3) + pptRec(0xF010, le(100, 2) + le(100, 2) + le(300, 2) + le(300, 2)));
+        }
+        {
+            // The last shape's pattern is the big bitmap, in a color of its own.
+            const QByteArray props = le(0x0180, 2) + le(1, 4) + le(0x4186, 2) + le(2, 4) + le(0x0181, 2) + le(0x0000FF, 4) + le(0x0183, 2) + le(0xFF0000, 4) + le(0x01BF, 2) + le(0x00100010, 4);
+            shapes += pptBox(0xF004, pptRec(0xF00A, le(0x900, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 5, 3) + pptRec(0xF010, le(400, 2) + le(100, 2) + le(600, 2) + le(300, 2)));
+        }
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(d->images.size() <= 203, qPrintable(QString::number(d->images.size())));
+        QVERIFY(d->images.size() >= 100);
+        int tiles = 0;
+        for (const auto &it : d->pages[0]->items) tiles += it->fill.type == Fill::Texture;
+        QCOMPARE(tiles, 401);
+        // The big bitmap is as the file has it: its size, and black (not the shape's red or blue).
+        const Item *big = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->fill.type == Fill::Texture) big = it.get();
+        QVERIFY(big);
+        const QImage bitmap = d->image(big->fill.imageId);
+        QCOMPARE(bitmap.size(), QSize(257, 256));
+        QCOMPARE(bitmap.pixelColor(0, 0), QColor(Qt::black));
+        QCOMPARE(bitmap.pixelColor(256, 255), QColor(Qt::black));
+    }
+
+    // Text in a symbol font shows the font's own pictures: a run that names a font for its symbols (character run, the fourth font reference)
+    // keeps them at 0xF020 to 0xF0FF, and a run set in the font itself has the plain codes. A Greek letter, an arrow, or a number in a circle
+    // is the Unicode character that looks like it, in the text's own font (so it shows wherever the symbol font isn't); one that has no
+    // look-alike stays in a piece set in the symbol font, where the font is. Text of a font that isn't a symbol font is as it was.
+    void importBinarySymbolFontTextBecomesItsPictures()
+    {
+        // The fonts of the buildPpt document: 0 Alpha Sans, 1 Beta Serif, 2 Symbol, 3 Wingdings 2.
+        const QChar alpha(0x3B1), arrow(0x2192), circled(0x2776), none(0xF0FF);
+        const QString text = QStringLiteral("x") + QChar(0xF061) + QStringLiteral("y") + none + QChar(0xF0AE) + QStringLiteral("z") + QChar(0xF075) + QStringLiteral("a") + QStringLiteral("b");
+        // x; alpha (Symbol, as a symbol run); y; the character Symbol lacks; an arrow; z; a number in a circle (Wingdings 2); then "a" set
+        // in Symbol itself; and "b" in the text's own font. The last run has the paragraph's end too.
+        const quint32 sym = 0x800000, own = 0x10000;
+        const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0)
+            + cfRun(1, 0) + cfRun(1, sym, le(2, 2)) + cfRun(1, 0) + cfRun(1, sym, le(2, 2)) + cfRun(1, sym, le(2, 2)) + cfRun(1, 0) + cfRun(1, sym, le(3, 2))
+            + cfRun(1, own, le(2, 2)) + cfRun(2, own, le(0, 2));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles, true)), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QString shown;
+        QMap<QChar, QStringList> families;   // each character -> the fonts of its piece
+        for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                shown += it.fragment().text();
+                for (const QChar ch : it.fragment().text()) families[ch] = it.fragment().charFormat().fontFamilies().toStringList();
+            }
+        QCOMPARE(shown, QStringLiteral("x") + alpha + QStringLiteral("y") + none + arrow + QStringLiteral("z") + circled + alpha + QStringLiteral("b"));
+        // The character with no look-alike is a piece of its own in Symbol; the others are not in it: the letter alpha of a run set in Symbol
+        // is in the text's font too, and "b" is in the font its run names.
+        QCOMPARE(families.value(none), QStringList{QStringLiteral("Symbol")});
+        for (const QChar ch : {QChar('x'), alpha, QChar('y'), arrow, QChar('z'), circled}) QVERIFY2(!families.value(ch).contains(QStringLiteral("Symbol")), qPrintable(QString(ch)));
+        QCOMPARE(families.value(QChar('b')), QStringList{QStringLiteral("Alpha Sans")});
+    }
+
+    // The split of text in a symbol font adds at most 256 pieces to a paragraph: a run of 50,000 characters that alternate between a
+    // letter the font has a look-alike for and one it hasn't would be 50,000 pieces, each laid out by itself, and takes far longer than
+    // the same text in a font of letters. The rest of the run after them is one piece, as it was before the split.
+    void importBinarySymbolRunsAreCutIntoFewPieces()
+    {
+        QString text;
+        for (int i = 0; i < 25000; ++i) text += QStringLiteral("a") + QChar(0x100);
+        const quint32 own = 0x10000;
+        auto deckOf = [&](int font) {
+            const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, own, le(font, 2));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles, true)), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            return d;
+        };
+        auto fragments = [&](const Document &d) {
+            int n = 0;
+            const QTextDocument *body = placeholderStory(d, *d.pages[0], QStringLiteral("ph:body:1"));
+            if (body)
+                for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+                    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) ++n;
+            return n;
+        };
+        // The font Symbol (2), and a font of letters (0).
+        auto symbols = deckOf(2), letters = deckOf(0);
+        QVERIFY(symbols && letters);
+        QCOMPARE(fragments(*letters), 1);
+        QVERIFY2(fragments(*symbols) <= 256 + 8, qPrintable(QString::number(fragments(*symbols))));
+        QVERIFY(fragments(*symbols) > 2);   // (the first of them are cut as before)
+        // Laid out, it costs about what the same text in another font does.
+        auto layoutMs = [&](Document &d) {
+            const TextItem *body = nullptr;
+            for (const auto &it : d.pages[0]->items)
+                if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+            if (!body) return qint64(-1);
+            LayoutCache cache;
+            const RenderOptions opt;
+            QElapsedTimer timer;
+            timer.start();
+            const auto fl = cache.textFrame(d, *body, 1, opt);
+            return fl.layout ? timer.elapsed() : qint64(-1);
+        };
+        const qint64 plain = layoutMs(*letters), cut = layoutMs(*symbols);
+        QVERIFY2(plain >= 0 && cut >= 0, "the text was laid out");
+        QVERIFY2(cut <= 5 * std::max<qint64>(plain, 100), qPrintable(QStringLiteral("cut %1 ms, plain %2 ms").arg(cut).arg(plain)));
+    }
+
+    // In 8-bit text the codes 0x80 to 0x9F read as Windows-1252's characters, which a symbol font doesn't have: a run set in the font gets
+    // its picture from the code itself (0x8C is the number 1 in a dark circle in Wingdings, 0x9F a bullet), where the same codes in
+    // another font are those characters. The pictures that are emoji are followed by U+FE0E, for the plain glyph.
+    void importBinarySymbolFontBytesAreReadByTheirCodes()
+    {
+        // 0x8C, 0x9F, then 'C' (a thumb up in Wingdings) and 'F' (a hand that is not an emoji), as bytes; the fonts are 4 Wingdings, 0 Alpha Sans.
+        const QByteArray raw8 = QByteArray("\x8C\x9F" "CF");
+        auto textIn = [&](int font) {
+            const QByteArray styles = pfRun(int(raw8.size()) + 1, 0, 0) + cfRun(int(raw8.size()) + 1, 0x10000, le(font, 2));
+            QByteArray text = pptRec(3999, le(1, 4)) + pptRec(4008, raw8) + pptRec(4001, styles);
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, text), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            const QTextDocument *body = d ? placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1")) : nullptr;
+            return body ? body->toPlainText() : QStringLiteral("<none>");
+        };
+        const QChar plain(0xFE0E);
+        QCOMPARE(textIn(4), QString(QChar(0x2776)) + QChar(0x2022) + QString::fromUcs4(U"\U0001F44D") + plain + QChar(0x261E));
+        // In a font of letters, the Windows-1252 characters they were.
+        QCOMPARE(textIn(0), QString(QChar(0x0152)) + QChar(0x0178) + QStringLiteral("CF"));
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
@@ -21907,6 +25101,57 @@ private Q_SLOTS:
             QVERIFY(!img.isNull());
             const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
             QVERIFY2(c == want.second, qPrintable(QString::number(want.first) + ": " + c.name()));
+        }
+    }
+
+    // A slide's PNG picture that has a color profile of its own (a screen's, most often) is drawn in the colors of that profile as screen
+    // colors, as the presentation program draws it, not with its numbers as they are. A file that only names its gamma and primaries has
+    // no profile to apply (the program leaves those out), and a publication's pictures are drawn as they always were.
+    void renderPictureWithAColorProfileInScreenColors()
+    {
+        const QColor raw(40, 160, 200);
+        QImage src(8, 8, QImage::Format_RGB32);
+        src.fill(raw);
+        QByteArray plain;
+        QBuffer plainBuffer(&plain);
+        QVERIFY(plainBuffer.open(QIODevice::WriteOnly) && src.save(&plainBuffer, "PNG"));
+        src.setColorSpace(QColorSpace(QColorSpace::DisplayP3));
+        QByteArray profiled;
+        QBuffer profiledBuffer(&profiled);
+        QVERIFY(profiledBuffer.open(QIODevice::WriteOnly) && src.save(&profiledBuffer, "PNG"));
+        const QColor want = src.convertedToColorSpace(QColorSpace(QColorSpace::SRgb)).pixelColor(4, 4);
+        QVERIFY2(!colorsNear(want, raw, 6), qPrintable(want.name()));
+        // The plain file with a gamma and the primaries of a wide screen after its header (a chunk: length, name, data, checksum).
+        auto chunk = [](const char *name, const QByteArray &data) {
+            QByteArray body = QByteArray(name, 4) + data, out(4, '\0');
+            qToBigEndian<quint32>(quint32(data.size()), out.data());
+            out += body;
+            QByteArray sum(4, '\0');
+            qToBigEndian<quint32>(jp::crc32(body), sum.data());
+            return out + sum;
+        };
+        auto be32 = [](quint32 v) { QByteArray b(4, '\0'); qToBigEndian<quint32>(v, b.data()); return b; };
+        const QByteArray primaries = be32(31270) + be32(32900) + be32(68000) + be32(32000) + be32(26500) + be32(69000) + be32(15000) + be32(6000);
+        const QByteArray named = plain.left(33) + chunk("gAMA", be32(45455)) + chunk("cHRM", primaries) + plain.mid(33);
+        QVERIFY(QImage::fromData(named).colorSpace().isValid());   // Qt takes a color space from them
+        struct Case { QByteArray file; bool slide; QColor expected; };
+        for (const Case &c : {Case{profiled, true, want}, Case{named, true, raw}, Case{profiled, false, raw}}) {
+            Document doc;
+            doc.slidePictures = c.slide;
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = doc.addImage(c.file, QStringLiteral("png"));
+            QVERIFY(!pic->imageId.isEmpty());
+            pic->rect = QRectF(0, 0, 80, 80);
+            pic->imgRect = pic->rect;
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = &doc;
+            ctx.cache = &cache;
+            const ItemList one{pic};
+            const QImage img = Renderer::renderItemsToImage(ctx, one, 1.0);
+            QVERIFY(!img.isNull());
+            const QColor got = img.pixelColor(img.width() / 2, img.height() / 2);
+            QVERIFY2(colorsNear(got, c.expected, 3), qPrintable(QStringLiteral("slide %1, %2 bytes: %3 instead of %4").arg(c.slide).arg(c.file.size()).arg(got.name(), c.expected.name())));
         }
     }
 
@@ -27590,6 +30835,835 @@ private Q_SLOTS:
         });
         w.act("file.exportPicture")->trigger();
         QCOMPARE(label, QStringLiteral("OK"));
+    }
+
+private:
+    // What a menu offers, by id: each command by its action's id (a spelling suggestion by its words), each submenu as [its title],
+    // and what is in it with the title and a colon before.
+    static QStringList menuIds(const QMenu *menu, const QString &prefix = QString())
+    {
+        QStringList out;
+        for (const QAction *a : menu->actions()) {
+            if (a->isSeparator()) continue;
+            if (a->menu()) {
+                out << prefix + QStringLiteral("[%1]").arg(a->text());
+                out << menuIds(a->menu(), a->text() + QLatin1Char(':'));
+            } else {
+                out << prefix + (a->objectName().isEmpty() ? a->text() : a->objectName());
+            }
+        }
+        return out;
+    }
+    // The ids of the slide's menu; with JP_SHOT_DIR set it is also opened and a picture of it saved under `shotName`.
+    static QStringList slideMenu(DeckWindow &w, const QString &shotName = QString())
+    {
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        if (!shotName.isEmpty() && !qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            menu->popup(w.canvas()->mapToGlobal(QPoint(380, 260)));
+            QApplication::processEvents();
+            shot(menu.get(), shotName);
+            menu->close();
+        }
+        return menuIds(menu.get());
+    }
+    static TextItem *placeholderOfSlide(const Document &d, int i, int n) { return static_cast<TextItem *>(d.pages[i]->items[n].get()); }
+    // A deck with its words in the places Find has to look: slide 1 (a title slide) has "Year review" and a subtitle;
+    // slide 2 a body with "review" twice and notes with it once; slide 3 "Reviews and previews", a shape saying "Peer review", and a table
+    // whose first cell says "Review".
+    static void fillFindDeck(DeckWindow &w)
+    {
+        Editor *ed = w.editor();
+        fillSlides(w, {QStringLiteral("Year review"), QStringLiteral("Profit"), QStringLiteral("Plans")},
+                   {{QStringLiteral("Sub")}, {QStringLiteral("We review profit and Review again")}, {QStringLiteral("Reviews and previews")}});
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(d->pages[1]->notesStoryId)).insertText(QStringLiteral("Do not review the numbers"));
+        auto shape = std::make_shared<ShapeItem>();
+        shape->shape = QStringLiteral("rect");
+        shape->rect = QRectF(100, 380, 200, 80);
+        shape->storyId = d->createStory(QStringLiteral("Peer review"));
+        d->pages[2]->items.push_back(shape);
+        ed->setCurrentPage(2);
+        w.insertTable(1, 2);
+        auto *table = static_cast<TableItem *>(d->pages[2]->items.back().get());
+        QTextCursor(d->storyDoc(table->cells[0].storyId)).insertText(QStringLiteral("Review"));
+        QTextCursor(d->storyDoc(table->cells[1].storyId)).insertText(QStringLiteral("none"));
+        ed->clearSelection();
+        ed->setCurrentPage(0);
+        ed->notifyLive();
+        ed->undoStack()->clear();
+    }
+    // Where Find Next has put the match: "slide:text@start" in a box, or the same "in the notes".
+    static QString matchShown(DeckWindow &w)
+    {
+        Editor *ed = w.editor();
+        if (ed->isEditingText())
+            return QStringLiteral("%1:%2@%3").arg(ed->currentPage() + 1).arg(ed->cursor().selectedText()).arg(ed->cursor().selectionStart());
+        const QTextCursor c = w.notesPane()->textCursor();
+        return QStringLiteral("%1:%2@%3 in the notes").arg(ed->currentPage() + 1).arg(c.selectedText()).arg(c.selectionStart());
+    }
+    static QStringList findAll(DeckWindow &w, int steps)
+    {
+        QStringList seen;
+        for (int i = 0; i < steps; ++i) {
+            w.findPane()->findNext();
+            seen << matchShown(w);
+        }
+        return seen;
+    }
+    static QString storyText(DeckWindow &w, const QString &storyId) { return w.editor()->doc()->storyDoc(storyId)->toPlainText(); }
+
+private Q_SLOTS:
+    // Right-click menu of the slide: nothing selected offers the slide's commands, an object offers its own, text being typed in
+    // offers the text's.
+    void slideMenuOffersWhatTheSelectionCanDo()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        QStringList ids = slideMenu(w, QStringLiteral("menu-empty-slide"));
+        for (const char *id : {"edit.paste", "slide.reset", "design.formatBackground", "view.rulers", "comment.new", "[Layout]", "[Grid and Guides]",
+                               "Grid and Guides:view.gridlines", "Grid and Guides:view.guides"})
+            QVERIFY2(ids.contains(QLatin1String(id)), qPrintable(QLatin1String(id) + QLatin1String(" in ") + ids.join(QLatin1Char(' '))));
+        for (const char *id : {"edit.cut", "edit.copy", "edit.text", "arr.group", "insert.link", "fmt.fontDialog"}) QVERIFY2(!ids.contains(QLatin1String(id)), id);
+
+        // A placeholder: clipboard, delete, edit text, order, align text, link, comment; no slide commands.
+        const QString titleId = placeholderOfSlide(*ed->doc(), 0, 0)->id;
+        ed->select(titleId);
+        ids = slideMenu(w, QStringLiteral("menu-object"));
+        for (const char *id : {"edit.cut", "edit.copy", "edit.paste", "edit.delete", "edit.text", "[Order]", "Order:arr.front", "Order:arr.forward", "Order:arr.backward",
+                               "Order:arr.back", "[Alignment]", "Alignment:fmt.alignLeft", "Alignment:fmt.alignCenter", "Alignment:fmt.alignRight", "Alignment:fmt.justify",
+                               "insert.link", "comment.new"})
+            QVERIFY2(ids.contains(QLatin1String(id)), qPrintable(QLatin1String(id) + QLatin1String(" in ") + ids.join(QLatin1Char(' '))));
+        for (const char *id : {"arr.group", "arr.ungroup", "[Layout]", "slide.reset", "design.formatBackground"}) QVERIFY2(!ids.contains(QLatin1String(id)), id);
+
+        // Two objects can be grouped; the group can be taken apart.
+        ed->select(QStringList{titleId, placeholderOfSlide(*ed->doc(), 0, 1)->id});
+        ids = slideMenu(w);
+        QVERIFY(ids.contains(QStringLiteral("arr.group")) && !ids.contains(QStringLiteral("arr.ungroup")));
+        w.act(QStringLiteral("arr.group"))->trigger();
+        QCOMPARE(ed->selectionKind(), QStringLiteral("group"));
+        ids = slideMenu(w);
+        QVERIFY(ids.contains(QStringLiteral("arr.ungroup")) && !ids.contains(QStringLiteral("arr.group")));
+        ed->undo();
+
+        // A picture has no words to edit or align.
+        QTemporaryDir dir;
+        QImage img(40, 30, QImage::Format_ARGB32);
+        img.fill(Qt::red);
+        QVERIFY(img.save(dir.filePath(QStringLiteral("red.png"))));
+        QVERIFY(w.insertPicture(dir.filePath(QStringLiteral("red.png"))));
+        QCOMPARE(ed->selectionKind(), QStringLiteral("picture"));
+        ids = slideMenu(w);
+        QVERIFY(ids.contains(QStringLiteral("edit.cut")) && ids.contains(QStringLiteral("[Order]")) && ids.contains(QStringLiteral("insert.link")));
+        QVERIFY(!ids.contains(QStringLiteral("edit.text")) && !ids.contains(QStringLiteral("[Alignment]")));
+
+        // A table can be typed in.
+        w.insertTable(2, 2);
+        QCOMPARE(ed->selectionKind(), QStringLiteral("table"));
+        QVERIFY(slideMenu(w).contains(QStringLiteral("edit.text")));
+
+        // Text being typed in: the text's commands, not the object's.
+        ed->beginTextEdit(titleId);
+        ids = slideMenu(w, QStringLiteral("menu-text"));
+        for (const char *id : {"edit.cut", "edit.copy", "edit.paste", "fmt.fontDialog", "para.dialog", "para.bullets", "para.numbers", "insert.link", "review.thesaurus"})
+            QVERIFY2(ids.contains(QLatin1String(id)), qPrintable(QLatin1String(id) + QLatin1String(" in ") + ids.join(QLatin1Char(' '))));
+        for (const char *id : {"edit.delete", "edit.text", "[Order]", "[Layout]"}) QVERIFY2(!ids.contains(QLatin1String(id)), id);
+    }
+
+    // Every command in the menu is the very action the ribbon has (so it is enabled and checked as the ribbon's is, and counts the
+    // same); Reset Slide is the ribbon's Reset under a clearer name, and calls it.
+    void slideMenuCommandsAreTheRibbonsActions()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        std::function<void(const QMenu *)> check = [&](const QMenu *menu) {
+            for (QAction *a : menu->actions()) {
+                if (a->menu()) {
+                    check(a->menu());
+                } else if (!a->isSeparator() && !a->objectName().isEmpty() && a->objectName() != QLatin1String("slide.reset")) {
+                    QVERIFY2(w.act(a->objectName()), qPrintable(a->objectName()));
+                    QCOMPARE(a, w.act(a->objectName()));
+                }
+            }
+        };
+        auto checkMenu = [&] {
+            std::unique_ptr<QMenu> menu(w.slideContextMenu());
+            QVERIFY(menu->actions().size() > 3);
+            check(menu.get());
+        };
+        checkMenu();
+        ed->select(placeholderOfSlide(*ed->doc(), 0, 0)->id);
+        checkMenu();
+        ed->beginTextEdit(placeholderOfSlide(*ed->doc(), 0, 0)->id);
+        checkMenu();
+        // Reset Slide puts the placeholders back where the layout has them.
+        ed->endTextEdit();
+        ed->clearSelection();
+        const QRectF home = placeholderOfSlide(*ed->doc(), 0, 0)->rect;
+        ed->change(QStringLiteral("Move"), [&] { placeholderOfSlide(*ed->doc(), 0, 0)->rect.translate(40, 30); });
+        QVERIFY(placeholderOfSlide(*ed->doc(), 0, 0)->rect != home);
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        QAction *reset = nullptr;
+        for (QAction *a : menu->actions())
+            if (a->text() == QLatin1String("Reset Slide")) reset = a;
+        QVERIFY(reset);
+        QCOMPARE(reset->objectName(), QStringLiteral("slide.reset"));
+        reset->trigger();
+        QCOMPARE(placeholderOfSlide(*ed->doc(), 0, 0)->rect, home);
+        // The menu's Edit Text is the action that types in the selected box.
+        ed->select(placeholderOfSlide(*ed->doc(), 0, 1)->id);
+        std::unique_ptr<QMenu> objectMenu(w.slideContextMenu());
+        QVERIFY(objectMenu->actions().contains(w.act(QStringLiteral("edit.text"))));
+        QVERIFY(!ed->isEditingText());
+        w.act(QStringLiteral("edit.text"))->trigger();
+        QVERIFY(ed->isEditingText());
+        QCOMPARE(ed->textTarget().itemId, placeholderOfSlide(*ed->doc(), 0, 1)->id);
+    }
+
+    // A right click on the slide opens the menu for what is there; a click in the layout gallery of its Layout submenu changes the layout and closes
+    // every menu.
+    void rightClickingTheSlideOpensItsMenu()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        QStringList ids;
+        rightClick(w.canvas()->viewport(), QPoint(300, 200), [&](QMenu *m) { ids = menuIds(m); });
+        QVERIFY2(ids.contains(QStringLiteral("slide.reset")), qPrintable(ids.join(QLatin1Char(' '))));
+        ed->select(placeholderOfSlide(*ed->doc(), 0, 0)->id);
+        ids.clear();
+        rightClick(w.canvas()->viewport(), QPoint(300, 200), [&](QMenu *m) { ids = menuIds(m); });
+        QVERIFY2(ids.contains(QStringLiteral("edit.cut")), qPrintable(ids.join(QLatin1Char(' '))));
+        // The same menu is not opened over itself.
+        ed->clearSelection();
+        bool again = false;
+        QTimer::singleShot(0, [&] {
+            untilDone([&] {
+                auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!m) return false;
+                w.showSlideContextMenu(QPoint(10, 10));   // returns at once
+                again = true;
+                m->close();
+                return true;
+            });
+        });
+        w.showSlideContextMenu(w.canvas()->mapToGlobal(QPoint(300, 200)));
+        QVERIFY(again);
+        // Layout: choosing one changes the slide and closes the menu.
+        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[0])), QStringLiteral("title"));
+        bool chose = false;
+        QTimer::singleShot(0, [&] {
+            untilDone([&] {
+                auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!m) return false;
+                for (QAction *a : m->actions())
+                    if (a->menu() && a->text() == QLatin1String("Layout"))
+                        if (auto *wa = qobject_cast<QWidgetAction *>(a->menu()->actions().value(0)))
+                            if (auto *gallery = qobject_cast<LayoutGallery *>(wa->defaultWidget())) {
+                                gallery->reload();
+                                Q_EMIT gallery->chosen(QStringLiteral("titleOnly"));
+                                chose = true;
+                            }
+                if (!chose) m->close();
+                return true;
+            });
+        });
+        w.showSlideContextMenu(w.canvas()->mapToGlobal(QPoint(300, 200)));   // comes back only once every menu is closed
+        QVERIFY(chose);
+        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[0])), QStringLiteral("titleOnly"));
+    }
+
+    // Shift+F10 and the Menu key ask for the menu where the selection is: under the text cursor, else in the middle of the selected object,
+    // else in the middle of the view.
+    void shiftF10AndTheMenuKeyOpenTheMenuAtTheSelection()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        Canvas *cv = w.canvas();
+        cv->setFocus();
+        QObject::disconnect(cv, &Canvas::contextMenuWanted, &w, nullptr);   // only to see where the menu would open
+        QSignalSpy asked(cv, &Canvas::contextMenuWanted);
+        auto where = [&](Qt::Key key, Qt::KeyboardModifiers mods) {
+            asked.clear();
+            QTest::keyClick(cv, key, mods);
+            return asked.count() == 1 ? asked.takeFirst().at(0).toPoint() : QPoint(-9999, -9999);
+        };
+        TextItem *title = placeholderOfSlide(*ed->doc(), 0, 0);
+        ed->select(title->id);
+        for (const auto &[key, mods] : {std::pair{Qt::Key_F10, Qt::KeyboardModifiers(Qt::ShiftModifier)}, std::pair{Qt::Key_Menu, Qt::KeyboardModifiers()}}) {
+            const QPoint at = where(key, mods);
+            QVERIFY2(cv->screenRect(title->bounds()).contains(at), qPrintable(QStringLiteral("%1,%2").arg(at.x()).arg(at.y())));
+        }
+        // The platform's own request for the menu from the keyboard comes to the same place.
+        asked.clear();
+        QContextMenuEvent keyboard(QContextMenuEvent::Keyboard, QPoint(1, 1), cv->mapToGlobal(QPoint(1, 1)));
+        QApplication::sendEvent(cv->viewport(), &keyboard);
+        QCOMPARE(asked.count(), 1);
+        QVERIFY(cv->screenRect(title->bounds()).contains(asked.first().at(0).toPoint()));
+        // A mouse request stays where the mouse is.
+        asked.clear();
+        QContextMenuEvent mouse(QContextMenuEvent::Mouse, QPoint(7, 8), cv->viewport()->mapToGlobal(QPoint(7, 8)));
+        QApplication::sendEvent(cv->viewport(), &mouse);
+        QCOMPARE(asked.first().at(0).toPoint(), cv->viewport()->mapToGlobal(QPoint(7, 8)));
+        // Typing in the box: just under the caret.
+        ed->beginTextEdit(title->id);
+        const QPoint under = where(Qt::Key_F10, Qt::ShiftModifier);
+        const QRect caret = cv->caretScreenRect(ed->cursor().position());
+        QVERIFY2(under.y() >= caret.bottom() && under.y() <= caret.bottom() + 8 && under.x() >= caret.left() - 2 && under.x() <= caret.right() + 2,
+                 qPrintable(QStringLiteral("%1,%2 for %3,%4 %5x%6").arg(under.x()).arg(under.y()).arg(caret.x()).arg(caret.y()).arg(caret.width()).arg(caret.height())));
+        // Nothing selected: somewhere in the view.
+        ed->endTextEdit();
+        ed->clearSelection();
+        const QPoint mid = where(Qt::Key_Menu, Qt::NoModifier);
+        QVERIFY(cv->viewport()->rect().contains(cv->viewport()->mapFromGlobal(mid)));
+        // The menu itself: a key press opens it, and it comes back when it is closed.
+        QObject::connect(cv, &Canvas::contextMenuWanted, &w, &DeckWindow::showSlideContextMenu);
+        bool opened = false;
+        QTimer::singleShot(0, [&] {
+            untilDone([&] {
+                auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!m) return false;
+                opened = true;
+                m->close();
+                return true;
+            });
+        });
+        QTest::keyClick(cv, Qt::Key_F10, Qt::ShiftModifier);
+        QVERIFY(opened);
+    }
+
+    // Right-clicking a misspelled word being typed offers the dictionary's suggestions first; choosing one replaces the word.
+    void slideMenuOffersSpellingSuggestions()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        const QString titleId = placeholderOfSlide(*ed->doc(), 0, 0)->id, storyId = placeholderOfSlide(*ed->doc(), 0, 0)->storyId;
+        QTextCursor(ed->doc()->storyDoc(storyId)).insertText(QStringLiteral("This is teh test"));
+        ed->beginTextEdit(titleId, 10);
+        slideMenu(w, QStringLiteral("menu-spelling"));
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        const QList<QAction *> actions = menu->actions();
+        QVERIFY(actions.size() > 6);
+        const QStringList suggestions = spellingSuggestions(QStringLiteral("teh"));
+        QVERIFY(suggestions.contains(actions.first()->text()));
+        QVERIFY(actions.first()->font().bold());
+        QStringList texts;
+        for (const QAction *a : actions) texts << a->text();
+        QVERIFY(texts.contains(QStringLiteral("Ignore All")) && texts.contains(QStringLiteral("Add to Dictionary")));
+        QVERIFY(texts.indexOf(QStringLiteral("Ignore All")) < texts.indexOf(QStringLiteral("Cut")));
+        const QString chosen = actions.first()->text();
+        actions.first()->trigger();
+        QCOMPARE(storyText(w, storyId), QStringLiteral("This is %1 test").arg(chosen));
+        // Off a misspelled word there are none.
+        ed->beginTextEdit(titleId, 2);
+        std::unique_ptr<QMenu> plain(w.slideContextMenu());
+        QCOMPARE(plain->actions().first()->objectName(), QStringLiteral("edit.cut"));
+    }
+
+    // Home > Editing has Find, Replace, and Select, with Ctrl+F and Ctrl+H; Select offers Select All and Select Objects.
+    void homeTabHasFindReplaceAndSelect()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QCOMPARE(w.act(QStringLiteral("edit.find"))->shortcut(), QKeySequence(QKeySequence::Find));
+        QCOMPARE(w.act(QStringLiteral("edit.replace"))->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_H));
+        QToolButton *selectButton = nullptr;
+        int buttons = 0;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>()) {
+            if (b->defaultAction() == w.act(QStringLiteral("edit.find")) || b->defaultAction() == w.act(QStringLiteral("edit.replace"))) ++buttons;
+            if (b->text() == QLatin1String("Select") && b->menu()) selectButton = b;
+        }
+        QCOMPARE(buttons, 2);
+        QVERIFY(selectButton);
+        QVERIFY(selectButton->menu()->actions().contains(w.act(QStringLiteral("edit.selectAll"))));
+        QVERIFY(selectButton->menu()->actions().contains(w.act(QStringLiteral("edit.selectObjects"))));
+        // The commands open the pane, with the cursor in the box they are for.
+        QVERIFY(!w.findPane());
+        w.show();
+        w.act(QStringLiteral("edit.find"))->trigger();
+        QVERIFY(w.findPane() && w.findPane()->isVisible());
+        QVERIFY(w.findPane()->speakerNotes()->isChecked());
+        QVERIFY(!w.findPane()->matchCase()->isChecked() && !w.findPane()->wholeWords()->isChecked());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        QVERIFY(w.findPane()->isVisible());
+        // Select Objects is the pointer again, with no text being typed in.
+        Editor *ed = w.editor();
+        ed->beginTextEdit(placeholderOfSlide(*ed->doc(), 0, 0)->id);
+        w.act(QStringLiteral("edit.selectObjects"))->trigger();
+        QVERIFY(!ed->isEditingText());
+        QCOMPARE(ed->tool(), Tool::Select);
+    }
+
+    // Find Next goes through the text of every slide in order from the current one (titles, bodies, shapes, tables, and the notes) and round
+    // to the start; each match is shown on its slide, selected.
+    void findGoesThroughEverySlideNotesTablesAndShapes()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        fillFindDeck(w);
+        Editor *ed = w.editor();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        const QStringList all = {QStringLiteral("1:review@5"), QStringLiteral("2:review@3"), QStringLiteral("2:Review@21"), QStringLiteral("2:review@7 in the notes"),
+                                 QStringLiteral("3:Review@0"), QStringLiteral("3:review@13"), QStringLiteral("3:review@5"), QStringLiteral("3:Review@0")};
+        QCOMPARE(findAll(w, 9), all + QStringList{QStringLiteral("1:review@5")});
+        QVERIFY(pane->status().isEmpty());
+        // The match is on its slide, in the notes pane when it is a note.
+        ed->setCurrentPage(0);
+        ed->endTextEdit();
+        QStringList slides;
+        for (int i = 0; i < 4; ++i) {
+            pane->findNext();
+            slides << QString::number(ed->currentPage() + 1);
+        }
+        QCOMPARE(slides, (QStringList{QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("2"), QStringLiteral("2")}));
+        QVERIFY(w.notesPane()->isVisible());
+        QCOMPARE(w.notesPane()->textCursor().selectedText(), QStringLiteral("review"));
+        QVERIFY(!ed->isEditingText());
+        QApplication::processEvents();
+        shot(&w, QStringLiteral("find-notes-match"));
+        pane->findNext();
+        pane->findNext();
+        QApplication::processEvents();
+        shot(&w, QStringLiteral("find-slide-match"));
+        // Not in the notes when they are turned off.
+        pane->speakerNotes()->setChecked(false);
+        ed->setCurrentPage(0);
+        ed->endTextEdit();
+        QCOMPARE(findAll(w, 8), (QStringList{QStringLiteral("1:review@5"), QStringLiteral("2:review@3"), QStringLiteral("2:Review@21"), QStringLiteral("3:Review@0"),
+                                             QStringLiteral("3:review@13"), QStringLiteral("3:review@5"), QStringLiteral("3:Review@0"), QStringLiteral("1:review@5")}));
+        // Match case, and whole words only.
+        pane->speakerNotes()->setChecked(true);
+        pane->matchCase()->setChecked(true);
+        ed->setCurrentPage(0);
+        ed->endTextEdit();
+        QCOMPARE(findAll(w, 5), (QStringList{QStringLiteral("1:review@5"), QStringLiteral("2:review@3"), QStringLiteral("2:review@7 in the notes"), QStringLiteral("3:review@13"),
+                                             QStringLiteral("3:review@5")}));
+        pane->matchCase()->setChecked(false);
+        pane->wholeWords()->setChecked(true);
+        ed->setCurrentPage(0);
+        ed->endTextEdit();
+        QCOMPARE(findAll(w, 7), (QStringList{QStringLiteral("1:review@5"), QStringLiteral("2:review@3"), QStringLiteral("2:Review@21"), QStringLiteral("2:review@7 in the notes"),
+                                             QStringLiteral("3:review@5"), QStringLiteral("3:Review@0"), QStringLiteral("1:review@5")}));
+        // Nothing found says so and leaves everything as it was.
+        pane->wholeWords()->setChecked(false);
+        pane->findBox()->setText(QStringLiteral("nothing like this"));
+        const QString before = matchShown(w);
+        QVERIFY(!pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("\"nothing like this\" was not found")), qPrintable(pane->status()));
+        QCOMPARE(matchShown(w), before);
+    }
+
+    // The search starts at the slide being edited, and at the text cursor when text is being typed in.
+    void findStartsWhereYouAre()
+    {
+        DeckWindow w;
+        w.show();
+        fillFindDeck(w);
+        Editor *ed = w.editor();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        ed->setCurrentPage(2);
+        QCOMPARE(findAll(w, 3), (QStringList{QStringLiteral("3:Review@0"), QStringLiteral("3:review@13"), QStringLiteral("3:review@5")}));
+        ed->setCurrentPage(1);
+        ed->endTextEdit();
+        ed->clearSelection();
+        QCOMPARE(findAll(w, 2), (QStringList{QStringLiteral("2:review@3"), QStringLiteral("2:Review@21")}));
+        // With the caret after the first match in the body, the next is the second, not the first again.
+        ed->setCurrentPage(1);
+        ed->beginTextEdit(placeholderOfSlide(*ed->doc(), 1, 1)->id, 10);
+        QCOMPARE(findAll(w, 1), (QStringList{QStringLiteral("2:Review@21")}));
+        // A search from the end of the last slide's body goes on to its shape.
+        ed->setCurrentPage(2);
+        ed->beginTextEdit(placeholderOfSlide(*ed->doc(), 2, 1)->id, 100);
+        QVERIFY(ed->isEditingText());
+        QCOMPARE(findAll(w, 1), (QStringList{QStringLiteral("3:review@5")}));
+    }
+
+    // Replace All swaps every match, notes included, as one step that undoes, and says how many.
+    void replaceAllIsOneStepAndSaysHowMany()
+    {
+        DeckWindow w;
+        w.show();
+        fillFindDeck(w);
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        w.showFindPane(true);
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        pane->replaceBox()->setText(QStringLiteral("audit"));
+        const QString title = storyText(w, placeholderOfSlide(*d, 0, 0)->storyId);
+        const int steps = ed->undoStack()->count();
+        pane->replaceAll();
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QCOMPARE(pane->status(), QStringLiteral("JeffDeck made 8 replacements."));
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 0, 0)->storyId), QStringLiteral("Year audit"));
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 1, 1)->storyId), QStringLiteral("We audit profit and audit again"));
+        QCOMPARE(deck::notesText(*d, *d->pages[1]), QStringLiteral("Do not audit the numbers"));
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 2, 1)->storyId), QStringLiteral("audits and paudits"));
+        QCOMPARE(storyText(w, static_cast<ShapeItem *>(d->pages[2]->items[2].get())->storyId), QStringLiteral("Peer audit"));
+        QCOMPARE(storyText(w, static_cast<TableItem *>(d->pages[2]->items[3].get())->cells[0].storyId), QStringLiteral("audit"));
+        // The notes pane shows the new words when its slide is the one being edited.
+        ed->setCurrentPage(1);
+        QCOMPARE(w.notesPane()->toPlainText(), QStringLiteral("Do not audit the numbers"));
+        // One Undo puts every word back.
+        ed->undo();
+        d = ed->doc();
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 0, 0)->storyId), title);
+        QCOMPARE(deck::notesText(*d, *d->pages[1]), QStringLiteral("Do not review the numbers"));
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 2, 1)->storyId), QStringLiteral("Reviews and previews"));
+        QCOMPARE(storyText(w, static_cast<TableItem *>(d->pages[2]->items[3].get())->cells[0].storyId), QStringLiteral("Review"));
+        QCOMPARE(ed->undoStack()->index(), steps);
+        // Without the notes, and with case and whole words; one match says "1 replacement", none says none and adds no step.
+        pane->speakerNotes()->setChecked(false);
+        pane->matchCase()->setChecked(true);
+        pane->wholeWords()->setChecked(true);
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffDeck made 3 replacements."));
+        QCOMPARE(deck::notesText(*d, *d->pages[1]), QStringLiteral("Do not review the numbers"));
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 0, 0)->storyId), QStringLiteral("Year audit"));
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 2, 1)->storyId), QStringLiteral("Reviews and previews"));
+        ed->undo();
+        pane->findBox()->setText(QStringLiteral("Profit"));
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffDeck made 1 replacement."));
+        ed->undo();
+        const int stepsNow = ed->undoStack()->count();
+        pane->findBox()->setText(QStringLiteral("zzz"));
+        pane->replaceAll();
+        QCOMPARE(ed->undoStack()->count(), stepsNow);
+        QVERIFY2(pane->status().contains(QStringLiteral("no replacements")), qPrintable(pane->status()));
+    }
+
+    // Replace swaps the match that is shown, in a box or in the notes, and goes on to the next; each is a step of its own.
+    void replaceSwapsTheMatchShownAndMovesOn()
+    {
+        DeckWindow w;
+        w.show();
+        fillFindDeck(w);
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        w.showFindPane(true);
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        pane->replaceBox()->setText(QStringLiteral("audit"));
+        const int steps = ed->undoStack()->count();
+        // Nothing is shown yet: Replace only finds the first.
+        pane->replaceOne();
+        QCOMPARE(matchShown(w), QStringLiteral("1:review@5"));
+        QCOMPARE(ed->undoStack()->count(), steps);
+        pane->replaceOne();
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 0, 0)->storyId), QStringLiteral("Year audit"));
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QCOMPARE(matchShown(w), QStringLiteral("2:review@3"));
+        pane->replaceOne();
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 1, 1)->storyId), QStringLiteral("We audit profit and Review again"));
+        QCOMPARE(matchShown(w), QStringLiteral("2:Review@20"));
+        pane->replaceOne();
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 1, 1)->storyId), QStringLiteral("We audit profit and audit again"));
+        QCOMPARE(matchShown(w), QStringLiteral("2:review@7 in the notes"));
+        // In the notes.
+        pane->replaceOne();
+        QCOMPARE(deck::notesText(*d, *d->pages[1]), QStringLiteral("Do not audit the numbers"));
+        QCOMPARE(ed->undoStack()->count(), steps + 4);
+        QCOMPARE(matchShown(w), QStringLiteral("3:Review@0"));
+        ed->undo();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[1]), QStringLiteral("Do not review the numbers"));
+    }
+
+    // The pane's boxes are named for screen readers.
+    void findPaneControlsAreNamed()
+    {
+        DeckWindow w;
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        for (QLineEdit *e : pane->findChildren<QLineEdit *>()) {
+            QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(e);
+            QVERIFY(iface);
+            QVERIFY2(!iface->text(QAccessible::Name).trimmed().isEmpty(), qPrintable(e->objectName()));
+        }
+        for (QAbstractButton *b : pane->findChildren<QAbstractButton *>()) QVERIFY(!b->text().isEmpty());
+    }
+
+private:
+    // A real mouse click: pressed and let go on the slide at a point of the page, through the canvas.
+    static void clickSlide(DeckWindow &w, const QPointF &page, Qt::MouseButton button)
+    {
+        Canvas *cv = w.canvas();
+        const QPointF v = cv->pageToView(page);
+        QMouseEvent press(QEvent::MouseButtonPress, v, cv->viewport()->mapToGlobal(v.toPoint()), button, button, Qt::NoModifier);
+        QApplication::sendEvent(cv->viewport(), &press);
+        QMouseEvent release(QEvent::MouseButtonRelease, v, cv->viewport()->mapToGlobal(v.toPoint()), button, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(cv->viewport(), &release);
+    }
+    static QString longWords()
+    {
+        QString out;
+        for (int i = 0; i < 40; ++i) out += QStringLiteral("longer words ");
+        return out;
+    }
+
+private Q_SLOTS:
+    // Replace All fits what the new words need, as typing them would: a title a program had shrunk is fitted here from now on, a box that
+    // grows to fit grows, a table's rows grow; one Undo gives all of it back.
+    void replaceAllClearsAStoredShrinkAndRefitsBoxesAndTables()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        TextItem *title = placeholderOfSlide(*d, 0, 0);
+        QTextCursor(d->storyDoc(title->storyId)).insertText(QStringLiteral("review"));
+        title->autofit = TextItem::ShrinkOnOverflow;
+        title->fitAsStored = true;
+        title->fitScale = 0.8;
+        auto grow = std::make_shared<TextItem>();
+        grow->rect = QRectF(100, 300, 200, 30);
+        grow->storyId = d->createStory(QStringLiteral("review"));
+        grow->autofit = TextItem::GrowBox;
+        d->pages[0]->items.push_back(grow);
+        w.insertTable(1, 2);
+        auto *table = static_cast<TableItem *>(d->pages[0]->items.back().get());
+        QTextCursor(d->storyDoc(table->cells[0].storyId)).insertText(QStringLiteral("Review"));
+        ed->clearSelection();
+        ed->notifyLive();
+        ed->undoStack()->clear();
+        const double growHeight = grow->rect.height(), rowHeight = table->rowH[0];
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        pane->replaceBox()->setText(longWords());
+        pane->replaceAll();
+        QVERIFY(!title->fitAsStored);
+        QVERIFY2(grow->rect.height() > growHeight + 50, qPrintable(QString::number(grow->rect.height())));
+        QVERIFY2(table->rowH[0] > rowHeight + 50, qPrintable(QString::number(table->rowH[0])));
+        const double h = grow->rect.height(), r = table->rowH[0];
+        ed->autoGrowText(grow.get());
+        ed->fitTableRows(table);
+        QCOMPARE(grow->rect.height(), h);
+        QCOMPARE(table->rowH[0], r);
+        ed->undo();
+        d = ed->doc();
+        QVERIFY(placeholderOfSlide(*d, 0, 0)->fitAsStored);
+        QCOMPARE(d->pages[0]->items[2]->rect.height(), growHeight);
+        QCOMPARE(static_cast<TableItem *>(d->pages[0]->items[3].get())->rowH[0], rowHeight);
+    }
+
+    // Find reaches text in groups and on hidden slides, and Text Art words (shown by selecting the Text Art); the layouts and the
+    // slide master are the presentation's design, not its words, and are left alone.
+    void findReachesGroupsHiddenSlidesAndTextArtButNotLayouts()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 0)->storyId)).insertText(QStringLiteral("Plain review"));
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 1, 0)->storyId)).insertText(QStringLiteral("Hidden review"));
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 2, 0)->storyId)).insertText(QStringLiteral("Group review one"));
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 2, 1)->storyId)).insertText(QStringLiteral("Group review two"));
+        d->pages[1]->hidden = true;
+        auto art = std::make_shared<TextArtItem>();
+        art->rect = QRectF(100, 400, 300, 80);
+        art->text = QStringLiteral("Art review words");
+        d->pages[2]->items.push_back(art);
+        auto art2 = std::make_shared<TextArtItem>();
+        art2->rect = QRectF(100, 300, 300, 80);
+        art2->text = QStringLiteral("Second review art");
+        d->pages[2]->items.push_back(art2);
+        const QString artId = art->id, art2Id = art2->id;
+        // A word in a layout's prompt: not the presentation's.
+        QString layoutStory;
+        for (const auto &m : d->masters)
+            for (const auto &it : m->items)
+                if (it->type() == ItemType::Text && layoutStory.isEmpty()) layoutStory = static_cast<TextItem *>(it.get())->storyId;
+        QVERIFY(!layoutStory.isEmpty());
+        QTextCursor(d->storyDoc(layoutStory)).insertText(QStringLiteral(" review"));
+        ed->setCurrentPage(2);
+        ed->select(QStringList{placeholderOfSlide(*d, 2, 0)->id, placeholderOfSlide(*d, 2, 1)->id});
+        slideMenu(w);   // the commands are enabled as the selection allows
+        w.act(QStringLiteral("arr.group"))->trigger();
+        QCOMPARE(ed->selectionKind(), QStringLiteral("group"));
+        ed->clearSelection();
+        ed->setCurrentPage(0);
+        ed->notifyLive();
+        ed->undoStack()->clear();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        QCOMPARE(findAll(w, 4), (QStringList{QStringLiteral("1:review@6"), QStringLiteral("2:review@7"), QStringLiteral("3:review@6"), QStringLiteral("3:review@6")}));
+        QCOMPARE(ed->currentPage(), 2);
+        QVERIFY(ed->isEditingText());
+        // The Text Art is shown by selecting it, and Replace swaps its words; the next search goes on from there.
+        QVERIFY(pane->findNext());
+        QCOMPARE(ed->currentPage(), 2);
+        QVERIFY(!ed->isEditingText());
+        QCOMPARE(ed->selection(), QStringList{artId});
+        pane->replaceBox()->setText(QStringLiteral("audit"));
+        pane->replaceOne();
+        QCOMPARE(static_cast<TextArtItem *>(ed->doc()->item(artId))->text, QStringLiteral("Art audit words"));
+        QCOMPARE(ed->selection(), QStringList{art2Id});   // on to the second
+        // Replace All: the group's, the hidden slide's, the first slide's, and the other Text Art's, but not the layout's.
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffDeck made 5 replacements."));
+        d = ed->doc();
+        QVERIFY(storyText(w, layoutStory).contains(QStringLiteral(" review")));
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 1, 0)->storyId), QStringLiteral("Hidden audit"));
+        QCOMPARE(static_cast<TextArtItem *>(d->item(art2Id))->text, QStringLiteral("Second audit art"));
+        ed->undo();
+        QCOMPARE(static_cast<TextArtItem *>(ed->doc()->item(art2Id))->text, QStringLiteral("Second review art"));
+        QCOMPARE(static_cast<TextArtItem *>(ed->doc()->item(artId))->text, QStringLiteral("Art audit words"));
+        pane->findBox()->setText(QStringLiteral("review words"));
+        QVERIFY(!pane->findNext());
+        pane->findBox()->setText(QStringLiteral("audit words"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(ed->selection(), QStringList{artId});
+    }
+
+    // The words that replace a match are not searched for again: after Replace the next match is the next one, and Replace All makes one pass.
+    void aReplacementThatHoldsTheSearchTextIsNotFoundAgain()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 0)->storyId)).insertText(QStringLiteral("cat and cat"));
+        QTextCursor(d->storyDoc(d->pages[0]->notesStoryId)).insertText(QStringLiteral("cat"));
+        ed->notifyLive();
+        ed->undoStack()->clear();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("concatenate"));
+        pane->replaceOne();
+        QCOMPARE(matchShown(w), QStringLiteral("1:cat@0"));
+        pane->replaceOne();
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 0, 0)->storyId), QStringLiteral("concatenate and cat"));
+        QCOMPARE(matchShown(w), QStringLiteral("1:cat@16"));
+        pane->replaceOne();
+        QCOMPARE(storyText(w, placeholderOfSlide(*d, 0, 0)->storyId), QStringLiteral("concatenate and concatenate"));
+        QCOMPARE(matchShown(w), QStringLiteral("1:cat@0 in the notes"));
+        pane->replaceOne();
+        QCOMPARE(deck::notesText(*d, *d->pages[0]), QStringLiteral("concatenate"));
+        ed->undo();
+        ed->undo();
+        ed->undo();
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffDeck made 3 replacements."));
+        QCOMPARE(storyText(w, placeholderOfSlide(*ed->doc(), 0, 0)->storyId), QStringLiteral("concatenate and concatenate"));
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("concatenate"));
+    }
+
+    // Two matches in one notes box are both found, in order, and Replace on the first leaves the second to be found where it moved to.
+    void twoMatchesInOneNotesBoxAreBothFound()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(d->pages[0]->notesStoryId)).insertText(QStringLiteral("review one and review two"));
+        ed->notifyLive();
+        ed->undoStack()->clear();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("review"));
+        QCOMPARE(findAll(w, 3), (QStringList{QStringLiteral("1:review@0 in the notes"), QStringLiteral("1:review@15 in the notes"), QStringLiteral("1:review@0 in the notes")}));
+        pane->replaceBox()->setText(QStringLiteral("audit"));
+        pane->replaceOne();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("audit one and review two"));
+        QCOMPARE(matchShown(w), QStringLiteral("1:review@14 in the notes"));
+        pane->replaceOne();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("audit one and audit two"));
+        QVERIFY(!pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("was not found")), qPrintable(pane->status()));
+    }
+
+    // A real right click (pressed and let go on the slide, not a menu request made up in the test) selects the object it is on, keeps the
+    // objects selected together when it is on one of them, and clears the selection on the bare slide.
+    void aRightClickSelectsTheObjectUnderIt()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 0)->storyId)).insertText(QStringLiteral("Title words"));
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 1)->storyId)).insertText(QStringLiteral("Subtitle words"));
+        ed->notifyLive();
+        QApplication::processEvents();
+        const QString titleId = placeholderOfSlide(*d, 0, 0)->id, subId = placeholderOfSlide(*d, 0, 1)->id;
+        const QPointF titleAt = placeholderOfSlide(*d, 0, 0)->bounds().center(), subAt = placeholderOfSlide(*d, 0, 1)->bounds().center();
+        ed->select(titleId);
+        clickSlide(w, subAt, Qt::RightButton);
+        QCOMPARE(ed->selection(), QStringList{subId});
+        QVERIFY(slideMenu(w).contains(QStringLiteral("edit.cut")));
+        // On one of two selected objects, both stay selected.
+        ed->select(QStringList{titleId, subId});
+        clickSlide(w, titleAt, Qt::RightButton);
+        QCOMPARE(ed->selection().size(), 2);
+        QVERIFY(slideMenu(w).contains(QStringLiteral("arr.group")));
+        // On the bare slide, nothing is selected.
+        clickSlide(w, QPointF(5, 5), Qt::RightButton);
+        QVERIFY(ed->selection().isEmpty());
+        QVERIFY(slideMenu(w).contains(QStringLiteral("slide.reset")));
+    }
+
+    // A right click on the bare slide while typing ends the typing, so the menu is the slide's; on the text being typed in, it stays.
+    void aRightClickOnTheBareSlideWhileTypingEndsTheTyping()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QTextCursor(d->storyDoc(placeholderOfSlide(*d, 0, 0)->storyId)).insertText(QStringLiteral("Title words"));
+        ed->notifyLive();
+        QApplication::processEvents();
+        const QString titleId = placeholderOfSlide(*d, 0, 0)->id;
+        const QPointF titleAt = placeholderOfSlide(*d, 0, 0)->bounds().center();
+        ed->beginTextEdit(titleId);
+        clickSlide(w, titleAt, Qt::RightButton);
+        QVERIFY(ed->isEditingText());
+        QVERIFY(slideMenu(w).contains(QStringLiteral("fmt.fontDialog")));
+        clickSlide(w, QPointF(5, 5), Qt::RightButton);
+        QVERIFY(!ed->isEditingText());
+        QVERIFY(ed->selection().isEmpty());
+        const QStringList ids = slideMenu(w);
+        QVERIFY2(ids.contains(QStringLiteral("slide.reset")) && !ids.contains(QStringLiteral("fmt.fontDialog")), qPrintable(ids.join(QLatin1Char(' '))));
+    }
+
+    // The pane's message is plain text, and a long search text can't stretch the pane: it is cut short and may break anywhere.
+    void findPaneMessageIsPlainTextAndNarrow()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        w.showFindPane();
+        DeckFindPane *pane = w.findPane();
+        QLabel *status = pane->findChild<QLabel *>(QStringLiteral("findStatus"));
+        QVERIFY(status);
+        pane->findBox()->setText(QStringLiteral("<b>x"));
+        pane->findNext();
+        QCOMPARE(status->textFormat(), Qt::PlainText);
+        QVERIFY2(pane->status().contains(QStringLiteral("\"<b>x\" was not found")), qPrintable(pane->status()));
+        pane->findBox()->setText(QString(120, QLatin1Char('x')));
+        pane->findNext();
+        QVERIFY2(pane->status().size() < 200, qPrintable(QString::number(pane->status().size())));
+        QVERIFY2(status->minimumSizeHint().width() < 300, qPrintable(QString::number(status->minimumSizeHint().width())));
+        pane->replaceBox()->setText(QStringLiteral("y"));
+        pane->replaceAll();
+        QVERIFY2(pane->status().size() < 200, qPrintable(QString::number(pane->status().size())));
+        QVERIFY2(status->minimumSizeHint().width() < 300, qPrintable(QString::number(status->minimumSizeHint().width())));
     }
 };
 

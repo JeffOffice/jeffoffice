@@ -91,6 +91,9 @@ BackgroundDialog::BackgroundDialog(const QColor &current, const ColorScheme &sch
     m_button->setObjectName(QStringLiteral("backgroundColor"));
     form->addRow(tr("Solid fill color:"), m_button);
     lay->addLayout(form);
+    m_hide = new QCheckBox(tr("Hide background graphics"));
+    m_hide->setObjectName(QStringLiteral("hideGraphics"));
+    lay->addWidget(m_hide);
     connect(m_button, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
         m_color = c.resolve(m_scheme);
         m_button->setCurrent(ColorRef::rgb(m_color));
@@ -98,6 +101,9 @@ BackgroundDialog::BackgroundDialog(const QColor &current, const ColorScheme &sch
     lay->addSpacing(6);
     lay->addWidget(applyButtons(this, &m_all));
 }
+
+void BackgroundDialog::setHideGraphics(bool hide) { m_hide->setChecked(hide); }
+bool BackgroundDialog::hideGraphics() const { return m_hide->isChecked(); }
 
 TableSizeDialog::TableSizeDialog(QWidget *parent) : QDialog(parent)
 {
