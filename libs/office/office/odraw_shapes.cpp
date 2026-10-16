@@ -10,6 +10,7 @@
 #include "office/odraw_read.h"
 #include "office/odraw_style.h"
 
+#include <QFont>
 #include <QtMath>
 #include <algorithm>
 #include <functional>
@@ -361,6 +362,8 @@ private:
             t->vertical = flow == 1 || flow == 2 || flow == 3 || flow == 5;
             if (p.flag(0x00BF, 0x01, false)) t->autofit = TextItem::GrowBox;
             item = t;
+        } else if (ctx.presentation && type >= 189 && type <= 200) {
+            item = makeButton(s, rect);
         } else {
             auto sh = std::make_shared<ShapeItem>();
             // The numbered trapezoid is wide at the top; JeffOffice's is wide at the bottom.
@@ -381,6 +384,76 @@ private:
         item->altText = p.text(0x0381);
         item->hyperlink = hyperlinkOf(p.complex(0x0382));
         return item;
+    }
+
+    // An action button of a presentation (shape numbers 189 to 200): a plain box, and over it, where the button has one, its picture (an arrow,
+    // a house, a question mark) in a darker shade of the box, with the box's outline. A button that holds text is the box alone.
+    ItemPtr makeButton(const Records &s, const QRectF &rect) const
+    {
+        const Props &p = s.props;
+        auto box = std::make_shared<ShapeItem>();
+        frameOf(*box, s, rect);
+        look(*box, s, ctx, true, true);
+        box->shape = QStringLiteral("rect");
+        box->insets = textInsets(p);
+        box->valign = verticalAlign(p);
+        const QPainterPath glyph = s.hasTextbox ? QPainterPath() : buttonGlyph(s.type, rect.size());
+        if (glyph.isEmpty()) return box;
+        auto mark = std::make_shared<ShapeItem>();
+        frameOf(*mark, s, rect);
+        look(*mark, s, ctx, true, true);
+        mark->shape = QStringLiteral("rect");
+        mark->customPath = glyph;
+        mark->fill = Fill::solid(ColorRef::rgb(mix(colorProperty(p, ctx, 0x0181), Qt::black, 0.4)));
+        auto group = std::make_shared<GroupItem>();
+        group->children = {box, mark};
+        group->syncRect();
+        return group;
+    }
+
+    // The picture on an action button in a frame of `size`: the arrows (back and forward, to the end and to the beginning), the house, and
+    // the question mark; empty for the other buttons.
+    static QPainterPath buttonGlyph(int type, const QSizeF &size)
+    {
+        const double hc = size.width() / 2, vc = size.height() / 2, ss = std::min(size.width(), size.height()), dx = ss * 3 / 8;
+        auto at = [&](double u, double v) { return QPointF(hc + (u - 0.5) * ss, vc + (v - 0.5) * ss); };
+        QPainterPath path;
+        auto polygon = [&](std::initializer_list<QPointF> points) {
+            path.addPolygon(QPolygonF(QVector<QPointF>(points)));
+            path.closeSubpath();
+        };
+        switch (type) {
+        case 194: polygon({QPointF(hc + dx, vc - dx), QPointF(hc - dx, vc), QPointF(hc + dx, vc + dx)}); break;
+        case 193: polygon({QPointF(hc - dx, vc - dx), QPointF(hc + dx, vc), QPointF(hc - dx, vc + dx)}); break;
+        case 195:   // to the end: an arrow before a bar
+            polygon({QPointF(hc - dx, vc - dx), QPointF(hc + dx * 0.55, vc), QPointF(hc - dx, vc + dx)});
+            path.addRect(QRectF(QPointF(hc + dx * 0.7, vc - dx), QPointF(hc + dx, vc + dx)));
+            break;
+        case 196:   // to the beginning: a bar before an arrow
+            polygon({QPointF(hc + dx, vc - dx), QPointF(hc - dx * 0.55, vc), QPointF(hc + dx, vc + dx)});
+            path.addRect(QRectF(QPointF(hc - dx, vc - dx), QPointF(hc - dx * 0.7, vc + dx)));
+            break;
+        case 190:   // home: the roof, the walls, the door, and the chimney
+            polygon({at(0.5, 0.11), at(0.89, 0.5), at(0.11, 0.5)});
+            path.addRect(QRectF(at(0.21, 0.5), at(0.8, 0.89)));
+            path.addRect(QRectF(at(0.65, 0.15), at(0.74, 0.3)));
+            break;
+        case 191: {   // help: a question mark, as large as the button's picture
+            QFont font(QStringLiteral("Arial"));
+            font.setBold(true);
+            font.setPixelSize(std::max(1, int(ss * 0.8)));
+            QPainterPath text;
+            text.addText(QPointF(0, 0), font, QStringLiteral("?"));
+            const QRectF box = text.boundingRect();
+            if (box.isEmpty()) break;
+            QTransform place;
+            place.translate(hc - box.center().x(), vc - box.center().y());
+            path = place.map(text);
+            break;
+        }
+        default: break;
+        }
+        return path;
     }
 
     // Text with a shape (shape numbers 136 to 175): the words, font, size, and settings.

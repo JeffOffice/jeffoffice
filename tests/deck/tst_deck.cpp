@@ -25171,6 +25171,41 @@ private Q_SLOTS:
         QVERIFY2(near(arcs[2]->customPath.pointAtPercent(1), QPointF(200, 100)), qPrintable(text(arcs[2]->customPath.pointAtPercent(1))));
     }
 
+    // An action button of an old presentation is a plain box, with its picture on it where it has one: the arrow that points back (shape
+    // 194) is a group of the box and a triangle in a darker shade of the box's color, inside it; the blank button (189) is the box alone, not
+    // the library's box with a frame in it.
+    void importBinaryActionButtonsAreBoxesWithTheirPictures()
+    {
+        const QByteArray fill = pptRec(0xF00B, le(0x0181, 2) + le(0xC0C0C0, 4) + le(0x01BF, 2) + le(0x00110011, 4), 2, 3);
+        auto button = [&](quint32 id, int type) { return pptShape(id, 0, QByteArray(), 1000, 200, 1000, 1500, fill, 0xA00, quint16(type)); };
+        // A button 100 points wide and 62.5 high.
+        const QByteArray shapes = button(0x480, 194) + button(0x481, 189);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const GroupItem *back = nullptr;
+        const ShapeItem *blank = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() == ItemType::Group) back = static_cast<const GroupItem *>(it.get());
+            if (it->type() == ItemType::Shape) blank = static_cast<const ShapeItem *>(it.get());
+        }
+        QVERIFY(back && blank);
+        QCOMPARE(int(back->children.size()), 2);
+        QCOMPARE(back->children[0]->type(), ItemType::Shape);
+        QCOMPARE(back->children[1]->type(), ItemType::Shape);
+        const auto *box = static_cast<const ShapeItem *>(back->children[0].get());
+        const auto *mark = static_cast<const ShapeItem *>(back->children[1].get());
+        QCOMPARE(box->shape, QStringLiteral("rect"));
+        QVERIFY(box->customPath.isEmpty());
+        QVERIFY(!mark->customPath.isEmpty());
+        // The triangle is inside the box and darker than it.
+        const QRectF inside = mark->customPath.boundingRect();
+        QVERIFY2(QRectF(QPointF(0, 0), mark->rect.size()).contains(inside), qPrintable(QStringLiteral("%1,%2 %3x%4").arg(inside.x()).arg(inside.y()).arg(inside.width()).arg(inside.height())));
+        QCOMPARE(box->fill.color.rgbValue(), QColor(0xC0, 0xC0, 0xC0));
+        QVERIFY(mark->fill.color.rgbValue().red() < 0xC0 && mark->fill.color.rgbValue().red() > 0x40);
+        QCOMPARE(blank->shape, QStringLiteral("rect"));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
