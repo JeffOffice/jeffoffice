@@ -730,6 +730,50 @@ bool TableFragment::caretLine(int pos, QLineF *line) const
     return false;
 }
 
+bool TableFragment::lineEdge(int pos, bool end, int *result) const
+{
+    for (const Placed &pl : place()) {
+        for (const CellContent::Part &part : items[size_t(pl.item)].content->parts) {
+            if (!part.text || pos < part.from || pos >= part.to) continue;
+            *result = end ? part.text->lineEnd(pos) : part.text->lineStart(pos);
+            return true;
+        }
+    }
+    return false;
+}
+
+int TableFragment::moveVertical(int pos, int direction, double *wantedX) const
+{
+    const std::vector<Placed> placed = place();
+    for (const Placed &pl : placed) {
+        const TableLayout::Cell &cell = layout->cell(items[size_t(pl.item)].cell);
+        if (pos < cell.from || pos >= cell.to) continue;
+        for (const CellContent::Part &part : items[size_t(pl.item)].content->parts) {
+            if (!part.text || pos < part.from || pos >= part.to) continue;
+            int frame = 0;
+            QRectF rect;
+            if (*wantedX < 0 && part.text->caretRect(pos, &frame, &rect)) *wantedX = pl.text.x() + rect.x();
+            // On the first or last line of the stretch of text the way is on to the cell above or below (the engine's own Up from a first line is the story's start).
+            const QVector<StoryLayout::LineBrief> briefs = part.text->lineBriefs();
+            int at = -1;
+            for (int i = 0; i < briefs.size() && at < 0; ++i)
+                if (pos >= briefs[i].pos && (pos < briefs[i].end || i == briefs.size() - 1)) at = i;
+            const bool edge = at < 0 || (direction < 0 && at == 0) || (direction > 0 && at == briefs.size() - 1);
+            if (!edge) {
+                const int moved = part.text->moveVertical(pos, direction, *wantedX - pl.text.x());
+                if (moved != pos) return moved;
+            }
+            // At the first or last line of the cell: the cell above or below.
+            const QPointF target(*wantedX, direction < 0 ? pl.clip.top() - 1 : pl.clip.bottom() + 1);
+            const QRectF all = this->rect();
+            if (target.y() < all.top() || target.y() > all.bottom()) return pos;
+            const int found = positionAt(target);
+            return found >= 0 && (found < cell.from || found >= cell.to) ? found : pos;
+        }
+    }
+    return pos;
+}
+
 int TableFragment::positionAt(const QPointF &point) const
 {
     const std::vector<Placed> placed = place();

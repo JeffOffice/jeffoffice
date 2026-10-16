@@ -315,7 +315,7 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 
 void insertSectionBreak(WriteDoc &doc, QTextCursor &c)
 {
-    if (isLocked(c.block())) return;
+    if (isLocked(c.block()) || inTable(c.block())) return;   // (a section ends in a paragraph that is not in a table's cell)
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
     // The paragraph the cursor is in ends the section; the cursor goes to a new paragraph in the section that follows.
