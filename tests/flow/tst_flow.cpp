@@ -1807,6 +1807,53 @@ private Q_SLOTS:
         }
     }
 
+    // A section can restart the page numbers; a page's number is found without going back to the section's first page every time.
+    void paginatorNumbersPagesBySection()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 6000, 93, [](int i, QTextBlockFormat &bf) {
+            if (i == 1999 || i == 3999) bf.setProperty(flow::fp::SectionBreakAfter, true);
+        }, 3, 6);   // (a line each: some two hundred pages to a section)
+        for (Section *s : {&fd.sections[0]}) {
+            s->paper = QSizeF(300, 300);
+            s->margins = QMarginsF(50, 50, 50, 50);
+        }
+        Section second, third;
+        second = third = fd.sections[0];
+        second.firstPageNumber = 1;
+        second.pageNumberFormat = QStringLiteral("roman");
+        third.firstPageNumber = 0;   // goes on from the second
+        fd.sections[0].firstPageNumber = 5;
+        fd.sections << second << third;
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages > 12);
+        int first2 = -1, first3 = -1;
+        for (int k = 0; k < pages; ++k) {
+            const int section = pg.page(k).start.section;
+            if (section == 1 && first2 < 0) first2 = k;
+            if (section == 2 && first3 < 0) first3 = k;
+        }
+        QVERIFY(first2 > 1 && first3 > first2);
+        QCOMPARE(pg.page(0).number, 5);
+        QCOMPARE(pg.page(first2 - 1).number, 5 + first2 - 1);
+        QCOMPARE(pg.page(first2).number, 1);
+        QCOMPARE(pg.page(first3 - 1).number, first3 - first2);
+        QCOMPARE(pg.page(first3).number, first3 - first2 + 1);
+        QCOMPARE(pg.page(pages - 1).number, pages - first2);
+        QCOMPARE(pg.materialize(first2 + 1)->number, 2);
+        QCOMPARE(pg.materialize(first2 + 1)->doc->setup.pageNumberFormat, QStringLiteral("roman"));
+        // Not a walk back to the section's start for every page.
+        QVERIFY2(pg.numberStepsForTest() < 20 * pages, qPrintable(QStringLiteral("%1 steps for %2 pages").arg(pg.numberStepsForTest()).arg(pages)));
+        // (And after an edit, which makes some of them again.)
+        QTextCursor c(fd.story());
+        c.setPosition(10);
+        c.insertText(QStringLiteral("a few more words in the first paragraph of the first section, enough to take a line"));
+        pg.pageCount();
+        QCOMPARE(pg.page(first2).number, 1);
+        QVERIFY(pg.numberStepsForTest() < 40 * pages);
+    }
+
     // Several edits before the pages are laid out again are settled together.
     void paginatorSettlesSeveralEditsAtOnce()
     {
