@@ -800,7 +800,8 @@ static QImage mergePicture(const Document &d, const QString &field, int record)
 }
 
 // The words a picture's pixels hold (the text of a Macintosh picture, kept with it as the PNG's own text), said with no ink where they were drawn,
-// the picture shown in `where`: a PDF then has them as text that can be found and copied. Those outside `visible` are left out.
+// the picture shown in `where`: a PDF then has them as text that can be found and copied. Those outside `visible` are left out. (Not said where a PDF
+// allows no transparency, PDF/A-1b and PDF/X-1a, as no ink is a pen with no color, which there is drawn black; the words of an SVG are the same.)
 static void paintDrawnWords(QPainter *p, const QImage &img, const QRectF &where, const QRectF &visible)
 {
     if (img.isNull() || where.width() <= 0 || where.height() <= 0) return;
@@ -870,14 +871,14 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
             mf.play(p, pic.imgRect);
         } else if (ctx.opt.output && plain && data.format == QLatin1String("svg") && svg.load(data.bytes)) {
             svg::paint(svg, data.bytes, p, pic.imgRect);
-            if (ctx.opt.textOutput == TextOutput::Pdf) svg::paintText(data.bytes, p, pic.imgRect, r);
+            if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) svg::paintText(data.bytes, p, pic.imgRect, r);
         } else if (ctx.opt.output && plain && data.format == QLatin1String("pdf") && PdfDocument::shared(data.bytes)->isValid()) {
             PdfDocument::shared(data.bytes)->play(p, 0, pic.imgRect);
         } else {
             // Into pixels (a screen or an image, not a PDF, which keeps the picture whole): the size it covers.
             const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
             p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : QSizeF()));
-            if (ctx.opt.textOutput == TextOutput::Pdf) paintDrawnWords(p, src, pic.imgRect, r);
+            if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) paintDrawnWords(p, src, pic.imgRect, r);
         }
         p->restore();
     }
