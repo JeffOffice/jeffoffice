@@ -1,16 +1,22 @@
 # JeffMail feature list
 
-JeffMail is the email, calendar, contacts, and tasks program of JeffOffice, modeled on the desktop mail program in Office 2021. It keeps your mail where your provider keeps it, so any other program can read the same mailbox, and it opens the files other programs make (`.eml`, `.mbox`, `.msg`, `.pst`, `.ics`, `.vcf`). This list is the whole job, laid out the way the original is (File, then each tab of the main window and of the windows for a message, an appointment, a contact, and a task, then what sits under the ribbon), so the work can be planned and tracked. Nothing of JeffMail is built yet except what the suite already does for every app. Last reviewed October 15, 2026.
+JeffMail is the email, calendar, contacts, and tasks program of JeffOffice, modeled on Outlook in Office 2021. It keeps your mail where your provider keeps it, so any other program can read the same mailbox, and it opens the files other programs make (`.eml`, `.mbox`, `.msg`, `.pst`, `.ics`, `.vcf`). It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that and the rules that are already decided. This list is the whole job, laid out the way the original is (File, then each tab of the main window and of the windows for a message, an appointment, a contact, and a task, then what sits under the ribbon), so the work can be planned and tracked.
 
-Legend: `[x]` done (true of the suite already, or a rule that is already decided) · `[ ]` not built yet · `[~]` partly there because a shared JeffOffice part already does it (the note says which) · **(alt)** the usual way to do this depends on a proprietary online service, so JeffMail offers an open replacement.
+Last reviewed October 16, 2026.
+
+Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
 Every item carries a tier:
 
-- **first release**: the first public build (a preview, as JeffDeck 0.7.0 is). A person can add an account from any standard provider, read, search, write, send, and file mail, keep a calendar and an address book in sync over the open standards, and keep a task list, and nothing in a message reaches out until the person allows it.
-- **1.0**: what someone coming from the mail program in Office 2021 expects to find day to day. Version 1.0 is ready to ship when a person can move a working mailbox, calendar, and address book over (from the provider, or from a `.pst` file) and lose nothing they use.
-- **later**: used by few people, needs a piece the suite doesn't have yet, or depends on something outside the program (a company's registration with Microsoft, a server's support).
+- **first release**: needed in JeffMail's first public release.
+- **1.0**: needed before JeffMail is called finished (version 1.0).
+- **later**: wanted, but not before 1.0.
 
-How the list was made. Every command in the original's ribbons was read from Microsoft's published control lists for the main window and for the five item windows (a message being written, a message being read, an appointment or meeting, a contact, and a task). The lists overlap heavily, so each feature appears once here, under the place a person looks for it first. There are no usage counts for mail, so the tiers follow what a person moving from the original needs on day one, then what a full replacement needs.
+## How the tiers were chosen
+
+**First release** is the first public build (a preview, as JeffDeck 0.7.0 is). A person can add an account from any standard provider, read, search, write, send, and file mail, keep a calendar and an address book in sync over the open standards, and keep a task list, and nothing in a message reaches out until the person allows it. **1.0** is what someone coming from the mail program in Office 2021 expects to find day to day. Version 1.0 is ready to ship when a person can move a working mailbox, calendar, and address book over (from the provider, or from a `.pst` file) and lose nothing they use. An item is **later** when it is used by few people, needs a piece the suite doesn't have yet, or depends on something outside the program (a company's registration with Microsoft, a server's support).
+
+Every command in the original's ribbons was read from Microsoft's published control lists for the main window and for the five item windows (a message being written, a message being read, an appointment or meeting, a contact, and a task). The lists overlap heavily, so each feature appears once here, under the place a person looks for it first. There are no usage counts for mail, so the tiers follow what a person moving from the original needs on day one, then what a full replacement needs.
 
 ## Beyond Outlook
 
@@ -21,7 +27,7 @@ What JeffMail offers that the original doesn't, then the plans that go past it.
 - [~] **first release** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
 - [ ] **first release** Open standards and any provider: IMAP and SMTP for mail, CalDAV for calendars and tasks, and CardDAV for contacts, so a Fastmail, iCloud, Nextcloud, Posteo, or company server works the same way, and leaving JeffMail costs nothing
 - [ ] **first release** Your mailbox stays yours: for mail on a server, the server's copy is the real one and JeffMail's copy is a cache that can be thrown away and rebuilt; every message can be saved out as a plain `.eml` or `.mbox` file at any time
-- [ ] **first release** Private by default: no remote picture, tracking pixel, or linked content loads until you allow it, and attachments never run (details under Security and privacy)
+- [ ] **first release** Private by default: no remote picture, tracking pixel, or linked content loads until you allow it, and attachments never run (details under Safety and limits)
 - [ ] **first release** Search that runs on your own computer over everything downloaded, offline and without a service (details under Search and folders)
 - [ ] **first release** A "Proton Mail" account preset that finds Proton Mail Bridge on this computer (details under Accounts and sign-in)
 - [~] **first release** Spelling works offline in 12 languages, with no cloud service *(shared: the bundled dictionaries in libs/base/text)*
@@ -30,13 +36,51 @@ What JeffMail offers that the original doesn't, then the plans that go past it.
 - [ ] **1.0** One-click Unsubscribe on mailing-list messages, using the sender's own unsubscribe header, with a note of what will be sent before it is sent
 - [ ] **1.0** Undo Send: a message waits a few seconds in the Outbox after Send (you choose how long) and can be pulled back
 - [ ] **1.0** Safer sending: a warning before sending when the text says something is attached and nothing is, when the subject is empty, or when a reply would go to a very large list
-- [ ] **1.0** OpenPGP as well as S/MIME for signing and encrypting, with keys found through Web Key Directory and Autocrypt headers (details under Security and privacy)
+- [ ] **1.0** OpenPGP as well as S/MIME for signing and encrypting, with keys found through Web Key Directory and Autocrypt headers (details under Safety and limits)
 - [ ] **1.0** A Mail Merge hand-off: JeffWrite and JeffPub send their email merges through JeffMail's accounts instead of writing one `.eml` file per recipient
 - [~] **1.0** Help that works offline, with a search that also finds commands and runs them *(shared: libs/shell help)*
 - [ ] **1.0** `jmailtool`, a command-line tool that converts and checks mail files (`.eml`, `.mbox`, `.msg`, `.pst`, `.ics`, `.vcf`), verifies the local cache against the server, and runs the fidelity and hostile-file tests, as `jpubtool` and `jdecktool` do for the other apps *(shared: the pattern of those tools)*
 - [ ] **later** Snooze: hide a message until a day and time you pick, then bring it back to the top of the Inbox
 - [ ] **later** **(alt)** A local replacement for Focused Inbox: an "Other" view that sorts mail by who you write to, your contacts, and mailing-list headers, learned on your computer with nothing sent anywhere
 - [ ] **later** JMAP (the newer open mail protocol that Fastmail and some others offer) as a faster alternative to IMAP
+
+## File (backstage)
+
+### Info
+- [ ] **first release** Account Information: each account with its kind, servers, and status, with Add Account and Account Settings *(shared: the backstage page of libs/shell)*
+- [ ] **1.0** Cleanup Tools: the size of each folder and of the whole local copy, the account's quota where the server reports it, a list of the largest messages, a way to empty Deleted and Junk, and archiving of old mail
+- [ ] **1.0** Rules and Alerts opens the rules (details under Rules, filters, and junk mail)
+- [ ] **1.0** Automatic Replies opens the out-of-office settings (details under Rules, filters, and junk mail)
+
+### Open and export
+- [ ] **first release** Open a single `.eml`, `.ics`, or `.vcf` file (double-click, drag, or File > Open) to read it without importing it: a message in its own window, an event or contact with Add to Calendar or Add to Contacts
+- [ ] **first release** Import and Export in one place, with a preview of what will be added and a count when it finishes: `.eml` (one or many files), `.mbox` and Maildir folders (Thunderbird, Apple Mail, and Unix mail), `.vcf`, `.csv` contacts with column matching, and `.ics`
+- [ ] **1.0** Import `.msg` files (the original's single-item files) and export an item as `.msg` *(shared: the compound-file reader and writer in libs/base/io)*
+- [ ] **1.0** Import `.pst` and `.ost` data files read-only: mail with folders, flags, categories, and attachments; appointments and recurrences; contacts and groups; tasks; and notes, from old and new versions, including password-protected files. JeffMail never writes a `.pst`
+- [ ] **1.0** Export a whole account or a chosen set of folders to a folder of `.eml` or `.mbox` files plus `.ics` and `.vcf`, so a person can always take everything away
+- [ ] **1.0** Export the settings (accounts without passwords, rules, signatures, categories, and views) and import them on another computer
+- [ ] **later** Import Apple Mail (`.emlx`) mailboxes and the original Mac program's archive (`.olm`), and RSS/Atom feed lists (OPML)
+- [ ] **later** Open another person's shared mailbox when the server offers one (IMAP shared folders)
+
+### Save As and Print
+- [ ] **first release** Save a message as `.eml` (with every header and attachment as received), `.txt`, or `.html`; Save All Attachments; Save a calendar or a single event as `.ics`
+- [~] **first release** Print a message, event, contact, or task with Print Preview, paper, margins, and orientation *(shared: JeffPub's printing and libs/shell)*
+- [ ] **1.0** Save a calendar for a chosen range of dates, with a choice of detail (availability only, limited details, or full details) and whether private items are included
+- [~] **1.0** Print styles for mail and tasks: a table of the list as shown, and a memo with the header and body, optionally printing attachments and starting each item on a new page *(shared: libs/page and the PDF writer)*
+- [ ] **1.0** Print styles for the calendar: day, week, and month, with a small month beside them and a choice of hours and details
+- [~] **1.0** Save as PDF from any print *(shared: JeffPub's PDF export)*
+- [ ] **later** More print styles: tri-fold and a plain list of calendar details, and for contacts card, booklet, and phone-directory styles; and a way to define your own
+
+### Options
+- [~] **first release** General: user name, display language, light or dark interface, starting module, usage statistics (opt in), and update checks *(shared: libs/shell settings)*
+- [ ] **first release** Mail, Calendar, People, and Tasks, each with its own page: format for new messages (HTML or plain text), fonts, signatures, reply and forward layout, when a message counts as read, and how often to check; work hours and work week, first day of the week, week numbers, default reminder, time zones, and holidays; how names are filed, the default address book, and the autocomplete list; and default task reminders and overdue colors
+- [ ] **first release** Security and privacy in one page, with every default visible (remote content, tracker blocking, attachments, links, read receipts), so no setting is hidden (details under Safety and limits)
+- [~] **first release** Language: editing and proofing languages and the display language, in seven languages for the program and its Help *(shared: libs/shell i18n and the dictionaries)*
+- [~] **first release** Proofing: spelling as you type, ignored words, custom dictionaries, and AutoCorrect, shared with the editor *(shared: JeffPub's Proofing options)*
+- [ ] **1.0** Search: which accounts and folders are indexed, and the status of the index
+- [ ] **1.0** Accessibility: high contrast, text size, a screen-reader-friendly list layout, and no motion
+- [ ] **1.0** Customize the Ribbon and the Quick Access Toolbar, and customize the keyboard (assign keys to commands, Quick Steps, and signatures)
+- [ ] **1.0** Advanced: where the local copy is kept and how large it may grow, the sound and look of reminders, the proxy to use, and the log of what the program sent and received (with passwords hidden)
 
 ## Accounts and sign-in
 
@@ -74,44 +118,6 @@ What JeffMail offers that the original doesn't, then the plans that go past it.
 - [ ] **later** Exchange Web Services, for Exchange servers a company runs itself (Microsoft has announced its retirement from Exchange Online, so it would serve only those)
 - [ ] **later** LDAP directories, for looking up addresses in a company's address book
 - [ ] **later** ManageSieve, to read and edit a server's own mail filters (details under Rules, filters, and junk mail)
-
-## File (backstage)
-
-### Info
-- [ ] **first release** Account Information: each account with its kind, servers, and status, with Add Account and Account Settings *(shared: the backstage page of libs/shell)*
-- [ ] **1.0** Cleanup Tools: the size of each folder and of the whole local copy, the account's quota where the server reports it, a list of the largest messages, a way to empty Deleted and Junk, and archiving of old mail
-- [ ] **1.0** Rules and Alerts opens the rules (details under Rules, filters, and junk mail)
-- [ ] **1.0** Automatic Replies opens the out-of-office settings (details under Rules, filters, and junk mail)
-
-### Open and export
-- [ ] **first release** Open a single `.eml`, `.ics`, or `.vcf` file (double-click, drag, or File > Open) to read it without importing it: a message in its own window, an event or contact with Add to Calendar or Add to Contacts
-- [ ] **first release** Import and Export in one place, with a preview of what will be added and a count when it finishes: `.eml` (one or many files), `.mbox` and Maildir folders (Thunderbird, Apple Mail, and Unix mail), `.vcf`, `.csv` contacts with column matching, and `.ics`
-- [ ] **1.0** Import `.msg` files (the original's single-item files) and export an item as `.msg` *(shared: the compound-file reader and writer in libs/base/io)*
-- [ ] **1.0** Import `.pst` and `.ost` data files read-only: mail with folders, flags, categories, and attachments; appointments and recurrences; contacts and groups; tasks; and notes, from old and new versions, including password-protected files. JeffMail never writes a `.pst`
-- [ ] **1.0** Export a whole account or a chosen set of folders to a folder of `.eml` or `.mbox` files plus `.ics` and `.vcf`, so a person can always take everything away
-- [ ] **1.0** Export the settings (accounts without passwords, rules, signatures, categories, and views) and import them on another computer
-- [ ] **later** Import Apple Mail (`.emlx`) mailboxes and the original Mac program's archive (`.olm`), and RSS/Atom feed lists (OPML)
-- [ ] **later** Open another person's shared mailbox when the server offers one (IMAP shared folders)
-
-### Save As and Print
-- [ ] **first release** Save a message as `.eml` (with every header and attachment as received), `.txt`, or `.html`; Save All Attachments; Save a calendar or a single event as `.ics`
-- [~] **first release** Print a message, event, contact, or task with Print Preview, paper, margins, and orientation *(shared: JeffPub's printing and libs/shell)*
-- [ ] **1.0** Save a calendar for a chosen range of dates, with a choice of detail (availability only, limited details, or full details) and whether private items are included
-- [~] **1.0** Print styles for mail and tasks: a table of the list as shown, and a memo with the header and body, optionally printing attachments and starting each item on a new page *(shared: libs/page and the PDF writer)*
-- [ ] **1.0** Print styles for the calendar: day, week, and month, with a small month beside them and a choice of hours and details
-- [~] **1.0** Save as PDF from any print *(shared: JeffPub's PDF export)*
-- [ ] **later** More print styles: tri-fold and a plain list of calendar details, and for contacts card, booklet, and phone-directory styles; and a way to define your own
-
-### Options
-- [~] **first release** General: user name, display language, light or dark interface, starting module, usage statistics (opt in), and update checks *(shared: libs/shell settings)*
-- [ ] **first release** Mail, Calendar, People, and Tasks, each with its own page: format for new messages (HTML or plain text), fonts, signatures, reply and forward layout, when a message counts as read, and how often to check; work hours and work week, first day of the week, week numbers, default reminder, time zones, and holidays; how names are filed, the default address book, and the autocomplete list; and default task reminders and overdue colors
-- [ ] **first release** Security and privacy in one page, with every default visible (remote content, tracker blocking, attachments, links, read receipts), so no setting is hidden (details under Security and privacy)
-- [~] **first release** Language: editing and proofing languages and the display language, in seven languages for the program and its Help *(shared: libs/shell i18n and the dictionaries)*
-- [~] **first release** Proofing: spelling as you type, ignored words, custom dictionaries, and AutoCorrect, shared with the editor *(shared: JeffPub's Proofing options)*
-- [ ] **1.0** Search: which accounts and folders are indexed, and the status of the index
-- [ ] **1.0** Accessibility: high contrast, text size, a screen-reader-friendly list layout, and no motion
-- [ ] **1.0** Customize the Ribbon and the Quick Access Toolbar, and customize the keyboard (assign keys to commands, Quick Steps, and signatures)
-- [ ] **1.0** Advanced: where the local copy is kept and how large it may grow, the sound and look of reminders, the proxy to use, and the log of what the program sent and received (with passwords hidden)
 
 ## Mail
 
@@ -179,7 +185,7 @@ The main window, then reading a message, then writing one. Everything that file,
 - [ ] **first release** The body shown from the message's own formatting after cleaning (no scripts, no forms, no frames, no plug-ins, no auto-redirects, no outside style sheets), or as plain text when the person prefers
 - [ ] **first release** Pictures in the message held back (a bar says so, with Load pictures for this message) until allowed; pictures inside the message itself show at once
 - [ ] **first release** Links show their real destination when the pointer rests on them, and a link whose text names one address and whose target is another says so before it opens in the system browser; a mailto: link opens a new message
-- [ ] **first release** Attachments listed with icons, names, and sizes; Open, Save As, Save All, and drag to the desktop (details under Security and privacy for what Open means)
+- [ ] **first release** Attachments listed with icons, names, and sizes; Open, Save As, Save All, and drag to the desktop (details under Safety and limits for what Open means)
 - [ ] **first release** Messages attached to messages open inside the program; a delivery-failure notice and a read-receipt notice display in plain words
 - [ ] **first release** A meeting invitation shows as a card with the time, place, attendees, and conflicts with the calendar, and Accept, Tentative, Decline, and Propose New Time buttons
 - [ ] **first release** A vCard attachment shows as a contact card with Add to Contacts
@@ -193,15 +199,6 @@ The main window, then reading a message, then writing one. Everything that file,
 - [ ] **1.0** Select text and copy it with its formatting, and Select All
 - [ ] **later** View in Browser: a cleaned copy of the message opens in the system browser, only when you ask
 - [ ] **later** **(alt)** Translate a message or a selection with a model that runs on your own computer, if a small enough open one exists; no cloud translation
-
-### Attachments tab (a message with an attachment selected)
-- [ ] **first release** Open, Save As, Save All Attachments, Select All, and Copy
-- [~] **first release** Preview in place: pictures, PDF files, and plain text, shown by the suite's own readers within memory and time limits *(shared: libs/base PDF and picture readers)*
-- [~] **1.0** Preview Word, Excel, and PowerPoint files and the suite's own files in place, by the suite's own readers *(shared: libs/office and the apps' file readers)*
-- [ ] **1.0** Quick Print of an attachment, and Remove Attachment, which writes the message again without the file to free space after a confirmation that says it changes the server's copy
-- [ ] **1.0** Show Message returns to the message the attachment came from
-- [ ] **1.0** Open an attachment in the matching JeffOffice app when there is one, from a private temporary copy that is deleted when the app closes
-- [ ] **later** Save an attachment to a cloud storage service: not offered, because the original does it only for OneDrive and SharePoint
 
 ### Writing a message: Message tab
 - [ ] **first release** Send, with the From picker for the account and identity; a draft saved automatically every few minutes in the account's Drafts folder; and Close asking to keep or discard *(shared: AutoRecover keeps unsent text after a crash)*
@@ -233,7 +230,7 @@ The main window, then reading a message, then writing one. Everything that file,
 
 ### Writing a message: Options tab
 - [ ] **first release** Request a delivery notice (the server's own, where it supports one) and a read receipt (a request in the headers that the recipient's program may ignore), with a note that neither is certain
-- [ ] **1.0** Sign and Encrypt buttons for S/MIME and OpenPGP, with a "can everyone receive this encrypted" check *(details under Security and privacy)*
+- [ ] **1.0** Sign and Encrypt buttons for S/MIME and OpenPGP, with a "can everyone receive this encrypted" check *(details under Safety and limits)*
 - [ ] **1.0** Delay Delivery: hold the message in the Outbox until a date and time (works only while JeffMail is open, and says so)
 - [ ] **1.0** Direct Replies To: another address for replies; and Save Sent Item To: a folder of your choice, or not at all
 - [ ] **1.0** Character set for outgoing mail (UTF-8 by default, with the older sets when a recipient's program needs one)
@@ -253,7 +250,6 @@ The main window, then reading a message, then writing one. Everything that file,
 ### Keyboard and menus
 - [~] **first release** KeyTips and the ribbon by keyboard, with a visible focus ring *(shared: libs/shell)*
 - [ ] **first release** The original's keyboard shortcuts for the common commands (new message, reply, reply all, forward, send, mark read and unread, move, flag, search, go to a module, new appointment, contact, and task, and send/receive)
-- [ ] **1.0** Right-click menus on messages, a selection of several, a group heading, a column heading, folders, accounts, attachments, calendar items, contacts, and tasks, with the same commands in the same places as the original
 - [ ] **1.0** Quick Access Toolbar *(shared: libs/shell)*
 
 ## Calendar
@@ -361,7 +357,31 @@ Calendars come from CalDAV accounts, from files, from internet addresses, and fr
 - [ ] **later** Notes: short colored notes with categories, kept on this computer and, if the person chooses, in a Notes folder on the mail server as the other programs do
 - [ ] **later** Notes can be forwarded by email, moved between folders, and shown as icons, a list, or a table
 
-## Search and folders
+## Contextual tabs
+
+JeffMail has one tab that appears only while something is selected: Attachments, for a message with an attachment. The windows for a message, an appointment, a contact, and a task have their own tabs, which are listed under their modules.
+
+### Attachments tab (a message with an attachment selected)
+- [ ] **first release** Open, Save As, Save All Attachments, Select All, and Copy
+- [~] **first release** Preview in place: pictures, PDF files, and plain text, shown by the suite's own readers within memory and time limits *(shared: libs/base PDF and picture readers)*
+- [~] **1.0** Preview Word, Excel, and PowerPoint files and the suite's own files in place, by the suite's own readers *(shared: libs/office and the apps' file readers)*
+- [ ] **1.0** Quick Print of an attachment, and Remove Attachment, which writes the message again without the file to free space after a confirmation that says it changes the server's copy
+- [ ] **1.0** Show Message returns to the message the attachment came from
+- [ ] **1.0** Open an attachment in the matching JeffOffice app when there is one, from a private temporary copy that is deleted when the app closes
+- [ ] **later** Save an attachment to a cloud storage service: not offered, because the original does it only for OneDrive and SharePoint
+
+## Shortcut menus (right-click)
+
+What a right-click offers depends on what is under the pointer; the commands are the ones the ribbon already holds, put where the original puts them.
+
+- [ ] **1.0** Right-click menus on messages, a selection of several, a group heading, a column heading, folders, accounts, attachments, calendar items, contacts, and tasks, with the same commands in the same places as the original
+- [ ] **first release** On a message in the list: Open, Reply, Reply All, Forward, Mark as Read or Unread, Flag, Move, and Delete
+- [ ] **first release** On a misspelled word while writing: suggestions, Ignore All, and Add to Dictionary, with Cut, Copy, and Paste
+- [ ] **1.0** On a folder or an account: New Folder, Rename, Delete, Mark All as Read, Empty (for Deleted Items), and Properties
+- [ ] **1.0** On an attachment: Open (only for a safe kind of file, from a private copy), Save As, Save All, and Remove
+- [ ] **later** The mini toolbar that floats by selected text while writing, with the font, size, bold, italic, color, and list buttons
+
+## Under the ribbon: search and folders
 
 ### Search
 - [ ] **first release** Search box at the top of every module (Ctrl+E); results appear as you type; scope is the current folder, with a choice of its subfolders, the whole account, every account, or every kind of item (mail, events, contacts, and tasks)
@@ -384,7 +404,7 @@ Calendars come from CalDAV accounts, from files, from internet addresses, and fr
 - [ ] **later** A "Today" start page: the day's agenda, tasks, and unread counts in one view, as Outlook Today does
 - [ ] **later** Shared and public folders on servers that offer them (IMAP shared namespaces)
 
-## Rules, filters, and junk mail
+## Under the ribbon: rules, filters, and junk mail
 
 ### Rules
 - [ ] **first release** Rules that run when mail arrives: conditions on sender, recipient, subject, words in the body or headers, size, attachments, importance, category, and account; actions to move or copy to a folder, delete, mark read, flag, categorize, and stop processing more rules; with a wizard that builds a rule in plain sentences
@@ -404,12 +424,12 @@ Calendars come from CalDAV accounts, from files, from internet addresses, and fr
 - [ ] **first release** Report as junk moves a message to Junk and trains the provider's filter by the keyword and folder the server uses
 - [ ] **1.0** A junk filter on your computer that learns from what you mark as Junk and Not Junk, works offline, moves rather than deletes, and has levels (off, low, high, and safe senders only)
 - [ ] **1.0** Blocked Senders, Safe Senders, and Safe Recipients lists by address or domain; contacts counted as safe if you choose
-- [ ] **1.0** Phishing handling for suspected messages (details under Security and privacy)
+- [ ] **1.0** Phishing handling for suspected messages (details under Safety and limits)
 - [ ] **1.0** Unsubscribe in one click on mailing-list messages (see Beyond Outlook)
 - [ ] **later** Block by country code, domain ending, or character set
 - [ ] **later** Report phishing and spam to the provider's abuse address, with the message attached as the provider asks
 
-## Notifications and offline
+## Under the ribbon: notifications and offline
 
 ### Notifications
 - [ ] **first release** A notification for new mail from the system's notification area, with a choice of what it shows (sender and subject, sender only, or nothing), per account and per folder, and Open, Mark as Read, and Delete on the notification
@@ -430,7 +450,17 @@ Calendars come from CalDAV accounts, from files, from internet addresses, and fr
 - [ ] **1.0** A log of what was sent and received, viewable and copyable, with passwords and tokens hidden
 - [ ] **1.0** Default mail program: registers for `mailto:`, `.eml`, `.ics`, `.vcf`, and `webcal:` *(shared: the suite's file associations and installers)*
 
-## Security and privacy
+## Fidelity and testing
+
+JeffMail will be checked against Outlook and against the servers people use. The Windows test machine has Office 2021 (Word, Excel, PowerPoint, Outlook, Access, and Publisher), so Outlook makes the reference pictures of messages and opens the files JeffMail saves. Reference pictures and real messages stay on the build machine and never go in the repository.
+
+- [ ] **first release** Every file JeffMail saves that Outlook reads (`.eml`, `.msg`, `.ics`, and `.vcf`) opens in Outlook on the Windows test machine, and every message, appointment, and contact Outlook saves opens in JeffMail, with nothing lost that a person can see
+- [ ] **first release** Sample messages (HTML mail with tables and inline pictures, long quoted replies, and right-to-left and East Asian text) are drawn by JeffMail and by Outlook and compared as pictures, on the scale JeffPub's comparison uses
+- [ ] **first release** Messages and calendars held out from tuning are scored apart from the ones used for tuning, so the numbers are not flattered by the files the reader was fitted to
+- [ ] **1.0** Large public collections of real messages run through the message reader and the save-and-reopen check, each file that does not open or does not save back listed with its cause *(the Enron email collection is one candidate; it is not downloaded yet)*
+- [ ] **1.0** Tested against the servers people use: Dovecot, Cyrus, Gmail, Outlook.com, Yahoo, iCloud, Fastmail, Proton Mail Bridge, and Nextcloud, Radicale, and Baikal for CalDAV and CardDAV, with a list of what was checked in the repository
+
+## Safety and limits
 
 The three rules decided for the whole suite apply here first: nothing in a message reaches out until the person allows it, attachments never run, and every file and message reader is fuzzed and held to limits on memory and time. The items below are how JeffMail keeps them.
 
@@ -466,6 +496,7 @@ The three rules decided for the whole suite apply here first: nothing in a messa
 - [ ] **first release** Mail, calendars, and contacts are sent to the account's own servers and nowhere else; nothing goes to JeffOffice but the suite's update check and opt-in statistics, which carry no addresses, subjects, or contents
 - [ ] **1.0** The local copy encrypted with a passphrase the person sets, so a lost laptop doesn't expose mail (otherwise the system's disk encryption is the answer, and Options says so)
 - [ ] **later** A program lock after a time of inactivity, asking for the system password
+- [ ] **first release** Opening a file never changes it; Import copies, and Export writes new files beside the old
 
 ### Telling real from fake
 - [ ] **1.0** Sender checks: shows the result of the receiving server's own sender checks (SPF, DKIM, and DMARC) from the message header; marks a name that matches a contact but an address that doesn't; and marks a Reply-To that differs from the sender
@@ -481,7 +512,7 @@ The three rules decided for the whole suite apply here first: nothing in a messa
 - [ ] **later** Contact certificates and keys managed on the contact and in a key manager of their own
 - [ ] **later** Hardware keys and smart cards for S/MIME and OpenPGP
 
-## File formats and data
+## File formats
 
 ### Messages
 - [~] **first release** `.eml` and the message format underneath (RFC 5322 and MIME): every header kept and shown; multipart/alternative, related, mixed, signed, and encrypted; quoted-printable, base64, and 8-bit; encoded words and long header values; and character sets from UTF-8 and the Windows and ISO sets to the East Asian and Cyrillic ones. Messages inside messages, delivery-failure and read-receipt notices, and calendar and vCard parts are read, and attachment names in every convention seen. Damaged messages that other programs show are shown here too. *(shared: JeffPub writes a simple `.eml` today)*
@@ -501,11 +532,9 @@ The three rules decided for the whole suite apply here first: nothing in a messa
 
 ### The local copy
 - [ ] **first release** A local store for the cache of server mail, drafts, the Outbox, local folders, the search index, and settings; its format is an engineering choice made when building starts (see Decided); the requirements are that a damaged cache is rebuilt from the server, that local-only folders can always be exported as `.mbox`, that a crash never loses a draft, and that it holds 200,000 messages without slowing the lists
-- [ ] **first release** Opening a file never changes it; Import copies, and Export writes new files beside the old
 - [ ] **first release** Large folders stay quick: lists load by the screenful, bodies and attachments come when asked, and scrolling a folder of a hundred thousand messages stays smooth
 - [ ] **1.0** Rebuild the local copy and the search index from the server, from Cleanup Tools
 - [ ] **1.0** Compact the local store and report how much space it freed
-- [ ] **1.0** Tested against the servers people use: Dovecot, Cyrus, Gmail, Outlook.com, Yahoo, iCloud, Fastmail, Proton Mail Bridge, and Nextcloud, Radicale, and Baikal for CalDAV and CardDAV, with a list of what was checked in the repository
 
 ## Shared with other JeffOffice apps
 
