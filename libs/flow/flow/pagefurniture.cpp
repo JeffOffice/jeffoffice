@@ -69,7 +69,7 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
         bottom = std::min(bottom, std::max(sec.margins.bottom(), pageHeight - top - kLeastBody));
     }
     f.body.setTop(top);
-    f.body.setBottom(pageHeight - bottom);
+    f.body.setBottom(std::max(top + kLeastBody, pageHeight - bottom));   // (the least a text area is, as Section::content() has it)
     return f;
 }
 

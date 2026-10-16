@@ -190,7 +190,8 @@ QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, con
     }
     for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
         const QString id = QStringLiteral("rId") + QFileInfo(it.key()).completeBaseName();
-        const QString kind = it.key().contains(QLatin1String("footnotes")) ? QStringLiteral("footnotes") : it.key().contains(QLatin1String("footer")) ? QStringLiteral("footer") : QStringLiteral("header");
+        const QString kind = it.key().contains(QLatin1String("footnotes")) ? QStringLiteral("footnotes") : it.key().contains(QLatin1String("fontTable")) ? QStringLiteral("fontTable")
+                             : it.key().contains(QLatin1String("footer")) ? QStringLiteral("footer") : QStringLiteral("header");
         w.addPart(it.key(), xml(it.value()), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.") + kind + "+xml");
         w.addRelationshipWithId(QStringLiteral("/word/document.xml"), id, rel + kind, it.key());
     }
@@ -1357,6 +1358,56 @@ private Q_SLOTS:
             const auto page = doc->pager().materialize(k);
             QVERIFY2(page && boxWithText(*page, want[k]), qPrintable(QString::number(k)));
         }
+    }
+
+    // The file's font table says what a font it names is set in where the machine lacks it: its alternate, or by its kind a serif face or a fixed-width one.
+    void theFontTableGivesTheStandIns()
+    {
+        const QByteArray table = "<w:fonts " + QByteArray(kNs) + "><w:font w:name=\"Palatino\"><w:altName w:val=\"Book Antiqua\"/><w:family w:val=\"roman\"/></w:font>"
+                                 "<w:font w:name=\"Old Serif\"><w:family w:val=\"roman\"/></w:font><w:font w:name=\"Typewriter\"><w:family w:val=\"modern\"/></w:font>"
+                                 "<w:font w:name=\"Sans\"><w:family w:val=\"swiss\"/></w:font></w:fonts>";
+        auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}}));
+        QVERIFY(doc);
+        const auto &standIns = doc->flow().env.standIns;
+        QCOMPARE(standIns.value(QStringLiteral("palatino")), QStringLiteral("Book Antiqua"));
+        QCOMPARE(standIns.value(QStringLiteral("old serif")), QStringLiteral("Times New Roman"));
+        QCOMPARE(standIns.value(QStringLiteral("typewriter")), QStringLiteral("Courier New"));
+        QVERIFY(!standIns.contains(QStringLiteral("sans")));
+    }
+
+    // A font table of thousands of fonts that say nothing is read in step with its size.
+    void aLongFontTableCostsInStepWithItsSize()
+    {
+        auto seconds = [&](int count) {
+            QByteArray table = "<w:fonts " + QByteArray(kNs) + ">";
+            for (int i = 0; i < count; ++i) table += "<w:font w:name=\"F" + QByteArray::number(i) + "\"/>";
+            table += "</w:fonts>";
+            const QByteArray zip = makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}});
+            double best = 1e9;
+            for (int k = 0; k < 2; ++k) {
+                QElapsedTimer t;
+                t.start();
+                auto doc = open(zip);
+                best = std::min(best, t.nsecsElapsed() / 1e9);
+            }
+            return best;
+        };
+        const double small = seconds(5000), large = seconds(20000);
+        QVERIFY2(large < 0.2 + small * 8, qPrintable(QStringLiteral("5000 fonts %1 s, 20000 fonts %2 s").arg(small).arg(large)));
+    }
+
+    // The option that no punctuation hangs past the margin is read by its value: stated off, it is off.
+    void noHangingPunctuationIsReadByItsValue()
+    {
+        auto hangs = [&](const QByteArray &option) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
+            return doc && !doc->flow().env.wordNoHang;
+        };
+        QVERIFY(!hangs("<w:doNotWrapTextWithPunct/>"));
+        QVERIFY(!hangs("<w:doNotWrapTextWithPunct w:val=\"1\"/>"));
+        QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"0\"/>"));
+        QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"false\"/>"));
+        QVERIFY(hangs(""));
     }
 
     // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.

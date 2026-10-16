@@ -392,6 +392,19 @@ constexpr int kMaxNotes = 20000;
 // Reads the notes of a footnotes or endnotes part. False, with nothing read, when the part isn't XML.
 bool readNotes(const QByteArray &xml, QVector<NotePart> *notes);
 
+// A font of a font table: its name, the alternate it names (a family to set it in where it is missing), and its kind (roman, swiss, modern, script,
+// decorative, or auto), each empty when it says none.
+struct FontEntry {
+    QString name, alternate, family;
+};
+// The most fonts of a table that are read.
+constexpr int kMaxFonts = 4000;
+// Reads the fonts of a font table part. False, with nothing read, when the part isn't XML.
+bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts);
+
+// Whether a compatibility option of the settings part (an element of w:compat) is on: stated, and not turned off (w:val 0, false, or off).
+bool compatOption(const QByteArray &settings, const char *name);
+
 // Reads a .docx (or .docm, .dotx) package. False, with a message, if it isn't a word processing document or is damaged beyond reading.
 // A file is held to limits: of parts together inflated, of the XML of a part (xmltree.h), and of what the body holds, past which the rest is
 // left out and a note says so. Real files, in 1,795 .docx files of public collections: 125 KB inflated in the middle, 15 MB for 99 of 100, and

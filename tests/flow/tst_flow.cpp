@@ -252,6 +252,45 @@ QString differenceFromOneShot(FlowDocument &fd, Paginator &pg)
     return QString();
 }
 
+// A page's starts, lines, and (made) items as text, to say whether two paginators of the same document agree.
+QString pageSignature(Paginator &pg, int k, bool made)
+{
+    auto r2 = [](double v) { return QString::number(std::round(v * 100) / 100); };
+    QString s;
+    const auto page = pg.page(k);
+    s += QStringLiteral("P%1 %2/%3/%4/%5/%6/%7/[%8] number %9 area %10,%11,%12,%13\n").arg(k).arg(page.start.pos).arg(page.start.skip).arg(page.start.hard).arg(page.start.section).arg(page.start.foot)
+             .arg(page.start.end).arg(page.start.carried.join(QLatin1Char(','))).arg(page.number).arg(r2(page.content.left())).arg(r2(page.content.top())).arg(r2(page.content.width())).arg(r2(page.content.height()));
+    for (const auto &l : pg.lines(k))
+        s += QStringLiteral(" L%1/%2 b%3 %4-%5 f%6 %7,%8,%9,%10\n").arg(l.line).arg(l.lines).arg(l.block).arg(l.pos).arg(l.end).arg(l.frame).arg(r2(l.rect.left())).arg(r2(l.rect.top())).arg(r2(l.rect.width())).arg(r2(l.rect.height()));
+    if (!made) return s;
+    if (const auto m = pg.materialize(k))
+        for (const auto &item : m->doc->pages[0]->items) {
+            QString what;
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *st = m->doc->story(t->storyId)) what = st->doc->toPlainText().left(24);
+            s += QStringLiteral(" I%1 %2,%3,%4,%5 %6\n").arg(int(item->type())).arg(r2(item->rect.left())).arg(r2(item->rect.top())).arg(r2(item->rect.width())).arg(r2(item->rect.height())).arg(what);
+        }
+    else s += QStringLiteral(" (not made)\n");
+    return s;
+}
+
+// The first page where `incremental` (a paginator that was laid out before the story was edited) differs from a paginator made after, or nothing.
+QString differenceFromFresh(FlowDocument &fd, Paginator &incremental, bool made = true)
+{
+    Paginator fresh(&fd);
+    const int pages = incremental.pageCount(), want = fresh.pageCount();
+    if (pages != want) return QStringLiteral("%1 pages after the edits, %2 when made afresh").arg(pages).arg(want);
+    for (int k = 0; k < pages; ++k) {
+        const QString a = pageSignature(incremental, k, made), b = pageSignature(fresh, k, made);
+        if (a != b) {
+            const QStringList la = a.split(QLatin1Char('\n')), lb = b.split(QLatin1Char('\n'));
+            for (int i = 0; i < std::max(la.size(), lb.size()); ++i)
+                if (la.value(i) != lb.value(i)) return QStringLiteral("page %1 differs at its line %2: [%3] and [%4] afresh").arg(k).arg(i).arg(la.value(i), lb.value(i));
+        }
+    }
+    return QString();
+}
+
 QTextBlockFormat formatAt(const FlowDocument &fd, int position) { return fd.story()->findBlock(position).blockFormat(); }
 
 // A paragraph split between two pages leaves at least `lines` of its lines on each side of the break (if it began on the page: of the first
@@ -2189,6 +2228,52 @@ private Q_SLOTS:
                         QCOMPARE(st->doc->begin().blockFormat().lineHeight(), 80.0);
                     }
         QVERIFY(box);
+    }
+
+    // Pages that an edit moves down by a page change from odd to even, and where odd and even pages have headers of other heights they are laid out again:
+    // the pages after the edit are the ones a fresh paginator makes.
+    void evenAndOddHeadersOfOtherHeightsSettleAfterAnEdit()
+    {
+        for (bool sameHeights : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 6 * 25, 7, [](int i, QTextBlockFormat &bf) { if (i % 25 == 0 && i > 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 40, 40);
+            Section &s = fd.sections[0];
+            s.differentOddEven = true;
+            s.header.odd = furnitureStory({QStringLiteral("ODD")});
+            s.header.even = sameHeights ? furnitureStory({QStringLiteral("EVEN")})
+                                        : furnitureStory({QStringLiteral("EVEN 1"), QStringLiteral("EVEN 2"), QStringLiteral("EVEN 3"), QStringLiteral("EVEN 4"), QStringLiteral("EVEN 5"), QStringLiteral("EVEN 6")});
+            Paginator pg(&fd);
+            const int before = pg.pageCount();
+            QTextCursor c(fd.story());
+            c.setPosition(fd.story()->findBlockByNumber(2).position());
+            QTextCharFormat cf;
+            cf.setFontPointSize(11);
+            for (int i = 0; i < 14; ++i) {
+                c.insertText(QStringLiteral("An added paragraph that is long enough to take two or three lines of the page when it is set at eleven points in this frame. "), cf);
+                c.insertBlock();
+            }
+            QVERIFY(pg.pageCount() > before);
+            const QString bad = differenceFromFresh(fd, pg, false);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 headers: %2").arg(sameHeights ? "same-height" : "different-height", bad)));
+        }
+    }
+
+    // Margins that leave a page no text area (and a header and footer beside them) give it the least text area every page has, not a negative one.
+    void marginsLargerThanThePageLeaveTheLeastTextArea()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 30, 3);
+        Section &s = fd.sections[0];
+        s.margins = QMarginsF(72, 5000, 72, 5000);
+        s.header.odd = furnitureStory({QStringLiteral("HEADER")});
+        s.footer.odd = furnitureStory({QStringLiteral("FOOTER")});
+        Paginator pg(&fd);
+        const auto page = pg.page(0);
+        const QRectF plain = s.content();
+        QVERIFY2(page.content.height() >= 35.9, qPrintable(QString::number(page.content.height())));
+        QVERIFY2(std::abs(page.content.height() - plain.height()) < 0.01, qPrintable(QStringLiteral("%1 vs %2").arg(page.content.height()).arg(plain.height())));
+        QVERIFY(pg.pageCount() >= 1 && pg.pageCount() < 100000);
     }
 
     // A header or footer taller than the margin leaves room for moves the text away from it, so the page holds fewer lines.

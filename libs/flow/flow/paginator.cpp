@@ -370,6 +370,13 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.next.end = st.end + endnotes;
         if (m_doc->restartNotesInSections && run.next.section != st.section) run.next.foot = run.next.end = 0;
         run.next.carried = carriedOut;
+        // The text area the page after has: its number is one more than this page's (or the number its section starts at).
+        int nextNumber = number + 1;
+        if (run.next.section != st.section)
+            if (const std::optional<int> first = m_doc->section(run.next.section).firstPageNumber) nextNumber = *first;
+        const Furniture after = furnitureOf(index + 1, run.next, nextNumber);
+        run.next.areaTop = after.body.top();
+        run.next.areaBottom = after.body.bottom();
     }
     return run;
 }
@@ -394,7 +401,7 @@ void Paginator::extend(int index)
 {
     while (!m_pending && !m_complete && (index < 0 || m_starts.size() <= index)) {
         const Run run = layoutPage(int(m_starts.size()) - 1, m_starts.back());
-        if (!run.hasNext || run.next == m_starts.back()) {
+        if (!run.hasNext || run.next.sameStartAs(m_starts.back())) {
             m_complete = true;
             break;
         }
@@ -540,7 +547,7 @@ void Paginator::settleStep()
     const int k = m_valid;
     const Run run = layoutPage(k, m_starts[k]);
     if (m_numberOf > k) m_numberOf = -1;   // (the pages after this one are about to change)
-    if (!run.hasNext || run.next == m_starts[k]) {
+    if (!run.hasNext || run.next.sameStartAs(m_starts[k])) {
         m_starts.resize(k + 1);
         m_high = std::min(m_high, k);
         m_complete = true;

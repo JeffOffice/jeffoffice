@@ -284,6 +284,26 @@ private Q_SLOTS:
         QVERIFY(readShapes("not xml").isEmpty());
     }
 
+    // The numbers of a shape that are past what a page holds (or are not numbers) are brought into a range a page could be in.
+    void shapeCoordinatesStayInRange()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
+        auto sane = [](const Shape &s) {
+            for (double v : {s.left, s.top, s.width, s.height, s.x1, s.y1, s.x2, s.y2, s.rotation})
+                if (!std::isfinite(v) || std::abs(v) > 1e6) return false;
+            return true;
+        };
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:rect id='a' style='position:absolute;margin-left:1e999pt;margin-top:-1e999pt;width:1e999pt;height:1e300pt;rotation:1e999' fillcolor='red'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY2(sane(shapes[0]), qPrintable(QStringLiteral("left %1 top %2 width %3 height %4 rotation %5").arg(shapes[0].left).arg(shapes[0].top).arg(shapes[0].width).arg(shapes[0].height).arg(shapes[0].rotation)));
+        shapes = readShapes("<w:pict " + ns + "><v:line id='b' style='position:absolute;left:0' from='1e999pt,-1e999pt' to='1e999pt,1e300pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(sane(shapes[0]));
+        shapes = readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;margin-left:10pt;margin-top:20pt;width:100pt;height:50pt' coordsize='1e999,0' coordorigin='1e999,1e999'><v:rect id='m' style='position:absolute;left:100;top:50;width:200;height:100' fillcolor='red'/></v:group></w:pict>");
+        for (const Shape &s : shapes) QVERIFY(sane(s));
+    }
+
     // The notes of a footnotes part come with their Ids, types, and paragraphs.
     void readsTheNotesOfAPart()
     {
@@ -306,6 +326,62 @@ private Q_SLOTS:
         QVector<NotePart> capped;
         QVERIFY(readNotes(many, &capped));
         QCOMPARE(int(capped.size()), kMaxNotes);
+    }
+
+    // The fonts of a font table come with their alternates and kinds; a part of thousands of fonts is read in step with its size, and one that is
+    // not XML (unclosed elements) is refused.
+    void readsTheFontsOfAFontTable()
+    {
+        const QByteArray part = xmlDoc(QByteArray("<w:fonts ") + kW + R"(><w:font w:name="Palatino"><w:altName w:val="Book Antiqua"/><w:charset w:val="00"/><w:family w:val="roman"/></w:font><w:font w:name="Optima"><w:family w:val="auto"/></w:font><w:font w:name="Plain"/></w:fonts>)");
+        QVector<FontEntry> fonts;
+        QVERIFY(readFonts(part, &fonts));
+        QCOMPARE(int(fonts.size()), 3);
+        QCOMPARE(fonts[0].name, QStringLiteral("Palatino"));
+        QCOMPARE(fonts[0].alternate, QStringLiteral("Book Antiqua"));
+        QCOMPARE(fonts[0].family, QStringLiteral("roman"));
+        QCOMPARE(fonts[1].family, QStringLiteral("auto"));
+        QVERIFY(fonts[1].alternate.isEmpty());
+        QVERIFY(fonts[2].family.isEmpty());
+        auto seconds = [&](int count) {
+            QByteArray many = QByteArray("<w:fonts ") + kW + ">";
+            for (int i = 0; i < count; ++i) many += "<w:font ";
+            double best = 1e9;
+            for (int k = 0; k < 3; ++k) {
+                QElapsedTimer t;
+                t.start();
+                QVector<FontEntry> none;
+                if (readFonts(many, &none)) return -1.0;
+                best = std::min(best, t.nsecsElapsed() / 1e9);
+            }
+            return best;
+        };
+        const double small = seconds(5000), large = seconds(20000);
+        QVERIFY(small >= 0 && large >= 0);
+        // (Four times the openers: four times the time, or sixteen when it is the square; and never more than a moment.)
+        QVERIFY2(large < 0.1 + small * 8, qPrintable(QStringLiteral("5000 openers %1 s, 20000 openers %2 s").arg(small).arg(large)));
+        // More fonts than the limit have the rest left out.
+        QByteArray huge = QByteArray("<w:fonts ") + kW + ">";
+        for (int i = 0; i < kMaxFonts + 50; ++i) huge += "<w:font w:name=\"F" + QByteArray::number(i) + "\"/>";
+        huge += "</w:fonts>";
+        QVector<FontEntry> capped;
+        QVERIFY(readFonts(huge, &capped));
+        QCOMPARE(int(capped.size()), kMaxFonts);
+    }
+
+    // A compatibility option of the settings counts when it is stated and not turned off.
+    void readsACompatibilityOptionByItsValue()
+    {
+        auto settings = [](const QByteArray &inner) { return xmlDoc(QByteArray("<w:settings ") + kW + "><w:compat>" + inner + "</w:compat></w:settings>"); };
+        QVERIFY(compatOption(settings("<w:doNotWrapTextWithPunct/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"1\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"true\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"0\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"false\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption(settings("<w:doNotWrapTextWithPunct w:val=\"off\"/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption(settings("<w:somethingElse/>"), "doNotWrapTextWithPunct"));
+        QVERIFY(!compatOption("not xml", "doNotWrapTextWithPunct"));
+        // (Only in w:compat: an element of that name elsewhere, or in a comment, is not the option.)
+        QVERIFY(!compatOption(xmlDoc(QByteArray("<w:settings ") + kW + "><w:doNotWrapTextWithPunct/></w:settings>"), "doNotWrapTextWithPunct"));
     }
 
     // A paragraph's borders and shading are read into their sides and colors, and a side a style states that the paragraph doesn't is the style's;

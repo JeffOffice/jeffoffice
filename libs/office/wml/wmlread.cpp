@@ -714,6 +714,33 @@ bool readNotes(const QByteArray &xml, QVector<NotePart> *notes)
     return true;
 }
 
+bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts)
+{
+    XmlTree tree;
+    if (!tree.parse(xml, nullptr)) return false;
+    for (int c = tree.firstChild(tree.root()); c >= 0 && fonts->size() < kMaxFonts; c = tree.next(c)) {
+        if (!tree.is(c, "font")) continue;
+        FontEntry f;
+        f.name = tree.attr(c, "name");
+        if (const int alt = tree.child(c, "altName"); alt >= 0) f.alternate = tree.val(alt);
+        if (const int fam = tree.child(c, "family"); fam >= 0) f.family = tree.val(fam);
+        fonts->push_back(std::move(f));
+    }
+    return true;
+}
+
+bool compatOption(const QByteArray &settings, const char *name)
+{
+    XmlTree tree;
+    if (!tree.parse(settings, nullptr)) return false;
+    const int compat = tree.child(tree.root(), "compat");
+    if (compat < 0) return false;
+    const int option = tree.child(compat, name);
+    if (option < 0) return false;
+    const QString value = tree.val(option).toLower();
+    return !(value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off"));
+}
+
 bool readBlocks(const QByteArray &xml, QVector<Block> *blocks)
 {
     XmlTree tree;
