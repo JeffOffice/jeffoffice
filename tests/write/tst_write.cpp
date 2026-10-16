@@ -1157,6 +1157,31 @@ private Q_SLOTS:
         QCOMPARE(documentXml(doc->toDocx()), before);
     }
 
+    // Attributes the program has no use for, on elements it does understand, go back as they were read: a theme color of an underline, the paper
+    // code, the numbering of chapters in the page numbers.
+    void unknownAttributesOnKnownElementsGoBackAsRead()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\" w:code=\"1\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\" w:odd=\"x\"/>"
+                                "<w:pgNumType w:fmt=\"decimal\" w:chapStyle=\"1\" w:chapSep=\"colon\"/><w:cols w:num=\"2\" w:space=\"720\" w:odd=\"y\"/></w:sectPr>";
+        auto doc = open(makeDocx("<w:p><w:r><w:rPr><w:u w:val=\"single\" w:color=\"FF0000\" w:themeColor=\"accent2\" w:themeTint=\"99\"/></w:rPr><w:t>underlined</w:t></w:r></w:p>", kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("w:themeColor=\"accent2\"") && x.contains("w:themeTint=\"99\""), x.constData());
+        QVERIFY2(x.contains("w:code=\"1\""), x.constData());
+        QVERIFY2(x.contains("w:chapStyle=\"1\"") && x.contains("w:chapSep=\"colon\""), x.constData());
+        QVERIFY2(x.contains("w:odd=\"x\"") && x.contains("w:odd=\"y\""), x.constData());
+        // They survive an edit of the page setup, and turning the underline off takes its theme color with it.
+        wml::SectionProps p = doc->sectionProps(0);
+        p.cols = 1;
+        doc->setSectionProps(0, p);
+        QVERIFY(documentXml(doc->toDocx()).contains("w:chapSep=\"colon\""));
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        toggleUnderline(*doc, c);
+        QVERIFY(!documentXml(doc->toDocx()).contains("themeColor"));
+        QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), documentXml(doc->toDocx()));
+    }
+
     void aSectionThatEndsTheFileLeavesABlankLastPageThatIsDrawn()
     {
         // The only paragraph ends a next-page section and nothing follows: the second section has no text, so its page has no lines.
