@@ -87,7 +87,14 @@ QString FieldContext::resolve(const QString &code) const
         if (arg == "prev") return prevPage > 0 ? QString::number(prevPage + from) : QStringLiteral("#");
         return shown(pageNumber + from);
     }
-    if (kind == "pages") return QString::number(pageCount);
+    if (kind == "pages") {
+        const int total = doc ? doc->pageTotal() : 0;
+        return QString::number(total > 0 ? total : pageCount);
+    }
+    if (kind == "sectionpages") {
+        const int total = doc ? doc->sectionPageTotal() : 0;
+        return QString::number(total > 0 ? total : pageCount);
+    }
     if (kind == "date") return now.date().toString(arg.isEmpty() ? QStringLiteral("MMMM d, yyyy") : arg);
     if (kind == "time") return now.time().toString(arg.isEmpty() ? QStringLiteral("h:mm AP") : arg);
     if (kind == "datetime") return now.toString(arg.isEmpty() ? QStringLiteral("M/d/yyyy h:mm AP") : arg);
@@ -210,7 +217,7 @@ QString FieldContext::key(bool withClock) const
     // With Format Page Numbers' settings, which change every page number.
     return QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9").arg(pageNumber).arg(pageCount).arg(mergeRecord).arg(continuedOnPage).arg(continuedFromPage)
         .arg(nextPage).arg(prevPage).arg(withClock ? now.toString("yyyyMMddhhmm") : QString())
-        .arg(doc ? QString::number(doc->firstPageNumber()) + doc->pageNumberFormat() : QString());
+        .arg(doc ? QString::number(doc->firstPageNumber()) + doc->pageNumberFormat() + QLatin1Char('/') + QString::number(doc->pageTotal()) + QLatin1Char('/') + QString::number(doc->sectionPageTotal()) : QString());
 }
 
 QString LayoutEnv::key() const
@@ -1351,19 +1358,31 @@ static WordLine wordFaceOf(const QFont &f)
     return line;
 }
 
-// The line a stretch of text sets: the tallest ascent and descent among its runs, and the largest leading.
+// Two runs on one line: the tallest ascent and the deepest descent, and the leading of the taller run (a Symbol bullet's line is Symbol's own).
+static WordLine mergeWord(const WordLine &a, const WordLine &b)
+{
+    WordLine m;
+    m.ascent = std::max(a.ascent, b.ascent);
+    m.descent = std::max(a.descent, b.descent);
+    m.leading = a.total() >= b.total() ? a.leading : b.leading;
+    return m;
+}
+
+// The line a stretch of text sets, from its runs.
 static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
 {
     WordLine m;
     auto add = [&](const QFont &f, double size) {
         const WordLine face = wordFaceOf(f);
         const double em = size / fontPointFactor();
-        m.ascent = std::max(m.ascent, face.ascent * em);
-        m.descent = std::max(m.descent, face.descent * em);
-        m.leading = std::max(m.leading, face.leading * em);
+        WordLine run;
+        run.ascent = face.ascent * em;
+        run.descent = face.descent * em;
+        run.leading = face.leading * em;
+        m = m.total() > 0 ? mergeWord(m, run) : run;
     };
     for (const auto &r : ranges)
-        if (r.start < from + len && r.start + r.length > from) {
+        if (r.length > 0 && r.start < from + len && r.start + r.length > from) {   // (a mark that shows nothing is no run)
             const QFont f = r.format.font();
             add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
         }
@@ -2276,6 +2295,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
         // List marker.
         double markerW = 0, markerSingle = 0;
+        WordLine markerWord;
         if (QTextList *list = (env.slideLines && b.length() <= 1) || tail ? nullptr : b.textList()) {
             const QTextListFormat lf = list->format();
             QString custom = bf.stringProperty(tp::BulletChar);
@@ -2346,8 +2366,19 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const QString mfam = bfont.isEmpty() ? requestedFamily(B->markerFont) : bfont;
             const double known = knownMetrics(mfam, B->markerFont.weight() >= QFont::DemiBold).line;
             // (A slide's bullet doesn't: its line is the text's, however big the bullet is drawn.)
-            markerSingle = env.slideLines ? 0.0 : env.wordLines ? wordFaceOf(B->markerFont).total() * B->markerFont.pointSizeF() / fontPointFactor()
-                                                                 : B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
+            if (env.wordLines) {
+                // The number or bullet is a run of its own font on the first line, which the line has room for.
+                QFont mf = B->markerFont;
+                if (!bfont.isEmpty()) mf.setFamilies({bfont});
+                const WordLine face = wordFaceOf(mf);
+                const double em = mf.pointSizeF() / fontPointFactor();
+                markerWord.ascent = face.ascent * em;
+                markerWord.descent = face.descent * em;
+                markerWord.leading = face.leading * em;
+                markerSingle = markerWord.total();
+            } else {
+                markerSingle = env.slideLines ? 0.0 : B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
+            }
         }
 
         // Drop cap metrics: cap height spans dropLines lines.
@@ -2645,9 +2676,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // spacing adds under that (an exact height keeps the baseline a descent above the line's bottom, an at-least height the single
                     // line's place for it). The whole line must fit.
                     if (env.wordLines) {
-                        const WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base);
-                        double ownSingle = wl.total();
-                        if (line.textStart() == 0 && markerSingle > ownSingle) ownSingle = markerSingle;
+                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base);
+                        if (line.textStart() == 0 && markerWord.total() > 0) wl = mergeWord(wl, markerWord);
+                        const double ownSingle = wl.total();
                         switch (bf.lineHeightType()) {
                         case QTextBlockFormat::ProportionalHeight: h = ownSingle * bf.lineHeight() / 100.0; break;
                         case QTextBlockFormat::FixedHeight: h = bf.lineHeight() * scale; break;
@@ -2657,7 +2688,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         below = 0;
                         textH = h;
                         const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle);
-                        baseDown = bottom ? std::max(0.0, h - wl.descent) : wl.ascent + std::max(0.0, ownSingle - wl.total());
+                        baseDown = bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
                     }
                     const double rise = objUp > baseDown && bf.lineHeightType() != QTextBlockFormat::FixedHeight ? objUp - baseDown : 0;
                     h += rise;
@@ -2860,6 +2891,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const double nextH = (nbf.topMargin() * scale) + std::max(1.0, lineHeightFor(nbf, scale, singleOf({}, 0, 0, baseFontFor(nb, env))));
             const QRectF col = colRect(f, c);
             if (y + nextH > col.height() + 0.01 && B->lines.first().frame == f && B->lines.first().column == c) redo(true, -1);
+        }
+        // A paragraph out of the flow (a frame's, in a word processor) is where the next begins, and leaves the room as it was.
+        if (env.wordLines && bf.boolProperty(tp::OutOfFlow) && f == startSpot.f && c == startSpot.c && !B->cut) {
+            y = startSpot.y;
+            lastAfter = prevAfter;
+            rowActive = startSpot.rowActive;
+            rowIdx = startSpot.rowIdx;
+            rowH = startSpot.rowH;
         }
         const bool cutBlock = B->cut;
         m_blocks.push_back(std::move(B));

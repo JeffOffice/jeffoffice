@@ -27,6 +27,22 @@ protected:
 
 } // namespace
 
+static const QTextDocument *slotFor(const HeaderFooter &hf, bool firstPage, bool evenPage)
+{
+    if (firstPage) return hf.first.get();
+    return evenPage ? hf.even.get() : hf.odd.get();
+}
+
+const QTextDocument *Section::headerFor(bool firstOfSection, int pageNumber) const
+{
+    return slotFor(header, differentFirstPage && firstOfSection, differentOddEven && pageNumber % 2 == 0);
+}
+
+const QTextDocument *Section::footerFor(bool firstOfSection, int pageNumber) const
+{
+    return slotFor(footer, differentFirstPage && firstOfSection, differentOddEven && pageNumber % 2 == 0);
+}
+
 int Section::columnCount() const { return std::clamp(columns, 1, kMostColumns); }
 
 QSizeF Section::pageSize() const

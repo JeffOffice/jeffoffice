@@ -84,8 +84,9 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     }
     const Section &sec = m_doc->section(st.section);
     run.columns = sec.columnCount();
-    const double colW = sec.columnWidth(), colH = sec.content().height();
+    const double colW = sec.columnWidth();
     const int number = numberOf(index);
+    const double colH = furnitureOf(index, st, number).body.height();
     auto frame = [&](double height) {
         FrameSpec fs;
         fs.size = QSizeF(colW, height);
@@ -331,7 +332,7 @@ Paginator::Page Paginator::page(int index)
     const Section &sec = m_doc->section(p.start.section);
     p.number = numberOf(index);
     p.size = sec.pageSize();
-    p.content = sec.content();
+    p.content = furnitureOf(index, p.start, p.number).body;
     p.columns = sec.columnCount();
     p.columnGap = sec.columnGap;
     return p;
@@ -552,9 +553,11 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->fonts = m_doc->env.fonts;
     d->defaultTabStop = m_doc->env.defaultTab;
     d->wordText = m_doc->env.wordLines;
+    const Furniture furniture = furnitureOf(index, st, out->number);
     d->fontAliases = m_doc->env.familyAliases;
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();
+        addFurniture(d.get(), furniture, sec, st.section, out->number);
         out->doc = std::move(d);
         return out;
     }
@@ -581,7 +584,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         auto t = std::make_shared<TextItem>();
         t->id = QStringLiteral("flow-box-%1-%2").arg(index).arg(c);
         const QRectF col = sec.columnRect(c);
-        t->rect = QRectF(col.left(), col.top(), col.width(), bottom[c] + 0.005);
+        t->rect = QRectF(col.left(), furniture.body.top(), col.width(), bottom[c] + 0.005);
         // A paragraph that comes to the top of a column (not the page's) for want of room has no space before it there, but one that the
         // text engine moved there to keep it with the next, or its lines together, has it. Whatever is above the first line is the top inset.
         t->insets = QMarginsF(0, c > 0 ? top[c] : 0, 0, 0);
@@ -595,6 +598,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         d->pages[0]->items.push_back(t);
         out->boxes << t->id;
     }
+    addFurniture(d.get(), furniture, sec, st.section, out->number);
     out->doc = std::move(d);
     return out;
 }

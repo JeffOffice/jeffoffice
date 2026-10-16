@@ -78,6 +78,7 @@ enum : int {
     SpaceBeforeFrom,                             // double: the top margin (points) the share came to when it was set; the share counts only while the margin still is that
     SpaceAfterFrom,                              // double: the same for the bottom margin
     ContextualSpacing,                           // bool: no space before or after between paragraphs of this style (LayoutEnv::wordLines)
+    OutOfFlow,                                   // bool: a paragraph set where the next one begins and taking no room (a word processor's frame beside the text); LayoutEnv::wordLines
 };
 
 // A slide paragraph's space before (or after) as a share of its line, 0 when it has none in force. The share a file gave counts while the

@@ -37,6 +37,10 @@ public:
     virtual QString mergeValue(int record, const QString &field) const = 0;
     virtual const QTextDocument *storyDoc(const QString &id) const = 0;
     virtual QList<const QTextDocument *> storyDocs() const = 0;   // every story, in the publication's order
+    // For a word processor's page numbers: how many pages the whole document has (NUMPAGES), and how many the section of the page has
+    // (SECTIONPAGES), where the pages drawn are made one at a time; 0 for a publication, whose context counts them.
+    virtual int pageTotal() const { return 0; }
+    virtual int sectionPageTotal() const { return 0; }
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the

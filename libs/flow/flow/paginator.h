@@ -16,7 +16,9 @@
 
 #include <QObject>
 #include <QVector>
+#include <map>
 #include <memory>
+#include <tuple>
 
 namespace jp::flow {
 
@@ -109,6 +111,19 @@ private:
     void settleStep();                                    // one page of that
     void extend(int index);                               // lays out forward until `index` is known
     std::unique_ptr<QTextDocument> sliceOf(const Run &run, int *storyFrom, bool *fromBefore) const;
+
+    // The room a page's text has: the section's text area, less what the header and footer ask for beyond the margins (a header or a footer
+    // taller than the margin leaves room for pushes the text away from it, as it does in a word processor), and the stories to draw above and below.
+    struct Furniture {
+        QRectF body;                                  // the text area, in page coordinates, all columns across
+        const QTextDocument *header = nullptr, *footer = nullptr;
+        double headerHeight = 0, footerHeight = 0;
+    };
+    Furniture furnitureOf(int index, const PageStart &st, int number);
+    double storyHeight(const QTextDocument *story, double width, int number);
+    // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
+    void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number);
+    std::map<std::tuple<const QTextDocument *, int, int>, double> m_storyHeights;   // by story, its width in hundredths of a point, and its revision
 
     FlowDocument *m_doc;
     std::unique_ptr<QObject> m_watch;

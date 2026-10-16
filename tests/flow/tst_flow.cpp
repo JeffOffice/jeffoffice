@@ -20,7 +20,9 @@
 #include <QTextDocument>
 #include <QTextList>
 #include <functional>
+#include <map>
 #include <memory>
+#include <tuple>
 #include <random>
 
 using namespace jp;
@@ -362,6 +364,40 @@ QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, doub
     StoryLayout lay;
     lay.build(doc.get(), {plainFrame(400, 700)}, env);
     return lay.lineInfo(0);
+}
+
+
+// A header or footer story of the lines given, a paragraph each.
+std::shared_ptr<QTextDocument> furnitureStory(const QStringList &lines)
+{
+    auto doc = std::make_shared<QTextDocument>();
+    doc->setDocumentMargin(0);
+    QTextCursor c(doc.get());
+    QTextCharFormat cf;
+    cf.setFontPointSize(10);
+    for (int i = 0; i < lines.size(); ++i) {
+        if (i) c.insertBlock();
+        c.insertText(lines[i], cf);
+    }
+    return doc;
+}
+
+// How tall a story is where the paginator lays it out (its lines from the top to the bottom of the last), measured on its own.
+double storyHeightOf(const QTextDocument *story, double width, const FlowDocument &fd)
+{
+    StoryLayout lay;
+    lay.build(story, {plainFrame(width, 100000)}, fd.env);
+    return lay.usedHeight(0);
+}
+
+// The text boxes of a materialized page by the text of their stories: the header's, the footer's, the body's (the story longest).
+QMap<QString, TextItem *> boxesByText(const MaterializedPage &page)
+{
+    QMap<QString, TextItem *> out;
+    for (const auto &item : page.doc->pages[0]->items)
+        if (auto *t = dynamic_cast<TextItem *>(item.get()))
+            if (const Story *story = page.doc->story(t->storyId)) out.insert(story->doc->toPlainText(), t);
+    return out;
 }
 
 } // namespace
@@ -1382,6 +1418,58 @@ private Q_SLOTS:
         QVERIFY(std::abs(least.baseline - ascent) < 0.02);
     }
 
+    // A mark that shows nothing in a line (a tag's or a bookmark's, kept as a character that shows no text) is no run of it: it doesn't make the line taller.
+    void aMarkThatShowsNothingIsNoRunOfTheLine()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat plainRun;
+        plainRun.setFontFamilies({QStringLiteral("Times New Roman")});
+        plainRun.setFontPointSize(12);
+        QTextCharFormat mark = plainRun;
+        mark.setFontPointSize(40);
+        mark.setProperty(tp::Field, QStringLiteral("raw:"));
+        c.insertText(QStringLiteral("some words "), plainRun);
+        c.insertText(QString(QChar::ObjectReplacementCharacter), mark);
+        c.insertText(QStringLiteral(" and more"), plainRun);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        QVERIFY2(std::abs(lines[0].rect.height() - (1825 + 443 + 87) / 2048.0 * 12) < 0.01, qPrintable(QString::number(lines[0].rect.height())));
+    }
+
+    // A list item's number or bullet is a run of its own font on the item's first line, which has room for it: a Symbol bullet's line is Symbol's.
+    void aBulletInItsOwnFontHasRoomInTheFirstLine()
+    {
+        auto first = [](const QString &bulletFont) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.insertText(QStringLiteral("an item of the list that is long enough to take two lines of the frame when it is set in it, at twelve points"), run);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setIndent(1);
+            if (!bulletFont.isEmpty()) lf.setProperty(tp::BulletFont, bulletFont);
+            c.createList(lf);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 700)}, env);
+            return lay.lineInfo(0);
+        };
+        const auto plain = first(QString()), symbol = first(QStringLiteral("Symbol"));
+        QVERIFY(plain.size() >= 2 && symbol.size() >= 2);
+        const double single = (1825 + 443 + 87) / 2048.0 * 12, symbolLine = (2059 + 450) / 2048.0 * 12;
+        QVERIFY2(std::abs(plain[0].rect.height() - single) < 0.01, qPrintable(QString::number(plain[0].rect.height())));
+        QVERIFY2(std::abs(symbol[0].rect.height() - symbolLine) < 0.01, qPrintable(QString::number(symbol[0].rect.height())));
+        QVERIFY(std::abs(symbol[1].rect.height() - single) < 0.01);   // (the lines after it are the text's)
+    }
+
     // The space between two paragraphs is the larger of the first's space after and the second's space before, not their sum; a paragraph that asks
     // for contextual spacing has none between it and a paragraph of its own style.
     void wordSpaceBetweenParagraphsIsTheLarger()
@@ -1412,6 +1500,161 @@ private Q_SLOTS:
         QVERIFY(std::abs(contextual(QStringLiteral("Body"))) < 0.01);
         QVERIFY(std::abs(contextual(QStringLiteral("Other")) - 10) < 0.01);
         Q_UNUSED(single);
+    }
+
+    // A paragraph out of the flow (a frame's, in a word processor) is set where the next paragraph begins and takes none of the room.
+    void aParagraphOutOfTheFlowTakesNoRoom()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        auto lines = [&](bool out) {
+            return wordLinesOf({{tnr, 12}, {tnr, 12}, {tnr, 12}}, [&](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(5);
+                if (i == 1 && out) bf.setProperty(tp::OutOfFlow, true);
+            });
+        };
+        const auto flowing = lines(false), floating = lines(true);
+        QCOMPARE(floating.size(), 3);
+        QVERIFY(std::abs(floating[1].rect.top() - floating[2].rect.top()) < 0.01);
+        QVERIFY(std::abs(floating[2].rect.top() - flowing[1].rect.top()) < 0.01);
+        QVERIFY(std::abs(floating[0].rect.top() - flowing[0].rect.top()) < 0.01);
+        QVERIFY(floating[2].rect.top() < flowing[2].rect.top() - 10);
+    }
+
+    // A section's header and footer are drawn on its pages at the header and footer distances from the page's edge, the width of the text.
+    void pagesDrawTheirHeaderAndFooter()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 60, 4);
+        Section &s = fd.sections[0];
+        s.headerDistance = 30;
+        s.footerDistance = 20;
+        const auto header = furnitureStory({QStringLiteral("HEADER ONE")}), footer = furnitureStory({QStringLiteral("FOOTER ONE"), QStringLiteral("FOOTER TWO")});
+        s.header.odd = header;
+        s.footer.odd = footer;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() > 1);
+        for (int k = 0; k < 2; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const auto boxes = boxesByText(*page);
+            QVERIFY(boxes.contains(QStringLiteral("HEADER ONE")));
+            QVERIFY(boxes.contains(QStringLiteral("FOOTER ONE\nFOOTER TWO")));
+            const TextItem *h = boxes[QStringLiteral("HEADER ONE")];
+            QVERIFY(std::abs(h->rect.top() - 30) < 0.01);
+            QVERIFY(std::abs(h->rect.left() - s.content().left()) < 0.01 && std::abs(h->rect.width() - s.content().width()) < 0.01);
+            const double footerHeight = storyHeightOf(footer.get(), s.content().width(), fd);
+            const TextItem *f = boxes[QStringLiteral("FOOTER ONE\nFOOTER TWO")];
+            QVERIFY2(std::abs(f->rect.bottom() - (s.pageSize().height() - 20)) < 0.02, qPrintable(QString::number(f->rect.bottom())));
+            QVERIFY2(std::abs(f->rect.height() - footerHeight) < 0.02, qPrintable(QStringLiteral("%1 vs %2").arg(f->rect.height()).arg(footerHeight)));
+        }
+        // (A page of a section with neither has no such boxes.)
+        FlowDocument bare;
+        fillStory(bare.story(), 5, 4);
+        Paginator bp(&bare);
+        const auto plain = bp.materialize(0);
+        QCOMPARE(int(plain->doc->pages[0]->items.size()), 1);
+    }
+
+    // A header or footer taller than the margin leaves room for moves the text away from it, so the page holds fewer lines.
+    void aTallHeaderAndFooterTakeRoomFromTheText()
+    {
+        auto lines = [](bool tall) {
+            FlowDocument fd;
+            fillStory(fd.story(), 80, 9);
+            Section &s = fd.sections[0];
+            s.headerDistance = 36;
+            s.footerDistance = 36;
+            if (tall) {
+                s.header.odd = furnitureStory({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d"), QStringLiteral("e"), QStringLiteral("f"), QStringLiteral("g")});
+                s.footer.odd = furnitureStory({QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("z"), QStringLiteral("w"), QStringLiteral("v"), QStringLiteral("u")});
+            }
+            Paginator pg(&fd);
+            const auto first = pg.lines(0);
+            return std::make_tuple(int(first.size()), first.last().rect.bottom(), pg.page(0).content, pg.pageCount());
+        };
+        const auto bare = lines(false), tall = lines(true);
+        QVERIFY(std::get<0>(tall) < std::get<0>(bare));
+        QVERIFY(std::get<3>(tall) > std::get<3>(bare));
+        // The text area starts below the header and ends above the footer, each at its distance from the edge plus its own height.
+        FlowDocument probe;
+        const double width = probe.sections[0].content().width();
+        const double headerH = storyHeightOf(furnitureStory({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d"), QStringLiteral("e"), QStringLiteral("f"), QStringLiteral("g")}).get(), width, probe);
+        const double footerH = storyHeightOf(furnitureStory({QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("z"), QStringLiteral("w"), QStringLiteral("v"), QStringLiteral("u")}).get(), width, probe);
+        const QRectF body = std::get<2>(tall);
+        QVERIFY(std::abs(body.top() - (36 + headerH)) < 0.02);
+        QVERIFY(std::abs(body.bottom() - (792 - 36 - footerH)) < 0.02);
+        QVERIFY(headerH + 36 > 72 && footerH + 36 > 72);
+        QVERIFY(std::get<1>(tall) <= body.height() + 0.01);
+    }
+
+    // The first page of a section, the even pages, and the rest each have their own story, as the section asks.
+    void firstAndEvenPagesUseTheirOwnHeaders()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 120, 6, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(10);
+            if (i == 59) bf.setProperty(flow::fp::SectionBreakAfter, true);
+        });
+        Section &s = fd.sections[0];
+        s.differentFirstPage = true;
+        s.differentOddEven = true;
+        s.header.first = furnitureStory({QStringLiteral("first")});
+        s.header.odd = furnitureStory({QStringLiteral("odd")});
+        s.header.even = furnitureStory({QStringLiteral("even")});
+        Section second = s;
+        second.header.first = furnitureStory({QStringLiteral("second first")});
+        second.differentOddEven = false;
+        fd.sections << second;
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 6);
+        QStringList seen;
+        int firstOfSecond = -1;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QString header;
+            const auto boxes = boxesByText(*page);
+            for (auto it = boxes.cbegin(); it != boxes.cend(); ++it)
+                if (std::abs(it.value()->rect.top() - 36) < 0.01) header = it.key();
+            seen << header;
+            if (page->section == 1 && firstOfSecond < 0) firstOfSecond = k;
+        }
+        QVERIFY(firstOfSecond >= 4 && pages >= firstOfSecond + 3);
+        QCOMPARE(seen[0], QStringLiteral("first"));
+        QCOMPARE(seen[1], QStringLiteral("even"));
+        QCOMPARE(seen[2], QStringLiteral("odd"));
+        QCOMPARE(seen[3], QStringLiteral("even"));
+        QCOMPARE(seen[firstOfSecond], QStringLiteral("second first"));
+        QCOMPARE(seen[firstOfSecond + 1], QStringLiteral("odd"));   // (the second section asks for no even pages' headers: its ordinary one)
+        QCOMPARE(seen[firstOfSecond + 2], QStringLiteral("odd"));
+    }
+
+    // NUMPAGES and SECTIONPAGES show how many pages the document and the page's section have, which the page's fields read.
+    void pageFieldsKnowTheTotals()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 70, 6, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(10);
+            if (i == 39) bf.setProperty(flow::fp::SectionBreakAfter, true);
+        });
+        fd.sections << fd.sections[0];
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        int inFirst = 0;
+        for (int k = 0; k < pages; ++k) inFirst += pg.page(k).start.section == 0;
+        QVERIFY(inFirst > 1 && inFirst < pages - 1);
+        for (int k : {0, pages - 1}) {
+            const auto page = pg.materialize(k);
+            FieldContext ctx;
+            ctx.doc = page->doc.get();
+            QCOMPARE(ctx.resolve(QStringLiteral("pages")), QString::number(pages));
+            QCOMPARE(ctx.resolve(QStringLiteral("sectionpages")), QString::number(k == 0 ? inFirst : pages - inFirst));
+        }
+        // (Without a flowing document's counts, a context's own page count is shown.)
+        FieldContext own;
+        own.pageCount = 7;
+        QCOMPARE(own.resolve(QStringLiteral("pages")), QStringLiteral("7"));
+        QCOMPARE(own.resolve(QStringLiteral("sectionpages")), QStringLiteral("7"));
     }
 
     // Where a position is on the pages.
