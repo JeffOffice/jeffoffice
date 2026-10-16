@@ -1073,7 +1073,7 @@ private Q_SLOTS:
             for (int y = 0; y < image.height(); ++y)
                 for (int x = 0; x < image.width(); ++x) {
                     if (qGray(image.pixel(x, y)) > 128) continue;
-                    const bool in = x >= m.left() - 2 && x <= size.width() - m.right() + 2 && y >= m.top() - 2 && y <= size.height() - m.bottom() + 2;
+                    const bool in = x >= m.left() - 1 && x <= size.width() - m.right() + 1 && y >= m.top() - 1 && y <= size.height() - m.bottom() + 1;
                     (in ? inside : outside)++;
                 }
             QVERIFY2(inside > 200, qPrintable(QStringLiteral("page %1: %2 dark pixels").arg(k).arg(inside)));
