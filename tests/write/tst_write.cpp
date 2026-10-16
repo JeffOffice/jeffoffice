@@ -10,6 +10,7 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
+#include "core/tableops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
@@ -1527,6 +1528,241 @@ private Q_SLOTS:
         QVERIFY(y.contains("<w:tblW w:w=\"0\" w:type=\"auto\"/>"));
         QVERIFY(y.contains("<w:gridCol w:w=\"2000\"/>"));
         QVERIFY(y.contains("zzz</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>"));
+    }
+
+    // ---- tables
+
+    // A grid of `rows` by `cols` cells of "r<row>c<col>", with `before` and `after` paragraphs around it (a file of its own making).
+    static QByteArray tableDocx(int rows, int cols, const QByteArray &cellExtra = QByteArray())
+    {
+        QByteArray t = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/></w:tblBorders></w:tblPr><w:tblGrid>";
+        for (int c = 0; c < cols; ++c) t += "<w:gridCol w:w=\"2000\"/>";
+        t += "</w:tblGrid>";
+        for (int r = 0; r < rows; ++r) {
+            t += "<w:tr>";
+            for (int c = 0; c < cols; ++c) t += "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/>" + cellExtra + "</w:tcPr><w:p><w:r><w:t>r" + QByteArray::number(r) + "c" + QByteArray::number(c) + "</w:t></w:r></w:p></w:tc>";
+            t += "</w:tr>";
+        }
+        t += "</w:tbl>";
+        return makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + t + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles);
+    }
+
+    // The saved document is well formed and opens again with the same text.
+    static void checkWhole(WriteDoc &doc)
+    {
+        const QByteArray zip = doc.toDocx();
+        QVERIFY2(!zip.isEmpty(), "the document saves");
+        QVERIFY2(rt::strictProblems(zip).isEmpty(), qPrintable(rt::strictProblems(zip).join(QLatin1Char('\n'))));
+        auto back = open(zip);
+        QVERIFY(back);
+        QString a = doc.story()->toPlainText(), b = back->story()->toPlainText();
+        a.remove(QChar::ObjectReplacementCharacter);
+        b.remove(QChar::ObjectReplacementCharacter);
+        QCOMPARE(b, a);
+        QCOMPARE(documentXml(back->toDocx()), documentXml(zip));
+        QVERIFY(doc.pager().pageCount() >= 1);
+        QVERIFY(doc.pager().materialize(0));
+    }
+
+    // The cell the cursor is in is a cell of the table: Tab goes to the next with its text selected, Shift+Tab to the one before, and Tab in the last cell adds a
+    // row; Enter in a cell is another paragraph of it; and Backspace and Delete at a cell's edge do not reach into the next cell.
+    void tabEnterAndDeleteWorkInCells()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextDocument *s = doc->story();
+        auto block = [&](const QString &text) { for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) if (b.text() == text) return b; return QTextBlock(); };
+        QTextCursor c(s);
+        c.setPosition(block(QStringLiteral("r0c0")).position() + 2);
+        insertTab(*doc, c, false);
+        QCOMPARE(c.selectedText(), QStringLiteral("r0c1"));
+        typeText(*doc, c, QStringLiteral("X"));   // (replaces it)
+        QVERIFY(block(QStringLiteral("X")).isValid());
+        insertTab(*doc, c, true);
+        QCOMPARE(c.selectedText(), QStringLiteral("r0c0"));
+        QVERIFY(!c.hasSelection() || c.position() != c.anchor());
+        // Tab on from the last cell: a row is added, the cursor is in its first cell.
+        c.setPosition(block(QStringLiteral("r1c1")).position());
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tr>")), 2);
+        insertTab(*doc, c, false);
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tr>")), 3);
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tc>")), 6);
+        QCOMPARE(cellKeyOf(c.block()) != 0, true);
+        QVERIFY(c.block().text().isEmpty());
+        typeText(*doc, c, QStringLiteral("new"));
+        checkWhole(*doc);
+        // Enter in a cell: the cell has another paragraph.
+        c.setPosition(block(QStringLiteral("r1c0")).position() + 1);
+        insertParagraph(*doc, c);
+        QVERIFY(cellKeyOf(block(QStringLiteral("r"))) != 0);
+        QCOMPARE(cellKeyOf(block(QStringLiteral("r"))), cellKeyOf(block(QStringLiteral("1c0"))));
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tc>")), 6);
+        // Backspace at the start of a cell, Delete at the end of one: nothing joins.
+        const int blocks = s->blockCount();
+        c.setPosition(block(QStringLiteral("r1c1")).position());
+        deleteBack(*doc, c, false);
+        QCOMPARE(s->blockCount(), blocks);
+        c.setPosition(block(QStringLiteral("1c0")).position() + 3);
+        deleteForward(*doc, c, false);
+        QCOMPARE(s->blockCount(), blocks);
+        checkWhole(*doc);
+    }
+
+    // Rows and columns are added beside the cell's and taken away, as one step each that undoes to the very file it began as.
+    void rowsAndColumnsAreAddedAndTakenAway()
+    {
+        const QByteArray original = tableDocx(3, 3);
+        auto doc = open(original);
+        QTextDocument *s = doc->story();
+        const QByteArray was = documentXml(doc->toDocx());
+        auto block = [&](const QString &text) { for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) if (b.text() == text) return b; return QTextBlock(); };
+        auto count = [&](const char *what) { return int(documentXml(doc->toDocx()).count(what)); };
+        QTextCursor c(s);
+        c.setPosition(block(QStringLiteral("r1c1")).position());
+        insertTableRow(*doc, c, true);
+        QCOMPARE(count("<w:tr>"), 4);
+        QCOMPARE(count("<w:tc>"), 12);
+        checkWhole(*doc);
+        s->undo();
+        QCOMPARE(documentXml(doc->toDocx()), was);   // (as it was, to the byte: the table that nothing changed)
+        s->redo();
+        QCOMPARE(count("<w:tr>"), 4);
+        insertTableRow(*doc, c, false);
+        QCOMPARE(count("<w:tr>"), 5);
+        // The new rows are empty paragraphs in cells, in the places: the row after r1 has r1's cells' widths.
+        QStringList texts;
+        for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) texts << b.text();
+        QCOMPARE(texts, (QStringList{"before", "r0c0", "r0c1", "r0c2", "", "", "", "r1c0", "r1c1", "r1c2", "", "", "", "r2c0", "r2c1", "r2c2", "after"}));
+        checkWhole(*doc);
+        // A column: three in each row become four, the grid has four columns, and the new cells are empty.
+        c.setPosition(block(QStringLiteral("r1c1")).position());
+        insertTableColumn(*doc, c, true);
+        QCOMPARE(count("<w:tc>"), 5 * 4);
+        QCOMPARE(count("<w:gridCol "), 4);
+        checkWhole(*doc);
+        s->undo();
+        QCOMPARE(count("<w:gridCol "), 3);
+        s->redo();
+        insertTableColumn(*doc, c, false);
+        QCOMPARE(count("<w:gridCol "), 5);
+        QCOMPARE(count("<w:tc>"), 5 * 5);
+        checkWhole(*doc);
+        // Taking away: the row and the column of the cursor, then the whole table when no row or no column is left.
+        c.setPosition(block(QStringLiteral("r1c1")).position());
+        deleteTableRows(*doc, c);
+        QCOMPARE(count("<w:tr>"), 4);
+        QVERIFY(!block(QStringLiteral("r1c1")).isValid());
+        QVERIFY(block(QStringLiteral("r1c0")).isValid() == false);
+        c.setPosition(block(QStringLiteral("r2c1")).position());
+        deleteTableColumns(*doc, c);
+        QCOMPARE(count("<w:gridCol "), 4);
+        QCOMPARE(count("<w:tc>"), 4 * 4);
+        QVERIFY(!block(QStringLiteral("r2c1")).isValid());
+        QVERIFY(block(QStringLiteral("r2c0")).isValid() && block(QStringLiteral("r2c2")).isValid());
+        checkWhole(*doc);
+        c.setPosition(block(QStringLiteral("r2c0")).position());
+        deleteTable(*doc, c);
+        QCOMPARE(count("<w:tbl>"), 0);
+        QCOMPARE(s->toPlainText(), QStringLiteral("before\nafter"));
+        checkWhole(*doc);
+        while (s->isUndoAvailable()) s->undo();
+        QCOMPARE(documentXml(doc->toDocx()), was);
+    }
+
+    // A column through cells that are joined across makes them one wider; a row through cells joined down is a row of the same joined cells; and deleting the row a joined
+    // cell begins in gives the cell below it what it was.
+    void rowsAndColumnsKeepJoinedCellsWhole()
+    {
+        QByteArray t = "<w:tbl><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                       "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"4000\" w:type=\"dxa\"/><w:gridSpan w:val=\"2\"/></w:tcPr><w:p><w:r><w:t>wide</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/><w:vMerge w:val=\"restart\"/></w:tcPr><w:p><w:r><w:t>tall</w:t></w:r></w:p></w:tc></w:tr>"
+                       "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>a</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>b</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/><w:vMerge/></w:tcPr><w:p/></w:tc></w:tr>"
+                       "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>c</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>d</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/><w:vMerge/></w:tcPr><w:p/></w:tc></w:tr></w:tbl>";
+        auto doc = open(makeDocx(t + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles));
+        QTextDocument *s = doc->story();
+        auto block = [&](const QString &text) { for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) if (b.text() == text) return b; return QTextBlock(); };
+        auto xmlNow = [&] { return documentXml(doc->toDocx()); };
+        QTextCursor c(s);
+        // A column to the right of the first (it is inside "wide"): that cell is wider, the rows below have a new cell beside "a".
+        c.setPosition(block(QStringLiteral("a")).position());
+        insertTableColumn(*doc, c, true);
+        QVERIFY(xmlNow().contains("<w:gridSpan w:val=\"3\"/>"));
+        QCOMPARE(int(xmlNow().count("<w:gridCol ")), 4);
+        QCOMPARE(int(xmlNow().count("<w:vMerge/>")), 2);
+        checkWhole(*doc);
+        s->undo();
+        // A row below the first: it is inside "tall".
+        c.setPosition(block(QStringLiteral("wide")).position());
+        insertTableRow(*doc, c, true);
+        QCOMPARE(int(xmlNow().count("<w:vMerge/>")), 3);
+        checkWhole(*doc);
+        s->undo();
+        // The row "tall" begins in goes: "tall" is now at the next row, with the rest of its cells (one row of it left, so not joined).
+        c.setPosition(block(QStringLiteral("wide")).position());
+        deleteTableRows(*doc, c);
+        QVERIFY(!xmlNow().contains("tall"));
+        QCOMPARE(int(xmlNow().count("<w:tr>")), 2);
+        QVERIFY(xmlNow().contains("<w:vMerge w:val=\"restart\"/>"));
+        checkWhole(*doc);
+    }
+
+    // A selection across cells empties them without joining what is in different cells, and one that holds a whole table takes it out.
+    void deletingAcrossCellsEmptiesThemAndTakesWholeTablesOut()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextDocument *s = doc->story();
+        auto block = [&](const QString &text) { for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) if (b.text() == text) return b; return QTextBlock(); };
+        const QByteArray was = documentXml(doc->toDocx());
+        QTextCursor c(s);
+        // From the middle of r0c0 to the middle of r1c0: r0c0 loses its end, r0c1 is emptied, r1c0 loses its start.
+        c.setPosition(block(QStringLiteral("r0c0")).position() + 1);
+        c.setPosition(block(QStringLiteral("r1c0")).position() + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QStringList texts;
+        for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) texts << b.text();
+        QCOMPARE(texts, (QStringList{"before", "r", "", "1c0", "r1c1", "after"}));
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tc>")), 4);
+        checkWhole(*doc);
+        s->undo();
+        QCOMPARE(documentXml(doc->toDocx()), was);
+        // From inside the paragraph before to inside the one after: the table goes, and what is left of the two is one paragraph.
+        c.setPosition(block(QStringLiteral("before")).position() + 3);
+        c.setPosition(block(QStringLiteral("after")).position() + 2, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QCOMPARE(s->toPlainText(), QStringLiteral("befter"));
+        QVERIFY(!documentXml(doc->toDocx()).contains("<w:tbl>"));
+        checkWhole(*doc);
+        s->undo();
+        QCOMPARE(documentXml(doc->toDocx()), was);
+    }
+
+    // What is pasted into a cell is in that cell, whatever cell it was copied from, and what is pasted outside a table is in none.
+    void pastedParagraphsAreInTheCellTheyWerePastedInto()
+    {
+        auto doc = open(tableDocx(1, 2));
+        QTextDocument *s = doc->story();
+        auto block = [&](const QString &text) { for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) if (b.text() == text) return b; return QTextBlock(); };
+        QTextCursor c(s);
+        c.setPosition(block(QStringLiteral("r0c0")).position() + 4);
+        insertParagraph(*doc, c);
+        typeText(*doc, c, QStringLiteral("second"));
+        c.setPosition(block(QStringLiteral("r0c0")).position());
+        c.setPosition(block(QStringLiteral("second")).position() + 6, QTextCursor::KeepAnchor);
+        const QTextDocumentFragment two = selectionFragment(c);   // (two paragraphs of the first cell)
+        c.setPosition(block(QStringLiteral("r0c1")).position() + 4);
+        pasteFragment(*doc, c, two);
+        const int other = cellKeyOf(block(QStringLiteral("r0c1r0c0")));
+        QVERIFY(other != 0 && other != cellKeyOf(block(QStringLiteral("r0c0"))));
+        int inCell = 0;
+        for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) inCell += cellKeyOf(b) == other;
+        QCOMPARE(inCell, 2);
+        // Into the text before the table: no cell.
+        c.setPosition(block(QStringLiteral("before")).position() + 6);
+        pasteFragment(*doc, c, two);
+        QCOMPARE(block(QStringLiteral("beforer0c0")).isValid(), true);
+        QCOMPARE(cellKeyOf(block(QStringLiteral("beforer0c0"))), 0);
+        int outside = 0;
+        for (QTextBlock b = s->begin(); b.isValid(); b = b.next()) outside += b.text() == QLatin1String("second") && cellKeyOf(b) == 0;
+        QCOMPARE(outside, 1);
+        checkWhole(*doc);
     }
 
     void aSavedDocumentRoundTripsItsOwnParagraphFormatting()

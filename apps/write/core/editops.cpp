@@ -1,5 +1,6 @@
 #include "core/editops.h"
 
+#include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -325,8 +326,8 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c)
 
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
-    Q_UNUSED(doc);
     if (!c.hasSelection()) return;
+    if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
     QTextDocument *d = c.document();
     c.beginEditBlock();
     const int from = c.selectionStart(), to = c.selectionEnd();
@@ -436,7 +437,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextBlock prev = b.previous();
-    if (!prev.isValid() || isLocked(prev)) return;
+    if (!prev.isValid() || isLocked(prev) || !canJoinBlocks(prev, b)) return;
     QTextCursor t(d);
     t.setPosition(b.position());
     t.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
@@ -472,7 +473,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextBlock next = c.block().next();
-    if (!next.isValid() || isLocked(next)) return;
+    if (!next.isValid() || isLocked(next) || !canJoinBlocks(c.block(), next)) return;
     c.movePosition(QTextCursor::EndOfBlock);
     c.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
     removeSelection(doc, c);
@@ -485,6 +486,7 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
         changeIndent(doc, c, back ? -36 : 36);
         return;
     }
+    if (tabThroughCells(doc, c, back)) return;
     if (back) return;
     insertText(doc, c, QStringLiteral("\t"));
 }
@@ -520,6 +522,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     // look of what was copied where the cursor is at its start, and takes its section break away.)
     const QTextBlock target = c.block();
     const QTextBlockFormat tf = target.blockFormat();
+    const int targetCell = cellKeyOf(target);
     const QTextCharFormat tmark = markFormat(target);
     QTextList *targetList = target.textList();
     const bool atStart = c.position() == target.position();
@@ -562,6 +565,8 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
         }
         rewrap(wrappers, first, last);
     }
+    // What is pasted is in the cell it was pasted into (or in none).
+    giveCellKey(d->findBlock(from), d->findBlock(to), targetCell);
     // The ids a paragraph carries in the file are its own: a copy has none (the first, if it is the target's, kept them above).
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();

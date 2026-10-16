@@ -113,6 +113,8 @@ void WriteDoc::exportBody(QVector<Block> *out, QVector<TableExporter::Opened> *t
         b = b.next();
     }
     tables.finish(out);
+    // A table is never the last thing in a body: a paragraph follows it.
+    if (!out->isEmpty() && out->last().isRaw && out->last().role == Inline::Close && out->last().tag == QLatin1String("tbl")) out->push_back(Block());
     if (tablesOut) *tablesOut = tables.opened();
 }
 
