@@ -225,11 +225,7 @@ void DeckWindow::createActions()
         openFile(p);
     });
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });
-    // Undo while cropping takes the crop back, as Esc does.
-    mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] {
-        if (!ed->cropItem.isEmpty()) ed->endCrop(false);
-        else ed->undo();
-    });
+    mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });   // while cropping, takes the crop back, as Esc does
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [ed] { ed->redo(); });
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [ed] { ed->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [ed] { ed->copy(); });
@@ -495,6 +491,7 @@ void DeckWindow::startShow(int slide) { playShow(slide, deck::ShowPlan(), false)
 bool DeckWindow::maybeSave()
 {
     m_ed->flushTyping();
+    m_ed->endCrop(true);   // a crop in progress is a change to ask about, and to save
     if (!m_ed->isModified()) return true;
     QMessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
                     QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
