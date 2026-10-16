@@ -833,6 +833,47 @@ private Q_SLOTS:
         for (const QString &l : std::as_const(lines)) qInfo("  %s", qPrintable(l));
     }
 
+    // A developer's hook, not a test: JW_BENCH times what editing sections costs in long documents (milliseconds, to look at).
+    void developerSectionTimings()
+    {
+        if (!qEnvironmentVariableIsSet("JW_BENCH")) QSKIP("JW_BENCH is not set");
+        auto ms = [](QElapsedTimer &t) { const double v = t.nsecsElapsed() / 1e6; t.restart(); return v; };
+        {
+            auto doc = open(makeDocx(paragraphs(5000, 60), kStyles));
+            QElapsedTimer t;
+            t.start();
+            const int pages = doc->pager().pageCount();
+            const double paginate = ms(t);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(2500).position() + 5);
+            doc->pager().paginate(doc->pager().pageOfPosition(c.position()) + 2);
+            t.restart();
+            insertSectionBreak(*doc, c);
+            const double insert = ms(t);
+            doc->pager().paginate(doc->pager().pageOfPosition(c.position()) + 2);
+            const double after = ms(t);
+            qInfo("sections: %d pages, paginating %.0f ms; a section break in the middle %.0f ms, and the pages around it %.0f ms", pages, paginate, insert, after);
+        }
+        {
+            QByteArray body;
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+            for (int i = 0; i < 20000; ++i) body += "<w:p><w:pPr>" + sect + "</w:pPr><w:r><w:t>section " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+            QElapsedTimer t;
+            t.start();
+            auto doc = open(makeDocx(body, kStyles));
+            const double open_ = ms(t);
+            doc->pager().paginate(5);
+            const double first = ms(t);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(10000).position() + 5);
+            insertParagraph(*doc, c);
+            const double enter = ms(t);
+            insertText(*doc, c, QStringLiteral("x"));
+            const double type = ms(t);
+            qInfo("20,000 sections: open %.0f ms, first pages %.0f ms; Enter %.0f ms; a letter %.0f ms", open_, first, enter, type);
+        }
+    }
+
     // A developer's hook, not a test: JW_SHOTS names a folder to put screenshots of the window in (each ribbon tab, the File screen's pages, the
     // text selected, the paragraph marks, Help), of the document JW_SHOTS_DOC names.
     void developerScreenshots()
@@ -1180,6 +1221,46 @@ private Q_SLOTS:
         toggleUnderline(*doc, c);
         QVERIFY(!documentXml(doc->toDocx()).contains("themeColor"));
         QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), documentXml(doc->toDocx()));
+    }
+
+    // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
+    // thousand sections makes no more than the sections it changed (counted, not timed).
+    void editingSectionsTouchesOnlyWhatChanged()
+    {
+        auto doc = open(makeDocx(paragraphs(3000, 60), kStyles));
+        const int pages = doc->pager().pageCount();
+        QVERIFY(pages > 200);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1500).position() + 5);
+        const qint64 laid = doc->pager().pagesLaidOut();
+        insertSectionBreak(*doc, c);
+        doc->pager().paginate(doc->pager().pageOfPosition(c.position()) + 2);
+        QVERIFY2(doc->pager().pagesLaidOut() - laid < 12, qPrintable(QString::number(doc->pager().pagesLaidOut() - laid)));
+        QCOMPARE(doc->sectionCount(), 2);
+        QVERIFY(doc->pager().pageCount() >= pages);   // (and the rest settles, one page more for the section's own)
+        // Twenty thousand sections.
+        QByteArray body;
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        for (int i = 0; i < 20000; ++i) body += "<w:p><w:pPr>" + sect + "</w:pPr><w:r><w:t>section " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        auto many = open(makeDocx(body, kStyles));
+        QCOMPARE(many->sectionCount(), 20001);
+        const qint64 made = many->sectionsMadeForTest();
+        QTextCursor m(many->story());
+        m.setPosition(many->story()->findBlockByNumber(10000).position() + 5);
+        insertParagraph(*many, m);
+        QVERIFY2(many->sectionsMadeForTest() - made <= 3, qPrintable(QString::number(many->sectionsMadeForTest() - made)));
+        QCOMPARE(many->sectionCount(), 20001);   // (the break stays with the second half: still 20,000 breaks and the last)
+        insertText(*many, m, QStringLiteral("x"));
+        QVERIFY(many->sectionsMadeForTest() - made <= 3);
+        // A page setup change of one section makes one.
+        wml::SectionProps p = many->sectionProps(5000);
+        p.pageW = 15840;
+        p.pageH = 12240;
+        const qint64 before = many->sectionsMadeForTest();
+        many->setSectionProps(5000, p);
+        QVERIFY(many->sectionsMadeForTest() - before <= 2);
+        QCOMPARE(many->sectionProps(5000).pageW, 15840);
+        QCOMPARE(many->sectionProps(4999).pageW, 12240);
     }
 
     void aSectionThatEndsTheFileLeavesABlankLastPageThatIsDrawn()
@@ -1607,7 +1688,9 @@ private Q_SLOTS:
         QByteArray deep;
         for (int i = 0; i < 300; ++i) deep += "<w:p>";
         for (int i = 0; i < 300; ++i) deep += "</w:p>";
-        QVERIFY(!WriteDoc::fromDocx(makeDocx(deep), &err));
+        QStringList deepNotes;
+        QVERIFY2(WriteDoc::fromDocx(makeDocx(deep), &err, &deepNotes), qPrintable(err));   // (nested past the limit: opened, what is below it made plain, and said)
+        QVERIFY(!deepNotes.isEmpty());
         // Sizes and counts that no page could have are clamped, and the document opens.
         const QByteArray odd = "<w:p><w:pPr><w:ind w:left=\"99999999999\" w:hanging=\"88888888\"/><w:spacing w:before=\"2000000000\" w:line=\"-5\"/><w:numPr><w:ilvl w:val=\"500\"/><w:numId w:val=\"77\"/></w:numPr></w:pPr>"
                                "<w:r><w:rPr><w:sz w:val=\"9999999\"/></w:rPr><w:t>x</w:t></w:r></w:p>";

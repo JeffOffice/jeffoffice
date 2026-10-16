@@ -54,6 +54,8 @@ public:
     void setSectionProps(int index, const office::wml::SectionProps &props);
     // The section the document position is in.
     int sectionAt(int position) const;
+    // How many sections have been made from their records since the document was opened (to see what an edit costs).
+    qint64 sectionsMadeForTest() const { return m_sectionsMade; }
     // The paragraph ends the section: the break paragraphs and `flow().sections` are made again from the story. Called after edits that
     // add or remove paragraphs (the document does it itself when the story reports one).
     void syncSections();
@@ -133,6 +135,8 @@ private:
     office::wml::Document m_wml;                   // everything of the file but the body
     std::vector<office::wml::SectionProps> m_sections;   // the sections (the last one's is in m_last)
     office::wml::SectionProps m_last;
+    QVector<int> m_sectionKeys;                    // the key of each section's record (the break paragraphs', then the last's), as of the last sync
+    qint64 m_sectionsMade = 0;
     QByteArray m_lastBytes;                        // the first paragraph's record of it (prop::LastSection) as last read
     int m_blockCount = 0;
     bool m_syncing = false;

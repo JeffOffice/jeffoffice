@@ -316,21 +316,72 @@ void WriteDoc::syncSections()
         if (!bytes.isEmpty()) m_last = unpackSection(bytes);
         m_lastBytes = bytes;
     }
-    std::vector<SectionProps> list;
+    // Each break paragraph's record of its section is a key of bytes; which sections changed is found from the keys, and only those are made again
+    // (a document of twenty thousand sections is not unpacked at each Enter).
+    QVector<int> keys;
+    bool absent = false;
     for (QTextBlock b = story()->begin(); b.isValid(); b = b.next()) {
         const QTextBlockFormat bf = b.blockFormat();
         if (!bf.boolProperty(flow::fp::SectionBreakAfter)) continue;
-        list.push_back(bf.hasProperty(prop::SectionData) ? unpackSection(storedBytes(bf, prop::SectionData)) : (list.empty() ? m_last : list.back()));
+        if (bf.hasProperty(prop::SectionData)) keys.push_back(bf.intProperty(prop::SectionData));
+        else absent = true;
     }
-    list.push_back(m_last);
-    bool same = list.size() == m_sections.size();
-    for (size_t i = 0; same && i < list.size(); ++i) same = packSection(list[i]) == packSection(m_sections[i]);
-    m_sections = list;
+    keys.push_back(storeBytes(packSection(m_last)));
     flow::FlowDocument &f = *m_flow;
-    f.sections.clear();
-    for (const SectionProps &p : m_sections) f.sections << flowSectionOf(p, m_wml.evenAndOddHeaders);
-    if (!same) {
-        if (m_pager) m_pager->invalidate();
+    int from = 0;
+    bool changed = false;
+    if (absent) {
+        // (A break with no record of its own takes the section before's: found the long way.)
+        std::vector<SectionProps> list;
+        for (QTextBlock b = story()->begin(); b.isValid(); b = b.next()) {
+            const QTextBlockFormat bf = b.blockFormat();
+            if (!bf.boolProperty(flow::fp::SectionBreakAfter)) continue;
+            list.push_back(bf.hasProperty(prop::SectionData) ? unpackSection(storedBytes(bf, prop::SectionData)) : (list.empty() ? m_last : list.back()));
+        }
+        list.push_back(m_last);
+        keys.clear();
+        for (const SectionProps &p : list) keys.push_back(storeBytes(packSection(p)));
+        m_sectionsMade += qint64(list.size());
+        changed = keys != m_sectionKeys;
+        m_sections = list;
+        f.sections.clear();
+        for (const SectionProps &p : m_sections) f.sections << flowSectionOf(p, m_wml.evenAndOddHeaders);
+    } else if (keys != m_sectionKeys || f.sections.size() != int(keys.size())) {
+        changed = true;
+        const int oldCount = int(m_sectionKeys.size()), newCount = int(keys.size());
+        int prefix = 0;
+        while (prefix < oldCount && prefix < newCount && m_sectionKeys[prefix] == keys[prefix]) ++prefix;
+        int suffix = 0;
+        while (suffix < oldCount - prefix && suffix < newCount - prefix && m_sectionKeys[oldCount - 1 - suffix] == keys[newCount - 1 - suffix]) ++suffix;
+        from = prefix;
+        std::vector<SectionProps> made;
+        QVector<flow::Section> madeFlow;
+        for (int i = prefix; i < newCount - suffix; ++i) {
+            SectionProps p = i == newCount - 1 ? m_last : unpackSection(storedBytesOf(keys[i]));
+            madeFlow << flowSectionOf(p, m_wml.evenAndOddHeaders);
+            made.push_back(std::move(p));
+            ++m_sectionsMade;
+        }
+        if (int(m_sections.size()) != oldCount || f.sections.size() != oldCount) {
+            // (Out of step with the keys, as when the document is first built: all of them.)
+            m_sections.assign(newCount, SectionProps());
+            f.sections.resize(newCount);
+            for (int i = 0; i < newCount; ++i) {
+                m_sections[i] = i == newCount - 1 ? m_last : unpackSection(storedBytesOf(keys[i]));
+                f.sections[i] = flowSectionOf(m_sections[i], m_wml.evenAndOddHeaders);
+            }
+            m_sectionsMade += newCount;
+            from = 0;
+        } else {
+            m_sections.erase(m_sections.begin() + prefix, m_sections.begin() + (oldCount - suffix));
+            m_sections.insert(m_sections.begin() + prefix, made.begin(), made.end());
+            f.sections.remove(prefix, oldCount - suffix - prefix);
+            for (int i = 0; i < madeFlow.size(); ++i) f.sections.insert(prefix + i, madeFlow[i]);
+        }
+    }
+    m_sectionKeys = keys;
+    if (changed) {
+        if (m_pager) m_pager->invalidateFrom(from);
         Q_EMIT sectionsChanged();
     }
     m_syncing = false;
