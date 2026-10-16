@@ -476,6 +476,77 @@ private Q_SLOTS:
         QCOMPARE(d->findScansForTest(), mid);
     }
 
+    // After an edit that moves items along their page (one put in front of the rest), finding them costs a look at their page, not at every item,
+    // and the index is not made again.
+    void documentFindRepairsItemsThatShiftedWithoutScanning()
+    {
+        auto d = Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 30);
+        QStringList ids;
+        for (auto &p : d->pages)
+            for (int k = 0; k < 40; ++k) {
+                p->items.push_back(Item::create(ItemType::Shape));
+                ids << p->items.back()->id;
+            }
+        QVERIFY(d->find(ids.first()).item);
+        const int scans = d->findScansForTest(), indexed = d->findIndexingsForTest();
+        for (int round = 0; round < 20; ++round) {
+            auto &items = d->pages[round % 30]->items;
+            items.insert(items.begin(), Item::create(ItemType::Shape));   // (everything on the page moves one place)
+            for (const QString &id : ids) {
+                const Document::Loc got = d->find(id);
+                QVERIFY(got.item);
+                QVERIFY(sameLoc(got, scanFor(*d, id)));
+            }
+        }
+        QCOMPARE(d->findScansForTest(), scans);
+        QCOMPARE(d->findIndexingsForTest(), indexed);
+        // An item that went to another page is found by looking at every item, once, and the index isn't made again for it.
+        ItemPtr moved = d->pages[3]->items.back();
+        d->pages[3]->items.pop_back();
+        d->pages[20]->items.push_back(moved);
+        QVERIFY(sameLoc(d->find(moved->id), scanFor(*d, moved->id)));
+        QCOMPARE(d->findScansForTest(), scans + 1);
+        QCOMPARE(d->findIndexingsForTest(), indexed);
+        QCOMPARE(d->find(moved->id).page, 20);
+        QCOMPARE(d->findScansForTest(), scans + 1);
+        // Groups: an item in a group that went to another page with it.
+        auto group = std::make_shared<GroupItem>();
+        auto inner = Item::create(ItemType::Text);
+        group->children.push_back(inner);
+        d->pages[5]->items.push_back(group);
+        QCOMPARE(d->find(inner->id).page, 5);
+        d->pages[5]->items.pop_back();
+        d->pages[9]->items.insert(d->pages[9]->items.begin(), group);
+        QVERIFY(sameLoc(d->find(inner->id), scanFor(*d, inner->id)));
+        QCOMPARE(d->find(inner->id).page, 9);
+        QVERIFY(sameLoc(d->find(group->id), scanFor(*d, group->id)));
+    }
+
+    // Two items with one id (a damaged file): the first, in the order of the pages, masters, and scratch area, and of the items on a page, a group's
+    // within it, as looking at every item finds it.
+    void documentFindReturnsTheFirstOfTwoItemsWithOneId()
+    {
+        auto d = Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 2);
+        auto group = std::make_shared<GroupItem>();
+        auto inside = Item::create(ItemType::Shape);
+        group->children.push_back(inside);
+        auto later = Item::create(ItemType::Shape);
+        later->id = inside->id;
+        d->pages[0]->items.push_back(group);
+        d->pages[0]->items.push_back(later);
+        auto onThePageAfter = Item::create(ItemType::Shape);
+        onThePageAfter->id = inside->id;
+        d->pages[1]->items.push_back(onThePageAfter);
+        QVERIFY(sameLoc(d->find(inside->id), scanFor(*d, inside->id)));
+        QCOMPARE(d->find(inside->id).item, inside.get());
+        // (Again, with the index made.)
+        QCOMPARE(d->find(inside->id).item, inside.get());
+        const QJsonObject json = d->toJson();
+        d->fromJson(json);
+        QVERIFY(sameLoc(d->find(inside->id), scanFor(*d, inside->id)));
+        QVERIFY(d->find(inside->id).parent != nullptr);
+    }
+
     // The layout cache's key held the minute, so a long story was laid out again every minute it was
     // on screen. It holds it only for a story with a date or time field in it.
     void layoutDoesNotFollowTheClockWithoutAClockField()
