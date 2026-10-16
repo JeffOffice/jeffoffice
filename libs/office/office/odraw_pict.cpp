@@ -47,6 +47,10 @@ constexpr int kMaxFrame = 32767;
 constexpr int kMaxRegionRects = 20000;
 // The fonts a picture has at once; a picture of a real presentation has a dozen.
 constexpr size_t kMaxFonts = 128;
+// Text larger than this, in the picture's units or once drawn, is a damaged size: no picture holds it, and some systems' font
+// engines fail on glyphs that large (a damaged size of 61,756 crashed the tests on Windows, October 16, 2026).
+constexpr int kMaxTextSize = 1000;
+constexpr double kMaxTextPixels = 4096;
 
 // The characters of the Macintosh's own character set from 0x80 up.
 const char16_t kMacRoman[128] = {
@@ -574,7 +578,7 @@ private:
         // The offsets of the operations after the first are from where the last string began (the pen is at its end).
         textAt = QPointF(h, v);
         pen = textAt;
-        if (textSize <= 0) return true;
+        if (textSize <= 0 || textSize > kMaxTextSize || textSize * std::abs(p->worldTransform().m11()) > kMaxTextPixels) return true;
         bool made = false;
         const Face &used = faceOf(family, textSize, face & 7, &made);
         const double width = used.metrics.horizontalAdvance(s);
