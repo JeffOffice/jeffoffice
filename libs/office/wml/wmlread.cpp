@@ -554,6 +554,114 @@ public:
     }
 };
 
+// A document's XML nested deeper than the XML reader goes (kMaxXmlDepth): the part with each element that starts below `limit` levels, and its
+// nearest enclosing table (or, with none, the element at the limit), replaced by plain paragraphs holding the text that was in it (one for each of
+// its paragraphs). What is above the limit is as it was. `changed` says whether anything was replaced. Nothing here recurses.
+QByteArray flattenDeepXml(const QByteArray &xml, int limit, bool *changed)
+{
+    *changed = false;
+    struct Open { qsizetype begin; bool table; };
+    QVector<Open> stack;
+    QByteArray out;
+    qsizetype copied = 0, regionBegin = 0;
+    int region = -1;
+    QByteArray prefix;
+    const qsizetype n = xml.size();
+    auto textOf = [&](qsizetype from, qsizetype to) {
+        // The paragraphs in xml[from, to): the text of each, as it is written.
+        QByteArray paragraphs;
+        QByteArray text;
+        bool inParagraph = false;
+        for (qsizetype i = xml.indexOf('<', from); i >= 0 && i < to; i = xml.indexOf('<', i + 1)) {
+            qsizetype e = i + 1;
+            const bool end = e < n && xml[e] == '/';
+            if (end) ++e;
+            const qsizetype nameAt = e;
+            while (e < n && xml[e] != ' ' && xml[e] != '/' && xml[e] != '>' && xml[e] != '\r' && xml[e] != '\n' && xml[e] != '\t') ++e;
+            const QByteArray name = xml.mid(nameAt, e - nameAt);
+            const QByteArray local = name.mid(name.indexOf(':') + 1);
+            if (local == "p" && !end) {
+                inParagraph = true;
+                text.clear();
+            } else if (local == "p" && end && inParagraph) {
+                if (!text.isEmpty()) paragraphs += "<" + prefix + "p><" + prefix + "r><" + prefix + "t xml:space=\"preserve\">" + text + "</" + prefix + "t></" + prefix + "r></" + prefix + "p>";
+                inParagraph = false;
+            } else if (local == "t" && !end && inParagraph) {
+                const qsizetype close = xml.indexOf('>', e);
+                if (close < 0 || xml[close - 1] == '/') continue;
+                const qsizetype stop = xml.indexOf('<', close + 1);
+                if (stop > close + 1) text += xml.mid(close + 1, stop - close - 1);
+            }
+        }
+        return paragraphs;
+    };
+    for (qsizetype i = xml.indexOf('<'); i >= 0 && i < n; i = xml.indexOf('<', i + 1)) {
+        if (i + 3 < n && xml[i + 1] == '!' && xml[i + 2] == '-' && xml[i + 3] == '-') {
+            const qsizetype close = xml.indexOf("-->", i + 4);
+            if (close < 0) break;
+            i = close + 2;
+            continue;
+        }
+        if (i + 8 < n && xml.mid(i, 9) == "<![CDATA[") {
+            const qsizetype close = xml.indexOf("]]>", i + 9);
+            if (close < 0) break;
+            i = close + 2;
+            continue;
+        }
+        if (i + 1 < n && xml[i + 1] == '?') {
+            const qsizetype close = xml.indexOf("?>", i + 2);
+            if (close < 0) break;
+            i = close + 1;
+            continue;
+        }
+        // The tag: to its '>' (a '>' in a quoted value does not end it).
+        qsizetype e = i + 1;
+        char quote = 0;
+        for (; e < n; ++e) {
+            if (quote) { if (xml[e] == quote) quote = 0; }
+            else if (xml[e] == '"' || xml[e] == '\'') quote = xml[e];
+            else if (xml[e] == '>') break;
+        }
+        if (e >= n) break;
+        const bool end = xml[i + 1] == '/';
+        const bool selfClosing = !end && xml[e - 1] == '/';
+        qsizetype nameEnd = i + (end ? 2 : 1);
+        while (nameEnd < e && xml[nameEnd] != ' ' && xml[nameEnd] != '/' && xml[nameEnd] != '\r' && xml[nameEnd] != '\n' && xml[nameEnd] != '\t') ++nameEnd;
+        const QByteArray name = xml.mid(i + (end ? 2 : 1), nameEnd - i - (end ? 2 : 1));
+        const QByteArray local = name.mid(name.indexOf(':') + 1);
+        if (end) {
+            if (!stack.isEmpty()) stack.removeLast();
+            if (region >= 0 && stack.size() == region) {
+                // The element that was to be replaced is closed: its text stands in its place.
+                const qsizetype stop = e + 1;
+                out += xml.mid(copied, regionBegin - copied) + textOf(regionBegin, stop);
+                copied = stop;
+                region = -1;
+                *changed = true;
+            }
+        } else {
+            if (region < 0 && stack.size() >= limit) {
+                int at = limit - 1;
+                for (int k = limit - 1; k >= 0; --k)
+                    if (stack[k].table) {
+                        at = k;
+                        break;
+                    }
+                region = at;
+                regionBegin = stack[at].begin;
+                const qsizetype colon = xml.indexOf(':', regionBegin);
+                const qsizetype nameStart = regionBegin + 1;
+                prefix = colon > nameStart && colon < regionBegin + 12 ? xml.mid(nameStart, colon - nameStart + 1) : QByteArray();
+            }
+            if (!selfClosing) stack.push_back({i, local == "tbl"});
+        }
+        i = e;
+    }
+    if (!*changed) return xml;
+    out += xml.mid(copied);
+    return out;
+}
+
 QString firstTarget(const Package &pkg, const QString &source, const char *typeSuffix)
 {
     const QVector<Relationship> rels = pkg.relationshipsOfType(source, QString::fromLatin1(typeSuffix));
@@ -579,9 +687,16 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
         return false;
     }
     XmlTree tree;
+    bool flattened = false;
     if (!tree.parse(pkg.part(main), &why)) {
-        if (error) *error = QCoreApplication::translate("jp::office::wml", "The document can't be read: %1").arg(why);
-        return false;
+        // Nested past what the XML reader goes (a table in a cell in a table, thousands of times): what is below the limit is made plain text.
+        bool changed = false;
+        const QByteArray flat = flattenDeepXml(pkg.part(main), 200, &changed);
+        if (!changed || !tree.parse(flat, nullptr)) {
+            if (error) *error = QCoreApplication::translate("jp::office::wml", "The document can't be read: %1").arg(why);
+            return false;
+        }
+        flattened = true;
     }
     const int root = tree.root();
     const int body = tree.child(root, "body");
@@ -591,6 +706,10 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
     }
     doc->mainName = main;
     doc->mainContentType = pkg.contentType(main);
+    if (notes && flattened) {
+        notes->leftOut = true;
+        notes->notes << QCoreApplication::translate("jp::office::wml", "Tables nested deeper than this program can read were made plain paragraphs of text.");
+    }
     if (notes) {
         notes->hadMacros = doc->mainContentType.contains(QLatin1String("macroEnabled"));
         for (const QString &name : pkg.partNames()) {

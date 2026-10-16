@@ -2129,6 +2129,39 @@ private Q_SLOTS:
         QVERIFY(items.contains(QStringLiteral("word/media/a%25b.png")) && items.contains(QStringLiteral("word/media/my%20image.png")));
     }
 
+    // Tables nested deeper than the limit (as in a real file that tests such readers) don't refuse the file: the structure down to the limit is kept,
+    // and the text below it comes as plain paragraphs, with a note. What is saved opens again, plainly.
+    void tablesNestedPastTheLimitOpenWithTheTextBelowAsPlainParagraphs()
+    {
+        const int levels = 700;
+        QByteArray body;
+        for (int i = 0; i < levels; ++i) body += "<w:tbl><w:tblGrid><w:gridCol w:w=\"2400\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>Nested level " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        for (int i = 0; i < levels; ++i) body += "</w:tc></w:tr></w:tbl><w:p><w:r><w:t>after " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        const QByteArray original = makeDocx(body);
+        QString err;
+        QStringList notes;
+        auto doc = WriteDoc::fromDocx(original, &err, &notes);
+        QVERIFY2(doc, qPrintable(err));
+        QVERIFY2(!notes.isEmpty() && notes.join(QLatin1Char(' ')).contains(QLatin1String("deeper")), qPrintable(notes.join(QLatin1Char(' '))));
+        QVERIFY(doc->leftSomethingOut());
+        // (The table is a piece kept as XML, shown as a stand-in; what is in it is in the file when it is saved.)
+        int locked = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) locked += isLocked(b);
+        QCOMPARE(locked, 1);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY2(rt::strictProblems(saved).isEmpty(), qPrintable(rt::strictProblems(saved).join(QLatin1Char('\n'))));
+        const QByteArray x = documentXml(saved);
+        for (int i : {0, 1, 199, 200, levels - 1}) {
+            QVERIFY2(x.contains("Nested level " + QByteArray::number(i) + "<"), qPrintable(QString::number(i)));
+            QVERIFY2(x.contains("after " + QByteArray::number(i) + "<"), qPrintable(QString::number(i)));
+        }
+        QStringList again;
+        auto back = WriteDoc::fromDocx(saved, &err, &again);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY2(again.isEmpty(), qPrintable(again.join(QLatin1Char(' '))));
+        QCOMPARE(documentXml(back->toDocx()), x);
+    }
+
     void aRichDocumentComesBackFaithfulAndWellFormed()
     {
         const QByteArray original = richDocx();
