@@ -1855,6 +1855,33 @@ private Q_SLOTS:
     }
 
     // Several edits before the pages are laid out again are settled together.
+    void aRawFieldShowsItsOwnText()
+    {
+        // A word processing document keeps pieces of its file as text that shows what the field names after "raw:" (a footnote's mark, a
+        // stand-in), or nothing; the page shows it in the place of the piece, as it does the date a date field has.
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        QTextCharFormat plain, mark, none;
+        plain.setFontPointSize(11);
+        mark = plain;
+        mark.setProperty(tp::Field, QStringLiteral("raw:[Table: 2 rows]"));
+        none = plain;
+        none.setProperty(tp::Field, QStringLiteral("raw:"));
+        c.insertText(QStringLiteral("Before "), plain);
+        c.insertText(QString(QChar::ObjectReplacementCharacter), mark);
+        c.insertText(QStringLiteral(" and "), plain);
+        c.insertText(QString(QChar::ObjectReplacementCharacter), none);
+        c.insertText(QStringLiteral(" after."), plain);
+        FrameSpec fs;
+        fs.size = QSizeF(400, 100);
+        fs.hyphenate = false;
+        StoryLayout lay;
+        lay.build(fd.story(), {fs}, fd.env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        QCOMPARE(lines[0].text, QStringLiteral("Before [Table: 2 rows] and  after."));
+    }
+
     void paginatorSettlesSeveralEditsAtOnce()
     {
         FlowDocument fd;
