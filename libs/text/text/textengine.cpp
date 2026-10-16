@@ -2079,9 +2079,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (raw[i] == QLatin1Char('-') && raw[i - 1].isLetterOrNumber() && raw[i + 1].isDigit()) cuts.append({i + 1, QChar(0x200B)});
                 // A slide's line doesn't break after a slash ("expression/regulation", an address): the presentation program breaks at spaces
                 // and hyphens, and a word that is longer than the line anywhere. A word joiner after it keeps Qt's rules from breaking there.
-                if (env.slideLines)
+                if (env.slideLines) {
                     for (int i = 0; i + 1 < int(raw.size()); ++i)
                         if (raw[i] == QLatin1Char('/') && !raw[i + 1].isSpace() && raw[i + 1] != QChar::LineSeparator) cuts.append({i + 1, QChar(0x2060)});
+                    // (And one that ends a run, where the text goes on in another format: the next run's first letter says.)
+                    if (!cutShort && raw.endsWith(QLatin1Char('/'))) {
+                        auto next = it;
+                        ++next;
+                        if (!next.atEnd())
+                            if (const QString after = next.fragment().text(); !after.isEmpty() && !after[0].isSpace() && after[0] != QChar::LineSeparator) cuts.append({int(raw.size()), QChar(0x2060)});
+                    }
+                }
                 std::sort(cuts.begin(), cuts.end(), [](const auto &x, const auto &y) { return x.first < y.first; });
                 int piece = 0;
                 for (const auto &[cut, mark] : cuts) {
