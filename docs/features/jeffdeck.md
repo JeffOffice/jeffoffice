@@ -13,7 +13,7 @@ Every item carries a tier:
 
 ## How the tiers were chosen
 
-Dropping the Preview label needs the old `.ppt` fidelity gaps fixed (the first four gaps under Fidelity and testing, measured on decks never used for tuning) plus five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing (decided October 16, 2026). The items that make up those five basics are marked "(needed to drop Preview)".
+Dropping the Preview label needs old `.ppt` files drawn close enough to the original, measured on decks never used for tuning: at least 70% of their slides scoring under 2, and an average score of 2.0 or less (decided October 17, 2026; on October 16 they were at 68% and 2.20). A slide's score is how far JeffDeck's picture of it is from the original program's, as the mean difference in gray between the two pictures, where 0 is identical. It also needs five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing (decided October 16, 2026). The items that make up those five basics are marked "(needed to drop Preview)".
 
 There is no "first release" tier here, because JeffDeck already shipped. Version 1.0 asks for more: it is ready when PowerPoint opens every file JeffDeck saves (met so far for all 64 reference presentations) and JeffDeck's slides match PowerPoint's own pictures about as closely as JeffPub's pages match Publisher's (see Fidelity and testing, where JeffDeck is close on average and not yet on the median). A finished item is usually **1.0** too, since it counts toward the bar for version 1.0. An item is **later** when few presentations use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
 
@@ -670,7 +670,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 - Old and open formats (October 11, 2026, for all the apps): the first release opens the old and the open kinds, and saving them follows once the main kind is solid. Until then, Save on an old file asks for a new name in the new kind. JeffDeck has since added saving `.odp` and `.otp`; saving `.ppt`, `.pps`, and `.pot` is **later**.
 - Embedded fonts (October 11, 2026): saving embeds, by default, the fonts JeffOffice brings that other computers may lack; fonts drawn in place of common ones are saved under the common name.
 - Reference pictures: PowerPoint is installed on the Windows test machine (Office LTSC Professional Plus 2021), as Word, Excel, and Publisher are.
-- Dropping the Preview label (October 16, 2026): it needs the old `.ppt` fidelity gaps fixed, measured on decks never used for tuning, plus five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing. The items that make them up carry "(needed to drop Preview)"; every other **1.0** item is needed before JeffDeck is called finished.
+- Dropping the Preview label (October 16, 2026): it needs old `.ppt` files, measured on decks never used for tuning, to have at least 70% of slides scoring under 2 and an average of 2.0 or less (October 17), plus five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing. The items that make them up carry "(needed to drop Preview)"; every other **1.0** item is needed before JeffDeck is called finished.
 
 ## Open questions
 
