@@ -447,7 +447,7 @@ private:
 
     // The adjustment values a preset takes, from the format's (in 21600ths of
     // the shape's own coordinates), for the shapes whose meaning is the same.
-    static QVector<double> adjustments(int type, const Props &p, const QSizeF &size)
+    QVector<double> adjustments(int type, const Props &p, const QSizeF &size) const
     {
         auto share = [&](int i, double fallback) { return std::clamp(p.integer(quint16(0x0147 + i), int(fallback)) / 21600.0, 0.0, 1.0); };
         const double m = std::max(1e-6, std::min(size.width(), size.height()));
@@ -461,6 +461,12 @@ private:
             const double headAt = share(0, type == 13 || type == 67 ? 16200 : 5400);
             const double head = (type == 13 || type == 67 ? 1 - headAt : headAt) * length / m;
             return {std::clamp(1 - 2 * share(1, 5400), 0.0, 1.0), std::clamp(head, 0.0, 1.0)};
+        }
+        case 15: case 55: {
+            // The pentagon arrow's and the chevron's point: the first value is where it starts, 16200 of 21600 of the width unless it says
+            // (JeffOffice's own is half the shorter side).
+            if (!ctx.presentation) return {};
+            return {std::clamp((1 - share(0, 16200)) * size.width() / m, 0.0, 1e4)};
         }
         default:
             return {};
