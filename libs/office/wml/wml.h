@@ -192,6 +192,10 @@ public:
     // What a paragraph of style `id` has: the document's defaults, then the styles it is based on, then the style. A style no file
     // defines gives the defaults.
     ParaProps paragraph(const QString &id) const;
+    // The same, for a style whose own numbering gives its paragraphs the indents of `level` (the properties of the list's level): the
+    // level's come below those of the style that says it is numbered, so that style's own indents win over the list's. (When a
+    // paragraph itself says it is numbered, the list's come over its style's: that is `paragraph(id)` and then `overlay(level)`.)
+    ParaProps paragraphWithNumbering(const QString &id, const ParaProps &level) const;
     // What a run has when nothing is said directly: the defaults, the paragraph style's run properties, then the character style's.
     RunProps run(const QString &paragraphStyle, const QString &characterStyle) const;
     void changed() { m_paragraph.clear(); m_run.clear(); m_index.clear(); m_indexed = -1; }

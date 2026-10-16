@@ -23,6 +23,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
     const StyleSheet &sheet = m_wml.styles;
     const QString defaultStyle = defaultParagraphStyle();
     int sectionIndex = 0;
+    QHash<QString, ParaProps> baselines;
 
     for (QTextBlock b = story->begin(); b.isValid();) {
         const QTextBlockFormat bf = b.blockFormat();
@@ -40,7 +41,12 @@ void WriteDoc::exportBody(QVector<Block> *out)
         ParaProps full = paraPropsOf(bf);
         const QString styleId = full.style.isEmpty() ? defaultStyle : full.style;
         const int numId = full.numId.value_or(0), level = full.ilvl.value_or(0);
-        ParaProps direct = full.differences(baselineParagraph(styleId, numId, level));
+        const bool numberedByItself = numId > 0 && bf.boolProperty(prop::NumDirect);
+        ParaProps direct = full.differences(baselineParagraph(styleId, numId, level, numberedByItself, &baselines));
+        if (numberedByItself && sheet.paragraph(styleId).numId.value_or(0) == numId) {
+            direct.numId = numId;   // (said again, as the file had it)
+            direct.ilvl = level;
+        }
         direct.style = styleId == defaultStyle ? QString() : styleId;
         if (bf.hasProperty(prop::OddTabs)) {
             QVector<TabStop> tabs = direct.tabs.value_or(QVector<TabStop>());

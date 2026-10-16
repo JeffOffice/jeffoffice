@@ -69,7 +69,9 @@ public:
     QTextBlockFormat styleBlockFormat(const QString &paragraphStyle);
     QTextCharFormat styleCharFormat(const QString &paragraphStyle, const QString &characterStyle = QString());
     // What the paragraph has from its style and its list (the file's numbering gives a list's indents), for telling what it says itself.
-    office::wml::ParaProps baselineParagraph(const QString &paragraphStyle, int numId, int level) const;
+    // `direct` says the paragraph itself states its numbering (so the list's indents come over its style's); `cache`, if given, holds
+    // the answers for one pass over a document (the same style, list, and level come up again and again).
+    office::wml::ParaProps baselineParagraph(const QString &paragraphStyle, int numId, int level, bool direct = false, QHash<QString, office::wml::ParaProps> *cache = nullptr) const;
 
     // ---- lists
     const office::wml::Numbering &numbering() const { return m_wml.numbering; }

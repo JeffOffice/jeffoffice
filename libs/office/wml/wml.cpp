@@ -345,6 +345,38 @@ ParaProps StyleSheet::paragraph(const QString &id) const
     return p;
 }
 
+ParaProps StyleSheet::paragraphWithNumbering(const QString &id, const ParaProps &level) const
+{
+    QVector<const Style *> chain;
+    for (QString at = id; !at.isEmpty() && chain.size() < kStyleDepth;) {
+        const Style *s = find(at);
+        if (!s || chain.contains(s)) break;
+        chain.push_back(s);
+        at = s->basedOn;
+    }
+    // The style that says the paragraphs are numbered: the nearest to the paragraph's own.
+    int numbered = -1;
+    for (int i = 0; i < chain.size() && numbered < 0; ++i)
+        if (chain[i]->pPr.numId) numbered = i;
+    if (numbered < 0) {
+        ParaProps p = paragraph(id);
+        p.overlay(level);
+        return p;
+    }
+    ParaProps p = defaultPara;
+    for (int i = int(chain.size()) - 1; i >= 0; --i) {
+        if (i == numbered) p.overlay(level);
+        p.overlay(chain[i]->pPr);
+    }
+    p.style = id;
+    p.extra.clear();
+    p.spacingAttrs.clear();
+    p.indAttrs.clear();
+    p.markRun.reset();
+    p.section.reset();
+    return p;
+}
+
 RunProps StyleSheet::run(const QString &paragraphStyle, const QString &characterStyle) const
 {
     const QString key = paragraphStyle + QLatin1Char('\n') + characterStyle;

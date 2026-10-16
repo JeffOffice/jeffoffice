@@ -100,6 +100,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
     };
 
     QHash<int, NumState> numbering;
+    QHash<QString, ParaProps> baselines;
     QVector<Block> pending;   // body elements kept as XML that wait for the next paragraph
 
     for (const Block &blk : body) {
@@ -137,8 +138,10 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         const int level = std::clamp(direct.ilvl ? *direct.ilvl : base.ilvl.value_or(0), 0, 8);
         const AbstractNum *definition = numId > 0 ? m_wml.numbering.abstractOf(numId) : nullptr;
         if (!definition || !definition->levels[level].present) numId = 0;
-        ParaProps resolved = base;
-        if (numId > 0) resolved.overlay(levelParagraph(numId, level));
+        // (The list's indents are the style's to override when the style says the paragraph is numbered, and the paragraph's own numbering
+        // overrides its style's.)
+        const bool numberedByItself = direct.numId.has_value();
+        ParaProps resolved = numId > 0 ? baselineParagraph(styleId, numId, level, numberedByItself, &baselines) : base;
         resolved.overlay(direct);
         // (What the paragraph keeps as written is its own, not its style's.)
         resolved.extra = direct.extra;
@@ -149,6 +152,8 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         resolved.ilvl = level;
         QTextBlockFormat bf = blockFormatOf(resolved);
         if (!p.attrs.isEmpty()) bf.setProperty(prop::ParaAttrs, p.attrs);
+        // A paragraph that says it is numbered as its style says: that it said so is kept, for it changes whose indents win.
+        if (numId > 0 && numberedByItself && base.numId.value_or(0) == numId) bf.setProperty(prop::NumDirect, true);
         // The tab stops of its own that the engine has no kind for (a bar) are kept beside the others.
         if (direct.tabs) {
             QVector<TabStop> odd;
