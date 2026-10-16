@@ -25352,6 +25352,40 @@ private Q_SLOTS:
         QVERIFY2(lines[0].rect.top() < box->insets.top() - 4, qPrintable(QString::number(lines[0].rect.top())));
     }
 
+    // A metafile's records that scale the window and the viewport multiply the extents each has by their ratios, as the device context does: a
+    // window made half the size draws its contents twice the size, a viewport made half the size draws them half the size, and both together (the
+    // program's own clip art does it) change nothing. The window here is 400 by 300 units and the box 200 by 150: a quarter of the picture.
+    void renderMetafileScalesTheWindowAndTheViewportByTheirRatios()
+    {
+        const QByteArray half = wmfWords({2, 1, 2, 1}), twice = wmfWords({1, 2, 1, 2});   // (the parameters come last first)
+        const QImage none = drawMetafileWith(QByteArray());
+        QVERIFY(!none.isNull());
+        QVERIFY(paintedGrayAt(none, 0.25, 0.25) && paintedGrayAt(none, 0.45, 0.45) && !paintedGrayAt(none, 0.75, 0.75));
+        // The viewport alone, halved: the box is a quarter of the picture's width.
+        const QImage viewport = drawMetafileWith(wmfRecord(0x0412, half));
+        QVERIFY(paintedGrayAt(viewport, 0.125, 0.125) && !paintedGrayAt(viewport, 0.375, 0.375));
+        // The window alone, halved: the box fills it. Doubled: the box is a quarter of its width.
+        const QImage window = drawMetafileWith(wmfRecord(0x0410, half));
+        QVERIFY(paintedGrayAt(window, 0.75, 0.75) && paintedGrayAt(window, 0.95, 0.95));
+        const QImage doubled = drawMetafileWith(wmfRecord(0x0410, twice));
+        QVERIFY(paintedGrayAt(doubled, 0.125, 0.125) && !paintedGrayAt(doubled, 0.375, 0.375));
+        // Both halved: as if neither were.
+        const QImage pair = drawMetafileWith(wmfRecord(0x0410, half) + wmfRecord(0x0412, half));
+        QVERIFY(paintedGrayAt(pair, 0.25, 0.25) && paintedGrayAt(pair, 0.45, 0.45) && !paintedGrayAt(pair, 0.75, 0.75));
+        QVERIFY2(qAbs(paintedGray(pair) - paintedGray(none)) * 50 < paintedGray(none), qPrintable(QStringLiteral("%1 against %2").arg(paintedGray(pair)).arg(paintedGray(none))));
+        // The ratios of a hostile file are held to a bounded size (each is a 16-bit pair, repeated a hundred times: 30000 to the hundredth, a
+        // denominator of zero, and a negative ratio), and the picture is still drawn in a moment.
+        QByteArray hostile;
+        for (int i = 0; i < 100; ++i)
+            hostile += wmfRecord(0x0410, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0412, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0410, wmfWords({1, -1, 1, -1}));
+        hostile += wmfRecord(0x0410, wmfWords({0, 1, 0, 1})) + wmfRecord(0x0412, wmfWords({0, 1, 0, 1}));
+        QElapsedTimer timer;
+        timer.start();
+        const QImage bad = drawMetafileWith(hostile);
+        QVERIFY(!bad.isNull());
+        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {

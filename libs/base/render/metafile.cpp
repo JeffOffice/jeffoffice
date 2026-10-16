@@ -217,6 +217,14 @@ private:
         return !m_spent;
     }
 
+    // An extent multiplied by a ratio, kept within what a drawing can use: a file that scales again and again (by 30000 at a time) can't take it
+    // past a billion units, nor to a number that isn't one. (The records are counted, so the repeats are bounded too.)
+    static QSizeF scaledExtent(const QSizeF &e, double xNum, double xDenom, double yNum, double yDenom)
+    {
+        auto bounded = [](double v) { return std::isfinite(v) ? std::clamp(v, -1e9, 1e9) : 0.0; };
+        return QSizeF(bounded(e.width() * xNum / xDenom), bounded(e.height() * yNum / yDenom));
+    }
+
     QTransform logical() const
     {
         QTransform t;
@@ -499,11 +507,25 @@ private:
             case 0x0000: return;
             case 0x020B: { const double y = a.s16(), x = a.s16(); m_dc.winOrg = QPointF(x, y); break; }
             case 0x020C: { const double h = a.s16(), w = a.s16(); m_dc.winExt = QSizeF(w, h); m_dc.winExtSet = true; break; }
-            // The viewport (here the share of the target the window is drawn on) scaled by a ratio: a writer sets a smaller window, scaling
-            // the viewport by the same, to keep a drawing's size.
+            // The viewport (here the share of the target the window is drawn on) scaled by a ratio, and the window (the part of the drawing's own
+            // units that is drawn) by another: a writer sets a smaller window, scaling the viewport by the same, to keep a drawing's size (each
+            // alone changes it). The parameters come last first: the height's denominator and numerator, then the width's.
             case 0x0412: {
                 const double yDenom = a.s16(), yNum = a.s16(), xDenom = a.s16(), xNum = a.s16();
-                if (xDenom != 0 && yDenom != 0) m_dc.vpExt = QSizeF(m_dc.vpExt.width() * xNum / xDenom, m_dc.vpExt.height() * yNum / yDenom);
+                if (xDenom != 0 && yDenom != 0) m_dc.vpExt = scaledExtent(m_dc.vpExt, xNum, xDenom, yNum, yDenom);
+                break;
+            }
+            case 0x0410: {
+                const double yDenom = a.s16(), yNum = a.s16(), xDenom = a.s16(), xNum = a.s16();
+                if (xDenom != 0 && yDenom != 0) {
+                    // (A window that was never set is the drawing's own bounds.)
+                    if (!m_dc.winExtSet) {
+                        m_dc.winOrg = wmfWindowFallback.topLeft();
+                        m_dc.winExt = wmfWindowFallback.size();
+                        m_dc.winExtSet = true;
+                    }
+                    m_dc.winExt = scaledExtent(m_dc.winExt, xNum, xDenom, yNum, yDenom);
+                }
                 break;
             }
             case 0x0103: m_dc.mapMode = a.s16(); break;
