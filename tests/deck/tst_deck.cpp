@@ -24942,6 +24942,68 @@ private Q_SLOTS:
         QVERIFY2(qAbs(found[2]->adj[0] - 0.4667) < 0.001, qPrintable(QString::number(found[2]->adj[0])));
     }
 
+    // A slide's line doesn't break after a slash, as the presentation program breaks at spaces and hyphens (and a word longer than the line
+    // anywhere): in a long run of letters cut by slashes the lines don't all end at one. (Without the rule they all would.)
+    void layoutSlideTextDoesNotBreakAfterASlash()
+    {
+        QString text;
+        const int sizes[] = {2, 3, 5, 7, 4, 6, 8, 3};
+        for (int i = 0; i < 80; ++i) {
+            for (int k = 0; k < sizes[i % 8]; ++k) text += QChar('a' + (i * 7 + k) % 26);
+            text += QLatin1Char('/');
+        }
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(d->slideText);
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        const auto lines = fl.layout->lineInfo(0);
+        QVERIFY2(lines.size() > 3, qPrintable(QString::number(lines.size())));
+        int atSlash = 0;
+        for (int i = 0; i + 1 < int(lines.size()); ++i) atSlash += lines[i].text.trimmed().endsWith(QLatin1Char('/'));
+        QVERIFY2(atSlash < int(lines.size()) - 1, qPrintable(QStringLiteral("%1 of %2").arg(atSlash).arg(lines.size() - 1)));
+    }
+
+    // The word joiner that keeps a slide's line from breaking after a slash is no letter: text with spacing between its letters is no wider for it
+    // (three letters with 6 points between them are 18 points wider than with none, not 24).
+    void layoutSlideTextSlashTakesNoLetterSpacing()
+    {
+        const QString text = QStringLiteral("a/b");
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        QTextDocument *story = d->storyDoc(box->storyId);
+        QVERIFY(story);
+        auto widthWith = [&](double spacing) {
+            QTextCursor c(story);
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontLetterSpacingType(QFont::AbsoluteSpacing);
+            f.setFontLetterSpacing(spacing);
+            c.mergeCharFormat(f);
+            LayoutCache cache;
+            const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+            QRectF all;
+            if (fl.layout)
+                for (const QRectF &r : fl.layout->rangeRects(0, 0, 3)) all = all.united(r);
+            return all.width();
+        };
+        const double plain = widthWith(0), spaced = widthWith(6);
+        QVERIFY2(std::abs((spaced - plain) - 18) < 0.8, qPrintable(QStringLiteral("%1 wider").arg(spaced - plain)));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
