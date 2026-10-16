@@ -12,9 +12,7 @@ The file you work on is called a **presentation**. It is a set of **slides**. Je
 3. **Add more slides.** Press Ctrl+M, or click **Home > Slides > New Slide**. See [Add, change, and delete slides](slides).
 4. **Save and play.** Press Ctrl+S to save. Press F5 to play the slide show from the first slide, and press Esc to stop. See [Play the slide show and use Presenter View](show).
 
-## JeffDeck is a Preview
-
-This version of JeffDeck is a **Preview**. It is ready to try on real work, but it does not do everything yet. Keep a copy of any file that matters while you try it.
+## What JeffDeck does
 
 **What works**
 
@@ -39,7 +37,7 @@ This version of JeffDeck is a **Preview**. It is ready to try on real work, but 
 - Animations that start when you click an object, animations with sounds, and color animations are not available. If a file has them, JeffDeck keeps them.
 - There is no Format Shape pane yet.
 - **Notes Page** and **Reading View** are on the View tab, but they are not available yet.
-- Some slides look a little different from the way the original program draws them, most often in older .ppt files.
+- Some slides look a little different from the way the original program draws them.
 
 JeffDeck keeps what it can't show. It writes those parts back when you save, so a file that has them does not lose them.
 

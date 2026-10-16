@@ -2,7 +2,7 @@
 Type=Application
 Name=JeffDeck
 GenericName=Presentations
-Comment=Create, edit, and show presentations (Preview)
+Comment=Create, edit, and show presentations
 Exec=jeffdeck %F
 Icon=jeffdeck
 Terminal=false
