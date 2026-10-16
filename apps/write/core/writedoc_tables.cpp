@@ -172,7 +172,8 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             const QString jc = m.jc;
             t.align = jc == QLatin1String("center") ? flow::TableData::Align::Center : jc == QLatin1String("right") || jc == QLatin1String("end") ? flow::TableData::Align::Right : flow::TableData::Align::Left;
             // (Before the 2013 program, the indent is to the first cell's text, and the table's edge is left of it by the cell's margin.)
-            t.indent = points(m.indent) - (m_compat < 15 ? t.margins.left() : 0);
+            t.indent = points(m.indent);
+            t.indentToText = m_compat < 15;
             l.tablePart = std::make_shared<TablePart>();
             l.tablePart->open = blk.raw;
             l.tablePart->mark = blk.table;

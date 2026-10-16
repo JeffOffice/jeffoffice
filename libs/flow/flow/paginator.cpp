@@ -316,6 +316,7 @@ bool Paginator::complete()
 
 void Paginator::invalidate()
 {
+    m_tables->reset();
     m_numberOf = -1;
     m_starts.clear();
     m_starts << PageStart();
@@ -374,7 +375,7 @@ int Paginator::pageOfPosition(int position)
 
 void Paginator::changed(int position, int removed, int added)
 {
-    m_tables->edited();
+    m_tables->edited(position, removed, added);
     const int delta = added - removed;
     m_numberOf = -1;
     // The pages' places move with the text; one that began inside what was taken out is gone.
