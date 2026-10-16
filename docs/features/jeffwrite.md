@@ -29,7 +29,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [~] **first release** Lines and pages break where Word breaks them in the sample documents, judged against Word's own PDFs of them *(shared: the measuring tools and the metric-compatible fonts built for JeffPub)*
 - [x] **first release** Bundled open fonts, with stand-ins that keep the widths of Calibri, Cambria, Arial, Times New Roman, and Courier New, so a document lays out the same on a computer without Microsoft's fonts
 - [~] **first release** Spelling and hyphenation work offline, in 12 languages, with no cloud service *(shared: the bundled dictionaries in libs/base/text)*
-- [ ] **1.0** **(alt)** Grammar and style checking that runs on your own computer, instead of Word's online Editor (see the open questions about how)
+- [ ] **first release** **(alt)** Grammar and style checking that runs on your own computer, instead of Word's online Editor: Harper (open source, Apache-2.0), English first, other languages later (decided October 11, 2026)
 - [~] **1.0** EPUB export for e-book readers and stores, with chapters at each Heading 1, the contents from the headings, footnotes that pop up, and pictures and tables in place *(shared: JeffPub's EPUB writer in apps/pub/io)*
 - [~] **1.0** PDF with bookmarks from headings, tags for screen readers, and PDF/A; PDF/X-1a and PDF/X-4 for commercial printers, with a print check *(shared: JeffPub's PDF export)*
 - [~] **1.0** Barcodes in a document or on mail-merge labels: book ISBNs with a price add-on, EAN, UPC, Code 128, and Code 39, drawn as vector bars *(shared: libs/base/core barcode)*
@@ -561,7 +561,7 @@ What JeffWrite builds on, and the pieces it should build so that JeffCrunch, Jef
 - [ ] **1.0** A merge-source library (CSV, tab-delimited, `.xlsx`, `.ods`, vCard, and later JeffBase tables and JeffCrunch ranges) with filter, sort, duplicate, and address checks, moved out of libs/page/core *(needed by: JeffPub, JeffWrite, JeffMail, JeffBase)*
 - [ ] **1.0** A table engine with merged cells, styles, nested tables, and formulas that run on a calculation engine shared with JeffCrunch *(needed by: JeffWrite, JeffMail, JeffCrunch)*
 - [ ] **1.0** A review model for tracked changes, comments with replies, and comparison, so JeffDeck's comments and JeffCrunch's notes can follow it *(needed by: JeffWrite, JeffDeck, JeffCrunch)*
-- [ ] **1.0** A grammar and style check behind the spelling service *(needed by: JeffWrite, JeffMail)*
+- [ ] **first release** A grammar and style check behind the spelling service: Harper, linked as a native library *(needed by: JeffWrite, JeffMail)*
 - [ ] **1.0** Building blocks and templates in one format and gallery (Quick Parts, page parts, slide layouts) *(needed by: all)*
 - [ ] **later** An ink layer (pens, highlighter, eraser, ink to shape) built on the slide show's pen *(needed by: JeffWrite, JeffDeck)*
 
@@ -569,19 +569,21 @@ What JeffWrite builds on, and the pieces it should build so that JeffCrunch, Jef
 
 Not planned, because they only work with an online service or a product JeffOffice doesn't have: Office add-ins and the Store, Designer and Design Ideas, Insights and Researcher, the LinkedIn Resume Assistant, OneDrive and SharePoint (check-in, workflows, co-authoring locks, information rights management), Microsoft Translator, online dictation, sensitivity labels, blog posting, fax, and XPS.
 
+## Decided
+
+- Old and open formats (October 11, 2026): the first release opens `.doc`, `.rtf`, and `.odt`; saving in them follows once `.docx` is solid, as JeffDeck did with `.ppt` and `.odp`. Until then, Save on such a file asks for a `.docx` name.
+- Grammar checking (October 11, 2026): Harper, English in the first release.
+- Reference pictures: Word 2021 is installed in the Windows test machine (Office LTSC Professional Plus 2021), as PowerPoint and Publisher are for JeffDeck and JeffPub.
+- Embedded fonts: follow JeffDeck's rule. Saving embeds, by default, the fonts JeffOffice brings that other computers may lack; fonts drawn in place of common ones are saved under the common name.
+- How text flows across pages (a new library or an extension of libs/page) is an engineering choice, made when building starts.
+
 ## Open questions for Jeff
 
-1. Does JeffWrite write `.doc` and `.rtf` in version 1.0, or follow JeffDeck's rule (open the old format, but Save As asks for a new `.docx` name)?
-2. Is `.odt` written in the first release, as `.odp` is in JeffDeck, or only read?
-3. Should the flowing-text model be a new library (libs/flow) beside libs/page, or should libs/page learn to flow text across pages?
-4. Should Compare Documents (and Combine) move up to the first release, since legal publishing runs on redlines?
-5. Should the Table of Authorities and Index marking move up to the first release for briefs and books, though the counts don't measure them?
-6. Grammar and style checks: bundle LanguageTool (Java), write a small rule set of our own, or leave it out of 1.0?
-7. Macros: keep them untouched and never run them, or give JeffWrite an open scripting language later (and which one)?
-8. Dictation: is an offline speech model (size and license to check) worth shipping, or is it dropped?
-9. Citations: support Word's own source list only, or CSL styles and BibTeX or Zotero import as well?
-10. Should Protected View (read-only until you choose to edit) exist, or is a plain read-only open enough?
-11. Do we have a copy of Word 2021 to make reference PDFs and test every saved file, and which build is it?
-12. Should saving embed the fonts by default, since 35% of Jeff's `.docx` ask Word to?
-13. Which built-in templates come first: letter, report, brief, manuscript, newsletter, or others?
-14. East Asian typography (vertical text, kinsoku, ruby): stay at later, or does anyone who will use JeffWrite need it for 1.0?
+1. Should Compare Documents (and Combine) move up to the first release, since legal publishing runs on redlines?
+2. Should the Table of Authorities and Index marking move up to the first release for briefs and books, though the counts don't measure them?
+3. Macros: keep them untouched and never run them, or give JeffWrite an open scripting language later (and which one)?
+4. Dictation: is an offline speech model (size and license to check) worth shipping, or is it dropped?
+5. Citations: support Word's own source list only, or CSL styles and BibTeX or Zotero import as well?
+6. Should Protected View (read-only until you choose to edit) exist, or is a plain read-only open enough?
+7. Which built-in templates come first: letter, report, brief, manuscript, newsletter, or others?
+8. East Asian typography (vertical text, kinsoku, ruby): stay at later, or does anyone who will use JeffWrite need it for 1.0?
