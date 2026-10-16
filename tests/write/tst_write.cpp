@@ -1310,6 +1310,39 @@ private Q_SLOTS:
         QCOMPARE(plain->story()->findBlockByNumber(0).charFormat().fontPointSize(), 8.0);
     }
 
+    void aStyleThatNumbersKeepsItsOwnIndentsOverTheList()
+    {
+        // The style says it is numbered and says its indents; the list's level says other indents. The style's are the paragraph's. A
+        // paragraph that says "hanging by nothing" takes the style's first-line indent away, and the file says so after the save.
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"5\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"none\"/><w:lvlText w:val=\"\"/>"
+                                     "<w:pPr><w:ind w:left=\"0\" w:hanging=\"0\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"5\"><w:abstractNumId w:val=\"5\"/></w:num>"
+                                     "<w:abstractNum w:abstractNumId=\"6\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/>"
+                                     "<w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"6\"><w:abstractNumId w:val=\"6\"/></w:num>";
+        const QByteArray styles = kStyles
+            + "<w:style w:type=\"paragraph\" w:styleId=\"Sub\"><w:name w:val=\"Sub\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"5\"/></w:numPr>"
+              "<w:ind w:firstLine=\"708\" w:left=\"4956\"/></w:pPr></w:style>"
+              "<w:style w:type=\"paragraph\" w:styleId=\"Bare\"><w:name w:val=\"Bare\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"6\"/></w:numPr></w:pPr></w:style>";
+        auto doc = open(makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Sub\"/></w:pPr><w:r><w:t>plain</w:t></w:r></w:p>"
+                                 "<w:p><w:pPr><w:pStyle w:val=\"Sub\"/><w:ind w:hanging=\"0\" w:left=\"5245\"/></w:pPr><w:r><w:t>flush</w:t></w:r></w:p>"
+                                 "<w:p><w:pPr><w:pStyle w:val=\"Bare\"/></w:pPr><w:r><w:t>bare</w:t></w:r></w:p>"
+                                 "<w:p><w:pPr><w:pStyle w:val=\"Bare\"/><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"6\"/></w:numPr></w:pPr><w:r><w:t>said</w:t></w:r></w:p>", styles, numbering));
+        QTextBlockFormat f0 = doc->story()->findBlockByNumber(0).blockFormat(), f1 = doc->story()->findBlockByNumber(1).blockFormat();
+        QCOMPARE(f0.leftMargin(), 4956 / 20.0);
+        QCOMPARE(f0.textIndent(), 708 / 20.0);
+        QCOMPARE(f1.leftMargin(), 5245 / 20.0);
+        QCOMPARE(f1.textIndent(), 0.0);
+        QCOMPARE(doc->story()->findBlockByNumber(2).blockFormat().leftMargin(), 36.0);   // (the list's, for the style says none)
+        QCOMPARE(doc->story()->findBlockByNumber(2).blockFormat().textIndent(), -18.0);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:ind w:left=\"5245\" w:firstLine=\"0\"/>") || x.contains("<w:ind w:firstLine=\"0\" w:left=\"5245\"/>"), x.constData());
+        QCOMPARE(int(x.count("<w:ind")), 1);                    // (nothing else is said about indents)
+        QCOMPARE(int(x.count("<w:numPr>")), 1);                 // (only the one the file said again)
+        QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), x);
+        auto back = open(doc->toDocx());
+        QCOMPARE(back->story()->findBlockByNumber(1).blockFormat().textIndent(), 0.0);
+        QCOMPARE(back->story()->findBlockByNumber(0).blockFormat().textIndent(), 708 / 20.0);
+    }
+
     void aParagraphThatSaysNoFirstLineIndentKeepsSayingIt()
     {
         // The style indents the first line; the paragraph says "hanging" by nothing, which takes that indent away.

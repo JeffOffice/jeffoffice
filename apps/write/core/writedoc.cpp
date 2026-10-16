@@ -370,12 +370,23 @@ int WriteDoc::deepestLevel(int numId) const
     return -1;
 }
 
-ParaProps WriteDoc::baselineParagraph(const QString &paragraphStyle, int numId, int level) const
+ParaProps WriteDoc::baselineParagraph(const QString &paragraphStyle, int numId, int level, bool direct, QHash<QString, ParaProps> *cache) const
 {
     const QString style = paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle;
+    QString key;
+    if (cache && numId > 0) {
+        key = style + QLatin1Char('\n') + QString::number(numId) + QLatin1Char('\n') + QString::number(level) + (direct ? QLatin1String("\nd") : QLatin1String());
+        const auto it = cache->constFind(key);
+        if (it != cache->constEnd()) return it.value();
+    }
     ParaProps p = m_wml.styles.paragraph(style);
-    if (numId > 0) p.overlay(levelParagraph(numId, level));
+    if (numId > 0) {
+        // A paragraph numbered by its style keeps the style's own indents over the list's; one numbered by itself gets the list's.
+        if (!direct && p.numId.value_or(0) == numId) p = m_wml.styles.paragraphWithNumbering(style, levelParagraph(numId, level));
+        else p.overlay(levelParagraph(numId, level));
+    }
     p.style = style;
+    if (!key.isEmpty()) cache->insert(key, p);
     return p;
 }
 
@@ -385,7 +396,7 @@ QTextBlockFormat WriteDoc::styleBlockFormat(const QString &paragraphStyle)
     const StyleSheet &sheet = sheetFor(style);
     ParaProps p = sheet.paragraph(style);
     const int numId = p.numId.value_or(0), level = p.ilvl.value_or(0);
-    if (numId > 0) p.overlay(levelParagraph(numId, level));
+    if (numId > 0) p = sheet.paragraphWithNumbering(style, levelParagraph(numId, level));
     p.style = style;
     // (A style whose paragraphs are in a list: the list itself is made when the style is applied.)
     return blockFormatOf(p);
