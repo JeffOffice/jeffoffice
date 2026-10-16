@@ -1216,6 +1216,44 @@ private Q_SLOTS:
         QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), once);
     }
 
+    void whatAParagraphSaysThatHasNoFieldIsKept()
+    {
+        // Shading, a suppressed line number, and attributes of spacing and indent that this program has no field for come back as they were.
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:suppressLineNumbers/><w:shd w:val=\"clear\" w:fill=\"C0C0C0\"/><w:spacing w:before=\"100\" w:beforeAutospacing=\"1\"/>"
+                                "<w:ind w:left=\"360\" w:leftChars=\"150\"/><w:rPr><w:b/><w:shd w:val=\"clear\" w:fill=\"FFFF00\"/></w:rPr></w:pPr>"
+                                "<w:r><w:rPr><w:shd w:val=\"clear\" w:fill=\"00FFFF\"/><w:bdr w:val=\"single\"/></w:rPr><w:t>shaded</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:suppressLineNumbers/><w:shd w:val=\"clear\" w:fill=\"C0C0C0\"/>"), x.constData());
+        QVERIFY2(x.contains("w:beforeAutospacing=\"1\""), x.constData());
+        QVERIFY2(x.contains("w:leftChars=\"150\""), x.constData());
+        QVERIFY2(x.contains("<w:shd w:val=\"clear\" w:fill=\"FFFF00\"/>"), x.constData());
+        QVERIFY2(x.contains("<w:bdr w:val=\"single\"/><w:shd w:val=\"clear\" w:fill=\"00FFFF\"/>"), x.constData());   // (in the schema's order)
+        QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), x);
+        // Applying another style leaves them.
+        QTextCursor c(doc->story());
+        applyParagraphStyle(*doc, c, QStringLiteral("Normal"));
+        const QByteArray y = documentXml(doc->toDocx());
+        QVERIFY(y.contains("w:fill=\"C0C0C0\"") && y.contains("w:leftChars=\"150\""));
+    }
+
+    void aParagraphThatSaysNoFirstLineIndentKeepsSayingIt()
+    {
+        // The style indents the first line; the paragraph says "hanging" by nothing, which takes that indent away.
+        const QByteArray styles = kStyles + "<w:style w:type=\"paragraph\" w:styleId=\"Indented\"><w:name w:val=\"Indented\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:ind w:firstLine=\"720\" w:left=\"0\" w:right=\"0\"/></w:pPr></w:style>";
+        auto doc = open(makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Indented\"/><w:ind w:hanging=\"0\" w:right=\"0\"/></w:pPr><w:r><w:t>flush</w:t></w:r></w:p>"
+                                 "<w:p><w:pPr><w:pStyle w:val=\"Indented\"/></w:pPr><w:r><w:t>indented</w:t></w:r></w:p>", styles));
+        QCOMPARE(doc->story()->findBlockByNumber(0).blockFormat().textIndent(), 0.0);
+        QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().textIndent(), 36.0);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:ind w:firstLine=\"0\"/>"), x.constData());
+        QCOMPARE(int(x.count("<w:ind")), 1);
+        // And it reads back the same: no first-line indent on the first, one on the second.
+        auto back = open(doc->toDocx());
+        QCOMPARE(back->story()->findBlockByNumber(0).blockFormat().textIndent(), 0.0);
+        QCOMPARE(back->story()->findBlockByNumber(1).blockFormat().textIndent(), 36.0);
+    }
+
     void hostileDocumentsAreHeldToLimits()
     {
         QString err;

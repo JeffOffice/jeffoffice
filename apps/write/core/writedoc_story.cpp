@@ -140,6 +140,10 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         ParaProps resolved = base;
         if (numId > 0) resolved.overlay(levelParagraph(numId, level));
         resolved.overlay(direct);
+        // (What the paragraph keeps as written is its own, not its style's.)
+        resolved.extra = direct.extra;
+        resolved.spacingAttrs = direct.spacingAttrs;
+        resolved.indAttrs = direct.indAttrs;
         resolved.style = styleId;
         resolved.numId = numId;
         resolved.ilvl = level;
