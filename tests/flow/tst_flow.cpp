@@ -68,6 +68,139 @@ void allLists(Document &d, const std::function<void(ItemList &, GroupItem *)> &f
     visit(d.scratch, nullptr);
 }
 
+// A story of `paragraphs` paragraphs of plain words, the same for the same seed; `format` may change a paragraph's format.
+void fillStory(QTextDocument *doc, int paragraphs, unsigned seed, const std::function<void(int, QTextBlockFormat &)> &format = {}, int fewest = 14, int most = 60)
+{
+    static const char *const words[] = {"the", "court", "held", "that", "section", "applies", "to", "every", "defendant", "who", "appeals", "from", "a", "judgment",
+                                        "entered", "after", "trial", "unless", "the", "statute", "provides", "otherwise", "and", "reasonable", "notice", "was", "given"};
+    std::mt19937 rng(seed);
+    QTextCursor c(doc);
+    QTextCharFormat body;
+    body.setFontPointSize(11);
+    for (int i = 0; i < paragraphs; ++i) {
+        QTextBlockFormat bf;
+        bf.setBottomMargin(6);
+        if (format) format(i, bf);
+        if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+        QString text;
+        const int n = fewest + int(rng() % unsigned(most - fewest + 1));
+        for (int k = 0; k < n; ++k) text += (k ? " " : "") + QString::fromLatin1(words[rng() % (sizeof words / sizeof *words)]);
+        c.insertText(text + QLatin1Char('.'), body);
+    }
+}
+
+std::unique_ptr<QTextDocument> makeStory(int paragraphs, unsigned seed, const std::function<void(int, QTextBlockFormat &)> &format = {}, int fewest = 14, int most = 60)
+{
+    auto doc = std::make_unique<QTextDocument>();
+    fillStory(doc.get(), paragraphs, seed, format, fewest, most);
+    return doc;
+}
+
+FrameSpec plainFrame(double w, double h)
+{
+    FrameSpec fs;
+    fs.size = QSizeF(w, h);
+    fs.insets = QMarginsF(0, 0, 0, 0);
+    fs.hyphenate = false;
+    return fs;
+}
+
+// The text of a publication's notes, for the layouts that have footnotes.
+struct TestNotes : FieldSource {
+    int firstPageNumber() const override { return 1; }
+    QString pageNumberFormat() const override { return QString(); }
+    QString businessField(const QString &) const override { return QString(); }
+    QStringList mergeFields() const override { return {}; }
+    QString mergeValue(int, const QString &) const override { return QString(); }
+    const QTextDocument *storyDoc(const QString &id) const override { auto it = docs.find(id); return it == docs.end() ? nullptr : it->second.get(); }
+    QList<const QTextDocument *> storyDocs() const override { QList<const QTextDocument *> l; for (auto &p : docs) l << p.second.get(); return l; }
+    std::map<QString, std::unique_ptr<QTextDocument>> docs;
+};
+
+bool sameBrief(const StoryLayout::LineBrief &a, const StoryLayout::LineBrief &b, int frameShift = 0, int posShift = 0)
+{
+    return a.frame == b.frame + frameShift && a.block == b.block + posShift && a.line == b.line && a.lines == b.lines && a.pos == b.pos + posShift &&
+           a.end == b.end + posShift && std::abs(a.rect.top() - b.rect.top()) < 0.001 && std::abs(a.rect.left() - b.rect.left()) < 0.001 &&
+           std::abs(a.rect.width() - b.rect.width()) < 0.001 && std::abs(a.rect.height() - b.rect.height()) < 0.001 && std::abs(a.below - b.below) < 0.001;
+}
+
+// Lays out three pages with a footnote that may be cut at the foot of the first, then the second and third by themselves with the
+// note carried over; empty if they agree. `cut` tells whether the note was cut (if it wasn't, there is nothing to compare).
+QString carriedFootnoteCheck(double height, unsigned seed, bool *cut)
+{
+    TestNotes notes;
+    auto note = std::make_unique<QTextDocument>();
+    {
+        QTextCursor nc(note.get());
+        QTextCharFormat cf;
+        cf.setFontPointSize(11);
+        QString text;
+        for (int i = 0; i < 70; ++i) text += QStringLiteral("note%1 words ").arg(i);
+        nc.insertText(text, cf);
+    }
+    notes.docs[QStringLiteral("n1")] = std::move(note);
+    auto doc = makeStory(12, seed);
+    {
+        // A reference on the first line of the first paragraph.
+        QTextCursor c(doc.get());
+        c.setPosition(6);
+        QTextCharFormat ref;
+        ref.setFontPointSize(11);
+        ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+        c.insertText(QString(QChar(0xFFFC)), ref);
+    }
+    auto frame = [&](double h) { FrameSpec fs = plainFrame(300, h); fs.ctx.doc = &notes; return fs; };
+    const QVector<FrameSpec> pages{frame(height), frame(260), frame(260)};
+    StoryLayout whole;
+    whole.build(doc.get(), pages, LayoutEnv());
+    *cut = false;
+    if (whole.notes().size() != 1) return QStringLiteral("%1 notes").arg(whole.notes().size());
+    const auto &n = whole.notes().first();
+    if (n.frame != 0 || n.more.isEmpty() || n.more.first().frame != 1) return QString();   // not cut at the foot of the first page
+    *cut = true;
+    const auto carried = whole.carriedNotes(1);
+    if (carried.size() != 1 || carried.first().storyId != QLatin1String("n1") || carried.first().number != 1 || carried.first().from <= 0)
+        return QStringLiteral("the note was not carried out of the first page");
+    if (whole.carriedNotes(2).size() != (n.more.size() > 1 ? 1 : 0)) return QStringLiteral("carried out of the second page");
+    // The second page by itself, from where it starts.
+    const auto lines = whole.lineBriefs();
+    int taken = 0, firstPos = -1;
+    for (const auto &l : lines)
+        if (l.frame == 1) { firstPos = l.pos; taken = l.line; break; }
+    if (firstPos <= 0) return QStringLiteral("no second page");
+    QVector<FrameSpec> rest{frame(100000), pages[1], pages[2]};
+    StoryLayout run;
+    StoryLayout::Span span;
+    span.from = firstPos;
+    span.firstBreakAfter = taken;
+    span.carried = carried;
+    if (taken == 0) { rest.removeFirst(); span.firstBreakAfter = -1; }
+    run.build(doc.get(), rest, LayoutEnv(), span);
+    const int shift = taken == 0 ? 1 : 0;   // (without lines in a frame for the page before, the second page is the first frame)
+    // (A reference in a line that stood in for the page before has a note of its own there, drawn nowhere.)
+    const StoryLayout::Note *continued = nullptr;
+    for (const auto &r : run.notes())
+        if (r.frame == -2) continued = &r;
+    if (!continued) return QStringLiteral("no note goes on");
+    const auto &m = *continued;
+    if (m.storyId != QLatin1String("n1") || m.number != 1 || m.more.isEmpty()) return QStringLiteral("the note that goes on is wrong");
+    if (m.more.first().frame != 1 - shift) return QStringLiteral("the note goes on in frame %1").arg(m.more.first().frame);
+    if (m.more.first().from != n.more.first().from) return QStringLiteral("the note goes on from %1, not %2").arg(m.more.first().from).arg(n.more.first().from);
+    if (std::abs(m.more.first().height - n.more.first().height) > 0.01 || std::abs(m.more.first().rect.top() - n.more.first().rect.top()) > 0.01 ||
+        m.more.first().rect.width() != n.more.first().rect.width() || m.more.size() != n.more.size())
+        return QStringLiteral("the note goes on in a different place");
+    // The lines on the page are placed above the note, as they were.
+    const auto got = run.lineBriefs();
+    int g = 0;
+    for (const auto &l : lines) {
+        if (l.frame < 1) continue;
+        while (g < got.size() && got[g].frame < l.frame - shift) ++g;
+        if (g >= got.size() || !sameBrief(got[g], l, -shift)) return QStringLiteral("a line of the second or third page differs");
+        ++g;
+    }
+    return QString();
+}
+
 } // namespace
 
 class FlowTests : public QObject {
@@ -276,6 +409,204 @@ private Q_SLOTS:
         const StoryLayout *a = cache.textFrame(*d, *box, 1, opt).layout;
         opt.now = QDateTime(QDate(2026, 10, 17), QTime(13, 5));
         QVERIFY(cache.textFrame(*d, *box, 1, opt).layout != a);
+    }
+
+    // ---- the text engine, for laying out a page at a time ----
+
+    // Each line says where its text is in the document, and the lines of a paragraph follow on from one another.
+    void lineInfoGivesDocumentPositions()
+    {
+        auto doc = makeStory(5, 11);
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(220, 160), plainFrame(220, 400)}, LayoutEnv());
+        const QString text = doc->toPlainText();
+        int lines = 0, previousEnd = -1, previousBlock = -1;
+        for (int f = 0; f < lay.frameCount(); ++f)
+            for (const auto &li : lay.lineInfo(f)) {
+                ++lines;
+                QVERIFY(li.docEnd > li.docPos);
+                QCOMPARE(text.mid(li.docPos, li.docEnd - li.docPos), li.text);
+                // The next line of a paragraph starts where the one before ended; a new paragraph, where it starts.
+                if (li.docStart == previousBlock) QCOMPARE(li.docPos, previousEnd);
+                else QCOMPARE(li.docPos, li.docStart);
+                previousEnd = li.docEnd;
+                previousBlock = li.docStart;
+            }
+        QVERIFY(lines > 10);
+        // The brief list has the same lines, in the same order, past the last frame too.
+        const auto briefs = lay.lineBriefs();
+        QCOMPARE(int(briefs.size()), lines);
+        int at = 0;
+        for (int f = 0; f < lay.frameCount(); ++f)
+            for (const auto &li : lay.lineInfo(f)) {
+                QCOMPARE(briefs[at].frame, f);
+                QCOMPARE(briefs[at].pos, li.docPos);
+                QCOMPARE(briefs[at].end, li.docEnd);
+                QCOMPARE(briefs[at].block, li.docStart);
+                QCOMPARE(briefs[at].rect, li.rect);
+                ++at;
+            }
+    }
+
+    // A stretch from a paragraph on is laid out as that paragraph and the ones after it would be as a story of their own.
+    void spanFromAParagraphIsTheSameAsAStoryFromThere()
+    {
+        auto whole = makeStory(40, 5);
+        const QTextBlock start = whole->findBlockByNumber(25);
+        auto tail = makeStory(40, 5);
+        QTextCursor cut(tail.get());
+        cut.setPosition(start.position(), QTextCursor::KeepAnchor);
+        cut.setPosition(0, QTextCursor::MoveAnchor);
+        cut.setPosition(start.position(), QTextCursor::KeepAnchor);
+        cut.removeSelectedText();
+        const QVector<FrameSpec> frames{plainFrame(260, 180), plainFrame(260, 180), plainFrame(260, 600)};
+        StoryLayout own, span;
+        own.build(tail.get(), frames, LayoutEnv());
+        StoryLayout::Span s;
+        s.from = start.position() + 7;   // inside the paragraph: it is laid out whole
+        span.build(whole.get(), frames, LayoutEnv(), s);
+        const auto a = span.lineBriefs(), b = own.lineBriefs();
+        QCOMPARE(a.size(), b.size());
+        QVERIFY(a.size() > 30);
+        for (int i = 0; i < a.size(); ++i) QVERIFY2(sameBrief(a[i], b[i], 0, start.position()), qPrintable(QStringLiteral("line %1").arg(i)));
+    }
+
+    // A paragraph that began on the page before goes on at the top of the next page with the lines it has left,
+    // set as in a layout that runs on from the first page into the next.
+    void spanContinuesAParagraphFromTheFrameBefore()
+    {
+        auto doc = makeStory(30, 21, [](int i, QTextBlockFormat &bf) { if (i % 4 == 0) bf.setTextIndent(18); });
+        const QVector<FrameSpec> pages{plainFrame(300, 210), plainFrame(300, 210), plainFrame(300, 210), plainFrame(300, 210)};
+        StoryLayout whole;
+        whole.build(doc.get(), pages, LayoutEnv());
+        const auto lines = whole.lineBriefs();
+        // A page that starts in the middle of a paragraph.
+        int frame = -1, taken = 0;
+        for (int i = 1; i < lines.size() && frame < 0; ++i)
+            if (lines[i].frame == lines[i - 1].frame + 1 && lines[i].line > 0 && lines[i].frame < 3) {
+                frame = lines[i].frame;
+                taken = lines[i].line;   // the lines of the paragraph before it
+            }
+        QVERIFY2(frame >= 1, "no paragraph runs from one page to the next");
+        int firstPos = -1;
+        for (const auto &l : lines)
+            if (l.frame == frame) { firstPos = l.pos; break; }
+        QVERIFY(firstPos > 0);
+        // The page it left is stood in for by a frame as wide, and tall enough.
+        QVector<FrameSpec> rest{plainFrame(300, 100000)};
+        for (int f = frame; f < pages.size(); ++f) rest << pages[f];
+        StoryLayout run;
+        StoryLayout::Span span;
+        span.from = firstPos;
+        span.firstBreakAfter = taken;
+        run.build(doc.get(), rest, LayoutEnv(), span);
+        const auto got = run.lineBriefs();
+        int compared = 0;
+        QCOMPARE(got.first().frame, 0);
+        int g = 0;
+        while (g < got.size() && got[g].frame == 0) ++g;   // the lines that stood in the page before
+        QCOMPARE(g, taken);
+        for (const auto &l : lines) {
+            if (l.frame < frame) continue;
+            QVERIFY2(g < got.size(), "the run has fewer lines");
+            QVERIFY2(sameBrief(got[g], l, 1 - frame), qPrintable(QStringLiteral("line %1 of the page").arg(compared)));
+            ++g;
+            ++compared;
+        }
+        QVERIFY(compared > 20);
+    }
+
+    // Laying out ends after the paragraph that reaches the last frame, and what is laid out before it is the same.
+    void spanStopsAtAFrame()
+    {
+        auto doc = makeStory(200, 8);
+        const QVector<FrameSpec> two{plainFrame(280, 230), plainFrame(280, 100000)};
+        StoryLayout whole, run;
+        whole.build(doc.get(), {plainFrame(280, 230), plainFrame(280, 230), plainFrame(280, 230)}, LayoutEnv());
+        StoryLayout::Span span;
+        span.stopAtFrame = 1;
+        run.build(doc.get(), two, LayoutEnv(), span);
+        const auto lines = run.lineBriefs();
+        QVERIFY(!lines.isEmpty());
+        // Only the paragraphs on the page and the one that runs over: far fewer than the story's.
+        QVERIFY2(lines.size() < 120, qPrintable(QString::number(lines.size())));
+        int over = -1;
+        for (const auto &l : lines)
+            if (l.frame == 1) { if (over < 0) over = l.block; QCOMPARE(l.block, over); }
+        QVERIFY(over >= 0);
+        QCOMPARE(lines.last().block, over);
+        // The page is the one the whole layout has.
+        const auto all = whole.lineBriefs();
+        int n = 0;
+        for (const auto &l : all) {
+            if (l.frame != 0) break;
+            QVERIFY(sameBrief(lines[n], l));
+            ++n;
+        }
+        QVERIFY(n > 10);
+        // Where the next page starts is where the whole layout starts its second page.
+        int second = -1;
+        for (const auto &l : all) if (l.frame == 1) { second = l.pos; break; }
+        for (const auto &l : lines) if (l.frame == 1) { QCOMPARE(l.pos, second); break; }
+    }
+
+    // Without the rules, widow and orphan control and keeping paragraphs together leave the lines where they fall.
+    void spanWithoutRulesIgnoresKeepsAndWidows()
+    {
+        auto asked = makeStory(40, 14, [](int, QTextBlockFormat &bf) {
+            bf.setProperty(tp::WidowControl, true);
+            bf.setProperty(tp::KeepTogether, true);
+            bf.setProperty(tp::KeepWithNext, true);
+        });
+        auto plain = makeStory(40, 14);
+        bool differs = false;
+        for (double h = 150; h < 240; h += 7) {
+            const QVector<FrameSpec> frames{plainFrame(260, h), plainFrame(260, h), plainFrame(260, h), plainFrame(260, 100000)};
+            StoryLayout with, without, natural;
+            with.build(asked.get(), frames, LayoutEnv());
+            StoryLayout::Span off;
+            off.keepRules = false;
+            without.build(asked.get(), frames, LayoutEnv(), off);
+            natural.build(plain.get(), frames, LayoutEnv());
+            const auto a = without.lineBriefs(), b = natural.lineBriefs(), c = with.lineBriefs();
+            QCOMPARE(a.size(), b.size());
+            for (int i = 0; i < a.size(); ++i) QVERIFY(sameBrief(a[i], b[i]));
+            for (int i = 0; i < std::min(a.size(), c.size()) && !differs; ++i) differs |= !sameBrief(a[i], c[i]);
+        }
+        QVERIFY2(differs, "the rules never moved a line, so this proves nothing");
+    }
+
+    // The space before the first paragraph is kept at the top, or left out when the page only came to it.
+    void spanCanLeaveOutTheSpaceBeforeTheFirstParagraph()
+    {
+        auto doc = makeStory(3, 3, [](int, QTextBlockFormat &bf) { bf.setTopMargin(20); });
+        StoryLayout kept, left;
+        kept.build(doc.get(), {plainFrame(260, 400)}, LayoutEnv());
+        StoryLayout::Span span;
+        span.spaceBeforeFirst = false;
+        left.build(doc.get(), {plainFrame(260, 400)}, LayoutEnv(), span);
+        const auto a = kept.lineBriefs(), b = left.lineBriefs();
+        QCOMPARE(a.size(), b.size());
+        QVERIFY(std::abs(a[0].rect.top() - 20) < 0.01);
+        QVERIFY(std::abs(b[0].rect.top()) < 0.01);
+        // (Only the first paragraph's: the lines after it keep their space before.)
+        const auto second = std::find_if(a.begin(), a.end(), [](const auto &l) { return l.block > 0; }) - a.begin();
+        QVERIFY(std::abs((b[second].rect.top() - b[second - 1].rect.bottom()) - (a[second].rect.top() - a[second - 1].rect.bottom())) < 0.01);
+    }
+
+    // A footnote cut at the foot of a page goes on at the foot of the next, whether the next page is laid out with the
+    // first or by itself with the note given as carried over.
+    void spanCarriesAFootnoteOverFromThePageBefore()
+    {
+        int compared = 0;
+        for (double height : {110.0, 125.0, 140.0, 155.0, 170.0, 185.0})
+            for (unsigned seed : {9u, 10u, 11u}) {
+                bool cut = false;
+                const QString bad = carriedFootnoteCheck(height, seed, &cut);
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("height %1, seed %2: %3").arg(height).arg(seed).arg(bad)));
+                compared += cut;
+            }
+        QVERIFY2(compared >= 6, qPrintable(QString::number(compared)));
     }
 };
 
