@@ -28,6 +28,7 @@ class CommentsPane;
 class DeckCanvas;
 class DeckFileScreen;
 class Editor;
+class FindPane;
 class FontCombo;
 class HelpView;
 class HelpWindow;
@@ -183,6 +184,10 @@ public:
     QMenu *slideContextMenu(QWidget *parent = nullptr);
     // Opens it at a place on the screen, and does nothing while it is already open.
     void showSlideContextMenu(const QPoint &global);
+    // Find and Replace (Home > Editing, Ctrl+F and Ctrl+H): the pane on the right, with the cursor in Find what, or
+    // in Replace with. (deckwindow_find.cpp)
+    FindPane *findPane() const { return m_find; }
+    void showFindPane(bool replace = false);
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
@@ -274,6 +279,7 @@ private:
     void updateTitle();
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
+    void createEditingActions();  // deckwindow_find.cpp: Find, Replace, Select Objects
     QMenu *layoutMenu(QWidget *owner, bool change);
     void createHelpActions();     // deckwindow_help.cpp
     void createMediaActions();    // deckwindow_media.cpp
@@ -302,6 +308,8 @@ private:
     QDockWidget *m_onlineDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    FindPane *m_find = nullptr;
+    QDockWidget *m_findDock = nullptr;
     bool m_menuOpen = false;   // the slide's right-click menu is up
     AnimationPane *m_animPane = nullptr;
     QDockWidget *m_animDock = nullptr;
