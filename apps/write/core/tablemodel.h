@@ -10,6 +10,7 @@
 #include "wml/wml.h"
 
 #include <QByteArray>
+#include <QHash>
 #include <QVector>
 #include <memory>
 
@@ -32,19 +33,23 @@ struct RowPart {
 struct CellPart {
     QByteArray open;
     QVector<office::wml::Block> before, tail;           // kept pieces between the row's cells before it, and after its last paragraph or table
+    // What its table's style gives the paragraphs in it (the parts of the style that apply to it, as its place in the table makes them).
+    std::shared_ptr<const office::wml::TableLayer> layer;
 };
 
 // Makes the records of a table's cells in the document as the blocks of the file's tables come (see wml.h for how a table is blocks).
 class TableBuilder {
 public:
-    TableBuilder(flow::FlowDocument *flow, int compatMode) : m_flow(flow), m_compat(compatMode) {}
+    // `body` is the blocks that will be taken, which tell how many rows each table has before they come (the last row's style is not the others').
+    TableBuilder(flow::FlowDocument *flow, const office::wml::StyleSheet *sheet, int compatMode, const QVector<office::wml::Block> &body);
     // Whether the block is a part of a table that is the builder's to take: an Open or a Close of a table, a row, or a cell, and what is kept between
     // the parts of a table (that is not in a cell).
     bool isStructural(const office::wml::Block &blk) const;
     // Takes it. `pending` are the kept pieces that waited for a paragraph; the ones before a table's start go with the table.
     void take(const office::wml::Block &blk, QVector<office::wml::Block> *pending);
-    // The key of the cell the next paragraph is in (0: none).
+    // The key of the cell the next paragraph is in (0: none), and what its table's style gives its paragraphs.
     int key() const { return m_cells.isEmpty() ? 0 : m_cells.last(); }
+    const office::wml::TableLayer *layer() const;
     // Pieces that come after a cell's last paragraph when that is not a paragraph of its own (the cell ends in a table), kept with the cell.
     void addTail(const QVector<office::wml::Block> &pieces);
 
@@ -58,9 +63,17 @@ private:
         std::shared_ptr<CellPart> cellPart;
         int rows = 0;
         QVector<double> firstRow;                       // (a table: the widths its first row's cells say, for a grid the file left out)
+        const office::wml::TableStyleDef *style = nullptr;   // (a table)
+        QString styleId;
+        int look = 0, rowCount = 0, columns = 0, rowBand = 1, colBand = 1;
+        int col = 0;                                    // (a row: the grid column the next cell is at)
     };
     flow::FlowDocument *m_flow;
+    const office::wml::StyleSheet *m_sheet;
     int m_compat;
+    QVector<int> m_rowCounts;                           // how many rows each table of the body has, in the order the tables come
+    int m_tables = 0;
+    QHash<QString, std::shared_ptr<office::wml::TableLayer>> m_layers;
     QVector<Level> m_levels;
     QVector<int> m_cells;                               // the keys of the cells open, outermost first
     QVector<office::wml::Block> m_between;              // kept pieces seen between a table's rows or a row's cells

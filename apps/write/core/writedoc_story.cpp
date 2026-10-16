@@ -87,11 +87,12 @@ void WriteDoc::buildStory(const QVector<Block> &body)
     };
 
     QHash<QByteArray, QTextCharFormat> formats;
+    const TableLayer *layer = nullptr;   // what the style of the table that the paragraphs are in gives them
     auto formatOf = [&](const QString &paraStyle, const RunProps &props) {
-        const QByteArray key = paraStyle.toUtf8() + '\x01' + runPropsXml(props);
+        const QByteArray key = paraStyle.toUtf8() + '\x01' + runPropsXml(props) + (layer ? '\x02' + layer->key.toUtf8() : QByteArray());
         auto it = formats.constFind(key);
         if (it != formats.constEnd()) return it.value();
-        RunProps resolved = sheet.run(paraStyle, props.style);
+        RunProps resolved = sheet.run(paraStyle, props.style, layer);
         resolved.overlay(props);
         resolved.extra = props.extra;
         resolved.style = props.style;
@@ -103,7 +104,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
     QHash<int, NumState> numbering;
     QHash<QString, ParaProps> baselines;
     QVector<Block> pending;   // body elements kept as XML that wait for the next paragraph
-    TableBuilder tables(m_flow.get(), m_wml.compatMode);
+    TableBuilder tables(m_flow.get(), &sheet, m_wml.compatMode, body);
 
     for (const Block &blk : body) {
         if (tables.isStructural(blk)) {
@@ -120,6 +121,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
                 pending.clear();
             }
             tables.take(blk, &pending);
+            layer = tables.layer();
             continue;
         }
         if (blk.isRaw) {
@@ -152,7 +154,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         const Paragraph &p = blk.para;
         const ParaProps &direct = p.props;
         const QString styleId = direct.style.isEmpty() ? defaultStyle : direct.style;
-        const ParaProps base = sheet.paragraph(styleId);
+        const ParaProps base = sheet.paragraph(styleId, layer);
         int numId = direct.numId ? *direct.numId : base.numId.value_or(0);
         const int level = std::clamp(direct.ilvl ? *direct.ilvl : base.ilvl.value_or(0), 0, 8);
         const AbstractNum *definition = numId > 0 ? m_wml.numbering.abstractOf(numId) : nullptr;
@@ -160,7 +162,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         // (The list's indents are the style's to override when the style says the paragraph is numbered, and the paragraph's own numbering
         // overrides its style's.)
         const bool numberedByItself = direct.numId.has_value();
-        ParaProps resolved = numId > 0 ? baselineParagraph(styleId, numId, level, numberedByItself, &baselines) : base;
+        ParaProps resolved = numId > 0 ? baselineParagraph(styleId, numId, level, numberedByItself, &baselines, layer) : base;
         resolved.overlay(direct);
         // (What the paragraph keeps as written is its own, not its style's.)
         resolved.extra = direct.extra;
@@ -185,7 +187,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
             setStored(bf, prop::RawBefore, packBlocks(pending));
             pending.clear();
         }
-        RunProps mark = sheet.run(styleId, direct.markRun ? direct.markRun->style : QString());   // (a character style on the mark counts)
+        RunProps mark = sheet.run(styleId, direct.markRun ? direct.markRun->style : QString(), layer);   // (a character style on the mark counts)
         if (direct.markRun) {
             mark.overlay(*direct.markRun);
             mark.extra = direct.markRun->extra;

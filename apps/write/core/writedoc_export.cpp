@@ -47,8 +47,9 @@ void WriteDoc::exportBody(QVector<Block> *out, QVector<TableExporter::Opened> *t
         const QString styleId = full.style.isEmpty() ? defaultStyle : full.style;
         const int numId = full.numId.value_or(0), level = full.ilvl.value_or(0);
         const bool numberedByItself = numId > 0 && bf.boolProperty(prop::NumDirect);
-        ParaProps direct = full.differences(baselineParagraph(styleId, numId, level, numberedByItself, &baselines));
-        if (numberedByItself && sheet.paragraph(styleId).numId.value_or(0) == numId) {
+        const TableLayer *layer = tableLayerOf(bf.intProperty(flow::fp::Cell));   // (what the table's style gives the paragraphs of the cell)
+        ParaProps direct = full.differences(baselineParagraph(styleId, numId, level, numberedByItself, &baselines, layer));
+        if (numberedByItself && sheet.paragraph(styleId, layer).numId.value_or(0) == numId) {
             direct.numId = numId;   // (said again, as the file had it)
             direct.ilvl = level;
         }
@@ -59,7 +60,7 @@ void WriteDoc::exportBody(QVector<Block> *out, QVector<TableExporter::Opened> *t
             std::stable_sort(tabs.begin(), tabs.end(), [](const TabStop &a, const TabStop &b) { return a.pos < b.pos; });
             direct.tabs = tabs;
         }
-        if (numId == 0 && !sheet.paragraph(styleId).numId.value_or(0)) {
+        if (numId == 0 && !sheet.paragraph(styleId, layer).numId.value_or(0)) {
             direct.numId.reset();
             direct.ilvl.reset();
         }
@@ -73,7 +74,7 @@ void WriteDoc::exportBody(QVector<Block> *out, QVector<TableExporter::Opened> *t
             const QTextCharFormat cf = f.charFormat();
             const QString text = f.text();
             RunProps run = runPropsOf(cf);
-            RunProps diff = run.differences(sheet.run(styleId, run.style));
+            RunProps diff = run.differences(sheet.run(styleId, run.style, layer));
             diff.style = run.style;
             if (cf.hasProperty(prop::Atom)) {
                 Inline a = unpackAtom(storedBytes(cf, prop::Atom));
@@ -98,7 +99,7 @@ void WriteDoc::exportBody(QVector<Block> *out, QVector<TableExporter::Opened> *t
         // The paragraph mark's own formatting: the last paragraph's.
         {
             RunProps mark = runPropsOf(markFormat(lastPart));
-            RunProps diff = mark.differences(sheet.run(styleId, mark.style));
+            RunProps diff = mark.differences(sheet.run(styleId, mark.style, layer));
             diff.style = mark.style;
             if (!runPropsXml(diff).isEmpty()) direct.markRun = diff;
         }

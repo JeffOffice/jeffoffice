@@ -1574,8 +1574,9 @@ private Q_SLOTS:
         QCOMPARE(seen, table.rowStarts);
     }
 
-    // A row taller than a page is placed at the top of a page by itself and the layout goes on after it; it makes no endless pages.
-    void aRowTallerThanAPageStillLaysOut()
+    // A row that says it can't be split, and is taller than a page, is placed at the top of a page by itself and the layout goes on after it; it makes no
+    // endless pages.
+    void aRowThatCantBeSplitAndIsTallerThanAPageStillLaysOut()
     {
         FlowDocument fd;
         fd.sections[0].paper = QSizeF(300, 300);
@@ -1585,6 +1586,7 @@ private Q_SLOTS:
         spec.rows = 3;
         spec.cols = 2;
         spec.columnWidth = 90;
+        spec.setRow = [](int r, RowData &row) { row.cantSplit = r == 1; };
         spec.text = [](int r, int c) {
             QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
             if (r == 1 && c == 0)
@@ -1613,6 +1615,80 @@ private Q_SLOTS:
         QVERIFY(rowLines(pg, fd, tallPage).first().rect.height() > fd.section(0).content().height());
         QCOMPARE(rowLines(pg, fd, tallPage).size(), 1);
         QVERIFY(pg.page(pages - 1).start.pos < fd.story()->characterCount());
+    }
+
+    // A row that can be split and does not fit the page goes over the break a line at a time: each cell's lines that fit on this page, the rest on the next, to
+    // as many pages as it takes, with every line once; and a row taller than a page is no exception. The pages after the first start in the row, in a part of it.
+    void aRowThatDoesNotFitIsSplitBetweenTheLinesOfItsCells()
+    {
+        for (const int tall : {55, 400}) {   // (a few lines too many for the page it begins on, and many pages of them)
+            FlowDocument fd;
+            fd.sections[0].paper = QSizeF(300, 300);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            fillStory(fd.story(), 2, 5, {}, 6, 8);
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 3;
+            spec.columnWidth = 70;
+            spec.text = [&](int r, int c) {
+                QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
+                const int lines = r != 1 ? 0 : c == 0 ? tall : c == 1 ? tall / 3 : 2;
+                for (int i = 0; i < lines; ++i) t += QStringLiteral("\nr%1c%2 line %3").arg(r).arg(c).arg(i);
+                return t;
+            };
+            const TestTable table = addTable(fd, spec);
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            c.insertBlock(QTextBlockFormat());
+            c.insertText(QStringLiteral("zebra after"));
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY2(pages >= 3 && pages < 60, qPrintable(QString::number(pages)));
+            // The row is on consecutive pages, as parts; every line of its cells is shown once.
+            QVector<int> pagesWithRow;
+            std::vector<int> shown(3, 0);
+            const double room = fd.section(0).content().height();
+            for (int k = 0; k < pages; ++k) {
+                const auto rows = rowLines(pg, fd, k);
+                for (const auto &r : rows)
+                    if (r.pos == table.rowStarts[1]) pagesWithRow << k;
+                if (std::none_of(rows.begin(), rows.end(), [&](const auto &r) { return r.pos == table.rowStarts[1]; })) continue;
+                const auto page = pg.materialize(k);
+                QVERIFY(page && !page->tables.isEmpty());
+                for (const auto &fragment : page->tables) {
+                    const auto *part = fragment->partOf(1);
+                    if (!part && !(fragment->firstRow <= 1 && fragment->endRow > 1)) continue;
+                    // (A row not in parts is whole on the page: all its lines are shown.)
+                    for (const auto &item : fragment->items) {
+                        const auto &cell = fragment->layout->cell(item.cell);
+                        if (cell.row != 1) continue;
+                        const int at = item.cell - fragment->layout->row(1).cell0;
+                        const double offset = part ? part->piece.offsets[at] : 0;
+                        const double height = part ? part->piece.height : fragment->layout->rowHeight(1);
+                        for (const auto &l : item.content->parts[0].text->lineBriefs())
+                            if (l.rect.top() >= offset - 0.01 && l.rect.bottom() - offset <= height - cell.margins.top() - cell.margins.bottom() + 0.01) ++shown[size_t(at)];
+                    }
+                    QVERIFY2(fragment->height <= room + 0.1, qPrintable(QStringLiteral("page %1: %2 of %3").arg(k).arg(fragment->height).arg(room)));
+                }
+            }
+            QVERIFY2(pagesWithRow.size() >= 2, qPrintable(QString::number(pagesWithRow.size())));
+            for (int i = 1; i < pagesWithRow.size(); ++i) QCOMPARE(pagesWithRow[i], pagesWithRow[i - 1] + 1);
+            QCOMPARE(shown[0], tall + 1);
+            QCOMPARE(shown[1], tall / 3 + 1);
+            QCOMPARE(shown[2], 3);
+            // The pages after the first start in the row, in a part of it, and the paragraph after the table is after the last part.
+            for (int i = 1; i < pagesWithRow.size(); ++i) {
+                QCOMPARE(pg.page(pagesWithRow[i]).start.pos, table.rowStarts[1]);
+                QVERIFY(pg.page(pagesWithRow[i]).start.piece != 0);
+            }
+            QCOMPARE(pg.page(pagesWithRow[0]).start.piece, 0);
+            const int zebra = fd.story()->toPlainText().indexOf(QLatin1String("zebra"));
+            QVERIFY(pg.pageOfPosition(zebra) >= pagesWithRow.last());
+            // (A row after the split one begins below its last part.)
+            const auto last = rowLines(pg, fd, pagesWithRow.last());
+            QVERIFY(last.size() >= 1);
+            QCOMPARE(rowLines(pg, fd, pg.pageOfPosition(table.rowStarts[2])).last().pos, table.rowStarts[2]);
+        }
     }
 
     // ---- the pages that are looked at ----

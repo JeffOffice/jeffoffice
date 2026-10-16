@@ -982,6 +982,42 @@ QString firstTarget(const Package &pkg, const QString &source, const char *typeS
 
 } // namespace
 
+TableStyleDef readTableStyle(const Style &style)
+{
+    TableStyleDef def;
+    def.base.pPr = style.pPr;
+    def.base.rPr = style.rPr;
+    if (style.tail.isEmpty()) return def;
+    const QByteArray xml = QByteArray("<w:style xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">") + style.tail + "</w:style>";
+    XmlTree t;
+    if (!t.parse(xml, nullptr)) return def;
+    Reader r(t);
+    auto bands = [&](int tblPr, std::optional<int> *rows, std::optional<int> *cols) {
+        for (int k = t.firstChild(tblPr); k >= 0; k = t.next(k)) {
+            if (t.is(k, "tblStyleRowBandSize")) *rows = std::clamp(intOf(t, k).value_or(1), 1, 100);
+            else if (t.is(k, "tblStyleColBandSize")) *cols = std::clamp(intOf(t, k).value_or(1), 1, 100);
+        }
+    };
+    for (int c = t.firstChild(t.root()); c >= 0; c = t.next(c)) {
+        if (t.is(c, "tblPr")) {
+            r.tblPr(c, &def.base.tbl);
+            bands(c, &def.rowBand, &def.colBand);
+        } else if (t.is(c, "tcPr")) {
+            r.tcPr(c, &def.base.cell);
+        } else if (t.is(c, "tblStylePr")) {
+            TableStylePart part;
+            for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
+                if (t.is(k, "pPr")) part.pPr = r.pPr(k);
+                else if (t.is(k, "rPr")) part.rPr = r.rPr(k);
+                else if (t.is(k, "tblPr")) r.tblPr(k, &part.tbl);
+                else if (t.is(k, "tcPr")) r.tcPr(k, &part.cell);
+            }
+            def.parts[t.attr(c, "type")] = part;
+        }
+    }
+    return def;
+}
+
 bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *notes)
 {
     *doc = Document();
