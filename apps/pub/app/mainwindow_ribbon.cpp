@@ -14,6 +14,7 @@
 #include "app/icons.h"
 #include "app/pagespane.h"
 #include "app/ribbon.h"
+#include "app/tableedit.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
 #include "app/widgets.h"
@@ -227,17 +228,7 @@ void MainWindow::ribbonControlParts(RibbonParts &parts)
     };
     parts.widgets[QStringLiteral("cellFill")] = [this]() -> QWidget * {
         auto *fill = new ColorButton("paint-bucket", tr("Cell Fill"), true, tr("No Fill"));
-        connect(fill, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
-            TableItem *tb = selTableForUi(m_ed);
-            if (!tb) return;
-            // The selected cells, the cell the text cursor is in, or with the table selected, every cell.
-            const CellRange rg = m_ed->targetCells();
-            m_ed->change(tr("Fill"), [&] {
-                for (int rr = 0; rr < tb->rows; ++rr)
-                    for (int cc = 0; cc < tb->cols; ++cc)
-                        if (!rg.valid() || rg.contains(rr, cc)) tb->cell(rr, cc).fill = c.isNone() ? Fill() : Fill::solid(c);
-            });
-        });
+        connect(fill, &ColorButton::colorPicked, this, [this](const ColorRef &c) { setTableShading(m_ed, c); });
         m_colorButtons << fill;
         return fill;
     };

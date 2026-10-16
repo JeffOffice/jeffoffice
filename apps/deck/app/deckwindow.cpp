@@ -189,8 +189,12 @@ QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &i
     }
     a->setCheckable(checkable);
     // Each command counts by its id for the usage statistics (when they're on).
-    connect(a, &QAction::triggered, this, [fn, id] {
+    connect(a, &QAction::triggered, this, [this, fn, id] {
         telemetry::count(id);
+        // A crop in progress ends (and is kept) when another command goes to work, except the ones that belong to it or only change the view.
+        if (m_ed && !m_ed->cropItem.isEmpty() && !id.startsWith(QLatin1String("pic.")) && !id.startsWith(QLatin1String("view.")) && !id.startsWith(QLatin1String("zoom.")) &&
+            !id.startsWith(QLatin1String("edit.undo")) && !id.startsWith(QLatin1String("edit.copy")) && !id.startsWith(QLatin1String("help.")))
+            m_ed->endCrop(true);
         fn();
     });
     m_actions.insert(id, a);
@@ -222,7 +226,7 @@ void DeckWindow::createActions()
         openFile(p);
     });
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });
-    mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });
+    mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });   // while cropping, takes the crop back, as Esc does
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [ed] { ed->redo(); });
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [ed] { ed->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [ed] { ed->copy(); });
@@ -267,6 +271,8 @@ void DeckWindow::createActions()
     createOutputActions();
     createHelpActions();
     createMediaActions();
+    createTableActions();
+    createCropActions();
 }
 
 void DeckWindow::refreshUi()
@@ -487,6 +493,7 @@ void DeckWindow::startShow(int slide) { playShow(slide, deck::ShowPlan(), false)
 bool DeckWindow::maybeSave()
 {
     m_ed->flushTyping();
+    m_ed->endCrop(true);   // a crop in progress is a change to ask about, and to save
     if (!m_ed->isModified()) return true;
     QMessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
                     QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);

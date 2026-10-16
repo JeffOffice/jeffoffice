@@ -748,6 +748,10 @@ QJsonObject TableItem::toJson() const
     if (lockSize) o["lockSize"] = true;
     o["header"] = header;
     o["banded"] = banded;
+    if (totalRow) o["totalRow"] = true;
+    if (firstCol) o["firstCol"] = true;
+    if (lastCol) o["lastCol"] = true;
+    if (bandedCols) o["bandedCols"] = true;
     return o;
 }
 
@@ -756,8 +760,8 @@ void TableItem::fromJson(const QJsonObject &o)
     Item::fromJson(o);
     // Twice the other program's largest table: more is a damaged file, and
     // rows x cols cells are made below.
-    rows = std::clamp(o["rows"].toInt(), 0, 256);
-    cols = std::clamp(o["cols"].toInt(), 0, 256);
+    rows = std::clamp(o["rows"].toInt(), 0, kMaxTableRowsOrColumns);
+    cols = std::clamp(o["cols"].toInt(), 0, kMaxTableRowsOrColumns);
     colW.clear(); rowH.clear(); cells.clear();
     for (const auto &v : o["colW"].toArray()) colW.push_back(v.toDouble());
     for (const auto &v : o["rowH"].toArray()) rowH.push_back(v.toDouble());
@@ -767,8 +771,10 @@ void TableItem::fromJson(const QJsonObject &o)
         c.storyId = co["story"].toString();
         c.storyId2 = co["story2"].toString();
         c.fill = Fill::fromJson(co["fill"].toObject());
-        c.rowSpan = std::clamp(co["rs"].toInt(1), 1, std::max(1, rows));   // a damaged file's span stops at the table
-        c.colSpan = std::clamp(co["cs"].toInt(1), 1, std::max(1, cols));
+        // A damaged file's span stops at the table's last row and column.
+        const int index = int(cells.size());
+        c.rowSpan = std::clamp(co["rs"].toInt(1), 1, std::max(1, rows - (cols > 0 ? index / cols : 0)));
+        c.colSpan = std::clamp(co["cs"].toInt(1), 1, std::max(1, cols - (cols > 0 ? index % cols : 0)));
         c.covered = co["covered"].toBool();
         c.diagonal = std::clamp(co["diag"].toInt(), 0, 2);   // 0 none, 1 down, 2 up
         c.valign = VAlign(co["valign"].toInt());
@@ -795,6 +801,10 @@ void TableItem::fromJson(const QJsonObject &o)
     lockSize = o["lockSize"].toBool();
     header = o["header"].toBool(true);
     banded = o["banded"].toBool(true);
+    totalRow = o["totalRow"].toBool();
+    firstCol = o["firstCol"].toBool();
+    lastCol = o["lastCol"].toBool();
+    bandedCols = o["bandedCols"].toBool();
 }
 
 // ---------- TextArtItem ----------

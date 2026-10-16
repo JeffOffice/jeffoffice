@@ -23,6 +23,7 @@ namespace jp {
 
 class AnimationPane;
 class ColorButton;
+class ColorRef;
 class Document;
 class CommentsPane;
 class DeckCanvas;
@@ -31,6 +32,8 @@ class Editor;
 class DeckFindPane;
 class FontCombo;
 class HelpView;
+class MeasureSpin;
+class TableItem;
 class HelpWindow;
 class NotesPane;
 class OnlinePicturesPane;
@@ -148,6 +151,13 @@ public:
     void showOnlinePictures();
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
+    // The Table Design and Table Layout tabs (deckwindow_table.cpp), each one step that undoes. A style is one of the Table Styles gallery's, by
+    // its id: the selected table takes its look, whatever it was shaded or lined with before. Shading colors the selected cells (or the
+    // cell the cursor is in, or with the table selected every cell).
+    void applyTableStyle(const QString &styleId);
+    void setCellShading(const ColorRef &color);
+    // The Picture Format tab's Crop to Shape (deckwindow_picture.cpp), for the selected pictures: a shape's id, as the Shapes gallery has it.
+    void cropPictureToShape(const QString &shape);
     // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
     // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
@@ -283,6 +293,13 @@ private:
     QMenu *layoutMenu(QWidget *owner, bool change);
     void createHelpActions();     // deckwindow_help.cpp
     void createMediaActions();    // deckwindow_media.cpp
+    void createTableActions();    // deckwindow_table.cpp
+    void addTableParts(struct RibbonParts &parts);
+    void refreshTable();
+    void styleNewTable(TableItem *table);
+    void createCropActions();     // deckwindow_picture.cpp
+    void addCropParts(struct RibbonParts &parts);
+    void refreshCrop();
     void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
     void addInsertParts(struct RibbonParts &parts);
     void addMediaParts(struct RibbonParts &parts);
@@ -324,6 +341,7 @@ private:
     QList<FontCombo *> m_fontCombos;
     QList<SizeCombo *> m_sizeCombos;
     QList<ColorButton *> m_colorButtons;
+    QList<MeasureSpin *> m_tableSizeBoxes;   // Table Layout's Row Height and Column Width
     QSizeF m_shownSize;   // the slide size the view was last fitted to
     QPointer<SlideShow> m_show;
     const Document *m_fontsOf = nullptr;   // the presentation whose embedded fonts this window holds open (core/embeddedfonts.h)

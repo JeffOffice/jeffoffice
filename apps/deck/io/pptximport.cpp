@@ -8,6 +8,7 @@
 #include "io/pptxdiagram.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
+#include "io/pptxtablestyles.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
 #include "office/chart.h"
@@ -1814,6 +1815,11 @@ bool Importer::run(const QString &mainPart, QString *error)
     if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
     readSections(root, pageOfSlideId);
     readShowSettings(root, pageOfRel);
+    {
+        QStringList notes;
+        readTableStyleDefs(tableStyles(), [](const QDomElement &e) { return standaloneXml(e); }, m_doc, &notes);
+        for (const QString &text : std::as_const(notes)) note(text);
+    }
     m_doc.appData[QStringLiteral("footers")] = m_footers;
     sayWhatRanOut();
     for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);
