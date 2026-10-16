@@ -10,11 +10,14 @@
 // space before a paragraph at the top of a page (kept after a break that was asked for, left out where the text only came to the top).
 
 #include "flow/flowdocument.h"
+#include "flow/tableflow.h"
 
 #include "core/document.h"
 #include "render/renderer.h"
 
 #include <QObject>
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QVector>
 #include <memory>
 
@@ -36,7 +39,15 @@ struct MaterializedPage {
     // The first line of the page may be the rest of a paragraph that began on the page before; and the last, the beginning of one that
     // goes on onto the next.
     bool continuesFromBefore = false, continuesOnAfter = false;
+    // The rows of tables that are on the page, drawn after the text (Paginator::tables). Each has a place in the page's story: a paragraph of the
+    // same number of characters as the rows have in the document's, one line as tall as they are, so that every other position in it is as it is in
+    // the document's.
+    QVector<std::shared_ptr<TableFragment>> tables;
 };
+
+// Draws the rows of tables that a page has: the page layer's drawing of the page leaves them, as they are not among its items. (Under or over the text, as
+// they hold none of it.)
+void paintTables(QPainter *p, const MaterializedPage &page, const TablePaint &options);
 
 class Paginator {
 public:
@@ -102,6 +113,19 @@ public:
 private:
     struct Run;
     struct BlockFlags;
+    // The rows of one table on a page, as lines (paginator_tables.cpp).
+    struct TableGroup {
+        int span = 0;                       // the table, in the index of the tables
+        int firstRow = 0, endRow = 0;
+        int frame = 0;                      // the column (from 0) it is in
+        QRectF rect;                        // its place in the column: the rows' lines together
+        int from = 0, to = 0;               // the positions it takes in the story
+    };
+    QVector<StoryLayout::LineBrief> linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, bool *windowShort);
+    std::vector<TableGroup> tableGroups(const QVector<StoryLayout::LineBrief> &lines, int kept, int firstFrame);
+    bool tablePlaceholder(QTextCursor &dst, QTextBlock &b, bool first, const std::vector<TableGroup> &groups) const;
+    QTextBlock lastBlockWithTables(const QVector<StoryLayout::LineBrief> &lines, int kept, const std::vector<TableGroup> &groups) const;
+    void addTableFragments(MaterializedPage *page, const Section &sec, const std::vector<TableGroup> &groups);
     Run layoutPage(int index, const PageStart &start);
     int numberOf(int index) const;
     void changed(int position, int removed, int added);   // the story was edited
@@ -111,6 +135,7 @@ private:
     std::unique_ptr<QTextDocument> sliceOf(const Run &run, int *storyFrom, bool *fromBefore) const;
 
     FlowDocument *m_doc;
+    std::unique_ptr<TableFlow> m_tables;
     std::unique_ptr<QObject> m_watch;
     QVector<PageStart> m_starts;
     bool m_complete = false;

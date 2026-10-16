@@ -8,6 +8,7 @@
 #include "wml/xmltree.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QHash>
 #include <QSet>
 #include <algorithm>
@@ -414,23 +415,14 @@ void writeRunText(QByteArray &out, const RunProps &props, const QString &text)
     out += "</w:r>";
 }
 
-QByteArray documentXml(const Document &doc)
+// The blocks [from, to) of a body as XML. `whole` says which pieces kept as XML are written (all of them without).
+void writeBlocks(QByteArray &out, const QVector<Block> &body, qsizetype from, qsizetype to, const Whole *whole)
 {
-    const Whole whole(doc);
-    QByteArray out;
-    out.reserve(1 << 16);
-    out += kXmlHead;
-    QByteArray root = doc.rootStart;
-    if (root.isEmpty()) root = QByteArray("<w:document xmlns:w=\"") + kWNs + "\" xmlns:r=\"" + kRNs + "\">";
-    root = withKnownPrefixes(withW(root), doc);
-    out += root;
-    out += doc.beforeBody;
-    out += "<w:body>";
-    for (int b = 0; b < doc.body.size(); ++b) {
-        const Block &blk = doc.body[b];
-        if (!whole.block(b)) continue;
+    for (qsizetype b = from; b < to; ++b) {
+        const Block &blk = body[b];
+        if (whole && !whole->block(int(b))) continue;
         if (blk.isRaw) {
-            out += withId(blk.raw, whole.newId(b, -1));
+            out += whole ? withId(blk.raw, whole->newId(int(b), -1)) : blk.raw;
             continue;
         }
         out += "<w:p" + blk.para.attrs + ">";
@@ -447,7 +439,7 @@ QByteArray documentXml(const Document &doc)
             pending.clear();
         };
         for (int i = 0; i < content.size(); ++i) {
-            if (!whole.inlineKept(b, i)) continue;
+            if (whole && !whole->inlineKept(int(b), i)) continue;
             const Inline &a = content[i];
             if (a.kind == Inline::Text) {
                 if (pendingProps && *pendingProps == a.props) {
@@ -466,11 +458,49 @@ QByteArray documentXml(const Document &doc)
                 if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
                 out += a.raw + "</w:r>";
             } else {
-                out += withId(a.raw, whole.newId(b, i));
+                out += whole ? withId(a.raw, whole->newId(int(b), i)) : a.raw;
             }
         }
         flush();
         out += "</w:p>";
+    }
+}
+
+QByteArray documentXml(const Document &doc)
+{
+    const Whole whole(doc);
+    QByteArray out;
+    out.reserve(1 << 16);
+    out += kXmlHead;
+    QByteArray root = doc.rootStart;
+    if (root.isEmpty()) root = QByteArray("<w:document xmlns:w=\"") + kWNs + "\" xmlns:r=\"" + kRNs + "\">";
+    root = withKnownPrefixes(withW(root), doc);
+    out += root;
+    out += doc.beforeBody;
+    out += "<w:body>";
+    const qsizetype n = doc.body.size();
+    for (qsizetype b = 0; b < n; ++b) {
+        const Block &blk = doc.body[b];
+        // A table that is as it was read (its blocks come to the fingerprint they had) is written as it was.
+        if (blk.isRaw && blk.role == Inline::Open && blk.tag == QLatin1String("tbl") && blk.table && !blk.table->original.isEmpty() && whole.block(int(b))) {
+            qsizetype depth = 0, end = b;
+            for (; end < n; ++end) {
+                const Block &x = doc.body[end];
+                if (!x.isRaw || x.tag != QLatin1String("tbl")) continue;
+                depth += x.role == Inline::Open ? 1 : x.role == Inline::Close ? -1 : 0;
+                if (depth == 0) break;
+            }
+            if (end < n) {
+                QByteArray piece;
+                writeBlocks(piece, doc.body, b, end + 1, &whole);
+                if (QCryptographicHash::hash(piece, QCryptographicHash::Sha1) == blk.table->fingerprint) {
+                    out += blk.table->original;
+                    b = end;
+                    continue;
+                }
+            }
+        }
+        writeBlocks(out, doc.body, b, b + 1, &whole);
     }
     out += sectionPropsXml(doc.lastSection);
     out += "</w:body>";
@@ -573,6 +603,13 @@ QByteArray numberingXml(const Numbering &num)
 }
 
 } // namespace
+
+QByteArray blocksFingerprint(const QVector<Block> &body, qsizetype from, qsizetype to)
+{
+    QByteArray piece;
+    writeBlocks(piece, body, from, to, nullptr);
+    return QCryptographicHash::hash(piece, QCryptographicHash::Sha1);
+}
 
 QByteArray writeDocx(const Document &doc, QString *error)
 {

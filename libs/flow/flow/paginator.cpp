@@ -39,9 +39,10 @@ struct Paginator::Run {
     bool firstSpace = true;    // space before the first paragraph is kept (it isn't if the page starts without it, or it was as tall as the page)
     bool hasNext = false;
     PageStart next;            // where the page after starts
+    std::vector<TableGroup> groups;   // the rows of tables among the lines kept
 };
 
-Paginator::Paginator(FlowDocument *doc) : m_doc(doc), m_watch(std::make_unique<QObject>())
+Paginator::Paginator(FlowDocument *doc) : m_doc(doc), m_tables(std::make_unique<TableFlow>(doc)), m_watch(std::make_unique<QObject>())
 {
     m_starts << PageStart();
     QObject::connect(doc->story(), &QTextDocument::contentsChange, m_watch.get(), [this](int position, int removed, int added) { changed(position, removed, added); });
@@ -124,16 +125,22 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         // (A paragraph that is laid out whole from its start, with the lines before the page, needs room for those too.)
         for (int window = kWindow + (tail ? 0 : st.skip * 160);; window *= 4) {
             span.window = window;
-            StoryLayout layout;
-            layout.build(m_doc->story(), frames, m_doc->env, span);
-            all = layout.lineBriefs();
+            bool windowShort = false;
+            if (m_tables->any()) {
+                all = linesWithTables(frames, span, run.firstFrame, &windowShort);   // (tables are laid out beside the text: paginator_tables.cpp)
+            } else {
+                StoryLayout layout;
+                layout.build(m_doc->story(), frames, m_doc->env, span);
+                all = layout.lineBriefs();
+                windowShort = layout.windowShort();
+            }
             int past = 0;
             bool cut = false;
             for (const auto &l : all) {
                 cut |= l.cut;
                 past += l.cut && (l.frame < 0 || l.frame >= over);
             }
-            if ((!layout.windowShort() && (!cut || past >= wanted)) || window > std::numeric_limits<int>::max() / 8) break;
+            if ((!windowShort && (!cut || past >= wanted)) || window > std::numeric_limits<int>::max() / 8) break;
         }
         int first = 0;
         while (first < all.size() && all[first].frame >= 0 && all[first].frame < run.firstFrame) ++first;
@@ -160,6 +167,10 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         if (it == cache.end()) {
             const QTextBlockFormat bf = m_doc->story()->findBlock(blockStart).blockFormat();
             BlockFlags f;
+            if (bf.intProperty(fp::Cell)) {   // (a row of a table: nothing of its paragraphs asks anything of the page)
+                it = cache.insert(blockStart, f);
+                return it.value();
+            }
             f.breakBefore = bf.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore;
             f.breakAfter = bf.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysAfter;
             f.sectionAfter = bf.boolProperty(fp::SectionBreakAfter);
@@ -240,6 +251,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         if (c < L.size() && L[c].line == 0 && flags(L[c].block).breakBefore) hard = true;
     }
     run.kept = c;
+    if (m_tables->any()) run.groups = tableGroups(L, c, run.firstFrame);
     const int nextSection = sectionEnds ? std::min(st.section + 1, int(m_doc->sections.size()) - 1) : st.section;
     if (c < L.size()) {
         run.hasNext = true;
@@ -358,6 +370,7 @@ int Paginator::pageOfPosition(int position)
 
 void Paginator::changed(int position, int removed, int added)
 {
+    m_tables->edited();
     const int delta = added - removed;
     m_numberOf = -1;
     // The pages' places move with the text; one that began inside what was taken out is gone.
@@ -454,7 +467,8 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom
     const int from = L.first().pos;
     *storyFrom = from;
     const QTextBlock firstBlock = main->findBlock(L.first().block);
-    const QTextBlock lastBlock = main->findBlock(L[run.kept - 1].block);
+    QTextBlock lastBlock = main->findBlock(L[run.kept - 1].block);
+    if (!run.groups.empty()) lastBlock = lastBlockWithTables(L, run.kept, run.groups);
     // The copy ends with the paragraph the page's last line is in, but where that goes on past the page, with the line after (so that the last line
     // on the page is not the paragraph's last, which isn't set as the others: and a paragraph of thousands of lines isn't copied whole).
     int to = lastBlock.position() + lastBlock.length() - 1;
@@ -468,6 +482,11 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom
     QTextCursor dst(sd.get());
     QHash<QTextList *, QTextList *> lists;
     for (QTextBlock b = firstBlock; b.isValid(); b = b.next()) {
+        // The rows of a table are one line as tall as they are, of as many characters as they take.
+        if (!run.groups.empty() && tablePlaceholder(dst, b, b == firstBlock, run.groups)) {
+            if (b.position() >= lastBlock.position()) break;
+            continue;
+        }
         const bool tail = b == firstBlock && L.first().line > 0;
         QTextBlockFormat bf = b.blockFormat();
         bf.clearProperty(QTextFormat::ObjectIndex);   // (the list is the document's, not this story's: it's made again below)
@@ -562,6 +581,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     story->id = QStringLiteral("flow-story-%1").arg(index);
     story->doc = sliceOf(run, &out->storyFrom, &out->continuesFromBefore);
     d->stories.insert(story->id, story);
+    if (!run.groups.empty()) addTableFragments(out.get(), sec, run.groups);
     const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
     out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
 

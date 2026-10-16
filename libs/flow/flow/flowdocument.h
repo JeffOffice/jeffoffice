@@ -3,6 +3,7 @@
 // margins, and columns), and the one story that has all the text, as a text box's story in JeffPub is (libs/text's text properties).
 // The Paginator (paginator.h) lays the story out in pages.
 
+#include "flow/tabledata.h"
 #include "text/textengine.h"
 
 #include <QMarginsF>
@@ -26,6 +27,8 @@ namespace fp {
 enum : int {
     // bool: the last paragraph of a section. The pages of the next section follow, from a page of their own.
     SectionBreakAfter = QTextFormat::UserProperty + 300,
+    // int: the key of the record (FlowDocument::tables) of the table cell the paragraph is in; none (0) for a paragraph that is not in a table.
+    Cell = QTextFormat::UserProperty + 301,
 };
 } // namespace fp
 
@@ -82,6 +85,8 @@ public:
     QVector<Section> sections;
     const Section &section(int index) const;
 
+    // The cells of the tables in the story (a table is paragraphs that have a cell's key; see tabledata.h).
+    TableStore tables;
     // Colors, fonts, and the default tab stop the text is laid out with.
     LayoutEnv env;
     // What fields read (page numbers, notes); none by default.
