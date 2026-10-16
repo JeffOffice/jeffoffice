@@ -108,6 +108,10 @@ inline void canonical(const Node &n, QString *out)
         // (Columns: an equal width and no line between them are what is meant when nothing is said, said or not.)
         if (columns && a.first.endsWith(QLatin1String("}equalWidth")) && (a.second == QLatin1String("true") || a.second == QLatin1String("1") || a.second == QLatin1String("on"))) continue;
         if (columns && a.first.endsWith(QLatin1String("}sep")) && (a.second == QLatin1String("false") || a.second == QLatin1String("0") || a.second == QLatin1String("off"))) continue;
+        if (columns && a.first.endsWith(QLatin1String("}sep"))) {   // (said as "true", "1", or "on": a line between)
+            *out += QStringLiteral(" w:sep=\"1\"");
+            continue;
+        }
         if (isW(n, "pgMar") && (a.first.endsWith(QLatin1String("}header")) || a.first.endsWith(QLatin1String("}footer"))) && a.second == QLatin1String("720")) continue;   // (and what is meant when nothing is said)
         if (isW(n, "pgMar") && a.first.endsWith(QLatin1String("}gutter")) && a.second == QLatin1String("0")) continue;
         if (columns && a.first.endsWith(QLatin1String("}space")) && a.second == QLatin1String("720")) continue;   // (the space between columns, when nothing is said)
@@ -550,6 +554,8 @@ inline QStringList lossProblems(const QByteArray &original, const QByteArray &sa
 
 // ---- the story
 
+inline QTextFormat resolvedFormat(const jp::write::WriteDoc &doc, QTextFormat f);
+
 inline QTextFormat resolvedFormat(const jp::write::WriteDoc &doc, QTextFormat f)
 {
     const QMap<int, QVariant> props = f.properties();
@@ -564,6 +570,11 @@ inline QTextFormat resolvedFormat(const jp::write::WriteDoc &doc, QTextFormat f)
                 if (at >= 0) a.raw = a.raw.left(at - 1) + a.raw.mid(a.raw.indexOf('"', at + 5) + 1);
             }
             f.setProperty(it.key(), jp::write::packAtom(a));
+        } else if (it.key() == jp::write::prop::MarkFormat) {
+            // (The first paragraph's mark, kept as a record of a character format: compared as that format.)
+            f.setProperty(it.key(), QVariant::fromValue(resolvedFormat(doc, jp::write::unpackFormat(jp::write::storedBytesOf(it.value().toInt())))));
+        } else if (it.key() == jp::write::prop::FontsOther) {
+            f.clearProperty(it.key());   // (the fonts of other scripts a run says that are the style's are not said again: the same fonts)
         } else if (it.key() == jp::write::prop::RawRPr || it.key() == jp::write::prop::RawPPr) {
             // (The children a file keeps are written in the schema's order, whatever order the file had them in.)
             QVector<jp::office::wml::RawChild> kept = jp::write::unpackRaw(jp::write::storedBytesOf(it.value().toInt()));
