@@ -117,6 +117,10 @@ void applyVariant(Document &d, const Variant &v);
 // the theme's light 1. Applying a theme does this itself; a presentation read from a file has the usual black until this is asked.
 void keepTextReadable(Document &d);
 
+// Makes the slide master the user's own: one that a change of theme made for some slides stays when no slide stands on it any more, and
+// is no longer the theme it was made from (choosing that theme again for other slides makes a new one).
+void keepSlideMaster(MasterPage &master);
+
 // WCAG 2 contrast ratio of two colors (1 to 21).
 double contrastRatio(const QColor &a, const QColor &b);
 
