@@ -472,6 +472,41 @@ private Q_SLOTS:
         QVERIFY(documentXmlOf(writeDocx(d)).contains("level " + QByteArray::number(kMaxTableDepth + 2) + "<"));
     }
 
+    // A document lays out at most kMaxTableCells cells in its tables: the table that would be past that is a stand-in, kept as it was, and the file's reader says that
+    // a table was kept so (with how many), and says nothing when all are shown as tables.
+    void tablesPastTheDocumentsCellsAreKeptWholeAndSaidSo()
+    {
+        auto grid = [](int rows, int cols) {
+            QByteArray t = "<w:tbl><w:tblGrid>";
+            for (int c = 0; c < cols; ++c) t += "<w:gridCol w:w=\"1000\"/>";
+            t += "</w:tblGrid>";
+            for (int r = 0; r < rows; ++r) {
+                t += "<w:tr>";
+                for (int c = 0; c < cols; ++c) t += "<w:tc><w:p/></w:tc>";
+                t += "</w:tr>";
+            }
+            return t + "</w:tbl><w:p/>";
+        };
+        const int rows = kMaxTableCells / 10 * 6 / 10;   // (each of two tables holds three fifths of the cells the document may: the second is past them)
+        const QByteArray first = grid(rows, 10), second = grid(rows, 10);
+        Document d;
+        ReadNotes notes;
+        QVERIFY(readDocx(Made{first + second, {}, {}, {}}.build(), &d, nullptr, &notes));
+        int open = 0, standIns = 0;
+        for (const Block &b : d.body) {
+            open += b.isRaw && b.role == Inline::Open && b.tag == QLatin1String("tbl");
+            standIns += b.isRaw && b.role == Inline::Single && !b.display.isEmpty();
+        }
+        QCOMPARE(open, 1);
+        QCOMPARE(standIns, 1);
+        QCOMPARE(notes.notes.size(), 1);
+        QVERIFY2(notes.notes[0].contains(QLatin1String("table")), qPrintable(notes.notes.join(QLatin1Char('|'))));
+        QVERIFY(documentXmlOf(writeDocx(d)).contains(second.left(second.size() - 6)));   // (kept as it was: the table, not the paragraph after it)
+        ReadNotes none;
+        QVERIFY(readDocx(Made{first, {}, {}, {}}.build(), &d, nullptr, &none));
+        QVERIFY2(none.notes.isEmpty(), qPrintable(none.notes.join(QLatin1Char('|'))));
+    }
+
     void theCompatibilityModeIsReadFromTheSettings()
     {
         PackageWriter w;

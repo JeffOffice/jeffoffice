@@ -126,7 +126,8 @@ private:
     WriteDoc();
     void build(office::wml::Document &&doc);
     void buildStory(const QVector<office::wml::Block> &body);
-    void exportBody(QVector<office::wml::Block> *body, QVector<TableExporter::Opened> *tables = nullptr);
+    void exportBody(QVector<office::wml::Block> *body);
+    void exportInto(BlockSink &sink);
     void settleTables();
     void setUpEnvironment();
     void storyChanged(int position, int removed, int added);

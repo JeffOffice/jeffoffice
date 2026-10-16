@@ -992,7 +992,7 @@ static bool usesTypoMetrics(const QString &family)
 // baselines in its PDFs of 284 publications (Oct 7; Arial Narrow and
 // Bookman Old Style use hhea, Times New Roman Bold its own typo ascender).
 struct KnownMetrics { double line = 0, descent = 0, lift = 0; };
-static KnownMetrics knownMetrics(const QString &family, bool bold = false)
+static KnownMetrics knownMetricsOf(const QString &family, bool bold)
 {
     const QString f = family.toLower();
     // OS/2 typographic metrics of the core fonts, which their stand-ins
@@ -1180,6 +1180,18 @@ static KnownMetrics knownMetrics(const QString &family, bool bold = false)
     if (f == "vladimir script") return {(1843.0 + 639) / 2048, 639.0 / 2048};   // hhea
     if (f == "wide latin") return {(1975.0 + 546) / 2048, 546.0 / 2048};   // win
     return {};
+}
+
+// (Looked up by name for every line that is laid out, among the fifty or so fonts it knows: the answer for a font is kept.)
+static KnownMetrics knownMetrics(const QString &family, bool bold = false)
+{
+    static QHash<QString, KnownMetrics> cache;
+    const QString key = family + (bold ? QStringLiteral("|b") : QStringLiteral("|r"));
+    const auto it = cache.constFind(key);
+    if (it != cache.constEnd()) return it.value();
+    const KnownMetrics m = knownMetricsOf(family, bold);
+    if (cache.size() < 4096) cache.insert(key, m);
+    return m;
 }
 static bool isSubstituted(const QString &family) { return !substituteFor(family).isEmpty() || substituteStretch(family) != 100; }
 static QString requestedFamily(const QFont &f) { return f.families().isEmpty() ? f.family() : f.families().first(); }

@@ -1866,6 +1866,233 @@ private Q_SLOTS:
         checkWhole(*doc);
     }
 
+    // ---- tables with gaps in their rows, and commands that take columns out
+
+    static QByteArray cellP(const QByteArray &text) { return "<w:p><w:r><w:t>" + text + "</w:t></w:r></w:p>"; }
+    static QByteArray cellX(const QByteArray &content, const QByteArray &pr = QByteArray(), int width = 2400)
+    {
+        return "<w:tc><w:tcPr><w:tcW w:w=\"" + QByteArray::number(width) + "\" w:type=\"dxa\"/>" + pr + "</w:tcPr>" + content + "</w:tc>";
+    }
+    static QByteArray rowX(const QByteArray &cells, const QByteArray &pr = QByteArray()) { return "<w:tr>" + (pr.isEmpty() ? QByteArray() : "<w:trPr>" + pr + "</w:trPr>") + cells + "</w:tr>"; }
+    static QByteArray tableX(const QByteArray &rows, int columns, int columnWidth = 2400, const QByteArray &width = "<w:tblW w:w=\"0\" w:type=\"auto\"/>")
+    {
+        QByteArray t = "<w:tbl><w:tblPr>" + width + "</w:tblPr><w:tblGrid>";
+        for (int i = 0; i < columns; ++i) t += "<w:gridCol w:w=\"" + QByteArray::number(columnWidth) + "\"/>";
+        return t + "</w:tblGrid>" + rows + "</w:tbl>";
+    }
+    // The story's paragraphs, as one text.
+    static QString storyText(WriteDoc &doc) { return doc.story()->toPlainText().replace(QLatin1Char('\n'), QLatin1Char('|')); }
+    static QTextCursor cursorAt(WriteDoc &doc, const QString &text)
+    {
+        QTextCursor c(doc.story());
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            if (b.text() == text) c.setPosition(b.position());
+        return c;
+    }
+    // Taking away columns takes the paragraphs of the cells in them and no others, whatever rows there are between: a row that has only a gap and a cell in the columns
+    // goes with them, and what is outside the table is as it was.
+    void deletingColumnsTakesOnlyTheCellsInThem()
+    {
+        const QByteArray body = cellP("top") +
+                                tableX(rowX(cellX(cellP("A0")) + cellX(cellP("A1")) + cellX(cellP("A2"))) +
+                                           rowX(cellX(cellP("G"), "<w:gridSpan w:val=\"2\"/>", 4800), "<w:gridBefore w:val=\"1\"/><w:wBefore w:w=\"2400\" w:type=\"dxa\"/>") +
+                                           rowX(cellX(cellP("R0")) + cellX(cellP("R1")) + cellX(cellP("R2"))),
+                                       3) +
+                                cellP("tail1") + cellP("tail2") + cellP("tail3");
+        auto doc = open(makeDocx(body, kStyles));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("A1"));
+        c.setPosition(cursorAt(*doc, QStringLiteral("A2")).position() + 1, QTextCursor::KeepAnchor);
+        const QString was = storyText(*doc);
+        deleteTableColumns(*doc, c);
+        QCOMPARE(storyText(*doc), QStringLiteral("top|A0|R0|tail1|tail2|tail3"));
+        checkWhole(*doc);
+        doc->story()->undo();
+        QCOMPARE(storyText(*doc), was);
+        // Columns 1 and 2 of a table where the row with the gap is the first, the gap's cell is on the edge of the columns, and one more row follows.
+        const QByteArray body2 = cellP("top") +
+                                 tableX(rowX(cellX(cellP("G"), "<w:gridSpan w:val=\"2\"/>", 4800), "<w:gridBefore w:val=\"1\"/><w:wBefore w:w=\"2400\" w:type=\"dxa\"/>") +
+                                            rowX(cellX(cellP("B0")) + cellX(cellP("B1")) + cellX(cellP("B2"))) + rowX(cellX(cellP("C0")) + cellX(cellP("C1")) + cellX(cellP("C2"))),
+                                        3) +
+                                 cellP("tail1");
+        auto second = open(makeDocx(body2, kStyles));
+        QTextCursor d = cursorAt(*second, QStringLiteral("B1"));
+        d.setPosition(cursorAt(*second, QStringLiteral("B2")).position() + 1, QTextCursor::KeepAnchor);
+        deleteTableColumns(*second, d);
+        QCOMPARE(storyText(*second), QStringLiteral("top|B0|C0|tail1"));
+        checkWhole(*second);
+    }
+
+    // A row that has a gap before its first cell or after its last keeps it where it is the gap's, in every command: a row added beside it has the same, a column taken
+    // away takes from the gap what is of it, a column added in the gap makes it wider, and the table's width goes with its columns.
+    void gapsInRowsFollowTheRowAndColumnCommands()
+    {
+        const QByteArray gapRow = rowX(cellX(cellP("G"), "<w:gridSpan w:val=\"2\"/>", 4800), "<w:gridBefore w:val=\"1\"/><w:wBefore w:w=\"2400\" w:type=\"dxa\"/>");
+        const QByteArray body = cellP("top") +
+                                tableX(rowX(cellX(cellP("A0")) + cellX(cellP("A1")) + cellX(cellP("A2"))) + gapRow + rowX(cellX(cellP("D0")) + cellX(cellP("D1")) + cellX(cellP("D2"))), 3, 2400,
+                                       "<w:tblW w:w=\"7200\" w:type=\"dxa\"/>") +
+                                cellP("tail");
+        auto count = [](WriteDoc &d, const char *what) { return int(documentXml(d.toDocx()).count(what)); };
+        {   // a row beside the row with a gap has the gap
+            auto doc = open(makeDocx(body, kStyles));
+            QTextCursor c = cursorAt(*doc, QStringLiteral("G"));
+            insertTableRow(*doc, c, true);
+            QCOMPARE(count(*doc, "<w:gridBefore "), 2);
+            QCOMPARE(count(*doc, "<w:wBefore "), 2);
+            QVERIFY2(rt::strictProblems(doc->toDocx()).isEmpty(), qPrintable(rt::strictProblems(doc->toDocx()).join(QLatin1Char('\n'))));
+            checkWhole(*doc);
+        }
+        {   // a column taken from the gap makes it narrower, and the grid's width less: the row still has as many columns as the grid
+            auto doc = open(makeDocx(body, kStyles));
+            QTextCursor c = cursorAt(*doc, QStringLiteral("D0"));
+            deleteTableColumns(*doc, c);
+            QCOMPARE(count(*doc, "<w:gridBefore "), 0);   // (the gap was that column)
+            QCOMPARE(count(*doc, "<w:wBefore "), 0);
+            QCOMPARE(count(*doc, "<w:gridCol "), 2);
+            QVERIFY2(documentXml(doc->toDocx()).contains("<w:tblW w:w=\"4800\" w:type=\"dxa\"/>"), documentXml(doc->toDocx()).left(900).constData());
+            QVERIFY2(rt::strictProblems(doc->toDocx()).isEmpty(), qPrintable(rt::strictProblems(doc->toDocx()).join(QLatin1Char('\n'))));
+            checkWhole(*doc);
+        }
+        for (const bool right : {false, true}) {   // a column added left of the first: the gap is a column wider (the new one is in it)
+            auto doc = open(makeDocx(body, kStyles));
+            QTextCursor c = cursorAt(*doc, QStringLiteral("A0"));
+            insertTableColumn(*doc, c, right);
+            const QByteArray x = documentXml(doc->toDocx());
+            QCOMPARE(count(*doc, "<w:gridCol "), 4);
+            QVERIFY2(x.contains("<w:tblW w:w=\"9600\" w:type=\"dxa\"/>"), x.left(900).constData());
+            QVERIFY2(rt::strictProblems(doc->toDocx()).isEmpty(), qPrintable(rt::strictProblems(doc->toDocx()).join(QLatin1Char('\n'))));
+            // The new cell of the gap's row is in the gap when it is left of the gap's end, and a cell of its own when it is right of it.
+            const QByteArray gap = x.mid(x.indexOf("<w:gridBefore "), 40);
+            QVERIFY2(right ? gap.contains("w:val=\"1\"") : gap.contains("w:val=\"2\""), gap.constData());
+            checkWhole(*doc);
+            doc->story()->undo();
+            QCOMPARE(count(*doc, "<w:gridCol "), 3);
+        }
+        {   // the gap after the last cell grows when a column is added in it, and loses what a deleted column held of it
+            const QByteArray b2 = cellP("top") +
+                                  tableX(rowX(cellX(cellP("A0")) + cellX(cellP("A1")) + cellX(cellP("A2"))) + rowX(cellX(cellP("E0")) + cellX(cellP("E1")), "<w:gridAfter w:val=\"1\"/><w:wAfter w:w=\"2400\" w:type=\"dxa\"/>"), 3) +
+                                  cellP("tail");
+            auto doc = open(makeDocx(b2, kStyles));
+            QTextCursor c = cursorAt(*doc, QStringLiteral("A2"));
+            deleteTableColumns(*doc, c);   // (the last column: the row with the gap loses it)
+            QCOMPARE(count(*doc, "<w:gridAfter "), 0);
+            QCOMPARE(count(*doc, "<w:gridCol "), 2);
+            QVERIFY2(rt::strictProblems(doc->toDocx()).isEmpty(), qPrintable(rt::strictProblems(doc->toDocx()).join(QLatin1Char('\n'))));
+            checkWhole(*doc);
+            QTextCursor e = cursorAt(*doc, QStringLiteral("A1"));
+            insertTableColumn(*doc, e, true);   // (right of the last column)
+            QVERIFY2(rt::strictProblems(doc->toDocx()).isEmpty(), qPrintable(rt::strictProblems(doc->toDocx()).join(QLatin1Char('\n'))));
+            checkWhole(*doc);
+        }
+    }
+
+    // A row or a column added beside others is like them: the row says what the row beside it says of its height and of not being split, and each new cell says what
+    // the cell beside it says of its shading and its place of its text (the properties of a start that a file leaves its root's declarations to be read by).
+    void newRowsAndCellsAreLikeTheOnesBesideThem()
+    {
+        const QByteArray pr = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FF0000\"/><w:vAlign w:val=\"center\"/>";
+        const QByteArray body = cellP("top") +
+                                tableX(rowX(cellX(cellP("A0"), pr) + cellX(cellP("A1"), pr), "<w:cantSplit/><w:trHeight w:val=\"500\" w:hRule=\"exact\"/>") + rowX(cellX(cellP("B0"), pr) + cellX(cellP("B1"), pr)), 2) + cellP("tail");
+        auto doc = open(makeDocx(body, kStyles));
+        auto count = [&](const char *what) { return int(documentXml(doc->toDocx()).count(what)); };
+        QTextCursor c = cursorAt(*doc, QStringLiteral("A0"));
+        insertTableRow(*doc, c, true);
+        QCOMPARE(count("<w:cantSplit/>"), 2);
+        QCOMPARE(count("<w:trHeight "), 2);
+        QCOMPARE(count("w:fill=\"FF0000\""), 6);
+        QCOMPARE(count("<w:vAlign w:val=\"center\"/>"), 6);
+        c = cursorAt(*doc, QStringLiteral("B0"));
+        insertTableColumn(*doc, c, true);
+        QCOMPARE(count("w:fill=\"FF0000\""), 9);
+        QCOMPARE(count("<w:vAlign w:val=\"center\"/>"), 9);
+        checkWhole(*doc);
+    }
+
+    // A paragraph in a cell stays in its cell when it is given a style, and so does the paragraph that Enter makes after it in the style that follows (a heading is
+    // followed by body text): a paragraph's format is made over in both, and the cell is not what the style says.
+    void aParagraphInACellStaysThereWhateverIsDoneToItsFormat()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextDocument *s = doc->story();
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c1"));
+        const int key = cellKeyOf(c.block());
+        QVERIFY(key != 0);
+        applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+        QCOMPARE(cellKeyOf(cursorAt(*doc, QStringLiteral("r0c1")).block()), key);
+        c.movePosition(QTextCursor::EndOfBlock);
+        insertParagraph(*doc, c);   // (at the end of a heading: the next paragraph is body text)
+        QCOMPARE(cellKeyOf(c.block()), key);
+        QCOMPARE(c.block().blockFormat().stringProperty(tp::StyleName), QStringLiteral("Normal"));
+        typeText(*doc, c, QStringLiteral("more"));
+        QVERIFY(plain(*doc).contains(QStringLiteral("r0c1\nmore\nr1c0")));
+        checkWhole(*doc);
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("<w:tc>")), 4);   // (all four cells are cells still)
+        while (s->isUndoAvailable()) s->undo();
+        QCOMPARE(plain(*doc), QStringLiteral("before\nr0c0\nr0c1\nr1c0\nr1c1\nafter"));
+    }
+
+    // Rows added beside a row whose cells are all empty (so that no paragraph says which is which but its place) have their cells in the same order: the cell joined to the
+    // one above is the first, as the row beside it has it, for a row put above and for one put below.
+    void rowsAddedBesideEmptyCellsKeepTheOrderOfTheirCells()
+    {
+        const QByteArray empty = "<w:p/>";
+        const QByteArray body = cellP("top") +
+                                tableX(rowX(cellX(empty, "<w:vMerge w:val=\"restart\"/>") + cellX(empty) + cellX(empty)) + rowX(cellX(empty, "<w:vMerge/>") + cellX(empty) + cellX(empty)) +
+                                           rowX(cellX(empty) + cellX(empty) + cellX(empty)),
+                                       3) +
+                                cellP("tail");
+        for (const bool below : {false, true}) {
+            auto doc = open(makeDocx(body, kStyles));
+            QTextCursor c(doc->story());
+            // (The second row's first cell: the second table paragraph in the story, after the first row's three.)
+            QVector<QTextBlock> cells;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                if (cellKeyOf(b)) cells << b;
+            QCOMPARE(int(cells.size()), 9);
+            c.setPosition(cells[3].position());
+            insertTableRow(*doc, c, below);
+            const QByteArray saved = doc->toDocx();
+            QVERIFY2(rt::strictProblems(saved).isEmpty(), qPrintable(rt::strictProblems(saved).join(QLatin1Char('\n'))));
+            // The joined cells are the first of their rows: three rows of three become four, and three of the four have a joined first cell where the row before has one.
+            const QByteArray x = documentXml(saved);
+            QCOMPARE(int(x.count("<w:tr>")), 4);
+            const qsizetype firstRowEnd = x.indexOf("</w:tr>");
+            QVERIFY(x.left(firstRowEnd).contains("w:val=\"restart\""));
+            // Each row's joined cell is its first: no row has one after a cell that is not.
+            qsizetype from = 0;
+            for (int row = 0; row < 4; ++row) {
+                const qsizetype end = x.indexOf("</w:tr>", from);
+                const QByteArray text = x.mid(from, end - from);
+                const qsizetype joined = std::max(text.indexOf("<w:vMerge/>"), text.indexOf("<w:vMerge w:val"));
+                if (joined >= 0) QCOMPARE(int(text.left(joined).count("<w:tc>")), 1);
+                from = end + 7;
+            }
+            checkWhole(*doc);
+        }
+    }
+
+    // Tab in the last cell of a table whose last row is joined to the one above adds a row after the table's true last row, with the cursor in its first cell, and its
+    // cells are not joined.
+    void tabInTheLastCellOfAJoinedLastRowAddsARowAfterTheTable()
+    {
+        const QByteArray body = cellP("x") +
+                                tableX(rowX(cellX(cellP("r0a"), "<w:vMerge w:val=\"restart\"/>") + cellX(cellP("r0b"), "<w:vMerge w:val=\"restart\"/>")) +
+                                           rowX(cellX("<w:p/>", "<w:vMerge/>") + cellX("<w:p/>", "<w:vMerge/>")),
+                                       2) +
+                                cellP("y");
+        auto doc = open(makeDocx(body, kStyles));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0b"));
+        insertTab(*doc, c, false);
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("<w:tr>")), 3);
+        QCOMPARE(int(x.count("<w:vMerge/>")), 2);   // (the new row's cells are not joined to the ones above)
+        const CellPlace place = cellPlace(*doc, c);
+        QVERIFY(place.inTable);
+        QCOMPARE(place.row, 2);
+        QCOMPARE(place.column, 0);
+        checkWhole(*doc);
+    }
+
     // A selection across cells empties them without joining what is in different cells, and one that holds a whole table takes it out.
     void deletingAcrossCellsEmptiesThemAndTakesWholeTablesOut()
     {
@@ -2665,7 +2892,8 @@ private Q_SLOTS:
         QStringList again;
         auto back = WriteDoc::fromDocx(saved, &err, &again);
         QVERIFY2(back, qPrintable(err));
-        QVERIFY2(again.isEmpty(), qPrintable(again.join(QLatin1Char(' '))));
+        // (The table below the limit is the stand-in still, and the file's reader says so; nothing is made plain this time.)
+        QVERIFY2(again.size() == 1 && again[0].contains(QLatin1String("stand-in")), qPrintable(again.join(QLatin1Char(' '))));
         QCOMPARE(documentXml(back->toDocx()), x);
     }
 
@@ -2830,6 +3058,361 @@ private Q_SLOTS:
         for (auto it = failed.cbegin(); it != failed.cend(); ++it) report << QStringLiteral("%1: %2 seeds\n  %3").arg(it.key()).arg(it.value()).arg(example.value(it.key()));
         if (qEnvironmentVariableIsSet("JW_FUZZ_COUNTS")) qInfo("fuzz: %d of %d runs failed:\n%s", int(seedsFailing.size()), 3 * seeds, qPrintable(report.join(QLatin1Char('\n'))));
         QVERIFY2(failed.isEmpty(), qPrintable(QStringLiteral("%1 of %2 runs failed:\n%3").arg(seedsFailing.size()).arg(3 * seeds).arg(report.join(QLatin1Char('\n')))));
+    }
+
+    // ---- hostile tables
+
+    // How long a document takes to open and to page, in seconds.
+    static double secondsToOpenAndPage(const QByteArray &zip, int *pages = nullptr, QStringList *notes = nullptr)
+    {
+        QElapsedTimer t;
+        t.start();
+        QString err;
+        auto doc = WriteDoc::fromDocx(zip, &err, notes);
+        if (!doc) {
+            qWarning("open: %s", qPrintable(err));
+            return 1e9;
+        }
+        const int n = doc->pager().pageCount();
+        if (pages) *pages = n;
+        return t.nsecsElapsed() / 1e9;
+    }
+
+    // A table of `rows` by `columns` short cells.
+    static QByteArray manyCells(int rows, int columns)
+    {
+        const int width = std::max(300, 9000 / columns);
+        QByteArray rowsXml;
+        for (int r = 0; r < rows; ++r) {
+            QByteArray cells;
+            for (int c = 0; c < columns; ++c) cells += cellX(cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)), QByteArray(), width);
+            rowsXml += rowX(cells);
+        }
+        return tableX(rowsXml, columns, width);
+    }
+
+    // A table that has more cells than a document lays out (300 rows of 256 columns) is kept as it was, with a note that says so, and costs next to nothing to open; and a
+    // document that has as many as it may opens in seconds, and in time that grows with its cells.
+    void hostileTablesOpenInTimeThatGrowsWithTheirCells()
+    {
+        {   // more cells than the document lays out: a stand-in, with the note, saved as it was
+            const QByteArray table = manyCells(300, 256);
+            const QByteArray zip = makeDocx(cellP("before") + table + cellP("after"), kStyles);
+            QStringList notes;
+            int pages = 0;
+            const double seconds = secondsToOpenAndPage(zip, &pages, &notes);
+            QVERIFY2(seconds < 5, qPrintable(QString::number(seconds)));
+            QVERIFY2(notes.size() == 1 && notes[0].contains(QLatin1String("table")), qPrintable(notes.join(QLatin1Char('|'))));
+            QCOMPARE(pages, 1);
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QVERIFY(documentXml(doc->toDocx()).contains(table));
+        }
+        {   // 20,000 rows: real, in pages, in time that is not much more than for a tenth of them
+            int small = 0, big = 0;
+            const double secondsSmall = secondsToOpenAndPage(makeDocx(cellP("before") + manyCells(2000, 2) + cellP("after"), kStyles), &small);
+            const double secondsBig = secondsToOpenAndPage(makeDocx(cellP("before") + manyCells(20000, 2) + cellP("after"), kStyles), &big);
+            QVERIFY2(small > 30 && small < 80, qPrintable(QString::number(small)));
+            QVERIFY2(big > 10 * small - 10 && big < 10 * small + 20, qPrintable(QStringLiteral("%1 pages for 2,000 rows, %2 for 20,000").arg(small).arg(big)));
+            QVERIFY2(secondsBig < 12 * secondsSmall + 3, qPrintable(QStringLiteral("%1 s for 2,000 rows, %2 s for 20,000").arg(secondsSmall).arg(secondsBig)));
+        }
+        {   // as many cells as a document lays out
+            int pages = 0;
+            QStringList notes;
+            const double seconds = secondsToOpenAndPage(makeDocx(cellP("before") + manyCells(5000, 10) + cellP("after"), kStyles), &pages, &notes);
+            QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+            QVERIFY2(pages > 150 && pages < 400, qPrintable(QString::number(pages)));
+            QVERIFY2(seconds < 15, qPrintable(QStringLiteral("%1 s for 50,000 cells").arg(seconds)));
+        }
+    }
+
+    // A cell of three thousand paragraphs (a row of a thousand parts on small pages) opens, and every paragraph of it is on a page.
+    void aCellOfThreeThousandLinesOpensAndIsPagedToTheEnd()
+    {
+        QByteArray lines;
+        for (int i = 0; i < 3000; ++i) lines += cellP("line " + QByteArray::number(i));
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"5200\" w:h=\"2400\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray zip = makeDocx(tableX(rowX(cellX(lines, QByteArray(), 3000)), 1, 3000) + cellP("after"), kStyles, QByteArray(), sect);
+        QElapsedTimer t;
+        t.start();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY2(t.elapsed() < 20000, qPrintable(QString::number(t.elapsed())));
+        QVERIFY2(pages > 1000 && pages < 4000, qPrintable(QString::number(pages)));
+        // Every paragraph of the cell is on a page: the last part has the last, and the parts go on from one to the next.
+        double offset = -1;
+        for (int k = 0; k < pages; k += 37) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page && !page->tables.isEmpty());
+            const auto *part = page->tables[0]->partOf(0);
+            if (part) {
+                QVERIFY2(part->piece.offsets[0] > offset, qPrintable(QString::number(k)));
+                offset = part->piece.offsets[0];
+            }
+        }
+        int lastWithTable = pages - 1;
+        while (lastWithTable > 0 && pg.materialize(lastWithTable)->tables.isEmpty()) --lastWithTable;
+        const auto last = pg.materialize(lastWithTable);
+        QVERIFY(last && !last->tables.isEmpty() && last->tables[0]->partOf(0) && last->tables[0]->partOf(0)->piece.next == 0);
+        QVERIFY(lastWithTable >= pages - 2);
+        QVERIFY(plain(*doc).contains(QStringLiteral("line 2999")));
+        QCOMPARE(rt::strictProblems(doc->toDocx()).size(), 0);
+    }
+
+    // Tables nested past the limit of depth are kept whole where they are, with the note, and the ones above it are tables, laid out with the tables inside them.
+    void tablesNestedPastTheLimitAreLaidOutDownToIt()
+    {
+        QByteArray inner = cellP("level 11");
+        for (int level = 10; level >= 0; --level)
+            inner = cellP("level " + QByteArray::number(level)) + tableX(rowX(cellX(inner, QByteArray(), 4000) + cellX(cellP("beside " + QByteArray::number(level)), QByteArray(), 2000)), 2, 3000) + cellP("end of " + QByteArray::number(level));
+        const QByteArray zip = makeDocx(inner, kStyles);
+        QStringList notes;
+        int pages = 0;
+        const double seconds = secondsToOpenAndPage(zip, &pages, &notes);
+        QVERIFY2(seconds < 5, qPrintable(QString::number(seconds)));
+        QVERIFY2(notes.size() == 1 && notes[0].contains(QLatin1String("table")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY(pages >= 1 && pages < 20);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        for (int k = 0; k < doc->pager().pageCount(); ++k) QVERIFY(doc->pager().materialize(k));
+        const QByteArray saved = doc->toDocx();
+        QVERIFY2(rt::strictProblems(saved).isEmpty(), qPrintable(rt::strictProblems(saved).join(QLatin1Char('\n'))));
+        QVERIFY(documentXml(saved).contains("level 11<"));
+    }
+
+    // ---- random editing of tables
+
+    // A document of tables for the random commands: a table with a style, a header row, cells joined down (one with a long text), a row with a gap before its cells and one
+    // with a gap after, a long cell, a table in a cell with another in its own, a plain table after it, and text around them; on small pages, so that rows go over page
+    // breaks.
+    static QByteArray richTableDocx()
+    {
+        QByteArray longCell, tallCell;
+        for (int i = 0; i < 24; ++i) tallCell += cellP("tall " + QByteArray::number(i));
+        for (int i = 0; i < 9; ++i) longCell += cellP("merged line " + QByteArray::number(i));
+        const QByteArray deep = tableX(rowX(cellX(cellP("deep"), QByteArray(), 700)), 1, 700);
+        const QByteArray nested = tableX(rowX(cellX(cellP("n00"), QByteArray(), 800) + cellX(cellP("n01") + deep + cellP("n01 tail"), QByteArray(), 800)) + rowX(cellX(cellP("n10"), QByteArray(), 800) + cellX(cellP("n11"), QByteArray(), 800)), 2, 800);
+        const QByteArray styled = tableX(rowX(cellX(cellP("h0"), QByteArray(), 1100) + cellX(cellP("h1"), QByteArray(), 1100) + cellX(cellP("h2"), QByteArray(), 1100), "<w:tblHeader/>") +
+                                             rowX(cellX(longCell, "<w:vMerge w:val=\"restart\"/>", 1100) + cellX(cellP("a1"), QByteArray(), 1100) + cellX(cellP("a2") + nested + cellP("a2 tail"), QByteArray(), 1100)) +
+                                             rowX(cellX("<w:p/>", "<w:vMerge/>", 1100) + cellX(cellP("b1"), QByteArray(), 1100) + cellX(cellP("b2"), QByteArray(), 1100)) +
+                                             rowX(cellX(cellP("G"), "<w:gridSpan w:val=\"2\"/>", 2200), "<w:gridBefore w:val=\"1\"/><w:wBefore w:w=\"1100\" w:type=\"dxa\"/>") +
+                                             rowX(cellX(cellP("d0"), QByteArray(), 1100) + cellX(tallCell, QByteArray(), 1100) + cellX(cellP("d2"), QByteArray(), 1100)) +
+                                             rowX(cellX(cellP("e0"), QByteArray(), 1100) + cellX(cellP("e1"), QByteArray(), 1100), "<w:gridAfter w:val=\"1\"/><w:wAfter w:w=\"1100\" w:type=\"dxa\"/>"),
+                                         3, 1100, "<w:tblStyle w:val=\"TG\"/><w:tblW w:w=\"3300\" w:type=\"dxa\"/><w:tblLook w:val=\"0420\"/>");
+        const QByteArray plain = tableX(rowX(cellX(cellP("p00")) + cellX(cellP("p01"))) + rowX(cellX(cellP("p10")) + cellX(cellP("p11"))), 2, 1600);
+        const QByteArray styles = kStyles +
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Heading2\"><w:name w:val=\"heading 2\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:qFormat/>"
+                                  "<w:pPr><w:spacing w:before=\"120\" w:after=\"60\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Arimo\" w:hAnsi=\"Arimo\"/><w:b/><w:sz w:val=\"26\"/></w:rPr></w:style>"
+                                  "<w:style w:type=\"table\" w:styleId=\"TG\"><w:name w:val=\"TG\"/><w:tblPr><w:tblBorders><w:top w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/><w:left w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>"
+                                  "<w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/><w:right w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/><w:insideH w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>"
+                                  "<w:insideV w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/></w:tblBorders></w:tblPr><w:tblStylePr w:type=\"firstRow\"><w:rPr><w:b/></w:rPr></w:tblStylePr>"
+                                  "<w:tblStylePr w:type=\"band2Horz\"><w:tcPr><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"EEEEEE\"/></w:tcPr></w:tblStylePr></w:style>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"5200\" w:h=\"4400\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        return makeDocx(cellP("before the tables") + styled + cellP("between them") + plain + cellP("after the tables"), styles, QByteArray(), sect);
+    }
+
+    // What a paginator that was told of the edits has that a new one on the same story does not (empty when there is nothing): the pages, their lines, and the tables on
+    // them with the heights of their rows.
+    static QString layoutDiffersFromFresh(WriteDoc &doc)
+    {
+        flow::Paginator fresh(&doc.flow());
+        flow::Paginator &pg = doc.pager();
+        const int want = fresh.pageCount(), got = pg.pageCount();
+        if (want != got) return QStringLiteral("%1 pages, a new paginator finds %2").arg(got).arg(want);
+        for (int k = 0; k < want; ++k) {
+            if (fresh.page(k).start != pg.page(k).start)
+                return QStringLiteral("page %1 starts at %2 (part %3), a new paginator has %4 (part %5)").arg(k).arg(pg.page(k).start.pos).arg(pg.page(k).start.piece).arg(fresh.page(k).start.pos).arg(fresh.page(k).start.piece);
+            const auto a = fresh.lines(k), b = pg.lines(k);
+            if (a.size() != b.size()) return QStringLiteral("page %1 has %2 lines, a new paginator's has %3").arg(k).arg(b.size()).arg(a.size());
+            for (int i = 0; i < a.size(); ++i)
+                if (a[i].pos != b[i].pos || std::abs(a[i].rect.top() - b[i].rect.top()) > 0.01 || std::abs(a[i].rect.height() - b[i].rect.height()) > 0.01)
+                    return QStringLiteral("page %1, line %2: %3 high at %4, a new paginator has %5 at %6").arg(k).arg(i).arg(b[i].rect.height()).arg(b[i].rect.top()).arg(a[i].rect.height()).arg(a[i].rect.top());
+            const auto fa = fresh.materialize(k), fb = pg.materialize(k);
+            if (!fa || !fb) return QStringLiteral("page %1 is not made (%2; a new paginator's %3)").arg(k).arg(fb ? QStringLiteral("it is") : QStringLiteral("it is not")).arg(fa ? QStringLiteral("is") : QStringLiteral("is not"));
+            if (fa->tables.size() != fb->tables.size()) return QStringLiteral("page %1 has %2 tables, a new paginator's has %3").arg(k).arg(fb->tables.size()).arg(fa->tables.size());
+            for (int i = 0; i < fa->tables.size(); ++i) {
+                const flow::TableFragment &x = *fa->tables[i], &y = *fb->tables[i];
+                if (x.firstRow != y.firstRow || x.endRow != y.endRow || std::abs(x.height - y.height) > 0.01)
+                    return QStringLiteral("page %1, table %2: rows %3 to %4 and %5 high; a new paginator has %6 to %7 and %8").arg(k).arg(i).arg(y.firstRow).arg(y.endRow).arg(y.height).arg(x.firstRow).arg(x.endRow).arg(x.height);
+                for (int r = x.firstRow; r < x.endRow; ++r)
+                    if (std::abs(x.heightOf(r) - y.heightOf(r)) > 0.01) return QStringLiteral("page %1, table %2, row %3: %4 high, a new paginator has %5").arg(k).arg(i).arg(r).arg(y.heightOf(r)).arg(x.heightOf(r));
+            }
+        }
+        return QString();
+    }
+
+    // The story's paragraphs with their places and cells, and the pages' starts of the paginator and of a new one (for JW_FUZZ_DUMP).
+    static QString layoutDump(WriteDoc &doc)
+    {
+        QString out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+            const flow::CellRecord *rec = doc.flow().tables.get(cellKeyOf(b));
+            QString shown = b.text().left(24);
+            shown.replace(QChar(flow::kPageBreak), QStringLiteral("<PB>"));
+            if (b.blockFormat().pageBreakPolicy() != QTextFormat::PageBreak_Auto) shown += QStringLiteral(" {policy %1}").arg(int(b.blockFormat().pageBreakPolicy()));
+            if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) shown += QStringLiteral(" {SECT}");
+            out += QStringLiteral("  @%1 [%2] key %3 row %4%5\n").arg(b.position()).arg(shown).arg(cellKeyOf(b)).arg(rec ? reinterpret_cast<quintptr>(rec->row.get()) % 100000 : 0)
+                       .arg(rec ? QStringLiteral(" span %1 merge %2 gap %3/%4 parent %5").arg(rec->cell.span).arg(rec->cell.vmerge == flow::CellData::VMerge::Restart ? QLatin1String("restart") : rec->cell.vmerge == flow::CellData::VMerge::Continue ? QLatin1String("continue") : QLatin1String("-")).arg(rec->row->before).arg(rec->row->after).arg(rec->parent) : QString());
+        }
+        flow::Paginator fresh(&doc.flow());
+        flow::Paginator &pg = doc.pager();
+        out += QStringLiteral("pages (the paginator / a new one):");
+        for (int k = 0; k < std::max(pg.pageCount(), fresh.pageCount()); ++k) {
+            const auto a = k < pg.pageCount() ? pg.page(k).start : flow::Paginator::PageStart(), b = k < fresh.pageCount() ? fresh.page(k).start : flow::Paginator::PageStart();
+            out += QStringLiteral(" %1:(%2,%3,%4)/(%5,%6,%7)").arg(k).arg(a.pos).arg(a.skip).arg(a.piece).arg(b.pos).arg(b.skip).arg(b.piece);
+        }
+        return out;
+    }
+
+    // The story as the commands leave it: each paragraph's text, its cell's record, and its style (undo gives it back as it was).
+    static QString storyState(WriteDoc &doc)
+    {
+        QString out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            out += QStringLiteral("[%1|%2|%3|%4]").arg(b.text()).arg(cellKeyOf(b)).arg(b.blockFormat().stringProperty(tp::StyleName)).arg(int(b.blockFormat().alignment()));
+        return out;
+    }
+
+    // Hundreds of random commands on a document of tables (every one that works on a table, the ones that delete across cells, paste, and type in cells that are joined or in
+    // tables in cells): after each, the file it makes is well-formed and has tables of the shape tables have, the paginator that was told of the edits has the pages and the
+    // rows' heights a new one finds, and what was done undoes and does again. JW_FUZZ_SEEDS says how many seeds, JW_FUZZ_FROM where to begin, JW_FUZZ_STEPS how many commands;
+    // JW_FUZZ_COUNTS=1 says what the seeds found.
+    void randomEditingOfTablesKeepsThemWholeAndTheLayoutRight()
+    {
+        const QByteArray original = richTableDocx();
+        const int seeds = qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 12;
+        const int steps = qEnvironmentVariableIntValue("JW_FUZZ_STEPS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_STEPS") : 70;
+        QMap<QString, int> failed;
+        QMap<QString, QString> example;
+        QSet<QString> failing;
+        for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
+            auto doc = open(original);
+            QVERIFY(doc);
+            QVERIFY2(layoutDiffersFromFresh(*doc).isEmpty(), "the document as it is opened");
+            std::mt19937 rng(seed);
+            auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
+            QTextCursor c(doc->story());
+            QTextDocumentFragment held;
+            QStringList log;
+            QString lastDump;
+            auto fail = [&](const QString &what, const QString &detail) {
+                failing.insert(QString::number(seed));
+                if (failed[what]++ == 0) example[what] = QStringLiteral("seed %1: %2 | last: %3").arg(seed).arg(detail.left(260), log.mid(std::max<qsizetype>(0, log.size() - 5)).join(QStringLiteral(" , ")));
+                if (qEnvironmentVariableIsSet("JW_FUZZ_DUMP")) qInfo("seed %d: %s: %s\nlast: %s\nBEFORE THE LAST COMMAND:\n%s\nAFTER:\n%s", int(seed), qPrintable(what), qPrintable(detail), qPrintable(log.mid(std::max<qsizetype>(0, log.size() - 5)).join(QStringLiteral(" , "))), qPrintable(lastDump), qPrintable(layoutDump(*doc)));
+            };
+            static const char *const names[] = {"type", "enter", "insertRow", "insertCol", "tab", "delRow", "delCol", "delTable", "removeSel", "bigSel", "backspace", "delete", "copy", "paste", "undo", "redo",
+                                                "style", "bold", "align", "pageBreak", "list", "typeInCell", "removeAcross", "shiftTab"};
+            auto selectCells = [&] {   // (from a place in one cell to a place in another)
+                QVector<QTextBlock> cells;
+                for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                    if (cellKeyOf(b)) cells << b;
+                if (cells.isEmpty()) return false;
+                const QTextBlock a = cells[pick(int(cells.size()))], z = cells[pick(int(cells.size()))];
+                c.setPosition(a.position() + pick(a.length()));
+                c.setPosition(z.position() + pick(z.length()), QTextCursor::KeepAnchor);
+                return true;
+            };
+            for (int step = 0; step < steps; ++step) {
+                const int op = pick(24);
+                const QString before = storyState(*doc);
+                lastDump = qEnvironmentVariableIsSet("JW_FUZZ_DUMP") ? layoutDump(*doc) : QString();
+                auto place = [&] { c.setPosition(pick(doc->story()->characterCount() - 1)); };
+                auto selectSome = [&](int most) {
+                    const int a = pick(doc->story()->characterCount() - 1), len = pick(most);
+                    c.setPosition(a);
+                    c.setPosition(std::min(a + len, doc->story()->characterCount() - 1), QTextCursor::KeepAnchor);
+                };
+                bool one = false;   // (a command that is one step to undo)
+                switch (op) {
+                case 0: place(); typeText(*doc, c, QStringLiteral("word ")); break;
+                case 1: place(); insertParagraph(*doc, c); break;
+                case 2: case 3: case 5: case 6:
+                    if (pick(3) == 0 && selectCells()) {
+                        if (op == 2) insertTableRow(*doc, c, pick(2));
+                        else if (op == 3) insertTableColumn(*doc, c, pick(2));
+                        else if (op == 5) deleteTableRows(*doc, c);
+                        else deleteTableColumns(*doc, c);
+                    } else {
+                        tableCommand(*doc, c, op == 2 ? 0 : op == 3 ? 1 : op == 5 ? 3 : 4, pick);
+                    }
+                    one = true;
+                    break;
+                case 4: tableCommand(*doc, c, 2, pick); break;
+                case 7: tableCommand(*doc, c, 5, pick); one = true; break;
+                case 8: selectSome(100); removeSelection(*doc, c); one = true; break;
+                case 9: selectSome(100000); removeSelection(*doc, c); one = true; break;
+                case 10: place(); deleteBack(*doc, c, false); break;
+                case 11: place(); deleteForward(*doc, c, false); break;
+                case 12: selectSome(200); held = selectionFragment(c); break;
+                case 13: place(); pasteFragment(*doc, c, held); one = true; break;
+                case 14: doc->story()->undo(); break;
+                case 15: doc->story()->redo(); break;
+                case 16: selectSome(300); applyParagraphStyle(*doc, c, pick(2) ? QStringLiteral("Heading2") : QStringLiteral("Normal")); one = true; break;
+                case 17: selectSome(200); toggleBold(*doc, c); one = true; break;
+                case 18: selectSome(200); setAlignment(*doc, c, pick(2) ? Qt::AlignRight : Qt::AlignHCenter); one = true; break;
+                case 19: place(); insertPageBreak(*doc, c); break;
+                case 20: selectSome(150); toggleList(*doc, c, pick(2)); one = true; break;
+                case 21: if (placeInACell(*doc, c, pick)) typeText(*doc, c, QStringLiteral("typed in a cell with words")); break;
+                case 22: if (selectCells()) removeSelection(*doc, c); one = true; break;
+                default: if (placeInACell(*doc, c, pick)) insertTab(*doc, c, true); break;
+                }
+                log << QStringLiteral("%1@%2").arg(QLatin1String(names[op])).arg(c.position());
+                const QString what = QLatin1String(names[op]);
+                // The paginator that was told of the edits has the pages and the rows' heights that a new one finds.
+                if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
+                    fail(QStringLiteral("layout differs from a new paginator's after ") + what, d);
+                    break;
+                }
+                {
+                    QString err;
+                    const QByteArray zip = doc->toDocx(&err);
+                    if (zip.isEmpty()) { fail(QStringLiteral("not written"), err); break; }
+                    if (const QStringList strict = rt::strictProblems(zip, original); !strict.isEmpty()) { fail(QStringLiteral("saved file after %1: ").arg(what) + strict.first().left(120), strict.join(QLatin1Char(';'))); break; }
+                    if (step % 4 != 3) continue;
+                    auto back = WriteDoc::fromDocx(zip, &err);
+                    if (!back) { fail(QStringLiteral("does not open again"), err); break; }
+                    if (documentXml(back->toDocx()) != documentXml(zip)) fail(QStringLiteral("the second save differs"), QString());
+                    QString a = plain(*doc), b = plain(*back);
+                    a.remove(QChar::ObjectReplacementCharacter);
+                    b.remove(QChar::ObjectReplacementCharacter);
+                    if (a != b) fail(QStringLiteral("what opens again has other text"), QString());
+                }
+                // What was done undoes, and does again, and the pages follow both.
+                if (one && op != 14 && op != 15) {
+                    const QString after = storyState(*doc);
+                    if (after != before) {
+                        int undone = 0;
+                        while (undone < 8 && doc->story()->isUndoAvailable() && storyState(*doc) != before) {
+                            doc->story()->undo();
+                            ++undone;
+                        }
+                        if (storyState(*doc) != before) {
+                            fail(QStringLiteral("undo of %1 does not give the story back").arg(what), QString());
+                            break;
+                        }
+                        if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
+                            fail(QStringLiteral("layout differs from a new paginator's after undoing ") + what, d);
+                            break;
+                        }
+                        for (int i = 0; i < undone; ++i) doc->story()->redo();
+                        if (storyState(*doc) != after) {
+                            fail(QStringLiteral("redo of %1 does not do it again").arg(what), QString());
+                            break;
+                        }
+                        if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
+                            fail(QStringLiteral("layout differs from a new paginator's after redoing ") + what, d);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        QStringList report;
+        for (auto it = failed.cbegin(); it != failed.cend(); ++it) report << QStringLiteral("%1: %2 times\n  %3").arg(it.key()).arg(it.value()).arg(example.value(it.key()));
+        if (qEnvironmentVariableIsSet("JW_FUZZ_COUNTS")) qInfo("table fuzz: %d of %d seeds failed:\n%s", int(failing.size()), seeds, qPrintable(report.join(QLatin1Char('\n'))));
+        QVERIFY2(failed.isEmpty(), qPrintable(QStringLiteral("%1 of %2 seeds failed:\n%3").arg(failing.size()).arg(seeds).arg(report.join(QLatin1Char('\n')))));
     }
 
     void randomEditingKeepsTheDocumentWhole()

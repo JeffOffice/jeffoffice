@@ -415,15 +415,14 @@ void writeRunText(QByteArray &out, const RunProps &props, const QString &text)
     out += "</w:r>";
 }
 
-// The blocks [from, to) of a body as XML. `whole` says which pieces kept as XML are written (all of them without).
-void writeBlocks(QByteArray &out, const QVector<Block> &body, qsizetype from, qsizetype to, const Whole *whole)
+// Block `b` of a body as XML. `whole` says which pieces kept as XML are written (all of them without).
+void writeBlock(QByteArray &out, const Block &blk, qsizetype b, const Whole *whole)
 {
-    for (qsizetype b = from; b < to; ++b) {
-        const Block &blk = body[b];
-        if (whole && !whole->block(int(b))) continue;
+    {
+        if (whole && !whole->block(int(b))) return;
         if (blk.isRaw) {
             out += whole ? withId(blk.raw, whole->newId(int(b), -1)) : blk.raw;
-            continue;
+            return;
         }
         out += "<w:p" + blk.para.attrs + ">";
         const QByteArray ppr = paraPropsXml(blk.para.props);
@@ -464,6 +463,12 @@ void writeBlocks(QByteArray &out, const QVector<Block> &body, qsizetype from, qs
         flush();
         out += "</w:p>";
     }
+}
+
+// The blocks [from, to) of a body as XML.
+void writeBlocks(QByteArray &out, const QVector<Block> &body, qsizetype from, qsizetype to, const Whole *whole)
+{
+    for (qsizetype b = from; b < to; ++b) writeBlock(out, body[b], b, whole);
 }
 
 QByteArray documentXml(const Document &doc)
@@ -610,6 +615,17 @@ QByteArray blocksFingerprint(const QVector<Block> &body, qsizetype from, qsizety
     writeBlocks(piece, body, from, to, nullptr);
     return QCryptographicHash::hash(piece, QCryptographicHash::Sha1);
 }
+
+BlocksFingerprint::BlocksFingerprint() : m_hash(QCryptographicHash::Sha1) {}
+
+void BlocksFingerprint::add(const Block &block)
+{
+    m_piece.clear();
+    writeBlock(m_piece, block, 0, nullptr);
+    m_hash.addData(QByteArrayView(m_piece));
+}
+
+QByteArray BlocksFingerprint::finish() { return m_hash.result(); }
 
 QByteArray writeDocx(const Document &doc, QString *error)
 {

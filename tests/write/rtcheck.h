@@ -143,7 +143,120 @@ inline bool isXmlPart(const office::Package &p, const QString &name)
     return type.endsWith(QLatin1String("+xml")) || type.endsWith(QLatin1String("/xml")) || name.endsWith(QLatin1String(".xml")) || name.endsWith(QLatin1String(".rels"));
 }
 
-// Every XML part of `saved` that is not byte for byte one of `original`'s (those the program wrote) must parse strictly. Problems, as text.
+// ---- the shape of the tables a part holds: what a word processor needs of a table
+
+namespace detail {
+
+inline void collectTables(const Node &n, QVector<const Node *> *out)
+{
+    if (isW(n, "tbl")) out->push_back(&n);
+    for (const Node &k : n.kids) collectTables(k, out);
+}
+
+inline int valOf(const Node &n)
+{
+    for (const auto &a : n.attrs)
+        if (a.first.endsWith(QLatin1String("}val"))) return a.second.toInt();
+    return 0;
+}
+
+// The cell's properties: the grid columns it spans, and whether it joins the one above (a restart starts a chain).
+struct CellShape {
+    int span = 1;
+    bool joins = false, restarts = false;
+};
+
+inline CellShape shapeOfCell(const Node &tc)
+{
+    CellShape s;
+    for (const Node &pr : tc.kids) {
+        if (!isW(pr, "tcPr")) continue;
+        for (const Node &x : pr.kids) {
+            if (isW(x, "gridSpan")) s.span = std::max(1, valOf(x));
+            if (isW(x, "vMerge")) {
+                QString v;
+                for (const auto &a : x.attrs)
+                    if (a.first.endsWith(QLatin1String("}val"))) v = a.second;
+                s.restarts = v == QLatin1String("restart");
+                s.joins = !s.restarts;
+            }
+        }
+    }
+    return s;
+}
+
+// A table: it has a row, a row has a cell, every cell ends in a paragraph, the cells of a row and the gaps before and after them are as wide as the grid, and
+// a cell that joins the one above has one above to join (a chain of them starts with a restart).
+inline void tableShape(const Node &tbl, QStringList *out)
+{
+    int grid = -1, rows = 0;
+    for (const Node &k : tbl.kids) {
+        if (isW(k, "tblGrid")) grid = int(k.kids.size());
+        rows += isW(k, "tr");
+    }
+    if (!rows) *out << QStringLiteral("a table with no row");
+    QVector<QPair<int, int>> above;   // the previous row's cells: where each begins and what it spans, with whether it is part of a chain
+    QVector<bool> aboveChain;
+    int rowNo = 0;
+    for (const Node &tr : tbl.kids) {
+        if (!isW(tr, "tr")) continue;
+        int before = 0, after = 0, cells = 0, col = 0;
+        for (const Node &k : tr.kids)
+            if (isW(k, "trPr"))
+                for (const Node &x : k.kids) {
+                    if (isW(x, "gridBefore")) before = valOf(x);
+                    if (isW(x, "gridAfter")) after = valOf(x);
+                }
+        col = before;
+        QVector<QPair<int, int>> here;
+        QVector<bool> chain;
+        for (const Node &tc : tr.kids) {
+            if (!isW(tc, "tc")) continue;
+            ++cells;
+            const CellShape cs = shapeOfCell(tc);
+            QString last = QStringLiteral("nothing");
+            for (const Node &c : tc.kids)
+                if (!isW(c, "tcPr")) last = shortName(c.name);
+            if (last != QLatin1String("w:p")) *out << QStringLiteral("row %1: a cell that ends in %2").arg(rowNo).arg(last);
+            if (cs.joins) {
+                bool found = false;
+                for (int i = 0; i < above.size(); ++i)
+                    if (above[i].first == col && above[i].second == cs.span && aboveChain[i]) found = true;
+                if (!found) *out << QStringLiteral("row %1: a cell joined to the one above, which is not the start or a part of a chain of joined cells").arg(rowNo);
+            }
+            here.push_back({col, cs.span});
+            chain.push_back(cs.restarts || cs.joins);
+            col += cs.span;
+        }
+        if (!cells) *out << QStringLiteral("row %1: a row with no cell").arg(rowNo);
+        if (grid >= 0 && col + after != grid) *out << QStringLiteral("row %1: its cells and gaps cover %2 columns, the table's grid has %3").arg(rowNo).arg(col + after).arg(grid);
+        above = here;
+        aboveChain = chain;
+        ++rowNo;
+    }
+}
+
+} // namespace detail
+
+// The problems in the shape of the tables of a part: those that are not, as they are, tables of `known` (the same part as it was opened: a table that has not
+// been changed is as the file had it).
+inline QStringList tableProblems(const Node &root, const QSet<QString> &known = QSet<QString>())
+{
+    QVector<const Node *> tables;
+    detail::collectTables(root, &tables);
+    QStringList out;
+    for (const Node *t : std::as_const(tables)) {
+        if (known.contains(canonical(*t))) continue;
+        QStringList mine;
+        detail::tableShape(*t, &mine);
+        out += mine;
+    }
+    out.removeDuplicates();
+    return out;
+}
+
+// Every XML part of `saved` that is not byte for byte one of `original`'s (those the program wrote) must parse strictly, and its tables must have the shape of
+// tables. Problems, as text.
 inline QStringList strictProblems(const QByteArray &saved, const QByteArray &original = QByteArray())
 {
     QStringList out;
@@ -156,7 +269,19 @@ inline QStringList strictProblems(const QByteArray &saved, const QByteArray &ori
         if (o.hasPart(name) && o.part(name) == bytes) continue;
         Node root;
         QString err;
-        if (!parseTree(bytes, &root, &err)) out << QStringLiteral("%1 is not well-formed: %2").arg(name, err);
+        if (!parseTree(bytes, &root, &err)) {
+            out << QStringLiteral("%1 is not well-formed: %2").arg(name, err);
+            continue;
+        }
+        if (name != s.mainPart()) continue;
+        QSet<QString> known;
+        Node was;
+        if (o.hasPart(name) && parseTree(o.part(name), &was, &err)) {
+            QVector<const Node *> tables;
+            detail::collectTables(was, &tables);
+            for (const Node *t : std::as_const(tables)) known.insert(canonical(*t));
+        }
+        for (const QString &p : tableProblems(root, known)) out << QStringLiteral("%1: %2").arg(name, p);
     }
     return out;
 }

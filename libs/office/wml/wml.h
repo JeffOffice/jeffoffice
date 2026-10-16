@@ -16,6 +16,7 @@
 #include "office/theme.h"
 
 #include <QByteArray>
+#include <QCryptographicHash>
 #include <QHash>
 #include <QMap>
 #include <QString>
@@ -406,14 +407,14 @@ constexpr qint64 kMaxInflatedBytes = qint64(1) << 30;
 constexpr int kMaxParagraphs = 500000;
 constexpr int kMaxInlines = 1500000;
 // A table is read as one of at most this many rows and columns (a word processor's own largest has 63 columns), of at most this many cells, nested at
-// most this deep, and all the tables of a document hold at most the last number of cells; a table that goes past any of them is kept whole as XML and
-// shown as a stand-in, as every table was before. (The dev half of the document collection has a table of 598 rows, which the suite's 256 would have
-// left out.)
+// most this deep, and all the tables of a document hold at most the last number of cells (the most that are laid out in a document: 50,000 short cells open and
+// are paged in a few seconds); a table that goes past any of them is kept whole as XML and shown as a stand-in, as every table was before, and the file's
+// reader is told to say so (ReadNotes). (The dev half of the document collection has a table of 598 rows, which the suite's 256 would have left out.)
 constexpr int kMaxTableRows = 20000;
 constexpr int kMaxTableColumns = 256;
-constexpr int kMaxTableCellsEach = 100000;
+constexpr int kMaxTableCellsEach = 50000;
 constexpr int kMaxTableDepth = 8;
-constexpr int kMaxTableCells = 200000;
+constexpr int kMaxTableCells = 50000;
 bool readDocx(const QByteArray &zip, Document *doc, QString *error = nullptr, ReadNotes *notes = nullptr);
 // The package of a document. Empty, with a message, if it can't be made (an Id or a part name that can't be written).
 QByteArray writeDocx(const Document &doc, QString *error = nullptr);
@@ -427,6 +428,17 @@ QStringList builtinStyleIds();
 
 // A fingerprint of blocks [from, to) of a body as they are written (every piece kept, as nothing says otherwise), for telling a table that has not changed.
 QByteArray blocksFingerprint(const QVector<Block> &body, qsizetype from, qsizetype to);
+// The fingerprint of blocks that come one at a time: what blocksFingerprint finds of them together, without holding them.
+class BlocksFingerprint {
+public:
+    BlocksFingerprint();
+    void add(const Block &block);
+    QByteArray finish();
+
+private:
+    QCryptographicHash m_hash;
+    QByteArray m_piece;
+};
 
 // What one table style says of itself (not the styles it is based on).
 TableStyleDef readTableStyle(const Style &style);
@@ -445,3 +457,8 @@ QByteArray paraPropsXml(const ParaProps &p);
 QByteArray sectionPropsXml(const SectionProps &s);
 
 } // namespace jp::office::wml
+
+// (A block holds strings, vectors, and pointers to what is shared, none of which points into the block: a list of them grows by moving the bytes.)
+Q_DECLARE_TYPEINFO(jp::office::wml::Inline, Q_RELOCATABLE_TYPE);
+Q_DECLARE_TYPEINFO(jp::office::wml::Paragraph, Q_RELOCATABLE_TYPE);
+Q_DECLARE_TYPEINFO(jp::office::wml::Block, Q_RELOCATABLE_TYPE);
