@@ -31,6 +31,8 @@ struct Paginator::Run {
     int firstFrame = 0;        // the frame of the first column
     int columns = 1;
     int kept = 0;              // the lines on the page
+    bool blank = false;        // the page the pages end with after a break at the end of the text: it has nothing on it
+    bool firstSpace = true;    // space before the first paragraph is kept (it isn't if the page starts without it, or it was as tall as the page)
     bool hasNext = false;
     PageStart next;            // where the page after starts
 };
@@ -60,6 +62,11 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 {
     ++m_laidOut;
     Run run;
+    // The page a break at the end of the text makes: it starts past the text's last character.
+    if (st.pos >= m_doc->story()->characterCount()) {
+        run.blank = true;
+        return run;
+    }
     const Section &sec = m_doc->section(st.section);
     run.columns = sec.columnCount();
     const double colW = sec.columnWidth(), colH = sec.content().height();
@@ -89,16 +96,22 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     span.from = st.pos;
     span.firstBreakAfter = st.skip > 0 ? st.skip : -1;
     span.stopAtFrame = over;
-    span.spaceBeforeFirst = st.hard;
-    StoryLayout layout;
-    layout.build(m_doc->story(), frames, m_doc->env, span);
-    const QVector<StoryLayout::LineBrief> all = layout.lineBriefs();
-    int first = 0;
-    while (first < all.size() && all[first].frame >= 0 && all[first].frame < run.firstFrame) ++first;
-    run.lines = all.mid(first);
-    const QVector<StoryLayout::LineBrief> &L = run.lines;
     int kept = 0;
-    while (kept < L.size() && L[kept].frame >= run.firstFrame && L[kept].frame < over) ++kept;
+    for (bool space = st.hard;; space = false) {
+        span.spaceBeforeFirst = space;
+        StoryLayout layout;
+        layout.build(m_doc->story(), frames, m_doc->env, span);
+        const QVector<StoryLayout::LineBrief> all = layout.lineBriefs();
+        int first = 0;
+        while (first < all.size() && all[first].frame >= 0 && all[first].frame < run.firstFrame) ++first;
+        run.lines = all.mid(first);
+        kept = 0;
+        while (kept < run.lines.size() && run.lines[kept].frame >= run.firstFrame && run.lines[kept].frame < over) ++kept;
+        run.firstSpace = space;
+        // Space before the first paragraph as tall as the page, or nearly, leaves no room for a line: it is cut to what the page holds (none).
+        if (kept > 0 || !space || run.lines.isEmpty()) break;
+    }
+    const QVector<StoryLayout::LineBrief> &L = run.lines;
 
     QHash<int, BlockFlags> cache;
     auto flags = [&](int blockStart) -> const BlockFlags & {
@@ -137,7 +150,9 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     if (!forced && c < L.size()) {
         // Widow and orphan control and keeping with the next paragraph, which only ever take lines off the page. (The text engine
         // has done what it does of this; this is for the paragraph that began pages before, and for more lines than it keeps.)
-        for (int guard = 0; guard < 16 && c >= 1 && c < L.size(); ++guard) {
+        // (Each time round the page ends earlier, so it ends: at most once for each line.)
+        const int natural = c;
+        while (c >= 1 && c < L.size()) {
             const StoryLayout::LineBrief &last = L[c - 1], &after = L[c];
             int begin = c - 1;
             while (begin > 0 && L[begin - 1].block == last.block) --begin;
@@ -162,9 +177,12 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                 }
                 break;
             }
-            if (flags(last.block).keepNext && begin > 0 && began) {
-                c = begin;
-                continue;
+            if (flags(last.block).keepNext && began) {
+                if (begin > 0) {
+                    c = begin;
+                    continue;
+                }
+                c = natural;   // the paragraphs kept with the next begin the page and a page can't hold them: it's cut where the text ran out of room
             }
             break;
         }
@@ -172,12 +190,20 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         if (c < L.size() && L[c].line == 0 && flags(L[c].block).breakBefore) hard = true;
     }
     run.kept = c;
+    const int nextSection = sectionEnds ? std::min(st.section + 1, int(m_doc->sections.size()) - 1) : st.section;
     if (c < L.size()) {
         run.hasNext = true;
         run.next.pos = L[c].pos;
         run.next.skip = L[c].line;
         run.next.hard = hard;
-        run.next.section = sectionEnds ? std::min(st.section + 1, int(m_doc->sections.size()) - 1) : st.section;
+        run.next.section = nextSection;
+    } else if (forced && c > 0) {
+        // A break after the text's last line: the pages go on with one that has nothing on it.
+        run.hasNext = true;
+        run.next.pos = m_doc->story()->characterCount();
+        run.next.skip = 0;
+        run.next.hard = true;
+        run.next.section = nextSection;
     }
     return run;
 }
@@ -353,10 +379,9 @@ void Paginator::settleStep()
 // (If the page begins in the middle of a paragraph, that is the rest of it: with no space before it or first-line indent, and no bullet
 // or number.) The paragraph the page ends in is whole, so that its last line on the page is set as it is in the document, the lines that
 // don't fit being left out of the frame.
-std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int index, int *storyFrom, bool *fromBefore) const
+std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom, bool *fromBefore) const
 {
     const QTextDocument *main = m_doc->story();
-    const PageStart &st = m_starts[index];
     const QVector<StoryLayout::LineBrief> &L = run.lines;
     const int from = L.first().pos;
     *storyFrom = from;
@@ -379,7 +404,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int index, int
         bf.clearProperty(tp::WidowControl);
         bf.clearProperty(tp::KeepTogether);
         bf.clearProperty(tp::KeepWithNext);
-        if (b == firstBlock && (tail || !st.hard)) bf.setTopMargin(0);
+        if (b == firstBlock && (tail || !run.firstSpace)) bf.setTopMargin(0);
         if (tail) {
             bf.setTextIndent(0);
             bf.clearProperty(tp::DropCapLines);
@@ -434,7 +459,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     if (index < 0 || index >= m_starts.size()) return nullptr;
     const PageStart st = m_starts[index];
     const Run run = layoutPage(index, st);
-    if (run.kept <= 0) return nullptr;
+    if (run.kept <= 0 && !run.blank) return nullptr;
     const Section &sec = m_doc->section(st.section);
     auto out = std::make_unique<MaterializedPage>();
     out->index = index;
@@ -452,10 +477,15 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->fonts = m_doc->env.fonts;
     d->defaultTabStop = m_doc->env.defaultTab;
     d->fontAliases = m_doc->env.familyAliases;
+    if (run.blank) {
+        out->storyFrom = m_doc->story()->characterCount();
+        out->doc = std::move(d);
+        return out;
+    }
 
     auto story = std::make_shared<Story>();
     story->id = QStringLiteral("flow-story-%1").arg(index);
-    story->doc = sliceOf(run, index, &out->storyFrom, &out->continuesFromBefore);
+    story->doc = sliceOf(run, &out->storyFrom, &out->continuesFromBefore);
     d->stories.insert(story->id, story);
     const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
     out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
