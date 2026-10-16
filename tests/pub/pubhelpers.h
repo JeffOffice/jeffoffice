@@ -67,6 +67,8 @@
 #include "app/notes.h"
 #include "app/iconpicker.h"
 #include "app/textartgallery.h"
+#include "app/formatpane.h"
+#include "app/paneframe.h"
 #include "app/widgets.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
