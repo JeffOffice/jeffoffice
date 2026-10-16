@@ -4260,7 +4260,7 @@ private Q_SLOTS:
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
     }
 
-    // The paragraph that stands for a table in the story takes no height of its own, set at Word's line heights or not: the table is where the text before it ends.
+    // The paragraph that stands for a table in the story takes no height of its own, set at a word processor's line heights or not: the table is where the text before it ends.
     void theStandInForATableDoesNotShiftItUnderWordLineHeights()
     {
         double at[2] = {0, 0}, gap[2] = {0, 0};

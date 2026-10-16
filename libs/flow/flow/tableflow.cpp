@@ -640,7 +640,10 @@ QVector<NoteRef> TableLayout::rowNotes(int r)
     const Row &row = m_rows[size_t(r)];
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
         if (m_cells[size_t(i)].covered) continue;
-        for (const UnitLine &l : unitsOf(i)->lines) out += l.notes;
+        for (const UnitLine &l : unitsOf(i)->lines) {
+            if (out.size() >= kMostRowNotes) break;
+            out += l.notes;
+        }
     }
     std::sort(out.begin(), out.end(), [](const NoteRef &a, const NoteRef &b) { return a.number != b.number ? a.number < b.number : a.pos < b.pos; });
     return out;
@@ -714,7 +717,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const Rooms &rooms, do
             for (int i = 0; i < n; ++i) {
                 if (!units[size_t(i)] || begin[size_t(i)] < 0) continue;
                 const auto &lines = units[size_t(i)]->lines;
-                for (int q = begin[size_t(i)]; q < stop[size_t(i)] && q < int(lines.size()); ++q) notes += lines[size_t(q)].notes;
+                for (int q = begin[size_t(i)]; q < stop[size_t(i)] && q < int(lines.size()) && notes.size() < kMostRowNotes; ++q) notes += lines[size_t(q)].notes;
             }
             double h = 0;
             for (const NoteRef &nr : std::as_const(notes)) h += m_noteHeight(nr.id);
