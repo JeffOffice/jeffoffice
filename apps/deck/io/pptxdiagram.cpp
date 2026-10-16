@@ -178,14 +178,14 @@ QByteArray diagramSvg(const QDomElement &spTree, const office::DrawingContext &b
     paint.opt.output = true;
     // A picture in it is kept as fine as a screen the width of a slide shows it, four points to the pixel.
     paint.opt.maxImageDpi = 432;
-    QByteArray svg = asPicture(pageSvg(paint, 0, QString()), size);
+    QByteArray svg = asPicture(pageSvg(paint, 0, QString(), true), size);
     if (svg.size() > kMaxDrawingBytes) {
         // Each use of a picture is a copy of it: a drawing that has too many shows its pictures as the color they average, and its pictures' places empty.
         walkItems(page->items, [&](const ItemPtr &it) {
             if (it->fill.type == Fill::Picture || it->fill.type == Fill::Texture) it->fill = Fill::solid(ColorRef::rgb(averageOf(scratch.image(it->fill.imageId))));
             if (it->type() == ItemType::Picture) static_cast<PictureItem &>(*it).imageId.clear();
         });
-        svg = asPicture(pageSvg(paint, 0, QString()), size);
+        svg = asPicture(pageSvg(paint, 0, QString(), true), size);
     }
     if (imagesLeftOut) *imagesLeftOut += scratch.imagesLeftOut;
     return svg;
