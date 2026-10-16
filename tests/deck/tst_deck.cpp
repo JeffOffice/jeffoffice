@@ -24955,6 +24955,22 @@ private Q_SLOTS:
         QVERIFY(!empty.textList());
         QVERIFY(alpha.textList() == beta.textList());
         QCOMPARE(beta.textList()->itemNumber(beta), 1);
+        // The numbering is kept when the presentation is saved as a .pptx or an .odp and opened again: "1.", then "5)", then the bullet.
+        for (const bool odp : {false, true}) {
+            auto again = odp ? viaOdp(*d, &err) : viaPptx(*d, &err);
+            QVERIFY2(again, qPrintable(err));
+            const QTextDocument *s = storyBeginning(*again, *again->pages[0], QStringLiteral("First point"));
+            QVERIFY(s);
+            QCOMPARE(s->blockCount(), 3);
+            const QTextBlock a = s->firstBlock(), b = a.next(), c = b.next();
+            QVERIFY(a.textList() && b.textList() && c.textList());
+            QCOMPARE(a.textList()->format().style(), QTextListFormat::ListDecimal);
+            QCOMPARE(a.textList()->format().numberSuffix(), QStringLiteral("."));
+            QCOMPARE(b.textList()->format().style(), QTextListFormat::ListDecimal);
+            QCOMPARE(b.textList()->format().numberSuffix(), QStringLiteral(")"));
+            QCOMPARE(b.textList()->format().start(), 5);
+            QCOMPARE(c.textList()->format().style(), QTextListFormat::ListDisc);
+        }
     }
 
     // A shape that shows the slide's text (an outline reference) can keep a text ruler beside the reference: the margins it sets are those
@@ -24977,6 +24993,20 @@ private Q_SLOTS:
         std::sort(margins.begin(), margins.end());
         QVERIFY2(qAbs(margins.last() - 90.0) < 0.01, qPrintable(QString::number(margins.last())));
         QVERIFY2(qAbs(margins.first() - 90.0) > 1.0, qPrintable(QString::number(margins.first())));
+        // The two margins are kept in a .pptx and an .odp (the text of both shapes begins "First point").
+        for (const bool odp : {false, true}) {
+            auto again = odp ? viaOdp(*d, &err) : viaPptx(*d, &err);
+            QVERIFY2(again, qPrintable(err));
+            QList<double> kept;
+            for (const auto &it : again->pages[0]->items) {
+                if (it->type() != ItemType::Text) continue;
+                const QTextDocument *story = again->storyDoc(static_cast<const TextItem *>(it.get())->storyId);
+                if (story && story->toPlainText().startsWith(QLatin1String("First point"))) kept << story->firstBlock().blockFormat().leftMargin();
+            }
+            QCOMPARE(int(kept.size()), 2);
+            std::sort(kept.begin(), kept.end());
+            QVERIFY2(qAbs(kept.last() - 90.0) < 0.5 && qAbs(kept.first() - margins.first()) < 0.5, qPrintable(QStringLiteral("%1, %2").arg(kept.first()).arg(kept.last())));
+        }
     }
 
     // A fill that is a picture and is set to be recolored as a picture, with the color to recolor it in (a master's background, in the clouds
@@ -24995,7 +25025,8 @@ private Q_SLOTS:
         const QByteArray picture = pptRec(0xF01E, QByteArray(16, 'v') + QByteArray(1, '\xFF') + png, 0x6E0);
         const QByteArray entry = pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, 't') + le(0xFF, 2) + le(quint32(picture.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + picture, 6, 2);
         const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry, 1)));
-        auto pixels = [&](quint32 styleFlags, bool recolorTo) {
+        std::unique_ptr<Document> kept;
+        auto pixels = [&](quint32 styleFlags, bool recolorTo, bool keep = false) {
             QByteArray t;
             // A picture fill of the first picture, the fill color green, the color to recolor it in red (when it has one), and the back color blue
             // (a color is stored blue, green, red).
@@ -25010,13 +25041,29 @@ private Q_SLOTS:
             if (!d || d->masters.isEmpty() || d->masters.first()->background.type != Fill::Picture) return out;
             const QImage im = d->image(d->masters.first()->background.imageId);
             for (int x = 0; x < im.width(); ++x) out << im.pixelColor(x, 0);
+            if (keep) kept = std::move(d);
             return out;
         };
         // Set to recolor: red's gray is 0.2126 of the way from the fill color to the back color, and dark blue's 0.0362.
-        const QList<QColor> two = pixels(0x00500050, true);
+        const QList<QColor> two = pixels(0x00500050, true, true);
         QCOMPARE(int(two.size()), 2);
         QVERIFY2(colorsNear(two[0], QColor(201, 0, 54), 2), qPrintable(two[0].name()));
         QVERIFY2(colorsNear(two[1], QColor(246, 0, 9), 2), qPrintable(two[1].name()));
+        // The two colors stay when the presentation is saved as a .pptx or an .odp and opened again.
+        QVERIFY(kept);
+        for (const bool odp : {false, true}) {
+            QString err;
+            auto again = odp ? viaOdp(*kept, &err) : viaPptx(*kept, &err);
+            QVERIFY2(again, qPrintable(err));
+            QList<QColor> colors;
+            for (const auto &m : again->masters)
+                if (m->background.type == Fill::Picture && colors.isEmpty()) {
+                    const QImage im = again->image(m->background.imageId);
+                    for (int x = 0; x < im.width(); ++x) colors << im.pixelColor(x, 0);
+                }
+            QCOMPARE(int(colors.size()), 2);
+            QVERIFY2(colorsNear(colors[0], two[0], 3) && colorsNear(colors[1], two[1], 3), qPrintable(colors[0].name() + QLatin1Char(' ') + colors[1].name()));
+        }
         // Not set to, or set to with no color to recolor it in: as it is.
         for (const QList<QColor> &kept : {pixels(0x00100010, true), pixels(0x00500050, false)}) {
             QCOMPARE(int(kept.size()), 2);
@@ -25128,7 +25175,7 @@ private Q_SLOTS:
         auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
         QVERIFY2(d, qPrintable(err));
         LayoutCache cache;
-        QHash<QString, QVector<QRectF>> rects;   // by the text's start, the rectangles of its lines
+        QHash<QString, QVector<QRectF>> rects, inks;   // by the text's start, the rectangles of its lines, and of each line's letters (its paragraph mark left out)
         double width = 0, inset = 0;
         for (const auto &it : d->pages[0]->items) {
             if (it->type() != ItemType::Text || !it->role.isEmpty()) continue;
@@ -25137,6 +25184,15 @@ private Q_SLOTS:
             const auto fl = cache.textFrame(*d, *t, 1, RenderOptions());
             QVERIFY(fl.layout);
             rects.insert(text.left(5), fl.layout->rangeRects(0, 0, d->storyDoc(t->storyId)->characterCount() - 1));
+            QVector<QRectF> letters;
+            for (const auto &li : fl.layout->lineInfo(0)) {
+                int end = li.docEnd;
+                if (end > li.docPos && d->storyDoc(t->storyId)->characterAt(end - 1) == QChar::ParagraphSeparator) --end;
+                QRectF ink;
+                for (const QRectF &r : fl.layout->rangeRects(0, li.docPos, end)) ink = ink.united(r);
+                letters << ink;
+            }
+            inks.insert(text.left(5), letters);
             width = t->rect.width();
             inset = t->insets.left();
         }
@@ -25151,9 +25207,13 @@ private Q_SLOTS:
         QVERIFY2(std::abs(whole(QStringLiteral("Plain")).left() - inset) < 1.5, qPrintable(QString::number(whole(QStringLiteral("Plain")).left())));
         const QVector<QRectF> block = rects.value(QStringLiteral("A lon"));
         QVERIFY(block.size() >= 2);
-        QRectF widest = block[0];
-        for (const QRectF &r : block) if (r.width() > widest.width()) widest = r;
-        QVERIFY2(std::abs(widest.center().x() - width / 2) < 4.0, qPrintable(QString::number(widest.center().x())));   // (a line's box takes in its paragraph mark)
+        // The widest line's letters (a line's box takes in its paragraph mark, so it is the letters that are set in the middle) are as far from
+        // one side as from the other, to the layout's own measure of a position.
+        const QVector<QRectF> letters = inks.value(QStringLiteral("A lon"));
+        QVERIFY(letters.size() >= 2);
+        QRectF widest = letters[0];
+        for (const QRectF &r : letters) if (r.width() > widest.width()) widest = r;
+        QVERIFY2(std::abs(widest.center().x() - width / 2) < 0.5, qPrintable(QString::number(widest.center().x())));
         QVERIFY2(std::abs(block.first().left() - block.last().left()) < 1.0, qPrintable(QString::number(block.first().left() - block.last().left())));
         QVERIFY(block.first().left() > inset + 10);
         // The setting goes into a .pptx and comes back (the two boxes anchored centered).
@@ -25214,7 +25274,7 @@ private Q_SLOTS:
         const auto lines = fl.layout->lineInfo(0);
         QVERIFY2(lines.size() > 2, qPrintable(QString::number(lines.size())));
         const double edge = box->rect.width() - box->insets.right();
-        int reach = 0;
+        QVector<bool> reaches;   // by line: whether its last letter is at the edge
         for (int i = 0; i + 1 < int(lines.size()); ++i) {
             QVERIFY2(d->storyDoc(box->storyId)->characterAt(lines[i].docEnd - 1).isSpace(), qPrintable(QStringLiteral("line %1 is cut inside a word").arg(i)));
             // The last character that isn't a space.
@@ -25222,10 +25282,39 @@ private Q_SLOTS:
             while (last > lines[i].docPos && d->storyDoc(box->storyId)->characterAt(last).isSpace()) --last;
             QRectF r;
             for (const QRectF &c : fl.layout->rangeRects(0, last, last + 1)) r = r.united(c);
-            reach += std::abs(r.right() - edge) < 0.75;
+            reaches << (std::abs(r.right() - edge) < 0.75);
         }
-        // (A line that the spaces added to its width would take another word into is laid out as it was.)
-        QVERIFY2(reach * 10 >= (int(lines.size()) - 1) * 7, qPrintable(QStringLiteral("%1 of %2 lines reach the edge").arg(reach).arg(lines.size() - 1)));
+        // A line that the spaces added to its width would take another word into is laid out as it was, a space short of the edge: all the others
+        // reach it. Which lines those are the same text set to the left says (each line's right end as it is, and the width of the next line's first
+        // word: the word comes in when it ends within the edge); the lines too near to tell by half a point are left out.
+        QTextCursor all(d->storyDoc(box->storyId));
+        all.select(QTextCursor::Document);
+        QTextBlockFormat toLeft;
+        toLeft.setAlignment(Qt::AlignLeft);
+        all.mergeBlockFormat(toLeft);
+        LayoutCache plainCache;
+        const auto natural = plainCache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(natural.layout);
+        const auto plain = natural.layout->lineInfo(0);
+        QCOMPARE(int(plain.size()), int(lines.size()));
+        const QTextDocument *story = d->storyDoc(box->storyId);
+        int checked = 0, reached = 0;
+        for (int i = 0; i + 1 < int(plain.size()); ++i) {
+            int last = plain[i].docEnd - 1;
+            while (last > plain[i].docPos && story->characterAt(last).isSpace()) --last;
+            QRectF end;
+            for (const QRectF &c : natural.layout->rangeRects(0, last, last + 1)) end = end.united(c);
+            int wordEnd = plain[i + 1].docPos;
+            while (wordEnd < plain[i + 1].docEnd && !story->characterAt(wordEnd).isSpace()) ++wordEnd;
+            QRectF word;
+            for (const QRectF &c : natural.layout->rangeRects(0, plain[i + 1].docPos, wordEnd)) word = word.united(c);
+            const double slack = edge - (end.right() + word.width());   // what is left of the line if the next word came on without a space
+            if (std::abs(slack) < 0.5) continue;
+            ++checked;
+            QVERIFY2(reaches[i] == (slack < 0), qPrintable(QStringLiteral("line %1: slack %2, reaches the edge: %3").arg(i).arg(slack).arg(reaches[i])));
+            reached += reaches[i];
+        }
+        QVERIFY2(checked * 2 >= int(lines.size()) - 1 && reached > 0, qPrintable(QStringLiteral("%1 lines checked of %2, %3 reach the edge").arg(checked).arg(lines.size() - 1).arg(reached)));
     }
 
     // The arrowhead that points left (code 0xD7 in Wingdings), the mirror of the one that points right (0xD8, which a theme sets at the end of a
@@ -25313,6 +25402,25 @@ private Q_SLOTS:
         QCOMPARE(box->fill.color.rgbValue(), QColor(0xC0, 0xC0, 0xC0));
         QVERIFY(mark->fill.color.rgbValue().red() < 0xC0 && mark->fill.color.rgbValue().red() > 0x40);
         QCOMPARE(blank->shape, QStringLiteral("rect"));
+        // The button (its box and the picture on it) and the blank one are kept in a .pptx and an .odp.
+        for (const bool odp : {false, true}) {
+            auto again = odp ? viaOdp(*d, &err) : viaPptx(*d, &err);
+            QVERIFY2(again, qPrintable(err));
+            const GroupItem *group = nullptr;
+            const ShapeItem *plain = nullptr;
+            for (const auto &it : again->pages[0]->items) {
+                if (it->type() == ItemType::Group) group = static_cast<const GroupItem *>(it.get());
+                if (it->type() == ItemType::Shape) plain = static_cast<const ShapeItem *>(it.get());
+            }
+            QVERIFY(group && plain);
+            QCOMPARE(int(group->children.size()), 2);
+            QVERIFY(group->children[0]->type() == ItemType::Shape && group->children[1]->type() == ItemType::Shape);
+            const auto *keptBox = static_cast<const ShapeItem *>(group->children[0].get());
+            const auto *keptMark = static_cast<const ShapeItem *>(group->children[1].get());
+            QCOMPARE(keptBox->fill.color.rgbValue(), QColor(0xC0, 0xC0, 0xC0));
+            QVERIFY(keptMark->fill.color.rgbValue().red() < 0xC0 && keptMark->fill.color.rgbValue().red() > 0x40);
+            QVERIFY(qAbs(group->rect.width() - back->rect.width()) < 1.0 && qAbs(group->rect.height() - back->rect.height()) < 1.0);
+        }
     }
 
     // The empty paragraph that ends a slide's text counts in the height the text is centered by, as the presentation program counts it, when
