@@ -24673,6 +24673,64 @@ private Q_SLOTS:
         QCOMPARE(textIn(0), QString(QChar(0x0152)) + QChar(0x0178) + QStringLiteral("CF"));
     }
 
+    // A metafile whose writer sets a smaller window and scales the viewport down by the same ratio (the program's own clip art does, to
+    // keep a drawing's size) is drawn at the size it had: here a drawing 400 by 300 units that sets a window of 200 by 150 and halves
+    // the viewport, then fills the whole of that window, covers the top left quarter of its picture, not all of it.
+    void renderMetafileKeepsTheScaleOfAViewportScaledWithItsWindow()
+    {
+        auto le16 = [](QByteArray &b, int v) { b.append(char(v & 0xFF)); b.append(char((v >> 8) & 0xFF)); };
+        auto le32 = [](QByteArray &b, quint32 v) { for (int i = 0; i < 4; ++i) b.append(char((v >> (8 * i)) & 0xFF)); };
+        auto words = [&](std::initializer_list<int> v) { QByteArray b; for (int w : v) le16(b, w); return b; };
+        auto record = [&](int fn, const QByteArray &params) {
+            QByteArray b;
+            le32(b, quint32((6 + params.size() + (params.size() & 1)) / 2));
+            le16(b, fn);
+            b += params;
+            if (params.size() & 1) b.append('\0');
+            return b;
+        };
+        QByteArray brush = words({0}), pen = words({5, 0, 0});
+        le32(brush, 0x00646464);
+        le16(brush, 0);
+        le32(pen, 0);
+        // The parameters of a record come last first: the viewport's scale is the height's denominator and numerator, then the width's.
+        QByteArray body = record(0x020B, words({0, 0})) + record(0x020C, words({300, 400})) + record(0x02FC, brush) + record(0x02FA, pen);
+        body += record(0x0412, words({300, 150, 400, 200})) + record(0x020C, words({150, 200}));
+        body += record(0x012D, words({1})) + record(0x012D, words({0})) + record(0x041B, words({150, 200, 0, 0})) + record(0x0000, QByteArray());
+        QByteArray head, standard;
+        le32(head, 0x9AC6CDD7u);
+        le16(head, 0);
+        for (int v : {0, 0, 400, 300, 72}) le16(head, v);
+        le32(head, 0);
+        quint16 sum = 0;
+        for (int i = 0; i < 20; i += 2) sum ^= quint16(quint8(head[i]) | (quint8(head[i + 1]) << 8));
+        le16(head, sum);
+        for (int v : {1, 9, 0x300}) le16(standard, v);
+        le32(standard, quint32((18 + body.size()) / 2));
+        le16(standard, 2);
+        le32(standard, 60);
+        le16(standard, 0);
+        const QByteArray wmf = head + standard + body;
+        Document doc;
+        doc.slidePictures = true;
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = doc.addImage(wmf, QStringLiteral("wmf"));
+        QVERIFY(!pic->imageId.isEmpty());
+        pic->rect = QRectF(0, 0, 200, 150);
+        pic->imgRect = pic->rect;
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = &doc;
+        ctx.cache = &cache;
+        const ItemList one{pic};
+        const QImage img = Renderer::renderItemsToImage(ctx, one, 1.0);
+        QVERIFY(!img.isNull());
+        // A point in the top left quarter is the box's gray; one in the bottom right is not (nothing is drawn there).
+        const QColor inside = img.pixelColor(img.width() / 4, img.height() / 4), outside = img.pixelColor(img.width() * 3 / 4, img.height() * 3 / 4);
+        QVERIFY2(qAbs(inside.red() - 100) <= 2 && inside.alpha() == 255, qPrintable(inside.name(QColor::HexArgb)));
+        QVERIFY2(outside.alpha() == 0 || outside.red() > 200, qPrintable(outside.name(QColor::HexArgb)));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
