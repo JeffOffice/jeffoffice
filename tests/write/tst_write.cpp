@@ -13,6 +13,7 @@
 #include "core/tableops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
+#include "../flow/pageaudit.h"
 #include "office/package.h"
 #include "rtcheck.h"
 #include "text/textprops.h"
@@ -47,10 +48,12 @@
 #include <QScrollBar>
 #include <functional>
 #include <random>
+#include <set>
 
 using namespace jp;
 using namespace jp::write;
 namespace wml = jp::office::wml;
+namespace audit = jp::flowaudit;
 
 namespace {
 
@@ -203,14 +206,14 @@ QByteArray richDocx()
 
 // A document with headers and footers: `parts` are word/header1.xml and the like (by their part name), each related to the document by the Id
 // its name gives ("rId" and the file's name without its extension), as `sect` (a section's properties, with the references) names them.
-QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, const QMap<QString, QByteArray> &parts, const QByteArray &settings = QByteArray())
+QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, const QMap<QString, QByteArray> &parts, const QByteArray &settings = QByteArray(), const QByteArray &styles = kStyles)
 {
     office::PackageWriter w;
     const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
     w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + sect + "</w:body></w:document>"),
               QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
     w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
-    w.addPart(QStringLiteral("/word/styles.xml"), xml(QByteArray("<w:styles ") + kNs + ">" + kStyles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), xml(QByteArray("<w:styles ") + kNs + ">" + styles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
     w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
     if (!settings.isEmpty()) {
         w.addPart(QStringLiteral("/word/settings.xml"), xml(QByteArray("<w:settings ") + kNs + ">" + settings + "</w:settings>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
@@ -233,6 +236,11 @@ QByteArray headerPart(const QByteArray &root, const QList<QByteArray> &paragraph
     for (const QByteArray &p : paragraphs) out += "<w:p>" + p + "</w:p>";
     return out + "</w:" + root + ">";
 }
+
+// The tables of the document of tables for the random commands, its styles, and its section's properties.
+struct RichTables {
+    QByteArray styled, plain, styles, sect;
+};
 
 // A text box of a materialized page by what its story says, for the header's and the footer's.
 const TextItem *boxWithText(const flow::MaterializedPage &page, const QString &text)
@@ -3626,7 +3634,8 @@ private Q_SLOTS:
     // A document of tables for the random commands: a table with a style, a header row, cells joined down (one with a long text), a row with a gap before its cells and one
     // with a gap after, a long cell, a table in a cell with another in its own, a plain table after it, and text around them; on small pages, so that rows go over page
     // breaks.
-    static QByteArray richTableDocx()
+    // The tables of that document, and its styles and its section's properties; `noteInCell` is the XML of a run put in the cell b1 (a footnote's reference).
+    static RichTables richTables(const QByteArray &noteInCell = QByteArray())
     {
         QByteArray longCell, tallCell;
         for (int i = 0; i < 24; ++i) tallCell += cellP("tall " + QByteArray::number(i));
@@ -3635,7 +3644,7 @@ private Q_SLOTS:
         const QByteArray nested = tableX(rowX(cellX(cellP("n00"), QByteArray(), 800) + cellX(cellP("n01") + deep + cellP("n01 tail"), QByteArray(), 800)) + rowX(cellX(cellP("n10"), QByteArray(), 800) + cellX(cellP("n11"), QByteArray(), 800)), 2, 800);
         const QByteArray styled = tableX(rowX(cellX(cellP("h0"), QByteArray(), 1100) + cellX(cellP("h1"), QByteArray(), 1100) + cellX(cellP("h2"), QByteArray(), 1100), "<w:tblHeader/>") +
                                              rowX(cellX(longCell, "<w:vMerge w:val=\"restart\"/>", 1100) + cellX(cellP("a1"), QByteArray(), 1100) + cellX(cellP("a2") + nested + cellP("a2 tail"), QByteArray(), 1100)) +
-                                             rowX(cellX("<w:p/>", "<w:vMerge/>", 1100) + cellX(cellP("b1"), QByteArray(), 1100) + cellX(cellP("b2"), QByteArray(), 1100)) +
+                                             rowX(cellX("<w:p/>", "<w:vMerge/>", 1100) + cellX("<w:p><w:r><w:t>b1</w:t></w:r>" + noteInCell + "</w:p>", QByteArray(), 1100) + cellX(cellP("b2"), QByteArray(), 1100)) +
                                              rowX(cellX(cellP("G"), "<w:gridSpan w:val=\"2\"/>", 2200), "<w:gridBefore w:val=\"1\"/><w:wBefore w:w=\"1100\" w:type=\"dxa\"/>") +
                                              rowX(cellX(cellP("d0"), QByteArray(), 1100) + cellX(tallCell, QByteArray(), 1100) + cellX(cellP("d2"), QByteArray(), 1100)) +
                                              rowX(cellX(cellP("e0"), QByteArray(), 1100) + cellX(cellP("e1"), QByteArray(), 1100), "<w:gridAfter w:val=\"1\"/><w:wAfter w:w=\"1100\" w:type=\"dxa\"/>"),
@@ -3649,37 +3658,54 @@ private Q_SLOTS:
                                   "<w:insideV w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/></w:tblBorders></w:tblPr><w:tblStylePr w:type=\"firstRow\"><w:rPr><w:b/></w:rPr></w:tblStylePr>"
                                   "<w:tblStylePr w:type=\"band2Horz\"><w:tcPr><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"EEEEEE\"/></w:tcPr></w:tblStylePr></w:style>";
         const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"5200\" w:h=\"4400\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
-        return makeDocx(cellP("before the tables") + styled + cellP("between them") + plain + cellP("after the tables"), styles, QByteArray(), sect);
+        return {styled, plain, styles, sect};
+    }
+    static QByteArray richTableDocx()
+    {
+        const RichTables t = richTables();
+        return makeDocx(cellP("before the tables") + t.styled + cellP("between them") + t.plain + cellP("after the tables"), t.styles, QByteArray(), t.sect);
     }
 
-    // What a paginator that was told of the edits has that a new one on the same story does not (empty when there is nothing): the pages, their lines, and the tables on
-    // them with the heights of their rows.
-    static QString layoutDiffersFromFresh(WriteDoc &doc)
+    // A file for the random commands with the tables, notes, headers, footers, and sections together: a first section of tables (the one of richTableDocx, a note cited in
+    // the paragraph before them, one in a cell, and a long one after them), with headers and footers for the first, odd, and even pages of other heights; a continuous section
+    // of two columns with a table in it and a note; and a section on a page of its own with a header of its own, a note, and a page break.
+    static QByteArray richMixedDocx()
+    {
+        const RichTables t = richTables(refTo(3));
+        const QString rel = QStringLiteral("rId");
+        auto lines = [](const char *name, int n) {
+            QList<QByteArray> out;
+            for (int i = 1; i <= n; ++i) out << "<w:r><w:t>" + QByteArray(name) + " " + QByteArray::number(i) + "</w:t></w:r>";
+            return out;
+        };
+        QMap<QString, QByteArray> parts;
+        parts[QStringLiteral("/word/header1.xml")] = headerPart("hdr", lines("ODD HEAD", 1));
+        parts[QStringLiteral("/word/header2.xml")] = headerPart("hdr", lines("FIRST HEAD", 2));
+        parts[QStringLiteral("/word/header3.xml")] = headerPart("hdr", lines("EVEN HEAD", 4));
+        parts[QStringLiteral("/word/header4.xml")] = headerPart("hdr", lines("THIRD HEAD", 3));
+        parts[QStringLiteral("/word/footer1.xml")] = headerPart("ftr", {"<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>1</w:t></w:r></w:fldSimple><w:r><w:t xml:space=\"preserve\"> of </w:t></w:r>"
+                                                                       "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>1</w:t></w:r></w:fldSimple>"});
+        parts[QStringLiteral("/word/footer2.xml")] = headerPart("ftr", lines("FIRST FOOT", 2));
+        parts[QStringLiteral("/word/footer3.xml")] = headerPart("ftr", lines("EVEN FOOT", 3));
+        parts[QStringLiteral("/word/footnotes.xml")] = notesPart({{2, "ALPHA note of the paragraph before the tables"}, {3, wordsOf("BETA", 25)}, {4, wordsOf("GAMMA", 220)}, {5, wordsOf("DELTA", 8)}, {6, wordsOf("EPSILON", 15)}});
+        const QByteArray refsOne = "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:headerReference w:type=\"first\" r:id=\"rIdheader2\"/><w:headerReference w:type=\"even\" r:id=\"rIdheader3\"/>"
+                                   "<w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:footerReference w:type=\"first\" r:id=\"rIdfooter2\"/><w:footerReference w:type=\"even\" r:id=\"rIdfooter3\"/>";
+        const QByteArray one = sectionXml(7200, 6600, 720, refsOne, QByteArray(), "<w:titlePg/>");
+        const QByteArray two = sectionXml(7200, 6600, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
+        const QByteArray three = sectionXml(7200, 6600, 900, "<w:headerReference w:type=\"default\" r:id=\"rIdheader4\"/>");
+        QByteArray body = plainP("before the tables", refTo(2)) + t.styled + plainP("between them", refTo(4)) + t.plain + plainP("after the tables", QByteArray(), one);
+        body += plainP(wordsOf("Second section", 18)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
+                plainP(wordsOf("end of the second", 30), QByteArray(), two);
+        body += plainP(wordsOf("Third section", 40), refTo(6)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60));
+        return makeDocxWithParts(body, three, parts, "<w:evenAndOddHeaders/>", t.styles);
+    }
+
+    // What a paginator that was told of the edits has that a new one on the same story does not (empty when there is nothing): the page count, and for each page its start,
+    // its lines, the tables on it with the heights of their rows, its notes, its header and footer, and its boxes (tests/flow/pageaudit.h).
+    static QString layoutDiffersFromFresh(WriteDoc &doc, bool made = true)
     {
         flow::Paginator fresh(&doc.flow());
-        flow::Paginator &pg = doc.pager();
-        const int want = fresh.pageCount(), got = pg.pageCount();
-        if (want != got) return QStringLiteral("%1 pages, a new paginator finds %2").arg(got).arg(want);
-        for (int k = 0; k < want; ++k) {
-            if (fresh.page(k).start != pg.page(k).start)
-                return QStringLiteral("page %1 starts at %2 (part %3), a new paginator has %4 (part %5)").arg(k).arg(pg.page(k).start.pos).arg(pg.page(k).start.piece).arg(fresh.page(k).start.pos).arg(fresh.page(k).start.piece);
-            const auto a = fresh.lines(k), b = pg.lines(k);
-            if (a.size() != b.size()) return QStringLiteral("page %1 has %2 lines, a new paginator's has %3").arg(k).arg(b.size()).arg(a.size());
-            for (int i = 0; i < a.size(); ++i)
-                if (a[i].pos != b[i].pos || std::abs(a[i].rect.top() - b[i].rect.top()) > 0.01 || std::abs(a[i].rect.height() - b[i].rect.height()) > 0.01)
-                    return QStringLiteral("page %1, line %2: %3 high at %4, a new paginator has %5 at %6").arg(k).arg(i).arg(b[i].rect.height()).arg(b[i].rect.top()).arg(a[i].rect.height()).arg(a[i].rect.top());
-            const auto fa = fresh.materialize(k), fb = pg.materialize(k);
-            if (!fa || !fb) return QStringLiteral("page %1 is not made (%2; a new paginator's %3)").arg(k).arg(fb ? QStringLiteral("it is") : QStringLiteral("it is not")).arg(fa ? QStringLiteral("is") : QStringLiteral("is not"));
-            if (fa->tables.size() != fb->tables.size()) return QStringLiteral("page %1 has %2 tables, a new paginator's has %3").arg(k).arg(fb->tables.size()).arg(fa->tables.size());
-            for (int i = 0; i < fa->tables.size(); ++i) {
-                const flow::TableFragment &x = *fa->tables[i], &y = *fb->tables[i];
-                if (x.firstRow != y.firstRow || x.endRow != y.endRow || std::abs(x.height - y.height) > 0.01)
-                    return QStringLiteral("page %1, table %2: rows %3 to %4 and %5 high; a new paginator has %6 to %7 and %8").arg(k).arg(i).arg(y.firstRow).arg(y.endRow).arg(y.height).arg(x.firstRow).arg(x.endRow).arg(x.height);
-                for (int r = x.firstRow; r < x.endRow; ++r)
-                    if (std::abs(x.heightOf(r) - y.heightOf(r)) > 0.01) return QStringLiteral("page %1, table %2, row %3: %4 high, a new paginator has %5").arg(k).arg(i).arg(r).arg(y.heightOf(r)).arg(x.heightOf(r));
-            }
-        }
-        return QString();
+        return audit::differenceFromFresh(doc.pager(), fresh, made);
     }
 
     // The story's paragraphs with their places and cells, and the pages' starts of the paginator and of a new one (for JW_FUZZ_DUMP).
@@ -3717,141 +3743,520 @@ private Q_SLOTS:
     // Hundreds of random commands on a document of tables (every one that works on a table, the ones that delete across cells, paste, and type in cells that are joined or in
     // tables in cells): after each, the file it makes is well-formed and has tables of the shape tables have, the paginator that was told of the edits has the pages and the
     // rows' heights a new one finds, and what was done undoes and does again. JW_FUZZ_SEEDS says how many seeds, JW_FUZZ_FROM where to begin, JW_FUZZ_STEPS how many commands;
-    // JW_FUZZ_COUNTS=1 says what the seeds found.
+    // JW_FUZZ_COUNTS=1 says what the seeds found, JW_FUZZ_TRACE=1 what each did (JW_FUZZ_PAGES=1: and how many pages the file had after each). A second, shorter run is of a file
+    // with the notes, headers, footers, and sections as well (richMixedDocx), whose commands also type where notes are cited, put in section breaks, and change the page setup
+    // and the headers of a section; there the pages (their lines, table rows, notes, headers and footers, and boxes) are compared, and the file is not written (JP_FUZZ=n: n seeds of it).
     void randomEditingOfTablesKeepsThemWholeAndTheLayoutRight()
     {
-        const QByteArray original = richTableDocx();
-        const int seeds = qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 12;
-        const int steps = qEnvironmentVariableIntValue("JW_FUZZ_STEPS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_STEPS") : 70;
         QMap<QString, int> failed;
         QMap<QString, QString> example;
         QSet<QString> failing;
-        for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
-            auto doc = open(original);
-            QVERIFY(doc);
-            QVERIFY2(layoutDiffersFromFresh(*doc).isEmpty(), "the document as it is opened");
-            std::mt19937 rng(seed);
-            auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
-            QTextCursor c(doc->story());
-            QTextDocumentFragment held;
-            QStringList log;
-            QString lastDump;
-            auto fail = [&](const QString &what, const QString &detail) {
-                failing.insert(QString::number(seed));
-                if (failed[what]++ == 0) example[what] = QStringLiteral("seed %1: %2 | last: %3").arg(seed).arg(detail.left(260), log.mid(std::max<qsizetype>(0, log.size() - 5)).join(QStringLiteral(" , ")));
-                if (qEnvironmentVariableIsSet("JW_FUZZ_DUMP")) qInfo("seed %d: %s: %s\nlast: %s\nBEFORE THE LAST COMMAND:\n%s\nAFTER:\n%s", int(seed), qPrintable(what), qPrintable(detail), qPrintable(log.mid(std::max<qsizetype>(0, log.size() - 5)).join(QStringLiteral(" , "))), qPrintable(lastDump), qPrintable(layoutDump(*doc)));
-            };
-            static const char *const names[] = {"type", "enter", "insertRow", "insertCol", "tab", "delRow", "delCol", "delTable", "removeSel", "bigSel", "backspace", "delete", "copy", "paste", "undo", "redo",
-                                                "style", "bold", "align", "pageBreak", "list", "typeInCell", "removeAcross", "shiftTab"};
-            auto selectCells = [&] {   // (from a place in one cell to a place in another)
-                QVector<QTextBlock> cells;
-                for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
-                    if (cellKeyOf(b)) cells << b;
-                if (cells.isEmpty()) return false;
-                const QTextBlock a = cells[pick(int(cells.size()))], z = cells[pick(int(cells.size()))];
-                c.setPosition(a.position() + pick(a.length()));
-                c.setPosition(z.position() + pick(z.length()), QTextCursor::KeepAnchor);
-                return true;
-            };
-            for (int step = 0; step < steps; ++step) {
-                const int op = pick(24);
-                const QString before = storyState(*doc);
-                lastDump = qEnvironmentVariableIsSet("JW_FUZZ_DUMP") ? layoutDump(*doc) : QString();
-                auto place = [&] { c.setPosition(pick(doc->story()->characterCount() - 1)); };
-                auto selectSome = [&](int most) {
-                    const int a = pick(doc->story()->characterCount() - 1), len = pick(most);
-                    c.setPosition(a);
-                    c.setPosition(std::min(a + len, doc->story()->characterCount() - 1), QTextCursor::KeepAnchor);
+        int seedsRun = 0;
+        // (Two kinds of file: the tables alone, and then the tables with notes, headers, footers, and sections: a short run of those, whose edits also type where notes are
+        // cited, put section breaks in, and change what the headers and footers are. JP_FUZZ=n: seeds 1 to n of the second, for a longer run.)
+        for (const bool mixed : {false, true}) {
+            const QByteArray original = mixed ? richMixedDocx() : richTableDocx();
+            const int seeds = mixed ? (qEnvironmentVariableIntValue("JP_FUZZ") > 0 ? qEnvironmentVariableIntValue("JP_FUZZ") : 6)
+                                    : (qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 12);
+            const int steps = qEnvironmentVariableIntValue("JW_FUZZ_STEPS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_STEPS") : (mixed ? 40 : 70);
+            for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
+                auto doc = open(original);
+                QVERIFY(doc);
+                ++seedsRun;
+                std::mt19937 rng(seed + (mixed ? 1000u : 0u));
+                auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
+                QTextCursor c(doc->story());
+                QTextDocumentFragment held;
+                QStringList log;
+                QString lastDump;
+                auto fail = [&](const QString &what, const QString &detail) {
+                    failing.insert((mixed ? QStringLiteral("mixed ") : QString()) + QString::number(seed));
+                    if (failed[what]++ == 0) example[what] = QStringLiteral("%1seed %2: %3 | last: %4").arg(mixed ? "mixed " : "").arg(seed).arg(detail.left(260), log.mid(std::max<qsizetype>(0, log.size() - 5)).join(QStringLiteral(" , ")));
+                    if (qEnvironmentVariableIsSet("JW_FUZZ_DUMP")) qInfo("seed %d: %s: %s\nlast: %s\nBEFORE THE LAST COMMAND:\n%s\nAFTER:\n%s", int(seed), qPrintable(what), qPrintable(detail), qPrintable(log.mid(std::max<qsizetype>(0, log.size() - 5)).join(QStringLiteral(" , "))), qPrintable(lastDump), qPrintable(layoutDump(*doc)));
                 };
-                bool one = false;   // (a command that is one step to undo)
-                switch (op) {
-                case 0: place(); typeText(*doc, c, QStringLiteral("word ")); break;
-                case 1: place(); insertParagraph(*doc, c); break;
-                case 2: case 3: case 5: case 6:
-                    if (pick(3) == 0 && selectCells()) {
-                        if (op == 2) insertTableRow(*doc, c, pick(2));
-                        else if (op == 3) insertTableColumn(*doc, c, pick(2));
-                        else if (op == 5) deleteTableRows(*doc, c);
-                        else deleteTableColumns(*doc, c);
-                    } else {
-                        tableCommand(*doc, c, op == 2 ? 0 : op == 3 ? 1 : op == 5 ? 3 : 4, pick);
-                    }
-                    one = true;
-                    break;
-                case 4: tableCommand(*doc, c, 2, pick); break;
-                case 7: tableCommand(*doc, c, 5, pick); one = true; break;
-                case 8: selectSome(100); removeSelection(*doc, c); one = true; break;
-                case 9: selectSome(100000); removeSelection(*doc, c); one = true; break;
-                case 10: place(); deleteBack(*doc, c, false); break;
-                case 11: place(); deleteForward(*doc, c, false); break;
-                case 12: selectSome(200); held = selectionFragment(c); break;
-                case 13: place(); pasteFragment(*doc, c, held); one = true; break;
-                case 14: doc->story()->undo(); break;
-                case 15: doc->story()->redo(); break;
-                case 16: selectSome(300); applyParagraphStyle(*doc, c, pick(2) ? QStringLiteral("Heading2") : QStringLiteral("Normal")); one = true; break;
-                case 17: selectSome(200); toggleBold(*doc, c); one = true; break;
-                case 18: selectSome(200); setAlignment(*doc, c, pick(2) ? Qt::AlignRight : Qt::AlignHCenter); one = true; break;
-                case 19: place(); insertPageBreak(*doc, c); break;
-                case 20: selectSome(150); toggleList(*doc, c, pick(2)); one = true; break;
-                case 21: if (placeInACell(*doc, c, pick)) typeText(*doc, c, QStringLiteral("typed in a cell with words")); break;
-                case 22: if (selectCells()) removeSelection(*doc, c); one = true; break;
-                default: if (placeInACell(*doc, c, pick)) insertTab(*doc, c, true); break;
-                }
-                log << QStringLiteral("%1@%2").arg(QLatin1String(names[op])).arg(c.position());
-                const QString what = QLatin1String(names[op]);
-                // The paginator that was told of the edits has the pages and the rows' heights that a new one finds.
+                static const char *const names[] = {"type", "enter", "insertRow", "insertCol", "tab", "delRow", "delCol", "delTable", "removeSel", "bigSel", "backspace", "delete", "copy", "paste", "undo", "redo",
+                                                    "style", "bold", "align", "pageBreak", "list", "typeInCell", "removeAcross", "shiftTab", "typeNoted", "sectionBreak", "pageSetup", "headerSwap"};
                 if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
-                    fail(QStringLiteral("layout differs from a new paginator's after ") + what, d);
-                    break;
+                    fail(QStringLiteral("layout differs from a new paginator's as the file is opened"), d);
+                    continue;
                 }
-                {
-                    QString err;
-                    const QByteArray zip = doc->toDocx(&err);
-                    if (zip.isEmpty()) { fail(QStringLiteral("not written"), err); break; }
-                    if (const QStringList strict = rt::strictProblems(zip, original); !strict.isEmpty()) { fail(QStringLiteral("saved file after %1: ").arg(what) + strict.first().left(120), strict.join(QLatin1Char(';'))); break; }
+                auto selectCells = [&] {   // (from a place in one cell to a place in another)
+                    QVector<QTextBlock> cells;
+                    for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                        if (cellKeyOf(b)) cells << b;
+                    if (cells.isEmpty()) return false;
+                    const QTextBlock a = cells[pick(int(cells.size()))], z = cells[pick(int(cells.size()))];
+                    c.setPosition(a.position() + pick(a.length()));
+                    c.setPosition(z.position() + pick(z.length()), QTextCursor::KeepAnchor);
+                    return true;
+                };
+                for (int step = 0; step < steps; ++step) {
+                    const int op = pick(mixed ? 28 : 24);
+                    const QString before = storyState(*doc);
+                    lastDump = qEnvironmentVariableIsSet("JW_FUZZ_DUMP") ? layoutDump(*doc) : QString();
+                    auto place = [&] { c.setPosition(pick(doc->story()->characterCount() - 1)); };
+                    auto selectSome = [&](int most) {
+                        const int a = pick(doc->story()->characterCount() - 1), len = pick(most);
+                        c.setPosition(a);
+                        c.setPosition(std::min(a + len, doc->story()->characterCount() - 1), QTextCursor::KeepAnchor);
+                    };
+                    bool one = false;   // (a command that is one step to undo)
+                    switch (op) {
+                    case 0: place(); typeText(*doc, c, QStringLiteral("word ")); break;
+                    case 1: place(); insertParagraph(*doc, c); break;
+                    case 2: case 3: case 5: case 6:
+                        if (pick(3) == 0 && selectCells()) {
+                            if (op == 2) insertTableRow(*doc, c, pick(2));
+                            else if (op == 3) insertTableColumn(*doc, c, pick(2));
+                            else if (op == 5) deleteTableRows(*doc, c);
+                            else deleteTableColumns(*doc, c);
+                        } else {
+                            tableCommand(*doc, c, op == 2 ? 0 : op == 3 ? 1 : op == 5 ? 3 : 4, pick);
+                        }
+                        one = true;
+                        break;
+                    case 4: tableCommand(*doc, c, 2, pick); break;
+                    case 7: tableCommand(*doc, c, 5, pick); one = true; break;
+                    case 8: selectSome(100); removeSelection(*doc, c); one = true; break;
+                    case 9: selectSome(mixed ? 1500 : 100000); removeSelection(*doc, c); one = true; break;
+                    case 10: place(); deleteBack(*doc, c, false); break;
+                    case 11: place(); deleteForward(*doc, c, false); break;
+                    case 12: selectSome(200); held = selectionFragment(c); break;
+                    case 13: place(); pasteFragment(*doc, c, held); one = true; break;
+                    case 14: doc->story()->undo(); break;
+                    case 15: doc->story()->redo(); break;
+                    case 16: selectSome(300); applyParagraphStyle(*doc, c, pick(2) ? QStringLiteral("Heading2") : QStringLiteral("Normal")); one = true; break;
+                    case 17: selectSome(200); toggleBold(*doc, c); one = true; break;
+                    case 18: selectSome(200); setAlignment(*doc, c, pick(2) ? Qt::AlignRight : Qt::AlignHCenter); one = true; break;
+                    case 19: place(); insertPageBreak(*doc, c); break;
+                    case 20: selectSome(150); toggleList(*doc, c, pick(2)); one = true; break;
+                    case 21: if (placeInACell(*doc, c, pick)) typeText(*doc, c, QStringLiteral("typed in a cell with words")); break;
+                    case 22: if (selectCells()) removeSelection(*doc, c); one = true; break;
+                    case 23: if (placeInACell(*doc, c, pick)) insertTab(*doc, c, true); break;
+                    case 24: {   // typing in a paragraph, or a cell, that cites a note
+                        QVector<QTextBlock> noted;
+                        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                            for (auto it = b.begin(); !it.atEnd(); ++it)
+                                if (it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("footnote:"))) {
+                                    noted << b;
+                                    break;
+                                }
+                        if (!noted.isEmpty()) {
+                            const QTextBlock b = noted[pick(int(noted.size()))];
+                            c.setPosition(b.position() + pick(b.length()));
+                            typeText(*doc, c, QStringLiteral("noted words "));
+                        }
+                        break;
+                    }
+                    case 25: place(); insertSectionBreak(*doc, c); break;
+                    case 26: {   // a section's page setup: whether its first page has a header of its own, how far the header and the footer are from the edge, the margins
+                        const int index = pick(doc->sectionCount());
+                        wml::SectionProps props = doc->sectionProps(index);
+                        switch (pick(4)) {
+                        case 0: props.titlePg = !props.titlePg; break;
+                        case 1: props.header = 360 + 360 * pick(5); break;
+                        case 2: props.top = 720 + 360 * pick(4); break;
+                        default: props.footer = 360 + 360 * pick(5); props.bottom = 720 + 360 * pick(3); break;
+                        }
+                        doc->setSectionProps(index, props);
+                        break;
+                    }
+                    default: {   // the headers a section names swapped for other parts (the odd pages' for the even pages', the third section's for the first page's)
+                        const int index = pick(doc->sectionCount());
+                        wml::SectionProps props = doc->sectionProps(index);
+                        bool swapped = false;
+                        for (wml::RawChild &child : props.extra) {
+                            if (!child.xml.contains("headerReference")) continue;
+                            for (const auto &pair : {std::make_pair("rIdheader1", "rIdheader3"), std::make_pair("rIdheader3", "rIdheader1"), std::make_pair("rIdheader4", "rIdheader2"), std::make_pair("rIdheader2", "rIdheader4")})
+                                if (!swapped && child.xml.contains(pair.first)) {
+                                    child.xml.replace(pair.first, pair.second);
+                                    swapped = true;
+                                }
+                        }
+                        if (swapped) doc->setSectionProps(index, props);
+                        break;
+                    }
+                    }
+                    log << QStringLiteral("%1@%2").arg(QLatin1String(names[op])).arg(c.position());
+                if (qEnvironmentVariableIsSet("JW_FUZZ_PAGES")) log.last() += QStringLiteral("(%1)").arg(doc->pager().pageCount());
+                    const QString what = QLatin1String(names[op]);
+                    // The paginator that was told of the edits has the pages and the rows' heights that a new one finds.
+                    if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
+                        fail(QStringLiteral("layout differs from a new paginator's after ") + what, d);
+                        break;
+                    }
+                    if (!mixed) {
+                        QString err;
+                        const QByteArray zip = doc->toDocx(&err);
+                        if (zip.isEmpty()) { fail(QStringLiteral("not written"), err); break; }
+                        if (const QStringList strict = rt::strictProblems(zip, original); !strict.isEmpty()) { fail(QStringLiteral("saved file after %1: ").arg(what) + strict.first().left(120), strict.join(QLatin1Char(';'))); break; }
+                    }
                     if (step % 4 != 3) continue;
-                    auto back = WriteDoc::fromDocx(zip, &err);
-                    if (!back) { fail(QStringLiteral("does not open again"), err); break; }
-                    if (documentXml(back->toDocx()) != documentXml(zip)) fail(QStringLiteral("the second save differs"), QString());
-                    QString a = plain(*doc), b = plain(*back);
-                    a.remove(QChar::ObjectReplacementCharacter);
-                    b.remove(QChar::ObjectReplacementCharacter);
-                    if (a != b) fail(QStringLiteral("what opens again has other text"), QString());
-                }
-                // What was done undoes, and does again, and the pages follow both.
-                if (one && op != 14 && op != 15) {
-                    const QString after = storyState(*doc);
-                    if (after != before) {
-                        int undone = 0;
-                        while (undone < 8 && doc->story()->isUndoAvailable() && storyState(*doc) != before) {
-                            doc->story()->undo();
-                            ++undone;
-                        }
-                        if (storyState(*doc) != before) {
-                            fail(QStringLiteral("undo of %1 does not give the story back").arg(what), QString());
-                            break;
-                        }
-                        if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
-                            fail(QStringLiteral("layout differs from a new paginator's after undoing ") + what, d);
-                            break;
-                        }
-                        for (int i = 0; i < undone; ++i) doc->story()->redo();
-                        if (storyState(*doc) != after) {
-                            fail(QStringLiteral("redo of %1 does not do it again").arg(what), QString());
-                            break;
-                        }
-                        if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
-                            fail(QStringLiteral("layout differs from a new paginator's after redoing ") + what, d);
-                            break;
+                    if (!mixed) {
+                        QString err;
+                        const QByteArray zip = doc->toDocx(&err);
+                        auto back = WriteDoc::fromDocx(zip, &err);
+                        if (!back) { fail(QStringLiteral("does not open again"), err); break; }
+                        if (documentXml(back->toDocx()) != documentXml(zip)) fail(QStringLiteral("the second save differs"), QString());
+                        QString a = plain(*doc), b = plain(*back);
+                        a.remove(QChar::ObjectReplacementCharacter);
+                        b.remove(QChar::ObjectReplacementCharacter);
+                        if (a != b) fail(QStringLiteral("what opens again has other text"), QString());
+                    }
+                    // What was done undoes, and does again, and the pages follow both.
+                    if (one && op != 14 && op != 15) {
+                        const QString after = storyState(*doc);
+                        if (after != before) {
+                            int undone = 0;
+                            while (undone < 8 && doc->story()->isUndoAvailable() && storyState(*doc) != before) {
+                                doc->story()->undo();
+                                ++undone;
+                            }
+                            if (storyState(*doc) != before) {
+                                fail(QStringLiteral("undo of %1 does not give the story back").arg(what), QString());
+                                break;
+                            }
+                            if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
+                                fail(QStringLiteral("layout differs from a new paginator's after undoing ") + what, d);
+                                break;
+                            }
+                            for (int i = 0; i < undone; ++i) doc->story()->redo();
+                            if (storyState(*doc) != after) {
+                                fail(QStringLiteral("redo of %1 does not do it again").arg(what), QString());
+                                break;
+                            }
+                            if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
+                                fail(QStringLiteral("layout differs from a new paginator's after redoing ") + what, d);
+                                break;
+                            }
                         }
                     }
                 }
+        
+                if (qEnvironmentVariableIsSet("JW_FUZZ_TRACE")) qInfo("%sseed %u: %d pages; %s", mixed ? "mixed " : "", seed, doc->pager().pageCount(), qPrintable(log.join(QLatin1Char(' '))));
             }
         }
         QStringList report;
         for (auto it = failed.cbegin(); it != failed.cend(); ++it) report << QStringLiteral("%1: %2 times\n  %3").arg(it.key()).arg(it.value()).arg(example.value(it.key()));
-        if (qEnvironmentVariableIsSet("JW_FUZZ_COUNTS")) qInfo("table fuzz: %d of %d seeds failed:\n%s", int(failing.size()), seeds, qPrintable(report.join(QLatin1Char('\n'))));
-        QVERIFY2(failed.isEmpty(), qPrintable(QStringLiteral("%1 of %2 seeds failed:\n%3").arg(failing.size()).arg(seeds).arg(report.join(QLatin1Char('\n')))));
+        if (qEnvironmentVariableIsSet("JW_FUZZ_COUNTS")) qInfo("table fuzz: %d of %d seeds failed:\n%s", int(failing.size()), seedsRun, qPrintable(report.join(QLatin1Char('\n'))));
+        QVERIFY2(failed.isEmpty(), qPrintable(QStringLiteral("%1 of %2 seeds failed:\n%3").arg(failing.size()).arg(seedsRun).arg(report.join(QLatin1Char('\n')))));
+    }
+
+    // ---- tables with the notes, headers and footers, and sections of a file (the two waves of JeffWrite together)
+
+    static QByteArray refTo(int id) { return "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; }
+    static QByteArray plainP(const QByteArray &text, const QByteArray &after = QByteArray(), const QByteArray &pPr = QByteArray())
+    {
+        return "<w:p>" + (pPr.isEmpty() ? QByteArray() : "<w:pPr>" + pPr + "</w:pPr>") + "<w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r>" + after + "</w:p>";
+    }
+    static QByteArray wordsOf(const QByteArray &first, int count)
+    {
+        QByteArray out = first;
+        for (int i = 0; i < count; ++i) out += " word" + QByteArray::number(i);
+        return out;
+    }
+    // A footnotes part of the notes given (an Id and a text each).
+    static QByteArray notesPart(const QList<std::pair<int, QByteArray>> &notes)
+    {
+        QByteArray out = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>";
+        for (const auto &n : notes)
+            out += "<w:footnote w:id=\"" + QByteArray::number(n.first) + "\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> " + n.second + "</w:t></w:r></w:p></w:footnote>";
+        return out + "</w:footnotes>";
+    }
+    // A section's properties: a page of `w` by `h` twenty-ths of a point with `margin` on every side (header and footer 18 points from the edge), the references and break
+    // type that come before the page's size, and the elements that come after its margins (columns, a first page of its own).
+    static QByteArray sectionXml(int w, int h, int margin, const QByteArray &refs = QByteArray(), const QByteArray &type = QByteArray(), const QByteArray &after = QByteArray())
+    {
+        const QByteArray m = QByteArray::number(margin);
+        return "<w:sectPr>" + refs + type + "<w:pgSz w:w=\"" + QByteArray::number(w) + "\" w:h=\"" + QByteArray::number(h) + "\"/><w:pgMar w:top=\"" + m + "\" w:right=\"" + m + "\" w:bottom=\"" + m + "\" w:left=\"" + m +
+               "\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/>" + after + "</w:sectPr>";
+    }
+    static QByteArray tableOfRows(int rows, int columns, int width, const std::function<QByteArray(int, int)> &cell)
+    {
+        QByteArray out;
+        for (int r = 0; r < rows; ++r) {
+            QByteArray cells;
+            for (int c = 0; c < columns; ++c) cells += cellX(cell(r, c), QByteArray(), width);
+            out += rowX(cells);
+        }
+        return tableX(out, columns, width);
+    }
+    // How many rows the tables of the made pages show in all (a row shown in parts on two pages counts once).
+    static int rowsShown(flow::Paginator &pg)
+    {
+        std::set<std::pair<const void *, int>> rows;
+        for (int k = 0; k < pg.pageCount(); ++k)
+            if (const auto m = pg.materialize(k))
+                for (const auto &t : m->tables)
+                    for (int r = t->firstRow; r < t->endRow; ++r) rows.insert({t->layout.get(), r});
+        return int(rows.size());
+    }
+
+    // A note cited in the paragraph before a table, one cited in a cell of it, and one in the text after it, in a file (each alone, then the three together): each is on the
+    // page whose lines cite it, below the rows, at the number its reference has.
+    void aFilesNotesAroundATableAreOnThePagesThatCiteThem_data()
+    {
+        QTest::addColumn<bool>("before");
+        QTest::addColumn<bool>("cell");
+        QTest::addColumn<bool>("after");
+        QTest::newRow("in the paragraph before the table") << true << false << false;
+        QTest::newRow("in a cell") << false << true << false;
+        QTest::newRow("in the text after the table") << false << false << true;
+        QTest::newRow("all three") << true << true << true;
+    }
+
+    void aFilesNotesAroundATableAreOnThePagesThatCiteThem()
+    {
+        QFETCH(bool, before);
+        QFETCH(bool, cell);
+        QFETCH(bool, after);
+        const QByteArray body = plainP(wordsOf("Opening", 40)) + plainP(wordsOf("Second", 30)) + plainP("The paragraph before the table", (before ? refTo(2) : QByteArray()) + "<w:r><w:t> and its end.</w:t></w:r>") +
+                                tableOfRows(60, 2, 1500, [&](int r, int c) { return cell && c == 1 && r == 33 ? plainP("row 33 cites", refTo(3)) : cellP("row " + QByteArray::number(r) + " col " + QByteArray::number(c)); }) +
+                                plainP("The paragraph after the table", (after ? refTo(4) : QByteArray()) + "<w:r><w:t> and its end.</w:t></w:r>") + plainP(wordsOf("Last", 20));
+        const QByteArray notes = notesPart({{2, "ALPHA note of the paragraph before the table"}, {3, wordsOf("BETA", 25)}, {4, wordsOf("GAMMA", 8)}});
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 4);
+        QMap<QString, int> pageOf;
+        for (int k = 0; k < pages; ++k)
+            for (const QString &id : audit::citedNotes(pg, doc->story(), k)) pageOf[id] = k;
+        QCOMPARE(int(pageOf.size()), int(before) + int(cell) + int(after));
+        if (before && cell && after)
+            QVERIFY2(pageOf["fn2"] < pageOf["fn3"] && pageOf["fn3"] < pageOf["fn4"], qPrintable(QStringLiteral("the notes are on the pages %1 %2 %3").arg(pageOf["fn2"]).arg(pageOf["fn3"]).arg(pageOf["fn4"])));
+        const QString bad = audit::problems(pg, doc->story(), {{"fn2", "ALPHA"}, {"fn3", "BETA"}, {"fn4", "GAMMA"}});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        QCOMPARE(rowsShown(pg), 60);
+    }
+
+    // The first page, the even pages, and the odd ones have headers and footers of other heights, over a table that runs across many pages: its rows stay in the text area
+    // that they leave on each, none over the footer, and a page holds as many rows as its own area has room for.
+    void aFilesTableRowsStayInTheBodyThatItsHeadersAndFootersLeave()
+    {
+        const QByteArray refs = "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:headerReference w:type=\"first\" r:id=\"rIdheader2\"/><w:headerReference w:type=\"even\" r:id=\"rIdheader3\"/>"
+                                "<w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:footerReference w:type=\"first\" r:id=\"rIdfooter2\"/><w:footerReference w:type=\"even\" r:id=\"rIdfooter3\"/>";
+        auto lines = [](const char *name, int n) {
+            QList<QByteArray> out;
+            for (int i = 1; i <= n; ++i) out << "<w:r><w:t>" + QByteArray(name) + " " + QByteArray::number(i) + "</w:t></w:r>";
+            return out;
+        };
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", lines("ODD HEAD", 2))}, {QStringLiteral("/word/header2.xml"), headerPart("hdr", lines("FIRST HEAD", 1))},
+                                              {QStringLiteral("/word/header3.xml"), headerPart("hdr", lines("EVEN HEAD", 5))}, {QStringLiteral("/word/footer1.xml"), headerPart("ftr", lines("ODD FOOT", 1))},
+                                              {QStringLiteral("/word/footer2.xml"), headerPart("ftr", lines("FIRST FOOT", 3))}, {QStringLiteral("/word/footer3.xml"), headerPart("ftr", lines("EVEN FOOT", 4))}};
+        const QByteArray body = plainP("Before the table") + tableOfRows(90, 2, 1500, [](int r, int c) { return r % 7 == 3 ? cellP("row " + QByteArray::number(r) + " col " + QByteArray::number(c)) + cellP("a second line") : cellP("row " + QByteArray::number(r) + " col " + QByteArray::number(c)); }) +
+                                plainP("After the table");
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, refs, QByteArray(), "<w:titlePg/>"), parts, "<w:evenAndOddHeaders/>"));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 6);
+        QSet<int> heights;
+        for (int k = 0; k < pages; ++k) heights << int(std::lround(pg.page(k).content.height() * 10));
+        QVERIFY2(heights.size() >= 3, "the pages' text areas are of three heights (the first page's, the odd pages', the even pages')");
+        const QString bad = audit::problems(pg, doc->story());
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const QString want = k == 0 ? QStringLiteral("FIRST") : (k + 1) % 2 == 0 ? QStringLiteral("EVEN") : QStringLiteral("ODD");
+            const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box")), foots = audit::itemsWith(*page, QStringLiteral("flow-footer-box"));
+            QVERIFY2(heads.size() == 1 && foots.size() == 1, qPrintable(QStringLiteral("page %1 has %2 headers and %3 footers").arg(k).arg(heads.size()).arg(foots.size())));
+            QVERIFY2(audit::storyOf(*page, heads[0]).startsWith(want + QStringLiteral(" HEAD")), qPrintable(QStringLiteral("page %1: %2").arg(k).arg(audit::storyOf(*page, heads[0]))));
+            QVERIFY2(audit::storyOf(*page, foots[0]).startsWith(want + QStringLiteral(" FOOT")), qPrintable(QStringLiteral("page %1: %2").arg(k).arg(audit::storyOf(*page, foots[0]))));
+            // The rows end above the footer, and the page is as full as its room lets it be.
+            if (!page->tables.isEmpty()) {
+                const auto &last = page->tables.last();
+                QVERIFY2(last->rect().bottom() <= foots[0]->rect.top() + 0.05, qPrintable(QStringLiteral("page %1: rows end at %2, the footer begins at %3").arg(k).arg(last->rect().bottom()).arg(foots[0]->rect.top())));
+                const auto next = k + 1 < pages ? pg.materialize(k + 1) : nullptr;
+                if (next && !next->tables.isEmpty() && next->tables.first()->firstRow == last->endRow)
+                    QVERIFY2(last->rect().bottom() + next->tables.first()->heightOf(last->endRow) > pg.page(k).content.bottom() + 0.05, qPrintable(QStringLiteral("page %1 leaves room for the next row").arg(k)));
+            }
+        }
+        QCOMPARE(rowsShown(pg), 90);
+    }
+
+    // A continuous section of two columns with a table in it: it begins below the text of the section before, the table is inside a column and goes on in the next, and the
+    // note cited above it, in the first column, and the header and footer keep to their places.
+    void aFilesTableInAContinuousTwoColumnSectionIsInsideItsColumn()
+    {
+        const QByteArray refs = "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/>";
+        const QByteArray one = sectionXml(6000, 8000, 720, refs);
+        const QByteArray two = sectionXml(6000, 8000, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
+        const QByteArray body = plainP(wordsOf("One", 20)) + plainP("end of the first section", QByteArray(), one) + plainP(wordsOf("Two", 5)) + plainP("The paragraph that cites a note", refTo(2)) +
+                                tableOfRows(70, 2, 900, [](int r, int c) { return cellP("row " + QByteArray::number(r) + " col " + QByteArray::number(c)); }) + plainP("After the table");
+        auto doc = open(makeDocxWithParts(body, two, {{QStringLiteral("/word/footnotes.xml"), notesPart({{2, wordsOf("COLNOTE", 12)}})}, {QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEADER</w:t></w:r>"})},
+                                                       {QStringLiteral("/word/footer1.xml"), headerPart("ftr", {"<w:r><w:t>FOOTER A</w:t></w:r>", "<w:r><w:t>FOOTER B</w:t></w:r>"})}}));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 2);
+        QCOMPARE(doc->sectionCount(), 2);
+        const flow::Section &sec = doc->flow().section(1);
+        QCOMPARE(sec.columnCount(), 2);
+        double split = 0;
+        for (const auto &l : pg.lines(0))
+            if (l.frame == 0) split = std::max(split, l.rect.bottom());
+        QVERIFY(split > 0);
+        const double top = pg.page(0).content.top();
+        int fragments = 0;
+        for (int k = 0; k < pages; ++k) {
+            const auto m = pg.materialize(k);
+            QVERIFY(m);
+            for (const auto &t : m->tables) {
+                const QRectF r = t->rect();
+                bool inAColumn = false;
+                for (int col = 0; col < sec.columnCount(); ++col) {
+                    const QRectF c = sec.columnRect(col);
+                    inAColumn |= r.left() >= c.left() - 6 && r.right() <= c.right() + 0.1;   // (a table's edge is left of its text by the margin of its cells: 5.4 points)
+                }
+                QVERIFY2(inAColumn, qPrintable(QStringLiteral("page %1: the table at %2 is not inside a column of the section (%3 and %4)").arg(k).arg(audit::rectText(r), audit::rectText(sec.columnRect(0)), audit::rectText(sec.columnRect(1)))));
+                if (k == 0) QVERIFY2(r.top() >= top + split - 0.1, qPrintable(QStringLiteral("page 0: the table begins at %1, the section before it ends at %2").arg(r.top()).arg(top + split)));
+                ++fragments;
+            }
+        }
+        QVERIFY(fragments >= 3);
+        const auto first = pg.materialize(0);
+        QVERIFY2(first->tables.size() == 2, qPrintable(QString::number(first->tables.size())));
+        QVERIFY(first->tables[1]->rect().left() > first->tables[0]->rect().right() - 0.1);
+        QVERIFY2(std::abs(first->tables[1]->rect().top() - (top + split)) < 0.1, qPrintable(QStringLiteral("the table's first part is at %1, its second at %2, the columns begin at %3")
+                                                                                              .arg(audit::rectText(first->tables[0]->rect()), audit::rectText(first->tables[1]->rect())).arg(top + split)));
+        QCOMPARE(rowsShown(pg), 70);
+        const QString bad = audit::problems(pg, doc->story(), {{"fn2", "COLNOTE"}});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // A note longer than the pages, cited from a cell: it goes on over pages of its own, which are made and drawn, and the end of it is on the last of them.
+    void aFilesNoteLongerThanThePageCitedFromACellHasPagesOfItsOwn()
+    {
+        const QByteArray body = plainP("Opening paragraph.") + tableOfRows(6, 2, 1500, [](int r, int c) { return c == 1 && r == 2 ? plainP("row 2 cites", refTo(2)) : cellP("row " + QByteArray::number(r) + " col " + QByteArray::number(c)); }) +
+                                plainP("Tail one.") + plainP("Tail two.") + plainP("Tail three, which cites a short note.", refTo(3)) + plainP("Tail four.") + plainP("Tail five.");
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/footnotes.xml"), notesPart({{2, wordsOf("LONGNOTE", 700)}, {3, "SHORTNOTE says little"}})}}));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        int noteOnly = 0;
+        QString drawn;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY2(page, qPrintable(QStringLiteral("page %1 of %2 isn't made").arg(k).arg(pages)));
+            if (pg.lines(k).isEmpty()) {
+                ++noteOnly;
+                QVERIFY2(!page->doc->pages[0]->items.empty(), qPrintable(QStringLiteral("page %1 of notes alone has nothing drawn").arg(k)));
+            }
+            for (const auto &item : page->doc->pages[0]->items) drawn += audit::storyOf(*page, item.get()) + QLatin1Char('\n');
+        }
+        QVERIFY2(noteOnly > 0, qPrintable(QStringLiteral("%1 pages, none of notes alone").arg(pages)));
+        QVERIFY2(drawn.contains(QStringLiteral("word699")), "the end of the long note is drawn");
+        QVERIFY2(drawn.contains(QStringLiteral("SHORTNOTE")), "the short note is drawn");
+        QCOMPARE(rowsShown(pg), 6);
+        const QString bad = audit::problems(pg, doc->story(), {{"fn2", "LONGNOTE"}, {"fn3", "SHORTNOTE"}});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // A row that goes over page breaks in a file whose headers and footers take room from the text: every paragraph of its cells is found on the page that shows the part of
+    // the row it is in.
+    void aFilesPositionsInARowThatGoesOverPageBreaksAreOnThePagesThatShowThem()
+    {
+        const QByteArray refs = "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/>";
+        QByteArray tall;
+        for (int i = 0; i < 140; ++i) tall += cellP("line " + QByteArray::number(i) + " of the tall cell");
+        const QByteArray body = plainP("Before the table") + tableX(rowX(cellX(cellP("first"), QByteArray(), 1500) + cellX(cellP("row"), QByteArray(), 1500)) + rowX(cellX(cellP("tall"), QByteArray(), 1500) + cellX(tall, QByteArray(), 1500)) +
+                                                                  rowX(cellX(cellP("last"), QByteArray(), 1500) + cellX(cellP("row"), QByteArray(), 1500)), 2, 1500) + plainP("After the table");
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, refs), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>H1</w:t></w:r>", "<w:r><w:t>H2</w:t></w:r>", "<w:r><w:t>H3</w:t></w:r>", "<w:r><w:t>H4</w:t></w:r>"})},
+                                                                                {QStringLiteral("/word/footer1.xml"), headerPart("ftr", {"<w:r><w:t>F1</w:t></w:r>", "<w:r><w:t>F2</w:t></w:r>", "<w:r><w:t>F3</w:t></w:r>"})}}));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        QVERIFY(pg.pageCount() >= 3);
+        QVERIFY2(doc->flow().section(0).content().height() - pg.page(1).content.height() > 10, "the header and the footer take room from the text");
+        const QString bad = audit::splitRowProblems(pg, doc->story());
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        const QString rest = audit::problems(pg, doc->story());
+        QVERIFY2(rest.isEmpty(), qPrintable(rest));
+    }
+
+    // A table under the line heights of a word processor, in a file of the 2003 programs (compatibility mode 11) and one of 2013's and after (15): the stand-in for the table in
+    // the page's text does not shift it or the text after it. The table begins where the text before it ends (and its space after), and the page's text has every line
+    // where the paginator put it. (The two modes differ in where a table's left edge is: a table's first cell has its text at the margin in the first.)
+    void aFilesTableIsNotShiftedByItsPlaceholderUnderProcessorLineHeights()
+    {
+        struct Case { const char *name; QByteArray spacing; };
+        const Case cases[] = {{"auto 1.15, 12 before, 8 after", "<w:spacing w:before=\"240\" w:after=\"160\" w:line=\"276\" w:lineRule=\"auto\"/>"},
+                              {"exactly 20, none after", "<w:spacing w:before=\"0\" w:after=\"0\" w:line=\"400\" w:lineRule=\"exact\"/>"},
+                              {"at least 30, 5 after", "<w:spacing w:after=\"100\" w:line=\"600\" w:lineRule=\"atLeast\"/>"},
+                              {"single, 6 after", "<w:spacing w:after=\"120\" w:line=\"240\" w:lineRule=\"auto\"/>"},
+                              {"a border below, 6 after", "<w:pBdr><w:bottom w:val=\"single\" w:sz=\"8\" w:space=\"3\" w:color=\"auto\"/></w:pBdr><w:spacing w:after=\"120\"/>"}};
+        double edge[2] = {0, 0};
+        for (const int mode : {11, 15})
+            for (const Case &cs : cases) {
+                const QByteArray settings = "<w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"" + QByteArray::number(mode) + "\"/></w:compat>";
+                const QByteArray body = plainP(wordsOf("First", 25)) + plainP(wordsOf("The last paragraph before the table", 12), QByteArray(), cs.spacing) +
+                                        tableOfRows(4, 2, 2000, [](int r, int c) { return cellP("row " + QByteArray::number(r) + " col " + QByteArray::number(c)); }) +
+                                        plainP("After the table", QByteArray(), "<w:spacing w:line=\"360\" w:lineRule=\"auto\"/>") + plainP(wordsOf("Last", 40));
+                auto doc = open(makeDocxWithParts(body, sectionXml(7000, 9000, 1000), {}, settings));
+                QVERIFY(doc);
+                flow::Paginator &pg = doc->pager();
+                const QString what = QStringLiteral("mode %1, %2").arg(mode).arg(QLatin1String(cs.name));
+                QVERIFY2(pg.pageCount() >= 1, qPrintable(what));
+                const auto lines = pg.lines(0);
+                int firstRow = 0;
+                while (firstRow < lines.size() && !cellKeyOf(doc->story()->findBlock(lines[firstRow].pos))) ++firstRow;
+                QVERIFY2(firstRow > 0 && firstRow + 4 <= lines.size(), qPrintable(what));
+                const double after = doc->story()->findBlock(lines[firstRow - 1].pos).blockFormat().bottomMargin();
+                QVERIFY2(std::abs(lines[firstRow - 1].rect.bottom() + std::max(0.0, after) - lines[firstRow].rect.top()) < 0.05, qPrintable(what + ": the table's top and the end of the text before it"));
+                const auto page = pg.materialize(0);
+                QVERIFY(page && page->tables.size() == 1);
+                QVERIFY2(std::abs(page->tables[0]->rect().top() - pg.page(0).content.top() - lines[firstRow].rect.top()) < 0.05, qPrintable(what + ": the table is drawn where its rows are"));
+                const QString bad = audit::placementProblems(pg, doc->flow(), 0);
+                QVERIFY2(bad.isEmpty(), qPrintable(what + QStringLiteral(": ") + bad));
+                if (&cs == &cases[0]) edge[mode == 11 ? 0 : 1] = page->tables[0]->rect().left() - pg.page(0).content.left();
+            }
+        QVERIFY2(edge[0] < edge[1] - 1, qPrintable(QStringLiteral("the table's left edge is %1 from the margin in mode 11, %2 in mode 15").arg(edge[0]).arg(edge[1])));
+    }
+
+    // A footer with PAGE and NUMPAGES, in a file whose table spans pages: each page shows its number and the count, and the pages made after rows are put in show the new count.
+    void aFilesPageFieldsInAFooterAreRightForATableThatSpansPages()
+    {
+        const QByteArray footer = headerPart("ftr", {"<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>1</w:t></w:r></w:fldSimple><w:r><w:t xml:space=\"preserve\"> of </w:t></w:r>"
+                                                       "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>1</w:t></w:r></w:fldSimple>",
+                                                       "<w:r><w:t>A second line of the footer</w:t></w:r>"});
+        const QByteArray refs = "<w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/>";
+        const QByteArray body = plainP("Before the table") + tableOfRows(100, 2, 1500, [](int r, int c) { return cellP("row " + QByteArray::number(r) + " col " + QByteArray::number(c)); }) + plainP("After the table");
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, refs), {{QStringLiteral("/word/footer1.xml"), footer}}));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        auto checkPages = [&](const QString &when) -> QString {
+            const int pages = pg.pageCount();
+            for (int k = 0; k < pages; ++k) {
+                const auto page = pg.materialize(k);
+                if (!page) return QStringLiteral("%1: page %2 is not made").arg(when).arg(k);
+                const auto foots = audit::itemsWith(*page, QStringLiteral("flow-footer-box"));
+                if (foots.size() != 1) return QStringLiteral("%1: page %2 has %3 footers").arg(when).arg(k).arg(foots.size());
+                FieldContext ctx;
+                ctx.doc = page->doc.get();
+                if (ctx.resolve(QStringLiteral("page")) != QString::number(k + 1)) return QStringLiteral("%1: page %2 shows the number %3").arg(when).arg(k).arg(ctx.resolve(QStringLiteral("page")));
+                if (ctx.resolve(QStringLiteral("pages")) != QString::number(pages)) return QStringLiteral("%1: page %2 shows %3 pages, the file has %4").arg(when).arg(k).arg(ctx.resolve(QStringLiteral("pages"))).arg(pages);
+                if (!page->showsTotal || page->pageTotal != pages) return QStringLiteral("%1: page %2 is made with the total %3 (it shows it: %4), the file has %5").arg(when).arg(k).arg(page->pageTotal).arg(page->showsTotal).arg(pages);
+            }
+            return audit::problems(pg, doc->story());
+        };
+        const int before = pg.pageCount();
+        QVERIFY(before >= 5);
+        QString bad = checkPages(QStringLiteral("as opened"));
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        QTextCursor c(doc->story());
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (cellKeyOf(b)) {
+                c.setPosition(b.position());
+                break;
+            }
+        for (int i = 0; i < 30; ++i) insertTableRow(*doc, c, true);
+        QVERIFY(pg.pageCount() > before);
+        bad = checkPages(QStringLiteral("after the rows"));
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        flow::Paginator fresh(&doc->flow());
+        bad = audit::differenceFromFresh(pg, fresh);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
     }
 
     void randomEditingKeepsTheDocumentWhole()
