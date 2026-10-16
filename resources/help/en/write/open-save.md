@@ -13,11 +13,11 @@ Press **Ctrl+O**, or click **File > Open**. Click **Browse** to pick a file. Jef
 
 - **.docx** is a document.
 - **.dotx** is a template. A template opens as a new document made from it, so the template stays as it is.
-- **.docm** and **.dotm** open too. JeffWrite does not keep their macros.
+- **.docm** and **.dotm** open too. JeffWrite does not keep their macros. It tells you so the first time you save such a document, and it saves a .docx file.
 
 The **Open** page also lists the documents you opened or saved lately. Click one to open it. Right-click one to pin it to the top of the list, or take it off the list.
 
-If a file has parts that JeffWrite can't show yet, it keeps them. See [Welcome to JeffWrite](start). If part of a file can't be read at all, JeffWrite tells you what it left out.
+If a file has parts that JeffWrite can't show yet, it keeps them. See [Welcome to JeffWrite](start). If part of a file can't be read at all, JeffWrite tells you what it left out. It then does not save over that file: Save asks for a new name, so that the original keeps what the copy lost.
 
 ## Save a document
 

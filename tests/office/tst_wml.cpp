@@ -592,6 +592,7 @@ private Q_SLOTS:
         QVERIFY(readDocx(Made{longBody, {}, {}, {}}.build(), &d, &err, &notes));
         QCOMPARE(d.body.size(), kMaxParagraphs);
         QCOMPARE(notes.notes.size(), 1);
+        QVERIFY(notes.leftOut);   // (a document with its end left out is not to be written over the file it came from)
         // Sizes a file states are held to what a page can have, and a style that is its own ancestor is no loop.
         Made sizes;
         sizes.body = R"(<w:p><w:pPr><w:ind w:left="99999999999"/></w:pPr><w:r><w:rPr><w:sz w:val="9999999"/></w:rPr><w:t>x</w:t></w:r></w:p><w:sectPr><w:pgSz w:w="2000000000" w:h="1"/><w:cols w:num="999999"/></w:sectPr>)";
