@@ -363,7 +363,6 @@ void paintPlain(QPainter *p, const Document &d, LayoutCache *cache, const Output
     s.ctx.cache = cache ? cache : &own;
     s.ctx.opt.output = true;
     s.ctx.opt.textOutput = output;
-    s.ctx.opt.plainLetters = output == TextOutput::Pdf;
     const QVector<int> slides = outputSlides(d, o);
     p->save();
     switch (o.layout) {
