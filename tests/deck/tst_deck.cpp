@@ -25009,34 +25009,6 @@ private Q_SLOTS:
         }
     }
 
-    // A text box that is flipped reads upright: the program turns its text with the box and never mirrors it, a half turn when the box is
-    // flipped top to bottom. The caption of a photo, flipped top to bottom and turned a half turn, is upright; one only flipped left to right
-    // is as it was; one only flipped top to bottom is a half turn.
-    void importBinaryTextOfAFlippedBoxReadsUpright()
-    {
-        auto turn = [&](int degrees) { return pptRec(0xF00B, le(0x0004, 2) + le(quint32(degrees) << 16, 4), 1, 3); };
-        auto box = [&](quint32 id, const QString &text, quint32 flags, const QByteArray &props) {
-            return pptShape(id, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)), 1000, 200, 5000, 1500, props, flags);
-        };
-        // Flags: a text box (0xA00) with flip left to right (0x40) or top to bottom (0x80).
-        const QByteArray shapes = box(0x440, QStringLiteral("Over"), 0xA80, turn(-180)) + box(0x441, QStringLiteral("Side"), 0xA40, QByteArray()) + box(0x442, QStringLiteral("Up"), 0xA80, QByteArray());
-        QString err;
-        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
-        QVERIFY2(d, qPrintable(err));
-        QHash<QString, const TextItem *> byText;
-        for (const auto &it : d->pages[0]->items)
-            if (it->type() == ItemType::Text) {
-                const auto *t = static_cast<const TextItem *>(it.get());
-                byText.insert(d->storyDoc(t->storyId)->toPlainText(), t);
-            }
-        for (const QString &text : {QStringLiteral("Over"), QStringLiteral("Side"), QStringLiteral("Up")}) QVERIFY2(byText.contains(text), qPrintable(text));
-        auto upright = [&](const char *text) { return !byText.value(QString::fromLatin1(text))->flipH && !byText.value(QString::fromLatin1(text))->flipV; };
-        QVERIFY(upright("Over") && upright("Side") && upright("Up"));
-        QCOMPARE(byText.value(QStringLiteral("Over"))->rotation, 0.0);
-        QCOMPARE(byText.value(QStringLiteral("Side"))->rotation, 0.0);
-        QCOMPARE(byText.value(QStringLiteral("Up"))->rotation, 180.0);
-    }
-
     // The pentagon arrow and the chevron of an old presentation point at a quarter of their width unless the shape says (its first value, in
     // 21600ths of the width, is where the point starts: 16200 by default), where the preset's own measure is a share of the shorter side. A
     // box 350 by 187.5 points: the point is 87.5 points, 0.4667 of the shorter side; set to 10800 it is 175, 0.9333.
@@ -25386,6 +25358,37 @@ private Q_SLOTS:
         const QImage bad = drawMetafileWith(hostile);
         QVERIFY(!bad.isNull());
         QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // A text box with a quarter turn that is flipped reads upright, turned the way its box is turned on the page: the box turns and then is flipped
+    // (the item flips and then turns), so a box flipped one way and turned a quarter has its text turned the other quarter, and one flipped top to
+    // bottom has it a half turn more. Flipped both ways it is turned a half turn.
+    void importBinaryFlippedTextBoxKeepsItsQuarterTurn()
+    {
+        auto turn = [&](int degrees) { return pptRec(0xF00B, le(0x0004, 2) + le(quint32(degrees) << 16, 4), 1, 3); };
+        auto box = [&](quint32 id, const QString &text, quint32 flags, const QByteArray &props) {
+            return pptShape(id, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)), 1000, 200, 5000, 1500, props, flags);
+        };
+        // Flags: a text box (0xA00) with flip left to right (0x40) and/or top to bottom (0x80).
+        const QByteArray shapes = box(0x440, QStringLiteral("Over"), 0xA80, turn(180)) + box(0x441, QStringLiteral("Side"), 0xA40, QByteArray()) + box(0x442, QStringLiteral("Up"), 0xA80, QByteArray())
+                                  + box(0x443, QStringLiteral("SideQuarter"), 0xA40, turn(90)) + box(0x444, QStringLiteral("UpQuarter"), 0xA80, turn(90))
+                                  + box(0x445, QStringLiteral("SideBack"), 0xA40, turn(-90)) + box(0x446, QStringLiteral("BothQuarter"), 0xAC0, turn(90));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QHash<QString, const TextItem *> byText;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text) {
+                const auto *t = static_cast<const TextItem *>(it.get());
+                byText.insert(d->storyDoc(t->storyId)->toPlainText(), t);
+            }
+        const QVector<QPair<QString, double>> expected{{"Over", 0}, {"Side", 0}, {"Up", 180}, {"SideQuarter", 270}, {"UpQuarter", 90}, {"SideBack", 90}, {"BothQuarter", 270}};
+        for (const auto &e : expected) {
+            QVERIFY2(byText.contains(e.first), qPrintable(e.first));
+            const TextItem *t = byText.value(e.first);
+            QVERIFY2(!t->flipH && !t->flipV, qPrintable(e.first));
+            QVERIFY2(qAbs(t->rotation - e.second) < 0.01, qPrintable(QStringLiteral("%1 is turned %2, not %3").arg(e.first).arg(t->rotation).arg(e.second)));
+        }
     }
 
     // A slide's line doesn't break after a slash when the text goes on in another format: a slash that ends a run in regular type, followed by a
