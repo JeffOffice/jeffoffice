@@ -28,6 +28,7 @@ public:
 private:
     QCheckBox *m_date, *m_number, *m_footer, *m_skipTitle;
     QLineEdit *m_text;
+    deck::FooterOptions m_start;   // as it was given: what the dialog doesn't show (a date's text, the field's code, ...) is given back as it was
     bool m_all = false;
 };
 

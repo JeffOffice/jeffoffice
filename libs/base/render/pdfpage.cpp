@@ -14,6 +14,7 @@
 #include <QRegion>
 #include <QTransform>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 
@@ -168,6 +169,61 @@ QByteArray PdfDocument::extractPage(int page) const
         if (!FPDF_SaveAsCopy(one, &w, FPDF_NO_INCREMENTAL)) out.clear();
     }
     FPDF_CloseDocument(one);
+    return out;
+}
+
+QString PdfDocument::text(int page) const
+{
+    QMutexLocker lock(&pdfiumLock());
+    if (!d->doc || page < 0 || page >= FPDF_GetPageCount(d->doc)) return {};
+    FPDF_PAGE pg = FPDF_LoadPage(d->doc, page);
+    if (!pg) return {};
+    QString out;
+    if (FPDF_TEXTPAGE tp = FPDFText_LoadPage(pg)) {
+        if (const int n = FPDFText_CountChars(tp); n > 0) {
+            QVector<unsigned short> chars(n + 1);
+            const int got = FPDFText_GetText(tp, 0, n, chars.data());
+            out = QString::fromUtf16(reinterpret_cast<const char16_t *>(chars.constData()), std::max(0, got - 1));
+        }
+        FPDFText_ClosePage(tp);
+    }
+    FPDF_ClosePage(pg);
+    return out;
+}
+
+QStringList PdfDocument::lines(int page) const
+{
+    QMutexLocker lock(&pdfiumLock());
+    QStringList out;
+    if (!d->doc || page < 0 || page >= FPDF_GetPageCount(d->doc)) return out;
+    FPDF_PAGE pg = FPDF_LoadPage(d->doc, page);
+    if (!pg) return out;
+    if (FPDF_TEXTPAGE tp = FPDFText_LoadPage(pg)) {
+        QString line;
+        double baseline = 0, height = 0;
+        for (int i = 0, n = FPDFText_CountChars(tp); i < n; ++i) {
+            const unsigned u = FPDFText_GetUnicode(tp, i);
+            if (u == '\r' || u == '\n') continue;
+            double x = 0, y = 0, l = 0, r = 0, b = 0, t = 0;
+            // A letter whose baseline is more than half its height off the line's (the line's first letter's, or its own if taller) is on another
+            // line; spaces PDFium makes up have no place.
+            if (u != ' ' && !FPDFText_IsGenerated(tp, i) && FPDFText_GetCharOrigin(tp, i, &x, &y) && FPDFText_GetCharBox(tp, i, &l, &r, &b, &t) && t > b) {
+                if (!line.isEmpty() && std::abs(y - baseline) > 0.5 * std::max(height, t - b)) {
+                    out << line;
+                    line.clear();
+                }
+                if (line.isEmpty()) {
+                    baseline = y;
+                    height = t - b;
+                }
+            }
+            if (u < 0x10000) line += QChar(char16_t(u));
+            else line += QString::fromUcs4(reinterpret_cast<const char32_t *>(&u), 1);
+        }
+        if (!line.isEmpty()) out << line;
+        FPDFText_ClosePage(tp);
+    }
+    FPDF_ClosePage(pg);
     return out;
 }
 

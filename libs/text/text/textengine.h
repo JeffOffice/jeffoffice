@@ -56,6 +56,11 @@ public:
 // unit .pub tracking is measured in; -1 when it isn't one JeffPub knows.
 double originalAverageCharEm(const QString &family, bool bold, bool italic);
 
+// The moment automatic dates and times show: now, unless a tool has set another (setFieldClock, so that a render can be made again at the
+// moment of another). The apps never set one.
+QDateTime fieldNow();
+void setFieldClock(const QDateTime &moment);
+
 struct FieldContext {
     const FieldSource *doc = nullptr;
     int pageNumber = 1;           // 1-based
@@ -64,7 +69,7 @@ struct FieldContext {
     int continuedOnPage = 0, continuedFromPage = 0;
     int nextPage = 0, prevPage = 0;   // pages of the next and previous boxes of a linked chain (0: none)
     QString noteMark;             // a note's number, for the mark that begins its text ("notemark") in a word processor's note
-    QDateTime now = QDateTime::currentDateTime();
+    QDateTime now = fieldNow();
     QString resolve(const QString &code) const;
     // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only if `withClock`: a layout is laid out
     // again when the date or time it shows changes, which fieldValuesKey says (not every minute).
@@ -108,6 +113,9 @@ struct FrameSpec {
     // The paragraphs aren't broken to the frame's width (a slide's text box that doesn't wrap): each is one line, against the frame as its
     // alignment says, and out of it where it is longer than the frame. One frame, one column.
     bool noWrap = false;
+    // The block of the frame's text (its widest line, with its bullets) is set in the middle of the frame, the lines in it aligned as their
+    // paragraphs say: a slide's text box whose text is anchored "centered". One column.
+    bool centerBlock = false;
     FieldContext ctx;
 };
 
@@ -117,6 +125,9 @@ struct LayoutEnv {
     double fontScale = 1.0;
     double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
+    // The text is set without ligatures (a slide's, as the presentation program sets it: a PDF's text then names each letter the page draws, where a
+    // ligature's glyph stands for several letters that a reader that copies the text can't name, and the lines break as the screen's do).
+    bool noLigatures = false;
     // Lines as the presentation program sets a slide's text, as probed in it (a text box per case, line positions read back through its object
     // model and the pictures it draws; 20 fonts, text shrunk to fit and not):
     //  - A single line is 1.2 times the largest text on it whatever the font, a line's extra spacing goes above it, the paragraph at the top
@@ -402,6 +413,7 @@ private:
     QVector<double> m_frameY;
     QVector<double> m_used;
     bool m_overflow = false;
+    bool m_blankPast = false;   // blank paragraphs ran past the end of a frame that lets text run over (they move centered text, but are no overflow)
     LayoutEnv m_env;
     double m_trailingAfter = 0;
     double m_trailingRoom = 0;

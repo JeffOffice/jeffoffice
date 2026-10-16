@@ -10,7 +10,9 @@
 
 namespace jp {
 
-QByteArray pageSvg(const PaintContext &ctx, int pageIndex, const QString &title);
+// With `withText`, each text is also in the drawing as a text element with no ink (its letters are outlines): what draws the drawing into a PDF can
+// then say the words as text, that can be found and copied.
+QByteArray pageSvg(const PaintContext &ctx, int pageIndex, const QString &title, bool withText = false);
 bool writePageSvg(const PaintContext &ctx, int pageIndex, const QString &path, const QString &title, QString *error);
 
 } // namespace jp

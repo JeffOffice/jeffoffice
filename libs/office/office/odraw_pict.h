@@ -17,7 +17,8 @@ namespace jp::office {
 // `work` is what is left of the work all the pictures of one file may do: this
 // takes what it does from it, and draws nothing when none is left. (The work of
 // a picture of a real presentation is some tens of thousands of the million units
-// one picture may do.)
+// one picture may do.) The strings it drew are kept with the image, as its text
+// under kDrawnWordsKey (drawnwords.h), for a PDF to say them as text.
 QImage odrawPictImage(const QByteArray &pict, qint64 *work = nullptr);
 
 

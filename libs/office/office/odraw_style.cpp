@@ -236,6 +236,11 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault, con
                 recolored = true;
             }
         }
+        // A picture set to be recolored as a picture, and that has the color to recolor it in (0x011A), is of two colors: that and the back color's.
+        if (!recolored && type != 1 && ctx.duotoned && p.flag(kFillStyleFlags, 0x40, false) && p.has(0x011A)) {
+            const QString two = ctx.duotoned(image, colorProperty(p, ctx, 0x011A), backColor);
+            if (!two.isEmpty()) image = two;
+        }
         if (ctx.adjusted && (pictureBrightness(p) != 0 || pictureContrast(p) != 0)) {
             const QString changed = ctx.adjusted(image, pictureBrightness(p), pictureContrast(p));
             if (!changed.isEmpty()) image = changed;

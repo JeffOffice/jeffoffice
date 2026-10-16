@@ -205,6 +205,7 @@ QJsonObject TextItem::toJson() const
     if (autofit) o["autofit"] = int(autofit);
     if (vertical) o["vertical"] = true;
     if (noWrap) o["noWrap"] = true;
+    if (centerBlock) o["ctrBlock"] = true;
     if (continuedOn) o["contOn"] = true;
     if (!hyphenate) o["hyph"] = false;
     if (std::abs(hyphenZone - 18) > 1e-6) o["hyphZone"] = hyphenZone;
@@ -228,6 +229,7 @@ void TextItem::fromJson(const QJsonObject &o)
     autofit = Autofit(o["autofit"].toInt());
     vertical = o["vertical"].toBool();
     noWrap = o["noWrap"].toBool();
+    centerBlock = o["ctrBlock"].toBool();
     continuedOn = o["contOn"].toBool();
     hyphenate = o["hyph"].toBool(true);
     hyphenZone = o["hyphZone"].toDouble(18);
@@ -460,6 +462,12 @@ QJsonObject ShapeItem::toJson() const
     // Overlapping outlines fill by winding (as SVG does by default).
     if (!customPath.isEmpty() && customPath.fillRule() == Qt::WindingFill) o["winding"] = true;
     if (noWrap) o["noWrap"] = true;
+    if (centerBlock) o["ctrBlock"] = true;
+    if (shrinks) {
+        o["shrinks"] = true;
+        if (fitScale != 1.0) o["fitScale"] = fitScale;
+        if (fitLineCut != 0) o["fitLineCut"] = fitLineCut;
+    }
     if (!storyId.isEmpty()) o["story"] = storyId;
     // A shape with no text yet keeps where its text will sit, when that isn't where a new shape's goes.
     static const ShapeItem plain;
@@ -482,6 +490,10 @@ void ShapeItem::fromJson(const QJsonObject &o)
     insets = marginsFrom(o["insets"], insets);
     valign = VAlign(o["valign"].toInt(int(VAlign::Middle)));
     noWrap = o["noWrap"].toBool();
+    centerBlock = o["ctrBlock"].toBool();
+    shrinks = o["shrinks"].toBool();
+    fitScale = o["fitScale"].toDouble(1.0);
+    fitLineCut = o["fitLineCut"].toDouble();
 }
 
 // ---------- LineItem ----------

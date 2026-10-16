@@ -9,6 +9,8 @@
 #include <QRectF>
 #include <QRegion>
 #include <QSizeF>
+#include <QString>
+#include <QStringList>
 
 #include <memory>
 
@@ -35,6 +37,12 @@ public:
     // PDFium's raster is drawn there instead.
     void play(QPainter *p, int page, const QRectF &target) const;
     double rasterShare(int page) const;   // how much of the page play() draws from the raster, 0-1
+    // The page's text as a reader that copies it gets it (the letters each glyph says it stands for, in the order the page draws them); empty
+    // for a page with none, or past the last.
+    QString text(int page) const;
+    // The same by lines: the letters on one baseline, in the order the page draws them (what a reader that copies them gets as a line, where a
+    // text's lines are not told apart by its own line breaks).
+    QStringList lines(int page) const;
 
     static bool looksLikePdf(const QByteArray &bytes);
     // The document for these bytes, kept for the next ask (a few at a time)
