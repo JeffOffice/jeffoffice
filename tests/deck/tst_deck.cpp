@@ -32057,6 +32057,38 @@ private Q_SLOTS:
         QVERIFY2(zs >= 100 && zs <= 1000, qPrintable(QString::number(zs)));
     }
 
+    // Text the picture doesn't show isn't said: that a style sheet hides (display none, hidden visibility) or sizes to nothing, text in a nested drawing
+    // or in a group another element uses, and (a style sheet with a rule this can't read that sets them) any text at all, as what shows can't be told.
+    // The text that shows, sized by the style sheet, is said.
+    void exportPdfLeavesOutSvgTextThePictureDoesNotShow()
+    {
+        QString err;
+        auto say = [&](const QByteArray &svg) {
+            auto d = deck::newPresentation();
+            addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 200));
+            const QByteArray pdf = pdfOf(*d, &err);
+            return pdf.isEmpty() ? QString() : pdfText(pdf);
+        };
+        const QByteArray svg =
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">"
+            "<style>.gone{display:none} #ghost{visibility:hidden} .tiny{font-size:0.1px} .cap{font-size:20px}</style>"
+            "<text class=\"gone\" x=\"10\" y=\"20\" font-size=\"20\" font-family=\"Arimo\">CssGone</text>"
+            "<text id=\"ghost\" x=\"10\" y=\"45\" font-size=\"20\" font-family=\"Arimo\">CssGhost</text>"
+            "<text class=\"tiny\" x=\"10\" y=\"70\" font-size=\"20\" font-family=\"Arimo\">CssTiny</text>"
+            "<text class=\"cap\" x=\"10\" y=\"95\" font-family=\"Arimo\">CssSized</text>"
+            "<svg x=\"150\" y=\"10\" width=\"100\" height=\"50\" viewBox=\"0 0 10 5\"><text x=\"1\" y=\"4\" font-size=\"3\" font-family=\"Arimo\">InsideNested</text></svg>"
+            "<g id=\"again\"><text x=\"10\" y=\"125\" font-size=\"20\" font-family=\"Arimo\">UsedTwice</text></g><use xlink:href=\"#again\" x=\"100\"/>"
+            "<text x=\"10\" y=\"185\" font-size=\"20\" font-family=\"Arimo\">PlainWords</text></svg>";
+        const QString text = say(svg);
+        QVERIFY2(!text.isEmpty(), qPrintable(err));
+        QVERIFY2(text.contains(QStringLiteral("CssSized")) && text.contains(QStringLiteral("PlainWords")), qPrintable(text));
+        for (const char *hidden : {"CssGone", "CssGhost", "CssTiny", "InsideNested", "UsedTwice"}) QVERIFY2(!text.contains(QLatin1String(hidden)), qPrintable(QLatin1String(hidden) + QStringLiteral(": ") + text));
+        // A rule of a kind this doesn't read (a descendant) that hides: what shows can't be told, so no text is said.
+        const QString unsure = say("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\"><style>g text{display:none}</style>"
+                                   "<g><text x=\"10\" y=\"30\" font-size=\"20\" font-family=\"Arimo\">Descendant</text></g><text x=\"10\" y=\"90\" font-size=\"20\" font-family=\"Arimo\">Elsewhere</text></svg>");
+        QVERIFY2(!unsure.contains(QStringLiteral("Descendant")) && !unsure.contains(QStringLiteral("Elsewhere")), qPrintable(unsure));
+    }
+
     // A PDF page breaks its lines where the screen does: the presentation's text is laid out without ligatures wherever it is set (the presentation
     // program applies none), so a ligature-rich paragraph in a tight box has the same lines in the PDF as on the screen, at any width of the box.
     void exportPdfBreaksLinesAsTheScreenDoes()

@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QPainterPathStroker>
 #include <QRegularExpression>
+#include <QSet>
 #include <QSvgRenderer>
 #include <QTransform>
 #include <QXmlStreamReader>
@@ -945,19 +946,57 @@ QString firstFamily(const QString &list)
     return name.trimmed();
 }
 
-// The look an element's attributes (and its style) say, over the one it is in.
-TextLook lookOf(const QHash<QString, QString> &attrs, TextLook look)
+// Whether a style sheet's rule is for an element of this name with these attributes.
+bool ruleFits(const Rule &rule, const QString &name, const QHash<QString, QString> &attrs, const QStringList &classes)
+{
+    if (!rule.element.isEmpty() && rule.element != name) return false;
+    if (!rule.id.isEmpty() && rule.id != attrs.value(QStringLiteral("id"))) return false;
+    for (const QString &c : rule.classes)
+        if (!classes.contains(c)) return false;
+    return true;
+}
+
+// Whether a style sheet has a rule this reader can't tell the elements of that sets what shows of a text (its display, its visibility, its size): a
+// selector of a kind it doesn't read (an attribute, a pseudo-class), or a rule in a media query.
+bool unreadableRules(QString css)
+{
+    static const QRegularExpression comments(QStringLiteral("/\\*.*?\\*/"), QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression block(QStringLiteral("([^{}]+)\\{([^}]*)\\}"));
+    static const QRegularExpression simple(QStringLiteral("^([a-zA-Z][\\w-]*|\\*)?((?:[.#][\\w-]+)*)$"));
+    static const QRegularExpression showing(QStringLiteral("display|visibility|font-size|font:"));
+    css.remove(comments);
+    if (css.contains('@') && css.contains(showing)) return true;
+    for (auto it = block.globalMatch(css); it.hasNext();) {
+        const auto b = it.next();
+        if (!b.captured(2).contains(showing)) continue;
+        for (QString sel : b.captured(1).split(',')) {
+            sel = sel.trimmed().split(QRegularExpression(QStringLiteral("[\\s>+~]+"))).last();
+            if (sel.isEmpty() || !simple.match(sel).hasMatch()) return true;
+        }
+    }
+    return false;
+}
+
+// The look an element's attributes, the style sheet's rules for it, and its style say, over the one it is in.
+TextLook lookOf(const QString &name, const QHash<QString, QString> &attrs, TextLook look, const QVector<Rule> &rules)
 {
     const bool parentHidden = look.hidden;
     Decls d;
     for (const QString &p : {QStringLiteral("font-family"), QStringLiteral("font-size"), QStringLiteral("font-weight"), QStringLiteral("font-style"),
                              QStringLiteral("text-anchor"), QStringLiteral("display"), QStringLiteral("visibility")})
         if (attrs.contains(p)) d << qMakePair(p, attrs.value(p));
+    if (!rules.isEmpty()) {
+        const QStringList classes = attrs.value(QStringLiteral("class")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        for (const Rule &rule : rules)
+            if (ruleFits(rule, name, attrs, classes)) d += rule.decls;
+    }
     d += declarations(attrs.value(QStringLiteral("style")));
     for (const auto &[k, v] : d) {
         if (k == QLatin1String("font-family")) look.family = firstFamily(v);
         else if (k == QLatin1String("font-size")) {
-            if (const double size = length(v, look.size, 0); size > 0) look.size = size;
+            // (A size of nothing shows nothing.)
+            if (const double size = length(v, look.size, -1); size == 0) look.hidden = true;
+            else if (size > 0) look.size = size;
         } else if (k == QLatin1String("font-weight")) look.bold = v == QLatin1String("bold") || v == QLatin1String("bolder") || v.toInt() >= 600;
         else if (k == QLatin1String("font-style")) look.italic = v == QLatin1String("italic") || v == QLatin1String("oblique");
         else if (k == QLatin1String("text-anchor")) look.anchor = v == QLatin1String("middle") ? 0.5 : v == QLatin1String("end") ? 1 : 0;
@@ -986,10 +1025,36 @@ void paintText(const QByteArray &svg, QPainter *p, const QRectF &bounds, const Q
     constexpr int kMostTexts = 5000;
     constexpr qsizetype kMostLetters = 200000;
     if (svg.size() > (8 << 20) || !svg.contains("<text") || bounds.width() <= 0 || bounds.height() <= 0) return;
-    // Elements whose contents are not drawn where they stand.
+    // Elements whose contents are not drawn where they stand, or not as the text in them says (a switch shows one of its parts; a nested drawing
+    // has a box of its own).
     static const QStringList notDrawn = {QStringLiteral("defs"), QStringLiteral("clipPath"), QStringLiteral("mask"), QStringLiteral("pattern"), QStringLiteral("marker"),
                                          QStringLiteral("symbol"), QStringLiteral("style"), QStringLiteral("title"), QStringLiteral("desc"), QStringLiteral("metadata"),
-                                         QStringLiteral("foreignObject"), QStringLiteral("script"), QStringLiteral("filter")};
+                                         QStringLiteral("foreignObject"), QStringLiteral("script"), QStringLiteral("filter"), QStringLiteral("switch"), QStringLiteral("svg")};
+    // The style sheet's rules, and the ids that <use> elements name (what they name is drawn again, somewhere else, perhaps hidden here).
+    QString css;
+    QSet<QString> used;
+    {
+        QXmlStreamReader pre(svg);
+        bool inStyle = false;
+        while (!pre.atEnd()) {
+            pre.readNext();
+            if (pre.isStartElement()) {
+                inStyle = pre.name() == QLatin1String("style");
+                if (pre.name() == QLatin1String("use")) {
+                    QString href = pre.attributes().value(QStringLiteral("href")).toString();
+                    if (href.isEmpty()) href = pre.attributes().value(xlinkNs, QStringLiteral("href")).toString();
+                    if (href.startsWith('#') && used.size() < 10000) used.insert(href.mid(1));
+                }
+            } else if (pre.isEndElement()) {
+                inStyle = false;
+            } else if (inStyle && (pre.isCharacters() || pre.isCDATA()) && css.size() < (1 << 20)) {
+                css += pre.text();
+            }
+        }
+    }
+    // A style sheet that sets what shows in a way this can't read leaves it unsaid which text shows: none is said.
+    if (unreadableRules(css)) return;
+    const QVector<Rule> rules = styleSheet(css);
     struct Run {
         QString text;
         TextLook look;
@@ -1025,6 +1090,15 @@ void paintText(const QByteArray &svg, QPainter *p, const QRectF &bounds, const Q
                 if (ans.isEmpty() || ans == xlinkNs) attrs.insert(a.name().toString(), a.value().toString());
                 else if (ans == xmlNs) attrs.insert(QStringLiteral("xml:") + a.name().toString(), a.value().toString());
             }
+            if (!root && !used.isEmpty() && used.contains(attrs.value(QStringLiteral("id")))) {
+                r.skipCurrentElement();
+                continue;
+            }
+            // Text along a path isn't where its text element says.
+            if (inText && name == QLatin1String("textPath")) {
+                current.text.clear();
+                current.look.hidden = true;
+            }
             if (root) {
                 // The drawing's box goes onto the bounds, as the renderer stretches it.
                 if (name != QLatin1String("svg")) return;
@@ -1043,13 +1117,13 @@ void paintText(const QByteArray &svg, QPainter *p, const QRectF &bounds, const Q
                 root = false;
                 TextLook base;
                 base.family = QStringLiteral("sans-serif");
-                stack << lookOf(attrs, base);
+                stack << lookOf(name, attrs, base, rules);
                 // (The root's own transform is not drawn: a drawing's box is what is stretched.)
                 stack.last().transform = QTransform();
                 continue;
             }
             const TextLook parent = stack.isEmpty() ? TextLook() : stack.last();
-            TextLook look = lookOf(attrs, parent);
+            TextLook look = lookOf(name, attrs, parent, rules);
             if (name == QLatin1String("text") && !inText) {
                 inText = true;
                 current = Run{QString(), look, QPointF(firstNumber(attrs.value(QStringLiteral("x"))), firstNumber(attrs.value(QStringLiteral("y"))))};
@@ -1067,7 +1141,8 @@ void paintText(const QByteArray &svg, QPainter *p, const QRectF &bounds, const Q
                 inText = false;
             }
         } else if (inText && (r.isCharacters() || r.isCDATA())) {
-            if (current.text.size() < kMaxDrawnWordChars * 4) current.text += r.text();
+            // (Not what a part of the text that is hidden says, a tspan.)
+            if (current.text.size() < kMaxDrawnWordChars * 4 && !(!stack.isEmpty() && stack.last().hidden)) current.text += r.text();
         }
     }
     if (inText) flush();
