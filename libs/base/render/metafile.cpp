@@ -44,6 +44,7 @@ struct Obj {
     double height = 12;
     double escapement = 0;
     bool symbol = false;
+    quint8 charset = 0;
 };
 
 struct DC {
@@ -53,6 +54,7 @@ struct DC {
     double fontHeight = 12;
     double escapement = 0;
     bool symbolFont = false;
+    quint8 charset = 0;
     QColor textColor = Qt::black, bkColor = Qt::white;
     int bkMode = 2;
     Qt::FillRule fill = Qt::OddEvenFill;
@@ -235,6 +237,19 @@ private:
         if (stroke && m_dc.pen.style() != Qt::NoPen) m_p->strokePath(pp, m_dc.pen);
     }
 
+    // A rectangle filled by the brush, or black or white: the raster operations that need the pixels beneath are left out.
+    void patBlt(const QRectF &rect, quint32 rop)
+    {
+        if (rop != 0x00F00021 && rop != 0x00000042 && rop != 0x00FF0062) return;
+        QPainterPath pp;
+        pp.addRect(rect.normalized());
+        QBrush keep = m_dc.brush;
+        if (rop == 0x00000042) m_dc.brush = QBrush(Qt::black);
+        if (rop == 0x00FF0062) m_dc.brush = QBrush(Qt::white);
+        fillAndStroke(pp, true, false);
+        m_dc.brush = keep;
+    }
+
     QPainterPath polygonPath(const QVector<QPointF> &pts, bool close)
     {
         QPainterPath pp;
@@ -282,7 +297,7 @@ private:
         switch (o.kind) {
         case Obj::Pen: m_dc.pen = o.pen; break;
         case Obj::Brush: m_dc.brush = o.brush; break;
-        case Obj::Font: m_dc.font = o.font; m_dc.fontHeight = o.height; m_dc.escapement = o.escapement; m_dc.symbolFont = o.symbol; break;
+        case Obj::Font: m_dc.font = o.font; m_dc.fontHeight = o.height; m_dc.escapement = o.escapement; m_dc.symbolFont = o.symbol; m_dc.charset = o.charset; break;
         default: break;
         }
     }
@@ -316,6 +331,7 @@ private:
         if (o.height <= 0) o.height = 12;
         o.escapement = escapement / 10.0;
         o.symbol = charset == 2;
+        o.charset = charset;
         return o;
     }
 
@@ -542,6 +558,12 @@ private:
                 m_p->setClipRect(QRectF(QPointF(l, t), QPointF(rt, b)).normalized(), Qt::IntersectClip);
                 break;
             }
+            case 0x061D: {
+                const quint32 rop = a.u32();
+                const double h = a.s16(), w = a.s16(), y = a.s16(), x = a.s16();
+                patBlt(QRectF(x, y, w, h), rop);
+                break;
+            }
             case 0x0B41: case 0x0F43: case 0x0940: {
                 const quint32 rop = a.u32();
                 qint16 srcH = 0, srcW = 0, srcY = 0, srcX = 0, dH, dW, dY, dX;
@@ -574,7 +596,20 @@ private:
             return out;
         }
         QStringDecoder d("windows-1252");
-        return d.isValid() ? d.decode(s) : QString::fromLatin1(s);
+        QString out = d.isValid() ? d.decode(s) : QString::fromLatin1(s);
+        // The letters of the Greek and Cyrillic character sets, which sit where the Western set has others (the equations an equation
+        // editor makes are in Greek-set fonts).
+        if (m_dc.charset == 161 || m_dc.charset == 204) {
+            for (int i = 0; i < s.size() && i < out.size(); ++i) {
+                const uchar c = uchar(s[i]);
+                if (m_dc.charset == 161) {
+                    if ((c >= 0xC1 && c <= 0xFE && c != 0xD2) || c == 0xB8 || c == 0xB9 || c == 0xBA || c == 0xBC || c == 0xBE || c == 0xBF) out[i] = QChar(c + 0x02D0);
+                } else if (c >= 0xC0) {
+                    out[i] = QChar(c + 0x0350);
+                }
+            }
+        }
+        return out;
     }
 
     // ---------------- EMF ----------------
@@ -819,14 +854,7 @@ private:
                     if (type == 77) { cxs = a.s32(); cys = a.s32(); }
                 }
                 if (cbBmi == 0) {
-                    QPainterPath pp; pp.addRect(QRectF(xd, yd, cxd, cyd).normalized());
-                    if (rop == 0x00F00021 || rop == 0x00000042 || rop == 0x00FF0062) {
-                        QBrush keep = m_dc.brush;
-                        if (rop == 0x00000042) m_dc.brush = QBrush(Qt::black);
-                        if (rop == 0x00FF0062) m_dc.brush = QBrush(Qt::white);
-                        fillAndStroke(pp, true, false);
-                        m_dc.brush = keep;
-                    }
+                    patBlt(QRectF(xd, yd, cxd, cyd), rop);
                     break;
                 }
                 if (start + offBmi + cbBmi > a.n || start + offBits + cbBits > a.n) break;
