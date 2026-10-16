@@ -1,0 +1,406 @@
+{
+  "fileKeytip": "F",
+  "quickAccess": [
+    {
+      "cmd": "file.save",
+      "keytip": "1"
+    },
+    {
+      "cmd": "edit.undo",
+      "keytip": "2"
+    },
+    {
+      "cmd": "edit.redo",
+      "keytip": "3"
+    }
+  ],
+  "tabs": [
+    {
+      "name": "Home",
+      "keytip": "H",
+      "groups": [
+        {
+          "name": "Clipboard",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": "edit.paste",
+              "keytip": "V"
+            },
+            {
+              "small": "edit.cut",
+              "keytip": "X"
+            },
+            {
+              "small": "edit.copy",
+              "keytip": "C"
+            }
+          ]
+        },
+        {
+          "name": "Font",
+          "keytip": "ZF",
+          "items": [
+            {
+              "row": [
+                {
+                  "widget": "fontCombo",
+                  "keytip": "FF"
+                },
+                {
+                  "widget": "sizeCombo",
+                  "keytip": "FS"
+                },
+                {
+                  "icon": "fmt.grow",
+                  "keytip": "FG"
+                },
+                {
+                  "icon": "fmt.shrink",
+                  "keytip": "FK"
+                },
+                {
+                  "icon": "fmt.clear",
+                  "keytip": "E"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "icon": "fmt.bold",
+                  "keytip": "1"
+                },
+                {
+                  "icon": "fmt.italic",
+                  "keytip": "2"
+                },
+                {
+                  "icon": "fmt.underline",
+                  "keytip": "3"
+                },
+                {
+                  "icon": "fmt.strike",
+                  "keytip": "4"
+                },
+                {
+                  "icon": "fmt.subscript",
+                  "keytip": "5"
+                },
+                {
+                  "icon": "fmt.superscript",
+                  "keytip": "6"
+                },
+                {
+                  "widget": "textColor",
+                  "keytip": "FC"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.highlight",
+                    "text": "Text Highlight Color",
+                    "icon": "highlighter"
+                  },
+                  "keytip": "I",
+                  "menu": "@highlightColors"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Paragraph",
+          "keytip": "ZP",
+          "launcher": "paragraph",
+          "launcherTip": "Paragraph",
+          "launcherKeytip": "PG",
+          "items": [
+            {
+              "row": [
+                {
+                  "icon": "para.bullets",
+                  "keytip": "U"
+                },
+                {
+                  "icon": "para.numbers",
+                  "keytip": "N"
+                },
+                {
+                  "icon": "para.indentDec",
+                  "keytip": "AO"
+                },
+                {
+                  "icon": "para.indentInc",
+                  "keytip": "AI"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.lineSpacing",
+                    "text": "Line and Paragraph Spacing",
+                    "icon": "chevrons-up-down"
+                  },
+                  "keytip": "K",
+                  "menu": [
+                    "ls.1",
+                    "ls.1.15",
+                    "ls.1.5",
+                    "ls.2",
+                    "ls.2.5",
+                    "ls.3",
+                    "-",
+                    "para.dialog"
+                  ]
+                },
+                {
+                  "icon": "view.marks",
+                  "keytip": "8"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "icon": "fmt.alignLeft",
+                  "keytip": "AL"
+                },
+                {
+                  "icon": "fmt.alignCenter",
+                  "keytip": "AC"
+                },
+                {
+                  "icon": "fmt.alignRight",
+                  "keytip": "AR"
+                },
+                {
+                  "icon": "fmt.justify",
+                  "keytip": "AJ"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Styles",
+          "keytip": "ZL",
+          "items": [
+            {
+              "widget": "styleGallery",
+              "keytip": "L"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Insert",
+      "keytip": "N",
+      "groups": [
+        {
+          "name": "Pages",
+          "keytip": "ZG",
+          "items": [
+            {
+              "large": "insert.pageBreak",
+              "keytip": "BR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Layout",
+      "keytip": "P",
+      "groups": [
+        {
+          "name": "Page Setup",
+          "keytip": "SP",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.margins",
+                "text": "Margins",
+                "icon": "square-dashed"
+              },
+              "keytip": "M",
+              "menu": [
+                "layout.margins.normal",
+                "layout.margins.narrow",
+                "layout.margins.moderate",
+                "layout.margins.wide"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.orientation",
+                "text": "Orientation",
+                "icon": "rotate-cw"
+              },
+              "keytip": "O",
+              "menu": [
+                "layout.portrait",
+                "layout.landscape"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.size",
+                "text": "Size",
+                "icon": "file"
+              },
+              "keytip": "SZ",
+              "menu": "@paperSizes"
+            },
+            {
+              "large": {
+                "id": "ribbon.columns",
+                "text": "Columns",
+                "icon": "columns-2"
+              },
+              "keytip": "J",
+              "menu": [
+                "layout.columns.1",
+                "layout.columns.2",
+                "layout.columns.3"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.breaks",
+                "text": "Breaks",
+                "icon": "separator-horizontal"
+              },
+              "keytip": "B",
+              "menu": [
+                "insert.pageBreak",
+                "layout.sectionBreak"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Paragraph",
+          "keytip": "PA",
+          "launcher": "paragraph",
+          "launcherTip": "Paragraph",
+          "launcherKeytip": "PD",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Indent Left:"
+                },
+                {
+                  "widget": "indentLeft",
+                  "keytip": "IL"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Indent Right:"
+                },
+                {
+                  "widget": "indentRight",
+                  "keytip": "IR"
+                }
+              ]
+            },
+            {
+              "column": true
+            },
+            {
+              "row": [
+                {
+                  "label": "Spacing Before:"
+                },
+                {
+                  "widget": "spaceBefore",
+                  "keytip": "SB"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Spacing After:"
+                },
+                {
+                  "widget": "spaceAfter",
+                  "keytip": "SA"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "View",
+      "keytip": "W",
+      "groups": [
+        {
+          "name": "Views",
+          "keytip": "ZV",
+          "items": [
+            {
+              "large": "view.printLayout",
+              "keytip": "P"
+            }
+          ]
+        },
+        {
+          "name": "Show",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": "view.marks",
+              "keytip": "SM"
+            }
+          ]
+        },
+        {
+          "name": "Zoom",
+          "keytip": "ZZ",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.zoom",
+                "text": "Zoom",
+                "icon": "zoom-in"
+              },
+              "keytip": "Q",
+              "menu": [
+                "zoom.200",
+                "zoom.150",
+                "zoom.100",
+                "zoom.75",
+                "zoom.50",
+                "zoom.25",
+                "zoom.10",
+                "-",
+                "zoom.dialog"
+              ]
+            },
+            {
+              "large": "zoom.100",
+              "keytip": "J"
+            },
+            {
+              "large": "zoom.onePage",
+              "keytip": "1"
+            },
+            {
+              "large": "zoom.multiplePages",
+              "keytip": "2"
+            },
+            {
+              "large": "zoom.pageWidth",
+              "keytip": "I"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # JeffWrite feature list
 
-JeffWrite is the word processor of JeffOffice, modeled on Word in Office 2021: it saves `.docx` by default and opens and saves `.doc`, `.rtf`, and `.odt` too. It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that. This list is the whole job, laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
+JeffWrite is the word processor of JeffOffice, modeled on Word in Office 2021: it saves `.docx` by default and opens and saves `.doc`, `.rtf`, and `.odt` too. Its first version (wave 2 of [the design](../jeffwrite.md), October 16, 2026) is a window with the ribbon, a page view, editing, and `.docx`; `[~]` counts what that version does of an item (the note says what is missing), and `[x]` what the suite already did for every app. This list is the whole job, laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
 Last reviewed October 16, 2026.
 
@@ -31,7 +31,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [x] **first release** Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, nothing that has to be online
 - [~] **first release** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
 - [ ] **first release** OpenDocument text (`.odt`, `.ott`) is opened and saved with the same care as `.docx`, not as an afterthought (details under File formats)
-- [ ] **first release** Nothing in a file is lost: whatever JeffWrite can't edit yet (SmartArt, content-control bindings, custom XML, unknown elements, macros, embedded objects) is kept with the document and written back as it was
+- [~] **first release** Nothing in a file is lost: whatever JeffWrite can't edit yet (SmartArt, content-control bindings, custom XML, unknown elements, macros, embedded objects) is kept with the document and written back as it was
 - [~] **first release** Lines and pages break where Word breaks them in the sample documents, judged against Word's own PDFs of them *(shared: the measuring tools and the metric-compatible fonts built for JeffPub)*
 - [x] **first release** Bundled open fonts, with stand-ins that keep the widths of Calibri, Cambria, Arial, Times New Roman, and Courier New, so a document lays out the same on a computer without Microsoft's fonts
 - [~] **first release** Spelling and hyphenation work offline, in 12 languages, with no cloud service *(shared: the bundled dictionaries in libs/base/text)*
@@ -60,7 +60,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **later** Links to Files: update or break links to other files (LINK and INCLUDETEXT fields)
 
 ### New
-- [ ] **first release** Blank document, using the defaults of the Normal template
+- [~] **first release** Blank document, using the defaults of the Normal template
 - [~] **first release** Template gallery with live previews and categories, starting with a few built-in templates (letter, report, brief, manuscript, newsletter) written by JeffOffice and open-licensed *(shared: JeffPub's New page)*
 - [ ] **1.0** More built-in templates: resumes, cover letters, invoices, flyers, brochures, meeting notes, legal pleadings, and book interiors
 - [ ] **1.0** Save as a template (`.dotx`, `.ott`) and reuse your own under My Templates
@@ -70,7 +70,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 
 ### Open, Save, Save As, and Close
 - [~] **first release** Open `.docx`, `.doc`, `.rtf`, and `.odt` (and `.dotx`, `.dot`, `.ott` templates), from the Recent list with pinning, from Browse, by drag-and-drop, and from the command line *(shared: the recent list and file pages in libs/shell)*
-- [ ] **first release** Save as `.docx` by default; Save As lists every format JeffWrite writes; Ctrl+S, Ctrl+Shift+S, and Close with a prompt to save
+- [~] **first release** Save as `.docx` by default; Save As lists every format JeffWrite writes; Ctrl+S, Ctrl+Shift+S, and Close with a prompt to save
 - [~] **first release** AutoRecover (unsaved work offered again after a crash, cleaned up once saved) *(shared: libs/shell recovery)*
 - [~] **1.0** Backup copy kept on every save *(shared: JeffPub's option)*
 - [ ] **1.0** Save a Copy (keeps working in the original) and Save as Template
@@ -180,7 +180,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 Header, Footer, and Page Number are listed under Header & Footer tools, and Comment under Review.
 
 ### Pages
-- [ ] **first release** Page Break (Ctrl+Enter) and Blank Page *(page breaks: ours 26%, public 38%)*
+- [~] **first release** Page Break (Ctrl+Enter) and Blank Page *(page breaks: ours 26%, public 38%)*
 - [ ] **1.0** Cover Page gallery of built-in designs, Remove Current Cover Page, and saving your own
 
 ### Tables
@@ -244,8 +244,8 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ### Page Setup
 - [~] **first release** Margins: the presets (Normal, Narrow, Moderate, Wide, Mirrored), custom margins, gutter on the left or top, and "Mirror margins" so inside and outside margins swap on facing pages; multiple pages per sheet: normal, mirror margins, 2 pages per sheet, book fold, and reverse book fold; applied to the document, this section, or from this point on *(mirror margins: ours 20% (.docx 40%, .doc and .rtf <1%), public 1%)* *(shared: JeffPub's page setup)*
 - [~] **first release** Orientation and Size: Letter, Legal, A4, A5, B5, Executive, envelopes, and the rest, a custom size, and More Paper Sizes; each section its own orientation *(landscape sections: ours 1%, public 7%)*
-- [ ] **first release** Columns: one to many, presets (two, three, left, right), custom widths and spacing, equal widths, a line between, and "from this point forward"; Column Break *(columns: ours 9% (.docx 16%, .doc and .rtf 2%), public 7%; column breaks: ours 1%, public 2%)*
-- [ ] **first release** Breaks: page, column, and text wrapping; section breaks: next page, continuous, even page, and odd page *(more than one section: ours 24% (.docx 42%, .doc and .rtf 7%), public 28%)*
+- [~] **first release** Columns: one to many, presets (two, three, left, right), custom widths and spacing, equal widths, a line between, and "from this point forward"; Column Break *(columns: ours 9% (.docx 16%, .doc and .rtf 2%), public 7%; column breaks: ours 1%, public 2%)*
+- [~] **first release** Breaks: page, column, and text wrapping; section breaks: next page, continuous, even page, and odd page *(more than one section: ours 24% (.docx 42%, .doc and .rtf 7%), public 28%)*
 - [~] **first release** Hyphenation: none, automatic, or manual, with "hyphenate words in capitals," the hyphenation zone, and a limit on hyphens in a row, in 12 languages; per-paragraph "don't hyphenate" *(automatic hyphenation: ours 2% of his .docx, public n/a (the conversion adds it); POI 6%; shared: libs/base/text hyphenation)*
 - [ ] **first release** The Page Setup dialog: margins and gutter; paper size and source; layout tab with section start, different odd and even pages, different first page, header and footer distance from the edge, vertical alignment of the page (top, center, justified, bottom), line numbers, and borders; applied to a part of the document
 - [ ] **1.0** Line Numbers: continuous, restart each page or section, count by, start at, distance from text, and suppress for a paragraph *(ours 0%, public 1%)*
@@ -351,7 +351,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Collapse and expand headings in the document itself
 - [~] **first release** Zoom: a dialog (percent, page width, text width, whole page, many pages), 100%, One Page, Multiple Pages, Page Width, a slider in the status bar, and Ctrl+wheel *(shared: JeffPub's zoom)*
 - [ ] **1.0** Page movement: vertical or side to side
-- [ ] **first release** Status bar: page x of y, word count, language, proofing errors, tracking, section, line, and column, with the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)*
+- [~] **first release** Status bar: page x of y, word count, language, proofing errors, tracking, section, line, and column, with the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)*
 
 ### Window
 - [~] **1.0** New Window, Arrange All, Switch Windows, View Side by Side with synchronous scrolling, Reset Window Position, and Split (two panes onto one document) *(shared: JeffPub's windows, apart from Split)*
@@ -460,15 +460,15 @@ What a right-click offers depends on what is under the pointer. The commands are
 - [~] **first release** Text input for every script: input methods, dead keys, and the system's emoji and symbol pickers
 
 ### Pagination and sections
-- [ ] **first release** Pages flow from the text: a document is a run of paragraphs and tables laid out into pages by size, margins, columns, floating objects, footnotes, and the keep rules; pages are laid out as needed and in the background, so a long document opens at once and typing never waits for the last page *(the largest of our `.docx` has 26,443 paragraphs and the largest government file 45,013; one in ten of our `.docx` has more than 2,200 paragraphs and one in ten government files more than 1,400)*
+- [~] **first release** Pages flow from the text: a document is a run of paragraphs and tables laid out into pages by size, margins, columns, floating objects, footnotes, and the keep rules; pages are laid out as needed and in the background, so a long document opens at once and typing never waits for the last page *(the largest of our `.docx` has 26,443 paragraphs and the largest government file 45,013; one in ten of our `.docx` has more than 2,200 paragraphs and one in ten government files more than 1,400)*
 - [ ] **first release** Line and page breaks match Word's for the same fonts, in the way JeffPub's match Publisher's *(shared: libs/text metrics and the font-width tables)*
-- [ ] **first release** Sections: each with its own page size and orientation, margins, columns, headers and footers, page-number format and start, vertical alignment, line numbering, and footnote numbering; start types next page, continuous, even page, and odd page *(more than one section: ours 24% (.docx 42%, .doc and .rtf 7%), public 28%; landscape sections: ours 1%, public 7%)*
+- [~] **first release** Sections: each with its own page size and orientation, margins, columns, headers and footers, page-number format and start, vertical alignment, line numbering, and footnote numbering; start types next page, continuous, even page, and odd page *(more than one section: ours 24% (.docx 42%, .doc and .rtf 7%), public 28%; landscape sections: ours 1%, public 7%)*
 - [ ] **first release** Facing pages and mirrored margins: left and right pages swap inside and outside margins and gutter, and a section that starts on an odd or even page gets the blank page it needs *(mirror margins: ours 20% (.docx 40%, .doc and .rtf <1%), public 1%; odd and even headers: ours 20% (.docx 38%, .doc and .rtf <1%), public 5%)*
 - [~] **first release** Columns: equal or unequal widths, a line between, balanced by a continuous section break, a column break, and columns inside text boxes and table cells *(columns: ours 9% (.docx 16%, .doc and .rtf 2%), public 7%; shared: columns in libs/text)*
 - [ ] **first release** Floating pictures, shapes, and text boxes: text wraps around their shape, they are anchored to a paragraph and move with it, and they never push the text out of the page's headers, footers, or notes *(pictures: ours 25% (.docx 12%, .doc and .rtf 39%), public 38%)*
 - [ ] **first release** Frames (paragraphs positioned on the page, which older files use for drop caps, side notes, and captions): laid out where the file puts them and kept, with the Frame dialog to edit them at 1.0 *(frames: ours 1%, public <1%)*
 - [ ] **first release** Tables across pages: rows split or kept whole, header rows repeated, nested tables, and tables wrapped by text; a table in a column or a text box
-- [ ] **first release** Widow and orphan control, keep with next, keep lines together, and page break before, as Word applies them (including the cases where it gives up)
+- [~] **first release** Widow and orphan control, keep with next, keep lines together, and page break before, as Word applies them (including the cases where it gives up)
 - [ ] **1.0** Document grid and East Asian layout: characters per line, lines per page, and vertical pages
 
 ### Notes
@@ -547,10 +547,10 @@ Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs 
 What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again in the original program without a repair message or a visible change.
 
 ### Word `.docx` and `.dotx` (Open XML)
-- [ ] **first release** Open `.docx` from Word 2007 to 2021 (Transitional): body text and every kind of formatting, styles, numbering, sections and page setup, headers and footers, notes, fields with their results, bookmarks, links, tables, pictures, DrawingML shapes and text boxes, legacy VML shapes, equations, charts, content controls, comments, tracked changes, properties, themes, settings, and embedded fonts *(our own `.docx`: 1,056 files)*
-- [ ] **first release** Save `.docx` so that Word opens every file without a repair message, checked on a large collection as JeffPub's `.pub` files were, and the layout matches Word's own
-- [ ] **first release** Round trip keeps what JeffWrite can't edit: SmartArt, 3-D models, custom XML, document variables, the glossary document of building blocks, people and comment extensions, `mc:AlternateContent` choices, and the extension elements of newer Word versions (`w14`, `w15`, `w16`), written back as they were, and untouched parts kept byte for byte
-- [ ] **first release** Open and save templates (`.dotx`) with their styles and building blocks
+- [~] **first release** Open `.docx` from Word 2007 to 2021 (Transitional): body text and every kind of formatting, styles, numbering, sections and page setup, headers and footers, notes, fields with their results, bookmarks, links, tables, pictures, DrawingML shapes and text boxes, legacy VML shapes, equations, charts, content controls, comments, tracked changes, properties, themes, settings, and embedded fonts *(our own `.docx`: 1,056 files)*
+- [~] **first release** Save `.docx` so that Word opens every file without a repair message, checked on a large collection as JeffPub's `.pub` files were, and the layout matches Word's own
+- [~] **first release** Round trip keeps what JeffWrite can't edit: SmartArt, 3-D models, custom XML, document variables, the glossary document of building blocks, people and comment extensions, `mc:AlternateContent` choices, and the extension elements of newer Word versions (`w14`, `w15`, `w16`), written back as they were, and untouched parts kept byte for byte
+- [~] **first release** Open and save templates (`.dotx`) with their styles and building blocks
 - [ ] **1.0** Open and save macro-enabled files (`.docm`, `.dotm`), keeping the macro project untouched and never running it
 - [ ] **1.0** Open encrypted files and save with a password
 - [ ] **later** Open and save the Strict variant of Open XML, and Flat OPC (`.xml`) files
