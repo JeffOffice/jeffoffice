@@ -297,7 +297,7 @@ private:
     void fillColorsMenu(QMenu *menu);
     void fillFontsMenu(QMenu *menu);
     void fillBackgroundsMenu(QMenu *menu, QMenu *root);
-    void changeMasters(const QString &label, const std::function<void(Document &)> &fn);
+    void changeMasters(const QString &label, const std::function<void(Document &)> &fn, const QString &touched = QString());
     void refreshMasterActions();
     void askMasterLayout();
     void addShowParts(struct RibbonParts &parts);

@@ -42,7 +42,7 @@ A **slide master** is the page behind all your slides. It holds the title style,
 
 **Edit it like a slide.** Type in a placeholder, change its font, size, or color, drag it, or resize it. Add a picture, a shape, or a line, such as a logo or a band along the bottom. A picture or shape on a slide master shows on every slide. One on a layout shows on the slides that use that layout. **Format Background** changes the background of the page you are editing.
 
-**Slides follow.** When you change a placeholder on a slide master or a layout, the slides below it change at once. A slide follows when its text looked the way the layout's text did before. Change the title font of the slide master, and every title that had the old font takes the new one. A word or a box you changed by hand on a slide keeps your change.
+**Slides follow.** When you change a placeholder on a slide master or a layout, the slides below it change at once. A slide follows when its text looked the way the layout's text did before. Change the title font of the slide master, and every title that had the old font takes the new one. A word or a box you changed by hand on a slide keeps your change. A slide you give a layout of another slide master takes that slide master's fonts and colors.
 
 **Edit Master**
 
@@ -50,7 +50,7 @@ A **slide master** is the page behind all your slides. It holds the title style,
 - **Insert Layout** adds a layout, named **Custom Layout**, to the slide master you are editing. It starts with a title and the date, footer, and slide number.
 - **Delete** takes away the slide master or layout you are editing. It works only when no slide uses it. When slides do, JeffDeck tells you how many, so you can give them another layout first. A presentation keeps at least one slide master, and a slide master keeps at least one layout.
 - **Rename** changes its name.
-- **Preserve** keeps a slide master or layout in the file even when no slide uses it.
+- **Preserve** keeps a slide master or layout in the file even when no slide uses it. A slide master that a theme made for some slides goes the next time you choose a theme, unless you have changed it here or turned Preserve on.
 
 **Master Layout**
 
