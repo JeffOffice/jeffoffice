@@ -11837,6 +11837,11 @@ private Q_SLOTS:
         QCOMPARE(int(stopsOf({{0x0184, 0xE666}}).size()), 2);
         QCOMPARE(int(stopsOf({{0x0182, 0x8000}}).size()), 2);
         QCOMPARE(int(stopsOf({{0x0184, 0xE666}, {0x019C, 3}}).size()), 9);
+        // An opacity of 100 percent as a writer rounds it (0xFFFF), or just under (0xFF00), is none: the gradient is curved. A little less
+        // (0xFEFF) is a color clear in part.
+        QCOMPARE(int(stopsOf({{0x0182, 0xFFFF}, {0x0184, 0xFFFF}}).size()), 9);
+        QCOMPARE(int(stopsOf({{0x0184, 0xFF00}}).size()), 9);
+        QCOMPARE(int(stopsOf({{0x0184, 0xFEFF}}).size()), 2);
         // Sigma alone eases the position; gamma alone blends in linear light; neither is two colors.
         QVector<GradientStop> st = stopsOf({{0x019C, 2}});
         QCOMPARE(int(st.size()), 9);

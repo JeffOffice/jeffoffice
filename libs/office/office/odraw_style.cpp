@@ -167,8 +167,10 @@ Fill gradientFill(const Props &p, const OdrawContext &ctx, int type, const QColo
         for (int i = int(ramp.size()) - 1; i >= 0; --i) stop(1 - ramp[i].at * a, ramp[i]);
     // The shading curve of two colors: the one the shape names (its writers name gamma and sigma). Where it names none an opaque gradient has
     // gamma and sigma, and one with a color clear in part is straight, as the program draws the old files that never say (its pictures of
-    // one deck's opaque background are curved, and of another's translucent gradients are straight). A list of colors is drawn as it stands.
-    if (!hasList) stops = shaded(stops, p.value(kFillShadeType, opacity < 1 || backOpacity < 1 ? 0 : 3) & 0xF);
+    // one deck's opaque background are curved, and of another's translucent gradients are straight). An opacity of 0xFF00 of 0x10000 or
+    // more counts as none: a writer that rounds 100 percent to 0xFFFF has not made its color clear. A list of colors is drawn as it stands.
+    constexpr double kOpaque = 0xFF00 / 65536.0;
+    if (!hasList) stops = shaded(stops, p.value(kFillShadeType, opacity < kOpaque || backOpacity < kOpaque ? 0 : 3) & 0xF);
     // From the center or along the outline, the first color is the outer one.
     const bool fromCenter = type == 5 || type == 6;
     if (fromCenter) {
