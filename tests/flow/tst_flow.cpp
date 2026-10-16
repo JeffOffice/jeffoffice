@@ -262,6 +262,47 @@ QString splitsLeaveLines(FlowDocument &fd, Paginator &pg, int lines)
     return QString();
 }
 
+// Every character of the story is on exactly one page, in order, and a paragraph's lines follow one another across the pages; empty if so.
+QString coverageProblem(Paginator &pg, FlowDocument &fd)
+{
+    const QString text = fd.story()->toPlainText();
+    const int pages = pg.pageCount();
+    int previousEnd = 0, block = -1, line = -1, lines = 0;
+    auto blank = [&](int from, int to) {
+        for (int p = from; p < to && p < text.size(); ++p)
+            if (!text[p].isSpace() && text[p] != QChar::ParagraphSeparator) return false;
+        return true;
+    };
+    for (int k = 0; k < pages; ++k) {
+        const auto page = pg.lines(k);
+        if (page.isEmpty()) return QStringLiteral("page %1 of %2 has no lines").arg(k).arg(pages);
+        for (const auto &l : page) {
+            if (l.pos < previousEnd) return QStringLiteral("page %1: a line at %2 begins before the one before it ends, at %3 (a line twice)").arg(k).arg(l.pos).arg(previousEnd);
+            if (!blank(previousEnd, l.pos)) return QStringLiteral("page %1: text from %2 to %3 is on no page").arg(k).arg(previousEnd).arg(l.pos);
+            if (block >= 0) {
+                if (l.block == block && l.line != line + 1) return QStringLiteral("page %1: line %2 of a paragraph follows line %3").arg(k).arg(l.line).arg(line);
+                if (l.block != block && (line != lines - 1 || l.line != 0)) return QStringLiteral("page %1: a paragraph is left before its last line, or begins after its first").arg(k);
+            }
+            previousEnd = std::max(previousEnd, l.end);
+            block = l.block;
+            line = l.line;
+            lines = l.lines;
+        }
+    }
+    if (!blank(previousEnd, text.size())) return QStringLiteral("the text after %1 is on no page").arg(previousEnd);
+    if (block >= 0 && line != lines - 1) return QStringLiteral("the last paragraph's last line is on no page");
+    return QString();
+}
+
+// The pages' starts of a paginator, all of them.
+QVector<Paginator::PageStart> startsOf(Paginator &pg)
+{
+    QVector<Paginator::PageStart> v;
+    const int n = pg.pageCount();
+    for (int k = 0; k < n; ++k) v << pg.page(k).start;
+    return v;
+}
+
 // What differs between a page made into a document and the lines the paginator found for it, or nothing.
 QString materializedDiffers(FlowDocument &fd, Paginator &pg, int k, LayoutCache &cache)
 {
@@ -1329,6 +1370,41 @@ private Q_SLOTS:
         QVERIFY2(firstMs < 3000, qPrintable(QString::number(firstMs)));
         QVERIFY2(allMs < 50000, qPrintable(QString::number(allMs)));
         QVERIFY2(worst < 500, qPrintable(QString::number(worst)));
+    }
+
+    // Edits with the pages only partly laid out again between them leave no page as it was: the first edit pushes a line over a page's end, the pages
+    // by it are laid out, the second edit comes before them; the pages after, still as they were before the first, must not be taken as right.
+    void paginatorSettlesAnEditAfterAPartialSettle()
+    {
+        int differ = 0;
+        for (unsigned trial = 0; trial < 40; ++trial) {
+            FlowDocument fd;
+            fillStory(fd.story(), 300, 70 + trial, [](int i, QTextBlockFormat &bf) {
+                bf.setProperty(tp::WidowControl, true);
+                if (i % 9 == 0) bf.setProperty(tp::KeepWithNext, true);
+            }, 10, 90);
+            Paginator pg(&fd);
+            pg.pageCount();
+            const int len = fd.story()->characterCount() - 1;
+            const int p1 = 2000 + int((trial * 7919u) % unsigned(len / 2));
+            {
+                QTextCursor c(fd.story());
+                c.setPosition(p1);
+                c.insertText(QStringLiteral("one more sentence that pushes a line over the page. "));
+            }
+            pg.paginate(pg.pageOfPosition(p1) + 1);   // (not all of it)
+            {
+                QTextCursor c(fd.story());
+                c.setPosition(std::max(0, p1 - 1 - int((trial * 31u) % 200u)));
+                c.insertText(QStringLiteral("x"));
+            }
+            const QVector<Paginator::PageStart> got = startsOf(pg);
+            Paginator fresh(&fd);
+            if (got != startsOf(fresh)) ++differ;
+            const QString bad = coverageProblem(pg, fd);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("trial %1: %2").arg(trial).arg(bad)));
+        }
+        QCOMPARE(differ, 0);
     }
 
     // Several edits before the pages are laid out again are settled together.
