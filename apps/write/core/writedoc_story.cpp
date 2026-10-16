@@ -11,6 +11,7 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonDocument>
+#include <QFontDatabase>
 #include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -164,8 +165,19 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     QHash<QString, ParaProps> baselines;
     QVector<Block> pending;   // body elements kept as XML that wait for the next paragraph
 
-    int paragraphsMade = 0, endnoteNumber = 0;
+    // The paragraphs that end a section whose next one is continuous.
+    QVector<bool> continuousAfter(header ? 0 : int(body.size()), false);
+    if (!header) {
+        bool nextContinuous = m_wml.lastSection.type == QLatin1String("continuous");
+        for (int i = int(body.size()) - 1; i >= 0; --i)
+            if (!body[i].isRaw && body[i].para.props.section) {
+                continuousAfter[i] = nextContinuous;
+                nextContinuous = body[i].para.props.section->type == QLatin1String("continuous");
+            }
+    }
+    int paragraphsMade = 0, endnoteNumber = 0, blockNumber = -1;
     for (const Block &blk : body) {
+        ++blockNumber;
         if (header && (blk.isRaw || ++paragraphsMade > kMostHeaderParagraphs)) continue;
         if (blk.isRaw) {
             if (blk.display.isEmpty()) {
@@ -214,6 +226,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.numId = numId;
         resolved.ilvl = level;
         QTextBlockFormat bf = blockFormatOf(resolved);
+        // An empty paragraph that is a continuous section break takes no room.
+        if (!header && blockNumber < continuousAfter.size() && continuousAfter[blockNumber] && p.content.isEmpty()) bf.setProperty(tp::OutOfFlow, true);
         if (header) {
             // A paragraph in a frame (the page number's, set to the side or the middle) is set that way, where the next paragraph begins, taking no room.
             for (const RawChild &ch : direct.extra) {
@@ -359,6 +373,20 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
             // case roman numerals a word processor's endnotes have.
             QString field = QStringLiteral("raw:") + in.display;
+            // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
+                const QString font = attributeOfTag(in.raw, QStringLiteral("font")), lower = font.toLower();
+                bool ok = false;
+                const uint code = attributeOfTag(in.raw, QStringLiteral("char")).toUInt(&ok, 16);
+                const bool symbols = lower == QLatin1String("symbol") || lower.contains(QLatin1String("dings")) || lower.contains(QLatin1String("marlett")) || lower.contains(QLatin1String("mt extra"));
+                if (ok && !font.isEmpty() && !symbols && !QFontDatabase::hasFamily(font)) {
+                    const uint ch = code >= 0xF000 && code <= 0xF0FF ? code - 0xF000 : code;
+                    if (ch >= 0x20 && ch <= 0xFFFF) {
+                        field = QStringLiteral("raw:") + QString(QChar(char16_t(ch)));
+                        af.setFontFamilies({font});
+                    }
+                }
+            }
             if (in.kind == Inline::RunAtom && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) field = QStringLiteral("footnote:fn") + in.key;
             else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(++endnoteNumber, false);

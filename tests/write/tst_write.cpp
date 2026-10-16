@@ -1359,6 +1359,44 @@ private Q_SLOTS:
         }
     }
 
+    // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.
+    void anEmptyBreakParagraphBeforeAContinuousSectionTakesNoRoom()
+    {
+        auto linesWith = [&](const QByteArray &type) {
+            const QByteArray first = "<w:p><w:r><w:t>First</w:t></w:r></w:p><w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr></w:p>";
+            const QByteArray second = "<w:p><w:r><w:t>Second</w:t></w:r></w:p>";
+            const QByteArray last = "<w:sectPr>" + type + "<w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(first + second, last, {}));
+            return doc ? doc->pager().lines(0) : QVector<StoryLayout::LineBrief>();
+        };
+        const auto joined = linesWith("<w:type w:val=\"continuous\"/>");
+        QVERIFY(joined.size() >= 3);
+        // (The second paragraph is where it would be with no break paragraph between.)
+        const QByteArray plain = "<w:p><w:r><w:t>First</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r></w:p>";
+        auto alone = open(makeDocxWithParts(plain, "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>", {}));
+        QVERIFY(alone);
+        const auto direct = alone->pager().lines(0);
+        QVERIFY(direct.size() >= 2);
+        QVERIFY2(std::abs(joined[2].rect.top() - direct[1].rect.top()) < 0.01, qPrintable(QString::number(joined[2].rect.top() - direct[1].rect.top())));
+        // (Before a section on a page of its own the empty paragraph keeps its line: the section after starts on the next page.)
+        const auto apart = linesWith(QByteArray());
+        QCOMPARE(int(apart.size()), 2);
+    }
+
+    // A symbol of a font that isn't there is its character in the stand-in (Calibri): the line it is on is Calibri's, taller than Times New Roman's.
+    void aSymbolOfAMissingFontMakesItsLineTheStandIns()
+    {
+        auto run = [](const QByteArray &inner) { return "<w:r><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"24\"/></w:rPr>" + inner + "</w:r>"; };
+        auto para = [&](const QByteArray &inner) { return "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>" + run(inner) + "</w:p>"; };
+        const QByteArray body = para("<w:t>Plain words</w:t>") + para("<w:t>Words </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"24\"/></w:rPr><w:sym w:font=\"No Such Face Anywhere\" w:char=\"0047\"/>");
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() >= 2);
+        QVERIFY2(std::abs(lines[0].rect.height() - 12 * (1825 + 443 + 87) / 2048.0) < 0.02, qPrintable(QString::number(lines[0].rect.height())));
+        QVERIFY2(std::abs(lines[1].rect.height() - 12 * (1950 + 550) / 2048.0) < 0.02, qPrintable(QString::number(lines[1].rect.height())));
+    }
+
     // A page number in a frame (set in the middle or at the side, anchored to the text) takes no room: a footer of it and an empty paragraph is
     // one line tall, and the number is set as the frame says.
     void aFrameParagraphInAFooterTakesNoRoom()

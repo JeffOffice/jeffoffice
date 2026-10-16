@@ -2558,8 +2558,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             auto stopsFor = [&](double off, double w, bool hangLine) {
                 QList<QTextOption::Tab> tabs;
                 if (wordTabs) {
+                    // (A word processor's left indent of a hanging line is a stop only where the paragraph has none of its own: the default stops before
+                    // it stay, and with stops of its own they are where tabs go.)
                     double last = -1e9;
-                    bool hung = !hangStop(off, hangLine);
+                    bool hung = true;
                     int own = 0;
                     for (QTextOption::Tab t : ownTabs) {
                         const double at = t.position * scale;
