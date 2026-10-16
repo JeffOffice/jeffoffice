@@ -54,7 +54,12 @@ public:
         // before, each as "story|number|from".
         int foot = 0, end = 0;
         QStringList carried;
-        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && foot == o.foot && end == o.end && carried == o.carried; }
+        // The text area the page has (its top and bottom), which the page before found: a header or footer the page's number or place gives it can be taller
+        // than another's. A page that an edit moves has another number, so is laid out again if its area isn't the one it was laid out with.
+        double areaTop = 0, areaBottom = 0;
+        // Where the page begins, whatever its area is.
+        bool sameStartAs(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && foot == o.foot && end == o.end && carried == o.carried; }
+        bool operator==(const PageStart &o) const { return sameStartAs(o) && areaTop == o.areaTop && areaBottom == o.areaBottom; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 

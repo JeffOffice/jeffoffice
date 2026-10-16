@@ -17,6 +17,9 @@ namespace {
 constexpr int kMostShapes = 200;
 constexpr int kMostGroupDepth = 8;
 
+// A number from a file brought into a range a page could be in: one that is past it, or is not a number, is the nearest end of it (or 0).
+double fin(double v) { return std::isfinite(v) ? std::clamp(v, -100000.0, 100000.0) : 0.0; }
+
 // A length written as VML writes it (a number and a unit: pt, in, cm, mm, px, pc), in points; `def` for what isn't one. A bare number is points.
 double lengthOf(const QString &text, double def)
 {
@@ -25,15 +28,15 @@ double lengthOf(const QString &text, double def)
     static const QRegularExpression re(QStringLiteral("^(-?[0-9]*\\.?[0-9]+(?:e-?[0-9]+)?)\\s*(pt|in|cm|mm|px|pc|emu)?$"));
     const QRegularExpressionMatch m = re.match(v);
     if (!m.hasMatch()) return def;
-    const double n = m.captured(1).toDouble();
+    const double n = fin(m.captured(1).toDouble());
     const QString u = m.captured(2);
-    if (u == QLatin1String("in")) return n * 72;
-    if (u == QLatin1String("cm")) return n * 72 / 2.54;
-    if (u == QLatin1String("mm")) return n * 72 / 25.4;
-    if (u == QLatin1String("px")) return n * 0.75;
-    if (u == QLatin1String("pc")) return n * 12;
-    if (u == QLatin1String("emu")) return n / 12700;
-    return n;
+    if (u == QLatin1String("in")) return fin(n * 72);
+    if (u == QLatin1String("cm")) return fin(n * 72 / 2.54);
+    if (u == QLatin1String("mm")) return fin(n * 72 / 25.4);
+    if (u == QLatin1String("px")) return fin(n * 0.75);
+    if (u == QLatin1String("pc")) return fin(n * 12);
+    if (u == QLatin1String("emu")) return fin(n / 12700);
+    return fin(n);
 }
 
 // The properties of a VML style ("position:absolute;width:10pt").
@@ -198,6 +201,9 @@ public:
         s.gapRight = lengthOf(st.value(QStringLiteral("mso-wrap-distance-right")), 9);
         s.gapTop = lengthOf(st.value(QStringLiteral("mso-wrap-distance-top")), 0);
         s.gapBottom = lengthOf(st.value(QStringLiteral("mso-wrap-distance-bottom")), 0);
+        for (double *v : {&s.left, &s.top, &s.x1, &s.y1, &s.x2, &s.y2, &s.rotation, &s.gapLeft, &s.gapRight, &s.gapTop, &s.gapBottom}) *v = fin(*v);
+        s.width = std::clamp(fin(s.width), 0.0, 10000.0);
+        s.height = std::clamp(fin(s.height), 0.0, 10000.0);
         out << s;
         Q_UNUSED(depth);
     }
@@ -213,13 +219,13 @@ public:
                 const QHash<QString, QString> st = styleOf(t.attr(c, "style"));
                 const QStringList size = t.attr(c, "coordsize").split(QLatin1Char(',')), origin = t.attr(c, "coordorigin").split(QLatin1Char(','));
                 const double gw = lengthOf(st.value(QStringLiteral("width")), 0), gh = lengthOf(st.value(QStringLiteral("height")), 0);
-                double cw = size.size() == 2 ? size[0].toDouble() : 0, ch = size.size() == 2 ? size[1].toDouble() : 0;
+                double cw = size.size() == 2 ? fin(size[0].toDouble()) : 0, ch = size.size() == 2 ? fin(size[1].toDouble()) : 0;
                 const double kx = cw > 0 && gw > 0 ? gw / cw : 1, ky = ch > 0 && gh > 0 ? gh / ch : 1;
                 const double gx = lengthOf(st.contains(QStringLiteral("margin-left")) ? st.value(QStringLiteral("margin-left")) : st.value(QStringLiteral("left")), 0) * sx + ox;
                 const double gy = lengthOf(st.contains(QStringLiteral("margin-top")) ? st.value(QStringLiteral("margin-top")) : st.value(QStringLiteral("top")), 0) * sy + oy;
-                const double originX = origin.size() == 2 ? origin[0].toDouble() : 0, originY = origin.size() == 2 ? origin[1].toDouble() : 0;
+                const double originX = origin.size() == 2 ? fin(origin[0].toDouble()) : 0, originY = origin.size() == 2 ? fin(origin[1].toDouble()) : 0;
                 // The members' places are in the group's own units: scaled, from its origin, and from where the group is.
-                walkMembers(c, kx * sx, ky * sy, gx - originX * kx * sx, gy - originY * ky * sy, depth + 1);
+                walkMembers(c, fin(kx * sx), fin(ky * sy), fin(gx - originX * kx * sx), fin(gy - originY * ky * sy), depth + 1);
             } else if (name == "shapetype") {
                 continue;
             } else {
@@ -248,7 +254,7 @@ public:
 };
 
 // DrawingML: wp:inline and wp:anchor. Lengths are EMU (12,700 to the point).
-double emu(const QString &v) { return std::clamp(v.toDouble() / 12700.0, -100000.0, 100000.0); }
+double emu(const QString &v) { return fin(v.toDouble() / 12700.0); }
 
 void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
 {
