@@ -133,6 +133,12 @@ struct LayoutEnv {
     //    a 1.2 em line), not a share of it. An exact spacing isn't reduced.
     //  - What is stored (fontScale, lnSpcReduction) is drawn as it is on opening: the program doesn't fit it again until the text is edited.
     bool slideLines = false;
+    // Lines as a word processor sets them (JeffWrite): a single line is the font's Windows ascent and descent plus the leading its tables
+    // ask for (a font's line, as the word processor measured it on Times New Roman, Arial, Calibri, and the fonts of its reference
+    // documents); a line of several times single spacing has the extra below its text, and an exact or at-least height is as asked. Space
+    // after a paragraph and space before the next are the larger of the two (not their sum), and none between paragraphs of one style that
+    // say so (tp::ContextualSpacing). Not set for JeffPub's and JeffDeck's text.
+    bool wordLines = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;

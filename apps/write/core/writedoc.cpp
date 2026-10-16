@@ -217,6 +217,7 @@ void WriteDoc::setUpEnvironment()
         f.env.colors = cs;
     }
     f.env.defaultTab = std::max(1, m_wml.defaultTabStop) / 20.0;
+    f.env.wordLines = true;
     QFont body(f.env.fonts.body);
     body.setPointSizeF(m_wml.styles.defaultRun.size.value_or(22) / 2.0);
     f.story()->setDefaultFont(body);

@@ -445,7 +445,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (p.keepLines.value_or(false)) bf.setProperty(tp::KeepTogether, true);
     if (p.widowControl.value_or(true)) bf.setProperty(tp::WidowControl, true);
     if (p.pageBreakBefore.value_or(false)) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
-    if (p.contextualSpacing.value_or(false)) bf.setProperty(prop::Contextual, true);
+    if (p.contextualSpacing.value_or(false)) bf.setProperty(tp::ContextualSpacing, true);
     if (p.outlineLvl) bf.setProperty(prop::Outline, *p.outlineLvl);
     if (!p.style.isEmpty()) bf.setProperty(tp::StyleName, p.style);
     if (p.numId && *p.numId > 0) {
@@ -518,7 +518,7 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
     p.keepLines = f.boolProperty(tp::KeepTogether);
     p.widowControl = f.boolProperty(tp::WidowControl);
     p.pageBreakBefore = (f.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore) != 0;
-    p.contextualSpacing = f.boolProperty(prop::Contextual);
+    p.contextualSpacing = f.boolProperty(tp::ContextualSpacing);
     if (f.hasProperty(prop::Outline)) p.outlineLvl = f.intProperty(prop::Outline);
     if (f.hasProperty(prop::NumId)) {
         p.numId = f.intProperty(prop::NumId);

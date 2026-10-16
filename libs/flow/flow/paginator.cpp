@@ -551,6 +551,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->colors = m_doc->env.colors;
     d->fonts = m_doc->env.fonts;
     d->defaultTabStop = m_doc->env.defaultTab;
+    d->wordText = m_doc->env.wordLines;
     d->fontAliases = m_doc->env.familyAliases;
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();

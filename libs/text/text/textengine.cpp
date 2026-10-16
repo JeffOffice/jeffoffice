@@ -215,7 +215,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (int i = 0; i < SlotCount; ++i) k += colors.c[i].name();
@@ -1286,6 +1286,91 @@ double singleSpacing(const QVector<QTextLayout::FormatRange> &ranges, int from, 
     return m;
 }
 
+// A line as a word processor sets it, in document points: the text above the baseline, below it, and the leading the font asks for between lines.
+struct WordLine {
+    double ascent = 0, descent = 0, leading = 0;
+    double total() const { return ascent + descent + leading; }
+};
+
+// The vertical metrics of the fonts a word processor's documents ask for, in 2048ths of an em: the Windows ascent and descent, then the
+// ascent, descent, and line gap of the font's horizontal header. A font's line is its Windows ascent and descent, plus the part of its gap that
+// they don't already hold (Calibri's gap is its Windows height less its header's: no leading). Read from the tables embedded in reference
+// PDFs, as the stand-ins' (Tinos, Arimo, Cousine) are the same for the three core fonts but not for the rest.
+struct WordFontRow {
+    const char *family;
+    int winAscent, winDescent, ascent, descent, gap;
+};
+static const WordFontRow kWordFonts[] = {
+    {"times new roman", 1825, 443, 1825, 443, 87}, {"arial", 1854, 434, 1854, 434, 67}, {"courier new", 1705, 615, 1705, 615, 0},
+    {"calibri", 1950, 550, 1536, 512, 452}, {"cambria", 1946, 455, 1946, 455, 0}, {"symbol", 2059, 450, 2059, 450, 0},
+    {"wingdings", 1841, 432, 1841, 432, 0}, {"verdana", 2059, 430, 2059, 430, 0}, {"tahoma", 2049, 423, 2049, 423, 0},
+    {"georgia", 1878, 449, 1878, 449, 0}, {"trebuchet ms", 1923, 455, 1923, 455, 0}, {"arial black", 2254, 634, 2254, 634, 0},
+    {"arial narrow", 1888, 431, 1916, 434, 0}, {"arial rounded mt bold", 1938, 432, 1938, 432, 0}, {"book antiqua", 1967, 578, 1891, 578, 0},
+    {"century", 2019, 442, 2019, 443, 0}, {"century schoolbook", 2019, 442, 2019, 443, 0}, {"century gothic", 1989, 451, 2060, 451, 0},
+    {"garamond", 1765, 539, 1765, 539, 0}, {"monotype corsiva", 1618, 620, 1618, 620, 60}, {"broadway", 1869, 450, 1869, 450, 0},
+    {"bodoni mt black", 1878, 514, 1878, 514, 0}, {"tw cen mt condensed extra bold", 1788, 430, 1788, 430, 0},
+    {"news gothic mt", 2003, 458, 2003, 458, 0}, {"univers", 2025, 512, 2025, 512, 0},
+};
+
+// A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for).
+static WordLine wordFaceOf(const QFont &f)
+{
+    static QHash<QString, WordLine> cache;   // main thread only, like all layout
+    const QString key = emKey(f);
+    auto it = cache.constFind(key);
+    if (it != cache.constEnd()) return *it;
+    auto make = [](double winA, double winD, double hA, double hD, double gap, double upm) {
+        WordLine l;
+        l.ascent = winA / upm;
+        l.descent = winD / upm;
+        l.leading = std::max(0.0, gap - ((winA + winD) - (hA + hD))) / upm;
+        return l;
+    };
+    WordLine line = make(1825, 443, 1825, 443, 87, 2048);   // (a Times New Roman, when nothing is known)
+    const QString family = requestedFamily(f).toLower();
+    bool found = false;
+    for (const WordFontRow &r : kWordFonts)
+        if (family == QLatin1String(r.family)) {
+            line = make(r.winAscent, r.winDescent, r.ascent, r.descent, r.gap, 2048);
+            found = true;
+            break;
+        }
+    if (!found) {
+        const QRawFont raw = QRawFont::fromFont(f);
+        auto be16 = [](const QByteArray &t, int off) { return off + 2 <= t.size() ? qint16((uchar(t[off]) << 8) | uchar(t[off + 1])) : qint16(0); };
+        const QByteArray head = raw.fontTable("head"), os2 = raw.fontTable("OS/2"), hhea = raw.fontTable("hhea");
+        const int upm = head.size() >= 20 ? quint16(be16(head, 18)) : 0;
+        if (upm > 0 && hhea.size() >= 10) {
+            const double hA = be16(hhea, 4), hD = -be16(hhea, 6), gap = be16(hhea, 8);
+            const bool win = os2.size() >= 78 && quint16(be16(os2, 74)) + quint16(be16(os2, 76)) > 0;
+            const WordLine own = win ? make(quint16(be16(os2, 74)), quint16(be16(os2, 76)), hA, hD, gap, upm) : make(hA, hD, hA, hD, gap, upm);
+            if (own.total() > 0.6 && own.total() < 3.0) line = own;
+        }
+    }
+    cache.insert(key, line);
+    return line;
+}
+
+// The line a stretch of text sets: the tallest ascent and descent among its runs, and the largest leading.
+static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
+{
+    WordLine m;
+    auto add = [&](const QFont &f, double size) {
+        const WordLine face = wordFaceOf(f);
+        const double em = size / fontPointFactor();
+        m.ascent = std::max(m.ascent, face.ascent * em);
+        m.descent = std::max(m.descent, face.descent * em);
+        m.leading = std::max(m.leading, face.leading * em);
+    };
+    for (const auto &r : ranges)
+        if (r.start < from + len && r.start + r.length > from) {
+            const QFont f = r.format.font();
+            add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
+        }
+    if (m.total() <= 0) add(fallback, fallback.pointSizeF());
+    return m;
+}
+
 // A slide's single line: 1.2 times the largest text on it, whatever the font.
 double slideSingle(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
 {
@@ -1721,7 +1806,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     const double scale = env.slideLines ? 1.0 : env.fontScale;
     const int nF = frames.size();
     auto singleOf = [&](const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback) {
-        return env.slideLines ? slideSingle(ranges, from, len, fallback) : singleSpacing(ranges, from, len, fallback);
+        return env.slideLines ? slideSingle(ranges, from, len, fallback) : env.wordLines ? wordLineOf(ranges, from, len, fallback).total() : singleSpacing(ranges, from, len, fallback);
     };
 
     auto colRect = [&](int f, int c) {
@@ -1740,6 +1825,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
     int f = 0, c = 0;
     double y = 0;              // relative to column top
+    double lastAfter = 0;      // the space after the paragraph before, which a word processor's space before counts against
     double overflowY = 0;
     QVector<Iv> row;
     int rowIdx = 0;
@@ -2260,7 +2346,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const QString mfam = bfont.isEmpty() ? requestedFamily(B->markerFont) : bfont;
             const double known = knownMetrics(mfam, B->markerFont.weight() >= QFont::DemiBold).line;
             // (A slide's bullet doesn't: its line is the text's, however big the bullet is drawn.)
-            markerSingle = env.slideLines ? 0.0 : B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
+            markerSingle = env.slideLines ? 0.0 : env.wordLines ? wordFaceOf(B->markerFont).total() * B->markerFont.pointSizeF() / fontPointFactor()
+                                                                 : B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
         }
 
         // Drop cap metrics: cap height spans dropLines lines.
@@ -2296,6 +2383,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             QVector<Note> notes;
             QVector<int> carry, seeded;
         };
+        const double prevAfter = lastAfter;
+        // Between paragraphs of one style that ask for no space between them, a word processor's contextual spacing leaves none.
+        auto sameStyle = [](const QTextBlock &x, const QTextBlock &z) {
+            return x.isValid() && z.isValid() && x.blockFormat().stringProperty(tp::StyleName) == z.blockFormat().stringProperty(tp::StyleName);
+        };
+        if (env.wordLines && bf.boolProperty(tp::ContextualSpacing)) {
+            if (sameStyle(b, b.previous())) before = 0;
+            if (sameStyle(b, b.next())) after = 0;
+        }
         const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_used, reserve, m_notes, carry, seeded};
         auto placeLines = [&](bool startNext, int breakAfter) {
             // Start in next text box.
@@ -2305,7 +2401,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 settleCarry();
             }
             if (startNext && f < nF) advance();
-            if (f < nF && y > 0) y += before;
+            if (f < nF && y > 0) y += env.wordLines ? std::max(0.0, before - prevAfter) : before;
             else if (f < nF && !env.slideLines && !(first && !m_span.spaceBeforeFirst)) y += before;  // space before also applies at the top of a frame (not a slide's)
             // A raised cap rises above the first line: room for it.
             if (f < nF && B->dropUp && !B->dropText.isEmpty())
@@ -2545,6 +2641,24 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     for (const auto &ob : B->objects)
                         if (ob.disp >= line.textStart() && ob.disp < line.textStart() + line.textLength())
                             objUp = std::max(objUp, ob.pad.bottom() + ob.size.height() + ob.pad.top());
+                    // A word processor's line: the text's ascent above the baseline, the descent and leading below it, and what a multiple of single
+                    // spacing adds under that (an exact height keeps the baseline a descent above the line's bottom, an at-least height the single
+                    // line's place for it). The whole line must fit.
+                    if (env.wordLines) {
+                        const WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base);
+                        double ownSingle = wl.total();
+                        if (line.textStart() == 0 && markerSingle > ownSingle) ownSingle = markerSingle;
+                        switch (bf.lineHeightType()) {
+                        case QTextBlockFormat::ProportionalHeight: h = ownSingle * bf.lineHeight() / 100.0; break;
+                        case QTextBlockFormat::FixedHeight: h = bf.lineHeight() * scale; break;
+                        case QTextBlockFormat::MinimumHeight: h = std::max(ownSingle, bf.lineHeight() * scale); break;
+                        default: h = ownSingle; break;
+                        }
+                        below = 0;
+                        textH = h;
+                        const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle);
+                        baseDown = bottom ? std::max(0.0, h - wl.descent) : wl.ascent + std::max(0.0, ownSingle - wl.total());
+                    }
                     const double rise = objUp > baseDown && bf.lineHeightType() != QTextBlockFormat::FixedHeight ? objUp - baseDown : 0;
                     h += rise;
                     textH += rise;
@@ -2676,6 +2790,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (rowActive) { y += rowH; rowActive = false; }
             if (f < nF) {
                 y += after;
+                lastAfter = after;
             }
         };
         // (The first paragraph of a stretch may have lines that went before it.)
