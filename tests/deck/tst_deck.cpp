@@ -32131,6 +32131,27 @@ private Q_SLOTS:
         QVERIFY(!svg.contains("font-family=\"Arial\""));
     }
 
+    // A style's body font doesn't take the place of a font a placeholder inherits: the title of a slide whose shape style says fontRef minor keeps
+    // the heading font its master's title style names.
+    void pptxPlaceholderKeepsTheFontItInherits()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const QString at = QStringLiteral("<p:spPr></p:spPr><p:txBody>");
+        QVERIFY(xml.contains(at));
+        xml.replace(xml.indexOf(at), at.size(),
+                    QStringLiteral("<p:spPr></p:spPr><p:style><a:lnRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:lnRef><a:fillRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:fillRef>"
+                                   "<a:effectRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"tx1\"/></a:fontRef></p:style><p:txBody>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *title = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:title"));
+        QVERIFY(title && !title->isEmpty());
+        const QTextCharFormat f = title->begin().begin().fragment().charFormat();
+        QCOMPARE(f.stringProperty(tp::ThemeFont), QStringLiteral("major"));
+    }
+
     // The words a picture's pixels hold (kept with a Macintosh picture's PNG) are in the PDF as text with no ink, where they were drawn, and not the
     // ones that fall outside the part of the picture the slide shows.
     void exportPdfCarriesTheWordsKeptWithAPicture()

@@ -468,33 +468,43 @@ TextStyleStack withFontReference(const TextStyleStack &base, const QDomElement &
     const QDomElement ref = childNamed(style, "fontRef");
     if (ref.isNull()) return base;
     const QDomElement color = ref.firstChildElement();
-    // The font the style names is the theme's heading font (major) or body font (minor), over the presentation's default text style's.
     const bool major = attr(ref, QStringLiteral("idx")) == QLatin1String("major"), minor = attr(ref, QStringLiteral("idx")) == QLatin1String("minor");
     if (color.isNull() && !major && !minor) return base;
     const QString a(ns::A);
-    QDomElement root = keep->createElementNS(a, QStringLiteral("a:fontStyles"));
-    keep->appendChild(root);
-    QDomElement list = keep->createElementNS(a, QStringLiteral("a:lstStyle"));
-    root.appendChild(list);
-    for (int level = 1; level <= 9; ++level) {
-        QDomElement lvl = keep->createElementNS(a, QStringLiteral("a:lvl%1pPr").arg(level));
-        QDomElement run = keep->createElementNS(a, QStringLiteral("a:defRPr"));
-        if (!color.isNull()) {
-            QDomElement fill = keep->createElementNS(a, QStringLiteral("a:solidFill"));
-            fill.appendChild(keep->importNode(color, true));
-            run.appendChild(fill);
+    // A list style that gives every level the reference's color and, if `typeface` isn't empty, its font.
+    auto listOf = [&](bool withColor, const QString &typeface) {
+        QDomElement root = keep->createElementNS(a, QStringLiteral("a:fontStyles"));
+        keep->appendChild(root);
+        QDomElement list = keep->createElementNS(a, QStringLiteral("a:lstStyle"));
+        root.appendChild(list);
+        for (int level = 1; level <= 9; ++level) {
+            QDomElement lvl = keep->createElementNS(a, QStringLiteral("a:lvl%1pPr").arg(level));
+            QDomElement run = keep->createElementNS(a, QStringLiteral("a:defRPr"));
+            if (withColor) {
+                QDomElement fill = keep->createElementNS(a, QStringLiteral("a:solidFill"));
+                fill.appendChild(keep->importNode(color, true));
+                run.appendChild(fill);
+            }
+            if (!typeface.isEmpty()) {
+                QDomElement latin = keep->createElementNS(a, QStringLiteral("a:latin"));
+                latin.setAttributeNS(QString(), QStringLiteral("typeface"), typeface);
+                run.appendChild(latin);
+            }
+            lvl.appendChild(run);
+            list.appendChild(lvl);
         }
-        if (major || minor) {
-            QDomElement latin = keep->createElementNS(a, QStringLiteral("a:latin"));
-            latin.setAttributeNS(QString(), QStringLiteral("typeface"), major ? QStringLiteral("+mj-lt") : QStringLiteral("+mn-lt"));
-            run.appendChild(latin);
-        }
-        lvl.appendChild(run);
-        list.appendChild(lvl);
-    }
+        return list;
+    };
     TextStyleStack out = base;
-    if (!out.isEmpty() && !own.isNull() && out.last() == own) out.insert(out.size() - 1, list);
-    else out.append(list);
+    // The color (and the heading font), as one more list style: above what a placeholder inherits, below the shape's own list.
+    if (!color.isNull() || major) {
+        const QDomElement list = listOf(!color.isNull(), major ? QStringLiteral("+mj-lt") : QString());
+        if (!out.isEmpty() && !own.isNull() && out.last() == own) out.insert(out.size() - 1, list);
+        else out.append(list);
+    }
+    // The body font is the font a shape's text has by default, over the presentation's default text style (the first in the stack), and under
+    // everything else: what a placeholder inherits from its layout and master, and what the shape says itself, is not taken from it.
+    if (minor) out.insert(std::min<qsizetype>(1, out.size()), listOf(false, QStringLiteral("+mn-lt")));
     return out;
 }
 
