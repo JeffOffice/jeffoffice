@@ -172,6 +172,13 @@ std::shared_ptr<PageView::Rendered> PageView::rendered(int index)
     return r;
 }
 
+int PageView::shownTotal(int index) const
+{
+    const auto found = m_rendered.constFind(index);
+    if (found == m_rendered.constEnd() || !found.value()->page || !found.value()->page->showsTotal) return -1;
+    return found.value()->page->pageTotal;
+}
+
 void PageView::dropRendered(int fromPage)
 {
     for (auto it = m_rendered.begin(); it != m_rendered.end();) {
@@ -235,6 +242,16 @@ void PageView::relayout()
     }
     m_content = QSizeF(area + 2 * kMargin, rows ? y - kGap + kMargin : 2 * kMargin);
     const bool changed = known != m_knownPages;
+    // (A page that shows the number of pages was made with the number there was: with another, it is made again.)
+    if (changed)
+        for (auto it = m_rendered.begin(); it != m_rendered.end();) {
+            if (it.value()->page && it.value()->page->showsTotal) {
+                m_recent.removeOne(it.key());
+                it = m_rendered.erase(it);
+            } else {
+                ++it;
+            }
+        }
     m_knownPages = known;
     setScrollRanges();
     m_relayouting = false;

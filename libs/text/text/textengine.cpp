@@ -695,6 +695,7 @@ namespace { static bool wordKnowsFamily(const QString &lower); }
 QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env)
 {
     QTextCharFormat f = original;
+    if (env.wordLines && f.hasProperty(tp::DisplayFamily)) f.setFontFamilies({f.stringProperty(tp::DisplayFamily)});
     // A word processor sets a family that isn't on its machine in Calibri (its stand-in): the names it knows, the ones this machine has, and those the
     // document carries a font of are not such.
     if (env.wordLines && f.hasProperty(QTextFormat::FontFamilies)) {
@@ -953,7 +954,7 @@ int StoryLayout::Block::docFromDisp(int d) const
 {
     for (const Seg &s : map) {
         // (Characters that show nothing, hidden text, belong to the line that follows them: a line ends where they begin.)
-        if (s.dispLen == 0) {
+        if (s.hidden) {
             if (d == s.dispPos) return s.docPos;
             continue;
         }
@@ -2145,7 +2146,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             }
             // Hidden text takes no room and shows nothing, though its characters are the story's.
             if (env.wordLines && cf.boolProperty(tp::HiddenText)) {
-                B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0};
+                B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
             const QString field = cf.stringProperty(tp::Field);
@@ -2164,10 +2165,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             B->noteRefs << qMakePair(int(B->disp.size()), int(m_notes.size()));
                             m_notes << n;
                         }
-                        B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size())};
+                        B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
                         // (The numbers of references side by side are one run of text: Qt shapes each run of its own, and a paragraph of a
                         // thousand takes each page more than a tenth of a second.)
-                        if (!ranges.isEmpty() && ranges.last().start + ranges.last().length == int(B->disp.size()) && ranges.last().format == rf) ranges.last().length += int(v.size());
+                        if (env.wordLines && !ranges.isEmpty() && ranges.last().start + ranges.last().length == int(B->disp.size()) && ranges.last().format == rf) ranges.last().length += int(v.size());
                         else ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
                         B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                         B->disp += v;
@@ -2176,7 +2177,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // Multi-line values (an address) break lines inside the paragraph.
                     QString v = ctx.resolve(field);
                     v.replace(QLatin1String("\r\n"), QString(QChar::LineSeparator)).replace(QLatin1Char('\n'), QChar::LineSeparator);
-                    B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size())};
+                    B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
                     ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
                     B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;

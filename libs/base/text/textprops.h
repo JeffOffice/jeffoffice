@@ -52,6 +52,7 @@ enum : int {
     HandBold,                                    // int: layout only, the letters are bold drawn by hand (a font with no bold face): 1 when bold is set, 2 whether or not (Arial Black, Rockwell Extra Bold)
     TextFx,                                      // QString TextEffects JSON: a:effectLst of a run (shadows, glow, reflection), drawn under the letters
     HiddenText,                                  // bool: the run is not shown or counted (LayoutEnv::wordLines)
+    DisplayFamily,                               // QString: layout only, the family a run is set in when it isn't the family the format says (a symbol's font): never written to a file (LayoutEnv::wordLines)
 
     // block
     StyleName = QTextFormat::UserProperty + 100, // QString paragraph style

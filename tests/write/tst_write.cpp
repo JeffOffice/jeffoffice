@@ -500,6 +500,28 @@ private Q_SLOTS:
         QVERIFY(view.verticalScrollBar()->maximum() > 100 * 700);
     }
 
+    // A page in the view that shows the number of pages is made again when that number changes: the first page, drawn while the rest is laid out, doesn't
+    // keep saying there are a few.
+    void aPageShowingTheTotalIsMadeAgainWhenTheTotalChanges()
+    {
+        const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray footer = headerPart("ftr", {"<w:r><w:t xml:space=\"preserve\">of </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> NUMPAGES </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"});
+        auto doc = open(makeDocxWithParts(paragraphs(2000), sect, {{QStringLiteral("/word/footer1.xml"), footer}}));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.grab();   // (the first page is made when only a few pages are known)
+        QVERIFY(!view.pagesComplete());
+        const int early = view.shownTotal(0);
+        QVERIFY2(early > 0 && early < 100, qPrintable(QString::number(early)));
+        QTRY_VERIFY_WITH_TIMEOUT(view.pagesComplete(), 60000);
+        QVERIFY(view.pageCount() > 100);
+        const int now = view.shownTotal(0);
+        QVERIFY2(now < 0 || now == view.pageCount(), qPrintable(QStringLiteral("page 1 says %1 pages of %2").arg(now).arg(view.pageCount())));
+    }
+
     void onlyThePagesInViewAreMade()
     {
         auto doc = open(makeDocx(paragraphs(2000), kStyles));
@@ -1408,6 +1430,68 @@ private Q_SLOTS:
         QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"0\"/>"));
         QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"false\"/>"));
         QVERIFY(hangs(""));
+    }
+
+    // Spacing a person sets on paragraphs that have automatic spacing is the spacing they have: the automatic gap goes, on the page and in the file.
+    void spacingSetOnAutomaticSpacingReplacesIt()
+    {
+        auto para = [](const char *text) { return QByteArray("<w:p><w:pPr><w:spacing w:beforeAutospacing=\"1\" w:afterAutospacing=\"1\"/></w:pPr><w:r><w:t>") + text + "</w:t></w:r></w:p>"; };
+        // (A file whose styles give spacing of their own, so that none set on a paragraph is written.)
+        const QByteArray styles = "<w:docDefaults><w:pPrDefault><w:pPr><w:spacing w:before=\"100\" w:after=\"200\"/></w:pPr></w:pPrDefault></w:docDefaults>"
+                                  "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>";
+        auto doc = open(makeDocx(para("one") + para("two") + para("three"), styles));
+        QVERIFY(doc);
+        auto pitch = [&] {
+            const auto lines = doc->pager().lines(0);
+            return lines.size() >= 2 ? lines[1].rect.top() - lines[0].rect.top() : -1.0;
+        };
+        const double automatic = pitch();
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        setSpacing(*doc, c, 0, 0);
+        const double none = pitch();
+        QVERIFY2(automatic - none > 10, qPrintable(QStringLiteral("automatic %1, set to none %2").arg(automatic).arg(none)));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(!x.contains("Autospacing"), x.constData());
+        QVERIFY2(x.contains("w:before=\"0\"") && x.contains("w:after=\"0\""), x.constData());
+        // (Spacing before alone, as the paragraph fields of the ribbon and the dialog set it, takes the automatic spacing before and keeps the one after.)
+        auto again = open(makeDocx(para("one") + para("two"), styles));
+        QTextCursor c2(again->story());
+        c2.select(QTextCursor::Document);
+        changeBlockFormat(*again, c2, [](QTextBlockFormat &bf) { setSpaceBefore(bf, 3); });
+        const QByteArray y = documentXml(again->toDocx());
+        QVERIFY2(!y.contains("beforeAutospacing") && y.contains("afterAutospacing=\"1\""), y.constData());
+        QVERIFY2(y.contains("w:before=\"60\""), y.constData());
+    }
+
+    // A symbol of a font the machine lacks is set in a stand-in on the page only: what is saved of a file nobody touched has the run as it was.
+    void aSymbolOfAMissingFontIsSavedAsItWas()
+    {
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r><w:r><w:sym w:font=\"No Such Face Anywhere\" w:char=\"0047\"/></w:r><w:r><w:t xml:space=\"preserve\"> after</w:t></w:r></w:p>";
+        // (A file whose styles say what font the text is in, as files do.)
+        const QByteArray styles = "<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"24\"/></w:rPr></w:rPrDefault></w:docDefaults>"
+                                  "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>";
+        const QByteArray original = makeDocx(body, styles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        const QStringList loss = rt::lossProblems(original, saved);
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1String("; "))));
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        const QString main = QString::fromUtf8(pkg.part(pkg.mainPart()));
+        QVERIFY2(!main.contains(QLatin1String("rFonts")), qPrintable(main.mid(main.indexOf(QLatin1String("<w:body")), 600)));
+    }
+
+    // The round-trip check itself: a run that gains a property the file never had is a difference, though what it adds is one the program understands.
+    void theRoundTripCheckSeesAGainedRunProperty()
+    {
+        auto withRun = [&](const QByteArray &props) { return makeDocx("<w:p><w:r>" + props + "<w:t>text</w:t></w:r></w:p>"); };
+        const QByteArray plain = withRun(QByteArray()), gained = withRun("<w:rPr><w:rFonts w:ascii=\"Foo\"/></w:rPr>");
+        QVERIFY(rt::lossProblems(plain, plain).isEmpty());
+        QVERIFY(rt::lossProblems(gained, plain).isEmpty());   // (one left out is normalizing)
+        const QStringList added = rt::lossProblems(plain, gained);
+        QVERIFY2(!added.isEmpty() && added.first().contains(QLatin1String("gains run properties")), qPrintable(added.join(QLatin1String("; "))));
     }
 
     // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.

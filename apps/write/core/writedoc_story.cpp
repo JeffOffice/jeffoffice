@@ -383,7 +383,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     const uint ch = code >= 0xF000 && code <= 0xF0FF ? code - 0xF000 : code;
                     if (ch >= 0x20 && ch <= 0xFFFF) {
                         field = QStringLiteral("raw:") + QString(QChar(char16_t(ch)));
-                        af.setFontFamilies({font});
+                        af.setProperty(tp::DisplayFamily, font);   // (the page's: the run as the file has it is kept as it is)
                     }
                 }
             }

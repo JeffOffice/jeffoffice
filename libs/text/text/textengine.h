@@ -304,7 +304,7 @@ public:
     struct InlineObject { int frame = -1; QRectF rect; QString json; int docPos = 0; };
     const QVector<InlineObject> &inlineObjects() const { return m_inline; }
 
-    struct Seg { int docPos, docLen, dispPos, dispLen; };
+    struct Seg { int docPos, docLen, dispPos, dispLen; bool hidden = false; };   // hidden: text a word processor hides (it shows nothing, and belongs to the line that follows)
     struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; };   // below: the spacing under the text
     struct Block {
         int docStart = 0, docLen = 0;
