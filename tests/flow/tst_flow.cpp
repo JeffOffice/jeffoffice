@@ -1907,6 +1907,36 @@ private Q_SLOTS:
         }
     }
 
+    // When a later section changes (its paper, margins, columns), the pages of the sections before it are as they were: only the pages from where
+    // that section begins are laid out again, and they are what a fresh paginator makes.
+    void changingALaterSectionLaysOutOnlyItsPagesAgain()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 1600, 52, [](int i, QTextBlockFormat &bf) { if (i == 799) bf.setProperty(flow::fp::SectionBreakAfter, true); }, 3, 6);
+        Section second = fd.sections[0];
+        fd.sections << second;
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        int inFirst = 0;
+        for (int k = 0; k < pages; ++k) inFirst += pg.page(k).start.section == 0;
+        QVERIFY(pages > 30 && inFirst > 10 && pages - inFirst > 10);
+        const qint64 laid = pg.pagesLaidOut();
+        fd.sections[1].paper = QSizeF(300, 400);
+        fd.sections[1].margins = QMarginsF(40, 40, 40, 40);
+        pg.invalidateFrom(1);
+        const int after = pg.pageCount();
+        QVERIFY(after > pages);   // (smaller pages)
+        const qint64 again = pg.pagesLaidOut() - laid;
+        QVERIFY2(again <= after - inFirst + 1, qPrintable(QStringLiteral("%1 pages laid out again, the second section has %2").arg(again).arg(after - inFirst)));
+        FlowDocument fresh;
+        fillStory(fresh.story(), 1600, 52, [](int i, QTextBlockFormat &bf) { if (i == 799) bf.setProperty(flow::fp::SectionBreakAfter, true); }, 3, 6);
+        fresh.sections << fd.sections[1];
+        fresh.sections[0] = fd.sections[0];
+        Paginator po(&fresh);
+        QCOMPARE(po.pageCount(), after);
+        for (int k = 0; k < after; ++k) QCOMPARE(pg.page(k).start.pos, po.page(k).start.pos);
+    }
+
     // A section can restart the page numbers; a page's number is found without going back to the section's first page every time.
     void paginatorNumbersPagesBySection()
     {

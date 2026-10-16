@@ -307,6 +307,21 @@ void Paginator::invalidate()
     m_pending = false;
 }
 
+void Paginator::invalidateFrom(int section)
+{
+    int keep = 0;
+    while (keep < m_starts.size() && m_starts[keep].section < section) ++keep;
+    keep = std::max(keep, 1);
+    if (keep >= m_starts.size()) return;
+    m_numberOf = -1;
+    m_starts.resize(keep);
+    m_complete = false;
+    // (Pages that edits had not been settled to are still waiting; none are beyond the last.)
+    m_high = std::min(m_high, keep - 1);
+    m_valid = std::min(m_valid, keep - 1);
+    if (m_pending && m_valid >= keep - 1) m_pending = false;
+}
+
 Paginator::Page Paginator::page(int index)
 {
     settle(index);
