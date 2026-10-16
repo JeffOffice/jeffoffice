@@ -13,8 +13,11 @@
 #include <QPointF>
 #include <QRectF>
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <functional>
 #include <list>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -26,6 +29,15 @@ namespace jp::flow {
 struct BlockRef {
     int pos = 0, end = 0;       // the paragraph's first position, and the one after it (the next paragraph's first)
     int key = 0;                // its cell's key
+    int foot = 0, endNotes = 0; // the footnotes and the endnotes in the story before the paragraph (counted only where the document has notes)
+    int notes = 0;              // the footnotes the paragraph cites
+};
+
+// A footnote cited in a table's cell: where its reference is, which note, and the number it shows.
+struct NoteRef {
+    int pos = 0;
+    QString id;
+    int number = 0;
 };
 
 // The tables of a story at one moment: each outermost table as a stretch of paragraphs. (Built by looking at every paragraph's format once; the paginator
@@ -37,7 +49,8 @@ public:
         int first = 0, last = 0;            // its paragraphs: refs()[first, last)
         std::shared_ptr<const TableData> table;
     };
-    void rebuild(const QTextDocument *story, const TableStore &store);
+    // `doc` has the notes' numbers: where it has notes (FlowDocument::fields), each paragraph is given how many are before it.
+    void rebuild(const QTextDocument *story, const TableStore &store, const FlowDocument *doc = nullptr);
     const std::vector<Span> &spans() const { return m_spans; }
     const std::vector<BlockRef> &refs() const { return m_refs; }
     // The table whose paragraphs hold the position (an index into spans(), -1 for none).
@@ -69,6 +82,8 @@ struct CellContent {
         std::shared_ptr<StoryLayout> text;      // a stretch of paragraphs (its lines are frame 0, from the top of the part)
         int from = 0, to = 0;                   // its document positions
         std::shared_ptr<TableFragment> table;   // or a table inside the cell, whole
+        int foot = 0, end = 0;                  // the footnotes and endnotes before it, in the story
+        QVector<NoteRef> notes;                 // the footnotes its text cites, in order
     };
     std::vector<Part> parts;
 };
@@ -137,6 +152,11 @@ public:
         double need = -1;                   // the height its content needs with its margins (-1: not measured)
         QMarginsF margins;
     };
+    // A line of a cell's content: where it is, and the notes it cites.
+    struct UnitLine {
+        double top = 0, bottom = 0;
+        QVector<NoteRef> notes;
+    };
     struct Row {
         const RowData *data = nullptr;
         int cell0 = 0, cells = 0;           // its cells: cells()[cell0, cell0 + cells)
@@ -182,6 +202,8 @@ public:
         double height = 0;                  // as tall as its room when more of the row comes after it, else as the cells that are left need
         QVector<double> offsets;            // for each cell of the row: how far down its content the part begins (from the top of the cell's text area)
         QVector<double> ends;               // for each cell: how far down its content the part goes (where the lines left for the next part begin; very large when none are)
+        QVector<NoteRef> notes;             // the notes cited by the lines in the part, which the page sets at its foot
+        double noteHeight = 0;              // their height, with the rule above them where it is theirs
         bool progress = false;              // some cell has a line in the part (without, the row is not split there: it goes to the next page whole)
         int next = 0;                       // the number of the part after it (0: the row ends in this one)
     };
@@ -193,7 +215,23 @@ public:
     bool splittable(int r) const;
     // Part number `index` of row `r`: when it is the first, `room` is the most it may take; else `first` is what the first part had, and `fullRoom` is what each later part may
     // (a page less the header rows). A part at the top of a page is given a line of each cell even if none fits (`force`), so that a row taller than a page ends.
-    Piece pieceOf(int r, int index, double first, double room, double fullRoom, bool force);
+    // What the pages that a row is in parts on have for it: the room of the first part, that of each later part (by whether the page's number is odd or even, as a
+    // section's headers of other heights for each make them other), the room of the part asked for (the page it is on now), and what the notes cited in the row take: the
+    // rule above them, which the first part's page may have already.
+    struct Rooms {
+        double first = 0;
+        double full[2] = {0, 0};
+        int firstParity = 0;                // the first part's page's number, odd or even (1 or 0)
+        double ruleGap = 0;
+        bool ruleAbove = false;             // the first part's page has notes above it already: no rule is needed for these
+    };
+    Piece pieceOf(int r, int index, const Rooms &rooms, double roomHere, bool force);
+    // How tall a note is when set at the column's width (set by the paginator, which has the notes' stories), for the room a part's notes take.
+    void setNoteHeights(std::function<double(const QString &)> height) { m_noteHeight = std::move(height); }
+    // The notes cited by the lines of the row's cells (the cells that begin in it), in order.
+    QVector<NoteRef> rowNotes(int r);
+    // Whether any paragraph of the row's cells cites a footnote (without laying anything out).
+    bool rowHasNotes(int r) const;
 
 private:
     friend class TableFlow;
@@ -212,13 +250,14 @@ private:
     int m_maxRows = 1;                      // the most rows a cell covers
     TableContext m_ctx;
     struct Units {
-        std::vector<std::pair<double, double>> lines;   // the top and bottom of each line of a cell's content (a table in it as one), from the top of its text area
+        std::vector<UnitLine> lines;        // each line of a cell's content (a table in it as one), from the top of its text area
         double height = 0;
     };
     std::shared_ptr<const Units> unitsOf(int cell);
     QHash<int, std::shared_ptr<const Units>> m_units;
     // Where each part of a row begins, by the rows' rooms (a part is found from the one before it: parts are asked for in order).
-    QHash<qint64, std::vector<QVector<double>>> m_partStarts;
+    std::map<std::array<int, 7>, std::vector<QVector<double>>> m_partStarts;
+    std::function<double(const QString &)> m_noteHeight;
 };
 
 // The cells of paragraphs [i0, i1) of the index laid out as the content of a cell `direct` cells deep, at a width (the paragraphs of the cell itself and
@@ -266,6 +305,9 @@ struct TableFragment {
     // cell, else the cell above or below in the fragment; `pos` when there is none.
     int moveVertical(int pos, int direction, double *wantedX) const;
     bool contains(int pos) const;
+    // The lines of text the fragment shows, with the rectangle each has on the page (the lines of the part of a row that the next page shows are not among them): for the
+    // places that objects anchored in cells are set from.
+    void forLines(const std::function<void(const StoryLayout::LineBrief &line, const QRectF &rect)> &visit) const;
     // The page rectangle of the cell that has the position (empty for none).
     QRectF cellRect(int pos) const;
 

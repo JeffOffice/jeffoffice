@@ -3893,6 +3893,446 @@ private Q_SLOTS:
         QVERIFY2(pg.tableCellsLaidOut() - before <= 6 * perPage, qPrintable(QStringLiteral("%1 cells laid out for six pages of about %2").arg(pg.tableCellsLaidOut() - before).arg(perPage)));
     }
 
+    // ---- tables with what the other waves of the word processor added: notes, headers and footers, sections, line heights
+
+    // A footnote cited before a table, one cited in a cell of it (on a later page), and one cited after it are each set at the foot of the page that cites them, in the room the
+    // table's rows leave, numbered as the document counts them (the cell's is the second, the one after the table the third).
+    void notesCitedBeforeAndInsideATableLandOnThePageThatCitesThem()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("a"), 8, QStringLiteral("NOTEA"));
+        addNote(&notes, QStringLiteral("b"), 8, QStringLiteral("NOTEB"));
+        addNote(&notes, QStringLiteral("c"), 8, QStringLiteral("NOTEC"));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fd.sections[0].paper = QSizeF(300, 330);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        fillStory(fd.story(), 3, 5, {}, 12, 18);
+        addReference(fd.story(), fd.story()->findBlockByNumber(1).position() + 4, QStringLiteral("a"));
+        TestTable spec;
+        spec.rows = 40;
+        spec.cols = 2;
+        spec.columnWidth = 100;
+        const TestTable table = addTable(fd, spec);
+        addReference(fd.story(), table.rowStarts[25] + 1, QStringLiteral("b"));
+        {
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            QTextBlockFormat bf;
+            bf.setBottomMargin(6);
+            c.insertBlock(bf);
+            QTextCharFormat cf;
+            cf.setFontPointSize(11);
+            c.insertText(QStringLiteral("After the table comes this paragraph, which cites a note."), cf);
+        }
+        addReference(fd.story(), fd.story()->characterCount() - 5, QStringLiteral("c"));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 4);
+        int onA = -1, onB = -1, onC = -1, rowPage = -1;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const QRectF body = pg.page(k).content;
+            if (boxHolding(*page, QStringLiteral("NOTEA"))) onA = onA < 0 ? k : -2;
+            if (boxHolding(*page, QStringLiteral("NOTEB"))) onB = onB < 0 ? k : -2;
+            if (boxHolding(*page, QStringLiteral("NOTEC"))) onC = onC < 0 ? k : -2;
+            // Whatever is at the foot is inside the text area, and the rows and the text end above the notes.
+            double notesTop = body.bottom();
+            for (const QString &name : {QStringLiteral("NOTEA"), QStringLiteral("NOTEB"), QStringLiteral("NOTEC")})
+                if (const TextItem *box = boxHolding(*page, name)) {
+                    notesTop = std::min(notesTop, box->rect.top());
+                    QVERIFY2(box->rect.bottom() <= body.bottom() + 0.5, qPrintable(QStringLiteral("page %1: %2 ends at %3 of %4").arg(k).arg(name).arg(box->rect.bottom()).arg(body.bottom())));
+                }
+            for (const auto &fragment : page->tables) {
+                QVERIFY2(fragment->origin.y() + fragment->height <= notesTop + 0.01, qPrintable(QStringLiteral("page %1: the table ends at %2, the notes begin at %3").arg(k).arg(fragment->origin.y() + fragment->height).arg(notesTop)));
+                if (rowPage < 0 && fragment->firstRow <= 25 && fragment->endRow > 25) rowPage = k;
+            }
+        }
+        QCOMPARE(onA, 0);
+        QVERIFY2(rowPage > 0, "the row with the note is on a page after the first");
+        QCOMPARE(onB, rowPage);
+        QCOMPARE(onC, pages - 1);
+        // The numbers: the cell's note is the second, the one after the table the third.
+        {
+            const auto page = pg.materialize(rowPage);
+            const auto &fragment = page->tables[0];
+            int number = 0;
+            for (const auto &item : fragment->items)
+                for (const auto &part : item.content->parts)
+                    for (const NoteRef &n : part.notes) number = n.number;
+            QCOMPARE(number, 2);
+            const auto last = pg.materialize(pages - 1);
+            bool third = false;
+            for (const auto &story : last->doc->stories)
+                for (QTextBlock b = story->doc->begin(); b.isValid(); b = b.next())
+                    for (auto it = b.begin(); !it.atEnd(); ++it) third |= it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("raw:3");
+            QVERIFY(third);
+        }
+        const QString bad = differenceFromFresh(fd, pg, true) + differsFromFresh(fd, pg);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // Odd and even pages with headers and footers of other heights each leave a table the room that is left: its rows, and the parts of rows cut at the foot, stay between
+    // the header and the footer of their page (the table does not run to the edge of the page), also after an edit moves the table by one page.
+    void headersAndFootersOfOtherHeightsBoundTheRowsOfATable()
+    {
+        for (const bool tall : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 2, 4);
+            Section &s = fd.sections[0];
+            s.differentOddEven = true;
+            s.header.odd = furnitureStory({QStringLiteral("ODDHEAD")});
+            s.header.even = furnitureStory({QStringLiteral("EVEN 1"), QStringLiteral("EVEN 2"), QStringLiteral("EVEN 3"), QStringLiteral("EVEN 4"), QStringLiteral("EVEN 5"), QStringLiteral("EVEN 6")});
+            s.footer.odd = furnitureStory({QStringLiteral("ODDFOOT")});
+            s.footer.even = furnitureStory({QStringLiteral("EFOOT 1"), QStringLiteral("EFOOT 2"), QStringLiteral("EFOOT 3"), QStringLiteral("EFOOT 4"), QStringLiteral("EFOOT 5")});
+            TestTable spec;
+            spec.rows = tall ? 14 : 110;
+            spec.cols = 2;
+            spec.columnWidth = 120;
+            if (tall) spec.text = [](int r, int c) {
+                QStringList l;
+                for (int i = 0; i < (c == 0 ? 30 : 3); ++i) l << QStringLiteral("r%1c%2 line %3").arg(r).arg(c).arg(i);
+                return l.join(QLatin1Char('\n'));
+            };
+            addTable(fd, spec);
+            {
+                QTextCursor c(fd.story());
+                c.movePosition(QTextCursor::End);
+                c.insertBlock(QTextBlockFormat());
+                c.insertText(QStringLiteral("After the table."));
+            }
+            Paginator pg(&fd);
+            auto check = [&](const char *when) {
+                const int pages = pg.pageCount();
+                QVERIFY2(pages >= 4, when);
+                double top[2] = {0, 0};
+                int rows[2] = {0, 0}, counted[2] = {0, 0};
+                for (int k = 0; k < pages; ++k) {
+                    const auto page = pg.materialize(k);
+                    QVERIFY(page);
+                    const QRectF body = pg.page(k).content;
+                    const bool even = pg.page(k).number % 2 == 0;
+                    const TextItem *head = boxHolding(*page, even ? QStringLiteral("EVEN 6") : QStringLiteral("ODDHEAD"));
+                    const TextItem *foot = boxHolding(*page, even ? QStringLiteral("EFOOT 5") : QStringLiteral("ODDFOOT"));
+                    QVERIFY2(head && foot, qPrintable(QStringLiteral("%1: page %2 has no header or footer of its parity").arg(QString::fromLatin1(when)).arg(k)));
+                    QVERIFY2(!boxHolding(*page, even ? QStringLiteral("ODDHEAD") : QStringLiteral("EVEN 1")), when);
+                    QVERIFY2(head->rect.bottom() <= body.top() + 0.01 && foot->rect.top() >= body.bottom() - 0.01, qPrintable(QStringLiteral("%1: page %2 body %3 to %4, header ends %5, footer begins %6").arg(QString::fromLatin1(when)).arg(k).arg(body.top()).arg(body.bottom()).arg(head->rect.bottom()).arg(foot->rect.top())));
+                    for (const auto &fragment : page->tables) {
+                        QVERIFY2(fragment->origin.y() >= body.top() - 0.01 && fragment->origin.y() + fragment->height <= body.bottom() + 0.01,
+                                 qPrintable(QStringLiteral("%1: page %2 (%3): the table is %4 to %5 in a body %6 to %7").arg(QString::fromLatin1(when)).arg(k).arg(even ? "even" : "odd").arg(fragment->origin.y()).arg(fragment->origin.y() + fragment->height).arg(body.top()).arg(body.bottom())));
+                        if (fragment->firstRow > 0 && fragment->endRow < fragment->layout->rowCount()) { rows[even] += fragment->endRow - fragment->firstRow; ++counted[even]; }
+                    }
+                    if (k > 0 && k + 1 < pages) top[even] = body.top();
+                }
+                QVERIFY2(top[1] > top[0] + 20, when);
+                if (!tall && counted[0] && counted[1]) QVERIFY2(double(rows[1]) / counted[1] < double(rows[0]) / counted[0], when);
+                const QString bad = differsFromFresh(fd, pg);
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1: %2").arg(QString::fromLatin1(when), bad)));
+            };
+            check("as made");
+            // Paragraphs added above push the table down by one page, and so every page after it changes its parity.
+            QTextCursor c(fd.story());
+            c.setPosition(fd.story()->findBlockByNumber(1).position());
+            QTextCharFormat cf;
+            cf.setFontPointSize(11);
+            for (int i = 0; i < 40; ++i) {
+                c.insertText(QStringLiteral("An added paragraph that is long enough to take two or three lines of the page when it is set at eleven points in this frame."), cf);
+                c.insertBlock();
+            }
+            check("after paragraphs above");
+            c.setPosition(fd.story()->findBlockByNumber(1).position());
+            c.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor, 25);
+            c.removeSelectedText();
+            check("after paragraphs removed");
+        }
+    }
+
+    // A continuous section with two columns begins under a table on the page where the table ends, and a table in it is set in its columns, cut at the foot of each.
+    void aTwoColumnSectionAfterATableHoldsATableInItsColumns()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        Section &one = fd.sections[0];
+        one.differentOddEven = true;
+        one.header.odd = furnitureStory({QStringLiteral("ODDHEAD")});
+        one.header.even = furnitureStory({QStringLiteral("EVEN 1"), QStringLiteral("EVEN 2"), QStringLiteral("EVEN 3"), QStringLiteral("EVEN 4"), QStringLiteral("EVEN 5")});
+        Section two = one;
+        two.continuous = true;
+        two.columns = 2;
+        two.columnGap = 20;
+        fd.sections << two;
+        fillStory(fd.story(), 2, 4);
+        TestTable first;
+        first.rows = 5;
+        first.cols = 2;
+        first.columnWidth = 150;
+        addTable(fd, first);
+        {
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            QTextBlockFormat bf;
+            bf.setProperty(flow::fp::SectionBreakAfter, true);
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("END OF ONE"));
+        }
+        QTextCursor tail(fd.story());
+        tail.movePosition(QTextCursor::End);
+        for (int i = 0; i < 3; ++i) {
+            tail.insertBlock(QTextBlockFormat());
+            tail.insertText(QStringLiteral("A paragraph in the columns that takes some lines of the narrow column, so that the table comes below text. "), QTextCharFormat());
+        }
+        TestTable second;
+        second.rows = 200;
+        second.cols = 2;
+        second.columnWidth = 100;
+        second.text = [](int r, int c) { return QStringLiteral("B%1c%2").arg(r).arg(c); };
+        addTable(fd, second);
+        tail.movePosition(QTextCursor::End);
+        tail.insertBlock(QTextBlockFormat());
+        tail.insertText(QStringLiteral("Last paragraph."));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 3);
+        const Section &sec = fd.sections[1];
+        int next = 0;   // the next row of the second table that must be seen
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            const QRectF body = pg.page(k).content;
+            double firstTableBottom = -1;
+            QVector<const TableFragment *> inColumns;
+            for (const auto &fragment : page->tables) {
+                QVERIFY(fragment->origin.y() >= body.top() - 0.01 && fragment->origin.y() + fragment->height <= body.bottom() + 0.01);
+                if (fragment->layout->rowCount() == 5) firstTableBottom = fragment->origin.y() + fragment->height;
+                else inColumns << fragment.get();
+            }
+            if (k == 0) QVERIFY(firstTableBottom > 0);
+            for (const TableFragment *f : inColumns) {
+                QCOMPARE(f->firstRow, next);
+                next = f->endRow;
+                const bool left = std::abs(f->origin.x() - sec.columnRect(0).left()) < 12, right = std::abs(f->origin.x() - sec.columnRect(1).left()) < 12;
+                QVERIFY2(left || right, qPrintable(QStringLiteral("page %1: the table is at x %2 (columns at %3 and %4)").arg(k).arg(f->origin.x()).arg(sec.columnRect(0).left()).arg(sec.columnRect(1).left())));
+                QVERIFY2(f->rect().right() <= (left ? sec.columnRect(0) : sec.columnRect(1)).right() + 12, "inside its column");
+                if (k == 0) QVERIFY2(f->origin.y() >= firstTableBottom - 0.01, "under the first table");
+            }
+        }
+        QCOMPARE(next, 200);
+        QVERIFY(pg.page(0).start.section == 0);
+        const QString bad = differenceFromFresh(fd, pg, true) + differsFromFresh(fd, pg);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // A note cited in a cell of a row that is cut between two pages is set on the page that holds that cell's text, and the next page does not repeat it.
+    void aNoteCitedInACutRowIsOnThePageOfItsLine()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("a"), 6, QStringLiteral("NOTEA"));
+        addNote(&notes, QStringLiteral("b"), 6, QStringLiteral("NOTEB"));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fd.sections[0].paper = QSizeF(300, 330);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        fillStory(fd.story(), 1, 3, {}, 10, 12);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 2;
+        spec.columnWidth = 100;
+        spec.text = [](int r, int c) {
+            QStringList l;
+            for (int i = 0; i < (c == 0 ? 40 : 2); ++i) l << QStringLiteral("r%1c%2 line %3").arg(r).arg(c).arg(i);
+            return l.join(QLatin1Char('\n'));
+        };
+        const TestTable table = addTable(fd, spec);
+        // `a` is cited on an early line of row 1's first cell, `b` on a late one.
+        addReference(fd.story(), table.rowStarts[1] + 3, QStringLiteral("a"));
+        QTextBlock late = fd.story()->findBlock(table.rowStarts[1]);
+        for (int i = 0; i < 36; ++i) late = late.next();
+        addReference(fd.story(), late.position() + 2, QStringLiteral("b"));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 3);
+        int onA = -1, onB = -1;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            if (boxHolding(*page, QStringLiteral("NOTEA"))) onA = onA < 0 ? k : -2;
+            if (boxHolding(*page, QStringLiteral("NOTEB"))) onB = onB < 0 ? k : -2;
+            const QRectF body = pg.page(k).content;
+            for (const auto &fragment : page->tables) {
+                double notesTop = body.bottom();
+                for (const QString &name : {QStringLiteral("NOTEA"), QStringLiteral("NOTEB")})
+                    if (const TextItem *box = boxHolding(*page, name)) notesTop = std::min(notesTop, box->rect.top());
+                QVERIFY2(fragment->origin.y() + fragment->height <= notesTop + 0.01, qPrintable(QStringLiteral("page %1: table ends %2, notes begin %3").arg(k).arg(fragment->origin.y() + fragment->height).arg(notesTop)));
+            }
+        }
+        // The page that shows a cut row's part with the reference to a note holds the note.
+        auto pageOfLine = [&](int position) {
+            for (int k = 0; k < pages; ++k)
+                for (const auto &fragment : pg.materialize(k)->tables)
+                    if (fragment->contains(position)) {
+                        QRectF r = fragment->cellRect(position);
+                        if (!r.isEmpty()) return k;
+                    }
+            return -1;
+        };
+        QVERIFY(onA >= 0 && onB >= 0);
+        QCOMPARE(onA, pg.pageOfTablePosition(table.rowStarts[1] + 3));
+        QCOMPARE(onB, pg.pageOfTablePosition(late.position() + 2));
+        QVERIFY(onB > onA);
+        (void)pageOfLine;
+        const QString bad = differenceFromFresh(fd, pg, true) + differsFromFresh(fd, pg);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // A note longer than what is left of the page is cut at the foot and goes on at the foot of the next, also where a table is on those pages.
+    void aLongNoteIsCarriedAcrossPagesThatHoldATable()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("long"), 400, QStringLiteral("LONGNOTE"));
+        addNote(&notes, QStringLiteral("short"), 5, QStringLiteral("SHORTNOTE"));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fd.sections[0].paper = QSizeF(300, 330);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        fillStory(fd.story(), 3, 5, {}, 12, 18);
+        addReference(fd.story(), fd.story()->findBlockByNumber(2).position() + 3, QStringLiteral("long"));
+        TestTable spec;
+        spec.rows = 30;
+        spec.cols = 2;
+        spec.columnWidth = 100;
+        addTable(fd, spec);
+        addReference(fd.story(), fd.story()->characterCount() - 4, QStringLiteral("short"));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 4);
+        int withLong = 0, firstLong = -1, lastLong = -1;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            const QRectF body = pg.page(k).content;
+            if (boxHolding(*page, QStringLiteral("word"))) {
+                ++withLong;
+                if (firstLong < 0) firstLong = k;
+                lastLong = k;
+            }
+            for (const auto &fragment : page->tables) {
+                double notesTop = body.bottom();
+                for (const auto &item : page->doc->pages[0]->items)
+                    if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                        if (const Story *st = page->doc->story(t->storyId))
+                            if (st->doc->toPlainText().contains(QStringLiteral("word"))) notesTop = std::min(notesTop, t->rect.top());
+                QVERIFY2(fragment->origin.y() + fragment->height <= notesTop + 0.01, qPrintable(QStringLiteral("page %1: table ends %2, notes begin %3").arg(k).arg(fragment->origin.y() + fragment->height).arg(notesTop)));
+            }
+            QVERIFY(pg.page(k).start.carried.size() <= 2);
+        }
+        QVERIFY2(withLong >= 2 && firstLong == 0, qPrintable(QStringLiteral("the long note is on %1 page(s), from %2 to %3").arg(withLong).arg(firstLong).arg(lastLong)));
+        const QString bad = differenceFromFresh(fd, pg, true) + differsFromFresh(fd, pg);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // The paragraph that stands for a table in the story takes no height of its own, set at Word's line heights or not: the table is where the text before it ends.
+    void theStandInForATableDoesNotShiftItUnderWordLineHeights()
+    {
+        double at[2] = {0, 0}, gap[2] = {0, 0};
+        for (const bool word : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = word;
+            fillStory(fd.story(), 2, 4, [](int, QTextBlockFormat &bf) { bf.setBottomMargin(6); });
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            addTable(fd, spec);
+            Paginator pg(&fd);
+            const auto lines = pg.lines(0);
+            double lastText = 0;
+            for (const auto &l : lines)
+                if (!fd.story()->findBlock(l.block).blockFormat().intProperty(fp::Cell)) lastText = l.rect.bottom();
+            const auto page = pg.materialize(0);
+            QVERIFY(!page->tables.isEmpty());
+            at[word] = page->tables[0]->origin.y();
+            gap[word] = at[word] - pg.page(0).content.top() - lastText;
+            const auto rows = rowLines(pg, fd, 0);
+            QVERIFY(!rows.isEmpty());
+            QVERIFY2(std::abs(rows.first().rect.top() + pg.page(0).content.top() - at[word]) < 0.01, qPrintable(QStringLiteral("the first row line is at %1, the table at %2").arg(rows.first().rect.top() + pg.page(0).content.top()).arg(at[word])));
+        }
+        QVERIFY2(gap[0] >= 0 && gap[0] < 20 && std::abs(gap[0] - gap[1]) < 0.01, qPrintable(QStringLiteral("gaps %1 and %2").arg(gap[0]).arg(gap[1])));
+    }
+
+    // An object anchored in a paragraph before a table keeps its place on a page that holds the table; one anchored in a cell goes where the paragraph of its anchor is in the cell,
+    // on the page that shows that line (once, though the row is cut between pages).
+    void objectsAnchoredInTablesAreSetOnceWhereTheirLinesAre()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.sections[0].paper = QSizeF(300, 330);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        fillStory(fd.story(), 1, 3, {}, 10, 12);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 2;
+        spec.columnWidth = 100;
+        spec.text = [](int r, int c) {
+            QStringList l;
+            for (int i = 0; i < (c == 0 ? 40 : 2); ++i) l << QStringLiteral("r%1c%2 line %3").arg(r).arg(c).arg(i);
+            return l.join(QLatin1Char('\n'));
+        };
+        const TestTable table = addTable(fd, spec);
+        auto box = [](double w, double h) {
+            auto item = std::make_shared<ShapeItem>();
+            item->rect = QRectF(0, 0, w, h);
+            return item;
+        };
+        using Rel = FloatingObject::Rel;
+        QTextBlock late = fd.story()->findBlock(table.rowStarts[1]);
+        for (int i = 0; i < 33; ++i) late = late.next();
+        const int latePos = late.position() + 2;
+        addObject(&fd, box(31, 7), latePos, Rel::Page, Rel::Paragraph, 5, 3);                   // in a cell, on a late line of a cut row
+        addObject(&fd, box(29, 7), table.rowStarts[2] + 1, Rel::Page, Rel::Paragraph, 5, 3);   // in the first cell of a row that is whole
+        addObject(&fd, box(23, 7), fd.story()->findBlockByNumber(0).position() + 2, Rel::Margin, Rel::Paragraph, 0, 0);
+        // (Where the anchors are now: each inserted character moved the places after it.)
+        int anchorAt[3] = {-1, -1, -1};
+        for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const int id = it.fragment().charFormat().intProperty(fp::AnchorId);
+                if (id >= 1 && id <= 3) anchorAt[id - 1] = it.fragment().position();
+            }
+        QVERIFY(anchorAt[0] > 0 && anchorAt[1] > 0 && anchorAt[2] >= 0);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 3);
+        int count[3] = {0, 0, 0}, pageOf[3] = {-1, -1, -1};
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            for (const auto &it : page->doc->pages[0]->items)
+                if (it->type() == ItemType::Shape) {
+                    const int w = int(static_cast<const ShapeItem *>(it.get())->rect.width());
+                    const int which = w == 31 ? 0 : w == 29 ? 1 : w == 23 ? 2 : -1;
+                    if (which < 0) continue;
+                    ++count[which];
+                    pageOf[which] = k;
+                    if (which == 0 || which == 1) {
+                        // At the top of the paragraph that holds the anchor, 3 points down, 5 from the page's edge.
+                        const int where = anchorAt[which];
+                        QLineF caret;
+                        bool found = false;
+                        for (const auto &fragment : page->tables) found |= fragment->caretLine(where, &caret);
+                        QVERIFY(found);
+                        const QRectF r = static_cast<const ShapeItem *>(it.get())->rect;
+                        QVERIFY2(std::abs(r.left() - 5) < 0.01 && std::abs(r.top() - (caret.y1() + 3)) < 0.5, qPrintable(QStringLiteral("page %1: the object is at (%2, %3), the line at y %4").arg(k).arg(r.left()).arg(r.top()).arg(caret.y1())));
+                    }
+                }
+        }
+        QCOMPARE(count[0], 1);
+        QCOMPARE(count[1], 1);
+        QCOMPARE(count[2], 1);
+        QCOMPARE(pageOf[2], 0);
+        QCOMPARE(pageOf[0], pg.pageOfTablePosition(anchorAt[0]));
+        QCOMPARE(pageOf[1], pg.pageOfTablePosition(anchorAt[1]));
+    }
+
     // A table whose indent is to the text of its first cell (the way tables were set before the program of 2013) has its left edge left of that by the cell's margin; a
     // centered one is in the middle of the text area, and a right one at its right edge.
     void aTableIsIndentedToTheTextOfItsFirstCellOrCenteredOrRight()

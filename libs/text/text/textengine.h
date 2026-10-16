@@ -249,6 +249,9 @@ public:
         // Where the numbers of the notes begin again at 1: the document positions of the first characters of the paragraphs that do (a word processor's notes
         // that restart in each section), in order.
         QVector<int> restartNotesAt;
+        // Room at the foot of each frame (its first column) that the notes of the lines before this stretch already take, rule included (a stretch of a page's text that
+        // follows a table, the notes the text before and the table cited are at the foot): the notes of this stretch go above them, under no rule of their own.
+        QVector<double> noteReserves;
         // Widow and orphan control, keeping lines together, and keeping with the next paragraph: false leaves
         // them to the caller, which then decides where the frames end.
         bool keepRules = true;
@@ -377,6 +380,11 @@ public:
     // text starts in the note's story). For a caller that draws the notes of a page itself.
     struct NotePlace { QString storyId; int number = 0; int frame = -1, column = 0; QRectF rect; int from = 0; };
     QVector<NotePlace> notePlaces() const;
+    // The room the footnotes take at the foot of each frame (its first column), the rule's gap above them included (0: none), and the gaps the layout leaves: above the
+    // first note (the rule is a part of it) and between notes. For a caller that sets notes of its own among them.
+    QVector<double> noteReserves() const { return m_noteReserves; }
+    double noteRuleGap() const { return m_ruleGap; }
+    double noteGap() const { return m_noteGap; }
 
 private:
     const Block *blockAt(int pos, int *rel) const;
@@ -394,6 +402,8 @@ private:
     bool m_overflow = false;
     LayoutEnv m_env;
     double m_trailingAfter = 0;
+    QVector<double> m_noteReserves;
+    double m_ruleGap = 0, m_noteGap = 0;
     QVector<Note> m_notes;
     QVector<Rule> m_noteRules;
     struct Heading { int frame = -1; QPointF baseline; QFont font; QColor color; };

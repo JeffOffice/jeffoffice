@@ -1,6 +1,7 @@
 #include "flow/tableflow.h"
 
 #include "text/textengine.h"
+#include "text/textprops.h"
 
 #include <QTextBlock>
 #include <QTextDocument>
@@ -36,7 +37,7 @@ const QVector<const CellRecord *> &TableIndex::chain(int key) const
     return m_chains.insert(key, up).value();
 }
 
-void TableIndex::rebuild(const QTextDocument *story, const TableStore &store)
+void TableIndex::rebuild(const QTextDocument *story, const TableStore &store, const FlowDocument *doc)
 {
     m_spans.clear();
     m_refs.clear();
@@ -44,7 +45,24 @@ void TableIndex::rebuild(const QTextDocument *story, const TableStore &store)
     m_store = &store;
     if (store.isEmpty()) return;
     const TableData *current = nullptr;
+    // Where the document has notes, the notes before each paragraph are counted as the text engine counts them (the numbers restart in each section when the document says).
+    const bool notes = doc && doc->fields;
+    const bool restarts = notes && doc->restartNotesInSections;
+    int footnotes = 0, endnotes = 0;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        if (restarts) {
+            const QTextBlock before = b.previous();
+            if (before.isValid() && before.blockFormat().boolProperty(fp::SectionBreakAfter)) footnotes = endnotes = 0;
+        }
+        const int foot = footnotes, endn = endnotes;
+        if (notes)
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (!cf.hasProperty(tp::Field)) continue;
+                const QString code = cf.stringProperty(tp::Field);
+                if (code.startsWith(QLatin1String("footnote:"))) footnotes += it.fragment().length();
+                else if (code.startsWith(QLatin1String("endnote:"))) endnotes += it.fragment().length();
+            }
         const int key = b.blockFormat().intProperty(fp::Cell);
         if (!store.get(key)) {
             current = nullptr;
@@ -60,7 +78,7 @@ void TableIndex::rebuild(const QTextDocument *story, const TableStore &store)
             s.table = up.first()->table;
             m_spans.push_back(s);
         }
-        m_refs.push_back({b.position(), b.position() + b.length(), key});
+        m_refs.push_back({b.position(), b.position() + b.length(), key, foot, endn, footnotes - foot});
         m_spans.back().to = b.position() + b.length();
         m_spans.back().last = int(m_refs.size());
     }
@@ -104,7 +122,7 @@ int TableIndex::firstFrom(int pos) const
 namespace {
 
 // A stretch of paragraphs [from, to) of the story laid out at a width, from the top, and the height they take (the space after the last one counts).
-std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, double width, double *height)
+std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, double width, double *height, int footnotesBefore = 0, int endnotesBefore = 0)
 {
     FrameSpec fs;
     fs.size = QSizeF(std::max(kLeastWidth, width), kTall);
@@ -117,6 +135,8 @@ std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, dou
     span.from = from;
     span.end = to;
     span.keepRules = false;
+    span.footnotesBefore = footnotesBefore;   // (the notes the cell cites are numbered as the document counts them; the page sets them at its foot)
+    span.endnotesBefore = endnotesBefore;
     std::shared_ptr<StoryLayout> layout;
     double bottom = 0;
     int lastBlock = -1;
@@ -137,7 +157,7 @@ std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, dou
         if (!cut || fs.size.height() >= kTallest) break;
         fs.size.setHeight(std::min(kTallest, fs.size.height() * 8));
     }
-    if (lastBlock >= 0) bottom += std::max(0.0, doc->story()->findBlock(lastBlock).blockFormat().bottomMargin());
+    if (lastBlock >= 0) bottom += doc->env.wordLines ? layout->trailingSpace() : std::max(0.0, doc->story()->findBlock(lastBlock).blockFormat().bottomMargin());
     *height = bottom;
     return layout;
 }
@@ -162,8 +182,22 @@ std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, 
             while (j < i1 && int(ix.chain(ix.refs()[size_t(j)].key).size()) <= direct) ++j;
             part.from = ix.refs()[size_t(i)].pos;
             part.to = ix.refs()[size_t(j - 1)].end;
+            part.foot = ix.refs()[size_t(i)].foot;
+            part.end = ix.refs()[size_t(i)].endNotes;
             double h = 0;
-            part.text = layoutText(ctx.doc, part.from, part.to, width, &h);
+            part.text = layoutText(ctx.doc, part.from, part.to, width, &h, part.foot, part.end);
+            if (ctx.doc->fields) {
+                // The footnotes it cites, in order, with the numbers they show.
+                const QTextDocument *story = ctx.doc->story();
+                int number = part.foot;
+                for (QTextBlock b = story->findBlock(part.from); b.isValid() && b.position() < part.to; b = b.next())
+                    for (auto it = b.begin(); !it.atEnd(); ++it) {
+                        const QTextFragment frag = it.fragment();
+                        const QString code = frag.charFormat().stringProperty(tp::Field);
+                        if (!code.startsWith(QLatin1String("footnote:"))) continue;
+                        for (int k = 0; k < frag.length(); ++k) part.notes.push_back({frag.position() + k, code.mid(9), ++number});
+                    }
+            }
             y += h;
             i = j;
         } else {
@@ -498,7 +532,7 @@ bool TableLayout::splittable(int r) const
 
 namespace {
 
-using LineList = std::vector<std::pair<double, double>>;
+using LineList = std::vector<TableLayout::UnitLine>;
 
 void contentLines(const CellContent &content, double y0, LineList *out);
 
@@ -510,7 +544,9 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
     bool joined = false;
     for (int i = 0; i < t.cellCount() && !joined; ++i) joined = t.cell(i).rows > 1;
     if (joined) {
-        out->push_back({y0, y0 + nested.height});
+        TableLayout::UnitLine whole{y0, y0 + nested.height, {}};
+        for (int r = nested.firstRow; r < nested.endRow; ++r) whole.notes += t.rowNotes(r);
+        out->push_back(whole);
         return;
     }
     double y = y0;
@@ -530,14 +566,15 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
             }
         }
         if (inRow.empty()) {
-            out->push_back({y, y + h});
+            out->push_back({y, y + h, t.rowNotes(r)});
         } else {
             // The cells' lines side by side: those that overlap in height are one piece.
-            std::sort(inRow.begin(), inRow.end());
-            std::pair<double, double> run = inRow.front();
+            std::sort(inRow.begin(), inRow.end(), [](const TableLayout::UnitLine &a, const TableLayout::UnitLine &b) { return a.top != b.top ? a.top < b.top : a.bottom < b.bottom; });
+            TableLayout::UnitLine run = inRow.front();
             for (size_t k = 1; k < inRow.size(); ++k) {
-                if (inRow[k].first < run.second - 0.01) {
-                    run.second = std::max(run.second, inRow[k].second);
+                if (inRow[k].top < run.bottom - 0.01) {
+                    run.bottom = std::max(run.bottom, inRow[k].bottom);
+                    run.notes += inRow[k].notes;
                 } else {
                     out->push_back(run);
                     run = inRow[k];
@@ -553,8 +590,17 @@ void contentLines(const CellContent &content, double y0, LineList *out)
 {
     for (const CellContent::Part &part : content.parts) {
         if (part.text) {
-            for (const StoryLayout::LineBrief &l : part.text->lineBriefs())
-                if (l.frame >= 0) out->push_back({y0 + part.y + l.rect.top(), y0 + part.y + l.rect.bottom()});
+            const auto &notes = part.notes;
+            for (const StoryLayout::LineBrief &l : part.text->lineBriefs()) {
+                if (l.frame < 0) continue;
+                TableLayout::UnitLine line{y0 + part.y + l.rect.top(), y0 + part.y + l.rect.bottom(), {}};
+                if (!notes.isEmpty()) {
+                    // (The notes whose references are on the line: the part's notes are in the order of their places.)
+                    const auto first = std::lower_bound(notes.begin(), notes.end(), l.pos, [](const NoteRef &n, int pos) { return n.pos < pos; });
+                    for (auto it = first; it != notes.end() && it->pos < l.end; ++it) line.notes.push_back(*it);
+                }
+                out->push_back(line);
+            }
         } else if (part.table) {
             tableLines(*part.table, y0 + part.y, out);
         }
@@ -575,59 +621,115 @@ std::shared_ptr<const TableLayout::Units> TableLayout::unitsOf(int index)
     return u;
 }
 
-TableLayout::Piece TableLayout::pieceOf(int r, int index, double first, double room, double fullRoom, bool force)
+bool TableLayout::rowHasNotes(int r) const
+{
+    if (!m_ctx.doc || !m_ctx.doc->fields || !m_ctx.valid() || r < 0 || r >= int(m_rows.size())) return false;
+    const Row &row = m_rows[size_t(r)];
+    if (row.cells <= 0) return false;
+    const TableIndex &ix = *m_ctx.index;
+    const int i0 = m_cells[size_t(row.cell0)].r0, i1 = m_cells[size_t(row.cell0 + row.cells - 1)].r1;
+    for (int i = i0; i < i1 && i < int(ix.refs().size()); ++i)
+        if (ix.refs()[size_t(i)].notes > 0) return true;
+    return false;
+}
+
+QVector<NoteRef> TableLayout::rowNotes(int r)
+{
+    QVector<NoteRef> out;
+    if (!rowHasNotes(r)) return out;
+    const Row &row = m_rows[size_t(r)];
+    for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+        if (m_cells[size_t(i)].covered) continue;
+        for (const UnitLine &l : unitsOf(i)->lines) out += l.notes;
+    }
+    std::sort(out.begin(), out.end(), [](const NoteRef &a, const NoteRef &b) { return a.number != b.number ? a.number < b.number : a.pos < b.pos; });
+    return out;
+}
+
+TableLayout::Piece TableLayout::pieceOf(int r, int index, const Rooms &rooms, double roomHere, bool force)
 {
     constexpr double kEnd = 1e18;
     Piece piece;
     const Row &row = m_rows[size_t(r)];
     const int n = row.cells, k = std::clamp(index, 0, kMostParts - 1);
-    if (k == 0) first = room;
     std::vector<std::shared_ptr<const Units>> units(static_cast<size_t>(n));
+    const bool anyNotes = m_noteHeight && rowHasNotes(r);
     for (int i = 0; i < n; ++i)
         if (!m_cells[size_t(row.cell0 + i)].covered) units[size_t(i)] = unitsOf(row.cell0 + i);
-    // The part that begins at `offs` (each cell's place) as the j-th: where the next begins, whether any cell has a line in it, and whether any has lines left.
+    // The room of the j-th part: the first has its own, those after it the page's by whether its number is odd or even, and the one asked for the page it is on.
+    auto avail = [&](int j) { return j == k && k > 0 ? roomHere : j == 0 ? rooms.first : rooms.full[(rooms.firstParity + j) & 1]; };
+    // The part that begins at `offs` (each cell's place) as the j-th: where the next begins, whether any cell has a line in it, whether any has lines left, and the
+    // notes its lines cite (they take room at the page's foot, which the lines have less of).
     struct Step {
         QVector<double> next;
         bool progress = false, more = false;
-        double avail = 0;
+        double avail = 0, noteHeight = 0;
+        QVector<NoteRef> notes;
     };
     auto stepFrom = [&](int j, const QVector<double> &offs) {
         Step st;
-        st.avail = j == 0 ? first : fullRoom;
-        st.next = QVector<double>(n, kEnd);
-        std::vector<int> begin(static_cast<size_t>(n), -1);
-        // Each cell's lines that fit, and where the rest begins.
-        for (int i = 0; i < n; ++i) {
-            if (!units[size_t(i)]) continue;
-            const Cell &c = m_cells[size_t(row.cell0 + i)];
-            const auto &lines = units[size_t(i)]->lines;
-            const double inner = std::max(0.0, st.avail - c.margins.top() - c.margins.bottom());
-            int a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const std::pair<double, double> &l, double off) { return l.first < off; }) - lines.begin());
-            begin[size_t(i)] = a;
-            if (a >= int(lines.size())) continue;
-            int b = a;
-            while (b < int(lines.size()) && lines[size_t(b)].second - offs[i] <= inner + 0.01) ++b;
-            st.progress |= b > a;
-            st.next[i] = b < int(lines.size()) ? lines[size_t(b)].first : kEnd;
-            st.more |= b < int(lines.size());
-        }
-        // A part at the top of a page has a line of each cell that has one left, however tall: a row taller than a page ends.
-        const bool forced = !st.progress && st.more && (force || j > 0);
-        if (forced) {
+        st.avail = avail(j);
+        const bool ruleNeeded = !(j == 0 && rooms.ruleAbove);
+        double reserved = 0;
+        // (The notes need room, which takes from the lines', which may cite other notes: so it goes round until the notes are the room's.)
+        for (int pass = 0; pass < 8; ++pass) {
+            st.next = QVector<double>(n, kEnd);
+            st.progress = false;
             st.more = false;
+            st.notes.clear();
+            std::vector<int> begin(static_cast<size_t>(n), -1), stop(static_cast<size_t>(n), -1);
+            // Each cell's lines that fit, and where the rest begins.
             for (int i = 0; i < n; ++i) {
-                if (!units[size_t(i)] || begin[size_t(i)] < 0 || begin[size_t(i)] >= int(units[size_t(i)]->lines.size())) continue;
+                if (!units[size_t(i)]) continue;
+                const Cell &c = m_cells[size_t(row.cell0 + i)];
                 const auto &lines = units[size_t(i)]->lines;
-                const int b = begin[size_t(i)] + 1;
-                st.next[i] = b < int(lines.size()) ? lines[size_t(b)].first : kEnd;
+                const double inner = std::max(0.0, st.avail - reserved - c.margins.top() - c.margins.bottom());
+                int a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const UnitLine &l, double off) { return l.top < off; }) - lines.begin());
+                begin[size_t(i)] = a;
+                if (a >= int(lines.size())) continue;
+                int b = a;
+                while (b < int(lines.size()) && lines[size_t(b)].bottom - offs[i] <= inner + 0.01) ++b;
+                stop[size_t(i)] = b;
+                st.progress |= b > a;
+                st.next[i] = b < int(lines.size()) ? lines[size_t(b)].top : kEnd;
                 st.more |= b < int(lines.size());
             }
-            st.progress = true;
+            // A part at the top of a page has a line of each cell that has one left, however tall: a row taller than a page ends.
+            const bool forced = !st.progress && st.more && (force || j > 0);
+            if (forced) {
+                st.more = false;
+                for (int i = 0; i < n; ++i) {
+                    if (!units[size_t(i)] || begin[size_t(i)] < 0 || begin[size_t(i)] >= int(units[size_t(i)]->lines.size())) continue;
+                    const auto &lines = units[size_t(i)]->lines;
+                    const int b = begin[size_t(i)] + 1;
+                    stop[size_t(i)] = b;
+                    st.next[i] = b < int(lines.size()) ? lines[size_t(b)].top : kEnd;
+                    st.more |= b < int(lines.size());
+                }
+                st.progress = true;
+            }
+            if (!anyNotes) break;
+            // The notes of the lines that are in the part.
+            QVector<NoteRef> notes;
+            for (int i = 0; i < n; ++i) {
+                if (!units[size_t(i)] || begin[size_t(i)] < 0) continue;
+                const auto &lines = units[size_t(i)]->lines;
+                for (int q = begin[size_t(i)]; q < stop[size_t(i)] && q < int(lines.size()); ++q) notes += lines[size_t(q)].notes;
+            }
+            double h = 0;
+            for (const NoteRef &nr : std::as_const(notes)) h += m_noteHeight(nr.id);
+            if (!notes.isEmpty() && ruleNeeded) h += rooms.ruleGap;
+            std::sort(notes.begin(), notes.end(), [](const NoteRef &a, const NoteRef &b) { return a.number != b.number ? a.number < b.number : a.pos < b.pos; });
+            st.notes = notes;
+            st.noteHeight = h;
+            if (h <= reserved + 0.01) break;
+            reserved = h;
         }
         return st;
     };
     // Where the part begins, from where the one before did (the parts before it, found once for the rooms the row has).
-    const qint64 key = (qint64(r) << 42) | (qint64(std::clamp(int(std::lround(first * 20)), 0, (1 << 21) - 1)) << 21) | qint64(std::clamp(int(std::lround(fullRoom * 20)), 0, (1 << 21) - 1));
+    const std::array<int, 7> key{r, std::clamp(int(std::lround(rooms.first * 20)), 0, 1 << 24), std::clamp(int(std::lround(rooms.full[0] * 20)), 0, 1 << 24), std::clamp(int(std::lround(rooms.full[1] * 20)), 0, 1 << 24),
+                                 rooms.firstParity & 1, rooms.ruleAbove ? 1 : 0, std::clamp(int(std::lround(rooms.ruleGap * 20)), 0, 1 << 24)};
     std::vector<QVector<double>> &starts = m_partStarts[key];
     if (starts.empty()) starts.push_back(QVector<double>(n, 0.0));
     while (int(starts.size()) <= k) {
@@ -640,8 +742,11 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, double first, double r
     piece.progress = st.progress;
     piece.offsets = offs;
     piece.ends = st.more ? st.next : QVector<double>(n, kEnd);
+    piece.notes = st.notes;
+    piece.noteHeight = st.noteHeight;
+    const double text = st.avail - st.noteHeight;   // (what the lines have: the notes are at the foot)
     if (st.more) {
-        piece.height = st.avail;
+        piece.height = text;
         piece.next = k + 1;
     } else {
         // The row ends here: as tall as what is left of the cells, but not past its room when the lines fit it (the space after the last is let go at a page's foot).
@@ -651,9 +756,9 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, double first, double r
             const Cell &c = m_cells[size_t(row.cell0 + i)];
             const auto &ls = units[size_t(i)]->lines;
             need = std::max(need, units[size_t(i)]->height - offs[i] + c.margins.top() + c.margins.bottom());
-            if (!ls.empty()) lines = std::max(lines, ls.back().second - offs[i] + c.margins.top() + c.margins.bottom());
+            if (!ls.empty()) lines = std::max(lines, ls.back().bottom - offs[i] + c.margins.top() + c.margins.bottom());
         }
-        piece.height = lines <= st.avail + 0.01 ? std::min(need, st.avail) : need;
+        piece.height = lines <= text + 0.01 ? std::min(need, text) : need;
         piece.next = 0;
     }
     return piece;
@@ -954,6 +1059,27 @@ bool TableFragment::caretLine(int pos, QLineF *line) const
     return false;
 }
 
+void TableFragment::forLines(const std::function<void(const StoryLayout::LineBrief &line, const QRectF &rect)> &visit) const
+{
+    for (const Placed &pl : place()) {
+        for (const CellContent::Part &part : items[size_t(pl.item)].content->parts) {
+            if (part.text) {
+                for (const StoryLayout::LineBrief &ln : part.text->lineBriefs()) {
+                    if (ln.frame != 0) continue;
+                    const QRectF rect(pl.text.x() + ln.rect.x(), pl.text.y() + part.y + ln.rect.top(), ln.rect.width(), ln.rect.height());
+                    const double middle = rect.center().y();
+                    if (middle < pl.clip.top() || middle > pl.clip.bottom() || middle > pl.cut) continue;
+                    visit(ln, rect);
+                }
+            } else if (part.table) {
+                TableFragment nested = *part.table;
+                nested.origin = QPointF(pl.text.x(), pl.text.y() + part.y);
+                nested.forLines(visit);
+            }
+        }
+    }
+}
+
 bool TableFragment::lineEdge(int pos, bool end, int *result) const
 {
     for (const Placed &pl : place()) {
@@ -1169,6 +1295,13 @@ void TableFlow::edited(int position, int removed, int added)
             m_dirtyFrom = std::min(m_dirtyFrom, dirtyFrom);
             m_dirtyTo = std::max(m_dirtyTo, dirtyTo);
         }
+        // An edit that took characters out, or put a note's reference in, may change the numbers of the notes the cells after it cite: the tables are found again.
+        if (!near && m_doc->fields && removed > 0) near = true;
+        if (!near && m_doc->fields && added > 0) {
+            const QTextDocument *story = m_doc->story();
+            for (QTextBlock b = story->findBlock(std::max(0, position)); b.isValid() && b.position() <= position + added && !near; b = b.next())
+                for (auto it = b.begin(); !it.atEnd() && !near; ++it) near = it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("footnote:"));
+        }
         // Paragraphs that are in a cell where no table was (a table pasted, the taking out of one undone, a paragraph given a cell): the tables are found afresh as well.
         if (!near && added > 0) {
             const QTextDocument *story = m_doc->story();
@@ -1214,7 +1347,7 @@ void TableFlow::reset()
 const TableIndex &TableFlow::index()
 {
     if (!m_valid) {
-        m_index.rebuild(m_doc->story(), m_doc->tables);
+        m_index.rebuild(m_doc->story(), m_doc->tables, m_doc);
         m_valid = true;
         // The edits made since the tables were last found: the rows they touched are measured again.
         std::vector<std::pair<int, int>> touched;

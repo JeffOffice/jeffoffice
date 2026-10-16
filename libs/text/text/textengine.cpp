@@ -1926,11 +1926,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     int footCount = m_span.footnotesBefore + (notesDoc ? notesDoc->footnotesBefore() : 0), endCount = m_span.endnotesBefore + (notesDoc ? notesDoc->endnotesBefore() : 0);
     QHash<int, double> reserve;   // a column's room for footnotes, by frame * 64 + column
     auto rkey = [](int fi, int ci) { return fi * 64 + ci; };
+    for (int k = 0; k < m_span.noteReserves.size() && k < nF; ++k)
+        if (m_span.noteReserves[k] > 0) reserve[rkey(k, 0)] = m_span.noteReserves[k];
     QVector<int> carry;           // footnotes (in m_notes) with text left for the next column, in order
     QVector<int> seeded;          // those a stretch is given, until the lines that came before its first frame are done
     // (A word processor's notes follow a paragraph's own height under the text's last line and have no gap but their own spacing; their numbers begin their text.)
     const double separatorH = env.wordLines && notesDoc ? notesDoc->noteSeparatorHeight() : 0.0;
     const double ruleGap = (separatorH > 0 ? separatorH : 9) * scale, noteGap = env.wordLines ? 0.0 : 2 * scale;
+    m_ruleGap = ruleGap;
+    m_noteGap = noteGap;
     auto noteFrame = [&](const Note &n, double width, double height) {
         FrameSpec fs = frames.first();
         fs.size = QSizeF(width, height);
@@ -3191,6 +3195,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             n.rect = nf2 >= 0 ? QRectF(r.topLeft(), QSizeF(r.width(), n.height)) : QRectF();
         }
     }
+    m_noteReserves = QVector<double>(nF, 0.0);
+    for (auto it = reserve.cbegin(); it != reserve.cend(); ++it)
+        if (it.key() % 64 == 0 && it.key() / 64 >= 0 && it.key() / 64 < nF) m_noteReserves[it.key() / 64] = it.value();
     // Footnotes: stacked at the bottom of their column, under a short rule,
     // or, when one goes on from the column before, as wide as the column.
     for (auto it = reserve.cbegin(); it != reserve.cend(); ++it) {
