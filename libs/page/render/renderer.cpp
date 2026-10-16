@@ -9,6 +9,7 @@
 #include "core/texteffects.h"
 
 #include <QCache>
+#include <QColorSpace>
 #include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
@@ -20,6 +21,7 @@
 #include <QPainter>
 #include <QSvgRenderer>
 #include <QPainterPathStroker>
+#include <QtEndian>
 #include <QTextDocument>
 #include <QtMath>
 #include <cmath>
@@ -229,6 +231,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.hyphenate = t.hyphenate;
     s.hyphenZone = t.hyphenZone;
     s.runsOver = doc.slideText;
+    s.noWrap = t.noWrap;
     // Baseline guides of the page's master (for "align text to baseline guides").
     const auto at = doc.find(t.id);
     const MasterPage *mp = at.page >= 0 ? doc.masterFor(*doc.pages[at.page]) : (!at.masterId.isEmpty() ? doc.master(at.masterId) : nullptr);
@@ -276,6 +279,7 @@ static QString specSig(const FrameSpec &s, bool withClock)
     k += QStringLiteral("h%1,%2|b%3,%4;").arg(int(s.hyphenate)).arg(s.hyphenZone).arg(s.baselineGrid).arg(s.baselineOrigin);
     if (s.fitToShape) k += QLatin1Char('s');
     if (s.runsOver) k += QLatin1Char('r');
+    if (s.noWrap) k += QLatin1Char('w');
     for (const auto &o : s.obstacles) {
         const QRectF b = o.boundingRect();
         // The points' sum too, so moving a point inside the same bounds re-wraps.
@@ -531,6 +535,20 @@ static void recolorRgb(PictureItem::Recolor kind, const QColor &tint, double &r,
     }
 }
 
+// Whether a PNG file has an ICC profile (an iCCP chunk before its pixels).
+static bool pngHasProfile(const QByteArray &png)
+{
+    qsizetype pos = 8;
+    while (pos + 12 <= png.size()) {
+        const quint32 length = qFromBigEndian<quint32>(png.constData() + pos);
+        const QByteArray type = png.mid(pos + 4, 4);
+        if (type == "iCCP") return true;
+        if (type == "IDAT" || type == "IEND") return false;
+        pos += 12 + qsizetype(length);
+    }
+    return false;
+}
+
 QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize)
 {
     static QCache<QString, QImage> cache(256 * 1024);   // KB
@@ -562,7 +580,15 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
                             .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height());
     const QString effectsKey = effects.isEmpty() ? QString() : (slide ? QStringLiteral("s") : QStringLiteral("p")) + blipEffectsKey(effects);
     if (QImage *c = cache.object(key + QLatin1Char('|') + effectsKey)) return *c;
-    if (slide) src = blipAdjusted(src, effects);
+    if (slide) {
+        // A PNG file's profile of its own (a screen's, most often) makes its numbers colors of that profile, which the presentation program
+        // draws as screen colors. (A profile worked out from the gamma and primaries a file names is not one: the program leaves those out.)
+        const QColorSpace profile = src.colorSpace();
+        const ImageData data = doc.images.value(pic.imageId);
+        if (profile.isValid() && profile != QColorSpace(QColorSpace::SRgb) && data.format == QLatin1String("png") && pngHasProfile(data.bytes))
+            src = src.convertedToColorSpace(QColorSpace(QColorSpace::SRgb));
+        src = blipAdjusted(src, effects);
+    }
     QImage img = level ? src.scaledToWidth(std::max(1, src.width() >> level), Qt::SmoothTransformation) : src;
     if (!shown.isEmpty()) img = img.scaled(shown, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     const bool adjust = !slide && (pic.brightness || pic.contrast || pic.recolor || pic.hasTransparentColor);
@@ -877,6 +903,7 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.insets = s.insets;
     if (const double d = s.stroke.textShift(); d > 0) spec.insets += QMarginsF(d, d, d, d);
     spec.valign = s.valign;
+    spec.noWrap = s.noWrap;
     spec.ctx.doc = ctx.doc;
     spec.ctx.pageNumber = ctx.pageNumber;
     spec.ctx.pageCount = ctx.pageCount;
@@ -1226,6 +1253,15 @@ static Fill backgroundOf(const PageBase &pg, const QVector<MasterPage *> &chain)
     for (int i = int(chain.size()) - 1; i >= 0; --i)
         if (chain[i]->background.type != Fill::NoFill) return chain[i]->background;
     return Fill();
+}
+
+void Renderer::paintMasterView(QPainter *p, const PaintContext &ctx, const MasterPage &m, const QRectF &r)
+{
+    QVector<MasterPage *> chain = ctx.doc->masterChain(&m);
+    paintBackground(p, ctx, backgroundOf(m, chain), r);
+    if (!chain.isEmpty() && chain.last()->id == m.id) chain.removeLast();
+    paintMastersUnder(p, ctx, m, chain, 0);
+    paintItems(p, ctx, m.items);
 }
 
 // Catalog merge: the catalog area's other cells repeat the objects in its

@@ -1,5 +1,5 @@
 # Welcome to JeffDeck
-<!-- keywords: welcome, getting started, introduction, beginner, first steps, quick start, overview, what is JeffDeck, basics, preview, tutorial, new user, learn, what works, not yet, limits, slides, presentation -->
+<!-- keywords: welcome, find and replace, right-click menu, getting started, introduction, beginner, first steps, quick start, overview, what is JeffDeck, basics, preview, tutorial, new user, learn, what works, not yet, limits, slides, presentation -->
 
 JeffDeck is a program for making slide presentations and playing them full screen. It is free and open source. There is no fee, no subscription, and no account to set up. It is one of the JeffOffice apps, and it runs on Windows, macOS, and Linux.
 
@@ -20,26 +20,24 @@ This version of JeffDeck is a **Preview**. It is ready to try on real work, but 
 
 - Slides with layouts, sections, hidden slides, and slides reused from another presentation.
 - Themes. There are nine built-in themes, each with four color variants. You can also change a theme's colors, fonts, and background style.
-- Text, shapes, pictures, icons, Text Art, and tables on slides.
+- Text, shapes, pictures, icons, Text Art, and tables on slides. You can crop a picture, and you can merge cells, add borders, and pick a style for a table.
 - Movies and sounds. They play on the slide while you work and in the slide show.
 - Speaker notes and comments.
+- Find and Replace across all the slides and notes, and a menu when you right-click a slide.
 - Slide size, backgrounds, and footers.
 - Transitions, including Morph, which you can add and change.
 - Animations, which you can add and change in the Animation Pane.
 - A full-screen slide show with a pen, a highlighter, and a laser pointer. Presenter View shows your notes, a timer, and the next slide.
 - Custom shows, shows that loop by themselves, and rehearsed timings.
-- Outline view and the Slide Sorter.
+- Outline view, the Slide Sorter, and Slide Master view.
 - Printing, PDF files, and slide pictures.
 - AutoRecover, which keeps a spare copy of unsaved work.
 
 **What does not work yet**
 
-- You can't edit slide masters or layouts.
 - You can't add or edit charts, SmartArt diagrams, or equations. If a file has them, JeffDeck shows them and keeps them.
 - Animations that start when you click an object, animations with sounds, and color animations are not available. If a file has them, JeffDeck keeps them.
-- Tables have no tools yet for merging cells, borders, or table styles.
-- There is no Format Shape pane yet, and you can't crop a picture.
-- There is no Find and Replace yet, and no menu when you right-click a slide.
+- There is no Format Shape pane yet.
 - **Notes Page** and **Reading View** are on the View tab, but they are not available yet.
 - Some slides look a little different from the way the original program draws them, most often in older .ppt files.
 

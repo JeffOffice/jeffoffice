@@ -13,6 +13,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
+#include <algorithm>
 
 namespace jp::deck {
 
@@ -424,7 +425,7 @@ QString placeholderType(const Item &it)
     return it.role.startsWith(kPh) ? it.role.mid(kPh.size()).section(QLatin1Char(':'), 0, 0) : QString();
 }
 
-QString placeholderRole(const QString &type, int index)
+QString placeholderRole(const QString &type, qint64 index)
 {
     return index ? kPh + type + QLatin1Char(':') + QString::number(index) : kPh + type;
 }
@@ -464,6 +465,89 @@ MasterPage *layoutOfType(const Document &d, const QString &type, const QString &
     return nullptr;
 }
 
+namespace {
+
+// The first id of the form prefix1, prefix2... that no master page has.
+QString freePageId(const Document &d, const QString &prefix)
+{
+    for (int n = 1;; ++n)
+        if (!d.master(prefix + QString::number(n))) return prefix + QString::number(n);
+}
+
+// A place made for the standard 16:9 slide, on a slide of another size: stretched to it.
+Place placeIn(const Document &d, Place pl)
+{
+    const QSizeF size = d.pageSize();
+    if (size == QSizeF(kSlideWidth, kSlideHeight)) return pl;
+    const double sx = size.width() / kSlideWidth, sy = size.height() / kSlideHeight;
+    pl.rect = QRectF(pl.rect.x() * sx, pl.rect.y() * sy, pl.rect.width() * sx, pl.rect.height() * sy);
+    return pl;
+}
+
+// Where among the presentation's master pages a page goes that comes after `page` (a layout), or after a slide master and its layouts.
+int indexAfter(const Document &d, const MasterPage *page)
+{
+    int at = -1;
+    for (int i = 0; i < d.masters.size(); ++i) {
+        const MasterPage &m = *d.masters[i];
+        if (&m == page || (page && isSlideMaster(*page) && isLayout(m) && m.baseId == page->id)) at = i;
+    }
+    return at < 0 ? int(d.masters.size()) : at + 1;
+}
+
+// A slide master with the nine standard layouts, in the theme, at index `at` of the presentation's master pages.
+MasterPage *addStandardMaster(Document &d, const DeckTheme &theme, int at)
+{
+    auto master = std::make_shared<MasterPage>();
+    master->id = freePageId(d, QStringLiteral("SM"));
+    master->abbr = QStringLiteral("SM");
+    master->name = QStringLiteral("Slide Master");   // a name is saved as it is: the same whatever language the program speaks
+    if (!d.masters.isEmpty())
+        for (int n = 2;; ++n) {
+            const QString name = QStringLiteral("Slide Master %1").arg(n);
+            if (std::none_of(d.masters.begin(), d.masters.end(), [&](const auto &m) { return m->name == name; })) {
+                master->name = name;
+                break;
+            }
+        }
+    master->props[QStringLiteral("kind")] = QStringLiteral("master");
+    master->background = Fill::solid(ColorRef::rgb(theme.colors[1]));
+    master->items.push_back(placeholder(d, placeIn(d, {QStringLiteral("title"), 0, QRectF(66, 28.75, 828, 104.4), titleLook(), VAlign::Middle, kTitleSample}), theme));
+    master->items.push_back(placeholder(d, placeIn(d, {QStringLiteral("body"), 1, QRectF(66, 143.75, 828, 342.6), bodyLook(), VAlign::Top, kBodySample}), theme));
+    for (const Place &f : footers()) master->items.push_back(placeholder(d, placeIn(d, f), theme));
+    at = std::clamp(at, 0, int(d.masters.size()));
+    d.masters.insert(at, master);
+
+    int n = 0;
+    for (const LayoutDef &def : layoutDefs()) {
+        auto layout = std::make_shared<MasterPage>();
+        layout->id = freePageId(d, QStringLiteral("L"));
+        layout->name = def.name;
+        layout->abbr = QString::number(++n);
+        layout->baseId = master->id;
+        layout->props[QStringLiteral("kind")] = QStringLiteral("layout");
+        layout->props[QStringLiteral("type")] = def.type;
+        for (const Place &pl : def.places) layout->items.push_back(placeholder(d, placeIn(d, pl), theme));
+        for (const Place &f : footers()) layout->items.push_back(placeholder(d, placeIn(d, f), theme));
+        d.masters.insert(at + n, layout);
+    }
+    return master.get();
+}
+
+} // namespace
+
+QString layoutKey(const Document &d, const MasterPage &layout)
+{
+    return layoutOfType(d, layoutType(layout), layout.baseId) == &layout ? layoutType(layout) : QStringLiteral("id:") + layout.id;
+}
+
+MasterPage *layoutByKey(const Document &d, const QString &key, const QString &masterId)
+{
+    if (!key.startsWith(QLatin1String("id:"))) return layoutOfType(d, key, masterId);
+    MasterPage *m = d.master(key.mid(3));
+    return m && isLayout(*m) && (masterId.isEmpty() || m->baseId == masterId) ? m : nullptr;
+}
+
 std::unique_ptr<Document> newPresentation()
 {
     auto d = std::make_unique<Document>();
@@ -477,32 +561,61 @@ std::unique_ptr<Document> newPresentation()
     setTheme(*d, theme);
     d->fonts = {theme.name, theme.headingFont, theme.bodyFont};
 
-    auto master = std::make_shared<MasterPage>();
-    master->id = QStringLiteral("SM1");
-    master->name = QStringLiteral("Slide Master");
-    master->abbr = QStringLiteral("SM");
-    master->props[QStringLiteral("kind")] = QStringLiteral("master");
-    master->background = Fill::solid(ColorRef::rgb(theme.colors[1]));
-    master->items.push_back(placeholder(*d, {QStringLiteral("title"), 0, QRectF(66, 28.75, 828, 104.4), titleLook(), VAlign::Middle, kTitleSample}, theme));
-    master->items.push_back(placeholder(*d, {QStringLiteral("body"), 1, QRectF(66, 143.75, 828, 342.6), bodyLook(), VAlign::Top, kBodySample}, theme));
-    for (const Place &f : footers()) master->items.push_back(placeholder(*d, f, theme));
-    d->masters << master;
-
-    int n = 0;
-    for (const LayoutDef &def : layoutDefs()) {
-        auto layout = std::make_shared<MasterPage>();
-        layout->id = QStringLiteral("L%1").arg(++n);
-        layout->name = def.name;
-        layout->abbr = QString::number(n);
-        layout->baseId = master->id;
-        layout->props[QStringLiteral("kind")] = QStringLiteral("layout");
-        layout->props[QStringLiteral("type")] = def.type;
-        for (const Place &pl : def.places) layout->items.push_back(placeholder(*d, pl, theme));
-        for (const Place &f : footers()) layout->items.push_back(placeholder(*d, f, theme));
-        d->masters << layout;
-    }
+    addStandardMaster(*d, theme, 0);
     addSlide(*d, *layoutOfType(*d, QStringLiteral("title")));
     return d;
+}
+
+MasterPage *addSlideMaster(Document &d, const QString &after)
+{
+    const MasterPage *page = d.master(after);
+    if (page && isLayout(*page)) page = d.master(page->baseId);
+    return addStandardMaster(d, themeOf(d), indexAfter(d, page));
+}
+
+ItemPtr standardPlaceholder(Document &d, const QString &type)
+{
+    const DeckTheme theme = themeOf(d);
+    if (type == QLatin1String("title")) return placeholder(d, placeIn(d, {type, 0, QRectF(66, 28.75, 828, 104.4), titleLook(), VAlign::Middle, kTitleSample}), theme);
+    if (type == QLatin1String("body")) return placeholder(d, placeIn(d, {type, 1, QRectF(66, 143.75, 828, 342.6), bodyLook(), VAlign::Top, kBodySample}), theme);
+    for (const Place &f : footers())
+        if (f.type == type) return placeholder(d, placeIn(d, f), theme);
+    return nullptr;
+}
+
+MasterPage *addLayout(Document &d, const QString &masterId, const QString &after)
+{
+    const MasterPage *master = d.master(masterId);
+    if (!master || !isSlideMaster(*master)) return nullptr;
+    auto layout = std::make_shared<MasterPage>();
+    layout->id = freePageId(d, QStringLiteral("L"));
+    layout->name = QStringLiteral("Custom Layout");
+    for (int n = 2; std::any_of(d.masters.begin(), d.masters.end(), [&](const auto &m) { return m->name == layout->name; }); ++n)
+        layout->name = QStringLiteral("Custom Layout %1").arg(n);
+    layout->baseId = master->id;
+    layout->props[QStringLiteral("kind")] = QStringLiteral("layout");
+    layout->props[QStringLiteral("type")] = QStringLiteral("cust");
+    // A title and the footers, in the places the slide master has for them.
+    for (const QString &type : {QStringLiteral("title"), QStringLiteral("dt"), QStringLiteral("ftr"), QStringLiteral("sldNum")}) {
+        const Item *from = nullptr;
+        for (const auto &it : master->items)
+            if (placeholderType(*it) == type) from = it.get();
+        if (ItemPtr made = from ? d.cloneItem(*from) : standardPlaceholder(d, type)) layout->items.push_back(made);
+    }
+    const MasterPage *behind = d.master(after);
+    int at = indexAfter(d, behind && isLayout(*behind) && behind->baseId == master->id ? behind : master);
+    layout->abbr = QString::number(layouts(d, master->id).size() + 1);
+    d.masters.insert(at, layout);
+    return layout.get();
+}
+
+Item *matchPlaceholder(const MasterPage &layout, const Item &placeholder, QSet<const Item *> &taken) { return matchIn(layout, placeholder, taken); }
+
+ItemPtr copyPlaceholder(Document &d, const Item &place, bool empty)
+{
+    ItemPtr copy = d.cloneItem(place);
+    if (empty && copy->type() == ItemType::Text) clearStory(d, static_cast<TextItem *>(copy.get())->storyId);
+    return copy;
 }
 
 bool ensureASlide(Document &d)
@@ -590,6 +703,7 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
                 const auto *p = static_cast<const TextItem *>(place);
                 t->valign = p->valign;
                 t->insets = p->insets;
+                t->noWrap = p->noWrap;
                 t->prompt = promptFor(placeholderType(*place));
                 // With nothing in it, what is typed next has the new layout's look: its bullet, indent, and text.
                 QTextDocument *sd = d.storyDoc(t->storyId);

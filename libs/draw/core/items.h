@@ -89,6 +89,9 @@ public:
     VAlign valign = VAlign::Top;
     Autofit autofit = NoAutofit;
     bool vertical = false;       // text direction rotated 90°
+    // The text isn't broken to the width of the frame: each paragraph is one line (broken only where it says), set against the frame as its
+    // alignment says and running out of it where it is longer. A slide's text box whose file says "none" for wrapping.
+    bool noWrap = false;
     bool continuedOn = false, continuedFrom = false;
     bool hyphenate = true;       // automatic hyphenation (on by default for text boxes, as in .pub files)
     double hyphenZone = 18;      // points: break a word only if moving it whole would leave more empty
@@ -165,6 +168,7 @@ public:
     QString storyId;            // text inside the shape
     QMarginsF insets{7.2, 3.6, 7.2, 3.6};
     VAlign valign = VAlign::Middle;
+    bool noWrap = false;        // the text isn't broken to the shape's width (see TextItem::noWrap)
 
     // Artwork (shape "art": an icon, or an SVG picture turned into shapes)
     // scales like a picture: its line weight grows and shrinks with it, and
@@ -250,6 +254,9 @@ struct CellRange {
     bool operator==(const CellRange &o) const { return r0 == o.r0 && c0 == o.c0 && r1 == o.r1 && c1 == o.c1; }
 };
 
+// The most rows, and the most columns, a table has: more is a damaged file (twice the other program's largest table).
+constexpr int kMaxTableRowsOrColumns = 256;
+
 class TableItem : public Item {
 public:
     TableItem();
@@ -265,6 +272,9 @@ public:
     bool lockSize = false;
     bool header = true;         // format the first row as a header
     bool banded = true;         // alternate row shading
+    // The other options of a presentation's table style (header and banded above are its Header Row and Banded Rows): Total Row, First
+    // Column, Last Column, and Banded Columns. Saved only when on.
+    bool totalRow = false, firstCol = false, lastCol = false, bandedCols = false;
 
     TableCell &cell(int r, int c) { return cells[r * cols + c]; }
     const TableCell &cell(int r, int c) const { return cells[r * cols + c]; }

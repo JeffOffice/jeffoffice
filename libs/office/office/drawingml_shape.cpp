@@ -171,6 +171,7 @@ struct BodyProperties {
     int columns = 1;
     double columnGap = 0;
     bool vertical = false;
+    bool noWrap = false;        // wrap="none"
 };
 
 BodyProperties readBodyProperties(const QVector<QDomElement> &bodyPrs)
@@ -194,6 +195,7 @@ BodyProperties readBodyProperties(const QVector<QDomElement> &bodyPrs)
     if (find("numCol", &v)) b.columns = int(std::clamp<qint64>(parseInt(v, 1), 1, 16));
     if (find("spcCol", &v)) b.columnGap = std::clamp(parseLength(v, 0), 0.0, 1000.0);
     if (find("vert", &v)) b.vertical = v != QLatin1String("horz");
+    if (find("wrap", &v)) b.noWrap = v == QLatin1String("none");
     for (const QDomElement &e : bodyPrs) {
         const QDomElement norm = childNamed(e, "normAutofit"), grow = childNamed(e, "spAutoFit"), none = childNamed(e, "noAutofit");
         if (!norm.isNull()) {
@@ -588,6 +590,7 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     decorate(base, cNvPr, frame, properties, style);
     base.insets = props.insets;
     base.valign = props.valign;
+    base.noWrap = props.noWrap;
     base.shape = QStringLiteral("rect");
     const QString libraryShape = shapeForPreset(prst);
     Geometry geometry;
@@ -680,6 +683,7 @@ ItemPtr Reader::makeTextBox(const QDomElement &cNvPr, const Frame &frame, const 
     t->columns = props.columns;
     t->columnGap = props.columnGap;
     t->vertical = props.vertical;
+    t->noWrap = props.noWrap;
     if (m_ctx.newStory) {
         t->storyId = m_ctx.newStory();
         fillText(body, t->storyId, style);

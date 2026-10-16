@@ -3,6 +3,7 @@
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/masteredit.h"
 #include "core/embeddedfonts.h"
 #include "core/fonts.h"
 #include "core/media.h"
@@ -11,6 +12,7 @@
 #include "io/pptxdiagram.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
+#include "io/pptxtablestyles.h"
 #include "io/pptxtransition.h"
 #include "office/chart.h"
 #include "office/drawingml_table.h"
@@ -1168,7 +1170,7 @@ void Exporter::writeMaster(int i)
     m_pkg.addRelationship(master.part, kRelBase + QStringLiteral("theme"), master.themePart);
     m_pkg.addPart(master.themePart, withStandardFontNames(master.themeXml), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
 
-    QString xml = QStringLiteral("<p:sldMaster%1 preserve=\"1\"><p:cSld%2>").arg(kNamespaces, page.name.isEmpty() ? QString() : QStringLiteral(" name=\"%1\"").arg(esc(page.name)));
+    QString xml = QStringLiteral("<p:sldMaster%1 preserve=\"%2\"><p:cSld%3>").arg(kNamespaces, isPreserved(page) ? QStringLiteral("1") : QStringLiteral("0"), page.name.isEmpty() ? QString() : QStringLiteral(" name=\"%1\"").arg(esc(page.name)));
     const QString fill = background(page, master.part, true, where);
     xml += fill + tree(page, master.part, where, nullptr) + QStringLiteral("</p:cSld>");
     xml += colorMapXml(isDarkBackground(page.background));
@@ -1188,7 +1190,7 @@ void Exporter::writeLayout(int i)
     QString xml = QStringLiteral("<p:sldLayout%1").arg(kNamespaces);
     if (!custom) xml += QStringLiteral(" type=\"%1\"").arg(type);
     if (!page.showMasterItems) xml += QStringLiteral(" showMasterSp=\"0\"");
-    xml += QStringLiteral(" preserve=\"1\"");
+    xml += isPreserved(page) ? QStringLiteral(" preserve=\"1\"") : QStringLiteral(" preserve=\"0\"");
     if (custom) xml += QStringLiteral(" userDrawn=\"1\"");
     xml += QStringLiteral("><p:cSld name=\"%1\">").arg(esc(page.name));
     const QString fill = background(page, layout.part, false, where);
@@ -1321,8 +1323,8 @@ void Exporter::writeProperties()
                        "<p:notesTextViewPr><p:cViewPr><p:scale><a:sx n=\"1\" d=\"1\"/><a:sy n=\"1\" d=\"1\"/></p:scale><p:origin x=\"0\" y=\"0\"/></p:cViewPr></p:notesTextViewPr>"
                        "<p:gridSpacing cx=\"76200\" cy=\"76200\"/></p:viewPr>")
             .arg(kNamespaces));
-    add(tableStyles, kTypeBase + QStringLiteral("tableStyles+xml"),
-        QStringLiteral("<a:tblStyleLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" def=\"{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}\"/>"));
+    // The styles the file defined are written back as they were (a table that names one is drawn and edited with them).
+    add(tableStyles, kTypeBase + QStringLiteral("tableStyles+xml"), deck::tableStylesPartXml(m_doc));
 
     const DocProps &props = m_doc.props;
     auto element = [](const char *name, const QString &text) { return text.isEmpty() ? QString() : QStringLiteral("<%1>%2</%1>").arg(QLatin1String(name), esc(text)); };

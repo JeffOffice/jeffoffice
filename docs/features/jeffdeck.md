@@ -13,7 +13,7 @@ Every item carries a tier:
 
 ## How the tiers were chosen
 
-Dropping the Preview label needs the old `.ppt` fidelity gaps fixed (the first four gaps under Fidelity and testing, measured on decks never used for tuning) plus five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing (decided October 16, 2026). The items that make up those five basics are marked "(needed to drop Preview)".
+Dropping the Preview label needs old `.ppt` files drawn close enough to the original, measured on decks never used for tuning: at least 70% of their slides scoring under 2, and an average score of 2.0 or less (decided October 17, 2026; on October 16 they were at 68% and 2.20). A slide's score is how far JeffDeck's picture of it is from the original program's, as the mean difference in gray between the two pictures, where 0 is identical. Every word the original shows on a slide must also be in JeffDeck's version, compared between the original's PDF and JeffDeck's own PDF export (added October 17, 2026; on that day 40% of the held-out old `.ppt` slides missed at least one word, most of them a footer or a slide number). It also needs five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing (decided October 16, 2026). The items that make up those five basics are marked "(needed to drop Preview)".
 
 There is no "first release" tier here, because JeffDeck already shipped. Version 1.0 asks for more: it is ready when PowerPoint opens every file JeffDeck saves (met so far for all 64 reference presentations) and JeffDeck's slides match PowerPoint's own pictures about as closely as JeffPub's pages match Publisher's (see Fidelity and testing, where JeffDeck is close on average and not yet on the median). A finished item is usually **1.0** too, since it counts toward the bar for version 1.0. An item is **later** when few presentations use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
 
@@ -182,10 +182,11 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **later** Shape Effects: bevel and 3-D rotation, which are not drawn yet *(ours 1 of 19)*
 
 ### Editing
-- [ ] **1.0** (needed to drop Preview) Find (Ctrl+F) in slide text, tables, and notes, with whole word and match case *(shared: JeffPub has a Find and Replace pane in apps/pub; JeffDeck has none)*
-- [ ] **1.0** (needed to drop Preview) Replace (Ctrl+H) and Replace Fonts
+- [x] **1.0** (needed to drop Preview) Find (Ctrl+F) in slide text, tables, shapes, Text Art, and notes, with whole word and match case *(Home > Editing > Find opens a Find and Replace pane on the right; it searches every slide in order from the current one, shows each match on its slide, and can leave the notes out; the search is shared with JeffPub in libs/page/app/findreplace)*
+- [x] **1.0** (needed to drop Preview) Replace (Ctrl+H), one match at a time or Replace All as one undo step that says how many it changed
+- [ ] **1.0** Replace Fonts
 - [x] **1.0** Select All (Ctrl+A) in an object, on a slide, and in the Slide Sorter
-- [ ] **1.0** Select Objects and the Selection Pane (see Drawing)
+- [~] **1.0** Select Objects and the Selection Pane (see Drawing) *(Select Objects is in Home > Editing > Select, with Select All; there is no Selection Pane yet)*
 - [x] **1.0** Undo and Redo: every change is one step that restores the whole presentation
 - [ ] **later** Dictate
 
@@ -262,7 +263,7 @@ The Draw tab of Office 2021 is for ink on slides while editing. JeffDeck has ink
 ### Customize
 - [~] **1.0** Slide Size: Standard (4:3, 10 by 7.5 inches) and Widescreen (16:9, 13.333 by 7.5), with Ensure Fit scaling text, line weights, and layouts *(no Maximize; a file's other size is kept but can't be chosen; 4:3: ours 17 of 19 .pptx and 52 of 54 in all)*
 - [ ] **1.0** Custom Slide Size: width, height, orientation (including portrait slides), the first slide number, and the orientation of notes and handouts
-- [~] **1.0** Format Background: a solid color for this slide or all, applied to slides and layouts that had their own *(no gradient, picture, texture, pattern, or Hide Background Graphics, and no Reset Background; backgrounds are drawn)*
+- [~] **1.0** Format Background: a solid color for this slide or all, applied to slides and layouts that had their own *(no gradient, picture, texture, or pattern, and no Reset Background; backgrounds are drawn; in Slide Master view it formats the master or layout being edited)*
 - [ ] **1.0** The Format Background pane (see Shape Format)
 
 ## Transitions tab
@@ -325,7 +326,7 @@ Office 2021 has a Record tab that records a show with the speaker's voice, ink, 
 ## Review tab
 
 - [x] **1.0** Spelling (F7): a dialog that finds each misspelled word and offers suggestions, plus spelling as you type, ignoring words in capitals and with numbers, and AutoCorrect, in the bundled dictionaries *(shared: libs/page proofing dialogs and the dictionaries)*
-- [ ] **1.0** Right-click a word marked as misspelled for suggestions, Ignore, and Add to Dictionary *(the slide has no right-click menu at all; see Shortcut menus)*
+- [x] **1.0** Right-click a word marked as misspelled for suggestions, Ignore All, and Add to Dictionary *(shared: libs/page proofing dialogs; see Shortcut menus)*
 - [x] **1.0** Thesaurus (Shift+F7)
 - [x] **1.0** Word Count: words on the slides, and in the selection when typing
 - [ ] **1.0** Check Accessibility: a list of what a screen reader or a low-vision reader can't use (a missing alt text, a missing slide title, reading order, a table without a header row, low contrast, a movie without captions), with a task pane, and fixes by one click *(alt text exists in 14 of 19 decks; the canvas exposes its objects to screen readers)*
@@ -343,7 +344,7 @@ Office 2021 has a Record tab that records a show with the speaker's voice, ink, 
 - [x] **1.0** Normal, Outline View, and Slide Sorter (the same buttons are on the status bar); each switch keeps the current slide
 - [ ] **1.0** Notes Page: work on the notes in the shape of a printed page *(on the tab, not available)*
 - [ ] **1.0** Reading View: the show in a window with a bar, for reading a presentation *(on the tab, not available; the Browsed by an individual show type exists)*
-- [ ] **1.0** Slide Master, Handout Master, and Notes Master views (see the Slide Master tab)
+- [~] **1.0** Slide Master, Handout Master, and Notes Master views (see the Slide Master tab) *(Slide Master view is there, on View > Master Views; the other two wait)*
 - [x] **1.0** Show: Ruler, Gridlines, and Guides check boxes; Notes shows or hides the notes box under the slide
 - [~] **1.0** Grid and guide settings: spacing, snap to grid, drag guides, and add or remove a guide *(Guides can be shown and objects snap to others; whether a guide can be dragged out of the ruler could not be confirmed)*
 - [x] **1.0** Zoom: a menu from 400% to 10%, Fit to Window, a slider and buttons on the status bar, and Ctrl with the mouse wheel; in the Slide Sorter the same controls size the pictures
@@ -394,8 +395,8 @@ These tabs are shown while something is selected. JeffDeck has one: Playback, wh
 - [ ] **later** Set as Default Shape, Text Box, or Line
 
 ### Picture Format (pictures, icons, and screenshots)
-- [ ] **1.0** The Picture Format tab itself, and a Format Picture pane
-- [~] **1.0** (needed to drop Preview) Crop with handles, Crop to Shape, Aspect Ratio, and Fill and Fit *(a crop in a file is drawn and saved, and a picture dropped in a picture placeholder is cropped to fill it from the middle; no tool crops, though JeffPub has one in apps/pub; ours: crops 7 of 19 decks, 227 pictures)*
+- [~] **1.0** The Picture Format tab itself, and a Format Picture pane *(the tab shows while a picture is selected, with the Crop group; no Format Picture pane yet)*
+- [x] **1.0** (needed to drop Preview) Crop with handles, Crop to Shape, Aspect Ratio, and Fill and Fit *(Crop drags the frame's handles, shows the hidden part dim, and is one step: Enter or a click away ends it, Esc takes it back; Aspect Ratio offers 12 shapes; saved as a:srcRect and the shape's geometry in a .pptx and as fo:clip in an .odp, where a picture cropped to a shape is saved as the picture it draws, so its shape can't be changed after reopening; a picture dropped in a picture placeholder is cropped to fill it from the middle; ours: crops 7 of 19 decks, 227 pictures)*
 - [~] **1.0** Corrections, Color, and Transparency: brightness and contrast, sharpen and soften, recolor, saturation, temperature, set transparent color, and picture transparency *(a brightness and contrast, gray, black and white, a color made clear, a duotone, a turned hue, and a tint are read, drawn as the original draws them, and saved as listed, with the picture's bytes untouched; none can be made; ours: any in 1 of 19, 4 uses)*
 - [ ] **1.0** Change Picture (keeping size, place, and formatting) and Reset Picture
 - [ ] **1.0** Picture Styles (frames, shadow, reflection, and rounded corners), Picture Border, and Picture Effects
@@ -408,13 +409,13 @@ These tabs are shown while something is selected. JeffDeck has one: Playback, wh
 - [x] **1.0** Resize a picture at a corner to keep its proportions, Shift to stretch it freely, turn it by its handle, and drop one picture on another to swap them (Ctrl to copy)
 
 ### Table Design and Table Layout (tables)
-- [~] **1.0** Tables from a file show and save as made, with rows that grow to their text *(the editing tools below are not there; rows that grow with typing could not be confirmed)*
-- [ ] **1.0** Table Style Options (Header Row, Total Row, Banded Rows, First Column, Last Column, and Banded Columns) and the Table Styles gallery (Light, Medium, and Dark, from the theme) *(a table style id in files: ours 1 of 19)*
-- [ ] **1.0** (needed to drop Preview) Shading, Borders (all, outside, inside, top, bottom, left, and right, none), and Draw Borders (pen style, weight, and color; Draw Table; Eraser)
-- [ ] **1.0** (needed to drop Preview) Select (table, column, row, and cell), View Gridlines, Delete, and Insert Above, Below, Left, and Right
-- [ ] **1.0** (needed to drop Preview) Merge Cells and Split Cells *(merged cells in files: ours 0 of 19)*
-- [ ] **1.0** (needed to drop Preview) Cell Size: row height and column width by number and by dragging the borders, Distribute Rows and Columns
-- [ ] **1.0** (needed to drop Preview) Alignment: align left, center, right, top, middle, and bottom, text direction, and cell margins
+- [~] **1.0** Tables from a file show and save as made, with rows that grow to their text *(rows that grow with typing could not be confirmed)*
+- [x] **1.0** Table Style Options (Header Row, Total Row, Banded Rows, First Column, Last Column, and Banded Columns) and the Table Styles gallery (Light, Medium, and Dark, from the theme) *(62 styles by id (tablestyles.cpp), drawn in the theme's colors; a table is saved with its style id, its six options, and every cell's own look, and a style the file names that we don't have is kept; a style gives every cell its look, an option keeps what was shaded or lined by hand, and rows and columns that come and go keep the bands; a new table has Medium Style 2, Accent 1; the .odp keeps each cell's look, not the style or the options; a table style id in files: ours 1 of 19)*
+- [~] **1.0** (needed to drop Preview) Shading, Borders (all, outside, inside, inside horizontal and vertical, top, bottom, left, and right, none), and Draw Borders (pen style, weight, and color; Draw Table; Eraser) *(shading, borders, and the pen are there; Draw Table and the Eraser are not)*
+- [~] **1.0** (needed to drop Preview) Select (table, column, row, and cell), View Gridlines, Delete, and Insert Above, Below, Left, and Right *(all but View Gridlines)*
+- [x] **1.0** (needed to drop Preview) Merge Cells and Split Cells *(saved as gridSpan, rowSpan, hMerge, and vMerge in a .pptx and as spanned cells in an .odp; merged cells in files: ours 0 of 19)*
+- [x] **1.0** (needed to drop Preview) Cell Size: row height and column width by number and by dragging the borders, Distribute Rows and Columns
+- [x] **1.0** (needed to drop Preview) Alignment: align left, center, right, top, middle, and bottom, text direction, and cell margins *(text direction is the quarter turn clockwise, saved as vert="vert" and as style:rotation-angle 270)*
 - [ ] **1.0** Table Size, Arrange, and Table Effects (shadow, reflection, cell bevel)
 - [ ] **1.0** Cells copied from JeffCrunch or a document land as a table with fonts, fills, borders, and number formats *(shared: the table engine; see Shared)*
 
@@ -448,13 +449,13 @@ These tabs are shown while something is selected. JeffDeck has one: Playback, wh
 - [ ] **later** Zoom tools: choose the Zoom image and Return to Zoom
 
 ### Slide Master, Handout Master, and Notes Master views
-- [ ] **1.0** (needed to drop Preview) Slide Master view: the master and each layout opened and edited like slides, with a pane of them *(you can't edit slide masters or layouts yet; they are read, kept, written, and applied)*
-- [ ] **1.0** (needed to drop Preview) Edit Master: Insert Slide Master, Insert Layout, Delete, Rename, and Preserve; more than one master per file *(more than one master: ours 2 of 19; 234 layouts in 21 masters across the 19 .pptx)*
-- [ ] **1.0** (needed to drop Preview) Master Layout and Insert Placeholder: which placeholders a layout has and where (title, text, content, picture, chart, table, diagram, media, date, footer, and slide number), and Title and Footers check boxes
-- [ ] **1.0** (needed to drop Preview) Edit the master's text styles: each level's bullet, font, size, color, indent, and spacing
-- [ ] **1.0** (needed to drop Preview) Draw shapes and pictures on a master or a layout (a logo, a band, a line), and Hide Background Graphics on a slide
-- [ ] **1.0** Edit Theme and Background groups in master view: Themes, Colors, Fonts, Effects, Background Styles, and Slide Size *(see Design)*
-- [ ] **1.0** (needed to drop Preview) Close Master View
+- [x] **1.0** (needed to drop Preview) Slide Master view: the master and each layout opened and edited like slides, with a pane of them *(the pane lists each slide master with its layouts under it; what is changed on a master or layout reaches the layouts and slides that followed it, in the same step that undoes; .pptx keeps every master and layout, .odp the master pages and the layouts slides use)*
+- [x] **1.0** (needed to drop Preview) Edit Master: Insert Slide Master, Insert Layout, Delete, Rename, and Preserve; more than one master per file *(Delete says why when slides use the master or layout, and keeps the last master and each master's last layout; more than one master: ours 2 of 19; 234 layouts in 21 masters across the 19 .pptx)*
+- [x] **1.0** (needed to drop Preview) Master Layout and Insert Placeholder: which placeholders a layout has and where (title, text, content, picture, chart, table, media, online image, date, footer, and slide number), and Title and Footers check boxes *(a diagram place waits for SmartArt editing)*
+- [~] **1.0** (needed to drop Preview) Edit the master's text styles: each level's bullet, font, size, color, indent, and spacing *(the text of the master's placeholders is edited with the Home tab's tools, and what a level looks like reaches the layouts and slides that had it; the lines of a new presentation's master all stand at the first level, so they share one style)*
+- [x] **1.0** (needed to drop Preview) Draw shapes and pictures on a master or a layout (a logo, a band, a line), and Hide Background Graphics on a slide *(Hide Background Graphics is on the Slide Master tab for a layout and in Format Background for a slide, and is saved)*
+- [~] **1.0** Edit Theme and Background groups in master view: Themes, Colors, Fonts, Effects, Background Styles, and Slide Size *(the Design tab's, changing the whole presentation; Effects is on the tab but not available; see Design)*
+- [x] **1.0** (needed to drop Preview) Close Master View
 - [ ] **1.0** Notes Master view: the notes page's slide image, notes body, header, date, footer, and page number, its text styles, and its background *(ours: notes master in 12 of 19)*
 - [ ] **1.0** Handout Master view: slides per page, orientation, header, date, footer, and page number, and its background *(ours: handout master in 3 of 19)*
 - [~] **1.0** Notes with formatting: bold, italic, lists, links, and pictures in speaker notes *(notes are plain text; what happens to a formatted note in a file when it is edited could not be confirmed; notes with text: ours 12 of 19, 138 slides)*
@@ -464,9 +465,9 @@ These tabs are shown while something is selected. JeffDeck has one: Playback, wh
 JeffDeck has right-click menus in the slides pane, the Slide Sorter, and the show, but not yet on the slide itself.
 
 - [x] **1.0** In the slides pane and the Slide Sorter: New Slide, Duplicate Slide, Delete Slide, Hide Slide, and Add Section; on a section heading: Rename, Remove, Move Up and Down, Collapse All, and Expand All; a theme, an Animation Pane row, and a file in the Open list have menus of their own, and so does the show
-- [ ] **1.0** (needed to drop Preview) On an object on the slide: cut, copy, paste options, group and order, edit text, hyperlink, save as picture, size and position, format, alt text, and new comment *(the canvas offers the request and JeffDeck has no handler, so a right-click on a slide shows nothing)*
-- [ ] **1.0** On text being edited: spelling suggestions, Ignore, and Add to Dictionary, with font, paragraph, bullets, link, and Look Up
-- [ ] **1.0** On the slide's background: paste options, grid and guides, ruler, Format Background, Layout, and Reset
+- [~] **1.0** (needed to drop Preview) On an object on the slide (right-click, Shift+F10, or the Menu key): Cut, Copy, Paste, Delete, Edit Text, Group or Ungroup, Order, Alignment of its text, Link, and New Comment *(not yet: paste options, save as picture, size and position, format, and alt text, which JeffDeck has no command for)*
+- [~] **1.0** On text being edited: spelling suggestions, Ignore All, and Add to Dictionary, with Cut, Copy, Paste, Font, Paragraph, Bullets, Numbering, Link, and Thesaurus *(not yet: Look Up)*
+- [x] **1.0** On the slide's background: Paste, Layout, Reset Slide, Format Background, Grid and Guides, Ruler, and New Comment *(Paste is one command: there are no paste choices yet)*
 - [ ] **later** The mini toolbar that floats by selected text, with the font, size, bold, italic, color, alignment, and bullet buttons
 
 ## Under the ribbon: the rendering engine
@@ -507,7 +508,7 @@ JeffDeck has right-click menus in the slides pane, the Slide Sorter, and the sho
 - [x] **1.0** Colors are plain colors on the objects, as files hold them; saving finds the theme's colors in them again; a change of colors swaps each old color for the new scheme's; text and shapes on a dark background use the four dark and light colors, so they trade places when the background turns light or dark; dark masters are saved with the dark color map
 - [x] **1.0** Text on a picture, a table cell, or a shape with its own color does not turn light or dark with the slide's background; a color that would read below 4.5 to 1 moves toward light or dark just far enough
 - [ ] **1.0** Theme effects, custom color and font schemes, and theme files (see Design)
-- [ ] **1.0** (needed to drop Preview) Edit masters and layouts (see the Slide Master view)
+- [x] **1.0** (needed to drop Preview) Edit masters and layouts (see the Slide Master view)
 - [x] **1.0** Footers: the date, slide number, and footer text placed from the Header and Footer window, applied to all slides and to new ones
 - [x] **1.0** Slide size changes scale text, line weights, layouts, and placeholders to the new shape, and other objects keep their own shape and stay centered
 - [ ] **later** Section Zoom and Slide Zoom targets, and the first slide number
@@ -635,17 +636,17 @@ The suite-wide map of shared parts, [shared.md](shared.md), says where each live
 What JeffDeck builds on, and the pieces to build once so that JeffWrite, JeffCrunch, JeffMail, and JeffBase can use them too.
 
 ### Already there
-- [~] **1.0** libs/page: the document of placed objects (each slide is a page, each layout a master page), its editor (undo as one step, selection, text editing, align and distribute, connectors that stay attached), canvas, proofing dialogs, options, Online Pictures, the icon picker, and the Text Art gallery, shared with JeffPub; Find and Replace and the crop tool still sit in JeffPub's own code
+- [~] **1.0** libs/page: the document of placed objects (each slide is a page, each layout a master page), its editor (undo as one step, selection, text editing, align and distribute, connectors that stay attached), canvas, proofing dialogs, options, Online Pictures, the icon picker, and the Text Art gallery, shared with JeffPub; the search for Find and Replace and the spelling help for the right-click menu are shared, and the crop tool still sits in JeffPub's own code
 - [~] **1.0** libs/office: Open XML packages, themes, DrawingML shapes, text, and tables (read and written), charts (read from their stored values and drawn), the Escher drawing reader for `.ppt`, and the embedded-font readers; JeffDeck adds the presentation parts (apps/deck/io)
 - [~] **1.0** libs/draw, libs/text, and libs/base: shapes, fills, effects, text art, SVG, picture effects, the text engine, colors, fonts, barcodes, zip and compound files, EMF and WMF, PDF, and the dictionaries
 - [~] **1.0** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, AutoRecover, settings, spelling, updates, and statistics
 - [x] **1.0** JeffDeck's own pieces in apps/deck/core: themes and their application, the animation model and its editing, sections, comments, slide reuse, ink, show settings, media, and embedded fonts
 
 ### To build once, for several apps
-- [ ] **1.0** Move JeffPub's finished tools into libs/page and libs/shell so JeffDeck gets them: Find and Replace, the crop tool, and the paste choices (Keep Text Only) *(needed by: JeffDeck, JeffPub, JeffWrite)*
+- [~] **1.0** Move JeffPub's finished tools into libs/page and libs/shell so JeffDeck gets them: Find and Replace, the crop tool, and the paste choices (Keep Text Only) *(needed by: JeffDeck, JeffPub, JeffWrite; Find and Replace's search is shared in libs/page/app/findreplace, and each app has its own pane; the crop tool and the paste choices are not moved)*
 - [ ] **1.0** A Format pane (fill, line, effects, size and position, and text options) and the Selection Pane, built once *(needed by: JeffDeck, JeffPub, JeffWrite)*
 - [ ] **1.0** Shape styles, picture styles, and text effects menus on the effects the engine already draws *(needed by: JeffDeck, JeffPub, JeffWrite)*
-- [ ] **1.0** A table engine with merged cells, styles, borders, and sizes, and its Table Design and Table Layout tabs *(needed by: JeffWrite, JeffMail, JeffCrunch, JeffDeck)*
+- [~] **1.0** A table engine with merged cells, styles, borders, and sizes, and its Table Design and Table Layout tabs *(libs/page has the table commands (app/tableedit.h) that JeffPub and JeffDeck both use, and libs/office the table styles by id and the reading and writing of tables; each app has its own tabs; needed by: JeffWrite, JeffMail, JeffCrunch, JeffDeck)*
 - [ ] **1.0** Chart editing on top of libs/office chart: the data grid, the element menus, types, and styles; a chart in JeffDeck keeps its data in a small embedded sheet edited with JeffCrunch's grid *(needed by: JeffCrunch, JeffWrite, JeffDeck)*
 - [ ] **1.0** A review model for comments with replies, tracked changes, and comparison, so JeffDeck's comments, JeffWrite's tracked changes, and JeffCrunch's notes follow it, and Compare works in a presentation *(needed by: JeffWrite, JeffDeck, JeffCrunch)*
 - [ ] **1.0** A field engine for slide numbers, dates, and document properties *(needed by: all)*
@@ -669,7 +670,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 - Old and open formats (October 11, 2026, for all the apps): the first release opens the old and the open kinds, and saving them follows once the main kind is solid. Until then, Save on an old file asks for a new name in the new kind. JeffDeck has since added saving `.odp` and `.otp`; saving `.ppt`, `.pps`, and `.pot` is **later**.
 - Embedded fonts (October 11, 2026): saving embeds, by default, the fonts JeffOffice brings that other computers may lack; fonts drawn in place of common ones are saved under the common name.
 - Reference pictures: PowerPoint is installed on the Windows test machine (Office LTSC Professional Plus 2021), as Word, Excel, and Publisher are.
-- Dropping the Preview label (October 16, 2026): it needs the old `.ppt` fidelity gaps fixed, measured on decks never used for tuning, plus five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing. The items that make them up carry "(needed to drop Preview)"; every other **1.0** item is needed before JeffDeck is called finished.
+- Dropping the Preview label (October 16, 2026): it needs old `.ppt` files, measured on decks never used for tuning, to have at least 70% of slides scoring under 2 and an average of 2.0 or less (October 17), plus five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing. The items that make them up carry "(needed to drop Preview)"; every other **1.0** item is needed before JeffDeck is called finished.
 
 ## Open questions
 

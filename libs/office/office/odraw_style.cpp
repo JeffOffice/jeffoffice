@@ -165,8 +165,12 @@ Fill gradientFill(const Props &p, const OdrawContext &ctx, int type, const QColo
         for (const Color &c : std::as_const(ramp)) stop(c.at * (1 - a), c);
     if (a > 1e-9)
         for (int i = int(ramp.size()) - 1; i >= 0; --i) stop(1 - ramp[i].at * a, ramp[i]);
-    // The shading curve of two colors: gamma and sigma unless the shape says otherwise. A list of colors is drawn as it stands.
-    if (!hasList) stops = shaded(stops, p.value(kFillShadeType, 3) & 0xF);
+    // The shading curve of two colors: the one the shape names (its writers name gamma and sigma). Where it names none an opaque gradient has
+    // gamma and sigma, and one with a color clear in part is straight, as the program draws the old files that never say (its pictures of
+    // one deck's opaque background are curved, and of another's translucent gradients are straight). An opacity of 0xFF00 of 0x10000 or
+    // more counts as none: a writer that rounds 100 percent to 0xFFFF has not made its color clear. A list of colors is drawn as it stands.
+    constexpr double kOpaque = 0xFF00 / 65536.0;
+    if (!hasList) stops = shaded(stops, p.value(kFillShadeType, opacity < kOpaque || backOpacity < kOpaque ? 0 : 3) & 0xF);
     // From the center or along the outline, the first color is the outer one.
     const bool fromCenter = type == 5 || type == 6;
     if (fromCenter) {
@@ -220,6 +224,18 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault, con
         const int index = int(p.value(kFillBlip, 0));
         QString image = index > 0 && ctx.picture ? ctx.picture(index) : QString();
         if (image.isEmpty()) break;
+        // A pattern is a bitmap of two tones that the shape's colors are put in.
+        bool recolored = false;
+        if (type == 1 && ctx.patterned) {
+            QColor front = fillColor, back = backColor;
+            front.setAlphaF(opacity);
+            back.setAlphaF(backOpacity);
+            const QString colored = ctx.patterned(image, front, back);
+            if (!colored.isEmpty() && colored != image) {
+                image = colored;
+                recolored = true;
+            }
+        }
         if (ctx.adjusted && (pictureBrightness(p) != 0 || pictureContrast(p) != 0)) {
             const QString changed = ctx.adjusted(image, pictureBrightness(p), pictureContrast(p));
             if (!changed.isEmpty()) image = changed;
@@ -229,7 +245,7 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault, con
         f.color = ColorRef::rgb(fillColor);
         f.imageId = image;
         f.tile = type != 3;
-        f.transparency = 1 - opacity;
+        f.transparency = recolored ? 0 : 1 - opacity;
         return f;
     }
     case 4: case 5: case 6: case 7: case 8:

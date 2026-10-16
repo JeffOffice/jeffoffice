@@ -57,6 +57,9 @@ Editor::Editor(QObject *parent) : QObject(parent)
     m_typingTimer.setInterval(1200);
     connect(&m_typingTimer, &QTimer::timeout, this, &Editor::flushTyping);
     connect(&m_undo, &QUndoStack::cleanChanged, this, [this](bool clean) { Q_EMIT modifiedChanged(!clean); });
+    connect(this, &Editor::pageChanged, this, [this] {
+        if (m_cropOpen) endCrop(true);   // another slide: the crop is done (it is filed on its own slide, whatever the page is now)
+    });
 }
 
 Editor::~Editor()
@@ -71,6 +74,8 @@ void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
     m_typingTimer.stop();
     m_typing = false;
     m_changeDepth = 0;
+    if (m_cropOpen) cropItem.clear();
+    m_cropOpen = false;
     m_text = TextTarget();
     m_cursor = QTextCursor();
     m_doc = std::move(d);
@@ -114,6 +119,7 @@ void Editor::setCurrentPage(int i, bool keepTextEdit)
 {
     i = std::clamp(i, 0, int(m_doc->pages.size()) - 1);
     if (i == m_page && m_master.isEmpty()) return;
+    leaveCrop();
     if (!keepTextEdit) endTextEdit();
     m_page = i;
     m_master.clear();
@@ -126,6 +132,7 @@ void Editor::setMasterView(const QString &id)
 {
     endTextEdit();
     if (!id.isEmpty() && !m_doc->master(id)) return;
+    leaveCrop();
     m_master = id;
     m_sel.clear();
     Q_EMIT pageChanged();
@@ -240,6 +247,7 @@ void Editor::select(const QStringList &ids, bool add)
     if (isEditingText() && !next.contains(m_text.itemId)) endTextEdit();
     if (!pointsItem.isEmpty() && !next.contains(pointsItem)) pointsItem.clear();
     if (!wrapItem.isEmpty() && !next.contains(wrapItem)) wrapItem.clear();
+    if (m_cropOpen && next != QStringList{cropItem}) endCrop(true);
     m_sel = next;
     Q_EMIT selectionChanged();
 }
@@ -249,6 +257,7 @@ void Editor::toggleSelect(const QString &id)
     QStringList next = m_sel;
     if (next.contains(id)) next.removeAll(id); else next << id;
     if (isEditingText()) endTextEdit();
+    if (m_cropOpen && next != QStringList{cropItem}) endCrop(true);
     m_block = CellBlock();
     m_sel = next;
     Q_EMIT selectionChanged();
@@ -324,6 +333,7 @@ void Editor::selectCells(const QString &tableId, int fromRow, int fromCol, int t
     const CellRange range = t->cellsBetween(fromRow, fromCol, toRow, toCol);
     if (!range.valid()) return;
     endTextEdit();
+    leaveCrop();
     if (m_sel != QStringList{id}) {
         if (!pointsItem.isEmpty()) pointsItem.clear();
         if (!wrapItem.isEmpty()) wrapItem.clear();
@@ -418,6 +428,7 @@ void Editor::beginTextEdit(const QString &itemId, int pos, int row, int col, int
     }
     if (story.isEmpty() || !m_doc->storyDoc(story)) return;
     flushTyping();
+    leaveCrop();   // typing is not part of a crop
     m_block = CellBlock();
     m_text = TextTarget{itemId, story, row, col, half};
     m_cursor = QTextCursor(m_doc->storyDoc(story));
@@ -502,7 +513,41 @@ void Editor::restore(const QByteArray &snap, const QStringList &sel, int page, c
     Q_EMIT changed();
 }
 
+void Editor::setCropItem(const QString &id)
+{
+    if (cropSessions && id != cropItem) {
+        if (m_cropOpen) endCrop(true);
+        if (!id.isEmpty()) {
+            beginCropChange(tr("Crop"));
+            m_cropOpen = true;
+            m_cropPage = m_page;
+            m_cropSel = m_sel;
+        }
+    }
+    cropItem = id;
+    Q_EMIT viewChanged();
+}
+
+void Editor::endCrop(bool keep)
+{
+    const bool open = m_cropOpen;
+    m_cropOpen = false;
+    cropItem.clear();
+    if (open) {
+        if (keep) finishChange(m_cropPage, m_cropSel);
+        else cancelChange();
+    }
+    Q_EMIT viewChanged();
+}
+
 void Editor::beginChange(const QString &label)
+{
+    // A crop in progress is one step of its own: any other change ends it first (its own drags begin theirs with beginCropChange).
+    if (m_cropOpen && m_changeDepth == 1) endCrop(true);
+    beginCropChange(label);
+}
+
+void Editor::beginCropChange(const QString &label)
 {
     if (m_typing && label != tr("Typing")) flushTyping();
     if (m_changeDepth++ == 0) {
@@ -514,7 +559,11 @@ void Editor::beginChange(const QString &label)
     }
 }
 
-void Editor::endChange()
+void Editor::endChange() { finishChange(m_page, m_sel); }
+
+// The step that ends a change: undone, it goes back to what was selected and where before, and redone, to the page and the selection given
+// (a crop's own, which the page and the selection may have left by the time it ends).
+void Editor::finishChange(int page, const QStringList &selection)
 {
     if (m_changeDepth == 0) return;
     if (--m_changeDepth > 0) return;
@@ -522,8 +571,13 @@ void Editor::endChange()
     m_doc->routeConnectors();
     // Keep the editing cursor valid if the story was replaced.
     QByteArray after = snapshot();
+    if (after != m_before && masterEdited && !m_master.isEmpty()) {
+        Document earlier;
+        earlier.fromJson(QJsonDocument::fromJson(qUncompress(m_before)).object());
+        if (masterEdited(*m_doc, earlier)) after = snapshot();
+    }
     if (after != m_before) {
-        m_undo.push(new SnapshotCommand(this, m_label, m_before, after, m_selBefore, m_sel, m_pageBefore, m_page, m_masterBefore, m_master));
+        m_undo.push(new SnapshotCommand(this, m_label, m_before, after, m_selBefore, selection, m_pageBefore, page, m_masterBefore, m_master));
     }
     m_before.clear();
     Q_EMIT changed();
@@ -545,6 +599,10 @@ void Editor::notifyLive()
 void Editor::undo()
 {
     flushTyping();
+    if (m_cropOpen) {
+        endCrop(false);   // Undo while cropping takes the crop back
+        return;
+    }
     if (m_changeDepth) return;
     m_undo.undo();
 }
@@ -552,6 +610,7 @@ void Editor::undo()
 void Editor::redo()
 {
     flushTyping();
+    leaveCrop();
     if (m_changeDepth) return;
     m_undo.redo();
 }
@@ -616,6 +675,7 @@ void Editor::deleteItems(const QStringList &ids)
 {
     if (ids.isEmpty()) return;
     endTextEdit();
+    if (m_cropOpen) endCrop(true);
     beginChange(tr("Delete"));
     QStringList all;
     for (const auto &id : ids) {

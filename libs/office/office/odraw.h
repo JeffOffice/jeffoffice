@@ -56,6 +56,10 @@ struct OdrawContext {
     // PictureItem has them: percent, -100 to 100) in its pixels, a fill having
     // none of its own; the same image id if it can't be done.
     std::function<QString(const QString &imageId, double brightness, double contrast)> adjusted;
+    // A pattern fill's bitmap (fillType 1: a small picture of black and white) as a picture in the shape's own colors: the bitmap's white
+    // in the fill color and its black in the back color (each with its opacity as its alpha), as the presentation program draws it; the
+    // same image id if it can't be done. A host that leaves this out has the bitmap drawn as it stands.
+    std::function<QString(const QString &imageId, const QColor &fillColor, const QColor &backColor)> patterned;
     // The shape another takes after: from a shape's client data record's
     // contents, the property records (0xF00B, 0xF121, 0xF122, header included)
     // of the shape whose properties it has for those it leaves out (a slide's
@@ -94,9 +98,13 @@ Fill odrawBackground(const QByteArray &data, const OdrawContext &ctx);
 // PICT, 0xF01D JPEG, 0xF01E PNG, 0xF01F DIB, 0xF029 TIFF, 0xF02A JPEG), as
 // the picture file's bytes and its format ("emf", "wmf", "png", "jpeg",
 // "bmp", "tiff"); empty when it can't be read. EMF and WMF come compressed
-// in the record and are inflated (at most 32 MB). `data` holds the record,
-// header included.
-QByteArray odrawBlip(const QByteArray &data, QString *format);
+// in the record and are inflated (at most 32 MB). A PICT is drawn as a PNG,
+// out of `pictWork` if it is given (what the pictures of the file may do together,
+// see odrawPictImage). `data` holds the record, header included.
+QByteArray odrawBlip(const QByteArray &data, QString *format, qint64 *pictWork = nullptr);
+// What the pictures of one file may do together: four of the pictures that are as slow as they may be (a presentation of real pictures
+// uses a few percent of it).
+constexpr qint64 kOdrawPictWork = 4000000;
 // The records of an OfficeArtBStoreContainer's file blocks (0xF007), in
 // order, each as `data` and `offset` of its BLIP: in the stream itself, or
 // at its foDelay offset in a separate one (a .ppt's "Pictures" stream).

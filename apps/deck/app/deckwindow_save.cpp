@@ -119,6 +119,7 @@ bool DeckWindow::saveTo(const QString &path)
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
+    m_ed->endCrop(true);   // what is written is a step, and a crop still going on is not yet
     Document *doc = m_ed->doc();
     doc->props.modified = QDateTime::currentDateTime();
     if (doc->props.author.isEmpty()) doc->props.author = Settings::get().userName();

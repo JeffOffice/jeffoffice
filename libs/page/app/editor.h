@@ -57,7 +57,7 @@ public:
     // What a new, unsaved, untitled document is called in this app
     // ("Publication1" unless the app says otherwise); kept across documents.
     void setNewDocumentName(const QString &name) { m_newName = name; }
-    bool isModified() const { return !m_undo.isClean(); }
+    bool isModified() const { return !m_undo.isClean() || m_cropOpen; }
     void markSaved() { m_undo.setClean(); }
     void markUnsaved() { m_undo.resetClean(); }   // a recovered copy: unsaved until saved
 
@@ -130,12 +130,26 @@ public:
     // merged one) the text cursor is in; not valid when neither.
     CellRange targetCells() const;
     CellRange cellsToFormat(const TableItem *t) const;   // those, or every cell of t when only the table is selected
+    // Rows or columns of a table that came or went (the table commands, Tab in the last cell): `rows` says which, `at` the first one that was
+    // added or taken away, `count` how many (more than 0 added, less than 0 taken away; 0 for none). A caller that keeps a table's style
+    // (JeffDeck) is told through tableEdited, inside the step that undoes.
+    struct TableEdit {
+        bool rows = true;
+        int at = 0, count = 0;
+    };
+    std::function<void(TableItem *, const TableEdit &)> tableEdited;
 
     // ---- changes and undo ----
     void beginChange(const QString &label);
+    // A change that is part of the crop in progress (a drag of its handles, or of the picture in its frame): it joins the crop's step.
+    void beginCropChange(const QString &label);
     void endChange();
     void cancelChange();
     void change(const QString &label, const std::function<void()> &fn) { beginChange(label); fn(); endChange(); }
+    // Called as a change ends while a master page is open on the canvas, after the change and before it is recorded for undo, with the
+    // document as it stands and as it was when the change began; what it changes joins the same undo step (it says whether it changed
+    // anything). Not called for a change that changed nothing.
+    std::function<bool(Document &now, const Document &before)> masterEdited;
     void notifyLive();                 // repaint during a drag without recording
     void flushTyping();
     void undo();
@@ -161,7 +175,11 @@ public:
     bool hasCopiedFormatting() const { return !painterItem.isEmpty() || painterHasText; }
     void pasteFormatting();
     void pasteFormattingTo(const QString &itemId);
-    void setCropItem(const QString &id) { cropItem = id; Q_EMIT viewChanged(); }
+    void setCropItem(const QString &id);
+    // Crop mode as a presentation program has it: with this on, the whole crop (from choosing Crop until Enter, a click away, or a command)
+    // is one step that undoes, and Esc (endCrop(false)) takes all of it back. Off, as in JeffPub, each drag of a handle is a step of its own.
+    bool cropSessions = false;
+    void endCrop(bool keep);
     void setPointsItem(const QString &id) { pointsItem = id; Q_EMIT viewChanged(); }
     void setWrapItem(const QString &id) { wrapItem = id; Q_EMIT viewChanged(); }
 
@@ -320,6 +338,11 @@ private:
     struct SpellEntry { quint64 serial = 0; int revision = -1; QVector<QPair<int, int>> ranges; };
     mutable QHash<QString, SpellEntry> m_spell;
     QUndoStack m_undo;
+    bool m_cropOpen = false;   // a crop session holds a change open (cropSessions)
+    int m_cropPage = 0;        // the slide and the selection it began with, which its step is filed under
+    QStringList m_cropSel;
+    void finishChange(int page, const QStringList &selection);
+    void leaveCrop() { if (m_cropOpen) endCrop(true); }
     QString m_path;
     QString m_untitledName;
     QString m_newName;
