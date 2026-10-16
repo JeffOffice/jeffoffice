@@ -25082,6 +25082,43 @@ private Q_SLOTS:
         QVERIFY2(std::abs(words.center().x() - box->rect.width() / 2) < 1.5, qPrintable(QString::number(words.center().x() - box->rect.width() / 2)));
     }
 
+    // A slide's justified lines have their words stretched to the edge: the spaces that hang at the end of a line are no part of the width the
+    // words are spread over, so the last word of most lines (all but the paragraph's last) ends at the right edge of the text area, not a space short of it.
+    void layoutSlideJustifiedLinesReachTheRightEdge()
+    {
+        QString text;
+        // (Words with ligatures too: a line is cut after a space, never inside a word.)
+        for (int i = 0; i < 12; ++i) text += QStringLiteral("The quick brown fox jumps over the lazy dog, the staff officers, difficult affiliate traffic ");
+        text += QStringLiteral("end");
+        // Justified: the alignment is 3 (the paragraph format's mask 0x800).
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0x800, le(3, 2)) + cfRun(int(text.size()) + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        const auto lines = fl.layout->lineInfo(0);
+        QVERIFY2(lines.size() > 2, qPrintable(QString::number(lines.size())));
+        const double edge = box->rect.width() - box->insets.right();
+        int reach = 0;
+        for (int i = 0; i + 1 < int(lines.size()); ++i) {
+            QVERIFY2(d->storyDoc(box->storyId)->characterAt(lines[i].docEnd - 1).isSpace(), qPrintable(QStringLiteral("line %1 is cut inside a word").arg(i)));
+            // The last character that isn't a space.
+            int last = lines[i].docEnd - 1;
+            while (last > lines[i].docPos && d->storyDoc(box->storyId)->characterAt(last).isSpace()) --last;
+            QRectF r;
+            for (const QRectF &c : fl.layout->rangeRects(0, last, last + 1)) r = r.united(c);
+            reach += std::abs(r.right() - edge) < 0.75;
+        }
+        // (A line that the spaces added to its width would take another word into is laid out as it was.)
+        QVERIFY2(reach * 10 >= (int(lines.size()) - 1) * 7, qPrintable(QStringLiteral("%1 of %2 lines reach the edge").arg(reach).arg(lines.size() - 1)));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {

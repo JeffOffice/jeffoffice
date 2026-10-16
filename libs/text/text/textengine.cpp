@@ -2660,6 +2660,22 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     line.setPosition(QPointF(iv.x0, m_frameY[f] + col.top() + y + lead));
                     if (const double dx = hangTrailingSpaces(line, B->disp, B->tl->textOption(), iv.x1 - iv.x0); dx != 0) line.setPosition(line.position() + QPointF(dx, 0));
+                    // A slide's justified line has its words stretched to the edge: the spaces that hang at its end are not part of the width
+                    // the words are spread over (Qt counts them in it, which leaves the last word a space short of the edge). The line is laid
+                    // out for the width with them added, and as it was if that takes another word in.
+                    if (env.slideLines && (B->tl->textOption().alignment() & Qt::AlignJustify)) {
+                        const int s0 = line.textStart(), e = s0 + line.textLength();
+                        if (e < B->disp.size() && B->disp[e - 1] != QChar::LineSeparator) {
+                            double spaces = 0;
+                            int k = e;
+                            while (k > s0 && B->disp[k - 1] == QLatin1Char(' ')) spaces += advanceAt(--k);
+                            if (k > s0 && spaces > 0) {
+                                const double room = iv.x1 - iv.x0;
+                                line.setLineWidth(room + spaces);
+                                if (line.textStart() + line.textLength() != e) line.setLineWidth(room);
+                            }
+                        }
+                    }
                     B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below};
                     if (!lineNotes.isEmpty()) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
