@@ -24855,8 +24855,9 @@ private Q_SLOTS:
     }
 
     // A presentation whose document says (in its headers and footers record) that the slides show a slide number and a footer text shows
-    // them on the slides that have none of their own, wherever the slide's master has the place for them; a slide that has a footer
-    // place of its own keeps just what it has. A document that says nothing of them shows none.
+    // them on the slides that lack them, wherever the slide's master has the place for them; a slide that has a place for one of them of its own
+    // keeps it as it is, and gets the others. A document that says nothing of them shows none. The footers are kept when it is saved as a
+    // .pptx or as an .odp and opened again.
     void importBinaryShowsTheFootersTheDocumentSetsOnSlidesWithoutThem()
     {
         // The flags: slide number (8) and footer (0x20); the footer's text is the string of instance 2.
@@ -24881,10 +24882,25 @@ private Q_SLOTS:
         const QTextDocument *number = placeholderStory(*d, *d->pages[1], QStringLiteral("ph:sldNum"));
         QVERIFY(number);
         QCOMPARE(number->toPlainText(), QString(QChar::ObjectReplacementCharacter));
-        // The first slide keeps its own number and gets nothing more.
+        // The first slide keeps its own number, and gets the footer it lacked.
         QCOMPARE(count(*d->pages[0], QStringLiteral("sldNum")), 1);
-        QCOMPARE(count(*d->pages[0], QStringLiteral("ftr")), 0);
+        QCOMPARE(count(*d->pages[0], QStringLiteral("ftr")), 1);
         QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:sldNum")), QStringLiteral("7"));
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:ftr")), QStringLiteral("Quarterly review"));
+        // Saved as a .pptx or an .odp and opened again, the second slide has the footer's text and the number's field.
+        for (const bool odp : {false, true}) {
+            auto again = odp ? viaOdp(*d, &err) : viaPptx(*d, &err);
+            QVERIFY2(again, qPrintable(err));
+            QCOMPARE(int(again->pages.size()), 2);
+            QCOMPARE(count(*again->pages[1], QStringLiteral("ftr")), 1);
+            QCOMPARE(placeholderText(*again, *again->pages[1], QStringLiteral("ph:ftr")), QStringLiteral("Quarterly review"));
+            QCOMPARE(count(*again->pages[1], QStringLiteral("sldNum")), 1);
+            const QTextDocument *again2 = placeholderStory(*again, *again->pages[1], QStringLiteral("ph:sldNum"));
+            QVERIFY(again2);
+            QCOMPARE(again2->toPlainText(), QString(QChar::ObjectReplacementCharacter));
+            QCOMPARE(count(*again->pages[1], QStringLiteral("dt")), 0);
+            QCOMPARE(count(*again->pages[0], QStringLiteral("sldNum")), 1);
+        }
         // With no record of them, no slide shows them.
         auto plain = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterPlaces), &err);
         QVERIFY2(plain, qPrintable(err));
@@ -25391,6 +25407,139 @@ private Q_SLOTS:
         }
     }
 
+    // A fixed date that a presentation's document sets (its headers and footers record names the date as the user's own and holds its text), and each
+    // of the places the document says to show that a slide lacks: a slide with a place of its own for the number keeps it, and still gets the date.
+    void importBinaryShowsAFixedDateAndEachFooterThatASlideLacks()
+    {
+        // The flags: a date (1) that is the user's own (4), and the slide number (8).
+        const QByteArray footers = footersBox(0, 0x1 | 0x4 | 0x8, QStringLiteral("May 19, 2003"));
+        const QByteArray ownNumber = pptShape(0x420, 8, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("7"))), 4000, 4000, 5500, 4300);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), ownNumber, QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footers), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 2);
+        const QString dt = QStringLiteral("dt"), number = QStringLiteral("sldNum");
+        // The second slide has no place of its own: the date as the user typed it (text, not a field), and the number as a field.
+        QCOMPARE(placeholdersOf(*d->pages[1], dt), 1);
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:dt")), QStringLiteral("May 19, 2003"));
+        QVERIFY(storyFieldCode(placeholderStory(*d, *d->pages[1], QStringLiteral("ph:dt"))).isEmpty());
+        QCOMPARE(placeholdersOf(*d->pages[1], number), 1);
+        // The first has its number (holding 7), kept as it is, and the date it lacked.
+        QCOMPARE(placeholdersOf(*d->pages[0], number), 1);
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:sldNum")), QStringLiteral("7"));
+        QCOMPARE(placeholdersOf(*d->pages[0], dt), 1);
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:dt")), QStringLiteral("May 19, 2003"));
+    }
+
+    // An automatic date shows in the format the record names (the format id of its headers and footers atom, an index into the program's list of
+    // date and time formats): 0 is the short date, 1 the long one with the day's name, 3 the month's name with the day and year, 7 the date and
+    // the time, 11 and 12 the time with its AM or PM.
+    void importBinaryAutomaticDateTakesTheFormatTheRecordNames()
+    {
+        const QVector<QPair<int, QString>> formats{{0, "M/d/yyyy"}, {1, "dddd, MMMM d, yyyy"}, {2, "d MMMM yyyy"}, {3, "MMMM d, yyyy"}, {4, "d-MMM-yy"}, {5, "MMMM yy"},
+                                                   {6, "MMM-yy"}, {7, "M/d/yyyy h:mm AP"}, {8, "M/d/yyyy h:mm:ss AP"}, {11, "h:mm AP"}, {12, "h:mm:ss AP"}};
+        QString err;
+        for (const auto &f : formats) {
+            // The flags: a date (1) that is today's (2).
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(f.first, 0x3)), &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(placeholdersOf(*d->pages[1], QStringLiteral("dt")), 1);
+            QCOMPARE(storyFieldCode(placeholderStory(*d, *d->pages[1], QStringLiteral("ph:dt"))), QStringLiteral("datetime:") + f.second);
+            if (f.first != 0) continue;
+            // The short date, on the day the original shows it: 10/15/2026.
+            FieldContext ctx;
+            ctx.now = QDateTime(QDate(2026, 10, 15), QTime(19, 31, 36));
+            QCOMPARE(ctx.resolve(storyFieldCode(placeholderStory(*d, *d->pages[1], QStringLiteral("ph:dt")))), QStringLiteral("10/15/2026"));
+        }
+    }
+
+    // A footer whose text the document's record leaves out but the master's footer place holds is shown with that text on the slides that show their
+    // footer; the text the record names wins over it, a slide whose own record shows no footer has none, and a document that says nothing of footers
+    // shows none (the master holds the text, but no slide shows it).
+    void importBinaryShowsTheFooterTextOfTheMastersFooterPlace()
+    {
+        const QString line = QStringLiteral("Seminar, Berlin, May 19, 2003"), ftr = QStringLiteral("ftr");
+        const QByteArray places = masterFooterPlaces(line);
+        QString err;
+        // The flag of the footer (0x20) and no text.
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places, QByteArray(), 1016, footersBox(0, 0x20)), &err);
+        QVERIFY2(d, qPrintable(err));
+        for (const auto &p : d->pages) {
+            QCOMPARE(placeholdersOf(*p, ftr), 1);
+            QCOMPARE(placeholderText(*d, *p, QStringLiteral("ph:ftr")), line);
+        }
+        // The first slide has a record of its own that shows only the number (8): no footer there, the master's line on the second.
+        auto hidden = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places, QByteArray(), 1016, footersBox(0, 0x20), footersBox(0, 0x08)), &err);
+        QVERIFY2(hidden, qPrintable(err));
+        QCOMPARE(placeholdersOf(*hidden->pages[0], ftr), 0);
+        QCOMPARE(placeholderText(*hidden, *hidden->pages[1], QStringLiteral("ph:ftr")), line);
+        // The record's own text wins.
+        auto named = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places, QByteArray(), 1016, footersBox(0, 0x20, QString(), QStringLiteral("Annual review"))), &err);
+        QVERIFY2(named, qPrintable(err));
+        QCOMPARE(placeholderText(*named, *named->pages[1], QStringLiteral("ph:ftr")), QStringLiteral("Annual review"));
+        // No record, no footer.
+        auto silent = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places), &err);
+        QVERIFY2(silent, qPrintable(err));
+        for (const auto &p : silent->pages) QCOMPARE(placeholdersOf(*p, ftr), 0);
+    }
+
+    // A slide can set its own footers in a record of its own: its date (the user's, here), its footer text, and no number, where the next slide
+    // follows the document's.
+    void importBinaryEachSlideCanSetItsOwnFooters()
+    {
+        const QByteArray document = footersBox(0, 0x8 | 0x20, QString(), QStringLiteral("Quarterly review"));
+        const QByteArray own = footersBox(0, 0x1 | 0x4 | 0x20, QStringLiteral("Slide one date"), QStringLiteral("Only here"));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, document, own), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:dt")), QStringLiteral("Slide one date"));
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:ftr")), QStringLiteral("Only here"));
+        QCOMPARE(placeholdersOf(*d->pages[0], QStringLiteral("sldNum")), 0);
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:ftr")), QStringLiteral("Quarterly review"));
+        QCOMPARE(placeholdersOf(*d->pages[1], QStringLiteral("sldNum")), 1);
+        QCOMPARE(placeholdersOf(*d->pages[1], QStringLiteral("dt")), 0);
+    }
+
+    // The footer text and the user's date of a record, and the footer text the master's footer place holds, are cut at a thousand characters
+    // (kMaxFooterChars), so a file can't make every slide carry text of any length in them.
+    void importBinaryFooterTextIsCutAtTheLimit()
+    {
+        const QByteArray footers = footersBox(0, 0x1 | 0x4 | 0x20, QString(2500, QLatin1Char('d')), QString(3000, QLatin1Char('f')));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footers), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:ftr")), QString(1000, QLatin1Char('f')));
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:dt")), QString(1000, QLatin1Char('d')));
+        // The master's footer place holds 3000 letters, and the record shows the footer without a text of its own.
+        auto fromMaster = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(QString(3000, QLatin1Char('m'))), QByteArray(), 1016, footersBox(0, 0x20)), &err);
+        QVERIFY2(fromMaster, qPrintable(err));
+        QCOMPARE(placeholderText(*fromMaster, *fromMaster->pages[1], QStringLiteral("ph:ftr")), QString(1000, QLatin1Char('m')));
+    }
+
+    // A text extension with a great many entries (the limit is kMaxPp9Entries, which the runs of a text can't reach, so this holds the file to its
+    // memory and not what it shows) is read in a moment and numbers the first paragraphs by their entries.
+    void importBinaryTextExtensionWithManyEntriesIsRead()
+    {
+        auto entry = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        // The first numbered (scheme 3, "1.") from 7; sixty thousand more with nothing set.
+        QByteArray atom = entry(0x03000000, le(1, 2) + le(3, 2) + le(7, 2));
+        for (int i = 0; i < 60000; ++i) atom += entry(0, QByteArray());
+        const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, atom));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, outline)));
+        const QByteArray body = pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(37, 0));
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story && story->firstBlock().textList());
+        QCOMPARE(story->firstBlock().textList()->format().style(), QTextListFormat::ListDecimal);
+        QCOMPARE(story->firstBlock().textList()->format().start(), 7);
+        QCOMPARE(story->firstBlock().next().textList()->format().style(), QTextListFormat::ListDisc);
+    }
+
     // The centered text block of a text box or a shape is kept in an .odp (as the area of the text centered across the shape) and is read back; a
     // box that isn't centered stays as it was.
     void importBinaryCenteredTextBlockSurvivesAnOdpRoundTrip()
@@ -25422,6 +25571,31 @@ private Q_SLOTS:
         auto again = viaOdp(*d, &err);
         QVERIFY2(again, qPrintable(err));
         QCOMPARE(centered(*again), (QStringList{"Centered", "Filled"}));
+    }
+
+    // A fixed date is kept as the text it is in an .odp (the date's declaration is a fixed one with its text), where an automatic one stays a field
+    // that shows the day it is opened on.
+    void importBinaryFixedDateSurvivesAnOdpRoundTrip()
+    {
+        QString err;
+        const QString dt = QStringLiteral("ph:dt");
+        auto fixed = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(0, 0x1 | 0x4, QStringLiteral("May 19, 2003"))), &err);
+        QVERIFY2(fixed, qPrintable(err));
+        QCOMPARE(placeholderText(*fixed, *fixed->pages[1], dt), QStringLiteral("May 19, 2003"));
+        auto again = viaOdp(*fixed, &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(int(again->pages.size()), 2);
+        for (const auto &p : again->pages) {
+            QCOMPARE(placeholdersOf(*p, QStringLiteral("dt")), 1);
+            QCOMPARE(placeholderText(*again, *p, dt), QStringLiteral("May 19, 2003"));
+            QVERIFY(storyFieldCode(placeholderStory(*again, *p, dt)).isEmpty());
+        }
+        auto automatic = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(0, 0x3)), &err);
+        QVERIFY2(automatic, qPrintable(err));
+        auto autoAgain = viaOdp(*automatic, &err);
+        QVERIFY2(autoAgain, qPrintable(err));
+        QVERIFY(storyFieldCode(placeholderStory(*autoAgain, *autoAgain->pages[1], dt)).startsWith(QLatin1String("date")));
+        QCOMPARE(placeholderText(*autoAgain, *autoAgain->pages[1], dt), QString(QChar::ObjectReplacementCharacter));
     }
 
     // A slide's line doesn't break after a slash when the text goes on in another format: a slash that ends a run in regular type, followed by a
@@ -25537,6 +25711,21 @@ private Q_SLOTS:
         auto again = viaPptx(*d, &err);
         QVERIFY2(again, qPrintable(err));
         QVERIFY(fits(*again, *again->pages[0]));
+    }
+
+    // A slide's own date place that holds the generic date field (the one the slide's date place has in a file, which takes the format of the headers
+    // and footers record rather than saying one) shows the date in the format the slide's record names, or the document's: the first slide's own
+    // record names format 1 (the long date with the day's name), the second slide follows the document's, format 0.
+    void importBinaryGenericDateFieldTakesTheFormatOfTheRecord()
+    {
+        // The first slide's own date place (7): its text is the field's place ("*") and the generic date field's atom (position 0).
+        const QByteArray ownDate = pptShape(0x421, 7, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("*"))) + pptRec(4088, le(0, 4)), 4000, 200, 2000, 4300);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), ownDate, QByteArray(), masterFooterPlaces(), QByteArray(), 1016, footersBox(0, 0x3), footersBox(1, 0x3)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(placeholdersOf(*d->pages[0], QStringLiteral("dt")), 1);
+        QCOMPARE(storyFieldCode(placeholderStory(*d, *d->pages[0], QStringLiteral("ph:dt"))), QStringLiteral("datetime:dddd, MMMM d, yyyy"));
+        QCOMPARE(storyFieldCode(placeholderStory(*d, *d->pages[1], QStringLiteral("ph:dt"))), QStringLiteral("datetime:M/d/yyyy"));
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.

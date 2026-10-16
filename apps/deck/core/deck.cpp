@@ -274,8 +274,7 @@ const Item *layoutPlaceholder(const Document &d, const MasterPage &layout, const
     return nullptr;
 }
 
-// A footer placeholder's content: the footer text, or the date or slide
-// number as the field that keeps it current.
+// A footer placeholder's content: the footer text, a fixed date as its text, or the date or slide number as the field that keeps it current.
 void fillFooter(Document &d, Item &it, const QString &type, const FooterOptions &o)
 {
     if (it.type() != ItemType::Text) return;
@@ -284,12 +283,19 @@ void fillFooter(Document &d, Item &it, const QString &type, const FooterOptions 
     QTextDocument *sd = d.storyDoc(storyId);
     if (!sd) return;
     QTextCursor c(sd);
+    // (A text takes the format the story's first letter had, a field's too when the place held one: it is no field.)
+    QTextCharFormat plain = c.charFormat();
+    plain.clearProperty(tp::Field);
     if (type == QLatin1String("ftr")) {
-        c.insertText(o.footerText);
+        c.insertText(o.footerText, plain);
+        return;
+    }
+    if (type == QLatin1String("dt") && !o.dateText.isEmpty()) {
+        c.insertText(o.dateText, plain);
         return;
     }
     QTextCharFormat f = c.charFormat();
-    f.setProperty(tp::Field, type == QLatin1String("sldNum") ? QStringLiteral("page") : QStringLiteral("date"));
+    f.setProperty(tp::Field, type == QLatin1String("sldNum") ? QStringLiteral("page") : o.dateCode.isEmpty() ? QStringLiteral("date") : o.dateCode);
     c.insertText(QString(QChar::ObjectReplacementCharacter), f);
 }
 
@@ -1062,7 +1068,10 @@ bool FooterOptions::shows(const QString &placeholderType, const QString &layoutT
 
 QJsonObject FooterOptions::toJson() const
 {
-    return {{"date", date}, {"slideNumber", slideNumber}, {"footer", footer}, {"text", footerText}, {"skipTitle", skipTitleSlide}};
+    QJsonObject o{{"date", date}, {"slideNumber", slideNumber}, {"footer", footer}, {"text", footerText}, {"skipTitle", skipTitleSlide}};
+    if (!dateText.isEmpty()) o["dateText"] = dateText;
+    if (!dateCode.isEmpty()) o["dateCode"] = dateCode;
+    return o;
 }
 
 FooterOptions FooterOptions::fromJson(const QJsonObject &o)
@@ -1073,6 +1082,8 @@ FooterOptions FooterOptions::fromJson(const QJsonObject &o)
     f.footer = o["footer"].toBool();
     f.footerText = o["text"].toString();
     f.skipTitleSlide = o["skipTitle"].toBool();
+    f.dateText = o["dateText"].toString();
+    f.dateCode = o["dateCode"].toString();
     return f;
 }
 
@@ -1083,6 +1094,30 @@ FooterOptions footerOptions(const Document &d)
     FooterOptions all;
     all.date = all.slideNumber = all.footer = d.appData.value(QStringLiteral("footers")).toBool();
     return all;
+}
+
+QString layoutFooterText(const Document &d, const Page &slide)
+{
+    const MasterPage *layout = d.masterFor(slide);
+    const Item *place = layout ? layoutPlaceholder(d, *layout, QStringLiteral("ftr")) : nullptr;
+    if (!place || place->type() != ItemType::Text) return QString();
+    const QTextDocument *story = d.storyDoc(static_cast<const TextItem *>(place)->storyId);
+    return story ? story->toPlainText().trimmed() : QString();
+}
+
+void addMissingFooters(Document &d, const FooterOptions &o, Page &slide)
+{
+    const MasterPage *layout = d.masterFor(slide);
+    const QString ltype = layout ? layoutType(*layout) : QString();
+    for (const QString &type : {QStringLiteral("dt"), QStringLiteral("ftr"), QStringLiteral("sldNum")}) {
+        if (!o.shows(type, ltype)) continue;
+        const bool has = std::any_of(slide.items.cbegin(), slide.items.cend(), [&](const ItemPtr &it) { return placeholderType(*it) == type; });
+        if (has) continue;
+        const Item *from = layout ? layoutPlaceholder(d, *layout, type) : nullptr;
+        if (!from) continue;
+        slide.items.push_back(slidePlaceholder(d, *from));
+        fillFooter(d, *slide.items.back(), type, o);
+    }
 }
 
 void applyFooters(Document &d, const FooterOptions &o, Page *only)
