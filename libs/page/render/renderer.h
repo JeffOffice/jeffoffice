@@ -38,9 +38,6 @@ struct RenderOptions {
     // Output only: pictures are downsampled to at most this resolution (0: keep).
     double maxImageDpi = 0;
     bool skipPictures = false;    // spot color plates: pictures print on the process plates
-    // Output only: text is set without ligatures, so that a PDF's text names each letter it draws (a glyph that stands for several letters
-    // is no letter a reader that copies the text can name).
-    bool plainLetters = false;
 };
 
 class LayoutCache {
@@ -55,7 +52,7 @@ public:
     // boxes on master pages, which show the number of the page being drawn.
     FrameLayout textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt);
     // Layout for a single story in one box (shape text, table cells).
-    const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, const RenderOptions *opt = nullptr);
+    const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key);
     void clear() { m_entries.clear(); m_fields.clear(); }
 
 private:
@@ -97,7 +94,7 @@ class Renderer {
 public:
     // How a document's text is set: its colors, fonts, tab stops, and (a
     // presentation's) slide lines.
-    static LayoutEnv layoutEnv(const Document &doc, const RenderOptions *opt = nullptr);
+    static LayoutEnv layoutEnv(const Document &doc);
     // Paints one page (background, master items, page items) in page coordinates.
     static void paintPage(QPainter *p, const PaintContext &ctx, int pageIndex);
     static void paintMaster(QPainter *p, const PaintContext &ctx, const MasterPage &m, double xOffset = 0);

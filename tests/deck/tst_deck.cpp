@@ -31944,6 +31944,41 @@ private Q_SLOTS:
         QVERIFY2(zs >= 100 && zs <= 1000, qPrintable(QString::number(zs)));
     }
 
+    // A PDF page breaks its lines where the screen does: the presentation's text is laid out without ligatures wherever it is set (the presentation
+    // program applies none), so a ligature-rich paragraph in a tight box has the same lines in the PDF as on the screen, at any width of the box.
+    void exportPdfBreaksLinesAsTheScreenDoes()
+    {
+        const QString words = QStringLiteral("The official office staff offered fifty beautiful flowers, affiliated artifacts, and attitude; the effective traffic of stuff after offline "
+                                             "workflows; creative objectives often fit. Definitive effort, fluffy waffle, differing first flights, little shuffle, notification, "
+                                             "certificate, sufficient.");
+        for (const double width : {100.0, 100.75, 131.5, 163.25, 200.0, 233.25, 290.5, 340.0}) {
+            auto d = deck::newPresentation();
+            auto t = std::make_shared<TextItem>();
+            t->rect = QRectF(20, 20, width, 480);
+            t->hyphenate = false;
+            t->storyId = d->createStory();
+            QTextDocument *story = d->storyDoc(t->storyId);
+            QTextCursor c(story);
+            QTextCharFormat f;
+            f.setFontFamilies({QStringLiteral("Carlito")});
+            f.setFontPointSize(18);
+            c.insertText(words, f);
+            d->pages[0]->items.push_back(t);
+            LayoutCache cache;
+            const auto screen = cache.textFrame(*d, *t, 1, RenderOptions());
+            QVERIFY(screen.layout);
+            QStringList onScreen;
+            for (const auto &line : screen.layout->lineInfo(0)) onScreen << line.text.simplified();
+            QString err;
+            const QByteArray pdf = pdfOf(*d, &err);
+            QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+            const PdfDocument doc(pdf);
+            QStringList inPdf;
+            for (const QString &line : doc.lines(0)) inPdf << line.simplified();
+            QVERIFY2(onScreen == inPdf, qPrintable(QStringLiteral("width %1\n screen: %2\n pdf:    %3").arg(width).arg(onScreen.join('|'), inPdf.join('|'))));
+        }
+    }
+
     // A diagram (SmartArt) is a picture of its drawing, whose letters are outlines: the PDF has its words as text too.
     void exportPdfCarriesTheTextOfADiagram()
     {
