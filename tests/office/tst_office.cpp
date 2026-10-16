@@ -10786,6 +10786,7 @@ private Q_SLOTS:
             const QDomElement run = child(child(stack[1], a, QStringLiteral("lvl%1pPr").arg(level)), a, QStringLiteral("defRPr"));
             QVERIFY(!run.isNull());
             QCOMPARE(attr(child(child(run, a, QStringLiteral("solidFill")), a, QStringLiteral("schemeClr")), QStringLiteral("val")), QStringLiteral("lt1"));
+            QCOMPARE(attr(child(run, a, QStringLiteral("latin")), QStringLiteral("typeface")), QStringLiteral("+mn-lt"));   // and the theme's body font
         }
         // Below the shape's own list, when the stack ends in it.
         stack = withFontReference({other, base}, style, base, &keep);
@@ -10794,14 +10795,20 @@ private Q_SLOTS:
         QVERIFY(!child(stack[1], a, QStringLiteral("lvl3pPr")).isNull());
         stack = withFontReference({base, other}, style, base, &keep);
         QVERIFY(stack.last() != other && stack.size() == 3);
-        // The heading font, with or without a color; no reference, nothing to say, no change.
+        // The heading font, with or without a color; and the body font the same, over the default text style's own font; no reference, nothing to say,
+        // no change.
         const QDomElement major = env.element(QStringLiteral("<p:style><a:fontRef idx=\"major\"/></p:style>"));
         stack = withFontReference({base}, major, QDomElement(), &keep);
         QCOMPARE(int(stack.size()), 2);
         const QDomElement run = child(child(stack[1], a, QStringLiteral("lvl1pPr")), a, QStringLiteral("defRPr"));
         QCOMPARE(attr(child(run, a, QStringLiteral("latin")), QStringLiteral("typeface")), QStringLiteral("+mj-lt"));
         QVERIFY(child(run, a, QStringLiteral("solidFill")).isNull());
-        QCOMPARE(int(withFontReference({base}, env.element(QStringLiteral("<p:style><a:fontRef idx=\"minor\"/></p:style>")), QDomElement(), &keep).size()), 1);
+        stack = withFontReference({base}, env.element(QStringLiteral("<p:style><a:fontRef idx=\"minor\"/></p:style>")), QDomElement(), &keep);
+        QCOMPARE(int(stack.size()), 2);
+        const QDomElement minorRun = child(child(stack[1], a, QStringLiteral("lvl1pPr")), a, QStringLiteral("defRPr"));
+        QCOMPARE(attr(child(minorRun, a, QStringLiteral("latin")), QStringLiteral("typeface")), QStringLiteral("+mn-lt"));
+        QVERIFY(child(minorRun, a, QStringLiteral("solidFill")).isNull());
+
         QCOMPARE(int(withFontReference({base}, env.element(QStringLiteral("<p:style/>")), QDomElement(), &keep).size()), 1);
         QCOMPARE(int(withFontReference({base}, QDomElement(), QDomElement(), &keep).size()), 1);
         QCOMPARE(int(withFontReference({}, style, QDomElement(), &keep).size()), 1);

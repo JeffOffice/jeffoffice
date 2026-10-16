@@ -31868,6 +31868,25 @@ private Q_SLOTS:
         QVERIFY(svg.contains("<path"));
     }
 
+    // A diagram's text takes the theme's body font (the drawing's style names it: fontRef minor) over the one the presentation's default text style
+    // sets: here that style says Arial, the theme's body font is Verdana.
+    void diagramTextTakesTheThemesBodyFontItsStyleNames()
+    {
+        Parts p = smartArtPptx();
+        QString pres = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+        QVERIFY(pres.contains(QStringLiteral("<a:latin typeface=\"+mn-lt\"/>")));
+        pres.replace(QStringLiteral("<a:latin typeface=\"+mn-lt\"/>"), QStringLiteral("<a:latin typeface=\"Arial\"/>"));
+        p.data["/ppt/presentation.xml"].xml = pres.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("diagram"));
+        QVERIFY(pic);
+        const QByteArray svg = d->images.value(pic->imageId).bytes;
+        QVERIFY(svg.contains("font-family=\"Verdana\""));
+        QVERIFY(!svg.contains("font-family=\"Arial\""));
+    }
+
     // The words a picture's pixels hold (kept with a Macintosh picture's PNG) are in the PDF as text with no ink, where they were drawn, and not the
     // ones that fall outside the part of the picture the slide shows.
     void exportPdfCarriesTheWordsKeptWithAPicture()
