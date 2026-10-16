@@ -42,6 +42,12 @@ void WriteDoc::exportBody(QVector<Block> *out)
         const int numId = full.numId.value_or(0), level = full.ilvl.value_or(0);
         ParaProps direct = full.differences(baselineParagraph(styleId, numId, level));
         direct.style = styleId == defaultStyle ? QString() : styleId;
+        if (bf.hasProperty(prop::OddTabs)) {
+            QVector<TabStop> tabs = direct.tabs.value_or(QVector<TabStop>());
+            tabs += unpackTabs(bf.property(prop::OddTabs).toByteArray());
+            std::stable_sort(tabs.begin(), tabs.end(), [](const TabStop &a, const TabStop &b) { return a.pos < b.pos; });
+            direct.tabs = tabs;
+        }
         if (numId == 0 && !sheet.paragraph(styleId).numId.value_or(0)) {
             direct.numId.reset();
             direct.ilvl.reset();

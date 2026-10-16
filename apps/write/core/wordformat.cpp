@@ -99,6 +99,33 @@ QVector<Block> unpackBlocks(const QByteArray &packed)
     return out;
 }
 
+QByteArray packTabs(const QVector<TabStop> &tabs)
+{
+    QByteArray out;
+    QDataStream s(&out, QIODevice::WriteOnly);
+    s.setVersion(QDataStream::Qt_6_0);
+    s << qint32(tabs.size());
+    for (const TabStop &t : tabs) s << qint32(t.pos) << t.val << t.leader;
+    return out;
+}
+
+QVector<TabStop> unpackTabs(const QByteArray &packed)
+{
+    QVector<TabStop> out;
+    QDataStream s(packed);
+    s.setVersion(QDataStream::Qt_6_0);
+    qint32 n = 0;
+    s >> n;
+    for (qint32 i = 0; i < n && s.status() == QDataStream::Ok && i < 1000; ++i) {
+        qint32 pos = 0;
+        TabStop t;
+        s >> pos >> t.val >> t.leader;
+        t.pos = pos;
+        if (s.status() == QDataStream::Ok) out.push_back(t);
+    }
+    return out;
+}
+
 QByteArray packRaw(const QVector<RawChild> &children)
 {
     QByteArray out;
@@ -311,6 +338,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     else if (jc == QLatin1String("both") || jc == QLatin1String("distribute") || jc == QLatin1String("highKashida") || jc == QLatin1String("lowKashida") || jc == QLatin1String("mediumKashida") || jc == QLatin1String("thaiDistribute"))
         bf.setAlignment(Qt::AlignJustify);
     else bf.setAlignment(Qt::AlignLeft);
+    if (jc == QLatin1String("distribute") || jc == QLatin1String("thaiDistribute") || jc.endsWith(QLatin1String("Kashida"))) bf.setProperty(prop::JcRaw, jc);
     bf.setTopMargin(p.before.value_or(0) / 20.0);
     bf.setBottomMargin(p.after.value_or(0) / 20.0);
     bf.setLeftMargin(p.indLeft.value_or(0) / 20.0);
@@ -342,7 +370,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
             else if (t.val == QLatin1String("decimal")) {
                 tab.type = QTextOption::DelimiterTab;
                 tab.delimiter = QLatin1Char('.');
-            } else if (t.val == QLatin1String("bar")) continue;
+            } else if (t.val == QLatin1String("bar") || t.val == QLatin1String("num")) continue;
             else tab.type = QTextOption::LeftTab;
             tabs << tab;
             leaders += t.leader == QLatin1String("dot") ? QLatin1Char('.')
@@ -369,6 +397,8 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
            : (al == Qt::AlignRight || al == Qt::AlignTrailing) ? QStringLiteral("right")
            : al == Qt::AlignJustify ? QStringLiteral("both")
                                     : QStringLiteral("left");
+    // (An alignment that is a kind of justified keeps the kind it was, while it is still justified.)
+    if (al == Qt::AlignJustify && f.hasProperty(prop::JcRaw)) p.jc = f.stringProperty(prop::JcRaw);
     p.before = int(std::lround(f.topMargin() * 20));
     p.after = int(std::lround(f.bottomMargin() * 20));
     p.indLeft = int(std::lround(f.leftMargin() * 20));

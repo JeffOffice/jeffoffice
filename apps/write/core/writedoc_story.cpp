@@ -149,6 +149,13 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         resolved.ilvl = level;
         QTextBlockFormat bf = blockFormatOf(resolved);
         if (!p.attrs.isEmpty()) bf.setProperty(prop::ParaAttrs, p.attrs);
+        // The tab stops of its own that the engine has no kind for (a bar) are kept beside the others.
+        if (direct.tabs) {
+            QVector<TabStop> odd;
+            for (const TabStop &t : *direct.tabs)
+                if (t.val == QLatin1String("bar") || t.val == QLatin1String("num")) odd.push_back(t);
+            if (!odd.isEmpty()) bf.setProperty(prop::OddTabs, packTabs(odd));
+        }
         if (!pending.isEmpty()) {
             bf.setProperty(prop::RawBefore, packBlocks(pending));
             pending.clear();

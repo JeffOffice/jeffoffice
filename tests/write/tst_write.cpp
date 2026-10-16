@@ -1237,6 +1237,33 @@ private Q_SLOTS:
         QVERIFY(y.contains("w:fill=\"C0C0C0\"") && y.contains("w:leftChars=\"150\""));
     }
 
+    void tabStopsTheEngineHasNoKindForAreKeptAndNotMade()
+    {
+        // A list's own tab (num) is the definition's, and a bar tab is the paragraph's: neither is turned into a left tab, and the bar stays.
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"5\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/>"
+                                     "<w:pPr><w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs><w:ind w:left=\"1080\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"5\"><w:abstractNumId w:val=\"5\"/></w:num>";
+        auto doc = open(makeDocx("<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"5\"/></w:numPr></w:pPr><w:r><w:t>item</w:t></w:r></w:p>"
+                                 "<w:p><w:pPr><w:tabs><w:tab w:val=\"bar\" w:pos=\"2000\"/><w:tab w:val=\"right\" w:pos=\"9000\"/></w:tabs></w:pPr><w:r><w:t>bar</w:t></w:r></w:p>", kStyles, numbering));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(!x.contains("w:val=\"left\""), x.constData());
+        QVERIFY2(x.contains("<w:tabs><w:tab w:val=\"bar\" w:pos=\"2000\"/><w:tab w:val=\"right\" w:pos=\"9000\"/></w:tabs>"), x.constData());
+        QCOMPARE(int(x.count("<w:tabs>")), 1);
+    }
+
+    void aKindOfJustifiedIsKeptUntilTheAlignmentIsChosen()
+    {
+        auto doc = open(makeDocx("<w:p><w:pPr><w:jc w:val=\"distribute\"/></w:pPr><w:r><w:t>spread</w:t></w:r></w:p>"
+                                 "<w:p><w:pPr><w:jc w:val=\"both\"/></w:pPr><w:r><w:t>plain</w:t></w:r></w:p>", kStyles));
+        QCOMPARE(doc->story()->findBlockByNumber(0).blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignJustify);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:jc w:val=\"distribute\"/>") && x.contains("<w:jc w:val=\"both\"/>"), x.constData());
+        // Choosing an alignment, even the justified one, makes it the plain kind.
+        QTextCursor c(doc->story());
+        setAlignment(*doc, c, Qt::AlignJustify);
+        const QByteArray y = documentXml(doc->toDocx());
+        QVERIFY2(!y.contains("distribute") && int(y.count("<w:jc w:val=\"both\"/>")) == 2, y.constData());
+    }
+
     void aParagraphThatSaysNoFirstLineIndentKeepsSayingIt()
     {
         // The style indents the first line; the paragraph says "hanging" by nothing, which takes that indent away.

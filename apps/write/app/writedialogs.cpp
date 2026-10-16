@@ -3,6 +3,7 @@
 #include "app/pageview.h"
 #include "app/widgets.h"
 #include "core/editops.h"
+#include "core/writeprops.h"
 
 #include <QButtonGroup>
 #include <QComboBox>
@@ -123,7 +124,10 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     const bool lineChanged = k != lineKind || (k == 5 && std::abs(multiple->value() - lineValue) > 0.001) || ((k == 3 || k == 4) && std::abs(at->value() - lineValue) > 0.001);
     const Qt::Alignment chosen = Qt::Alignment(align->currentData().toInt());
     changeBlockFormat(*doc, *cursor, [&](QTextBlockFormat &bf) {
-        if (alignChanged) bf.setAlignment(chosen);
+        if (alignChanged) {
+            bf.setAlignment(chosen);
+            bf.clearProperty(prop::JcRaw);
+        }
         if (leftChanged) bf.setLeftMargin(left->value());
         if (rightChanged) bf.setRightMargin(right->value());
         if (firstChanged) bf.setTextIndent(firstNow);
