@@ -274,6 +274,8 @@ public:
     double usedHeight(int frame) const;      // content height used, including insets
     // A word processor's space after the story's last paragraph (LayoutEnv::wordLines; 0 otherwise): a note takes it as part of its height.
     double trailingSpace() const { return m_trailingAfter; }
+    // The room under the story's last paragraph, as the next paragraph would find it: the lower edge of the paragraph's box (borders, shading) and the space after it.
+    double trailingRoom() const { return m_trailingRoom; }
     int firstPosition(int frame) const;      // first document position laid out in frame (-1 if none)
     int lastPosition(int frame) const;
 
@@ -402,6 +404,7 @@ private:
     bool m_overflow = false;
     LayoutEnv m_env;
     double m_trailingAfter = 0;
+    double m_trailingRoom = 0;
     QVector<double> m_noteReserves;
     double m_ruleGap = 0, m_noteGap = 0;
     QVector<Note> m_notes;

@@ -1905,6 +1905,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     int f = 0, c = 0;
     double y = 0;              // relative to column top
     double lastAfter = 0;      // the space after the paragraph before, which a word processor's space before counts against
+    double lastRoom = 0;       // the room under the paragraph before: the lower edge of its box (borders, shading), and the space after
     double overflowY = 0;
     QVector<Iv> row;
     int rowIdx = 0;
@@ -2544,7 +2545,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             B->boxTopRoom = B->boxJoinedBefore ? B->box.between.reserve() : B->boxTopOff ? 0.0 : B->box.top.reserve();
             B->boxBottomRoom = B->boxJoinedAfter ? 0.0 : B->box.bottom.reserve();
         }
-        const double prevAfter = lastAfter;
+        const double prevAfter = lastAfter, prevRoom = lastRoom;
         // Between paragraphs of one style that ask for no space between them, a word processor's contextual spacing leaves none.
         auto sameStyle = [](const QTextBlock &x, const QTextBlock &z) {
             return x.isValid() && z.isValid() && x.blockFormat().stringProperty(tp::StyleName) == z.blockFormat().stringProperty(tp::StyleName);
@@ -3041,6 +3042,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 y += B->boxBottomRoom;   // (the line below it)
                 y += after;
                 lastAfter = after;
+                lastRoom = B->boxBottomRoom + after;
             }
         };
         // (The first paragraph of a stretch may have lines that went before it.)
@@ -3123,6 +3125,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (env.wordLines && bf.boolProperty(tp::OutOfFlow) && f == startSpot.f && c == startSpot.c && !B->cut) {
             y = startSpot.y;
             lastAfter = prevAfter;
+            lastRoom = prevRoom;
             rowActive = startSpot.rowActive;
             rowIdx = startSpot.rowIdx;
             rowH = startSpot.rowH;
@@ -3143,6 +3146,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     }
 
     m_trailingAfter = env.wordLines ? lastAfter : 0.0;
+    m_trailingRoom = lastRoom;
     // A footnote still going on after the story's last line: the columns
     // after it take the rest, or the story overflows.
     while (!carry.isEmpty() && f < nF) advance();

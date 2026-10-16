@@ -170,6 +170,12 @@ private:
     void restackNotes(const QVector<FrameSpec> &frames, Ledger *ledger, TablesRun *out);
     // How tall the note is when set in a column `width` wide (its story is the document's `fields`').
     double noteHeight(const QString &id, double width);
+    // A note cut to fit `room` points at the foot of a column `width` wide: how tall its first piece is (0: none fits), and where in its story the rest begins (0: it is whole).
+    struct NoteCut {
+        double height = 0;
+        int from = 0;
+    };
+    NoteCut cutNote(const QString &id, double width, double room);
     std::map<std::tuple<QString, int, int>, double> m_noteHeights;   // by note, the width in hundredths of a point, and its story's revision
     double m_ruleGap = 0;   // the gap above a page's notes (the last the text engine said)
     QVector<double> m_offsOut;   // where in the row's cells the part that begins the next page starts, as the last lines of a page left it

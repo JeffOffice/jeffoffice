@@ -83,6 +83,45 @@ double Paginator::noteHeight(const QString &id, double width)
     return h;
 }
 
+Paginator::NoteCut Paginator::cutNote(const QString &id, double width, double room)
+{
+    NoteCut cut;
+    if (!m_doc->fields || room <= 0) return cut;
+    // As the text engine cuts a note that a line cites at the foot of a frame: a story that cites it, laid out in a frame as tall as the line and the room, and a frame after it.
+    QTextDocument d;
+    d.setDocumentMargin(0);
+    {
+        QTextCursor c(&d);
+        QTextCharFormat ref;
+        ref.setFontPointSize(11);
+        ref.setProperty(tp::Field, QStringLiteral("footnote:") + id);
+        c.insertText(QString(QChar(0xFFFC)), ref);
+    }
+    FrameSpec fs;
+    fs.size = QSizeF(std::max(1.0, width), 100000);
+    fs.insets = QMarginsF(0, 0, 0, 0);
+    fs.columns = 1;
+    fs.hyphenate = m_doc->hyphenate;
+    fs.hyphenZone = m_doc->hyphenZone;
+    fs.ctx.doc = m_doc->fields;
+    double line = 0;
+    {
+        StoryLayout lay;
+        lay.build(&d, {fs}, m_doc->env);
+        const auto briefs = lay.lineBriefs();
+        if (!briefs.isEmpty()) line = briefs.first().rect.bottom();
+    }
+    FrameSpec first = fs;
+    first.size.setHeight(line + room);
+    StoryLayout lay;
+    lay.build(&d, {first, fs}, m_doc->env);
+    for (const StoryLayout::NotePlace &pl : lay.notePlaces()) {
+        if (pl.frame == 0 && pl.from == 0) cut.height = pl.rect.height();
+        else if (pl.frame >= 1 && pl.from > 0) cut.from = pl.from;
+    }
+    return cut;
+}
+
 QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, const PageStart &st, TablesRun *tr)
 {
     Ledger ledger(int(frames.size()));
@@ -172,10 +211,35 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
         led->noteGap = lay.noteGap();
         m_ruleGap = led->ruleGap;
     };
-    // The notes a row (or the part of one) cites go to the foot of the frame it is in.
-    auto addNotes = [&](int frame, const QVector<NoteRef> &refs, double height, double width, double colH) {
-        for (const NoteRef &nr : refs) led->places << StoryLayout::NotePlace{nr.id, nr.number, frame, 0, QRectF(0, 0, width, noteHeight(nr.id, width)), 0};
-        led->reserve[frame] = std::min(colH, led->reserve[frame] + height);
+    // The notes a row (or the part of one) cites go to the foot of the frame it is in, in the room given (the rule above them, where the frame has none yet, is a part
+    // of it): one that does not fit it is cut there, and goes on at the foot of the next page with those after it.
+    auto seatNotes = [&](int frame, const QVector<NoteRef> &refs, double width, double colH, double room) {
+        if (refs.isEmpty()) return;
+        knowGaps();
+        double used = led->reserve[frame] > 0 ? 0 : std::max(0.0, led->ruleGap);
+        bool cutDone = false;
+        for (const NoteRef &nr : refs) {
+            const double h = noteHeight(nr.id, width);
+            if (!cutDone && used + h + std::max(0.0, led->noteGap) <= room + 0.05) {
+                led->places << StoryLayout::NotePlace{nr.id, nr.number, frame, 0, QRectF(0, 0, width, h), 0};
+                used += h + std::max(0.0, led->noteGap);
+                continue;
+            }
+            if (cutDone) {
+                led->carried << StoryLayout::CarriedNote{nr.id, nr.number, 0, nr.pos};
+                continue;
+            }
+            // The first that does not fit is cut in what is left of the room, and goes on from there.
+            const NoteCut cut = cutNote(nr.id, width, std::max(0.0, room - used));
+            if (cut.height > 0) {
+                led->places << StoryLayout::NotePlace{nr.id, nr.number, frame, 0, QRectF(0, 0, width, cut.height), 0};
+                used += cut.height + std::max(0.0, led->noteGap);
+                if (cut.from == 0) continue;   // (it fits after all)
+            }
+            led->carried << StoryLayout::CarriedNote{nr.id, nr.number, cut.height > 0 ? cut.from : 0, nr.pos};
+            cutDone = true;
+        }
+        led->reserve[frame] = std::min(colH, led->reserve[frame] + std::min(used, room));
     };
     auto heightOfNotes = [&](const QVector<NoteRef> &refs, int frame, double width) {
         if (refs.isEmpty()) return 0.0;
@@ -229,14 +293,14 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                         return out;
                     }
                     const double colH = frames[f].size.height(), colW = frames[f].size.width();
-                    const bool atTop = y < 0.001;
+                    const bool atTop = y < 0.001 && led->reserve[f] < 0.001;   // (at the top of a column that has no notes either: a row is put there whether it fits or not)
                     // The header rows go above the first line of a page that the table goes on to, and take from the room of the parts of a row there.
                     const double headers = TableFlow::repeatsHeader(*table, r, colH) ? table->headerHeight() : 0;
                     // (A page that the table goes on to has the header rows above its first line.)
                     const double extra = out.isEmpty() ? headers : 0;
                     ln.rect = QRectF(0, y, colW, height + extra);
                     const double avail = colH - y - extra - led->reserve[f];
-                    table->setNoteHeights([this, colW](const QString &id) { return noteHeight(id, colW); });
+                    table->setNoteHeights([this, colW, led](const QString &id) { return noteHeight(id, colW) + std::max(0.0, led->noteGap); });
                     if (state == 0) {
                         const double nh = heightOfNotes(rowNotes, f, colW);
                         if (height + nh <= avail + 0.05 || (atTop && !table->splittable(r))) {
@@ -245,7 +309,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                             ln.lines = 1;
                             out << ln;
                             y += height + extra;
-                            addNotes(f, rowNotes, nh, colW, colH);
+                            seatNotes(f, rowNotes, colW, colH, colH - y - led->reserve[f]);
                             placed = true;
                             continue;
                         }
@@ -262,7 +326,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                             out << ln;
                             m_pieces.push_back({row.from, state, part});
                             y += part.height + extra;
-                            addNotes(f, part.notes, part.noteHeight, colW, colH);
+                            seatNotes(f, part.notes, colW, colH, part.noteHeight + 0.01);
                             if (!part.next) placed = true;
                             state = part.next;
                             if (part.next) {
@@ -352,7 +416,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
         for (int i = int(briefs.size()) - 1; i >= 0; --i) {
             if (briefs[i].frame < 0) continue;
             f = briefs[i].frame;
-            y = briefs[i].rect.bottom() + (m_doc->env.wordLines ? layout->trailingSpace() : std::max(0.0, story->findBlock(briefs[i].block).blockFormat().bottomMargin()));
+            y = briefs[i].rect.bottom() + layout->trailingRoom();
             break;
         }
         pos = end;
@@ -379,10 +443,9 @@ std::vector<Paginator::TableGroup> Paginator::tableGroups(const QVector<StoryLay
         } else {
             out.push_back({sp, row, row + 1, frame, ln.rect, table->row(row).from, table->row(row).to, {}});
         }
-        // A row that is on the page in part (it goes over a page break, or on from one).
-        if (ln.line != 0 || ln.lines > 1)
-            for (const PieceRecord &rec : m_pieces)
-                if (rec.pos == ln.pos && rec.state == ln.line) out.back().parts.push_back({row, rec.piece});
+        // A row that is on the page in part (it goes over a page break, or on from one), or that was put there with the room it had (the space under its last line let go at the foot).
+        for (const PieceRecord &rec : m_pieces)
+            if (rec.pos == ln.pos && rec.state == ln.line) out.back().parts.push_back({row, rec.piece});
     }
     return out;
 }

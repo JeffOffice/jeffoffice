@@ -668,6 +668,18 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
         double avail = 0, noteHeight = 0;
         QVector<NoteRef> notes;
     };
+    // At the top of a page, the most the notes may take: what the room leaves a line of each cell that has one (a note longer than a page is cut at the foot and goes on).
+    double cap = 1e18;
+    if (force || k > 0) {
+        double need = 0;
+        for (int i = 0; i < n; ++i) {
+            if (!units[size_t(i)]) continue;
+            const auto &lines = units[size_t(i)]->lines;
+            const int a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const UnitLine &l, double off) { return l.top < off; }) - lines.begin());
+            if (a < int(lines.size())) need = std::max(need, lines[size_t(a)].bottom - lines[size_t(a)].top + m_cells[size_t(row.cell0 + i)].margins.top() + m_cells[size_t(row.cell0 + i)].margins.bottom());
+        }
+        cap = std::max(0.0, room - need);
+    }
     auto stepFrom = [&]() {
         Step st;
         st.avail = room;
@@ -720,6 +732,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
             double h = 0;
             for (const NoteRef &nr : std::as_const(notes)) h += m_noteHeight(nr.id);
             if (!notes.isEmpty() && ruleNeeded) h += ruleGap;
+            h = std::min(h, cap);
             std::sort(notes.begin(), notes.end(), [](const NoteRef &a, const NoteRef &b) { return a.number != b.number ? a.number < b.number : a.pos < b.pos; });
             st.notes = notes;
             st.noteHeight = h;
