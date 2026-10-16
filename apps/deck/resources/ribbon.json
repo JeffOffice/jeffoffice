@@ -359,6 +359,32 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Editing",
+          "keytip": "ZE",
+          "items": [
+            {
+              "small": "edit.find",
+              "keytip": "FD"
+            },
+            {
+              "small": "edit.replace",
+              "keytip": "RP"
+            },
+            {
+              "small": {
+                "id": "ribbon.select",
+                "text": "Select",
+                "icon": "mouse-pointer-2"
+              },
+              "keytip": "SL",
+              "menu": [
+                "edit.selectAll",
+                "edit.selectObjects"
+              ]
+            }
+          ]
         }
       ]
     },
@@ -1198,6 +1224,375 @@
                   "widget": "mediaRewind",
                   "keytip": "R"
                 }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Picture Format",
+      "keytip": "JP",
+      "context": "Picture Tools",
+      "color": "pictureFormat",
+      "groups": [
+        {
+          "name": "Crop",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": "pic.crop",
+              "keytip": "CO"
+            },
+            {
+              "widget": "cropToShapeButton",
+              "keytip": "CT"
+            },
+            {
+              "large": {
+                "id": "ribbon.aspectRatio",
+                "text": "Aspect Ratio",
+                "icon": "ratio"
+              },
+              "keytip": "AR",
+              "menu": [
+                {
+                  "section": "Square"
+                },
+                "pic.aspect.1x1",
+                {
+                  "section": "Portrait"
+                },
+                "pic.aspect.2x3",
+                "pic.aspect.3x4",
+                "pic.aspect.3x5",
+                "pic.aspect.4x5",
+                "pic.aspect.9x16",
+                {
+                  "section": "Landscape"
+                },
+                "pic.aspect.3x2",
+                "pic.aspect.4x3",
+                "pic.aspect.5x3",
+                "pic.aspect.5x4",
+                "pic.aspect.16x9",
+                "pic.aspect.16x10"
+              ]
+            },
+            {
+              "small": "pic.fill",
+              "keytip": "FL"
+            },
+            {
+              "small": "pic.fit",
+              "keytip": "FT"
+            },
+            {
+              "small": "pic.clearCrop",
+              "keytip": "CC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Table Design",
+      "keytip": "JT",
+      "context": "Table Tools",
+      "color": "table",
+      "groups": [
+        {
+          "name": "Table Style Options",
+          "keytip": "ZO",
+          "items": [
+            {
+              "row": [
+                {
+                  "widget": "tbl.optHeader",
+                  "keytip": "HR"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "tbl.optTotal",
+                  "keytip": "TR"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "tbl.optBanded",
+                  "keytip": "BR"
+                }
+              ]
+            },
+            {
+              "column": true
+            },
+            {
+              "row": [
+                {
+                  "widget": "tbl.optFirstCol",
+                  "keytip": "FC"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "tbl.optLastCol",
+                  "keytip": "LC"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "tbl.optBandedCols",
+                  "keytip": "BC"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Table Styles",
+          "keytip": "ZS",
+          "items": [
+            {
+              "widget": "tableStyles",
+              "keytip": "TS"
+            },
+            {
+              "row": [
+                {
+                  "widget": "cellShading",
+                  "keytip": "SH"
+                }
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.borders",
+                "text": "Borders",
+                "icon": "grid-2x2"
+              },
+              "keytip": "BD",
+              "menu": [
+                "border.all",
+                "border.outside",
+                "border.inside",
+                "border.insideH",
+                "border.insideV",
+                "border.none",
+                "-",
+                "border.top",
+                "border.bottom",
+                "border.left",
+                "border.right"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Draw Borders",
+          "keytip": "ZD",
+          "items": [
+            {
+              "row": [
+                {
+                  "widget": "penStyle",
+                  "keytip": "PS"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "penWeight",
+                  "keytip": "PW"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "penColor",
+                  "keytip": "PC"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Table Layout",
+      "keytip": "JL",
+      "context": "Table Tools",
+      "color": "table",
+      "groups": [
+        {
+          "name": "Table",
+          "keytip": "ZT",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.tableSelect",
+                "text": "Select",
+                "icon": "mouse-pointer-2"
+              },
+              "keytip": "SL",
+              "menu": [
+                "tbl.selectCell",
+                "tbl.selectRow",
+                "tbl.selectCol",
+                "tbl.selectTable"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Rows & Columns",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.tableDelete",
+                "text": "Delete",
+                "icon": "trash-2"
+              },
+              "keytip": "DL",
+              "menu": [
+                "tbl.delRow",
+                "tbl.delCol",
+                "tbl.delTable"
+              ]
+            },
+            {
+              "large": "tbl.insAbove",
+              "keytip": "IA"
+            },
+            {
+              "large": "tbl.insBelow",
+              "keytip": "IB"
+            },
+            {
+              "large": "tbl.insLeft",
+              "keytip": "IL"
+            },
+            {
+              "large": "tbl.insRight",
+              "keytip": "IR"
+            }
+          ]
+        },
+        {
+          "name": "Merge",
+          "keytip": "ZM",
+          "items": [
+            {
+              "large": "tbl.merge",
+              "keytip": "MC"
+            },
+            {
+              "large": "tbl.split",
+              "keytip": "SC"
+            }
+          ]
+        },
+        {
+          "name": "Cell Size",
+          "keytip": "ZC",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "tableRowHeight",
+                  "keytip": "RH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "tableColumnWidth",
+                  "keytip": "CW"
+                }
+              ]
+            },
+            {
+              "small": "tbl.distributeRows",
+              "keytip": "DR"
+            },
+            {
+              "small": "tbl.distributeCols",
+              "keytip": "DC"
+            }
+          ]
+        },
+        {
+          "name": "Alignment",
+          "keytip": "ZA",
+          "items": [
+            {
+              "row": [
+                {
+                  "icon": "fmt.alignLeft",
+                  "keytip": "AL"
+                },
+                {
+                  "icon": "fmt.alignCenter",
+                  "keytip": "AC"
+                },
+                {
+                  "icon": "fmt.alignRight",
+                  "keytip": "AR"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "icon": "tbl.alignTop",
+                  "keytip": "VT"
+                },
+                {
+                  "icon": "tbl.alignMiddle",
+                  "keytip": "VM"
+                },
+                {
+                  "icon": "tbl.alignBottom",
+                  "keytip": "VB"
+                }
+              ]
+            },
+            {
+              "large": "tbl.direction",
+              "keytip": "TD"
+            },
+            {
+              "large": {
+                "id": "ribbon.cellMargins",
+                "text": "Cell Margins",
+                "icon": "square-dashed"
+              },
+              "keytip": "CM",
+              "menu": [
+                "tbl.marginNormal",
+                "tbl.marginNone",
+                "tbl.marginNarrow",
+                "tbl.marginModerate",
+                "tbl.marginWide"
               ]
             }
           ]

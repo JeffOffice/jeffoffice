@@ -24,13 +24,17 @@ namespace jp {
 
 class AnimationPane;
 class ColorButton;
+class ColorRef;
 class Document;
 class CommentsPane;
 class DeckCanvas;
 class DeckFileScreen;
 class Editor;
+class DeckFindPane;
 class FontCombo;
 class HelpView;
+class MeasureSpin;
+class TableItem;
 class HelpWindow;
 class MasterPane;
 class NotesPane;
@@ -175,6 +179,13 @@ public:
     void showOnlinePictures();
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
+    // The Table Design and Table Layout tabs (deckwindow_table.cpp), each one step that undoes. A style is one of the Table Styles gallery's, by
+    // its id: the selected table takes its look, whatever it was shaded or lined with before. Shading colors the selected cells (or the
+    // cell the cursor is in, or with the table selected every cell).
+    void applyTableStyle(const QString &styleId);
+    void setCellShading(const ColorRef &color);
+    // The Picture Format tab's Crop to Shape (deckwindow_picture.cpp), for the selected pictures: a shape's id, as the Shapes gallery has it.
+    void cropPictureToShape(const QString &shape);
     // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
     // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
@@ -203,6 +214,18 @@ public:
     // of slides past the end): the message box, unless this stands in for it
     // (tests). Given the question, it says whether to keep; a notice's answer is ignored.
     void setShowQuestion(const std::function<bool(const QString &)> &ask) { m_showQuestion = ask; }
+    // The right-click menu of the slide (and of Shift+F10 and the Menu key, at the selection): what it offers depends on
+    // whether text is being typed in (spelling suggestions, cut, copy, paste, font, paragraph, bullets, numbering, a link),
+    // an object is selected (cut, copy, paste, delete, edit text, group, order, alignment of its text, a link), or neither
+    // (paste, layout, reset, background, grid and guides, the ruler). Every command is the ribbon's own action, or
+    // calls it. Built each time; the caller owns the menu (deckwindow_menu.cpp).
+    QMenu *slideContextMenu(QWidget *parent = nullptr);
+    // Opens it at a place on the screen, and does nothing while it is already open.
+    void showSlideContextMenu(const QPoint &global);
+    // Find and Replace (Home > Editing, Ctrl+F and Ctrl+H): the pane on the right, with the cursor in Find what, or
+    // in Replace with. (deckwindow_find.cpp)
+    DeckFindPane *findPane() const { return m_find; }
+    void showFindPane(bool replace = false);
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
@@ -307,8 +330,17 @@ private:
     void updateTitle();
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
+    void createEditingActions();  // deckwindow_find.cpp: Find, Replace, Select Objects
+    QMenu *layoutMenu(QWidget *owner, bool change);
     void createHelpActions();     // deckwindow_help.cpp
     void createMediaActions();    // deckwindow_media.cpp
+    void createTableActions();    // deckwindow_table.cpp
+    void addTableParts(struct RibbonParts &parts);
+    void refreshTable();
+    void styleNewTable(TableItem *table);
+    void createCropActions();     // deckwindow_picture.cpp
+    void addCropParts(struct RibbonParts &parts);
+    void refreshCrop();
     void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
     void addInsertParts(struct RibbonParts &parts);
     void addMediaParts(struct RibbonParts &parts);
@@ -334,6 +366,9 @@ private:
     QDockWidget *m_onlineDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    DeckFindPane *m_find = nullptr;
+    QDockWidget *m_findDock = nullptr;
+    bool m_menuOpen = false;   // the slide's right-click menu is up
     AnimationPane *m_animPane = nullptr;
     QDockWidget *m_animDock = nullptr;
     std::shared_ptr<void> m_animations;   // what the animation controls do (deckwindow_animations.cpp)
@@ -361,6 +396,7 @@ private:
     QList<FontCombo *> m_fontCombos;
     QList<SizeCombo *> m_sizeCombos;
     QList<ColorButton *> m_colorButtons;
+    QList<MeasureSpin *> m_tableSizeBoxes;   // Table Layout's Row Height and Column Width
     QSizeF m_shownSize;   // the slide size the view was last fitted to
     QPointer<SlideShow> m_show;
     const Document *m_fontsOf = nullptr;   // the presentation whose embedded fonts this window holds open (core/embeddedfonts.h)

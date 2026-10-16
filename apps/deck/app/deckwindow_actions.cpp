@@ -12,6 +12,7 @@
 #include "app/outlineview.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/textdialogs.h"
 #include "canvas/canvas.h"
 #include "core/deck.h"
 #include "text/textprops.h"
@@ -192,6 +193,14 @@ void DeckWindow::createFormatActions()
         QStringList ids;
         for (const auto &it : ed->surfaceItems()) ids << it->id;
         ed->select(ids);
+    });
+
+    // Types in the selected box, shape, or table; asks for the words of a Text Art.
+    mk("edit.text", tr("Edit Text"), "text-cursor", QKeySequence(), [this, ed] {
+        Item *it = ed->single();
+        if (!it) return;
+        if (it->type() == ItemType::TextArt) textArtTextDialog(this, ed, it->id);
+        else if (it->type() == ItemType::Text || it->type() == ItemType::Shape || it->type() == ItemType::Table) ed->beginTextEdit(it->id);
     });
 }
 
@@ -387,7 +396,7 @@ void DeckWindow::insertTable(int rows, int columns)
     columns = std::clamp(columns, 1, 30);
     const QSizeF ps = m_ed->doc()->pageSize();
     const double w = ps.width() * 0.8, h = std::min(ps.height() * 0.8, 36.0 * rows);
-    auto table = m_ed->newTable(QRectF((ps.width() - w) / 2, (ps.height() - h) / 2, w, h), rows, columns);
+    auto table = m_ed->newTable(QRectF((ps.width() - w) / 2, (ps.height() - h) / 2, w, h), rows, columns, QStringLiteral("None"));
     // Text that reads on a slide.
     for (const TableCell &cell : static_cast<TableItem *>(table.get())->cells) {
         QTextCursor c(m_ed->doc()->storyDoc(cell.storyId));
@@ -395,6 +404,7 @@ void DeckWindow::insertTable(int rows, int columns)
         f.setFontPointSize(18);
         c.mergeBlockCharFormat(f);
     }
+    styleNewTable(static_cast<TableItem *>(table.get()));
     m_ed->endTextEdit();
     m_ed->addItem(table);
 }

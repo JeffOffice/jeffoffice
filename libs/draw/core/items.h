@@ -250,6 +250,9 @@ struct CellRange {
     bool operator==(const CellRange &o) const { return r0 == o.r0 && c0 == o.c0 && r1 == o.r1 && c1 == o.c1; }
 };
 
+// The most rows, and the most columns, a table has: more is a damaged file (twice the other program's largest table).
+constexpr int kMaxTableRowsOrColumns = 256;
+
 class TableItem : public Item {
 public:
     TableItem();
@@ -265,6 +268,9 @@ public:
     bool lockSize = false;
     bool header = true;         // format the first row as a header
     bool banded = true;         // alternate row shading
+    // The other options of a presentation's table style (header and banded above are its Header Row and Banded Rows): Total Row, First
+    // Column, Last Column, and Banded Columns. Saved only when on.
+    bool totalRow = false, firstCol = false, lastCol = false, bandedCols = false;
 
     TableCell &cell(int r, int c) { return cells[r * cols + c]; }
     const TableCell &cell(int r, int c) const { return cells[r * cols + c]; }

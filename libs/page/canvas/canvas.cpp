@@ -846,6 +846,32 @@ static QPainterPath inserted(const QPainterPath &path, const QPointF &q, double 
 }
 } // namespace pts
 
+// While a picture is being cropped (Editor::cropSessions): all of it, over the slide, dimmed where the frame hides it.
+void Canvas::paintCroppedAway(QPainter &p, PictureItem *pic)
+{
+    const QRectF whole = pic->imgRect;
+    if (whole.isEmpty() || whole.width() > 1e6 || whole.height() > 1e6) return;
+    auto ghost = std::static_pointer_cast<PictureItem>(pic->clone());
+    const QPointF middle = pic->transform().map(whole.center());
+    ghost->rect = QRectF(middle - QPointF(whole.width() / 2, whole.height() / 2), whole.size());
+    ghost->imgRect = QRectF(QPointF(0, 0), whole.size());
+    ghost->maskShape = QStringLiteral("rect");
+    ghost->stroke = Stroke::none();
+    ghost->fill = Fill();
+    ghost->fx = Effects();
+    QPainterPath outside, frame;
+    outside.addRect(QRectF(-1e6, -1e6, 2e6, 2e6));
+    frame.addPolygon(QPolygonF(pic->outline()));
+    frame.closeSubpath();
+    p.save();
+    p.translate(toView(currentOrigin()));
+    p.scale(ppp(), ppp());
+    p.setClipPath(outside.subtracted(frame));
+    p.setOpacity(0.4);
+    Renderer::paintItem(&p, paintContext(), *ghost);
+    p.restore();
+}
+
 void Canvas::paintHandles(QPainter &p, Item *it)
 {
     if (it->type() == ItemType::Line) {
@@ -922,6 +948,7 @@ void Canvas::paintHandles(QPainter &p, Item *it)
     if (crop) {
         // Crop handles: black bars and corners.
         auto *pic = static_cast<PictureItem *>(it);
+        if (m_ed->cropSessions) paintCroppedAway(p, pic);
         const QTransform t = it->transform();
         QPolygonF ghost;
         for (const QPointF &c : {pic->imgRect.topLeft(), pic->imgRect.topRight(), pic->imgRect.bottomRight(), pic->imgRect.bottomLeft()})
@@ -1844,7 +1871,7 @@ void Canvas::mousePressEvent(QMouseEvent *e)
             m_drag = Drag::CropMove;
             m_orig.clear();
             m_orig[h.id] = it->toJson();
-            m_ed->beginChange(QCoreApplication::translate("Canvas", "Crop"));
+            m_ed->beginCropChange(QCoreApplication::translate("Canvas", "Crop"));
             return;
         }
         m_copyDrag = (e->modifiers() & Qt::ControlModifier);
@@ -1881,7 +1908,7 @@ void Canvas::beginResize(const Hit &h, const QPointF &page)
     case HitKind::LineEnd: m_drag = Drag::LineEnd; m_ed->beginChange(QCoreApplication::translate("Canvas", "Move Line Point")); break;
     case HitKind::LineBend: m_drag = Drag::LineBend; m_ed->beginChange(QCoreApplication::translate("Canvas", "Adjust Line")); break;
     case HitKind::Adjust: m_drag = Drag::Adjust; m_ed->beginChange(QCoreApplication::translate("Canvas", "Adjust Shape")); break;
-    case HitKind::Crop: m_drag = Drag::Crop; m_ed->beginChange(QCoreApplication::translate("Canvas", "Crop")); break;
+    case HitKind::Crop: m_drag = Drag::Crop; m_ed->beginCropChange(QCoreApplication::translate("Canvas", "Crop")); break;
     case HitKind::ColBorder: m_drag = Drag::ColResize; m_ed->beginChange(QCoreApplication::translate("Canvas", "Resize Column")); break;
     case HitKind::RowBorder: m_drag = Drag::RowResize; m_ed->beginChange(QCoreApplication::translate("Canvas", "Resize Row")); break;
     default: break;
@@ -2885,6 +2912,10 @@ void Canvas::handleTextKey(QKeyEvent *e)
                 else if (++c >= t->cols) { c = 0; ++r; }
             } while (r >= 0 && r < t->rows && t->cell(r, c).covered);
             if (r < 0) return;
+            if (r >= t->rows && t->rows >= kMaxTableRowsOrColumns) {
+                Q_EMIT m_ed->status(QCoreApplication::translate("TableEdit", "A table has at most %1 rows.").arg(kMaxTableRowsOrColumns));
+                return;
+            }
             if (r >= t->rows) {
                 // Tab in the last cell adds a row.
                 m_ed->change(QCoreApplication::translate("Canvas", "Insert Row"), [&] {
@@ -2903,6 +2934,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
                         t->cells.push_back(nc);
                     }
                     t->syncRect();
+                    if (m_ed->tableEdited) m_ed->tableEdited(t, Editor::TableEdit{true, t->rows - 1, 1});
                 });
                 r = t->rows - 1;
                 c = 0;
@@ -2943,6 +2975,11 @@ void Canvas::keyPressEvent(QKeyEvent *e)
     const bool ctrl = e->modifiers() & Qt::ControlModifier;
     const bool alt = e->modifiers() & Qt::AltModifier;
     const double step = alt ? 1.0 / ppp() : Settings::get().nudge();
+    // Enter ends a crop, keeping it (Editor::cropSessions).
+    if (m_ed->cropSessions && !m_ed->cropItem.isEmpty() && (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter)) {
+        m_ed->endCrop(true);
+        return;
+    }
     // Esc or Enter ends a curve or freeform, keeping what's drawn.
     if (m_ed->tool() == Tool::Freeform && !m_freePts.isEmpty() && (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter)) {
         finishFreeform(false);
@@ -2951,7 +2988,11 @@ void Canvas::keyPressEvent(QKeyEvent *e)
     switch (e->key()) {
     case Qt::Key_Escape:
         if (m_ed->tool() != Tool::Select) { m_ed->setTool(Tool::Select); return; }
-        if (!m_ed->cropItem.isEmpty()) { m_ed->setCropItem(QString()); return; }
+        if (!m_ed->cropItem.isEmpty()) {
+            if (m_ed->cropSessions) m_ed->endCrop(false);   // Esc takes the crop back
+            else m_ed->setCropItem(QString());
+            return;
+        }
         if (!m_ed->pointsItem.isEmpty()) { m_ed->setPointsItem(QString()); return; }
         if (!m_ed->wrapItem.isEmpty()) { m_ed->setWrapItem(QString()); return; }
         if (m_ed->hasCellBlock()) { m_ed->clearCellBlock(); return; }   // the table stays selected

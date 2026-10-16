@@ -40,6 +40,9 @@ public:
     };
     void setAnimationBadges(const QVector<AnimationBadge> &badges);
     const QVector<AnimationBadge> &animationBadges() const { return m_badges; }
+    // Where the menu opens when the keyboard asks for it (Shift+F10, the Menu key), on the screen: below the text cursor,
+    // else in the middle of the selection, else in the middle of the view.
+    QPoint menuAnchor() const;
 
 Q_SIGNALS:
     void commentClicked(const QString &id);
@@ -50,6 +53,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
+    void contextMenuEvent(QContextMenuEvent *e) override;
     bool viewportEvent(QEvent *e) override;
 
 private:
