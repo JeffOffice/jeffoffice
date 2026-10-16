@@ -355,6 +355,8 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
         if (leaders.contains(QRegularExpression(QStringLiteral("[^ ]")))) bf.setProperty(tp::TabLeaders, leaders);
     }
     if (!p.extra.isEmpty()) bf.setProperty(prop::RawPPr, packRaw(p.extra));
+    if (!p.spacingAttrs.isEmpty()) bf.setProperty(prop::SpacingAttrs, p.spacingAttrs);
+    if (!p.indAttrs.isEmpty()) bf.setProperty(prop::IndAttrs, p.indAttrs);
     return bf;
 }
 
@@ -421,6 +423,8 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
     }
     p.tabs = tabs;
     if (f.hasProperty(prop::RawPPr)) p.extra = unpackRaw(f.property(prop::RawPPr).toByteArray());
+    if (f.hasProperty(prop::SpacingAttrs)) p.spacingAttrs = f.property(prop::SpacingAttrs).toByteArray();
+    if (f.hasProperty(prop::IndAttrs)) p.indAttrs = f.property(prop::IndAttrs).toByteArray();
     return p;
 }
 

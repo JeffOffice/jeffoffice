@@ -33,6 +33,8 @@ enum : int {
     JoinNext,                                 // bool: a page break follows, and the next paragraph is the rest of this one
     Continued,                                // bool: this paragraph is the rest of the one before, after a page break
     SectionData,                              // QByteArray: the section this paragraph ends (packSection), with flow::fp::SectionBreakAfter
+    SpacingAttrs,                             // QByteArray: attributes of w:spacing that have no field, as written
+    IndAttrs,                                 // QByteArray: the same for w:ind
 };
 }
 

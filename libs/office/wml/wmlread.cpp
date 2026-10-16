@@ -199,8 +199,9 @@ public:
                 if (!p.indLeft) p.indLeft = intOf(t, c, "start");
                 p.indRight = intOf(t, c, "right");
                 if (!p.indRight) p.indRight = intOf(t, c, "end");
+                // (A hanging indent, even of none, takes the place of the first line's that a style gave, and the other way about.)
                 const auto first = intOf(t, c, "firstLine"), hang = intOf(t, c, "hanging");
-                if (hang && *hang != 0) p.indFirst = -*hang;
+                if (hang) p.indFirst = -*hang;
                 else if (first) p.indFirst = *first;
                 p.indAttrs = t.otherAttributes(c, {"left", "right", "start", "end", "firstLine", "hanging"});
             } else if (name == "jc") {
