@@ -22,10 +22,11 @@ struct DrawnWord {
     bool bold = false, italic = false;
 };
 
-// What a file may hold: a few thousand strings of a thousand letters at most.
+// What a file may hold: a few thousand strings of a thousand letters at most, and no more than a megabyte of them in all.
 constexpr int kMaxDrawnWords = 2000, kMaxDrawnWordChars = 1000;
 
-// The words as the text a PNG keeps them in, and back (a text that isn't the words of a picture gives none; more than a file may hold are left out).
+// The words as the text a PNG keeps them in, and back (a text that isn't the words of a picture gives none). The words are written to no more than
+// the reader takes (a megabyte): those past it are left out when they are written, and not all dropped when they are read.
 QString drawnWordsToText(const QVector<DrawnWord> &words);
 QVector<DrawnWord> drawnWordsFromText(const QString &text);
 
