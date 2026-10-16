@@ -698,6 +698,22 @@ QString firstTarget(const Package &pkg, const QString &source, const char *typeS
 
 } // namespace
 
+bool readNotes(const QByteArray &xml, QVector<NotePart> *notes)
+{
+    XmlTree tree;
+    if (!tree.parse(xml, nullptr)) return false;
+    Reader reader(tree);
+    for (int c = tree.firstChild(tree.root()); c >= 0 && notes->size() < kMaxNotes; c = tree.next(c)) {
+        if (!tree.is(c, "footnote") && !tree.is(c, "endnote")) continue;
+        NotePart n;
+        n.id = intOf(tree, c, "id").value_or(0);
+        n.type = tree.attr(c, "type");
+        reader.bodyContent(c, &n.blocks, 0, nullptr, nullptr);
+        notes->push_back(std::move(n));
+    }
+    return true;
+}
+
 bool readBlocks(const QByteArray &xml, QVector<Block> *blocks)
 {
     XmlTree tree;

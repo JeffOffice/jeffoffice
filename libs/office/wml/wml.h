@@ -347,6 +347,18 @@ HeaderRefs headerRefsOf(const SectionProps &section);
 // is. False, with nothing read, when the part isn't XML.
 bool readBlocks(const QByteArray &xml, QVector<Block> *blocks);
 
+// A footnote or endnote of footnotes.xml or endnotes.xml: its Id, its type (empty for an ordinary note; "separator", "continuationSeparator", and
+// "continuationNotice" for the paragraphs the program sets between the text and the notes), and what it holds.
+struct NotePart {
+    int id = 0;
+    QString type;
+    QVector<Block> blocks;
+};
+// The most notes of one part that are read (a file with more has the rest left out).
+constexpr int kMaxNotes = 20000;
+// Reads the notes of a footnotes or endnotes part. False, with nothing read, when the part isn't XML.
+bool readNotes(const QByteArray &xml, QVector<NotePart> *notes);
+
 // Reads a .docx (or .docm, .dotx) package. False, with a message, if it isn't a word processing document or is damaged beyond reading.
 // A file is held to limits: of parts together inflated, of the XML of a part (xmltree.h), and of what the body holds, past which the rest is
 // left out and a note says so. Real files, in 1,795 .docx files of public collections: 125 KB inflated in the middle, 15 MB for 99 of 100, and
