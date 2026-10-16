@@ -1546,6 +1546,9 @@ private Q_SLOTS:
         QVERIFY2(std::abs(plain[0].rect.height() - single) < 0.01, qPrintable(QString::number(plain[0].rect.height())));
         QVERIFY2(std::abs(symbol[0].rect.height() - symbolLine) < 0.01, qPrintable(QString::number(symbol[0].rect.height())));
         QVERIFY(std::abs(symbol[1].rect.height() - single) < 0.01);   // (the lines after it are the text's)
+        // A bullet whose own line is shorter than the text's (Courier's) makes it no taller.
+        const auto courier = first(QStringLiteral("Courier New"));
+        QVERIFY2(std::abs(courier[0].rect.height() - single) < 0.01, qPrintable(QString::number(courier[0].rect.height())));
     }
 
     // A paragraph's borders take room: the top one and its distance from the text above the first line, the bottom one below the last, and none between
