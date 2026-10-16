@@ -2142,10 +2142,11 @@ private:
     }
     // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds (and its property record,
     // its flags, and its kind of shape).
-    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray(), quint32 flags = 0xA00, quint16 type = 1)
+    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray(), quint32 flags = 0xA00, quint16 type = 1,
+                               const QByteArray &clientExtra = QByteArray())
     {
         const QByteArray anchor = le(top, 2) + le(left, 2) + le(right, 2) + le(bottom, 2);
-        const QByteArray data = pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({placeholder, 0, 0, 0})));
+        const QByteArray data = pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({placeholder, 0, 0, 0})) + clientExtra);
         return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(flags, 4), type, 2) + props + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
     }
     static QByteArray outlineRef(int index) { return pptRec(3998, le(index, 4)); }
@@ -25006,6 +25007,41 @@ private Q_SLOTS:
             QCOMPARE(b.textList()->format().start(), 5);
             QCOMPARE(c.textList()->format().style(), QTextListFormat::ListDisc);
         }
+    }
+
+    // A text box keeps the numbering of its own text in its client data (the same extension, in the shape's tag): the paragraphs of the second run
+    // are numbered "1.", "2." and the first run (a heading) has none and no bullet.
+    void importBinaryNumbersTheParagraphsOfAShapesOwnText()
+    {
+        auto entry = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        const QByteArray atom = entry(0, QByteArray()) + entry(0x02000000, le(1, 2));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, pptRec(4012, atom))));
+        // "References" (11 with its paragraph mark) with no bullet, then two paragraphs with bullets on (the flag 1) the master's text would show as bullets.
+        const QByteArray text = pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("References\rFirst item\rSecond item")))
+                                + pptRec(4001, pfRun(11, 0, 0) + pfRun(23, 0, 0x1, le(1, 2)) + cfRun(34, 0));
+        QString err;
+        auto build = [&](const QByteArray &clientExtra) {
+            return deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), pptShape(0x470, 0, text, 1000, 200, 5000, 3800, QByteArray(), 0xA00, 1, clientExtra)), &err);
+        };
+        auto d = build(tags);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = storyBeginning(*d, *d->pages[0], QStringLiteral("References"));
+        QVERIFY(story);
+        QCOMPARE(story->blockCount(), 3);
+        const QTextBlock heading = story->firstBlock(), first = heading.next(), second = first.next();
+        QVERIFY(!heading.textList());
+        QVERIFY(first.textList() && second.textList());
+        QVERIFY(first.textList() == second.textList());
+        QCOMPARE(first.textList()->format().style(), QTextListFormat::ListDecimal);
+        QCOMPARE(first.textList()->format().numberSuffix(), QStringLiteral("."));
+        QCOMPARE(first.textList()->itemNumber(first), 0);
+        QCOMPARE(second.textList()->itemNumber(second), 1);
+        // Without the extension the same paragraphs are bulleted.
+        auto plain = build(QByteArray());
+        QVERIFY2(plain, qPrintable(err));
+        const QTextDocument *plainStory = storyBeginning(*plain, *plain->pages[0], QStringLiteral("References"));
+        QVERIFY(plainStory && plainStory->firstBlock().next().textList());
+        QCOMPARE(plainStory->firstBlock().next().textList()->format().style(), QTextListFormat::ListDisc);
     }
 
     // A shape that shows the slide's text (an outline reference) can keep a text ruler beside the reference: the margins it sets are those
