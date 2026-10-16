@@ -2,6 +2,7 @@
 
 #include "wml/xmltree.h"
 
+#include <QRegularExpression>
 #include <algorithm>
 #include <tuple>
 
@@ -76,6 +77,31 @@ int sectionChildRank(const QByteArray &name)
                                         "sectPrChange"};
     if (name == "footerReference") return 0;
     return rankIn(name, names, int(sizeof names / sizeof *names), 100);
+}
+
+// ---- headers and footers
+
+bool HeaderRefs::any() const
+{
+    for (int i = 0; i < 3; ++i)
+        if (!header[i].isEmpty() || !footer[i].isEmpty()) return true;
+    return false;
+}
+
+HeaderRefs headerRefsOf(const SectionProps &section)
+{
+    static const QRegularExpression tag(QStringLiteral("^<(?:[\\w.-]+:)?(header|footer)Reference\\b([^>]*)>"));
+    static const QRegularExpression type(QStringLiteral("[\\s:]type\\s*=\\s*[\"']([^\"']*)[\"']")), id(QStringLiteral("[\\s:]id\\s*=\\s*[\"']([^\"']*)[\"']"));
+    HeaderRefs out;
+    for (const RawChild &c : section.extra) {
+        const QRegularExpressionMatch m = tag.match(QString::fromUtf8(c.xml.left(2000)));
+        if (!m.hasMatch()) continue;
+        const QString attrs = m.captured(2), kind = type.match(attrs).captured(1), rid = id.match(attrs).captured(1);
+        const int slot = kind == QLatin1String("first") ? 1 : kind == QLatin1String("even") ? 2 : 0;
+        if (rid.isEmpty()) continue;
+        (m.captured(1) == QLatin1String("header") ? out.header : out.footer)[slot] = rid;
+    }
+    return out;
 }
 
 // ---- Fonts

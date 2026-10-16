@@ -672,6 +672,15 @@ QString firstTarget(const Package &pkg, const QString &source, const char *typeS
 
 } // namespace
 
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks)
+{
+    XmlTree tree;
+    if (!tree.parse(xml, nullptr)) return false;
+    Reader reader(tree);
+    reader.bodyContent(tree.root(), blocks, 0, nullptr, nullptr);
+    return true;
+}
+
 bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *notes)
 {
     *doc = Document();
