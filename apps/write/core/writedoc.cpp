@@ -124,6 +124,17 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
                                                                        : QString();
 }
 
+bool isStoredProperty(int property)
+{
+    switch (property) {
+    case prop::Atom: case prop::ParaAttrs: case prop::RawBefore: case prop::RawAfter: case prop::RawBlock: case prop::RawPPr: case prop::SpacingAttrs:
+    case prop::IndAttrs: case prop::OddTabs: case prop::SectionData: case prop::RawRPr: return true;
+    default: return false;
+    }
+}
+
+QVariant resolveStored(const WriteDoc &, const QVariant &value, int) { return value; }
+
 // ---- the document
 
 WriteDoc::WriteDoc() : m_flow(std::make_unique<flow::FlowDocument>()) {}

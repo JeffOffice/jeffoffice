@@ -125,6 +125,11 @@ private:
 flow::Section flowSectionOf(const office::wml::SectionProps &props, bool evenAndOdd);
 void updateSectionProps(office::wml::SectionProps *props, const flow::Section &section);
 
+// Properties of the story's formats whose values are bytes (the XML a paragraph or run keeps as it was written): whether a property is one,
+// and the bytes a format's value stands for.
+bool isStoredProperty(int property);
+QVariant resolveStored(const WriteDoc &doc, const QVariant &value, int property);
+
 QByteArray packSection(const office::wml::SectionProps &props);
 office::wml::SectionProps unpackSection(const QByteArray &packed);
 
