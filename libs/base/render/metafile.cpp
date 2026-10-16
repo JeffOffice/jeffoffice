@@ -253,7 +253,7 @@ private:
         if (win.width() == 0 || win.height() == 0) win = wmfWindowFallback;
         QTransform w;
         w.translate(-win.x(), -win.y());
-        QTransform s = QTransform::fromScale(1.0 / win.width(), 1.0 / win.height());
+        QTransform s = QTransform::fromScale(m_dc.vpExt.width() / win.width(), m_dc.vpExt.height() / win.height());
         return w * s * base;
     }
 
@@ -499,6 +499,13 @@ private:
             case 0x0000: return;
             case 0x020B: { const double y = a.s16(), x = a.s16(); m_dc.winOrg = QPointF(x, y); break; }
             case 0x020C: { const double h = a.s16(), w = a.s16(); m_dc.winExt = QSizeF(w, h); m_dc.winExtSet = true; break; }
+            // The viewport (here the share of the target the window is drawn on) scaled by a ratio: a writer sets a smaller window, scaling
+            // the viewport by the same, to keep a drawing's size.
+            case 0x0412: {
+                const double yDenom = a.s16(), yNum = a.s16(), xDenom = a.s16(), xNum = a.s16();
+                if (xDenom != 0 && yDenom != 0) m_dc.vpExt = QSizeF(m_dc.vpExt.width() * xNum / xDenom, m_dc.vpExt.height() * yNum / yDenom);
+                break;
+            }
             case 0x0103: m_dc.mapMode = a.s16(); break;
             case 0x0201: m_dc.bkColor = col(a.u32()); break;
             case 0x0102: m_dc.bkMode = a.u16(); break;
