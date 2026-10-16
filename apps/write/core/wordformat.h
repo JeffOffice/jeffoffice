@@ -13,7 +13,8 @@
 namespace jp::write {
 
 // `theme` gives the colors that a run names by theme slot when the file has no value for them.
-QTextCharFormat charFormatOf(const office::wml::RunProps &resolved, const office::Theme *theme = nullptr);
+// `direct`, if given, is what the run itself said (resolved is that over its styles'): the fonts of other scripts that it said are kept with the format.
+QTextCharFormat charFormatOf(const office::wml::RunProps &resolved, const office::Theme *theme = nullptr, const office::wml::RunProps *direct = nullptr);
 office::wml::RunProps runPropsOf(const QTextCharFormat &format);
 
 QTextBlockFormat blockFormatOf(const office::wml::ParaProps &resolved);

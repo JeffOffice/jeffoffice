@@ -83,7 +83,7 @@ int sectionChildRank(const QByteArray &name)
 bool Fonts::operator==(const Fonts &o) const
 {
     return ascii == o.ascii && hAnsi == o.hAnsi && eastAsia == o.eastAsia && cs == o.cs && asciiTheme == o.asciiTheme && hAnsiTheme == o.hAnsiTheme &&
-           eastAsiaTheme == o.eastAsiaTheme && csTheme == o.csTheme;
+           eastAsiaTheme == o.eastAsiaTheme && csTheme == o.csTheme && hint == o.hint;
 }
 
 bool Fonts::isEmpty() const { return *this == Fonts(); }
@@ -94,6 +94,7 @@ void Fonts::overlay(const Fonts &top)
     if (!top.hAnsi.isEmpty() || !top.hAnsiTheme.isEmpty()) { hAnsi = top.hAnsi; hAnsiTheme = top.hAnsiTheme; }
     if (!top.eastAsia.isEmpty() || !top.eastAsiaTheme.isEmpty()) { eastAsia = top.eastAsia; eastAsiaTheme = top.eastAsiaTheme; }
     if (!top.cs.isEmpty() || !top.csTheme.isEmpty()) { cs = top.cs; csTheme = top.csTheme; }
+    if (!top.hint.isEmpty()) hint = top.hint;
 }
 
 // ---- RunProps
@@ -150,9 +151,24 @@ RunProps RunProps::differences(const RunProps &base) const
     RunProps d;
     d.style = style;
     d.extra = extra;
-    // (The fonts of other scripts aren't something the text engine's formats hold, so they can't be told apart here.)
+    // The Latin fonts are what the text engine's formats hold. The fonts of other scripts are held beside them, as the run itself said them (and
+    // none for a run that said none): a run's own differ from its style's when it says other ones, and those it says alone are what is written
+    // when the Latin fonts are the style's.
     auto latin = [](const std::optional<Fonts> &f) { return f ? std::make_tuple(f->ascii, f->hAnsi, f->asciiTheme, f->hAnsiTheme) : std::tuple<QString, QString, QString, QString>(); };
-    if (fonts && latin(n.fonts) != latin(b.fonts)) d.fonts = fonts;
+    if (fonts) {
+        const bool otherScripts = n.fonts->hasOtherScripts() && !n.fonts->sameOtherScripts(*b.fonts);
+        if (latin(n.fonts) != latin(b.fonts)) {
+            d.fonts = fonts;
+        } else if (otherScripts) {
+            Fonts only;
+            only.eastAsia = fonts->eastAsia;
+            only.cs = fonts->cs;
+            only.eastAsiaTheme = fonts->eastAsiaTheme;
+            only.csTheme = fonts->csTheme;
+            only.hint = fonts->hint;
+            d.fonts = only;
+        }
+    }
     auto flag = [&](std::optional<bool> RunProps::*f) {
         if ((n.*f) != (b.*f)) (d.*f) = (n.*f);
     };
@@ -454,6 +470,7 @@ QByteArray runPropsXml(const RunProps &p, bool)
     if (p.fonts && !p.fonts->isEmpty()) {
         const Fonts &f = *p.fonts;
         QByteArray e = "<w:rFonts";
+        if (!f.hint.isEmpty()) e += valAttr("hint", f.hint);
         if (!f.ascii.isEmpty()) e += valAttr("ascii", f.ascii);
         if (!f.hAnsi.isEmpty()) e += valAttr("hAnsi", f.hAnsi);
         if (!f.eastAsia.isEmpty()) e += valAttr("eastAsia", f.eastAsia);

@@ -71,6 +71,7 @@ public:
                 f.hAnsiTheme = t.attr(c, "hAnsiTheme");
                 f.eastAsiaTheme = t.attr(c, "eastAsiaTheme");
                 f.csTheme = t.attr(c, "cstheme");
+                f.hint = t.attr(c, "hint");
                 p.fonts = f;
             } else if (name == "b") {
                 p.bold = onOffOf(t, c);

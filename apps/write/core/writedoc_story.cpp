@@ -94,7 +94,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
         resolved.overlay(props);
         resolved.extra = props.extra;
         resolved.style = props.style;
-        const QTextCharFormat f = charFormatOf(resolved, thm);
+        const QTextCharFormat f = charFormatOf(resolved, thm, &props);
         formats.insert(key, f);
         return f;
     };
@@ -171,7 +171,7 @@ void WriteDoc::buildStory(const QVector<Block> &body)
             mark.extra = direct.markRun->extra;
             mark.style = direct.markRun->style;
         }
-        const QTextCharFormat markFormat = charFormatOf(mark, thm);
+        const QTextCharFormat markFormat = charFormatOf(mark, thm, direct.markRun ? &*direct.markRun : nullptr);
 
         // A list: the item's counter, and the marker where Qt's own counting can't make it.
         QTextListFormat lf;
