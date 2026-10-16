@@ -368,6 +368,18 @@ private Q_SLOTS:
         QCOMPARE(int(capped.size()), kMaxFonts);
     }
 
+    // What the settings say of the numbering of the footnotes is read from the footnotes' own element: an endnote setting of the same name is not it.
+    void readsHowFootnoteNumbersRestart()
+    {
+        auto settings = [](const QByteArray &inner) { return xmlDoc(QByteArray("<w:settings ") + kW + ">" + inner + "</w:settings>"); };
+        QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numRestart w:val=\"eachSect\"/></w:footnotePr>"), "footnotePr"), QStringLiteral("eachSect"));
+        QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr><w:endnotePr><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"), "footnotePr"), QString());
+        QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr><w:endnotePr><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"), "endnotePr"), QStringLiteral("eachSect"));
+        QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numRestart w:val=\"continuous\"/></w:footnotePr>"), "footnotePr"), QStringLiteral("continuous"));
+        QCOMPARE(noteNumberRestart(settings(""), "footnotePr"), QString());
+        QCOMPARE(noteNumberRestart("not xml", "footnotePr"), QString());
+    }
+
     // A compatibility option of the settings counts when it is stated and not turned off.
     void readsACompatibilityOptionByItsValue()
     {

@@ -160,6 +160,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     int splitBlock = -1;
     int over = 0, kept = 0;
     QStringList carriedOut;
+    QVector<int> carriedAt;   // where the references of those are (-1: before the page)
     // A paragraph that runs on after the page is laid out as far as the lines wanted need (its window): the lines the rules look at past the page,
     // a line more, and the last, which is cut short.
     const int wanted = std::max({m_doc->widowLines, m_doc->orphanLines, 2}) + 2;
@@ -192,7 +193,8 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         span.continued = tail;
         span.spaceBeforeContinued = afterBreak;
         span.stopAtFrame = over;
-    span.overLines = wanted + 2;
+        span.overLines = wanted + 2;
+        span.restartNotesAt = notesRestartIn(st.pos, kWindow * 64);
         // The notes before the page's first paragraph (before its first line, if the paragraph is laid out from there) and the footnotes cut on the page before.
         span.footnotesBefore = st.foot;
         span.endnotesBefore = st.end;
@@ -219,7 +221,11 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                 run.notes = layout.notePlaces();
                 run.rules = layout.noteRules();
                 carriedOut.clear();
-                for (const auto &cn : layout.carriedNotes(over)) carriedOut << QStringLiteral("%1|%2|%3").arg(cn.storyId).arg(cn.number).arg(cn.from);
+                carriedAt.clear();
+                for (const auto &cn : layout.carriedNotes(over)) {
+                    carriedOut << QStringLiteral("%1|%2|%3").arg(cn.storyId).arg(cn.number).arg(cn.from);
+                    carriedAt << cn.refPos;
+                }
                 int past = 0;
                 bool cut = false;
                 for (const auto &l : all) {
@@ -349,6 +355,15 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         if (c < L.size() && L[c].line == 0 && flags(L[c].block).breakBefore) hard = true;
     }
     run.kept = c;
+    // A note goes on from the page when its reference is in a line the page keeps: the text engine laid out the lines that a break takes off the page too, and
+    // cut the notes of those that didn't fit, which belong to the page they end up on.
+    if (c < kept && !carriedOut.isEmpty()) {
+        const int end = c > 0 ? L[c - 1].end : st.pos;
+        QStringList stays;
+        for (int i = 0; i < carriedOut.size(); ++i)
+            if (carriedAt.value(i, -1) < end) stays << carriedOut[i];
+        carriedOut = stays;
+    }
     // The section the page after starts in: those that began on this page (continuous breaks among its lines) and, if a break ends it, the next.
     current = st.section;
     for (int i = 0; i < c; ++i) {
@@ -377,27 +392,45 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         const QTextBlock nb = story->findBlock(run.next.pos);
         const int to = nb.isValid() ? nb.position() : story->characterCount();
         int footnotes = 0, endnotes = 0;
-        countNotes(from, std::max(from, to), &footnotes, &endnotes);
-        run.next.foot = st.foot + footnotes;
-        run.next.end = st.end + endnotes;
+        bool restarted = false;
+        countNotes(from, std::max(from, to), &footnotes, &endnotes, &restarted);
+        run.next.foot = (restarted ? 0 : st.foot) + footnotes;
+        run.next.end = (restarted ? 0 : st.end) + endnotes;
         if (m_doc->restartNotesInSections && run.next.section != st.section) run.next.foot = run.next.end = 0;
         run.next.carried = carriedOut;
-        // The text area the page after has: its number is one more than this page's (or the number its section starts at).
-        int nextNumber = number + 1;
-        if (run.next.section != st.section)
-            if (const std::optional<int> first = m_doc->section(run.next.section).firstPageNumber) nextNumber = *first;
-        const Furniture after = furnitureOf(index + 1, run.next, nextNumber);
-        run.next.areaTop = after.body.top();
-        run.next.areaBottom = after.body.bottom();
+        run.next.firstOfSection = run.next.section != st.section;
     }
     return run;
 }
 
-void Paginator::countNotes(int from, int to, int *footnotes, int *endnotes) const
+bool Paginator::restartsNotesAt(const QTextBlock &block) const
+{
+    if (!m_doc->restartNotesInSections) return false;
+    const QTextBlock before = block.previous();
+    return before.isValid() && before.blockFormat().boolProperty(fp::SectionBreakAfter);
+}
+
+QVector<int> Paginator::notesRestartIn(int from, int characters) const
+{
+    QVector<int> places;
+    if (!m_doc->restartNotesInSections) return places;
+    const QTextDocument *story = m_doc->story();
+    int looked = 0;
+    for (QTextBlock b = story->findBlock(from).next(); b.isValid() && b.position() <= from + characters && places.size() < 1000 && ++looked < 50000; b = b.next())
+        if (restartsNotesAt(b)) places << b.position();
+    return places;
+}
+
+void Paginator::countNotes(int from, int to, int *footnotes, int *endnotes, bool *restarted) const
 {
     *footnotes = *endnotes = 0;
+    if (restarted) *restarted = false;
     const QTextDocument *story = m_doc->story();
-    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+        if (b.position() > from && restartsNotesAt(b)) {
+            *footnotes = *endnotes = 0;
+            if (restarted) *restarted = true;
+        }
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
             const QString code = frag.charFormat().stringProperty(tp::Field);
@@ -407,13 +440,14 @@ void Paginator::countNotes(int from, int to, int *footnotes, int *endnotes) cons
             if (code.startsWith(QLatin1String("footnote:"))) *footnotes += hi - lo;
             else if (code.startsWith(QLatin1String("endnote:"))) *endnotes += hi - lo;
         }
+    }
 }
 
 void Paginator::extend(int index)
 {
     while (!m_pending && !m_complete && (index < 0 || m_starts.size() <= index)) {
         const Run run = layoutPage(int(m_starts.size()) - 1, m_starts.back());
-        if (!run.hasNext || run.next.sameStartAs(m_starts.back())) {
+        if (!run.hasNext || run.next == m_starts.back()) {
             m_complete = true;
             break;
         }
@@ -513,6 +547,7 @@ void Paginator::changed(int position, int removed, int added)
     m_numberOf = -1;
     // The pages' places move with the text; one that began inside what was taken out is gone.
     int w = 0, goneBefore = 0;
+    const int startsBefore = int(m_starts.size());
     for (int r = 0; r < m_starts.size(); ++r) {
         PageStart s = m_starts[r];
         if (s.pos > position && s.pos < position + removed) {
@@ -523,6 +558,7 @@ void Paginator::changed(int position, int removed, int added)
         m_starts[w++] = s;
     }
     m_starts.resize(w);
+    const int goneByTheEdit = startsBefore - w;
     m_high -= goneBefore;
     // The paragraphs the edit touches, and the page that holds the first (and the one before, for what the page before did to make
     // room for it: a heading kept with its paragraph, a widow).
@@ -531,10 +567,14 @@ void Paginator::changed(int position, int removed, int added)
     const QTextBlock b0 = story->findBlock(std::min(position, last)), b1 = story->findBlock(std::min(position + added, last));
     const int from = b0.isValid() ? b0.position() : 0;
     const int to = b1.isValid() ? b1.position() + b1.length() : last + 1;
-    const auto at = std::upper_bound(m_starts.begin(), m_starts.end(), from, [](int pos, const PageStart &s) { return pos < s.pos; });
-    const int page = std::max(0, std::max(0, int(at - m_starts.begin()) - 1) - 1);
+    // (Pages of notes alone begin where the one after does: the page the edit is in is the first that begins at or after it, less one, and then the one before.)
+    const auto at = std::lower_bound(m_starts.begin(), m_starts.end(), from, [](const PageStart &s, int pos) { return s.pos < pos; });
+    const int first = int(at - m_starts.begin());
+    const int holding = first < m_starts.size() && m_starts[first].pos == from ? first : first - 1;
+    const int page = std::max(0, holding - 1);
     if (!m_pending) {
         m_pending = true;
+        m_shift = 0;
         m_valid = m_high = page;
         m_dirtyEnd = to;
     } else {
@@ -546,6 +586,7 @@ void Paginator::changed(int position, int removed, int added)
         m_high = std::clamp(m_high, m_valid, int(m_starts.size()) - 1);
         m_dirtyEnd = std::max(before, to);
     }
+    m_shift -= goneByTheEdit;   // (the pages that began in what was taken out are before the ones after it, which are one fewer pages along)
 }
 
 void Paginator::settle(int index)
@@ -559,7 +600,7 @@ void Paginator::settleStep()
     const int k = m_valid;
     const Run run = layoutPage(k, m_starts[k]);
     if (m_numberOf > k) m_numberOf = -1;   // (the pages after this one are about to change)
-    if (!run.hasNext || run.next.sameStartAs(m_starts[k])) {
+    if (!run.hasNext || run.next == m_starts[k]) {
         m_starts.resize(k + 1);
         m_high = std::min(m_high, k);
         m_complete = true;
@@ -571,9 +612,14 @@ void Paginator::settleStep()
     while (i < m_starts.size() && m_starts[i].pos < next.pos) ++i;   // (pages that began where the text no longer has a page begin)
     const int gone = i - (k + 1);
     m_starts.remove(k + 1, gone);
+    m_shift -= gone;
     if (m_high > k) m_high -= std::min(gone, m_high - k);
     i = k + 1;
-    if (i < m_starts.size() && m_starts[i] == next) {
+    // The pages after are as they were only if they are where they were: one more or one less before them, and odd pages are even and even pages odd, which
+    // a section with other headers or footers for each is laid out differently by.
+    bool oddAndEven = false;
+    for (const Section &s : m_doc->sections) oddAndEven |= s.differentOddEven;
+    if (i < m_starts.size() && m_starts[i] == next && !(oddAndEven && (m_shift & 1))) {
         m_valid = i;
         if (next.pos >= m_dirtyEnd) {
             // Past what the edits touched. An entry from before them: the pages from there on are as they were. One laid out afresh after the
@@ -583,8 +629,14 @@ void Paginator::settleStep()
             else m_valid = m_high;
         }
         m_high = std::max(m_high, m_valid);
+    } else if (i < m_starts.size() && m_starts[i].pos == next.pos) {
+        // (The same place with other particulars is the same page, made otherwise: not one more, with the old kept after it.)
+        m_starts[i] = next;
+        m_high = std::max(m_high, i);
+        m_valid = i;
     } else {
         m_starts.insert(i, next);
+        ++m_shift;
         m_high = m_high >= i ? m_high + 1 : i;
         m_valid = i;
     }
@@ -639,6 +691,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         return r;
     };
     for (QTextBlock b = firstBlock; b.isValid(); b = b.next()) {
+        if (b != firstBlock && restartsNotesAt(b)) footnote = endnote = 1;
         const bool tail = b == firstBlock && L.first().line > 0;
         QTextBlockFormat bf = b.blockFormat();
         bf.clearProperty(QTextFormat::ObjectIndex);   // (the list is the document's, not this story's: it's made again below)

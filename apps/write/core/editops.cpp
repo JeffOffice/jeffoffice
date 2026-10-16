@@ -730,19 +730,37 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         }
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
-            if (!f.charFormat().hasProperty(prop::Atom)) continue;
-            Inline a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
-            if (referencesIn(a.raw).isEmpty()) continue;
-            bool ok = true;
-            const QByteArray raw = remap(a.raw, &ok);
-            if (!ok) {
+            // A reference to one of the other document's notes points at nothing here (its text isn't), and an object's place on the page is a place in the
+            // other's objects: the first is left out, and the second isn't carried (what the object is as the file has it is kept).
+            const QString field = f.charFormat().stringProperty(tp::Field);
+            const bool referenceToNote = field.startsWith(QLatin1String("footnote:"));
+            Inline a;
+            const bool atom = f.charFormat().hasProperty(prop::Atom);
+            if (atom) a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
+            if (referenceToNote || (atom && (a.tag == QLatin1String("footnoteReference") || a.tag == QLatin1String("endnoteReference")))) {
                 fixes.push_back({f.position(), f.position() + f.length(), QTextCharFormat(), true});
-            } else if (raw != a.raw) {
-                a.raw = raw;
-                QTextCharFormat nf = f.charFormat();
-                setStored(nf, prop::Atom, packAtom(a));
-                fixes.push_back({f.position(), f.position() + f.length(), nf, false});
+                continue;
             }
+            QTextCharFormat nf = f.charFormat();
+            bool changed = false;
+            if (nf.hasProperty(flow::fp::AnchorId)) {
+                nf.clearProperty(flow::fp::AnchorId);
+                changed = true;
+            }
+            if (atom && !referencesIn(a.raw).isEmpty()) {
+                bool ok = true;
+                const QByteArray raw = remap(a.raw, &ok);
+                if (!ok) {
+                    fixes.push_back({f.position(), f.position() + f.length(), QTextCharFormat(), true});
+                    continue;
+                }
+                if (raw != a.raw) {
+                    a.raw = raw;
+                    setStored(nf, prop::Atom, packAtom(a));
+                    changed = true;
+                }
+            }
+            if (changed) fixes.push_back({f.position(), f.position() + f.length(), nf, false});
         }
     }
     for (int i = int(fixes.size()) - 1; i >= 0; --i) {

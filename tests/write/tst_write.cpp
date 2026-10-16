@@ -1418,6 +1418,52 @@ private Q_SLOTS:
         QVERIFY2(large < 0.2 + small * 8, qPrintable(QStringLiteral("5000 fonts %1 s, 20000 fonts %2 s").arg(small).arg(large)));
     }
 
+    // The notes' numbers restart in each section when the settings say so of the footnotes (not of the endnotes).
+    void footnoteNumbersRestartWhenTheSettingsSaySo()
+    {
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>Note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto restarts = [&](const QByteArray &settings) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}, settings));
+            return doc && doc->flow().restartNotesInSections;
+        };
+        QVERIFY(restarts("<w:footnotePr><w:numRestart w:val=\"eachSect\"/></w:footnotePr>"));
+        QVERIFY(!restarts("<w:footnotePr><w:numRestart w:val=\"continuous\"/></w:footnotePr>"));
+        QVERIFY(!restarts("<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr><w:endnotePr><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"));
+        QVERIFY(!restarts(QByteArray()));
+    }
+
+    // A section's page number format, as the file names it and as the pages count with it, each way: dashes too.
+    void pageNumberFormatsMapBothWays()
+    {
+        const QPair<QString, QString> pairs[] = {{"lowerRoman", "roman"}, {"upperRoman", "ROMAN"}, {"lowerLetter", "alpha"}, {"upperLetter", "ALPHA"}, {"numberInDash", "dash"}, {"decimal", ""}};
+        for (const auto &pair : pairs) {
+            office::wml::SectionProps props;
+            props.pageFormat = pair.first;
+            flow::Section section = flowSectionOf(props, false);
+            QCOMPARE(section.pageNumberFormat, pair.second);
+            // (Back: a section changed to the format has the file's name for it.)
+            office::wml::SectionProps blank;
+            section.pageNumberFormat = pair.second;
+            flow::Section plain = flowSectionOf(blank, false);
+            if (pair.second != plain.pageNumberFormat) {
+                updateSectionProps(&blank, section);
+                QCOMPARE(blank.pageFormat, pair.first == QLatin1String("decimal") ? QString() : pair.first);
+            }
+        }
+        // The pages show it: the page's own number is in dashes.
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgNumType w:fmt=\"numberInDash\" w:start=\"7\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(paragraphs(1, 5), sect, {}));
+        QVERIFY(doc);
+        QCOMPARE(doc->flow().sections[0].pageNumberFormat, QStringLiteral("dash"));
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        FieldContext ctx;
+        ctx.doc = page->doc.get();
+        ctx.pageNumber = 1;
+        QCOMPARE(ctx.resolve(QStringLiteral("page")), QStringLiteral("- 7 -"));
+        QVERIFY(documentXml(doc->toDocx()).contains("numberInDash"));
+    }
+
     // The option that no punctuation hangs past the margin is read by its value: stated off, it is off.
     void noHangingPunctuationIsReadByItsValue()
     {
@@ -1462,6 +1508,42 @@ private Q_SLOTS:
         const QByteArray y = documentXml(again->toDocx());
         QVERIFY2(!y.contains("beforeAutospacing") && y.contains("afterAutospacing=\"1\""), y.constData());
         QVERIFY2(y.contains("w:before=\"60\""), y.constData());
+    }
+
+    // What a paste from another document brings that points into the first's notes and objects points at nothing of the second's: a reference to a note is
+    // left out (its text isn't there), and an object's place on the page isn't carried (the object isn't there); the rest of what was copied is.
+    void aPasteFromAnotherDocumentLeavesNoDanglingNoteOrObject()
+    {
+        const QByteArray ns = "xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        const QByteArray body = "<w:p " + ns + "><w:r><w:t xml:space=\"preserve\">Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:pict><v:rect id=\"r\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:50pt;height:20pt\" fillcolor=\"red\"/></w:pict></w:r><w:r><w:t> end.</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>The note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto source = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(source);
+        auto has = [](const QTextDocument *d, auto test) {
+            for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it)
+                    if (test(it.fragment().charFormat())) return true;
+            return false;
+        };
+        QVERIFY(has(source->story(), [](const QTextCharFormat &f) { return f.stringProperty(tp::Field).startsWith(QLatin1String("footnote:")); }));
+        QVERIFY(has(source->story(), [](const QTextCharFormat &f) { return f.hasProperty(flow::fp::AnchorId); }));
+        QTextCursor sel(source->story());
+        sel.select(QTextCursor::Document);
+        const Clip clip = copySelection(*source, sel);
+        auto target = open(makeDocx("<w:p><w:r><w:t>Target.</w:t></w:r></w:p>", kStyles));
+        QVERIFY(target);
+        QTextCursor t(target->story());
+        t.movePosition(QTextCursor::End);
+        pasteClip(*target, t, clip);
+        QVERIFY2(!has(target->story(), [](const QTextCharFormat &f) { return f.stringProperty(tp::Field).startsWith(QLatin1String("footnote:")); }), "a reference to a note of the other document");
+        QVERIFY2(!has(target->story(), [](const QTextCharFormat &f) { return f.hasProperty(flow::fp::AnchorId); }), "an object's place from the other document");
+        const QByteArray saved = target->toDocx();
+        office::Package p;
+        QVERIFY(p.read(saved));
+        const QByteArray x = p.part(p.mainPart());
+        QVERIFY2(!x.contains("footnoteReference"), x.constData());
+        QVERIFY(x.contains("Cited") && x.contains(" end."));
+        QVERIFY2(rt::danglingReferences(saved).isEmpty(), qPrintable(rt::danglingReferences(saved).join(QLatin1Char(' '))));
     }
 
     // A symbol of a font the machine lacks is set in a stand-in on the page only: what is saved of a file nobody touched has the run as it was.

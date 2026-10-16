@@ -48,7 +48,7 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
     const Section &sec = m_doc->section(st.section);
     Furniture f;
     f.body = sec.content();
-    const bool first = index <= 0 || (index - 1 < int(m_starts.size()) && m_starts[index - 1].section != st.section);
+    const bool first = index <= 0 || st.firstOfSection;
     f.header = sec.headerFor(first, number);
     f.footer = sec.footerFor(first, number);
     if (!f.header && !f.footer) return f;

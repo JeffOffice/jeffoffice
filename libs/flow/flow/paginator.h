@@ -58,12 +58,10 @@ public:
         // before, each as "story|number|from".
         int foot = 0, end = 0;
         QStringList carried;
-        // The text area the page has (its top and bottom), which the page before found: a header or footer the page's number or place gives it can be taller
-        // than another's. A page that an edit moves has another number, so is laid out again if its area isn't the one it was laid out with.
-        double areaTop = 0, areaBottom = 0;
-        // Where the page begins, whatever its area is.
-        bool sameStartAs(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && foot == o.foot && end == o.end && carried == o.carried; }
-        bool operator==(const PageStart &o) const { return sameStartAs(o) && areaTop == o.areaTop && areaBottom == o.areaBottom; }
+        // The page is the first of its section (the one before began in another): the section's first page can have headers and footers of its own, which a page
+        // is laid out with.
+        bool firstOfSection = false;
+        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 
@@ -159,7 +157,12 @@ private:
     QHash<int, QString> m_imageIds;   // the Ids of the pictures in the page being made
     bool m_wrapObjects = false;       // the text goes round the objects that ask it
     // How many footnote and endnote references the story has from `from` to `to`, document positions.
-    void countNotes(int from, int to, int *footnotes, int *endnotes) const;
+    // (Where numbers restart, in each section, they are those after the last place they do: `restarted` says whether one is in the stretch.)
+    void countNotes(int from, int to, int *footnotes, int *endnotes, bool *restarted = nullptr) const;
+    // Whether the numbers of the notes begin again at a paragraph (the one before it ends a section, and the notes restart in each).
+    bool restartsNotesAt(const QTextBlock &block) const;
+    // The places in the story from a position on, for as many characters, where the numbers of the notes begin again.
+    QVector<int> notesRestartIn(int from, int characters) const;
     // A page made for painting has the footnotes its lines refer to, each in a text box at the place the layout gave it, with the rule above them: the
     // places are the layout's own (`places`, `rules`: its notes, and the frames the columns are in) and `ids` the notes the page's lines cite.
     void addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
@@ -175,6 +178,7 @@ private:
     // afresh that starts where one of them did, past m_dirtyEnd (the end of the paragraphs the edits touched, as the text is now),
     // means the pages from there are the same, if they were laid out afresh too (those up to m_high were, after the first edit; the
     // ones after it are as they were before it).
+    int m_shift = 0;   // how many more pages than there were are before the ones an edit has not been settled to yet
     bool m_pending = false;
     int m_valid = 0, m_high = 0, m_dirtyEnd = 0;
     qint64 m_laidOut = 0;

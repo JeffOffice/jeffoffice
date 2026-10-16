@@ -2067,6 +2067,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     for (QTextBlock b = m_span.from > 0 ? doc->findBlock(m_span.from) : doc->begin(); b.isValid(); b = b.next()) {
         const bool first = m_blocks.empty();   // the first paragraph laid out
         const bool tail = first && m_span.continued && m_span.from > b.position();   // the rest of one that began before
+        if (!m_span.restartNotesAt.isEmpty() && std::binary_search(m_span.restartNotesAt.cbegin(), m_span.restartNotesAt.cend(), b.position())) footCount = endCount = 0;
         auto B = std::make_unique<Block>();
         B->docStart = b.position();
         B->docLen = b.length() - 1;
@@ -2161,6 +2162,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             n.storyId = field.section(QLatin1Char(':'), 1);
                             n.endnote = field.startsWith(QLatin1String("endnote:"));
                             n.number = n.endnote ? ++endCount : ++footCount;
+                            n.refPos = b.position() + rel + i;
                             v = QString::number(n.number);
                             B->noteRefs << qMakePair(int(B->disp.size()), int(m_notes.size()));
                             m_notes << n;
@@ -3318,7 +3320,7 @@ QVector<StoryLayout::CarriedNote> StoryLayout::carriedNotes(int frame) const
         if (n.endnote) continue;
         for (const Note::Piece &pc : n.more)
             if (pc.frame >= frame && (n.frame < frame)) {
-                v << CarriedNote{n.storyId, n.number, pc.from};
+                v << CarriedNote{n.storyId, n.number, pc.from, n.refPos};
                 break;
             }
     }
