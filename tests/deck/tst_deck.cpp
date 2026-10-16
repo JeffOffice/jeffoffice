@@ -25391,6 +25391,39 @@ private Q_SLOTS:
         }
     }
 
+    // The centered text block of a text box or a shape is kept in an .odp (as the area of the text centered across the shape) and is read back; a
+    // box that isn't centered stays as it was.
+    void importBinaryCenteredTextBlockSurvivesAnOdpRoundTrip()
+    {
+        auto anchored = [&](quint32 id, const QString &text, int anchor, bool filled) {
+            QByteArray props = le(0x0087, 2) + le(quint32(anchor), 4);
+            if (filled) props += le(0x0181, 2) + le(0xC0C0C0, 4) + le(0x01BF, 2) + le(0x00110011, 4);
+            return pptShape(id, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(text)), 1000, 200, 5000, 1500, pptRec(0xF00B, props, filled ? 3 : 1, 3));
+        };
+        const QByteArray shapes = anchored(0x460, QStringLiteral("Centered"), 4, false) + anchored(0x461, QStringLiteral("Plain"), 1, false) + anchored(0x462, QStringLiteral("Filled"), 3, true)
+                                  + anchored(0x463, QStringLiteral("Filled plain"), 1, true);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        // Which of the slide's boxes and shapes are centered, by the text they hold.
+        auto centered = [](const Document &doc) {
+            QStringList out;
+            for (const auto &it : doc.pages[0]->items) {
+                const QString text = it->type() == ItemType::Text ? doc.storyDoc(static_cast<const TextItem &>(*it).storyId)->toPlainText()
+                                     : it->type() == ItemType::Shape ? doc.storyDoc(static_cast<const ShapeItem &>(*it).storyId)->toPlainText() : QString();
+                const bool on = it->type() == ItemType::Text ? static_cast<const TextItem &>(*it).centerBlock : it->type() == ItemType::Shape && static_cast<const ShapeItem &>(*it).centerBlock;
+                if (on && (text == QLatin1String("Centered") || text == QLatin1String("Filled"))) out << text;
+                else if (on && !text.isEmpty()) out << QStringLiteral("wrongly ") + text;
+            }
+            out.sort();
+            return out;
+        };
+        QCOMPARE(centered(*d), (QStringList{"Centered", "Filled"}));
+        auto again = viaOdp(*d, &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(centered(*again), (QStringList{"Centered", "Filled"}));
+    }
+
     // A slide's line doesn't break after a slash when the text goes on in another format: a slash that ends a run in regular type, followed by a
     // word in bold, is no more a place to break than one inside a run (every slash of this text ends a run, so without the rule every line would end
     // at one).

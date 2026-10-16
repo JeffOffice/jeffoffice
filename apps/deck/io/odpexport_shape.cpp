@@ -260,7 +260,7 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
     QString extra;
     extra += attrOf("fo:padding-top", cm(t.insets.top())) + attrOf("fo:padding-bottom", cm(t.insets.bottom())) + attrOf("fo:padding-left", cm(t.insets.left())) + attrOf("fo:padding-right", cm(t.insets.right()));
     extra += attrOf("draw:textarea-vertical-align", t.valign == VAlign::Middle ? QStringLiteral("middle") : t.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
-    extra += attrOf("draw:textarea-horizontal-align", QStringLiteral("justify"));
+    extra += attrOf("draw:textarea-horizontal-align", t.centerBlock ? QStringLiteral("center") : QStringLiteral("justify"));
     extra += attrOf("draw:auto-grow-height", t.autofit == TextItem::GrowBox ? QStringLiteral("true") : QStringLiteral("false"));
     extra += attrOf("draw:auto-grow-width", QStringLiteral("false")) + attrOf("draw:fit-to-size", QStringLiteral("false"));
     // Text that shrinks to fit keeps doing so, unless the file left it at a size that doesn't fit (as a design's sample text does): the other
@@ -366,7 +366,7 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
     QString extra;
     extra += attrOf("fo:padding-top", cm(s.insets.top())) + attrOf("fo:padding-bottom", cm(s.insets.bottom())) + attrOf("fo:padding-left", cm(s.insets.left())) + attrOf("fo:padding-right", cm(s.insets.right()));
     extra += attrOf("draw:textarea-vertical-align", s.valign == VAlign::Middle ? QStringLiteral("middle") : s.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
-    extra += attrOf("draw:textarea-horizontal-align", QStringLiteral("justify")) + attrOf("draw:auto-grow-height", QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
+    extra += attrOf("draw:textarea-horizontal-align", s.centerBlock ? QStringLiteral("center") : QStringLiteral("justify")) + attrOf("draw:auto-grow-height", QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
     extra += attrOf("fo:wrap-option", s.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
     const QString style = frameStyle(sc, s, QString(), extra, QString(), attrOf("style:writing-mode", QStringLiteral("lr-tb")), true);
 
