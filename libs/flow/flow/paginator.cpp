@@ -9,6 +9,7 @@
 #include <QTextDocument>
 #include <QTextList>
 #include <algorithm>
+#include <limits>
 
 namespace jp::flow {
 
@@ -16,6 +17,9 @@ namespace {
 
 // How tall the frames for a paragraph's lines on the page before, and for what runs over the page, are: more than a paragraph takes.
 constexpr double kTall = 100000;
+// How many characters of a paragraph a page lays out to begin with (a page holds a few thousand; if the lines of a longer paragraph need more
+// than that to fill the page and show what comes after it, the page is laid out again with four times as many).
+constexpr int kWindow = 6000;
 
 } // namespace
 
@@ -83,10 +87,12 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         fs.ctx.pageCount = std::max<int>(number, m_starts.size());
         return fs;
     };
-    // The page is a frame for each column, and one more for the text that runs over; if the first paragraph began on the page before, a
-    // frame before them is where its lines that went there are put.
+    // The page is a frame for each column, and one more for the text that runs over. If the first paragraph began on the page before, either
+    // a frame before them is where its lines that went there are put (the paragraph is laid out whole and so is as the text sets it), or, if
+    // it has many lines, the page lays out the rest of it as a paragraph of its own.
+    const bool tail = st.skip > std::max(0, m_doc->exactLines);
     QVector<FrameSpec> frames;
-    if (st.skip > 0) frames << frame(kTall);
+    if (st.skip > 0 && !tail) frames << frame(std::max(kTall, st.skip * 5000.0));
     run.firstFrame = int(frames.size());
     for (int c = 0; c < run.columns; ++c) frames << frame(colH);
     frames << frame(kTall);
@@ -94,17 +100,40 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 
     StoryLayout::Span span;
     span.from = st.pos;
-    span.firstBreakAfter = st.skip > 0 ? st.skip : -1;
+    span.firstBreakAfter = st.skip > 0 && !tail ? st.skip : -1;
+    span.continued = tail;
     span.stopAtFrame = over;
+    // A paragraph that runs on after the page is laid out as far as the lines wanted need (its window): the lines the rules look at past the page,
+    // a line more, and the last, which is cut short.
+    const int wanted = std::max({m_doc->widowLines, m_doc->orphanLines, 2}) + 2;
     int kept = 0;
     for (bool space = st.hard;; space = false) {
         span.spaceBeforeFirst = space;
-        StoryLayout layout;
-        layout.build(m_doc->story(), frames, m_doc->env, span);
-        const QVector<StoryLayout::LineBrief> all = layout.lineBriefs();
+        QVector<StoryLayout::LineBrief> all;
+        for (int window = kWindow;; window *= 4) {
+            span.window = window;
+            StoryLayout layout;
+            layout.build(m_doc->story(), frames, m_doc->env, span);
+            all = layout.lineBriefs();
+            int past = 0;
+            bool cut = false;
+            for (const auto &l : all) {
+                cut |= l.cut;
+                past += l.cut && (l.frame < 0 || l.frame >= over);
+            }
+            if ((!layout.windowShort() && (!cut || past >= wanted)) || window > std::numeric_limits<int>::max() / 8) break;
+        }
         int first = 0;
         while (first < all.size() && all[first].frame >= 0 && all[first].frame < run.firstFrame) ++first;
+        const int firstBlock = all.isEmpty() ? 0 : all.first().block;
         run.lines = all.mid(first);
+        for (auto &l : run.lines) {
+            if (tail && l.block == firstBlock) {
+                l.line += st.skip;   // (the lines of the paragraph before are not laid out, but they are numbered)
+                l.lines += st.skip;
+            }
+            if (l.cut) l.lines = 1 << 28;   // (how many it has isn't known)
+        }
         kept = 0;
         while (kept < run.lines.size() && run.lines[kept].frame >= run.firstFrame && run.lines[kept].frame < over) ++kept;
         run.firstSpace = space;
@@ -387,6 +416,10 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom
     *storyFrom = from;
     const QTextBlock firstBlock = main->findBlock(L.first().block);
     const QTextBlock lastBlock = main->findBlock(L[run.kept - 1].block);
+    // The copy ends with the paragraph the page's last line is in, but where that goes on past the page, with the line after (so that the last line
+    // on the page is not the paragraph's last, which isn't set as the others: and a paragraph of thousands of lines isn't copied whole).
+    int to = lastBlock.position() + lastBlock.length() - 1;
+    if (run.kept < L.size() && L[run.kept].block == L[run.kept - 1].block) to = std::min(to, L[run.kept].end);
     *fromBefore = L.first().line > 0;
     auto sd = std::make_unique<QTextDocument>();
     sd->setDocumentMargin(main->documentMargin());
@@ -418,12 +451,15 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, int *storyFrom
             dst.insertBlock(bf, b.charFormat());
         }
         const int skip = b == firstBlock ? from - b.position() : 0;
+        const int upto = b == lastBlock ? to - b.position() : std::numeric_limits<int>::max();
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
             const int rel = frag.position() - b.position();
             QString text = frag.text();
             if (rel + text.size() <= skip) continue;
+            if (rel >= upto) break;
             if (rel < skip) text = text.mid(skip - rel);
+            if (rel + int(text.size()) > upto) text = text.left(upto - std::max(rel, skip));
             dst.insertText(text, frag.charFormat());
         }
         if (list) {

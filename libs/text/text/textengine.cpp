@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <cstring>
 
 namespace jp {
@@ -1711,6 +1712,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_frames = frames;
     m_env = env;
     m_overflow = false;
+    m_windowShort = false;
     m_used = QVector<double>(frames.size(), 0.0);
     // The distances in the text (indents, tab stops, space before and after, an exact line spacing) shrink with its size, except a slide's
     // (see LayoutEnv::slideLines): there only the text itself does.
@@ -1918,6 +1920,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     bool stoppedEarly = false;
     for (QTextBlock b = m_span.from > 0 ? doc->findBlock(m_span.from) : doc->begin(); b.isValid(); b = b.next()) {
         const bool first = m_blocks.empty();   // the first paragraph laid out
+        const bool tail = first && m_span.continued && m_span.from > b.position();   // the rest of one that began before
         auto B = std::make_unique<Block>();
         B->docStart = b.position();
         B->docLen = b.length() - 1;
@@ -1926,15 +1929,35 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
         // Build the display string, mapping fields and the drop cap.
         const bool trueSmallCaps = hasTrueSmallCaps(b);
-        const int dropLines = bf.intProperty(tp::DropCapLines);
+        const int dropLines = tail ? 0 : bf.intProperty(tp::DropCapLines);
         int dropRemaining = dropLines > 0 ? std::max(1, bf.intProperty(tp::DropCapChars)) : 0;
         QVector<QTextLayout::FormatRange> ranges;
         QTextCharFormat dropFmt;
+        // The paragraph's text from where the rest of it begins, and no more than the window holds.
+        const int skipChars = tail ? m_span.from - b.position() : 0;
+        const int limit = m_span.window > 0 ? m_span.window : std::numeric_limits<int>::max();
+        int taken = 0;
+        bool cutShort = false;
         for (auto it = b.begin(); !it.atEnd(); ++it) {
+            if (cutShort) break;
             const QTextFragment frag = it.fragment();
             if (!frag.isValid()) continue;
-            const int rel = frag.position() - b.position();
-            const QString text = frag.text();
+            int rel = frag.position() - b.position();
+            const QString whole = frag.text();
+            int begin = 0, count = int(whole.size());
+            if (rel + count <= skipChars) continue;
+            if (rel < skipChars) {
+                begin = skipChars - rel;
+                count -= begin;
+                rel = skipChars;
+            }
+            if (taken + count > limit) {
+                count = limit - taken;
+                cutShort = true;
+                B->cutAt = rel + count;
+            }
+            const QString text = whole.mid(begin, count);   // (the part wanted of a long run only is copied)
+            taken += count;
             const QTextCharFormat cf = frag.charFormat();
             QTextCharFormat rf = resolveCharFormat(cf, env);
             // An object set in the text: an em dash (a line may break on
@@ -2111,6 +2134,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 B->disp += shown;
             }
         }
+        B->cut = cutShort;
         // Qt draws U+2028 as a line break; keep it.
         const QFont base = baseFontFor(b, env);
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
@@ -2151,9 +2175,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl->setTextOption(opt);
         B->tl->setCacheEnabled(true);
 
-        const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = bf.textIndent() * scale;
+        const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
-        double before = bf.topMargin() * scale, after = bf.bottomMargin() * scale;
+        double before = tail ? 0.0 : bf.topMargin() * scale, after = bf.bottomMargin() * scale;
         if (env.slideLines) {
             before = slideSpaceOf(b, tp::SpaceBeforeShare, env.fontScale);
             after = slideSpaceOf(b, tp::SpaceAfterShare, env.fontScale);
@@ -2161,7 +2185,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
         // List marker.
         double markerW = 0, markerSingle = 0;
-        if (QTextList *list = env.slideLines && b.length() <= 1 ? nullptr : b.textList()) {
+        if (QTextList *list = (env.slideLines && b.length() <= 1) || tail ? nullptr : b.textList()) {
             const QTextListFormat lf = list->format();
             QString custom = bf.stringProperty(tp::BulletChar);
             if (custom.isEmpty()) custom = lf.stringProperty(tp::BulletChar);
@@ -2270,7 +2294,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_used, reserve, m_notes, carry, seeded};
         auto placeLines = [&](bool startNext, int breakAfter) {
             // Start in next text box.
-            if (bf.boolProperty(tp::StartInNextBox) && f < nF && (y > 0 || c > 0)) {
+            if (!tail && bf.boolProperty(tp::StartInNextBox) && f < nF && (y > 0 || c > 0)) {
                 rowActive = false;
                 y = 0; c = 0; ++f;
                 settleCarry();
@@ -2717,7 +2741,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const QRectF col = colRect(f, c);
             if (y + nextH > col.height() + 0.01 && B->lines.first().frame == f && B->lines.first().column == c) redo(true, -1);
         }
+        const bool cutBlock = B->cut;
         m_blocks.push_back(std::move(B));
+        if (cutBlock) {
+            // The paragraph goes on past the text that was laid out, so nothing after it can be: if its lines are not yet at the frame laying
+            // out stops at, the window was too small for what is wanted of it.
+            m_windowShort = m_span.stopAtFrame < 0 || f < m_span.stopAtFrame;
+            stoppedEarly = true;
+            break;
+        }
         if (m_span.stopAtFrame >= 0 && f >= m_span.stopAtFrame) {
             stoppedEarly = b.next().isValid();
             break;
@@ -2911,6 +2943,8 @@ QVector<StoryLayout::LineBrief> StoryLayout::lineBriefs() const
             b.end = B->docStart + B->docFromDisp(l.textStart() + l.textLength());
             b.rect = B->lines[i].rect;
             b.below = B->lines[i].below;
+            b.cut = B->cut;
+            if (B->cut && i + 1 == B->lines.size()) b.end = std::min(b.end, B->docStart + B->cutAt);
             v << b;
         }
     return v;

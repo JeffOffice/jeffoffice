@@ -84,6 +84,10 @@ public:
     // Widow and orphan control, for paragraphs that ask for it (tp::WidowControl): the fewest lines of a paragraph to leave at the foot
     // of a page, and to take to the top of the next. (The text engine keeps two: more than that is asked for here.)
     int widowLines = 2, orphanLines = 2;
+    // How many lines of a paragraph that goes on from the page before are laid out again with the page, to set the page as the whole
+    // text sets it (tab stops, right-to-left text). Where a paragraph has more lines before the page, the page lays out the rest of it as a
+    // paragraph of its own, and a paragraph of many pages costs each page no more than any other.
+    int exactLines = 100;
 
 private:
     std::unique_ptr<QTextDocument> m_story;
