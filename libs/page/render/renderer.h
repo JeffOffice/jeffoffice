@@ -84,6 +84,9 @@ public:
     // Paints one page (background, master items, page items) in page coordinates.
     static void paintPage(QPainter *p, const PaintContext &ctx, int pageIndex);
     static void paintMaster(QPainter *p, const PaintContext &ctx, const MasterPage &m, double xOffset = 0);
+    // A master page as the canvas shows it while it is edited, over the page rectangle `r`: its background (else the one of the master
+    // page under it), the objects of the master pages under it (unless it hides them), and its own objects, placeholders and all.
+    static void paintMasterView(QPainter *p, const PaintContext &ctx, const MasterPage &m, const QRectF &r);
     static void paintBackground(QPainter *p, const PaintContext &ctx, const Fill &bg, const QRectF &r);
     static void paintItems(QPainter *p, const PaintContext &ctx, const ItemList &items);
     // Whether drawing this item produces any transparency (see-through picture

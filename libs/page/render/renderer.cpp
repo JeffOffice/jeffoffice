@@ -1238,6 +1238,15 @@ static Fill backgroundOf(const PageBase &pg, const QVector<MasterPage *> &chain)
     return Fill();
 }
 
+void Renderer::paintMasterView(QPainter *p, const PaintContext &ctx, const MasterPage &m, const QRectF &r)
+{
+    QVector<MasterPage *> chain = ctx.doc->masterChain(&m);
+    paintBackground(p, ctx, backgroundOf(m, chain), r);
+    if (!chain.isEmpty() && chain.last()->id == m.id) chain.removeLast();
+    paintMastersUnder(p, ctx, m, chain, 0);
+    paintItems(p, ctx, m.items);
+}
+
 // Catalog merge: the catalog area's other cells repeat the objects in its
 // first cell, each with the next record; while designing on screen they show
 // faded, with the field names.
