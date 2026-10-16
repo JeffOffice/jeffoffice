@@ -186,29 +186,35 @@ void DeckWindow::ribbonGalleryParts(RibbonParts &parts)
     };
 }
 
+// The layouts to choose from, for a new slide or to change the slide being edited to.
+QMenu *DeckWindow::layoutMenu(QWidget *owner, bool change)
+{
+    auto *menu = new QMenu(owner);
+    auto *gallery = new LayoutGallery(m_ed, menu);
+    auto *wa = new QWidgetAction(menu);
+    wa->setDefaultWidget(gallery);
+    menu->addAction(wa);
+    if (!change) {
+        menu->addSeparator();
+        menu->addAction(act("slide.reuse"));
+    }
+    connect(menu, &QMenu::aboutToShow, gallery, &LayoutGallery::reload);
+    connect(gallery, &LayoutGallery::chosen, this, [this, menu, change](const QString &type) {
+        // Shut the menus it hangs from too (this one is a submenu of the slide's right-click menu there).
+        QWidget *top = menu;
+        while (auto *parentMenu = qobject_cast<QMenu *>(top->parentWidget())) top = parentMenu;
+        top->close();
+        if (change) setLayout(type);
+        else newSlide(type);
+    });
+    return menu;
+}
+
 // Menus the ribbon can't describe in data: the layouts to choose from.
 void DeckWindow::ribbonMenuParts(RibbonParts &parts)
 {
-    auto layoutMenu = [this](QWidget *owner, bool change) {
-        auto *menu = new QMenu(owner);
-        auto *gallery = new LayoutGallery(m_ed, menu);
-        auto *wa = new QWidgetAction(menu);
-        wa->setDefaultWidget(gallery);
-        menu->addAction(wa);
-        if (!change) {
-            menu->addSeparator();
-            menu->addAction(act("slide.reuse"));
-        }
-        connect(menu, &QMenu::aboutToShow, gallery, &LayoutGallery::reload);
-        connect(gallery, &LayoutGallery::chosen, this, [this, menu, change](const QString &type) {
-            menu->close();
-            if (change) setLayout(type);
-            else newSlide(type);
-        });
-        return menu;
-    };
-    parts.menus[QStringLiteral("newSlideLayouts")] = [layoutMenu](QWidget *owner) { return layoutMenu(owner, false); };
-    parts.menus[QStringLiteral("changeLayout")] = [layoutMenu](QWidget *owner) { return layoutMenu(owner, true); };
+    parts.menus[QStringLiteral("newSlideLayouts")] = [this](QWidget *owner) { return layoutMenu(owner, false); };
+    parts.menus[QStringLiteral("changeLayout")] = [this](QWidget *owner) { return layoutMenu(owner, true); };
     // Slide Size: the two sizes, one checked.
     parts.menus[QStringLiteral("slideSizes")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
