@@ -27,6 +27,7 @@ public:
     // The same, with each group opened into the objects it holds (a fill or a line is its children's).
     QVector<Item *> leaves() const;
     enum class Scope { Selected, Leaves };
+    QVector<Item *> targets(Scope scope) const { return scope == Scope::Leaves ? leaves() : items(); }
     // Runs `change` on every object of the scope that is not locked (or on all of them, `locked`) as part of the step in progress, starting one
     // named `label` if none is; with `last` it ends there.
     void apply(const QString &label, const std::function<void(Item &)> &change, Scope scope = Scope::Selected, bool last = true, bool locked = true);

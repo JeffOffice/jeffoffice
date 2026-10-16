@@ -643,18 +643,37 @@ Stroke Reader::strokeOf(const Bag &bag, const StyleSheet &styles)
 Effects Reader::effectsOf(const Bag &bag)
 {
     Effects fx;
-    if (bag.get(Graphic, "draw:shadow") != QLatin1String("visible")) return fx;
-    const double dx = lengthOr(bag.get(Graphic, "draw:shadow-offset-x"), 0), dy = lengthOr(bag.get(Graphic, "draw:shadow-offset-y"), 0);
-    fx.shadow.on = true;
-    const QColor c = parseColor(bag.get(Graphic, "draw:shadow-color"));
-    fx.shadow.color = ColorRef::rgb(c.isValid() ? c : QColor(Qt::gray));
-    double opacity = 1;
-    parsePercent(bag.get(Graphic, "draw:shadow-opacity"), &opacity);
-    fx.shadow.transparency = std::clamp(1 - opacity, 0.0, 1.0);
-    fx.shadow.distance = std::hypot(dx, dy);
-    fx.shadow.angle = std::fmod(qRadiansToDegrees(std::atan2(dy, dx)) + 360, 360.0);
-    const QString blur = bag.has(Graphic, "draw:shadow-blur") ? bag.get(Graphic, "draw:shadow-blur") : bag.get(Graphic, "loext:shadow-blur");
-    fx.shadow.blur = lengthOr(blur, 0);
+    if (bag.get(Graphic, "draw:shadow") == QLatin1String("visible")) {
+        const double dx = lengthOr(bag.get(Graphic, "draw:shadow-offset-x"), 0), dy = lengthOr(bag.get(Graphic, "draw:shadow-offset-y"), 0);
+        fx.shadow.on = true;
+        const QColor c = parseColor(bag.get(Graphic, "draw:shadow-color"));
+        fx.shadow.color = ColorRef::rgb(c.isValid() ? c : QColor(Qt::gray));
+        double opacity = 1;
+        parsePercent(bag.get(Graphic, "draw:shadow-opacity"), &opacity);
+        fx.shadow.transparency = std::clamp(1 - opacity, 0.0, 1.0);
+        fx.shadow.distance = std::hypot(dx, dy);
+        fx.shadow.angle = std::fmod(qRadiansToDegrees(std::atan2(dy, dx)) + 360, 360.0);
+        const QString blur = bag.has(Graphic, "draw:shadow-blur") ? bag.get(Graphic, "draw:shadow-blur") : bag.get(Graphic, "loext:shadow-blur");
+        fx.shadow.blur = lengthOr(blur, 0);
+        if (double size = 0; parseNumber(bag.get(Graphic, "jo:shadow-size"), &size)) fx.shadow.size = std::clamp(size, 1.0, 1000.0);
+    }
+    // A glow and soft edges (the producer's own attributes).
+    if (const double radius = lengthOr(bag.get(Graphic, "loext:glow-radius"), 0); radius > 0) {
+        fx.glow.on = true;
+        fx.glow.size = std::clamp(radius, 0.0, 1584.0);
+        if (const QColor c = parseColor(bag.get(Graphic, "loext:glow-color")); c.isValid()) fx.glow.color = ColorRef::rgb(c);
+        double transparency = 0;
+        if (parsePercent(bag.get(Graphic, "loext:glow-transparency"), &transparency)) fx.glow.transparency = std::clamp(transparency, 0.0, 1.0);
+    }
+    fx.softEdge = std::clamp(lengthOr(bag.get(Graphic, "loext:softedge-radius"), 0), 0.0, 1584.0);
+    // A reflection, in the attribute of our own that holds it.
+    if (const QStringList parts = bag.get(Graphic, "jo:reflection").split(QLatin1Char(' '), Qt::SkipEmptyParts); parts.size() == 4) {
+        fx.reflection.on = true;
+        fx.reflection.transparency = std::clamp(parts[0].toDouble(), 0.0, 1.0);
+        fx.reflection.size = std::clamp(parts[1].toDouble(), 0.0, 1.0);
+        fx.reflection.distance = std::clamp(parts[2].toDouble(), 0.0, 1584.0);
+        fx.reflection.blur = std::clamp(parts[3].toDouble(), 0.0, 1584.0);
+    }
     return fx;
 }
 

@@ -212,8 +212,8 @@ void writeArrowEnd(QXmlStreamWriter &w, const char *tag, Arrow arrow, int size)
 
 void writeEffects(QXmlStreamWriter &w, const Effects &fx, const DrawingWriteContext &ctx)
 {
-    const bool shadow = fx.shadow.on, glow = fx.glow.on, soft = fx.softEdge > 0;
-    if (!shadow && !glow && !soft) return;
+    const bool shadow = fx.shadow.on, glow = fx.glow.on, soft = fx.softEdge > 0, reflection = fx.reflection.on;
+    if (!shadow && !glow && !soft && !reflection) return;
     auto color = [&](const ColorRef &c, double transparency) {
         const QColor rgb = resolve(c, ctx);
         writeColor(w, rgb.isValid() ? rgb : QColor(Qt::black), transparency);
@@ -231,10 +231,28 @@ void writeEffects(QXmlStreamWriter &w, const Effects &fx, const DrawingWriteCont
         attribute(w, "dist", extent(std::clamp(fx.shadow.distance, 0.0, 1584.0)));
         attribute(w, "dir", angle(fx.shadow.angle));
         if (!fx.shadow.inner) {
+            if (fx.shadow.size != 100) {
+                attribute(w, "sx", std::clamp<qint64>(percent(fx.shadow.size / 100), 1000, 1000000));
+                attribute(w, "sy", std::clamp<qint64>(percent(fx.shadow.size / 100), 1000, 1000000));
+            }
             attribute(w, "algn", QStringLiteral("ctr"));
             attribute(w, "rotWithShape", QStringLiteral("0"));
         }
         color(fx.shadow.color, fx.shadow.transparency);
+        w.writeEndElement();
+    }
+    if (reflection) {
+        // Turned over (sy of -100%) under the object, from its start opacity to nothing at endPos of its height.
+        begin(w, "a:reflection");
+        attribute(w, "blurRad", extent(std::clamp(fx.reflection.blur, 0.0, 1584.0)));
+        attribute(w, "stA", std::clamp<qint64>(percent(1.0 - fx.reflection.transparency), 0, 100000));
+        attribute(w, "endA", QStringLiteral("0"));
+        attribute(w, "endPos", std::clamp<qint64>(percent(fx.reflection.size), 0, 100000));
+        attribute(w, "dist", extent(std::clamp(fx.reflection.distance, 0.0, 1584.0)));
+        attribute(w, "dir", QStringLiteral("5400000"));
+        attribute(w, "sy", QStringLiteral("-100000"));
+        attribute(w, "algn", QStringLiteral("bl"));
+        attribute(w, "rotWithShape", QStringLiteral("0"));
         w.writeEndElement();
     }
     if (soft) {

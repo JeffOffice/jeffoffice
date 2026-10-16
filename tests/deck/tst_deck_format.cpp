@@ -506,6 +506,193 @@ private Q_SLOTS:
         QVERIFY(r.pane->frame()->page(0)->section(QStringLiteral("Line"))->isVisibleTo(r.pane.get()));
         QVERIFY(r.find<QComboBox>("lineBeginType")->isVisibleTo(r.pane.get()));
     }
+
+    // ---- Effects
+
+    // A shadow: switched on with a preset, then its color, transparency, size, blur, angle, and distance, each one step; shadows that differ show
+    // blank and keep their own; both files keep it.
+    void shadowHasPresetsAndEveryProperty()
+    {
+        Rig r(2);
+        r.select({0, 1});
+        pane_page(r, FormatPane::Tab::Effects);
+        auto *on = r.find<QCheckBox>("shadowOn");
+        QVERIFY(on && on->checkState() == Qt::Unchecked);
+        QVERIFY(!r.find<NumberField>("shadowBlur")->isEnabled());   // nothing to change while there is no shadow
+        const int base = r.steps();
+        auto *preset = r.find<QComboBox>("shadowPreset");
+        QVERIFY(preset && preset->count() == 9);
+        preset->setCurrentIndex(2);   // bottom left
+        QCOMPARE(r.steps(), base + 1);
+        QCOMPARE(preset->currentIndex(), -1);   // a preset is an action, and the box goes back to saying "Presets"
+        for (int i : {0, 1}) {
+            QVERIFY(r.shape(i)->fx.shadow.on);
+            QCOMPARE(r.shape(i)->fx.shadow.angle, 135.0);
+        }
+        QCOMPARE(on->checkState(), Qt::Checked);
+        QVERIFY(r.find<NumberField>("shadowBlur")->isEnabled());
+        Q_EMIT r.find<ColorButton>("shadowColor")->colorPicked(ColorRef::rgb(Qt::darkBlue));
+        r.find<NumberField>("shadowTransparency")->box()->setValue(30);
+        r.find<NumberField>("shadowSize")->box()->setValue(120);
+        r.find<NumberField>("shadowBlur")->box()->setValue(9);
+        r.find<NumberField>("shadowAngle")->box()->setValue(300);
+        r.find<NumberField>("shadowDistance")->box()->setValue(12.5);
+        QCOMPARE(r.steps(), base + 7);
+        for (int i : {0, 1}) {
+            const ShadowFx &sh = r.shape(i)->fx.shadow;
+            QCOMPARE(sh.color, ColorRef::rgb(Qt::darkBlue));
+            QVERIFY(near(sh.transparency, 0.3));
+            QCOMPARE(sh.size, 120.0);
+            QCOMPARE(sh.blur, 9.0);
+            QCOMPARE(sh.angle, 300.0);
+            QCOMPARE(sh.distance, 12.5);
+        }
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            for (const char *name : {"Shape 1", "Shape 2"}) {
+                const ShadowFx &sh = Rig::named(*d, QLatin1String(name))->fx.shadow;
+                QVERIFY2(sh.on, label);
+                QVERIFY2(sh.color.resolve(d->colors) == QColor(Qt::darkBlue), label);
+                QVERIFY2(near(sh.transparency, 0.3, 0.011), label);
+                QVERIFY2(near(sh.size, 120, 0.5), label);
+                QVERIFY2(near(sh.blur, 9, 0.05), label);
+                QVERIFY2(near(sh.angle, 300, 0.5), label);
+                QVERIFY2(near(sh.distance, 12.5, 0.05), label);
+            }
+        }
+        // Different blurs: blank, and a change of the angle alone leaves each blur.
+        r.shape(1)->fx.shadow.blur = 2;
+        r.ed.notifyLive();
+        QVERIFY(r.find<NumberField>("shadowBlur")->isMixed());
+        r.find<NumberField>("shadowAngle")->box()->setValue(20);
+        QCOMPARE(r.shape(0)->fx.shadow.blur, 9.0);
+        QCOMPARE(r.shape(1)->fx.shadow.blur, 2.0);
+        QCOMPARE(r.shape(1)->fx.shadow.angle, 20.0);
+        // Off, and one undo brings it back with all it had.
+        on->click();
+        QVERIFY(!r.shape(0)->fx.shadow.on && !r.shape(1)->fx.shadow.on);
+        r.ed.undo();
+        QVERIFY(r.shape(0)->fx.shadow.on && r.shape(1)->fx.shadow.on);
+        QCOMPARE(r.shape(0)->fx.shadow.blur, 9.0);
+    }
+
+    // A shadow of another size is drawn larger or smaller about the middle of the object; at 100 it is as it was.
+    void shadowSizeIsDrawn()
+    {
+        Rig r(1);
+        ShapeItem *s = r.shape(0);
+        s->rect = QRectF(300, 200, 120, 80);
+        s->fill = Fill::solid(ColorRef::rgb(Qt::white));
+        s->stroke = Stroke::none();
+        s->fx.shadow.on = true;
+        s->fx.shadow.color = ColorRef::rgb(Qt::black);
+        s->fx.shadow.transparency = 0;
+        s->fx.shadow.blur = 0;
+        s->fx.shadow.distance = 0;
+        const double scale = 1.0;
+        auto darkAt = [&](double x, double y) {
+            QImage img = slideImage(*r.ed.doc());
+            const double k = img.width() / r.ed.doc()->pageSize().width() * scale;
+            return img.pixelColor(int(x * k), int(y * k)).lightness() < 100;
+        };
+        // 10 points left of the shape, on its middle.
+        QVERIFY(!darkAt(290, 240));   // size 100: hidden behind the shape
+        s->fx.shadow.size = 130;
+        QVERIFY(darkAt(290, 240));    // 130 percent of 120 points is 18 more, 9 on each side
+        QVERIFY(!darkAt(280, 240));
+        s->fx.shadow.size = 50;
+        QVERIFY(!darkAt(290, 240));
+    }
+
+    // A reflection: presets, then transparency, size, distance, and blur; drawn under the object; kept by the .pptx and the .odp.
+    void reflectionHasPresetsAndEveryProperty()
+    {
+        Rig r(1);
+        r.select({0});
+        pane_page(r, FormatPane::Tab::Effects);
+        const int base = r.steps();
+        r.find<QComboBox>("reflectionPreset")->setCurrentIndex(1);   // half
+        QCOMPARE(r.steps(), base + 1);
+        QVERIFY(r.shape(0)->fx.reflection.on);
+        QVERIFY(near(r.shape(0)->fx.reflection.size, 0.55));
+        r.find<NumberField>("reflectionTransparency")->box()->setValue(40);
+        r.find<NumberField>("reflectionSize")->box()->setValue(70);
+        r.find<NumberField>("reflectionDistance")->box()->setValue(6);
+        r.find<NumberField>("reflectionBlur")->box()->setValue(2);
+        const ReflectionFx &x = r.shape(0)->fx.reflection;
+        QVERIFY(near(x.transparency, 0.4) && near(x.size, 0.7) && x.distance == 6 && x.blur == 2);
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            const ReflectionFx &got = Rig::named(*d, QStringLiteral("Shape 1"))->fx.reflection;
+            QVERIFY2(got.on, label);
+            QVERIFY2(near(got.transparency, 0.4, 0.011) && near(got.size, 0.7, 0.011) && near(got.distance, 6, 0.05) && near(got.blur, 2, 0.05), label);
+        }
+        // It shows under the object.
+        ShapeItem *s = r.shape(0);
+        s->rect = QRectF(300, 100, 120, 80);
+        s->fill = Fill::solid(ColorRef::rgb(Qt::black));
+        s->fx.reflection.transparency = 0;
+        s->fx.reflection.size = 1;
+        s->fx.reflection.blur = 0;
+        s->fx.reflection.distance = 0;
+        QImage img = slideImage(*r.ed.doc());
+        const double k = img.width() / r.ed.doc()->pageSize().width();
+        QVERIFY(img.pixelColor(int(360 * k), int(190 * k)).lightness() < 140);   // just under the shape
+        s->fx.reflection.on = false;
+        img = slideImage(*r.ed.doc());
+        QVERIFY(img.pixelColor(int(360 * k), int(190 * k)).lightness() > 200);
+    }
+
+    // A glow has a color, a size, and a transparency; soft edges a size.
+    void glowAndSoftEdgesHaveTheirProperties()
+    {
+        Rig r(1);
+        r.select({0});
+        pane_page(r, FormatPane::Tab::Effects);
+        r.find<QComboBox>("glowPreset")->setCurrentIndex(1);   // 10 points
+        QVERIFY(r.shape(0)->fx.glow.on);
+        QCOMPARE(r.shape(0)->fx.glow.size, 10.0);
+        Q_EMIT r.find<ColorButton>("glowColor")->colorPicked(ColorRef::rgb(Qt::yellow));
+        r.find<NumberField>("glowSize")->box()->setValue(14);
+        r.find<NumberField>("glowTransparency")->box()->setValue(35);
+        r.find<QComboBox>("softEdgePreset")->setCurrentIndex(2);   // 5 points
+        QCOMPARE(r.shape(0)->fx.softEdge, 5.0);
+        r.find<NumberField>("softEdgeSize")->box()->setValue(7.5);
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            const Effects &fx = Rig::named(*d, QStringLiteral("Shape 1"))->fx;
+            QVERIFY2(fx.glow.on, label);
+            QVERIFY2(fx.glow.color.resolve(d->colors) == QColor(Qt::yellow), label);
+            QVERIFY2(near(fx.glow.size, 14, 0.1) && near(fx.glow.transparency, 0.35, 0.011), label);
+            QVERIFY2(near(fx.softEdge, 7.5, 0.1), label);
+        }
+        r.find<QCheckBox>("glowOn")->click();
+        QVERIFY(!r.shape(0)->fx.glow.on);
+        r.find<NumberField>("softEdgeSize")->box()->setValue(0);
+        QCOMPARE(r.shape(0)->fx.softEdge, 0.0);
+    }
+
+    // The effects of a group are its children's; a line has a shadow and no other effect.
+    void effectsOfGroupsAndLines()
+    {
+        Rig r(2, 1);
+        r.select({2});
+        pane_page(r, FormatPane::Tab::Effects);
+        QVERIFY(r.pane->frame()->page(1)->section(QStringLiteral("Shadow"))->isVisibleTo(r.pane.get()));
+        QVERIFY(!r.pane->frame()->page(1)->section(QStringLiteral("Glow"))->isVisibleTo(r.pane.get()));
+        r.find<QComboBox>("shadowPreset")->setCurrentIndex(0);
+        QVERIFY(r.line(2)->fx.shadow.on);
+        r.select({0, 1});
+        QVERIFY(r.pane->frame()->page(1)->section(QStringLiteral("Glow"))->isVisibleTo(r.pane.get()));
+        r.find<QComboBox>("glowPreset")->setCurrentIndex(0);
+        QVERIFY(r.shape(0)->fx.glow.on && r.shape(1)->fx.glow.on);
+    }
 };
 
 JP_TEST_CLASS(DeckFormatTests)

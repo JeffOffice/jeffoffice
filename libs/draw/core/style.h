@@ -101,6 +101,7 @@ struct ShadowFx {
     double blur = 4;       // points
     double distance = 3;   // points
     double angle = 45;     // degrees; 45 = down-right
+    double size = 100;     // percent of the object's size, about its middle (before the shadow is moved off by distance)
     bool inner = false;
     QPointF offset() const;
 };
