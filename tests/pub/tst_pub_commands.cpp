@@ -16,7 +16,9 @@ private Q_SLOTS:
         warnings.clear();
         QtMessageHandler prev = qInstallMessageHandler([](QtMsgType t, const QMessageLogContext &, const QString &m) {
             // The offscreen test display can't size native windows; that note is not a fault.
-            if ((t == QtWarningMsg || t == QtCriticalMsg) && !m.contains(QLatin1String("This plugin does not support"))) warnings << current + ": " + m;
+            if ((t == QtWarningMsg || t == QtCriticalMsg) && !m.contains(QLatin1String("This plugin does not support"))
+                && !m.contains(QLatin1String("Populating font family aliases")))   // (macOS says once per run how long its first missing-family lookup took)
+                warnings << current + ": " + m;
         });
         QTimer closer;
         closer.setInterval(20);
