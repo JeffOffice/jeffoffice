@@ -12,6 +12,7 @@
 #include "app/widgets.h"
 #include "canvas/canvas.h"
 #include "core/deck.h"
+#include "io/pptxtablestyles.h"
 #include "office/drawingml_table.h"
 #include "office/tablestyles.h"
 
@@ -25,13 +26,14 @@ namespace jp {
 
 namespace {
 
-// The theme a table's styles take their colors from: the presentation's own.
-office::Theme tableTheme(const Document &d)
+// Where a table's styles come from: the presentation's theme for the colors, and the definitions its file carried for the styles it names.
+TableStyles tableStyles(const Document &d)
 {
-    office::Theme theme;
+    TableStyles styles;
     const deck::DeckTheme t = deck::themeOf(d);
-    for (int i = 0; i < office::Theme::ColorCount; ++i) theme.colors[i] = t.colors[i];
-    return theme;
+    for (int i = 0; i < office::Theme::ColorCount; ++i) styles.theme.colors[i] = t.colors[i];
+    styles.defs = deck::tableStyleDefsOf(d);
+    return styles;
 }
 
 // The line Borders draws: Pen Style, Pen Weight, and Pen Color set it (one pen for the program, as the other tabs' pens are).
@@ -42,7 +44,7 @@ Stroke &pen()
 }
 
 // A sample of a style for its tile in the gallery: a small table, with the header row and the banded rows on.
-void paintStyleSample(QPainter *p, const QRectF &rc, const QString &styleId, const office::Theme &theme, const ColorScheme &colors)
+void paintStyleSample(QPainter *p, const QRectF &rc, const QString &styleId, const TableStyles &styles, const ColorScheme &colors)
 {
     TableItem sample;
     sample.rows = 4;
@@ -50,7 +52,7 @@ void paintStyleSample(QPainter *p, const QRectF &rc, const QString &styleId, con
     sample.header = sample.banded = true;
     office::TableStyleEffect fx;
     p->fillRect(rc, Qt::white);
-    if (!office::tableStyleEffect(styleId, sample, theme, &fx)) return;
+    if (!office::tableStyleEffect(styleId, sample, styles.theme, &fx, &styles.defs)) return;
     const QRectF area = rc.adjusted(3, 3, -3, -3);
     const double w = area.width() / sample.cols, h = area.height() / sample.rows;
     for (int r = 0; r < sample.rows; ++r)
@@ -59,7 +61,7 @@ void paintStyleSample(QPainter *p, const QRectF &rc, const QString &styleId, con
             const Fill &fill = fx.fill[size_t(r) * sample.cols + c];
             if (!fill.isNone()) p->fillRect(cell, fill.brush(cell, colors));
             // A word in each cell: a short line of the text's color.
-            const QColor ink = fx.color[size_t(r) * sample.cols + c].isValid() ? fx.color[size_t(r) * sample.cols + c] : theme.colors[office::Theme::Dark1];
+            const QColor ink = fx.color[size_t(r) * sample.cols + c].isValid() ? fx.color[size_t(r) * sample.cols + c] : styles.theme.colors[office::Theme::Dark1];
             p->setPen(QPen(ink, 1.2));
             p->drawLine(QPointF(cell.left() + w * 0.2, cell.center().y()), QPointF(cell.left() + w * 0.7, cell.center().y()));
         }
@@ -127,7 +129,7 @@ void DeckWindow::createTableActions()
             if (!t) return;
             TableStyleParts parts = TableStyleParts::of(*t);
             parts.*part = !(parts.*part);
-            setTableStyle(ed, t, t->format, parts, tableTheme(*ed->doc()), false);
+            setTableStyle(ed, t, t->format, parts, tableStyles(*ed->doc()), false);
         }, true);
     }
 
@@ -144,7 +146,7 @@ void DeckWindow::createTableActions()
     }
 
     // Rows and columns that come and go keep the table in its style: the bands go on, and a new row has its neighbors' look.
-    m_ed->tableEdited = [this](TableItem *t, const Editor::TableEdit &edit) { keepTableStyle(m_ed, t, edit, tableTheme(*m_ed->doc())); };
+    m_ed->tableEdited = [this](TableItem *t, const Editor::TableEdit &edit) { keepTableStyle(m_ed, t, edit, tableStyles(*m_ed->doc())); };
 
     auto sync = [this] { refreshTable(); };
     connect(m_ed, &Editor::selectionChanged, this, sync);
@@ -158,13 +160,13 @@ void DeckWindow::createTableActions()
 // A table just made has the style the presentation program gives a new one: Medium Style 2, Accent 1, with its header row and banded rows.
 void DeckWindow::styleNewTable(TableItem *table)
 {
-    giveTableStyle(m_ed, table, office::defaultTableStyleId(), TableStyleParts(), tableTheme(*m_ed->doc()), true);
+    giveTableStyle(m_ed, table, office::defaultTableStyleId(), TableStyleParts(), tableStyles(*m_ed->doc()), true);
 }
 
 void DeckWindow::applyTableStyle(const QString &styleId)
 {
     TableItem *t = selectedTable(m_ed);
-    if (t) setTableStyle(m_ed, t, styleId, TableStyleParts::of(*t), tableTheme(*m_ed->doc()), true);
+    if (t) setTableStyle(m_ed, t, styleId, TableStyleParts::of(*t), tableStyles(*m_ed->doc()), true);
 }
 
 void DeckWindow::setCellShading(const ColorRef &color) { setTableShading(m_ed, color); }
@@ -231,13 +233,13 @@ void DeckWindow::addTableParts(RibbonParts &parts)
         gal->setTitle(tr("Table Styles"));
         gal->setItemsProvider([this] {
             QVector<GalleryItem> v;
-            const office::Theme theme = tableTheme(*m_ed->doc());
+            const TableStyles styles = tableStyles(*m_ed->doc());
             const ColorScheme colors = m_ed->doc()->colors;
             for (const office::TableStyleInfo &s : office::tableStyleList()) {
                 const QString id = s.id;
                 const QString group = s.group == QLatin1String("Light") ? tr("Light") : s.group == QLatin1String("Medium") ? tr("Medium")
                                       : s.group == QLatin1String("Dark") ? tr("Dark") : tr("Best Match for Document");
-                v << GalleryItem{id, s.name, drawnIcon([id, theme, colors](QPainter *p, const QRectF &rc) { paintStyleSample(p, rc, id, theme, colors); }), group};
+                v << GalleryItem{id, s.name, drawnIcon([id, styles, colors](QPainter *p, const QRectF &rc) { paintStyleSample(p, rc, id, styles, colors); }), group};
             }
             return v;
         });

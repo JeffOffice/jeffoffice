@@ -10,7 +10,9 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 
+#include <QByteArray>
 #include <QColor>
+#include <QHash>
 #include <QDomElement>
 #include <QXmlStreamWriter>
 #include <optional>
@@ -35,7 +37,11 @@ struct TableStyleEffect {
 
 // What the style with that id (one of tablestyles.h's) gives the cells of `table`, with the parts it has turned on (header row, total
 // row, first and last column, banded rows and columns) and the colors of `theme`. False when the id is not one of those styles.
-bool tableStyleEffect(const QString &styleId, const TableItem &table, const Theme &theme, TableStyleEffect *out);
+// A style the file defines is used as the file defines it (its a:tblStyle, as standalone XML, by upper-case id): what the file says is what a
+// table in it is drawn with, and an option turned on or off changes it as the file's style does; only for an id the file doesn't define are
+// this suite's own styles (tablestyles.h) used, and for one neither has, false.
+using TableStyleDefs = QHash<QString, QByteArray>;
+bool tableStyleEffect(const QString &styleId, const TableItem &table, const Theme &theme, TableStyleEffect *out, const TableStyleDefs *defs = nullptr);
 
 // Whether the graphic frame (p:graphicFrame) holds a table: its
 // a:graphicData names the table's URI and has an a:tbl in it.

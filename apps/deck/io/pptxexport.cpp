@@ -11,6 +11,7 @@
 #include "io/pptxdiagram.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
+#include "io/pptxtablestyles.h"
 #include "io/pptxtransition.h"
 #include "office/chart.h"
 #include "office/drawingml_table.h"
@@ -1321,8 +1322,8 @@ void Exporter::writeProperties()
                        "<p:notesTextViewPr><p:cViewPr><p:scale><a:sx n=\"1\" d=\"1\"/><a:sy n=\"1\" d=\"1\"/></p:scale><p:origin x=\"0\" y=\"0\"/></p:cViewPr></p:notesTextViewPr>"
                        "<p:gridSpacing cx=\"76200\" cy=\"76200\"/></p:viewPr>")
             .arg(kNamespaces));
-    add(tableStyles, kTypeBase + QStringLiteral("tableStyles+xml"),
-        QStringLiteral("<a:tblStyleLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" def=\"{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}\"/>"));
+    // The styles the file defined are written back as they were (a table that names one is drawn and edited with them).
+    add(tableStyles, kTypeBase + QStringLiteral("tableStyles+xml"), deck::tableStylesPartXml(m_doc));
 
     const DocProps &props = m_doc.props;
     auto element = [](const char *name, const QString &text) { return text.isEmpty() ? QString() : QStringLiteral("<%1>%2</%1>").arg(QLatin1String(name), esc(text)); };

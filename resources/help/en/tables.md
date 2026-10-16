@@ -32,7 +32,7 @@ Fills, borders, diagonals, alignment, cell margins, and text formatting (such as
 2. In **Table Layout > Rows & Columns**, click **Insert Above**, **Insert Below**, **Insert Left**, or **Insert Right**. With cells selected, the new row or column goes above, below, left of, or right of all of them.
 3. To remove rows or columns, click **Delete** and choose **Delete Rows**, **Delete Columns**, or **Delete Table**. **Delete Rows** removes every row the cell you are in or your selected cells reach, and **Delete Columns** does the same for columns.
 
-With the whole table selected, **Insert Above** and **Insert Left** add at the start of the table, and **Insert Below** and **Insert Right** at the end. If a new row or column goes through a merged cell, the merged cell grows to take it in. To delete a row or column, click in it first. A table keeps at least one row and one column.
+With the whole table selected, **Insert Above** and **Insert Left** add at the start of the table, and **Insert Below** and **Insert Right** at the end. If a new row or column goes through a merged cell, the merged cell grows to take it in. To delete a row or column, click in it first. A table keeps at least one row and one column, and has at most 256 rows and 256 columns.
 
 ## Change sizes
 

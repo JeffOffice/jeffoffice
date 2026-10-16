@@ -421,15 +421,20 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
     return t;
 }
 
-bool tableStyleEffect(const QString &styleId, const TableItem &table, const Theme &theme, TableStyleEffect *out)
+bool tableStyleEffect(const QString &styleId, const TableItem &table, const Theme &theme, TableStyleEffect *out, const TableStyleDefs *defs)
 {
-    const QByteArray xml = tableStyleXml(styleId);
+    if (table.rows <= 0 || table.cols <= 0) return false;
     QDomDocument doc;
-    if (xml.isEmpty() || table.rows <= 0 || table.cols <= 0 || !parseXml(xml, &doc)) return false;
+    QDomElement style;
+    const QByteArray defined = defs ? defs->value(styleId.toUpper()) : QByteArray();
+    if (!defined.isEmpty()) {
+        if (parseXml(defined, &doc)) style = doc.documentElement();
+    } else if (const QByteArray xml = tableStyleXml(styleId); !xml.isEmpty() && parseXml(xml, &doc)) {
+        style = styleById(doc.documentElement(), styleId);
+    }
+    if (style.isNull() || style.localName() != QLatin1String("tblStyle")) return false;
     DrawingContext ctx;
     ctx.theme = theme;
-    const QDomElement style = styleById(doc.documentElement(), styleId);
-    if (style.isNull()) return false;
     *out = effectOf(looksOf(style, ctx), flagsOf(table));
     return true;
 }

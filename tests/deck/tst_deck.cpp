@@ -4587,6 +4587,18 @@ private Q_SLOTS:
     // ---- Picture Format > Crop, and the Table Design and Table Layout tabs ----
 
 private:
+    // The colors of the presentation's theme, as a table style takes them.
+    static office::Theme tableThemeOf(const Document &d)
+    {
+        office::Theme theme;
+        const deck::DeckTheme t = deck::themeOf(d);
+        for (int i = 0; i < office::Theme::ColorCount; ++i) theme.colors[i] = t.colors[i];
+        return theme;
+    }
+
+    // The whole document as an undo step keeps it: equal before and after an undo when the undo took everything back.
+    static QByteArray documentJson(const Editor *ed) { return QJsonDocument(ed->doc()->toJson()).toJson(QJsonDocument::Compact); }
+
     // The first table on the slide being edited, and the last picture (an undo makes the objects over again, so these are looked up each time).
     static TableItem *theTable(Editor *ed)
     {
@@ -4771,6 +4783,17 @@ private Q_SLOTS:
         QCOMPARE(theTable(ed)->cell(0, 0).rowSpan, 1);
         QCOMPARE(theTable(ed)->cell(0, 0).colSpan, 1);
         QVERIFY(!theTable(ed)->cell(0, 1).covered && !theTable(ed)->cell(1, 1).covered);
+        // The words stay in the first cell, the others are empty; and every cell is as the table's style has it.
+        QCOMPARE(cellText(ed, 0, 0).split(QLatin1Char('\n')).size(), 4);
+        QCOMPARE(cellText(ed, 0, 1), QString());
+        QCOMPARE(cellText(ed, 1, 1), QString());
+        {
+            office::TableStyleEffect fx;
+            QVERIFY(office::tableStyleEffect(theTable(ed)->format, *theTable(ed), tableThemeOf(*ed->doc()), &fx));
+            for (int r = 0; r < theTable(ed)->rows; ++r)
+                for (int c = 0; c < theTable(ed)->cols; ++c)
+                    QVERIFY2(theTable(ed)->cell(r, c).fill == fx.fill[size_t(r) * theTable(ed)->cols + c], qPrintable(QStringLiteral("%1,%2").arg(r).arg(c)));
+        }
         ed->undo();
         QCOMPARE(theTable(ed)->cell(0, 0).colSpan, 2);
         // One cell on its own joins the cell on its right.
@@ -4789,7 +4812,8 @@ private Q_SLOTS:
         TableItem *t = theTable(ed);
         const QString id = t->id;
         ed->beginChange(QStringLiteral("Size"));
-        t->rowH = {30, 60, 40};
+        const double first = t->rowH[0];   // as tall as its words need (the font here or on any machine)
+        t->rowH = {first, first + 30, first + 10};
         t->colW = {50, 100, 150, 200};
         t->syncRect();
         ed->endChange();
@@ -4811,13 +4835,13 @@ private Q_SLOTS:
         ed->undo();
         QCOMPARE(theTable(ed)->colW[0], 50.0);
         ed->undo();
-        QCOMPARE(theTable(ed)->rowH[1], 60.0);
+        QCOMPARE(theTable(ed)->rowH[1], first + 30);
         // Typed sizes: the height of the rows, and the width of the columns, of the selected cells.
         ed->selectCells(id, 1, 1, 2, 2);
-        setTableRowHeight(ed, 70);
-        QCOMPARE(theTable(ed)->rowH[1], 70.0);
-        QCOMPARE(theTable(ed)->rowH[2], 70.0);
-        QCOMPARE(theTable(ed)->rowH[0], 30.0);
+        setTableRowHeight(ed, first + 40);
+        QCOMPARE(theTable(ed)->rowH[1], first + 40);
+        QCOMPARE(theTable(ed)->rowH[2], first + 40);
+        QCOMPARE(theTable(ed)->rowH[0], first);
         setTableColumnWidth(ed, 90);
         QCOMPARE(theTable(ed)->colW[1], 90.0);
         QCOMPARE(theTable(ed)->colW[2], 90.0);
@@ -4884,7 +4908,7 @@ private Q_SLOTS:
             const char *format = odp ? "odp" : "pptx";
             QVERIFY2(!bt->cell(0, 0).border.top.isNone(), format);
             QVERIFY2(!bt->cell(1, 1).border.left.isNone(), format);
-            QVERIFY2(bt->cell(2, 2).border.bottom.isNone() || !bt->cell(2, 2).border.bottom.isNone(), format);
+            QVERIFY2(bt->cell(2, 2).border.bottom.isNone() && bt->cell(2, 2).border.right.isNone(), format);   // a cell outside the ones that were lined
             QCOMPARE(bt->cell(2, 1).fill.color.rgbValue(), QColor(0x12, 0x34, 0x56));
             QCOMPARE(int(bt->cell(2, 2).valign), int(VAlign::Bottom));
             QVERIFY2(bt->cell(2, 1).vertical, format);
@@ -5073,6 +5097,443 @@ private Q_SLOTS:
         QVERIFY(ids.contains(QStringLiteral("ellipse")) && ids.contains(QStringLiteral("rect")) && ids.contains(QStringLiteral("roundRect")));
     }
 
+    // Typing, or choosing another object, while a crop is going on is not part of the crop: the crop ends as a step of its own, then the other
+    // thing is a step, and Undo takes back the last of them only.
+    void editsDuringACropAreSeparateSteps()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id;
+        const QString title = ed->doc()->pages[0]->items.front()->id;
+        const QRectF frame = pic->rect;
+        const int steps = ed->undoStack()->index();
+        // Typing in a text box.
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        ed->beginTextEdit(title);
+        QVERIFY(ed->cropItem.isEmpty());
+        ed->typeText(QStringLiteral("ZQ"));
+        ed->flushTyping();
+        QCOMPARE(ed->undoStack()->index(), steps + 2);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Typing"));
+        ed->endTextEdit();
+        ed->undo();   // takes back the typing only
+        QCOMPARE(thePicture(ed)->rect.width(), frame.width() - 30);
+        QVERIFY(ed->doc()->storyDoc(static_cast<TextItem *>(ed->doc()->item(title))->storyId)->toPlainText().isEmpty());
+        ed->undo();   // and then the crop
+        QCOMPARE(thePicture(ed)->rect, frame);
+        // Shift+click on another object.
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        const int before = ed->undoStack()->index();
+        ed->toggleSelect(title);
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(ed->undoStack()->index(), before + 1);
+        QCOMPARE(thePicture(ed)->rect.width(), frame.width() - 30);
+    }
+
+    // The slides pane's moving a slide while a crop is going on is a step of its own, labeled for what it is, and the crop is a step before it.
+    void aSlideMoveDuringACropIsItsOwnStep()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id;
+        w.newSlide();
+        ed->setCurrentPage(0);
+        ed->select(id);
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        const int beforeMove = ed->undoStack()->index();
+        ed->movePage(0, 1);
+        QVERIFY(ed->cropItem.isEmpty());
+        QCOMPARE(ed->undoStack()->index(), beforeMove + 2);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Move Page"));
+        ed->undo();
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Crop"));
+    }
+
+    // Going to another slide while cropping ends the crop on the slide it was made on: redone, it is on that slide with the picture selected.
+    void aCropRedoesOnItsOwnSlide()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id;
+        const QRectF frame = pic->rect;
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        ed->setCurrentPage(1);
+        QVERIFY(ed->cropItem.isEmpty());
+        ed->undo();
+        QCOMPARE(ed->currentPage(), 0);
+        QCOMPARE(thePicture(ed)->rect, frame);
+        ed->redo();
+        QCOMPARE(ed->currentPage(), 0);
+        QCOMPARE(ed->selection(), QStringList{id});
+        QCOMPARE(thePicture(ed)->rect.width(), frame.width() - 30);
+    }
+
+    // A crop still going on when the window closes (or saves) is a change: it is asked about, and what is written has it.
+    void aCropInProgressIsAChangeToSave()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const double width = pic->rect.width();
+        ed->markSaved();
+        QVERIFY(!ed->isModified());
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 30);
+        ed->endChange();
+        QVERIFY(ed->isModified());
+        bool asked = false;
+        QTimer::singleShot(0, &w, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                asked = true;
+                box->button(QMessageBox::Cancel)->click();
+            }
+        });
+        w.show();
+        QVERIFY(!w.close());   // asked, and told to keep the window
+        QVERIFY(asked);
+        QVERIFY(ed->cropItem.isEmpty());   // the crop is over, and kept
+        QCOMPARE(thePicture(ed)->rect.width(), width - 30);
+        QVERIFY(ed->isModified());
+        // Saved in the middle of a crop, the file has the crop and the window is no longer modified.
+        QVERIFY(command(w, "pic.crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
+        thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 10);
+        ed->endChange();
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("cropped.pptx"))));
+        Settings::get().removeRecentFile(dir.filePath(QStringLiteral("cropped.pptx")));   // the file goes with the folder, and the list of recent ones doesn't keep it
+        QVERIFY(!ed->isModified());
+        QString err;
+        auto back = deck::importPresentationFile(dir.filePath(QStringLiteral("cropped.pptx")), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(std::abs(firstPicture(*back)->rect.width() - (width - 40)) < 0.1);
+    }
+
+    // A table has at most 256 rows and 256 columns (a file with more is not read back): Insert and Tab stop there and say so, and what is
+    // redone is what was done.
+    void tableCommandsStopAtTheLimit()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.insertTable(60, 2);
+        const QString id = theTable(ed)->id;
+        ed->beginChange(QStringLiteral("Grow"));
+        while (theTable(ed)->rows < 255) tableInsertRow(ed, theTable(ed), theTable(ed)->rows);
+        while (theTable(ed)->cols < 255) tableInsertCol(ed, theTable(ed), theTable(ed)->cols);
+        ed->endChange();
+        ed->selectCells(id, 254, 254, 254, 254);
+        QVERIFY(command(w, "tbl.insBelow"));
+        QCOMPARE(theTable(ed)->rows, 256);
+        QVERIFY(command(w, "tbl.insRight"));
+        QCOMPARE(theTable(ed)->cols, 256);
+        ed->undo();
+        ed->redo();   // as it was done, not as a file would clamp it
+        QCOMPARE(theTable(ed)->cols, 256);
+        QCOMPARE(theTable(ed)->rows, 256);
+        const int steps = ed->undoStack()->index();
+        QSignalSpy status(ed, &Editor::status);
+        ed->selectCells(id, 255, 255, 255, 255);
+        QVERIFY(command(w, "tbl.insBelow"));
+        QVERIFY(command(w, "tbl.insAbove"));
+        QVERIFY(command(w, "tbl.insLeft"));
+        QVERIFY(command(w, "tbl.insRight"));
+        QCOMPARE(theTable(ed)->rows, 256);
+        QCOMPARE(theTable(ed)->cols, 256);
+        QCOMPARE(ed->undoStack()->index(), steps);
+        QCOMPARE(status.size(), 4);
+        QVERIFY(status.first().first().toString().contains(QStringLiteral("256")));
+        // Tab in the last cell adds no row either.
+        ed->beginTextEdit(id, 0, 255, 255);
+        QTest::keyClick(w.canvas(), Qt::Key_Tab);
+        QCOMPARE(theTable(ed)->rows, 256);
+        QCOMPARE(ed->undoStack()->index(), steps);
+        // And a damaged span (a file that says a cell is a million rows tall) stops at the table's last row.
+        QJsonObject json = theTable(ed)->toJson();
+        QJsonArray cells = json["cells"].toArray();
+        QJsonObject last = cells.last().toObject();
+        last["rs"] = 1000000;
+        last["cs"] = 1000000;
+        cells[cells.size() - 1] = last;
+        json["cells"] = cells;
+        TableItem damaged;
+        damaged.fromJson(json);
+        QCOMPARE(damaged.cell(255, 255).rowSpan, 1);
+        QCOMPARE(damaged.cell(255, 255).colSpan, 1);
+        QJsonObject middle = cells[255 * 256 + 250].toObject();
+        middle["cs"] = 100;
+        cells[255 * 256 + 250] = middle;
+        json["cells"] = cells;
+        damaged.fromJson(json);
+        QCOMPARE(damaged.cell(255, 250).colSpan, 6);
+    }
+
+    // A style the file defines is the one a table is drawn and edited with, and is written back: a first column the file makes orange goes when
+    // First Column is turned off, and the file's version of the style stays in the saved file.
+    void tableStylesTheFileDefinesAreKeptAndUsed()
+    {
+        const QString id = QStringLiteral("{85BE263C-DBD7-4A20-BB59-AAB30ACAA65A}");   // a style this suite also has (Medium Style 3, Accent 2), but not like this
+        const QString definition = QStringLiteral(
+            "<a:tblStyleLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" def=\"%1\"><a:tblStyle styleId=\"%1\" styleName=\"The file's own\">"
+            "<a:wholeTbl><a:tcTxStyle><a:fontRef idx=\"minor\"/><a:srgbClr val=\"000000\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:srgbClr val=\"FFEEDD\"/></a:solidFill></a:fill></a:tcStyle></a:wholeTbl>"
+            "<a:firstCol><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:srgbClr val=\"000000\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:srgbClr val=\"FF8800\"/></a:solidFill></a:fill></a:tcStyle></a:firstCol>"
+            "<a:firstRow><a:tcTxStyle b=\"on\"><a:fontRef idx=\"minor\"/><a:srgbClr val=\"FFFFFF\"/></a:tcTxStyle><a:tcStyle><a:tcBdr/><a:fill><a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill></a:fill></a:tcStyle></a:firstRow>"
+            "</a:tblStyle></a:tblStyleLst>").arg(id);
+        // A file as the other program writes one: the cells say nothing of their own, and the style is defined in the file.
+        QString err;
+        std::unique_ptr<Document> d;
+        {
+            DeckWindow maker;
+            tableOnSlide(maker, 3, 3);
+            maker.applyTableStyle(id);
+            d = deck::importPresentation(deck::exportPresentation(*maker.editor()->doc(), &err), &err);
+            QVERIFY(d);
+        }
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(deck::exportPresentation(*d, &err), zip, &err));
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        slide.replace(QRegularExpression(QStringLiteral("<a:tcPr[^>]*>.*?</a:tcPr>")), QStringLiteral("<a:tcPr/>"));
+        slide.replace(QStringLiteral("<a:tableStyleId>%1</a:tableStyleId>").arg(QStringLiteral("{85BE263C-DBD7-4A20-BB59-AAB30ACAA65A}")), QStringLiteral("<a:tableStyleId>%1</a:tableStyleId>").arg(id));
+        if (!slide.contains(QStringLiteral("firstCol=\"1\""))) slide.replace(QStringLiteral("<a:tblPr "), QStringLiteral("<a:tblPr firstCol=\"1\" "));
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        zip[QStringLiteral("ppt/tableStyles.xml")] = definition.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        const QByteArray file = z.finish();
+        auto opened = deck::importPresentation(file, &err);
+        QVERIFY2(opened, qPrintable(err));
+        QCOMPARE(firstTable(*opened)->cell(1, 0).fill.color.rgbValue(), QColor(0xFF, 0x88, 0x00));   // the file's, read
+        QCOMPARE(firstTable(*opened)->cell(1, 1).fill.color.rgbValue(), QColor(0xFF, 0xEE, 0xDD));
+        // The window opens it, and First Column off makes the column what the file's style says the whole table is.
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->setDocument(std::move(opened));
+        ed->select(theTable(ed)->id);
+        QVERIFY(command(w, "tbl.optFirstCol"));
+        QVERIFY(!theTable(ed)->firstCol);
+        QCOMPARE(theTable(ed)->cell(1, 0).fill.color.rgbValue(), QColor(0xFF, 0xEE, 0xDD));
+        QCOMPARE(theTable(ed)->cell(1, 1).fill.color.rgbValue(), QColor(0xFF, 0xEE, 0xDD));
+        QCOMPARE(theTable(ed)->cell(0, 1).fill.color.rgbValue(), QColor(0x11, 0x22, 0x33));
+        QVERIFY(command(w, "tbl.optFirstCol"));
+        QCOMPARE(theTable(ed)->cell(1, 0).fill.color.rgbValue(), QColor(0xFF, 0x88, 0x00));
+        // Saved, the file's definition goes back, and the file reads the same again.
+        QMap<QString, QByteArray> out;
+        QVERIFY(readZip(deck::exportPresentation(*ed->doc(), &err), out, &err));
+        const QString styles = QString::fromUtf8(out.value(QStringLiteral("ppt/tableStyles.xml")));
+        QVERIFY(styles.contains(QStringLiteral("FF8800")) && styles.contains(QStringLiteral("FFEEDD")) && styles.contains(id));
+        QVERIFY(styles.contains(QStringLiteral("The file's own")));
+        auto again = savedAndRead(*ed->doc(), false);
+        QVERIFY(again);
+        QCOMPARE(firstTable(*again)->cell(1, 0).fill.color.rgbValue(), QColor(0xFF, 0x88, 0x00));
+        // A table of a presentation with no styles of its own is written as before: the default, and none defined.
+        QVERIFY(readZip(deck::exportPresentation(*deck::newPresentation(), &err), out, &err));
+        QVERIFY(!QString::fromUtf8(out.value(QStringLiteral("ppt/tableStyles.xml"))).contains(QStringLiteral("tblStyle ")));
+    }
+
+    // Every table command is one step that takes everything back: after Undo the document is what it was, and after Redo what it was after the
+    // command (the table here has a style, merged cells, text, and a block of cells selected).
+    void tableCommandsUndoAndRedoExactly()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 4, 4);
+        const QString id = theTable(ed)->id;
+        ed->selectCells(id, 0, 0, 1, 1);
+        QVERIFY(command(w, "tbl.merge"));
+        struct Case { const char *command; int r0, c0, r1, c1; };
+        const Case cases[] = {{"tbl.insAbove", 2, 2, 2, 2}, {"tbl.insBelow", 3, 1, 3, 1}, {"tbl.insLeft", 2, 2, 2, 2}, {"tbl.insRight", 1, 3, 1, 3},
+                              {"tbl.delRow", 3, 0, 3, 3}, {"tbl.delCol", 0, 3, 3, 3}, {"tbl.split", 0, 0, 0, 0}, {"tbl.merge", 2, 0, 3, 1},
+                              {"tbl.distributeRows", 2, 2, 2, 2}, {"tbl.distributeCols", 2, 2, 2, 2}, {"border.all", 2, 2, 3, 3}, {"border.none", 2, 2, 3, 3},
+                              {"tbl.alignMiddle", 2, 2, 3, 3}, {"tbl.direction", 2, 2, 3, 3}, {"tbl.marginWide", 2, 2, 3, 3}, {"tbl.optBanded", 2, 2, 2, 2},
+                              {"tbl.optTotal", 2, 2, 2, 2}, {"tbl.optFirstCol", 2, 2, 2, 2}, {"tbl.optHeader", 2, 2, 2, 2}};
+        for (const Case &c : cases) {
+            if (QLatin1String(c.command).startsWith(QLatin1String("tbl.distribute"))) {   // made unequal first, as there is something to distribute
+                ed->change(QStringLiteral("Size"), [&] {
+                    theTable(ed)->colW[0] += 10;
+                    theTable(ed)->rowH[0] += 10;
+                    theTable(ed)->syncRect();
+                });
+            }
+            ed->selectCells(id, c.r0, c.c0, c.r1, c.c1);
+            const QByteArray before = documentJson(ed);
+            const int steps = ed->undoStack()->index();
+            QVERIFY(command(w, c.command));
+            QVERIFY2(ed->undoStack()->index() == steps + 1, c.command);
+            const QByteArray after = documentJson(ed);
+            QVERIFY2(after != before, c.command);
+            ed->undo();
+            QVERIFY2(documentJson(ed) == before, c.command);
+            ed->redo();
+            QVERIFY2(documentJson(ed) == after, c.command);
+        }
+        w.applyTableStyle(QStringLiteral("{E8034E78-7F5D-4C2E-B375-FC64B27BC917}"));
+        const QByteArray styled = documentJson(ed);
+        ed->undo();
+        QVERIFY(documentJson(ed) != styled);
+        ed->redo();
+        QVERIFY(documentJson(ed) == styled);
+    }
+
+    // A table a file damages (spans larger than the table, a grid of 256 columns, every flag on) is read, styled, and edited without harm: the
+    // spans stop at the table's edge, and no command reaches past a row or a column.
+    void hostileTablesAreHeldToTheirGrid()
+    {
+        DeckWindow maker;
+        tableOnSlide(maker, 3, 3);
+        QString err;
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(deck::exportPresentation(*maker.editor()->doc(), &err), zip, &err));
+        QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+        slide.replace(QRegularExpression(QStringLiteral("<a:tc>")), QStringLiteral("<a:tc gridSpan=\"1000000000\" rowSpan=\"2000000000\">"));
+        slide.replace(QStringLiteral("<a:tblPr "), QStringLiteral("<a:tblPr lastRow=\"1\" firstCol=\"1\" lastCol=\"1\" bandCol=\"1\" "));
+        zip[QStringLiteral("ppt/slides/slide1.xml")] = slide.toUtf8();
+        ZipWriter z;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
+        auto d = deck::importPresentation(z.finish(), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TableItem *read = firstTable(*d);
+        QVERIFY(read);
+        for (int r = 0; r < read->rows; ++r)
+            for (int c = 0; c < read->cols; ++c) {
+                QVERIFY(r + read->cell(r, c).rowSpan <= read->rows);
+                QVERIFY(c + read->cell(r, c).colSpan <= read->cols);
+            }
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->setDocument(std::move(d));
+        ed->select(theTable(ed)->id);
+        w.applyTableStyle(QStringLiteral("{9D7B26C5-4107-4FEC-AEDC-1716B250A1EF}"));
+        for (const char *name : {"tbl.optBanded", "tbl.optTotal", "tbl.insBelow", "tbl.insRight", "tbl.split", "tbl.distributeRows", "border.all"}) {
+            ed->select(theTable(ed)->id);
+            QVERIFY(command(w, name));
+        }
+        QVERIFY(theTable(ed)->rows >= 3 && theTable(ed)->cols >= 3);
+        QVERIFY(!savedSlideXml(*ed->doc()).isEmpty());
+        auto saved = savedAndRead(*ed->doc(), true);
+        QVERIFY(saved);
+    }
+
+    // A crop of a picture that is turned and flipped keeps the picture where it is on the slide, and is saved with its turn and flips; a picture
+    // that is fitted (room round it, a negative a:srcRect) is saved and read back the same.
+    void pictureCropOfATurnedPictureAndANegativeSrcRect()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        ed->beginChange(QStringLiteral("Turn"));
+        pic->rotation = 30;
+        pic->flipH = true;
+        ed->endChange();
+        const QPointF whereTheTopLeftIs = thePicture(ed)->transform().map(thePicture(ed)->imgRect.topLeft());
+        const QPointF whereTheBottomRightIs = thePicture(ed)->transform().map(thePicture(ed)->imgRect.bottomRight());
+        QVERIFY(command(w, "pic.aspect.1x1"));
+        QCOMPARE(thePicture(ed)->rect.size(), QSizeF(75, 75));
+        QVERIFY((thePicture(ed)->transform().map(thePicture(ed)->imgRect.topLeft()) - whereTheTopLeftIs).manhattanLength() < 0.001);
+        QVERIFY((thePicture(ed)->transform().map(thePicture(ed)->imgRect.bottomRight()) - whereTheBottomRightIs).manhattanLength() < 0.001);
+        QString slide = savedSlideXml(*ed->doc());
+        QVERIFY(slide.contains(QStringLiteral("rot=\"1800000\"")));
+        QVERIFY(slide.contains(QStringLiteral("flipH=\"1\"")));
+        QVERIFY(slide.contains(QStringLiteral("<a:srcRect")));
+        auto back = savedAndRead(*ed->doc(), false);
+        QVERIFY(back);
+        const PictureItem *p = firstPicture(*back);
+        QVERIFY(p);
+        QVERIFY(p->flipH);
+        QVERIFY(std::abs(p->rotation - 30) < 0.01);
+        QVERIFY((p->transform().map(p->imgRect.topLeft()) - whereTheTopLeftIs).manhattanLength() < 0.05);
+        QVERIFY((p->transform().map(p->imgRect.bottomRight()) - whereTheBottomRightIs).manhattanLength() < 0.05);
+        // Fit: a picture 150 by 75 in a frame 100 by 100 has room above and below, which the file says with negative cuts.
+        ed->beginChange(QStringLiteral("Frame"));
+        thePicture(ed)->rotation = 0;
+        thePicture(ed)->flipH = false;
+        thePicture(ed)->rect = QRectF(thePicture(ed)->rect.topLeft(), QSizeF(100, 100));
+        thePicture(ed)->imgRect = QRectF(0, 0, 100, 100);
+        ed->endChange();
+        QVERIFY(command(w, "pic.fit"));
+        const QRectF fitted = thePicture(ed)->imgRect;
+        QCOMPARE(fitted.size(), QSizeF(100, 50));
+        slide = savedSlideXml(*ed->doc());
+        QVERIFY(slide.contains(QStringLiteral("t=\"-50000\"")) && slide.contains(QStringLiteral("b=\"-50000\"")));   // each is half the height of the picture
+        for (bool odp : {false, true}) {
+            back = savedAndRead(*ed->doc(), odp);
+            QVERIFY(back);
+            p = firstPicture(*back);
+            QVERIFY(p);
+            QVERIFY2(std::abs(p->imgRect.height() - fitted.height()) < 0.5 && std::abs(p->imgRect.width() - fitted.width()) < 0.5, odp ? "odp" : "pptx");
+            QVERIFY2(std::abs(p->imgRect.top() - fitted.top()) < 0.5, odp ? "odp" : "pptx");
+        }
+    }
+
+    // A style is given to every cell, the ones a merged cell covers too: what a split uncovers is as the style has it, whether the style was
+    // chosen, or a row came, while the cells were merged.
+    void aStyleReachesTheCellsAMergeCovers()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 4, 4);
+        const QString id = theTable(ed)->id;
+        auto allAsTheStyleHasThem = [&](const char *what) {
+            office::TableStyleEffect fx;
+            if (!office::tableStyleEffect(theTable(ed)->format, *theTable(ed), tableThemeOf(*ed->doc()), &fx)) return false;
+            for (int r = 0; r < theTable(ed)->rows; ++r)
+                for (int c = 0; c < theTable(ed)->cols; ++c)
+                    if (!(theTable(ed)->cell(r, c).fill == fx.fill[size_t(r) * theTable(ed)->cols + c])) {
+                        qWarning("%s: cell %d,%d", what, r, c);
+                        return false;
+                    }
+            return true;
+        };
+        ed->selectCells(id, 0, 0, 1, 1);
+        QVERIFY(command(w, "tbl.merge"));
+        w.applyTableStyle(QStringLiteral("{E8034E78-7F5D-4C2E-B375-FC64B27BC917}"));   // Dark Style 1
+        ed->selectCells(id, 0, 0, 0, 0);
+        QVERIFY(command(w, "tbl.split"));
+        QVERIFY(allAsTheStyleHasThem("chosen while merged"));
+        // A row that comes while cells are merged, and an option turned off.
+        ed->selectCells(id, 2, 2, 3, 3);
+        QVERIFY(command(w, "tbl.merge"));
+        ed->selectCells(id, 0, 0, 0, 0);
+        QVERIFY(command(w, "tbl.insAbove"));
+        ed->select(id);
+        QVERIFY(command(w, "tbl.optBanded"));
+        ed->selectCells(id, 3, 2, 3, 2);
+        QVERIFY(command(w, "tbl.split"));
+        QVERIFY(allAsTheStyleHasThem("row and option while merged"));
+    }
+
     // Every style in the gallery is one the reader and the tab know: Light, Medium, and Dark, plain and in the six accent colors, with the
     // theme's colors in them.
     void tableStylesAreDrawnFromTheTheme()
@@ -5190,7 +5651,7 @@ private Q_SLOTS:
         // Two drags of two handles, as the canvas makes them.
         for (int drag = 0; drag < 2; ++drag) {
             PictureItem *p = thePicture(ed);
-            ed->beginChange(QStringLiteral("Crop"));
+            ed->beginCropChange(QStringLiteral("Crop"));
             if (drag == 0) {
                 p->rect.setLeft(p->rect.left() + 30);
                 p->imgRect.translate(-30, 0);
@@ -5217,7 +5678,7 @@ private Q_SLOTS:
         const int stepsNow = ed->undoStack()->count();
         ed->select(id);
         QVERIFY(command(w, "pic.crop"));
-        ed->beginChange(QStringLiteral("Crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
         thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 40);
         ed->endChange();
         QTest::keyClick(w.canvas(), Qt::Key_Escape);
@@ -5227,7 +5688,7 @@ private Q_SLOTS:
         QCOMPARE(ed->selection(), QStringList{id});
         // Choosing something else ends it too, keeping the crop.
         QVERIFY(command(w, "pic.crop"));
-        ed->beginChange(QStringLiteral("Crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
         thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 20);
         ed->endChange();
         ed->clearSelection();
@@ -5239,7 +5700,7 @@ private Q_SLOTS:
         // Undo while cropping takes the crop back; another command ends the crop, keeping it, and then does its own work.
         ed->select(id);
         QVERIFY(command(w, "pic.crop"));
-        ed->beginChange(QStringLiteral("Crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
         thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 25);
         ed->endChange();
         QTRY_VERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());   // the window's commands follow the editor a moment later
@@ -5248,7 +5709,7 @@ private Q_SLOTS:
         QCOMPARE(thePicture(ed)->rect, cropped);
         const int before = ed->undoStack()->index();   // steps taken (a step that was undone is in the way of the next one, and is dropped)
         QVERIFY(command(w, "pic.crop"));
-        ed->beginChange(QStringLiteral("Crop"));
+        ed->beginCropChange(QStringLiteral("Crop"));
         thePicture(ed)->rect.setRight(thePicture(ed)->rect.right() - 25);
         ed->endChange();
         QVERIFY(command(w, "arr.flipH"));
