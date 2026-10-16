@@ -334,6 +334,11 @@ endif()
 # Developer tool for laying a text out in pages (the flowing document) from the command line, and for measuring that.
 qt_add_executable(writetool tools/writetool.cpp)
 target_link_libraries(writetool PRIVATE jo_flow)
+if(JP_BUILD_WRITE)
+  # With JeffWrite, it also lays out and draws a .docx as JeffWrite does (for measuring it against the pages Word makes).
+  target_link_libraries(writetool PRIVATE jwcore)
+  target_compile_definitions(writetool PRIVATE JW_DOCX=1)
+endif()
 set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for rendering and converting publications from the command line.

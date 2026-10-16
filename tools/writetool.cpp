@@ -1,6 +1,6 @@
 // Command-line helper for the flowing document (libs/flow): lays a plain text file out in pages, and measures how fast it does.
-//   writetool render <file.txt> <outdir> [width=800] [options]   each page to page-001.png ...
-//   writetool pdf <file.txt> <out.pdf> [options]                 the pages as a PDF
+//   writetool render <file.txt|.docx> <outdir> [width=800] [options]   each page to page-001.png ...
+//   writetool pdf <file.txt|.docx> <out.pdf> [options]                 the pages as a PDF
 //   writetool info <file.txt> [options]                          the pages and where each starts
 //   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
 //                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed
@@ -13,10 +13,14 @@
 #include "flow/paginator.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
+#ifdef JW_DOCX
+#include "core/writedoc.h"
+#endif
 
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QPageSize>
@@ -29,6 +33,7 @@
 #include <QTextList>
 #include <QTextStream>
 #include <algorithm>
+#include <memory>
 #include <random>
 
 using namespace jp;
@@ -248,7 +253,7 @@ long residentKb()
     return 0;
 }
 
-QImage pageImage(Paginator &pg, LayoutCache *cache, int index, int width, bool pdf = false)
+QImage pageImage(Paginator &pg, LayoutCache *cache, int index, int width, bool pdf = false, int pageCount = 1)
 {
     const auto page = pg.materialize(index);
     if (!page) return QImage();
@@ -258,6 +263,8 @@ QImage pageImage(Paginator &pg, LayoutCache *cache, int index, int width, bool p
     PaintContext ctx;
     ctx.doc = page->doc.get();
     ctx.cache = cache;
+    ctx.pageNumber = page->number;   // (what a page's number fields show, as JeffWrite's page view draws them)
+    ctx.pageCount = pageCount;
     ctx.opt.output = pdf;
     QPainter p(&img);
     p.setRenderHint(QPainter::Antialiasing);
@@ -341,6 +348,9 @@ int bench(int paragraphs, const Options &o, QTextStream &out)
 int main(int argc, char **argv)
 {
     Q_INIT_RESOURCE(resources);   // the font measurements, in the shared libraries
+#ifdef JW_DOCX
+    Q_INIT_RESOURCE(write);       // JeffWrite's own (its styles for a document that lacks them)
+#endif
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
     if (!qEnvironmentVariableIsSet("QT_IM_MODULE")) qputenv("QT_IM_MODULE", "none");
     QGuiApplication app(argc, argv);
@@ -348,7 +358,7 @@ int main(int argc, char **argv)
     const QStringList args = app.arguments();
     QTextStream out(stdout);
     if (args.size() < 2 || (args[1] != "bench" && args.size() < 3) || ((args[1] == "render" || args[1] == "pdf") && args.size() < 4)) {
-        out << "usage: writetool render <file.txt> <outdir> [width=800] | pdf <file.txt> <out.pdf> | info <file.txt> | bench [paragraphs=26443]   (options: columns=N a4 legal landscape margin=INCHES hyphenate justify)\n";
+        out << "usage: writetool render <file.txt|.docx> <outdir> [width=800] | pdf <file.txt|.docx> <out.pdf> | info <file.txt|.docx> | bench [paragraphs=26443]   (options for a .txt: columns=N a4 legal landscape margin=INCHES hyphenate justify)\n";
         return 2;
     }
     const QString cmd = args[1];
@@ -364,15 +374,42 @@ int main(int argc, char **argv)
     }
     if (cmd == "bench") return bench(paragraphs, o, out);
 
-    FlowDocument fd;
-    QString error;
-    if (!loadText(fd, args[2], o, &error)) {
-        out << "cannot read: " << error << "\n";
-        return 1;
-    }
     QElapsedTimer timer;
     timer.start();
-    Paginator pg(&fd);
+    // A .docx is read and laid out as JeffWrite does (its own setup, sections, and styles); a text file with the options given.
+    FlowDocument fd;
+    std::unique_ptr<Paginator> ownPager;
+    Paginator *pager = nullptr;
+    QString error;
+#ifdef JW_DOCX
+    std::unique_ptr<write::WriteDoc> wdoc;
+    const QString suffix = QFileInfo(args[2]).suffix().toLower();
+    if (suffix == QLatin1String("docx") || suffix == QLatin1String("docm") || suffix == QLatin1String("dotx") || suffix == QLatin1String("dotm")) {
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) {
+            out << "cannot read: " << f.errorString() << "\n";
+            return 1;
+        }
+        QStringList notes;
+        wdoc = write::WriteDoc::fromDocx(f.readAll(), &error, &notes);
+        if (!wdoc) {
+            out << "cannot read: " << error << "\n";
+            return 1;
+        }
+        for (const QString &n : notes) out << "note\t" << n << "\n";
+        out << "read\t" << timer.elapsed() << " ms\n";
+        pager = &wdoc->pager();
+    }
+#endif
+    if (!pager) {
+        if (!loadText(fd, args[2], o, &error)) {
+            out << "cannot read: " << error << "\n";
+            return 1;
+        }
+        ownPager = std::make_unique<Paginator>(&fd);
+        pager = ownPager.get();
+    }
+    Paginator &pg = *pager;
     const int pages = pg.pageCount();
     out << "paginated\t" << pages << " pages\t" << timer.elapsed() << " ms\n";
     LayoutCache cache;
@@ -390,7 +427,7 @@ int main(int argc, char **argv)
         QDir dir(args[3]);
         if (!dir.mkpath(QStringLiteral("."))) { out << "cannot make " << args[3] << "\n"; return 1; }
         for (int k = 0; k < pages; ++k) {
-            const QImage img = pageImage(pg, &cache, k, width);
+            const QImage img = pageImage(pg, &cache, k, width, false, pages);
             if (img.isNull() || !img.save(dir.filePath(QStringLiteral("page-%1.png").arg(k + 1, 3, 10, QLatin1Char('0'))))) { out << "cannot save page " << k + 1 << "\n"; return 1; }
         }
         out << "wrote\t" << pages << " pages\t" << timer.elapsed() << " ms\n";
@@ -422,6 +459,8 @@ int main(int argc, char **argv)
                 ctx.cache = &cache;
                 ctx.opt.output = true;
                 ctx.opt.textOutput = TextOutput::Pdf;
+                ctx.pageNumber = page->number;
+                ctx.pageCount = pages;
                 Renderer::paintPage(&p, ctx, 0);
                 p.restore();
             }
