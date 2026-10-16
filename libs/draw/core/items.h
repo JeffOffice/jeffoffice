@@ -92,6 +92,9 @@ public:
     // The text isn't broken to the width of the frame: each paragraph is one line (broken only where it says), set against the frame as its
     // alignment says and running out of it where it is longer. A slide's text box whose file says "none" for wrapping.
     bool noWrap = false;
+    // The block of text (its widest line and the bullets) is set in the middle of the frame, each line aligned within it as its paragraph says:
+    // a slide's text box whose file anchors its text "centered".
+    bool centerBlock = false;
     bool continuedOn = false, continuedFrom = false;
     bool hyphenate = true;       // automatic hyphenation (on by default for text boxes, as in .pub files)
     double hyphenZone = 18;      // points: break a word only if moving it whole would leave more empty
@@ -169,6 +172,11 @@ public:
     QMarginsF insets{7.2, 3.6, 7.2, 3.6};
     VAlign valign = VAlign::Middle;
     bool noWrap = false;        // the text isn't broken to the shape's width (see TextItem::noWrap)
+    bool centerBlock = false;   // the block of text is centered in the shape (see TextItem::centerBlock)
+    // The text shrinks to fit the shape (a slide's, as a text box's does: TextItem::ShrinkOnOverflow), drawn at fitScale of its size with fitLineCut
+    // percent taken off its line spacing, as the presentation program stored them.
+    bool shrinks = false;
+    double fitScale = 1.0, fitLineCut = 0;
 
     // Artwork (shape "art": an icon, or an SVG picture turned into shapes)
     // scales like a picture: its line weight grows and shrinks with it, and

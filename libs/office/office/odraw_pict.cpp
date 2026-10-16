@@ -4,6 +4,8 @@
 
 #include "office/odraw_pict.h"
 
+#include "core/drawnwords.h"
+
 #include "render/paintwork.h"
 
 #include <QFont>
@@ -213,6 +215,11 @@ private:
         }
         p->end();
         p = nullptr;
+        // The words it drew are kept with the pixels, as shares of the image, for a PDF to say them as text.
+        QVector<DrawnWord> shares;
+        for (const Word &w : std::as_const(words))
+            shares.push_back({w.text, w.family, QPointF((w.at.x() - f.left()) / f.width(), (w.at.y() - f.top()) / f.height()), w.size / f.height(), w.bold, w.italic});
+        if (const QString kept = drawnWordsToText(shares); !kept.isEmpty()) image.setText(QString::fromLatin1(kDrawnWordsKey), kept);
         // A picture that draws nothing, or can't be followed from its start, is none.
         return drew ? image : QImage();
     }
@@ -587,6 +594,7 @@ private:
         p->setFont(used.font);
         p->setPen(fore);
         p->drawText(QPointF(h, v), s);
+        if (words.size() < kMaxDrawnWords) words.push_back({s.left(kMaxDrawnWordChars), family, QPointF(h, v), double(textSize), bool(face & 1), bool(face & 2)});
         pen.setX(h + width);
         return true;
     }
@@ -714,6 +722,14 @@ private:
     QRectF lastRect;
     QPointF angles;
     QPainterPath lastPolygon, lastRegion;
+    // The strings drawn so far, in the picture's units.
+    struct Word {
+        QString text, family;
+        QPointF at;
+        double size = 0;
+        bool bold = false, italic = false;
+    };
+    QVector<Word> words;
 };
 
 } // namespace

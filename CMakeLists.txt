@@ -120,7 +120,22 @@ target_link_libraries(jeffpub PRIVATE jpcore)
 set_target_properties(jeffpub PROPERTIES OUTPUT_NAME "JeffPub")
 
 enable_testing()
-qt_add_executable(jptests tests/tests.cpp)
+qt_add_executable(jptests
+  tests/testrunner.cpp
+  tests/pub/pubhelpers.cpp
+  tests/pub/tst_pub_commands.cpp
+  tests/pub/tst_pub_export.cpp
+  tests/pub/tst_pub_file.cpp
+  tests/pub/tst_pub_find.cpp
+  tests/pub/tst_pub_fonts.cpp
+  tests/pub/tst_pub_objects.cpp
+  tests/pub/tst_pub_pages.cpp
+  tests/pub/tst_pub_pdf.cpp
+  tests/pub/tst_pub_pictures.cpp
+  tests/pub/tst_pub_tables.cpp
+  tests/pub/tst_pub_text.cpp
+  tests/pub/tst_pub_update.cpp
+  tests/pub/tst_pub_window.cpp)
 target_link_libraries(jptests PRIVATE jpcore jp_libmspub Qt6::Test)
 # libmspub's shape table, for checking its defaults against Publisher's.
 target_include_directories(jptests PRIVATE ${CMAKE_SOURCE_DIR}/third_party/libmspub/src ${CMAKE_SOURCE_DIR}/third_party/compat)
@@ -137,7 +152,20 @@ add_test(NAME jptests COMMAND jptests)
 set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # The tests of libs/office, which need none of the app.
-qt_add_executable(officetests tests/office/tst_office.cpp)
+qt_add_executable(officetests
+  tests/testrunner.cpp
+  tests/office/officehelpers.cpp
+  tests/office/tst_office_chart.cpp
+  tests/office/tst_office_dmlfill.cpp
+  tests/office/tst_office_dmlgeometry.cpp
+  tests/office/tst_office_dmlshape.cpp
+  tests/office/tst_office_dmltable.cpp
+  tests/office/tst_office_dmlwrite.cpp
+  tests/office/tst_office_fonts.cpp
+  tests/office/tst_office_odraw.cpp
+  tests/office/tst_office_package.cpp
+  tests/office/tst_office_text.cpp
+  tests/office/tst_office_theme.cpp)
 target_link_libraries(officetests PRIVATE jo_office Qt6::Test)
 set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME officetests COMMAND officetests)
@@ -210,7 +238,30 @@ if(WIN32)
 endif()
 target_link_libraries(jeffdeck PRIVATE jdcore)
 set_target_properties(jeffdeck PROPERTIES OUTPUT_NAME JeffDeck)
-qt_add_executable(jdtests tests/deck/tst_deck.cpp)
+qt_add_executable(jdtests
+  tests/testrunner.cpp
+  tests/deck/deckhelpers.cpp
+  tests/deck/tst_deck_animation.cpp
+  tests/deck/tst_deck_binaryimport.cpp
+  tests/deck/tst_deck_binaryshapes.cpp
+  tests/deck/tst_deck_file.cpp
+  tests/deck/tst_deck_fonts.cpp
+  tests/deck/tst_deck_master.cpp
+  tests/deck/tst_deck_media.cpp
+  tests/deck/tst_deck_odp.cpp
+  tests/deck/tst_deck_output.cpp
+  tests/deck/tst_deck_pptxexport.cpp
+  tests/deck/tst_deck_pptximport.cpp
+  tests/deck/tst_deck_pptxobjects.cpp
+  tests/deck/tst_deck_review.cpp
+  tests/deck/tst_deck_slidelist.cpp
+  tests/deck/tst_deck_slideshow.cpp
+  tests/deck/tst_deck_tablelimits.cpp
+  tests/deck/tst_deck_tables.cpp
+  tests/deck/tst_deck_texteffects.cpp
+  tests/deck/tst_deck_themes.cpp
+  tests/deck/tst_deck_transitions.cpp
+  tests/deck/tst_deck_window.cpp)
 target_link_libraries(jdtests PRIVATE jdcore Qt6::Test)
 target_compile_definitions(jdtests PRIVATE JD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(jdtests PROPERTIES WIN32_EXECUTABLE OFF)

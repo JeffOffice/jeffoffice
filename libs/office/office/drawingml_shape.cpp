@@ -172,6 +172,7 @@ struct BodyProperties {
     double columnGap = 0;
     bool vertical = false;
     bool noWrap = false;        // wrap="none"
+    bool centerBlock = false;   // anchorCtr="1"
 };
 
 BodyProperties readBodyProperties(const QVector<QDomElement> &bodyPrs)
@@ -196,6 +197,7 @@ BodyProperties readBodyProperties(const QVector<QDomElement> &bodyPrs)
     if (find("spcCol", &v)) b.columnGap = std::clamp(parseLength(v, 0), 0.0, 1000.0);
     if (find("vert", &v)) b.vertical = v != QLatin1String("horz");
     if (find("wrap", &v)) b.noWrap = v == QLatin1String("none");
+    if (find("anchorCtr", &v)) b.centerBlock = v == QLatin1String("1") || v == QLatin1String("true");
     for (const QDomElement &e : bodyPrs) {
         const QDomElement norm = childNamed(e, "normAutofit"), grow = childNamed(e, "spAutoFit"), none = childNamed(e, "noAutofit");
         if (!norm.isNull()) {
@@ -591,6 +593,11 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     base.insets = props.insets;
     base.valign = props.valign;
     base.noWrap = props.noWrap;
+    base.centerBlock = props.centerBlock;
+    // Text the program shrank to fit keeps the scale it was given (a:normAutofit's fontScale and lnSpcReduction).
+    base.shrinks = props.autofit == TextItem::ShrinkOnOverflow;
+    base.fitScale = props.fitScale;
+    base.fitLineCut = props.fitLineCut;
     base.shape = QStringLiteral("rect");
     const QString libraryShape = shapeForPreset(prst);
     Geometry geometry;
@@ -684,6 +691,7 @@ ItemPtr Reader::makeTextBox(const QDomElement &cNvPr, const Frame &frame, const 
     t->columnGap = props.columnGap;
     t->vertical = props.vertical;
     t->noWrap = props.noWrap;
+    t->centerBlock = props.centerBlock;
     if (m_ctx.newStory) {
         t->storyId = m_ctx.newStory();
         fillText(body, t->storyId, style);
