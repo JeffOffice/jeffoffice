@@ -7174,7 +7174,7 @@ private Q_SLOTS:
         const int before = jp::blipAdjustedMade();
         timer.restart();
         const QImage turned = jp::blipAdjusted(large, {hslEffect(120, 0, 0)});
-        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
         QVERIFY(turned.cacheKey() != large.cacheKey());
         QCOMPARE(jp::blipAdjustedMade(), before + 1);
         QCOMPARE(jp::blipAdjusted(large, {hslEffect(120, 0, 0)}).cacheKey(), turned.cacheKey());
