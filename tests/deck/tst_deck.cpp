@@ -22829,6 +22829,66 @@ private Q_SLOTS:
         QVERIFY2(hyphenated, qPrintable(publication.join('|')));
     }
 
+    // A shape that says its text shrinks to fit (a:normAutofit, here with the scale 62.5%) shows it at that scale: the size of its letters is the
+    // scale of the size the text has (24 points, drawn at 15), where a shape that doesn't say so keeps the size, and the scale is kept in the file.
+    void shapeTextOnASlideShrinksAsItsAutofitSays()
+    {
+        auto d = deck::newPresentation();
+        auto shape = [&](const char *name, bool shrinks) {
+            auto s = std::make_shared<ShapeItem>();
+            s->name = QString::fromLatin1(name);
+            s->shape = QStringLiteral("roundRect");
+            s->rect = QRectF(100, 100, 150, 60);
+            s->storyId = d->createStory();
+            QTextDocument *story = d->storyDoc(s->storyId);
+            story->setPlainText(QStringLiteral("alpha beta gamma delta epsilon zeta eta theta"));
+            QTextCursor c(story);
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontPointSize(24);
+            c.mergeCharFormat(f);
+            s->shrinks = shrinks;
+            s->fitScale = 0.625;
+            s->fitLineCut = 10;
+            d->pages[0]->items.push_back(s);
+            return s;
+        };
+        const auto plain = shape("Plain", false), shrunk = shape("Shrunk", true);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QPointF origin;
+        const auto big = Renderer::shapeTextLayout(ctx, *plain, &origin)->lineInfo(0), small = Renderer::shapeTextLayout(ctx, *shrunk, &origin)->lineInfo(0);
+        QVERIFY(!big.isEmpty() && !small.isEmpty());
+        QVERIFY2(qAbs(small[0].pointSize / big[0].pointSize - 0.625) < 0.01, qPrintable(QStringLiteral("%1 and %2").arg(small[0].pointSize).arg(big[0].pointSize)));
+        QVERIFY(small.size() < big.size());
+        // The scale is kept in the item's data, and in a .pptx (as a:normAutofit's fontScale and lnSpcReduction).
+        ShapeItem again;
+        again.fromJson(shrunk->toJson());
+        QVERIFY(again.shrinks && qAbs(again.fitScale - 0.625) < 1e-9 && qAbs(again.fitLineCut - 10) < 1e-9);
+        ShapeItem plainAgain;
+        plainAgain.fromJson(plain->toJson());
+        QVERIFY(!plainAgain.shrinks);
+        QString err;
+        auto back = viaPptx(*d, &err);
+        QVERIFY2(back, qPrintable(err));
+        int found = 0;
+        for (const auto &it : back->pages[0]->items) {
+            if (it->type() != ItemType::Shape) continue;
+            const auto *sh = static_cast<const ShapeItem *>(it.get());
+            if (it->name == QLatin1String("Shrunk")) {
+                ++found;
+                QVERIFY(sh->shrinks);
+                QVERIFY(qAbs(sh->fitScale - 0.625) < 0.01 && qAbs(sh->fitLineCut - 10) < 0.5);
+            } else if (it->name == QLatin1String("Plain")) {
+                ++found;
+                QVERIFY(!sh->shrinks);
+            }
+        }
+        QCOMPARE(found, 2);
+    }
+
     // The same, in a shape that holds text: its frame has the flag too, and its text is set unwrapped.
     void importBinaryShapesWithNoWrapSetTheirTextOnOneLine()
     {
