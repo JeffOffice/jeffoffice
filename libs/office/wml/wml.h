@@ -347,6 +347,39 @@ HeaderRefs headerRefsOf(const SectionProps &section);
 // is. False, with nothing read, when the part isn't XML.
 bool readBlocks(const QByteArray &xml, QVector<Block> *blocks);
 
+// A drawn object of a run: a picture, a rule, a box, or a text box, read from the VML of a w:pict (or an object) or the DrawingML of a w:drawing. Sizes are
+// points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.
+struct Shape {
+    enum Kind { Picture, Rect, Oval, Line, TextBox };
+    enum Rel { Margin, Page, Column, Paragraph, LineOf, Character };
+    enum Align { NoAlign, Start, Center, End };
+    enum Wrap { WrapNone, Square, Tight, TopBottom };
+    Kind kind = Rect;
+    bool floating = false;
+    double width = 0, height = 0;
+    double left = 0, top = 0;             // from the reference, when the object is not aligned
+    double x1 = 0, y1 = 0, x2 = 0, y2 = 0;   // a line's ends from the anchor
+    Rel hRel = Column, vRel = Paragraph;
+    Align hAlign = NoAlign, vAlign = NoAlign;
+    bool behind = false;                  // set behind the text
+    int z = 0;
+    Wrap wrap = WrapNone;
+    double gapLeft = 9, gapRight = 9, gapTop = 0, gapBottom = 0;   // room the wrapping text leaves
+    bool filled = false, stroked = false;
+    QString fillColor, strokeColor;       // "RRGGBB", or empty
+    double strokeWeight = 0.75;
+    double rotation = 0;
+    bool flipH = false, flipV = false;
+    bool arrowEnd = false, arrowStart = false;
+    QString embed;                        // a picture's relationship Id
+    QString alt;                          // its description
+    QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
+    double inset[4] = {7.2, 3.6, 7.2, 3.6};   // left, top, right, bottom
+};
+// The objects of a w:pict, w:drawing, or mc:AlternateContent element kept as written (a run's atom): in order, nested ones (a group's members) after it.
+// A VML shape that is only a template (a shape type) is none.
+QVector<Shape> readShapes(const QByteArray &xml);
+
 // A footnote or endnote of footnotes.xml or endnotes.xml: its Id, its type (empty for an ordinary note; "separator", "continuationSeparator", and
 // "continuationNotice" for the paragraphs the program sets between the text and the notes), and what it holds.
 struct NotePart {
