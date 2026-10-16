@@ -150,11 +150,33 @@ const QStringList &dateTimeFormats()
     return formats;
 }
 
-QString FieldContext::key() const
+bool storyHasClock(const QTextDocument *doc, const FieldSource *notes)
+{
+    auto scan = [](const QTextDocument *d, QStringList *noteStories) {
+        for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString field = it.fragment().charFormat().stringProperty(tp::Field);
+                if (field.isEmpty()) continue;
+                const QString kind = field.section(QLatin1Char(':'), 0, 0);
+                if (kind == QLatin1String("date") || kind == QLatin1String("time") || kind == QLatin1String("datetime")) return true;
+                if (noteStories && (kind == QLatin1String("footnote") || kind == QLatin1String("endnote"))) *noteStories << field.section(QLatin1Char(':'), 1);
+            }
+        return false;
+    };
+    QStringList noteStories;
+    if (scan(doc, notes ? &noteStories : nullptr)) return true;
+    // (A note's own notes are not laid out, so a note is looked at for its own fields only.)
+    for (const QString &id : noteStories)
+        if (const QTextDocument *nd = notes->storyDoc(id))
+            if (scan(nd, nullptr)) return true;
+    return false;
+}
+
+QString FieldContext::key(bool withClock) const
 {
     // With Format Page Numbers' settings, which change every page number.
     return QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9").arg(pageNumber).arg(pageCount).arg(mergeRecord).arg(continuedOnPage).arg(continuedFromPage)
-        .arg(nextPage).arg(prevPage).arg(now.toString("yyyyMMddhhmm"))
+        .arg(nextPage).arg(prevPage).arg(withClock ? now.toString("yyyyMMddhhmm") : QString())
         .arg(doc ? QString::number(doc->firstPageNumber()) + doc->pageNumberFormat() : QString());
 }
 

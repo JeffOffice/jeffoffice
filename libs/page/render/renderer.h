@@ -5,6 +5,7 @@
 #include "core/document.h"
 #include "text/textengine.h"
 
+#include <QDateTime>
 #include <QHash>
 #include <QPainterPath>
 #include <functional>
@@ -18,6 +19,9 @@ struct RenderOptions {
     bool output = false;          // printing/exporting: no placeholders or screen-only marks
     TextOutput textOutput = TextOutput::Picture;   // what the text is drawn for (a PDF export, the printer, or a screen or picture)
     int mergeRecord = -1;
+    // The time the date and time fields show; unset, the time on the clock. A test, or a caller that needs
+    // every page of a long job to say the same minute, sets it.
+    QDateTime now;
     bool shadeFields = false;
     bool showSpecial = false;
     bool tableGridlines = true;   // dotted gridlines on borderless tables (screen only)
@@ -49,9 +53,13 @@ public:
     FrameLayout textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt);
     // Layout for a single story in one box (shape text, table cells).
     const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key);
-    void clear() { m_entries.clear(); }
+    void clear() { m_entries.clear(); m_clocks.clear(); }
 
 private:
+    // Whether a story shows the date or time, found again when the story changes.
+    bool showsClock(const Document &doc, const Story &story);
+    struct ClockNote { int revision = -1; bool shows = false; };
+    QHash<quint64, ClockNote> m_clocks;   // by story serial
     struct Entry {
         QString sig;
         std::shared_ptr<StoryLayout> layout;

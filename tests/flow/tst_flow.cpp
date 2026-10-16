@@ -198,6 +198,85 @@ private Q_SLOTS:
         for (const QString &id : ids) QVERIFY(d->find(id).item);
         QCOMPARE(d->findScansForTest(), mid);
     }
+
+    // The layout cache's key held the minute, so a long story was laid out again every minute it was
+    // on screen. It holds it only for a story with a date or time field in it.
+    void layoutDoesNotFollowTheClockWithoutAClockField()
+    {
+        auto d = Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 1);
+        const QString sid = d->createStory(QStringLiteral("Just words, no field at all."));
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(72, 72, 300, 200);
+        box->storyId = sid;
+        d->pages[0]->items.push_back(box);
+        LayoutCache cache;
+        RenderOptions opt;
+        opt.now = QDateTime(QDate(2026, 10, 16), QTime(12, 0));
+        const StoryLayout *first = cache.textFrame(*d, *box, 1, opt).layout;
+        QVERIFY(first);
+        opt.now = QDateTime(QDate(2026, 10, 16), QTime(12, 1));
+        QCOMPARE(cache.textFrame(*d, *box, 1, opt).layout, first);   // the same layout: not made again
+        // Still made again for what does change it.
+        d->storyDoc(sid)->setPlainText(QStringLiteral("Other words."));
+        const StoryLayout *edited = cache.textFrame(*d, *box, 1, opt).layout;
+        opt.now = QDateTime(QDate(2026, 10, 16), QTime(12, 2));
+        QCOMPARE(cache.textFrame(*d, *box, 1, opt).layout, edited);
+    }
+
+    void layoutFollowsTheClockWithADateOrTimeField()
+    {
+        for (const char *kind : {"time", "date", "datetime", "time:HH:mm"}) {
+            auto d = Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 1);
+            const QString sid = d->createStory(QStringLiteral("Printed at "));
+            QTextCursor c(d->storyDoc(sid));
+            c.movePosition(QTextCursor::End);
+            QTextCharFormat field;
+            field.setProperty(tp::Field, QString::fromLatin1(kind));
+            c.insertText(QString(QChar(0xFFFC)), field);
+            auto box = std::make_shared<TextItem>();
+            box->rect = QRectF(72, 72, 300, 200);
+            box->storyId = sid;
+            d->pages[0]->items.push_back(box);
+            LayoutCache cache;
+            RenderOptions opt;
+            opt.now = QDateTime(QDate(2026, 10, 16), QTime(12, 0));
+            const StoryLayout *a = cache.textFrame(*d, *box, 1, opt).layout;
+            QVERIFY(a);
+            QCOMPARE(cache.textFrame(*d, *box, 1, opt).layout, a);   // the same minute: kept
+            opt.now = QDateTime(QDate(2026, 10, 17), QTime(13, 5));
+            const StoryLayout *b = cache.textFrame(*d, *box, 1, opt).layout;
+            QVERIFY2(b != a, kind);
+            QCOMPARE(cache.textFrame(*d, *box, 1, opt).layout, b);
+        }
+    }
+
+    // A note's own text is laid out with the story's clock, so a date in a note counts too.
+    void layoutFollowsTheClockWithADateInANote()
+    {
+        auto d = Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 1);
+        const QString note = d->createStory(QStringLiteral("As of "));
+        QTextCursor nc(d->storyDoc(note));
+        nc.movePosition(QTextCursor::End);
+        QTextCharFormat date;
+        date.setProperty(tp::Field, QStringLiteral("date"));
+        nc.insertText(QString(QChar(0xFFFC)), date);
+        const QString sid = d->createStory(QStringLiteral("Body text"));
+        QTextCursor c(d->storyDoc(sid));
+        c.movePosition(QTextCursor::End);
+        QTextCharFormat ref;
+        ref.setProperty(tp::Field, QStringLiteral("footnote:") + note);
+        c.insertText(QString(QChar(0xFFFC)), ref);
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(72, 72, 300, 200);
+        box->storyId = sid;
+        d->pages[0]->items.push_back(box);
+        LayoutCache cache;
+        RenderOptions opt;
+        opt.now = QDateTime(QDate(2026, 10, 16), QTime(12, 0));
+        const StoryLayout *a = cache.textFrame(*d, *box, 1, opt).layout;
+        opt.now = QDateTime(QDate(2026, 10, 17), QTime(13, 5));
+        QVERIFY(cache.textFrame(*d, *box, 1, opt).layout != a);
+    }
 };
 
 QTEST_MAIN(FlowTests)
