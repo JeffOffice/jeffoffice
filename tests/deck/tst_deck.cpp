@@ -23210,20 +23210,33 @@ private Q_SLOTS:
         QCOMPARE(kept[1], QColor(0, 0, 128));
     }
 
-    // A file with a pattern fill for each of hundreds of colors makes a picture for no more than 200 of them (and none of a big bitmap):
-    // the others keep the bitmap, so no file can make the reader do the work again and again.
+    // A file with a pattern fill for each of hundreds of colors makes a picture for no more than 200 of them: the others keep the bitmap, so
+    // no file can make the reader do the work again and again. A bitmap bigger than a pattern (257 by 256, 65,792 pixels, past the 65,536 a
+    // pattern may have) is a picture, and keeps its pixels.
     void importBinaryPatternsInManyColorsAreBounded()
     {
         QByteArray dib = le(40, 4) + le(8, 4) + le(8, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(32, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
                          + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
         for (int row = 0; row < 8; ++row) dib += raw({0x0F, 0, 0, 0});
         const QByteArray blip = pptRec(0xF01F, QByteArray(16, 'u') + QByteArray(1, '\xFF') + dib, 0x7A0);
-        const QByteArray entry = pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, 's') + le(0xFF, 2) + le(quint32(blip.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + blip, 6, 2);
-        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry, 1)));
+        // The big one: 257 pixels a row (36 bytes with the padding), 256 rows, all of its bits set (black).
+        QByteArray bigDib = le(40, 4) + le(257, 4) + le(256, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(0, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                            + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        bigDib += QByteArray(36 * 256, '\xFF');
+        const QByteArray bigBlip = pptRec(0xF01F, QByteArray(16, 'v') + QByteArray(1, '\xFF') + bigDib, 0x7A0);
+        auto storeEntry = [&](const QByteArray &record, char uid) {
+            return pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, uid) + le(0xFF, 2) + le(quint32(record.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + record, 6, 2);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, storeEntry(blip, 's') + storeEntry(bigBlip, 't'), 2)));
         QByteArray shapes;
         for (int i = 0; i < 400; ++i) {
             const QByteArray props = le(0x0180, 2) + le(1, 4) + le(0x4186, 2) + le(1, 4) + le(0x0181, 2) + le(quint32(0x010000 + i * 0x300), 4) + le(0x01BF, 2) + le(0x00100010, 4);
             shapes += pptBox(0xF004, pptRec(0xF00A, le(0x500 + i, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 4, 3) + pptRec(0xF010, le(100, 2) + le(100, 2) + le(300, 2) + le(300, 2)));
+        }
+        {
+            // The last shape's pattern is the big bitmap, in a color of its own.
+            const QByteArray props = le(0x0180, 2) + le(1, 4) + le(0x4186, 2) + le(2, 4) + le(0x0181, 2) + le(0x0000FF, 4) + le(0x0183, 2) + le(0xFF0000, 4) + le(0x01BF, 2) + le(0x00100010, 4);
+            shapes += pptBox(0xF004, pptRec(0xF00A, le(0x900, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 5, 3) + pptRec(0xF010, le(400, 2) + le(100, 2) + le(600, 2) + le(300, 2)));
         }
         QString err;
         QElapsedTimer timer;
@@ -23231,11 +23244,20 @@ private Q_SLOTS:
         auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
         QVERIFY2(d, qPrintable(err));
         QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
-        QVERIFY2(d->images.size() <= 202, qPrintable(QString::number(d->images.size())));
+        QVERIFY2(d->images.size() <= 203, qPrintable(QString::number(d->images.size())));
         QVERIFY(d->images.size() >= 100);
         int tiles = 0;
         for (const auto &it : d->pages[0]->items) tiles += it->fill.type == Fill::Texture;
-        QCOMPARE(tiles, 400);
+        QCOMPARE(tiles, 401);
+        // The big bitmap is as the file has it: its size, and black (not the shape's red or blue).
+        const Item *big = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->fill.type == Fill::Texture) big = it.get();
+        QVERIFY(big);
+        const QImage bitmap = d->image(big->fill.imageId);
+        QCOMPARE(bitmap.size(), QSize(257, 256));
+        QCOMPARE(bitmap.pixelColor(0, 0), QColor(Qt::black));
+        QCOMPARE(bitmap.pixelColor(256, 255), QColor(Qt::black));
     }
 
     // Text in a symbol font shows the font's own pictures: a run that names a font for its symbols (character run, the fourth font reference)
