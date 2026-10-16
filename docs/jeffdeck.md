@@ -82,6 +82,13 @@ libs/base            colors, fonts, files, PDF
   made of in the page's `props` ("charts", each with a "kind"); saving writes
   the real thing again. A duplicated slide keeps them; a copy of the picture
   pasted on a slide is only a picture.
+- **An old .ppt is read as the program draws it.** A pattern fill is the
+  bitmap's white in the fill color and its black in the back color; the
+  drawing group's default property tables are not read (the program draws a
+  shape from its own properties and its master's); a gradient that names no
+  shade type is curved (gamma and sigma) when opaque and straight when a color
+  is clear in part; text in a symbol font (Symbol, Wingdings) is the Unicode
+  character that looks like it (`symbolTextToUnicode`).
 - **Text is set as on a slide.** A presentation's `Document::slideText`
   switches the shared text engine to the presentation program's rules: a
   single line is 1.2 times the text size whatever the font, a wider line's
