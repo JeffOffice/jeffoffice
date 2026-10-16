@@ -143,6 +143,13 @@ set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME officetests COMMAND officetests)
 set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# The tests of the word processing XML (libs/office/wml): the tree it is read into, and reading and writing a .docx.
+qt_add_executable(wmltests tests/office/tst_wml.cpp)
+target_link_libraries(wmltests PRIVATE jo_office Qt6::Test)
+set_target_properties(wmltests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME wmltests COMMAND wmltests)
+set_tests_properties(wmltests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # The tests of libs/flow and of the changes below it that it needs.
 qt_add_executable(flowtests tests/flow/tst_flow.cpp)
 target_link_libraries(flowtests PRIVATE jo_flow Qt6::Test)
