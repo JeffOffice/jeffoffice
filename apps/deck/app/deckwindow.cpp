@@ -276,7 +276,7 @@ void DeckWindow::refreshUi()
     const MasterPage *open = m_view == View::Master && d ? d->master(ed->masterView()) : nullptr;
     m_slideLabel->setText(open ? (deck::isSlideMaster(*open) ? tr("Slide master: %1") : tr("Layout: %1")).arg(open->name) : tr("Slide %1 of %2").arg(ed->currentPage() + 1).arg(n));
     m_slideLabel->setMinimumWidth(std::max(110, m_slideLabel->fontMetrics().horizontalAdvance(m_slideLabel->text()) + 12));
-    act("slide.delete")->setEnabled(n > 1);
+    act("slide.delete")->setEnabled(n > 1 && m_view != View::Master);
     act("slide.hide")->setChecked(n && d->pages[std::clamp(ed->currentPage(), 0, n - 1)]->hidden);
     act("edit.undo")->setEnabled(ed->undoStack()->canUndo());
     act("edit.redo")->setEnabled(ed->undoStack()->canRedo());

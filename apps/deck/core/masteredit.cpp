@@ -4,6 +4,7 @@
 #include "text/storyio.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QJsonDocument>
 #include <QSet>
 #include <QTextCursor>
@@ -364,7 +365,9 @@ void carryMasterEdits(Document &now, const Document &before)
 
     // What the old placeholder looked like, as a placeholder of `now` (its text copied into a story of its own, taken away at the end).
     QStringList borrowed;
+    QHash<const Item *, ItemPtr> lent;   // each once, however many slides stand on it
     auto lend = [&](const Item &old) {
+        if (const auto found = lent.constFind(&old); found != lent.cend()) return found.value();
         ItemPtr copy = old.clone();
         if (copy->type() == ItemType::Text) {
             auto *t = static_cast<TextItem *>(copy.get());
@@ -373,6 +376,7 @@ void carryMasterEdits(Document &now, const Document &before)
             t->storyId = story;
             borrowed << story;
         }
+        lent.insert(&old, copy);
         return copy;
     };
 

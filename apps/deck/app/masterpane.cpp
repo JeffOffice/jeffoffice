@@ -8,6 +8,7 @@
 #include "text/storyio.h"
 
 #include <QAction>
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QPainter>
@@ -154,7 +155,7 @@ void MasterPane::rebuild()
         }
         seen.insert(page.id, look);
         const int depth = deck::isSlideMaster(page) ? 0 : 1;
-        it->setText(page.name);
+        it->setText(QCoreApplication::translate("Ribbon", page.name.toUtf8().constData()));   // the standard layouts' names, as the gallery shows them
         it->setData(IdRole, page.id);
         it->setData(DepthRole, depth);
         it->setData(Qt::AccessibleTextRole, depth == 0 ? tr("Slide master %1").arg(page.name) : tr("Layout %1").arg(page.name));

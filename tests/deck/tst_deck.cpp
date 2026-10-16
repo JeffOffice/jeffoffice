@@ -19,6 +19,7 @@
 #include "app/mediaplayer.h"
 #include "app/onlinepictures.h"
 #include "app/iconpicker.h"
+#include "app/masterdialogs.h"
 #include "app/masterpane.h"
 #include "app/morph.h"
 #include "app/icons.h"
@@ -21591,6 +21592,73 @@ private Q_SLOTS:
         QVERIFY(!deck::exportPresentation(*d).isEmpty());
     }
 
+    // The slide master that has the presentation's theme can be deleted once no slide stands on it: the next slide master's theme becomes the
+    // presentation's.
+    void deletingTheFirstSlideMasterHandsOnTheThemeOfTheNext()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"});
+        Document *d = w.editor()->doc();
+        const QString first = deck::themeOf(*d).name;
+        // Both slides go to a slide master of a theme of their own (the second time reuses the first's).
+        w.editor()->setCurrentPage(0);
+        w.applyTheme(1, false);
+        w.editor()->setCurrentPage(1);
+        w.applyTheme(1, false);
+        QCOMPARE(deck::themeOf(*d).name, first);
+        QString second;
+        for (const auto &m : d->masters)
+            if (deck::isSlideMaster(*m) && m->id != QLatin1String("SM1")) second = m->id;
+        QVERIFY(!second.isEmpty());
+        QCOMPARE(deck::slideMasterOf(*d, 0), second);
+        QCOMPARE(deck::slideMasterOf(*d, 1), second);
+        QString why;
+        QVERIFY2(w.deleteMasterPage(QStringLiteral("SM1"), &why), qPrintable(why));
+        QCOMPARE(deck::themeOf(*d).name, deck::builtinThemeName(1));
+        QCOMPARE(deck::themeOf(*d).headingFont, deck::builtinThemeFonts(1).heading);
+        QCOMPARE(d->fonts.heading, deck::builtinThemeFonts(1).heading);
+        // Saved and read again, the presentation has that theme.
+        auto back = throughPptx(*d);
+        QVERIFY(back);
+        QCOMPARE(deck::themeOf(*back).headingFont, deck::builtinThemeFonts(1).heading);
+        QCOMPARE(int(deck::layouts(*back).size()), 9);
+    }
+
+    // The commands that work on a slide wait while a master or layout is open, and come back as they were (Delete Slide stays off in a
+    // presentation of one slide).
+    void slideCommandsComeBackWithTheirOwnState()
+    {
+        DeckWindow w;
+        QVERIFY(!w.act(QStringLiteral("slide.delete"))->isEnabled());
+        w.editMasters();
+        for (const char *id : {"slide.new", "slide.duplicate", "slide.reset", "insert.headerFooter", "insert.video", "section.add", "comment.new"})
+            QVERIFY2(!w.act(QString::fromLatin1(id))->isEnabled(), id);
+        w.closeMasters();
+        for (const char *id : {"slide.new", "slide.duplicate", "slide.reset", "insert.headerFooter", "insert.video", "section.add", "comment.new"})
+            QVERIFY2(w.act(QString::fromLatin1(id))->isEnabled(), id);
+        QVERIFY(!w.act(QStringLiteral("slide.delete"))->isEnabled());
+        w.newSlide();
+        w.editMasters();
+        QVERIFY(!w.act(QStringLiteral("slide.delete"))->isEnabled());
+        w.closeMasters();
+        QVERIFY(w.act(QStringLiteral("slide.delete"))->isEnabled());
+    }
+
+    // Master Layout's dialog has a box for each place of the slide master, and says which are checked.
+    void masterLayoutDialogHasABoxForEachPlace()
+    {
+        deck::MasterParts parts;
+        parts.title = parts.date = true;
+        MasterLayoutDialog dlg(parts);
+        QCOMPARE(dlg.findChildren<QCheckBox *>().size(), 5);
+        QCOMPARE(dlg.parts(), parts);
+        dlg.findChild<QCheckBox *>(QStringLiteral("footer"))->setChecked(true);
+        dlg.findChild<QCheckBox *>(QStringLiteral("title"))->setChecked(false);
+        parts.footer = true;
+        parts.title = false;
+        QCOMPARE(dlg.parts(), parts);
+    }
+
     // Rename changes the name of a slide master or layout, as one step; nothing is renamed to nothing.
     void masterPagesAreRenamed()
     {
@@ -22044,12 +22112,143 @@ private Q_SLOTS:
         QCOMPARE(w.editor()->masterView(), layout);
     }
 
+    // The presentations a person checks in the other program (saved into the folder JP_SHOT_DIR names, when it is set): an edited slide master, a
+    // second slide master with a custom layout, every kind of placeholder, a slide master without its places, one with the first slide master
+    // deleted, and a slide that hides the background graphics. Each is saved, read again, and found as it was.
+    void savedMasterCasesForTheOtherProgram()
+    {
+        const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+        auto save = [&](Document &d, const QString &name) {
+            QString err;
+            const QByteArray bytes = deck::exportPresentation(d, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            if (dir.isEmpty()) return;
+            QDir().mkpath(dir);
+            QFile f(dir + QLatin1Char('/') + name + QStringLiteral(".pptx"));
+            if (f.open(QIODevice::WriteOnly)) f.write(bytes);
+        };
+        auto band = [](const QRectF &r, const QColor &c) {
+            auto b = std::make_shared<ShapeItem>();
+            b->shape = QStringLiteral("rect");
+            b->name = QStringLiteral("Band");
+            b->rect = r;
+            b->fill = Fill::solid(ColorRef::rgb(c));
+            b->stroke = Stroke();
+            return b;
+        };
+        {   // The slide master's title in another font and size, and a slide of its own.
+            DeckWindow w;
+            fillSlides(w, {"Opening", "Following the master", "Setting its own"}, {{"sub"}, {"Body text"}, {"Body text"}});
+            Document *d = w.editor()->doc();
+            QTextCursor c(d->storyDoc(holderOn(*d->pages[2], QStringLiteral("title"))->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat own;
+            own.setFontFamilies({QStringLiteral("Courier New")});
+            c.mergeCharFormat(own);
+            w.editMasters(QStringLiteral("SM1"));
+            w.editor()->select(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("title"))->id);
+            w.editor()->setFontFamily(QStringLiteral("Georgia"));
+            w.editor()->setFontSize(36);
+            w.editor()->toggleBold();
+            w.closeMasters();
+            save(*d, QStringLiteral("master-edited-title"));
+            auto back = throughPptx(*d);
+            QVERIFY(back);
+            QCOMPARE(familyOfHolder(*back, *holderOn(*back->master(back->masters[0]->id), QStringLiteral("title"))), QStringLiteral("Georgia"));
+            QCOMPARE(familyOfHolder(*back, *holderOn(*back->pages[1], QStringLiteral("title"))), QStringLiteral("Georgia"));
+            QCOMPARE(familyOfHolder(*back, *holderOn(*back->pages[2], QStringLiteral("title"))), QStringLiteral("Courier New"));
+        }
+        {   // A second slide master with a custom layout: a chart place, a text place, a bar, no master graphics; not preserved.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editMasters(QStringLiteral("SM1"));
+            w.editor()->addItem(band(QRectF(0, 0, 960, 12), QColor(0x2B, 0x7A, 0x78)), false);
+            const QString second = w.insertSlideMaster();
+            w.renameMasterPage(second, QStringLiteral("Annual Report"));
+            const QString custom = w.insertLayout();
+            w.renameMasterPage(custom, QStringLiteral("Big Chart"));
+            w.insertPlaceholder(deck::PlaceholderKind::Chart);
+            w.insertPlaceholder(deck::PlaceholderKind::Text);
+            w.editor()->addItem(band(QRectF(0, 520, 960, 20), QColor(0xAA, 0x22, 0x22)), false);
+            w.hideBackgroundGraphics(true);
+            w.setPreserve(second, false);
+            w.closeMasters();
+            w.editor()->setCurrentPage(1);
+            w.setLayout(QStringLiteral("id:") + custom);
+            save(*d, QStringLiteral("master-second-master-custom-layout"));
+        }
+        {   // A layout with a place of every kind, and a slide on it.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editMasters(deck::layoutOfType(*d, QStringLiteral("titleOnly"))->id);
+            for (auto kind : {deck::PlaceholderKind::Content, deck::PlaceholderKind::Text, deck::PlaceholderKind::Picture, deck::PlaceholderKind::Chart, deck::PlaceholderKind::Table,
+                              deck::PlaceholderKind::Media, deck::PlaceholderKind::OnlineImage}) {
+                const QString id = w.insertPlaceholder(kind);
+                const double n = d->item(id)->role.section(':', 2).toDouble();
+                d->item(id)->rect = QRectF(40 + 90 * (n - 1), 200, 80, 120);
+            }
+            const QString layout = w.editor()->masterView();
+            w.closeMasters();
+            w.editor()->setCurrentPage(1);
+            w.setLayout(QStringLiteral("id:") + layout);
+            save(*d, QStringLiteral("master-every-kind-of-place"));
+            auto back = throughPptx(*d);
+            QVERIFY(back);
+            int kinds = 0;
+            for (const char *type : {"obj", "body", "pic", "chart", "tbl", "media", "clipArt"})
+                if (holderOn(*back->masterFor(*back->pages[1]), QString::fromLatin1(type))) ++kinds;
+            QCOMPARE(kinds, 6);   // (a content place reads back as a text place of the same number: both are a place with no type)
+        }
+        {   // A slide master without its text, date, and footer places.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editMasters(QStringLiteral("SM1"));
+            deck::MasterParts parts = deck::masterParts(*d->master(QStringLiteral("SM1")));
+            parts.text = parts.date = parts.footer = false;
+            w.setMasterParts(parts);
+            w.closeMasters();
+            save(*d, QStringLiteral("master-without-places"));
+        }
+        {   // The first slide master deleted, its theme handed on.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editor()->setCurrentPage(0);
+            w.applyTheme(1, false);
+            w.editor()->setCurrentPage(1);
+            w.applyTheme(1, false);
+            QString why;
+            QVERIFY2(w.deleteMasterPage(QStringLiteral("SM1"), &why), qPrintable(why));
+            save(*d, QStringLiteral("master-first-deleted"));
+        }
+        {   // A slide that hides the background graphics.
+            DeckWindow w;
+            fillSlides(w, {"One", "Two"});
+            Document *d = w.editor()->doc();
+            w.editMasters(QStringLiteral("SM1"));
+            w.editor()->addItem(band(QRectF(0, 480, 960, 60), QColor(0x65, 0x43, 0x21)), false);
+            w.closeMasters();
+            w.editor()->setCurrentPage(1);
+            w.hideBackgroundGraphics(true);
+            save(*d, QStringLiteral("slide-hides-background-graphics"));
+        }
+    }
+
     // Slide Master view as it looks, saved as pictures in the folder JP_SHOT_DIR names (for looking at it): the master with its layouts, a layout
     // being edited, and a slide that shows the change.
     void slideMasterViewLooksRight()
     {
         setUiDark(false);
         DeckWindow w;
+        // The window has settled (the ribbon has laid itself out) when the picture is taken.
+        auto look = [&w](const QString &name) {
+            if (qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) return;
+            QTest::qWait(150);   // only when looking: the layout and the timers have run
+            shot(&w, name);
+        };
         w.resize(1440, 900);
         w.show();
         fillSlides(w, {"Quarterly results", "Revenue by region", "Next steps"}, {{"Prepared for the board"}, {"North: up 8%", "South: flat", "West: up 12%"}, {"Hire two analysts", "Launch in March"}});
@@ -22058,12 +22257,12 @@ private Q_SLOTS:
         QVERIFY(QTest::qWaitForWindowExposed(&w));
         // The tabs that have the commands that open it and Hide Background Graphics.
         w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("View")));
-        shot(&w, QStringLiteral("master-view-view-tab"));
+        look(QStringLiteral("master-view-view-tab"));
         w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Design")));
-        shot(&w, QStringLiteral("master-view-design-tab"));
+        look(QStringLiteral("master-view-design-tab"));
         w.editMasters(QStringLiteral("SM1"));
         QTRY_COMPARE(w.masterPane()->ids().size(), 10);
-        shot(&w, QStringLiteral("master-view-master"));
+        look(QStringLiteral("master-view-master"));
         const QString layout = d->pages[1]->masterId;
         w.editMasters(layout);
         // A band down the left side, and a bold title in another font.
@@ -22081,11 +22280,11 @@ private Q_SLOTS:
         w.renameMasterPage(layout, QStringLiteral("Title, Text, and Picture"));
         w.editor()->clearSelection();
         QTRY_VERIFY(w.masterPane()->thumbnailRect(layout).isValid());
-        shot(&w, QStringLiteral("master-view-edited-layout"));
+        look(QStringLiteral("master-view-edited-layout"));
         w.closeMasters();
         QTRY_VERIFY(!w.slidesPane()->isHidden());
         w.slidesPane()->refresh();
-        shot(&w, QStringLiteral("master-view-slide"));
+        look(QStringLiteral("master-view-slide"));
         LayoutCache cache;
         PaintContext ctx;
         ctx.doc = d;
