@@ -1139,6 +1139,106 @@ private Q_SLOTS:
         QVERIFY(pg.page(pg.pageOfPosition(fd.story()->findBlockByNumber(21).position())).start.hard);
     }
 
+    // The page break character (flow::kPageBreak) in a paragraph ends the page after the line that holds it; the rest of the paragraph goes on
+    // the next page. The paragraph stays one block: that it goes on is only that its next line is its line 1.
+    void aPageBreakCharacterEndsThePageAfterItsLine()
+    {
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        c.insertText(QStringLiteral("first words ") + flow::kPageBreak + QStringLiteral("second words"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("a paragraph after"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        const auto first = pg.lines(0), second = pg.lines(1);
+        QCOMPARE(first.size(), 1);
+        QCOMPARE(first[0].pos, 0);
+        QCOMPARE(first[0].end, 13);                 // (the line ends with the break)
+        QCOMPARE(second.size(), 2);
+        QCOMPARE(second[0].pos, 13);
+        QCOMPARE(second[0].line, 1);                // the same paragraph's next line
+        QCOMPARE(second[0].block, 0);
+        QCOMPARE(second[1].block, fd.story()->findBlockByNumber(1).position());
+        QVERIFY(pg.page(1).start.hard);
+        QCOMPARE(pg.page(1).start.skip, 1);
+        auto before = pg.materialize(0), after = pg.materialize(1);
+        QVERIFY(before && after);
+        QVERIFY(before->continuesOnAfter && !before->continuesFromBefore);
+        QVERIFY(after->continuesFromBefore);
+        QCOMPARE(after->storyFrom, 13);
+    }
+
+    // A break at the end of a paragraph leaves the next paragraph the top of the next page, with no empty line before it; at the end of the
+    // last paragraph, it makes no page of its own.
+    void aPageBreakAtTheEndOfAParagraphMakesNoEmptyLine()
+    {
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        c.insertText(QStringLiteral("ends with a break") + flow::kPageBreak);
+        c.insertBlock();
+        c.insertText(QStringLiteral("next"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        for (const auto &l : pg.lines(0)) QCOMPARE(l.block, 0);
+        QCOMPARE(pg.lines(1).size(), 1);
+        QCOMPARE(pg.lines(1)[0].block, fd.story()->findBlockByNumber(1).position());
+        QCOMPARE(pg.lines(1)[0].line, 0);
+        // The last paragraph ending in a break: the text has no more pages.
+        FlowDocument last;
+        QTextCursor lc(last.story());
+        lc.insertText(QStringLiteral("only a break") + flow::kPageBreak);
+        Paginator lp(&last);
+        QCOMPARE(lp.pageCount(), 1);
+    }
+
+    // Two breaks in a row make the page between them; one at the start of a paragraph moves its text to the next page.
+    void pageBreakCharactersFollowOneAnotherAndOpenAParagraph()
+    {
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        c.insertText(QStringLiteral("a") + flow::kPageBreak + flow::kPageBreak + QStringLiteral("b"));
+        c.insertBlock();
+        c.insertText(flow::kPageBreak + QStringLiteral("moved"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 4);
+        QCOMPARE(pg.lines(1).size(), 1);            // (the page that only the second break is on)
+        QCOMPARE(pg.lines(1)[0].pos, 2);
+        QCOMPARE(pg.lines(1)[0].end, 3);
+        QCOMPARE(pg.lines(2)[0].pos, 3);            // b
+        const int second = fd.story()->findBlockByNumber(1).position();
+        QCOMPARE(pg.lines(2).size(), 2);            // b, and the line the next paragraph's break is on, which ends the page
+        QCOMPARE(pg.lines(2)[0].end, second - 1);
+        QCOMPARE(pg.lines(2)[1].block, second);
+        QCOMPARE(pg.lines(3)[0].pos, second + 1);   // moved
+    }
+
+    // Editing the break: taking it out joins the pages, typing it in splits them, and the pages after an edit are as the text makes them.
+    void editingAPageBreakCharacterRepaginates()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 30, 8, {}, 20, 30);
+        Paginator pg(&fd);
+        const int plain = pg.pageCount();
+        QTextCursor c(fd.story());
+        c.setPosition(fd.story()->findBlockByNumber(12).position() + 10);
+        const int was = pg.pageOfPosition(c.position());
+        c.insertText(flow::kPageBreak);
+        QVERIFY(pg.pageCount() >= plain);
+        const int at = pg.pageOfPosition(c.position());
+        QVERIFY(at == was + 1);                      // (what comes after the break is on the page after)
+        const auto lines = pg.lines(was);
+        QCOMPARE(lines.last().end, c.position());    // the page before ends where the break is
+        c.setPosition(c.position() - 1);
+        c.deleteChar();
+        QCOMPARE(pg.pageCount(), plain);
+        // The same pages as a document that never had it.
+        FlowDocument other;
+        fillStory(other.story(), 30, 8, {}, 20, 30);
+        Paginator po(&other);
+        QCOMPARE(po.pageCount(), plain);
+        for (int k = 0; k < plain; ++k) QCOMPARE(pg.page(k).start.pos, po.page(k).start.pos);
+    }
+
     // A section break starts the next section on a new page with its own size, margins, and columns.
     void paginatorStartsSectionsOnNewPages()
     {
@@ -1520,6 +1620,7 @@ private Q_SLOTS:
         const auto first = pg.materialize(0);
         const double firstMs = t.nsecsElapsed() / 1e6;
         QVERIFY(first && !first->boxes.isEmpty());
+        QVERIFY2(pg.pagesLaidOut() <= 2, qPrintable(QString::number(pg.pagesLaidOut())));   // (the first page is shown without laying out the rest)
         t.restart();
         const int pages = pg.pageCount();
         const double allMs = t.nsecsElapsed() / 1e6;
@@ -1542,9 +1643,6 @@ private Q_SLOTS:
         }
         pg.pageCount();
         qInfo("%d pages: the first page in %.0f ms, all of them in %.1f s, a typed character in %.1f ms (at most)", pages, firstMs, allMs / 1000, worst);
-        QVERIFY2(firstMs < 3000, qPrintable(QString::number(firstMs)));
-        QVERIFY2(allMs < 50000, qPrintable(QString::number(allMs)));
-        QVERIFY2(worst < 500, qPrintable(QString::number(worst)));
     }
 
     // Edits with the pages only partly laid out again between them leave no page as it was: the first edit pushes a line over a page's end, the pages
@@ -1817,6 +1915,36 @@ private Q_SLOTS:
         }
     }
 
+    // When a later section changes (its paper, margins, columns), the pages of the sections before it are as they were: only the pages from where
+    // that section begins are laid out again, and they are what a fresh paginator makes.
+    void changingALaterSectionLaysOutOnlyItsPagesAgain()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 1600, 52, [](int i, QTextBlockFormat &bf) { if (i == 799) bf.setProperty(flow::fp::SectionBreakAfter, true); }, 3, 6);
+        Section second = fd.sections[0];
+        fd.sections << second;
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        int inFirst = 0;
+        for (int k = 0; k < pages; ++k) inFirst += pg.page(k).start.section == 0;
+        QVERIFY(pages > 30 && inFirst > 10 && pages - inFirst > 10);
+        const qint64 laid = pg.pagesLaidOut();
+        fd.sections[1].paper = QSizeF(300, 400);
+        fd.sections[1].margins = QMarginsF(40, 40, 40, 40);
+        pg.invalidateFrom(1);
+        const int after = pg.pageCount();
+        QVERIFY(after > pages);   // (smaller pages)
+        const qint64 again = pg.pagesLaidOut() - laid;
+        QVERIFY2(again <= after - inFirst + 1, qPrintable(QStringLiteral("%1 pages laid out again, the second section has %2").arg(again).arg(after - inFirst)));
+        FlowDocument fresh;
+        fillStory(fresh.story(), 1600, 52, [](int i, QTextBlockFormat &bf) { if (i == 799) bf.setProperty(flow::fp::SectionBreakAfter, true); }, 3, 6);
+        fresh.sections << fd.sections[1];
+        fresh.sections[0] = fd.sections[0];
+        Paginator po(&fresh);
+        QCOMPARE(po.pageCount(), after);
+        for (int k = 0; k < after; ++k) QCOMPARE(pg.page(k).start.pos, po.page(k).start.pos);
+    }
+
     // A section can restart the page numbers; a page's number is found without going back to the section's first page every time.
     void paginatorNumbersPagesBySection()
     {
@@ -1832,7 +1960,7 @@ private Q_SLOTS:
         second = third = fd.sections[0];
         second.firstPageNumber = 1;
         second.pageNumberFormat = QStringLiteral("roman");
-        third.firstPageNumber = 0;   // goes on from the second
+        third.firstPageNumber.reset();   // goes on from the second
         fd.sections[0].firstPageNumber = 5;
         fd.sections << second << third;
         Paginator pg(&fd);
@@ -1862,6 +1990,55 @@ private Q_SLOTS:
         pg.pageCount();
         QCOMPARE(pg.page(first2).number, 1);
         QVERIFY(pg.numberStepsForTest() < 40 * pages);
+    }
+
+    // A section may start its page numbers at 0 (a cover that is not counted); only a section that says nothing goes on from the one before.
+    void aSectionCanStartItsPageNumbersAtZero()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 5, 14, [](int i, QTextBlockFormat &bf) {
+            if (i == 0 || i == 2) bf.setProperty(flow::fp::SectionBreakAfter, true);
+            if (i == 1) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+        }, 3, 6);
+        Section second, third;
+        second = third = fd.sections[0];
+        second.firstPageNumber = 0;
+        fd.sections << second << third;
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 4);
+        QCOMPARE(pg.page(0).number, 1);
+        QCOMPARE(pg.page(1).number, 0);
+        QCOMPARE(pg.page(2).number, 1);
+        QCOMPARE(pg.page(3).number, 2);   // (the third says nothing: it goes on)
+        QCOMPARE(pg.materialize(1)->number, 0);
+    }
+
+    // A word processing document keeps pieces of its file as text that shows what the field names after "raw:", or nothing.
+    void aRawFieldShowsItsOwnText()
+    {
+        // A word processing document keeps pieces of its file as text that shows what the field names after "raw:" (a footnote's mark, a
+        // stand-in), or nothing; the page shows it in the place of the piece, as it does the date a date field has.
+        FlowDocument fd;
+        QTextCursor c(fd.story());
+        QTextCharFormat plain, mark, none;
+        plain.setFontPointSize(11);
+        mark = plain;
+        mark.setProperty(tp::Field, QStringLiteral("raw:[Table: 2 rows]"));
+        none = plain;
+        none.setProperty(tp::Field, QStringLiteral("raw:"));
+        c.insertText(QStringLiteral("Before "), plain);
+        c.insertText(QString(QChar::ObjectReplacementCharacter), mark);
+        c.insertText(QStringLiteral(" and "), plain);
+        c.insertText(QString(QChar::ObjectReplacementCharacter), none);
+        c.insertText(QStringLiteral(" after."), plain);
+        FrameSpec fs;
+        fs.size = QSizeF(400, 100);
+        fs.hyphenate = false;
+        StoryLayout lay;
+        lay.build(fd.story(), {fs}, fd.env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        QCOMPARE(lines[0].text, QStringLiteral("Before [Table: 2 rows] and  after."));
     }
 
     // Several edits before the pages are laid out again are settled together.

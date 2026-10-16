@@ -52,7 +52,7 @@ Paginator::~Paginator() = default;
 int Paginator::numberOf(int index) const
 {
     bool restarts = false;
-    for (const Section &s : m_doc->sections) restarts |= s.firstPageNumber > 0;
+    for (const Section &s : m_doc->sections) restarts |= s.firstPageNumber.has_value();
     if (!restarts) return index + 1;
     // The page after the one asked for last, in the same section: one more.
     if (index > 0 && index == m_numberOf + 1 && index < m_starts.size() && m_starts[index].section == m_starts[index - 1].section) {
@@ -62,9 +62,9 @@ int Paginator::numberOf(int index) const
     int number = index + 1;
     for (int p = std::min(index, int(m_starts.size()) - 1); p >= 0; --p, ++m_numberSteps)
         if (p == 0 || m_starts[p].section != m_starts[p - 1].section) {
-            const int first = m_doc->section(m_starts[p].section).firstPageNumber;
-            if (first > 0) {
-                number = first + (index - p);
+            const std::optional<int> first = m_doc->section(m_starts[p].section).firstPageNumber;
+            if (first) {
+                number = *first + (index - p);
                 break;
             }
         }
@@ -172,7 +172,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 
     // Where the page ends: where the text ran out of room, unless a break asks for less.
     int c = kept;
-    bool hard = false, sectionEnds = false, forced = false;
+    bool hard = false, sectionEnds = false, forced = false, byCharacter = false;
     for (int i = 0; i < c; ++i) {
         const StoryLayout::LineBrief &ln = L[i];
         const BlockFlags &bf = flags(ln.block);
@@ -185,6 +185,15 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             c = i + 1;
             hard = forced = true;
             sectionEnds = bf.sectionAfter;
+            break;
+        }
+        // A page break character: the page ends after the line that holds it.
+        if (!ln.cut && ln.end > ln.pos && m_doc->story()->characterAt(ln.end - 1) == kPageBreak) {
+            c = i + 1;
+            hard = forced = byCharacter = true;
+            // (The empty line the text engine puts after a break that ends its paragraph stays with the page: the next paragraph is at the top
+            // of the next.)
+            if (c < L.size() && L[c].block == L[i].block && L[c].line == L[i].line + 1 && L[c].pos == L[c].end && L[c].line == L[c].lines - 1) ++c;
             break;
         }
     }
@@ -238,7 +247,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.next.skip = L[c].line;
         run.next.hard = hard;
         run.next.section = nextSection;
-    } else if (forced && c > 0) {
+    } else if (forced && !byCharacter && c > 0) {
         // A break after the text's last line: the pages go on with one that has nothing on it.
         run.hasNext = true;
         run.next.pos = m_doc->story()->characterCount();
@@ -296,6 +305,21 @@ void Paginator::invalidate()
     m_starts << PageStart();
     m_complete = false;
     m_pending = false;
+}
+
+void Paginator::invalidateFrom(int section)
+{
+    int keep = 0;
+    while (keep < m_starts.size() && m_starts[keep].section < section) ++keep;
+    keep = std::max(keep, 1);
+    if (keep >= m_starts.size()) return;
+    m_numberOf = -1;
+    m_starts.resize(keep);
+    m_complete = false;
+    // (Pages that edits had not been settled to are still waiting; none are beyond the last.)
+    m_high = std::min(m_high, keep - 1);
+    m_valid = std::min(m_valid, keep - 1);
+    if (m_pending && m_valid >= keep - 1) m_pending = false;
 }
 
 Paginator::Page Paginator::page(int index)

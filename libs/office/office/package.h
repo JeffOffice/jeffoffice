@@ -12,6 +12,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <QMap>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -103,9 +104,11 @@ public:
     // The part gets an Override for its content type unless the Default for
     // its extension is that type already (decided when the package is
     // finished, so the order of calls doesn't matter). Part names are
-    // absolute and plain: letters, digits, and "._-" are safe, and a space is
-    // fine, but no "..", "%", or backslash; one that isn't usable is left out,
-    // with a warning. Adding a name again (in any case) replaces the part.
+    // absolute and decoded, as the package reads them: any character may be
+    // in one (a space, a "%"; the package writes each escaped as a URI needs),
+    // but no "." or ".." or empty segment, control character, or "/" inside
+    // a segment; one that isn't usable is left out, with a warning. Adding a
+    // name again (in any case) replaces the part.
     void addPart(const QString &name, const QByteArray &data, const QString &contentType);
     // "xml" and "rels" have theirs from the start; this adds more (or
     // replaces one), such as ("png", "image/png"), which parts of that type
@@ -117,6 +120,9 @@ public:
     // part's folder ("../media/image1.png"); an external one is written as
     // given.
     QString addRelationship(const QString &source, const QString &type, const QString &target, bool external = false);
+    // The same with an Id of its own, for a link that something in the source part refers to by that Id (a relationship read from a
+    // package keeps its Id when it is written again). An Id the source already has is not added again; false then.
+    bool addRelationshipWithId(const QString &source, const QString &id, const QString &type, const QString &target, bool external = false);
     // The ZIP: [Content_Types].xml first, then the package's relationships,
     // the parts in the order added, and the other relationships; deflated.
     QByteArray finish();
@@ -124,8 +130,11 @@ public:
 private:
     struct Part { QString name; QByteArray data; QString contentType; };
     QVector<Part> m_parts;
+    QHash<QString, int> m_partAt;                   // lower-cased part name -> its place in m_parts
     QMap<QString, QString> m_defaults;              // lower-cased extension -> content type
     QMap<QString, QVector<Relationship>> m_rels;    // by source; targets as written to the file
+    QHash<QString, QSet<QString>> m_relIds;         // the Ids each source's links have
+    QHash<QString, int> m_nextRelId;                // where the next Id to try is, for each source
 };
 
 // The part a relationship target names, from the part that holds the link

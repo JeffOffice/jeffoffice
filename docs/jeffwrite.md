@@ -79,6 +79,17 @@ which JeffPub's and JeffDeck's drawing depend on. Instead:
    page-dependent fields and the table of contents, anchored pictures with wrap.
 4. **Tables in the flow**, then the rest of the first-release tier, in the order of the feature list.
 
+## Where it stands
+
+Wave 2 is built (October 16, 2026): `apps/write` with the window, ribbon, File screen, Help, and settings of the suite; the continuous page
+view with zoom, drawing only the pages in view while the rest is laid out in the background; editing on the story's own undo stack (typing,
+deleting, moving, selecting, the clipboard, character and paragraph formatting, lists, styles, page and section breaks, page setup);
+`.docx` reading and writing in `libs/office/wml` (the XML tree, the model, styles with inheritance, numbering, sections, and everything the
+program doesn't edit kept as XML or as whole parts and written back where it was); and packaging behind a switch that is off. What
+JeffWrite shows of a table, a picture, a field, a header or footer, or a note is a stand-in or nothing; it keeps them. Not yet: the pieces of
+wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.doc`, `.rtf`, and `.odt`, spelling, Find and
+Replace, the ruler, the Font dialog, and Word's own PDFs to measure the pages against.
+
 ## Checking it
 
 - The Windows test machine has Word 2021: reference PDFs of documents, and every file JeffWrite saves

@@ -22,7 +22,11 @@ export EXTRA_QT_MODULES="svg"
 # Wayland desktops, and offscreen for command-line export without a display.
 export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland-egl.so;libqwayland-generic.so"
 
-# An AppDir with the given apps (JeffPub, JeffDeck), the fonts and
+# The apps in the suite's package: JeffWrite too when SHIP_WRITE is "true" (the owner decides when it ships).
+suite=(JeffPub JeffDeck)
+[ "${SHIP_WRITE:-}" = true ] && suite+=(JeffWrite)
+
+# An AppDir with the given apps (JeffPub, JeffDeck, JeffWrite), the fonts and
 # dictionaries they share, their desktop entries and icons, and the docs.
 appdir() {
   local dir=$1; shift
@@ -51,6 +55,9 @@ appdir() {
   esac
   case " $* " in *" JeffDeck "*)
     install -Dm644 "$src/apps/deck/resources/app.png" "$dir/usr/share/icons/hicolor/256x256/apps/jeffdeck.png" ;;
+  esac
+  case " $* " in *" JeffWrite "*)
+    install -Dm644 "$src/apps/write/resources/app.png" "$dir/usr/share/icons/hicolor/256x256/apps/jeffwrite.png" ;;
   esac
 }
 
@@ -84,21 +91,26 @@ appdir "$work/JeffPub.AppDir" JeffPub
 deploy "$work/JeffPub.AppDir" JeffPub appimage JeffPub
 appdir "$work/JeffDeck.AppDir" JeffDeck
 deploy "$work/JeffDeck.AppDir" JeffDeck appimage JeffDeck
+if [ "${SHIP_WRITE:-}" = true ]; then
+  appdir "$work/JeffWrite.AppDir" JeffWrite
+  deploy "$work/JeffWrite.AppDir" JeffWrite appimage JeffWrite
+fi
 
 # 2. The .deb: both apps under /opt/jeffoffice, their commands in /usr/bin,
 #    and the desktop entries, icons and file type where the desktop finds them.
-appdir "$work/suite" JeffPub JeffDeck
-deploy "$work/suite" JeffPub "" JeffPub JeffDeck
+appdir "$work/suite" "${suite[@]}"
+deploy "$work/suite" JeffPub "" "${suite[@]}"
 deb=$work/deb
 mkdir -p "$deb/opt/jeffoffice" "$deb/usr/bin" "$deb/DEBIAN"
 cp -a "$work/suite/usr/." "$deb/opt/jeffoffice/"
-rm -f "$deb/opt/jeffoffice/bin/jeffpub" "$deb/opt/jeffoffice/bin/jeffdeck"
+rm -f "$deb/opt/jeffoffice/bin/jeffpub" "$deb/opt/jeffoffice/bin/jeffdeck" "$deb/opt/jeffoffice/bin/jeffwrite"
 mkdir -p "$deb/usr/share"
 mv "$deb/opt/jeffoffice/share/applications" "$deb/opt/jeffoffice/share/icons" "$deb/opt/jeffoffice/share/mime" "$deb/usr/share/"
 mkdir -p "$deb/usr/share/doc"
 mv "$deb/opt/jeffoffice/share/doc/jeffoffice" "$deb/usr/share/doc/"
 ln -s /opt/jeffoffice/bin/JeffPub "$deb/usr/bin/jeffpub"
 ln -s /opt/jeffoffice/bin/JeffDeck "$deb/usr/bin/jeffdeck"
+[ "${SHIP_WRITE:-}" = true ] && ln -s /opt/jeffoffice/bin/JeffWrite "$deb/usr/bin/jeffwrite"
 size=$(du -sk "$deb" | cut -f1)
 # The suite's package replaces JeffPub's own (jeffpub, through 0.6.11), and
 # that one's before it (jeffpub79, through 0.5.0).
