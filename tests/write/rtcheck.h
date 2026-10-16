@@ -44,6 +44,15 @@ inline bool parseTree(const QByteArray &bytes, Node *root, QString *error)
     while (!r.atEnd()) {
         const QXmlStreamReader::TokenType t = r.readNext();
         if (t == QXmlStreamReader::StartElement) {
+            // (A namespace declared twice on one element is a duplicate attribute, which the reader's own checks let by.)
+            QSet<QString> declared;
+            for (const QXmlStreamNamespaceDeclaration &d : r.namespaceDeclarations())
+                if (declared.contains(d.prefix().toString())) {
+                    if (error) *error = QStringLiteral("xmlns:%1 is declared twice on <%2> (line %3)").arg(d.prefix(), r.name().toString()).arg(r.lineNumber());
+                    return false;
+                } else {
+                    declared.insert(d.prefix().toString());
+                }
             Node n;
             n.name = QLatin1Char('{') + r.namespaceUri().toString() + QLatin1Char('}') + r.name().toString();
             for (const QXmlStreamAttribute &a : r.attributes())

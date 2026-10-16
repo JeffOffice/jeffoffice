@@ -642,13 +642,18 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
     doc->packageRelationships = pkg.relationships(QStringLiteral("/"));
     doc->mainRelationships = pkg.relationships(main);
     for (const QString &name : pkg.partNames()) {
-        if (name == main || name == doc->stylesName || name == doc->numberingName) continue;
+        if (name == main) continue;
+        const QVector<Relationship> rels = pkg.relationships(name);
+        // (The styles and the numbering are written afresh, but their links, a picture bullet's image, are kept with theirs.)
+        if (name == doc->stylesName || name == doc->numberingName) {
+            if (!rels.isEmpty()) doc->partRelationships.insert(name, rels);
+            continue;
+        }
         KeptPart part;
         part.name = name;
         part.contentType = pkg.contentType(name);
         part.data = pkg.part(name);
         doc->parts.push_back(part);
-        const QVector<Relationship> rels = pkg.relationships(name);
         if (!rels.isEmpty()) doc->partRelationships.insert(name, rels);
     }
     return true;
