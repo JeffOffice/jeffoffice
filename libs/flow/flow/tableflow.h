@@ -269,6 +269,8 @@ struct TablePaint {
     TextOutput output = TextOutput::Picture;
     bool marks = false;                     // paragraph marks and the like
     int selFrom = -1, selTo = -1;           // the selected text, as document positions
+    // Draws the objects set in the text of a stretch of a cell (its inline pictures and shapes), the painter placed as the text's lines are; none are drawn when unset.
+    std::function<void(QPainter *, const StoryLayout &)> objects;
 };
 
 // Some rows of a table, with what is in their cells laid out, ready to draw at a place on a page.
@@ -308,6 +310,8 @@ struct TableFragment {
     // The lines of text the fragment shows, with the rectangle each has on the page (the lines of the part of a row that the next page shows are not among them): for the
     // places that objects anchored in cells are set from.
     void forLines(const std::function<void(const StoryLayout::LineBrief &line, const QRectF &rect)> &visit) const;
+    // The layouts of the stretches of text in its cells (and in the tables in them).
+    void forTexts(const std::function<void(const StoryLayout &text)> &visit) const;
     // The page rectangle of the cell that has the position (empty for none).
     QRectF cellRect(int pos) const;
 

@@ -5,6 +5,8 @@
 
 #include "flow/paginator.h"
 
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
@@ -15,7 +17,29 @@ namespace jp::flow {
 
 void paintTables(QPainter *p, const MaterializedPage &page, const TablePaint &options)
 {
-    for (const std::shared_ptr<TableFragment> &f : page.tables) f->paint(p, options);
+    // The objects set in the text of the cells are drawn as the page layer draws those of its text boxes: the pictures by the ids they have in the page's document.
+    std::unique_ptr<LayoutCache> cache;
+    TablePaint own = options;
+    if (!own.objects && page.doc)
+        own.objects = [&](QPainter *painter, const StoryLayout &text) {
+            if (!cache) cache = std::make_unique<LayoutCache>();
+            PaintContext ctx;
+            ctx.doc = page.doc.get();
+            ctx.cache = cache.get();
+            ctx.pageNumber = page.number;
+            for (const StoryLayout::InlineObject &ob : text.inlineObjects()) {
+                if (ob.frame != 0) continue;
+                QJsonObject json = QJsonDocument::fromJson(ob.json.toUtf8()).object();
+                const QString ref = json.value(QStringLiteral("image")).toString();
+                if (ref.startsWith(kFlowImagePrefix)) json.insert(QStringLiteral("image"), page.cellImages.value(ref));
+                const ItemPtr item = Item::fromJsonAny(json);
+                // (The layout keeps sizes sane; an object it had to change is not drawn.)
+                if (!item || std::abs(item->rect.width() - ob.rect.width()) > 0.01 || std::abs(item->rect.height() - ob.rect.height()) > 0.01) continue;
+                item->moveBy(ob.rect.left() - item->rect.left(), ob.rect.top() - item->rect.top());
+                Renderer::paintItem(painter, ctx, *item);
+            }
+        };
+    for (const std::shared_ptr<TableFragment> &f : page.tables) f->paint(p, own);
 }
 
 struct Paginator::Ledger {
@@ -466,7 +490,7 @@ void Paginator::addTableFragments(MaterializedPage *page, const QVector<QRectF> 
         const std::shared_ptr<TableLayout> table = m_tables->layout(g.span);
         if (!table || cols.isEmpty()) continue;
         const QRectF col = cols[std::clamp(g.frame, 0, int(cols.size()) - 1)];
-        const std::shared_ptr<TableFragment> fragment = m_tables->fragment(table, g.firstRow, g.endRow, body.height(), g.parts);
+        const std::shared_ptr<TableFragment> fragment = m_tables->fragment(table, g.firstRow, g.endRow, col.height(), g.parts);   // (the column's height decides whether the header rows repeat, as it did when the lines were found)
         if (!fragment) continue;
         fragment->origin = QPointF(col.left() + table->leftEdgeIn(col.width()), body.top() + col.top() + g.rect.top());
         page->tables.push_back(fragment);
