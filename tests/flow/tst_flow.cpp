@@ -788,6 +788,99 @@ private Q_SLOTS:
         for (const auto &l : lines) if (l.frame == 1) { QCOMPARE(l.pos, second); break; }
     }
 
+    // The rest of a paragraph that began on the frame before, laid out from where it goes on, has the lines it has there: without a bullet or a first-line
+    // indent, and its lines before are not laid out again.
+    void spanContinuesAParagraphWithoutItsEarlierLines()
+    {
+        auto doc = makeStory(10, 91, [](int i, QTextBlockFormat &bf) { bf.setTextIndent(i % 2 ? 20 : 0); bf.setAlignment(Qt::AlignJustify); }, 30, 140);
+        {
+            QTextCursor c(doc.get());
+            c.setPosition(0);
+            c.setPosition(doc->findBlockByNumber(2).position() - 1, QTextCursor::KeepAnchor);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setIndent(1);
+            c.createList(lf);
+        }
+        const QVector<FrameSpec> pages{plainFrame(300, 200), plainFrame(300, 200), plainFrame(300, 200), plainFrame(300, 2000)};
+        StoryLayout whole;
+        whole.build(doc.get(), pages, LayoutEnv());
+        const auto lines = whole.lineBriefs();
+        int checked = 0;
+        for (int frame = 1; frame < 3; ++frame) {
+            int at = -1;
+            for (int i = 0; i < lines.size() && at < 0; ++i)
+                if (lines[i].frame == frame) at = i;
+            if (at <= 0 || lines[at].line == 0) continue;   // (a frame that begins with a paragraph)
+            QVector<FrameSpec> rest;
+            for (int f = frame; f < pages.size(); ++f) rest << pages[f];
+            StoryLayout run;
+            StoryLayout::Span span;
+            span.from = lines[at].pos;
+            span.continued = true;
+            run.build(doc.get(), rest, LayoutEnv(), span);
+            const auto got = run.lineBriefs();
+            const int taken = lines[at].line;
+            for (int k = 0; at + k < lines.size() && k < got.size(); ++k) {
+                const auto &want = lines[at + k];
+                const bool same = want.block == lines[at].block;
+                QVERIFY2(got[k].frame == want.frame - frame && got[k].pos == want.pos && got[k].end == want.end && got[k].line == (same ? want.line - taken : want.line) &&
+                             std::abs(got[k].rect.top() - want.rect.top()) < 0.01 && std::abs(got[k].rect.left() - want.rect.left()) < 0.01 && std::abs(got[k].rect.width() - want.rect.width()) < 0.01,
+                         qPrintable(QStringLiteral("frame %1, line %2 of the rest").arg(frame).arg(k)));
+            }
+            ++checked;
+        }
+        QVERIFY2(checked > 0, "no paragraph went from one frame to the next");
+    }
+
+    // A window cuts a paragraph that is longer than the lines wanted need: its lines to the cut are the lines it has, the last is marked, and laying out
+    // stops; if the frames aren't full by then the window was too small.
+    void spanWindowCutsAHugeParagraph()
+    {
+        QTextDocument doc;
+        {
+            QTextCursor c(&doc);
+            QString text;
+            std::mt19937 rng(5);
+            while (text.size() < 300000) text += QStringLiteral("word%1 ").arg(rng() % 1000);
+            QTextCharFormat cf;
+            cf.setFontPointSize(11);
+            c.insertText(text, cf);
+            c.insertBlock();
+            c.insertText(QStringLiteral("a paragraph after"), cf);
+        }
+        const QVector<FrameSpec> two{plainFrame(300, 200), plainFrame(300, 5000)};
+        StoryLayout whole;
+        whole.build(&doc, {plainFrame(300, 200), plainFrame(300, 100000)}, LayoutEnv());
+        const auto all = whole.lineBriefs();
+        StoryLayout run;
+        StoryLayout::Span span;
+        span.window = 4000;
+        span.stopAtFrame = 1;
+        run.build(&doc, two, LayoutEnv(), span);
+        QVERIFY(!run.windowShort());
+        const auto lines = run.lineBriefs();
+        QVERIFY(lines.size() > 20 && lines.size() < 120);
+        for (const auto &l : lines) QVERIFY(l.cut);
+        // Every line but the last is the line the whole paragraph has, and nothing after the paragraph is laid out.
+        for (int i = 0; i + 1 < lines.size(); ++i)
+            QVERIFY2(lines[i].frame == all[i].frame && lines[i].pos == all[i].pos && lines[i].end == all[i].end && std::abs(lines[i].rect.top() - all[i].rect.top()) < 0.01,
+                     qPrintable(QString::number(i)));
+        QVERIFY2(lines.last().end <= 4000 + 1, qPrintable(QStringLiteral("last end %1, pos %2, lines %3").arg(lines.last().end).arg(lines.last().pos).arg(lines.size())));
+        // A frame the window can't fill.
+        StoryLayout big;
+        big.build(&doc, {plainFrame(300, 100000), plainFrame(300, 100000)}, LayoutEnv(), span);
+        QVERIFY(big.windowShort());
+        // No window: whole paragraphs.
+        StoryLayout none;
+        StoryLayout::Span uncut;
+        uncut.stopAtFrame = 1;
+        none.build(&doc, two, LayoutEnv(), uncut);
+        QVERIFY(!none.windowShort());
+        QVERIFY(none.lineBriefs().size() > 1000);
+        QVERIFY(!none.lineBriefs().first().cut);
+    }
+
     // Without the rules, widow and orphan control and keeping paragraphs together leave the lines where they fall.
     void spanWithoutRulesIgnoresKeepsAndWidows()
     {
@@ -1503,6 +1596,144 @@ private Q_SLOTS:
         fillStory(fd.story(), 4, 83, {}, 5, 20);
         Paginator pg(&fd);
         QCOMPARE(pg.pageCount(), 1);
+    }
+
+    // One paragraph of 900 kilobytes, some ten thousand lines on two hundred pages: every character is on one page and only one, the pages are alike, and the
+    // pages made to be drawn are what the paginator found. (A page that went on from the one before once laid out its paragraph's earlier lines in a
+    // frame that held seven thousand of them.)
+    void paginatorLaysOutAHugeParagraph()
+    {
+        FlowDocument fd;
+        {
+            QString text;
+            std::mt19937 rng(7);
+            while (text.size() < 900 * 1024) text += QStringLiteral("word%1 and ").arg(rng() % 5000);
+            QTextCursor c(fd.story());
+            QTextCharFormat cf;
+            cf.setFontPointSize(11);
+            c.insertText(text, cf);
+        }
+        Paginator pg(&fd);
+        QElapsedTimer t;
+        t.start();
+        const int pages = pg.pageCount();
+        qInfo("a paragraph of 900 KB: %d pages in %.1f s", pages, t.elapsed() / 1000.0);
+        QVERIFY(pages > 150);
+        QVERIFY2(t.elapsed() < 60000, qPrintable(QString::number(t.elapsed())));
+        const QString bad = coverageProblem(pg, fd);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        const int perPage = pg.lines(10).size();
+        for (int k : {1, 100, 155, 156, 157, 158, pages / 2, pages - 2}) QVERIFY2(std::abs(pg.lines(k).size() - perPage) <= 1, qPrintable(QString::number(k)));
+        LayoutCache cache;
+        for (int k : {0, 1, 155, 156, 157, pages / 2, pages - 1}) {
+            const QString differs = materializedDiffers(fd, pg, k, cache);
+            QVERIFY2(differs.isEmpty(), qPrintable(differs));
+        }
+    }
+
+    // Paragraphs without end in sight: two megabytes of words, and a word of two hundred thousand letters that can be broken anywhere. A page costs what a
+    // page of ordinary text does, whatever came before it.
+    void paginatorLaysOutHugeParagraphsInTime()
+    {
+        for (int what = 0; what < 2; ++what) {
+            FlowDocument fd;
+            {
+                QString text;
+                std::mt19937 rng(8);
+                if (what == 0) while (text.size() < 2 * 1024 * 1024) text += QStringLiteral("w%1 ").arg(rng() % 9000);
+                else text = QString(200 * 1024, QLatin1Char('x'));
+                QTextCursor c(fd.story());
+                QTextCharFormat cf;
+                cf.setFontPointSize(11);
+                c.insertText(text, cf);
+            }
+            Paginator pg(&fd);
+            QElapsedTimer t;
+            t.start();
+            const int pages = pg.pageCount();
+            qInfo("%s: %d pages in %.1f s", what ? "a word of 200 KB" : "a paragraph of 2 MB", pages, t.elapsed() / 1000.0);
+            QVERIFY2(t.elapsed() < (what ? 60000 : 120000), qPrintable(QString::number(t.elapsed())));
+            QVERIFY(pages > 40);
+            const QString bad = coverageProblem(pg, fd);
+            QVERIFY2(bad.isEmpty(), qPrintable(bad));
+            LayoutCache cache;
+            for (int k : {1, pages / 2, pages - 1}) {
+                const QString differs = materializedDiffers(fd, pg, k, cache);
+                QVERIFY2(differs.isEmpty(), qPrintable(differs));
+            }
+        }
+    }
+
+    // Laying out the rest of a paragraph from where it goes on, as a paragraph of its own, gives the pages that laying out the whole of it does: every page
+    // starts where it does, and has the lines it has, whatever the paragraph's alignment, indent, and bullet.
+    void paginatorRestOfAParagraphIsLaidOutAsTheWholeIs()
+    {
+        int tails = 0;
+        for (int columns : {1, 2})
+            for (unsigned seed : {101u, 102u, 103u, 104u, 105u, 106u}) {
+                auto make = [&](FlowDocument &fd, int exact) {
+                    fd.exactLines = exact;
+                    fd.sections[0].columns = columns;
+                    fd.sections[0].margins = QMarginsF(60, 66, 60, 70);
+                    fillStory(fd.story(), 120, seed, [seed](int i, QTextBlockFormat &bf) {
+                        bf.setAlignment(i % 3 ? Qt::AlignJustify : Qt::AlignLeft);
+                        if (i % 4 == 0) bf.setTextIndent(24);
+                        if (i % 5 == 0) bf.setTopMargin(12);
+                        if (seed % 2) bf.setProperty(tp::WidowControl, true);
+                        if (i % 11 == 0) bf.setProperty(tp::KeepWithNext, true);
+                    }, 20, 200);
+                    QTextCursor c(fd.story());
+                    c.setPosition(fd.story()->findBlockByNumber(7).position());
+                    c.setPosition(fd.story()->findBlockByNumber(30).position(), QTextCursor::KeepAnchor);
+                    QTextListFormat lf;
+                    lf.setStyle(QTextListFormat::ListDecimal);
+                    lf.setIndent(1);
+                    c.createList(lf);
+                };
+                FlowDocument whole, rest;
+                make(whole, 100000);   // (the paragraph is laid out whole, always)
+                make(rest, 0);         // (never)
+                Paginator a(&whole), b(&rest);
+                QVERIFY(a.pageCount() > 6);
+                const auto sa = startsOf(a), sb = startsOf(b);
+                QVERIFY2(sa == sb, qPrintable(QStringLiteral("%1 columns, seed %2: %3 pages and %4").arg(columns).arg(seed).arg(sa.size()).arg(sb.size())));
+                for (int k = 0; k < sa.size(); ++k) {
+                    const auto la = a.lines(k), lb = b.lines(k);
+                    QVERIFY2(la.size() == lb.size(), qPrintable(QStringLiteral("page %1").arg(k)));
+                    for (int i = 0; i < la.size(); ++i)
+                        QVERIFY2(sameBrief(la[i], lb[i]), qPrintable(QStringLiteral("%1 columns, seed %2, page %3, line %4").arg(columns).arg(seed).arg(k).arg(i)));
+                    tails += sa[k].skip > 0;
+                }
+            }
+        QVERIFY(tails > 10);
+    }
+
+    // Text so small that a page holds far more than a window of a long paragraph: the window grows until the page, and what the rules need after it,
+    // are in it.
+    void paginatorGrowsTheWindowForTinyText()
+    {
+        FlowDocument fd;
+        {
+            QString text;
+            std::mt19937 rng(9);
+            while (text.size() < 300 * 1024) text += QStringLiteral("w%1 ").arg(rng() % 900);
+            QTextCursor c(fd.story());
+            QTextCharFormat cf;
+            cf.setFontPointSize(2);
+            c.insertText(text, cf);
+            c.insertBlock();
+            c.insertText(QStringLiteral("and a paragraph after it"), cf);
+        }
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY2(pages >= 2 && pages < 30, qPrintable(QString::number(pages)));
+        const QString bad = coverageProblem(pg, fd);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        LayoutCache cache;
+        for (int k = 0; k < std::min(pages, 3); ++k) {
+            const QString differs = materializedDiffers(fd, pg, k, cache);
+            QVERIFY2(differs.isEmpty(), qPrintable(differs));
+        }
     }
 
     // Several edits before the pages are laid out again are settled together.

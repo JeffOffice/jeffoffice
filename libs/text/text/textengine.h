@@ -196,8 +196,18 @@ public:
         int from = 0;
         // The first paragraph's first lines are already placed, in a frame before the ones that are given: it
         // goes on in the next frame after this many lines (-1: it doesn't). The caller gives a frame for them
-        // first, as wide as the next, and tall enough, and reads the lines from the frames after it.
+        // first, as wide as the next, and tall enough, and reads the lines from the frames after it. (The
+        // paragraph is laid out whole, so these lines are broken again: as many lines as there are, each time.)
         int firstBreakAfter = -1;
+        // The first paragraph is the rest of one that began before `from`: it is laid out from there, as a
+        // paragraph of its own with no bullet, first-line indent, or drop cap, and its lines are numbered from
+        // 0. Its lines before are not laid out again, which is its use for a paragraph of thousands of lines.
+        bool continued = false;
+        // The most characters of a paragraph that are laid out (from `from`, if it is continued); a longer one
+        // is cut there, its lines are marked (LineBrief::cut), and nothing after it is laid out. If a cut
+        // paragraph's lines don't reach the frame laying out stops at (stopAtFrame), the window was too small,
+        // and windowShort() says so. 0: whole paragraphs.
+        int window = 0;
         // Laying out ends after the paragraph in which a line first lands in this frame or a later one (-1: it
         // runs to the story's end). The lines of that paragraph are all laid out.
         int stopAtFrame = -1;
@@ -243,10 +253,13 @@ public:
         int pos = 0, end = 0;     // document positions: its first character, and just past its last
         QRectF rect;              // frame-local, with the spacing under the text
         double below = 0;         // the spacing under the text
+        bool cut = false;         // its paragraph goes on past the lines laid out (Span::window); `lines` is how many there are, and the last is cut short
     };
     QVector<LineBrief> lineBriefs() const;
     // The footnotes that go on in `frame` or after it from a frame before: with the story's text left of each.
     QVector<CarriedNote> carriedNotes(int frame) const;
+    // Whether the last build's window (Span::window) cut a paragraph before its lines reached the frame it stops at: it needs to be larger.
+    bool windowShort() const { return m_windowShort; }
 
     // An object set in the text (tp::InlineObject): where it's drawn,
     // frame-local, and the item as JSON. It sits on the baseline, padded by
@@ -272,6 +285,8 @@ public:
         QVector<QTextLayout::FormatRange> effects;   // ranges with shadow/emboss/engrave/glow
         bool textFx = false;                         // some of those ranges carry a:effectLst (tp::TextFx)
         bool directGlyphs = false;                   // drawn run by run (some letters drawn taller, shorter, or slanted)
+        bool cut = false;                            // the paragraph's text was cut short (Span::window), at this place in it:
+        int cutAt = 0;
         QVector<QPair<int, int>> fieldRanges;        // display ranges of fields
         QString leaders;                             // a leader character per tab stop (space = none)
         QVector<QPair<int, int>> noteRefs;           // a note reference's display position, and its index in notes()
@@ -331,6 +346,7 @@ private:
     QVector<InlineObject> m_inline;
     quint64 m_serial = 0;              // this build's number, to keep what is made of it (pictures of effects) apart from another's
     Span m_span;                       // the stretch being laid out (all of the story, but for the build that was given one)
+    bool m_windowShort = false;
 };
 
 // Resolve a character format for display: scheme colors, scheme fonts, scaling.
