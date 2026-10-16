@@ -11,6 +11,10 @@ namespace jp {
 
 QStringList bundledFontDirs();                // where the fonts that ship with JeffPub are
 int loadBundledFonts();                      // returns number of font files loaded
+// A number that changes whenever fonts are added to or taken from the application's font database, for what is worked out from which families there are (the answer
+// to "is this family here" is asked for every run of text a document has, and is not cheap).
+int fontGeneration();
+void fontsChanged();
 void installFontSubstitutions();
 QString substituteFor(const QString &family); // empty if none / font available
 int substituteStretch(const QString &family, bool bold = false, bool italic = false);

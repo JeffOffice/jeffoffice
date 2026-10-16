@@ -182,12 +182,14 @@ private Q_SLOTS:
         const QByteArray font = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), QStringLiteral("Zobster"));
         QVERIFY(!font.isEmpty());
         const int before = deck::EmbeddedFonts::addedFontCount();
+        const int generation = jp::fontGeneration();   // (what the text engine remembers of which families there are goes with it)
         QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
         QString err;
         auto first = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Zobster"), {{0, office::makeEot(font)}}}})), &err);
         QVERIFY2(first, qPrintable(err));
         QVERIFY2(err.isEmpty(), qPrintable(err));
         QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        QVERIFY(jp::fontGeneration() > generation);
         // Never under its own name: the presentation says which private family its text in Zobster is drawn with.
         QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
         QVERIFY(first->fontAliases.contains(QStringLiteral("zobster")));
@@ -203,8 +205,10 @@ private Q_SLOTS:
         QCOMPARE(second->fontAliases.value(QStringLiteral("zobster")), privateFamily);
         deck::EmbeddedFonts::release(first.get());
         QVERIFY(QFontDatabase::families().contains(privateFamily));
+        const int whileOpen = jp::fontGeneration();
         deck::EmbeddedFonts::release(second.get());
         QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+        QVERIFY(jp::fontGeneration() > whileOpen);
         QVERIFY(!QFontDatabase::families().contains(privateFamily));
         deck::EmbeddedFonts::release(second.get());   // twice is nothing
         QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
