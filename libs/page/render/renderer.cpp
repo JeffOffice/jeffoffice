@@ -9,6 +9,7 @@
 #include "core/texteffects.h"
 
 #include <QCache>
+#include <QColorSpace>
 #include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
@@ -20,6 +21,7 @@
 #include <QPainter>
 #include <QSvgRenderer>
 #include <QPainterPathStroker>
+#include <QtEndian>
 #include <QTextDocument>
 #include <QtMath>
 #include <cmath>
@@ -517,6 +519,20 @@ static void recolorRgb(PictureItem::Recolor kind, const QColor &tint, double &r,
     }
 }
 
+// Whether a PNG file has an ICC profile (an iCCP chunk before its pixels).
+static bool pngHasProfile(const QByteArray &png)
+{
+    qsizetype pos = 8;
+    while (pos + 12 <= png.size()) {
+        const quint32 length = qFromBigEndian<quint32>(png.constData() + pos);
+        const QByteArray type = png.mid(pos + 4, 4);
+        if (type == "iCCP") return true;
+        if (type == "IDAT" || type == "IEND") return false;
+        pos += 12 + qsizetype(length);
+    }
+    return false;
+}
+
 QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize)
 {
     static QCache<QString, QImage> cache(256 * 1024);   // KB
@@ -548,7 +564,15 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
                             .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height());
     const QString effectsKey = effects.isEmpty() ? QString() : (slide ? QStringLiteral("s") : QStringLiteral("p")) + blipEffectsKey(effects);
     if (QImage *c = cache.object(key + QLatin1Char('|') + effectsKey)) return *c;
-    if (slide) src = blipAdjusted(src, effects);
+    if (slide) {
+        // A PNG file's profile of its own (a screen's, most often) makes its numbers colors of that profile, which the presentation program
+        // draws as screen colors. (A profile worked out from the gamma and primaries a file names is not one: the program leaves those out.)
+        const QColorSpace profile = src.colorSpace();
+        const ImageData data = doc.images.value(pic.imageId);
+        if (profile.isValid() && profile != QColorSpace(QColorSpace::SRgb) && data.format == QLatin1String("png") && pngHasProfile(data.bytes))
+            src = src.convertedToColorSpace(QColorSpace(QColorSpace::SRgb));
+        src = blipAdjusted(src, effects);
+    }
     QImage img = level ? src.scaledToWidth(std::max(1, src.width() >> level), Qt::SmoothTransformation) : src;
     if (!shown.isEmpty()) img = img.scaled(shown, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     const bool adjust = !slide && (pic.brightness || pic.contrast || pic.recolor || pic.hasTransparentColor);

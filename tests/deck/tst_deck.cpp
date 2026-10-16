@@ -80,6 +80,7 @@
 #include <QAbstractButton>
 #include <QApplication>
 #include <QBuffer>
+#include <QColorSpace>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
@@ -21926,6 +21927,57 @@ private Q_SLOTS:
             QVERIFY(!img.isNull());
             const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
             QVERIFY2(c == want.second, qPrintable(QString::number(want.first) + ": " + c.name()));
+        }
+    }
+
+    // A slide's PNG picture that has a color profile of its own (a screen's, most often) is drawn in the colors of that profile as screen
+    // colors, as the presentation program draws it, not with its numbers as they are. A file that only names its gamma and primaries has
+    // no profile to apply (the program leaves those out), and a publication's pictures are drawn as they always were.
+    void renderPictureWithAColorProfileInScreenColors()
+    {
+        const QColor raw(40, 160, 200);
+        QImage src(8, 8, QImage::Format_RGB32);
+        src.fill(raw);
+        QByteArray plain;
+        QBuffer plainBuffer(&plain);
+        QVERIFY(plainBuffer.open(QIODevice::WriteOnly) && src.save(&plainBuffer, "PNG"));
+        src.setColorSpace(QColorSpace(QColorSpace::DisplayP3));
+        QByteArray profiled;
+        QBuffer profiledBuffer(&profiled);
+        QVERIFY(profiledBuffer.open(QIODevice::WriteOnly) && src.save(&profiledBuffer, "PNG"));
+        const QColor want = src.convertedToColorSpace(QColorSpace(QColorSpace::SRgb)).pixelColor(4, 4);
+        QVERIFY2(!colorsNear(want, raw, 6), qPrintable(want.name()));
+        // The plain file with a gamma and the primaries of a wide screen after its header (a chunk: length, name, data, checksum).
+        auto chunk = [](const char *name, const QByteArray &data) {
+            QByteArray body = QByteArray(name, 4) + data, out(4, '\0');
+            qToBigEndian<quint32>(quint32(data.size()), out.data());
+            out += body;
+            QByteArray sum(4, '\0');
+            qToBigEndian<quint32>(jp::crc32(body), sum.data());
+            return out + sum;
+        };
+        auto be32 = [](quint32 v) { QByteArray b(4, '\0'); qToBigEndian<quint32>(v, b.data()); return b; };
+        const QByteArray primaries = be32(31270) + be32(32900) + be32(68000) + be32(32000) + be32(26500) + be32(69000) + be32(15000) + be32(6000);
+        const QByteArray named = plain.left(33) + chunk("gAMA", be32(45455)) + chunk("cHRM", primaries) + plain.mid(33);
+        QVERIFY(QImage::fromData(named).colorSpace().isValid());   // Qt takes a color space from them
+        struct Case { QByteArray file; bool slide; QColor expected; };
+        for (const Case &c : {Case{profiled, true, want}, Case{named, true, raw}, Case{profiled, false, raw}}) {
+            Document doc;
+            doc.slidePictures = c.slide;
+            auto pic = std::make_shared<PictureItem>();
+            pic->imageId = doc.addImage(c.file, QStringLiteral("png"));
+            QVERIFY(!pic->imageId.isEmpty());
+            pic->rect = QRectF(0, 0, 80, 80);
+            pic->imgRect = pic->rect;
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = &doc;
+            ctx.cache = &cache;
+            const ItemList one{pic};
+            const QImage img = Renderer::renderItemsToImage(ctx, one, 1.0);
+            QVERIFY(!img.isNull());
+            const QColor got = img.pixelColor(img.width() / 2, img.height() / 2);
+            QVERIFY2(colorsNear(got, c.expected, 3), qPrintable(QStringLiteral("slide %1, %2 bytes: %3 instead of %4").arg(c.slide).arg(c.file.size()).arg(got.name(), c.expected.name())));
         }
     }
 
