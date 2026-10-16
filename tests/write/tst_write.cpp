@@ -2,6 +2,7 @@
 
 #include "app/pageview.h"
 #include "app/filescreen.h"
+#include "app/help.h"
 #include "app/ribbon.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
@@ -16,6 +17,7 @@
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -23,6 +25,7 @@
 #include <QMimeData>
 #include <QClipboard>
 #include <QTemporaryDir>
+#include <QTextDocument>
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -233,6 +236,74 @@ private Q_SLOTS:
         QCOMPARE(w.outputPages(o), (QVector<int>{1, 2, 3, 0}));
         o.range = WriteOutputOptions::Range::Current;
         QCOMPARE(w.outputPages(o).size(), 1);
+    }
+
+    // ---------------------------------------------------------------- help
+    void helpTopicsAreComplete()
+    {
+        const QString src = QStringLiteral(JW_SOURCE_DIR "/resources/help/en/write");
+        QStringList onDisk, built;
+        for (QDirIterator it(src, QDir::Files); it.hasNext();) onDisk << QFileInfo(it.next()).fileName();
+        for (QDirIterator it(QStringLiteral(":/help/en/write"), QDir::Files); it.hasNext();) built << QFileInfo(it.next()).fileName();
+        onDisk.sort();
+        built.sort();
+        QCOMPARE(built, onDisk);   // resources.qrc lists every file (tools/help_files.py)
+        const QStringList ids = jp::help::topicIds();
+        QVERIFY2(ids.contains(QLatin1String("start")) && ids.contains(QLatin1String("index")), qPrintable(ids.join(QLatin1Char(' '))));
+        static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));
+        static const QRegularExpression banned(QStringLiteral("\\b(Microsoft|Publisher|Office|Word)\\b"));
+        const jp::help::Topic contents = jp::help::topic(QStringLiteral("index"));
+        QStringList problems;
+        for (const QString &id : ids) {
+            const jp::help::Topic t = jp::help::topic(id);
+            if (t.title.isEmpty()) problems << id + QStringLiteral(": no title");
+            if (t.keywords.isEmpty()) problems << id + QStringLiteral(": no keywords");
+            if (const auto m = banned.match(t.markdown); m.hasMatch()) problems << id + QStringLiteral(": says ") + m.captured(1);
+            for (auto m = link.globalMatch(t.markdown); m.hasNext();) {
+                const QString target = m.next().captured(1);
+                if (!target.startsWith(QLatin1String("https://")) && !ids.contains(target)) problems << id + QStringLiteral(": link to ") + target;
+            }
+            if (id != QLatin1String("index") && !contents.markdown.contains(QStringLiteral("](%1)").arg(id))) problems << id + QStringLiteral(": not in the contents");
+            QTextDocument doc;
+            WriteWindow w;
+            doc.setMarkdown(jp::help::displayMarkdown(t, &w), QTextDocument::MarkdownDialectGitHub);
+            if (doc.toPlainText().trimmed().size() < 100) problems << id + QStringLiteral(": nearly empty");
+        }
+        QFile cf(src + QStringLiteral("/context.json"));
+        QVERIFY(cf.open(QIODevice::ReadOnly));
+        const QJsonObject context = QJsonDocument::fromJson(cf.readAll()).object();
+        for (auto it = context.begin(); it != context.end(); ++it)
+            if (!ids.contains(it.value().toString())) problems << QStringLiteral("context %1: no topic %2").arg(it.key(), it.value().toString());
+        WriteWindow w;
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+            if (jp::help::contextTopic(QStringLiteral("tab:") + w.ribbon()->tabName(i)).isEmpty()) problems << QStringLiteral("no topic for the tab ") + w.ribbon()->tabName(i);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
+        // The keyboard topic's table comes from the commands themselves.
+        const QString keys = jp::help::displayMarkdown(jp::help::topic(QStringLiteral("keyboard")), &w);
+        QVERIFY(!keys.contains(QLatin1String("<!--")));
+        QVERIFY2(keys.contains(QStringLiteral("| Save | %1 |").arg(QKeySequence(QKeySequence::Save).toString(QKeySequence::NativeText))), qPrintable(keys.right(1500)));
+        QVERIFY(keys.contains(QStringLiteral("| Bold |")));
+    }
+
+    void f1OpensHelpOnWhatIsBeingDone()
+    {
+        WriteWindow w;
+        w.resize(1300, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        w.view()->setFocus();
+        QTest::keyClick(w.view(), Qt::Key_F1);
+        QVERIFY(w.helpView() && w.helpView()->isVisible());
+        QCOMPARE(w.helpView()->currentTopic(), QStringLiteral("index"));
+        w.showFileScreen(QStringLiteral("print"));
+        w.act("help.show")->trigger();   // over the File screen: a window of its own, on that page's topic
+        const auto *over = w.findChild<jp::HelpWindow *>();
+        QVERIFY(over && over->isVisible());
+        QCOMPARE(over->view()->currentTopic(), QStringLiteral("open-save"));
+        // The start topic says what JeffWrite is and that it is a preview.
+        const jp::help::Topic start = jp::help::topic(QStringLiteral("start"));
+        QVERIFY(start.markdown.contains(QLatin1String("Preview")));
+        QVERIFY(start.markdown.contains(QLatin1String("What works")) && start.markdown.contains(QLatin1String("What does not work yet")));
     }
 
     // ---------------------------------------------------------------- the page view
