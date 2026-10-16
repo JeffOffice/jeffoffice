@@ -1,5 +1,7 @@
 #include "core/fonts.h"
 
+#include <atomic>
+
 #include "core/appinfo.h"
 
 #include <QCoreApplication>
@@ -45,6 +47,10 @@ QStringList bundledFontDirs()
     return dirs;
 }
 
+static std::atomic<int> g_fontGeneration{0};
+int fontGeneration() { return g_fontGeneration.load(); }
+void fontsChanged() { ++g_fontGeneration; }
+
 // Adds a font file; an italic face whose flags say upright is added from a
 // copy with the flags right (only italic-named files are looked at, and
 // mapped, so the fonts that are right are not read in full).
@@ -60,9 +66,15 @@ static int addFontFile(const QDir &dir, const QString &name)
                     file.unmap(map);
                 }
         }
-        if (!fixed.isEmpty()) return QFontDatabase::addApplicationFontFromData(fixed);
+        if (!fixed.isEmpty()) {
+            const int id = QFontDatabase::addApplicationFontFromData(fixed);
+            fontsChanged();
+            return id;
+        }
     }
-    return QFontDatabase::addApplicationFont(dir.filePath(name));
+    const int id = QFontDatabase::addApplicationFont(dir.filePath(name));
+    fontsChanged();
+    return id;
 }
 
 int loadBundledFonts()

@@ -18,8 +18,11 @@ void paintTables(QPainter *p, const MaterializedPage &page, const TablePaint &op
     for (const std::shared_ptr<TableFragment> &f : page.tables) f->paint(p, options);
 }
 
-QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, int piece, int pieceRoom, bool *windowShort)
+QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, const PageStart &st, TablesRun *tr)
 {
+    int piece = st.piece;
+    const int pieceRoom = st.pieceRoom;
+    bool *windowShort = &tr->windowShort;
     m_pieces.clear();
     const TableIndex &ix = m_tables->index();
     const QTextDocument *story = m_doc->story();
@@ -29,7 +32,7 @@ QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSp
     QVector<StoryLayout::LineBrief> out;
     int pos = span.from, f = 0;      // where the next lines begin in the story, and the frame and the height used in it by then
     double y = 0;
-    bool firstRun = true, atTop = false;
+    bool firstRun = true, atTop = false, firstSegment = true;
     for (;;) {
         // A table: its rows, from the one at the position, each as one line.
         if (const int sp = ix.spanAt(pos); sp >= 0) {
@@ -148,6 +151,12 @@ QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSp
         }
         const bool full = std::any_of(briefs.begin(), briefs.end(), [&](const StoryLayout::LineBrief &l) { return l.frame < 0 || l.frame >= over; });
         out += briefs;
+        if (firstSegment) {
+            tr->notes = layout->notePlaces();
+            tr->rules = layout->noteRules();
+            tr->carried = layout->carriedNotes(over - f);
+            firstSegment = false;
+        }
         if (layout->windowShort()) {
             *windowShort = true;
             return out;
@@ -257,15 +266,15 @@ int Paginator::pageOfTablePosition(int position)
     return first + lo;
 }
 
-void Paginator::addTableFragments(MaterializedPage *page, const Section &sec, const std::vector<TableGroup> &groups)
+void Paginator::addTableFragments(MaterializedPage *page, const QVector<QRectF> &cols, const QRectF &body, const std::vector<TableGroup> &groups)
 {
     for (const TableGroup &g : groups) {
         const std::shared_ptr<TableLayout> table = m_tables->layout(g.span);
-        if (!table) continue;
-        const QRectF col = sec.columnRect(std::clamp(g.frame, 0, sec.columnCount() - 1));
-        const std::shared_ptr<TableFragment> fragment = m_tables->fragment(table, g.firstRow, g.endRow, col.height(), g.parts);
+        if (!table || cols.isEmpty()) continue;
+        const QRectF col = cols[std::clamp(g.frame, 0, int(cols.size()) - 1)];
+        const std::shared_ptr<TableFragment> fragment = m_tables->fragment(table, g.firstRow, g.endRow, body.height(), g.parts);
         if (!fragment) continue;
-        fragment->origin = QPointF(col.left() + table->leftEdgeIn(col.width()), col.top() + g.rect.top());
+        fragment->origin = QPointF(col.left() + table->leftEdgeIn(col.width()), body.top() + col.top() + g.rect.top());
         page->tables.push_back(fragment);
     }
 }

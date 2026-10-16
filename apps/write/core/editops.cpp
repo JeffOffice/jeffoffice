@@ -741,19 +741,37 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         }
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
-            if (!f.charFormat().hasProperty(prop::Atom)) continue;
-            Inline a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
-            if (referencesIn(a.raw).isEmpty()) continue;
-            bool ok = true;
-            const QByteArray raw = remap(a.raw, &ok);
-            if (!ok) {
+            // A reference to one of the other document's notes points at nothing here (its text isn't), and an object's place on the page is a place in the
+            // other's objects: the first is left out, and the second isn't carried (what the object is as the file has it is kept).
+            const QString field = f.charFormat().stringProperty(tp::Field);
+            const bool referenceToNote = field.startsWith(QLatin1String("footnote:"));
+            Inline a;
+            const bool atom = f.charFormat().hasProperty(prop::Atom);
+            if (atom) a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
+            if (referenceToNote || (atom && (a.tag == QLatin1String("footnoteReference") || a.tag == QLatin1String("endnoteReference")))) {
                 fixes.push_back({f.position(), f.position() + f.length(), QTextCharFormat(), true});
-            } else if (raw != a.raw) {
-                a.raw = raw;
-                QTextCharFormat nf = f.charFormat();
-                setStored(nf, prop::Atom, packAtom(a));
-                fixes.push_back({f.position(), f.position() + f.length(), nf, false});
+                continue;
             }
+            QTextCharFormat nf = f.charFormat();
+            bool changed = false;
+            if (nf.hasProperty(flow::fp::AnchorId)) {
+                nf.clearProperty(flow::fp::AnchorId);
+                changed = true;
+            }
+            if (atom && !referencesIn(a.raw).isEmpty()) {
+                bool ok = true;
+                const QByteArray raw = remap(a.raw, &ok);
+                if (!ok) {
+                    fixes.push_back({f.position(), f.position() + f.length(), QTextCharFormat(), true});
+                    continue;
+                }
+                if (raw != a.raw) {
+                    a.raw = raw;
+                    setStored(nf, prop::Atom, packAtom(a));
+                    changed = true;
+                }
+            }
+            if (changed) fixes.push_back({f.position(), f.position() + f.length(), nf, false});
         }
     }
     for (int i = int(fixes.size()) - 1; i >= 0; --i) {
@@ -994,7 +1012,7 @@ namespace {
 const int kStyleDriven[] = {QTextFormat::FontFamilies,   QTextFormat::FontPointSize,    QTextFormat::FontWeight,   QTextFormat::FontItalic,   QTextFormat::TextUnderlineStyle,
                             QTextFormat::FontStrikeOut,  QTextFormat::ForegroundBrush,  QTextFormat::FontCapitalization, QTextFormat::TextVerticalAlignment,
                             QTextFormat::FontLetterSpacing, QTextFormat::FontLetterSpacingType, QTextFormat::TextUnderlineColor,
-                            tp::ThemeFont, tp::ColorRefP, tp::HighlightRefP, tp::UnderlineKind, prop::UnderlineAttrs, prop::ColorAttrs, prop::ColorAttrsRgb, prop::DoubleStrike, prop::Hidden, prop::Raised, tp::NoProof};
+                            tp::ThemeFont, tp::ColorRefP, tp::HighlightRefP, tp::UnderlineKind, prop::UnderlineAttrs, prop::ColorAttrs, prop::ColorAttrsRgb, prop::DoubleStrike, tp::HiddenText, prop::Raised, tp::NoProof};
 
 // The format with what `was` gave it (and it still has) taken for what `now` gives.
 QTextCharFormat restyled(const QTextCharFormat &f, const QTextCharFormat &was, const QTextCharFormat &now)
@@ -1078,11 +1096,44 @@ void setIndents(WriteDoc &doc, QTextCursor &c, double left, double right, double
     });
 }
 
+namespace {
+// What the paragraph's spacing says on one side that a measure set by a person replaces: that the spacing is automatic, and a number of lines.
+void dropSpacingAttributes(QTextBlockFormat &bf, const char *side)
+{
+    if (!bf.hasProperty(prop::SpacingAttrs)) return;
+    QByteArray attrs = storedBytes(bf, prop::SpacingAttrs);
+    for (const char *suffix : {"Autospacing", "Lines"}) {
+        const QByteArray name = QByteArray(" w:") + side + suffix + "=\"";
+        for (int at = attrs.indexOf(name); at >= 0; at = attrs.indexOf(name)) {
+            const int end = attrs.indexOf('"', at + name.size());
+            if (end < 0) break;
+            attrs.remove(at, end + 1 - at);
+        }
+    }
+    if (attrs.isEmpty()) bf.clearProperty(prop::SpacingAttrs);
+    else setStored(bf, prop::SpacingAttrs, attrs);
+}
+} // namespace
+
+void setSpaceBefore(QTextBlockFormat &bf, double points)
+{
+    bf.setTopMargin(std::max(0.0, points));
+    bf.clearProperty(tp::SpaceBeforeAuto);
+    dropSpacingAttributes(bf, "before");
+}
+
+void setSpaceAfter(QTextBlockFormat &bf, double points)
+{
+    bf.setBottomMargin(std::max(0.0, points));
+    bf.clearProperty(tp::SpaceAfterAuto);
+    dropSpacingAttributes(bf, "after");
+}
+
 void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 {
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
-        bf.setTopMargin(std::max(0.0, before));
-        bf.setBottomMargin(std::max(0.0, after));
+        setSpaceBefore(bf, before);
+        setSpaceAfter(bf, after);
     });
 }
 

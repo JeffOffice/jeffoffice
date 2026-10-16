@@ -52,6 +52,7 @@ public:
     int paragraphs = 0, inlines = 0;
     bool truncated = false;
     int standIns = 0;                 // the tables that are kept whole as XML, for want of room (or rows)
+    bool tablesAsStandIns = false;    // a part whose tables are not laid out (a header, a footer, a note): they are stand-ins, as every table was
 
     RunProps rPr(int n) const
     {
@@ -197,6 +198,8 @@ public:
             } else if (name == "spacing") {
                 p.before = intOf(t, c, "before");
                 p.after = intOf(t, c, "after");
+                if (p.before || t.has(c, "beforeAutospacing")) p.beforeAuto = onOffString(t.attr(c, "beforeAutospacing"));
+                if (p.after || t.has(c, "afterAutospacing")) p.afterAuto = onOffString(t.attr(c, "afterAutospacing"));
                 p.line = intOf(t, c, "line");
                 p.lineRule = t.attr(c, "lineRule");
                 p.spacingAttrs = t.otherAttributes(c, {"before", "after", "line", "lineRule"});
@@ -219,10 +222,34 @@ public:
             } else if (name == "sectPr") {
                 p.section = std::make_shared<SectionProps>(sectPr(c));
             } else {
-                p.extra.push_back({paraChildRank(name), t.raw(c)});
+                if (name == "pBdr") p.borders = borders(c);
+                else if (name == "shd") p.shading = Shading{t.attr(c, "val"), t.attr(c, "color"), t.attr(c, "fill")};
+                p.extra.push_back({paraChildRank(name), t.raw(c)});   // (borders and shading are kept as written as well)
             }
         }
         return p;
+    }
+
+    // The sides of a paragraph's borders: none of the bar or the box a frame has.
+    ParaBorders borders(int n) const
+    {
+        ParaBorders b;
+        auto side = [&](int c) {
+            Border x;
+            x.val = t.attr(c, "val");
+            x.size = std::clamp(intOf(t, c, "sz").value_or(0), 0, 96);
+            x.space = std::clamp(intOf(t, c, "space").value_or(0), 0, 31);
+            x.color = t.attr(c, "color");
+            return x;
+        };
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            if (t.is(c, "top")) b.top = side(c);
+            else if (t.is(c, "left") || t.is(c, "start")) b.left = side(c);
+            else if (t.is(c, "bottom")) b.bottom = side(c);
+            else if (t.is(c, "right") || t.is(c, "end")) b.right = side(c);
+            else if (t.is(c, "between")) b.between = side(c);
+        }
+        return b;
     }
 
     // ---- inside a paragraph
@@ -543,7 +570,7 @@ public:
     // Whether a w:tbl is read as a table: it has rows and cells, no more than the limits (wml.h) hold, and is not nested deeper than they say.
     bool tableFits(int tbl) const
     {
-        if (tableDepth >= kMaxTableDepth) return false;
+        if (tablesAsStandIns || tableDepth >= kMaxTableDepth) return false;
         int rows = 0, cells = 0;
         for (int r = t.firstChild(tbl); r >= 0; r = t.next(r)) {
             if (!t.is(r, "tr")) continue;
@@ -1022,6 +1049,69 @@ TableStyleDef readTableStyle(const Style &style)
         }
     }
     return def;
+}
+
+bool readNotes(const QByteArray &xml, QVector<NotePart> *notes)
+{
+    XmlTree tree;
+    if (!tree.parse(xml, nullptr)) return false;
+    Reader reader(tree);
+    reader.tablesAsStandIns = true;
+    for (int c = tree.firstChild(tree.root()); c >= 0 && notes->size() < kMaxNotes; c = tree.next(c)) {
+        if (!tree.is(c, "footnote") && !tree.is(c, "endnote")) continue;
+        NotePart n;
+        n.id = intOf(tree, c, "id").value_or(0);
+        n.type = tree.attr(c, "type");
+        reader.bodyContent(c, &n.blocks, 0, nullptr, nullptr);
+        notes->push_back(std::move(n));
+    }
+    return true;
+}
+
+bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts)
+{
+    XmlTree tree;
+    if (!tree.parse(xml, nullptr)) return false;
+    for (int c = tree.firstChild(tree.root()); c >= 0 && fonts->size() < kMaxFonts; c = tree.next(c)) {
+        if (!tree.is(c, "font")) continue;
+        FontEntry f;
+        f.name = tree.attr(c, "name");
+        if (const int alt = tree.child(c, "altName"); alt >= 0) f.alternate = tree.val(alt);
+        if (const int fam = tree.child(c, "family"); fam >= 0) f.family = tree.val(fam);
+        fonts->push_back(std::move(f));
+    }
+    return true;
+}
+
+QString noteNumberRestart(const QByteArray &settings, const char *group)
+{
+    XmlTree tree;
+    if (!tree.parse(settings, nullptr)) return QString();
+    const int notes = tree.child(tree.root(), group);
+    const int restart = notes < 0 ? -1 : tree.child(notes, "numRestart");
+    return restart < 0 ? QString() : tree.val(restart);
+}
+
+bool compatOption(const QByteArray &settings, const char *name)
+{
+    XmlTree tree;
+    if (!tree.parse(settings, nullptr)) return false;
+    const int compat = tree.child(tree.root(), "compat");
+    if (compat < 0) return false;
+    const int option = tree.child(compat, name);
+    if (option < 0) return false;
+    const QString value = tree.val(option).toLower();
+    return !(value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off"));
+}
+
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks)
+{
+    XmlTree tree;
+    if (!tree.parse(xml, nullptr)) return false;
+    Reader reader(tree);
+    reader.tablesAsStandIns = true;
+    reader.bodyContent(tree.root(), blocks, 0, nullptr, nullptr);
+    return true;
 }
 
 bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *notes)

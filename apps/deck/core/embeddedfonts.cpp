@@ -1,5 +1,7 @@
 #include "core/embeddedfonts.h"
 
+#include "core/fonts.h"
+
 #include "core/fontfiles.h"
 #include "core/sfnt.h"
 
@@ -87,6 +89,7 @@ void EmbeddedFonts::use(Document *doc, QVector<EmbeddedFace> faces)
                     continue;
                 }
                 const int id = QFontDatabase::addApplicationFontFromData(renamed);
+                jp::fontsChanged();
                 if (id < 0) continue;
                 Added added;
                 added.id = id;
@@ -116,6 +119,7 @@ void EmbeddedFonts::release(const Document *doc)
         if (added == g_added.end()) continue;
         if (--added->users <= 0) {
             QFontDatabase::removeApplicationFont(added->id);
+            jp::fontsChanged();
             g_added.erase(added);
         }
     }

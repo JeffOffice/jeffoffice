@@ -351,6 +351,9 @@ inline QString plainHyphens(QString t) { return t.remove(QChar(0x00AD)).remove(Q
 struct ParaSig {
     QString attrs, text;
     QStringList markers, pPrOther, rPrOther, unknownAttrs;
+    // Each property of a run of the paragraph, as written (every one, the ones the program understands too): a save may leave out what it normalizes, but a run
+    // that had none gaining one is a change to a file nobody touched.
+    QSet<QString> runProps;
     bool operator==(const ParaSig &o) const { return attrs == o.attrs && plainHyphens(text) == plainHyphens(o.text) && markers == o.markers && pPrOther == o.pPrOther && rPrOther == o.rPrOther && unknownAttrs == o.unknownAttrs; }
 };
 
@@ -386,6 +389,7 @@ inline void walkInline(const Node &n, ParaSig *sig)
         if (isWordNs(k.name) && local == QLatin1String("rPr")) {
             for (const Node &m : k.kids) {
                 const QString ml = localOf(m.name);
+                sig->runProps.insert(canonical(m));
                 if (!isWordNs(m.name) || !inList(ml, kModeledRPr)) sig->rPrOther.push_back(canonical(m));
                 else {
                     const QStringList known = kKnownAttrs.value(ml, QStringList());
@@ -662,6 +666,12 @@ inline QStringList lossProblems(const QByteArray &original, const QByteArray &sa
         int shown = 0;
         for (int i = 0; i < da.paragraphs.size() && shown < 3; ++i) {
             const detail::ParaSig &x = da.paragraphs[i], &y = db.paragraphs[i];
+            QSet<QString> gained = y.runProps;
+            gained.subtract(x.runProps);
+            if (!gained.isEmpty() && shown < 3) {
+                ++shown;
+                out << QStringLiteral("paragraph %1 gains run properties: %2").arg(i).arg(QStringList(gained.cbegin(), gained.cend()).join(QLatin1Char(',')).left(160));
+            }
             if (x == y) continue;
             ++shown;
             QString what;

@@ -178,8 +178,8 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
                 write::changeBlockFormat(*m_doc, m_view->cursor(), [which, v](QTextBlockFormat &bf) {
                     if (which == 0) bf.setLeftMargin(v);
                     else if (which == 1) bf.setRightMargin(v);
-                    else if (which == 2) bf.setTopMargin(v);
-                    else bf.setBottomMargin(v);
+                    else if (which == 2) write::setSpaceBefore(bf, v);
+                    else write::setSpaceAfter(bf, v);
                 });
                 m_view->setFocus();
             });

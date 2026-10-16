@@ -2,6 +2,7 @@
 
 #include "wml/xmltree.h"
 
+#include <QRegularExpression>
 #include <algorithm>
 #include <tuple>
 
@@ -76,6 +77,31 @@ int sectionChildRank(const QByteArray &name)
                                         "sectPrChange"};
     if (name == "footerReference") return 0;
     return rankIn(name, names, int(sizeof names / sizeof *names), 100);
+}
+
+// ---- headers and footers
+
+bool HeaderRefs::any() const
+{
+    for (int i = 0; i < 3; ++i)
+        if (!header[i].isEmpty() || !footer[i].isEmpty()) return true;
+    return false;
+}
+
+HeaderRefs headerRefsOf(const SectionProps &section)
+{
+    static const QRegularExpression tag(QStringLiteral("^<(?:[\\w.-]+:)?(header|footer)Reference\\b([^>]*)>"));
+    static const QRegularExpression type(QStringLiteral("[\\s:]type\\s*=\\s*[\"']([^\"']*)[\"']")), id(QStringLiteral("[\\s:]id\\s*=\\s*[\"']([^\"']*)[\"']"));
+    HeaderRefs out;
+    for (const RawChild &c : section.extra) {
+        const QRegularExpressionMatch m = tag.match(QString::fromUtf8(c.xml.left(2000)));
+        if (!m.hasMatch()) continue;
+        const QString attrs = m.captured(2), kind = type.match(attrs).captured(1), rid = id.match(attrs).captured(1);
+        const int slot = kind == QLatin1String("first") ? 1 : kind == QLatin1String("even") ? 2 : 0;
+        if (rid.isEmpty()) continue;
+        (m.captured(1) == QLatin1String("header") ? out.header : out.footer)[slot] = rid;
+    }
+    return out;
 }
 
 // ---- Fonts
@@ -212,6 +238,8 @@ void ParaProps::overlay(const ParaProps &t)
     }
     if (t.before) before = t.before;
     if (t.after) after = t.after;
+    if (t.beforeAuto) beforeAuto = t.beforeAuto;
+    if (t.afterAuto) afterAuto = t.afterAuto;
     if (t.line) line = t.line;
     if (!t.lineRule.isEmpty()) lineRule = t.lineRule;
     if (t.indLeft) indLeft = t.indLeft;
@@ -219,6 +247,16 @@ void ParaProps::overlay(const ParaProps &t)
     if (t.indFirst) indFirst = t.indFirst;
     if (!t.jc.isEmpty()) jc = t.jc;
     if (t.outlineLvl) outlineLvl = t.outlineLvl;
+    if (t.borders) {
+        ParaBorders b = borders.value_or(ParaBorders());
+        if (t.borders->top) b.top = t.borders->top;
+        if (t.borders->left) b.left = t.borders->left;
+        if (t.borders->bottom) b.bottom = t.borders->bottom;
+        if (t.borders->right) b.right = t.borders->right;
+        if (t.borders->between) b.between = t.borders->between;
+        borders = b;
+    }
+    if (t.shading) shading = t.shading;
 }
 
 ParaProps ParaProps::normalized() const

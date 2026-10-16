@@ -2304,9 +2304,11 @@ private Q_SLOTS:
             }
             // The font database takes it as that family, and no other.
             const int id = QFontDatabase::addApplicationFontFromData(made);
+            jp::fontsChanged();
             QVERIFY2(id >= 0, qPrintable(c.family));
             QCOMPARE(QFontDatabase::applicationFontFamilies(id), QStringList{family});
             QVERIFY(QFontDatabase::removeApplicationFont(id));
+            jp::fontsChanged();
         }
         // A font that is not one is not made over; nor is one to be called nothing.
         QVERIFY(jp::fontWithFamilyName(QByteArray("not a font"), family).isEmpty());
