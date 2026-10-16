@@ -21678,6 +21678,22 @@ private Q_SLOTS:
             QVERIFY(near(img.pixel(175, 175), QColor(255, 0, 0)));
             QVERIFY(near(img.pixel(225, 175), QColor(0, 255, 0)));
         }
+        // PatBlt fills a rectangle (here 150 to 250 across and 200 to 260 down) with the brush, as table cells in a pasted table are.
+        QByteArray patBlt;
+        le32(patBlt, 0x00F00021);   // copy the brush
+        for (int v : {60, 100, 200, 150}) le16(patBlt, v);   // height, width, y, x
+        const QImage filled = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, wmfRecord(0x012D, words({0})) + wmfRecord(0x061D, patBlt)));
+        QVERIFY(near(filled.pixel(200, 230), QColor(0, 0, 255)));
+        QCOMPARE(qAlpha(filled.pixel(100, 230)), 0);
+        // Text in a font of the Greek character set is Greek: the byte 0xF4 is a tau there, where in the Western set it is an o with a
+        // circumflex.
+        {
+            QRect greek, tau;
+            ink(picture(wmf(QStringLiteral("Arial"), 161, "\xF4", 120, 150, 120)), QRect(0, 100, 400, 200), &greek);
+            ink(picture(emf(QStringLiteral("Arial"), 0, QString(QChar(0x03C4)), 120, 150, 120)), QRect(0, 100, 400, 200), &tau);
+            QVERIFY(!greek.isEmpty() && !tau.isEmpty());
+            QVERIFY2(std::abs(greek.height() - tau.height()) <= 2 && std::abs(greek.width() - tau.width()) <= 2, qPrintable(QStringLiteral("greek %1 x %2, tau %3 x %4").arg(greek.width()).arg(greek.height()).arg(tau.width()).arg(tau.height())));
+        }
         // Insert Picture takes both from files, whatever the case of the
         // extension, and the page shows the picture on screen and in print.
         QTemporaryDir dir;
