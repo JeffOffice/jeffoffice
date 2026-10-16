@@ -218,6 +218,8 @@ ParaProps ParaProps::normalized() const
         if (t.leader == QLatin1String("none")) t.leader.clear();
         if (t.val.isEmpty()) t.val = QStringLiteral("left");
     }
+    // (A bar and a list's tab are not tab stops the text engine has: they are kept apart from the tabs that are compared.)
+    n.tabs->erase(std::remove_if(n.tabs->begin(), n.tabs->end(), [](const TabStop &t) { return t.val == QLatin1String("bar") || t.val == QLatin1String("num"); }), n.tabs->end());
     if (!n.before) n.before = 0;
     if (!n.after) n.after = 0;
     if (!n.line) n.line = 240;

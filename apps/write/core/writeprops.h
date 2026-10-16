@@ -35,6 +35,8 @@ enum : int {
     SectionData,                              // QByteArray: the section this paragraph ends (packSection), with flow::fp::SectionBreakAfter
     SpacingAttrs,                             // QByteArray: attributes of w:spacing that have no field, as written
     IndAttrs,                                 // QByteArray: the same for w:ind
+    JcRaw,                                    // QString: the alignment as the file wrote it, when it is a kind of justified ("distribute")
+    OddTabs,                                  // QByteArray: tab stops of the paragraph's own that the engine has no kind for (a bar), packed (packTabs)
 };
 }
 
@@ -45,6 +47,10 @@ office::wml::Inline unpackAtom(const QByteArray &packed);
 // Body elements kept as XML.
 QByteArray packBlocks(const QVector<office::wml::Block> &blocks);
 QVector<office::wml::Block> unpackBlocks(const QByteArray &packed);
+
+// Tab stops.
+QByteArray packTabs(const QVector<office::wml::TabStop> &tabs);
+QVector<office::wml::TabStop> unpackTabs(const QByteArray &packed);
 
 // Properties kept as written, with their places.
 QByteArray packRaw(const QVector<office::wml::RawChild> &children);

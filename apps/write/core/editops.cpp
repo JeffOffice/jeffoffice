@@ -717,7 +717,10 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
 
 void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment)
 {
-    changeBlockFormat(doc, c, [alignment](QTextBlockFormat &bf) { bf.setAlignment(alignment); });
+    changeBlockFormat(doc, c, [alignment](QTextBlockFormat &bf) {
+        bf.setAlignment(alignment);
+        bf.clearProperty(prop::JcRaw);   // (a chosen alignment is the plain kind)
+    });
 }
 
 static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, QTextList *join);
@@ -859,7 +862,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::JoinNext), int(prop::Continued), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+    for (int key : {int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(prop::JoinNext), int(prop::Continued), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
     nf.setPageBreakPolicy(nf.pageBreakPolicy() | (bf.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysAfter));
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
