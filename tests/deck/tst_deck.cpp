@@ -25206,6 +25206,31 @@ private Q_SLOTS:
         QCOMPARE(blank->shape, QStringLiteral("rect"));
     }
 
+    // The empty paragraph that ends a slide's text counts in the height the text is centered by, as the presentation program counts it, when
+    // the text with it is taller than the box (text that runs over is centered both ways): in a box 60 points high, anchored in the middle,
+    // the lines A and B and the empty one after them are 64.8 points (21.6 each) in a place of 52.8, and begin 6 points above where the
+    // box's text begins; without the empty one they would be 43.2 and begin below it.
+    void layoutSlideTextCountsTheEmptyParagraphThatEndsIt()
+    {
+        const QByteArray props = pptRec(0xF00B, le(0x0087, 2) + le(1, 4), 1, 3);
+        const QByteArray shapes = pptShape(0x4A0, 0, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("A\rB\r"))), 1000, 200, 3000, 1480, props);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *box = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) box = static_cast<const TextItem *>(it.get());
+        QVERIFY(box);
+        QVERIFY2(std::abs(box->rect.height() - 60.0) < 0.01, qPrintable(QString::number(box->rect.height())));
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*d, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        const auto lines = fl.layout->lineInfo(0);
+        QCOMPARE(int(lines.size()), 3);
+        // The first line is above the inset (-2.4 with 3.6 of it and the 6 points).
+        QVERIFY2(lines[0].rect.top() < box->insets.top() - 4, qPrintable(QString::number(lines[0].rect.top())));
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
