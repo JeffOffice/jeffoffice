@@ -922,6 +922,8 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.valign = s.valign;
     spec.noWrap = s.noWrap;
     spec.centerBlock = s.centerBlock;
+    // A slide's shape shows all its text, running out of the shape that is too small for it, as a slide's text box does.
+    spec.runsOver = ctx.doc->slideText;
     spec.ctx.doc = ctx.doc;
     spec.ctx.pageNumber = ctx.pageNumber;
     spec.ctx.pageCount = ctx.pageCount;
