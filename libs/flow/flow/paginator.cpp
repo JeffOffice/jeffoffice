@@ -228,6 +228,8 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                 if (m_tables->any()) {
                     // (Tables are laid out beside the text: paginator_tables.cpp.)
                     TablesRun tr;
+                    tr.pageIndex = index;
+                    tr.pageNumber = number;
                     all = linesWithTables(frames, span, run.firstFrame, st, &tr);
                     run.notes = tr.notes;
                     run.rules = tr.rules;
@@ -932,8 +934,21 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                 const StoryLayout::LineBrief &ln = run.lines[i];
                 const int column = ln.frame - run.firstFrame;
                 if (column < 0 || column >= run.columns) continue;
+                // (The line that stands for a row of a table is not one: the cells' own lines, set from the fragment, are.)
+                if (!run.groups.empty() && m_doc->story()->findBlock(ln.block).blockFormat().intProperty(fp::Cell)) continue;
                 const QRectF col = run.cols[column];
                 held << AnchorLine{ln.block, ln.pos, ln.end, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left()};
+            }
+            for (const auto &fragment : out->tables) {
+                // (The column a table is in: the one its middle is in, else the nearest.)
+                double columnLeft = run.cols.isEmpty() ? 0 : run.cols[0].left(), nearest = 1e18;
+                for (const QRectF &col : run.cols) {
+                    const double away = std::abs(col.center().x() - fragment->rect().center().x());
+                    if (away < nearest) { nearest = away; columnLeft = col.left(); }
+                }
+                fragment->forLines([&](const StoryLayout::LineBrief &ln, const QRectF &rect) {
+                    if (held.size() < 20000) held << AnchorLine{ln.block, ln.pos, ln.end, rect, columnLeft};
+                });
             }
             QVector<Anchor> anchors;
             for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.end, held);

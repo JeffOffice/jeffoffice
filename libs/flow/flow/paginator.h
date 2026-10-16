@@ -19,6 +19,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QVector>
+#include <cmath>
 #include <map>
 #include <memory>
 #include <tuple>
@@ -152,12 +153,30 @@ private:
     std::vector<PieceRecord> m_pieces;
     // What laying out a page with tables gives besides the lines: the text engine's own notes of the page (where the notes are, the rules above them, and the notes cut at the foot).
     struct TablesRun {
+        int pageIndex = 0, pageNumber = 1;                // (given:) the page, and the number it shows
         bool windowShort = false;
         QVector<StoryLayout::NotePlace> notes;
         QVector<StoryLayout::Rule> rules;
         QVector<StoryLayout::CarriedNote> carried;
     };
+    // The notes of a page that has tables, as they are set down: the room each frame has taken at its foot (the rule above them included), and where each note is.
+    struct Ledger;
     QVector<StoryLayout::LineBrief> linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, const PageStart &st, TablesRun *out);
+    QVector<StoryLayout::LineBrief> tableLines(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, const PageStart &st, TablesRun *out, Ledger *ledger);
+    // The notes in the order of their numbers at the foot of each frame, under one rule, as a page sets them.
+    void restackNotes(const QVector<FrameSpec> &frames, Ledger *ledger, TablesRun *out);
+    // How tall the note is when set in a column `width` wide (its story is the document's `fields`').
+    double noteHeight(const QString &id, double width);
+    std::map<std::tuple<QString, int, int>, double> m_noteHeights;   // by note, the width in hundredths of a point, and its story's revision
+    // What the pages that a row of a table is in parts on have for it (TableLayout::Rooms): `section` is the table's, `numberOfFirst` the number of the page the row begins on, `first` the
+    // room its first part has (the room's twentieths and whether notes are above it are what a page that starts in the row has, as PageStart::pieceRoom).
+    TableLayout::Rooms partRooms(TableLayout &table, int row, int section, int numberOfFirst, double first, bool ruleAbove, double ruleGap);
+    static int roomOfPart(double firstRoom, bool ruleAbove) { return int(std::lround(firstRoom * 20)) | (ruleAbove ? 1 << 30 : 0); }
+    static double firstOfRoom(int stored) { return (stored & ((1 << 30) - 1)) / 20.0; }
+    static bool ruleAboveOfRoom(int stored) { return (stored >> 30) & 1; }
+    // The section a position is in on the page that starts with `st`.
+    int sectionAt(const PageStart &st, int position) const;
+    double m_ruleGap = 0;   // the gap above a page's notes (the last the text engine said)
     int m_roomOut = 0;   // the room the first part of the row that goes on to the next page had (twentieths of a point), as the last lines of a page left it
     std::vector<TableGroup> tableGroups(const QVector<StoryLayout::LineBrief> &lines, int kept, int firstFrame);
     bool tablePlaceholder(QTextCursor &dst, QTextBlock &b, bool first, const std::vector<TableGroup> &groups) const;
