@@ -373,7 +373,7 @@ int main(int argc, char **argv)
         if (!dir.mkpath(QStringLiteral("."))) { out << "cannot make " << args[3] << "\n"; return 1; }
         for (int k = 0; k < pages; ++k) {
             const QImage img = pageImage(pg, &cache, k, width);
-            if (!img.save(dir.filePath(QStringLiteral("page-%1.png").arg(k + 1, 3, 10, QLatin1Char('0'))))) { out << "cannot save page " << k + 1 << "\n"; return 1; }
+            if (img.isNull() || !img.save(dir.filePath(QStringLiteral("page-%1.png").arg(k + 1, 3, 10, QLatin1Char('0'))))) { out << "cannot save page " << k + 1 << "\n"; return 1; }
         }
         out << "wrote\t" << pages << " pages\t" << timer.elapsed() << " ms\n";
         return 0;
@@ -389,6 +389,7 @@ int main(int argc, char **argv)
             QPainter p;
             for (int k = 0; k < pages; ++k) {
                 const auto page = pg.materialize(k);
+                if (!page) { out << "cannot make page " << k + 1 << "\n"; return 1; }
                 const QSizeF size = page->doc->pageSize();
                 pdf.setPageSize(QPageSize(size, QPageSize::Point, QString(), QPageSize::ExactMatch));
                 if (k == 0) {

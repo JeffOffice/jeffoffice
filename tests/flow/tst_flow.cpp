@@ -263,7 +263,7 @@ QString splitsLeaveLines(FlowDocument &fd, Paginator &pg, int lines)
 }
 
 // Every character of the story is on exactly one page, in order, and a paragraph's lines follow one another across the pages; empty if so.
-QString coverageProblem(Paginator &pg, FlowDocument &fd)
+QString coverageProblem(Paginator &pg, FlowDocument &fd, bool allowBlankLast = false)
 {
     const QString text = fd.story()->toPlainText();
     const int pages = pg.pageCount();
@@ -275,6 +275,7 @@ QString coverageProblem(Paginator &pg, FlowDocument &fd)
     };
     for (int k = 0; k < pages; ++k) {
         const auto page = pg.lines(k);
+        if (page.isEmpty() && k == pages - 1 && k > 0 && allowBlankLast) continue;   // (a page break after the last paragraph makes one)
         if (page.isEmpty()) return QStringLiteral("page %1 of %2 has no lines").arg(k).arg(pages);
         for (const auto &l : page) {
             if (l.pos < previousEnd) return QStringLiteral("page %1: a line at %2 begins before the one before it ends, at %3 (a line twice)").arg(k).arg(l.pos).arg(previousEnd);
@@ -1405,6 +1406,103 @@ private Q_SLOTS:
             QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("trial %1: %2").arg(trial).arg(bad)));
         }
         QCOMPARE(differ, 0);
+    }
+
+    // Space before a paragraph as tall as a page, or taller, at the top of a page: the paragraph still has a page with a line on it (the
+    // space is cut to what the page holds), and every page can be made and drawn.
+    void paginatorHandlesSpaceBeforeTallerThanAPage()
+    {
+        for (double space : {700.0, 648.0, 640.0, 5000.0}) {
+            FlowDocument fd;
+            fillStory(fd.story(), 6, 81, [space](int i, QTextBlockFormat &bf) {
+                if (i == 0 || i == 3) bf.setTopMargin(space);
+                if (i == 3) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
+            }, 5, 30);
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY2(pages >= 2, qPrintable(QString::number(pages)));
+            const QString bad = coverageProblem(pg, fd);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("space %1: %2").arg(space).arg(bad)));
+            for (int k = 0; k < pages; ++k) {
+                QVERIFY2(!pg.lines(k).isEmpty(), qPrintable(QStringLiteral("space %1: page %2 is empty").arg(space).arg(k)));
+                QVERIFY2(pg.materialize(k), qPrintable(QStringLiteral("space %1: page %2 can't be made").arg(space).arg(k)));
+            }
+        }
+    }
+
+    // Paragraphs kept with the next one in a chain longer than sixteen: the chain moves to the next page whole if a page holds it, and where a
+    // page does not, the pages are cut as they would be without the keeping, not at a line or two.
+    void paginatorKeepsLongChainsWithTheNext()
+    {
+        auto story = [](FlowDocument &fd, int fillers, int chain) {
+            fillStory(fd.story(), fillers + chain + 1, 82, [fillers, chain](int i, QTextBlockFormat &bf) {
+                if (i >= fillers && i < fillers + chain) bf.setProperty(tp::KeepWithNext, true);
+            }, 1, 2);   // (a line each)
+        };
+        {
+            FlowDocument fd;
+            story(fd, 10, 25);   // the chain and the paragraph after it fit a page
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY(pages >= 2);
+            const auto first = pg.lines(0), second = pg.lines(1);
+            QCOMPARE(fd.story()->findBlock(first.last().block).blockNumber(), 9);
+            QCOMPARE(fd.story()->findBlock(second.first().block).blockNumber(), 10);
+        }
+        {
+            FlowDocument fd;
+            story(fd, 5, 70);   // more than a page can hold
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY(pages >= 3);
+            QVERIFY(pg.lines(0).size() >= 3);
+            for (int k = 1; k + 1 < pages; ++k) QVERIFY2(pg.lines(k).size() >= 20, qPrintable(QStringLiteral("page %1 has %2 lines").arg(k).arg(pg.lines(k).size())));
+            QVERIFY(coverageProblem(pg, fd).isEmpty());
+        }
+    }
+
+    // A page break after the last paragraph makes a last page with nothing on it, as a break after the last line of a document does; so does a section
+    // break, and the page is the next section's.
+    void paginatorMakesAPageAfterABreakAtTheEnd()
+    {
+        for (int what = 0; what < 2; ++what) {
+            FlowDocument fd;
+            fillStory(fd.story(), 4, 83, [what](int i, QTextBlockFormat &bf) {
+                if (i != 3) return;
+                if (what == 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+                else bf.setProperty(flow::fp::SectionBreakAfter, true);
+            }, 5, 20);
+            if (what) {
+                Section next;
+                next.orientation = Section::Orientation::Landscape;
+                fd.sections << next;
+            }
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 2);
+            QVERIFY(pg.lines(1).isEmpty());
+            QVERIFY(pg.page(1).start.hard);
+            QVERIFY(coverageProblem(pg, fd, true).isEmpty());
+            const auto blank = pg.materialize(1);
+            QVERIFY(blank);
+            QVERIFY(blank->boxes.isEmpty());
+            QCOMPARE(blank->size, fd.section(what).pageSize());
+            QCOMPARE(blank->doc->pages.size(), 1);
+            // Text typed after it goes on that page.
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            c.insertBlock(QTextBlockFormat());   // (a new paragraph has the one before's format, break and all, unless it is given another)
+            c.insertText(QStringLiteral("after the break"));
+            QCOMPARE(pg.pageCount(), 2);
+            QVERIFY(!pg.lines(1).isEmpty());
+            QVERIFY(coverageProblem(pg, fd).isEmpty());
+            Paginator fresh(&fd);
+            QCOMPARE(startsOf(pg), startsOf(fresh));
+        }
+        // The same without a break at the end is a page less.
+        FlowDocument fd;
+        fillStory(fd.story(), 4, 83, {}, 5, 20);
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 1);
     }
 
     // Several edits before the pages are laid out again are settled together.

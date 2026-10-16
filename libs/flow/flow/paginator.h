@@ -103,7 +103,7 @@ private:
     void settle(int index);                               // lays out again what edits changed, until page `index` is right (-1: all)
     void settleStep();                                    // one page of that
     void extend(int index);                               // lays out forward until `index` is known
-    std::unique_ptr<QTextDocument> sliceOf(const Run &run, int index, int *storyFrom, bool *fromBefore) const;
+    std::unique_ptr<QTextDocument> sliceOf(const Run &run, int *storyFrom, bool *fromBefore) const;
 
     FlowDocument *m_doc;
     std::unique_ptr<QObject> m_watch;
