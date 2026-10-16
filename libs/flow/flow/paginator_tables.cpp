@@ -83,34 +83,6 @@ double Paginator::noteHeight(const QString &id, double width)
     return h;
 }
 
-int Paginator::sectionAt(const PageStart &st, int position) const
-{
-    // The sections end at the paragraphs that say so: those between the page's first paragraph and the position.
-    int section = st.section;
-    const QTextDocument *story = m_doc->story();
-    for (QTextBlock b = story->findBlock(st.pos); b.isValid() && b.position() < position; b = b.next())
-        if (b.blockFormat().boolProperty(fp::SectionBreakAfter) && section + 1 < int(m_doc->sections.size())) ++section;
-    return section;
-}
-
-TableLayout::Rooms Paginator::partRooms(TableLayout &table, int row, int section, int numberOfFirst, double first, bool ruleAbove, double ruleGap)
-{
-    TableLayout::Rooms rooms;
-    rooms.first = first;
-    rooms.firstParity = ((numberOfFirst % 2) + 2) % 2;
-    rooms.ruleAbove = ruleAbove;
-    rooms.ruleGap = ruleGap;
-    // The pages after the first: not the first of their section, and odd or even as the numbers go.
-    for (int parity = 0; parity < 2; ++parity) {
-        PageStart q;
-        q.section = section;
-        q.firstOfSection = false;
-        const double body = furnitureOf(1 << 20, q, parity == 0 ? 2 : 1).body.height();
-        rooms.full[parity] = body - (TableFlow::repeatsHeader(table, row, body) ? table.headerHeight() : 0);
-    }
-    return rooms;
-}
-
 QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, const PageStart &st, TablesRun *tr)
 {
     Ledger ledger(int(frames.size()));
@@ -159,7 +131,6 @@ void Paginator::restackNotes(const QVector<FrameSpec> &frames, Ledger *led, Tabl
 QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, const PageStart &st, TablesRun *tr, Ledger *led)
 {
     int piece = st.piece;
-    const int pieceRoom = st.pieceRoom;
     bool *windowShort = &tr->windowShort;
     m_pieces.clear();
     const TableIndex &ix = m_tables->index();
@@ -228,14 +199,17 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
         if (const int sp = ix.spanAt(pos); sp >= 0) {
             const std::shared_ptr<TableLayout> table = m_tables->layout(sp);
             if (!table) return out;
-            const int tableSection = sectionAt(st, ix.spans()[size_t(sp)].from);
             const int first = table->rowOfPosition(pos);
             for (int r = first; r < table->rowCount(); ++r) {
                 const TableLayout::Row &row = table->row(r);
                 const double height = table->rowHeight(r);
                 int state = r == first ? piece : 0;
-                double rowFirst = state != 0 ? firstOfRoom(pieceRoom) : 0;   // (the room the row's first part had)
-                bool ruleAbove0 = state != 0 && ruleAboveOfRoom(pieceRoom);
+                QVector<double> offs;   // where in the row's cells the part to be placed begins (none: at the top)
+                if (state != 0) offs = st.pieceAt;
+                if (offs.size() != row.cells) {
+                    offs.clear();
+                    state = 0;   // (a page start that is not of this row: the row from its top)
+                }
                 const bool cites = notes && table->rowHasNotes(r);
                 const QVector<NoteRef> rowNotes = cites ? table->rowNotes(r) : QVector<NoteRef>();
                 for (bool placed = false; !placed;) {
@@ -251,7 +225,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                         ln.lines = state + 1;
                         ln.rect = QRectF(0, 0, frames[over].size.width(), height);
                         out << ln;
-                        m_roomOut = roomOfPart(rowFirst, ruleAbove0);
+                        m_offsOut = offs;
                         return out;
                     }
                     const double colH = frames[f].size.height(), colW = frames[f].size.width();
@@ -278,13 +252,8 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                     }
                     if (state != 0 || table->splittable(r)) {
                         // The row, or what is left of it, over the foot of the column: the lines of its cells that fit, and the rest on the next.
-                        if (state == 0) {
-                            rowFirst = avail;
-                            ruleAbove0 = led->reserve[f] > 0;
-                        }
                         if (cites) knowGaps();
-                        const TableLayout::Rooms rooms = partRooms(*table, r, tableSection, tr->pageNumber - state, rowFirst, ruleAbove0, led->ruleGap > 0 ? led->ruleGap : 0);
-                        const TableLayout::Piece part = table->pieceOf(r, state, rooms, avail, atTop || state != 0);
+                        const TableLayout::Piece part = table->pieceOf(r, state, offs, avail, led->reserve[f] <= 0, led->ruleGap > 0 ? led->ruleGap : 0, atTop || state != 0);
                         if (part.progress) {
                             ln.frame = f;
                             ln.line = state;
@@ -297,7 +266,8 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                             if (!part.next) placed = true;
                             state = part.next;
                             if (part.next) {
-                                m_roomOut = roomOfPart(rowFirst, ruleAbove0);
+                                offs = part.ends;
+                                m_offsOut = offs;
                                 ++f;   // (the rest of the row is in the next column, or on the next page)
                                 y = 0;
                             }
@@ -460,28 +430,34 @@ int Paginator::pageOfTablePosition(int position)
     const std::shared_ptr<TableLayout> table = m_tables->layout(span);
     if (!table) return -1;
     const int home = pageOfPosition(position);
-    const int parts = page(home).start.piece;
-    if (parts == 0) return home;
-    // The row is in parts on the pages before this one, which is its last: its first is `parts` pages back, and the part that has the position's line is the first whose cell ends below it.
     const int r = table->rowOfPosition(position), cell = table->cellOfPosition(position);
-    if (cell < 0) return home;
+    const int from = table->row(r).from;
+    // A row that no page starts in is whole on the page that has it.
+    if (page(home).start.pos != from || cell < 0) return home;
     const double y = table->lineTopIn(cell, position);
     if (y < 0) return home;
-    const int first = home - parts;
-    const Page continuing = page(first + 1);
-    const int stored = continuing.start.pieceRoom;
-    const double colWidth = continuing.content.width();
-    table->setNoteHeights([this, colWidth](const QString &id) { return noteHeight(id, colWidth); });
-    const TableLayout::Rooms rooms = partRooms(*table, r, continuing.start.section, page(home).number - parts, firstOfRoom(stored), ruleAboveOfRoom(stored), m_ruleGap > 0 ? m_ruleGap : 0);
     const int at = cell - table->row(r).cell0;
-    int lo = 0, hi = parts;
+    // The row is in parts on the pages that start in it, and on the one before them (unless the row begins a page). The part that has the position's line is the one whose
+    // cell begins above the line and ends below it: found among the pages, each of which says what parts of the row it has.
+    int lo = home;
+    while (lo > 0 && page(lo - 1).start.pos == from) --lo;
+    if (page(lo).start.piece != 0) --lo;
+    int hi = home;
     while (lo < hi) {
         const int mid = (lo + hi) / 2;
-        const TableLayout::Piece p = table->pieceOf(r, mid, rooms, page(first + mid).content.height(), true);
-        if (at >= 0 && at < p.ends.size() && p.ends[at] > y) hi = mid;
-        else lo = mid + 1;
+        double top = 1e18, bottom = -1;
+        bool found = false;
+        for (const TableLayout::Piece &piece : partsOnPage(mid, span, r)) {
+            if (at < 0 || at >= piece.ends.size() || at >= piece.offsets.size()) continue;
+            top = std::min(top, piece.offsets[at]);
+            bottom = std::max(bottom, piece.ends[at]);
+            found |= y >= piece.offsets[at] - 0.01 && y < piece.ends[at];
+        }
+        if (found) return mid;
+        if (bottom < 0) return home;   // (no part of the row on the page: not found)
+        if (y < top) hi = mid - 1; else lo = mid + 1;
     }
-    return first + lo;
+    return std::clamp(lo, 0, home);
 }
 
 void Paginator::addTableFragments(MaterializedPage *page, const QVector<QRectF> &cols, const QRectF &body, const std::vector<TableGroup> &groups)
