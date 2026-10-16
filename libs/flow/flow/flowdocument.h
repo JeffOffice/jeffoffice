@@ -147,4 +147,8 @@ private:
     std::unique_ptr<QTextDocument> m_story;
 };
 
+// A copy of a story for a page. (Qt's own copy leaves the first paragraph, when it is empty, without its formatting: its line height, and the size of
+// its mark, so it is as tall as the document's default font makes it.)
+std::unique_ptr<QTextDocument> cloneStory(const QTextDocument *story);
+
 } // namespace jp::flow

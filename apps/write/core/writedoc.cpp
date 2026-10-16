@@ -6,6 +6,7 @@
 
 #include <QDataStream>
 #include <QLocale>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -223,6 +224,24 @@ void WriteDoc::setUpEnvironment()
     f.env.wordLines = true;
     // The file's own compatibility option: no punctuation hangs past the margin.
     if (!m_wml.settingsName.isEmpty()) f.env.wordNoHang = partData(m_wml.settingsName).contains("doNotWrapTextWithPunct");
+    // The stand-ins for the fonts the file names that the machine doesn't have: the alternate its font table gives, or by its kind a serif face or a
+    // fixed-width one.
+    for (const KeptPart &part : m_wml.parts) {
+        if (!part.name.endsWith(QLatin1String("fontTable.xml"), Qt::CaseInsensitive)) continue;
+        const QString xml = QString::fromUtf8(partData(part.name).left(1 << 20));
+        static const QRegularExpression font(QStringLiteral("<w:font [^>]*w:name=\"([^\"]*)\"[^>]*>(.*?)</w:font>"), QRegularExpression::DotMatchesEverythingOption);
+        static const QRegularExpression family(QStringLiteral("<w:family w:val=\"(\\w+)\"")), alternate(QStringLiteral("<w:altName w:val=\"([^\"]+)\""));
+        auto it = font.globalMatch(xml);
+        for (int n = 0; it.hasNext() && n < 4000; ++n) {
+            const QRegularExpressionMatch m = it.next();
+            const QRegularExpressionMatch alt = alternate.match(m.captured(2)), fam = family.match(m.captured(2));
+            const QString kind = fam.hasMatch() ? fam.captured(1) : QString();
+            if (alt.hasMatch()) f.env.standIns.insert(m.captured(1).toLower(), alt.captured(1));
+            else if (kind == QLatin1String("roman")) f.env.standIns.insert(m.captured(1).toLower(), QStringLiteral("Times New Roman"));
+            else if (kind == QLatin1String("modern")) f.env.standIns.insert(m.captured(1).toLower(), QStringLiteral("Courier New"));
+        }
+        break;
+    }
     QFont body(f.env.fonts.body);
     body.setPointSizeF(m_wml.styles.defaultRun.size.value_or(22) / 2.0);
     f.story()->setDefaultFont(body);

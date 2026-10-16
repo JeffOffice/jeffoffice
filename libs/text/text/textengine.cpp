@@ -226,6 +226,7 @@ QString LayoutEnv::key() const
     QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
+    for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
     for (int i = 0; i < SlotCount; ++i) k += colors.c[i].name();
     return k;
 }
@@ -688,10 +689,26 @@ static double scaledSize(double size, const LayoutEnv &env)
     return env.slideLines ? slideShrunkSize(size, env.fontScale) : std::max(1.0, size * env.fontScale);
 }
 
+namespace { static bool wordKnowsFamily(const QString &lower); }
+
 QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env)
 {
-    // A family the document carries a font of is that font's private name from here on, before the stand-ins are looked for.
     QTextCharFormat f = original;
+    // A word processor sets a family that isn't on its machine in Calibri (its stand-in): the names it knows, the ones this machine has, and those the
+    // document carries a font of are not such.
+    if (env.wordLines && f.hasProperty(QTextFormat::FontFamilies)) {
+        QStringList families = f.fontFamilies().toStringList();
+        bool changed = false;
+        for (QString &family : families) {
+            const QString lower = family.toLower();
+            if (family.isEmpty() || wordKnowsFamily(lower) || env.familyAliases.contains(lower) || QFontDatabase::hasFamily(family) || !substituteFor(family).isEmpty() || substituteStretch(family) != 100) continue;
+            const QString named = env.standIns.value(lower);
+            family = !named.isEmpty() && (wordKnowsFamily(named.toLower()) || QFontDatabase::hasFamily(named)) ? named : QStringLiteral("Calibri");
+            changed = true;
+        }
+        if (changed) f.setFontFamilies(families);
+    }
+    // A family the document carries a font of is that font's private name from here on, before the stand-ins are looked for.
     if (!env.familyAliases.isEmpty()) {
         QStringList families;
         if (f.hasProperty(QTextFormat::FontFamilies)) families = f.fontFamilies().toStringList();
@@ -1324,6 +1341,13 @@ static const WordFontRow kWordFonts[] = {
     {"bodoni mt black", 1878, 514, 1878, 514, 0}, {"tw cen mt condensed extra bold", 1788, 430, 1788, 430, 0},
     {"news gothic mt", 2003, 458, 2003, 458, 0}, {"univers", 2025, 512, 2025, 512, 0},
 };
+
+static bool wordKnowsFamily(const QString &lower)
+{
+    for (const WordFontRow &r : kWordFonts)
+        if (lower == QLatin1String(r.family)) return true;
+    return false;
+}
 
 // A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for).
 static WordLine wordFaceOf(const QFont &f)
@@ -2389,7 +2413,22 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // JeffPub's own has a little room.
             B->markerGap = bfont.isEmpty() && !env.slideLines ? 4 * scale : 0;
             markerW = B->markerAdv + B->markerGap;
-            if (lf.hasProperty(tp::BulletTab)) markerW = std::max(markerW, lf.property(tp::BulletTab).toDouble() * scale - (leftM + textIndent));
+            if (lf.hasProperty(tp::BulletTab)) {
+                markerW = std::max(markerW, lf.property(tp::BulletTab).toDouble() * scale - (leftM + textIndent));
+            } else if (env.wordLines && textIndent >= 0) {
+                // A word processor's number or bullet is followed by a tab: the text begins at the next stop past it, one of the paragraph's own or,
+                // past the last of those, a default one (from the text area's edge).
+                const double first = leftM + textIndent, end = first + B->markerAdv;
+                const double step = std::max(1.0, env.defaultTab) * scale;
+                double stop = -1, last = -1;
+                for (const QTextOption::Tab &t : bf.tabPositions()) {
+                    const double at = t.position * scale;
+                    last = std::max(last, at);
+                    if (at > end + 0.01 && (stop < 0 || at < stop)) stop = at;
+                }
+                if (stop < 0) stop = (std::floor((std::max(end, last) + 0.01) / step) + 1) * step;
+                markerW = stop - first;
+            }
             B->markerOff = markerW;
             // The bullet's own line height counts on the item's first line: a
             // Symbol bullet (as .pub lists have) is taller than most text.

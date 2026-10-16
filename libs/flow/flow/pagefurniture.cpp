@@ -86,7 +86,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
         if (!story) return;
         auto s = std::make_shared<Story>();
         s->id = QStringLiteral("flow-%1-%2").arg(QLatin1String(name)).arg(d->pages[0]->id);
-        s->doc.reset(story->clone());
+        s->doc = cloneStory(story);
         resolveImages(s->doc.get(), d);
         if (!m_doc->objects.isEmpty()) {
             // The objects set in the header or footer are where its lines put them.
