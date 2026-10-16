@@ -31796,6 +31796,57 @@ private Q_SLOTS:
         for (const char *word : {"Objectives", "creative", "attitude", "fifty", "flies", "offline"}) QVERIFY2(text.contains(QLatin1String(word)), qPrintable(text));
     }
 
+    // A drawing's text is in the PDF as text with no ink, where the drawing's own letters are outlines (Qt's renderer draws an SVG's text as
+    // paths): an SVG picture's words (a chart's labels), turned and anchored as the drawing says, and not the words that are hidden.
+    void exportPdfCarriesTheTextOfAnSvgPicture()
+    {
+        const QByteArray svg =
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">"
+            "<rect x=\"0\" y=\"0\" width=\"300\" height=\"200\" fill=\"#eeeeee\"/>"
+            "<text x=\"150\" y=\"40\" text-anchor=\"middle\" font-family=\"Arimo\" font-size=\"20\">Sales by region</text>"
+            "<text x=\"10\" y=\"80\" font-family=\"Carlito\" font-size=\"20\">Objectives: craft attitude</text>"
+            "<g transform=\"translate(30,180) rotate(-90)\"><text x=\"0\" y=\"0\" font-family=\"Arimo\" font-size=\"12\">Revenue axis</text></g>"
+            "<g display=\"none\"><text x=\"10\" y=\"10\" font-size=\"12\">Hidden words</text></g>"
+            "<defs><text id=\"t\" x=\"10\" y=\"10\" font-size=\"12\">Defined only</text></defs>"
+            "<text x=\"60\" y=\"190\" font-size=\"10\"><tspan>Tick </tspan><tspan>2.5</tspan></text></svg>";
+        auto d = deck::newPresentation();
+        addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 200));
+        QString err;
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        const QString text = pdfText(pdf);
+        QVERIFY2(text.contains(QStringLiteral("Sales by region")), qPrintable(text));
+        // (Said without ligatures, as the PDF's own text is: "ti" and "ft" are one glyph each in the bundled Carlito.)
+        QVERIFY2(text.contains(QStringLiteral("Objectives: craft attitude")), qPrintable(text));
+        // (A reader that copies turned text may set a space between its letters.)
+        QVERIFY2(QString(text).remove(QLatin1Char(' ')).contains(QStringLiteral("Revenueaxis")), qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("Tick 2.5")), qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("Hidden")), qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("Defined")), qPrintable(text));
+    }
+
+    // A drawing can't make the PDF hold more words than it may: the most texts of one drawing are said (five thousand), each cut at a thousand letters.
+    void exportPdfBoundsTheTextOfAnSvgPicture()
+    {
+        QByteArray svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">"
+                         "<text x=\"10\" y=\"100\" font-size=\"8\">early</text><text x=\"10\" y=\"60\" font-size=\"2\">" + QByteArray(5000, 'z') + "</text>";
+        for (int i = 0; i < 5300; ++i) svg += "<text x=\"10\" y=\"20\" font-size=\"4\">filler</text>";
+        svg += "<text x=\"10\" y=\"150\" font-size=\"8\">late</text></svg>";
+        auto d = deck::newPresentation();
+        addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 200));
+        QElapsedTimer timer;
+        timer.start();
+        QString err;
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        QVERIFY2(timer.elapsed() < 90000, qPrintable(QString::number(timer.elapsed())));
+        const QString text = pdfText(pdf);
+        QVERIFY2(text.contains(QStringLiteral("early")), "the first texts are said");
+        QVERIFY2(!text.contains(QStringLiteral("late")), "the texts after the most are not");
+        const int zs = text.count(QLatin1Char('z'));   // (cut at a thousand letters)
+        QVERIFY2(zs >= 100 && zs <= 1000, qPrintable(QString::number(zs)));
+    }
+
     // A notes page has the slide framed in its upper half and the speaker
     // notes under it; a page without notes has nothing there.
     void notesPagePaintsTheSlideAboveItsNotes()
