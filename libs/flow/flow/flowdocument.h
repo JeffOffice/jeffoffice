@@ -13,6 +13,7 @@
 #include <QTextFormat>
 #include <QVector>
 #include <memory>
+#include <optional>
 
 class QTextDocument;
 
@@ -56,7 +57,7 @@ struct Section {
     double headerDistance = 36, footerDistance = 36;   // from the page's edge
     bool differentFirstPage = false;         // the first page uses the header and footer's first slot
     bool differentOddEven = false;           // odd and even pages use their own slots
-    int firstPageNumber = 0;                 // the number the section's first page has (0: it goes on from the section before)
+    std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
 
     int columnCount() const;                 // `columns`, from 1 to kMostColumns

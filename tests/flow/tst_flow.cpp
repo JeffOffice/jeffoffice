@@ -1922,7 +1922,7 @@ private Q_SLOTS:
         second = third = fd.sections[0];
         second.firstPageNumber = 1;
         second.pageNumberFormat = QStringLiteral("roman");
-        third.firstPageNumber = 0;   // goes on from the second
+        third.firstPageNumber.reset();   // goes on from the second
         fd.sections[0].firstPageNumber = 5;
         fd.sections << second << third;
         Paginator pg(&fd);
@@ -1952,6 +1952,27 @@ private Q_SLOTS:
         pg.pageCount();
         QCOMPARE(pg.page(first2).number, 1);
         QVERIFY(pg.numberStepsForTest() < 40 * pages);
+    }
+
+    // A section may start its page numbers at 0 (a cover that is not counted); only a section that says nothing goes on from the one before.
+    void aSectionCanStartItsPageNumbersAtZero()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 5, 14, [](int i, QTextBlockFormat &bf) {
+            if (i == 0 || i == 2) bf.setProperty(flow::fp::SectionBreakAfter, true);
+            if (i == 1) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+        }, 3, 6);
+        Section second, third;
+        second = third = fd.sections[0];
+        second.firstPageNumber = 0;
+        fd.sections << second << third;
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 4);
+        QCOMPARE(pg.page(0).number, 1);
+        QCOMPARE(pg.page(1).number, 0);
+        QCOMPARE(pg.page(2).number, 1);
+        QCOMPARE(pg.page(3).number, 2);   // (the third says nothing: it goes on)
+        QCOMPARE(pg.materialize(1)->number, 0);
     }
 
     // Several edits before the pages are laid out again are settled together.
