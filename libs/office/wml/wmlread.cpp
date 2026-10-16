@@ -729,6 +729,15 @@ bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts)
     return true;
 }
 
+QString noteNumberRestart(const QByteArray &settings, const char *group)
+{
+    XmlTree tree;
+    if (!tree.parse(settings, nullptr)) return QString();
+    const int notes = tree.child(tree.root(), group);
+    const int restart = notes < 0 ? -1 : tree.child(notes, "numRestart");
+    return restart < 0 ? QString() : tree.val(restart);
+}
+
 bool compatOption(const QByteArray &settings, const char *name)
 {
     XmlTree tree;

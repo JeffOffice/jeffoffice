@@ -174,6 +174,9 @@ private:
     std::unique_ptr<NoteFields> m_noteFields;
     QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
+    // (The stories of the notes and of the headers and footers are made when a page needs them and are not edited: nothing in the program reaches them yet. When
+    // something does, the paginator has to be told as it is of the story's edits (its measures of them are kept by the story's revision), and the pages that show
+    // them made again.)
     QHash<QString, std::shared_ptr<QTextDocument>> m_noteStories;     // the stories made of them
     QHash<QString, std::shared_ptr<QTextDocument>> m_headerStories;   // by part name
     QHash<int, office::wml::HeaderRefs> m_headerRefs;                 // by the key of the section's record

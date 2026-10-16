@@ -402,6 +402,10 @@ constexpr int kMaxFonts = 4000;
 // Reads the fonts of a font table part. False, with nothing read, when the part isn't XML.
 bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts);
 
+// How the numbers of the notes begin again, from the settings part's w:footnotePr or w:endnotePr (`group`): the value of its w:numRestart (continuous, eachSect, or
+// eachPage), empty if it says none.
+QString noteNumberRestart(const QByteArray &settings, const char *group);
+
 // Whether a compatibility option of the settings part (an element of w:compat) is on: stated, and not turned off (w:val 0, false, or off).
 bool compatOption(const QByteArray &settings, const char *name);
 

@@ -274,12 +274,26 @@ QString pageSignature(Paginator &pg, int k, bool made)
     return s;
 }
 
+// The places the pages begin at, for a message.
+QString startsText(Paginator &p)
+{
+    QStringList l;
+    const int n = p.pageCount();
+    for (int k = 0; k < n; ++k) {
+        const auto s = p.page(k).start;
+        l << QStringLiteral("%1/%2/%3/%4/%5/%6[%7]").arg(s.pos).arg(s.skip).arg(s.hard).arg(s.section).arg(s.foot).arg(s.end).arg(s.carried.join(QLatin1Char(',')));
+    }
+    return l.join(QLatin1Char(' '));
+}
+
 // The first page where `incremental` (a paginator that was laid out before the story was edited) differs from a paginator made after, or nothing.
 QString differenceFromFresh(FlowDocument &fd, Paginator &incremental, bool made = true)
 {
     Paginator fresh(&fd);
     const int pages = incremental.pageCount(), want = fresh.pageCount();
-    if (pages != want) return QStringLiteral("%1 pages after the edits, %2 when made afresh").arg(pages).arg(want);
+    if (pages != want) {
+        return QStringLiteral("%1 pages after the edits, %2 when made afresh; starts [%3] and [%4]").arg(pages).arg(want).arg(startsText(incremental), startsText(fresh));
+    }
     for (int k = 0; k < pages; ++k) {
         const QString a = pageSignature(incremental, k, made), b = pageSignature(fresh, k, made);
         if (a != b) {
@@ -1633,8 +1647,15 @@ private Q_SLOTS:
             return lay.lineInfo(0).first().rect.height();
         };
         const QString missing = QStringLiteral("No Such Typeface Anywhere");
-        QVERIFY(std::abs(height(missing, {}) - (1950 + 550) / 2048.0 * 12) < 0.01);
-        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Times New Roman")}}) - (1825 + 443 + 87) / 2048.0 * 12) < 0.01);
+        const double calibri = (1950 + 550) / 2048.0 * 12, times = (1825 + 443 + 87) / 2048.0 * 12, arial = (1854 + 434 + 67) / 2048.0 * 12, courier = (1705 + 615) / 2048.0 * 12;
+        // Each stand-in the table names is the line it is set in (none of them is the Calibri that a family with no entry gets).
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Times New Roman")}}) - times) < 0.01);
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Arial")}}) - arial) < 0.01);
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Courier New")}}) - courier) < 0.01);
+        QVERIFY(std::abs(times - calibri) > 0.5 && std::abs(arial - calibri) > 0.1 && std::abs(courier - calibri) > 0.5);
+        // A family with no entry, or an entry that names another family that isn't there, is set in Calibri.
+        QVERIFY(std::abs(height(missing, {}) - calibri) < 0.01);
+        QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Another Missing Typeface")}}) - calibri) < 0.01);
     }
 
     // A section's page numbers in dashes are the number between two hyphens, a space each side.
@@ -2259,6 +2280,109 @@ private Q_SLOTS:
         }
     }
 
+    // Edits of every kind to a document with headers for the first, odd, and even pages of other heights, notes (one of them longer than a page), sections that
+    // are continuous and that are on pages of their own (with other columns), and page breaks: after each, the paginator that laid the document out before is
+    // the paginator a fresh one is, in its page count, the lines of each page, and where the notes and boxes of each page are.
+    void incrementalPaginationMatchesAFreshOneAfterRandomEdits()
+    {
+        int compared = 0;
+        for (bool restart : {false, true})
+            for (unsigned seed = 1; seed <= (qEnvironmentVariableIsSet("JP_FUZZ") ? qEnvironmentVariable("JP_FUZZ").toUInt() : 4u); ++seed) {   // (JP_FUZZ=n: seeds 1 to n, for a longer run)
+                std::mt19937 rng(seed * 7919u + (restart ? 1u : 0u));
+                TestNotes notes;
+                const int words[] = {3, 12, 60, 900, 4, 30};
+                QStringList ids;
+                for (int i = 0; i < 6; ++i) {
+                    ids << QStringLiteral("n%1").arg(i);
+                    addNote(&notes, ids.last(), words[i], QStringLiteral("NOTE%1").arg(i));
+                }
+                FlowDocument fd;
+                fd.env.wordLines = true;
+                fd.fields = &notes;
+                fd.restartNotesInSections = restart;
+                fillStory(fd.story(), 44, seed, [](int i, QTextBlockFormat &bf) {
+                    bf.setBottomMargin(6);
+                    if (i == 7 || i == 24 || i == 38) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
+                    if (i == 15 || i == 30) bf.setProperty(flow::fp::SectionBreakAfter, true);
+                    if (i % 3 == 0) bf.setProperty(tp::WidowControl, true);
+                }, 20, 70);
+                Section &a = fd.sections[0];
+                a.differentFirstPage = a.differentOddEven = true;
+                a.header.first = furnitureStory({QStringLiteral("FIRST")});
+                a.header.odd = furnitureStory({QStringLiteral("ODD")});
+                a.header.even = furnitureStory({QStringLiteral("EVEN 1"), QStringLiteral("EVEN 2"), QStringLiteral("EVEN 3"), QStringLiteral("EVEN 4")});
+                a.footer.odd = furnitureStory({QStringLiteral("FOOT ODD")});
+                a.footer.even = furnitureStory({QStringLiteral("FOOT EVEN 1"), QStringLiteral("FOOT EVEN 2")});
+                Section b = a;
+                b.continuous = true;
+                b.columns = 2;
+                b.columnGap = 20;
+                Section c = a;
+                c.columns = 1;
+                c.differentFirstPage = false;
+                c.margins = QMarginsF(90, 60, 54, 80);
+                c.header.even = furnitureStory({QStringLiteral("C EVEN 1"), QStringLiteral("C EVEN 2"), QStringLiteral("C EVEN 3"), QStringLiteral("C EVEN 4"), QStringLiteral("C EVEN 5")});
+                fd.sections << b << c;
+                for (const int block : {40, 22, 5, 33, 12}) addReference(fd.story(), fd.story()->findBlockByNumber(block).position() + 4, ids[rng() % 6]);
+                Paginator pg(&fd);
+                QVERIFY(pg.pageCount() > 4);
+                QString trace;
+                for (int step = 0; step < 12; ++step) {
+                    QTextCursor cur(fd.story());
+                    const QString was = startsText(pg);
+                    const int last = std::max(1, fd.story()->characterCount() - 1);
+                    const int at = int(rng() % unsigned(last));
+                    const QTextBlock blk = fd.story()->findBlock(at);
+                    const bool flagged = blk.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+                    QTextCharFormat cf;
+                    cf.setFontPointSize(11);
+                    const unsigned what = rng() % 6;
+                    cur.setPosition(at);
+                    if (what == 0 || what == 1) {
+                        QString text;
+                        for (unsigned w = 0, n = 3 + rng() % 60; w < n; ++w) text += QStringLiteral("word%1 ").arg(rng() % 100);
+                        cur.insertText(text, cf);
+                        trace += QStringLiteral("text@%1 ").arg(at);
+                    } else if (what == 2) {
+                        const int len = std::min<int>(int(rng() % 400), blk.position() + blk.length() - 1 - at);
+                        if (len > 0) {
+                            cur.setPosition(at + len, QTextCursor::KeepAnchor);
+                            cur.removeSelectedText();
+                        }
+                        trace += QStringLiteral("cut@%1+%2 ").arg(at).arg(len);
+                    } else if (what == 3 && !flagged) {
+                        cur.setPosition(blk.position() + blk.length() - 1);
+                        QTextBlockFormat nf;
+                        nf.setBottomMargin(6);
+                        cur.insertBlock(nf, cf);
+                        QString text;
+                        for (unsigned w = 0, n = 10 + rng() % 70; w < n; ++w) text += QStringLiteral("para%1 ").arg(rng() % 100);
+                        cur.insertText(text, cf);
+                        trace += QStringLiteral("para@%1 ").arg(blk.position());
+                    } else if (what == 4 && blk.position() > 0 && !flagged) {
+                        QTextBlockFormat bf = blk.blockFormat();
+                        bf.setPageBreakPolicy(bf.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore ? QTextFormat::PageBreak_Auto : QTextFormat::PageBreak_AlwaysBefore);
+                        cur.setPosition(blk.position());
+                        cur.setBlockFormat(bf);
+                        trace += QStringLiteral("break@%1 ").arg(blk.position());
+                    } else {
+                        addReference(fd.story(), at, ids[rng() % 6]);
+                        trace += QStringLiteral("note@%1 ").arg(at);
+                    }
+                    if (rng() % 3 == 0) pg.paginate(int(rng() % 4));   // (some of it, now)
+                    QString refsText;
+                    for (QTextBlock rb = fd.story()->begin(); rb.isValid(); rb = rb.next())
+                        for (auto rit = rb.begin(); !rit.atEnd(); ++rit)
+                            if (rit.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("footnote:"))) refsText += QStringLiteral("%1:%2 ").arg(rit.fragment().position()).arg(rit.fragment().charFormat().stringProperty(tp::Field).mid(9));
+                    const QString bad0 = differenceFromFresh(fd, pg, step % 3 == 2);
+                    const QString bad = bad0.isEmpty() ? bad0 : bad0 + QStringLiteral(" refs [") + refsText + QLatin1Char(']');
+                    QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("restart %1, seed %2, step %3 (%4): %5 (before the last edit: %6)").arg(restart).arg(seed).arg(step).arg(trace, bad, was)));
+                    ++compared;
+                }
+            }
+        QVERIFY(compared >= 90);
+    }
+
     // Margins that leave a page no text area (and a header and footer beside them) give it the least text area every page has, not a negative one.
     void marginsLargerThanThePageLeaveTheLeastTextArea()
     {
@@ -2441,6 +2565,48 @@ private Q_SLOTS:
         const double small = seconds(400), large = seconds(1600);
         // (Four times the references: four times the time when it is in step, sixteen when it is the square; it was twenty before.)
         QVERIFY2(large < small * 8, qPrintable(QStringLiteral("400 references %1 s, 1600 references %2 s").arg(small).arg(large)));
+    }
+
+    // Note numbers that restart in each section restart where a continuous section begins in the middle of a page: on the page, in its references and in
+    // its notes, and in the numbers the pages after it go on from.
+    void noteNumbersRestartAtAContinuousSectionBreak()
+    {
+        auto numbersOf = [](Paginator &pg, int k, QStringList *references, QStringList *notes) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            QStringList ids = page->doc->stories.keys();
+            ids.sort();
+            for (const QString &id : ids)
+                for (QTextBlock b = page->doc->story(id)->doc->begin(); b.isValid(); b = b.next())
+                    for (auto it = b.begin(); !it.atEnd(); ++it) {
+                        const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                        if (code.startsWith(QLatin1String("raw:"))) (id.startsWith(QLatin1String("flow-note-")) ? notes : references)->push_back(code.mid(4));
+                    }
+        };
+        for (bool restart : {false, true}) {
+            TestNotes notes;
+            for (const char *id : {"a", "b", "c", "d"}) addNote(&notes, QString::fromLatin1(id), 3, QString::fromLatin1(id).toUpper());
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fd.restartNotesInSections = restart;
+            fillStory(fd.story(), 4, 3, [](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i == 1) bf.setProperty(flow::fp::SectionBreakAfter, true);
+            }, 8, 12);
+            Section second = fd.sections[0];
+            second.continuous = true;
+            fd.sections << second;
+            const char *ids[] = {"a", "b", "c", "d"};
+            for (int i = 3; i >= 0; --i) addReference(fd.story(), fd.story()->findBlockByNumber(i).position() + 3, QString::fromLatin1(ids[i]));
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 1);
+            QStringList references, shown;
+            numbersOf(pg, 0, &references, &shown);
+            const QStringList want = restart ? QStringList{"1", "2", "1", "2"} : QStringList{"1", "2", "3", "4"};
+            QCOMPARE(references, want);
+            QCOMPARE(shown, want);
+        }
     }
 
     // A footnote is at the foot of the page that cites it, in a text box of its own at the bottom of the text area with a rule above it, and its

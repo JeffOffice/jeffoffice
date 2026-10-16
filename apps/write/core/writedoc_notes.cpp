@@ -5,7 +5,6 @@
 #include "text/textengine.h"
 #include "text/textprops.h"
 
-#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -52,8 +51,7 @@ void WriteDoc::loadNotes()
     m_flow->fields = m_noteFields.get();
     // The notes' numbers begin again in each section when the file's settings say so.
     const QByteArray settings = m_wml.settingsName.isEmpty() ? QByteArray() : partData(m_wml.settingsName);
-    static const QRegularExpression restart(QStringLiteral("<w:footnotePr>.*?<w:numRestart [^>]*w:val=\"eachSect\""), QRegularExpression::DotMatchesEverythingOption);
-    m_flow->restartNotesInSections = restart.match(QString::fromUtf8(settings)).hasMatch();
+    m_flow->restartNotesInSections = office::wml::noteNumberRestart(settings, "footnotePr") == QLatin1String("eachSect");
 }
 
 // The paragraph the pages set between their text and their notes (the file's own, holding the rule): a line of the Normal style and its space after.

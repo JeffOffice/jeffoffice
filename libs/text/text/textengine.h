@@ -215,7 +215,7 @@ public:
 
     // A footnote cut at the end of a page (a text box, or a column) goes on at the bottom of the next: its
     // story, its number, and where its text goes on from.
-    struct CarriedNote { QString storyId; int number = 0; int from = 0; };
+    struct CarriedNote { QString storyId; int number = 0; int from = 0; int refPos = -1; };   // refPos: where the note's reference is in the story (-1: a note carried in, whose reference is before)
     // A stretch of the story laid out instead of all of it: a page of a long document (libs/flow lays out a
     // page at a time, each from where the one before ended). The defaults are `build` without it.
     struct Span {
@@ -243,6 +243,9 @@ public:
         // (0: all of them). A caller that wants only a few lines past its last frame says so, and a paragraph of a thousand lines costs each page only
         // its own.
         int overLines = 0;
+        // Where the numbers of the notes begin again at 1: the document positions of the first characters of the paragraphs that do (a word processor's notes
+        // that restart in each section), in order.
+        QVector<int> restartNotesAt;
         // Widow and orphan control, keeping lines together, and keeping with the next paragraph: false leaves
         // them to the caller, which then decides where the frames end.
         bool keepRules = true;
@@ -362,6 +365,7 @@ public:
         std::shared_ptr<StoryLayout> layout;   // the part with the number (all of a note that isn't cut)
         QVector<Piece> more;           // the rest of a cut note, a piece for each column it goes on in
         int from = 0;                  // while a cut note goes on: where its rest starts in the note's text
+        int refPos = -1;               // where its reference is, a document position (-1: a note carried in from before)
     };
     const QVector<Note> &notes() const { return m_notes; }
     struct Rule { int frame; QLineF line; };
