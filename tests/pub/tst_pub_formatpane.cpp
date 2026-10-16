@@ -1,6 +1,21 @@
 // The tests of the format pane's frame and property editors (libs/shell): the parts every app's Format pane is made of.
 #include "pubhelpers.h"
 
+namespace {
+
+// What an editor said it changed, in order (a function can't ride in a QSignalSpy).
+template <class Editor, class Change> struct Recorder {
+    Recorder(Editor *e, void (Editor::*signal)(const Change &))
+    {
+        QObject::connect(e, signal, e, [this](const Change &c) { list << c; });
+    }
+    int count() const { return int(list.size()); }
+    Change last() const { return list.last(); }
+    QVector<Change> list;
+};
+
+} // namespace
+
 class PubFormatPaneTests : public QObject {
     Q_OBJECT
 
@@ -163,6 +178,392 @@ private Q_SLOTS:
         QTRY_VERIFY(f.tabButton(0)->hasFocus());
         QTest::keyClick(f.focusWidget(), Qt::Key_Escape);
         QCOMPARE(escaped.count(), 1);
+    }
+
+    // A number reports each edit and says when it is let go of: a value set in the box, or typed, is one edit that is finished at once; a
+    // slider dragged, or an arrow key held, is many edits and one finish. The pane's own setValue says nothing.
+    void numberFieldReportsEditsAndFinishesWhenLetGo()
+    {
+        NumberField f;
+        f.setRange(0, 100);
+        f.setDecimals(0);
+        f.setSlider(true);
+        f.setSuffix(QStringLiteral("%"));
+        QSignalSpy edited(&f, &NumberField::edited), done(&f, &NumberField::finished);
+        f.box()->setValue(30);
+        QCOMPARE(edited.count(), 1);
+        QCOMPARE(done.count(), 1);
+        QCOMPARE(edited.last().first().toDouble(), 30.0);
+        QCOMPARE(f.slider()->value(), 30);
+        f.setValue(40);   // from the objects: no signal
+        QCOMPARE(edited.count(), 1);
+        QCOMPARE(f.value(), 40.0);
+        QCOMPARE(f.slider()->value(), 40);
+        // The slider dragged: an edit at each value, one finish at the end.
+        f.slider()->setSliderDown(true);
+        QVERIFY(f.isBusy());
+        f.setValue(5);   // the objects change under the drag: the field keeps what the person is doing
+        QCOMPARE(f.value(), 40.0);
+        for (int v = 41; v <= 60; ++v) f.slider()->setValue(v);
+        QCOMPARE(edited.count(), 21);
+        QCOMPARE(done.count(), 1);
+        f.slider()->setSliderDown(false);
+        QCOMPARE(done.count(), 2);
+        QVERIFY(!f.isBusy());
+        QCOMPARE(f.box()->value(), 60.0);
+        QCOMPARE(edited.last().first().toDouble(), 60.0);
+        // An arrow key held down: edits while it is, a finish when it is let go.
+        QTest::keyPress(f.box(), Qt::Key_Up);
+        QTest::keyPress(f.box(), Qt::Key_Up);
+        QCOMPARE(edited.count(), 23);
+        QCOMPARE(done.count(), 2);
+        QTest::keyRelease(f.box(), Qt::Key_Up);
+        QCOMPARE(done.count(), 3);
+        QCOMPARE(f.box()->value(), 62.0);
+    }
+
+    // Values the objects disagree on show as a blank box. Looking at the box changes nothing; typing in it does, and ends the blank.
+    void numberFieldShowsMixedValuesAsBlank()
+    {
+        NumberField f;
+        f.setRange(0, 100);
+        f.setDecimals(0);
+        f.resize(160, 30);
+        f.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&f));
+        f.setValue(25);
+        f.setMixed(true);
+        QVERIFY(f.isMixed());
+        QVERIFY(f.box()->cleanText().isEmpty());
+        QSignalSpy edited(&f, &NumberField::edited), done(&f, &NumberField::finished);
+        // Gone into and out of: still blank, nothing said.
+        f.box()->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(f.box()->hasFocus());
+        f.box()->clearFocus();
+        QTRY_VERIFY(!f.box()->hasFocus());
+        QCOMPARE(edited.count(), 0);
+        QVERIFY(f.isMixed());
+        QVERIFY(f.box()->cleanText().isEmpty());
+        // Typed in.
+        f.box()->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(f.box()->hasFocus());
+        QTest::keyClicks(f.box(), QStringLiteral("7"));
+        QTest::keyClick(f.box(), Qt::Key_Return);
+        QCOMPARE(edited.count(), 1);
+        QCOMPARE(edited.last().first().toDouble(), 7.0);
+        QCOMPARE(done.count(), 1);
+        QVERIFY(!f.isMixed());
+        // A value from the objects ends the blank only when the pane says so.
+        f.box()->clearFocus();
+        f.setMixed(true);
+        f.setValue(9);
+        f.setMixed(false);
+        QCOMPARE(f.box()->cleanText(), QStringLiteral("9"));
+    }
+
+    // A measure is in points and shows in the unit of Options; a value typed with a unit is read.
+    void numberFieldMeasuresInTheUnitOfOptions()
+    {
+        const Unit was = Settings::get().unit();
+        Settings::get().setUnit(Unit::Inch);
+        auto restore = qScopeGuard([&] { Settings::get().setUnit(was); });
+        NumberField f;
+        f.setMeasure(true);
+        f.setRange(0, 1584);
+        f.setValue(72);
+        QCOMPARE(f.box()->text(), Settings::get().format(72, 3));
+        QSignalSpy edited(&f, &NumberField::edited);
+        f.box()->findChild<QLineEdit *>()->setText(QStringLiteral("2 in"));
+        f.box()->interpretText();
+        QCOMPARE(edited.count(), 1);
+        QVERIFY(std::abs(edited.last().first().toDouble() - 144) < 0.01);
+        Settings::get().setUnit(Unit::Point);
+        f.setValue(36);
+        QVERIFY(f.box()->text().startsWith(QStringLiteral("36")));
+    }
+
+    // The stops of a gradient: a click chooses one, a drag moves it between its neighbors and is one change, the keys do the same, a double
+    // click adds one in the color the bar has there, and Delete takes one away (never below two).
+    void gradientBarChoosesMovesAddsAndRemovesStops()
+    {
+        GradientBar bar;
+        bar.resize(240, 44);
+        bar.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&bar));
+        bar.setStops({{0, ColorRef::rgb(Qt::red), 0}, {1, ColorRef::rgb(Qt::blue), 0}});
+        QCOMPARE(bar.current(), 0);
+        QSignalSpy edited(&bar, &GradientBar::stopsEdited), done(&bar, &GradientBar::finished), chosen(&bar, &GradientBar::currentChanged);
+        QTest::mouseClick(&bar, Qt::LeftButton, {}, bar.markerRect(1).center().toPoint());
+        QCOMPARE(bar.current(), 1);
+        QCOMPARE(chosen.count(), 1);
+        QCOMPARE(edited.count(), 0);
+        // Dragged to the middle: edits on the way, one finish.
+        const QPointF from = bar.markerRect(1).center();
+        const double middle = bar.barRect().left() + bar.barRect().width() / 2;
+        QTest::mousePress(&bar, Qt::LeftButton, {}, from.toPoint());
+        QTest::mouseMove(&bar, QPoint(int(from.x() - 20), int(from.y())));
+        QTest::mouseMove(&bar, QPoint(int(middle), int(from.y())));
+        QVERIFY(edited.count() >= 1);
+        QCOMPARE(done.count(), 0);
+        QTest::mouseRelease(&bar, Qt::LeftButton, {}, QPoint(int(middle), int(from.y())));
+        QCOMPARE(done.count(), 1);
+        QVERIFY(std::abs(bar.stops()[1].pos - 0.5) < 0.03);
+        // It can't pass the stop before it.
+        QTest::mousePress(&bar, Qt::LeftButton, {}, bar.markerRect(1).center().toPoint());
+        QTest::mouseMove(&bar, QPoint(int(bar.barRect().left()) - 10, int(from.y())));
+        QTest::mouseRelease(&bar, Qt::LeftButton, {}, QPoint(int(bar.barRect().left()) - 10, int(from.y())));
+        QVERIFY(bar.stops()[1].pos >= bar.stops()[0].pos);
+        QCOMPARE(bar.stops().size(), 2);
+        bar.setStops({{0, ColorRef::rgb(Qt::red), 0}, {1, ColorRef::rgb(Qt::blue), 0}});
+        // The keys: Right moves a stop by a hundredth and finishes when let go of; Down chooses the next stop.
+        bar.setCurrent(0);
+        bar.setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(bar.hasFocus());
+        const int finishes = done.count();
+        QTest::keyPress(&bar, Qt::Key_Right);
+        QTest::keyRelease(&bar, Qt::Key_Right);
+        QVERIFY(std::abs(bar.stops()[0].pos - 0.01) < 1e-9);
+        QCOMPARE(done.count(), finishes + 1);
+        QTest::keyClick(&bar, Qt::Key_Down);
+        QCOMPARE(bar.current(), 1);
+        // A double click on the bar adds a stop there, between the colors; the new one is chosen.
+        const QPoint at(int(bar.barRect().left() + bar.barRect().width() * 0.5), int(bar.barRect().center().y()));
+        QTest::mouseDClick(&bar, Qt::LeftButton, {}, at);
+        QCOMPARE(bar.stops().size(), 3);
+        QCOMPARE(bar.current(), 1);
+        QVERIFY(std::abs(bar.stops()[1].pos - 0.5) < 0.03);
+        const QColor mid = bar.stops()[1].color.rgbValue();
+        QVERIFY(mid.red() > 60 && mid.red() < 200 && mid.blue() > 60 && mid.blue() < 200);
+        // Delete takes the chosen one away; two stay.
+        QTest::keyClick(&bar, Qt::Key_Delete);
+        QCOMPARE(bar.stops().size(), 2);
+        QTest::keyClick(&bar, Qt::Key_Delete);
+        QCOMPARE(bar.stops().size(), 2);
+    }
+
+    // A fill editor shows the fills of the objects: the type they share (none, when they differ), and says what is changed as a function that
+    // changes a fill, so each object keeps the rest of its own.
+    void fillEditorShowsTypesAndSaysChangesToApply()
+    {
+        FillEditor e;
+        e.resize(300, 600);
+        e.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&e));
+        auto radio = [&](const char *name) { return e.findChild<QRadioButton *>(QLatin1String(name)); };
+        for (const char *n : {"fillNone", "fillSolid", "fillGradient", "fillPicture", "fillPattern"}) QVERIFY2(radio(n), n);
+        e.setFills({Fill::solid(ColorRef::rgb(Qt::red), 0.2)});
+        QVERIFY(radio("fillSolid")->isChecked());
+        e.setFills({Fill::solid(ColorRef::rgb(Qt::red)), Fill::gradient(ColorRef::rgb(Qt::red), ColorRef::rgb(Qt::blue))});
+        for (const char *n : {"fillNone", "fillSolid", "fillGradient", "fillPicture", "fillPattern"}) QVERIFY2(!radio(n)->isChecked(), n);
+        e.setFills({Fill()});
+        QVERIFY(radio("fillNone")->isChecked());
+        e.setFills({});
+        QVERIFY(!e.isEnabled());
+        QVERIFY(e.isEnabled() == false);
+
+        // Solid to gradient: two stops from the color, and the transparency the fill had.
+        Recorder<FillEditor, FillChange> changed(&e, &FillEditor::changed);
+        QSignalSpy done(&e, &FillEditor::finished), asked(&e, &FillEditor::pictureRequested);
+        e.setFills({Fill::solid(ColorRef::rgb(Qt::red), 0.2)});
+        QVERIFY(e.isEnabled());
+        radio("fillGradient")->click();
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(done.count(), 1);
+        Fill f = Fill::solid(ColorRef::rgb(Qt::red), 0.2);
+        changed.last()(f);
+        QCOMPARE(f.type, Fill::Gradient);
+        QCOMPARE(f.stops.size(), 2);
+        QCOMPARE(f.stops.first().color, ColorRef::rgb(Qt::red));
+        QCOMPARE(f.stops.first().pos, 0.0);
+        QCOMPARE(f.stops.last().pos, 1.0);
+        // No fill.
+        radio("fillNone")->click();
+        f = Fill::solid(ColorRef::rgb(Qt::red));
+        changed.last()(f);
+        QCOMPARE(f.type, Fill::NoFill);
+        // A picture fill with no picture asks for one, and changes nothing yet.
+        const int before = changed.count();
+        radio("fillPicture")->click();
+        QCOMPARE(asked.count(), 1);
+        QCOMPARE(changed.count(), before);
+        // A pattern: the button's pattern, in the colors the fill had.
+        e.setFills({Fill::solid(ColorRef::rgb(Qt::red))});
+        auto *p5 = e.findChild<QToolButton *>(QStringLiteral("pattern5"));
+        QVERIFY(p5);
+        radio("fillPattern")->click();
+        f = Fill::solid(ColorRef::rgb(Qt::red));
+        changed.last()(f);
+        QCOMPARE(f.type, Fill::Pattern);
+        QCOMPARE(f.color, ColorRef::rgb(Qt::red));
+    }
+
+    // Two fills that differ in color but are both solid: the transparency is shown as blank when they differ, and a change of it leaves each
+    // color alone.
+    void fillEditorChangesOnePropertyAndKeepsTheRest()
+    {
+        FillEditor e;
+        e.resize(300, 600);
+        e.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&e));
+        Fill a = Fill::solid(ColorRef::rgb(Qt::red), 0.2), b = Fill::solid(ColorRef::rgb(Qt::blue), 0.5);
+        e.setFills({a, b});
+        auto *t = e.findChild<NumberField *>(QStringLiteral("fillTransparency"));
+        auto *c = e.findChild<ColorButton *>(QStringLiteral("fillColor"));
+        QVERIFY(t && c);
+        QVERIFY(t->isMixed());
+        QVERIFY(t->box()->cleanText().isEmpty());
+        Recorder<FillEditor, FillChange> changed(&e, &FillEditor::changed);
+        QSignalSpy done(&e, &FillEditor::finished);
+        t->box()->setValue(40);
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(done.count(), 1);
+        const FillChange change = changed.last();
+        change(a);
+        change(b);
+        QCOMPARE(a.transparency, 0.4);
+        QCOMPARE(b.transparency, 0.4);
+        QCOMPARE(a.color, ColorRef::rgb(Qt::red));
+        QCOMPARE(b.color, ColorRef::rgb(Qt::blue));
+        // Same transparency, same color: both shown.
+        e.setFills({Fill::solid(ColorRef::rgb(Qt::red), 0.25), Fill::solid(ColorRef::rgb(Qt::red), 0.25)});
+        QVERIFY(!t->isMixed());
+        QCOMPARE(t->value(), 25.0);
+        QCOMPARE(c->current(), ColorRef::rgb(Qt::red));
+    }
+
+    // A gradient's pieces: the kind and angle, a stop's color, place, and transparency, adding and taking away stops.
+    void gradientEditorChangesTheGradientAndItsStops()
+    {
+        GradientEditor g;
+        g.resize(300, 400);
+        g.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&g));
+        Fill base;
+        base.type = Fill::Gradient;
+        base.stops = {{0, ColorRef::rgb(Qt::red), 0}, {0.5, ColorRef::rgb(Qt::green), 0.1}, {1, ColorRef::rgb(Qt::blue), 0}};
+        base.angle = 90;
+        g.setGradients({base});
+        Recorder<GradientEditor, FillChange> changed(&g, &GradientEditor::changed);
+        QSignalSpy done(&g, &GradientEditor::finished);
+        auto apply = [&](Fill f) {
+            changed.last()(f);
+            return f;
+        };
+        auto *kind = g.findChild<QComboBox *>(QStringLiteral("gradientType"));
+        auto *angle = g.findChild<NumberField *>(QStringLiteral("gradientAngle"));
+        auto *pos = g.findChild<NumberField *>(QStringLiteral("stopPosition"));
+        auto *tr = g.findChild<NumberField *>(QStringLiteral("stopTransparency"));
+        auto *add = g.findChild<QToolButton *>(QStringLiteral("gradientAdd"));
+        auto *remove = g.findChild<QToolButton *>(QStringLiteral("gradientRemove"));
+        QVERIFY(kind && angle && pos && tr && add && remove);
+        QVERIFY(kind->count() == 4);
+        QCOMPARE(kind->currentIndex(), int(Fill::Linear));
+        QCOMPARE(angle->value(), 90.0);
+        QVERIFY(angle->isVisibleTo(&g));
+        kind->setCurrentIndex(int(Fill::Radial));
+        QCOMPARE(apply(base).gradType, Fill::Radial);
+        QVERIFY(!angle->isVisibleTo(&g));   // only a linear gradient has an angle
+        kind->setCurrentIndex(int(Fill::Linear));
+        angle->box()->setValue(45);
+        QCOMPARE(apply(base).angle, 45.0);
+        // The stop chosen: the middle one.
+        g.bar()->setCurrent(1);
+        QCOMPARE(pos->value(), 50.0);
+        QCOMPARE(tr->value(), 10.0);
+        pos->box()->setValue(70);
+        Fill moved = apply(base);
+        QCOMPARE(moved.stops.size(), 3);
+        QCOMPARE(moved.stops[1].pos, 0.7);
+        QCOMPARE(moved.stops[1].color, ColorRef::rgb(Qt::green));
+        tr->box()->setValue(60);
+        QCOMPARE(apply(base).stops[1].transparency, 0.6);
+        // Add: a stop between the chosen one and the next; Remove: the chosen one, never below two.
+        add->click();
+        Fill added = apply(base);
+        QCOMPARE(added.stops.size(), 4);
+        remove->click();
+        QCOMPARE(apply(base).stops.size(), 3);
+        remove->click();
+        QCOMPARE(apply(base).stops.size(), 2);
+        QVERIFY(!remove->isEnabled());   // two stay
+        QVERIFY(done.count() >= 5);
+    }
+
+    // A line editor: none, solid, or gradient; the color, width, compound type, dash type, cap, join, and arrows of the lines, each change
+    // leaving the rest of every line alone.
+    void lineEditorShowsLinesAndSaysChangesToApply()
+    {
+        LineEditor e;
+        e.resize(300, 800);
+        e.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&e));
+        auto radio = [&](const char *name) { return e.findChild<QRadioButton *>(QLatin1String(name)); };
+        auto field = [&](const char *name) { return e.findChild<NumberField *>(QLatin1String(name)); };
+        auto combo = [&](const char *name) { return e.findChild<QComboBox *>(QLatin1String(name)); };
+        for (const char *n : {"lineNone", "lineSolid", "lineGradient"}) QVERIFY2(radio(n), n);
+        Stroke thin = Stroke::line(ColorRef::rgb(Qt::red), 0.75), thick = Stroke::line(ColorRef::rgb(Qt::red), 4);
+        thick.dash = Stroke::DashLine;
+        e.setStrokes({thin, thick});
+        QVERIFY(radio("lineSolid")->isChecked());
+        QVERIFY(field("lineWidth")->isMixed());
+        QVERIFY(field("lineWidth")->box()->cleanText().isEmpty());
+        QCOMPARE(combo("lineDash")->currentIndex(), -1);   // they differ: blank
+        QCOMPARE(combo("lineCap")->currentIndex(), 0);   // they agree: flat
+        Recorder<LineEditor, StrokeChange> changed(&e, &LineEditor::changed);
+        QSignalSpy done(&e, &LineEditor::finished);
+        auto apply = [&](Stroke s) {
+            changed.last()(s);
+            return s;
+        };
+        field("lineWidth")->box()->setValue(2.5);
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(done.count(), 1);
+        Stroke s = apply(thick);
+        QCOMPARE(s.width, 2.5);
+        QCOMPARE(s.dash, Stroke::DashLine);   // the rest stays
+        s = apply(thin);
+        QCOMPARE(s.dash, Stroke::SolidLine);
+        combo("lineDash")->setCurrentIndex(int(Stroke::LongDash));
+        QCOMPARE(apply(thin).dash, Stroke::LongDash);
+        combo("lineCompound")->setCurrentIndex(int(Stroke::ThickThin));
+        QCOMPARE(apply(thin).compound, Stroke::ThickThin);
+        combo("lineCap")->setCurrentIndex(1);
+        QCOMPARE(apply(thin).cap, Qt::RoundCap);
+        combo("lineJoin")->setCurrentIndex(0);
+        QCOMPARE(apply(thin).join, Qt::RoundJoin);
+        combo("lineBeginType")->setCurrentIndex(int(Arrow::Triangle));
+        QCOMPARE(apply(thin).startArrow, Arrow::Triangle);
+        combo("lineEndSize")->setCurrentIndex(2);
+        QCOMPARE(apply(thin).endSize, 2);
+        // No line: the color goes and the rest stays; Solid brings back a color (the old one if it had one, else the theme's).
+        radio("lineNone")->click();
+        s = apply(thick);
+        QVERIFY(s.isNone());
+        QCOMPARE(s.dash, Stroke::DashLine);
+        e.setStrokes({s});
+        QVERIFY(radio("lineNone")->isChecked());
+        radio("lineSolid")->click();
+        s = apply(s);
+        QVERIFY(!s.isNone());
+        QVERIFY(s.width > 0);
+        // A gradient line has the gradient's colors and keeps the first stop as its color.
+        radio("lineGradient")->click();
+        s = apply(Stroke::line(ColorRef::rgb(Qt::red), 3));
+        QVERIFY(s.hasGradient());
+        QCOMPARE(s.gradient.stops.size(), 2);
+        QCOMPARE(s.color, s.gradient.stops.first().color);
+        QCOMPARE(s.width, 3.0);
+        e.setStrokes({s});
+        QVERIFY(radio("lineGradient")->isChecked());
+        radio("lineSolid")->click();
+        s = apply(s);
+        QVERIFY(!s.hasGradient());
+        QVERIFY(!s.isNone());
+        // A shape's outline has no ends.
+        e.setArrowsShown(false);
+        QVERIFY(!combo("lineBeginType")->isVisibleTo(&e));
+        e.setArrowsShown(true);
+        QVERIFY(combo("lineBeginType")->isVisibleTo(&e));
     }
 
     // The pane follows the selection: it says what to do while nothing is selected, is named for what is, and shows the Picture tab for

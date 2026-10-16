@@ -287,7 +287,11 @@ void ColorButton::paintEvent(QPaintEvent *e)
     p.drawRoundedRect(r, 6, 6);
     // Swatch.
     const QRectF sw(r.left() + 8, r.center().y() - 8, 26, 16);
-    if (m_current.isNone()) {
+    if (m_mixed) {
+        p.setPen(QPen(dk ? QColor(0x80, 0x88, 0x94) : QColor(0xA0, 0xA6, 0xB0), 1, Qt::DashLine));
+        p.setBrush(Qt::NoBrush);
+        p.drawRoundedRect(sw, 3, 3);
+    } else if (m_current.isNone()) {
         p.setPen(QPen(dk ? QColor(0x80, 0x88, 0x94) : QColor(0xA0, 0xA6, 0xB0), 1));
         p.setBrush(Qt::NoBrush);
         p.drawRoundedRect(sw, 3, 3);
@@ -300,7 +304,8 @@ void ColorButton::paintEvent(QPaintEvent *e)
     }
     // Name.
     QString name;
-    if (m_current.isNone()) name = m_noneLabel.isEmpty() ? tr("No Color") : m_noneLabel;
+    if (m_mixed) name = QString();
+    else if (m_current.isNone()) name = m_noneLabel.isEmpty() ? tr("No Color") : m_noneLabel;
     else if (m_current.kind() == ColorRef::Scheme) name = slotName(m_current.slot());
     else name = m_current.resolve(m_scheme).name(QColor::HexRgb).toUpper();
     p.setPen(isEnabled() ? uiText() : QColor(0x9C, 0xA3, 0xAF));
@@ -326,6 +331,7 @@ void ColorButton::openPopup()
     }
     connect(pop, &ColorPopup::picked, this, [this](const ColorRef &c) {
         m_current = c;
+        m_mixed = false;
         refreshIcon();
         Q_EMIT colorPicked(c);
     });
@@ -333,6 +339,7 @@ void ColorButton::openPopup()
         pickColorFromWindow(window(), [this](const QColor &c) {
             ColorPopup::addRecent(c);
             m_current = ColorRef::rgb(c);
+            m_mixed = false;
             refreshIcon();
             Q_EMIT colorPicked(m_current);
         });

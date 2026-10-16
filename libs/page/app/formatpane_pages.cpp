@@ -3,6 +3,9 @@
 
 namespace jp::format {
 
-void buildPages(FormatPane *, PanePage *, PanePage *, PanePage *, PanePage *) {}
+void buildPages(FormatPane *pane, PanePage *fill, PanePage *, PanePage *, PanePage *)
+{
+    buildFillLinePage(pane, fill);
+}
 
 } // namespace jp::format

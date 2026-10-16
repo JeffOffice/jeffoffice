@@ -262,7 +262,8 @@ void writeOutline(QXmlStreamWriter &w, const char *tag, const Stroke &stroke, Dr
     static const char *const compounds[] = {"sng", "dbl", "thickThin", "thinThick", "tri"};
     attribute(w, "cmpd", QLatin1String(compounds[std::clamp(int(stroke.compound), 0, 4)]));
     attribute(w, "algn", stroke.inset ? QStringLiteral("in") : QStringLiteral("ctr"));
-    writeSolid(w, stroke.color, stroke.transparency, ctx);
+    if (stroke.hasGradient()) writeGradient(w, stroke.gradient, ctx);
+    else writeSolid(w, stroke.color, stroke.transparency, ctx);
     static const char *const dashes[] = {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash", "lgDashDot", "lgDashDotDot"};
     begin(w, "a:prstDash");
     attribute(w, "val", QLatin1String(dashes[std::clamp(int(stroke.dash), 0, 7)]));

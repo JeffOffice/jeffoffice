@@ -199,6 +199,7 @@ QJsonObject Stroke::toJson() const
     if (inset) o["inset"] = true;
     if (startArrow != Arrow::None) { o["startArrow"] = int(startArrow); o["startSize"] = startSize; }
     if (endArrow != Arrow::None) { o["endArrow"] = int(endArrow); o["endSize"] = endSize; }
+    if (gradient.type == Fill::Gradient) o["gradient"] = gradient.toJson();
     return o;
 }
 
@@ -218,6 +219,7 @@ Stroke Stroke::fromJson(const QJsonObject &o)
     s.endArrow = Arrow(o["endArrow"].toInt());
     s.startSize = o["startSize"].toInt(1);
     s.endSize = o["endSize"].toInt(1);
+    if (o.contains("gradient")) s.gradient = Fill::fromJson(o["gradient"].toObject());
     return s;
 }
 

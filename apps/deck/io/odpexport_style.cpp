@@ -6,6 +6,7 @@
 #include "io/odpexport_p.h"
 
 #include <QCoreApplication>
+#include <QJsonDocument>
 #include <QtMath>
 #include <algorithm>
 #include <cmath>
@@ -261,6 +262,9 @@ QString Exporter::strokeAttrs(const Stroke &s)
         out += attrOf("draw:marker-start", namedMarker(s.startArrow)) + attrOf("draw:marker-start-width", cm(unit * widths[std::clamp(s.startSize, 0, 2)])) + attrOf("draw:marker-start-center", QStringLiteral("false"));
     if (s.endArrow != Arrow::None)
         out += attrOf("draw:marker-end", namedMarker(s.endArrow)) + attrOf("draw:marker-end-width", cm(unit * widths[std::clamp(s.endSize, 0, 2)])) + attrOf("draw:marker-end-center", QStringLiteral("false"));
+    // A compound line and a gradient have no place in this kind of file: they are kept in attributes of our own, and the line is its color elsewhere.
+    if (s.compound != Stroke::Single) out += attrOf("jo:compound", QString::number(int(s.compound)));
+    if (s.hasGradient()) out += attrOf("jo:stroke-gradient", QString::fromUtf8(QJsonDocument(s.gradient.toJson()).toJson(QJsonDocument::Compact)));
     return out;
 }
 

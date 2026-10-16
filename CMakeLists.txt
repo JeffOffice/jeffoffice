@@ -247,6 +247,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_binaryshapes.cpp
   tests/deck/tst_deck_file.cpp
   tests/deck/tst_deck_fonts.cpp
+  tests/deck/tst_deck_format.cpp
   tests/deck/tst_deck_master.cpp
   tests/deck/tst_deck_media.cpp
   tests/deck/tst_deck_odp.cpp

@@ -75,10 +75,14 @@ struct Stroke {
     bool inset = false;            // a closed outline drawn inside the edge (.pub text box borders)
     Arrow startArrow = Arrow::None, endArrow = Arrow::None;
     int startSize = 1, endSize = 1; // 0 small, 1 medium, 2 large
+    // A line drawn in a gradient: while its type is Gradient the line takes its colors from it, along the line's own box, and color holds the
+    // first stop's (what an arrowhead is filled with, and what a file that can't keep a gradient line keeps). Else the line is its color.
+    Fill gradient;
 
     static Stroke none() { return Stroke(); }
     static Stroke line(const ColorRef &c, double w = 0.75) { Stroke s; s.color = c; s.width = w; return s; }
     bool isNone() const { return color.isNone() || width <= 0; }
+    bool hasGradient() const { return gradient.type == Fill::Gradient && !isNone(); }
     // How far in from the edge a box's text margin is measured with this line
     // around it: Publisher sets the text inside the line, from its inner edge,
     // half the weight for a line centered on the edge, all of it for an inset one.

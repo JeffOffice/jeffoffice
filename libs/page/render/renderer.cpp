@@ -82,7 +82,8 @@ static ImageLookup lookupFor(const Document &doc)
 void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs)
 {
     if (s.isNone()) return;
-    const QPen pen = s.pen(cs);
+    QPen pen = s.pen(cs);
+    if (s.hasGradient()) pen.setBrush(s.gradient.brush(path.controlPointRect(), cs));
     // Inside a closed outline's edge: the outline twice as wide, clipped to
     // the shape, so its inner half shows (dashes keep their lengths).
     if (s.inset && s.compound == Stroke::Single && path.elementCount() > 2 &&

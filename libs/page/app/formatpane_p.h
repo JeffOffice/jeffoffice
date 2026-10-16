@@ -43,8 +43,9 @@ template <class F> bool anyTakes(const QVector<Item *> &items, F &&takes)
     return false;
 }
 
-// Builds the controls of each page.
+// Builds the controls of each page (each in the formatpane_*.cpp file named for it).
 void buildPages(FormatPane *pane, PanePage *fill, PanePage *effects, PanePage *size, PanePage *picture);
+void buildFillLinePage(FormatPane *pane, PanePage *page);
 
 } // namespace format
 } // namespace jp
